@@ -1,0 +1,38 @@
+.highlight {
+  --comments-background-color: rgba(255, 212, 0, 0.14);
+  --comments-border-color: rgb(255, 212, 0);
+  --hover-color: rgba(255, 212, 0, 0.42);
+  background: var(--comments-background-color);
+  border-bottom: 2px solid var(--comments-border-color);
+  padding-bottom: 2px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--hover-color);
+  }
+  
+  &.red {
+    --comments-background-color: rgba(239, 35, 60, 0.14);
+    --comments-border-color: rgb(239, 35, 60);
+    --hover-color: rgba(239, 35, 60, 0.42);
+  }
+  
+  &.blue {
+    --comments-background-color: rgba(162, 210, 255,.14);
+    --comments-border-color: rgb(162, 210, 255);
+    --hover-color: rgba(162, 210, 255, .42);
+  }
+  
+  &.green {
+    --comments-background-color: rgba(42, 157, 143,.14);
+    --comments-border-color: rgb(42, 157, 143);
+    --hover-color: rgba(42, 157, 143, .42);
+  }
+  
+  &.purple {
+    --comments-background-color: rgba(94, 84, 142,.14);
+    --comments-border-color: rgb(94, 84, 142);
+    --hover-color: rgba(94, 84, 142, .42);
+  }
+}
+
