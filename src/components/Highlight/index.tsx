@@ -9,10 +9,6 @@ import styles from './index.module.less';
 const Highlight: React.FC<React.PropsWithChildren> = (props) => {
   const ref = useRef<HTMLSpanElement>(null);
 
-  const handleChange = (event: React.FormEvent<HTMLSpanElement>) => {
-    console.log(event.currentTarget.textContent);
-  }
-
 
   const handleOnClick = () => {
     if (!ref.current) return;
@@ -23,10 +19,8 @@ const Highlight: React.FC<React.PropsWithChildren> = (props) => {
     <span
       className={classnames(styles.highlight, styles.blue)}
       ref={ref}
-      onInput={handleChange}
       onClick={handleOnClick}
-      contentEditable 
-      suppressContentEditableWarning
+      {...props}
     >
       {props.children}
     </span>

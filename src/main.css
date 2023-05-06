@@ -1,3 +1,13 @@
+body {
+  --font: 'Merriweather', '楷体';
+  --mono-font: 'JetBrains Mono', '楷体';
+  font-family: var(--font);
+}
+
+code {
+  font-family: var(--mono-font);
+}
+
 [contenteditable] {
   outline-style: none;
 }
@@ -11,7 +21,7 @@
   border-radius: 5px;
   line-height: 1.7;
   font-size: 14px;
-  font-family: 'Monaco', '楷体';
+  font-family: var(--mono-font, "'Monaco', '楷体'");
 }
 
 .CodeMirror-scroll,

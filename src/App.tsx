@@ -1,28 +1,66 @@
 import { useState } from "react";
 import CodeMirror from "./components/CodeBlock";
-import { Editor, EditorChange } from "codemirror";
+import {createEditor, Descendant, Transforms} from 'slate';
+import {Slate, Editable, withReact, RenderElementProps, ReactEditor} from 'slate-react';
+
+
+const defaultValue = [{
+  type: 'paragraph',
+  children: [{
+    text: '这是一个 demo'
+  }]
+}, {
+  type: 'code-block',
+  language: 'javascript',
+  code: 'console.log("hello world")',
+  children: [],
+}, {
+  type: 'paragraph',
+  children: [{
+    text: '这是一个 demo'
+  }]
+},];
+
 
 const App = () => {
-  const [code, setCode] = useState(() => {
-    return localStorage.getItem('code') || '';
+  const [editor] = useState(() => withReact(createEditor()));
+  const [initValue] = useState(() => {
+    const content = localStorage.getItem('content');
+    if (content) {
+      return JSON.parse(content);
+    }
+    return defaultValue;
   });
-  const handleChange = (editor: Editor, change: EditorChange, code: string) => {
-    setCode(code);
-    localStorage.setItem('code', code);
+
+  const renderElement = (props: RenderElementProps) => {
+    const { attributes, children, element } = props;
+    const setCode = (code: string) => {
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(editor, { code }, { at: path });
+    }
+    switch (element.type) {
+      case 'code-block':
+        return (
+          <div contentEditable={false} style={{ userSelect: 'none' }}>
+            <CodeMirror {...attributes} {...element} onChange={(code) => { setCode(code) }} />
+          </div>
+        )
+      default:
+        return <p {...attributes}>{children}</p>
+    }
+  }
+
+  const save = (value: Descendant[]) => {
+    localStorage.setItem('content', JSON.stringify(value));
   }
 
   return (
-    <div>
-      <CodeMirror
-        defaultCode={code}
-        onChange={handleChange}
-        language="css"
-      />
-      <CodeMirror
-        defaultCode={code}
-        onChange={handleChange}
-        language="html"
-      />
+    <div style={{ maxWidth: 700, margin: '50px auto' }}>
+      <Slate editor={editor} value={initValue} onChange={save} >
+        <Editable
+          renderElement={renderElement}
+        />
+      </Slate>
     </div>
   )
 }

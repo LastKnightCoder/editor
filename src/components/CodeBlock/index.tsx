@@ -18,9 +18,9 @@ import 'codemirror/mode/sql/sql.js';
 import 'codemirror/mode/markdown/markdown.js';
 
 interface ICodeBlockProps {
-  defaultCode: string;
-  onChange: (editor: Editor, change: EditorChange, code: string) => void;
+  onChange: (code: string) => void;
   language?: string;
+  code: string;
 }
 
 interface ILanguageConfig {
@@ -30,7 +30,7 @@ interface ILanguageConfig {
 }
 
 const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
-  const { defaultCode, onChange, language } = props;
+  const { onChange, language, code: defaultCode } = props;
   const [code] = useState(defaultCode);
 
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
@@ -42,8 +42,8 @@ const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
     setLangConfig(languageConfig);
   }, [language]);
 
-  const handleOnBeforeChange = (editor: Editor, change: EditorChange, code: string) => {
-    onChange(editor, change, code);
+  const handleOnBeforeChange = (_editor: Editor, _change: EditorChange, code: string) => {
+    onChange(code);
   }
 
   return (
