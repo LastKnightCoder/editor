@@ -1,7 +1,8 @@
 import { useState } from "react";
 import CodeMirror from "./components/CodeBlock";
+import Highlight from "./components/Highlight";
 import {createEditor, Descendant, Transforms} from 'slate';
-import {Slate, Editable, withReact, RenderElementProps, ReactEditor} from 'slate-react';
+import {Slate, Editable, withReact, RenderElementProps, ReactEditor, RenderLeafProps} from 'slate-react';
 
 
 const defaultValue = [{
@@ -13,11 +14,26 @@ const defaultValue = [{
   type: 'code-block',
   language: 'javascript',
   code: 'console.log("hello world")',
-  children: [],
+  children: [
+    { text: '' }
+  ]
 }, {
   type: 'paragraph',
   children: [{
+    type: 'normal',
     text: '这是一个 demo'
+  }, {
+    type: 'bold',
+    text: '加粗'
+  }, {
+    type: 'italic',
+    text: '斜体'
+  }, {
+    type: 'underline',
+    text: '下划线'
+  }, {
+    type: 'highlight',
+    text: '高亮'
   }]
 },];
 
@@ -50,6 +66,24 @@ const App = () => {
     }
   }
 
+  const renderLeaf = (props: RenderLeafProps) => {
+    const { attributes, children, leaf } = props;
+
+    switch (leaf.type) {
+      case 'bold':
+        return <strong {...attributes}>{children}</strong>
+      case 'italic':
+        return <em {...attributes}>{children}</em>
+      case 'underline':
+        return <u {...attributes}>{children}</u>
+      case 'highlight':
+        return <Highlight {...attributes} >{children}</Highlight>
+
+      default:
+        return <span {...attributes}>{children}</span>
+    }
+  }
+
   const save = (value: Descendant[]) => {
     localStorage.setItem('content', JSON.stringify(value));
   }
@@ -59,6 +93,7 @@ const App = () => {
       <Slate editor={editor} value={initValue} onChange={save} >
         <Editable
           renderElement={renderElement}
+          renderLeaf={renderLeaf}
         />
       </Slate>
     </div>
