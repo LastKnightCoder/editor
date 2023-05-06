@@ -8,6 +8,10 @@ code {
   font-family: var(--mono-font);
 }
 
+p {
+  line-height: 1.8;
+}
+
 [contenteditable] {
   outline-style: none;
 }
@@ -19,9 +23,14 @@ code {
   padding: 18px;
   padding-left: 12px;
   border-radius: 5px;
-  line-height: 1.7;
+  line-height: 1.8;
   font-size: 14px;
   font-family: var(--mono-font, "'Monaco', '楷体'");
+}
+
+.CodeMirror__container .CodeMirror pre.CodeMirror-line,
+.CodeMirror__container .CodeMirror pre.CodeMirror-line-like {
+  padding: 0 12px;
 }
 
 .CodeMirror-scroll,

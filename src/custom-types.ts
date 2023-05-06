@@ -9,6 +9,7 @@ export interface CodeBlockElement {
   type: 'code-block';
   language: string;
   code: string;
+  children: Descendant[];
 }
 
 export interface HighLightText {
