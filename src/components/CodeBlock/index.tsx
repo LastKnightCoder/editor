@@ -18,6 +18,8 @@ import 'codemirror/mode/python/python.js';
 import 'codemirror/mode/sql/sql.js';
 import 'codemirror/mode/markdown/markdown.js';
 
+import 'codemirror/addon/edit/closebrackets.js';
+
 import isHotkey from "is-hotkey";
 import {RenderElementProps, useSlate} from "slate-react";
 import { Transforms, Editor as SlateEditor } from "slate";
@@ -27,7 +29,6 @@ import { CodeBlockElement } from "../../custom-types";
 interface ICodeBlockProps {
   attributes: RenderElementProps['attributes'];
   onChange: (code: string) => void;
-  children: React.ReactNode;
   element: CodeBlockElement;
   onDidMount?: (editor: Editor) => void;
   onWillUnmount?: (editor: Editor) => void;
@@ -39,7 +40,7 @@ interface ILanguageConfig {
   mime?: string;
 }
 
-const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
+const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) => {
   const { onChange, children, element, onDidMount, onWillUnmount, attributes } = props;
   const { code: defaultCode, language } = element;
   const [code] = useState(defaultCode);
@@ -58,7 +59,8 @@ const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
   }
 
   return (
-    <div {...attributes} className={styles.codeBlockContainer}>
+    <div contentEditable={false} style={{ userSelect: 'none' }} {...attributes} className={styles.codeBlockContainer}>
+      <div className={styles.windowsControl} />
       <CodeEditor
         value={code || ''}
         autoCursor
@@ -78,9 +80,10 @@ const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
           readOnly: false,
           indentUnit: 2,
           tabSize: 2,
-          cursorHeight: 0.8,
+          cursorHeight: 1,
+          autoCloseBrackets: true,
         }}
-        className='CodeMirror__container'
+        className={styles.CodeMirrorContainer}
         onChange={handleOnChange}
         editorDidMount={(editor) => {
           onDidMount && onDidMount(editor);
@@ -94,7 +97,7 @@ const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
               event.preventDefault();
               const path = ReactEditor.findPath(slateEditor, element);
               Transforms.removeNodes(slateEditor, { at: path });
-              SlateEditor.insertNode(slateEditor, { type: 'paragraph', children: [{ type: 'normal', text: '' }] });
+              SlateEditor.insertNode(slateEditor, { type: 'paragraph', children: [{ type: 'formatted', text: '' }] });
               setTimeout(() => {
                 ReactEditor.focus(slateEditor);
                 Transforms.select(slateEditor, path);
@@ -103,9 +106,7 @@ const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
           }
         }}
       />
-      <div style={{ display: 'none' }}>
-        {children}
-      </div>
+      {children}
     </div>
   )
 }

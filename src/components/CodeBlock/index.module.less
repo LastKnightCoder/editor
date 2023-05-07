@@ -1,4 +1,45 @@
 .codeBlockContainer {
   margin-bottom: 10px;
   position: relative;
+  .windowsControl {
+    position: absolute;
+    top: 24px;
+    left: 20px;
+    z-index: 1;
+    align-items: center;
+    margin: 0 10px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #E0443E;
+    box-shadow: 24px 0 #dea123, 48px 0 #1aab29;
+  }
+  .CodeMirrorContainer :global(.CodeMirror) {
+    color: #F8F8F8;
+    background-color: #0c1021;
+    height: auto;
+    padding: 48px 12px 18px 12px;
+    border-radius: 5px;
+    line-height: 1.8;
+    font-size: 14px;
+    font-family: var(--mono-font, "'Monaco', '楷体'");
+  }
+
+  .CodeMirrorContainer :global(.CodeMirror pre.CodeMirror-line),
+  .CodeMirrorContainer :global(.CodeMirror pre.CodeMirror-line-like) {
+    padding: 0 12px;
+  }
+
+  :global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
+    overflow: hidden;
+  }
+
+  :global(.CodeMirror-gutters) {
+    background-color: unset;
+    border-right: none;
+  }
+
+  :global(.CodeMirror-linenumber) {
+    cursor: pointer;
+  }
 }

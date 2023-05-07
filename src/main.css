@@ -2,6 +2,8 @@ body {
   --font: 'Merriweather', '楷体';
   --mono-font: 'JetBrains Mono', '楷体';
   font-family: var(--font);
+  padding: 0;
+  margin: 0;
 }
 
 code {
@@ -16,37 +18,6 @@ p {
   outline-style: none;
 }
 
-.CodeMirror__container .CodeMirror {
-  color: #F8F8F8;
-  background-color: #0c1021;
-  height: auto;
-  padding: 18px;
-  padding-left: 12px;
-  border-radius: 5px;
-  line-height: 1.8;
-  font-size: 14px;
-  font-family: var(--mono-font, "'Monaco', '楷体'");
-}
-
-.CodeMirror__container .CodeMirror pre.CodeMirror-line,
-.CodeMirror__container .CodeMirror pre.CodeMirror-line-like {
-  padding: 0 12px;
-}
-
-.CodeMirror-scroll,
-.CodeMirror-hscrollbar {
-  overflow: hidden;
-}
-
-.CodeMirror-gutters {
-  background-color: unset;
-  border-right: none;
-}
-
-.CodeMirror-linenumber {
-  cursor: pointer;
-}
-
 .cm-string, .cm-string-2 {
   color: #61CE3C;
 }
@@ -56,15 +27,15 @@ p {
 }
 
 .cm-variable {
-  color: '#FF6400';
+  color: #FF6400;
 }
 
 .cm-variable-2 {
-  color: '#FF6400';
+  color: #FF6400;
 }
 
 .cm-variable-3 {
-  color: '#FF6400';
+  color: #FF6400;
 }
 
 .cm-number {

@@ -1,0 +1,72 @@
+.h1,
+.h2,
+.h3,
+.h4,
+.h5,
+.h6 {
+  line-height: 1.5;
+  font-weight: 800;
+  margin-bottom: 16px;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  // 没有内容时宽度为 0，看不到光标
+  padding-left: 0.1px;
+}
+
+.h1 {
+  font-size: 32px;
+  line-height: 1.3;
+  border-bottom: solid 3px rgba(128, 30, 255, 1);
+}
+
+.h2 {
+  font-size: 28px;
+  border-radius: 14px;
+}
+.h2::before {
+  content: "H2";
+  border-radius: .3em;
+  font-size: .8em;
+  padding: 4px 7px;
+  margin-right: .5em;
+  background-color: rgba(128, 30, 255, 1);
+  color: white;
+}
+
+.h3 {
+  font-size: 24px;
+  border-radius: 10px;
+}
+.h3::before {
+  content: "H3";
+  color: white;
+  font-size: 0.8em;
+  background-color: rgba(128, 30, 255, 1);
+  border-radius: .3em;
+  margin-right: 12px;
+  padding: 4px 7px;
+}
+
+.h4 {
+  font-size: 20px;
+  border-radius: .3em;
+}
+
+.h4::before {
+  content: "H4";
+  color: white;
+  font-size: 0.8em;
+  background-color: rgba(128, 30, 255, 1);
+  border-radius: .3em;
+  margin-right: 12px;
+  padding: 4px 7px;
+}
+
+.h5 {
+  font-size: 18px;
+}
+
+.h6 {
+  font-size: 16px;
+}

@@ -1,8 +1,8 @@
-import { Descendant } from "slate";
+import { Descendant, Text } from "slate";
 
 export interface ParagraphElement {
   type: 'paragraph';
-  children: Descendant[];
+  children: Text[];
 }
 
 export interface CodeBlockElement {
@@ -13,28 +13,52 @@ export interface CodeBlockElement {
   children: Descendant[];
 }
 
-export interface HighLightText {
-  type: 'highlight';
-  text: string;
-  extra?: string[];
+export interface CalloutElement {
+  type: 'callout';
+  calloutType: 'tip' | 'warning' | 'info' | 'danger' | 'note';
+  children: Descendant[];
 }
 
-export interface NormalText {
-  type: 'normal';
+export interface FormattedText {
+  type: 'formatted';
   text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  highlight?: boolean;
+  code?: boolean;
 }
 
-export interface BoldText {
-  type: 'bold';
-  text: string;
+export interface HeaderElement {
+  type: 'header';
+  level: 1 | 2 | 3 | 4 | 5 | 6;
+  children: Descendant[];
 }
 
-export interface ItalicText {
-  type: 'italic';
-  text: string;
+export interface ListItemElement {
+  type: 'list-item';
+  children: Descendant[];
 }
 
-export interface UnderlineText {
-  type: 'underline';
+export interface BulletedListElement {
+  type: 'bulleted-list';
+  children: ListItemElement[];
+}
+
+export interface NumberedListElement {
+  type: 'numbered-list';
+  children: ListItemElement[];
+}
+
+export interface ImageElement {
+  type: 'image';
+  url: string;
+  alt?: string;
+  children: Descendant[];
+}
+
+export interface LinkElement {
+  type: 'link';
+  url: string;
   text: string;
 }

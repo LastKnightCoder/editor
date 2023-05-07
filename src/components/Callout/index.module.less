@@ -1,0 +1,64 @@
+.callout {
+  position: relative;
+  padding: 0.25rem 1rem;
+  background-color: var(--hint-background-color);
+  border-left: 0.3rem solid;
+  border-color: var(--hint-border-color);
+  border-radius: 0.5rem;
+  margin-bottom: 1em;
+  color: black;
+
+  &.tip {
+    --hint-border-color: #009400;
+    --hint-background-color: #e6ffe6;
+    --hint-text-color: #003100;
+    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/tip.12ymwnxykss0.svg');
+  }
+
+  &.info {
+    --hint-border-color: #4cb3d4;
+    --hint-background-color: #eef9fd;
+    --hint-text-color: #193c47;
+    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/info.3a5rczjx29y0.svg');
+  }
+
+  &.danger {
+    --hint-border-color: #e13238;
+    --hint-background-color: #ffebec;
+    --hint-text-color: #4b1113;
+    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/danger.5f0i03iinx00.svg');
+  }
+
+  &.warning {
+    --hint-border-color: #e6a700;
+    --hint-background-color: #fff8e6;
+    --hint-text-color: #4d3800;
+    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/warning.2ot1h0q3e9c.svg');
+  }
+
+  &.note {
+    --hint-border-color: #d4d5d8;
+    --hint-background-color: #fdfdfe;
+    --hint-text-color: #474748;
+    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/note.31uj06ac3ss0.svg');
+  }
+
+  .title {
+    font-weight: 600;
+    position: relative;
+    padding-left: 1.5rem;
+    margin-top: 10px;
+    line-height: 1.25;
+    color: var(--hint-text-color);
+    &::before {
+      content: " ";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      left: 0;
+      background-position: 0;
+      background-repeat: no-repeat;
+      background-image: var(--icon-url);
+    }
+  }
+}
