@@ -19,17 +19,18 @@ import 'codemirror/mode/sql/sql.js';
 import 'codemirror/mode/markdown/markdown.js';
 
 import isHotkey from "is-hotkey";
-import { useSlate } from "slate-react";
-import {setNodes, Transforms} from "slate";
+import {RenderElementProps, useSlate} from "slate-react";
+import { Transforms, Editor as SlateEditor } from "slate";
 import { ReactEditor } from "slate-react";
 import { CodeBlockElement } from "../../custom-types";
 
 interface ICodeBlockProps {
+  attributes: RenderElementProps['attributes'];
   onChange: (code: string) => void;
-  language?: string;
-  code: string;
   children: React.ReactNode;
   element: CodeBlockElement;
+  onDidMount?: (editor: Editor) => void;
+  onWillUnmount?: (editor: Editor) => void;
 }
 
 interface ILanguageConfig {
@@ -39,7 +40,8 @@ interface ILanguageConfig {
 }
 
 const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
-  const { onChange, language, code: defaultCode, children, element } = props;
+  const { onChange, children, element, onDidMount, onWillUnmount, attributes } = props;
+  const { code: defaultCode, language } = element;
   const [code] = useState(defaultCode);
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
   const slateEditor = useSlate();
@@ -56,7 +58,7 @@ const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
   }
 
   return (
-    <div className={styles.codeBlockContainer}>
+    <div {...attributes} className={styles.codeBlockContainer}>
       <CodeEditor
         value={code || ''}
         autoCursor
@@ -80,18 +82,23 @@ const CodeBlock: React.FC<ICodeBlockProps> = (props) => {
         }}
         className='CodeMirror__container'
         onChange={handleOnChange}
+        editorDidMount={(editor) => {
+          onDidMount && onDidMount(editor);
+        }}
+        editorWillUnmount={(editor) => {
+          onWillUnmount && onWillUnmount(editor);
+        }}
         onKeyDown={(editor, event) => {
           if(isHotkey(['delete', 'backspace'], event)) {
             if (editor.getValue() === '') {
               event.preventDefault();
               const path = ReactEditor.findPath(slateEditor, element);
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore 去掉 code 和 language 属性
-              Transforms.setNodes(slateEditor, { type: 'paragraph', code: undefined, language: undefined }, { at: path });
-              // Transforms.unwrapNodes(slateEditor);
-              // Transforms.setNodes(slateEditor, { type: 'paragraph' });
-              // Transforms.removeNodes(slateEditor, { at: path });
-              ReactEditor.focus(slateEditor);
+              Transforms.removeNodes(slateEditor, { at: path });
+              SlateEditor.insertNode(slateEditor, { type: 'paragraph', children: [{ type: 'normal', text: '' }] });
+              setTimeout(() => {
+                ReactEditor.focus(slateEditor);
+                Transforms.select(slateEditor, path);
+              }, 0);
             }
           }
         }}

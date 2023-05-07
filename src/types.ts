@@ -3,7 +3,7 @@ import {ReactEditor} from "slate-react";
 import {HistoryEditor} from "slate-history";
 import { ParagraphElement, CodeBlockElement, HighLightText, NormalText, BoldText, ItalicText, UnderlineText } from "./custom-types";
 
-type CustomElement = ParagraphElement | CodeBlockElement;
+export type CustomElement = ParagraphElement | CodeBlockElement;
 type CustomText = NormalText | BoldText | ItalicText | UnderlineText | HighLightText;
 
 declare module 'slate' {
