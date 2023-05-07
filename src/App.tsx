@@ -10,9 +10,9 @@ import {CodeBlockElement, HeaderElement, ParagraphElement} from "./custom-types"
 import { Editor as CodeMirrorEditor } from 'codemirror';
 import { v4 as getUuid } from 'uuid';
 import FormattedText from "./components/FormattedText";
-import {isParagraphEmpty} from "./utils/element";
+import { getFarthestCurrentElement, getCurrentTextNode, isParagraphEmpty } from "./utils/element";
 import { insertCodeBlock } from "./utils/editor";
-import {message} from "antd";
+import {Button, message} from "antd";
 
 const defaultValue: Descendant[] = [{
   type: 'paragraph',
@@ -27,7 +27,7 @@ const defaultValue: Descendant[] = [{
   uuid: getUuid(),
   children: [{
     type: 'formatted',
-    text: '这是一个 demo'
+    text: ''
   }]
 }, {
   type: 'paragraph',
@@ -61,20 +61,62 @@ const defaultValue: Descendant[] = [{
       text: '这是一个 demo'
     }]
   }]
+}, {
+  type: 'bulleted-list',
+  children: [{
+    type: 'list-item',
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '这是一个 List demo 2'
+      }]
+    }]
+  }, {
+    type: 'list-item',
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '这是一个 List demo 2'
+      }]
+    }]
+  }]
+}, {
+  type: 'numbered-list',
+  children: [{
+    type: 'list-item',
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '这是一个 List demo 2'
+      }]
+    }]
+  }, {
+    type: 'list-item',
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '这是一个 List demo 2'
+      }]
+    }]
+  }]
 }];
 
 const overrideDefaultSetting = (editor: Editor) => {
   const { isBlock, isVoid, isInline, deleteBackward } = editor;
   editor.isBlock = (element) => {
-    const blockTypes = ['paragraph', 'header', 'callout'];
+    const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image'];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
   editor.isVoid = (element) => {
-    const voidTypes = ['code-block', 'empty'];
+    const voidTypes = ['code-block', 'image'];
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }
   editor.isInline = (element) => {
-    const inlineTypes = ['formatted'];
+    const inlineTypes = ['formatted', 'link'];
     return inlineTypes.includes(element.type) ? true : isInline(element);
   }
   editor.codeBlockMap = new Map<string, CodeMirrorEditor>();
@@ -225,16 +267,15 @@ const registerInlineHotKey = (editor: Editor, event: React.KeyboardEvent<HTMLDiv
     const { hotKey, mark } = config;
     if (isHotKey(hotKey, event)) {
       event.preventDefault();
-      const { selection } = editor;
-      if (selection) {
+      const node = getCurrentTextNode(editor);
+      if (node && node.type === 'formatted') {
         const marks = Editor.marks(editor);
-        if (marks && marks[mark]) {
-          Editor.addMark(editor, config.mark, false);
+        if (marks && (marks as FormattedText)[mark]) {
+          Editor.addMark(editor, mark, false);
         } else {
           Editor.addMark(editor, mark, true);
         }
       }
-      return config.mark;
     }
   }
 }
@@ -447,6 +488,7 @@ const App = () => {
       <pre style={{ maxHeight: '100vh', overflow: 'auto', padding: 40, margin: 0, boxSizing: 'border-box' }}>
         <code>{JSON.stringify(value, null, 2)}</code>
       </pre>
+      <Button onClick={() => { const curEle = getFarthestCurrentElement(editor); console.log('::curEle', curEle); const curLeafNode =  getCurrentTextNode(editor); console.log('::curLeafNode', curLeafNode) }} >获取当前</Button>
     </div>
   )
 }

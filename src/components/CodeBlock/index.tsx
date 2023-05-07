@@ -60,6 +60,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
 
   return (
     <div contentEditable={false} style={{ userSelect: 'none' }} {...attributes} className={styles.codeBlockContainer}>
+      {children}
       <div className={styles.windowsControl} />
       <CodeEditor
         value={code || ''}
@@ -106,7 +107,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           }
         }}
       />
-      {children}
+      {/*<div style={{ display: 'none' }}>{children}</div>*/}
     </div>
   )
 }
