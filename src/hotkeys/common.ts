@@ -9,7 +9,6 @@ export const commonConfig: HotKeyConfig[] = [{
     if (!selection || !Range.isCollapsed(selection)) {
       return;
     }
-    console.log('::selection here');
     const [match] = Editor.nodes(editor, {
       match: n => isLeafNode(n)
     });

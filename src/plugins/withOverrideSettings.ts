@@ -3,7 +3,7 @@ import {Editor as CodeMirrorEditor} from "codemirror";
 import {CodeBlockElement} from "../custom-types";
 
 export const withOverrideSettings = (editor: Editor) => {
-  const { isBlock, isVoid, isInline, deleteBackward } = editor;
+  const { isBlock, isVoid, isInline, deleteBackward, insertBreak } = editor;
   editor.isBlock = (element) => {
     const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image'];
     return blockTypes.includes(element.type) ? true : isBlock(element);
@@ -66,6 +66,18 @@ export const withOverrideSettings = (editor: Editor) => {
       }
     }
     deleteBackward(...args);
+  }
+  editor.insertBreak = () => {
+    const [match] = Editor.nodes(editor, {
+      match: n => n.type === 'header'
+    })
+    if (match) {
+      insertBreak();
+      Transforms.setNodes(editor, { type: 'paragraph' });
+      Transforms.unsetNodes(editor, 'level');
+      return;
+    }
+    insertBreak();
   }
   return editor;
 }

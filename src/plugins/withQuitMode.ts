@@ -1,4 +1,4 @@
-import {Editor} from "slate";
+import { Editor } from "slate";
 
 export const withQuitMode = (editor: Editor) => {
   const { insertText } = editor;
@@ -8,7 +8,9 @@ export const withQuitMode = (editor: Editor) => {
       editor.insertNode({ type: 'formatted', text });
       return;
     }
+
     insertText(text);
   }
+
   return editor;
 }
