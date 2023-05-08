@@ -1,6 +1,6 @@
 import { Editor, Element as SlateElement, Node as SlateNode, Range, Transforms } from "slate";
 import { HeaderElement, ParagraphElement } from "../custom-types";
-import { insertCodeBlock } from "../utils/editor";
+import { insertCodeBlock } from "../utils";
 
 export const withMarkdownShortcuts = (editor: Editor) => {
   const { insertText } = editor;
