@@ -1,249 +1,25 @@
 import { useState } from "react";
+import { Button, message } from "antd";
+
+import { createEditor, Descendant, Transforms, Range, Editor, Element as SlateElement } from 'slate';
+import { Slate, Editable, withReact, RenderElementProps, ReactEditor, RenderLeafProps } from 'slate-react';
+import { withHistory } from 'slate-history';
+
+import { Editor as CodeMirrorEditor } from 'codemirror';
+import { v4 as getUuid } from 'uuid';
+import isHotKey from 'is-hotkey';
+
 import CodeBlock from "./components/CodeBlock";
 import Callout from "./components/Callout";
 import Header from "./components/Header";
-import {createEditor, Descendant, Transforms, Range, Editor, Point, Element as SlateElement, Node as SlateNode } from 'slate';
-import {Slate, Editable, withReact, RenderElementProps, ReactEditor, RenderLeafProps} from 'slate-react';
-import { withHistory } from 'slate-history';
-import isHotKey from 'is-hotkey';
-import {CodeBlockElement, HeaderElement, ParagraphElement} from "./custom-types";
-import { Editor as CodeMirrorEditor } from 'codemirror';
-import { v4 as getUuid } from 'uuid';
 import FormattedText from "./components/FormattedText";
-import { getFarthestCurrentElement, getCurrentTextNode, isParagraphEmpty } from "./utils/element";
-import { insertCodeBlock } from "./utils/editor";
-import {Button, message} from "antd";
 
-const defaultValue: Descendant[] = [{
-  type: 'paragraph',
-  children: [{
-    type: 'formatted',
-    text: '这是一个 demo'
-  }]
-}, {
-  type: 'code-block',
-  language: 'javascript',
-  code: 'console.log("hello world")',
-  uuid: getUuid(),
-  children: [{
-    type: 'formatted',
-    text: ''
-  }]
-}, {
-  type: 'paragraph',
-  children: [{
-    type: 'formatted',
-    text: '这是一个 demo'
-  }, {
-    type: 'formatted',
-    text: '加粗',
-    bold: true
-  }, {
-    type: 'formatted',
-    text: '斜体',
-    italic: true
-  }, {
-    type: 'formatted',
-    text: '下划线',
-    underline: true
-  }, {
-    type: 'formatted',
-    text: '高亮',
-    highlight: true
-  }]
-}, {
-  type: 'callout',
-  calloutType: 'info',
-  children: [{
-    type: 'paragraph',
-    children: [{
-      type: 'formatted',
-      text: '这是一个 demo'
-    }]
-  }]
-}, {
-  type: 'bulleted-list',
-  children: [{
-    type: 'list-item',
-    children: [{
-      type: 'paragraph',
-      children: [{
-        type: 'formatted',
-        text: '这是一个 List demo 2'
-      }]
-    }]
-  }, {
-    type: 'list-item',
-    children: [{
-      type: 'paragraph',
-      children: [{
-        type: 'formatted',
-        text: '这是一个 List demo 2'
-      }]
-    }]
-  }]
-}, {
-  type: 'numbered-list',
-  children: [{
-    type: 'list-item',
-    children: [{
-      type: 'paragraph',
-      children: [{
-        type: 'formatted',
-        text: '这是一个 List demo 2'
-      }]
-    }]
-  }, {
-    type: 'list-item',
-    children: [{
-      type: 'paragraph',
-      children: [{
-        type: 'formatted',
-        text: '这是一个 List demo 2'
-      }]
-    }]
-  }]
-}];
+import { getFarthestCurrentElement, getCurrentTextNode, isParagraphEmpty, applyPlugin } from "./utils";
+import { initValue as defaultValue } from "./configs";
+import { withMarkdownShortcuts, withOverrideSettings } from "./plugins";
+import { CodeBlockElement, HeaderElement, ParagraphElement } from "./custom-types";
 
-const overrideDefaultSetting = (editor: Editor) => {
-  const { isBlock, isVoid, isInline, deleteBackward } = editor;
-  editor.isBlock = (element) => {
-    const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image'];
-    return blockTypes.includes(element.type) ? true : isBlock(element);
-  }
-  editor.isVoid = (element) => {
-    const voidTypes = ['code-block', 'image'];
-    return voidTypes.includes(element.type) ? true : isVoid(element);
-  }
-  editor.isInline = (element) => {
-    const inlineTypes = ['formatted', 'link'];
-    return inlineTypes.includes(element.type) ? true : isInline(element);
-  }
-  editor.codeBlockMap = new Map<string, CodeMirrorEditor>();
-  editor.deleteBackward = (...args) => {
-    const { selection } = editor;
-    if (selection && Range.isCollapsed(selection)) {
-      const [match] = Editor.nodes(editor, {
-        match: n => SlateElement.isElement(n) && editor.isBlock(n),
-      });
-      if (match) {
-        const [, path] = match;
-        const start = Editor.start(editor, path);
-        if (Point.equals(selection.anchor, start)) {
-          // 如果前一个是 code-block，删除当前 paragraph，将光标移动到 code-block 的末尾
-          const prevPath = Editor.before(editor, path);
-          if (prevPath) {
-            const [prevMatch] = Editor.nodes(editor, {
-              at: prevPath,
-              match: n => SlateElement.isElement(n) && n.type === 'code-block',
-            });
-            if (prevMatch) {
-              Editor.nodes(editor, {
-                match: n => SlateElement.isElement(n) && n.type === 'paragraph',
-              });
-              Transforms.removeNodes(editor, { at: path });
-              const [element] = prevMatch;
-              const codeBlockMap = editor.codeBlockMap;
-              const codeMirrorEditor = codeBlockMap.get((element as CodeBlockElement).uuid);
-              codeMirrorEditor && codeMirrorEditor.focus();
-              return;
-            }
-          }
-        }
-      }
-    }
-    if (selection && Range.isCollapsed(selection)) {
-      const [match] = Editor.nodes(editor, {
-        match: n => SlateElement.isElement(n) && n.type === 'header',
-      });
-      if (match) {
-        const [, path] = match;
-        const isStart = Editor.isStart(editor, selection.anchor, path);
-        if (isStart) {
-          // 将标题转换为 paragraph
-          Transforms.setNodes(editor, {
-            type: 'paragraph'
-          });
-          return;
-        }
-      }
-    }
-    deleteBackward(...args);
-  }
-  return editor;
-}
 
-const withMarkdownShortcuts = (editor: Editor) => {
-  const { insertText } = editor;
-  editor.insertText = (text) => {
-    const { selection } = editor;
-    if (text.endsWith(' ') && selection && Range.isCollapsed(selection)) {
-      const [match] = Editor.nodes(editor, {
-        match: n => SlateElement.isElement(n) && n.type === 'paragraph',
-      });
-      if (match) {
-        const [parentElement] = match;
-        const [nodeMatch] = Editor.nodes(editor, {
-          match: n => SlateNode.isNode(n) && n.type === 'formatted',
-        });
-        const [node, path] = nodeMatch;
-        // node 是否是 paragraph 的第一个子节点
-        const isFirst = (parentElement as ParagraphElement).children[0] === node;
-        if (isFirst) {
-          const { text: nodeText } = node;
-          if (nodeText.startsWith('```')) {
-            // 删除 ``` 符号
-            Transforms.delete(editor, {
-              at: {
-                anchor: {
-                  path,
-                  offset: 0
-                },
-                focus: {
-                  path,
-                  offset: nodeText.length
-                }
-              }
-            });
-            // get language
-            const language = nodeText.slice(3);
-            insertCodeBlock(editor, language);
-            return;
-          }
-          const levelMatched = nodeText.match(/^#{1,6}/);
-          if (levelMatched) {
-            const level = levelMatched[0].length as HeaderElement['level'];
-            Transforms.delete(editor, {
-              at: {
-                anchor: {
-                  path,
-                  offset: 0
-                },
-                focus: {
-                  path,
-                  offset: level
-                }
-              }
-            });
-            Transforms.setNodes(editor, {
-              type: 'header',
-              level
-            });
-            return;
-          }
-        }
-      }
-    }
-    insertText(text);
-  }
-  return editor;
-}
-
-type Plugin = (editor: Editor) => Editor;
-
-const applyPlugin = (editor: Editor, plugins: Plugin[]) => {
-  return plugins.reduce((acc, plugin) => plugin(acc), editor);
-}
 
 const registerInlineHotKey = (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => {
   const configs = [{
@@ -271,7 +47,7 @@ const registerInlineHotKey = (editor: Editor, event: React.KeyboardEvent<HTMLDiv
       if (node && node.type === 'formatted') {
         const marks = Editor.marks(editor);
         if (marks && (marks as FormattedText)[mark]) {
-          Editor.addMark(editor, mark, false);
+          Editor.removeMark(editor, mark);
         } else {
           Editor.addMark(editor, mark, true);
         }
@@ -337,7 +113,7 @@ const registerBlockHotKey = (editor: Editor, event: React.KeyboardEvent<HTMLDivE
 
 
 const App = () => {
-  const [editor] = useState(() => applyPlugin(createEditor(), [withReact, withHistory, overrideDefaultSetting, withMarkdownShortcuts]));
+  const [editor] = useState(() => applyPlugin(createEditor(), [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts]));
   const [initValue] = useState(() => {
     const content = localStorage.getItem('content');
     if (content) {
