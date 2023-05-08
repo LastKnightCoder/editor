@@ -15,9 +15,10 @@ import {
   LinkElement,
 } from "./custom-types";
 
-export type CustomMap = {
+export type CustomField = {
   codeBlockMap: Map<string, CodeMirrorEditor>,
   type: string,
+  escMode: boolean,
 }
 export type CustomElement = ParagraphElement | CodeBlockElement | CalloutElement | HeaderElement | BulletedListElement | NumberedListElement | ListItemElement | ImageElement;
 export type CustomText = FormattedText | LinkElement;
@@ -25,7 +26,7 @@ export type CustomText = FormattedText | LinkElement;
 
 declare module 'slate' {
   interface CustomTypes {
-    Editor: BaseEditor & ReactEditor & HistoryEditor & CustomMap;
+    Editor: BaseEditor & ReactEditor & HistoryEditor & CustomField;
     Element: CustomElement,
     Text: CustomText,
   }

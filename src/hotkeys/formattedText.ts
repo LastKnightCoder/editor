@@ -18,7 +18,7 @@ const markAction = (mark: Mark) => {
   }
 }
 
-export const formattedMarks: HotKeyConfig[] = [{
+export const formattedText: HotKeyConfig[] = [{
   hotKey: 'mod+shift+b',
   action: markAction('bold')
 }, {

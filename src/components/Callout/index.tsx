@@ -33,7 +33,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const { title } = configs[calloutType];
   return (
     <div {...attributes} className={classnames(styles.callout, styles[calloutType])}>
-      <p className={styles.title}>{title}</p>
+      <p contentEditable={false} className={styles.title}>{title}</p>
       {children}
     </div>
   )

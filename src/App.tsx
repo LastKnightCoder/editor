@@ -5,15 +5,16 @@ import { createEditor, Descendant } from 'slate';
 import { Slate, Editable, withReact } from 'slate-react';
 import { withHistory } from 'slate-history';
 
-import { getFarthestCurrentElement, getCurrentTextNode, applyPlugin, registerHotKey } from "./utils";
+import { applyPlugin, registerHotKey } from "./utils";
 import { initValue as defaultValue } from "./configs";
-import { withMarkdownShortcuts, withOverrideSettings } from "./plugins";
+import { withMarkdownShortcuts, withOverrideSettings, withQuitMode } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
+import { usePressedKeyStore } from "./stores";
 
 
 const App = () => {
-  const [editor] = useState(() => applyPlugin(createEditor(), [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts]));
+  const [editor] = useState(() => applyPlugin(createEditor(), [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withQuitMode]));
   const [initValue] = useState(() => {
     const content = localStorage.getItem('content');
     if (content) {
@@ -23,28 +24,45 @@ const App = () => {
   });
   const [value, setValue] = useState<Descendant[]>(initValue);
 
+  const { listenKeyPressed, resetPressedKey } = usePressedKeyStore(state => ({
+    listenKeyPressed: state.listenKeyPressed,
+    resetPressedKey: state.resetPressedKey,
+  }));
+
 
   const save = (value: Descendant[]) => {
     localStorage.setItem('content', JSON.stringify(value));
     setValue(value);
   }
 
+  const clear = () => {
+    localStorage.clear();
+    window.location.reload();
+  }
+
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
       <Slate editor={editor} value={initValue} onChange={save} >
-        <Editable
-          style={{ flex: 2, padding: '50px 40px', minWidth: '800px' }}
-          renderElement={renderElement(editor)}
-          renderLeaf={renderLeaf(editor)}
-          onKeyDown={(event) => {
-            registerHotKey(editor, event, hotKeyConfigs);
-          }}
-        />
+        <div>
+          <Editable
+            style={{ flex: 2, padding: '50px 40px', minWidth: '800px' }}
+            renderElement={renderElement(editor)}
+            renderLeaf={renderLeaf(editor)}
+            onKeyDown={(event) => {
+              registerHotKey(editor, event, hotKeyConfigs);
+              listenKeyPressed(event);
+            }}
+            onKeyUp={() => {
+              resetPressedKey();}
+            }
+          />
+          <Button onClick={clear}>清除数据并刷新页面</Button>
+        </div>
       </Slate>
+      {/*<Button onClick={() => { const curEle = getFarthestCurrentElement(editor); console.log('::curEle', curEle); const curLeafNode =  getCurrentTextNode(editor); console.log('::curLeafNode', curLeafNode) }} >获取当前</Button>*/}
       <pre style={{ maxHeight: '100vh', overflow: 'auto', padding: 40, margin: 0, boxSizing: 'border-box' }}>
         <code>{JSON.stringify(value, null, 2)}</code>
       </pre>
-      <Button onClick={() => { const curEle = getFarthestCurrentElement(editor); console.log('::curEle', curEle); const curLeafNode =  getCurrentTextNode(editor); console.log('::curLeafNode', curLeafNode) }} >获取当前</Button>
     </div>
   )
 }
