@@ -94,4 +94,12 @@ export const initValue: Descendant[] = [{
       }]
     }]
   }]
+}, {
+  type: 'image',
+  url: 'https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/image.2xx8cqgylu00.png',
+  alt: 'bilibili',
+  children: [{
+    type: 'formatted',
+    text: ''
+  }]
 }];

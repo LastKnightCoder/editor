@@ -5,6 +5,7 @@ import {CodeBlockElement} from "../custom-types";
 import CodeBlock from "../components/CodeBlock";
 import Callout from "../components/Callout";
 import Header from "../components/Header";
+import Image from "../components/Image";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -62,6 +63,12 @@ export const renderElement = (editor: Editor) => {
           <ol {...attributes}>
             {children}
           </ol>
+        )
+      case 'image':
+        return (
+          <Image attributes={attributes} element={element}>
+            {children}
+          </Image>
         )
       default:
         return <p {...attributes}>{children}</p>
