@@ -22,7 +22,7 @@ import 'codemirror/addon/edit/closebrackets.js';
 
 import isHotkey from "is-hotkey";
 import {RenderElementProps, useSlate} from "slate-react";
-import { Transforms, Editor as SlateEditor } from "slate";
+import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { CodeBlockElement } from "../../custom-types";
 
@@ -42,7 +42,7 @@ interface ILanguageConfig {
 
 const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) => {
   const { onChange, children, element, onDidMount, onWillUnmount, attributes } = props;
-  const { code: defaultCode, language } = element;
+  const { code: defaultCode, language, uuid } = element;
   const [code] = useState(defaultCode);
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
   const slateEditor = useSlate();
@@ -59,7 +59,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   }
 
   return (
-    <div contentEditable={false} style={{ userSelect: 'none' }} {...attributes} className={styles.codeBlockContainer}>
+    <div {...attributes} className={styles.codeBlockContainer}>
       {children}
       <div className={styles.windowsControl} />
       <CodeEditor
@@ -97,17 +97,14 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
             if (editor.getValue() === '') {
               event.preventDefault();
               const path = ReactEditor.findPath(slateEditor, element);
-              Transforms.removeNodes(slateEditor, { at: path });
-              SlateEditor.insertNode(slateEditor, { type: 'paragraph', children: [{ type: 'formatted', text: '' }] });
-              setTimeout(() => {
-                ReactEditor.focus(slateEditor);
-                Transforms.select(slateEditor, path);
-              }, 0);
+              Transforms.setNodes(slateEditor, { type: 'paragraph', children: [{ type: 'formatted', text: '' }] }, { at: path });
+              Transforms.unsetNodes(slateEditor, ['code', 'language', 'uuid'], { at: path });
+              slateEditor.codeBlockMap.delete(uuid);
+              ReactEditor.focus(slateEditor);
             }
           }
         }}
       />
-      {/*<div style={{ display: 'none' }}>{children}</div>*/}
     </div>
   )
 }

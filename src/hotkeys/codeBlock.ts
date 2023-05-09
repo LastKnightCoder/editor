@@ -25,6 +25,7 @@ export const codeBlockConfig: HotKeyConfig[] = [{
           setTimeout(() => {
             const codeMirrorEditor = editor.codeBlockMap.get(uuid);
             if (codeMirrorEditor) {
+              // focus 失效，不知道为什么
               codeMirrorEditor.focus();
             }
           }, 0);

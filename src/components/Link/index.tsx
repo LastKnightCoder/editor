@@ -1,19 +1,38 @@
-import React, { useCallback } from 'react';
-import { RenderLeafProps } from "slate-react";
+import React, { useCallback, useState } from 'react';
+import { Popover, Button, Input, Space } from "antd";
+import { RenderLeafProps, useSlate } from "slate-react";
 import classnames from 'classnames';
 import { usePressedKeyStore } from "../../stores";
 
 import styles from './index.module.less';
 import { LinkElement } from "../../custom-types";
+import {Transforms} from "slate";
+import {isLeafNode} from "../../utils";
 
 interface LinkProps {
   attributes: RenderLeafProps['attributes'];
   leaf: LinkElement
 }
 
+const EditLink: React.FC<{ url:string, onSubmit: (url: string) => void }> = (props) => {
+  const { url, onSubmit } = props;
+  const [inputValue, setInputValue] = React.useState(url);
+  return (
+    <div>
+      <Space>
+        <Input value={inputValue} placeholder="请输入链接地址" onChange={(e) => { setInputValue(e.target.value) }} />
+        <Button type="primary" onClick={() => { onSubmit(inputValue) }}>确定</Button>
+      </Space>
+    </div>
+  )
+}
+
 const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const { attributes, children, leaf } = props;
   const { url } = leaf;
+
+  const editor = useSlate();
+  const [open, setOpen] = useState(false);
 
   const { isModKey } = usePressedKeyStore(state => ({
     isModKey: state.isModKey,
@@ -24,20 +43,33 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
       window.open(url, '_blank');
       return;
     }
+    setOpen(true);
     e.preventDefault();
-  }, [isModKey]);
+  }, [isModKey, url]);
+
+  const changeUrl = (url: string) => {
+    Transforms.setNodes(editor, { url }, {
+      match: n => isLeafNode(n) && n.type === 'link',
+    });
+    setOpen(false);
+  }
 
   return (
-    <a
-      {...attributes}
-      className={classnames(styles.link, {[styles.active]:  isModKey })}
-      onClick={handleClick}
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Popover
+      open={open}
+      content={<EditLink url={url} onSubmit={changeUrl} />}
     >
-      {children}
-    </a>
+      <a
+        {...attributes}
+        className={classnames(styles.link, {[styles.active]:  isModKey })}
+        onClick={handleClick}
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {children}
+      </a>
+    </Popover>
   )
 }
 

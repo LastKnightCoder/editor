@@ -17,7 +17,7 @@ export const withOverrideSettings = (editor: Editor) => {
     return inlineTypes.includes(element.type) ? true : isInline(element);
   }
   editor.codeBlockMap = new Map<string, CodeMirrorEditor>();
-  editor.deleteBackward = (...args) => {
+  editor.deleteBackward = (unit) => {
     const { selection } = editor;
     if (selection && Range.isCollapsed(selection)) {
       const [match] = Editor.nodes(editor, {
@@ -61,11 +61,12 @@ export const withOverrideSettings = (editor: Editor) => {
           Transforms.setNodes(editor, {
             type: 'paragraph'
           });
+          Transforms.unsetNodes(editor, 'level');
           return;
         }
       }
     }
-    deleteBackward(...args);
+    deleteBackward(unit);
   }
   editor.insertBreak = () => {
     const [match] = Editor.nodes(editor, {
@@ -75,6 +76,17 @@ export const withOverrideSettings = (editor: Editor) => {
       insertBreak();
       Transforms.setNodes(editor, { type: 'paragraph' });
       Transforms.unsetNodes(editor, 'level');
+      return;
+    }
+    const [listMatch] = Editor.nodes(editor, {
+      match: n => SlateElement.isElement(n)  && n.type === 'list-item'
+    });
+    if (listMatch) {
+      insertBreak();
+      Transforms.wrapNodes(editor, { type: 'list-item', children: [] });
+      Transforms.liftNodes(editor, {
+        match: n => SlateElement.isElement(n) && n.type === 'list-item',
+      });
       return;
     }
     insertBreak();
