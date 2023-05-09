@@ -1,5 +1,6 @@
-import {ParagraphElement} from "../custom-types";
-import {Editor, Element, isEditor, Node} from "slate";
+import {ListItemElement, ParagraphElement} from "../custom-types";
+import { Element, isEditor, Node, Editor } from "slate";
+import {ReactEditor} from "slate-react";
 
 export const isParagraphEmpty = (element: ParagraphElement) => {
   return element.children.length === 1 && element.children[0].text === '';
@@ -13,35 +14,15 @@ export const isElementNode = (node: Node) => {
   return Element.isElement(node);
 }
 
-export const getCurrentTextNode = (editor: Editor) => {
-  const [match] = Editor.nodes(editor, {
-    match: n => isLeafNode(n),
-    mode: 'lowest',
-  });
-  if (match) {
-    return match[0];
-  }
-  return null;
+export const isParagraphElement = (node: Node): node is ParagraphElement => {
+  return node.type === 'paragraph';
 }
 
-export const getClosestCurrentElement = (editor: Editor) => {
-  const [match] = Editor.nodes(editor, {
-    match: n => isElementNode(n),
-    mode: 'lowest',
-  });
-  if (match) {
-    return match[0];
-  }
-  return null;
+export const isListItemElement = (node: Node): node is ListItemElement => {
+  return node.type === 'list-item';
 }
 
-export const getFarthestCurrentElement = (editor: Editor) => {
-  const [match] = Editor.nodes(editor, {
-    match: n => isElementNode(n),
-    mode: 'highest',
-  });
-  if (match) {
-    return match[0];
-  }
-  return null;
+export const getParentNodeByNode = (node: Node, editor: Editor) => {
+  const path = ReactEditor.findPath(editor, node);
+  return Editor.parent(editor, path);
 }

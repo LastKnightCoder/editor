@@ -5,7 +5,7 @@ import { createEditor, Descendant } from 'slate';
 import { Slate, Editable, withReact } from 'slate-react';
 import { withHistory } from 'slate-history';
 
-import { applyPlugin, registerHotKey } from "./utils";
+import {applyPlugin, getElementParent, getLeafParent, registerHotKey, isAtParagraphStart } from "./utils";
 import { initValue as defaultValue } from "./configs";
 import { withMarkdownShortcuts, withOverrideSettings, withQuitMode } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
@@ -40,6 +40,16 @@ const App = () => {
     window.location.reload();
   }
 
+  const handleGetLeafParent = () => {
+    const curLeafNode = getLeafParent(editor);
+    console.log('::curLeafNode', curLeafNode);
+  }
+
+  const handleGetElementParent = () => {
+    const curEle = getElementParent(editor);
+    console.log('::curEle', curEle);
+  }
+
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
       <Slate editor={editor} value={initValue} onChange={save} >
@@ -57,6 +67,9 @@ const App = () => {
             }
           />
           <Button onClick={clear}>清除数据并刷新页面</Button>
+          <Button onClick={handleGetLeafParent} >获取当前叶子节点的父节点</Button>
+          <Button onClick={handleGetElementParent} >获取当前元素节点的父节点</Button>
+          <Button onClick={() => { console.log('::isAtParagraphStart', isAtParagraphStart(editor)) }} >是否在段落开头</Button>
         </div>
       </Slate>
       {/*<Button onClick={() => { const curEle = getFarthestCurrentElement(editor); console.log('::curEle', curEle); const curLeafNode =  getCurrentTextNode(editor); console.log('::curLeafNode', curLeafNode) }} >获取当前</Button>*/}
