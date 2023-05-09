@@ -60,6 +60,32 @@ export const withMarkdownShortcuts = (editor: Editor) => {
             });
             return;
           }
+          const offset = selection.anchor.offset;
+          if (['-', '*', '+'].includes(nodeText.slice(0, offset))) {
+            Transforms.delete(editor, {
+              at: {
+                anchor: {
+                  path,
+                  offset: 0
+                },
+                focus: {
+                  path,
+                  offset: 1
+                }
+              },
+            });
+            Transforms.wrapNodes(editor, {
+              type: 'list-item',
+              children: []
+            });
+            Transforms.wrapNodes(editor, {
+              type: 'bulleted-list',
+              children: []
+            }, {
+              match: n => SlateElement.isElement(n) && n.type === 'list-item',
+            });
+            return;
+          }
         }
       }
     }
