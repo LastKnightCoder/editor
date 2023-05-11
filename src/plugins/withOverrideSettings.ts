@@ -1,12 +1,12 @@
 import {Editor, Element as SlateElement, Point, Range, Transforms} from "slate";
 import {Editor as CodeMirrorEditor} from "codemirror";
-import {CodeBlockElement, ListItemElement} from "../custom-types";
+import {CodeBlockElement, ListItemElement, ParagraphElement} from "../custom-types";
 import {
   getClosestCurrentElement,
   getElementParent, getParentNodeByNode, getPrevPath,
   isAtParagraphStart,
   isListItemElement,
-  isParagraphElement
+  isParagraphElement, isParagraphEmpty
 } from "../utils";
 
 export const withOverrideSettings = (editor: Editor) => {
@@ -93,11 +93,13 @@ export const withOverrideSettings = (editor: Editor) => {
         } else {
           // 移动到上一个 list-item 中
           const prevListItemPath = getPrevPath(curList[1]);
-          const prevListElement = Editor.node(editor, prevListItemPath)[0] as ListItemElement;
-          Transforms.moveNodes(editor, {
-            to: [...prevListItemPath, prevListElement.children.length],
-            match: n => SlateElement.isElement(n) && isParagraphElement(n),
-          })
+          if (prevListItemPath) {
+            const prevListElement = Editor.node(editor, prevListItemPath)[0] as ListItemElement;
+            Transforms.moveNodes(editor, {
+              to: [...prevListItemPath, prevListElement.children.length],
+              match: n => SlateElement.isElement(n) && isParagraphElement(n),
+            })
+          }
         }
         return;
       }
@@ -118,6 +120,21 @@ export const withOverrideSettings = (editor: Editor) => {
       match: n => SlateElement.isElement(n)  && n.type === 'list-item'
     });
     if (listMatch) {
+      // 在行首，并且内容为空，转为 paragraph
+      if (isAtParagraphStart(editor)) {
+        const [para] = Editor.nodes(editor, {
+          match: n => SlateElement.isElement(n) && isParagraphElement(n),
+        });
+        if (para && isParagraphEmpty(para[0] as ParagraphElement)) {
+          Transforms.unwrapNodes(editor, {
+            match: n => SlateElement.isElement(n) && isListItemElement(n),
+          });
+          Transforms.liftNodes(editor, {
+            match: n => SlateElement.isElement(n) && isParagraphElement(n),
+          });
+          return;
+        }
+      }
       insertBreak();
       Transforms.wrapNodes(editor, { type: 'list-item', children: [] });
       Transforms.liftNodes(editor, {
