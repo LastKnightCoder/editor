@@ -40,12 +40,12 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
     if (isModKey) {
-      window.open(url, '_blank');
+      window.open(url)
       return;
     }
-    setOpen(true);
+    setOpen(!open);
     e.preventDefault();
-  }, [isModKey, url]);
+  }, [isModKey, url, open]);
 
   const changeUrl = (url: string) => {
     Transforms.setNodes(editor, { url }, {
@@ -58,6 +58,8 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
     <Popover
       open={open}
       content={<EditLink url={url} onSubmit={changeUrl} />}
+      arrow={false}
+      title={'编辑链接'}
     >
       <a
         {...attributes}

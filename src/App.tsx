@@ -7,14 +7,15 @@ import { withHistory } from 'slate-history';
 
 import {applyPlugin, getElementParent, getLeafParent, registerHotKey, isAtParagraphStart } from "./utils";
 import { initValue as defaultValue } from "./configs";
-import { withMarkdownShortcuts, withOverrideSettings, withQuitMode } from "./plugins";
+import { withMarkdownShortcuts, withOverrideSettings, withQuitMode, withInsertBreak, withDeleteBackward } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
 import { usePressedKeyStore } from "./stores";
 
 
 const App = () => {
-  const [editor] = useState(() => applyPlugin(createEditor(), [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withQuitMode]));
+  const plugins = [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withQuitMode, withInsertBreak, withDeleteBackward];
+  const [editor] = useState(() => applyPlugin(createEditor(), plugins));
   const [initValue] = useState(() => {
     const content = localStorage.getItem('content');
     if (content) {

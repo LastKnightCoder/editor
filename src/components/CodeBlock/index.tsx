@@ -83,6 +83,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           tabSize: 2,
           cursorHeight: 1,
           autoCloseBrackets: true,
+          tabindex: -1,
         }}
         className={styles.CodeMirrorContainer}
         onChange={handleOnChange}

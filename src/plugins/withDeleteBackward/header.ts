@@ -1,0 +1,31 @@
+import {Editor, Element as SlateElement, Range, Transforms} from "slate";
+
+const header = (editor: Editor) => {
+  const { deleteBackward } = editor;
+
+  editor.deleteBackward = (unit) => {
+    const { selection } = editor;
+    if (selection && Range.isCollapsed(selection)) {
+      const [match] = Editor.nodes(editor, {
+        match: n => SlateElement.isElement(n) && n.type === 'header',
+      });
+      if (match) {
+        const [, path] = match;
+        const isStart = Editor.isStart(editor, selection.anchor, path);
+        if (isStart) {
+          // 将标题转换为 paragraph
+          Transforms.setNodes(editor, {
+            type: 'paragraph'
+          });
+          Transforms.unsetNodes(editor, 'level');
+          return;
+        }
+      }
+    }
+    deleteBackward(unit);
+  }
+
+  return editor;
+}
+
+export default header;

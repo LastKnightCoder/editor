@@ -6,7 +6,7 @@ import { Mark, HotKeyConfig } from "./types";
 
 const markAction = (mark: Mark) => {
   return (editor: Editor) => {
-    const node = getCurrentTextNode(editor);
+    const node = getCurrentTextNode(editor)[0];
     if (node && node.type === 'formatted') {
       const marks = Editor.marks(editor);
       if (marks && (marks as FormattedText)[mark]) {
