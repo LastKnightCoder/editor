@@ -6,6 +6,7 @@ interface KeyPressedState {
   isShiftKey: boolean;
   isOptionKey: boolean;
   isCtrlKey: boolean;
+  isReset: boolean;
 }
 
 interface Actions {
@@ -18,25 +19,26 @@ const initialState: KeyPressedState = {
   isShiftKey: false,
   isOptionKey: false,
   isCtrlKey: false,
+  isReset: false,
 }
 
 export const usePressedKeyStore = create<KeyPressedState & Actions>((set) => ({
   ...initialState,
   listenKeyPressed: (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (isHotKey("mod", event)) {
-      set((state) => ({ ...state, isModKey: true }));
+      set((state) => ({ ...state, isModKey: true, isReset: false }));
     }
     if (isHotKey("shift", event)) {
-      set((state) => ({ ...state, isShiftKey: true }));
+      set((state) => ({ ...state, isShiftKey: true, isReset: false }));
     }
     if (isHotKey("option", event)) {
-      set((state) => ({ ...state, isOptionKey: true }));
+      set((state) => ({ ...state, isOptionKey: true, isReset: false }));
     }
     if (isHotKey("ctrl", event)) {
-      set((state) => ({ ...state, isCtrlKey: true }));
+      set((state) => ({ ...state, isCtrlKey: true, isReset: false }));
     }
   },
   resetPressedKey: () => {
-    set((state) => ({ ...state, ...initialState }));
+    set((state) => ({ ...state, ...initialState, isReset: true }));
   }
 }));

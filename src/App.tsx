@@ -25,9 +25,10 @@ const App = () => {
   });
   const [value, setValue] = useState<Descendant[]>(initValue);
 
-  const { listenKeyPressed, resetPressedKey } = usePressedKeyStore(state => ({
+  const { listenKeyPressed, resetPressedKey, isReset } = usePressedKeyStore(state => ({
     listenKeyPressed: state.listenKeyPressed,
     resetPressedKey: state.resetPressedKey,
+    isReset: state.isReset
   }));
 
 
@@ -64,8 +65,10 @@ const App = () => {
               listenKeyPressed(event);
             }}
             onKeyUp={() => {
-              resetPressedKey();}
-            }
+              if (!isReset) {
+                resetPressedKey();
+              }
+            }}
           />
           <Button onClick={clear}>清除数据并刷新页面</Button>
           <Button onClick={handleGetLeafParent} >获取当前叶子节点的父节点</Button>
