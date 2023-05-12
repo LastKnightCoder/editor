@@ -6,6 +6,7 @@ import CodeBlock from "../components/CodeBlock";
 import Callout from "../components/Callout";
 import Header from "../components/Header";
 import Image from "../components/Image";
+import Detail from "../components/Detail";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -69,6 +70,12 @@ export const renderElement = (editor: Editor) => {
           <Image attributes={attributes} element={element}>
             {children}
           </Image>
+        )
+      case 'detail':
+        return (
+          <Detail attributes={attributes} element={element}>
+            {children}
+          </Detail>
         )
       default:
         return <p {...attributes}>{children}</p>

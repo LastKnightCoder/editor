@@ -1,4 +1,4 @@
-import { Descendant, Text } from "slate";
+import {Descendant, Text} from "slate";
 
 export interface ParagraphElement {
   type: 'paragraph';
@@ -17,16 +17,6 @@ export interface CalloutElement {
   type: 'callout';
   calloutType: 'tip' | 'warning' | 'info' | 'danger' | 'note';
   children: Descendant[];
-}
-
-export interface FormattedText {
-  type: 'formatted';
-  text: string;
-  bold?: boolean;
-  italic?: boolean;
-  underline?: boolean;
-  highlight?: boolean;
-  code?: boolean;
 }
 
 export interface HeaderElement {
@@ -57,8 +47,8 @@ export interface ImageElement {
   children: Descendant[];
 }
 
-export interface LinkElement {
-  type: 'link';
-  url: string;
-  text: string;
+export interface DetailElement {
+  type: 'detail';
+  title: string;
+  children: Descendant[];
 }

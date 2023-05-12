@@ -2,6 +2,16 @@ import {Descendant} from "slate";
 import {v4 as getUuid} from "uuid";
 
 export const initValue: Descendant[] = [{
+  type: 'detail',
+  title: '这是一个 detail',
+  children: [{
+    type: 'paragraph',
+    children: [{
+      type: 'formatted',
+      text: '这是一个 demo'
+    }]
+  }]
+}, {
   type: 'paragraph',
   children: [{
     type: 'formatted',
