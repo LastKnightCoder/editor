@@ -1,5 +1,6 @@
-import {Editor, Element as SlateElement, Point, Range, Transforms} from "slate";
-import {CodeBlockElement} from "../../custom-types";
+import {Editor, Element as SlateElement, Range, Transforms} from "slate";
+import {CodeBlockElement, ParagraphElement} from "../../custom-types";
+import {isAtParagraphStart, isParagraphEmpty} from "../../utils";
 
 const codeblock = (editor: Editor) => {
   const { deleteBackward } = editor;
@@ -11,9 +12,8 @@ const codeblock = (editor: Editor) => {
         match: n => SlateElement.isElement(n) && editor.isBlock(n),
       });
       if (match) {
-        const [, path] = match;
-        const start = Editor.start(editor, path);
-        if (Point.equals(selection.anchor, start)) {
+        const [node, path] = match;
+        if (isAtParagraphStart(editor)) {
           // 如果前一个是 code-block，删除当前 paragraph，将光标移动到 code-block 的末尾
           const prevPath = Editor.before(editor, path);
           if (prevPath) {
@@ -22,14 +22,15 @@ const codeblock = (editor: Editor) => {
               match: n => SlateElement.isElement(n) && n.type === 'code-block',
             });
             if (prevMatch) {
-              Editor.nodes(editor, {
-                match: n => SlateElement.isElement(n) && n.type === 'paragraph',
-              });
-              Transforms.removeNodes(editor, { at: path });
+              if (isParagraphEmpty(node as ParagraphElement)) {
+                Transforms.removeNodes(editor, { at: path });
+              }
               const [element] = prevMatch;
               const codeBlockMap = editor.codeBlockMap;
               const codeMirrorEditor = codeBlockMap.get((element as CodeBlockElement).uuid);
-              codeMirrorEditor && codeMirrorEditor.focus();
+              if (codeMirrorEditor) {
+                codeMirrorEditor.focus();
+              }
               return;
             }
           }

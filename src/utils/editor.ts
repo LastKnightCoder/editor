@@ -1,6 +1,7 @@
 import { Editor, Transforms, Range } from "slate";
 import { v4 as getUuid } from 'uuid';
 import {isElementNode, isLeafNode, isParagraphElement} from "./element";
+import { ReactEditor } from "slate-react";
 
 export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
   const uuid = getUuid();
@@ -9,6 +10,7 @@ export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
   setTimeout(() => {
     const codeMirrorEditor = editor.codeBlockMap.get(uuid);
     if (codeMirrorEditor) {
+      ReactEditor.blur(editor);
       codeMirrorEditor.focus();
     }
   }, 0);

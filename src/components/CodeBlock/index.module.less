@@ -1,6 +1,17 @@
 .codeBlockContainer {
   margin-bottom: 10px;
   position: relative;
+  &:hover .copyButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    z-index: 2;
+    height: 32px;
+    background: url('https://cdn.jsdelivr.net/gh/LastKnightCoder/image-for-2022@master/copy2022-12-10-15-44-50.svg') no-repeat center center / 60% 60%;
+    border: 1px solid rgba(0 0 0 / 10%);
+    cursor: pointer;
+  }
   .windowsControl {
     position: absolute;
     top: 24px;

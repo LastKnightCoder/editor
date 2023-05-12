@@ -25,6 +25,7 @@ import {RenderElementProps, useSlate} from "slate-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { CodeBlockElement } from "../../custom-types";
+import {message} from "antd";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps['attributes'];
@@ -58,10 +59,22 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
     onChange(code);
   }
 
+  const handleCopyCode = async () => {
+    const editor = slateEditor.codeBlockMap.get(uuid);
+    if (navigator.clipboard && editor) {
+      const code = editor.getValue();
+      await navigator.clipboard.writeText(code);
+      await message.success('复制代码成功');
+    } else {
+      await message.error('复制代码失败');
+    }
+  }
+
   return (
-    <div {...attributes} className={styles.codeBlockContainer}>
+    <div contentEditable={false} {...attributes} className={styles.codeBlockContainer}>
       {children}
       <div className={styles.windowsControl} />
+      <div className={styles.copyButton} onClick={handleCopyCode}></div>
       <CodeEditor
         value={code || ''}
         autoCursor
