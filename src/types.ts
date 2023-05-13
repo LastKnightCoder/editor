@@ -13,7 +13,9 @@ import {
   BulletedListElement,
   ImageElement,
   LinkElement,
-  DetailElement
+  DetailElement,
+  CodeBlock2Element,
+  CodeLineElement
 } from "./custom-types";
 
 export type CustomField = {
@@ -21,7 +23,7 @@ export type CustomField = {
   type: string,
   escMode: boolean,
 }
-export type CustomElement = ParagraphElement | CodeBlockElement | CalloutElement | HeaderElement | BulletedListElement | NumberedListElement | ListItemElement | ImageElement | DetailElement;
+export type CustomElement = ParagraphElement | CodeBlockElement | CalloutElement | HeaderElement | BulletedListElement | NumberedListElement | ListItemElement | ImageElement | DetailElement | CodeBlock2Element | CodeLineElement;
 export type CustomText = FormattedText | LinkElement;
 
 

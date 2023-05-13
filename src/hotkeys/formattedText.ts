@@ -1,5 +1,5 @@
 import { getCurrentTextNode } from "../utils";
-import {Editor, Range} from "slate";
+import {Editor, Range, Transforms} from "slate";
 import { FormattedText } from "../custom-types";
 
 import { Mark, HotKeyConfig } from "./types";
@@ -13,6 +13,10 @@ const markAction = (mark: Mark) => {
         Editor.removeMark(editor, mark);
       } else {
         Editor.addMark(editor, mark, true);
+      }
+      const { selection } = editor;
+      if (selection && !Range.isCollapsed(selection)) {
+        Transforms.collapse(editor, { edge: 'end' });
       }
     }
   }

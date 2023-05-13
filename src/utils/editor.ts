@@ -1,4 +1,4 @@
-import { Editor, Transforms, Range } from "slate";
+import {Editor, Transforms, Range, Node, Element} from "slate";
 import { v4 as getUuid } from 'uuid';
 import {isElementNode, isLeafNode, isParagraphElement} from "./element";
 import { ReactEditor } from "slate-react";
@@ -10,10 +10,9 @@ export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
   setTimeout(() => {
     const codeMirrorEditor = editor.codeBlockMap.get(uuid);
     if (codeMirrorEditor) {
-      ReactEditor.blur(editor);
       codeMirrorEditor.focus();
     }
-  }, 0);
+  }, 1000);
 }
 
 export const getCurrentTextNode = (editor: Editor) => {
@@ -76,4 +75,48 @@ export const isAtParagraphStart = (editor: Editor) => {
   }
 
   return Editor.isStart(editor, selection.anchor, curEle[1]);
+}
+
+export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
+  if (!Element.isElement(node)) {
+    return;
+  }
+  const path = ReactEditor.findPath(editor, node);
+  const nextPath = [...path.slice(0, path.length - 1), path[path.length - 1] + 1];
+  Transforms.insertNodes(editor, {
+    type: 'paragraph',
+    children: [{ type: 'formatted', text: '' }],
+  }, {
+    at: nextPath
+  });
+
+  if (node.type === 'code-block') {
+    setTimeout(() => {
+      ReactEditor.focus(editor);
+      editor.move
+      Transforms.select(editor, {
+        anchor: {
+          path: [...nextPath, 0],
+          offset: 0,
+        },
+        focus: {
+          path: [...nextPath, 0],
+          offset: 0,
+        }
+      });
+    }, 50);
+  } else {
+    ReactEditor.focus(editor);
+    editor.move
+    Transforms.select(editor, {
+      anchor: {
+        path: [...nextPath, 0],
+        offset: 0,
+      },
+      focus: {
+        path: [...nextPath, 0],
+        offset: 0,
+      }
+    });
+  }
 }

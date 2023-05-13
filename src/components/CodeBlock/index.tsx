@@ -26,6 +26,7 @@ import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { CodeBlockElement } from "../../custom-types";
 import {message} from "antd";
+import AddParagraph from "../AddParagraph";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps['attributes'];
@@ -80,6 +81,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
         autoCursor
         autoScroll
         options={{
+          inputStyle: 'textarea',
           mode: langConfig?.mime || langConfig?.mode || 'text/plain',
           theme: 'blackboard',
           lineNumbers: true,
@@ -119,6 +121,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           }
         }}
       />
+      <AddParagraph element={element} />
     </div>
   )
 }

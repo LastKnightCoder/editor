@@ -1,4 +1,4 @@
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import { Button } from "antd";
 
 import { createEditor, Descendant } from 'slate';
@@ -10,7 +10,7 @@ import { initValue as defaultValue } from "./configs";
 import { withMarkdownShortcuts, withOverrideSettings, withQuitMode, withInsertBreak, withDeleteBackward } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
-import { usePressedKeyStore } from "./stores";
+import {useFocusStore, usePressedKeyStore} from "./stores";
 
 
 const App = () => {
@@ -30,7 +30,14 @@ const App = () => {
     resetPressedKey: state.resetPressedKey,
     isReset: state.isReset
   }));
+  const { isFocus, setFocus } = useFocusStore(state => ({
+    isFocus: state.isFocus,
+    setFocus: state.setFocus
+  }));
 
+  useEffect(() => {
+    console.log('::isFocus', isFocus);
+  }, [isFocus]);
 
   const save = (value: Descendant[]) => {
     localStorage.setItem('content', JSON.stringify(value));
@@ -63,13 +70,22 @@ const App = () => {
             onKeyDown={(event) => {
               registerHotKey(editor, event, hotKeyConfigs);
               listenKeyPressed(event);
+              // 一定要阻止默认行为，否则使用快捷键会失去焦点
+              event.preventDefault();
             }}
             onKeyUp={() => {
               if (!isReset) {
                 resetPressedKey();
               }
             }}
+            onFocus={() => {
+              setFocus(true);
+            }}
+            onBlur={() => {
+              setFocus(false);
+            }}
           />
+          <p>isFocus: {isFocus}</p>
           <Button onClick={clear}>清除数据并刷新页面</Button>
           <Button onClick={handleGetLeafParent} >获取当前叶子节点的父节点</Button>
           <Button onClick={handleGetElementParent} >获取当前元素节点的父节点</Button>

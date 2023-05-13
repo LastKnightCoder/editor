@@ -52,3 +52,14 @@ export interface DetailElement {
   title: string;
   children: Descendant[];
 }
+
+export interface CodeLineElement {
+  type: 'code-line';
+  children: Text[];
+}
+
+export interface CodeBlock2Element {
+  type: 'code-block2';
+  language: string;
+  children: CodeLineElement[];
+}

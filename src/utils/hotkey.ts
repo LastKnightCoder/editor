@@ -6,7 +6,7 @@ export const registerHotKey = (editor: Editor, event: React.KeyboardEvent<HTMLDi
   for (const config of configs) {
     const { hotKey, action } = config;
     if (isHotKey(hotKey, event)) {
-      action(editor);
+      action(editor, event);
     }
   }
 }
