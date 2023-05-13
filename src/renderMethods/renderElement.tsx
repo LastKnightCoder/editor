@@ -7,6 +7,7 @@ import Callout from "../components/Callout";
 import Header from "../components/Header";
 import Image from "../components/Image";
 import Detail from "../components/Detail";
+import Blockquote from "../components/Blockquote";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -76,6 +77,12 @@ export const renderElement = (editor: Editor) => {
           <Detail attributes={attributes} element={element}>
             {children}
           </Detail>
+        )
+      case 'blockquote':
+        return (
+          <Blockquote attributes={attributes} element={element}>
+            {children}
+          </Blockquote>
         )
       default:
         return <p {...attributes}>{children}</p>
