@@ -58,9 +58,8 @@ const App = () => {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
       <Slate editor={editor} value={initValue} onChange={save} >
-        <div>
+        <div style={{ maxHeight: '100vh', boxSizing: 'border-box', flex: 2, padding: '50px 40px', minWidth: '800px', overflowY: 'auto' }}>
           <Editable
-            style={{ flex: 2, padding: '50px 40px', minWidth: '800px' }}
             renderElement={renderElement(editor)}
             renderLeaf={renderLeaf(editor)}
             onKeyDown={(event) => {
@@ -85,7 +84,7 @@ const App = () => {
           <Button onClick={() => { console.log('::isAtParagraphStart', isAtParagraphStart(editor)) }} >是否在段落开头</Button>
         </div>
       </Slate>
-      <pre style={{ maxHeight: '100vh', overflowY: 'auto', overflowX: 'hidden', margin: 0, boxSizing: 'border-box' }}>
+      <pre style={{ maxHeight: '100vh', overflowX: 'hidden', margin: 0, boxSizing: 'border-box' }}>
         <code>{JSON.stringify(value, null, 2)}</code>
       </pre>
     </div>

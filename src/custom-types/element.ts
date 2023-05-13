@@ -52,3 +52,7 @@ export interface DetailElement {
   children: Descendant[];
 }
 
+export interface BlockquoteElement {
+  type: 'blockquote';
+  children: Descendant[];
+}

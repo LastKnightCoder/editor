@@ -35,7 +35,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (props)
       <div className={styles.container}>
         <div className={styles.title} onClick={toggleShowContent} contentEditable={false} style={{ userSelect: 'none' }} >
           <div className={arrowClass}><CaretRightOutlined /></div>
-          <div>Detail</div>
+          <div>DETAIL</div>
         </div>
         <div className={contentClass}>{children}</div>
       </div>
