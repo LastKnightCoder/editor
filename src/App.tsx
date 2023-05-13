@@ -12,6 +12,7 @@ import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
 import {useFocusStore, usePressedKeyStore} from "./stores";
 
+import ImagesOverview from "./components/ImagesOverview";
 
 const App = () => {
   const plugins = [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withQuitMode, withInsertBreak, withDeleteBackward];
@@ -78,6 +79,7 @@ const App = () => {
               setFocus(false);
             }}
           />
+          <ImagesOverview />
           <Button onClick={clear}>清除数据并刷新页面</Button>
           <Button onClick={handleGetLeafParent} >获取当前叶子节点的父节点</Button>
           <Button onClick={handleGetElementParent} >获取当前元素节点的父节点</Button>

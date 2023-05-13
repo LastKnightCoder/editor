@@ -13,7 +13,7 @@ const header = (editor: Editor) => {
         const [, path] = match;
         const isStart = Editor.isStart(editor, selection.anchor, path);
         if (isStart) {
-          // 将标题转换为 paragraph
+          // 将标题转换为 paragraph，而不是将标题移到上一个块中
           Transforms.setNodes(editor, {
             type: 'paragraph'
           });

@@ -2,6 +2,14 @@ import {Descendant} from "slate";
 import {v4 as getUuid} from "uuid";
 
 export const initValue: Descendant[] = [{
+  type: 'image',
+  url: 'https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/w1.4zmfy9joggg0.webp',
+  alt: '',
+  children: [{
+    type: 'formatted',
+    text: ''
+  }]
+}, {
   type: 'blockquote',
   children: [{
     type: 'paragraph',
@@ -115,7 +123,7 @@ export const initValue: Descendant[] = [{
 }, {
   type: 'image',
   url: 'https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/image.2xx8cqgylu00.png',
-  alt: 'bilibili',
+  alt: '',
   children: [{
     type: 'formatted',
     text: ''

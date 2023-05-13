@@ -7,6 +7,7 @@ const header = (editor: Editor) => {
       match: n => n.type === 'header'
     })
     if (match) {
+      // 标题换行时，插入段落，而不是标题
       insertBreak();
       Transforms.setNodes(editor, { type: 'paragraph' });
       Transforms.unsetNodes(editor, 'level');
