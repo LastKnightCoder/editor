@@ -12,7 +12,7 @@ export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
     if (codeMirrorEditor) {
       codeMirrorEditor.focus();
     }
-  }, 1000);
+  }, 20);
 }
 
 export const getCurrentTextNode = (editor: Editor) => {
@@ -90,22 +90,7 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
     at: nextPath
   });
 
-  if (node.type === 'code-block') {
-    setTimeout(() => {
-      ReactEditor.focus(editor);
-      editor.move
-      Transforms.select(editor, {
-        anchor: {
-          path: [...nextPath, 0],
-          offset: 0,
-        },
-        focus: {
-          path: [...nextPath, 0],
-          offset: 0,
-        }
-      });
-    }, 50);
-  } else {
+  const focus = () => {
     ReactEditor.focus(editor);
     editor.move
     Transforms.select(editor, {
@@ -118,5 +103,13 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
         offset: 0,
       }
     });
+  }
+
+  if (node.type === 'code-block') {
+    setTimeout(() => {
+      focus();
+    }, 50);
+  } else {
+    focus();
   }
 }

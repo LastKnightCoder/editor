@@ -15,8 +15,8 @@ const list = (editor: Editor) => {
       // 如果是最后一个 list-item, wrap bulleted-list or numbered-list
       const curPara = getClosestCurrentElement(editor);
       if (curPara[1][curPara[1].length - 1] === 0) {
-        const curList = getParentNodeByNode(curPara[0], editor);
-        const curListWrapper = getParentNodeByNode(curList[0], editor)[0];
+        const curList = getParentNodeByNode(editor, curPara[0]);
+        const curListWrapper = getParentNodeByNode(editor, curList[0])[0];
         if (curListWrapper.type !== 'bulleted-list' && curListWrapper.type !== 'numbered-list') {
           throw new Error('当前 list-item 的父节点不是 bulleted-list 或者 numbered-list');
         }

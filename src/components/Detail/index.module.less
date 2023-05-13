@@ -1,0 +1,32 @@
+.container {
+  background-color: #f9f9fa;
+  border-radius: 8px;
+  border: 1px solid rgba(60, 60, 67, 0.29);
+  padding: 16px 16px 4px 16px;
+
+  .title {
+    cursor: pointer;
+    padding-bottom: 12px;
+    display: flex;
+    .arrow {
+      transition: transform 0.4s ease-in-out;
+      &.show {
+        transform: rotate(90deg);
+      }
+      &.hide {
+        transform: rotate(0deg);
+      }
+    }
+  }
+  .content {
+    transition: max-height 0.3s ease-in-out;
+    &.show {
+      max-height: 500px;
+    }
+
+    &.hide {
+      max-height: 0;
+      overflow: hidden;
+    }
+  }
+}

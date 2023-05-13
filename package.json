@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/icons": "^5.0.1",
     "@codemirror/basic-setup": "^0.20.0",
     "@codemirror/commands": "^6.2.3",
     "@codemirror/lang-javascript": "^6.1.7",

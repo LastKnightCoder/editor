@@ -1,9 +1,10 @@
 import React from "react";
-import { Collapse } from 'antd';
+import CaretRightOutlined from '@ant-design/icons/CaretRightOutlined';
 import { RenderElementProps } from "slate-react";
 import { DetailElement } from "../../custom-types";
 import AddParagraph from "../AddParagraph";
-const { Panel } = Collapse;
+import classnames from 'classnames';
+import styles from './index.module.less';
 
 interface ICollapseElementProps {
   attributes: RenderElementProps['attributes'];
@@ -12,15 +13,32 @@ interface ICollapseElementProps {
 
 const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (props) => {
   const { attributes, children, element } = props;
-  const { title } = element;
+
+  const [showContent, setShowContent] = React.useState(false);
+
+  const toggleShowContent = () => {
+    setShowContent(!showContent);
+  }
+
+  const arrowClass = classnames(styles.arrow, {
+    [styles.show]: showContent,
+    [styles.hide]: !showContent
+  });
+
+  const contentClass = classnames(styles.content, {
+    [styles.show]: showContent,
+    [styles.hide]: !showContent
+  });
 
   return (
-    <div>
-      <Collapse {...attributes}>
-        <Panel header={<span contentEditable={false} style={{ userSelect: 'none' }} >{title}</span>} key="1">
-          {children}
-        </Panel>
-      </Collapse>
+    <div {...attributes}>
+      <div className={styles.container}>
+        <div className={styles.title} onClick={toggleShowContent} contentEditable={false} style={{ userSelect: 'none' }} >
+          <div className={arrowClass}><CaretRightOutlined /></div>
+          <div>Detail</div>
+        </div>
+        <div className={contentClass}>{children}</div>
+      </div>
       <AddParagraph element={element} />
     </div>
   );

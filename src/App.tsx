@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import { useState } from "react";
 import { Button } from "antd";
 
 import { createEditor, Descendant } from 'slate';
@@ -30,14 +30,10 @@ const App = () => {
     resetPressedKey: state.resetPressedKey,
     isReset: state.isReset
   }));
-  const { isFocus, setFocus } = useFocusStore(state => ({
+  const { setFocus } = useFocusStore(state => ({
     isFocus: state.isFocus,
     setFocus: state.setFocus
   }));
-
-  useEffect(() => {
-    console.log('::isFocus', isFocus);
-  }, [isFocus]);
 
   const save = (value: Descendant[]) => {
     localStorage.setItem('content', JSON.stringify(value));
@@ -70,8 +66,6 @@ const App = () => {
             onKeyDown={(event) => {
               registerHotKey(editor, event, hotKeyConfigs);
               listenKeyPressed(event);
-              // 一定要阻止默认行为，否则使用快捷键会失去焦点
-              event.preventDefault();
             }}
             onKeyUp={() => {
               if (!isReset) {
@@ -85,15 +79,13 @@ const App = () => {
               setFocus(false);
             }}
           />
-          <p>isFocus: {isFocus}</p>
           <Button onClick={clear}>清除数据并刷新页面</Button>
           <Button onClick={handleGetLeafParent} >获取当前叶子节点的父节点</Button>
           <Button onClick={handleGetElementParent} >获取当前元素节点的父节点</Button>
           <Button onClick={() => { console.log('::isAtParagraphStart', isAtParagraphStart(editor)) }} >是否在段落开头</Button>
         </div>
       </Slate>
-      {/*<Button onClick={() => { const curEle = getFarthestCurrentElement(editor); console.log('::curEle', curEle); const curLeafNode =  getCurrentTextNode(editor); console.log('::curLeafNode', curLeafNode) }} >获取当前</Button>*/}
-      <pre style={{ maxHeight: '100vh', overflow: 'auto', padding: 40, margin: 0, boxSizing: 'border-box' }}>
+      <pre style={{ maxHeight: '100vh', overflowY: 'auto', overflowX: 'hidden', margin: 0, boxSizing: 'border-box' }}>
         <code>{JSON.stringify(value, null, 2)}</code>
       </pre>
     </div>

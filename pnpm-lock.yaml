@@ -1,6 +1,7 @@
 lockfileVersion: 5.4
 
 specifiers:
+  '@ant-design/icons': ^5.0.1
   '@codemirror/basic-setup': ^0.20.0
   '@codemirror/commands': ^6.2.3
   '@codemirror/lang-javascript': ^6.1.7
@@ -34,6 +35,7 @@ specifiers:
   zustand: ^4.3.8
 
 dependencies:
+  '@ant-design/icons': registry.npmmirror.com/@ant-design/icons/5.0.1_biqbaboplfbrettd7655fr4n2y
   '@codemirror/basic-setup': registry.npmmirror.com/@codemirror/basic-setup/0.20.0
   '@codemirror/commands': registry.npmmirror.com/@codemirror/commands/6.2.3
   '@codemirror/lang-javascript': registry.npmmirror.com/@codemirror/lang-javascript/6.1.7

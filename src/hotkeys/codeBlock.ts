@@ -20,6 +20,7 @@ export const codeBlockConfig: HotKeyConfig[] = [{
       if (Editor.isStart(editor, selection.anchor, path)) {
         if (isParagraphEmpty(element as ParagraphElement)) {
           insertCodeBlock(editor, 'javascript');
+          // 防止失去焦点
           event.preventDefault();
         } else {
           message.error('段落不为空');
