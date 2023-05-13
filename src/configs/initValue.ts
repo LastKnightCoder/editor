@@ -128,4 +128,12 @@ export const initValue: Descendant[] = [{
     type: 'formatted',
     text: ''
   }]
+}, {
+  type: 'image',
+  url: '',
+  alt: '',
+  children: [{
+    type: 'formatted',
+    text: ''
+  }]
 }];
