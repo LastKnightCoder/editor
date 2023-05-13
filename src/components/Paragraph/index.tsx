@@ -1,12 +1,11 @@
-import React, { useRef } from 'react'
+import React from 'react'
+import styles from './index.module.less';
 
 const Paragraph: React.FC<React.PropsWithChildren> = (props) => {
   const { children } = props;
-  
-  const ref = useRef<HTMLParagraphElement>(null);
 
   return (
-    <p ref={ref}>
+    <p className={styles.paragraph}>
       {children}
     </p>
   )
