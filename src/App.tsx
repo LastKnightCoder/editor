@@ -7,7 +7,7 @@ import { withHistory } from 'slate-history';
 
 import { applyPlugin, registerHotKey } from "./utils";
 import { initValue as defaultValue } from "./configs";
-import { withMarkdownShortcuts, withOverrideSettings, withQuitMode, withInsertBreak, withDeleteBackward, withPasteImage } from "./plugins";
+import { withMarkdownShortcuts, withOverrideSettings, withInsertBreak, withDeleteBackward, withPasteImage } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
 import { useFocusStore, usePressedKeyStore } from "./stores";
@@ -15,7 +15,7 @@ import { useFocusStore, usePressedKeyStore } from "./stores";
 import ImagesOverview from "./components/ImagesOverview";
 
 const App = () => {
-  const plugins = [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withQuitMode, withInsertBreak, withDeleteBackward, withPasteImage];
+  const plugins = [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withInsertBreak, withDeleteBackward, withPasteImage];
   const [editor] = useState(() => applyPlugin(createEditor(), plugins));
   const [initValue] = useState(() => {
     const content = localStorage.getItem('content');
@@ -52,7 +52,7 @@ const App = () => {
         <div style={{ margin: '10px auto', minWidth: '600px', maxWidth: '800px', }}>
           <Editable
             renderElement={renderElement(editor)}
-            renderLeaf={renderLeaf(editor)}
+            renderLeaf={renderLeaf()}
             onKeyDown={(event) => {
               registerHotKey(editor, event, hotKeyConfigs);
               listenKeyPressed(event);
