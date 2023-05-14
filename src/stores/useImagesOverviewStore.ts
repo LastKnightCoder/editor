@@ -3,7 +3,6 @@ import { ImageElement } from "../custom-types";
 import {Descendant, Editor} from "slate";
 
 interface IState {
-  images: string[];
   imageElements: ImageElement[];
   isShowImagesOverview: boolean;
   currentImageIndex: number;
@@ -18,7 +17,6 @@ interface IActions {
 }
 
 const initialState: IState = {
-  images: [],
   imageElements: [],
   isShowImagesOverview: false,
   hasNextImage: false,
@@ -30,11 +28,14 @@ const getAllImageElements = (children: Descendant[]) => {
   const imagesElement: ImageElement[] = [];
   for (const node of children) {
     if (node.type === 'image') {
-      imagesElement.push(node);
+      // 如果 url 未空，说明还未上传图片
+      if (node.url) {
+        imagesElement.push(node);
+      }
       continue;
     }
-    if ((node as any).children && Array.isArray((node as any).children)) {
-      imagesElement.push(...getAllImageElements((node as any).children))
+    if ((node as { children: Descendant[] }).children && Array.isArray((node as { children: Descendant[] }).children)) {
+      imagesElement.push(...getAllImageElements((node as { children: Descendant[] }).children))
     }
   }
 
@@ -47,14 +48,12 @@ export const useImagesOverviewStore = create<IState & IActions>((set, get) => ({
     const children = editor.children;
     // 找到所有的 image element
     const imageElements: ImageElement[] = getAllImageElements(children);
-    const images: string[] = imageElements.map(image => image.url);
     const index = imageElements.findIndex(imageElement => imageElement === element);
     set({
-      images,
       imageElements,
       currentImageIndex: index,
       isShowImagesOverview: true,
-      hasNextImage: index !== images.length - 1,
+      hasNextImage: index !== imageElements.length - 1,
       hasPrevImage: index !== 0
     });
     document.body.style.overflow = 'hidden';
@@ -64,12 +63,12 @@ export const useImagesOverviewStore = create<IState & IActions>((set, get) => ({
     document.body.style.overflow = 'auto';
   },
   switchImage: (next) => {
-    const { hasPrevImage, hasNextImage, currentImageIndex, images } = get();
+    const { hasPrevImage, hasNextImage, currentImageIndex, imageElements } = get();
     if (next) {
       if (hasNextImage) {
         set({
           currentImageIndex: currentImageIndex + 1,
-          hasNextImage: (currentImageIndex + 1) !== images.length - 1,
+          hasNextImage: (currentImageIndex + 1) !== imageElements.length - 1,
           hasPrevImage: true
         })
       }

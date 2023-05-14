@@ -1,14 +1,18 @@
-import React, {useRef} from 'react';
+import React, { useRef, useState } from 'react';
 import { FullscreenOutlined, DeleteOutlined, FileImageOutlined } from '@ant-design/icons';
-
-import {ReactEditor, RenderElementProps, useSlate} from "slate-react";
-import {ImageElement} from "../../custom-types";
-
-import styles from './index.module.less';
 import AddParagraph from "../AddParagraph";
+
 import { Transforms } from "slate";
+import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { v4 as uuid } from 'uuid';
 
 import { useImagesOverviewStore } from "../../stores";
+import {replaceGithubUrlToCDNUrl, uploadSingleImage} from "../../utils";
+import { ImageElement } from "../../custom-types";
+
+import styles from './index.module.less';
+import { Spin } from "antd";
+
 
 interface IImageProps {
   attributes: RenderElementProps['attributes'];
@@ -17,8 +21,9 @@ interface IImageProps {
 
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { attributes, children, element } = props;
-  const { url, alt = '' } = element;
+  const { url, alt = '', pasteUploading = false } = element;
 
+  const [uploading, setUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
   const editor = useSlate();
@@ -51,25 +56,43 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     }
     const file = files[0];
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const url = ev.target!.result as string;
+    reader.onload = async (ev) => {
+      if (!ev.target) {
+        return;
+      }
+      const res = ev.target.result as string;
+      let fileName = file.name;
+      fileName = fileName.split('.')[0] + '_' + uuid() + '.' + fileName.split('.')[1];
+      setUploading(true);
+      const uploadRes = await uploadSingleImage(res.split(',')[1], fileName);
+      const { content: { download_url } } = uploadRes as any;
       Transforms.setNodes(editor, {
-        url
-      })
+        url: replaceGithubUrlToCDNUrl(download_url)
+      });
+      setUploading(false);
     }
     reader.readAsDataURL(file);
   }
 
   const renderUpload = () => {
     return (
-      <div className={styles.uploadContainer} onClick={upload}>
-        <div>
-          <FileImageOutlined style={{ fontSize: '32px' }} />
+      <div className={styles.uploadContainer}>
+        <Spin spinning={uploading || pasteUploading}>
+          <div className={styles.content} onClick={upload}>
+            <div>
+              <FileImageOutlined style={{ fontSize: '32px' }} />
+            </div>
+            <div className={styles.uploadText}>
+              上传图片
+            </div>
+            <input ref={fileUploadRef} type={'file'} accept={'image/*'} style={{ display: 'none' }} onChange={handleUploadFileChange} />
+          </div>
+        </Spin>
+        <div className={styles.actions}>
+          <div onClick={deleteImage} className={styles.item}>
+            <DeleteOutlined />
+          </div>
         </div>
-        <div className={styles.uploadText}>
-          上传图片
-        </div>
-        <input ref={fileUploadRef} type={'file'} accept={'image/*'} style={{ display: 'none' }} onChange={handleUploadFileChange} />
       </div>
     )
   }
@@ -79,11 +102,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       <div className={styles.imageContainer}>
         <img className={styles.image} src={url} alt={alt} onClick={showOverView}/>
         <div className={styles.actions}>
-          <div onClick={showOverView} className={styles.overview}>
+          <div onClick={showOverView} className={styles.item}>
             <FullscreenOutlined />
           </div>
           <div className={styles.divider}></div>
-          <div onClick={deleteImage} className={styles.delete}>
+          <div onClick={deleteImage} className={styles.item}>
             <DeleteOutlined />
           </div>
         </div>

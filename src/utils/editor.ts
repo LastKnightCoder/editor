@@ -87,7 +87,8 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
     type: 'paragraph',
     children: [{ type: 'formatted', text: '' }],
   }, {
-    at: nextPath
+    at: nextPath,
+    select: true,
   });
 
   const focus = () => {
@@ -105,7 +106,7 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
     });
   }
 
-  if (node.type === 'code-block') {
+  if (editor.isVoid(node)) {
     setTimeout(() => {
       focus();
     }, 50);

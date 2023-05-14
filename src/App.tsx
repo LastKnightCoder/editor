@@ -1,21 +1,21 @@
 import { useState } from "react";
-import { Button } from "antd";
+// import { Button } from "antd";
 
 import { createEditor, Descendant } from 'slate';
 import { Slate, Editable, withReact } from 'slate-react';
 import { withHistory } from 'slate-history';
 
-import {applyPlugin, getElementParent, getLeafParent, registerHotKey, isAtParagraphStart } from "./utils";
+import { applyPlugin, registerHotKey } from "./utils";
 import { initValue as defaultValue } from "./configs";
-import { withMarkdownShortcuts, withOverrideSettings, withQuitMode, withInsertBreak, withDeleteBackward } from "./plugins";
+import { withMarkdownShortcuts, withOverrideSettings, withQuitMode, withInsertBreak, withDeleteBackward, withPasteImage } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
-import {useFocusStore, usePressedKeyStore} from "./stores";
+import { useFocusStore, usePressedKeyStore } from "./stores";
 
 import ImagesOverview from "./components/ImagesOverview";
 
 const App = () => {
-  const plugins = [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withQuitMode, withInsertBreak, withDeleteBackward];
+  const plugins = [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withQuitMode, withInsertBreak, withDeleteBackward, withPasteImage];
   const [editor] = useState(() => applyPlugin(createEditor(), plugins));
   const [initValue] = useState(() => {
     const content = localStorage.getItem('content');
@@ -24,42 +24,32 @@ const App = () => {
     }
     return defaultValue;
   });
-  const [value, setValue] = useState<Descendant[]>(initValue);
+  // const [value, setValue] = useState<Descendant[]>(initValue);
 
   const { listenKeyPressed, resetPressedKey, isReset } = usePressedKeyStore(state => ({
     listenKeyPressed: state.listenKeyPressed,
     resetPressedKey: state.resetPressedKey,
     isReset: state.isReset
   }));
+
   const { setFocus } = useFocusStore(state => ({
-    isFocus: state.isFocus,
     setFocus: state.setFocus
   }));
 
   const save = (value: Descendant[]) => {
     localStorage.setItem('content', JSON.stringify(value));
-    setValue(value);
+    // setValue(value);
   }
 
-  const clear = () => {
-    localStorage.clear();
-    window.location.reload();
-  }
-
-  const handleGetLeafParent = () => {
-    const curLeafNode = getLeafParent(editor);
-    console.log('::curLeafNode', curLeafNode);
-  }
-
-  const handleGetElementParent = () => {
-    const curEle = getElementParent(editor);
-    console.log('::curEle', curEle);
-  }
+  // const clear = () => {
+  //   localStorage.clear();
+  //   window.location.reload();
+  // }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', overflow: 'hidden' }}>
+    <div>
       <Slate editor={editor} value={initValue} onChange={save} >
-        <div style={{ maxHeight: '100vh', boxSizing: 'border-box', flex: 2, padding: '50px 40px', minWidth: '800px', overflowY: 'auto' }}>
+        <div style={{ margin: '10px auto', minWidth: '600px', maxWidth: '800px', }}>
           <Editable
             renderElement={renderElement(editor)}
             renderLeaf={renderLeaf(editor)}
@@ -68,6 +58,7 @@ const App = () => {
               listenKeyPressed(event);
             }}
             onKeyUp={() => {
+              // 防止重复触发，频繁更新组件，编辑体验不好
               if (!isReset) {
                 resetPressedKey();
               }
@@ -80,15 +71,12 @@ const App = () => {
             }}
           />
           <ImagesOverview />
-          <Button onClick={clear}>清除数据并刷新页面</Button>
-          <Button onClick={handleGetLeafParent} >获取当前叶子节点的父节点</Button>
-          <Button onClick={handleGetElementParent} >获取当前元素节点的父节点</Button>
-          <Button onClick={() => { console.log('::isAtParagraphStart', isAtParagraphStart(editor)) }} >是否在段落开头</Button>
+          {/*<Button onClick={clear}>清除数据并刷新页面</Button>*/}
         </div>
       </Slate>
-      <pre style={{ maxHeight: '100vh', overflowX: 'hidden', margin: 0, boxSizing: 'border-box' }}>
-        <code>{JSON.stringify(value, null, 2)}</code>
-      </pre>
+      {/*<pre style={{ maxHeight: '100vh', overflowX: 'hidden', margin: 0, boxSizing: 'border-box' }}>*/}
+      {/*  <code>{JSON.stringify(value, null, 2)}</code>*/}
+      {/*</pre>*/}
     </div>
   )
 }

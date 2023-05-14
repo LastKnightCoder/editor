@@ -3,9 +3,10 @@ import {Editor, Range, Transforms} from "slate";
 import { FormattedText } from "../custom-types";
 
 import { Mark, HotKeyConfig } from "./types";
+import React from "react";
 
 const markAction = (mark: Mark) => {
-  return (editor: Editor) => {
+  return (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => {
     const node = getCurrentTextNode(editor)[0];
     if (node && node.type === 'formatted') {
       const marks = Editor.marks(editor);
@@ -14,6 +15,7 @@ const markAction = (mark: Mark) => {
       } else {
         Editor.addMark(editor, mark, true);
       }
+      event.preventDefault();
       const { selection } = editor;
       if (selection && !Range.isCollapsed(selection)) {
         Transforms.collapse(editor, { edge: 'end' });
