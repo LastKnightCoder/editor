@@ -22,9 +22,9 @@ export type CustomField = {
   type: string,
   escMode: boolean,
 }
-export type CustomElement = ParagraphElement | CodeBlockElement | CalloutElement | HeaderElement | BulletedListElement | NumberedListElement | ListItemElement | ImageElement | DetailElement | BlockquoteElement;
-export type CustomText = FormattedText | LinkElement;
 
+export type CustomElement = ParagraphElement | CodeBlockElement | CalloutElement | HeaderElement | BulletedListElement | NumberedListElement | ListItemElement | ImageElement | DetailElement | BlockquoteElement | LinkElement;
+export type CustomText = FormattedText;
 
 declare module 'slate' {
   interface CustomTypes {

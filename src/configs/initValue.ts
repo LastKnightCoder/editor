@@ -35,7 +35,10 @@ export const initValue: Descendant[] = [{
   }, {
     type: 'link',
     url: 'https://www.bilibili.com',
-    text: 'bilibili'
+    children: [{
+      type: 'formatted',
+      text: 'bilibili'
+    }]
   }]
 }, {
   type: 'code-block',

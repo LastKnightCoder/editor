@@ -1,13 +1,16 @@
 import {Editor, Transforms} from "slate";
 import {ReactEditor, RenderElementProps} from "slate-react";
 import {Editor as CodeMirrorEditor} from "codemirror";
+
 import {CodeBlockElement} from "../custom-types";
+
 import CodeBlock from "../components/CodeBlock";
 import Callout from "../components/Callout";
 import Header from "../components/Header";
 import Image from "../components/Image";
 import Detail from "../components/Detail";
 import Blockquote from "../components/Blockquote";
+import Link from "../components/Link";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -83,6 +86,12 @@ export const renderElement = (editor: Editor) => {
           <Blockquote attributes={attributes} element={element}>
             {children}
           </Blockquote>
+        )
+      case 'link':
+        return (
+          <Link element={element} attributes={attributes} >
+            {children}
+          </Link>
         )
       default:
         return <p {...attributes}>{children}</p>

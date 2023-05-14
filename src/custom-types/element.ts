@@ -1,8 +1,9 @@
-import {Descendant, Text} from "slate";
+import { Descendant } from "slate";
+import {FormattedText} from "./text";
 
 export interface ParagraphElement {
   type: 'paragraph';
-  children: Text[];
+  children: Array<FormattedText | LinkElement>
 }
 
 export interface CodeBlockElement {
@@ -56,4 +57,10 @@ export interface DetailElement {
 export interface BlockquoteElement {
   type: 'blockquote';
   children: Descendant[];
+}
+
+export interface LinkElement {
+  type: 'link';
+  url: string;
+  children: FormattedText[];
 }

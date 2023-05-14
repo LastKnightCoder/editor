@@ -1,8 +1,8 @@
 import { formattedText, quitFormattedMarks } from "./formattedText";
 import { headerConfig } from "./header";
 import { codeBlockConfig } from "./codeBlock";
-import { commonConfig } from "./common";
 import { listConfig } from "./list";
+import { inline } from "./inline";
 
-const hotKeyConfigs = [...formattedText, ...quitFormattedMarks, ...headerConfig, ...codeBlockConfig, ...commonConfig, ...listConfig];
+const hotKeyConfigs = [...formattedText, ...quitFormattedMarks, ...headerConfig, ...codeBlockConfig, ...listConfig, ...inline];
 export default hotKeyConfigs;

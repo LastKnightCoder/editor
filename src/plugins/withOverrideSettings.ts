@@ -13,7 +13,7 @@ export const withOverrideSettings = (editor: Editor) => {
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }
   editor.isInline = (element) => {
-    const inlineTypes = ['formatted', 'link'];
+    const inlineTypes = ['link'];
     return inlineTypes.includes(element.type) ? true : isInline(element);
   }
   editor.codeBlockMap = new Map<string, CodeMirrorEditor>();

@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Popover, Button, Input, Space } from "antd";
-import { RenderLeafProps, useSlate } from "slate-react";
+import InlineChromiumBugfix from "../InlineChromiumBugFix";
+import {RenderElementProps, useSlate} from "slate-react";
 import classnames from 'classnames';
 import { usePressedKeyStore } from "../../stores";
 
@@ -10,8 +11,8 @@ import {Transforms} from "slate";
 import {isLeafNode} from "../../utils";
 
 interface LinkProps {
-  attributes: RenderLeafProps['attributes'];
-  leaf: LinkElement
+  attributes: RenderElementProps['attributes'];
+  element: LinkElement
 }
 
 const EditLink: React.FC<{ url:string, onSubmit: (url: string) => void }> = (props) => {
@@ -28,8 +29,8 @@ const EditLink: React.FC<{ url:string, onSubmit: (url: string) => void }> = (pro
 }
 
 const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
-  const { attributes, children, leaf } = props;
-  const { url } = leaf;
+  const { attributes, children, element } = props;
+  const { url } = element;
 
   const editor = useSlate();
   const [open, setOpen] = useState(false);
@@ -69,7 +70,9 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
         target="_blank"
         rel="noopener noreferrer"
       >
+        <InlineChromiumBugfix />
         {children}
+        <InlineChromiumBugfix />
       </a>
     </Popover>
   )

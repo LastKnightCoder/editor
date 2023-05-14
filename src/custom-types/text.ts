@@ -7,9 +7,3 @@ export interface FormattedText {
   highlight?: boolean;
   code?: boolean;
 }
-
-export interface LinkElement {
-  type: 'link';
-  url: string;
-  text: string;
-}
