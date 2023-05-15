@@ -1,8 +1,8 @@
-import {Editor, Transforms} from "slate";
-import {ReactEditor, RenderElementProps} from "slate-react";
-import {Editor as CodeMirrorEditor} from "codemirror";
+import { Editor, Transforms } from "slate";
+import { ReactEditor, RenderElementProps } from "slate-react";
+import { Editor as CodeMirrorEditor } from "codemirror";
 
-import {CodeBlockElement} from "../custom-types";
+import { CodeBlockElement } from "../custom-types";
 
 import CodeBlock from "../components/CodeBlock";
 import Callout from "../components/Callout";
@@ -11,6 +11,9 @@ import Image from "../components/Image";
 import Detail from "../components/Detail";
 import Blockquote from "../components/Blockquote";
 import Link from "../components/Link";
+import Table from "../components/Table";
+import TableRow from "../components/TableRow";
+import TableCell from "../components/TableCell";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -92,6 +95,24 @@ export const renderElement = (editor: Editor) => {
           <Link element={element} attributes={attributes} >
             {children}
           </Link>
+        )
+      case 'table':
+        return (
+          <Table element={element} attributes={attributes} >
+            {children}
+          </Table>
+        )
+      case 'table-row':
+        return (
+          <TableRow attributes={attributes} element={element}>
+            {children}
+          </TableRow>
+        )
+      case 'table-cell':
+        return (
+          <TableCell attributes={attributes} element={element}>
+            {children}
+          </TableCell>
         )
       default:
         return <p {...attributes}>{children}</p>

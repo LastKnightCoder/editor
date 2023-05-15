@@ -64,3 +64,18 @@ export interface LinkElement {
   url: string;
   children: FormattedText[];
 }
+
+export interface TableCellElement {
+  type: 'table-cell',
+  children: Descendant[],
+}
+
+export interface TableRowElement {
+  type: 'table-row'
+  children: TableCellElement[]
+}
+
+export interface TableElement {
+  type: 'table',
+  children: TableRowElement[]
+}

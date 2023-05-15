@@ -5,7 +5,7 @@ import {Editor as CodeMirrorEditor} from "codemirror";
 export const withOverrideSettings = (editor: Editor) => {
   const { isBlock, isVoid, isInline } = editor;
   editor.isBlock = (element) => {
-    const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image', 'detail', 'blockquote'];
+    const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image', 'detail', 'blockquote', 'table', 'table-row', 'table-cell'];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
   editor.isVoid = (element) => {
