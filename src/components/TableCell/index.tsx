@@ -11,7 +11,7 @@ const TableCell: React.FC<React.PropsWithChildren<ITableCellProps>> = (props) =>
   const { attributes, children } = props;
 
   return (
-    <td {...attributes} className="table">
+    <td {...attributes}>
       {children}
     </td>
   )

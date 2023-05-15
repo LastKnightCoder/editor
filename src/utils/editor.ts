@@ -1,4 +1,4 @@
-import {Editor, Transforms, Range, Node, Element} from "slate";
+import {Editor, Transforms, Range, Node, Element, NodeMatch} from "slate";
 import { v4 as getUuid } from 'uuid';
 import {isElementNode, isLeafNode, isParagraphElement} from "./element";
 import { ReactEditor } from "slate-react";
@@ -113,4 +113,20 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
   } else {
     focus();
   }
+}
+
+export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>) => {
+  const [curEle] = Editor.nodes(editor, {
+    match,
+    mode: 'lowest',
+  });
+  if (!curEle) {
+    return;
+  }
+  Transforms.removeNodes(editor, {
+    at: curEle[1],
+  });
+  Transforms.insertNodes(editor, node, {
+    at: curEle[1],
+  });
 }

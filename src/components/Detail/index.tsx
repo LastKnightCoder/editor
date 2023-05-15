@@ -37,7 +37,11 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (props)
           <div className={arrowClass}><CaretRightOutlined /></div>
           <div>DETAIL</div>
         </div>
-        <div className={contentClass}>{children}</div>
+        <div className={contentClass}>
+          <div>
+            {children}
+          </div>
+        </div>
       </div>
       <AddParagraph element={element} />
     </div>

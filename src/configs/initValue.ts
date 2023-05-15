@@ -146,20 +146,14 @@ export const initValue: Descendant[] = [{
     children: [{
       type: 'table-cell',
       children: [{
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: '这是一个 Table demo 1'
-        }]
+        type: 'formatted',
+        text: '这是一个 Table demo 1'
       }]
     }, {
       type: 'table-cell',
       children: [{
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: '这是一个 Table demo 2'
-        }]
+        type: 'formatted',
+        text: '这是一个 Table demo 2'
       }]
     }]
   }, {
@@ -167,20 +161,14 @@ export const initValue: Descendant[] = [{
     children: [{
       type: 'table-cell',
       children: [{
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: '这是一个 Table demo 3'
-        }]
+        type: 'formatted',
+        text: '这是一个 Table demo 3'
       }]
     }, {
       type: 'table-cell',
       children: [{
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: '这是一个 Table demo 4'
-        }]
+        type: 'formatted',
+        text: '这是一个 Table demo 4'
       }]
     }]
   }]

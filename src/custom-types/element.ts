@@ -65,9 +65,13 @@ export interface LinkElement {
   children: FormattedText[];
 }
 
+// export interface TableHeadElement {
+//
+// }
+
 export interface TableCellElement {
   type: 'table-cell',
-  children: Descendant[],
+  children: Array<FormattedText | LinkElement>
 }
 
 export interface TableRowElement {

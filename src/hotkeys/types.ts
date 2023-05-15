@@ -2,7 +2,7 @@ import React from "react";
 import { Editor } from "slate";
 
 export type HotKeyConfig = {
-  hotKey: string;
+  hotKey: string | string[];
   action: (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => void;
 }
 

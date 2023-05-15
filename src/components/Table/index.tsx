@@ -1,6 +1,8 @@
 import React from "react";
-import {RenderElementProps} from "slate-react";
+import { RenderElementProps } from "slate-react";
+import styles from './index.module.less';
 import {TableElement} from "../../custom-types";
+import AddParagraph from "../AddParagraph";
 
 interface ITableProps {
   attributes: RenderElementProps['attributes'];
@@ -8,12 +10,17 @@ interface ITableProps {
 }
 
 const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
-  const { attributes, children } = props;
+  const { attributes, element, children } = props;
 
   return (
-    <table {...attributes} className="table">
-      {children}
-    </table>
+    <div>
+      <table {...attributes} className={styles.table}>
+        <tbody>
+        {children}
+        </tbody>
+      </table>
+      <AddParagraph element={element} />
+    </div>
   )
 }
 

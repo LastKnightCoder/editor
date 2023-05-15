@@ -10,7 +10,7 @@
     display: flex;
     gap: 5px;
     .arrow {
-      transition: transform 0.4s ease-in-out;
+      transition: transform 0.2s linear;
       &.show {
         transform: rotate(90deg);
       }
@@ -20,14 +20,15 @@
     }
   }
   .content {
-    transition: max-height 0.3s ease-in-out;
-    &.show {
-      max-height: 500px;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.2s ease-in-out;
+    overflow: hidden;
+    & > div {
+      min-height: 0;
     }
-
-    &.hide {
-      max-height: 0;
-      overflow: hidden;
+    &.show {
+      grid-template-rows: 1fr;
     }
   }
 }
