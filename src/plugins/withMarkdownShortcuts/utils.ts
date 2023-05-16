@@ -12,6 +12,9 @@ export const isAtFirst = (editor: Editor, text: string) => {
       const [nodeMatch] = Editor.nodes(editor, {
         match: n => SlateNode.isNode(n) && n.type === 'formatted',
       });
+      if (!nodeMatch) {
+        return undefined;
+      }
       const [node, path] = nodeMatch;
       // node 是否是 paragraph 的第一个子节点
       const isFirst = (parentElement as ParagraphElement).children[0] === node;

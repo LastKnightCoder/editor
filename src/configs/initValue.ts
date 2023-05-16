@@ -39,6 +39,20 @@ export const initValue: Descendant[] = [{
       type: 'formatted',
       text: 'bilibili'
     }]
+  }, {
+    type: 'inline-math',
+    tex: 'x^2 + y^2 = z^2',
+    children: [{
+      type: 'formatted',
+      text: ''
+    }]
+  }]
+}, {
+  type: 'block-math',
+  tex: 'f(x) = \\begin{cases} 1 & x > 0 \\\\ 0 & x < 0 \\end{cases}',
+  children: [{
+    type: 'formatted',
+    text: ''
   }]
 }, {
   type: 'code-block',

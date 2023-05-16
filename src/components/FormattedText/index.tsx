@@ -19,7 +19,7 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
     underline,
     highlight,
     code,
-    text
+    // text
   } = leaf;
 
   const className = classnames({
@@ -27,7 +27,7 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
     [styles.italic]: italic,
     [styles.underline]: underline,
     // 如果没有文字，就设置一个 padding-left: 0.1px，这样即使在链接等后面也可以点击到
-    [styles.padding]: text === ''
+    [styles.padding]: true
   });
 
   const addHighlightWrapper = (originChildren: React.ReactNode) => {

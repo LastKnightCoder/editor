@@ -1,21 +1,58 @@
-import { Editor } from "slate";
+import { Editor, Node, Path, Transforms } from "slate";
 import {Editor as CodeMirrorEditor} from "codemirror";
 
 
 export const withOverrideSettings = (editor: Editor) => {
-  const { isBlock, isVoid, isInline } = editor;
+  const { isBlock, isVoid, isInline, normalizeNode } = editor;
   editor.isBlock = (element) => {
-    const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image', 'detail', 'blockquote', 'table', 'table-row', 'table-cell'];
+    const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image', 'detail', 'blockquote', 'table', 'table-row', 'table-cell', 'block-math'];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
   editor.isVoid = (element) => {
-    const voidTypes = ['code-block', 'image'];
+    const voidTypes = ['code-block', 'image', 'inline-math', 'block-math'];
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }
   editor.isInline = (element) => {
-    const inlineTypes = ['link'];
+    const inlineTypes = ['link', 'inline-math'];
     return inlineTypes.includes(element.type) ? true : isInline(element);
   }
   editor.codeBlockMap = new Map<string, CodeMirrorEditor>();
+
+  editor.normalizeNode = (entry) => {
+    const zeroWidthChar = "\uFEFF";
+    const [node, path] = entry;
+
+    if (node.type === 'inline-math') {
+      const parentNode = Node.parent(editor, path);
+      const isFirstChild = !Path.hasPrevious(path);
+      const isLastChild =
+        path[path.length - 1] === parentNode.children.length - 1;
+
+      // If the inlineVoid is at the end of a line, must get path after the inlineVoid
+      // at which to insert a zero width character
+      const nextPath = Path.next(path);
+
+      let hasPreviousAdjacentInlineVoid = false;
+      if (!isFirstChild) {
+        const prevSibling = Node.get(editor, Path.previous(path));
+        hasPreviousAdjacentInlineVoid = prevSibling.type === "inline-math";
+      }
+
+      if (isLastChild) {
+        Transforms.insertNodes(
+          editor,
+          { type: 'formatted', text: zeroWidthChar },
+          { at: nextPath }
+        );
+      }
+      if (isFirstChild || hasPreviousAdjacentInlineVoid) {
+        Transforms.insertNodes(editor, { type: 'formatted', text: zeroWidthChar }, { at: path });
+      }
+    }
+
+    // Fall back to the original `normalizeNode` to enforce other constraints.
+    normalizeNode(entry);
+  };
+
   return editor;
 }

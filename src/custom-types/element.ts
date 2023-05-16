@@ -3,7 +3,7 @@ import {FormattedText} from "./text";
 
 export interface ParagraphElement {
   type: 'paragraph';
-  children: Array<FormattedText | LinkElement>
+  children: Array<FormattedText | LinkElement | InlineMathElement>
 }
 
 export interface CodeBlockElement {
@@ -82,4 +82,16 @@ export interface TableRowElement {
 export interface TableElement {
   type: 'table',
   children: TableRowElement[]
+}
+
+export interface InlineMathElement {
+  type: 'inline-math',
+  tex: string,
+  children: FormattedText[]
+}
+
+export interface BlockMathElement {
+  type: 'block-math',
+  tex: string,
+  children: FormattedText[]
 }

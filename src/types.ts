@@ -17,7 +17,9 @@ import {
   BlockquoteElement,
   TableElement,
   TableRowElement,
-  TableCellElement
+  TableCellElement,
+  InlineMathElement,
+  BlockMathElement,
 } from "./custom-types";
 
 export type CustomField = {
@@ -40,7 +42,9 @@ export type CustomElement =
   | LinkElement
   | TableElement
   | TableRowElement
-  | TableCellElement;
+  | TableCellElement
+  | InlineMathElement
+  | BlockMathElement;
 
 export type CustomText = FormattedText;
 

@@ -14,6 +14,8 @@ import Link from "../components/Link";
 import Table from "../components/Table";
 import TableRow from "../components/TableRow";
 import TableCell from "../components/TableCell";
+import InlineMath from "../components/InlineMath";
+import BlockMath from "../components/BlockMath";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -113,6 +115,18 @@ export const renderElement = (editor: Editor) => {
           <TableCell attributes={attributes} element={element}>
             {children}
           </TableCell>
+        )
+      case "inline-math":
+        return (
+          <InlineMath attributes={attributes} element={element}>
+            {children}
+          </InlineMath>
+        )
+      case 'block-math':
+        return (
+          <BlockMath attributes={attributes} element={element}>
+            {children}
+          </BlockMath>
         )
       default:
         return <p {...attributes}>{children}</p>

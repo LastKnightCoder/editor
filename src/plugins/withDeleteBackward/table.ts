@@ -28,7 +28,6 @@ const table = (editor: Editor) => {
           match: n => SlateElement.isElement(n) && isParagraphElement(n),
         });
         const [node, path] = match;
-        // 如果前一个是 code-block，删除当前 paragraph，将光标移动到 code-block 的末尾
         const prevPath = Editor.before(editor, path);
         if (prevPath) {
           const [prevMatch] = Editor.nodes(editor, {
@@ -39,7 +38,6 @@ const table = (editor: Editor) => {
             if (isParagraphEmpty(node as ParagraphElement)) {
               Transforms.removeNodes(editor, { at: path });
             }
-            console.log('prevMatch', prevMatch);
             Transforms.move(editor, { distance: -1, unit: 'line' });
             return;
           }

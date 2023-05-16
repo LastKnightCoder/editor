@@ -19,6 +19,7 @@
     "@types/codemirror": "^5.60.7",
     "antd": "^5.4.7",
     "axios": "^1.4.0",
+    "better-react-mathjax": "^2.0.2",
     "classnames": "^2.3.2",
     "codemirror": "5",
     "github-api": "^3.4.0",

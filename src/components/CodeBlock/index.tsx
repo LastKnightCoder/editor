@@ -21,7 +21,7 @@ import 'codemirror/mode/markdown/markdown.js';
 import 'codemirror/addon/edit/closebrackets.js';
 
 import isHotkey from "is-hotkey";
-import {RenderElementProps, useSlate} from "slate-react";
+import {RenderElementProps, useSlate } from "slate-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { CodeBlockElement } from "../../custom-types";
