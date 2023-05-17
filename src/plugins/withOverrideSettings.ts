@@ -1,4 +1,4 @@
-import { Editor, Node, Path, Transforms } from "slate";
+import { Editor, Node, Path, Transforms, Text } from "slate";
 import {Editor as CodeMirrorEditor} from "codemirror";
 
 
@@ -50,7 +50,11 @@ export const withOverrideSettings = (editor: Editor) => {
       }
     }
 
-    // Fall back to the original `normalizeNode` to enforce other constraints.
+    if (Text.isText(node) && node.type !== 'formatted') {
+      Transforms.setNodes(editor, { type: 'formatted' }, { at: path });
+      return;
+    }
+
     normalizeNode(entry);
   };
 

@@ -13,7 +13,7 @@ import { useFocusStore, usePressedKeyStore } from "./stores";
 
 import ImagesOverview from "./components/ImagesOverview";
 import { MathJaxContext } from "better-react-mathjax";
-import { Button } from "antd";
+import { Button, Drawer } from "antd";
 
 const config = {
   loader: { load: ["[tex]/html"] },
@@ -41,6 +41,7 @@ const App = () => {
     return defaultValue;
   });
   const [isNormalized, setIsNormalized] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!isNormalized) {
@@ -49,7 +50,7 @@ const App = () => {
     }
   });
 
-  // const [value, setValue] = useState<Descendant[]>(initValue);
+  const [value, setValue] = useState<Descendant[]>(initValue);
 
   const { listenKeyPressed, resetPressedKey, isReset } = usePressedKeyStore(state => ({
     listenKeyPressed: state.listenKeyPressed,
@@ -63,7 +64,7 @@ const App = () => {
 
   const save = (value: Descendant[]) => {
     localStorage.setItem('content', JSON.stringify(value));
-    // setValue(value);
+    setValue(value);
   }
 
   const clear = () => {
@@ -98,12 +99,18 @@ const App = () => {
             />
             <ImagesOverview />
             <Button onClick={clear}>清除数据并刷新页面</Button>
+            <Button onClick={() => setOpen(true)}>查看数据</Button>
           </div>
         </Slate>
       </MathJaxContext>
-      {/*<pre style={{ maxHeight: '100vh', overflowX: 'hidden', margin: 0, boxSizing: 'border-box' }}>*/}
-      {/*  <code>{JSON.stringify(value, null, 2)}</code>*/}
-      {/*</pre>*/}
+      <Drawer
+        open={open}
+        onClose={() => setOpen(false)}
+      >
+        <pre>
+          <code>{JSON.stringify(value, null, 2)}</code>
+        </pre>
+      </Drawer>
     </div>
   )
 }

@@ -4,7 +4,8 @@ import { codeBlockConfig } from "./codeBlock";
 import { listConfig } from "./list";
 import { inline } from "./inline";
 import { tableConfig } from "./table";
+import { mathConfig } from "./math";
 
-const hotKeyConfigs = [...formattedText, ...quitFormattedMarks, ...headerConfig, ...codeBlockConfig, ...listConfig, ...inline, ...tableConfig];
+const hotKeyConfigs = [...formattedText, ...quitFormattedMarks, ...headerConfig, ...codeBlockConfig, ...listConfig, ...inline, ...tableConfig, ...mathConfig];
 
 export default hotKeyConfigs;

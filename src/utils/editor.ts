@@ -109,7 +109,7 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
   if (editor.isVoid(node)) {
     setTimeout(() => {
       focus();
-    }, 50);
+    }, 200);
   } else {
     focus();
   }
