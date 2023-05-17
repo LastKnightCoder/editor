@@ -1,9 +1,9 @@
-import {ListItemElement, ParagraphElement} from "../custom-types";
+import {FormattedText, InlineMathElement, ListItemElement, ParagraphElement} from "../custom-types";
 import {Element, isEditor, Node, Editor, Path} from "slate";
 import {ReactEditor} from "slate-react";
 
 export const isParagraphEmpty = (element: ParagraphElement) => {
-  return element.children.length === 1 && element.children[0].text === '';
+  return element.children.length === 1 && ((element.children[0] as FormattedText).text === '' || (element.children[0] as InlineMathElement).tex === '');
 }
 
 export const isLeafNode = (node: Node) => {
