@@ -95,3 +95,14 @@ export interface BlockMathElement {
   tex: string,
   children: FormattedText[]
 }
+
+export interface CheckListItemElement {
+  type: 'check-list-item',
+  checked: boolean,
+  children: FormattedText[]
+}
+
+export interface CheckListElement {
+  type: 'check-list',
+  children: CheckListItemElement[]
+}

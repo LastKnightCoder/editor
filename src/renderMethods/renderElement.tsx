@@ -16,6 +16,10 @@ import TableRow from "../components/TableRow";
 import TableCell from "../components/TableCell";
 import InlineMath from "../components/InlineMath";
 import BlockMath from "../components/BlockMath";
+import BulletedList from "../components/BulletedList";
+import NumberedList from "../components/NumberedList";
+import CheckList from "../components/CheckList";
+import CheckListItem from "../components/CheckListItem";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -64,15 +68,15 @@ export const renderElement = (editor: Editor) => {
         )
       case 'bulleted-list':
         return (
-          <ul {...attributes}>
+          <BulletedList element={element} attributes={attributes}>
             {children}
-          </ul>
+          </BulletedList>
         )
       case 'numbered-list':
         return (
-          <ol {...attributes}>
+          <NumberedList element={element} attributes={attributes}>
             {children}
-          </ol>
+          </NumberedList>
         )
       case 'image':
         return (
@@ -127,6 +131,18 @@ export const renderElement = (editor: Editor) => {
           <BlockMath attributes={attributes} element={element}>
             {children}
           </BlockMath>
+        )
+      case 'check-list':
+        return (
+          <CheckList attributes={attributes} element={element}>
+            {children}
+          </CheckList>
+        )
+      case 'check-list-item':
+        return (
+          <CheckListItem attributes={attributes} element={element}>
+            {children}
+          </CheckListItem>
         )
       default:
         return <p {...attributes}>{children}</p>

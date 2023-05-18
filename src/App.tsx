@@ -9,7 +9,7 @@ import { initValue as defaultValue } from "./configs";
 import { withMarkdownShortcuts, withOverrideSettings, withInsertBreak, withDeleteBackward, withPasteImage } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
-import { useFocusStore, usePressedKeyStore } from "./stores";
+import {useFocusStore, useGithubStore, usePressedKeyStore} from "./stores";
 
 import ImagesOverview from "./components/ImagesOverview";
 import { MathJaxContext } from "better-react-mathjax";
@@ -50,6 +50,29 @@ const App = () => {
       setIsNormalized(true);
     }
   });
+
+  useEffect(() => {
+    const {
+      setBranches,
+      setRepo,
+      setToken,
+      setUserInfo,
+      setBranch,
+      setRepos,
+    } = useGithubStore.getState();
+    const token = localStorage.getItem('github_token') || '';
+    const user = JSON.parse(localStorage.getItem('github_user') || '{}') || null;
+    const repo = localStorage.getItem('github_repo') || '';
+    const branches = JSON.parse(localStorage.getItem('github_branches') || '[]');
+    const repos = JSON.parse(localStorage.getItem('github_repos') || '[]');
+    const branch = localStorage.getItem('github_branch') || '';
+    setToken(token);
+    setUserInfo(user);
+    setRepo(repo);
+    setBranches(branches);
+    setRepos(repos);
+    setBranch(branch);
+  }, []);
 
   const [value, setValue] = useState<Descendant[]>(initValue);
 
@@ -100,14 +123,17 @@ const App = () => {
             />
             <ImagesOverview />
             <Command />
-            <Button onClick={clear}>清除数据并刷新页面</Button>
-            <Button onClick={() => setOpen(true)}>查看数据</Button>
+            <div style={{ position: 'fixed', right: 10, top: 10 }}>
+              <Button onClick={clear}>清除数据并刷新页面</Button>
+              <Button style={{ marginLeft: 10 }} onClick={() => setOpen(true)}>查看数据</Button>
+            </div>
           </div>
         </Slate>
       </MathJaxContext>
       <Drawer
         open={open}
         onClose={() => setOpen(false)}
+        width={600}
       >
         <pre>
           <code>{JSON.stringify(value, null, 2)}</code>

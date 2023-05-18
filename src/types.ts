@@ -20,6 +20,8 @@ import {
   TableCellElement,
   InlineMathElement,
   BlockMathElement,
+  CheckListItemElement,
+  CheckListElement
 } from "./custom-types";
 
 export type CustomField = {
@@ -44,7 +46,9 @@ export type CustomElement =
   | TableRowElement
   | TableCellElement
   | InlineMathElement
-  | BlockMathElement;
+  | BlockMathElement
+  | CheckListItemElement
+  | CheckListElement;
 
 export type CustomText = FormattedText;
 

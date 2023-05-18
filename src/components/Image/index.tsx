@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FullscreenOutlined, DeleteOutlined, FileImageOutlined } from '@ant-design/icons';
+import { DeleteOutlined, FileImageOutlined, SettingOutlined, FullscreenOutlined } from '@ant-design/icons';
 import AddParagraph from "../AddParagraph";
 
 import { Transforms } from "slate";
@@ -12,6 +12,7 @@ import { ImageElement } from "../../custom-types";
 
 import styles from './index.module.less';
 import { Spin } from "antd";
+import GithubImageUploadSetting from "./GithubImageUploadSetting";
 
 
 interface IImageProps {
@@ -25,6 +26,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const [uploading, setUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
 
   const editor = useSlate();
   const { showImageOverview } = useImagesOverviewStore(state => ({
@@ -54,6 +56,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     if (!files) {
       return;
     }
+    const path = ReactEditor.findPath(editor, element);
     const file = files[0];
     const reader = new FileReader();
     reader.onload = async (ev) => {
@@ -66,8 +69,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       setUploading(true);
       const uploadRes = await uploadSingleImage(res.split(',')[1], fileName);
       const { content: { download_url } } = uploadRes as any;
+      const cdnUrl = replaceGithubUrlToCDNUrl(download_url);
       Transforms.setNodes(editor, {
-        url: replaceGithubUrlToCDNUrl(download_url)
+        url: cdnUrl,
+      }, {
+        at: path
       });
       setUploading(false);
     }
@@ -92,7 +98,12 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           <div onClick={deleteImage} className={styles.item}>
             <DeleteOutlined />
           </div>
+          <div className={styles.divider}></div>
+          <div className={styles.item} onClick={() => {setOpen(true)}}>
+            <SettingOutlined />
+          </div>
         </div>
+        <GithubImageUploadSetting open={open} onClose={() => {setOpen(false)}} />
       </div>
     )
   }

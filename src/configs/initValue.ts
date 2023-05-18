@@ -86,6 +86,23 @@ export const initValue: Descendant[] = [{
     highlight: true
   }]
 }, {
+  type: 'check-list',
+  children: [{
+    type: 'check-list-item',
+    checked: true,
+    children: [{
+      type: 'formatted',
+      text: '这是一个 demo'
+    }]
+  }, {
+    type: 'check-list-item',
+    checked: false,
+    children: [{
+      type: 'formatted',
+      text: '这是一个 demo2'
+    }]
+  }]
+}, {
   type: 'callout',
   calloutType: 'info',
   children: [{

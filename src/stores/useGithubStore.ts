@@ -1,11 +1,18 @@
 import { create } from "zustand";
 
+interface User {
+  owner: string;
+  email: string;
+}
+
 interface IState {
   token: string;
+  repos: string[];
   repo: string;
+  branches: string[];
   branch: string;
   dir: string;
-  user: any
+  user: User | null;
 }
 
 interface IActions {
@@ -13,14 +20,18 @@ interface IActions {
   setRepo: (repo: string) => void;
   setBranch: (branch: string) => void;
   setDir: (dir: string) => void;
-  setUserInfo: (user: any) => void;
+  setUserInfo: (user: User) => void;
+  setRepos: (repos: string[]) => void;
+  setBranches: (branches: string[]) => void;
   update: (newState: Partial<IState>) => void;
 }
 
 const initialState: IState = {
   token: '',
-  repo: 'image-for-2023',
-  branch: 'master',
+  repos: [],
+  branches: [],
+  repo: '',
+  branch: '',
   dir: '',
   user: null
 }
@@ -30,16 +41,22 @@ export const useGithubStore = create<IState & IActions>((set) => ({
   setToken: (token: string) => {
     set({ token });
   },
+  setRepos: (repos: string[]) => {
+    set({ repos });
+  },
   setRepo: (repo: string) => {
     set({ repo });
   },
   setBranch: (branch: string) => {
     set({ branch });
   },
+  setBranches: (branches: string[]) => {
+    set({ branches });
+  },
   setDir: (dir: string) => {
     set({ dir });
   },
-  setUserInfo: (user: any) => {
+  setUserInfo: (user: User) => {
     set({ user });
   },
   update: (newState: Partial<IState>) => {

@@ -56,9 +56,6 @@ const request = (config: IRequestConfig) => {
       ...requestConfig.headers,
       Authorization: `token ${token}`
     }
-  } else {
-    message.error('token 不存在').then();
-    return Promise.reject('token 不存在')
   }
 
   return new Promise((resolve) => {
@@ -126,4 +123,66 @@ export const replaceGithubUrlToCDNUrl = (url: string) => {
     branch = localStorage.getItem('github-branch') || 'master';
   }
   return url.replace('https://raw.githubusercontent.com', 'https://cdn.staticaly.com/gh').replace(`/${branch}`, `@${branch}`);
+}
+
+export const getGitHubUserInfo = (token: string) => {
+  return request({
+    url: '/user',
+    method: 'GET',
+    headers: { Authorization: `token ${token}` }
+  })
+}
+
+export const getRepoList = (owner: string, page = 1) => {
+  // eslint-disable-next-line no-async-promise-executor
+  return new Promise(async (resolve) => {
+    const tmpList: any = await request({
+      url: `users/${owner}/repos`,
+      method: 'GET',
+      params: {
+        type: 'owner', // all | owner | member
+        sort: 'created', // created | updated | pushed | full_name
+        direction: 'desc', // asc | desc
+        per_page: 100,
+        page
+      }
+    })
+
+    if (tmpList && tmpList.length) {
+      resolve(
+        tmpList
+          .filter((v: any) => !v.fork && !v.private)
+          .map((x: any) => ({
+            value: x.name,
+            label: x.name
+          }))
+      )
+    } else {
+      resolve(null)
+    }
+  })
+}
+
+export const getBranchInfoList = (owner: string, repo: string): Promise<any> => {
+  // eslint-disable-next-line no-async-promise-executor
+  return new Promise(async (resolve) => {
+    const tmpList: any = await request({
+      url: `/repos/${owner}/${repo}/branches`,
+      method: 'GET'
+    })
+
+    if (tmpList && tmpList.length) {
+      resolve(
+        tmpList
+          .filter((x: any) => !x.protected)
+          .map((v: any) => ({
+            value: v.name,
+            label: v.name
+          }))
+          .reverse()
+      )
+    } else {
+      resolve(null)
+    }
+  })
 }
