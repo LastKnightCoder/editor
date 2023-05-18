@@ -425,3 +425,24 @@ export const movePrevCol = (editor: Editor) => {
     }),
   });
 }
+
+export const insertTable = (editor: Editor, rows: number, cols: number) => {
+  // 根据行数和列数创建一个表格
+  const tableRowElements: TableRowElement[] = Array.from({ length: rows }).map(() => {
+    const tableCellElements: TableCellElement[] = Array.from({ length: cols }).map(() => {
+      return {
+        type: 'table-cell',
+        children: [{ type: 'formatted', text: '' }],
+      };
+    });
+    return {
+      type: 'table-row',
+      children: tableCellElements,
+    };
+  });
+  const tableElement: TableElement = {
+    type: 'table',
+    children: tableRowElements,
+  }
+  Transforms.insertNodes(editor, tableElement);
+}

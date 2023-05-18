@@ -14,6 +14,7 @@ import { useFocusStore, usePressedKeyStore } from "./stores";
 import ImagesOverview from "./components/ImagesOverview";
 import { MathJaxContext } from "better-react-mathjax";
 import { Button, Drawer } from "antd";
+import Command from "./components/Command";
 
 const config = {
   loader: { load: ["[tex]/html"] },
@@ -98,6 +99,7 @@ const App = () => {
               }}
             />
             <ImagesOverview />
+            <Command />
             <Button onClick={clear}>清除数据并刷新页面</Button>
             <Button onClick={() => setOpen(true)}>查看数据</Button>
           </div>
