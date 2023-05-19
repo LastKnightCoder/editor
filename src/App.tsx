@@ -92,7 +92,7 @@ const App = () => {
   }
 
   const clear = () => {
-    localStorage.clear();
+    localStorage.removeItem('content');
     window.location.reload();
   }
 

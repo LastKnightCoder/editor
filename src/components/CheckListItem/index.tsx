@@ -22,12 +22,12 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = (props) =
   }
 
   return (
-    <div {...attributes} className={styles.item}>
+    <li {...attributes} className={styles.item}>
       <Checkbox className={styles.checkbox} checked={checked} onClick={onClick} />
       <div>
         {children}
       </div>
-    </div>
+    </li>
   )
 }
 

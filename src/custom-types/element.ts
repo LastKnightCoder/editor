@@ -99,7 +99,7 @@ export interface BlockMathElement {
 export interface CheckListItemElement {
   type: 'check-list-item',
   checked: boolean,
-  children: FormattedText[]
+  children: Descendant[]
 }
 
 export interface CheckListElement {

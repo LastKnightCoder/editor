@@ -5,6 +5,7 @@ import isHotkey from "is-hotkey";
 import { useSlate } from "slate-react";
 import {insertCallout, insertCodeBlock, insertImage, insertTable} from "../../utils";
 import {insertBlockMath} from "../../utils/math";
+import {insertBulletList, insertCheckList, insertNumberedList} from "../../utils/list";
 
 const Command = () => {
   const editor = useSlate();
@@ -66,6 +67,32 @@ const Command = () => {
             }
           },
         ],
+      },
+      {
+        heading: '列表',
+        id: 'list',
+        items: [{
+          id: 'bulleted-list',
+          children: '无序列表',
+          keywords: ['ul'],
+          onClick: () => {
+            insertBulletList(editor);
+          }
+        }, {
+          id: 'numbered-list',
+          children: '有序列表',
+          keywords: ['ol'],
+          onClick: () => {
+            insertNumberedList(editor);
+          }
+        }, {
+          id: 'check-list',
+          children: '任务列表',
+          keywords: ['check', 'todo'],
+          onClick: () => {
+            insertCheckList(editor);
+          }
+        }]
       },
       {
         heading: 'callout',

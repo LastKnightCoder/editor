@@ -12,10 +12,10 @@ interface ICheckListProps {
 const CheckList: React.FC<PropsWithChildren<ICheckListProps>> = (props) => {
   const { attributes, children, element } = props;
   return (
-    <div className={styles.list} {...attributes}>
+    <ul className={styles.list} {...attributes}>
       {children}
       <AddParagraph element={element} />
-    </div>
+    </ul>
   )
 }
 

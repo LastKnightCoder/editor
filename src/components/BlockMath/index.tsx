@@ -33,7 +33,7 @@ const InlineMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
         placement={'bottom'}
         content={<Input.TextArea rows={10} style={{ width: 500 }} value={value} onChange={handleInputChange} />}
       >
-        <MathJax>
+        <MathJax style={{ margin: 0 }}>
           <div>{`$$${tex}$$`}</div>
         </MathJax>
       </Popover>

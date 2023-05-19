@@ -91,15 +91,21 @@ export const initValue: Descendant[] = [{
     type: 'check-list-item',
     checked: true,
     children: [{
-      type: 'formatted',
-      text: '这是一个 demo'
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '这是一个 demo1'
+      }]
     }]
   }, {
     type: 'check-list-item',
     checked: false,
     children: [{
-      type: 'formatted',
-      text: '这是一个 demo2'
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '这是一个 demo'
+      }]
     }]
   }]
 }, {

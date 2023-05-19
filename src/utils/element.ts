@@ -1,4 +1,10 @@
-import {FormattedText, InlineMathElement, ListItemElement, ParagraphElement} from "../custom-types";
+import {
+  CheckListItemElement,
+  FormattedText,
+  InlineMathElement,
+  ListItemElement,
+  ParagraphElement
+} from "../custom-types";
 import {Element, isEditor, Node, Editor, Path} from "slate";
 import {ReactEditor} from "slate-react";
 
@@ -20,6 +26,10 @@ export const isParagraphElement = (node: Node): node is ParagraphElement => {
 
 export const isListItemElement = (node: Node): node is ListItemElement => {
   return node.type === 'list-item';
+}
+
+export const isCheckListItemElement = (node: Node): node is CheckListItemElement => {
+  return node.type === 'check-list-item';
 }
 
 export const getParentNodeByNode = (editor: Editor, node: Node) => {

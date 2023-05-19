@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, {useEffect, useState} from "react";
 import {Button, Drawer, Form, Input, Select} from "antd";
 import {useGithubStore} from "../../../stores";
 import {getBranchInfoList, getGitHubUserInfo, getRepoList} from "../../../utils";
@@ -28,10 +28,16 @@ const GithubImageUploadSetting: React.FC<IGithubImageUploadSettingProps> = (prop
   }));
 
   const [tokenValue, setTokenValue] = useState<string>(token);
+  const [loading, setLoading] = useState<boolean>(false);
+  useEffect(() => {
+    setTokenValue(token);
+  }, [token]);
 
   const handleSubmitToken = async () => {
+    setLoading(true);
     // 获取仓库列表
     const userInfo = await getGitHubUserInfo(tokenValue) as  any;
+    setLoading(false);
     if (userInfo) {
       setToken(tokenValue);
       const user = {
@@ -77,7 +83,7 @@ const GithubImageUploadSetting: React.FC<IGithubImageUploadSettingProps> = (prop
       <div className={styles.token}>
         <div>Token：</div>
         <Input value={tokenValue} onChange={(e) => {setTokenValue(e.target.value)}} />
-        <Button type="primary" onClick={handleSubmitToken}>确定</Button>
+        <Button loading={loading} type="primary" onClick={handleSubmitToken}>确定</Button>
       </div>
       {
         repos.length > 0 && (
