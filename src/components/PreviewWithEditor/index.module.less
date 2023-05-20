@@ -1,0 +1,41 @@
+.container {
+  .editor {
+    height: auto;
+    padding: 18px 12px 0;
+    :global(.CodeMirror) {
+      height: auto !important;
+      padding: 18px 12px 18px 12px;
+      border-radius: 0;
+      font-size: 14px;
+      font-family: var(--mono-font, "'Monaco', '楷体'");
+    }
+
+    :global(.CodeMirror pre.CodeMirror-line),
+    :global(.CodeMirror pre.CodeMirror-line-like) {
+      padding: 0 12px;
+    }
+
+    :global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
+      overflow: hidden;
+    }
+
+    :global(.CodeMirror-gutters) {
+      background-color: unset;
+      border-right: none;
+    }
+
+    :global(.CodeMirror-linenumber) {
+      cursor: pointer;
+    }
+  }
+
+  .divider {
+    margin: 0 20px 20px;
+    background-color: #e8e8e8;
+    height: 2px;
+  }
+  &.editing {
+    background-color: #fafafa;
+    padding: 0 0 16px;
+  }
+}

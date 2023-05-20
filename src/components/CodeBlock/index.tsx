@@ -1,24 +1,8 @@
 import { UnControlled as CodeEditor } from 'react-codemirror2';
-import 'codemirror/lib/codemirror.css';
-import 'codemirror/theme/blackboard.css';
 import styles from './index.module.less';
 import { Editor, EditorChange } from 'codemirror';
 import { useEffect, useState } from 'react';
 import { LANGUAGES } from './config';
-
-import 'codemirror/mode/javascript/javascript.js';
-import 'codemirror/mode/jsx/jsx.js';
-import 'codemirror/mode/rust/rust.js';
-import 'codemirror/mode/go/go.js';
-import 'codemirror/mode/css/css.js';
-import 'codemirror/mode/htmlmixed/htmlmixed.js';
-import 'codemirror/mode/clike/clike.js';
-import 'codemirror/mode/shell/shell.js';
-import 'codemirror/mode/python/python.js';
-import 'codemirror/mode/sql/sql.js';
-import 'codemirror/mode/markdown/markdown.js';
-
-import 'codemirror/addon/edit/closebrackets.js';
 
 import isHotkey from "is-hotkey";
 import {RenderElementProps, useSlate } from "slate-react";

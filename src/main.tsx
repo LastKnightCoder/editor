@@ -1,5 +1,5 @@
 import ReactDOM from 'react-dom/client'
-import './main.css'
+import './main.less'
 
 import App from './App'
 
