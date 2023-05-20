@@ -22,7 +22,8 @@ import {
   BlockMathElement,
   CheckListItemElement,
   CheckListElement,
-  MermaidElement
+  MermaidElement,
+  TikzElement
 } from "./custom-types";
 
 export type CustomField = {
@@ -50,7 +51,8 @@ export type CustomElement =
   | BlockMathElement
   | CheckListItemElement
   | CheckListElement
-  | MermaidElement;
+  | MermaidElement
+  | TikzElement;
 
 export type CustomText = FormattedText;
 

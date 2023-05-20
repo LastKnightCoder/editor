@@ -12,10 +12,11 @@ interface IPreviewWithEditorProps {
   initValue: string;
   onChange: (value: string) => void;
   element: CustomElement;
+  center?: boolean;
 }
 
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = (props) => {
-  const { mode, initValue, onChange, children, element } = props;
+  const { mode, initValue, onChange, children, element, center } = props;
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initValue);
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -76,7 +77,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
           />
         }
         { editing && <div className={styles.divider}></div> }
-        <div className={styles.preview} onClick={onClick}>
+        <div className={classnames(styles.preview, {[styles.center]: center})} onClick={onClick}>
           {children}
         </div>
       </div>

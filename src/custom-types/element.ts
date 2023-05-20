@@ -114,3 +114,9 @@ export interface MermaidElement {
   chart: string,
   children: Descendant[]
 }
+
+export interface TikzElement {
+  type: 'tikz',
+  content: string,
+  children: Descendant[]
+}

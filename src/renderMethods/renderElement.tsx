@@ -21,6 +21,7 @@ import NumberedList from "../components/NumberedList";
 import CheckList from "../components/CheckList";
 import CheckListItem from "../components/CheckListItem";
 import MermaidChart from "../components/MermaidChart";
+import Tikz from "../components/Tikz";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -151,6 +152,13 @@ export const renderElement = (editor: Editor) => {
             {children}
           </MermaidChart>
         )
+      case 'tikz':
+        return (
+          <Tikz element={element} attributes={attributes}>
+            {children}
+          </Tikz>
+        )
+      case 'paragraph':
       default:
         return <p {...attributes}>{children}</p>
     }

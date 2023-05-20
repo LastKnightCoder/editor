@@ -6,6 +6,8 @@ import { useSlate } from "slate-react";
 import {insertCallout, insertCodeBlock, insertImage, insertTable} from "../../utils";
 import {insertBlockMath} from "../../utils/math";
 import {insertBulletList, insertCheckList, insertNumberedList} from "../../utils/list";
+import {insertDetails} from "../../utils/detail";
+import {insertMermaid} from "../../utils/mermaid";
 
 const Command = () => {
   const editor = useSlate();
@@ -95,7 +97,7 @@ const Command = () => {
         }]
       },
       {
-        heading: 'callout',
+        heading: '高亮快',
         id: 'callout',
         items: [{
           id: 'callout-tip',
@@ -131,6 +133,25 @@ const Command = () => {
           keywords: ['danger'],
           onClick: () => {
             insertCallout(editor, 'danger');
+          }
+        }, {
+          id: 'detail',
+          children: '详情',
+          keywords: ['detail'],
+          onClick: () => {
+            insertDetails(editor);
+          }
+        }]
+      },
+      {
+        heading: '图表',
+        id: 'chart',
+        items: [{
+          id: 'mermaid',
+          children: 'Mermaid',
+          keywords: ['mermaid'],
+          onClick: () => {
+            insertMermaid(editor);
           }
         }]
       }

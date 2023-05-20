@@ -25,7 +25,7 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
 
   const renderEmpty = () => {
     return (
-      <div className={styles.empty}>点击编辑公式</div>
+      <div contentEditable={false} style={{ userSelect: 'none' }} className={styles.empty}>点击编辑公式</div>
     )
   }
 

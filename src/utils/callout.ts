@@ -25,3 +25,4 @@ export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' |
     Transforms.select(editor, [...callout[1], 0, 0])
   }, 200)
 }
+
