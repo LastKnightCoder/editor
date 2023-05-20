@@ -20,7 +20,6 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
   const editor = useSlate();
 
   const handleInputChange = (code: string) => {
-    // setValue(code);
     Transforms.setNodes(editor, { tex: code }, { at: ReactEditor.findPath(editor, element) });
   }
 

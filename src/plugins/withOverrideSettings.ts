@@ -5,11 +5,11 @@ import {Editor as CodeMirrorEditor} from "codemirror";
 export const withOverrideSettings = (editor: Editor) => {
   const { isBlock, isVoid, isInline, normalizeNode } = editor;
   editor.isBlock = (element) => {
-    const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image', 'detail', 'blockquote', 'table', 'table-row', 'table-cell', 'block-math'];
+    const blockTypes = ['paragraph', 'header', 'callout', 'bulleted-list', 'numbered-list', 'code-block', 'image', 'detail', 'blockquote', 'table', 'table-row', 'table-cell', 'block-math', 'mermaid'];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
   editor.isVoid = (element) => {
-    const voidTypes = ['code-block', 'image', 'inline-math', 'block-math'];
+    const voidTypes = ['code-block', 'image', 'inline-math', 'block-math', 'mermaid'];
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }
   editor.isInline = (element) => {

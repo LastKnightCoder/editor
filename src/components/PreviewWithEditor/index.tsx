@@ -20,16 +20,21 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   const [value, setValue] = useState(initValue);
   const [editor, setEditor] = useState<Editor | null>(null);
   const ref= useRef<HTMLDivElement>(null);
+
   useClickAway(() => {
     if (editing) {
       setEditing(false);
       setValue(editor?.getValue() || '');
     }
   }, ref);
+
   const onClick = () => {
     setEditing(true);
     if (editor) {
-      editor.focus();
+      setTimeout(() => {
+        editor.focus();
+        // editor.getScrollerElement().scrollTop = 0;
+      }, 20);
     }
   }
   const handleInputChange = (_editor: Editor, _change: EditorChange, code: string) => {

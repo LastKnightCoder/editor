@@ -209,4 +209,18 @@ export const initValue: Descendant[] = [{
       }]
     }]
   }]
+}, {
+  type: 'mermaid',
+  chart: 'graph LR\n' +
+    'A[Christmas] -->|Get money| B(Go shopping)\n' +
+    'B --> C{Let me think}\n' +
+    'C -->|One| D[Laptop]\n' +
+    'C -->|Two| E[iPhone]\n' +
+    'C -->|Three| F[fa:fa-car Car]\n' +
+    'C -->|Four| G[fa:fa-home Laptop]\n' +
+    'C -->|Five| H[fa:fa-motorcycle Phone]',
+  children: [{
+    type: 'formatted',
+    text: ''
+  }]
 }];

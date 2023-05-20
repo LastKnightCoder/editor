@@ -20,6 +20,7 @@ import BulletedList from "../components/BulletedList";
 import NumberedList from "../components/NumberedList";
 import CheckList from "../components/CheckList";
 import CheckListItem from "../components/CheckListItem";
+import MermaidChart from "../components/MermaidChart";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -143,6 +144,12 @@ export const renderElement = (editor: Editor) => {
           <CheckListItem attributes={attributes} element={element}>
             {children}
           </CheckListItem>
+        )
+      case 'mermaid':
+        return (
+          <MermaidChart element={element} attributes={attributes}>
+            {children}
+          </MermaidChart>
         )
       default:
         return <p {...attributes}>{children}</p>

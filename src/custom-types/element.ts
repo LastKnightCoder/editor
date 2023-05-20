@@ -1,9 +1,11 @@
 import { Descendant } from "slate";
 import {FormattedText} from "./text";
 
+type InlineElement = FormattedText | LinkElement | InlineMathElement;
+
 export interface ParagraphElement {
   type: 'paragraph';
-  children: Array<FormattedText | LinkElement | InlineMathElement>
+  children: InlineElement[];
 }
 
 export interface CodeBlockElement {
@@ -87,13 +89,13 @@ export interface TableElement {
 export interface InlineMathElement {
   type: 'inline-math',
   tex: string,
-  children: FormattedText[]
+  children: InlineElement[]
 }
 
 export interface BlockMathElement {
   type: 'block-math',
   tex: string,
-  children: FormattedText[]
+  children: InlineElement[]
 }
 
 export interface CheckListItemElement {
@@ -105,4 +107,10 @@ export interface CheckListItemElement {
 export interface CheckListElement {
   type: 'check-list',
   children: CheckListItemElement[]
+}
+
+export interface MermaidElement {
+  type: 'mermaid',
+  chart: string,
+  children: Descendant[]
 }
