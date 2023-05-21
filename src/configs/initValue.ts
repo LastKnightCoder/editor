@@ -111,6 +111,7 @@ export const initValue: Descendant[] = [{
 }, {
   type: 'callout',
   calloutType: 'info',
+  title: '',
   children: [{
     type: 'paragraph',
     children: [{

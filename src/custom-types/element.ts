@@ -19,6 +19,7 @@ export interface CodeBlockElement {
 export interface CalloutElement {
   type: 'callout';
   calloutType: 'tip' | 'warning' | 'info' | 'danger' | 'note';
+  title: string;
   children: Descendant[];
 }
 
@@ -66,10 +67,6 @@ export interface LinkElement {
   url: string;
   children: FormattedText[];
 }
-
-// export interface TableHeadElement {
-//
-// }
 
 export interface TableCellElement {
   type: 'table-cell',

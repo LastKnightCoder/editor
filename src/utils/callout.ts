@@ -5,6 +5,7 @@ export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' |
   Transforms.insertNodes(editor, {
     type: 'callout',
     calloutType: type,
+    title: '',
     children: [{
         type: 'paragraph',
         children: [{

@@ -61,8 +61,8 @@ const Tikz: React.FC<PropsWithChildren<TikzProps>> = (props) => {
         center
       >
         {content.trim() ? <TikzRenderer text={content} /> : renderEmpty()}
-        {children}
       </PreviewWithEditor>
+      {children}
     </div>
   )
 

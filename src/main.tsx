@@ -1,6 +1,7 @@
 import ReactDOM from 'react-dom/client'
 import './main.less'
 
+import './init.js'
 import App from './App'
 
 

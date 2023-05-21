@@ -30,13 +30,13 @@ const configs = {
 
 const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const { attributes, element, children } = props;
-  const { calloutType } = element;
-  const { title } = configs[calloutType];
+  const { calloutType, title } = element;
+  const { title: defaultTitle } = configs[calloutType];
 
   return (
     <div {...attributes} >
       <div  className={classnames(styles.callout, styles[calloutType])}>
-        <p contentEditable={false} className={styles.title}>{title}</p>
+        <p contentEditable={false} className={styles.title}>{title || defaultTitle}</p>
         {children}
       </div>
       <AddParagraph element={element} />

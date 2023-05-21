@@ -40,8 +40,8 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
         <MathJax style={{ margin: 0 }}>
           {tex ? <div>{`$$${tex}$$`}</div> : renderEmpty()}
         </MathJax>
-        {children}
       </PreviewWithEditor>
+      {children}
     </div>
   )
 }

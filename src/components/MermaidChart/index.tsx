@@ -2,8 +2,6 @@ import React, {PropsWithChildren} from 'react';
 import { RenderElementProps, useSlate , ReactEditor } from 'slate-react';
 import { MermaidElement } from '../../custom-types';
 import PreviewWithEditor from "../PreviewWithEditor";
-// import mermaid from 'mermaid';
-// import { defaultMermaidConfig } from './config';
 import { Mermaid } from 'mdx-mermaid/lib/Mermaid';
 
 import styles from './index.module.less';
@@ -13,22 +11,6 @@ interface MermaidProps {
   attributes: RenderElementProps['attributes'];
   element: MermaidElement;
 }
-
-// mermaid.initialize(defaultMermaidConfig);
-
-// const Mermaid = (props: { chart: string }) => {
-//   const { chart } = props;
-//   // const [svg, setSvg] = React.useState<string>('');
-//   const ref = React.useRef<HTMLDivElement>(null);
-//
-//   useEffect(() => {
-//     setTimeout(mermaid.contentLoaded, 0);
-//   }, [chart])
-//
-//   return (
-//     <div ref={ref} className={'mermaid'}>{chart}</div>
-//   )
-// }
 
 const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
   const { attributes, element, children } = props;
@@ -54,8 +36,8 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
         element={element}
       >
         { chart ? <Mermaid chart={chart} /> : renderEmpty() }
-        {children}
       </PreviewWithEditor>
+      {children}
     </div>
   )
 }
