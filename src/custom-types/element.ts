@@ -117,3 +117,9 @@ export interface TikzElement {
   content: string,
   children: Descendant[]
 }
+
+export interface HTMLBlockElement {
+  type: 'html-block',
+  html: string,
+  children: Descendant[]
+}

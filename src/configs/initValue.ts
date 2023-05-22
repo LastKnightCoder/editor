@@ -240,4 +240,11 @@ export const initValue: Descendant[] = [{
     type: 'formatted',
     text: ''
   }]
+}, {
+  type: 'html-block',
+  html: '<div style="color: red;">这是一个 HTML demo</div>',
+  children: [{
+    type: 'formatted',
+    text: ''
+  }]
 }];
