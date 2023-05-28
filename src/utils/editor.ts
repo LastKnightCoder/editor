@@ -1,19 +1,6 @@
 import {Editor, Transforms, Range, Node, Element, NodeMatch} from "slate";
-import { v4 as getUuid } from 'uuid';
 import {isElementNode, isLeafNode, isParagraphElement} from "./element";
 import { ReactEditor } from "slate-react";
-
-export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
-  const uuid = getUuid();
-  Transforms.setNodes(editor, { type: 'code-block', code: '', language: language, uuid, children: [{ type: 'formatted', text: '' }] });
-  // 聚焦到 code-block
-  setTimeout(() => {
-    const codeMirrorEditor = editor.codeBlockMap.get(uuid);
-    if (codeMirrorEditor) {
-      codeMirrorEditor.focus();
-    }
-  }, 20);
-}
 
 export const getCurrentTextNode = (editor: Editor) => {
   const [match] = Editor.nodes(editor, {

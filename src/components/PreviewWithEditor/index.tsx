@@ -6,6 +6,9 @@ import AddParagraph from "../AddParagraph";
 import {CustomElement} from "../../types";
 import classnames from "classnames";
 import { useClickAway } from "ahooks";
+import {DeleteOutlined} from "@ant-design/icons";
+import {ReactEditor, useSlate} from "slate-react";
+import {Transforms} from "slate";
 
 interface IPreviewWithEditorProps {
   mode: string;
@@ -21,6 +24,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   const [value, setValue] = useState(initValue);
   const [editor, setEditor] = useState<Editor | null>(null);
   const ref= useRef<HTMLDivElement>(null);
+  const slateEditor = useSlate();
 
   useClickAway(() => {
     if (editing) {
@@ -40,6 +44,14 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   }
   const handleInputChange = (_editor: Editor, _change: EditorChange, code: string) => {
     onChange(code);
+  }
+
+  const deleteElement = () => {
+    const path = ReactEditor.findPath(slateEditor, element);
+    Transforms.removeNodes(slateEditor, {
+      at: path
+    });
+    ReactEditor.focus(slateEditor);
   }
 
   return (
@@ -79,6 +91,11 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
         { editing && <div className={styles.divider}></div> }
         <div className={classnames(styles.preview, {[styles.center]: center})} onClick={onClick}>
           {children}
+        </div>
+        <div className={styles.actions}>
+          <div onClick={deleteElement} className={styles.item}>
+            <DeleteOutlined />
+          </div>
         </div>
       </div>
       <AddParagraph element={element} />

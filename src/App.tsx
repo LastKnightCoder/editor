@@ -138,6 +138,16 @@ const App = () => {
               onBlur={() => {
                 setFocus(false);
               }}
+              onSelect={() => {
+                const selection = window.getSelection();
+                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                  const range = selection.getRangeAt(0);
+                  const rect = range.getBoundingClientRect();
+                  // 显示行内工具栏，并设置位置
+
+                  console.log(rect);
+                }
+              }}
             />
             <ImagesOverview />
             <Command />

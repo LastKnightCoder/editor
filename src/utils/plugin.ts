@@ -1,4 +1,4 @@
-import {Editor} from "slate";
+import { Editor } from "slate";
 
 type Plugin = (editor: Editor) => Editor;
 

@@ -3,11 +3,21 @@ import CommandPalette, { filterItems, getItemIndex } from "react-cmdk";
 import { useEffect, useState } from "react";
 import isHotkey from "is-hotkey";
 import { useSlate } from "slate-react";
-import {insertCallout, insertCodeBlock, insertImage, insertTable} from "../../utils";
-import {insertBlockMath} from "../../utils/math";
-import {insertBulletList, insertCheckList, insertNumberedList} from "../../utils/list";
-import {insertDetails} from "../../utils/detail";
-import {insertMermaid} from "../../utils/mermaid";
+import {
+  insertCallout,
+  insertCodeBlock,
+  insertGraphviz,
+  insertImage,
+  insertTable,
+  insertTikz,
+  insertBlockMath,
+  insertBulletList,
+  insertCheckList,
+  insertNumberedList,
+  insertDetails,
+  insertMermaid
+} from "../../utils";
+
 
 const Command = () => {
   const editor = useSlate();
@@ -152,6 +162,20 @@ const Command = () => {
           keywords: ['mermaid'],
           onClick: () => {
             insertMermaid(editor);
+          }
+        }, {
+          id: 'tikz',
+          children: 'Tikz',
+          keywords: ['tikz'],
+          onClick: () => {
+            insertTikz(editor);
+          }
+        }, {
+          id: 'graphviz',
+          children: 'Graphviz',
+          keywords: ['graphviz'],
+          onClick: () => {
+            insertGraphviz(editor);
           }
         }]
       }

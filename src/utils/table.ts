@@ -1,4 +1,4 @@
-import {Editor, Transforms} from "slate";
+import { Editor, Transforms } from "slate";
 import { TableCellElement, TableElement, TableRowElement } from "../custom-types";
 import { insertParagraphAndFocus, replaceNode } from "./editor";
 import { ReactEditor } from "slate-react";
@@ -424,25 +424,4 @@ export const movePrevCol = (editor: Editor) => {
       edge: 'end'
     }),
   });
-}
-
-export const insertTable = (editor: Editor, rows: number, cols: number) => {
-  // 根据行数和列数创建一个表格
-  const tableRowElements: TableRowElement[] = Array.from({ length: rows }).map(() => {
-    const tableCellElements: TableCellElement[] = Array.from({ length: cols }).map(() => {
-      return {
-        type: 'table-cell',
-        children: [{ type: 'formatted', text: '' }],
-      };
-    });
-    return {
-      type: 'table-row',
-      children: tableCellElements,
-    };
-  });
-  const tableElement: TableElement = {
-    type: 'table',
-    children: tableRowElements,
-  }
-  Transforms.insertNodes(editor, tableElement);
 }

@@ -5,5 +5,4 @@ export * from './hotkey';
 export * from './path';
 export * from './github-image';
 export * from './table';
-export * from './callout';
-export * from './image';
+export * from './insertElement';
