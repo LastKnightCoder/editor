@@ -9,6 +9,7 @@ import { useClickAway } from "ahooks";
 import {DeleteOutlined} from "@ant-design/icons";
 import {ReactEditor, useSlate} from "slate-react";
 import {Transforms} from "slate";
+import { useDebounceFn } from "ahooks";
 
 interface IPreviewWithEditorProps {
   mode: string;
@@ -16,6 +17,32 @@ interface IPreviewWithEditorProps {
   onChange: (value: string) => void;
   element: CustomElement;
   center?: boolean;
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props: any) {
+    super(props);
+    this.state = {error: ""};
+  }
+
+  componentDidCatch(error: any) {
+    this.setState({error: `${error.name}: ${error.message}`});
+  }
+
+  render() {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const {error} = this.state;
+    if (error) {
+      return (
+        <div>{error}</div>
+      );
+    } else {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      return <>{this.props.children}</>;
+    }
+  }
 }
 
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = (props) => {
@@ -35,23 +62,22 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
 
   const onClick = () => {
     setEditing(true);
-    if (editor) {
-      setTimeout(() => {
-        editor.focus();
-        // editor.getScrollerElement().scrollTop = 0;
-      }, 20);
-    }
   }
-  const handleInputChange = (_editor: Editor, _change: EditorChange, code: string) => {
+
+  const { run: handleInputChange } = useDebounceFn((_editor: Editor, _change: EditorChange, code: string) => {
     onChange(code);
-  }
+  }, {
+    wait: 500
+  });
 
   const deleteElement = () => {
     const path = ReactEditor.findPath(slateEditor, element);
     Transforms.removeNodes(slateEditor, {
       at: path
     });
-    ReactEditor.focus(slateEditor);
+    setTimeout(() => {
+      ReactEditor.focus(slateEditor);
+    }, 100)
   }
 
   return (
@@ -90,7 +116,9 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
         }
         { editing && <div className={styles.divider}></div> }
         <div className={classnames(styles.preview, {[styles.center]: center})} onClick={onClick}>
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </div>
         <div className={styles.actions}>
           <div onClick={deleteElement} className={styles.item}>

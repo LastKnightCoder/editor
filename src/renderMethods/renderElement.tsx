@@ -24,6 +24,7 @@ import MermaidChart from "../components/MermaidChart";
 import Tikz from "../components/Tikz";
 import HTMLBlock from "../components/HTMLBlock";
 import Graphviz from "../components/Graphviz";
+import CustomBlock from "../components/CustomBlock";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -171,6 +172,12 @@ export const renderElement = (editor: Editor) => {
           <Graphviz element={element} attributes={attributes}>
             {children}
           </Graphviz>
+        )
+      case 'custom-block':
+        return (
+          <CustomBlock element={element} attributes={attributes}>
+            {children}
+          </CustomBlock>
         )
       case 'paragraph':
       default:

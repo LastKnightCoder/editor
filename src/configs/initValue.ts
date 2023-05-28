@@ -263,4 +263,14 @@ export const initValue: Descendant[] = [{
     type: 'formatted',
     text: ''
   }]
+}, {
+  type: 'custom-block',
+  content: `const { Button } = antd;
+ const Component = () => {
+    return <Button type="primary">Button</Button>;
+ }`,
+  children: [{
+    type: 'formatted',
+    text: ''
+  }]
 }];

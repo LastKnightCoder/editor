@@ -129,3 +129,9 @@ export interface GraphvizElement {
   dot: string;
   children: Descendant[];
 }
+
+export interface CustomBlockElement {
+  type: 'custom-block';
+  content: string;
+  children: Descendant[];
+}

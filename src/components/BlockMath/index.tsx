@@ -23,12 +23,6 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
     Transforms.setNodes(editor, { tex: code }, { at: ReactEditor.findPath(editor, element) });
   }
 
-  const renderEmpty = () => {
-    return (
-      <div contentEditable={false} style={{ userSelect: 'none' }} className={styles.empty}>点击编辑公式</div>
-    )
-  }
-
   return (
     <div {...attributes} className={styles.blockMath}>
       <PreviewWithEditor
@@ -38,7 +32,7 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
         element={element}
       >
         <MathJax style={{ margin: 0 }}>
-          {tex ? <div>{`$$${tex}$$`}</div> : renderEmpty()}
+          {tex ? <div>{`$$${tex}$$`}</div> : <div className={styles.empty}>点击编辑公式</div>}
         </MathJax>
       </PreviewWithEditor>
       {children}
