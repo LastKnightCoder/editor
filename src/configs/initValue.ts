@@ -247,4 +247,20 @@ export const initValue: Descendant[] = [{
     type: 'formatted',
     text: ''
   }]
+}, {
+  type: 'graphviz',
+  dot: 'digraph G {\n' +
+    '  main -> parse -> execute;\n' +
+    '  main -> init;\n' +
+    '  main -> cleanup;\n' +
+    '  execute -> make_string;\n' +
+    '  execute -> printf\n' +
+    '  init -> make_string;\n' +
+    '  main -> printf;\n' +
+    '  execute -> compare;\n' +
+    '}',
+  children: [{
+    type: 'formatted',
+    text: ''
+  }]
 }];

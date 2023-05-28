@@ -69,57 +69,63 @@ export interface LinkElement {
 }
 
 export interface TableCellElement {
-  type: 'table-cell',
-  children: Array<FormattedText | LinkElement>
+  type: 'table-cell';
+  children: Array<FormattedText | LinkElement>;
 }
 
 export interface TableRowElement {
-  type: 'table-row'
-  children: TableCellElement[]
+  type: 'table-row';
+  children: TableCellElement[];
 }
 
 export interface TableElement {
-  type: 'table',
-  children: TableRowElement[]
+  type: 'table';
+  children: TableRowElement[];
 }
 
 export interface InlineMathElement {
-  type: 'inline-math',
-  tex: string,
-  children: InlineElement[]
+  type: 'inline-math';
+  tex: string;
+  children: InlineElement[];
 }
 
 export interface BlockMathElement {
-  type: 'block-math',
-  tex: string,
-  children: InlineElement[]
+  type: 'block-math';
+  tex: string;
+  children: InlineElement[];
 }
 
 export interface CheckListItemElement {
-  type: 'check-list-item',
-  checked: boolean,
-  children: Descendant[]
+  type: 'check-list-item';
+  checked: boolean;
+  children: Descendant[];
 }
 
 export interface CheckListElement {
-  type: 'check-list',
-  children: CheckListItemElement[]
+  type: 'check-list';
+  children: CheckListItemElement[];
 }
 
 export interface MermaidElement {
-  type: 'mermaid',
-  chart: string,
-  children: Descendant[]
+  type: 'mermaid';
+  chart: string;
+  children: Descendant[];
 }
 
 export interface TikzElement {
-  type: 'tikz',
-  content: string,
-  children: Descendant[]
+  type: 'tikz';
+  content: string;
+  children: Descendant[];
 }
 
 export interface HTMLBlockElement {
-  type: 'html-block',
-  html: string,
-  children: Descendant[]
+  type: 'html-block';
+  html: string;
+  children: Descendant[];
+}
+
+export interface GraphvizElement {
+  type: 'graphviz',
+  dot: string;
+  children: Descendant[];
 }

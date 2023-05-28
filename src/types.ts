@@ -25,6 +25,7 @@ import {
   MermaidElement,
   TikzElement,
   HTMLBlockElement,
+  GraphvizElement,
 } from "./custom-types";
 
 export type CustomField = {
@@ -54,7 +55,8 @@ export type CustomElement =
   | CheckListElement
   | MermaidElement
   | TikzElement
-  | HTMLBlockElement;
+  | HTMLBlockElement
+  | GraphvizElement;
 
 export type CustomText = FormattedText;
 

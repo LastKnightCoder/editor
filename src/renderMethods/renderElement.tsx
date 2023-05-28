@@ -23,6 +23,7 @@ import CheckListItem from "../components/CheckListItem";
 import MermaidChart from "../components/MermaidChart";
 import Tikz from "../components/Tikz";
 import HTMLBlock from "../components/HTMLBlock";
+import Graphviz from "../components/Graphviz";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -164,6 +165,12 @@ export const renderElement = (editor: Editor) => {
           <HTMLBlock element={element} attributes={attributes}>
             {children}
           </HTMLBlock>
+        )
+      case 'graphviz':
+        return (
+          <Graphviz element={element} attributes={attributes}>
+            {children}
+          </Graphviz>
         )
       case 'paragraph':
       default:
