@@ -2,7 +2,7 @@ import React, {PropsWithChildren} from "react";
 import { RenderElementProps } from "slate-react";
 import { MathJax } from "better-react-mathjax";
 import { BlockMathElement } from "../../custom-types";
-import {Transforms} from "slate";
+import { Transforms } from "slate";
 import { ReactEditor, useSlate } from "slate-react";
 import PreviewWithEditor from "../PreviewWithEditor";
 

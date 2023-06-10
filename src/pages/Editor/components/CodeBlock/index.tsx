@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { LANGUAGES } from './config';
 
 import isHotkey from "is-hotkey";
-import {RenderElementProps, useSlate } from "slate-react";
+import {RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { CodeBlockElement } from "../../custom-types";
@@ -32,6 +32,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   const [code] = useState(defaultCode);
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
   const slateEditor = useSlate();
+  const readOnly = useReadOnly();
   useEffect(() => {
     const languageConfig = LANGUAGES.find((lang) => lang.name.toLowerCase() === language);
     if (!languageConfig) {
@@ -77,7 +78,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           extraKeys: {
             'Shift-Tab': 'indentLess',
           },
-          readOnly: false,
+          readOnly,
           indentUnit: 2,
           tabSize: 2,
           cursorHeight: 1,

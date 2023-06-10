@@ -7,7 +7,7 @@ import {CustomElement} from "../../types";
 import classnames from "classnames";
 import { useClickAway } from "ahooks";
 import {DeleteOutlined} from "@ant-design/icons";
-import {ReactEditor, useSlate} from "slate-react";
+import {ReactEditor, useSlate, useReadOnly} from "slate-react";
 import {Transforms} from "slate";
 import { useDebounceFn } from "ahooks";
 
@@ -52,6 +52,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   const [editor, setEditor] = useState<Editor | null>(null);
   const ref= useRef<HTMLDivElement>(null);
   const slateEditor = useSlate();
+  const readOnly = useReadOnly();
 
   useClickAway(() => {
     if (editing) {
@@ -101,7 +102,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
               extraKeys: {
                 'Shift-Tab': 'indentLess',
               },
-              readOnly: false,
+              readOnly,
               indentUnit: 2,
               tabSize: 2,
               cursorHeight: 1,

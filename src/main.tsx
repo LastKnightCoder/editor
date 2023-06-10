@@ -1,8 +1,8 @@
-import ReactDOM from 'react-dom/client'
-import './main.less'
+import ReactDOM from 'react-dom/client';
+import { RouterProvider } from "react-router-dom";
+import './init.js';
 
-import './init.js'
-import App from './App'
+import router from "./router";
+import './main.less';
 
-
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(<App />)
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(<RouterProvider router={router} />)

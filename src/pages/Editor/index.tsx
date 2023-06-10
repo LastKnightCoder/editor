@@ -1,19 +1,17 @@
-import { useState, useEffect } from "react";
+import {useState, useEffect, forwardRef, useImperativeHandle} from "react";
 
-import { createEditor, Descendant, Editor } from 'slate';
+import { createEditor, Descendant, Editor, Transforms } from 'slate';
 import { Slate, Editable, withReact } from 'slate-react';
 import { withHistory } from 'slate-history';
 
 import { applyPlugin, registerHotKey } from "./utils";
-import { initValue as defaultValue } from "./configs";
 import { withMarkdownShortcuts, withOverrideSettings, withInsertBreak, withDeleteBackward, withPasteImage } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
-import {useFocusStore, useGithubStore, usePressedKeyStore} from "./stores";
+import { useGithubStore, usePressedKeyStore } from "./stores";
 
 import ImagesOverview from "./components/ImagesOverview";
 import { MathJaxContext } from "better-react-mathjax";
-import { Button, Drawer } from "antd";
 import Command from "./components/Command";
 
 import 'codemirror/mode/stex/stex.js';
@@ -34,33 +32,23 @@ import 'codemirror/addon/edit/closebrackets.js';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/blackboard.css';
 
-const config = {
-  loader: { load: ["[tex]/html"] },
-  tex: {
-    packages: { "[+]": ["html"] },
-    inlineMath: [
-      ["$", "$"],
-      ["\\(", "\\)"]
-    ],
-    displayMath: [
-      ["$$", "$$"],
-      ["\\[", "\\]"]
-    ]
-  }
-};
+import { mathjaxConfig } from "./configs";
 
-const App = () => {
+export type EditorRef = {
+  clear: () => void;
+}
+
+interface IEditorProps {
+  initValue: Descendant[];
+  onChange?: (value: Descendant[]) => void;
+  readonly?: boolean;
+}
+
+const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
+  const { initValue, onChange, readonly = true } = props;
   const plugins = [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withInsertBreak, withDeleteBackward, withPasteImage];
   const [editor] = useState(() => applyPlugin(createEditor(), plugins));
-  const [initValue] = useState(() => {
-    const content = localStorage.getItem('content');
-    if (content) {
-      return JSON.parse(content);
-    }
-    return defaultValue;
-  });
   const [isNormalized, setIsNormalized] = useState(false);
-  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     if (!isNormalized) {
@@ -92,7 +80,17 @@ const App = () => {
     setBranch(branch);
   }, []);
 
-  const [value, setValue] = useState<Descendant[]>(initValue);
+  useImperativeHandle(ref, () => ({
+    clear: () => {
+      // 清空内容
+      Transforms.delete(editor, {
+        at: {
+          anchor: Editor.start(editor, []),
+          focus: Editor.end(editor, []),
+        },
+      });
+    }
+  }));
 
   const { listenKeyPressed, resetPressedKey, isReset } = usePressedKeyStore(state => ({
     listenKeyPressed: state.listenKeyPressed,
@@ -100,26 +98,17 @@ const App = () => {
     isReset: state.isReset
   }));
 
-  const { setFocus } = useFocusStore(state => ({
-    setFocus: state.setFocus
-  }));
-
-  const save = (value: Descendant[]) => {
-    localStorage.setItem('content', JSON.stringify(value));
-    setValue(value);
-  }
-
-  const clear = () => {
-    localStorage.removeItem('content');
-    window.location.reload();
+  const handleOnChange = (value: Descendant[]) => {
+    onChange && onChange(value);
   }
 
   return (
     <div>
-      <MathJaxContext config={config}>
-        <Slate editor={editor} value={initValue} onChange={save} >
-          <div style={{ margin: '10px auto', minWidth: '600px', maxWidth: '800px', }}>
+      <MathJaxContext config={mathjaxConfig}>
+        <Slate editor={editor} value={initValue} onChange={handleOnChange} >
+          <div>
             <Editable
+              readOnly={readonly}
               renderElement={renderElement(editor)}
               renderLeaf={renderLeaf()}
               onKeyDown={(event) => {
@@ -132,43 +121,14 @@ const App = () => {
                   resetPressedKey();
                 }
               }}
-              onFocus={() => {
-                setFocus(true);
-              }}
-              onBlur={() => {
-                setFocus(false);
-              }}
-              onSelect={() => {
-                const selection = window.getSelection();
-                if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
-                  const range = selection.getRangeAt(0);
-                  const rect = range.getBoundingClientRect();
-                  // 显示行内工具栏，并设置位置
-
-                  console.log(rect);
-                }
-              }}
             />
             <ImagesOverview />
             <Command />
-            <div style={{ position: 'fixed', right: 10, top: 10 }}>
-              <Button onClick={clear}>清除数据并刷新页面</Button>
-              <Button style={{ marginLeft: 10 }} onClick={() => setOpen(true)}>查看数据</Button>
-            </div>
           </div>
         </Slate>
       </MathJaxContext>
-      <Drawer
-        open={open}
-        onClose={() => setOpen(false)}
-        width={600}
-      >
-        <pre>
-          <code>{JSON.stringify(value, null, 2)}</code>
-        </pre>
-      </Drawer>
     </div>
   )
-}
+});
 
-export default App;
+export default Index;
