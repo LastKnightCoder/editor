@@ -1,15 +1,24 @@
 .cardsManagement {
   padding: 40px 20px;
-  .editor {
-    border: 1px solid black;
-    border-radius: 12px;
+  margin-right: 100px;
+  .editorContainer {
     padding: 20px;
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
     margin-bottom: 20px;
-    min-height: 200px;
+    .editor {
+      min-height: 100px;
+    }
+    .footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
   }
+
   .cardList {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 12px;
     .cardItem {
       width: 280px;

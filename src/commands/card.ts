@@ -15,6 +15,6 @@ export async function deleteCard(id: number): Promise<number> {
   });
 }
 
-export async function updateCard(card: Pick<ICard, 'content' | 'tags'>): Promise<number> {
+export async function updateCard(card: Pick<ICard, 'content' | 'tags' | 'id'>): Promise<number> {
   return await invoke('update_one_card', card);
 }

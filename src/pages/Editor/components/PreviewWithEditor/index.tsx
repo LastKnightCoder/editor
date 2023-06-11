@@ -62,6 +62,9 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   }, ref);
 
   const onClick = () => {
+    if (readOnly) {
+      return;
+    }
     setEditing(true);
   }
 
@@ -121,11 +124,14 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
             {children}
           </ErrorBoundary>
         </div>
-        <div className={styles.actions}>
-          <div onClick={deleteElement} className={styles.item}>
-            <DeleteOutlined />
+        {
+          !readOnly &&
+          <div className={styles.actions}>
+            <div onClick={deleteElement} className={styles.item}>
+              <DeleteOutlined />
+            </div>
           </div>
-        </div>
+        }
       </div>
       <AddParagraph element={element} />
     </div>

@@ -2,7 +2,7 @@ import styles from './index.module.less';
 import { CustomElement } from "../../types";
 import React from "react";
 import {insertParagraphAndFocus} from "../../utils";
-import {useSlate} from "slate-react";
+import {useSlate, useReadOnly} from "slate-react";
 
 interface IAddParagraphProps {
   element: CustomElement
@@ -11,8 +11,12 @@ interface IAddParagraphProps {
 const AddParagraph: React.FC<IAddParagraphProps> = (props) => {
   const { element } = props;
   const editor = useSlate();
+  const readOnly = useReadOnly();
 
   const handleAddParagraph = () => {
+    if (readOnly) {
+      return;
+    }
     insertParagraphAndFocus(editor, element);
   }
 

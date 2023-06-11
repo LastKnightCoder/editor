@@ -3,7 +3,7 @@ import { DeleteOutlined, FileImageOutlined, SettingOutlined, FullscreenOutlined 
 import AddParagraph from "../AddParagraph";
 
 import { Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import { v4 as uuid } from 'uuid';
 
 import { useImagesOverviewStore } from "../../stores";
@@ -29,6 +29,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [open, setOpen] = useState(false);
 
   const editor = useSlate();
+  const readOnly = useReadOnly();
   const { showImageOverview } = useImagesOverviewStore(state => ({
     showImageOverview: state.showImageOverview,
   }));
@@ -38,6 +39,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   }
 
   const deleteImage = () => {
+    if (readOnly) {
+      return;
+    }
     const path = ReactEditor.findPath(editor, element);
     Transforms.removeNodes(editor, {
       at: path
@@ -46,6 +50,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   }
 
   const upload = () => {
+    console.log('upload', fileUploadRef.current);
     if (fileUploadRef.current) {
       fileUploadRef.current.click();
     }
@@ -103,7 +108,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             <SettingOutlined />
           </div>
         </div>
-        <GithubImageUploadSetting open={open} onClose={() => {setOpen(false)}} />
+        {
+          !readOnly &&
+          <GithubImageUploadSetting open={open} onClose={() => {setOpen(false)}} />
+        }
       </div>
     )
   }

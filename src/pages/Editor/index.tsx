@@ -1,7 +1,7 @@
 import {useState, useEffect, forwardRef, useImperativeHandle} from "react";
 
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
-import { Slate, Editable, withReact } from 'slate-react';
+import {Slate, Editable, withReact, ReactEditor} from 'slate-react';
 import { withHistory } from 'slate-history';
 
 import { applyPlugin, registerHotKey } from "./utils";
@@ -35,7 +35,8 @@ import 'codemirror/theme/blackboard.css';
 import { mathjaxConfig } from "./configs";
 
 export type EditorRef = {
-  clear: () => void;
+  focus: () => void;
+  setEditorValue: (value: Descendant[]) => void;
 }
 
 interface IEditorProps {
@@ -81,14 +82,25 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
   }, []);
 
   useImperativeHandle(ref, () => ({
-    clear: () => {
-      // 清空内容
+    focus: () => {
+      ReactEditor.focus(editor);
+      // 移动到末尾
+      Transforms.select(editor, Editor.end(editor, []));
+    },
+    setEditorValue: (value: Descendant[]) => {
       Transforms.delete(editor, {
         at: {
           anchor: Editor.start(editor, []),
           focus: Editor.end(editor, []),
         },
       });
+      Transforms.removeNodes(editor, {
+        at: [0],
+      });
+      Transforms.insertNodes(
+        editor,
+        value
+      );
     }
   }));
 
@@ -123,7 +135,7 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
               }}
             />
             <ImagesOverview />
-            <Command />
+            { !readonly && <Command /> }
           </div>
         </Slate>
       </MathJaxContext>
