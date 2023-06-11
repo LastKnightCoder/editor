@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
-import useCardsManagementStore from "./hooks/useCardsManagementStore";
-
-import styles from './index.module.less';
-import CardItem from "@/pages/Index/Cards/CardItem";
 import Editor, { EditorRef } from "@/pages/Editor";
 import { Descendant } from "slate";
 import { Button } from "antd";
+
+import CardItem from "./CardItem";
+import useCardsManagementStore from "./hooks/useCardsManagementStore";
+import styles from './index.module.less';
 
 const Cards = () => {
   const { cards, init, createOrUpdateCard, editingCard, updateEditingCard } = useCardsManagementStore((state) => ({

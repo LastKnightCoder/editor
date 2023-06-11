@@ -123,6 +123,7 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
               readOnly={readonly}
               renderElement={renderElement(editor)}
               renderLeaf={renderLeaf()}
+              placeholder={'写下你的想法...'}
               onKeyDown={(event) => {
                 registerHotKey(editor, event, hotKeyConfigs);
                 listenKeyPressed(event);

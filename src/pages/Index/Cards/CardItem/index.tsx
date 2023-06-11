@@ -1,13 +1,16 @@
-import Editor, {EditorRef} from "@/pages/Editor";
-import * as dayjs from "dayjs";
-import {ICard} from "@/types";
-import {Descendant} from "slate";
-import styles from './index.module.less';
-import {Tag} from "antd";
-import { TAG_COLORS } from '@/constants';
-import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import useCardsManagementStore from "../hooks/useCardsManagementStore";
 import {memo, useEffect, useRef} from "react";
+import { Descendant } from "slate";
+import { Tag } from "antd";
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
+import * as dayjs from "dayjs";
+
+import Editor, {EditorRef} from "@/pages/Editor";
+import useCardsManagementStore from "../hooks/useCardsManagementStore";
+import styles from './index.module.less';
+
+import { ICard } from "@/types";
+import { TAG_COLORS } from '@/constants';
+
 
 interface CardItemProps {
   card: ICard;
@@ -25,8 +28,6 @@ const CardItem = memo((props: CardItemProps) => {
     updateEditingCard: state.updateEditingCard,
     editorRef: state.editorRef,
   }));
-
-  console.log('CardItem render');
 
   useEffect(() => {
     const editor = ref.current;
