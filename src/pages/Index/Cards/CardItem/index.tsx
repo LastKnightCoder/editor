@@ -2,7 +2,7 @@ import {memo, useEffect, useRef} from "react";
 import { Descendant } from "slate";
 import { Tag } from "antd";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import * as dayjs from "dayjs";
+import dayjs from "dayjs";
 
 import Editor, {EditorRef} from "@/pages/Editor";
 import useCardsManagementStore from "../hooks/useCardsManagementStore";

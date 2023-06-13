@@ -21,7 +21,7 @@ const routes = [{
   }]
 }, {
   path: '/editor',
-  element: <Editor />,
+  element: <Editor initValue={[{type: 'paragraph', children:[{ type: 'formatted', text: '' }]}]} />,
 }]
 
 const router = createBrowserRouter(routes);

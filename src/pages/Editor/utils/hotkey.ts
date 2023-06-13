@@ -1,5 +1,5 @@
 import {Editor} from "slate";
-import {HotKeyConfig} from "../pages/Editor/hotkeys/types";
+import {HotKeyConfig} from "../hotkeys/types";
 import isHotKey from "is-hotkey";
 
 export const registerHotKey = (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>, configs: HotKeyConfig[]) => {
