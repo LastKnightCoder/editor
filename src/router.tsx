@@ -1,6 +1,6 @@
 import {createBrowserRouter, Navigate} from "react-router-dom";
 
-import Editor from './pages/Editor';
+import Edit from './pages/Edit';
 import Index from './pages/Index';
 import Cards from "./pages/Index/Cards";
 import Articles from "./pages/Index/Articles";
@@ -21,7 +21,7 @@ const routes = [{
   }]
 }, {
   path: '/editor',
-  element: <Editor initValue={[{type: 'paragraph', children:[{ type: 'formatted', text: '' }]}]} />,
+  element: <Edit />,
 }]
 
 const router = createBrowserRouter(routes);

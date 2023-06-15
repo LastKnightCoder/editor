@@ -8,6 +8,9 @@ const menuList = [{
 }, {
   path: '/articles',
   title: '文章管理',
+}, {
+  path: '/editor',
+  title: '编辑器',
 }];
 
 const Management = () => {
