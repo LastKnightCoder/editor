@@ -1,0 +1,21 @@
+.buttonContainer {
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  &:not(:last-child) {
+    margin-right: 8px;
+  }
+  color: rgb(26, 32, 44);
+  cursor: pointer;
+  font-family: 'Baloo 2', serif;
+  border-radius: 8px;
+  &:hover {
+    background-color: rgb(237, 242, 247);
+  }
+  &.active {
+    background-color: rgb(203, 213, 224);
+  }
+}
