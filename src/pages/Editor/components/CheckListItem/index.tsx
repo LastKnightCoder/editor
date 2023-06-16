@@ -23,7 +23,7 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = (props) =
 
   return (
     <li {...attributes} className={styles.item}>
-      <Checkbox className={styles.checkbox} checked={checked} onClick={onClick} />
+      <Checkbox tabIndex={-1} className={styles.checkbox} checked={checked} onClick={onClick} />
       <div>
         {children}
       </div>

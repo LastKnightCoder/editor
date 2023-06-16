@@ -13,6 +13,7 @@ import { useGithubStore, usePressedKeyStore } from "./stores";
 import ImagesOverview from "./components/ImagesOverview";
 import { MathJaxContext } from "better-react-mathjax";
 import Command from "./components/Command";
+import HoveringToolbar from "./components/HoveringToolbar";
 
 import 'codemirror/mode/stex/stex.js';
 import 'codemirror/mode/javascript/javascript.js';
@@ -137,6 +138,7 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
             />
             <ImagesOverview />
             { !readonly && <Command /> }
+            { !readonly && <HoveringToolbar /> }
           </div>
         </Slate>
       </MathJaxContext>
