@@ -1,6 +1,5 @@
 import {Editor, Element as SlateElement, Range, Transforms} from "slate";
-import {isAtParagraphStart, isParagraphElement, isParagraphEmpty, movePrevCol} from "../../utils";
-import { ParagraphElement } from "../../custom-types";
+import {isAtParagraphStart, isParagraphElement, isParagraphAndEmpty, movePrevCol} from "../../utils";
 
 const table = (editor: Editor) => {
   const { deleteBackward } = editor;
@@ -27,7 +26,7 @@ const table = (editor: Editor) => {
         const [match] = Editor.nodes(editor, {
           match: n => SlateElement.isElement(n) && isParagraphElement(n),
         });
-        const [node, path] = match;
+        const [, path] = match;
         const prevPath = Editor.before(editor, path);
         if (prevPath) {
           const [prevMatch] = Editor.nodes(editor, {
@@ -35,7 +34,7 @@ const table = (editor: Editor) => {
             match: n => SlateElement.isElement(n) && n.type === 'table',
           });
           if (prevMatch) {
-            if (isParagraphEmpty(node as ParagraphElement)) {
+            if (isParagraphAndEmpty(editor)) {
               Transforms.removeNodes(editor, { at: path });
             }
             Transforms.move(editor, { distance: -1, unit: 'line' });

@@ -1,6 +1,6 @@
 import React, {PropsWithChildren, useMemo} from 'react';
 import {RenderElementProps, useSlate, ReactEditor} from "slate-react";
-import {TikzElement} from "../../custom-types";
+import {TikzElement} from "../../types";
 import PreviewWithEditor from "../PreviewWithEditor";
 import './tikzjax.js';
 import {Transforms} from "slate";

@@ -1,5 +1,5 @@
 import {Editor, Element as SlateElement, Node as SlateNode, Range} from "slate";
-import {ParagraphElement} from "../../custom-types";
+import {ParagraphElement} from "../../types";
 
 export const isAtFirst = (editor: Editor, text: string) => {
   const { selection } = editor;
@@ -13,7 +13,7 @@ export const isAtFirst = (editor: Editor, text: string) => {
         match: n => SlateNode.isNode(n) && n.type === 'formatted',
       });
       if (!nodeMatch) {
-        return undefined;
+        return;
       }
       const [node, path] = nodeMatch;
       // node 是否是 paragraph 的第一个子节点
@@ -23,5 +23,5 @@ export const isAtFirst = (editor: Editor, text: string) => {
       }
     }
   }
-  return undefined;
+  return;
 }

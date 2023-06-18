@@ -1,7 +1,7 @@
 import {HotKeyConfig} from "./types";
 import {Editor, Transforms} from "slate";
 import {getParentNodeByNode, getPreviousSiblingNode, isAtParagraphStart} from "../utils";
-import {BulletedListElement, NumberedListElement} from "../custom-types";
+import {BulletedListElement, NumberedListElement} from "../types";
 import {message} from "antd";
 
 export const listConfig: HotKeyConfig[] = [{

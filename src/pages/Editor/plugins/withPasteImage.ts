@@ -21,8 +21,11 @@ export const withPasteImage = (editor: Editor) => {
         url: '',
         pasteUploading: true,
         children: [{
-          type: 'formatted',
-          text: ''
+          type: 'paragraph',
+          children: [{
+            type: 'formatted',
+            text: ''
+          }]
         }]
       });
       reader.addEventListener('load', async () => {

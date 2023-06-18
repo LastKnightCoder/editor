@@ -8,7 +8,7 @@ import { v4 as uuid } from 'uuid';
 
 import { useImagesOverviewStore } from "../../stores";
 import {replaceGithubUrlToCDNUrl, uploadSingleImage} from "../../utils";
-import { ImageElement } from "../../custom-types";
+import { ImageElement } from "../../types";
 
 import styles from './index.module.less';
 import { Spin } from "antd";

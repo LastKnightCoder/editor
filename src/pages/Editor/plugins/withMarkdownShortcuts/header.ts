@@ -1,6 +1,6 @@
 import {Editor, NodeEntry, Transforms} from "slate";
 import {isAtFirst} from "./utils";
-import {FormattedText, HeaderElement} from "../../custom-types";
+import {FormattedText, HeaderElement} from "../../types";
 
 const header = (editor: Editor) => {
   const { insertText } = editor;

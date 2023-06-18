@@ -1,5 +1,5 @@
 import {ReactEditor, useSlate, useSlateSelection} from "slate-react";
-import {Editor, Range, Transforms} from "slate";
+import {Editor, Range} from "slate";
 import React, {useCallback} from "react";
 
 const useHoveringBarConfig = () => {
@@ -16,7 +16,6 @@ const useHoveringBarConfig = () => {
 
   const toggleMark = useCallback((event: React.MouseEvent, mark: 'bold' | 'italic' | 'code' | 'underline' | 'highlight') => {
     const selection = editor.selection;
-    console.log('selection', selection);
     const marks = Editor.marks(editor);
     if (marks && marks[mark]) {
       Editor.removeMark(editor, mark);
@@ -25,7 +24,6 @@ const useHoveringBarConfig = () => {
     }
     event.preventDefault();
     if (selection && !Range.isCollapsed(selection)) {
-      Transforms.collapse(editor, { edge: 'end' });
       ReactEditor.focus(editor);
     }
   }, [editor]);
@@ -40,7 +38,7 @@ const useHoveringBarConfig = () => {
     text: 'U',
     mark: 'underline',
   }, {
-    text: 'H',
+    text: 'M',
     mark: 'highlight',
   }, {
     text: 'C',

@@ -1,11 +1,10 @@
 import {Editor, Element as SlateElement, Transforms} from "slate";
 import {
-  isAtParagraphStart,
   isCheckListItemElement,
   isParagraphElement,
-  isParagraphEmpty
+  isParagraphAndEmpty
 } from "../../utils";
-import {ListItemElement, ParagraphElement} from "../../custom-types";
+import {ListItemElement} from "../../types";
 
 const checklist = (editor: Editor) => {
   const { insertBreak } = editor;
@@ -18,7 +17,7 @@ const checklist = (editor: Editor) => {
         match: n => SlateElement.isElement(n) && isParagraphElement(n),
       });
       // 在行首，并且内容为空
-      if (isAtParagraphStart(editor) && para && isParagraphEmpty(para[0] as ParagraphElement)) {
+      if (isParagraphAndEmpty(editor)) {
         // 如果是第一个段落，并且后面没有段落，则转换为 paragraph
         if ((listMatch[0] as ListItemElement).children.length === 1) {
           Transforms.unwrapNodes(editor, {

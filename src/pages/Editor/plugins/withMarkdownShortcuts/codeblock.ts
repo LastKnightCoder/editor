@@ -1,5 +1,5 @@
 import {Editor, NodeEntry, Transforms} from "slate";
-import {FormattedText} from "../../custom-types";
+import {FormattedText} from "../../types";
 import {isAtFirst} from "./utils";
 import {insertCodeBlock} from "../../utils";
 

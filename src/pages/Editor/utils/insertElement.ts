@@ -1,10 +1,44 @@
-import { Editor, Transforms } from 'slate';
+import {Editor, Transforms} from 'slate';
 import {ReactEditor} from "slate-react";
-import {FormattedText, ImageElement, TableCellElement, TableElement, TableRowElement} from "../custom-types";
+import {
+  BlockElement,
+  FormattedText,
+  ImageElement,
+  ParagraphElement,
+  TableCellElement,
+  TableElement,
+  TableRowElement
+} from "../types";
 import {v4 as getUuid} from "uuid";
+import {isParagraphAndEmpty, isCollapsed, replaceNode} from "./editor";
+
+const emptyParagraph = {
+  type: 'paragraph',
+  children: [{
+    type: 'formatted',
+    text: '',
+  }] as FormattedText[],
+} as ParagraphElement;
+
+const setOrInsertNode = (editor: Editor, node: BlockElement) => {
+  if (!isCollapsed(editor)) {
+    return;
+  }
+  const [match] = Editor.nodes(editor, {
+    match: n => n.type === 'paragraph',
+  });
+  if (!match) {
+    return;
+  }
+  if (isParagraphAndEmpty(editor)) {
+    replaceNode(editor, node, n => n.type === 'paragraph');
+  } else {
+    return Transforms.insertNodes(editor, node);
+  }
+}
 
 export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' | 'danger' | 'note') => {
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'callout',
     calloutType: type,
     title: '',
@@ -16,6 +50,7 @@ export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' |
       }]
     }],
   });
+
   const [callout] = Editor.nodes(editor, {
     match: n => n.type === 'callout',
   });
@@ -30,27 +65,11 @@ export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' |
 }
 
 export const insertDetails = (editor: Editor) => {
-  // 如果当前段落是空的，删除该段落
-  const [paragraph] = Editor.nodes(editor, {
-    match: n => n.type === 'paragraph',
-  });
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  if (paragraph && paragraph[0].children.length === 1 && paragraph[0].children[0].text === '') {
-    Transforms.removeNodes(editor, {
-      at: paragraph[1],
-    });
-  }
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'detail',
-    children: [{
-      type: 'paragraph',
-      children: [{
-        type: 'formatted',
-        text: '',
-      }]
-    }],
+    children: [emptyParagraph],
   });
+
   const [detail] = Editor.nodes(editor, {
     match: n => n.type === 'detail',
   });
@@ -71,68 +90,48 @@ interface ImageParams {
 }
 
 export const insertImage = (editor: Editor, params: ImageParams) => {
-  const text: FormattedText = { type: 'formatted', text: '' }
-  const image: ImageElement = { type: 'image', ...params, children: [text] }
-  Transforms.insertNodes(editor, image)
+  const image: ImageElement = { type: 'image', ...params, children: [{ type: 'formatted', text: '' }] }
+  setOrInsertNode(editor, image);
 }
 
 export const insertBulletList = (editor: Editor) => {
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'bulleted-list',
     children: [{
       type: 'list-item',
-      children: [{
-        type: 'paragraph',
-        children: [{
-          text: '',
-          type: 'formatted'
-        }]
-      }]
+      children: [emptyParagraph]
     }]
   });
 }
 
 export const insertNumberedList = (editor: Editor) => {
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'numbered-list',
     children: [{
       type: 'list-item',
-      children: [{
-        type: 'paragraph',
-        children: [{
-          text: '',
-          type: 'formatted'
-        }]
-      }]
+      children: [emptyParagraph]
     }]
   });
 }
 
 export const insertCheckList = (editor: Editor) => {
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'check-list',
-    checked: false,
     children: [{
       type: 'check-list-item',
       checked: false,
-      children: [{
-        type: 'paragraph',
-        children: [{
-          text: '',
-          type: 'formatted'
-        }]
-      }]
+      children: [emptyParagraph]
     }]
   });
 }
 
 export const insertBlockMath = (editor: Editor) => {
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'block-math',
-    tex: 'f(x)',
+    tex: '',
     children: [{
       type: 'formatted',
-      text: ''
+      text: '',
     }]
   });
 }
@@ -155,23 +154,32 @@ export const insertTable = (editor: Editor, rows: number, cols: number) => {
     type: 'table',
     children: tableRowElements,
   }
-  Transforms.insertNodes(editor, tableElement);
+  setOrInsertNode(editor, tableElement);
 }
 
 export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
   const uuid = getUuid();
-  Transforms.setNodes(editor, { type: 'code-block', code: '', language: language, uuid, children: [{ type: 'formatted', text: '' }] });
+  setOrInsertNode(editor, {
+    type: 'code-block',
+    code: '',
+    language: language,
+    uuid,
+    children: [{
+      type: 'formatted',
+      text: '',
+    }]
+  });
   // 聚焦到 code-block
   setTimeout(() => {
     const codeMirrorEditor = editor.codeBlockMap.get(uuid);
     if (codeMirrorEditor) {
       codeMirrorEditor.focus();
     }
-  }, 20);
+  }, 50);
 }
 
 export const insertMermaid = (editor: Editor) => {
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'mermaid',
     chart: '',
     children: [{
@@ -182,7 +190,7 @@ export const insertMermaid = (editor: Editor) => {
 }
 
 export const insertTikz = (editor: Editor) => {
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'tikz',
     content: '',
     children: [{
@@ -193,7 +201,7 @@ export const insertTikz = (editor: Editor) => {
 }
 
 export const insertGraphviz = (editor: Editor) => {
-  Transforms.insertNodes(editor, {
+  setOrInsertNode(editor, {
     type: 'graphviz',
     dot: '',
     children: [{

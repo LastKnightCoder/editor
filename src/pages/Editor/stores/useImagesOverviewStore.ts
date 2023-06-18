@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ImageElement } from "../custom-types";
+import { ImageElement } from "../types";
 import {Descendant, Editor} from "slate";
 
 interface IState {

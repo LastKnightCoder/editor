@@ -8,7 +8,7 @@ import isHotkey from "is-hotkey";
 import {RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
-import { CodeBlockElement } from "../../custom-types";
+import { CodeBlockElement } from "../../types";
 import {message} from "antd";
 import AddParagraph from "../AddParagraph";
 

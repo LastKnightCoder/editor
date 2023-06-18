@@ -6,7 +6,7 @@ import classnames from 'classnames';
 import { usePressedKeyStore } from "../../stores";
 
 import styles from './index.module.less';
-import { LinkElement } from "../../custom-types";
+import { LinkElement } from "../../types";
 import {Transforms} from "slate";
 import {isLeafNode} from "../../utils";
 

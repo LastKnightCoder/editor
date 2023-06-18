@@ -1,6 +1,6 @@
 import React, {PropsWithChildren} from "react";
 import {ReactEditor, RenderElementProps, useSlate} from "slate-react";
-import { CheckListItemElement} from "../../custom-types";
+import { CheckListItemElement} from "../../types";
 import { Checkbox } from "antd";
 import {Transforms} from "slate";
 import styles from './index.module.less';

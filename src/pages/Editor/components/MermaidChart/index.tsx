@@ -1,6 +1,6 @@
 import React, {PropsWithChildren} from 'react';
 import { RenderElementProps, useSlate , ReactEditor } from 'slate-react';
-import { MermaidElement } from '../../custom-types';
+import { MermaidElement } from '../../types';
 import PreviewWithEditor from "../PreviewWithEditor";
 import { Mermaid } from 'mdx-mermaid/lib/Mermaid';
 
@@ -19,7 +19,7 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
 
   const renderEmpty = () => {
     return (
-      <div className={styles.empty}>点击编辑图表</div>
+      <div contentEditable={false} className={styles.empty}>点击编辑图表</div>
     )
   }
 

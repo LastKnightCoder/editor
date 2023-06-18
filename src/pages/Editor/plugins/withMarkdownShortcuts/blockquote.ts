@@ -1,5 +1,5 @@
 import {Editor, NodeEntry, Transforms} from "slate";
-import {FormattedText} from "../../custom-types";
+import {FormattedText} from "../../types";
 import {isAtFirst} from "./utils";
 
 const blockquote = (editor: Editor) => {
@@ -11,7 +11,6 @@ const blockquote = (editor: Editor) => {
       const { text: nodeText } = node as FormattedText;
       const offset = editor.selection!.anchor.offset;
       if (nodeText.slice(0, offset) === '>') {
-        // 删除 ``` 符号
         Transforms.delete(editor, {
           at: {
             anchor: {

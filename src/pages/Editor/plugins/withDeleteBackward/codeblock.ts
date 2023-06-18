@@ -1,6 +1,6 @@
 import {Editor, Element as SlateElement, Range, Transforms} from "slate";
-import {CodeBlockElement, ParagraphElement} from "../../custom-types";
-import {isAtParagraphStart, isParagraphEmpty} from "../../utils";
+import {CodeBlockElement} from "../../types";
+import {isAtParagraphStart, isParagraphAndEmpty} from "../../utils";
 
 const codeblock = (editor: Editor) => {
   const { deleteBackward } = editor;
@@ -11,8 +11,10 @@ const codeblock = (editor: Editor) => {
       const [match] = Editor.nodes(editor, {
         match: n => SlateElement.isElement(n) && editor.isBlock(n),
       });
+      console.log('match', match);
       if (match) {
-        const [node, path] = match;
+        const [, path] = match;
+        console.log('path', isAtParagraphStart(editor));
         if (isAtParagraphStart(editor)) {
           // 如果前一个是 code-block，删除当前 paragraph，将光标移动到 code-block 的末尾
           const prevPath = Editor.before(editor, path);
@@ -22,7 +24,10 @@ const codeblock = (editor: Editor) => {
               match: n => SlateElement.isElement(n) && n.type === 'code-block',
             });
             if (prevMatch) {
-              if (isParagraphEmpty(node as ParagraphElement)) {
+              const isEmpty = isParagraphAndEmpty(editor);
+              console.log('isEmpty', isEmpty);
+              if (isParagraphAndEmpty(editor)) {
+                console.log('path', path);
                 Transforms.removeNodes(editor, { at: path });
               }
               const [element] = prevMatch;

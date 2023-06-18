@@ -1,6 +1,6 @@
 import React from "react";
 import {RenderElementProps} from "slate-react";
-import {TableCellElement} from "../../custom-types";
+import {TableCellElement} from "../../types";
 
 interface ITableCellProps {
   attributes: RenderElementProps['attributes'];

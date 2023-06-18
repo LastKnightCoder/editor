@@ -1,7 +1,6 @@
 import { Editor, Node, Path, Transforms, Text } from "slate";
 import {Editor as CodeMirrorEditor} from "codemirror";
 
-
 export const withOverrideSettings = (editor: Editor) => {
   const { isBlock, isVoid, isInline, normalizeNode } = editor;
   editor.isBlock = (element) => {

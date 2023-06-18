@@ -6,7 +6,7 @@ import {
   isAtParagraphStart,
   isListItemElement, isParagraphElement
 } from "../../utils";
-import {ListItemElement} from "../../custom-types";
+import {ListItemElement} from "../../types";
 
 const list = (editor: Editor) => {
   const { deleteBackward } = editor;

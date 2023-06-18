@@ -1,7 +1,7 @@
 import React, {PropsWithChildren, useState} from "react";
 import {ReactEditor, RenderElementProps} from "slate-react";
 import { MathJax } from "better-react-mathjax";
-import { InlineMathElement } from "../../custom-types";
+import { InlineMathElement } from "../../types";
 import InlineChromiumBugfix from "../InlineChromiumBugFix";
 import { Popover, Input } from "antd";
 import styles from './index.module.less';

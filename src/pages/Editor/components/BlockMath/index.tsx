@@ -1,7 +1,7 @@
 import React, {PropsWithChildren} from "react";
 import { RenderElementProps } from "slate-react";
 import { MathJax } from "better-react-mathjax";
-import { BlockMathElement } from "../../custom-types";
+import { BlockMathElement } from "../../types";
 import { Transforms } from "slate";
 import { ReactEditor, useSlate } from "slate-react";
 import PreviewWithEditor from "../PreviewWithEditor";
@@ -20,7 +20,8 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
   const editor = useSlate();
 
   const handleInputChange = (code: string) => {
-    Transforms.setNodes(editor, { tex: code }, { at: ReactEditor.findPath(editor, element) });
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, { tex: code }, { at: path });
   }
 
   return (
@@ -32,7 +33,7 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
         element={element}
       >
         <MathJax style={{ margin: 0 }}>
-          {tex ? <div>{`$$${tex}$$`}</div> : <div className={styles.empty}>点击编辑公式</div>}
+          {tex ? <div>{`$$${tex}$$`}</div> : <div contentEditable={false} className={styles.empty}>点击编辑公式</div>}
         </MathJax>
       </PreviewWithEditor>
       {children}

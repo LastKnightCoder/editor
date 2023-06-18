@@ -1,6 +1,6 @@
 import { getCurrentTextNode } from "../utils";
 import {Editor, Range, Transforms} from "slate";
-import { FormattedText } from "../custom-types";
+import { FormattedText } from "../types";
 
 import { Mark, HotKeyConfig } from "./types";
 import React from "react";
@@ -15,17 +15,18 @@ const markAction = (mark: Mark) => {
       } else {
         Editor.addMark(editor, mark, true);
       }
-      event.preventDefault();
       const { selection } = editor;
       if (selection && !Range.isCollapsed(selection)) {
         Transforms.collapse(editor, { edge: 'end' });
+        Editor.removeMark(editor, mark);
       }
+      event.preventDefault();
     }
   }
 }
 
 export const formattedText: HotKeyConfig[] = [{
-  hotKey: 'mod+shift+b',
+  hotKey: 'mod+b',
   action: markAction('bold')
 }, {
   hotKey: 'mod+i',
@@ -34,7 +35,7 @@ export const formattedText: HotKeyConfig[] = [{
   hotKey: 'mod+u',
   action: markAction('underline')
 }, {
-  hotKey: 'mod+shift+h',
+  hotKey: 'mod+m',
   action: markAction('highlight')
 }, {
   hotKey: 'mod+e',

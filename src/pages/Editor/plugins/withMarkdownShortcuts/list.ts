@@ -1,6 +1,6 @@
 import {Editor, Element as SlateElement, NodeEntry, Path, Transforms} from "slate";
 import {isAtFirst} from "./utils";
-import {FormattedText} from "../../custom-types";
+import {FormattedText} from "../../types";
 
 const list = (editor: Editor) => {
   const { insertText } = editor;

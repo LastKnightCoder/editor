@@ -2,7 +2,7 @@ import { Editor, Transforms } from "slate";
 import { ReactEditor, RenderElementProps } from "slate-react";
 import { Editor as CodeMirrorEditor } from "codemirror";
 
-import { CodeBlockElement } from "../custom-types";
+import { CodeBlockElement } from "../types";
 
 import CodeBlock from "../components/CodeBlock";
 import Callout from "../components/Callout";
@@ -25,6 +25,7 @@ import Tikz from "../components/Tikz";
 import HTMLBlock from "../components/HTMLBlock";
 import Graphviz from "../components/Graphviz";
 import CustomBlock from "../components/CustomBlock";
+import Paragraph from "../components/Paragraph";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -181,7 +182,7 @@ export const renderElement = (editor: Editor) => {
         )
       case 'paragraph':
       default:
-        return <p {...attributes}>{children}</p>
+        return <Paragraph {...attributes}>{children}</Paragraph>
     }
   }
 }

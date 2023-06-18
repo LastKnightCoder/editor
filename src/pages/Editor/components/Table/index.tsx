@@ -1,7 +1,7 @@
 import React from "react";
 import { RenderElementProps } from "slate-react";
 import styles from './index.module.less';
-import {TableElement} from "../../custom-types";
+import {TableElement} from "../../types";
 import AddParagraph from "../AddParagraph";
 
 interface ITableProps {

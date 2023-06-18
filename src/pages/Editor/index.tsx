@@ -5,7 +5,13 @@ import {Slate, Editable, withReact, ReactEditor} from 'slate-react';
 import { withHistory } from 'slate-history';
 
 import { applyPlugin, registerHotKey } from "./utils";
-import { withMarkdownShortcuts, withOverrideSettings, withInsertBreak, withDeleteBackward, withPasteImage } from "./plugins";
+import {
+  withMarkdownShortcuts,
+  withOverrideSettings,
+  withInsertBreak,
+  withDeleteBackward,
+  withPasteImage
+} from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
 import { useGithubStore, usePressedKeyStore } from "./stores";
@@ -38,6 +44,7 @@ import { mathjaxConfig } from "./configs";
 export type EditorRef = {
   focus: () => void;
   setEditorValue: (value: Descendant[]) => void;
+  getEditor: () => Editor;
 }
 
 interface IEditorProps {
@@ -102,7 +109,8 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
         editor,
         value
       );
-    }
+    },
+    getEditor: () => editor,
   }));
 
   const { listenKeyPressed, resetPressedKey, isReset } = usePressedKeyStore(state => ({
@@ -116,33 +124,29 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
   }
 
   return (
-    <div>
-      <MathJaxContext config={mathjaxConfig}>
-        <Slate editor={editor} value={initValue} onChange={handleOnChange} >
-          <div>
-            <Editable
-              readOnly={readonly}
-              renderElement={renderElement(editor)}
-              renderLeaf={renderLeaf()}
-              placeholder={'写下你的想法...'}
-              onKeyDown={(event) => {
-                registerHotKey(editor, event, hotKeyConfigs);
-                listenKeyPressed(event);
-              }}
-              onKeyUp={() => {
-                // 防止重复触发，频繁更新组件，编辑体验不好
-                if (!isReset) {
-                  resetPressedKey();
-                }
-              }}
-            />
-            <ImagesOverview />
-            { !readonly && <Command /> }
-            { !readonly && <HoveringToolbar /> }
-          </div>
-        </Slate>
-      </MathJaxContext>
-    </div>
+    <MathJaxContext config={mathjaxConfig}>
+      <Slate editor={editor} value={initValue} onChange={handleOnChange} >
+        <Editable
+          readOnly={readonly}
+          renderElement={renderElement(editor)}
+          renderLeaf={renderLeaf()}
+          placeholder={'写下你的想法...'}
+          onKeyDown={(event) => {
+            registerHotKey(editor, event, hotKeyConfigs);
+            listenKeyPressed(event);
+          }}
+          onKeyUp={() => {
+            // 防止重复触发，频繁更新组件，编辑体验不好
+            if (!isReset) {
+              resetPressedKey();
+            }
+          }}
+        />
+        <ImagesOverview />
+        { !readonly && <Command /> }
+        { !readonly && <HoveringToolbar /> }
+      </Slate>
+    </MathJaxContext>
   )
 });
 

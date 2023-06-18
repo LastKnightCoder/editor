@@ -1,6 +1,6 @@
 import React, {PropsWithChildren} from "react";
 import {RenderElementProps} from "slate-react";
-import {NumberedListElement} from "../../custom-types";
+import {NumberedListElement} from "../../types";
 import AddParagraph from "../AddParagraph";
 import styles from './index.module.less';
 

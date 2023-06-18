@@ -1,7 +1,34 @@
 import { Descendant } from "slate";
 import {FormattedText} from "./text";
 
-type InlineElement = FormattedText | LinkElement | InlineMathElement;
+export type InlineElement = FormattedText | LinkElement | InlineMathElement;
+export type CustomElement =
+  | ParagraphElement
+  | CodeBlockElement
+  | CalloutElement
+  | HeaderElement
+  | BulletedListElement
+  | NumberedListElement
+  | ListItemElement
+  | ImageElement
+  | DetailElement
+  | BlockquoteElement
+  | LinkElement
+  | TableElement
+  | TableRowElement
+  | TableCellElement
+  | InlineMathElement
+  | BlockMathElement
+  | CheckListItemElement
+  | CheckListElement
+  | MermaidElement
+  | TikzElement
+  | HTMLBlockElement
+  | GraphvizElement
+  | CustomBlockElement;
+
+export type CustomText = FormattedText;
+export type BlockElement = Exclude<CustomElement, InlineElement>
 
 export interface ParagraphElement {
   type: 'paragraph';
@@ -20,7 +47,7 @@ export interface CalloutElement {
   type: 'callout';
   calloutType: 'tip' | 'warning' | 'info' | 'danger' | 'note';
   title: string;
-  children: Descendant[];
+  children: BlockElement[];
 }
 
 export interface HeaderElement {
@@ -31,7 +58,7 @@ export interface HeaderElement {
 
 export interface ListItemElement {
   type: 'list-item';
-  children: Descendant[];
+  children: BlockElement[];
 }
 
 export interface BulletedListElement {
@@ -54,12 +81,12 @@ export interface ImageElement {
 
 export interface DetailElement {
   type: 'detail';
-  children: Descendant[];
+  children: BlockElement[];
 }
 
 export interface BlockquoteElement {
   type: 'blockquote';
-  children: Descendant[];
+  children: BlockElement[];
 }
 
 export interface LinkElement {
@@ -70,7 +97,7 @@ export interface LinkElement {
 
 export interface TableCellElement {
   type: 'table-cell';
-  children: Array<FormattedText | LinkElement>;
+  children: InlineElement[];
 }
 
 export interface TableRowElement {
@@ -86,19 +113,19 @@ export interface TableElement {
 export interface InlineMathElement {
   type: 'inline-math';
   tex: string;
-  children: InlineElement[];
+  children: FormattedText[];
 }
 
 export interface BlockMathElement {
   type: 'block-math';
   tex: string;
-  children: InlineElement[];
+  children: Descendant[];
 }
 
 export interface CheckListItemElement {
   type: 'check-list-item';
   checked: boolean;
-  children: Descendant[];
+  children: BlockElement[];
 }
 
 export interface CheckListElement {

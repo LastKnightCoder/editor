@@ -86,7 +86,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
 
   return (
     <div>
-      <div ref={ref} className={classnames(styles.container, { [styles.editing]: editing })}>
+      <div contentEditable={false} ref={ref} className={classnames(styles.container, { [styles.editing]: editing })}>
         {
           editing &&
           <CodeEditor

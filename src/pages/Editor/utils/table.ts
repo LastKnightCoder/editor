@@ -1,5 +1,5 @@
 import { Editor, Transforms } from "slate";
-import { TableCellElement, TableElement, TableRowElement } from "../custom-types";
+import { TableCellElement, TableElement, TableRowElement } from "../types";
 import { insertParagraphAndFocus, replaceNode } from "./editor";
 import { ReactEditor } from "slate-react";
 

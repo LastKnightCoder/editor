@@ -23,16 +23,11 @@ const HoveringToolbar = () => {
       return
     }
 
-    // const focused = ReactEditor.isFocused(editor);
     const isCollapsed = selection && Range.isCollapsed(selection);
     const isEmpty = selection && Editor.string(editor, selection) === '';
-
-    console.log('selection', selection, 'isCollapsed', isCollapsed, 'isEmpty', isEmpty);
-
     const close = !selection || isCollapsed || isEmpty;
 
     if (close) {
-      console.log('hide hovering toolbar');
       el.removeAttribute('style');
       return;
     }
@@ -48,21 +43,16 @@ const HoveringToolbar = () => {
   });
 
   useEffect(() => {
-    const fn = (e: any) => {
-      // 如果点击在 editor 之外，则隐藏 hovering toolbar
-      if (!editor.selection) {
-        return;
-      }
-      const target = e.target;
-      const editorEl = ReactEditor.toDOMNode(editor, editor);
-      if (editorEl.contains(target)) {
-        return;
-      }
+    const fn = (e: MouseEvent) => {
       const el = ref.current;
-      if (!el) {
+      if (!el || !el.getAttribute('style') || !editor.selection) {
         return;
       }
-      console.log('hide hovering toolbar');
+      const target = e.target as Node;
+      const editorEl = ReactEditor.toDOMNode(editor, editor);
+      if (editorEl.contains(target) || el.contains(target)) {
+        return;
+      }
       el.removeAttribute('style');
     }
     document.addEventListener('click', fn);

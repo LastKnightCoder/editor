@@ -1,6 +1,6 @@
 import React, {PropsWithChildren} from 'react';
 import {RenderElementProps} from "slate-react";
-import {BlockquoteElement} from "../../custom-types";
+import {BlockquoteElement} from "../../types";
 import styles from './index.module.less';
 import AddParagraph from "../AddParagraph";
 

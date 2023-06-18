@@ -1,7 +1,7 @@
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
-import { CustomBlockElement } from "../../custom-types";
+import { CustomBlockElement } from "../../types";
 import PreviewWithEditor from "../PreviewWithEditor";
 import { Transforms } from "slate";
 import * as Babel from '@babel/standalone';

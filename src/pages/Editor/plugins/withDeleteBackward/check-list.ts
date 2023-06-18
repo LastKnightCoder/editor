@@ -6,7 +6,7 @@ import {
   isAtParagraphStart, isCheckListItemElement,
   isParagraphElement
 } from "../../utils";
-import { CheckListItemElement } from "../../custom-types";
+import { CheckListItemElement } from "../../types";
 
 const checkList = (editor: Editor) => {
   const { deleteBackward } = editor;

@@ -1,7 +1,7 @@
 import React from "react";
 import CaretRightOutlined from '@ant-design/icons/CaretRightOutlined';
 import { RenderElementProps } from "slate-react";
-import { DetailElement } from "../../custom-types";
+import { DetailElement } from "../../types";
 import AddParagraph from "../AddParagraph";
 import classnames from 'classnames';
 import styles from './index.module.less';

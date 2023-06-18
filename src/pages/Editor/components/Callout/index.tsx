@@ -2,7 +2,7 @@ import React from 'react';
 import classnames from 'classnames';
 import styles from './index.module.less';
 import { RenderElementProps } from "slate-react";
-import { CalloutElement } from "../../custom-types";
+import { CalloutElement } from "../../types";
 import AddParagraph from "../AddParagraph";
 
 interface ICalloutProps {

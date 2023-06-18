@@ -1,6 +1,6 @@
 import React, {PropsWithChildren} from 'react';
 import {RenderElementProps, useSlate, ReactEditor} from "slate-react";
-import {GraphvizElement} from "../../custom-types";
+import {GraphvizElement} from "../../types";
 import styles from './index.module.less';
 import PreviewWithEditor from "../PreviewWithEditor";
 import {Transforms} from "slate";
@@ -30,7 +30,10 @@ const GraphvizElement: React.FC<PropsWithChildren<GraphvizProps>> = (props) => {
         onChange={handleOnChange}
         center
       >
-        { dot ? <Graphviz dot={dot} options={{fit:true}} /> : <div className={styles.empty}>点击编辑图表</div> }
+        {
+          dot
+            ? <Graphviz dot={dot} options={{fit:true}} />
+            : <div contentEditable={false} className={styles.empty}>点击编辑图表</div> }
       </PreviewWithEditor>
       {children}
     </div>

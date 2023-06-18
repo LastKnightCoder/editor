@@ -1,5 +1,5 @@
 import {RenderElementProps} from "slate-react";
-import {HTMLBlockElement} from "../../custom-types";
+import {HTMLBlockElement} from "../../types";
 import React, {PropsWithChildren} from "react";
 import styles from './index.module.less';
 import PreviewWithEditor from "../PreviewWithEditor";
@@ -22,7 +22,7 @@ const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = (props) => {
   }
 
   const renderEmpty = () => {
-    return <div className={styles.empty}>点击编辑 HTML 内容</div>
+    return <div contentEditable={false} className={styles.empty}>点击编辑 HTML 内容</div>
   }
 
   return (

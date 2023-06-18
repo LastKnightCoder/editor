@@ -1,22 +1,19 @@
 import {
-  CheckListItemElement,
-  FormattedText,
-  InlineMathElement,
+  CheckListItemElement, InlineElement,
   ListItemElement,
-  ParagraphElement
-} from "../custom-types";
+  ParagraphElement,
+  BlockElement,
+  CustomElement,
+  TableElement
+} from "../types";
 import {Element, isEditor, Node, Editor, Path} from "slate";
 import {ReactEditor} from "slate-react";
-
-export const isParagraphEmpty = (element: ParagraphElement) => {
-  return element.children.length === 1 && ((element.children[0] as FormattedText).text === '' || (element.children[0] as InlineMathElement).tex === '');
-}
 
 export const isLeafNode = (node: Node) => {
   return !Element.isElement(node) && Node.isNode(node) && !isEditor(node);
 }
 
-export const isElementNode = (node: Node) => {
+export const isElementNode = (node: Node): node is CustomElement => {
   return Element.isElement(node);
 }
 
@@ -47,4 +44,54 @@ export const getPreviousSiblingNode = (editor: Editor, node: Node) => {
   }
   const preSiblingPath = Path.previous(path);
   return Editor.node(editor, preSiblingPath);
+}
+
+export const isInlineElementEmpty = (element: InlineElement) => {
+  if (element.type === 'link') {
+    return element.children.length === 1 && element.children[0].text === '';
+  }
+  if (element.type === 'inline-math') {
+    return element.tex === '';
+  }
+  return element.text === '';
+}
+
+export const isTableElementEmpty = (_element: TableElement) => {
+  return false;
+}
+
+export const isBlockElementEmpty = (element: BlockElement): boolean => {
+  switch (element.type) {
+    case 'paragraph':
+      return element.children.length === 1 && isInlineElementEmpty(element.children[0]);
+    case 'list-item':
+    case 'check-list-item':
+    case 'blockquote':
+    case 'callout':
+    case 'detail':
+    case 'bulleted-list':
+    case 'numbered-list':
+    case 'check-list':
+      return element.children.length === 1 && isBlockElementEmpty(element.children[0]);
+    case 'table':
+      return isTableElementEmpty(element);
+    case 'code-block':
+      return element.code === '';
+    case 'mermaid':
+      return element.chart === '';
+    case 'block-math':
+      return element.tex === '';
+    case 'tikz':
+      return element.content === '';
+    case 'graphviz':
+      return element.dot === '';
+    case 'html-block':
+      return element.html === '';
+    case 'custom-block':
+      return element.content === '';
+    case 'image':
+      return element.url === '';
+    default:
+      return false;
+  }
 }

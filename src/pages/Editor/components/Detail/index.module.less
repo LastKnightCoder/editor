@@ -2,11 +2,16 @@
   background-color: #f9f9fa;
   border-radius: 8px;
   border: 1px solid rgba(60, 60, 67, 0.29);
-  padding: 16px 16px 4px 16px;
+  padding: 16px;
+
+  &:has(.show) {
+    padding-bottom: 6px;
+  }
+
+  transition: padding-bottom 0.2s ease-in-out;
 
   .title {
     cursor: pointer;
-    padding-bottom: 12px;
     display: flex;
     gap: 5px;
     .arrow {
@@ -29,7 +34,6 @@
     }
     &.show {
       box-sizing: border-box;
-      padding-top: 8px;
       grid-template-rows: 1fr;
     }
   }

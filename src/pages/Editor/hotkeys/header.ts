@@ -1,5 +1,5 @@
 import {Editor, Element as SlateElement, Transforms} from "slate";
-import {HeaderElement} from "../custom-types";
+import {HeaderElement} from "../types";
 import {HotKeyConfig} from "./types";
 
 export const headerConfig: HotKeyConfig[] = [{

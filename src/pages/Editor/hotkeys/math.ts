@@ -1,8 +1,6 @@
 import {Editor, Element as SlateElement, Range, Transforms} from "slate";
 import {HotKeyConfig} from "./types";
-import {getCurrentTextNode, isParagraphEmpty} from "../utils";
-import {ParagraphElement} from "../custom-types";
-import {message} from "antd";
+import {getCurrentTextNode, insertBlockMath} from "../utils";
 
 export const mathConfig: HotKeyConfig[] = [{
   hotKey: 'mod+shift+e',
@@ -41,25 +39,8 @@ export const mathConfig: HotKeyConfig[] = [{
       if (!match) {
         return;
       }
-      const [element, path] = match;
-      if (Editor.isStart(editor, selection.anchor, path)) {
-        if (isParagraphEmpty(element as ParagraphElement)) {
-          Transforms.insertNodes(editor, {
-            type: 'block-math',
-            tex: 'f(x)=x^2',
-            children: [{
-              type: 'formatted',
-              text: ''
-            }]
-          });
-          // 防止失去焦点
-          event.preventDefault();
-        } else {
-          message.error('段落不为空');
-        }
-      } else {
-        message.error('请在段落开头输入');
-      }
+      insertBlockMath(editor);
+      event.preventDefault();
     }
   }
 }]

@@ -4,7 +4,7 @@ import Highlight from "../Highlight";
 import classnames from 'classnames';
 import styles from './index.module.less';
 
-import {FormattedText} from "../../custom-types";
+import {FormattedText} from "../../types";
 
 interface IFormattedTextProps {
   attributes: RenderLeafProps['attributes'];

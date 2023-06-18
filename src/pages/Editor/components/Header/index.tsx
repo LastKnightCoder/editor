@@ -1,7 +1,7 @@
 import React from "react";
 import { RenderElementProps } from "slate-react";
 import styles from './index.module.less';
-import {HeaderElement} from "../../custom-types";
+import {HeaderElement} from "../../types";
 
 interface IHeaderProps {
   attributes: RenderElementProps['attributes'];
