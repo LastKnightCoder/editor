@@ -7,7 +7,6 @@ export const withPasteImage = (editor: Editor) => {
 
   editor.insertData = (data: DataTransfer) => {
     const { files } = data;
-    console.log(files);
     if (files && files.length > 0) {
       const file = files[0];
       const reader = new FileReader();

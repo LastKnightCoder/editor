@@ -5,5 +5,6 @@ export interface FormattedText {
   italic?: boolean;
   underline?: boolean;
   highlight?: boolean;
+  strikethrough?: boolean;
   code?: boolean;
 }

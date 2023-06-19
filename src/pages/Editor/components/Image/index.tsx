@@ -50,7 +50,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   }
 
   const upload = () => {
-    console.log('upload', fileUploadRef.current);
     if (fileUploadRef.current) {
       fileUploadRef.current.click();
     }

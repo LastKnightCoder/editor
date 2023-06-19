@@ -25,7 +25,8 @@ export type CustomElement =
   | TikzElement
   | HTMLBlockElement
   | GraphvizElement
-  | CustomBlockElement;
+  | CustomBlockElement
+  | DivideLineElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>
@@ -160,5 +161,10 @@ export interface GraphvizElement {
 export interface CustomBlockElement {
   type: 'custom-block';
   content: string;
+  children: Descendant[];
+}
+
+export interface DivideLineElement {
+  type: 'divide-line';
   children: Descendant[];
 }

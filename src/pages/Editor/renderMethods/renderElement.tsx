@@ -26,6 +26,7 @@ import HTMLBlock from "../components/HTMLBlock";
 import Graphviz from "../components/Graphviz";
 import CustomBlock from "../components/CustomBlock";
 import Paragraph from "../components/Paragraph";
+import DivideLineElement from "../components/DivideLine";
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {
@@ -180,9 +181,15 @@ export const renderElement = (editor: Editor) => {
             {children}
           </CustomBlock>
         )
+      case 'divide-line':
+        return (
+          <DivideLineElement attributes={attributes} element={element}>
+            {children}
+          </DivideLineElement>
+        )
       case 'paragraph':
       default:
-        return <Paragraph {...attributes}>{children}</Paragraph>
+        return <Paragraph element={element} attributes={attributes}>{children}</Paragraph>
     }
   }
 }

@@ -27,7 +27,6 @@ const Cards = () => {
       content: value,
     });
   }
-
   return (
     <div className={styles.cardsManagement}>
       <div className={styles.editorContainer}>

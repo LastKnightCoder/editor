@@ -9,7 +9,6 @@ const list = (editor: Editor) => {
       match: n => SlateElement.isElement(n)  && n.type === 'list-item',
       mode: 'lowest',
     });
-    console.log('listMatch', listMatch);
     if (listMatch) {
       const [para] = Editor.nodes(editor, {
         match: n => SlateElement.isElement(n) && isParagraphElement(n),

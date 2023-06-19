@@ -22,12 +22,24 @@ export const withOverrideSettings = (editor: Editor) => {
       'tikz',
       'html-block',
       'graphviz',
-      'custom-block'
+      'custom-block',
+      'divide-line'
     ];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
   editor.isVoid = (element) => {
-    const voidTypes = ['code-block', 'image', 'inline-math', 'block-math', 'mermaid', 'tikz', 'html-block', 'graphviz', 'custom-block'];
+    const voidTypes = [
+      'code-block',
+      'image',
+      'inline-math',
+      'block-math',
+      'mermaid',
+      'tikz',
+      'html-block',
+      'graphviz',
+      'custom-block',
+      'divide-line'
+    ];
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }
   editor.isInline = (element) => {
