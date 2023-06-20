@@ -40,9 +40,9 @@
     "react-codemirror2": "^7.2.1",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.12.1",
-    "slate": "^0.94.0",
+    "slate": "^0.94.1",
     "slate-history": "^0.93.0",
-    "slate-react": "^0.94.0",
+    "slate-react": "^0.97.0",
     "uuid": "^9.0.0",
     "zustand": "^4.3.8"
   },

@@ -136,7 +136,7 @@ export const isCollapsed = (editor: Editor) => {
 
 const getCurrentEmptyNodeRecursive = (editor: Editor, emptyNode: NodeEntry<BlockElement>): NodeEntry<BlockElement> => {
   const parent = Editor.parent(editor, emptyNode[1]);
-  if (!parent || !isBlockElementEmpty(parent[0] as BlockElement || Editor.isEditor(parent[0]))) {
+  if (!parent || !isBlockElementEmpty(parent[0] as BlockElement) || Editor.isEditor(parent[0])) {
     return emptyNode;
   }
   return getCurrentEmptyNodeRecursive(editor, parent as NodeEntry<BlockElement>);

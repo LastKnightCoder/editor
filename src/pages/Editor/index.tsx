@@ -125,7 +125,7 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
 
   return (
     <MathJaxContext config={mathjaxConfig}>
-      <Slate editor={editor} value={initValue} onChange={handleOnChange} >
+      <Slate editor={editor} initialValue={initValue} onChange={handleOnChange} >
         <Editable
           readOnly={readonly}
           renderElement={renderElement(editor)}
