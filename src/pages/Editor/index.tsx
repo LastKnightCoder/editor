@@ -95,20 +95,12 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
       // 移动到末尾
       Transforms.select(editor, Editor.end(editor, []));
     },
-    setEditorValue: (value: Descendant[]) => {
-      Transforms.delete(editor, {
-        at: {
-          anchor: Editor.start(editor, []),
-          focus: Editor.end(editor, []),
-        },
-      });
-      Transforms.removeNodes(editor, {
-        at: [0],
-      });
-      Transforms.insertNodes(
-        editor,
-        value
-      );
+    setEditorValue: (nodes: Descendant[]) => {
+      const children = [...editor.children]
+      children.forEach((node) => editor.apply({ type: 'remove_node', path: [0], node }))
+      nodes.forEach((node, i) => editor.apply({ type: 'insert_node', path: [i], node: node }))
+      const point = Editor.end(editor, [])
+      Transforms.select(editor, point)
     },
     getEditor: () => editor,
   }));

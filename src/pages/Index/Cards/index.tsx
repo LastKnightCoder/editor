@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Editor, { EditorRef } from "@/pages/Editor";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Descendant } from "slate";
 import { Button } from "antd";
 
@@ -45,7 +46,7 @@ const Cards = () => {
       </div>
       <div className={styles.cardList}>
         {
-          cards.map((card) => <CardItem key={card.id} card={card} />)
+          cards.map((card) => <ErrorBoundary key={card.id}><CardItem key={card.id} card={card} /></ErrorBoundary>)
         }
       </div>
     </div>

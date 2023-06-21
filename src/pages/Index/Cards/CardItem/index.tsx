@@ -5,12 +5,12 @@ import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
 import Editor, {EditorRef} from "@/pages/Editor";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import useCardsManagementStore from "../hooks/useCardsManagementStore";
 import styles from './index.module.less';
 
 import { ICard } from "@/types";
 import { TAG_COLORS } from '@/constants';
-
 
 interface CardItemProps {
   card: ICard;
@@ -68,9 +68,9 @@ const CardItem = memo((props: CardItemProps) => {
         }
       </div>
       <div className={styles.time}>更新于 {dayjs(update_time).format('YYYY/MM/DD HH:mm:ss')}</div>
-      <div className={styles.content}>
-        <Editor ref={ref} initValue={initValue} readonly={true} />
-      </div>
+        <div className={styles.content}>
+          <ErrorBoundary><Editor ref={ref} initValue={initValue} readonly={true} /></ErrorBoundary>
+        </div>
       <div className={styles.actions}>
         <div onClick={() => { deleteCard(card.id) }} className={styles.actionItem}>
           <DeleteOutlined />
