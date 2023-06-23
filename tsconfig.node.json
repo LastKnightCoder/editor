@@ -1,4 +1,5 @@
 {
+  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
   "compilerOptions": {
     "composite": true,
     "skipLibCheck": true,
@@ -6,5 +7,5 @@
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "electron.vite.config.ts", "main/**/*", "preload/**/*"]
 }

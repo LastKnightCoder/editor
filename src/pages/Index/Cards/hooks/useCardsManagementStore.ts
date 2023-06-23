@@ -4,7 +4,7 @@ import {
   getAllCards,
   deleteCard,
   updateCard,
-} from '@/commands';
+} from '@/apis';
 import { ICard } from "@/types";
 import { Descendant } from "slate";
 import React from "react";
@@ -46,6 +46,7 @@ const useCardsManagementStore = create<IState & IActions>((set, get) => ({
   init: async (editorRef) => {
     set({ initLoading: true });
     const cards = await getAllCards();
+    console.log('cards', cards);
     const editingCard: IEditingCard = JSON.parse(localStorage.getItem('editingCard') || JSON.stringify(initEditingCard));
     set({ cards, initLoading: false, editingCard, editorRef });
     if (editorRef.current) {

@@ -20,7 +20,8 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "types": ["electron-vite/node"]
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
