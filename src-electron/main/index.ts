@@ -1,6 +1,12 @@
-import {app, BrowserWindow, shell} from 'electron'
+import {app, BrowserWindow, shell, ipcMain} from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import BetterSqlite3 from 'better-sqlite3';
+
 import * as path from 'path'
+import {initDatabase} from "./database";
+import { insertCard, getAllCards, updateCard, deleteCard } from "./database/card";
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -32,6 +38,21 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.tao.editor')
+  const db = new BetterSqlite3('test.db');
+  initDatabase(db);
+
+  ipcMain.handle('insert_card', async (event, card) => {
+    return await insertCard(db, card);
+  });
+  ipcMain.handle('find_all_cards', async () => {
+    return await getAllCards(db);
+  });
+  ipcMain.handle('delete_one_card', async (event, id) => {
+    return await deleteCard(db, id);
+  });
+  ipcMain.handle('update_one_card', async (event, card) => {
+    return await updateCard(db, card);
+  });
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

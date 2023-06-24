@@ -5,7 +5,8 @@
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
   },
   "include": ["vite.config.ts", "electron.vite.config.ts", "main/**/*", "preload/**/*"]
 }
