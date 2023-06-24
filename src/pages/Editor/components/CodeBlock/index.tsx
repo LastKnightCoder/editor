@@ -11,6 +11,7 @@ import { ReactEditor } from "slate-react";
 import { CodeBlockElement } from "../../types";
 import {message} from "antd";
 import AddParagraph from "../AddParagraph";
+import SelectLanguage from "./SelectLanguage";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps['attributes'];
@@ -34,7 +35,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   const slateEditor = useSlate();
   const readOnly = useReadOnly();
   useEffect(() => {
-    const languageConfig = LANGUAGES.find((lang) => lang.name.toLowerCase() === language);
+    const languageConfig = LANGUAGES.find((lang) => lang.name.toLowerCase() === language.toLowerCase());
     if (!languageConfig) {
       return;
     }
@@ -56,11 +57,16 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
     }
   }
 
+  const handleOnLanguageChange = (value: string) => {
+    Transforms.setNodes(slateEditor, { language: value }, { at: ReactEditor.findPath(slateEditor, element) });
+  }
+
   return (
     <div contentEditable={false} {...attributes} className={styles.codeBlockContainer}>
       {children}
       <div className={styles.windowsControl} />
-      <div className={styles.copyButton} onClick={handleCopyCode}></div>
+      <div className={styles.copyButton} onClick={handleCopyCode} />
+      { !readOnly && <SelectLanguage className={styles.languageSelect} value={language} onChange={handleOnLanguageChange} />}
       <CodeEditor
         value={code || ''}
         autoCursor

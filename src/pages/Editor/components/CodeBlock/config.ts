@@ -158,6 +158,11 @@ export const LANGUAGES = [
     mode: 'htmlmixed',
   },
   {
+    name: "HTTP",
+    mime: "message/http",
+    mode: "http"
+  },
+  {
     name: 'Java',
     mode: 'clike',
     mime: 'text/x-java',

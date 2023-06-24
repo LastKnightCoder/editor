@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "main": "./out/main/index.js",
   "scripts": {
-    "start": "vite",
+    "start": "npm run electron:dev",
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
