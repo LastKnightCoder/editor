@@ -29,14 +29,20 @@ jobs:
 
       - name: build-win
         if: matrix.os == 'windows-latest'
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
         run: npm run build:win
 
       - name: build-linux
         if: matrix.os == 'ubuntu-latest'
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
         run: npm run build:linux
 
       - name: build-mac
         if: matrix.os == 'macos-latest'
+        env:
+          NODE_OPTIONS: "--max_old_space_size=4096"
         run: npm run build:mac
 
       - name: release
