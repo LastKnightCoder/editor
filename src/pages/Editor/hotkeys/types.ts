@@ -6,4 +6,4 @@ export type HotKeyConfig = {
   action: (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => void;
 }
 
-export type Mark = 'bold' | 'italic' | 'underline' | 'highlight' | 'code';
+export type Mark = 'bold' | 'italic' | 'underline' | 'highlight' | 'code' | 'strikethrough';

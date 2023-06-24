@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import { RenderLeafProps } from "slate-react";
 import Highlight from "../Highlight";
 import classnames from 'classnames';
@@ -19,16 +19,26 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
     underline,
     highlight,
     code,
-    // text
+    strikethrough
   } = leaf;
 
   const className = classnames({
     [styles.bold]: bold,
     [styles.italic]: italic,
-    [styles.underline]: underline,
     // 如果没有文字，就设置一个 padding-left: 0.1px，这样即使在链接等后面也可以点击到
-    [styles.padding]: true
+    // [styles.padding]: true
   });
+
+  const textDecorations = useMemo(() => {
+    let text = '';
+    if (underline) {
+      text += 'underline ';
+    }
+    if (strikethrough) {
+      text += 'line-through ';
+    }
+    return text;
+  }, [underline, strikethrough]);
 
   const addHighlightWrapper = (originChildren: React.ReactNode) => {
     if (highlight) {
@@ -45,7 +55,9 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
   }
 
   return (
-    <span {...attributes} className={className} >
+    <span {...attributes} className={className} style={{
+      textDecoration: textDecorations
+    }}>
       { addHighlightWrapper(addCodeWrapper(children)) }
     </span>
   )

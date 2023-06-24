@@ -35,6 +35,9 @@ export const formattedText: HotKeyConfig[] = [{
   hotKey: 'mod+u',
   action: markAction('underline')
 }, {
+  hotKey: 'mod+shift+s',
+  action: markAction('strikethrough')
+},{
   hotKey: 'mod+m',
   action: markAction('highlight')
 }, {
@@ -51,7 +54,7 @@ export const quitFormattedMarks: HotKeyConfig[] = [{
         match: n => n.type === 'formatted',
       })
       if (match) {
-        ['bold', 'italic', 'underline', 'highlight', 'code'].forEach((type) => {
+        ['bold', 'italic', 'underline', 'highlight', 'code', 'strikethrough'].forEach((type) => {
           Editor.removeMark(editor, type);
         });
       }

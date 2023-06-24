@@ -2,11 +2,13 @@ import {ReactEditor, useSlate, useSlateSelection} from "slate-react";
 import {Editor, Range} from "slate";
 import React, {useCallback} from "react";
 
+type Mark = 'bold' | 'italic' | 'code' | 'underline' | 'highlight' | 'strikethrough';
+
 const useHoveringBarConfig = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
 
-  const isMarkActive = useCallback((mark: 'bold' | 'italic' | 'code' | 'underline' | 'highlight') => {
+  const isMarkActive = useCallback((mark: Mark) => {
     if (!selection) {
       return false;
     }
@@ -14,7 +16,7 @@ const useHoveringBarConfig = () => {
     return !!(marks && marks[mark]);
   }, [editor, selection]);
 
-  const toggleMark = useCallback((event: React.MouseEvent, mark: 'bold' | 'italic' | 'code' | 'underline' | 'highlight') => {
+  const toggleMark = useCallback((event: React.MouseEvent, mark: Mark) => {
     const selection = editor.selection;
     const marks = Editor.marks(editor);
     if (marks && marks[mark]) {
@@ -37,6 +39,9 @@ const useHoveringBarConfig = () => {
   }, {
     text: 'U',
     mark: 'underline',
+  }, {
+    text: 'S',
+    mark: 'strikethrough',
   }, {
     text: 'M',
     mark: 'highlight',
