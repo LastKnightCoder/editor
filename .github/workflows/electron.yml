@@ -23,7 +23,13 @@ jobs:
           node-version: 16
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          npm install -g pnpm
+          pnpm install
+
+      - name: build-win
+        if: matrix.os == 'windows-latest'
+        run: npm run build:win
 
       - name: build-linux
         if: matrix.os == 'ubuntu-latest'
@@ -32,10 +38,6 @@ jobs:
       - name: build-mac
         if: matrix.os == 'macos-latest'
         run: npm run build:mac
-
-      - name: build-win
-        if: matrix.os == 'windows-latest'
-        run: npm run build:win
 
       - name: release
         uses: softprops/action-gh-release@v1
