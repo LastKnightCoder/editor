@@ -8,7 +8,6 @@ specifiers:
   '@electron-toolkit/tsconfig': ^1.0.1
   '@electron-toolkit/utils': ^1.0.2
   '@electron/notarize': ^1.2.4
-  '@electron/rebuild': ^3.2.13
   '@tauri-apps/api': ^1.3.0
   '@tauri-apps/cli': ^1.3.1
   '@types/babel__standalone': ^7.1.4
@@ -60,6 +59,7 @@ dependencies:
   '@babel/standalone': registry.npmmirror.com/@babel/standalone/7.22.2
   '@electron-toolkit/preload': registry.npmmirror.com/@electron-toolkit/preload/2.0.0_electron@25.2.0
   '@electron-toolkit/utils': registry.npmmirror.com/@electron-toolkit/utils/1.0.2_electron@25.2.0
+  '@electron/notarize': registry.npmmirror.com/@electron/notarize/1.2.4
   '@tauri-apps/api': registry.npmmirror.com/@tauri-apps/api/1.3.0
   ahooks: registry.npmmirror.com/ahooks/3.7.7_react@18.2.0
   antd: registry.npmmirror.com/antd/5.4.7_biqbaboplfbrettd7655fr4n2y
@@ -86,8 +86,6 @@ dependencies:
 
 devDependencies:
   '@electron-toolkit/tsconfig': registry.npmmirror.com/@electron-toolkit/tsconfig/1.0.1_@types+node@20.2.1
-  '@electron/notarize': registry.npmmirror.com/@electron/notarize/1.2.4
-  '@electron/rebuild': registry.npmmirror.com/@electron/rebuild/3.2.13
   '@tauri-apps/cli': registry.npmmirror.com/@tauri-apps/cli/1.3.1
   '@types/babel__standalone': registry.npmmirror.com/@types/babel__standalone/7.1.4
   '@types/better-sqlite3': registry.npmmirror.com/@types/better-sqlite3/7.6.4
@@ -619,7 +617,6 @@ packages:
       fs-extra: registry.npmmirror.com/fs-extra/9.1.0
     transitivePeerDependencies:
       - supports-color
-    dev: true
 
   registry.npmmirror.com/@electron/osx-sign/1.0.4:
     resolution: {integrity: sha512-xfhdEcIOfAZg7scZ9RQPya1G1lWo8/zMCwUXAulq0SfY7ONIW+b9qGyKdMyuMctNYwllrIS+vmxfijSfjeh97g==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@electron/osx-sign/-/osx-sign-1.0.4.tgz}
@@ -2282,7 +2279,6 @@ packages:
     name: at-least-node
     version: 1.0.0
     engines: {node: '>= 4.0.0'}
-    dev: true
 
   registry.npmmirror.com/axios/1.4.0:
     resolution: {integrity: sha512-S4XCWMEmzvo64T9GfvQDOXgYRDJ/wsSZc7Jvdgx5u1sd0JwsuPLqb3SYmusag+edF6ziyMensPVqLTSc1PiSEA==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/axios/-/axios-1.4.0.tgz}
@@ -4185,7 +4181,6 @@ packages:
       graceful-fs: registry.npmmirror.com/graceful-fs/4.2.11
       jsonfile: registry.npmmirror.com/jsonfile/6.1.0
       universalify: registry.npmmirror.com/universalify/2.0.0
-    dev: true
 
   registry.npmmirror.com/fs-minipass/2.1.0:
     resolution: {integrity: sha512-V/JgOLFCS+R6Vcq0slCuaeWEdNC3ouDlJMNIsacH2VtALiu9mV4LPrHc5cDl8k5aw6J8jwgWWpiTo5RYhmIzvg==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/fs-minipass/-/fs-minipass-2.1.0.tgz}
@@ -4941,7 +4936,6 @@ packages:
       universalify: registry.npmmirror.com/universalify/2.0.0
     optionalDependencies:
       graceful-fs: registry.npmmirror.com/graceful-fs/4.2.11
-    dev: true
 
   registry.npmmirror.com/jszip/3.10.1:
     resolution: {integrity: sha512-xXDvecyTpGLrqFrvkrUSoxxfJI5AH7U8zxxtVclpsUtMCq4JQ290LY8AW5c7Ggnr/Y/oK+bQMbqK2qmtk3pN4g==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/jszip/-/jszip-3.10.1.tgz}
@@ -7570,7 +7564,6 @@ packages:
     name: universalify
     version: 2.0.0
     engines: {node: '>= 10.0.0'}
-    dev: true
 
   registry.npmmirror.com/update-browserslist-db/1.0.11_browserslist@4.21.6:
     resolution: {integrity: sha512-dCwEFf0/oT85M1fHBg4F0jtLwJrutGoHSQXCh7u4o2t1drG+c0a9Flnqww6XUKSfQMPpJBRjU8d4RXB09qtvaA==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/update-browserslist-db/-/update-browserslist-db-1.0.11.tgz}

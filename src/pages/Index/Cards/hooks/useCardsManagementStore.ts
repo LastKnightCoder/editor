@@ -4,7 +4,7 @@ import {
   getAllCards,
   deleteCard,
   updateCard,
-} from '@/apis';
+} from '@/commands';
 import { ICard } from "@/types";
 import { Descendant } from "slate";
 import React from "react";
