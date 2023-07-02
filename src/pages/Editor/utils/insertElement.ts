@@ -37,6 +37,17 @@ const setOrInsertNode = (editor: Editor, node: BlockElement) => {
   }
 }
 
+export const insertHeader = (editor: Editor, level: 1 | 2 | 3 | 4 | 5 | 6) => {
+  setOrInsertNode(editor, {
+    type: 'header',
+    level,
+    children: [{
+      type: 'formatted',
+      text: '',
+    }],
+  });
+}
+
 export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' | 'danger' | 'note') => {
   setOrInsertNode(editor, {
     type: 'callout',

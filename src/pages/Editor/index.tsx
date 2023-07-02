@@ -10,7 +10,8 @@ import {
   withOverrideSettings,
   withInsertBreak,
   withDeleteBackward,
-  withPasteImage
+  withPasteImage,
+  withSlashCommands
 } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
@@ -56,9 +57,19 @@ interface IEditorProps {
   readonly?: boolean;
 }
 
+const plugins = [
+  withReact,
+  withHistory,
+  withOverrideSettings,
+  withMarkdownShortcuts,
+  withInsertBreak,
+  withDeleteBackward,
+  withPasteImage,
+  withSlashCommands
+];
+
 const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
   const { initValue, onChange, readonly = true } = props;
-  const plugins = [withReact, withHistory, withOverrideSettings, withMarkdownShortcuts, withInsertBreak, withDeleteBackward, withPasteImage];
   const [editor] = useState(() => applyPlugin(createEditor(), plugins));
   const [isNormalized, setIsNormalized] = useState(false);
 

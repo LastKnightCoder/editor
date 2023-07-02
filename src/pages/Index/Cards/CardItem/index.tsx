@@ -20,8 +20,6 @@ const CardItem = memo((props: CardItemProps) => {
   const { card } = props;
   const { content, update_time, tags } = card;
   const initValue: Descendant[] = JSON.parse(content);
-  console.log('CardItem render', typeof initValue);
-
 
   const ref = useRef<EditorRef>(null);
 

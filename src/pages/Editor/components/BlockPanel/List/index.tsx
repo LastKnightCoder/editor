@@ -1,11 +1,28 @@
 import styles from './index.module.less';
 import Item from '../Item';
+import useBlockPanelStore from "../../../stores/useBlockPanelStore.ts";
+
 
 const List = () => {
-  const list = Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  const {
+    list,
+    activeIndex
+  } = useBlockPanelStore(state => ({
+    list: state.list,
+    activeIndex: state.activeIndex,
+  }));
   return (
     <div className={styles.list}>
-      { list.map((i, index) => (<Item key={i} showBottomLine={index !== list.length - 1} />)) }
+      {
+        list.map((item, index) => (
+          <Item
+            key={index}
+            showBottomLine={index !== list.length - 1}
+            item={item}
+            active={index === activeIndex}
+          />
+        ))
+      }
     </div>
   )
 }

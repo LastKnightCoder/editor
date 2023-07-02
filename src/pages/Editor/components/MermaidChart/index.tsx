@@ -2,6 +2,8 @@ import React, {PropsWithChildren} from 'react';
 import { RenderElementProps, useSlate , ReactEditor } from 'slate-react';
 import { MermaidElement } from '../../types';
 import PreviewWithEditor from "../PreviewWithEditor";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import { Mermaid } from 'mdx-mermaid/lib/Mermaid';
 
 import styles from './index.module.less';
