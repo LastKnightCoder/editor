@@ -26,7 +26,7 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
     [styles.bold]: bold,
     [styles.italic]: italic,
     // 如果没有文字，就设置一个 padding-left: 0.1px，这样即使在链接等后面也可以点击到
-    // [styles.padding]: true
+    [styles.padding]: true
   });
 
   const textDecorations = useMemo(() => {

@@ -8,7 +8,7 @@ import {
   insertMermaid,
   insertBulletList,
   insertCheckList,
-  insertImage
+  insertImage, insertNumberedList
 } from "../utils";
 
 export const blockPanelList: IBlockPanelListItem[] = [{
@@ -113,7 +113,7 @@ export const blockPanelList: IBlockPanelListItem[] = [{
   keywords: ['numbered-list', '列表'],
   description: '有序列表',
   onClick: (editor) => {
-    insertBulletList(editor);
+    insertNumberedList(editor);
   }
 }, {
   icon: 'check-list',
