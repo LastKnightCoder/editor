@@ -17,7 +17,7 @@ const Management = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.sidebar}>
+      <div className={styles.navbar}>
         {
           menuList.map(item => {
             return (

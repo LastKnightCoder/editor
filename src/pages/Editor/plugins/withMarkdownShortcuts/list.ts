@@ -51,7 +51,7 @@ const list = (editor: Editor) => {
         });
         return;
       }
-      if (['1.'].includes(nodeText.slice(0, offset))) {
+      if (/\d+\./.exec(nodeText.slice(0, offset))) {
         Transforms.delete(editor, {
           at: {
             anchor: {

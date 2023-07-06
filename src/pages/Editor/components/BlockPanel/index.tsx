@@ -37,7 +37,7 @@ const BlockPanel = () => {
   if (!blockPanelVisible) return null;
 
   return (
-    <div style={{ position: 'fixed', left, top }}>
+    <div style={{ position: 'fixed', left, top, zIndex: 10 }}>
       <List />
     </div>
   )

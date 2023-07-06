@@ -11,6 +11,9 @@ const List = () => {
     list: state.list,
     activeIndex: state.activeIndex,
   }));
+
+  if (list.length === 0) return null;
+
   return (
     <div className={styles.list}>
       {

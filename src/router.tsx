@@ -18,10 +18,10 @@ const routes = [{
   }, {
     path: 'articles/',
     element: <Articles />,
+  }, {
+    path: '/editor',
+    element: <Edit />,
   }]
-}, {
-  path: '/editor',
-  element: <Edit />,
 }]
 
 const router = createBrowserRouter(routes);
