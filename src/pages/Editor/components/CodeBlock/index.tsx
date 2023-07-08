@@ -75,7 +75,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           inputStyle: 'textarea',
           mode: langConfig?.mime || langConfig?.mode || 'text/plain',
           theme: 'blackboard',
-          lineNumbers: true,
+          lineNumbers: false,
           firstLineNumber: 1,
           scrollbarStyle: "null",
           viewportMargin: Infinity,

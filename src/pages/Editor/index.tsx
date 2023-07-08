@@ -52,7 +52,7 @@ export type EditorRef = {
 }
 
 interface IEditorProps {
-  initValue: Descendant[];
+  initValue?: Descendant[];
   onChange?: (value: Descendant[]) => void;
   readonly?: boolean;
 }
@@ -68,8 +68,13 @@ const plugins = [
   withSlashCommands
 ];
 
+const defaultInitValue: Descendant[] = [{
+  type: 'paragraph',
+  children: [{ type: 'formatted', text: '' }]
+}];
+
 const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
-  const { initValue, onChange, readonly = true } = props;
+  const { initValue = defaultInitValue, onChange, readonly = true } = props;
   const [editor] = useState(() => applyPlugin(createEditor(), plugins));
   const [isNormalized, setIsNormalized] = useState(false);
 

@@ -1,57 +1,43 @@
 import { create } from "zustand";
 import {
-  insertCard,
   getAllCards,
-  deleteCard,
+  createCard,
   updateCard,
+  deleteCard,
 } from '@/commands';
 import { ICard } from "@/types";
-import { Descendant } from "slate";
-import React from "react";
-import { EditorRef } from "@/pages/Editor";
-
-interface IEditingCard {
-  id?: number;
-  tags: string;
-  content: Descendant[];
-}
 
 interface IState {
   cards: ICard[];
-  editingCard: IEditingCard,
   initLoading: boolean;
-  editorRef: React.RefObject<EditorRef>;
 }
 
 interface IActions {
-  init: (editorRef: React.RefObject<EditorRef>) => Promise<void>;
+  init: () => Promise<void>;
+  createCard: (card: Pick<ICard, 'content' | 'tags'>) => Promise<number>;
+  updateCard: (card: Pick<ICard, 'content' | 'tags' | 'id'>) => Promise<number>;
   deleteCard: (id: number) => Promise<number>;
-  createOrUpdateCard: () => Promise<number>;
-  updateEditingCard: (card: Partial<IEditingCard>) => void;
 }
 
-const initEditingCard: IEditingCard = {
-  tags: '',
-  content: [{
-    type: 'paragraph',
-    children: [{ type: 'formatted', text: '' }],
-  }],
-}
-
-const useCardsManagementStore = create<IState & IActions>((set, get) => ({
+const useCardsManagementStore = create<IState & IActions>((set) => ({
   cards: [],
-  editingCard: initEditingCard,
   initLoading: false,
-  editorRef: React.createRef<EditorRef>(),
-  init: async (editorRef) => {
+  init: async () => {
     set({ initLoading: true });
     const cards = await getAllCards();
-    console.log('cards', cards);
-    const editingCard: IEditingCard = JSON.parse(localStorage.getItem('editingCard') || JSON.stringify(initEditingCard));
-    set({ cards, initLoading: false, editingCard, editorRef });
-    if (editorRef.current) {
-      editorRef.current.setEditorValue(editingCard.content);
-    }
+    set({ cards, initLoading: false });
+  },
+  createCard: async (card) => {
+    const res = await createCard(card);
+    const cards = await getAllCards();
+    set({ cards });
+    return res;
+  },
+  updateCard: async (card) => {
+    const res = await updateCard(card);
+    const cards = await getAllCards();
+    set({ cards });
+    return res;
   },
   deleteCard: async (id) => {
     const res = await deleteCard(id);
@@ -59,42 +45,6 @@ const useCardsManagementStore = create<IState & IActions>((set, get) => ({
     set({ cards });
     return res;
   },
-  createOrUpdateCard: async () => {
-    const { editingCard, editorRef } = get();
-    let res: number;
-    if (editingCard.id) {
-      res = await updateCard({
-        id: editingCard.id,
-        tags: editingCard.tags,
-        content: JSON.stringify(editingCard.content),
-      });
-    } else {
-      res = await insertCard({
-        tags: editingCard.tags,
-        content: JSON.stringify(editingCard.content),
-      });
-    }
-    const cards = await getAllCards();
-    set({
-      cards,
-      editingCard: initEditingCard
-    });
-    if (editorRef.current) {
-      editorRef.current.setEditorValue(initEditingCard.content);
-    }
-    return res;
-  },
-  updateEditingCard: (card) => {
-    const { editingCard } = get();
-    const newEditingCard = {
-      ...editingCard,
-      ...card,
-    }
-    set({
-      editingCard: newEditingCard
-    });
-    localStorage.setItem('editingCard', JSON.stringify(newEditingCard));
-  }
 }));
 
 export default useCardsManagementStore;

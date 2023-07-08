@@ -10,27 +10,26 @@ import {
   insertCheckList,
   insertImage, insertNumberedList
 } from "../utils";
+import {Editor} from "slate";
 
-export const blockPanelList: IBlockPanelListItem[] = [{
-  icon: 'h1',
-  title: '一级标题',
-  keywords: ['h1', '一级标题'],
-  description: '一级标题',
-  onClick: (editor) => {
-    insertHeader(editor, 1);
-  }
-}, {
-  icon: 'h2',
-  title: '二级标题',
-  keywords: ['h2', '二级标题'],
-  description: '二级标题',
-  onClick: (editor) => {
-    insertHeader(editor, 2);
-  }
-}, {
+const generateHeader = (): IBlockPanelListItem[] => {
+  return ([1, 2, 3, 4, 5, 6] as const).map(level => {
+    return {
+      icon: 'h' + level,
+      title: '标题' + level,
+      keywords: ['h' + level, '标题' + level],
+      description: '标题' + level,
+      onClick: (editor: Editor) => {
+        insertHeader(editor, level);
+      }
+    }
+  })
+}
+
+export const blockPanelList: IBlockPanelListItem[] = [...generateHeader(), {
   icon: 'callout',
   title: '提示',
-  keywords: ['callout', '提示'],
+  keywords: ['callout', '提示', 'tip'],
   description: '提示',
   onClick: (editor) => {
     insertCallout(editor, 'tip');
@@ -38,7 +37,7 @@ export const blockPanelList: IBlockPanelListItem[] = [{
 }, {
   icon: 'callout',
   title: '信息',
-  keywords: ['callout', '信息'],
+  keywords: ['callout', '信息', 'info'],
   description: '信息',
   onClick: (editor) => {
     insertCallout(editor, 'info');
@@ -46,7 +45,7 @@ export const blockPanelList: IBlockPanelListItem[] = [{
 }, {
   icon: 'callout',
   title: '笔记',
-  keywords: ['callout', '笔记'],
+  keywords: ['callout', '笔记', 'note'],
   description: '笔记',
   onClick: (editor) => {
     insertCallout(editor, 'note');
@@ -54,7 +53,7 @@ export const blockPanelList: IBlockPanelListItem[] = [{
 }, {
   icon: 'callout',
   title: '危险',
-  keywords: ['callout', '危险'],
+  keywords: ['callout', '危险', 'danger'],
   description: '危险',
   onClick: (editor) => {
     insertCallout(editor, 'danger');
@@ -62,7 +61,7 @@ export const blockPanelList: IBlockPanelListItem[] = [{
 }, {
   icon: 'callout',
   title: '警告',
-  keywords: ['callout', '警告'],
+  keywords: ['callout', '警告', 'warning'],
   description: '警告',
   onClick: (editor) => {
     insertCallout(editor, 'warning');
