@@ -5,6 +5,10 @@ pub mod card;
 
 pub fn init_database(app_handle: &AppHandle<Wry>) -> Result<Connection, rusqlite::Error> {
     let app_dir = app_handle.path_resolver().app_data_dir().unwrap();
+    // 文件是否存在，不存在就新建
+    if !app_dir.exists() {
+        std::fs::create_dir_all(&app_dir)?;
+    }
     let db_path = app_dir.join("test.db");
     let conn = Connection::open(db_path)?;
     init_tables(&conn)?;
