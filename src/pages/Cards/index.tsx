@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import EditCard from "./EditCard";
+import EditCardModal from "./EditCardModal";
 import AddCardLinkModal from "./AddCardLinkModal";
 import CardItem from "./CardItem";
 import useCardsManagementStore from "./hooks/useCardsManagementStore";
 import styles from './index.module.less';
 import useEditCardStore from "./hooks/useEditCardStore.ts";
+import { Button } from 'antd';
 
 const Cards = () => {
   const {
@@ -31,7 +32,7 @@ const Cards = () => {
   return (
     <div className={styles.cardsManagement}>
       <div className={styles.sidebar}>
-        <div onClick={handleClickCreate}>新建卡片</div>
+        <Button className={styles.addCard} onClick={handleClickCreate}>新建卡片</Button>
         <div>搜索卡片</div>
         <div>活跃度</div>
       </div>
@@ -40,7 +41,7 @@ const Cards = () => {
           cards.map((card) => <ErrorBoundary key={card.id}><CardItem key={card.id} card={card} /></ErrorBoundary>)
         }
       </div>
-      <EditCard />
+      <EditCardModal />
       <AddCardLinkModal />
     </div>
   )
