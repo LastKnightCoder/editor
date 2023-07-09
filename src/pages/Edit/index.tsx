@@ -1,4 +1,4 @@
-import Editor from "@/pages/Editor";
+import Editor from "@/components/Editor";
 import styles from './index.module.less';
 
 

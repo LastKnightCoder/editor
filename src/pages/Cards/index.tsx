@@ -7,6 +7,8 @@ import useCardsManagementStore from "./hooks/useCardsManagementStore";
 import styles from './index.module.less';
 import useEditCardStore from "./hooks/useEditCardStore.ts";
 import { Button } from 'antd';
+import {useEditorSourceValueStore} from "@/pages/Cards/hooks/useEditorSourceValueStore.ts";
+import EditorSourceValue from "@/components/EditorSourceValue";
 
 const Cards = () => {
   const {
@@ -20,6 +22,16 @@ const Cards = () => {
   const { openModal } = useEditCardStore((state) => ({
     openModal: state.openEditableModal,
   }));
+
+  const {
+    sourceViewOpen,
+    close,
+    content
+  } = useEditorSourceValueStore((state) => ({
+    sourceViewOpen: state.isOpen,
+    close: state.close,
+    content: state.content,
+  }))
 
   const handleClickCreate = () => {
     openModal(undefined, true);
@@ -43,6 +55,7 @@ const Cards = () => {
       </div>
       <EditCardModal />
       <AddCardLinkModal />
+      <EditorSourceValue open={sourceViewOpen} onClose={close} content={content} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import {useEffect, useRef} from 'react';
 import { Modal } from 'antd'
-import Editor, {EditorRef} from "@/pages/Editor";
+import Editor, {EditorRef} from "@/components/Editor";
 import useEditCardStore from "../hooks/useEditCardStore.ts";
 import styles from './index.module.less';
 import Footer from './Footer';
@@ -29,7 +29,7 @@ const EditCard = () => {
     if (ref.current && open && editingCard?.content) {
       ref.current.setEditorValue(editingCard.content);
     }
-  }, [open])
+  }, [open]);
 
   return (
     <Modal
@@ -37,12 +37,11 @@ const EditCard = () => {
       width={600}
       bodyStyle={{
         minHeight: editable ? 200 : undefined,
-        maxHeight: 'calc(100vh - 250px)',
+        maxHeight: 'calc(100vh - 300px)',
         overflow: 'auto',
         padding: '10px 0 0',
         fontFamily: 'var(--font)'
       }}
-      // centered
       title={editingCard?.id ? editable ? '编辑卡片' : '卡片详情' : '新建卡片'}
       onOk={onCardSave}
       onCancel={onCardCancel}
@@ -51,12 +50,6 @@ const EditCard = () => {
       className={styles.modal}
       keyboard={false}
       footer={<Footer />}
-      okButtonProps={{
-        tabIndex: -1,
-      }}
-      cancelButtonProps={{
-        tabIndex: -1,
-      }}
       closable={false}
       maskClosable={!editable}
       mask={!editable}

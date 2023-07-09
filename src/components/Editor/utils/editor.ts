@@ -1,7 +1,7 @@
 import {Editor, Transforms, Range, Node, Element, NodeMatch, NodeEntry} from "slate";
 import {isElementNode, isLeafNode, isParagraphElement, isInlineElementEmpty, isBlockElementEmpty} from "./element";
 import { ReactEditor } from "slate-react";
-import { ParagraphElement, BlockElement } from "@/pages/Editor/types";
+import { ParagraphElement, BlockElement } from "@/components/Editor/types";
 
 export const getCurrentTextNode = (editor: Editor) => {
   const [match] = Editor.nodes(editor, {
@@ -116,6 +116,7 @@ export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>) 
   Transforms.insertNodes(editor, node, {
     at: curEle[1],
   });
+  return curEle[1];
 }
 
 export const isParagraphAndEmpty = (editor: Editor) => {

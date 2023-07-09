@@ -1,6 +1,6 @@
 import {Editor, NodeEntry, Transforms} from "slate";
-import {isAtFirst} from "@/pages/Editor/plugins/withMarkdownShortcuts/utils";
-import {FormattedText} from "@/pages/Editor/types";
+import {isAtFirst} from "./utils";
+import {FormattedText} from "../../types";
 
 const divideLine = (editor: Editor) => {
   const { insertText } = editor;

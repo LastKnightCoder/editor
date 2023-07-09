@@ -1,5 +1,5 @@
 import {ICard} from "@/types";
-import Editor from '@/pages/Editor';
+import Editor from '@/components/Editor';
 import styles from './index.module.less';
 import useEditCardStore from "../../hooks/useEditCardStore.ts";
 import { CloseOutlined } from '@ant-design/icons';

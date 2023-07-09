@@ -4,6 +4,7 @@ import {useState} from "react";
 import {Button, Input} from "antd";
 import styles from './index.module.less';
 import {PlusOutlined} from "@ant-design/icons";
+import {isEditorValueEmpty} from "@/utils";
 
 const Footer = () => {
   const {
@@ -31,6 +32,8 @@ const Footer = () => {
     setInputTag('');
     setAddTagVisible(false);
   }
+
+  const disabled = editingCard?.content && isEditorValueEmpty(editingCard?.content);
 
   const renderTagView = () => {
     if (!editable) return null;
@@ -65,7 +68,7 @@ const Footer = () => {
         editable &&
         <div className={styles.buttons}>
           <Button size={'small'} onClick={onCancel} style={{ fontSize: 12 }}>取消</Button>
-          <Button size={'small'} type={'primary'} style={{ fontSize: 12 }} onClick={onOk}>保存</Button>
+          <Button size={'small'} type={'primary'} disabled={disabled} style={{ fontSize: 12 }} onClick={onOk}>保存</Button>
         </div>
       }
     </div>

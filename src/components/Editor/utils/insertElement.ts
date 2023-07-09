@@ -1,4 +1,4 @@
-import {Editor, Transforms} from 'slate';
+import {Editor, Path, Transforms} from 'slate';
 import {ReactEditor} from "slate-react";
 import {
   BlockElement,
@@ -31,9 +31,10 @@ const setOrInsertNode = (editor: Editor, node: BlockElement) => {
     return;
   }
   if (isParagraphAndEmpty(editor)) {
-    replaceNode(editor, node, n => n.type === 'paragraph');
+    return replaceNode(editor, node, n => n.type === 'paragraph');
   } else {
-    return Transforms.insertNodes(editor, node);
+    Transforms.insertNodes(editor, node);
+    return Path.next(match[1]);
   }
 }
 
@@ -102,11 +103,11 @@ interface ImageParams {
 
 export const insertImage = (editor: Editor, params: ImageParams) => {
   const image: ImageElement = { type: 'image', ...params, children: [{ type: 'formatted', text: '' }] }
-  setOrInsertNode(editor, image);
+  return setOrInsertNode(editor, image);
 }
 
 export const insertBulletList = (editor: Editor) => {
-  setOrInsertNode(editor, {
+  return setOrInsertNode(editor, {
     type: 'bulleted-list',
     children: [{
       type: 'list-item',

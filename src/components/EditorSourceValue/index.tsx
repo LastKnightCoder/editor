@@ -7,20 +7,22 @@ interface EditorDetailProps {
   content: Descendant[];
 }
 
-const EditorDetail = (props: EditorDetailProps) => {
+const EditorSourceValue = (props: EditorDetailProps) => {
   const { open, onClose, content } = props;
 
   return (
     <Drawer
-      title="Editor Detail"
+      title="源码"
       open={open}
       onClose={onClose}
     >
       <pre>
-        {JSON.stringify(content, null, 2)}
+        <code>
+          {JSON.stringify(content, null, 2)}
+        </code>
       </pre>
     </Drawer>
   )
 }
 
-export default EditorDetail;
+export default EditorSourceValue;

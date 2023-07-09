@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef } from "react";
 import dayjs from "dayjs";
 
-import Editor, {EditorRef} from "@/pages/Editor";
+import Editor, {EditorRef} from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Footer from "./Footer";
 import styles from './index.module.less';

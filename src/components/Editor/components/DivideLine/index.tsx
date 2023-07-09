@@ -1,7 +1,7 @@
 import { RenderElementProps } from "slate-react";
 import { DivideLineElement } from "../../types";
 import { PropsWithChildren } from "react";
-import AddParagraph from "@/pages/Editor/components/AddParagraph";
+import AddParagraph from "../AddParagraph";
 import styles from './index.module.less';
 
 interface DivideLineProps {
