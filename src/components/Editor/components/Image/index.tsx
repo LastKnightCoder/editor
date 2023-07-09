@@ -72,6 +72,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       fileName = fileName.split('.')[0] + '_' + uuid() + '.' + fileName.split('.')[1];
       setUploading(true);
       const uploadRes = await uploadSingleImage(res.split(',')[1], fileName);
+      if (!uploadRes) {
+        setUploading(false);
+        return;
+      }
       const { content: { download_url } } = uploadRes as any;
       const cdnUrl = replaceGithubUrlToCDNUrl(download_url);
       Transforms.setNodes(editor, {

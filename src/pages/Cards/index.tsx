@@ -45,8 +45,6 @@ const Cards = () => {
     <div className={styles.cardsManagement}>
       <div className={styles.sidebar}>
         <Button className={styles.addCard} onClick={handleClickCreate}>新建卡片</Button>
-        <div>搜索卡片</div>
-        <div>活跃度</div>
       </div>
       <div className={styles.cardList}>
         {

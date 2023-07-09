@@ -39,7 +39,7 @@ const EditCard = () => {
         minHeight: editable ? 200 : undefined,
         maxHeight: 'calc(100vh - 300px)',
         overflow: 'auto',
-        padding: '10px 0 0',
+        padding: '10px 10px 0',
         fontFamily: 'var(--font)'
       }}
       title={editingCard?.id ? editable ? '编辑卡片' : '卡片详情' : '新建卡片'}

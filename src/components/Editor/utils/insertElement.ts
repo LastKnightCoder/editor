@@ -117,7 +117,7 @@ export const insertBulletList = (editor: Editor) => {
 }
 
 export const insertNumberedList = (editor: Editor) => {
-  setOrInsertNode(editor, {
+  return setOrInsertNode(editor, {
     type: 'numbered-list',
     children: [{
       type: 'list-item',
@@ -127,7 +127,7 @@ export const insertNumberedList = (editor: Editor) => {
 }
 
 export const insertCheckList = (editor: Editor) => {
-  setOrInsertNode(editor, {
+  return setOrInsertNode(editor, {
     type: 'check-list',
     children: [{
       type: 'check-list-item',
@@ -138,7 +138,7 @@ export const insertCheckList = (editor: Editor) => {
 }
 
 export const insertBlockMath = (editor: Editor) => {
-  setOrInsertNode(editor, {
+  return setOrInsertNode(editor, {
     type: 'block-math',
     tex: '',
     children: [{
@@ -166,12 +166,12 @@ export const insertTable = (editor: Editor, rows: number, cols: number) => {
     type: 'table',
     children: tableRowElements,
   }
-  setOrInsertNode(editor, tableElement);
+  return setOrInsertNode(editor, tableElement);
 }
 
 export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
   const uuid = getUuid();
-  setOrInsertNode(editor, {
+  const res = setOrInsertNode(editor, {
     type: 'code-block',
     code: '',
     language: language,
@@ -188,10 +188,11 @@ export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
       codeMirrorEditor.focus();
     }
   }, 50);
+  return res;
 }
 
 export const insertMermaid = (editor: Editor) => {
-  setOrInsertNode(editor, {
+  return setOrInsertNode(editor, {
     type: 'mermaid',
     chart: '',
     children: [{
@@ -202,7 +203,7 @@ export const insertMermaid = (editor: Editor) => {
 }
 
 export const insertTikz = (editor: Editor) => {
-  setOrInsertNode(editor, {
+  return setOrInsertNode(editor, {
     type: 'tikz',
     content: '',
     children: [{
@@ -213,7 +214,7 @@ export const insertTikz = (editor: Editor) => {
 }
 
 export const insertGraphviz = (editor: Editor) => {
-  setOrInsertNode(editor, {
+  return setOrInsertNode(editor, {
     type: 'graphviz',
     dot: '',
     children: [{

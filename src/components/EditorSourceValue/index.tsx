@@ -13,10 +13,11 @@ const EditorSourceValue = (props: EditorDetailProps) => {
   return (
     <Drawer
       title="源码"
+      width={600}
       open={open}
       onClose={onClose}
     >
-      <pre>
+      <pre style={{ whiteSpace: 'pre-wrap' }}>
         <code>
           {JSON.stringify(content, null, 2)}
         </code>
