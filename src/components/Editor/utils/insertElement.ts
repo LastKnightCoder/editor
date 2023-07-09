@@ -1,4 +1,4 @@
-import {Editor, Path, Transforms} from 'slate';
+import {Editor, Path, Transforms, Element, Range} from 'slate';
 import {ReactEditor} from "slate-react";
 import {
   BlockElement,
@@ -7,7 +7,8 @@ import {
   ParagraphElement,
   TableCellElement,
   TableElement,
-  TableRowElement
+  TableRowElement,
+  LinkElement
 } from "../types";
 import {v4 as getUuid} from "uuid";
 import {isParagraphAndEmpty, isCollapsed, replaceNode} from "./editor";
@@ -222,4 +223,41 @@ export const insertGraphviz = (editor: Editor) => {
       text: '',
     }]
   });
+}
+
+const isLinkActive = (editor: Editor) => {
+  const [link] = Editor.nodes(editor, {
+    match: n =>
+      !Editor.isEditor(n) && Element.isElement(n) && n.type === 'link',
+  })
+  return !!link
+}
+
+const unwrapLink = (editor: Editor) => {
+  Transforms.unwrapNodes(editor, {
+    match: n =>
+      !Editor.isEditor(n) && Element.isElement(n) && n.type === 'link',
+  })
+}
+
+export const wrapLink = (editor: Editor, url: string, open = false) => {
+  if (isLinkActive(editor)) {
+    unwrapLink(editor);
+  }
+
+  const { selection } = editor;
+  const isCollapsed = selection && Range.isCollapsed(selection);
+  const link: LinkElement = {
+    type: 'link',
+    url,
+    openEdit: open,
+    children: isCollapsed ? [{ type: 'formatted', text: url }] : [],
+  }
+
+  if (isCollapsed) {
+    Transforms.insertNodes(editor, link);
+  } else {
+    Transforms.wrapNodes(editor, link, { split: true });
+    Transforms.collapse(editor, { edge: 'end' });
+  }
 }
