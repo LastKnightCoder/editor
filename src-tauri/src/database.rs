@@ -27,6 +27,7 @@ fn init_card_table(conn: &Connection) -> Result<()> {
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
+            links TEXT,
             content TEXT
         )",
         [],

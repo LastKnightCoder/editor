@@ -4,10 +4,8 @@ import './init.js';
 
 import router from "./router";
 import './main.less';
-import { getAppPath } from "@/commands";
 
 ReactDOM
   .createRoot(document.getElementById('root')!)
   .render(<RouterProvider router={router} />)
 
-getAppPath()

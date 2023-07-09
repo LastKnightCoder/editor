@@ -14,12 +14,12 @@ interface IState {
 
 interface IActions {
   init: () => Promise<void>;
-  createCard: (card: Pick<ICard, 'content' | 'tags'>) => Promise<number>;
-  updateCard: (card: Pick<ICard, 'content' | 'tags' | 'id'>) => Promise<number>;
+  createCard: (card: Pick<ICard, 'content' | 'tags' | 'links'>) => Promise<number>;
+  updateCard: (card: Pick<ICard, 'content' | 'tags' | 'id' | 'links'>) => Promise<number>;
   deleteCard: (id: number) => Promise<number>;
 }
 
-const useCardsManagementStore = create<IState & IActions>((set) => ({
+const useCardsManagementStore = create<IState & IActions>((set, get) => ({
   cards: [],
   initLoading: false,
   init: async () => {
@@ -40,9 +40,22 @@ const useCardsManagementStore = create<IState & IActions>((set) => ({
     return res;
   },
   deleteCard: async (id) => {
+    const { cards } = get();
     const res = await deleteCard(id);
-    const cards = await getAllCards();
-    set({ cards });
+    // 这个应该是服务端处理的，不过 Rust 不熟，现在这里处理一下
+    const deletedCard = cards.find(c => c.id === id);
+    if (deletedCard) {
+      const links = deletedCard.links;
+      const linkedCards = cards.filter(c => links.includes(c.id));
+      linkedCards.forEach(linkCard => {
+        updateCard({
+          ...linkCard,
+          links: linkCard.links.filter(l => l !== id),
+        })
+      });
+    }
+    const newCards = await getAllCards();
+    set({ cards: newCards });
     return res;
   },
 }));

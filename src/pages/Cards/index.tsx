@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditCard from "./EditCard";
+import AddCardLinkModal from "./AddCardLinkModal";
 import CardItem from "./CardItem";
 import useCardsManagementStore from "./hooks/useCardsManagementStore";
 import styles from './index.module.less';
@@ -40,6 +41,7 @@ const Cards = () => {
         }
       </div>
       <EditCard />
+      <AddCardLinkModal />
     </div>
   )
 }

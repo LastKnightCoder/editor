@@ -5,5 +5,6 @@ export interface ICard {
   create_time: number;
   update_time: number;
   tags: string[];
+  links: number[];
   content: Descendant[];
 }

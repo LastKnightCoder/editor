@@ -64,8 +64,8 @@ const Footer = () => {
       {
         editable &&
         <div className={styles.buttons}>
-          <Button onClick={onCancel}>取消</Button>
-          <Button type={'primary'} onClick={onOk}>保存</Button>
+          <Button size={'small'} onClick={onCancel} style={{ fontSize: 12 }}>取消</Button>
+          <Button size={'small'} type={'primary'} style={{ fontSize: 12 }} onClick={onOk}>保存</Button>
         </div>
       }
     </div>

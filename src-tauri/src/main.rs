@@ -8,8 +8,14 @@ mod commands;
 use tauri::{Manager, State};
 use database::{init_database};
 use state::AppState;
-use commands::{file, get_app_data_path, insert_one_card, find_one_card, find_all_cards, delete_one_card, update_one_card};
-
+use commands::{
+    file,
+    insert_one_card,
+    find_one_card,
+    find_all_cards,
+    delete_one_card,
+    update_one_card
+};
 
 fn main() {
   tauri::Builder::default()
@@ -18,7 +24,7 @@ fn main() {
       })
       .setup(|app| {
           let handle = app.handle();
-          let conn = init_database(&handle).unwrap();
+          let conn = init_database().unwrap();
           let app_state: State<AppState> = handle.state();
           *app_state.db.lock().unwrap() = Some(conn);
           Ok(())
@@ -30,7 +36,6 @@ fn main() {
           find_all_cards,
           delete_one_card,
           update_one_card,
-          get_app_data_path
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

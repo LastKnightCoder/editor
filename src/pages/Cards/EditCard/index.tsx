@@ -36,13 +36,13 @@ const EditCard = () => {
       open={open}
       width={600}
       bodyStyle={{
-        minHeight: 200,
+        minHeight: editable ? 200 : undefined,
         maxHeight: 'calc(100vh - 250px)',
         overflow: 'auto',
         padding: '10px 0 0',
         fontFamily: 'var(--font)'
       }}
-      centered
+      // centered
       title={editingCard?.id ? editable ? '编辑卡片' : '卡片详情' : '新建卡片'}
       onOk={onCardSave}
       onCancel={onCardCancel}
@@ -59,13 +59,17 @@ const EditCard = () => {
       }}
       closable={false}
       maskClosable={!editable}
+      mask={!editable}
+
     >
-      <Editor
-        ref={ref}
-        initValue={editingCard?.content || undefined}
-        readonly={!editable}
-        onChange={onCardChange}
-      />
+      <div>
+        <Editor
+          ref={ref}
+          initValue={editingCard?.content || undefined}
+          readonly={!editable}
+          onChange={onCardChange}
+        />
+      </div>
     </Modal>
   )
 }

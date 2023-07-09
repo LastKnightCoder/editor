@@ -1,0 +1,33 @@
+.list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  .item {
+    position: relative;
+    padding: 16px 10px 0;
+    cursor: pointer;
+    background-color: #fff;
+    box-shadow: 0 1.5px 3px 0 rgba(0, 0, 0, .15);
+    border-radius: 8px;
+    &.hover:hover {
+      background-color: rgba(26, 102, 255, 0.1)
+    }
+    .closeIcon {
+      position: absolute;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 28px;
+      height: 28px;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      background-color: rgba(0, 0, 0, 0.04);
+      &:hover {
+        background-color: rgba(26, 102, 255, 0.2)
+      }
+    }
+  }
+}

@@ -1,9 +1,8 @@
 import {createBrowserRouter, Navigate} from "react-router-dom";
 
-import Edit from './pages/Edit';
 import Index from './pages/Index';
-import Cards from "./pages/Index/Cards";
-import Articles from "./pages/Index/Articles";
+import Cards from "./pages/Cards";
+import Articles from "./pages/Articles";
 
 
 const routes = [{
@@ -18,9 +17,6 @@ const routes = [{
   }, {
     path: 'articles/',
     element: <Articles />,
-  }, {
-    path: '/editor',
-    element: <Edit />,
   }]
 }]
 

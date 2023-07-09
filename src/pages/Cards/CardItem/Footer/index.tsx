@@ -1,6 +1,6 @@
 import styles from './index.module.less';
-import {DeleteOutlined, EditOutlined} from "@ant-design/icons";
-import {Tooltip} from "antd";
+import {DeleteOutlined, EditOutlined, LinkOutlined } from "@ant-design/icons";
+import {Tooltip, Popconfirm} from "antd";
 import useEditCardStore from "../../hooks/useEditCardStore.ts";
 import useCardsManagementStore from "../../hooks/useCardsManagementStore.ts";
 
@@ -12,9 +12,11 @@ const Footer = (props: FooterProps) => {
   const { cardId } = props;
 
   const {
-    openModal,
+    openEditModal,
+    openAddLinkModal,
   } = useEditCardStore((state) => ({
-    openModal: state.openEditableModal,
+    openEditModal: state.openEditableModal,
+    openAddLinkModal: state.openAddLinkModal,
   }));
 
   const {
@@ -24,26 +26,34 @@ const Footer = (props: FooterProps) => {
   }));
 
   const handleClickDetail = () => {
-    openModal(cardId, false);
+    openEditModal(cardId, false);
   }
 
   const handleClickEdit = () => {
-    openModal(cardId, true);
+    openEditModal(cardId, true);
   }
 
   const handleClickDelete = () => {
     deleteCard(cardId);
   }
 
+  const handleClickLink = () => {
+    openAddLinkModal(cardId);
+  }
+
   const actions = [{
     icon: <EditOutlined />,
     tooltip: '编辑',
     onClick: handleClickEdit,
-  },{
+  }, {
     icon: <DeleteOutlined />,
     tooltip: '删除',
     onClick: handleClickDelete,
-  }];
+  }, {
+    icon: <LinkOutlined />,
+    tooltip: '链接管理',
+    onClick: handleClickLink,
+  }]
 
   return (
     <div className={styles.footer}>
@@ -52,9 +62,20 @@ const Footer = (props: FooterProps) => {
           actions.map((action) => {
             return (
               <Tooltip key={action.tooltip} title={action.tooltip}>
-                <div className={styles.item} onClick={action.onClick}>
-                  {action.icon}
-                </div>
+                <Popconfirm
+                  title={'确认删除'}
+                  trigger={'click'}
+                  open={action.tooltip === '删除' ? undefined : false}
+                  onConfirm={action.onClick}
+                  okText={'确认'}
+                  cancelText={'取消'}
+                  okButtonProps={{ danger: true }}
+                  placement={'bottom'}
+                >
+                  <div className={styles.item} onClick={ action.tooltip !== '删除' ? action.onClick : undefined }>
+                    {action.icon}
+                  </div>
+                </Popconfirm>
               </Tooltip>
             )
           })
