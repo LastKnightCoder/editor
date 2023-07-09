@@ -74,6 +74,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "simple-home-dir",
  "tauri",
  "tauri-build",
 ]
@@ -2369,6 +2370,15 @@ name = "simd-adler32"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "238abfbb77c1915110ad968465608b68e869e0772622c9656714e73e5a1a522f"
+
+[[package]]
+name = "simple-home-dir"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8cad354eef35a6c6020953afda6d4391d9fd41d6234d7bcd2f1d7c9f6f8105d"
+dependencies = [
+ "windows-sys 0.48.0",
+]
 
 [[package]]
 name = "siphasher"

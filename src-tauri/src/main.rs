@@ -8,7 +8,7 @@ mod commands;
 use tauri::{Manager, State};
 use database::{init_database};
 use state::AppState;
-use commands::{file, insert_one_card, find_one_card, find_all_cards, delete_one_card, update_one_card};
+use commands::{file, get_app_data_path, insert_one_card, find_one_card, find_all_cards, delete_one_card, update_one_card};
 
 
 fn main() {
@@ -30,6 +30,7 @@ fn main() {
           find_all_cards,
           delete_one_card,
           update_one_card,
+          get_app_data_path
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
