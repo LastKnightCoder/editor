@@ -24,3 +24,5 @@ out
 *.sln
 *.sw?
 *.db
+
+src-tauri/target

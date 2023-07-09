@@ -11,8 +11,10 @@ import {replaceGithubUrlToCDNUrl, uploadSingleImage} from "../../utils";
 import { ImageElement } from "../../types";
 
 import styles from './index.module.less';
-import { Spin } from "antd";
+import {Popover, Spin} from "antd";
 import GithubImageUploadSetting from "./GithubImageUploadSetting";
+import UploadTab from "@/components/Editor/components/Image/UploadTab";
+import {useClickAway} from "ahooks";
 
 
 interface IImageProps {
@@ -27,12 +29,18 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [uploading, setUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
+  const [showUploadTab, setShowUploadTab] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   const editor = useSlate();
   const readOnly = useReadOnly();
   const { showImageOverview } = useImagesOverviewStore(state => ({
     showImageOverview: state.showImageOverview,
   }));
+
+  useClickAway(() => {
+    setShowUploadTab(false);
+  }, popoverRef);
 
   const showOverView = () => {
     showImageOverview(element, editor);
@@ -51,8 +59,19 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const upload = () => {
     if (fileUploadRef.current) {
+      setShowUploadTab(false);
       fileUploadRef.current.click();
     }
+  }
+
+  const setLink = (url: string) => {
+    setShowUploadTab(false);
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, {
+      url,
+    }, {
+      at: path
+    });
   }
 
   const handleUploadFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,15 +111,21 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     return (
       <div className={styles.uploadContainer}>
         <Spin spinning={uploading || pasteUploading}>
-          <div className={styles.content} onClick={upload}>
-            <div>
-              <FileImageOutlined style={{ fontSize: '32px' }} />
+          <Popover
+            placement={'bottom'}
+            open={showUploadTab}
+            content={<UploadTab uploadImage={upload} setLink={setLink} />}
+          >
+            <div ref={popoverRef} className={styles.content} onClick={() => { setShowUploadTab(true) }}>
+              <div>
+                <FileImageOutlined style={{ fontSize: '32px' }} />
+              </div>
+              <div className={styles.uploadText}>
+                上传图片
+              </div>
+              <input ref={fileUploadRef} type={'file'} accept={'image/*'} style={{ display: 'none' }} onChange={handleUploadFileChange} />
             </div>
-            <div className={styles.uploadText}>
-              上传图片
-            </div>
-            <input ref={fileUploadRef} type={'file'} accept={'image/*'} style={{ display: 'none' }} onChange={handleUploadFileChange} />
-          </div>
+          </Popover>
         </Spin>
         <div className={styles.actions}>
           <div onClick={deleteImage} className={styles.item}>
