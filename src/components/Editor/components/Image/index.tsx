@@ -109,14 +109,15 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const renderUpload = () => {
     return (
-      <div className={styles.uploadContainer}>
+      <div ref={popoverRef} className={styles.uploadContainer}>
         <Spin spinning={uploading || pasteUploading}>
           <Popover
             placement={'bottom'}
             open={showUploadTab}
             content={<UploadTab uploadImage={upload} setLink={setLink} />}
+            getPopupContainer={target => target.parentNode as HTMLElement}
           >
-            <div ref={popoverRef} className={styles.content} onClick={() => { setShowUploadTab(true) }}>
+            <div className={styles.content} onClick={() => { setShowUploadTab(true) }}>
               <div>
                 <FileImageOutlined style={{ fontSize: '32px' }} />
               </div>

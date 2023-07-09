@@ -27,7 +27,9 @@ const EditCard = () => {
   // 打开编辑器时，更新编辑器内容，因为编辑器是非受控的
   useEffect(() => {
     if (ref.current && open && editingCard?.content) {
-      ref.current.setEditorValue(editingCard.content);
+      setTimeout(() => {
+        ref.current!.setEditorValue(editingCard.content);
+      }, 10);
     }
   }, [open]);
 
