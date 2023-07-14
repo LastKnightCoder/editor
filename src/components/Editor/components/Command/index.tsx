@@ -15,9 +15,10 @@ import {
   insertCheckList,
   insertNumberedList,
   insertDetails,
-  insertMermaid
+  insertMermaid,
+  insertHTMLBlock,
+  insertCustomBlock,
 } from "../../utils";
-
 
 const Command = () => {
   const editor = useSlate();
@@ -176,6 +177,25 @@ const Command = () => {
           keywords: ['graphviz'],
           onClick: () => {
             insertGraphviz(editor);
+          }
+        }]
+      },
+      {
+        heading: '自定义',
+        id: 'custom',
+        items: [{
+          id: 'html-block',
+          children: 'HTML',
+          keywords: ['html'],
+          onClick: () => {
+            insertHTMLBlock(editor);
+          }
+        }, {
+          id: 'custom-block',
+          children: '自定义块',
+          keywords: ['custom'],
+          onClick: () => {
+            insertCustomBlock(editor);
           }
         }]
       }

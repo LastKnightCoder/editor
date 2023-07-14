@@ -43,6 +43,7 @@ const AddCardLinkModal = () => {
       onOk={onOk}
       onCancel={onCancel}
       className={styles.modal}
+      width={800}
       bodyStyle={{
         overflow: 'auto',
         minHeight: 400,
@@ -56,6 +57,7 @@ const AddCardLinkModal = () => {
         value={searchValue}
         onChange={(e) => { setSearchValue(e.target.value) }}
         placeholder={'请输入标签进行筛选'}
+        allowClear
       />
       {
         linkedList.length > 0 &&
@@ -72,7 +74,7 @@ const AddCardLinkModal = () => {
           <div className={styles.linkTitle}>
             未链接卡片
           </div>
-          <CardList list={notLinkedList} />
+          <CardList list={notLinkedList.slice(0, 10)} />
         </>
       }
     </Modal>

@@ -8,10 +8,15 @@
     padding: 16px 10px 0;
     cursor: pointer;
     background-color: #fff;
-    box-shadow: 0 1.5px 3px 0 rgba(0, 0, 0, .15);
+    max-height: 200px;
+    overflow: hidden;
+    //box-shadow: 0 1.5px 3px 0 rgba(0, 0, 0, .15);
     border-radius: 8px;
     &.hover:hover {
       background-color: rgba(26, 102, 255, 0.1)
+    }
+    .tags {
+      margin-bottom: 10px;
     }
     .closeIcon {
       position: absolute;
@@ -29,5 +34,10 @@
         background-color: rgba(26, 102, 255, 0.2)
       }
     }
+  }
+  .divider {
+    margin: 20px;
+    height: 2px;
+    background-color: rgba(0, 0, 0, 0.3);
   }
 }

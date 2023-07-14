@@ -36,9 +36,9 @@ const EditCard = () => {
   return (
     <Modal
       open={open}
-      width={600}
+      width={800}
       bodyStyle={{
-        minHeight: editable ? 200 : undefined,
+        minHeight: editable ? 400 : undefined,
         maxHeight: 'calc(100vh - 300px)',
         overflow: 'auto',
         padding: '10px 10px 0',

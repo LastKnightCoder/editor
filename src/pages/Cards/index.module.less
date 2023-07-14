@@ -1,27 +1,29 @@
 .cardsManagement {
   position: relative;
+  padding: 10px 40px;
   .center {
     width: fit-content;
     margin: 0 auto;
   }
 
-  .sidebar {
-    position: fixed;
+  .header {
+    position: sticky;
     top: 40px;
-    left: 0;
-    bottom: 0;
-    width: 200px;
+    z-index: 100;
+    display: flex;
+    gap: 10px;
     background-color: #fff;
-    z-index: 98;
-    overflow-y: auto;
-    padding: 20px;
-    .addCard {
-      cursor: pointer;
+    align-items: center;
+    height: 40px;
+    .count {
+
+    }
+    .input {
+      margin-left: auto;
     }
   }
 
   .cardList {
-    margin-left: 200px;
     display: flex;
     flex-wrap: wrap;
     gap: 20px;

@@ -11,7 +11,9 @@ const SelectLanguage = (props: SelectLanguageProps) => {
   const { value, onChange, className, style = {} } = props;
   const languages = [
     { label: 'JavaScript', value: 'JavaScript' },
+    { label: 'js', value: 'JavaScript' },
     { label: 'TypeScript', value: 'TypeScript' },
+    { label: 'ts', value: 'TypeScript' },
     { label: 'JSX', value: 'JSX' },
     { label: 'TSX', value: 'TSX' },
     { label: 'HTML', value: 'HTML' },
@@ -22,8 +24,10 @@ const SelectLanguage = (props: SelectLanguageProps) => {
     { label: 'C#', value: 'C#' },
     { label: 'Java', value: 'Java' },
     { label: 'Rust', value: 'Rust' },
+    { label: 'rs', value: 'Rust' },
     { label: 'Go', value: 'Go' },
     { label: 'Python', value: 'Python' },
+    { label: 'py', value: 'Python' },
     { label: 'Objective C', value: 'Objective C' },
     { label: 'Scale', value: 'Scale' },
     { label: 'JSON', value: 'JSON' },
@@ -37,6 +41,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
     { label: 'SQL', value: 'sql' },
     { label: 'Latex', value: 'stex' },
     { label: 'Markdown', value: 'markdown' },
+    { label: 'md', value: 'markdown' },
   ]
 
   return (

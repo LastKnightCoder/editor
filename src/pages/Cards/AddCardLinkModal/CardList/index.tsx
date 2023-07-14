@@ -4,6 +4,7 @@ import styles from './index.module.less';
 import useEditCardStore from "../../hooks/useEditCardStore.ts";
 import { CloseOutlined } from '@ant-design/icons';
 import classnames from "classnames";
+import Tags from "@/components/Tags";
 
 interface CardListProps {
   list: ICard[];
@@ -40,19 +41,26 @@ const CardList = (props: CardListProps) => {
   return (
     <div className={styles.list}>
       {
-        list.map((card) => {
+        list.map((card, index) => {
           return (
-            <div className={itemClass} key={card.id} onClick={() => { handleAddLink(card.id) }}>
-              <div className={styles.editor}>
-                <Editor readonly={true} initValue={card.content} />
+            <>
+              <div className={itemClass} key={card.id} onClick={() => { handleAddLink(card.id) }}>
+                <Tags className={styles.tags} tags={card.tags} />
+                <div className={styles.editor}>
+                  <Editor readonly={true} initValue={card.content} />
+                </div>
+                {
+                  showClose &&
+                  <div className={styles.closeIcon} onClick={(e) => { handleRemoveLink(e, card.id) }}>
+                    <CloseOutlined />
+                  </div>
+                }
               </div>
               {
-                showClose &&
-                <div className={styles.closeIcon} onClick={(e) => { handleRemoveLink(e, card.id) }}>
-                  <CloseOutlined />
-                </div>
+                index !== list.length - 1 &&
+                <div className={styles.divider} />
               }
-            </div>
+            </>
           )
         })
       }

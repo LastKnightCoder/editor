@@ -8,7 +8,7 @@ import {
   insertMermaid,
   insertBulletList,
   insertCheckList,
-  insertImage, insertNumberedList
+  insertImage, insertNumberedList, insertHTMLBlock
 } from "../utils";
 import {Editor} from "slate";
 
@@ -131,5 +131,21 @@ export const blockPanelList: IBlockPanelListItem[] = [...generateHeader(), {
     insertImage(editor, {
       url: ''
     })
+  }
+}, {
+  icon: 'html',
+  title: 'HTML',
+  keywords: ['html', 'HTML'],
+  description: 'HTML',
+  onClick: (editor) => {
+    insertHTMLBlock(editor);
+  }
+}, {
+  icon: 'custom',
+  title: '自定义',
+  keywords: ['custom', '自定义'],
+  description: '自定义',
+  onClick: (editor) => {
+    insertHTMLBlock(editor);
   }
 }];

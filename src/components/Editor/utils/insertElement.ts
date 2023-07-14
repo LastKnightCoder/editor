@@ -225,6 +225,28 @@ export const insertGraphviz = (editor: Editor) => {
   });
 }
 
+export const insertHTMLBlock = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: 'html-block',
+    html: '',
+    children: [{
+      type: 'formatted',
+      text: '',
+    }]
+  });
+}
+
+export const insertCustomBlock = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: 'custom-block',
+    content: '',
+    children: [{
+      type: 'formatted',
+      text: '',
+    }]
+  });
+}
+
 const isLinkActive = (editor: Editor) => {
   const [link] = Editor.nodes(editor, {
     match: n =>
