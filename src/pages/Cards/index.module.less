@@ -1,22 +1,25 @@
 .cardsManagement {
   position: relative;
-  padding: 10px 40px;
-  .center {
-    width: fit-content;
-    margin: 0 auto;
-  }
 
   .header {
-    position: sticky;
-    top: 40px;
-    z-index: 100;
+    padding: 0 40px;
     display: flex;
     gap: 10px;
-    background-color: #fff;
     align-items: center;
-    height: 40px;
-    .count {
-
+    height: 60px;
+    background-color: #f9f9f9;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-sizing: border-box;
+    &::before {
+      position: absolute;
+      bottom: 0;
+      height: 2px;
+      width: calc(100% - 80px);
+      content: '';
+      background-color: #eee;
+      margin: 0 auto;
     }
     .input {
       margin-left: auto;
@@ -24,8 +27,11 @@
   }
 
   .cardList {
-    display: flex;
-    flex-wrap: wrap;
+    padding: 20px 40px;
+    box-sizing: border-box;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
   }
 }

@@ -1,15 +1,19 @@
 import {useEffect, useMemo, useState} from "react";
+import {Button, Input} from 'antd';
+import { CloseCircleOutlined } from '@ant-design/icons';
+
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { useEditorSourceValueStore } from "@/pages/Cards/hooks/useEditorSourceValueStore.ts";
+import EditorSourceValue from "@/components/EditorSourceValue";
+import Tags from "@/components/Tags";
+
 import EditCardModal from "./EditCardModal";
 import AddCardLinkModal from "./AddCardLinkModal";
 import CardItem from "./CardItem";
+
 import useCardsManagementStore from "./hooks/useCardsManagementStore";
-import styles from './index.module.less';
 import useEditCardStore from "./hooks/useEditCardStore.ts";
-import { Button, Input } from 'antd';
-import {useEditorSourceValueStore} from "@/pages/Cards/hooks/useEditorSourceValueStore.ts";
-import EditorSourceValue from "@/components/EditorSourceValue";
-import Tags from "@/components/Tags";
+import styles from './index.module.less';
 
 const Cards = () => {
   const {
@@ -43,12 +47,17 @@ const Cards = () => {
     setSearchValue('');
   }
 
+  const onClear = () => {
+    setSearchTags([]);
+    setSearchValue('');
+  }
+
   const filterCards = useMemo(() => {
-    if (searchValue === '' && searchTags.length === 0) return cards;
+    if (searchTags.length === 0) return cards;
     return cards.filter(card => {
-      return [...searchTags, searchValue].every(t => card.tags.some(tag => tag.toLowerCase().includes(t.toLowerCase())));
+      return [...searchTags].every(t => card.tags.some(tag => tag.toLowerCase().includes(t.toLowerCase())));
     })
-  }, [cards, searchTags, searchValue]);
+  }, [cards, searchTags]);
 
   const deleteTag = (tag: string) => {
     setSearchTags(searchTags.filter(t => t !== tag));
@@ -71,8 +80,8 @@ const Cards = () => {
         <Input
           style={{ width: 400 }}
           prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
+          suffix={searchTags.length > 0 || searchValue !== '' ? <CloseCircleOutlined onClick={onClear} /> : undefined}
           onPressEnter={onSearch}
-          allowClear
           value={searchValue}
           onChange={(e) => { setSearchValue(e.target.value) }}
           className={styles.input}
