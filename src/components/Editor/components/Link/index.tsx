@@ -1,14 +1,14 @@
 import React, { useCallback, useState } from 'react';
 import { Popover, Button, Input, Space } from "antd";
+import { open as openUrl } from '@tauri-apps/api/shell';
 import InlineChromiumBugfix from "../InlineChromiumBugFix";
-import {ReactEditor, RenderElementProps, useSlate} from "slate-react";
+import {ReactEditor, RenderElementProps, useReadOnly, useSlate} from "slate-react";
 import classnames from 'classnames';
 import { usePressedKeyStore } from "../../stores";
 
 import styles from './index.module.less';
 import { LinkElement } from "../../types";
 import {Transforms} from "slate";
-import {isLeafNode} from "../../utils";
 
 interface LinkProps {
   attributes: RenderElementProps['attributes'];
@@ -33,15 +33,16 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const { url, openEdit = false } = element;
 
   const editor = useSlate();
+  const readOnly = useReadOnly();
   const [open, setOpen] = useState(openEdit);
 
   const { isModKey } = usePressedKeyStore(state => ({
     isModKey: state.isModKey,
   }));
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => {
-    if (isModKey) {
-      window.open(url, '_blank');
+  const handleClick = useCallback(() => {
+    if (isModKey || readOnly) {
+      openUrl(url);
       return;
     }
     setOpen(!open);
@@ -49,12 +50,11 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
       const path = ReactEditor.findPath(editor, element);
       Transforms.setNodes(editor, { openEdit: false }, { at: path });
     }
-    e.preventDefault();
-  }, [isModKey, url, open]);
+  }, [isModKey, readOnly, open, url, editor, element]);
 
   const changeUrl = (url: string) => {
     Transforms.setNodes(editor, { url }, {
-      match: n => isLeafNode(n) && n.type === 'link',
+      match: n => n.type === 'link',
     });
     setOpen(false);
     const path = ReactEditor.findPath(editor, element);
@@ -68,18 +68,18 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
       arrow={false}
       title={'编辑链接'}
     >
-      <a
+      <span
         {...attributes}
         className={classnames(styles.link, {[styles.active]:  isModKey })}
         onClick={handleClick}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
+        // href={url}
+        // target="_blank"
+        // rel="noopener noreferrer"
       >
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />
-      </a>
+      </span>
     </Popover>
   )
 }

@@ -27,43 +27,56 @@ p {
   background: #fafafa;
   line-height: 1.8;
   color: #383a42;
+
   .cm-string,
   .cm-string-2 {
     color: #50a14f;
   }
+
   .cm-comment {
     color: #a0a1a7;
   }
+
   .cm-keyword {
-      color: #a626a4;
+    color: #a626a4;
   }
+
   .cm-variable {
-      color: #e06c75;
+    color: #e06c75;
   }
+
   .cm-variable2 {
-      color: #e45649;
+    color: #e45649;
   }
+
   .cm-variable-3 {
     color: #e06c75;
   }
+
   .cm-number {
     color: #986801;
   }
+
   .cm-property {
     color: #4078f2;
   }
+
   .cm-definition {
     color: #4078f2;
   }
+
   .cm-meta {
     color: #383a42;
   }
+
   .cm-operator {
     color: #0184bc;
   }
+
   .cm-attribute {
     color: #d19a66;
   }
+
   .cm-tag {
     color: #e45649;
   }
@@ -74,16 +87,18 @@ p {
   width: 6px;
   height: 6px;
 }
+
 &::-webkit-scrollbar-track {
   border-radius: 3px;
-  background: rgba(0,0,0,0.06);
-  -webkit-box-shadow: inset 0 0 5px rgba(0,0,0,0.08);
+  background: rgba(0, 0, 0, 0.06);
+  -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
 }
+
 /* 滚动条滑块 */
 &::-webkit-scrollbar-thumb {
   border-radius: 3px;
-  background: rgba(0,0,0,0.12);
-  -webkit-box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.12);
+  -webkit-box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
 [class*="ant-"] {
@@ -94,3 +109,8 @@ p {
   z-index: 9999;
 }
 
+.clay {
+  background: var(--clay-background, rgba(0, 0, 0, .005));
+  border-radius: var(--clay-border-radius, 32px);
+  box-shadow: var(--clay-shadow-outset, 8px 8px 16px 0 rgba(0, 0, 0, .25)), inset var(--clay-shadow-inset-primary,-8px -8px 16px 0 rgba(0, 0, 0, .25)), inset var(--clay-shadow-inset-secondary, 8px 8px 16px 0 hsla(0, 0%, 100%, .2))
+}

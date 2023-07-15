@@ -5,13 +5,12 @@
   gap: 10px;
   .item {
     position: relative;
-    padding: 16px 10px 0;
+    padding: 40px;
     cursor: pointer;
     background-color: #fff;
-    max-height: 200px;
-    overflow: hidden;
-    //box-shadow: 0 1.5px 3px 0 rgba(0, 0, 0, .15);
-    border-radius: 8px;
+    background: var(--clay-background, rgba(0, 0, 0, .005));
+    border-radius: var(--clay-border-radius, 16px);
+    box-shadow: var(--clay-shadow-outset, 4px 4px 8px 0 rgba(0, 0, 0, .25)), inset var(--clay-shadow-inset-primary,-4px -4px 8px 0 rgba(0, 0, 0, .25)), inset var(--clay-shadow-inset-secondary, 4px 4px 8px 0 hsla(0, 0%, 100%, .2));
     &.hover:hover {
       background-color: rgba(26, 102, 255, 0.1)
     }

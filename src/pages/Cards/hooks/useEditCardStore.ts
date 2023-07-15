@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ICard } from "@/types";
+import { findOneCard, getAllCards } from "@/commands";
 import {Descendant} from "slate";
 import useCardsManagementStore from "./useCardsManagementStore.ts";
 
@@ -59,8 +60,7 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       return;
     }
 
-    const cards = useCardsManagementStore.getState().cards;
-    const card = cards.find(c => c.id === cardId);
+    const card = await findOneCard(cardId);
     if (!card) {
       return;
     }
@@ -72,8 +72,8 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     });
   },
   openAddLinkModal: async (cardId) => {
-    const { cards } = useCardsManagementStore.getState();
-    const editingCard = cards.find(c => c.id === cardId);
+    const cards = await getAllCards();
+    const editingCard = await findOneCard(cardId);
     set({
       addLinkModalOpen: true,
       editingCardId: cardId,

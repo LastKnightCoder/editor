@@ -1,39 +1,35 @@
 import { useState } from "react";
-import { Outlet, NavLink } from "react-router-dom";
-import { Menu, MenuProps } from 'antd';
-import { MdOutlineArticle, MdOutlineListAlt, MdStickyNote2 } from 'react-icons/md';
-import { AiOutlineBarChart } from 'react-icons/ai';
-import { MenuFoldOutlined, MenuUnfoldOutlined, } from '@ant-design/icons';
+import { Outlet } from "react-router-dom";
+import { Menu, Tooltip } from 'antd';
+import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
+import { MdHelpOutline } from 'react-icons/md';
+import { PiDiceThree } from 'react-icons/pi';
 import classnames from 'classnames';
+
+import { menuConfigs } from '@/configs';
 
 import styles from './index.module.less';
 
-const items: MenuProps['items'] = [{
-  key: 'card',
-  label: '卡片管理',
-  icon: <MdStickyNote2 />,
-  children: [{
-    icon: <MdOutlineListAlt />,
-    key: 'card-list',
-    label: <NavLink to={'/cards/list'}>卡片列表</NavLink>,
-  }, {
-    icon: <MdOutlineListAlt />,
-    key: 'card-link-graph',
-    label: <NavLink to={'/cards/link-graph'}>关系图谱</NavLink>,
-  }]
+const topActions = [{
+  icon: <MdHelpOutline />,
+  label: '帮助文档',
+  key: 'help',
+  onClick: () => {
+    console.log('help');
+    window.open('https://www.bilibili.com', '_blank');
+  },
 }, {
-  key: 'article',
-  label: '文章管理',
-  icon: <MdOutlineArticle />,
-  children: [{
-    icon: <MdOutlineListAlt />,
-    key: 'article-list',
-    label: <NavLink to={'/articles/list'}>文章列表</NavLink>,
-  }]
-}, {
-  key: 'data-statistics',
-  label: <NavLink to={'/statistic'}>数据统计</NavLink>,
-  icon: <AiOutlineBarChart />,
+  icon: <PiDiceThree />,
+  label: '随机卡片',
+  key: 'random',
+  onClick: () => { console.log('random') },
+}];
+
+const bottomActions = [{
+  icon: <SettingOutlined />,
+  label: '设置',
+  key: 'setting',
+  onClick: () => { console.log('setting') },
 }]
 
 const Management = () => {
@@ -50,7 +46,7 @@ const Management = () => {
           defaultOpenKeys={['card']}
           defaultSelectedKeys={['card-list']}
           mode="inline"
-          items={items}
+          items={menuConfigs}
           style={{
             minWidth: 0,
             flex: 'auto',
@@ -67,6 +63,30 @@ const Management = () => {
         [styles.collapsed]: collapsed,
       })}>
         <Outlet />
+      </div>
+      <div className={styles.rightActions}>
+        <div className={styles.actions}>
+          {
+            topActions.map(action => (
+              <Tooltip title={action.label} placement={'left'} key={action.key}>
+                <div className={styles.action} onClick={action.onClick}>
+                  {action.icon}
+                </div>
+              </Tooltip>
+            ))
+          }
+        </div>
+        <div className={styles.actions}>
+          {
+            bottomActions.map(action => (
+              <Tooltip title={action.label} placement={'left'} key={action.key}>
+                <div className={styles.action} onClick={action.onClick}>
+                  {action.icon}
+                </div>
+              </Tooltip>
+            ))
+          }
+        </div>
       </div>
     </div>
   )

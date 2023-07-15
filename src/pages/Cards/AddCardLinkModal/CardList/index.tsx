@@ -1,3 +1,4 @@
+import React from 'react';
 import {ICard} from "@/types";
 import Editor from '@/components/Editor';
 import styles from './index.module.less';
@@ -34,7 +35,7 @@ const CardList = (props: CardListProps) => {
     removeLink(id);
   }
 
-  const itemClass = classnames(styles.item, {
+  const itemClass = classnames(styles.item, 'clay', {
     [styles.hover]: !showClose,
   });
 
@@ -43,8 +44,8 @@ const CardList = (props: CardListProps) => {
       {
         list.map((card, index) => {
           return (
-            <>
-              <div className={itemClass} key={card.id} onClick={() => { handleAddLink(card.id) }}>
+            <React.Fragment key={card.id}>
+              <div className={itemClass} onClick={() => { handleAddLink(card.id) }}>
                 <Tags className={styles.tags} tags={card.tags} />
                 <div className={styles.editor}>
                   <Editor readonly={true} initValue={card.content} />
@@ -60,7 +61,7 @@ const CardList = (props: CardListProps) => {
                 index !== list.length - 1 &&
                 <div className={styles.divider} />
               }
-            </>
+            </React.Fragment>
           )
         })
       }

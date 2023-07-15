@@ -48,7 +48,7 @@ const AddCardLinkModal = () => {
         overflow: 'auto',
         minHeight: 400,
         maxHeight: 'calc(100vh - 300px)',
-        padding: '10px 0'
+        padding: 20
       }}
       okText={'确定'}
       cancelText={'取消'}
