@@ -2,9 +2,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   height: 24px;
   overflow: hidden;
+  &.noWrap {
+    height: auto;
+    overflow: visible;
+  }
   :global(.ant-tag) {
     display: flex;
     height: 22px;

@@ -1,0 +1,71 @@
+.cardDetail {
+  position: relative;
+  background-color: #f9f9f9;
+  .header {
+    display: flex;
+    align-items: center;
+    height: 60px;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-sizing: border-box;
+    padding: 0 40px;
+    background-color: #f9f9f9;
+    &::before {
+      position: absolute;
+      bottom: 0;
+      height: 2px;
+      width: calc(100% - 80px);
+      content: '';
+      background-color: #eee;
+      margin: 0 auto;
+    }
+    .back {
+      cursor: pointer;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+  }
+  .editorContainer {
+    display: flex;
+    padding: 0 40px;
+    gap: 20px;
+    .editorWrapper {
+      padding: 20px 0;
+      min-width: 600px;
+      flex-grow: 1;
+      //flex-shrink: 0;
+    }
+    .editor {
+      max-width: 1000px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 48px 64px;
+      box-sizing: border-box;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      min-height: calc(100vh - 100px);
+    }
+    .sidebar {
+      min-width: 320px;
+      max-width: 400px;
+      position: sticky;
+      top: 60px;
+      padding: 20px;
+      height: calc(100vh - 60px);
+      box-sizing: border-box;
+      overflow-y: auto;
+      &::-webkit-scrollbar {
+        display: none;
+      }
+      .title {
+        color: rgba(0, 0, 0, .9);
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+    }
+  }
+}

@@ -5,6 +5,7 @@ import Cards from "@/pages/Cards";
 import Articles from "@/pages/Articles";
 import Statistic from "@/pages/Statistic";
 import LinkGraph from "@/pages/Cards/LinkGraph";
+import CardDetail from "@/pages/Cards/CardDetail";
 
 
 const routes = [{
@@ -17,13 +18,19 @@ const routes = [{
     path: 'cards/',
     children: [{
       index: true,
-      element: <Navigate to="/cards/list" replace />,
+      element: <Navigate to="/cards/list/" replace />,
     }, {
       path: 'list/',
       element: <Cards />,
     }, {
       path: 'link-graph/',
       element: <LinkGraph />,
+    }, {
+      path: 'detail/',
+      element: <CardDetail />,
+    }, {
+      path: 'detail/:cardId/',
+      element: <CardDetail />,
     }],
   }, {
     path: 'articles/',

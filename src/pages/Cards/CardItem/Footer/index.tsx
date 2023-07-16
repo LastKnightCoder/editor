@@ -1,9 +1,11 @@
 import styles from './index.module.less';
-import {DeleteOutlined, EditOutlined, LinkOutlined, FileTextOutlined } from "@ant-design/icons";
-import {Tooltip, Popconfirm} from "antd";
-import useEditCardStore from "../../hooks/useEditCardStore.ts";
+import {DeleteOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
+import {Tooltip, Popconfirm, Drawer} from "antd";
+import { useNavigate } from 'react-router-dom';
 import useCardsManagementStore from "../../hooks/useCardsManagementStore.ts";
 import {useEditorSourceValueStore} from "@/pages/Cards/hooks/useEditorSourceValueStore.ts";
+import Editor from "@/components/Editor";
+import {useState} from "react";
 
 interface FooterProps {
   cardId: number;
@@ -11,14 +13,6 @@ interface FooterProps {
 
 const Footer = (props: FooterProps) => {
   const { cardId } = props;
-
-  const {
-    openEditModal,
-    openAddLinkModal,
-  } = useEditCardStore((state) => ({
-    openEditModal: state.openEditableModal,
-    openAddLinkModal: state.openAddLinkModal,
-  }));
 
   const {
     cards,
@@ -34,20 +28,21 @@ const Footer = (props: FooterProps) => {
     openSourceView: state.open,
   }))
 
-  const handleClickDetail = () => {
-    openEditModal(cardId, false);
-  }
+  const navigate = useNavigate();
+
+  const [open, setOpen] = useState<boolean>(false);
+  const card = cards.find((card) => card.id === cardId);
 
   const handleClickEdit = () => {
-    openEditModal(cardId, true);
+    navigate(`/cards/detail/${cardId}`);
+  }
+
+  const handleClickDetail = () => {
+    setOpen(true);
   }
 
   const handleClickDelete = () => {
     deleteCard(cardId);
-  }
-
-  const handleClickLink = () => {
-    openAddLinkModal(cardId);
   }
 
   const handleClickSource = () => {
@@ -62,10 +57,6 @@ const Footer = (props: FooterProps) => {
     icon: <EditOutlined />,
     tooltip: '编辑',
     onClick: handleClickEdit,
-  }, {
-    icon: <LinkOutlined />,
-    tooltip: '链接管理',
-    onClick: handleClickLink,
   }, {
     icon: <FileTextOutlined />,
     tooltip: '查看源码',
@@ -103,6 +94,14 @@ const Footer = (props: FooterProps) => {
         }
       </div>
       <div onClick={handleClickDetail} className={styles.detail}>查看详情{'>>'}</div>
+      <Drawer
+        title="卡片详情"
+        open={open}
+        onClose={() => { setOpen(false) }}
+        width={600}
+      >
+        <Editor initValue={card?.content} readonly />
+      </Drawer>
     </div>
   )
 }

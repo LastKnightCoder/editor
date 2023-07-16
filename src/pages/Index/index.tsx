@@ -33,7 +33,7 @@ const bottomActions = [{
 }]
 
 const Management = () => {
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <div className={styles.container}>

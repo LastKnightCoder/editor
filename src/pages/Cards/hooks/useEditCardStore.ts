@@ -1,52 +1,48 @@
 import { create } from 'zustand';
 import { ICard } from "@/types";
-import { findOneCard, getAllCards } from "@/commands";
+import { findOneCard } from "@/commands";
 import {Descendant} from "slate";
 import useCardsManagementStore from "./useCardsManagementStore.ts";
 
 type EditingCard = Pick<ICard, 'content' | 'tags' | 'links'> & Partial<ICard>;
 
 interface IState {
-  openEditCardModal: boolean;
+  initLoading: boolean;
   addLinkModalOpen: boolean;
   cardEditable: boolean;
   editingCardId: number | undefined;
   editingCard: EditingCard | undefined;
-  toBeLinkedCardList: ICard[];
-  linkSearchValue: string;
 }
 
 interface IActions {
-  openEditableModal: (cardId: number | undefined, cardEditable: boolean) => Promise<void>;
-  openAddLinkModal: (cardId: number) => Promise<void>;
+  initCard: (cardId: number | undefined) => Promise<void>;
   onEditingCardChange: (content: Descendant[]) => void;
   onEditingCardCancel: () => void;
   onEditingCardSave: () => Promise<void>;
+  openAddLinkModal: () => void;
+  closeAddLinkModal: () => void;
   addTag: (tag: string) => void;
   removeTag: (tag: string) => void;
   addLink: (link: number) => void;
   removeLink: (link: number) => void;
-  setLinkSearchValue: (value: string) => void;
 }
 
 const initialState: IState = {
-  openEditCardModal: false,
+  initLoading: false,
   addLinkModalOpen: false,
   cardEditable: false,
   editingCardId: undefined,
   editingCard: undefined,
-  toBeLinkedCardList: [],
-  linkSearchValue: '',
 }
 
 const useEditCardStore = create<IState & IActions>((set, get) => ({
   ...initialState,
-  openEditableModal: async (cardId, cardEditable) => {
+  initCard: async (cardId) => {
+    set({
+      initLoading: true,
+    });
     if (!cardId) {
-      // 创建卡片
       set({
-        openEditCardModal: true,
-        cardEditable,
         editingCardId: undefined,
         editingCard: {
           content: [{
@@ -56,29 +52,18 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
           tags: [],
           links: [],
         },
+        cardEditable: true,
+        initLoading: false,
       });
       return;
     }
 
     const card = await findOneCard(cardId);
-    if (!card) {
-      return;
-    }
     set({
-      openEditCardModal: true,
-      cardEditable,
       editingCardId: cardId,
       editingCard: card,
-    });
-  },
-  openAddLinkModal: async (cardId) => {
-    const cards = await getAllCards();
-    const editingCard = await findOneCard(cardId);
-    set({
-      addLinkModalOpen: true,
-      editingCardId: cardId,
-      editingCard,
-      toBeLinkedCardList: cards.filter(c => c.tags.length > 0 && c.id !== cardId && !editingCard?.links.includes(c.id)),
+      cardEditable: true,
+      initLoading: false,
     });
   },
   onEditingCardChange: (content: Descendant[]) => {
@@ -175,48 +160,37 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     });
   },
   addLink: (link) => {
-    const { editingCard, toBeLinkedCardList } = get();
-    // 判断是否已经存在
+    const { editingCard } = get();
     if (!editingCard || editingCard.links.includes(link)) {
       return;
     }
-    const newToBeLinkedList = toBeLinkedCardList.filter(c => c.id !== link);
     set({
       editingCard: {
         ...editingCard,
         links: [...editingCard.links, link],
       },
-      toBeLinkedCardList: newToBeLinkedList,
     })
   },
   removeLink: (link) => {
     const { editingCard } = get();
-    const { cards } = useCardsManagementStore.getState();
     if (!editingCard) {
       return;
     }
-    const newToBeLinkedList = [...get().toBeLinkedCardList, cards.find(c => c.id === link)].filter(c => c);
     set({
       editingCard: {
         ...editingCard,
         links: editingCard.links.filter(t => t !== link),
       },
-      toBeLinkedCardList: newToBeLinkedList as ICard[],
     });
   },
-  setLinkSearchValue: (value) => {
-    // 根据 value 筛选出来的卡片
-    const { cards } = useCardsManagementStore.getState();
-    const toBeLinkedCardList = cards.filter(
-      c =>
-        c.tags.some(tag => tag.includes(value)) &&
-        c.id !== get().editingCardId &&
-        !get().editingCard?.links.includes(c.id)
-    );
-    console.log(toBeLinkedCardList, value);
+  openAddLinkModal: () => {
     set({
-      linkSearchValue: value,
-      toBeLinkedCardList,
+      addLinkModalOpen: true,
+    });
+  },
+  closeAddLinkModal: () => {
+    set({
+      addLinkModalOpen: false,
     });
   }
 }));

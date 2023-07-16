@@ -9,10 +9,13 @@ interface TagsProps {
   closable?: boolean;
   onClose?: (tag: string) => void;
   className?: string;
+  noWrap?: boolean;
 }
 
 const Tags = (props: TagsProps) => {
-  const { tags, closable, onClose, className} = props;
+  const { tags, closable, onClose, className, noWrap = false} = props;
+
+  console.log('tags', tags, noWrap);
 
   const realTags = useMemo(() => {
     if (tags.length === 0) {
@@ -22,7 +25,9 @@ const Tags = (props: TagsProps) => {
   }, [tags])
 
   return (
-    <div className={classnames(styles.tags, className)}>
+    <div className={classnames(styles.tags, className, {
+      [styles.noWrap]: noWrap
+    })}>
       {
         realTags
           .filter(tag => !!tag)
