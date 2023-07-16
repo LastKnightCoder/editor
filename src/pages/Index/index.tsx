@@ -51,6 +51,7 @@ const Management = () => {
             minWidth: 0,
             flex: 'auto',
           }}
+          theme={'dark'}
         />
         <div className={styles.collapsedIcon}>
           { collapsed

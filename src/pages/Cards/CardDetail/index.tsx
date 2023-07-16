@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 
 import styles from './index.module.less';
 import {useEffect} from "react";
-import {Button, Skeleton} from "antd";
+import {Button, Modal, Skeleton} from "antd";
 import Editor from "@/components/Editor";
 import useEditCardStore from "../hooks/useEditCardStore.ts";
 import AddTag from "@/pages/Cards/AddTag";
@@ -24,7 +24,8 @@ const CardDetail = () => {
     initLoading,
     addTag,
     removeTag,
-    openAddLinkModal
+    openAddLinkModal,
+    removeLink,
   } = useEditCardStore((state) => ({
     editingCard: state.editingCard,
     init: state.initCard,
@@ -35,6 +36,7 @@ const CardDetail = () => {
     addTag: state.addTag,
     removeTag: state.removeTag,
     openAddLinkModal: state.openAddLinkModal,
+    removeLink: state.removeLink,
   }));
 
   const {
@@ -60,6 +62,34 @@ const CardDetail = () => {
   const saveCard = async () => {
     await onSave();
     navigate(-1);
+  }
+
+  const onClickLinkCard = (cardId: number) => {
+    Modal.confirm({
+      title: '前往编辑被链接的卡片',
+      content: '当前编辑的卡片将会被保存',
+      onOk: async () => {
+        await onSave();
+        navigate(`/cards/detail/${cardId}`)
+      },
+      okText: '确认',
+      cancelText: '取消'
+    });
+  }
+
+  const unLinkCard = (cardId: number) => {
+    Modal.confirm({
+      title: '确认删除链接',
+      content: '删除链接后，该卡片将不再出现在链接列表中',
+      onOk: async () => {
+        await removeLink(cardId);
+      },
+      okText: '确认',
+      cancelText: '取消',
+      okButtonProps: {
+        danger: true
+      }
+    })
   }
 
   return (
@@ -97,7 +127,7 @@ const CardDetail = () => {
             {
               initLoading
                 ? <Skeleton active />
-                : <CardList list={linkedList} showClose />
+                : <CardList onClick={onClickLinkCard} onClose={unLinkCard} list={linkedList} showClose />
             }
           </div>
         </div>
