@@ -10,10 +10,11 @@ interface TagsProps {
   onClose?: (tag: string) => void;
   className?: string;
   noWrap?: boolean;
+  onClick?: (tag: string) => void;
 }
 
 const Tags = (props: TagsProps) => {
-  const { tags, closable, onClose, className, noWrap = false} = props;
+  const { tags, closable, onClose, onClick, className, noWrap = false} = props;
 
   console.log('tags', tags, noWrap);
 
@@ -38,6 +39,7 @@ const Tags = (props: TagsProps) => {
                 key={tag}
                 closable={closable}
                 onClose={() => onClose && onClose(tag)}
+                onClick={() => onClick && onClick(tag)}
               >
                 {tag}
               </Tag>

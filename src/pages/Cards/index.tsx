@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import {Button, Input} from 'antd';
+import {Button, Input, Skeleton} from 'antd';
 import { useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -15,15 +15,17 @@ const Cards = () => {
   const {
     cards,
     init,
+    loading,
   } = useCardsManagementStore((state) => ({
     cards: state.cards,
     init: state.init,
+    loading: state.initLoading,
   }));
 
   const {
     sourceViewOpen,
     close,
-    content
+    content,
   } = useEditorSourceValueStore((state) => ({
     sourceViewOpen: state.isOpen,
     close: state.close,
@@ -32,6 +34,12 @@ const Cards = () => {
 
   const [searchValue, setSearchValue] = useState<string>('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
+  const [searchTips, setSearchTips] = useState<string[]>(() => {
+    const tips = localStorage.getItem('searchTips');
+    if (tips) return JSON.parse(tips);
+    return [];
+  });
+  const [showSearchTips, setShowSearchTips] = useState<boolean>(false);
 
   const navigate = useNavigate();
 
@@ -44,8 +52,11 @@ const Cards = () => {
 
   const onSearch = () => {
     if (searchValue === '') return;
-    setSearchTags([...searchTags, searchValue]);
+    setSearchTags([...new Set([...searchTags, searchValue])]);
     setSearchValue('');
+    const tips = [...new Set([...searchTips, searchValue].slice(-10))];
+    setSearchTips(tips);
+    localStorage.setItem('searchTips', JSON.stringify(tips));
   }
 
   const createCard = () => {
@@ -54,6 +65,10 @@ const Cards = () => {
 
   const deleteTag = (tag: string) => {
     setSearchTags(searchTags.filter(t => t !== tag));
+  }
+
+  const onClickSearchTag = (tag: string) => {
+    setSearchTags([...new Set([...searchTags, tag])]);
   }
 
   useEffect(() => {
@@ -66,20 +81,36 @@ const Cards = () => {
         <div>
           总数：{filterCards.length}
         </div>
-        <Input
-          style={{ width: 400 }}
-          prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
-          onPressEnter={onSearch}
-          value={searchValue}
-          onChange={(e) => { setSearchValue(e.target.value) }}
-          className={styles.input}
-          placeholder="输入标签进行筛选"
-        />
+        <div className={styles.input}>
+          <Input
+            style={{ width: 400 }}
+            prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
+            onPressEnter={onSearch}
+            value={searchValue}
+            onChange={(e) => { setSearchValue(e.target.value) }}
+            placeholder="输入标签进行筛选"
+            onFocus={() => { setShowSearchTips(true) }}
+            onBlur={() => { setShowSearchTips(false) }}
+          />
+          {
+            showSearchTips &&
+            <div className={styles.searchTips}>
+              <div className={styles.title}>搜索记录</div>
+              <Tags onClick={onClickSearchTag} tags={searchTips} noWrap />
+            </div>
+          }
+        </div>
         <Button className={styles.addCard} onClick={createCard}>新建卡片</Button>
       </div>
       <div className={styles.cardList}>
         {
-          filterCards.slice(0, 20).map((card) => <ErrorBoundary key={card.id}><CardItem key={card.id} card={card} /></ErrorBoundary>)
+          loading
+            ? <Skeleton active />
+            : filterCards.slice(-20).reverse().map((card) => (
+              <ErrorBoundary key={card.id}>
+                <CardItem key={card.id} card={card} />
+              </ErrorBoundary>
+            ))
         }
       </div>
       <EditorSourceValue open={sourceViewOpen} onClose={close} content={content} />
