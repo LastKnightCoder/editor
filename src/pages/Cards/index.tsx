@@ -145,7 +145,9 @@ const Cards = () => {
       <div className={styles.cardList}>
         {
           loading
-            ? <Skeleton active />
+            ? Array.from({ length: 20 }).map((_, index) => (
+              <Skeleton key={index} active />
+            ))
             : filterCards.slice(-20).reverse().map((card) => (
               <ErrorBoundary key={card.id}>
                 <CardItem key={card.id} card={card} />

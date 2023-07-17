@@ -37,10 +37,13 @@
       padding: 20px 0;
       min-width: 600px;
       flex-grow: 1;
-      //flex-shrink: 0;
+      flex-shrink: 0;
     }
     .editor {
       max-width: 800px;
+      @media screen and (max-width: 1280px) {
+        max-width: 700px;
+      }
       margin: 0 auto;
       background-color: #fff;
       padding: 48px 64px;
@@ -52,6 +55,9 @@
     .sidebar {
       min-width: 320px;
       max-width: 500px;
+      @media screen and (max-width: 1280px) {
+        max-width: 320px;
+      }
       position: sticky;
       top: 60px;
       padding: 20px;
