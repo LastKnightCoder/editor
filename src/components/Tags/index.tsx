@@ -16,8 +16,6 @@ interface TagsProps {
 const Tags = (props: TagsProps) => {
   const { tags, closable, onClose, onClick, className, noWrap = false} = props;
 
-  console.log('tags', tags, noWrap);
-
   const realTags = useMemo(() => {
     if (tags.length === 0) {
       return ['暂无标签']

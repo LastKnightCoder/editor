@@ -1,6 +1,8 @@
 import {useEffect, useMemo, useState} from "react";
 import {Button, Input, Skeleton} from 'antd';
 import { useNavigate } from 'react-router-dom';
+import isHotKey from "is-hotkey";
+import { CloseOutlined } from '@ant-design/icons';
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { useEditorSourceValueStore } from "@/pages/Cards/hooks/useEditorSourceValueStore.ts";
@@ -34,6 +36,7 @@ const Cards = () => {
 
   const [searchValue, setSearchValue] = useState<string>('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
+  const [isInputFocus, setIsInputFocus] = useState<boolean>(false);
   const [searchTips, setSearchTips] = useState<string[]>(() => {
     const tips = localStorage.getItem('searchTips');
     if (tips) return JSON.parse(tips);
@@ -54,7 +57,7 @@ const Cards = () => {
     if (searchValue === '') return;
     setSearchTags([...new Set([...searchTags, searchValue])]);
     setSearchValue('');
-    const tips = [...new Set([...searchTips, searchValue].slice(-10))];
+    const tips = [...new Set([searchValue, ...searchTips].slice(0, 10))];
     setSearchTips(tips);
     localStorage.setItem('searchTips', JSON.stringify(tips));
   }
@@ -65,15 +68,31 @@ const Cards = () => {
 
   const deleteTag = (tag: string) => {
     setSearchTags(searchTags.filter(t => t !== tag));
+    setShowSearchTips(false);
   }
 
   const onClickSearchTag = (tag: string) => {
     setSearchTags([...new Set([...searchTags, tag])]);
+    setShowSearchTips(false);
   }
 
   useEffect(() => {
     init().then();
   }, [init]);
+  
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isHotKey('escape', e)) {
+        setShowSearchTips(false);
+      } else if (isHotKey('backspace', e) && searchValue === '') {
+        setSearchTags(searchTags.slice(0, -1));
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isInputFocus, searchTags, searchValue]);
 
   return (
     <div className={styles.cardsManagement}>
@@ -83,19 +102,23 @@ const Cards = () => {
         </div>
         <div className={styles.input}>
           <Input
+            autoFocus
             style={{ width: 400 }}
             prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
             onPressEnter={onSearch}
             value={searchValue}
             onChange={(e) => { setSearchValue(e.target.value) }}
             placeholder="输入标签进行筛选"
-            onFocus={() => { setShowSearchTips(true) }}
-            onBlur={() => { setShowSearchTips(false) }}
+            onFocus={() => { setShowSearchTips(true); setIsInputFocus(true); }}
+            onBlur={() => { setIsInputFocus(false); }}
           />
           {
             showSearchTips &&
             <div className={styles.searchTips}>
-              <div className={styles.title}>搜索记录</div>
+              <div className={styles.searchHeader}>
+                <div className={styles.title}>搜索记录</div>
+                <CloseOutlined onClick={() => { setShowSearchTips(false) }} />
+              </div>
               <Tags onClick={onClickSearchTag} tags={searchTips} noWrap />
             </div>
           }
