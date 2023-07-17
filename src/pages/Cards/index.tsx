@@ -37,6 +37,7 @@ const Cards = () => {
   const [searchValue, setSearchValue] = useState<string>('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
   const [isInputFocus, setIsInputFocus] = useState<boolean>(false);
+  const [isFirstInit, setIsFirstInit] = useState<boolean>(true);
   const [searchTips, setSearchTips] = useState<string[]>(() => {
     const tips = localStorage.getItem('searchTips');
     if (tips) return JSON.parse(tips);
@@ -76,6 +77,22 @@ const Cards = () => {
     setShowSearchTips(false);
   }
 
+  const handleFocus = () => {
+    setIsInputFocus(true);
+    if (isFirstInit) {
+      setIsFirstInit(false);
+    } else {
+      setShowSearchTips(true);
+    }
+  }
+
+  const handleBlur = () => {
+    setIsInputFocus(false);
+    setTimeout(() => {
+      setShowSearchTips(false);
+    }, 100);
+  }
+
   useEffect(() => {
     init().then();
   }, [init]);
@@ -109,8 +126,8 @@ const Cards = () => {
             value={searchValue}
             onChange={(e) => { setSearchValue(e.target.value) }}
             placeholder="输入标签进行筛选"
-            onFocus={() => { setShowSearchTips(true); setIsInputFocus(true); }}
-            onBlur={() => { setIsInputFocus(false); }}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
           />
           {
             showSearchTips &&
