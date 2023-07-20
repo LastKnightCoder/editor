@@ -23,6 +23,6 @@ out
 *.njsproj
 *.sln
 *.sw?
-
+demos
 
 src-tauri/target

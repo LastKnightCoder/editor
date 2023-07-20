@@ -25,5 +25,6 @@
     "types": ["electron-vite/node"]
   },
   "include": ["src"],
+  "exclude": ["demos"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
