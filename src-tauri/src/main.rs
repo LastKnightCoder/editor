@@ -15,7 +15,9 @@ use commands::{
     find_all_cards,
     delete_one_card,
     update_one_card,
-    get_tags_by_id
+    get_tags_by_id,
+    get_card_history_list,
+    get_article_history_list,
 };
 
 fn main() {
@@ -37,7 +39,9 @@ fn main() {
           find_all_cards,
           delete_one_card,
           update_one_card,
-          get_tags_by_id
+          get_tags_by_id,
+          get_card_history_list,
+          get_article_history_list,
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -5,7 +5,8 @@ import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-desi
 import { MdHelpOutline } from 'react-icons/md';
 import { PiDiceThree } from 'react-icons/pi';
 import classnames from 'classnames';
-import { getTagsById } from '@/commands';
+import { getTagsById, getCardHistory } from '@/commands';
+import {open} from '@tauri-apps/api/shell';
 
 import { menuConfigs } from '@/configs';
 
@@ -16,14 +17,16 @@ const topActions = [{
   label: '帮助文档',
   key: 'help',
   onClick: () => {
-    console.log('help');
-    window.open('https://www.bilibili.com', '_blank');
+    open('https://www.bilibili.com');
   },
 }, {
   icon: <PiDiceThree />,
   label: '随机卡片',
   key: 'random',
-  onClick: () => { console.log('random') },
+  onClick: async () => {
+    const history = await getCardHistory(1, 1, 10);
+    console.log('history', history);
+  },
 }];
 
 const bottomActions = [{

@@ -62,7 +62,10 @@ pub fn get_tags_by_id(id: i64, app_state: tauri::State<state::AppState>) -> Resu
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {
-            card::get_tags_by_card_id(&conn, id).map_err(|e| e.to_string())
+            match card::get_tags_by_card_id(&conn, id) {
+                Ok(tags) => Ok(tags),
+                Err(e) => Ok(vec![]),
+            }
         }
         None => Err("Database connection not initialized".to_string()),
     }

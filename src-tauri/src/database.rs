@@ -28,6 +28,7 @@ pub fn init_database() -> Result<Connection, rusqlite::Error> {
 fn init_tables(conn: &Connection) -> Result<()> {
     init_card_table(conn)?;
     init_article_table(conn)?;
+    init_history_table(conn)?;
     Ok(())
 }
 
@@ -57,6 +58,20 @@ fn init_article_table(conn: &Connection) -> Result<()> {
             tags TEXT,
             links TEXT,
             content TEXT
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
+fn init_history_table(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS history (
+            id INTEGER PRIMARY KEY,
+            create_time INTEGER NOT NULL,
+            content TEXT,
+            content_type TEXT,
+            content_id INTEGER
         )",
         [],
     )?;

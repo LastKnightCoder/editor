@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api';
-import { ICard } from "@/types";
+import {ICard, History, CardHistory} from "@/types";
 
 export async function createCard(card: Pick<ICard, 'content' | 'tags' | 'links'>): Promise<number> {
   return await invoke('insert_one_card', {
@@ -48,4 +48,16 @@ export async function getTagsById(id: number): Promise<string[]> {
   return await invoke('get_tags_by_id', {
     id
   });
+}
+
+export async function getCardHistory(id: number, pageNumber: number, pageSize: number, ): Promise<CardHistory[]> {
+  const list: History[] =  await invoke('get_card_history_list', {
+    cardId: id,
+    pageSize,
+    pageNumber,
+  });
+  return list.map((item) => ({
+    ...item,
+    content: JSON.parse(item.content),
+  }));
 }

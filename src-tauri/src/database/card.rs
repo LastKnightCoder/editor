@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
+use super::history::{insert_history, History};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Card {
@@ -33,6 +34,15 @@ pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content
     let tags = serde_json::to_string(&tags).unwrap();
     let links = serde_json::to_string(&links).unwrap();
     let res = stmt.execute(params![now as i64, now as i64, tags, links, content])?;
+    let card = find_one(conn, res as i64)?;
+    let card_string = match serde_json::to_string(&card) {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Error: {}", e);
+            "".to_string()
+        }
+    };
+    insert_history(conn, "card".to_string(), res as i64, card_string)?;
     Ok(res)
 }
 
@@ -65,13 +75,34 @@ pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>
     let tags = serde_json::to_string(&tags).unwrap();
     let links = serde_json::to_string(&links).unwrap();
     let res = stmt.execute(params![now as i64, tags, links, content, id])?;
+    let card = find_one(conn, id)?;
+    let card_string = match serde_json::to_string(&card) {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Error: {}", e);
+            "".to_string()
+        }
+    };
+    insert_history(conn, "card".to_string(), id, card_string)?;
     Ok(res)
 }
 
 pub fn get_tags_by_card_id(conn: &Connection, card_id: i64) -> Result<Vec<String>> {
     let mut stmt = conn.prepare("SELECT tags FROM cards WHERE id = ?1")?;
     let mut rows = stmt.query(params![card_id])?;
-    let row = rows.next()?.unwrap();
+    let row = match rows.next() {
+        Ok(r) => match r {
+            Some(r) => r,
+            None => {
+                println!("Error: card not found");
+                return Ok(vec![]);
+            }
+        },
+        Err(e) => {
+            println!("Error: {}", e);
+            return Ok(vec![]);
+        }
+    };
     let tags: String = row.get(0).unwrap();
     let tags: Vec<String> = serde_json::from_str(&tags).unwrap();
     Ok(tags)
