@@ -2,11 +2,11 @@ use crate::state;
 use crate::database::card;
 
 #[tauri::command]
-pub fn insert_one_card(tags: String, links: String, content: String, app_state: tauri::State<state::AppState>) -> Result<usize, String> {
+pub fn insert_one_card(tags: Vec<String>, links: Vec<i64>, content: String, app_state: tauri::State<state::AppState>) -> Result<usize, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {
-            let res = card::insert_one(&conn, &tags, &links, &content).map_err(|e| e.to_string())?;
+            let res = card::insert_one(&conn, tags, links, &content).map_err(|e| e.to_string())?;
             Ok(res)
         }
         None => Err("Database connection not initialized".to_string()),
@@ -47,11 +47,22 @@ pub fn delete_one_card(id: i64, app_state: tauri::State<state::AppState>) -> Res
 }
 
 #[tauri::command]
-pub fn update_one_card(id: i64, tags: String, links: String, content: String, app_state: tauri::State<state::AppState>) -> Result<usize, String> {
+pub fn update_one_card(id: i64, tags: Vec<String>, links: Vec<i64>, content: String, app_state: tauri::State<state::AppState>) -> Result<usize, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {
-            card::update_one(&conn, id, &tags, &links, &content).map_err(|e| e.to_string())
+            card::update_one(&conn, id, tags, links, &content).map_err(|e| e.to_string())
+        }
+        None => Err("Database connection not initialized".to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn get_tags_by_id(id: i64, app_state: tauri::State<state::AppState>) -> Result<Vec<String>, String> {
+    let conn = app_state.db.lock().unwrap();
+    match &*conn {
+        Some(conn) => {
+            card::get_tags_by_card_id(&conn, id).map_err(|e| e.to_string())
         }
         None => Err("Database connection not initialized".to_string()),
     }

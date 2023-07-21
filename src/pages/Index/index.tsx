@@ -5,6 +5,7 @@ import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-desi
 import { MdHelpOutline } from 'react-icons/md';
 import { PiDiceThree } from 'react-icons/pi';
 import classnames from 'classnames';
+import { getTagsById } from '@/commands';
 
 import { menuConfigs } from '@/configs';
 
@@ -29,7 +30,11 @@ const bottomActions = [{
   icon: <SettingOutlined />,
   label: '设置',
   key: 'setting',
-  onClick: () => { console.log('setting') },
+  onClick: async () => {
+    console.log('setting');
+    const tags = await getTagsById(10);
+    console.log(tags);
+  },
 }]
 
 const Management = () => {

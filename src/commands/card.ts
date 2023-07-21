@@ -4,8 +4,8 @@ import { ICard } from "@/types";
 export async function createCard(card: Pick<ICard, 'content' | 'tags' | 'links'>): Promise<number> {
   return await invoke('insert_one_card', {
     content: JSON.stringify(card.content),
-    tags: JSON.stringify(card.tags),
-    links: JSON.stringify(card.links),
+    tags: card.tags,
+    links: card.links,
   });
 }
 
@@ -15,8 +15,6 @@ export async function getAllCards(): Promise<ICard[]> {
     return {
       ...item,
       content: JSON.parse(item.content),
-      tags: JSON.parse(item.tags),
-      links: JSON.parse(item.links),
     }
   });
 }
@@ -31,8 +29,8 @@ export async function updateCard(card: Pick<ICard, 'content' | 'tags' | 'id' | '
   return await invoke('update_one_card', {
     id: card.id,
     content: JSON.stringify(card.content),
-    tags: JSON.stringify(card.tags),
-    links: JSON.stringify(card.links),
+    tags: card.tags,
+    links: card.links,
   });
 }
 
@@ -43,7 +41,11 @@ export async function findOneCard(id: number): Promise<ICard> {
   return {
     ...res,
     content: JSON.parse(res.content),
-    tags: JSON.parse(res.tags),
-    links: JSON.parse(res.links),
   }
+}
+
+export async function getTagsById(id: number): Promise<string[]> {
+  return await invoke('get_tags_by_id', {
+    id
+  });
 }

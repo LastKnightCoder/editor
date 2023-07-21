@@ -7,25 +7,31 @@ pub struct Card {
     pub id: i64,
     pub create_time: i64,
     pub update_time: i64,
-    pub tags: String,
-    pub links: String,
+    pub tags: Vec<String>,
+    pub links: Vec<i64>,
     pub content: String,
 }
 
 fn get_card_from_query_result(row: &Row) -> Card {
+    let tags: String = row.get(3).unwrap();
+    let tags: Vec<String> = serde_json::from_str(&tags).unwrap();
+    let links: String = row.get(4).unwrap();
+    let links: Vec<i64> = serde_json::from_str(&links).unwrap();
     Card {
         id: row.get(0).unwrap(),
         create_time: row.get(1).unwrap(),
         update_time: row.get(2).unwrap(),
-        tags: row.get(3).unwrap(),
-        links: row.get(4).unwrap(),
+        tags,
+        links,
         content: row.get(5).unwrap(),
     }
 }
 
-pub fn insert_one(conn: &Connection, tags: &str, links: &str, content: &str,) -> Result<usize> {
+pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content: &str,) -> Result<usize> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     let mut stmt = conn.prepare("INSERT INTO cards (create_time, update_time, tags, links, content) VALUES (?1, ?2, ?3, ?4, ?5)")?;
+    let tags = serde_json::to_string(&tags).unwrap();
+    let links = serde_json::to_string(&links).unwrap();
     let res = stmt.execute(params![now as i64, now as i64, tags, links, content])?;
     Ok(res)
 }
@@ -53,9 +59,20 @@ pub fn delete_one(conn: &Connection, id: i64) -> Result<usize> {
     Ok(res)
 }
 
-pub fn update_one(conn: &Connection, id: i64, tags: &str, links: &str, content: &str) -> Result<usize> {
+pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>, content: &str) -> Result<usize> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     let mut stmt = conn.prepare("UPDATE cards SET update_time = ?1, tags = ?2, links = ?3, content = ?4 WHERE id = ?5")?;
+    let tags = serde_json::to_string(&tags).unwrap();
+    let links = serde_json::to_string(&links).unwrap();
     let res = stmt.execute(params![now as i64, tags, links, content, id])?;
     Ok(res)
+}
+
+pub fn get_tags_by_card_id(conn: &Connection, card_id: i64) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT tags FROM cards WHERE id = ?1")?;
+    let mut rows = stmt.query(params![card_id])?;
+    let row = rows.next()?.unwrap();
+    let tags: String = row.get(0).unwrap();
+    let tags: Vec<String> = serde_json::from_str(&tags).unwrap();
+    Ok(tags)
 }
