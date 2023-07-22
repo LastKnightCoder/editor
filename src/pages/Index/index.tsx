@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { Menu, Tooltip } from 'antd';
-import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
+import isHotKey from "is-hotkey";
 import { MdHelpOutline } from 'react-icons/md';
 import { PiDiceThree } from 'react-icons/pi';
 import classnames from 'classnames';
+
+import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
 import { getCardHistory, getCardOperationList } from '@/commands';
 import {open} from '@tauri-apps/api/shell';
-
 import { menuConfigs } from '@/configs';
 
 import styles from './index.module.less';
+
 
 const topActions = [{
   icon: <MdHelpOutline />,
@@ -41,6 +43,19 @@ const bottomActions = [{
 
 const Management = () => {
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const handleCollapse = (e: KeyboardEvent) => {
+      console.log('e', e);
+      if (isHotKey('mod+b', e)) {
+        setCollapsed(pre => !pre);
+      }
+    }
+    document.addEventListener('keydown', handleCollapse);
+    return () => {
+      document.removeEventListener('keydown', handleCollapse);
+    }
+  }, [])
 
   return (
     <div className={styles.container}>

@@ -21,6 +21,7 @@ const markAction = (mark: Mark) => {
         Editor.removeMark(editor, mark);
       }
       event.preventDefault();
+      event.stopPropagation();
     }
   }
 }
