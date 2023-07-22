@@ -1,15 +1,16 @@
+import {useEffect} from "react";
+import {Button, Modal, Skeleton} from "antd";
 import { MdOutlineArrowBackIosNew } from 'react-icons/md';
 import { useParams, useNavigate } from "react-router-dom";
 
-import styles from './index.module.less';
-import {useEffect} from "react";
-import {Button, Modal, Skeleton} from "antd";
 import Editor from "@/components/Editor";
-import useEditCardStore from "../hooks/useEditCardStore.ts";
 import AddTag from "@/pages/Cards/AddTag";
 import useCardsManagementStore from "@/pages/Cards/hooks/useCardsManagementStore.ts";
-import CardList from "./CardList";
 import AddCardLinkModal from "@/pages/Cards/CardDetail/AddCardLinkModal";
+
+import CardList from "./CardList";
+import styles from './index.module.less';
+import useEditCardStore from "../hooks/useEditCardStore.ts";
 
 const CardDetail = () => {
   const { cardId } = useParams();
@@ -48,11 +49,15 @@ const CardDetail = () => {
   const linkedList = cards.filter(card => editingCard?.links.includes(card.id));
 
   useEffect(() => {
-    if (cardId === '') return;
+    // if (cardId === '') return;
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     init(cardId && Number(cardId))
   }, [cardId, init]);
+
+  useEffect(() => {
+    console.log('editingCard', initLoading, editingCard?.content);
+  }, [initLoading, editingCard?.content])
 
   const goBack = () => {
     onCancel();
