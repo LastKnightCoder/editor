@@ -2,6 +2,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
 use super::history::{insert_history, History};
+use super::operation::{insert_operation, Operation};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Card {
@@ -34,6 +35,7 @@ pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content
     let tags = serde_json::to_string(&tags).unwrap();
     let links = serde_json::to_string(&links).unwrap();
     let res = stmt.execute(params![now as i64, now as i64, tags, links, content])?;
+
     let card = find_one(conn, res as i64)?;
     let card_string = match serde_json::to_string(&card) {
         Ok(s) => s,
@@ -43,6 +45,9 @@ pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content
         }
     };
     insert_history(conn, "card".to_string(), res as i64, card_string)?;
+
+    insert_operation(conn, res as i64, "card".to_string(), "insert".to_string())?;
+
     Ok(res)
 }
 
@@ -75,6 +80,7 @@ pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>
     let tags = serde_json::to_string(&tags).unwrap();
     let links = serde_json::to_string(&links).unwrap();
     let res = stmt.execute(params![now as i64, tags, links, content, id])?;
+
     let card = find_one(conn, id)?;
     let card_string = match serde_json::to_string(&card) {
         Ok(s) => s,
@@ -83,7 +89,11 @@ pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>
             "".to_string()
         }
     };
+
     insert_history(conn, "card".to_string(), id, card_string)?;
+
+    insert_operation(conn, id, "card".to_string(), "update".to_string())?;
+
     Ok(res)
 }
 

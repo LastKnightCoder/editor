@@ -5,7 +5,7 @@ import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-desi
 import { MdHelpOutline } from 'react-icons/md';
 import { PiDiceThree } from 'react-icons/pi';
 import classnames from 'classnames';
-import { getTagsById, getCardHistory } from '@/commands';
+import { getCardHistory, getCardOperationList } from '@/commands';
 import {open} from '@tauri-apps/api/shell';
 
 import { menuConfigs } from '@/configs';
@@ -34,9 +34,8 @@ const bottomActions = [{
   label: '设置',
   key: 'setting',
   onClick: async () => {
-    console.log('setting');
-    const tags = await getTagsById(10);
-    console.log(tags);
+    const list = await getCardOperationList();
+    console.log('list', list);
   },
 }]
 

@@ -4,6 +4,7 @@ use simple_home_dir::home_dir;
 pub mod card;
 pub mod article;
 pub mod history;
+pub mod operation;
 
 pub fn init_database() -> Result<Connection, rusqlite::Error> {
     let home_dir = home_dir().unwrap();
@@ -29,6 +30,7 @@ fn init_tables(conn: &Connection) -> Result<()> {
     init_card_table(conn)?;
     init_article_table(conn)?;
     init_history_table(conn)?;
+    init_operation_table(conn)?;
     Ok(())
 }
 
@@ -72,6 +74,20 @@ fn init_history_table(conn: &Connection) -> Result<()> {
             content TEXT,
             content_type TEXT,
             content_id INTEGER
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
+fn init_operation_table(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS operation (
+            id INTEGER PRIMARY KEY,
+            operation_time INTEGER NOT NULL,
+            operation_id INTEGER,
+            operation_content_type TEXT,
+            operation_action TEXT
         )",
         [],
     )?;

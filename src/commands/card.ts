@@ -61,3 +61,7 @@ export async function getCardHistory(id: number, pageNumber: number, pageSize: n
     content: JSON.parse(item.content),
   }));
 }
+
+export async function getCardOperationList() {
+  return await invoke('get_operation_list');
+}

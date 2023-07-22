@@ -18,6 +18,7 @@ use commands::{
     get_tags_by_id,
     get_card_history_list,
     get_article_history_list,
+    get_operation_list,
 };
 
 fn main() {
@@ -42,6 +43,7 @@ fn main() {
           get_tags_by_id,
           get_card_history_list,
           get_article_history_list,
+          get_operation_list,
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
