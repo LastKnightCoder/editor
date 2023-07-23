@@ -50,7 +50,7 @@ const Animate = () => {
               layoutId={String(number)}
               className={styles.item}
               style={{
-                backgroundColor: index === j || index === j + 1 ? 'deepskyblue' : 'white',
+                backgroundColor: index === j || index === j + 1 ? 'deepskyblue' : 'var(--primary-bg-color)',
               }}
             >
               {number}

@@ -1,12 +1,20 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Ubuntu:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+@import "./themes/dark.less";
+@import "./themes/light.less";
 
 body {
   --font: 'Merriweather', '新宋体', '宋体', '楷体-简';
   --mono-font: 'JetBrains Mono', '楷体', '楷体-简';
   --block-distance: 12px;
-  --header-bg-color: #fff;
+  --sidebar-bg: var(--primary-bg-color);
+  --right-sidebar-bg: var(--primary-bg-color);
+  --search-tips-bg: var(--primary-bg-color);
+  --card-item-bg: var(--primary-bg-color);
+  --detail-bg-color: var(--primary-bg-color);
+  --header-bg-color: var(--primary-bg-color);
+  background-color: var(--primary-bg-color);
   font-family: var(--font);
-  font-weight: 500;
+  color: var(--text-normal);
   padding: 0;
   margin: 0;
 }

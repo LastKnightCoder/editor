@@ -1,9 +1,13 @@
 import {MenuProps} from "antd";
 import {MdOutlineArticle, MdOutlineListAlt, MdStickyNote2} from "react-icons/md";
 import {NavLink} from "react-router-dom";
-import {AiOutlineBarChart} from "react-icons/ai";
+import {AiOutlineBarChart, AiOutlineHome} from "react-icons/ai";
 
 export const menuConfigs: MenuProps['items'] = [{
+  key: 'home',
+  label: <NavLink to={'/'}>首页</NavLink>,
+  icon: <AiOutlineHome />,
+},{
   key: 'card',
   label: '卡片管理',
   icon: <MdStickyNote2 />,
@@ -29,8 +33,10 @@ export const menuConfigs: MenuProps['items'] = [{
   key: 'data-statistics',
   label: <NavLink to={'/statistic'}>数据统计</NavLink>,
   icon: <AiOutlineBarChart />,
-}, {
-  key: 'animate',
-  label: <NavLink to={'/animate'}>动画</NavLink>,
-  icon: <AiOutlineBarChart />,
-}]
+},]
+
+// {
+//   key: 'animate',
+//     label: <NavLink to={'/animate'}>动画</NavLink>,
+//   icon: <AiOutlineBarChart />,
+// },

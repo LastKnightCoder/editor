@@ -1,6 +1,5 @@
 .container {
   height: 100vh;
-  //overflow: auto;
   display: flex;
   .sidebar {
     position: fixed;
@@ -8,7 +7,7 @@
     left: 0;
     bottom: 0;
     width: 250px;
-    background-color: #fff;
+    background-color: var(--sidebar-bg-color, #fff);
     height: 100vh;
     transition: width .2s ease-in-out;
     .menu {
@@ -29,6 +28,7 @@
     }
   }
   .detail {
+    background-color: var(--detail-bg-color, #fff);
     position: relative;
     box-sizing: border-box;
     min-height: calc(100vh);
@@ -53,10 +53,10 @@
     display: flex;
     flex-direction: column;
     width: 40px;
-    border-left: 1px solid #e9e9e9;
+    border-left: 1px solid var(--line-color);
     justify-content: space-between;
     align-items: center;
-    background-color: #f9f9f9;
+    background-color: var(--right-sidebar-bg, #fff);
     .actions {
       display: flex;
       flex-direction: column;

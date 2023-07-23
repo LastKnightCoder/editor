@@ -69,8 +69,8 @@ const Management = () => {
           className={classnames(styles.menu, {
             [styles.collapsed]: collapsed,
           })}
-          defaultOpenKeys={['card']}
-          defaultSelectedKeys={['card-list']}
+          defaultOpenKeys={['home']}
+          defaultSelectedKeys={['home']}
           mode="inline"
           items={menuConfigs}
           style={{
