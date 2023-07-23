@@ -12,6 +12,7 @@ interface IState {
   cardEditable: boolean;
   editingCardId: number | undefined;
   editingCard: EditingCard | undefined;
+  readonly: boolean;
 }
 
 interface IActions {
@@ -25,6 +26,7 @@ interface IActions {
   removeTag: (tag: string) => void;
   addLink: (link: number) => void;
   removeLink: (link: number) => void;
+  setReadonly: (readonly: boolean) => void;
 }
 
 const initialState: IState = {
@@ -33,6 +35,7 @@ const initialState: IState = {
   cardEditable: false,
   editingCardId: undefined,
   editingCard: undefined,
+  readonly: false,
 }
 
 const useEditCardStore = create<IState & IActions>((set, get) => ({
@@ -225,6 +228,11 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
   closeAddLinkModal: () => {
     set({
       addLinkModalOpen: false,
+    });
+  },
+  setReadonly: (readonly) => {
+    set({
+      readonly,
     });
   }
 }));

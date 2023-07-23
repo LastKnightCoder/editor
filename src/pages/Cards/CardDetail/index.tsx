@@ -1,5 +1,5 @@
 import {useEffect} from "react";
-import {Button, Modal, Skeleton} from "antd";
+import {Button, Modal, Skeleton, Switch} from "antd";
 import { MdOutlineArrowBackIosNew } from 'react-icons/md';
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -27,6 +27,8 @@ const CardDetail = () => {
     removeTag,
     openAddLinkModal,
     removeLink,
+    readonly,
+    setReadonly
   } = useEditCardStore((state) => ({
     editingCard: state.editingCard,
     init: state.initCard,
@@ -38,6 +40,8 @@ const CardDetail = () => {
     removeTag: state.removeTag,
     openAddLinkModal: state.openAddLinkModal,
     removeLink: state.removeLink,
+    readonly: state.readonly,
+    setReadonly: state.setReadonly,
   }));
 
   const {
@@ -55,8 +59,8 @@ const CardDetail = () => {
   }, [cardId, init]);
 
   const goBack = () => {
-    onCancel();
     navigate(-1);
+    onCancel();
   }
 
   const saveCard = async () => {
@@ -101,6 +105,9 @@ const CardDetail = () => {
         <div className={styles.actions}>
           <Button onClick={openAddLinkModal}>添加链接</Button>
           <Button type="primary" onClick={saveCard}>保存</Button>
+          <div>
+            只读：<Switch checked={readonly} onChange={setReadonly} />
+          </div>
         </div>
       </div>
       <div className={styles.editorContainer}>
@@ -108,7 +115,7 @@ const CardDetail = () => {
           {
             initLoading
               ? <Skeleton active />
-              : <Editor initValue={editingCard?.content} readonly={false} onChange={onEdit} />
+              : <Editor initValue={editingCard?.content} readonly={readonly} onChange={onEdit} />
           }
         </div>
         <div className={styles.sidebar}>
