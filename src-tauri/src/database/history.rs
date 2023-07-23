@@ -29,6 +29,32 @@ pub fn get_history_from_query_result(row: &Row) -> History {
     }
 }
 
+pub fn init_history_table(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS history (
+            id INTEGER PRIMARY KEY,
+            create_time INTEGER NOT NULL,
+            content TEXT,
+            content_type TEXT,
+            content_id INTEGER
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
+pub fn upgrade_history_table(_conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
+    println!("upgrade_history_table: {} -> {}", old_version, new_version);
+    if old_version == new_version {
+        return Ok(());
+    }
+    // 多版本渐进式升级
+    match old_version {
+        _ => {}
+    }
+    Ok(())
+}
+
 // 分页查询
 pub fn get_history_list(conn: &Connection, query: Query) -> Result<Vec<History>> {
     let mut stmt = conn.prepare("SELECT id, create_time, content, content_type, content_id FROM history WHERE content_type = ?1 AND content_id = ?2 ORDER BY create_time DESC LIMIT ?3 OFFSET ?4")?;
@@ -45,22 +71,6 @@ pub fn insert_history(conn: &Connection, content_type: String, content_id: i64, 
     conn.execute(
         "INSERT INTO history (create_time, content, content_type, content_id) VALUES (?1, ?2, ?3, ?4)",
         params![create_time, content, content_type, content_id],
-    )?;
-    Ok(())
-}
-
-pub fn delete_history_by_id(conn: &Connection, id: i64) -> Result<()> {
-    conn.execute(
-        "DELETE FROM history WHERE id = ?1",
-        params![id],
-    )?;
-    Ok(())
-}
-
-pub fn delete_history_by_content_id(conn: &Connection, content_type: String, content_id: i64) -> Result<()> {
-    conn.execute(
-        "DELETE FROM history WHERE content_type = ?1 AND content_id = ?2",
-        params![content_type, content_id],
     )?;
     Ok(())
 }

@@ -29,4 +29,8 @@ export const menuConfigs: MenuProps['items'] = [{
   key: 'data-statistics',
   label: <NavLink to={'/statistic'}>数据统计</NavLink>,
   icon: <AiOutlineBarChart />,
+}, {
+  key: 'animate',
+  label: <NavLink to={'/animate'}>动画</NavLink>,
+  icon: <AiOutlineBarChart />,
 }]

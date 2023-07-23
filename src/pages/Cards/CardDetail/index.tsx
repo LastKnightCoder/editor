@@ -49,15 +49,10 @@ const CardDetail = () => {
   const linkedList = cards.filter(card => editingCard?.links.includes(card.id));
 
   useEffect(() => {
-    // if (cardId === '') return;
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     init(cardId && Number(cardId))
   }, [cardId, init]);
-
-  useEffect(() => {
-    console.log('editingCard', initLoading, editingCard?.content);
-  }, [initLoading, editingCard?.content])
 
   const goBack = () => {
     onCancel();
@@ -109,14 +104,12 @@ const CardDetail = () => {
         </div>
       </div>
       <div className={styles.editorContainer}>
-        <div className={styles.editorWrapper}>
-          <div className={styles.editor}>
-            {
-              initLoading
-                ? <Skeleton active />
-                : <Editor initValue={editingCard?.content} readonly={false} onChange={onEdit} />
-            }
-          </div>
+        <div className={styles.editor}>
+          {
+            initLoading
+              ? <Skeleton active />
+              : <Editor initValue={editingCard?.content} readonly={false} onChange={onEdit} />
+          }
         </div>
         <div className={styles.sidebar}>
           <div className={styles.title}>已添加标签：</div>

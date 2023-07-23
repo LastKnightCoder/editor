@@ -1,8 +1,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
-use super::history::{insert_history, History};
-use super::operation::{insert_operation, Operation};
+use super::history::{insert_history};
+use super::operation::{insert_operation};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Card {
@@ -29,14 +29,48 @@ fn get_card_from_query_result(row: &Row) -> Card {
     }
 }
 
-pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content: &str,) -> Result<usize> {
+pub fn init_card_table(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS cards (
+            id INTEGER PRIMARY KEY,
+            create_time INTEGER NOT NULL,
+            update_time INTEGER NOT NULL,
+            tags TEXT,
+            links TEXT,
+            content TEXT
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
+pub fn upgrade_card_table(_conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
+    println!("upgrade_card_table: {} -> {}", old_version, new_version);
+    if old_version == new_version {
+        return Ok(());
+    }
+    // 多版本渐进式升级
+    match old_version {
+        _ => {}
+    }
+    Ok(())
+}
+
+pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content: &str,) -> Result<i64> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     let mut stmt = conn.prepare("INSERT INTO cards (create_time, update_time, tags, links, content) VALUES (?1, ?2, ?3, ?4, ?5)")?;
-    let tags = serde_json::to_string(&tags).unwrap();
-    let links = serde_json::to_string(&links).unwrap();
-    let res = stmt.execute(params![now as i64, now as i64, tags, links, content])?;
+    let tags_str = serde_json::to_string(&tags).unwrap();
+    let links_str = serde_json::to_string(&links).unwrap();
+    let res = stmt.insert(params![now as i64, now as i64, tags_str, links_str, content])?;
 
-    let card = find_one(conn, res as i64)?;
+    let card = Card {
+        id: res as i64,
+        create_time: now as i64,
+        update_time: now as i64,
+        tags,
+        links,
+        content: content.to_string(),
+    };
     let card_string = match serde_json::to_string(&card) {
         Ok(s) => s,
         Err(e) => {
@@ -44,9 +78,20 @@ pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content
             "".to_string()
         }
     };
-    insert_history(conn, "card".to_string(), res as i64, card_string)?;
 
-    insert_operation(conn, res as i64, "card".to_string(), "insert".to_string())?;
+    match insert_history(conn, "card".to_string(), res as i64, card_string) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("插入历史记录错误 Error: {}", e);
+        }
+    }
+
+    match insert_operation(conn, res as i64, "card".to_string(), "insert".to_string()) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("插入操作记录错误: {}", e);
+        }
+    };
 
     Ok(res)
 }

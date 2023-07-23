@@ -114,7 +114,7 @@ const Cards = () => {
   return (
     <div className={styles.cardsManagement}>
       <div className={styles.header}>
-        <div>
+        <div className={styles.count}>
           总数：{filterCards.length}
         </div>
         <div className={styles.input}>

@@ -7,12 +7,13 @@ import { PiDiceThree } from 'react-icons/pi';
 import classnames from 'classnames';
 
 import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { getCardHistory, getCardOperationList } from '@/commands';
+import { getCardHistory } from '@/commands';
 import {open} from '@tauri-apps/api/shell';
 import { menuConfigs } from '@/configs';
+import useSettingStore from "@/hooks/useSettingStore.ts";
 
+import SettingModal from "./SettingModal";
 import styles from './index.module.less';
-
 
 const topActions = [{
   icon: <MdHelpOutline />,
@@ -31,23 +32,26 @@ const topActions = [{
   },
 }];
 
-const bottomActions = [{
-  icon: <SettingOutlined />,
-  label: '设置',
-  key: 'setting',
-  onClick: async () => {
-    const list = await getCardOperationList();
-    console.log('list', list);
-  },
-}]
-
 const Management = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const {
+    setSettingModalOpen
+  } = useSettingStore(state => ({
+    setSettingModalOpen: state.setSettingModalOpen,
+  }));
+
+  const bottomActions = [{
+    icon: <SettingOutlined />,
+    label: '设置',
+    key: 'setting',
+    onClick: async () => {
+      setSettingModalOpen(true);
+    },
+  }]
 
   useEffect(() => {
     const handleCollapse = (e: KeyboardEvent) => {
-      console.log('e', e);
-      if (isHotKey('mod+b', e)) {
+      if (isHotKey('mod+m', e)) {
         setCollapsed(pre => !pre);
       }
     }
@@ -110,6 +114,7 @@ const Management = () => {
           }
         </div>
       </div>
+      <SettingModal />
     </div>
   )
 }

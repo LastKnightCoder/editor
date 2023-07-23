@@ -21,6 +21,32 @@ pub fn get_operation_from_query_result(row: &Row) -> Operation {
     }
 }
 
+pub fn init_operation_table(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS operation (
+            id INTEGER PRIMARY KEY,
+            operation_time INTEGER NOT NULL,
+            operation_id INTEGER,
+            operation_content_type TEXT,
+            operation_action TEXT
+        )",
+        [],
+    )?;
+    Ok(())
+}
+
+pub fn upgrade_operation_table(_conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
+    println!("upgrade_operation_table: {} -> {}", old_version, new_version);
+    if old_version == new_version {
+        return Ok(());
+    }
+    // 多版本渐进式升级
+    match old_version {
+        _ => {}
+    }
+    Ok(())
+}
+
 pub fn insert_operation(conn: &Connection, operation_id: i64, operation_content_type: String, operation_action: String) -> Result<()> {
     let operation_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
     conn.execute(

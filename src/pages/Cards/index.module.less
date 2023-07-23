@@ -7,16 +7,20 @@
     gap: 10px;
     align-items: center;
     height: 60px;
-    background-color: #f9f9f9;
+    background: var(--header-bg-color, '#fff');
     position: sticky;
     top: 0;
     z-index: 100;
     box-sizing: border-box;
+    .count {
+      white-space: nowrap;
+      width: fit-content;
+    }
     &::before {
       position: absolute;
       bottom: 0;
-      height: 2px;
       width: calc(100% - 80px);
+      height: 1px;
       content: '';
       background-color: #eee;
       margin: 0 auto;

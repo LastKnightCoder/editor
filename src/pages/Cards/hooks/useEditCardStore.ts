@@ -52,7 +52,6 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       };
       // 从 localStorage 中获取上次编辑的卡片
       const lastEditingCard = JSON.parse(localStorage.getItem('lastEditingCard') || 'null');
-      console.log('lastEditingCard', lastEditingCard);
       set({
         editingCardId: undefined,
         editingCard: lastEditingCard || defaultCard,

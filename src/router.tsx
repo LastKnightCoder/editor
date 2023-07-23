@@ -4,6 +4,7 @@ import Index from '@/pages/Index';
 import Cards from "@/pages/Cards";
 import Articles from "@/pages/Articles";
 import Statistic from "@/pages/Statistic";
+import Animate from "@/pages/Animate";
 import LinkGraph from "@/pages/Cards/LinkGraph";
 import CardDetail from "@/pages/Cards/CardDetail";
 
@@ -44,6 +45,9 @@ const routes = [{
   }, {
     path: 'statistic/',
     element: <Statistic />,
+  }, {
+    path: '/animate',
+    element: <Animate />,
   }]
 }]
 

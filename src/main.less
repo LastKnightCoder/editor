@@ -1,16 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Ubuntu:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 
 body {
-  --font: 'Ubuntu', '楷体', '楷体-简';
+  --font: 'Merriweather', '新宋体', '宋体', '楷体-简';
   --mono-font: 'JetBrains Mono', '楷体', '楷体-简';
   --block-distance: 12px;
+  --header-bg-color: #fff;
   font-family: var(--font);
   font-weight: 500;
   padding: 0;
   margin: 0;
 }
 
-code {
+pre, code {
   font-family: var(--mono-font);
 }
 
@@ -82,7 +83,6 @@ p {
   }
 }
 
-/* 滚动槽 */
 &::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -94,7 +94,6 @@ p {
   -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.08);
 }
 
-/* 滚动条滑块 */
 &::-webkit-scrollbar-thumb {
   border-radius: 3px;
   background: rgba(0, 0, 0, 0.12);

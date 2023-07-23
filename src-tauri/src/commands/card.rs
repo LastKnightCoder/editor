@@ -2,7 +2,7 @@ use crate::state;
 use crate::database::card;
 
 #[tauri::command]
-pub fn insert_one_card(tags: Vec<String>, links: Vec<i64>, content: String, app_state: tauri::State<state::AppState>) -> Result<usize, String> {
+pub fn insert_one_card(tags: Vec<String>, links: Vec<i64>, content: String, app_state: tauri::State<state::AppState>) -> Result<i64, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {
@@ -64,7 +64,7 @@ pub fn get_tags_by_id(id: i64, app_state: tauri::State<state::AppState>) -> Resu
         Some(conn) => {
             match card::get_tags_by_card_id(&conn, id) {
                 Ok(tags) => Ok(tags),
-                Err(e) => Ok(vec![]),
+                Err(_e) => Ok(vec![]),
             }
         }
         None => Err("Database connection not initialized".to_string()),
