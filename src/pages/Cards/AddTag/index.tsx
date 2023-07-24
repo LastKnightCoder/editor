@@ -8,10 +8,11 @@ interface AddTagProps {
   tags: string[];
   addTag: (tag: string) => void;
   removeTag: (tag: string) => void;
+  readonly?: boolean;
 }
 
 const AddTag = (props: AddTagProps) => {
-  const { tags, addTag, removeTag } = props;
+  const { tags, addTag, removeTag, readonly = false } = props;
   const [addTagVisible, setAddTagVisible] = useState(false);
   const [inputTag, setInputTag] = useState('');
 
@@ -50,10 +51,10 @@ const AddTag = (props: AddTagProps) => {
       {
         tags.length > 0 &&
         <div className={styles.tags}>
-          <Tags tags={tags} closable onClose={removeTag} noWrap />
+          <Tags tags={tags} closable={!readonly} onClose={!readonly ? removeTag : undefined} noWrap />
         </div>
       }
-      {renderTagView()}
+      { !readonly && renderTagView()}
     </>
   )
 }

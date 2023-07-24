@@ -25,7 +25,7 @@ const CardList = (props: CardListProps) => {
     onClose && onClose(id);
   }
 
-  const itemClass = classnames(styles.item, 'clay', {
+  const itemClass = classnames(styles.item, {
     [styles.hover]: !showClose,
   });
 

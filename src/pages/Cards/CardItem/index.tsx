@@ -21,7 +21,7 @@ const CardItem = memo((props: CardItemProps) => {
 
   // 由于编辑器是非受控，得手动更新
   useEffect(() => {
-    if (ref.current && content) {
+    if (ref.current && content && content.length > 0) {
       ref.current.setEditorValue(content);
     }
   }, [JSON.stringify(content)]);
@@ -34,7 +34,7 @@ const CardItem = memo((props: CardItemProps) => {
       </div>
       <div className={styles.content}>
         <ErrorBoundary>
-          <Editor ref={ref} initValue={content || undefined} readonly={true} />
+          <Editor ref={ref} initValue={(content && content.length > 0) ? content : undefined} readonly={true} />
         </ErrorBoundary>
       </div>
       <Footer cardId={card.id} />

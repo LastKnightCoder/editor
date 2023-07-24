@@ -1,68 +1,14 @@
 .cardDetail {
   position: relative;
-  .header {
-    display: flex;
-    align-items: center;
-    height: 60px;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-sizing: border-box;
-    padding: 0 40px;
-    background: var(--header-bg-color, '#fff');
-    &::before {
-      position: absolute;
-      bottom: 0;
-      height: 1px;
-      width: calc(100% - 80px);
-      content: '';
-      background-color: var(--line-color);
-      margin: 0 auto;
-    }
-    .back {
-      cursor: pointer;
-    }
-    .actions {
-      display: flex;
-      align-items: center;
-      height: 100%;
-      gap: 10px;
-    }
-  }
   .editorContainer {
-    display: flex;
-    justify-content: space-between;
     padding: 40px;
-    gap: 20px;
-    .editor {
-      box-sizing: border-box;
-      min-height: calc(100vh - 100px);
-      min-width: 600px;
-      @media screen and (min-width: 1400px) {
-        min-width: 0;
-        width: 1000px;
-      }
+    max-width: 600px;
+    margin: 0 auto;
+    .tags {
+
     }
-    .sidebar {
-      position: sticky;
-      top: 60px;
-      padding: 20px;
-      min-width: 320px;
-      @media screen and (min-width: 1400px) {
-        min-width: 480px;
-        max-width: 480px;
-      }
-      height: calc(100vh - 60px);
-      box-sizing: border-box;
-      overflow-y: auto;
-      &::-webkit-scrollbar {
-        display: none;
-      }
-      .title {
-        font-weight: bold;
-        margin-bottom: 10px;
-      }
+    .editor {
+
     }
   }
 }

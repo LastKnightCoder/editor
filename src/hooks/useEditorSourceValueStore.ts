@@ -16,7 +16,7 @@ const initialState: IState = {
   content: []
 }
 
-export const useEditorSourceValueStore = create<IState & IActions>((set) => ({
+const useEditorSourceValueStore = create<IState & IActions>((set) => ({
   ...initialState,
   open: (content) => {
     set({
@@ -30,3 +30,5 @@ export const useEditorSourceValueStore = create<IState & IActions>((set) => ({
     });
   }
 }));
+
+export default useEditorSourceValueStore;

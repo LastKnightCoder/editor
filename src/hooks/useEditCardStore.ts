@@ -57,7 +57,7 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       const lastEditingCard = JSON.parse(localStorage.getItem('lastEditingCard') || 'null');
       set({
         editingCardId: undefined,
-        editingCard: lastEditingCard || defaultCard,
+        editingCard: lastEditingCard && lastEditingCard.length > 0 ? lastEditingCard : defaultCard,
         cardEditable: true,
         initLoading: false,
       });

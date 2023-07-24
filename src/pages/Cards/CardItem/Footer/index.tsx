@@ -2,8 +2,8 @@ import styles from './index.module.less';
 import {DeleteOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
 import {Tooltip, Popconfirm, Drawer} from "antd";
 import { useNavigate } from 'react-router-dom';
-import useCardsManagementStore from "../../hooks/useCardsManagementStore.ts";
-import {useEditorSourceValueStore} from "@/pages/Cards/hooks/useEditorSourceValueStore.ts";
+import useCardsManagementStore from "@/hooks/useCardsManagementStore.ts";
+import useEditorSourceValueStore from "@/hooks/useEditorSourceValueStore.ts";
 import Editor from "@/components/Editor";
 import {useState} from "react";
 

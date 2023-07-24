@@ -5,12 +5,13 @@ import isHotKey from "is-hotkey";
 import { CloseOutlined } from '@ant-design/icons';
 
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { useEditorSourceValueStore } from "@/pages/Cards/hooks/useEditorSourceValueStore.ts";
+import useEditorSourceValueStore from "@/hooks/useEditorSourceValueStore.ts";
+import useCardsManagementStore from "@/hooks/useCardsManagementStore";
+
 import EditorSourceValue from "@/components/EditorSourceValue";
 import Tags from "@/components/Tags";
 
 import CardItem from "./CardItem";
-import useCardsManagementStore from "./hooks/useCardsManagementStore";
 import styles from './index.module.less';
 
 const Cards = () => {
@@ -88,6 +89,8 @@ const Cards = () => {
 
   const handleBlur = () => {
     setIsInputFocus(false);
+    // 因为点击搜索记录中的 tag 的时候会失焦，搜索记录面板会立即消失，无法点击
+    // 因此延时 100 ms 消失，使得点击搜索记录面板上的 tag 时，先触发 onClickSearchTag，再消失
     setTimeout(() => {
       setShowSearchTips(false);
     }, 100);
@@ -101,7 +104,7 @@ const Cards = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isHotKey('escape', e)) {
         setShowSearchTips(false);
-      } else if (isHotKey('backspace', e) && searchValue === '') {
+      } else if (isHotKey('backspace', e) && searchValue === '' && isInputFocus) {
         setSearchTags(searchTags.slice(0, -1));
       }
     }
@@ -148,9 +151,9 @@ const Cards = () => {
             ? Array.from({ length: 20 }).map((_, index) => (
               <Skeleton key={index} active />
             ))
-            : filterCards.slice(-20).reverse().map((card) => (
+            : filterCards.slice(-10).reverse().map((card) => (
               <ErrorBoundary key={card.id}>
-                <CardItem key={card.id} card={card} />
+                <CardItem card={card} />
               </ErrorBoundary>
             ))
         }

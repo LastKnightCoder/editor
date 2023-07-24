@@ -1,11 +1,16 @@
-import {Button, Drawer, Empty, Input} from 'antd';
-import useEditCardStore from "../../hooks/useEditCardStore.ts";
-import CardList from '../CardList';
-import useCardsManagementStore from "@/pages/Cards/hooks/useCardsManagementStore.ts";
-import styles from './index.module.less';
 import {useMemo, useState} from "react";
+import {Drawer, Empty, Input, Modal, Tabs, TabsProps} from 'antd';
+import {useNavigate} from "react-router-dom";
+
+import useEditCardStore from "@/hooks/useEditCardStore.ts";
+import useCardsManagementStore from "@/hooks/useCardsManagementStore.ts";
+
 import Tags from "@/components/Tags";
 import {ICard} from "@/types";
+
+import CardList from '../CardList';
+
+import styles from './index.module.less';
 
 const AddCardLinkModal = () => {
   const {
@@ -13,16 +18,21 @@ const AddCardLinkModal = () => {
     editingCard,
     closeAddLinkModal,
     addLink,
+    removeLink,
+    onSave,
   } = useEditCardStore((state) => ({
     open: state.addLinkModalOpen,
     editingCard: state.editingCard,
     closeAddLinkModal: state.closeAddLinkModal,
-    addLink: state.addLink
+    addLink: state.addLink,
+    removeLink: state.removeLink,
+    onSave: state.onEditingCardSave,
   }));
+
+  const navigate = useNavigate();
   
   const [searchValue, setSearchValue] = useState('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
-  const [toBeAddedCards, setToBeAddedCards] = useState<number[]>([]);
 
   const {
     cards
@@ -35,7 +45,6 @@ const AddCardLinkModal = () => {
       cards
         .filter(card => editingCard?.id !== card.id)
         .filter(card => !editingCard?.links.includes(card.id))
-        .filter(card => !toBeAddedCards.includes(card.id))
     if (searchTags.length === 0) return filteredCards;
     return (
       filteredCards
@@ -50,8 +59,9 @@ const AddCardLinkModal = () => {
             )
         )
     )
-  }, [cards, editingCard?.id, editingCard?.links, searchTags, toBeAddedCards]);
-  const toBeLinkedList = toBeAddedCards.map(id => cards.find(card => card.id === id));
+  }, [cards, editingCard?.id, editingCard?.links, searchTags]);
+
+  const linkedList = editingCard?.links.map(id => cards.find(card => card.id === id)) as ICard[];
 
   const onSearch = () => {
     setSearchTags([...searchTags, searchValue]);
@@ -62,20 +72,43 @@ const AddCardLinkModal = () => {
     setSearchTags(searchTags.filter(searchTag => searchTag !== tag));
   }
 
-  const onAddToLink = (id: number) => {
-    setToBeAddedCards([...new Set([...toBeAddedCards, id])])
+  const onAddLink = (cardId: number) => {
+    Modal.confirm({
+      title: '确认添加链接吗？',
+      onOk: () => {
+        addLink(cardId);
+      },
+      okText: '确认',
+      cancelText: '取消'
+    });
   }
 
-  const onRemoveLink = (id: number) => {
-    setToBeAddedCards(toBeAddedCards.filter(card => card !== id))
+  const onRemoveLink = (cardId: number) => {
+    Modal.confirm({
+      title: '确认删除链接',
+      content: '删除链接后，该卡片将不再出现在链接列表中',
+      onOk: async () => {
+        await removeLink(cardId);
+      },
+      okText: '确认',
+      cancelText: '取消',
+      okButtonProps: {
+        danger: true
+      }
+    })
   }
 
-  const addAllLinks = async () => {
-    toBeAddedCards.forEach(cardId => addLink(cardId));
-    setSearchTags([]);
-    setSearchValue('');
-    setToBeAddedCards([]);
-    onCloseModal();
+  const onClickLinkCard = (cardId: number) => {
+    Modal.confirm({
+      title: '前往编辑被链接的卡片',
+      content: '当前编辑的卡片将会被保存',
+      onOk: async () => {
+        await onSave();
+        navigate(`/cards/detail/${cardId}`)
+      },
+      okText: '确认',
+      cancelText: '取消'
+    });
   }
 
   const onCloseModal = () => {
@@ -83,6 +116,39 @@ const AddCardLinkModal = () => {
     setSearchTags([]);
     closeAddLinkModal();
   }
+
+  const items: TabsProps['items'] = [{
+    key: 'linked-card',
+    label: '已链接的卡片',
+    children: (
+      <>
+        {
+          linkedList?.length > 0
+            ? <CardList onClick={onClickLinkCard} onClose={onRemoveLink} list={linkedList} showClose />
+            : <Empty />
+        }
+      </>
+    )
+  }, {
+    key: 'not-linked-card',
+    label: '未链接的卡片',
+    children: (
+      <>
+        <Input
+          value={searchValue}
+          prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={onDeleteTag} /> : undefined}
+          onChange={(e) => { setSearchValue(e.target.value) }}
+          onPressEnter={onSearch}
+          placeholder={'请输入标签进行筛选'}
+        />
+        {
+          notLinkedList.length > 0
+            ? <CardList onClick={onAddLink} list={notLinkedList.slice(0, 10)} />
+            : <Empty />
+        }
+      </>
+    )
+  }]
 
   if (!open) {
     return null;
@@ -95,32 +161,8 @@ const AddCardLinkModal = () => {
       onClose={onCloseModal}
       className={styles.drawer}
       width={600}
-      footer={(
-        <div className={styles.footer}>
-          <Button onClick={onCloseModal}>取消</Button>
-          <Button type={'primary'} onClick={addAllLinks}>确定</Button>
-        </div>
-      )}
     >
-      <Input
-        value={searchValue}
-        prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={onDeleteTag} /> : undefined}
-        onChange={(e) => { setSearchValue(e.target.value) }}
-        onPressEnter={onSearch}
-        placeholder={'请输入标签进行筛选'}
-      />
-      <div className={styles.linkTitle}>即将链接的卡片</div>
-      {
-        toBeLinkedList.length > 0
-          ? <CardList onClose={onRemoveLink} list={toBeLinkedList as ICard[]} showClose />
-          : <Empty />
-      }
-      <div className={styles.linkTitle}>未链接的卡片</div>
-      {
-        notLinkedList.length > 0
-          ? <CardList onClick={onAddToLink} list={notLinkedList.slice(0, 20)} />
-          : <Empty />
-      }
+      <Tabs items={items} />
     </Drawer>
   )
 }

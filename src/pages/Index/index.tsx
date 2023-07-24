@@ -5,32 +5,15 @@ import isHotKey from "is-hotkey";
 import { MdHelpOutline } from 'react-icons/md';
 import { PiDiceThree } from 'react-icons/pi';
 import classnames from 'classnames';
-
-import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
-import { getCardHistory } from '@/commands';
 import {open} from '@tauri-apps/api/shell';
+import { MenuFoldOutlined, MenuUnfoldOutlined, SettingOutlined } from '@ant-design/icons';
+
+import { getCardHistory } from '@/commands';
 import { menuConfigs } from '@/configs';
 import useSettingStore from "@/hooks/useSettingStore.ts";
 
 import SettingModal from "./SettingModal";
 import styles from './index.module.less';
-
-const topActions = [{
-  icon: <MdHelpOutline />,
-  label: '帮助文档',
-  key: 'help',
-  onClick: () => {
-    open('https://www.bilibili.com');
-  },
-}, {
-  icon: <PiDiceThree />,
-  label: '随机卡片',
-  key: 'random',
-  onClick: async () => {
-    const history = await getCardHistory(1, 1, 10);
-    console.log('history', history);
-  },
-}];
 
 const Management = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -39,6 +22,23 @@ const Management = () => {
   } = useSettingStore(state => ({
     setSettingModalOpen: state.setSettingModalOpen,
   }));
+
+  const topActions = [{
+    icon: <MdHelpOutline />,
+    label: '帮助文档',
+    key: 'help',
+    onClick: () => {
+      open('https://www.bilibili.com');
+    },
+  }, {
+    icon: <PiDiceThree />,
+    label: '随机卡片',
+    key: 'random',
+    onClick: async () => {
+      const history = await getCardHistory(1, 1, 10);
+      console.log('history', history);
+    },
+  }];
 
   const bottomActions = [{
     icon: <SettingOutlined />,
