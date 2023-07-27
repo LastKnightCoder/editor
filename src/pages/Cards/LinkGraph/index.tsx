@@ -18,7 +18,7 @@ const LinkGraph = () => {
   }, []);
 
   useEffect(() => {
-    if (graph.current || !ref.current || loading) return;
+    if (graph.current || !ref.current || loading || cards.length === 0) return;
     const width = ref.current.clientWidth;
     const height = window.innerHeight;
     graph.current = new Graph({
@@ -61,6 +61,10 @@ const LinkGraph = () => {
       edges,
     });
     graph.current.render();
+
+    return () => {
+      if (graph.current) graph.current.destroy();
+    }
   }, [cards, loading]);
 
   useEffect(() => {

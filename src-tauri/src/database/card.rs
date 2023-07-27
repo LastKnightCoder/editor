@@ -1,7 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
-use super::history::{insert_history};
 use super::operation::{insert_operation};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -63,29 +62,6 @@ pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content
     let links_str = serde_json::to_string(&links).unwrap();
     let res = stmt.insert(params![now as i64, now as i64, tags_str, links_str, content])?;
 
-    let card = Card {
-        id: res as i64,
-        create_time: now as i64,
-        update_time: now as i64,
-        tags,
-        links,
-        content: content.to_string(),
-    };
-    let card_string = match serde_json::to_string(&card) {
-        Ok(s) => s,
-        Err(e) => {
-            println!("Error: {}", e);
-            "".to_string()
-        }
-    };
-
-    match insert_history(conn, "card".to_string(), res as i64, card_string) {
-        Ok(_) => {}
-        Err(e) => {
-            println!("插入历史记录错误 Error: {}", e);
-        }
-    }
-
     match insert_operation(conn, res as i64, "card".to_string(), "insert".to_string()) {
         Ok(_) => {}
         Err(e) => {
@@ -125,17 +101,6 @@ pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>
     let tags = serde_json::to_string(&tags).unwrap();
     let links = serde_json::to_string(&links).unwrap();
     let res = stmt.execute(params![now as i64, tags, links, content, id])?;
-
-    let card = find_one(conn, id)?;
-    let card_string = match serde_json::to_string(&card) {
-        Ok(s) => s,
-        Err(e) => {
-            println!("Error: {}", e);
-            "".to_string()
-        }
-    };
-
-    insert_history(conn, "card".to_string(), id, card_string)?;
 
     insert_operation(conn, id, "card".to_string(), "update".to_string())?;
 
