@@ -1,7 +1,7 @@
-import { memo, useEffect, useRef } from "react";
+import { memo } from "react";
 import dayjs from "dayjs";
 
-import Editor, {EditorRef} from "@/components/Editor";
+import Editor from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Footer from "./Footer";
 import styles from './index.module.less';
@@ -17,15 +17,6 @@ const CardItem = memo((props: CardItemProps) => {
   const { card } = props;
   const { content, update_time, tags } = card;
 
-  const ref = useRef<EditorRef>(null);
-
-  // 由于编辑器是非受控，得手动更新
-  useEffect(() => {
-    if (ref.current && content && content.length > 0) {
-      ref.current.setEditorValue(content);
-    }
-  }, [JSON.stringify(content)]);
-
   return (
     <div className={styles.item}>
       <Tags tags={tags} />
@@ -34,7 +25,7 @@ const CardItem = memo((props: CardItemProps) => {
       </div>
       <div className={styles.content}>
         <ErrorBoundary>
-          <Editor ref={ref} initValue={(content && content.length > 0) ? content : undefined} readonly={true} />
+          <Editor initValue={(content && content.length > 0) ? content.slice(0, 2) : undefined} readonly={true} />
         </ErrorBoundary>
       </div>
       <Footer cardId={card.id} />

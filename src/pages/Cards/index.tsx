@@ -122,7 +122,6 @@ const Cards = () => {
         </div>
         <div className={styles.input}>
           <Input
-            autoFocus
             style={{ width: 400 }}
             prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
             onPressEnter={onSearch}
@@ -151,7 +150,7 @@ const Cards = () => {
             ? Array.from({ length: 20 }).map((_, index) => (
               <Skeleton key={index} active />
             ))
-            : filterCards.slice(-10).reverse().map((card) => (
+            : filterCards.slice(searchTags.length > 0 ? -100 : -40).reverse().map((card) => (
               <ErrorBoundary key={card.id}>
                 <CardItem card={card} />
               </ErrorBoundary>
