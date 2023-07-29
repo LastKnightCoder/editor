@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
+use super::operation::{insert_operation};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DailyNote {
@@ -47,6 +48,14 @@ pub fn insert_daily_note(
     let mut stmt = conn.prepare("INSERT INTO daily_notes (date, content) VALUES (?1, ?2)")?;
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     let result = stmt.insert(params![date, content])?;
+
+    match insert_operation(conn, result as i64, "daily".to_string(), "insert".to_string()) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("插入操作记录错误: {}", e);
+        }
+    };
+
     Ok(result)
 }
 
@@ -57,6 +66,14 @@ pub fn update_daily_note(
 ) -> Result<usize> {
     let mut stmt = conn.prepare("UPDATE daily_notes SET content = ?1 WHERE id = ?2")?;
     let result = stmt.execute(params![content, id])?;
+
+    match insert_operation(conn, result as i64, "daily".to_string(), "update".to_string()) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("插入操作记录错误: {}", e);
+        }
+    };
+
     Ok(result)
 }
 
