@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { DailyNote } from "@/types/daily_note.ts";
-import { getAllDailyNotes, createDailyNote, updateDailyNote } from '@/commands';
+import { getAllDailyNotes, createDailyNote, updateDailyNote, deleteDailyNote } from '@/commands';
 import {Descendant} from "slate";
 
 interface IState {
@@ -17,6 +17,7 @@ interface IActions {
   onDailyContentChange: (content: Descendant[]) => void;
   onSaveDailyNote: () => Promise<void>;
   onCancelDailyNote: () => void;
+  deleteDailyNote: (id: number) => Promise<void>;
 }
 
 const initialState: IState = {
@@ -85,6 +86,13 @@ const useDailyNoteStore = create<IState & IActions>((set, get) => ({
         ...editingDailyNote,
         content,
       }
+    });
+  },
+  deleteDailyNote: async (id: number) => {
+    await deleteDailyNote(id);
+    const dailyNotes = await getAllDailyNotes();
+    set({
+      dailyNotes,
     });
   }
 }))

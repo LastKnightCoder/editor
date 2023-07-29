@@ -1,3 +1,16 @@
 .dailyNote {
-
+  .dailyNoteItem {
+    position: relative;
+    .delete {
+      display: none;
+      position: absolute;
+      top: 0;
+      right: 0;
+    }
+    &:hover {
+      .delete {
+        display: block;
+      }
+    }
+  }
 }

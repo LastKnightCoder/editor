@@ -37,3 +37,9 @@ export const getAllDailyNotes = async (): Promise<DailyNote[]> => {
     }
   });
 }
+
+export const deleteDailyNote = async (id: number): Promise<void> => {
+  return await invoke('delete_daily_note', {
+    id
+  })
+}

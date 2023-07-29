@@ -1,10 +1,11 @@
-import {Button, Calendar, Skeleton, Drawer } from 'antd';
+import {Button, Calendar, Skeleton, Drawer, Modal} from 'antd';
 import useDailyNoteStore from "@/hooks/useDailyNoteStore.ts";
 import {SelectInfo} from "antd/es/calendar/generateCalendar";
 import type { Dayjs } from "dayjs";
 import styles from './index.module.less';
-import {useEffect} from "react";
+import React, {useEffect} from "react";
 import Editor from "@/components/Editor";
+import {DeleteOutlined} from "@ant-design/icons";
 
 const DailyNote = () => {
   const {
@@ -18,6 +19,7 @@ const DailyNote = () => {
     onCancelDailyNote,
     open,
     editingDailyNote,
+    deleteDailyNote,
   } = useDailyNoteStore(state => ({
     initLoading: state.initLoading,
     init: state.init,
@@ -29,6 +31,7 @@ const DailyNote = () => {
     onDailyContentChange: state.onDailyContentChange,
     open: state.editingDailyNoteOpen,
     editingDailyNote: state.editingDailyNote,
+    deleteDailyNote: state.deleteDailyNote,
   }));
 
   useEffect(() => {
@@ -45,6 +48,21 @@ const DailyNote = () => {
     }
   }
 
+  const handleDeleteDailyNote = (e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    Modal.confirm({
+      title: '是否要删除此篇日记',
+      onOk: async () => {
+        await deleteDailyNote(id);
+      },
+      okText: '删除',
+      cancelText: '取消',
+      okButtonProps: {
+        danger: true
+      }
+    })
+  }
+
   const cellRender = (value: Dayjs) => {
     const dailyNote = dailyNotes.find(item => item.date === value.format('YYYY-MM-DD'));
     if (dailyNote) {
@@ -52,7 +70,10 @@ const DailyNote = () => {
         <div className={styles.dailyNoteItem} onClick={() => {
           onUpdateDailyNote(dailyNote);
         }}>
-          <Editor initValue={dailyNote.content.slice(1)} readonly />
+          <Editor initValue={dailyNote.content} readonly />
+          <div className={styles.delete} onClick={(e) => { handleDeleteDailyNote(e, dailyNote.id) }}>
+            <DeleteOutlined />
+          </div>
         </div>
       )
     }
