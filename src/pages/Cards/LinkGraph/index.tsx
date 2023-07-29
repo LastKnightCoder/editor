@@ -72,6 +72,7 @@ const LinkGraph = () => {
         selected: {
           fill: '#91d5ff',
           stroke: '#40a9ff',
+          lineWidth: 8,
         }
       }
     });
@@ -149,8 +150,8 @@ const LinkGraph = () => {
     graph.current.on('wheel', handleGraphZoomAndMove);
     
     return () => {
-      graph.current?.off('canvas:drag');
-      graph.current?.off('wheel');
+      graph.current?.off('canvas:drag', handleGraphZoomAndMove);
+      graph.current?.off('wheel', handleGraphZoomAndMove);
     }
   }, [activeId])
 

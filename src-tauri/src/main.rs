@@ -19,6 +19,12 @@ use commands::{
     get_card_history_list,
     get_article_history_list,
     get_operation_list,
+    insert_daily_note,
+    update_daily_note,
+    delete_daily_note,
+    find_daily_note_by_id,
+    find_daily_note_by_date,
+    find_all_daily_notes,
 };
 
 fn main() {
@@ -44,6 +50,12 @@ fn main() {
           get_card_history_list,
           get_article_history_list,
           get_operation_list,
+          insert_daily_note,
+          update_daily_note,
+          delete_daily_note,
+          find_daily_note_by_id,
+          find_daily_note_by_date,
+          find_all_daily_notes,
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

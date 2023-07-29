@@ -5,11 +5,13 @@ pub mod card;
 pub mod article;
 pub mod history;
 pub mod operation;
+pub mod daily_note;
 
 use self::card::{init_card_table, upgrade_card_table};
 use self::article::{init_article_table, upgrade_article_table};
 use self::history::{init_history_table, upgrade_history_table};
 use self::operation::{init_operation_table, upgrade_operation_table};
+use self::daily_note::{init_daily_note_table, upgrade_daily_note_table};
 
 pub fn init_database() -> Result<Connection, rusqlite::Error> {
     let home_dir = home_dir().unwrap();
@@ -36,6 +38,7 @@ fn init_tables(conn: &Connection) -> Result<()> {
     init_article_table(conn)?;
     init_history_table(conn)?;
     init_operation_table(conn)?;
+    init_daily_note_table(conn)?;
     Ok(())
 }
 
@@ -44,5 +47,6 @@ fn upgrade_database(conn: &Connection, old_version: i64, new_version: i64) -> Re
     upgrade_article_table(conn, old_version, new_version)?;
     upgrade_history_table(conn, old_version, new_version)?;
     upgrade_operation_table(conn, old_version, new_version)?;
+    upgrade_daily_note_table(conn, old_version, new_version)?;
     Ok(())
 }

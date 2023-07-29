@@ -5,9 +5,9 @@ import Cards from "@/pages/Cards";
 import Articles from "@/pages/Articles";
 import Statistic from "@/pages/Statistic";
 import Animate from "@/pages/Animate";
+import DailyNote from "@/pages/DailyNote";
 import LinkGraph from "@/pages/Cards/LinkGraph";
 import CardDetail from "@/pages/Cards/CardDetail";
-
 
 const routes = [{
   path: '/',
@@ -48,6 +48,9 @@ const routes = [{
   }, {
     path: '/animate',
     element: <Animate />,
+  }, {
+    path: '/daily',
+    element: <DailyNote />,
   }]
 }]
 
