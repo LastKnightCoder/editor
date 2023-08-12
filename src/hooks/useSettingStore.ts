@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { ReactNode } from "react";
+import { produce } from "immer";
 
 interface SideBarAction {
   icon: ReactNode;
@@ -21,11 +22,15 @@ interface IState {
 
 interface IActions {
   setSettingModalOpen: (open: boolean) => void;
+  onChineseFontChange: (font: string) => void;
+  onEnglishFontChange: (font: string) => void;
 }
+
+const initFontSetting = JSON.parse(localStorage.getItem('fontSetting') || 'null');
 
 const initialState: IState = {
   settingModalOpen: false,
-  fontSetting: {
+  fontSetting: initFontSetting ||  {
     chineseFont: '新宋体',
     englishFont: 'Merriweather',
   },
@@ -35,11 +40,30 @@ const initialState: IState = {
   }
 }
 
-const useSettingStore = create<IState & IActions>((set) => ({
+const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
   setSettingModalOpen: (open) => {
     set({
       settingModalOpen: open,
+    });
+  },
+  onChineseFontChange: (font) => {
+    const { fontSetting } = get();
+    console.log('font', font);
+    const newFontSetting = produce(fontSetting, (draft) => {
+      draft.chineseFont = font;
+    });
+    set({
+      fontSetting: newFontSetting,
+    });
+  },
+  onEnglishFontChange: (font) => {
+    const { fontSetting } = get();
+    const newFontSetting = produce(fontSetting, (draft) => {
+      draft.englishFont = font;
+    });
+    set({
+      fontSetting: newFontSetting,
     });
   }
 }));

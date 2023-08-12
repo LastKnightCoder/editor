@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState, useRef} from "react";
+import {useEffect, useMemo, useState, useRef, useCallback, memo} from "react";
 import {Button, Input, Skeleton, Spin, FloatButton} from 'antd';
 import { useNavigate } from 'react-router-dom';
 import isHotKey from "is-hotkey";
@@ -14,7 +14,7 @@ import Tags from "@/components/Tags";
 import CardItem from "./CardItem";
 import styles from './index.module.less';
 
-const Cards = () => {
+const Cards = memo(() => {
   const {
     cards,
     init,
@@ -57,10 +57,10 @@ const Cards = () => {
     })
   }, [cards, searchTags]);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (loading) return;
     setCardCount(Math.min(cardCount + 20, filterCards.length));
-  }
+  }, [loading, cardCount, filterCards]);
 
   const scrollToTop = () => {
     const detailContainer = document.querySelector('#detail-container');
@@ -70,6 +70,7 @@ const Cards = () => {
           top: 0,
           behavior: 'smooth',
         });
+        setCardCount(20);
       }, 100);
     }
   }
@@ -92,14 +93,12 @@ const Cards = () => {
   const deleteTag = (tag: string) => {
     setSearchTags(searchTags.filter(t => t !== tag));
     setShowSearchTips(false);
-    setCardCount(20);
     scrollToTop();
   }
 
   const onClickSearchTag = (tag: string) => {
     setSearchTags([...new Set([...searchTags, tag])]);
     setShowSearchTips(false);
-    setCardCount(20);
     scrollToTop();
   }
 
@@ -140,13 +139,14 @@ const Cards = () => {
       if (entries[0].isIntersecting) {
         loadMore();
       }
-    })
-    if (loaderRef.current) {
-      observer.observe(loaderRef.current);
+    });
+    const loader = loaderRef.current;
+    if (loader) {
+      observer.observe(loader);
     }
     return () => {
-      if (loaderRef.current) {
-        observer.unobserve(loaderRef.current);
+      if (loader) {
+        observer.unobserve(loader);
       }
     }
   }, [loadMore])
@@ -214,6 +214,6 @@ const Cards = () => {
       />
     </div>
   )
-}
+})
 
 export default Cards;

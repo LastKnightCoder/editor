@@ -1,5 +1,5 @@
 import {MdOutlineArrowBackIosNew} from "react-icons/md";
-import {Button, Tooltip} from "antd";
+import {Button, Modal, Tooltip} from "antd";
 import {useNavigate} from "react-router-dom";
 import { AiOutlineSave, AiOutlineLink } from "react-icons/ai";
 
@@ -23,8 +23,23 @@ const Header = () => {
   }));
 
   const goBack = () => {
-    navigate(-1);
-    onCancel();
+    Modal.confirm({
+      title: '内容尚未保存，是否需要保存？',
+      onOk: async () => {
+        await onSave();
+        setTimeout(() => {
+          navigate(-1);
+        }, 100);
+      },
+      onCancel: () => {
+        onCancel();
+        setTimeout(() => {
+          navigate(-1);
+        }, 100);
+      },
+      okText: '保存',
+      cancelText: '不保存',
+    })
   }
 
   const saveCard = async () => {
