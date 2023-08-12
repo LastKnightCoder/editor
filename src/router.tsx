@@ -1,6 +1,6 @@
 import {createBrowserRouter, Navigate} from "react-router-dom";
 
-import Index from '@/pages/Index';
+import DefaultLayout from '@/layouts/DefaultLayout';
 import Cards from "@/pages/Cards";
 import Articles from "@/pages/Articles";
 import Statistic from "@/pages/Statistic";
@@ -11,7 +11,7 @@ import CardDetail from "@/pages/Cards/CardDetail";
 
 const routes = [{
   path: '/',
-  element: <Index />,
+  element: <DefaultLayout />,
   children: [{
     index: true,
     element: <Navigate to="/cards" replace />,

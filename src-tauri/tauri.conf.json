@@ -16,6 +16,17 @@
         "execute": true,
         "sidecar": true,
         "open": true
+      },
+      "window": {
+        "all": false,
+        "close": true,
+        "hide": true,
+        "show": true,
+        "maximize": true,
+        "minimize": true,
+        "unmaximize": true,
+        "unminimize": true,
+        "startDragging": true
       }
     },
     "bundle": {
@@ -64,7 +75,8 @@
         "height": 600,
         "resizable": true,
         "title": "editor",
-        "width": 800
+        "width": 800,
+        "decorations": false
       }
     ]
   }

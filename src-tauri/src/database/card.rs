@@ -80,7 +80,9 @@ pub fn find_one(conn: &Connection, id: i64) -> Result<Card> {
 }
 
 pub fn find_all(conn: &Connection) -> Result<Vec<Card>> {
-    let mut stmt = conn.prepare("SELECT id, create_time, update_time, tags, links, content FROM cards")?;
+    // 根据更新时间倒序
+    let sql = "SELECT id, create_time, update_time, tags, links, content FROM cards ORDER BY update_time DESC";
+    let mut stmt = conn.prepare(sql)?;
     let mut rows = stmt.query([])?;
     let mut res = Vec::new();
     while let Some(row) = rows.next()? {

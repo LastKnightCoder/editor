@@ -1,0 +1,27 @@
+.defaultLayout {
+  display: flex;
+  --sidebar-width: 60px;
+  --title-bar-height: 60px;
+  --container-width: calc(100vw - var(--sidebar-width));
+  --detail-height: calc(100vh - var(--title-bar-height));
+  .sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+    border-right: 1px solid var(--line-color);
+  }
+  .container {
+    width: var(--container-width);
+    height: 100vh;
+    .titleBar {
+      height: var(--title-bar-height);
+      border-bottom: 1px solid var(--line-color);
+    }
+    .detail {
+      background-color: var(--primary-bg-color);
+      position: relative;
+      box-sizing: border-box;
+      height: var(--detail-height);
+      overflow: auto;
+    }
+  }
+}

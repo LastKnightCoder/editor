@@ -1,8 +1,8 @@
 import {useEffect, useMemo, useState, useRef, useCallback, memo} from "react";
-import {Button, Input, Skeleton, Spin, FloatButton} from 'antd';
+import {Input, Skeleton, Spin, FloatButton} from 'antd';
 import { useNavigate } from 'react-router-dom';
 import isHotKey from "is-hotkey";
-import { CloseOutlined, UpOutlined } from '@ant-design/icons';
+import { CloseOutlined, UpOutlined, PlusOutlined } from '@ant-design/icons';
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditorSourceValueStore from "@/hooks/useEditorSourceValueStore.ts";
@@ -179,7 +179,6 @@ const Cards = memo(() => {
             </div>
           }
         </div>
-        <Button className={styles.addCard} onClick={createCard}>新建卡片</Button>
       </div>
       <div className={styles.cardList}>
         {
@@ -211,6 +210,15 @@ const Cards = memo(() => {
         onClick={() => {
           scrollToTop();
         }}
+      />
+      <FloatButton
+        shape={'circle'}
+        style={{
+          right: 60,
+          bottom: 70,
+        }}
+        icon={<PlusOutlined />}
+        onClick={createCard}
       />
     </div>
   )
