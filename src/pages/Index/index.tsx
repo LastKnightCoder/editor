@@ -76,6 +76,7 @@ const Management = () => {
           style={{
             minWidth: 0,
             flex: 'auto',
+            background: 'var(--primary-bg-color)'
           }}
         />
         <div className={styles.collapsedIcon}>
@@ -85,7 +86,7 @@ const Management = () => {
           }
         </div>
       </div>
-      <div className={classnames(styles.detail, {
+      <div id={'detail-container'} className={classnames(styles.detail, {
         [styles.collapsed]: collapsed,
       })}>
         <Outlet />

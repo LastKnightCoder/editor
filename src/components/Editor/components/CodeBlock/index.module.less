@@ -2,20 +2,14 @@
   position: relative;
   .copyButton {
     position: absolute;
-    opacity: 0;
-    transition: opacity 0.2s linear;
     top: 10px;
     right: 10px;
     width: 32px;
     z-index: 2;
     height: 32px;
     background: url('https://cdn.jsdelivr.net/gh/LastKnightCoder/image-for-2022@master/copy2022-12-10-15-44-50.svg') no-repeat center center / 60% 60%;
-    border: 1px solid rgba(0 0 0 / 10%);
     cursor: pointer;
   }
-    &:hover .copyButton {
-      opacity: 1;
-    }
   .windowsControl {
     position: absolute;
     top: 24px;
@@ -30,15 +24,10 @@
     box-shadow: 24px 0 #dea123, 48px 0 #1aab29;
   }
   .languageSelect {
-    opacity: 0;
-    transition: opacity 0.2s linear;
     position: absolute;
     top: 10px;
     right: 50px;
     z-index: 1;
-  }
-  &:hover .languageSelect {
-    opacity: 1;
   }
   .CodeMirrorContainer :global(.CodeMirror) {
     color: #F8F8F8;

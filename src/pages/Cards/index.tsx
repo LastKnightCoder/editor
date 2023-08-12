@@ -1,8 +1,8 @@
-import {useEffect, useMemo, useState} from "react";
-import {Button, Input, Skeleton} from 'antd';
+import {useEffect, useMemo, useState, useRef} from "react";
+import {Button, Input, Skeleton, Spin, FloatButton} from 'antd';
 import { useNavigate } from 'react-router-dom';
 import isHotKey from "is-hotkey";
-import { CloseOutlined } from '@ant-design/icons';
+import { CloseOutlined, UpOutlined } from '@ant-design/icons';
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditorSourceValueStore from "@/hooks/useEditorSourceValueStore.ts";
@@ -38,14 +38,16 @@ const Cards = () => {
   const [searchValue, setSearchValue] = useState<string>('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
   const [isInputFocus, setIsInputFocus] = useState<boolean>(false);
-  const [isFirstInit, setIsFirstInit] = useState<boolean>(true);
   const [searchTips, setSearchTips] = useState<string[]>(() => {
     const tips = localStorage.getItem('searchTips');
     if (tips) return JSON.parse(tips);
     return [];
   });
   const [showSearchTips, setShowSearchTips] = useState<boolean>(false);
-
+  // 卡片个数
+  const [cardCount, setCardCount] = useState<number>(20);
+  const loaderRef = useRef<HTMLDivElement>(null);
+  
   const navigate = useNavigate();
 
   const filterCards = useMemo(() => {
@@ -55,6 +57,23 @@ const Cards = () => {
     })
   }, [cards, searchTags]);
 
+  const loadMore = () => {
+    if (loading) return;
+    setCardCount(Math.min(cardCount + 20, filterCards.length));
+  }
+
+  const scrollToTop = () => {
+    const detailContainer = document.querySelector('#detail-container');
+    if (detailContainer) {
+      setTimeout(() => {
+        detailContainer.scrollTo({
+          top: 0,
+          behavior: 'smooth',
+        });
+      }, 100);
+    }
+  }
+
   const onSearch = () => {
     if (searchValue === '') return;
     setSearchTags([...new Set([...searchTags, searchValue])]);
@@ -62,6 +81,8 @@ const Cards = () => {
     const tips = [...new Set([searchValue, ...searchTips].slice(0, 10))];
     setSearchTips(tips);
     localStorage.setItem('searchTips', JSON.stringify(tips));
+    setShowSearchTips(false);
+    scrollToTop();
   }
 
   const createCard = () => {
@@ -71,20 +92,20 @@ const Cards = () => {
   const deleteTag = (tag: string) => {
     setSearchTags(searchTags.filter(t => t !== tag));
     setShowSearchTips(false);
+    setCardCount(20);
+    scrollToTop();
   }
 
   const onClickSearchTag = (tag: string) => {
     setSearchTags([...new Set([...searchTags, tag])]);
     setShowSearchTips(false);
+    setCardCount(20);
+    scrollToTop();
   }
 
   const handleFocus = () => {
     setIsInputFocus(true);
-    if (isFirstInit) {
-      setIsFirstInit(false);
-    } else {
-      setShowSearchTips(true);
-    }
+    setShowSearchTips(true);
   }
 
   const handleBlur = () => {
@@ -113,6 +134,22 @@ const Cards = () => {
       document.removeEventListener('keydown', handleKeyDown);
     }
   }, [isInputFocus, searchTags, searchValue]);
+  
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        loadMore();
+      }
+    })
+    if (loaderRef.current) {
+      observer.observe(loaderRef.current);
+    }
+    return () => {
+      if (loaderRef.current) {
+        observer.unobserve(loaderRef.current);
+      }
+    }
+  }, [loadMore])
 
   return (
     <div className={styles.cardsManagement}>
@@ -150,7 +187,7 @@ const Cards = () => {
             ? Array.from({ length: 20 }).map((_, index) => (
               <Skeleton key={index} active />
             ))
-            : filterCards.slice(searchTags.length > 0 ? -100 : -40).reverse().map((card) => (
+            : filterCards.slice(0, cardCount).map((card) => (
               <ErrorBoundary key={card.id}>
                 <CardItem card={card} />
               </ErrorBoundary>
@@ -158,6 +195,23 @@ const Cards = () => {
         }
       </div>
       <EditorSourceValue open={sourceViewOpen} onClose={close} content={content} />
+      {
+        cardCount < filterCards.length && !loading &&
+        <Spin>
+          <div ref={loaderRef} style={{ height: 100 }} />
+        </Spin>
+      }
+      <FloatButton
+        shape={'circle'}
+        style={{
+          right: 60,
+          bottom: 20,
+        }}
+        icon={<UpOutlined />}
+        onClick={() => {
+          scrollToTop();
+        }}
+      />
     </div>
   )
 }

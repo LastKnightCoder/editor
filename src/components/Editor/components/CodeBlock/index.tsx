@@ -27,6 +27,16 @@ interface ILanguageConfig {
   mime?: string;
 }
 
+const aliases = {
+  js: 'javascript',
+  ts: 'typescript',
+  rs: 'rust',
+  py: 'python',
+  md: 'markdown',
+  xml: 'html/xml',
+  latex: 'stex',
+}
+
 const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) => {
   const { onChange, children, element, onDidMount, onWillUnmount, attributes } = props;
   const { code: defaultCode, language, uuid } = element;
@@ -35,7 +45,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   const slateEditor = useSlate();
   const readOnly = useReadOnly();
   useEffect(() => {
-    const languageConfig = LANGUAGES.find((lang) => lang.name.toLowerCase() === language.toLowerCase());
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const alias: string = aliases[language] || language;
+    const languageConfig = LANGUAGES.find((lang) => lang.name.toLowerCase() === alias.toLowerCase());
     if (!languageConfig) {
       return;
     }

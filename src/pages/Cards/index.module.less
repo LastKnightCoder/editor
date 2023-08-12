@@ -1,6 +1,5 @@
 .cardsManagement {
   position: relative;
-
   .header {
     padding: 0 40px;
     display: flex;
@@ -51,7 +50,6 @@
       }
     }
   }
-
   .cardList {
     padding: 20px 40px;
     box-sizing: border-box;
@@ -59,5 +57,11 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
+    .loader {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+    }
   }
 }

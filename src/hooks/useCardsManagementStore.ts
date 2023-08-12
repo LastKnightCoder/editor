@@ -25,7 +25,6 @@ const useCardsManagementStore = create<IState & IActions>((set, get) => ({
   init: async () => {
     set({ initLoading: true });
     const cards = await getAllCards();
-    console.log(cards);
     set({ cards, initLoading: false });
   },
   createCard: async (card) => {

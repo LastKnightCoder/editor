@@ -1,5 +1,5 @@
 import useSettingStore from "@/hooks/useSettingStore.ts";
-import {Modal} from "antd";
+import {Input, Modal} from "antd";
 
 const SettingModal = () => {
   const {
@@ -21,7 +21,15 @@ const SettingModal = () => {
       footer={null}
       onCancel={close}
     >
-      设置面板
+      <div>字体</div>
+      <div>
+        <div>中文字体</div>
+        <Input placeholder={''} />
+      </div>
+      <div>
+        <div>英文字体</div>
+        <Input placeholder={''} />
+      </div>
     </Modal>
   )
 }
