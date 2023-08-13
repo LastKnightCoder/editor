@@ -14,9 +14,22 @@
         color: #1a66ff;
       }
     }
-
   }
   .windowControl {
     margin-left: auto;
+  }
+}
+
+.dropCard {
+  display: flex;
+  flex-direction: column;
+  .childItem {
+    padding: 8px 16px;
+    cursor: pointer;
+    &:hover {
+      background-color: rgba(47, 49, 52);
+      border-radius: 4px;
+      cursor: pointer;
+    }
   }
 }

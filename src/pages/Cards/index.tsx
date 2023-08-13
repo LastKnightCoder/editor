@@ -44,7 +44,6 @@ const Cards = memo(() => {
     return [];
   });
   const [showSearchTips, setShowSearchTips] = useState<boolean>(false);
-  // 卡片个数
   const [cardCount, setCardCount] = useState<number>(20);
   const loaderRef = useRef<HTMLDivElement>(null);
   
