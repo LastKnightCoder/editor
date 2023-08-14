@@ -11,14 +11,15 @@ import Tags from "@/components/Tags";
 
 interface CardItemProps {
   card: ICard;
+  onClick?: () => void;
 }
 
 const CardItem = memo((props: CardItemProps) => {
-  const { card } = props;
+  const { card, onClick } = props;
   const { content, update_time, tags } = card;
 
   return (
-    <div className={styles.item}>
+    <div className={styles.item} onClick={onClick}>
       <Tags tags={tags} />
       <div className={styles.time}>
         更新于 {dayjs(update_time).format('YYYY/MM/DD HH:mm:ss')}

@@ -95,8 +95,8 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
             autoScroll
             options={{
               mode,
-              theme: 'one-light',
-              lineNumbers: true,
+              theme: 'blackboard',
+              lineNumbers: false,
               firstLineNumber: 1,
               scrollbarStyle: "null",
               viewportMargin: Infinity,

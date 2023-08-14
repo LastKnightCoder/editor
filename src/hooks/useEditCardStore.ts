@@ -16,7 +16,7 @@ interface IState {
 }
 
 interface IActions {
-  initCard: (cardId: number | undefined) => Promise<void>;
+  initCard: (cardId: number) => Promise<void>;
   onEditingCardChange: (content: Descendant[]) => void;
   onEditingCardCancel: () => void;
   onEditingCardSave: () => Promise<void>;
@@ -44,8 +44,12 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     set({
       initLoading: true,
     });
-    if (!cardId) {
-      const defaultCard = {
+    if (cardId === -1) {
+      const defaultCard: {
+        content: Descendant[];
+        tags: string[];
+        links: number[];
+      } = {
         content: [{
           type: 'paragraph',
           children: [{ type: 'formatted', text: '' }],
@@ -53,11 +57,9 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
         tags: [],
         links: [],
       };
-      // 从 localStorage 中获取上次编辑的卡片
-      const lastEditingCard = JSON.parse(localStorage.getItem('lastEditingCard') || 'null');
       set({
         editingCardId: undefined,
-        editingCard: lastEditingCard && lastEditingCard.length > 0 ? lastEditingCard : defaultCard,
+        editingCard: defaultCard,
         cardEditable: true,
         initLoading: false,
       });
@@ -65,23 +67,19 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     }
 
     const card = await findOneCard(cardId);
-    set({
-      editingCardId: cardId,
-      editingCard: card,
-      cardEditable: true,
-      initLoading: false,
-    });
+    if (card) {
+      set({
+        editingCardId: cardId,
+        editingCard: card,
+        cardEditable: true,
+        initLoading: false,
+      });
+    }
   },
   onEditingCardChange: (content: Descendant[]) => {
     const { editingCard} = get();
     if (!editingCard) {
       return;
-    }
-    if (!editingCard.id) {
-      localStorage.setItem('lastEditingCard', JSON.stringify({
-        ...editingCard,
-        content,
-      }));
     }
     set({
       editingCard: {
@@ -153,12 +151,6 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     if (!editingCard || editingCard.tags.includes(tag) || !tag) {
       return;
     }
-    if (!editingCard.id) {
-      localStorage.setItem('lastEditingCard', JSON.stringify({
-        ...editingCard,
-        tags: [...editingCard.tags, tag],
-      }));
-    }
     set({
       editingCard: {
         ...editingCard,
@@ -170,12 +162,6 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     const { editingCard } = get();
     if (!editingCard) {
       return;
-    }
-    if (!editingCard.id) {
-      localStorage.setItem('lastEditingCard', JSON.stringify({
-        ...editingCard,
-        tags: editingCard.tags.filter(t => t !== tag),
-      }));
     }
     set({
       editingCard: {
@@ -189,12 +175,6 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     if (!editingCard || editingCard.links.includes(link)) {
       return;
     }
-    if (!editingCard.id) {
-      localStorage.setItem('lastEditingCard', JSON.stringify({
-        ...editingCard,
-        links: [...editingCard.links, link],
-      }));
-    }
     set({
       editingCard: {
         ...editingCard,
@@ -206,12 +186,6 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     const { editingCard } = get();
     if (!editingCard) {
       return;
-    }
-    if (!editingCard.id) {
-      localStorage.setItem('lastEditingCard', JSON.stringify({
-        ...editingCard,
-        links: editingCard.links.filter(t => t !== link),
-      }));
     }
     set({
       editingCard: {

@@ -1,8 +1,7 @@
 import {useEffect, useMemo, useState, useRef, useCallback, memo} from "react";
-import {Input, Skeleton, Spin, FloatButton} from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Input, Skeleton, Spin } from 'antd';
 import isHotKey from "is-hotkey";
-import { CloseOutlined, UpOutlined, PlusOutlined } from '@ant-design/icons';
+import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditorSourceValueStore from "@/hooks/useEditorSourceValueStore.ts";
@@ -12,6 +11,7 @@ import EditorSourceValue from "@/components/EditorSourceValue";
 import Tags from "@/components/Tags";
 
 import CardItem from "./CardItem";
+import CardDetail from './CardDetail';
 import styles from './index.module.less';
 
 const Cards = memo(() => {
@@ -35,6 +35,7 @@ const Cards = memo(() => {
     content: state.content,
   }));
 
+  const [editingCardId, setEditingCardId] = useState<number | null>(null);
   const [searchValue, setSearchValue] = useState<string>('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
   const [isInputFocus, setIsInputFocus] = useState<boolean>(false);
@@ -46,8 +47,7 @@ const Cards = memo(() => {
   const [showSearchTips, setShowSearchTips] = useState<boolean>(false);
   const [cardCount, setCardCount] = useState<number>(20);
   const loaderRef = useRef<HTMLDivElement>(null);
-  
-  const navigate = useNavigate();
+  const listRef = useRef<HTMLDivElement>(null);
 
   const filterCards = useMemo(() => {
     if (searchTags.length === 0) return cards;
@@ -62,15 +62,12 @@ const Cards = memo(() => {
   }, [loading, cardCount, filterCards]);
 
   const scrollToTop = () => {
-    const detailContainer = document.querySelector('#detail-container');
-    if (detailContainer) {
-      setTimeout(() => {
-        detailContainer.scrollTo({
-          top: 0,
-          behavior: 'smooth',
-        });
-        setCardCount(20);
-      }, 100);
+    if (listRef.current) {
+      listRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+      setCardCount(20);
     }
   }
 
@@ -86,7 +83,7 @@ const Cards = memo(() => {
   }
 
   const createCard = () => {
-    navigate('/cards/detail')
+    setEditingCardId(-1);
   }
 
   const deleteTag = (tag: string) => {
@@ -151,74 +148,61 @@ const Cards = memo(() => {
   }, [loadMore])
 
   return (
-    <div className={styles.cardsManagement}>
-      <div className={styles.header}>
-        <div className={styles.count}>
-          总数：{filterCards.length}
-        </div>
-        <div className={styles.input}>
-          <Input
-            style={{ width: 400 }}
-            prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
-            onPressEnter={onSearch}
-            value={searchValue}
-            onChange={(e) => { setSearchValue(e.target.value) }}
-            placeholder="输入标签进行筛选"
-            onFocus={handleFocus}
-            onBlur={handleBlur}
-          />
-          {
-            showSearchTips &&
-            <div className={styles.searchTips}>
-              <div className={styles.searchHeader}>
-                <div className={styles.title}>搜索记录</div>
-                <CloseOutlined onClick={() => { setShowSearchTips(false) }} />
+    <div className={styles.cardsContainer}>
+      <div className={styles.sidebar}>
+        <div className={styles.header}>
+          <div className={styles.input}>
+            <Input
+              prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
+              onPressEnter={onSearch}
+              value={searchValue}
+              onChange={(e) => { setSearchValue(e.target.value) }}
+              placeholder="输入标签进行筛选"
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+            />
+            {
+              showSearchTips &&
+              <div className={styles.searchTips}>
+                <div className={styles.searchHeader}>
+                  <div className={styles.title}>搜索记录</div>
+                  <CloseOutlined onClick={() => { setShowSearchTips(false) }} />
+                </div>
+                <Tags onClick={onClickSearchTag} tags={searchTips} noWrap />
               </div>
-              <Tags onClick={onClickSearchTag} tags={searchTips} noWrap />
-            </div>
+            }
+          </div>
+          <div className={styles.create} onClick={createCard}>
+            <PlusOutlined />
+          </div>
+        </div>
+        <div ref={listRef} className={styles.cardList}>
+          {
+            loading
+              ? Array.from({ length: 20 }).map((_, index) => (
+                <Skeleton key={index} active />
+              ))
+              : filterCards.slice(0, cardCount).map((card) => (
+                <ErrorBoundary key={card.id}>
+                  <CardItem card={card} onClick={() => { setEditingCardId(card.id) }} />
+                </ErrorBoundary>
+              ))
+          }
+          {
+            cardCount < filterCards.length && !loading &&
+            <Spin>
+              <div ref={loaderRef} style={{ height: 100 }} />
+            </Spin>
           }
         </div>
       </div>
-      <div className={styles.cardList}>
+      <div className={styles.content}>
         {
-          loading
-            ? Array.from({ length: 20 }).map((_, index) => (
-              <Skeleton key={index} active />
-            ))
-            : filterCards.slice(0, cardCount).map((card) => (
-              <ErrorBoundary key={card.id}>
-                <CardItem card={card} />
-              </ErrorBoundary>
-            ))
+          editingCardId &&
+          <CardDetail cardId={editingCardId} />
         }
       </div>
       <EditorSourceValue open={sourceViewOpen} onClose={close} content={content} />
-      {
-        cardCount < filterCards.length && !loading &&
-        <Spin>
-          <div ref={loaderRef} style={{ height: 100 }} />
-        </Spin>
-      }
-      <FloatButton
-        shape={'circle'}
-        style={{
-          right: 60,
-          bottom: 20,
-        }}
-        icon={<UpOutlined />}
-        onClick={() => {
-          scrollToTop();
-        }}
-      />
-      <FloatButton
-        shape={'circle'}
-        style={{
-          right: 60,
-          bottom: 70,
-        }}
-        icon={<PlusOutlined />}
-        onClick={createCard}
-      />
     </div>
   )
 })

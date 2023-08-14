@@ -1,18 +1,16 @@
 import { useEffect } from "react";
 import { Skeleton } from "antd";
-import { useParams } from "react-router-dom";
 
 import useEditCardStore from "@/hooks/useEditCardStore.ts";
 import Editor from "@/components/Editor";
 
 import AddTag from "../AddTag";
 import AddCardLinkModal from "./AddCardLinkModal";
-import Header from "./Header";
+// import Header from "./Header";
 
 import styles from './index.module.less';
 
-const CardDetail = () => {
-  const { cardId } = useParams();
+const CardDetail = ({ cardId }: { cardId: number }) => {
 
   const {
     editingCard,
@@ -21,7 +19,7 @@ const CardDetail = () => {
     initLoading,
     addTag,
     removeTag,
-    readonly,
+    // readonly,
   } = useEditCardStore((state) => ({
     editingCard: state.editingCard,
     init: state.initCard,
@@ -33,20 +31,17 @@ const CardDetail = () => {
   }));
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    init(cardId && Number(cardId))
+    init(cardId);
   }, [cardId, init]);
 
   return (
     <div className={styles.cardDetail}>
-      <Header />
       <div className={styles.editorContainer}>
         <div className={styles.editor}>
           {
             initLoading
               ? <Skeleton active />
-              : <Editor initValue={editingCard?.content && editingCard.content.length > 0 ? editingCard.content : undefined} readonly={readonly} onChange={onEdit} />
+              : <Editor initValue={editingCard?.content && editingCard.content.length > 0 ? editingCard.content : undefined} readonly={true} onChange={onEdit} />
           }
         </div>
         <div className={styles.tags}>
