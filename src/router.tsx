@@ -7,7 +7,6 @@ import Statistic from "@/pages/Statistic";
 import Animate from "@/pages/Animate";
 import DailyNote from "@/pages/DailyNote";
 import LinkGraph from "@/pages/Cards/LinkGraph";
-import CardDetail from "@/pages/Cards/CardDetail";
 
 const routes = [{
   path: '/',
@@ -26,12 +25,6 @@ const routes = [{
     }, {
       path: 'link-graph/',
       element: <LinkGraph />,
-    }, {
-      path: 'detail/',
-      element: <CardDetail />,
-    }, {
-      path: 'detail/:cardId/',
-      element: <CardDetail />,
     }],
   }, {
     path: 'articles/',
