@@ -12,11 +12,10 @@ interface IState {
   cardEditable: boolean;
   editingCardId: number | undefined;
   editingCard: EditingCard | undefined;
-  readonly: boolean;
 }
 
 interface IActions {
-  initCard: (cardId: number) => Promise<void>;
+  initCard: (cardId: number) => Promise<Descendant[]>;
   onEditingCardChange: (content: Descendant[]) => void;
   onEditingCardCancel: () => void;
   onEditingCardSave: () => Promise<void>;
@@ -26,7 +25,6 @@ interface IActions {
   removeTag: (tag: string) => void;
   addLink: (link: number) => void;
   removeLink: (link: number) => void;
-  setReadonly: (readonly: boolean) => void;
 }
 
 const initialState: IState = {
@@ -35,7 +33,6 @@ const initialState: IState = {
   cardEditable: false,
   editingCardId: undefined,
   editingCard: undefined,
-  readonly: false,
 }
 
 const useEditCardStore = create<IState & IActions>((set, get) => ({
@@ -63,18 +60,17 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
         cardEditable: true,
         initLoading: false,
       });
-      return;
+      return defaultCard.content;
     }
 
     const card = await findOneCard(cardId);
-    if (card) {
-      set({
-        editingCardId: cardId,
-        editingCard: card,
-        cardEditable: true,
-        initLoading: false,
-      });
-    }
+    set({
+      editingCardId: cardId,
+      editingCard: card,
+      cardEditable: true,
+      initLoading: false,
+    });
+    return card.content;
   },
   onEditingCardChange: (content: Descendant[]) => {
     const { editingCard} = get();
@@ -140,10 +136,6 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
         }
       });
     }
-    localStorage.removeItem('lastEditingCard');
-    set({
-      ...initialState,
-    });
   },
   addTag: (tag) => {
     const { editingCard } = get();
@@ -156,7 +148,7 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
         ...editingCard,
         tags: [...editingCard.tags, tag],
       }
-    })
+    });
   },
   removeTag: (tag) => {
     const { editingCard } = get();
@@ -202,11 +194,6 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
   closeAddLinkModal: () => {
     set({
       addLinkModalOpen: false,
-    });
-  },
-  setReadonly: (readonly) => {
-    set({
-      readonly,
     });
   }
 }));
