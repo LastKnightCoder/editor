@@ -2,13 +2,12 @@ import { memo } from "react";
 import dayjs from "dayjs";
 import classnames from "classnames";
 
-import Editor from "@/components/Editor";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import Footer from "./Footer";
-import styles from './index.module.less';
-
 import { ICard } from "@/types";
 import Tags from "@/components/Tags";
+import Editor from "@/components/Editor";
+import ErrorBoundary from "@/components/ErrorBoundary";
+
+import styles from './index.module.less';
 
 interface CardItemProps {
   card: ICard;
@@ -28,10 +27,9 @@ const CardItem = memo((props: CardItemProps) => {
       </div>
       <div className={styles.content}>
         <ErrorBoundary>
-          <Editor initValue={(content && content.length > 0) ? content.slice(0, 2) : undefined} readonly={true} />
+          <Editor initValue={(content && content.length > 0) ? content.slice(0, 1) : undefined} readonly={true} />
         </ErrorBoundary>
       </div>
-      <Footer cardId={card.id} />
     </div>
   )
 });

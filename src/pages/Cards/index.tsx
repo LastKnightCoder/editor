@@ -4,6 +4,7 @@ import isHotKey from "is-hotkey";
 import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
 
 import ErrorBoundary from "@/components/ErrorBoundary";
+import WidthResizable from "@/components/WidthResizable";
 import useEditorSourceValueStore from "@/hooks/useEditorSourceValueStore.ts";
 import useCardsManagementStore from "@/hooks/useCardsManagementStore";
 
@@ -46,6 +47,11 @@ const Cards = memo(() => {
   });
   const [showSearchTips, setShowSearchTips] = useState<boolean>(false);
   const [cardCount, setCardCount] = useState<number>(20);
+  const [defaultSidebarWidth, setDefaultSidebarWidth] = useState<number>(() => {
+    const width = localStorage.getItem('default-sidebar-width');
+    if (width) return Number(width);
+    return 300;
+  });
   const loaderRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +126,11 @@ const Cards = memo(() => {
     setEditingCardId(id);
   }
 
+  const onResize = (width: number) => {
+    setDefaultSidebarWidth(width);
+    localStorage.setItem('default-sidebar-width', String(width));
+  }
+
   useEffect(() => {
     init().then();
   }, [init]);
@@ -153,57 +164,64 @@ const Cards = memo(() => {
         observer.unobserve(loader);
       }
     }
-  }, [loadMore])
+  }, [loadMore]);
 
   return (
     <div className={styles.cardsContainer}>
-      <div className={styles.sidebar}>
-        <div className={styles.header}>
-          <div className={styles.input}>
-            <Input
-              prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
-              onPressEnter={onSearch}
-              value={searchValue}
-              onChange={(e) => { setSearchValue(e.target.value) }}
-              placeholder="输入标签进行筛选"
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-            />
-            {
-              showSearchTips &&
-              <div className={styles.searchTips}>
-                <div className={styles.searchHeader}>
-                  <div className={styles.title}>搜索记录</div>
-                  <CloseOutlined onClick={() => { setShowSearchTips(false) }} />
+      <WidthResizable
+        defaultWidth={defaultSidebarWidth}
+        minWidth={200}
+        maxWidth={500}
+        onResize={onResize}
+      >
+        <div className={styles.sidebar}>
+          <div className={styles.header}>
+            <div className={styles.input}>
+              <Input
+                prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
+                onPressEnter={onSearch}
+                value={searchValue}
+                onChange={(e) => { setSearchValue(e.target.value) }}
+                placeholder="输入标签进行筛选"
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+              />
+              {
+                showSearchTips &&
+                <div className={styles.searchTips}>
+                  <div className={styles.searchHeader}>
+                    <div className={styles.title}>搜索记录</div>
+                    <CloseOutlined onClick={() => { setShowSearchTips(false) }} />
+                  </div>
+                  <Tags onClick={onClickSearchTag} tags={searchTips} noWrap />
                 </div>
-                <Tags onClick={onClickSearchTag} tags={searchTips} noWrap />
-              </div>
+              }
+            </div>
+            <div className={styles.create} onClick={createCard}>
+              <PlusOutlined />
+            </div>
+          </div>
+          <div ref={listRef} className={styles.cardList}>
+            {
+              loading
+                ? Array.from({ length: 20 }).map((_, index) => (
+                  <Skeleton key={index} active />
+                ))
+                : filterCards.slice(0, cardCount).map((card) => (
+                  <ErrorBoundary key={card.id}>
+                    <CardItem active={card.id === editingCardId} card={card} onClick={() => { handleClickCard(card.id) }} />
+                  </ErrorBoundary>
+                ))
+            }
+            {
+              cardCount < filterCards.length && !loading &&
+              <Spin>
+                <div ref={loaderRef} style={{ height: 100 }} />
+              </Spin>
             }
           </div>
-          <div className={styles.create} onClick={createCard}>
-            <PlusOutlined />
-          </div>
         </div>
-        <div ref={listRef} className={styles.cardList}>
-          {
-            loading
-              ? Array.from({ length: 20 }).map((_, index) => (
-                <Skeleton key={index} active />
-              ))
-              : filterCards.slice(0, cardCount).map((card) => (
-                <ErrorBoundary key={card.id}>
-                  <CardItem active={card.id === editingCardId} card={card} onClick={() => { handleClickCard(card.id) }} />
-                </ErrorBoundary>
-              ))
-          }
-          {
-            cardCount < filterCards.length && !loading &&
-            <Spin>
-              <div ref={loaderRef} style={{ height: 100 }} />
-            </Spin>
-          }
-        </div>
-      </div>
+      </WidthResizable>
       <div className={styles.content}>
         {
           editingCardId &&
