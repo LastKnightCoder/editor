@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState, useRef, useCallback, memo} from "react";
-import { Input, Skeleton, Spin } from 'antd';
+import {Button, Input, Skeleton, Spin} from 'antd';
 import isHotKey from "is-hotkey";
-import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
+import { CloseOutlined } from '@ant-design/icons';
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import WidthResizable from "@/components/WidthResizable";
@@ -178,6 +178,12 @@ const Cards = memo(() => {
       >
         <div className={styles.sidebar}>
           <div className={styles.header}>
+            <div className={styles.total}>
+              <div className={styles.number}>卡片数量：{filterCards.length}</div>
+              <div className={styles.create} onClick={createCard}>
+                <Button>新建卡片</Button>
+              </div>
+            </div>
             <div className={styles.input}>
               <Input
                 prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
@@ -198,9 +204,6 @@ const Cards = memo(() => {
                   <Tags onClick={onClickSearchTag} tags={searchTips} noWrap />
                 </div>
               }
-            </div>
-            <div className={styles.create} onClick={createCard}>
-              <PlusOutlined />
             </div>
           </div>
           <div ref={listRef} className={styles.cardList}>

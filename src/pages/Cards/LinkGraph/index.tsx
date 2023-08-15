@@ -64,6 +64,7 @@ const LinkGraph = () => {
         preventOverlap: true,
         workerEnabled: true,
         gpuEnabled: true,
+        nodeSpacing: 100,
       },
       modes: {
         default: ['drag-canvas', 'zoom-canvas']
