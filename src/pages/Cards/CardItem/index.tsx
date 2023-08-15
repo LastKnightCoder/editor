@@ -1,5 +1,6 @@
 import { memo } from "react";
 import dayjs from "dayjs";
+import classnames from "classnames";
 
 import Editor from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -12,14 +13,15 @@ import Tags from "@/components/Tags";
 interface CardItemProps {
   card: ICard;
   onClick?: () => void;
+  active?: boolean;
 }
 
 const CardItem = memo((props: CardItemProps) => {
-  const { card, onClick } = props;
+  const { card, onClick, active = false } = props;
   const { content, update_time, tags } = card;
 
   return (
-    <div className={styles.item} onClick={onClick}>
+    <div className={classnames(styles.item, { [styles.active]: active })} onClick={onClick}>
       <Tags tags={tags} />
       <div className={styles.time}>
         更新于 {dayjs(update_time).format('YYYY/MM/DD HH:mm:ss')}

@@ -112,6 +112,14 @@ const Cards = memo(() => {
     }, 100);
   }
 
+  const handleClickCard = (id: number) => {
+    if (id === editingCardId) {
+      setEditingCardId(null);
+      return;
+    }
+    setEditingCardId(id);
+  }
+
   useEffect(() => {
     init().then();
   }, [init]);
@@ -184,7 +192,7 @@ const Cards = memo(() => {
               ))
               : filterCards.slice(0, cardCount).map((card) => (
                 <ErrorBoundary key={card.id}>
-                  <CardItem card={card} onClick={() => { setEditingCardId(card.id) }} />
+                  <CardItem active={card.id === editingCardId} card={card} onClick={() => { handleClickCard(card.id) }} />
                 </ErrorBoundary>
               ))
           }

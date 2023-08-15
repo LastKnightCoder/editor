@@ -1,5 +1,5 @@
 import {useEffect, useRef} from "react";
-import { Skeleton } from "antd";
+import {Button, Skeleton} from "antd";
 
 import useEditCardStore from "@/hooks/useEditCardStore.ts";
 import Editor, {EditorRef} from "@/components/Editor";
@@ -23,6 +23,7 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
     addTag,
     removeTag,
     onEditingCardSave,
+    openAddLinkModal,
   } = useEditCardStore((state) => ({
     editingCard: state.editingCard,
     init: state.initCard,
@@ -31,6 +32,7 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
     addTag: state.addTag,
     removeTag: state.removeTag,
     onEditingCardSave: state.onEditingCardSave,
+    openAddLinkModal: state.openAddLinkModal,
   }));
 
   useEffect(() => {
@@ -53,6 +55,10 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
     changed.current = JSON.stringify(content) !== JSON.stringify(originalContent.current);
   }, [editingCard]);
 
+  if (!editingCard) {
+    return null;
+  }
+
   return (
     <div className={styles.cardDetail}>
       <div className={styles.editorContainer}>
@@ -69,6 +75,7 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
               ? <Skeleton active />
               : <AddTag tags={editingCard?.tags || []} addTag={addTag} removeTag={removeTag} />
           }
+          <Button onClick={openAddLinkModal}>添加连接</Button>
         </div>
       </div>
       <AddCardLinkModal />
