@@ -1,6 +1,5 @@
 import {useMemo, useState} from "react";
 import {Drawer, Empty, Input, Modal, Tabs, TabsProps} from 'antd';
-import {useNavigate} from "react-router-dom";
 
 import useEditCardStore from "@/hooks/useEditCardStore.ts";
 import useCardsManagementStore from "@/hooks/useCardsManagementStore.ts";
@@ -8,29 +7,31 @@ import useCardsManagementStore from "@/hooks/useCardsManagementStore.ts";
 import Tags from "@/components/Tags";
 import {ICard} from "@/types";
 
-import CardList from '../CardList';
+import CardList from '../CardDetail/CardList';
 
 import styles from './index.module.less';
 
-const AddCardLinkModal = () => {
+interface IAddCardLinkModalProps {
+  goCardDetail?: (cardId: number) => void;
+}
+
+const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
+  const { goCardDetail } = props;
+
   const {
     open,
     editingCard,
     closeAddLinkModal,
     addLink,
     removeLink,
-    onSave,
   } = useEditCardStore((state) => ({
     open: state.addLinkModalOpen,
     editingCard: state.editingCard,
     closeAddLinkModal: state.closeAddLinkModal,
     addLink: state.addLink,
     removeLink: state.removeLink,
-    onSave: state.onEditingCardSave,
   }));
 
-  const navigate = useNavigate();
-  
   const [searchValue, setSearchValue] = useState('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
 
@@ -103,8 +104,8 @@ const AddCardLinkModal = () => {
       title: '前往编辑被链接的卡片',
       content: '当前编辑的卡片将会被保存',
       onOk: async () => {
-        await onSave();
-        navigate(`/cards/detail/${cardId}`)
+        goCardDetail?.(cardId);
+        closeAddLinkModal();
       },
       okText: '确认',
       cancelText: '取消'

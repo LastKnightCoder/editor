@@ -1,11 +1,11 @@
 import {useEffect, useRef} from "react";
-import {Button, Skeleton} from "antd";
+import { Skeleton, FloatButton } from "antd";
+import { PlusOutlined } from '@ant-design/icons';
 
 import useEditCardStore from "@/hooks/useEditCardStore.ts";
 import Editor, {EditorRef} from "@/components/Editor";
 
 import AddTag from "../AddTag";
-import AddCardLinkModal from "./AddCardLinkModal";
 
 import styles from './index.module.less';
 import {Descendant} from "slate";
@@ -75,10 +75,17 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
               ? <Skeleton active />
               : <AddTag tags={editingCard?.tags || []} addTag={addTag} removeTag={removeTag} />
           }
-          <Button onClick={openAddLinkModal}>添加连接</Button>
         </div>
+        <FloatButton
+          onClick={openAddLinkModal}
+          description={'连接'}
+          icon={<PlusOutlined />}
+          style={{
+            width: 50,
+            height: 50,
+          }}
+        />
       </div>
-      <AddCardLinkModal />
     </div>
   )
 }

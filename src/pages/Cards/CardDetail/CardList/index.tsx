@@ -33,6 +33,7 @@ const CardList = (props: CardListProps) => {
     <div className={styles.list}>
       {
         list.map((card, index) => {
+          if (!card) return null;
           return (
             <React.Fragment key={card.id}>
               <div className={itemClass} onClick={() => { handleClickCard(card.id) }}>

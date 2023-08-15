@@ -13,6 +13,8 @@ import Tags from "@/components/Tags";
 
 import CardItem from "./CardItem";
 import CardDetail from './CardDetail';
+import AddCardLinkModal from "./AddCardLinkModal";
+
 import styles from './index.module.less';
 
 const Cards = memo(() => {
@@ -228,6 +230,7 @@ const Cards = memo(() => {
           <CardDetail cardId={editingCardId} />
         }
       </div>
+      <AddCardLinkModal goCardDetail={setEditingCardId} />
       <EditorSourceValue open={sourceViewOpen} onClose={close} content={content} />
     </div>
   )
