@@ -24,4 +24,22 @@
   .content {
     margin-top: 16px;
   }
+  .delete {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    &:hover {
+      cursor: pointer;
+      background: #6a737d;
+    }
+  }
+  &:hover .delete {
+      display: flex;
+  }
 }

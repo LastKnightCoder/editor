@@ -11,13 +11,7 @@ import CardList from '../CardDetail/CardList';
 
 import styles from './index.module.less';
 
-interface IAddCardLinkModalProps {
-  goCardDetail?: (cardId: number) => void;
-}
-
-const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
-  const { goCardDetail } = props;
-
+const AddCardLinkModal = () => {
   const {
     open,
     editingCard,
@@ -104,7 +98,9 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
       title: '前往编辑被链接的卡片',
       content: '当前编辑的卡片将会被保存',
       onOk: async () => {
-        goCardDetail?.(cardId);
+        useEditCardStore.setState({
+          editingCardId: cardId,
+        });
         closeAddLinkModal();
       },
       okText: '确认',

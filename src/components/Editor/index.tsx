@@ -1,8 +1,9 @@
 import {useState, useEffect, forwardRef, useImperativeHandle} from "react";
-
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
 import {Slate, Editable, withReact, ReactEditor} from 'slate-react';
 import { withHistory } from 'slate-history';
+
+import { DEFAULT_CARD_CONTENT } from "@/constants";
 
 import { applyPlugin, registerHotKey } from "./utils";
 import {
@@ -68,13 +69,8 @@ const plugins = [
   withSlashCommands
 ];
 
-const defaultInitValue: Descendant[] = [{
-  type: 'paragraph',
-  children: [{ type: 'formatted', text: '' }]
-}];
-
 const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
-  const { initValue = defaultInitValue, onChange, readonly = true } = props;
+  const { initValue = DEFAULT_CARD_CONTENT, onChange, readonly = true } = props;
   const [editor] = useState(() => applyPlugin(createEditor(), plugins));
   const [isNormalized, setIsNormalized] = useState(false);
 

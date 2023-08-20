@@ -1,15 +1,14 @@
 import {useEffect, useMemo, useState, useRef, useCallback, memo} from "react";
-import {Button, Input, Skeleton, Spin} from 'antd';
+import {Button, Input, Modal, Skeleton, Spin} from 'antd';
 import isHotKey from "is-hotkey";
 import { CloseOutlined } from '@ant-design/icons';
 
+import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import WidthResizable from "@/components/WidthResizable";
-import useEditorSourceValueStore from "@/hooks/useEditorSourceValueStore.ts";
 import useCardsManagementStore from "@/hooks/useCardsManagementStore";
-
-import EditorSourceValue from "@/components/EditorSourceValue";
-import Tags from "@/components/Tags";
+import useEditCardStore from "@/hooks/useEditCardStore.ts";
+import { CREATE_CARD_ID } from "@/constants";
 
 import CardItem from "./CardItem";
 import CardDetail from './CardDetail';
@@ -22,23 +21,20 @@ const Cards = memo(() => {
     cards,
     init,
     loading,
+    deleteCard,
   } = useCardsManagementStore((state) => ({
     cards: state.cards,
     init: state.init,
     loading: state.initLoading,
+    deleteCard: state.deleteCard,
   }));
-
+  
   const {
-    sourceViewOpen,
-    close,
-    content,
-  } = useEditorSourceValueStore((state) => ({
-    sourceViewOpen: state.isOpen,
-    close: state.close,
-    content: state.content,
+    editingCardId,                                                                  
+  } = useEditCardStore((state) => ({
+      editingCardId: state.editingCardId,
   }));
 
-  const [editingCardId, setEditingCardId] = useState<number | null>(null);
   const [searchValue, setSearchValue] = useState<string>('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
   const [isInputFocus, setIsInputFocus] = useState<boolean>(false);
@@ -91,7 +87,9 @@ const Cards = memo(() => {
   }
 
   const createCard = () => {
-    setEditingCardId(-1);
+    useEditCardStore.setState({
+      editingCardId: CREATE_CARD_ID,
+    })
   }
 
   const deleteTag = (tag: string) => {
@@ -122,15 +120,39 @@ const Cards = memo(() => {
 
   const handleClickCard = (id: number) => {
     if (id === editingCardId) {
-      setEditingCardId(null);
+      useEditCardStore.setState({
+        editingCardId: undefined,
+      })
       return;
     }
-    setEditingCardId(id);
+    useEditCardStore.setState({
+      editingCardId: id,
+    })
   }
 
   const onResize = (width: number) => {
     setDefaultSidebarWidth(width);
     localStorage.setItem('default-sidebar-width', String(width));
+  }
+
+  const onDeleteCard = async (id: number) => {
+    Modal.confirm({
+      title: '确认删除？',
+      content: '删除后无法恢复',
+      onOk: async () => {
+        await deleteCard(id);
+        if (editingCardId === id) {
+          useEditCardStore.setState({
+            editingCardId: undefined,
+          })
+        }
+      },
+      okText: '确认',
+      cancelText: '取消',
+      okButtonProps: {
+        danger: true
+      }
+    });
   }
 
   useEffect(() => {
@@ -214,7 +236,18 @@ const Cards = memo(() => {
                 ))
                 : filterCards.slice(0, cardCount).map((card) => (
                   <ErrorBoundary key={card.id}>
-                    <CardItem active={card.id === editingCardId} card={card} onClick={() => { handleClickCard(card.id) }} />
+                    <CardItem
+                      active={card.id === editingCardId}
+                      card={card}
+                      onClick={(e) => {
+                        handleClickCard(card.id);
+                        e.stopPropagation();
+                      }}
+                      onDelete={(e) => {
+                        onDeleteCard(card.id)
+                        e.stopPropagation();
+                      }}
+                    />
                   </ErrorBoundary>
                 ))
             }
@@ -230,11 +263,10 @@ const Cards = memo(() => {
       <div className={styles.content}>
         {
           editingCardId &&
-          <CardDetail cardId={editingCardId} />
+          <CardDetail />
         }
       </div>
-      <AddCardLinkModal goCardDetail={setEditingCardId} />
-      <EditorSourceValue open={sourceViewOpen} onClose={close} content={content} />
+      <AddCardLinkModal />
     </div>
   )
 })

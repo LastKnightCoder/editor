@@ -1,8 +1,11 @@
 import { Graph } from '@antv/g6';
 import {useEffect, useMemo, useRef, useState} from "react";
+import { useSize } from 'ahooks';
+
 import {ICard} from "@/types";
 import {getAllCards} from "@/commands";
 import Editor, {EditorRef} from "@/components/Editor";
+
 import styles from './index.module.less';
 
 const LinkGraph = () => {
@@ -15,7 +18,8 @@ const LinkGraph = () => {
   const [show, setShow] = useState<boolean>(false);
   const [position, setPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
   const [activeId, setActiveId] = useState<number>(-1);
-  
+  const size = useSize(ref);
+
   const content = useMemo(() => {
     if (cards.length === 0 || activeId === -1) return undefined;
     const activeCard = cards.find((card) => card.id === activeId);
@@ -41,7 +45,7 @@ const LinkGraph = () => {
   useEffect(() => {
     if (graph.current || !ref.current || loading || cards.length === 0) return;
     const width = ref.current.clientWidth;
-    const height = window.innerHeight;
+    const height = window.innerHeight - 60;
     graph.current = new Graph({
       container: ref.current,
       width,
@@ -57,14 +61,18 @@ const LinkGraph = () => {
         },
         type: 'circle',
       },
+      defaultEdge: {
+        style: {
+          stroke: '#565ea2',
+          lineWidth: 10,
+        }
+      },
       layout: {
         type: 'force2',
         maxSpeed: 100,
         linkDistance: 100,
         preventOverlap: true,
         workerEnabled: true,
-        gpuEnabled: true,
-        nodeSpacing: 100,
       },
       modes: {
         default: ['drag-canvas', 'zoom-canvas']
@@ -122,6 +130,7 @@ const LinkGraph = () => {
 
     return () => {
       if (graph.current) graph.current.destroy();
+      graph.current = undefined;
     }
   }, [cards, loading]);
   
@@ -157,20 +166,13 @@ const LinkGraph = () => {
   }, [activeId])
 
   useEffect(() => {
-    if (!ref.current || !graph.current) return;
-    const resizeObserver = new ResizeObserver(() => {
-      if (ref.current && graph.current && graph.current.changeSize) {
-        graph.current.changeSize(ref.current.clientWidth, window.innerHeight);
-      }
-    });
-    resizeObserver.observe(ref.current);
-    return () => {
-      resizeObserver.disconnect();
-    }
-  }, [])
+    if (!ref.current || !graph.current || !size?.width || size?.height) return;
+    console.log(size);
+    graph.current.changeSize(size.width, size.height);
+  }, [size]);
 
   return (
-    <div ref={ref}>
+    <div className={styles.container} ref={ref}>
       {
         show && (
           <div className={styles.editor} style={{ left: position.x, top: position.y }}>

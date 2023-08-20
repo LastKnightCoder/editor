@@ -1,22 +1,22 @@
 import {useEffect, useRef} from "react";
-import { Skeleton, FloatButton } from "antd";
-import { PlusOutlined } from '@ant-design/icons';
+import { Skeleton, Button } from "antd";
+import {LinkOutlined, CloseOutlined} from '@ant-design/icons';
 
-import useEditCardStore from "@/hooks/useEditCardStore.ts";
+import useEditCardStore, { EditingCard } from "@/hooks/useEditCardStore.ts";
 import Editor, {EditorRef} from "@/components/Editor";
 
 import AddTag from "../AddTag";
 
 import styles from './index.module.less';
-import {Descendant} from "slate";
 
-const CardDetail = ({ cardId }: { cardId: number }) => {
+const CardDetail = () => {
   const editorRef = useRef<EditorRef>(null);
-  const originalContent = useRef<Descendant[]>([]);
+  const originalCard = useRef<EditingCard>();
   const changed = useRef<boolean>(false);
 
   const {
     editingCard,
+    editingCardId,
     init,
     onEdit,
     initLoading,
@@ -26,6 +26,7 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
     openAddLinkModal,
   } = useEditCardStore((state) => ({
     editingCard: state.editingCard,
+    editingCardId: state.editingCardId,
     init: state.initCard,
     onEdit: state.onEditingCardChange,
     initLoading: state.initLoading,
@@ -36,10 +37,11 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
   }));
 
   useEffect(() => {
-    init(cardId).then((initValue) => {
+    if (!editingCardId) return;
+    init(editingCardId).then((card) => {
       if (editorRef.current === null) return;
-      editorRef.current.setEditorValue(initValue);
-      originalContent.current = initValue;
+      editorRef.current.setEditorValue(card.content);
+      originalCard.current = editingCard;
     });
     
     return () => {
@@ -47,26 +49,46 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
         onEditingCardSave().then();
       }
     }
-  }, [cardId, init, onEditingCardSave]);
+  }, [editingCardId, init, onEditingCardSave]);
 
   useEffect(() => {
     const content = editingCard?.content;
+    const links = editingCard?.links;
+    const tags = editingCard?.tags;
     if (!content) return;
-    changed.current = JSON.stringify(content) !== JSON.stringify(originalContent.current);
+    changed.current = 
+      JSON.stringify(content) !== JSON.stringify(originalCard.current?.content) ||
+      JSON.stringify(links) !== JSON.stringify(originalCard.current?.links) ||
+      JSON.stringify(tags) !== JSON.stringify(originalCard.current?.tags);
   }, [editingCard]);
 
-  if (!editingCard) {
+  const onClose = () => {
+    useEditCardStore.setState({
+      editingCardId: undefined,
+    })
+  }
+
+  if (!editingCard || !editingCardId) {
     return null;
   }
 
   return (
     <div className={styles.cardDetail}>
+      <div className={styles.header}>
+        <Button icon={<LinkOutlined />} onClick={openAddLinkModal}>添加连接</Button>
+        <Button icon={<CloseOutlined />} onClick={onClose}>结束编辑</Button>
+      </div>
       <div className={styles.editorContainer}>
         <div className={styles.editor}>
           {
             initLoading
               ? <Skeleton active />
-              : <Editor ref={editorRef} initValue={editingCard?.content && editingCard.content.length > 0 ? editingCard.content : undefined} readonly={false} onChange={onEdit} />
+              : <Editor
+                  ref={editorRef}
+                  initValue={editingCard?.content && editingCard.content.length > 0 ? editingCard.content : undefined}
+                  readonly={false}
+                  onChange={onEdit}
+                />
           }
         </div>
         <div className={styles.tags}>
@@ -76,15 +98,6 @@ const CardDetail = ({ cardId }: { cardId: number }) => {
               : <AddTag tags={editingCard?.tags || []} addTag={addTag} removeTag={removeTag} />
           }
         </div>
-        <FloatButton
-          onClick={openAddLinkModal}
-          description={'连接'}
-          icon={<PlusOutlined />}
-          style={{
-            width: 50,
-            height: 50,
-          }}
-        />
       </div>
     </div>
   )

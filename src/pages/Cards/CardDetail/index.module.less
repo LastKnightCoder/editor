@@ -1,6 +1,20 @@
 .cardDetail {
   position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .header {
+    height: 60px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 40px;
+    gap: 10px;
+  }
   .editorContainer {
+    overflow-y: auto;
+    height: calc(100% - 60px);
     padding: 40px;
     width: 600px;
     margin: 0 auto;

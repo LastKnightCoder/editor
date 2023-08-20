@@ -8,15 +8,17 @@ import Editor from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 import styles from './index.module.less';
+import { CloseOutlined } from "@ant-design/icons";
 
 interface CardItemProps {
   card: ICard;
-  onClick?: () => void;
+  onClick?: (e: any) => void;
   active?: boolean;
+  onDelete?: (e: any) => void;
 }
 
 const CardItem = memo((props: CardItemProps) => {
-  const { card, onClick, active = false } = props;
+  const { card, onClick, onDelete, active = false } = props;
   const { content, update_time, tags } = card;
 
   return (
@@ -29,6 +31,9 @@ const CardItem = memo((props: CardItemProps) => {
         <ErrorBoundary>
           <Editor initValue={(content && content.length > 0) ? content.slice(0, 1) : undefined} readonly={true} />
         </ErrorBoundary>
+      </div>
+      <div onClick={onDelete} className={styles.delete}>
+        <CloseOutlined />
       </div>
     </div>
   )

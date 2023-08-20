@@ -1,21 +1,21 @@
 import { create } from 'zustand';
 import { ICard } from "@/types";
+import { CREATE_CARD_ID, DEFAULT_CARD_CONTENT } from "@/constants";
 import { findOneCard } from "@/commands";
-import {Descendant} from "slate";
+import { Descendant } from "slate";
 import useCardsManagementStore from "./useCardsManagementStore.ts";
 
-type EditingCard = Pick<ICard, 'content' | 'tags' | 'links'> & Partial<ICard>;
+export type EditingCard = Pick<ICard, 'content' | 'tags' | 'links'> & Partial<ICard>;
 
 interface IState {
   initLoading: boolean;
   addLinkModalOpen: boolean;
-  cardEditable: boolean;
   editingCardId: number | undefined;
   editingCard: EditingCard | undefined;
 }
 
 interface IActions {
-  initCard: (cardId: number) => Promise<Descendant[]>;
+  initCard: (cardId: number) => Promise<EditingCard>;
   onEditingCardChange: (content: Descendant[]) => void;
   onEditingCardCancel: () => void;
   onEditingCardSave: () => Promise<void>;
@@ -30,7 +30,6 @@ interface IActions {
 const initialState: IState = {
   initLoading: true,
   addLinkModalOpen: false,
-  cardEditable: false,
   editingCardId: undefined,
   editingCard: undefined,
 }
@@ -41,36 +40,31 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     set({
       initLoading: true,
     });
-    if (cardId === -1) {
+    if (cardId === CREATE_CARD_ID) {
       const defaultCard: {
         content: Descendant[];
         tags: string[];
         links: number[];
       } = {
-        content: [{
-          type: 'paragraph',
-          children: [{ type: 'formatted', text: '' }],
-        }],
+        content: DEFAULT_CARD_CONTENT,
         tags: [],
         links: [],
       };
       set({
         editingCardId: undefined,
         editingCard: defaultCard,
-        cardEditable: true,
         initLoading: false,
       });
-      return defaultCard.content;
+      return defaultCard;
     }
 
     const card = await findOneCard(cardId);
     set({
       editingCardId: cardId,
       editingCard: card,
-      cardEditable: true,
       initLoading: false,
     });
-    return card.content;
+    return card;
   },
   onEditingCardChange: (content: Descendant[]) => {
     const { editingCard} = get();
