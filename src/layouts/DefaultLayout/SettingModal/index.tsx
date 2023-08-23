@@ -1,5 +1,5 @@
 import useSettingStore from "@/hooks/useSettingStore.ts";
-import {Input, Modal} from "antd";
+import {Input, Modal, InputNumber} from "antd";
 import {useEffect} from "react";
 
 import styles from './index.module.less';
@@ -11,12 +11,14 @@ const SettingModal = () => {
     fontSetting,
     onChineseFontChange,
     onEnglishFontChange,
+    onFontSizeChange,
   } = useSettingStore(state => ({
     open: state.settingModalOpen,
     setOpen: state.setSettingModalOpen,
     fontSetting: state.fontSetting,
     onChineseFontChange: state.onChineseFontChange,
     onEnglishFontChange: state.onEnglishFontChange,
+    onFontSizeChange: state.onFontSizeChange,
   }));
 
   const close = () => {
@@ -24,9 +26,10 @@ const SettingModal = () => {
   }
 
   useEffect(() => {
-    const { chineseFont, englishFont } = fontSetting;
+    const { chineseFont, englishFont, fontSize } = fontSetting;
     const finalFont = `${englishFont}, ${chineseFont}`;
     document.body.style.setProperty('--font', finalFont);
+    document.body.style.setProperty('--font-size', `${fontSize}px`);
     localStorage.setItem('fontSetting', JSON.stringify(fontSetting));
   }, [fontSetting]);
 
@@ -56,6 +59,18 @@ const SettingModal = () => {
             value={fontSetting.englishFont}
             onChange={(e) => {
               onEnglishFontChange(e.target.value)
+            }}
+          />
+        </div>
+        <div className={styles.inputItem}>
+          <div className={styles.label}>字体大小：</div>
+          <InputNumber
+            min={12}
+            controls={false}
+            value={fontSetting.fontSize}
+            type={'number'}
+            onChange={(size) => {
+              onFontSizeChange(size!);
             }}
           />
         </div>

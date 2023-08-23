@@ -1,6 +1,9 @@
 import React from 'react'
+import { RenderElementProps } from "slate-react";
+
 import styles from './index.module.less';
-import {RenderElementProps} from "slate-react";
+
+// import Draggable from "../Draggable";
 import {ParagraphElement} from "../../types";
 
 interface IParagraphProps {
@@ -15,6 +18,11 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = (props) =>
     <p {...attributes} className={styles.paragraph}>
       {children}
     </p>
+    // <Draggable item={element}>
+    //   <p {...attributes} className={styles.paragraph}>
+    //     {children}
+    //   </p>
+    // </Draggable>
   )
 }
 

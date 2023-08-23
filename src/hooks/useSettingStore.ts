@@ -13,6 +13,7 @@ interface IState {
   fontSetting: {
     chineseFont: string;
     englishFont: string;
+    fontSize: number;
   },
   rightSideBar: {
     top: SideBarAction[],
@@ -24,6 +25,7 @@ interface IActions {
   setSettingModalOpen: (open: boolean) => void;
   onChineseFontChange: (font: string) => void;
   onEnglishFontChange: (font: string) => void;
+  onFontSizeChange: (size: number) => void;
 }
 
 const initFontSetting = JSON.parse(localStorage.getItem('fontSetting') || 'null');
@@ -33,6 +35,7 @@ const initialState: IState = {
   fontSetting: initFontSetting ||  {
     chineseFont: '新宋体',
     englishFont: 'Merriweather',
+    fontSize: 16,
   },
   rightSideBar: {
     top: [],
@@ -49,7 +52,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
   },
   onChineseFontChange: (font) => {
     const { fontSetting } = get();
-    console.log('font', font);
     const newFontSetting = produce(fontSetting, (draft) => {
       draft.chineseFont = font;
     });
@@ -61,6 +63,15 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     const { fontSetting } = get();
     const newFontSetting = produce(fontSetting, (draft) => {
       draft.englishFont = font;
+    });
+    set({
+      fontSetting: newFontSetting,
+    });
+  },
+  onFontSizeChange: (size) => {
+    const { fontSetting } = get();
+    const newFontSetting = produce(fontSetting, (draft) => {
+      draft.fontSize = size;
     });
     set({
       fontSetting: newFontSetting,

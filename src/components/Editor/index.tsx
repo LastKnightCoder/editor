@@ -2,6 +2,8 @@ import {useState, useEffect, forwardRef, useImperativeHandle} from "react";
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
 import {Slate, Editable, withReact, ReactEditor} from 'slate-react';
 import { withHistory } from 'slate-history';
+import { DndProvider } from 'react-dnd'
+import { HTML5Backend } from 'react-dnd-html5-backend'
 
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 
@@ -131,30 +133,32 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
   }
 
   return (
-    <MathJaxContext config={mathjaxConfig}>
-      <Slate editor={editor} initialValue={initValue} onChange={handleOnChange} >
-        <Editable
-          readOnly={readonly}
-          renderElement={renderElement(editor)}
-          renderLeaf={renderLeaf()}
-          placeholder={'写下你的想法...'}
-          onKeyDown={(event) => {
-            registerHotKey(editor, event, hotKeyConfigs);
-            listenKeyPressed(event);
-          }}
-          onKeyUp={() => {
-            // 防止重复触发，频繁更新组件，编辑体验不好
-            if (!isReset) {
-              resetPressedKey();
-            }
-          }}
-        />
-        <ImagesOverview />
-        { !readonly && <Command /> }
-        { !readonly && <HoveringToolbar /> }
-        <BlockPanel />
-      </Slate>
-    </MathJaxContext>
+    <DndProvider backend={HTML5Backend}>
+      <MathJaxContext config={mathjaxConfig}>
+        <Slate editor={editor} initialValue={initValue} onChange={handleOnChange} >
+          <Editable
+            readOnly={readonly}
+            renderElement={renderElement(editor)}
+            renderLeaf={renderLeaf()}
+            placeholder={'写下你的想法...'}
+            onKeyDown={(event) => {
+              registerHotKey(editor, event, hotKeyConfigs);
+              listenKeyPressed(event);
+            }}
+            onKeyUp={() => {
+              // 防止重复触发，频繁更新组件，编辑体验不好
+              if (!isReset) {
+                resetPressedKey();
+              }
+            }}
+          />
+          <ImagesOverview />
+          { !readonly && <Command /> }
+          { !readonly && <HoveringToolbar /> }
+          <BlockPanel />
+        </Slate>
+      </MathJaxContext>
+    </DndProvider>
   )
 });
 

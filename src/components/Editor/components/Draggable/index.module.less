@@ -1,0 +1,20 @@
+.draggable {
+  position: relative;
+  border-bottom: 2px solid transparent;
+  .handler {
+    position: absolute;
+    top: 6px;
+    left: -24px;
+    background: red;
+    width: 15px;
+    height: 15px;
+    cursor: move;
+  }
+  &.over {
+    border-bottom: 2px solid #1a66ff;
+    border-radius: 2px;
+  }
+  &.canDrop {
+    opacity: .5;
+  }
+}

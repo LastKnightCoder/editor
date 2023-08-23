@@ -1,6 +1,6 @@
 import {useEffect, useRef} from "react";
-import { Skeleton, Button } from "antd";
-import {LinkOutlined, CloseOutlined} from '@ant-design/icons';
+import {Skeleton, Button} from "antd";
+import {LinkOutlined, CloseOutlined, EditOutlined, ReadOutlined} from '@ant-design/icons';
 
 import useEditCardStore, { EditingCard } from "@/hooks/useEditCardStore.ts";
 import Editor, {EditorRef} from "@/components/Editor";
@@ -24,6 +24,8 @@ const CardDetail = () => {
     removeTag,
     onEditingCardSave,
     openAddLinkModal,
+    readonly,
+    toggleReadonly,
   } = useEditCardStore((state) => ({
     editingCard: state.editingCard,
     editingCardId: state.editingCardId,
@@ -34,6 +36,8 @@ const CardDetail = () => {
     removeTag: state.removeTag,
     onEditingCardSave: state.onEditingCardSave,
     openAddLinkModal: state.openAddLinkModal,
+    readonly: state.readonly,
+    toggleReadonly: state.toggleReadonly,
   }));
 
   useEffect(() => {
@@ -41,10 +45,13 @@ const CardDetail = () => {
     init(editingCardId).then((card) => {
       if (editorRef.current === null) return;
       editorRef.current.setEditorValue(card.content);
-      originalCard.current = editingCard;
+      originalCard.current = card;
     });
     
     return () => {
+      useEditCardStore.setState({
+        readonly: true,
+      });
       if (changed.current) {
         onEditingCardSave().then();
       }
@@ -75,6 +82,7 @@ const CardDetail = () => {
   return (
     <div className={styles.cardDetail}>
       <div className={styles.header}>
+        <Button icon={readonly ? <EditOutlined /> : <ReadOutlined />} onClick={toggleReadonly}>{ readonly ? '编辑' : '只读' }</Button>
         <Button icon={<LinkOutlined />} onClick={openAddLinkModal}>添加连接</Button>
         <Button icon={<CloseOutlined />} onClick={onClose}>结束编辑</Button>
       </div>
@@ -86,7 +94,7 @@ const CardDetail = () => {
               : <Editor
                   ref={editorRef}
                   initValue={editingCard?.content && editingCard.content.length > 0 ? editingCard.content : undefined}
-                  readonly={false}
+                  readonly={readonly}
                   onChange={onEdit}
                 />
           }
