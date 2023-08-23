@@ -9,6 +9,7 @@ interface SideBarAction {
 }
 
 interface IState {
+  darkMode: boolean;
   settingModalOpen: boolean;
   fontSetting: {
     chineseFont: string;
@@ -29,8 +30,10 @@ interface IActions {
 }
 
 const initFontSetting = JSON.parse(localStorage.getItem('fontSetting') || 'null');
+const initDarkMode = JSON.parse(localStorage.getItem('darkMode') || 'true');
 
 const initialState: IState = {
+  darkMode: initDarkMode || true,
   settingModalOpen: false,
   fontSetting: initFontSetting ||  {
     chineseFont: '新宋体',
