@@ -1,11 +1,15 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { FloatButton } from "antd";
+import { PlusOutlined } from '@ant-design/icons';
 
 import useArticleManagementStore from "@/hooks/useArticleManagementStore.ts";
 import useEditArticleStore from "@/hooks/useEditArticleStore.ts";
+import {CREATE_ARTICLE_ID} from "@/constants";
 
 import ArticleCard from "./ArticleCard";
 import styles from './index.module.less';
+
 
 const Articles = () => {
   const {
@@ -25,6 +29,7 @@ const Articles = () => {
   const handleClickArticleCard = (articleId: number) => {
     useEditArticleStore.setState({
       editingArticleId: articleId,
+      readonly: true,
     });
     navigate(`/articles/edit`);
   }
@@ -41,6 +46,18 @@ const Articles = () => {
           />
         ))
       }
+      <FloatButton
+        shape={'circle'}
+        icon={<PlusOutlined />}
+        onClick={() => {
+          useEditArticleStore.setState({
+            editingArticleId: CREATE_ARTICLE_ID,
+            readonly: false,
+          });
+          navigate('/articles/edit');
+        }}
+        tooltip={'新建文章'}
+      />
     </div>
   )
 }

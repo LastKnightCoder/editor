@@ -41,7 +41,7 @@ const useEditArticleStore = create<IState & IActions>((set, get) => ({
     if (articleId === CREATE_ARTICLE_ID) {
       const defaultArticle: EditingArticle = {
         id: articleId,
-        title: '',
+        title: '默认标题',
         author: '',
         links: [],
         tags: [],

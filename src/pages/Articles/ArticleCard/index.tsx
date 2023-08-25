@@ -34,12 +34,14 @@ const ArticleCard = (props: IArticleCardProps) => {
         <div className={styles.timeAndTags}>
           <div className={styles.time}>
             <CalendarOutlined />
-            <span className={styles.date}>发表于{dayjs(article.update_time).format('YYYY-MM-DD')}</span>
+            <span className={styles.date}>
+              发表于{dayjs(article.update_time).format('YYYY-MM-DD HH:mm:ss')}
+            </span>
           </div>
           <div className={styles.divider}>|</div>
           <div className={styles.time}>
             <TagsOutlined />
-            <span className={styles.tags}>{article.tags.slice(0, 3).join(' ')}</span>
+            <span className={styles.tags}>{article.tags.slice(0, 3).join(' ') || '无标签'}</span>
           </div>
         </div>
         <Editor
