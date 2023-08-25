@@ -25,6 +25,11 @@ use commands::{
     find_daily_note_by_id,
     find_daily_note_by_date,
     find_all_daily_notes,
+    create_article,
+    update_article,
+    delete_article,
+    find_article,
+    find_all_articles,
 };
 
 fn main() {
@@ -56,6 +61,11 @@ fn main() {
           find_daily_note_by_id,
           find_daily_note_by_date,
           find_all_daily_notes,
+          create_article,
+          update_article,
+          delete_article,
+          find_article,
+          find_all_articles,
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

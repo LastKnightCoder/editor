@@ -48,7 +48,6 @@ const SettingModal = () => {
           <Input
             value={fontSetting.chineseFont}
             onChange={(e) => {
-              console.log('e', e);
               onChineseFontChange(e.target.value)
             }}
           />

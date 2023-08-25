@@ -43,7 +43,7 @@ const TitleBar = (props: ITitleBarProps) => {
         >
           <div className={styles.item}>卡片管理 <CaretDownOutlined /></div>
         </Popover>
-        <div className={styles.item}>文章</div>
+        <div className={styles.item} onClick={() => { navigate('/articles') }}>文章</div>
         <div className={styles.item} onClick={navigateToDaily}>日记</div>
       </div>
       <WindowControl className={styles.windowControl} />
