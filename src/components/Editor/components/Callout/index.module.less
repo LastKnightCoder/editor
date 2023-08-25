@@ -5,41 +5,70 @@
   border-left: 0.3rem solid;
   border-color: var(--hint-border-color);
   border-radius: 0.5rem;
-  color: black;
 
   &.tip {
+    color: var(--hint-text-color);
     --hint-border-color: #009400;
     --hint-background-color: #e6ffe6;
     --hint-text-color: #003100;
-    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/tip.12ymwnxykss0.svg');
+    --icon-url: url('@/assets/tip.svg');
+  }
+
+  :global(:root[data-theme='dark']) &.tip {
+    --hint-background-color: #003100;
+    --hint-text-color: #e6ffe6;
   }
 
   &.info {
+    color: var(--hint-text-color);
     --hint-border-color: #4cb3d4;
     --hint-background-color: #eef9fd;
     --hint-text-color: #193c47;
-    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/info.3a5rczjx29y0.svg');
+    --icon-url: url('@/assets/info.svg');
+  }
+
+  :global(:root[data-theme='dark']) &.info {
+    --hint-background-color: #193c47;
+    --hint-text-color: #eef9fd;
   }
 
   &.danger {
+    color: var(--hint-text-color);
     --hint-border-color: #e13238;
     --hint-background-color: #ffebec;
     --hint-text-color: #4b1113;
-    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/danger.5f0i03iinx00.svg');
+    --icon-url: url('@/assets/danger.svg');
+  }
+
+  :global(:root[data-theme='dark']) &.danger {
+    --hint-background-color: #4b1113;
+    --hint-text-color: #ffebec;
   }
 
   &.warning {
+    color: var(--hint-text-color);
     --hint-border-color: #e6a700;
     --hint-background-color: #fff8e6;
     --hint-text-color: #4d3800;
-    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/warning.2ot1h0q3e9c.svg');
+    --icon-url: url('@/assets/warning.svg');
+  }
+
+  :global(:root[data-theme='dark']) &.warning {
+    --hint-background-color: #4d3800;
+    --hint-text-color: #fff8e6;
   }
 
   &.note {
+    color: var(--hint-text-color);
     --hint-border-color: #d4d5d8;
     --hint-background-color: #fdfdfe;
     --hint-text-color: #474748;
-    --icon-url: url('https://cdn.staticaly.com/gh/LastKnightCoder/image-for-2022@master/note.31uj06ac3ss0.svg');
+    --icon-url: url('@/assets/note.svg');
+  }
+
+  :global(:root[data-theme='dark']) &.note {
+    --hint-background-color: #474748;
+    --hint-text-color: #fdfdfe;
   }
 
   .title {
