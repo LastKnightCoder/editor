@@ -4,8 +4,6 @@ import {IArticle} from "@/types";
 export async function createArticle(article: Omit<IArticle, 'id' | 'create_time' | 'update_time'>): Promise<number> {
   const { title, author, tags, links, content } = article;
 
-  console.log('create', article);
-
   return await invoke('create_article', {
     title,
     author,
@@ -35,7 +33,7 @@ export async function deleteArticle(id: number): Promise<number> {
 }
 
 export async function findOneArticle(id: number): Promise<IArticle> {
-  const res: any =  await invoke('find_one_article', {
+  const res: any =  await invoke('find_article', {
     id
   });
   return {
@@ -46,7 +44,7 @@ export async function findOneArticle(id: number): Promise<IArticle> {
 
 export async function getAllArticles(): Promise<IArticle[]> {
   const list: any[] =  await invoke('find_all_articles');
-  console.log(list);
+
   return list.map((item) => {
     return {
       ...item,

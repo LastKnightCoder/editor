@@ -74,7 +74,7 @@ pub fn upgrade_article_table(conn: &Connection, old_version: i64, new_version: i
 }
 
 pub fn create_article(conn: &Connection, title: String, author: String, tags: Vec<String>, links: Vec<i64>, content: String) -> Result<i64> {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
     let mut stmt = conn.prepare("INSERT INTO articles (title, author, create_time, update_time, tags, links, content) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?;
     let tags_str = serde_json::to_string(&tags).unwrap();
     let links_str = serde_json::to_string(&links).unwrap();
@@ -86,7 +86,7 @@ pub fn create_article(conn: &Connection, title: String, author: String, tags: Ve
 }
 
 pub fn update_article(conn: &Connection, id: i64, title: String, author: String, tags: Vec<String>, links: Vec<i64>, content: String) -> Result<usize> {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
     let mut stmt = conn.prepare("UPDATE articles SET title = ?1, author = ?2, update_time = ?3, tags = ?4, links = ?5, content = ?6 WHERE id = ?7")?;
     let tags_str = serde_json::to_string(&tags).unwrap();
     let links_str = serde_json::to_string(&links).unwrap();

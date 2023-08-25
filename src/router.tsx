@@ -3,6 +3,7 @@ import {createBrowserRouter, Navigate} from "react-router-dom";
 import DefaultLayout from '@/layouts/DefaultLayout';
 import Cards from "@/pages/Cards";
 import Articles from "@/pages/Articles";
+import ArticleEdit from "@/pages/Articles/ArticleEdit";
 import Statistic from "@/pages/Statistic";
 import Animate from "@/pages/Animate";
 import DailyNote from "@/pages/DailyNote";
@@ -34,6 +35,9 @@ const routes = [{
     }, {
       path: 'list/',
       element: <Articles />,
+    }, {
+      path: 'edit',
+      element: <ArticleEdit />,
     }]
   }, {
     path: 'statistic/',

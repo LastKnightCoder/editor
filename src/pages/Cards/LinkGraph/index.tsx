@@ -167,7 +167,6 @@ const LinkGraph = () => {
 
   useEffect(() => {
     if (!ref.current || !graph.current || !size?.width || size?.height) return;
-    console.log(size);
     graph.current.changeSize(size.width, size.height);
   }, [size]);
 

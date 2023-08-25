@@ -12,17 +12,25 @@ interface IArticleCardProps {
   className?: string;
   style?: React.CSSProperties;
   imageRight?: boolean;
+  onClick?: () => void;
 }
 
 const ArticleCard = (props: IArticleCardProps) => {
-  const { article, className, style, imageRight } = props;
+  const {
+    article,
+    className,
+    style,
+    imageRight,
+    onClick,
+  } = props;
+
   return (
     <div className={classnames(styles.articleCard, className)} style={style}>
-      <div className={classnames(styles.imageContainer, { [styles.right]: imageRight })}>
+      <div className={classnames(styles.imageContainer, { [styles.right]: imageRight })} onClick={onClick}>
         <img src={'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'} />
       </div>
       <div className={styles.content}>
-        <div className={styles.title}>{article.title}</div>
+        <div className={styles.title} onClick={onClick}>{article.title}</div>
         <div className={styles.timeAndTags}>
           <div className={styles.time}>
             <CalendarOutlined />

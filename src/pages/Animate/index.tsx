@@ -31,7 +31,7 @@ const Animate = () => {
 
   const handleClick = () => {
     const {value, done} = bubbleSort.next();
-    console.log('value', value, done);
+
     if (!done) {
       setNumbers(value.arr);
       setJ(value.j);

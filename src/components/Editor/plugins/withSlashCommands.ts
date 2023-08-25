@@ -18,7 +18,6 @@ export const withSlashCommands = (editor: Editor) => {
             x: rect.left,
             y: rect.top + rect.height,
           }
-          console.log('==position', position);
           useBlockPanelStore.setState({
             blockPanelVisible: true,
             position,
