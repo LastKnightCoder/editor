@@ -13,16 +13,16 @@ interface IWindowControlProps {
 
 const WindowControl = (props: IWindowControlProps) => {
   const { className, style } = props;
-  const [maximized, setMaximized] = React.useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
 
   const minimize = async () => {
     await appWindow.minimize();
   }
 
-  const toggleMaximize = async () => {
-    await appWindow.toggleMaximize();
-    const isMaximized = await appWindow.isMaximized();
-    setMaximized(isMaximized);
+  const toggleFullscreen = async () => {
+    const isFullscreen = await appWindow.isFullscreen();
+    setIsFullscreen(!isFullscreen);
+    await appWindow.setFullscreen(!isFullscreen);
   }
 
   const close = async () => {
@@ -34,9 +34,9 @@ const WindowControl = (props: IWindowControlProps) => {
       <div className={styles.item} onClick={minimize}>
         <MinusOutlined />
       </div>
-      <div className={styles.item} onClick={toggleMaximize}>
+      <div className={styles.item} onClick={toggleFullscreen}>
         {
-          maximized ? <FullscreenExitOutlined /> : <FullscreenOutlined />
+          isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />
         }
       </div>
       <div className={styles.item} onClick={close}>
