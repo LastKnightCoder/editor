@@ -4,6 +4,7 @@ import { CREATE_CARD_ID, DEFAULT_CARD_CONTENT } from "@/constants";
 import { findOneCard } from "@/commands";
 import { Descendant } from "slate";
 import useCardsManagementStore from "./useCardsManagementStore.ts";
+import {produce} from "immer";
 
 export type EditingCard = Pick<ICard, 'content' | 'tags' | 'links'> & Partial<ICard>;
 
@@ -44,17 +45,13 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       initLoading: true,
     });
     if (cardId === CREATE_CARD_ID) {
-      const defaultCard: {
-        content: Descendant[];
-        tags: string[];
-        links: number[];
-      } = {
+      const defaultCard: EditingCard = {
+        id: cardId,
         content: DEFAULT_CARD_CONTENT,
         tags: [],
         links: [],
       };
       set({
-        editingCardId: undefined,
         editingCard: defaultCard,
         initLoading: false,
       });
@@ -62,8 +59,10 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     }
 
     const card = await findOneCard(cardId);
+    if (!card) {
+      throw new Error('Card not found');
+    }
     set({
-      editingCardId: cardId,
       editingCard: card,
       initLoading: false,
     });
@@ -91,8 +90,8 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     const { cards } = useCardsManagementStore.getState();
 
     let id: number;
-    if (editingCard) {
-      if (!editingCard.id) {
+    if (editingCard && editingCard?.id) {
+      if (editingCard.id === CREATE_CARD_ID) {
         id = await useCardsManagementStore.getState().createCard(editingCard);
       } else {
         id = editingCard.id;
@@ -132,6 +131,13 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
           });
         }
       });
+
+      set({
+        editingCardId: id,
+        editingCard: produce(editingCard, draft => {
+          draft.id = id;
+        })
+      });
     }
   },
   addTag: (tag) => {
@@ -141,11 +147,10 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       return;
     }
     set({
-      editingCard: {
-        ...editingCard,
-        tags: [...editingCard.tags, tag],
-      }
-    });
+      editingCard: produce(editingCard, draft => {
+        draft.tags.push(tag);
+      })
+    })
   },
   removeTag: (tag) => {
     const { editingCard } = get();
@@ -153,11 +158,10 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       return;
     }
     set({
-      editingCard: {
-        ...editingCard,
-        tags: editingCard.tags.filter(t => t !== tag),
-      }
-    });
+      editingCard: produce(editingCard, draft => {
+        draft.tags = draft.tags.filter(t => t !== tag);
+      })
+    })
   },
   addLink: (link) => {
     const { editingCard } = get();
@@ -165,10 +169,9 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       return;
     }
     set({
-      editingCard: {
-        ...editingCard,
-        links: [...editingCard.links, link],
-      },
+      editingCard: produce(editingCard, draft => {
+        draft.links.push(link);
+      })
     })
   },
   removeLink: (link) => {
@@ -177,11 +180,10 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       return;
     }
     set({
-      editingCard: {
-        ...editingCard,
-        links: editingCard.links.filter(t => t !== link),
-      },
-    });
+      editingCard: produce(editingCard, draft => {
+        draft.links = draft.links.filter(t => t !== link);
+      })
+    })
   },
   openAddLinkModal: () => {
     set({

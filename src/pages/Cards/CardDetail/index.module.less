@@ -16,10 +16,14 @@
     overflow-y: auto;
     height: calc(100% - 60px);
     padding: 40px;
-    width: 600px;
+    min-width: 600px;
+    max-width: 800px;
     margin: 0 auto;
     .tags {
       margin-top: 20px;
+    }
+    &::-webkit-scrollbar {
+      display: none;
     }
   }
 }

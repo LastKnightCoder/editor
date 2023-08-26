@@ -3,7 +3,7 @@ import classnames from "classnames";
 import Tag from './Tag';
 import styles from "./index.module.less";
 
-interface TagsProps<> {
+interface TagsProps {
   tags: string[];
   closable?: boolean;
   onClose?: (tag: string) => void;

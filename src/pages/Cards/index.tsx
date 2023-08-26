@@ -11,7 +11,7 @@ import useEditCardStore from "@/hooks/useEditCardStore.ts";
 import { CREATE_CARD_ID } from "@/constants";
 
 import CardItem from "./CardItem";
-import CardDetail from './CardDetail';
+import CardDetail, {CardDetailRef} from './CardDetail';
 import AddCardLinkModal from "./AddCardLinkModal";
 
 import styles from './index.module.less';
@@ -52,6 +52,7 @@ const Cards = memo(() => {
   });
   const loaderRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const cardDetailRef = useRef<CardDetailRef>(null);
 
   const filterCards = useMemo(() => {
     if (searchTags.length === 0) return cards;
@@ -89,6 +90,7 @@ const Cards = memo(() => {
   const createCard = () => {
     useEditCardStore.setState({
       editingCardId: CREATE_CARD_ID,
+      readonly: false,
     })
   }
 
@@ -119,15 +121,22 @@ const Cards = memo(() => {
   }
 
   const handleClickCard = (id: number) => {
-    if (id === editingCardId) {
+    if (!editingCardId) {
       useEditCardStore.setState({
-        editingCardId: undefined,
+        editingCardId: id,
       })
       return;
     }
-    useEditCardStore.setState({
-      editingCardId: id,
-    })
+
+    if (id === editingCardId) {
+      cardDetailRef.current?.quit();
+      return;
+    }
+    cardDetailRef.current?.quit().then(() => {
+      useEditCardStore.setState({
+        editingCardId: id,
+      })
+    });
   }
 
   const onResize = (width: number) => {
@@ -194,7 +203,7 @@ const Cards = memo(() => {
     <div className={styles.cardsContainer}>
       <WidthResizable
         defaultWidth={defaultSidebarWidth}
-        minWidth={200}
+        minWidth={300}
         maxWidth={500}
         onResize={onResize}
       >
@@ -263,7 +272,7 @@ const Cards = memo(() => {
       <div className={styles.content}>
         {
           editingCardId &&
-          <CardDetail />
+          <CardDetail ref={cardDetailRef} />
         }
       </div>
       <AddCardLinkModal />

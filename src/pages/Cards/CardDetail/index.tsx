@@ -1,6 +1,7 @@
-import {useEffect, useRef} from "react";
-import {Skeleton, Button} from "antd";
-import {LinkOutlined, CloseOutlined, EditOutlined, ReadOutlined} from '@ant-design/icons';
+import {forwardRef, useEffect, useImperativeHandle, useRef} from "react";
+import { Skeleton, FloatButton, message, Modal } from "antd";
+import { IoExitOutline } from "react-icons/io5";
+import {LinkOutlined, EditOutlined, ReadOutlined, SaveOutlined, UpOutlined} from '@ant-design/icons';
 
 import useEditCardStore, { EditingCard } from "@/hooks/useEditCardStore.ts";
 import Editor, {EditorRef} from "@/components/Editor";
@@ -8,10 +9,15 @@ import AddTag from "@/components/AddTag";
 
 import styles from './index.module.less';
 
-const CardDetail = () => {
+export interface CardDetailRef {
+  quit: () => Promise<void>;
+}
+
+const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
   const editorRef = useRef<EditorRef>(null);
   const originalCard = useRef<EditingCard>();
   const changed = useRef<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const {
     editingCard,
@@ -22,7 +28,6 @@ const CardDetail = () => {
     addTag,
     removeTag,
     onEditingCardSave,
-    openAddLinkModal,
     readonly,
     toggleReadonly,
   } = useEditCardStore((state) => ({
@@ -34,7 +39,6 @@ const CardDetail = () => {
     addTag: state.addTag,
     removeTag: state.removeTag,
     onEditingCardSave: state.onEditingCardSave,
-    openAddLinkModal: state.openAddLinkModal,
     readonly: state.readonly,
     toggleReadonly: state.toggleReadonly,
   }));
@@ -46,15 +50,6 @@ const CardDetail = () => {
       editorRef.current.setEditorValue(card.content);
       originalCard.current = card;
     });
-    
-    return () => {
-      useEditCardStore.setState({
-        readonly: true,
-      });
-      if (changed.current) {
-        onEditingCardSave().then();
-      }
-    }
   }, [editingCardId, init, onEditingCardSave]);
 
   useEffect(() => {
@@ -68,10 +63,58 @@ const CardDetail = () => {
       JSON.stringify(tags) !== JSON.stringify(originalCard.current?.tags);
   }, [editingCard]);
 
-  const onClose = () => {
-    useEditCardStore.setState({
-      editingCardId: undefined,
+  useImperativeHandle(ref, () => ({
+    quit,
+  }));
+
+  const quit = async () => {
+    return new Promise<void>(resolve => {
+      if (changed.current) {
+        Modal.confirm({
+          title: '卡片已修改，是否保存？',
+          onOk: async () => {
+            await onEditingCardSave();
+            useEditCardStore.setState({
+              editingCardId: undefined,
+            });
+            resolve();
+          },
+          onCancel: () => {
+            useEditCardStore.setState({
+              editingCardId: undefined,
+            });
+            resolve();
+          }
+        })
+      } else {
+        useEditCardStore.setState({
+          editingCardId: undefined,
+        });
+        resolve();
+      }
     })
+  }
+
+  const scrollToTop = () => {
+    containerRef.current?.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
+  const openAddLinkModal = () => {
+    if (readonly) {
+      message.warning('只读模式下无法添加连接').then();
+      return;
+    }
+    useEditCardStore.setState({
+      addLinkModalOpen: true,
+    });
+  }
+
+  const saveCard = async () => {
+    await onEditingCardSave();
+    changed.current = false;
   }
 
   if (!editingCard || !editingCardId) {
@@ -80,12 +123,7 @@ const CardDetail = () => {
 
   return (
     <div className={styles.cardDetail}>
-      <div className={styles.header}>
-        <Button icon={readonly ? <EditOutlined /> : <ReadOutlined />} onClick={toggleReadonly}>{ readonly ? '编辑' : '只读' }</Button>
-        <Button icon={<LinkOutlined />} onClick={openAddLinkModal}>添加连接</Button>
-        <Button icon={<CloseOutlined />} onClick={onClose}>结束编辑</Button>
-      </div>
-      <div className={styles.editorContainer}>
+      <div ref={containerRef} className={styles.editorContainer}>
         <div className={styles.editor}>
           {
             initLoading
@@ -99,15 +137,45 @@ const CardDetail = () => {
           }
         </div>
         <div className={styles.tags}>
-          {
-            initLoading
-              ? <Skeleton active />
-              : <AddTag tags={editingCard?.tags || []} addTag={addTag} removeTag={removeTag} />
-          }
+          <AddTag
+            tags={editingCard?.tags || []}
+            addTag={addTag}
+            removeTag={removeTag}
+            readonly={readonly}
+          />
         </div>
+        <FloatButton.Group>
+          <FloatButton.Group shape={'square'}>
+            <FloatButton
+              icon={<SaveOutlined />}
+              onClick={saveCard}
+              tooltip={'保存'}
+            />
+            <FloatButton
+              icon={readonly ? <EditOutlined /> : <ReadOutlined />}
+              onClick={toggleReadonly}
+              tooltip={readonly ? '编辑' : '只读'}
+            />
+            <FloatButton
+              icon={<LinkOutlined />}
+              onClick={openAddLinkModal}
+              tooltip={'添加连接'}
+            />
+            <FloatButton
+              icon={<UpOutlined />}
+              onClick={scrollToTop}
+              tooltip={'回到顶部'}
+            />
+            <FloatButton
+              icon={<IoExitOutline />}
+              onClick={quit}
+              tooltip={'结束编辑'}
+            />
+          </FloatButton.Group>
+        </FloatButton.Group>
       </div>
     </div>
   )
-}
+});
 
 export default CardDetail;

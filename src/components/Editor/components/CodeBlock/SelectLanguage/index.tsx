@@ -1,4 +1,4 @@
-import { Select } from "antd";
+import { Select, ConfigProvider, theme } from "antd";
 
 interface SelectLanguageProps {
   value: string;
@@ -46,19 +46,25 @@ const SelectLanguage = (props: SelectLanguageProps) => {
   const { value, onChange, className, style = {} } = props;
 
   return (
-    <Select
-      showSearch
-      value={value}
-      onChange={onChange}
-      placeholder="Select a language"
-      optionFilterProp="children"
-      options={languages}
-      filterOption={(input, option) =>
-        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-      }
-      className={className}
-      style={{ width: 120, ...style }}
-    />
+    <ConfigProvider
+      theme={{
+        algorithm: theme.darkAlgorithm,
+      }}
+    >
+      <Select
+        showSearch
+        value={value}
+        onChange={onChange}
+        placeholder="Select a language"
+        optionFilterProp="children"
+        options={languages}
+        filterOption={(input, option) =>
+          (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+        }
+        className={className}
+        style={{ width: 120, ...style }}
+      />
+    </ConfigProvider>
   )
 }
 
