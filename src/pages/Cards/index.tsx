@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState, useRef, useCallback, memo} from "react";
-import {Button, Input, Modal, Skeleton, Spin} from 'antd';
+import {Button, Input, Skeleton, Spin, App} from 'antd';
 import isHotKey from "is-hotkey";
 import { CloseOutlined } from '@ant-design/icons';
 
@@ -34,6 +34,8 @@ const Cards = memo(() => {
   } = useEditCardStore((state) => ({
       editingCardId: state.editingCardId,
   }));
+
+  const { modal } = App.useApp();
 
   const [searchValue, setSearchValue] = useState<string>('');
   const [searchTags, setSearchTags] = useState<string[]>([]);
@@ -145,7 +147,7 @@ const Cards = memo(() => {
   }
 
   const onDeleteCard = async (id: number) => {
-    Modal.confirm({
+    modal.confirm({
       title: '确认删除？',
       content: '删除后无法恢复',
       onOk: async () => {
@@ -211,8 +213,9 @@ const Cards = memo(() => {
           <div className={styles.header}>
             <div className={styles.total}>
               <div className={styles.number}>卡片数量：{filterCards.length}</div>
-              <div className={styles.create} onClick={createCard}>
-                <Button>新建卡片</Button>
+              <div className={styles.buttons}>
+                <Button onClick={scrollToTop}>回到顶部</Button>
+                <Button onClick={createCard}>新建卡片</Button>
               </div>
             </div>
             <div className={styles.input}>
@@ -232,7 +235,7 @@ const Cards = memo(() => {
                     <div className={styles.title}>搜索记录</div>
                     <CloseOutlined onClick={() => { setShowSearchTips(false) }} />
                   </div>
-                  <Tags onClick={onClickSearchTag} tags={searchTips} noWrap />
+                  <Tags onClick={onClickSearchTag} tags={searchTips} noWrap showIcon hoverAble />
                 </div>
               }
             </div>
@@ -253,7 +256,7 @@ const Cards = memo(() => {
                         e.stopPropagation();
                       }}
                       onDelete={(e) => {
-                        onDeleteCard(card.id)
+                        onDeleteCard(card.id).then();
                         e.stopPropagation();
                       }}
                     />

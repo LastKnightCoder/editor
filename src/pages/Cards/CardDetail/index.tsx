@@ -1,5 +1,5 @@
 import {forwardRef, useEffect, useImperativeHandle, useRef} from "react";
-import { Skeleton, FloatButton, message, Modal } from "antd";
+import { Skeleton, FloatButton, message, App } from "antd";
 import { IoExitOutline } from "react-icons/io5";
 import {LinkOutlined, EditOutlined, ReadOutlined, SaveOutlined, UpOutlined} from '@ant-design/icons';
 
@@ -43,6 +43,8 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
     toggleReadonly: state.toggleReadonly,
   }));
 
+  const { modal } = App.useApp();
+
   useEffect(() => {
     if (!editingCardId) return;
     init(editingCardId).then((card) => {
@@ -70,7 +72,7 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
   const quit = async () => {
     return new Promise<void>(resolve => {
       if (changed.current) {
-        Modal.confirm({
+        modal.confirm({
           title: '卡片已修改，是否保存？',
           onOk: async () => {
             await onEditingCardSave();

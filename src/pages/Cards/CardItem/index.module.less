@@ -6,15 +6,12 @@
   padding: 16px 16px 0;
   border-radius: 8px;
   box-sizing: border-box;
-  //border: 2px solid transparent;
   &:hover {
-    background-color: var(--card-item-hover-bg);
-    //border: 2px solid rgb(47, 49, 52);
+    background-color: var(--common-hover-bg);
     cursor: pointer;
   }
   &.active {
-    background-color: var(--card-item-hover-bg);
-    //border: 2px solid rgb(47, 49, 52);
+    background-color: var(--common-hover-bg);
   }
   .time {
     font-size: .8em;
@@ -36,10 +33,13 @@
     justify-content: center;
     &:hover {
       cursor: pointer;
-      background: #6a737d;
+      background: var(--common-hover-bg);
     }
   }
   &:hover .delete {
-      display: flex;
+    display: flex;
+  }
+  .tags {
+    width: 80%;
   }
 }

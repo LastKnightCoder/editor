@@ -1,3 +1,4 @@
+import { App } from 'antd';
 import { Outlet } from "react-router-dom";
 
 import SettingModal from "./SettingModal";
@@ -12,7 +13,9 @@ const Management = () => {
       <div className={styles.container}>
         <TitleBar className={styles.titleBar} />
         <div id={'detail-container'} className={styles.detail}>
-          <Outlet />
+          <App>
+            <Outlet />
+          </App>
         </div>
       </div>
       <SettingModal />

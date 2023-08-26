@@ -17,6 +17,8 @@ interface IArticleCardProps {
   onClick?: () => void;
 }
 
+const allThemes = [styles.green, styles.blue, styles.red, styles.yellow, styles.purple];
+
 const ArticleCard = (props: IArticleCardProps) => {
   const {
     darkMode,
@@ -32,9 +34,10 @@ const ArticleCard = (props: IArticleCardProps) => {
     onClick,
   } = props;
 
+  const randomTheme = allThemes[Math.floor(Math.random() * allThemes.length)];
   const cardClassName = classnames(
     styles.articleCard,
-    styles.blue,
+    randomTheme,
     {
       [styles.right]: imageRight,
       [styles.dark]: darkMode,

@@ -23,7 +23,11 @@ const CardItem = memo((props: CardItemProps) => {
 
   return (
     <div className={classnames(styles.item, { [styles.active]: active })} onClick={onClick}>
-      <Tags tags={tags} />
+      <Tags
+        className={styles.tags}
+        tags={tags}
+        showIcon
+      />
       <div className={styles.time}>
         更新于 {dayjs(update_time).format('YYYY/MM/DD HH:mm:ss')}
       </div>

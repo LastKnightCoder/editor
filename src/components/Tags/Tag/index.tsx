@@ -9,6 +9,7 @@ interface ITagProps {
   showSharp?: boolean;
   showIcon?: boolean;
   closable?: boolean;
+  hoverAble?: boolean;
   onClose?: () => void;
   onClick?: () => void;
   className?: string;
@@ -21,6 +22,7 @@ const Tag = (props: ITagProps) => {
     showSharp,
     showIcon,
     closable,
+    hoverAble,
     onClose,
     onClick,
     className,
@@ -31,8 +33,17 @@ const Tag = (props: ITagProps) => {
     darkMode: state.darkMode
   }))
 
+  const tagClassName = classnames(
+    styles.tagContainer,
+    {
+      [styles.dark]: darkMode,
+      [styles.hoverAble]: hoverAble
+    },
+    className
+  )
+
   return (
-    <div className={classnames(styles.tagContainer, { [styles.dark]: darkMode }, className)} style={style} onClick={onClick}>
+    <div className={tagClassName} style={style} onClick={onClick}>
       {
         showIcon && <TagOutlined />
       }

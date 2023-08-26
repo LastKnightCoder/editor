@@ -16,9 +16,12 @@
     overflow-y: auto;
     height: calc(100% - 60px);
     padding: 40px;
+    margin: 0 auto;
     min-width: 600px;
     max-width: 800px;
-    margin: 0 auto;
+    @media screen and (max-width: 1280px) {
+      max-width: 600px;
+    }
     .tags {
       margin-top: 20px;
     }

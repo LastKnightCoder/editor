@@ -13,6 +13,7 @@ interface TagsProps {
   onClick?: (tag: string) => void;
   showIcon?: boolean;
   showSharp?: boolean;
+  hoverAble?: boolean;
 }
 
 const Tags = (props: TagsProps) => {
@@ -25,15 +26,24 @@ const Tags = (props: TagsProps) => {
     onClick,
     className,
     style,
-    noWrap = false
+    noWrap = false,
+    hoverAble = false,
   } = props;
 
   if (!tags || tags.length === 0) {
     return null;
   }
 
+  const tagsClassName = classnames(
+    styles.tags,
+    {
+      [styles.noWrap]: noWrap,
+    },
+    className
+  );
+
   return (
-    <div className={classnames(styles.tags, className, {[styles.noWrap]: noWrap})} style={style}>
+    <div className={tagsClassName} style={style}>
       {
         tags
           .filter(tag => !!tag)
@@ -46,6 +56,7 @@ const Tags = (props: TagsProps) => {
                 onClick={() => onClick && onClick(tag)}
                 showIcon={showIcon}
                 showSharp={showSharp}
+                hoverAble={hoverAble}
               />
           ))
       }
