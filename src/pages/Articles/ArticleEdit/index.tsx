@@ -7,7 +7,7 @@ import { CalendarOutlined, EditOutlined, ReadOutlined, UpOutlined, SaveOutlined 
 import { IoExitOutline } from 'react-icons/io5';
 
 import Editor, { EditorRef } from "@/components/Editor";
-import useEditArticleStore, {EditingArticle} from "@/hooks/useEditArticleStore.ts";
+import useEditArticleStore, {EditingArticle} from "@/stores/useEditArticleStore.ts";
 import { CREATE_ARTICLE_ID } from "@/constants";
 
 import styles from './index.module.less';

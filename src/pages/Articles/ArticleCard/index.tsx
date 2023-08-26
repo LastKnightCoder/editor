@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { Typography } from 'antd';
 import { CalendarOutlined } from '@ant-design/icons';
 
-import useSettingStore from "@/hooks/useSettingStore.ts";
+import useSettingStore from "@/stores/useSettingStore.ts";
 import Editor from "@/components/Editor";
 import Tags from "@/components/Tags";
 import {IArticle} from "@/types";

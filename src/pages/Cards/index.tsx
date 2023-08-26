@@ -6,8 +6,8 @@ import { CloseOutlined } from '@ant-design/icons';
 import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import WidthResizable from "@/components/WidthResizable";
-import useCardsManagementStore from "@/hooks/useCardsManagementStore";
-import useEditCardStore from "@/hooks/useEditCardStore.ts";
+import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import useEditCardStore from "@/stores/useEditCardStore.ts";
 import { CREATE_CARD_ID } from "@/constants";
 
 import CardItem from "./CardItem";

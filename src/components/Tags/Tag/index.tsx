@@ -1,6 +1,6 @@
 import classnames from "classnames";
 import { CloseOutlined, TagOutlined } from "@ant-design/icons";
-import useSettingStore from "@/hooks/useSettingStore.ts";
+import useSettingStore from "@/stores/useSettingStore.ts";
 
 import styles from "./index.module.less";
 

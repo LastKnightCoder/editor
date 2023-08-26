@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { FloatButton } from "antd";
 import { PlusOutlined } from '@ant-design/icons';
 
-import useArticleManagementStore from "@/hooks/useArticleManagementStore.ts";
-import useEditArticleStore from "@/hooks/useEditArticleStore.ts";
+import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
+import useEditArticleStore from "@/stores/useEditArticleStore.ts";
 import {CREATE_ARTICLE_ID} from "@/constants";
 
 import ArticleCard from "./ArticleCard";

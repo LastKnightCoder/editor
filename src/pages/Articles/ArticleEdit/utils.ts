@@ -1,4 +1,4 @@
-import { EditingArticle } from "@/hooks/useEditArticleStore.ts";
+import { EditingArticle } from "@/stores/useEditArticleStore.ts";
 
 export const isArticleChanged = (before: EditingArticle, after: EditingArticle) => {
   const {

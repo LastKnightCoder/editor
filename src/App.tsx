@@ -2,26 +2,16 @@ import {ConfigProvider, theme} from "antd";
 import zhCN from "antd/locale/zh_CN";
 import {RouterProvider} from "react-router-dom";
 
-import useSettingStore from "@/hooks/useSettingStore.ts";
 import router from "@/router.tsx";
-import {useEffect} from "react";
+import useTheme from "@/hooks/useTheme.ts";
 
 const App = () => {
-
-  const {
-    darkMode
-  } = useSettingStore(state => ({
-    darkMode: state.darkMode,
-  }));
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
-  }, [darkMode]);
+  const { isDark } = useTheme();
 
   return (
     <ConfigProvider
       theme={{
-        algorithm: darkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
       }}
       locale={zhCN}
     >

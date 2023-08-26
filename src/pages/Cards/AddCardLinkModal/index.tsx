@@ -1,8 +1,8 @@
 import {useMemo, useState} from "react";
 import {Drawer, Empty, Input, Modal, Tabs, TabsProps} from 'antd';
 
-import useEditCardStore from "@/hooks/useEditCardStore.ts";
-import useCardsManagementStore from "@/hooks/useCardsManagementStore.ts";
+import useEditCardStore from "@/stores/useEditCardStore.ts";
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 
 import Tags from "@/components/Tags";
 import {ICard} from "@/types";

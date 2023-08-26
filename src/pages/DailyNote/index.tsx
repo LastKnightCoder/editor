@@ -1,5 +1,5 @@
 import {Button, Calendar, Skeleton, Drawer, Modal} from 'antd';
-import useDailyNoteStore from "@/hooks/useDailyNoteStore.ts";
+import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
 import {SelectInfo} from "antd/es/calendar/generateCalendar";
 import type { Dayjs } from "dayjs";
 import styles from './index.module.less';

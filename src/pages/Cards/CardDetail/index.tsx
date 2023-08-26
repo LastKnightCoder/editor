@@ -3,7 +3,7 @@ import { Skeleton, FloatButton, message, App } from "antd";
 import { IoExitOutline } from "react-icons/io5";
 import {LinkOutlined, EditOutlined, ReadOutlined, SaveOutlined, UpOutlined} from '@ant-design/icons';
 
-import useEditCardStore, { EditingCard } from "@/hooks/useEditCardStore.ts";
+import useEditCardStore, { EditingCard } from "@/stores/useEditCardStore.ts";
 import Editor, {EditorRef} from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 

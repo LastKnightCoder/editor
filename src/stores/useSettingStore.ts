@@ -1,12 +1,5 @@
 import { create } from "zustand";
-import { ReactNode } from "react";
 import { produce } from "immer";
-
-interface SideBarAction {
-  icon: ReactNode;
-  title: string;
-  onClick: () => void;
-}
 
 interface IState {
   darkMode: boolean;
@@ -15,10 +8,6 @@ interface IState {
     chineseFont: string;
     englishFont: string;
     fontSize: number;
-  },
-  rightSideBar: {
-    top: SideBarAction[],
-    bottom: SideBarAction[]
   }
 }
 
@@ -29,20 +18,13 @@ interface IActions {
   onFontSizeChange: (size: number) => void;
 }
 
-const initFontSetting = JSON.parse(localStorage.getItem('fontSetting') || 'null');
-const initDarkMode = JSON.parse(localStorage.getItem('darkMode') || 'true');
-
 const initialState: IState = {
-  darkMode: initDarkMode || true,
+  darkMode: true,
   settingModalOpen: false,
-  fontSetting: initFontSetting ||  {
+  fontSetting: {
     chineseFont: '新宋体',
     englishFont: 'Merriweather',
     fontSize: 16,
-  },
-  rightSideBar: {
-    top: [],
-    bottom: []
   }
 }
 
