@@ -1,5 +1,5 @@
 import {useEffect, useRef} from "react";
-import {Skeleton, FloatButton, Modal} from "antd";
+import { FloatButton, Modal, Spin, Empty } from "antd";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 
@@ -102,8 +102,20 @@ const ArticleEdit = () => {
     changed.current = isArticleChanged(originalArticle.current, editingArticle);
   }, [editingArticle]);
 
-  if (initLoading) return <Skeleton active />
-  if (!editingArticle) return <div>文章不存在</div>
+  if (initLoading) {
+    return (
+      <div className={styles.loading}>
+        <Spin />
+      </div>
+    )
+  }
+  if (!editingArticle) {
+    return (
+      <div className={styles.empty}>
+        <Empty description={'未查询到相关文章'} />
+      </div>
+    )
+  }
 
   return (
     <div ref={containerRef} className={styles.editorContainer}>

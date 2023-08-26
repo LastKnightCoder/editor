@@ -220,7 +220,7 @@ const Cards = memo(() => {
             </div>
             <div className={styles.input}>
               <Input
-                prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={deleteTag} /> : undefined}
+                prefix={searchTags.length > 0 ? <Tags closable showIcon tags={searchTags} onClose={deleteTag} /> : undefined}
                 onPressEnter={onSearch}
                 value={searchValue}
                 onChange={(e) => { setSearchValue(e.target.value) }}

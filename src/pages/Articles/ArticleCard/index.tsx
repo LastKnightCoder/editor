@@ -1,13 +1,16 @@
 import classnames from "classnames";
 import dayjs from "dayjs";
+import { Typography } from 'antd';
 import { CalendarOutlined } from '@ant-design/icons';
 
 import useSettingStore from "@/hooks/useSettingStore.ts";
 import Editor from "@/components/Editor";
+import Tags from "@/components/Tags";
 import {IArticle} from "@/types";
 
 import styles from './index.module.less';
-import Tags from "@/components/Tags";
+
+const { Text } = Typography;
 
 interface IArticleCardProps {
   article: IArticle;
@@ -51,7 +54,9 @@ const ArticleCard = (props: IArticleCardProps) => {
         <img src={'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'} />
       </div>
       <div className={styles.content}>
-        <div className={styles.title} onClick={onClick}>{article.title}</div>
+        <div onClick={onClick}>
+          <Text className={styles.title} ellipsis={{ tooltip: article.title }}>{article.title}</Text>
+        </div>
         <div className={styles.timeAndTags}>
           <div className={styles.time}>
             <CalendarOutlined />
@@ -61,7 +66,7 @@ const ArticleCard = (props: IArticleCardProps) => {
           </div>
         </div>
         <div>
-          <Tags tags={article.tags.slice(0, 3)} showIcon noWrap />
+          <Tags tags={article.tags} showIcon />
         </div>
         <Editor
           initValue={article.content.slice(0, 1)}

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import classnames from "classnames";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { CaretDownOutlined } from '@ant-design/icons';
 
 import WindowControl from "@/components/WindowControl";
@@ -13,13 +14,35 @@ interface ITitleBarProps {
   style?: React.CSSProperties;
 }
 
+enum ENavKey {
+  CARDS = 'CARDS',
+  ARTICLES = 'ARTICLES',
+  DAILY = 'DAILY',
+}
+
 const TitleBar = (props: ITitleBarProps) => {
   const { className, style } = props;
+  const [activeNavKey, setActiveNavKey] = useState<ENavKey>(ENavKey.CARDS);
   const navigate = useNavigate();
 
+  const navigateToCards = () => {
+    setActiveNavKey(ENavKey.CARDS);
+    navigate('/cards/list');
+  }
+
   const navigateToDaily = () => {
+    setActiveNavKey(ENavKey.DAILY);
     navigate('/daily');
   }
+
+  const navigateToArticles = () => {
+    setActiveNavKey(ENavKey.ARTICLES);
+    navigate('/articles/list');
+  }
+
+  const isCardsActive = activeNavKey === ENavKey.CARDS;
+  const isArticlesActive = activeNavKey === ENavKey.ARTICLES;
+  const isDailyActive = activeNavKey === ENavKey.DAILY;
 
   return (
     <div
@@ -27,7 +50,7 @@ const TitleBar = (props: ITitleBarProps) => {
       style={style}
       className={classnames(styles.titleBar, className)}
     >
-      <div className={styles.nav}>
+      <motion.div className={styles.nav}>
         <Popover
           trigger={'hover'}
           placement={'bottom'}
@@ -36,16 +59,55 @@ const TitleBar = (props: ITitleBarProps) => {
           }}
           content={
             <div className={styles.dropCard}>
-              <div className={styles.childItem} onClick={() => { navigate('/cards/list') }}>卡片列表</div>
-              <div className={styles.childItem} onClick={() => { navigate('/cards/link-graph') }}>关系图谱</div>
+              <div
+                className={styles.childItem}
+                onClick={() => {
+                  setActiveNavKey(ENavKey.CARDS);
+                  navigate('/cards/list')
+                }}
+              >
+                卡片列表
+              </div>
+              <div
+                className={styles.childItem}
+                onClick={() => {
+                  setActiveNavKey(ENavKey.CARDS);
+                  navigate('/cards/link-graph')
+                }}>
+                关系图谱
+              </div>
             </div>
           }
         >
-          <div className={styles.item}>卡片 <CaretDownOutlined /></div>
+          <motion.div
+            className={classnames(styles.item, { [styles.active]: isCardsActive })}
+            onClick={navigateToCards}
+          >
+            卡片 <CaretDownOutlined />
+            {
+              isCardsActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
+            }
+          </motion.div>
         </Popover>
-        <div className={styles.item} onClick={() => { navigate('/articles/list') }}>文章</div>
-        <div className={styles.item} onClick={navigateToDaily}>日记</div>
-      </div>
+        <motion.div
+          className={classnames(styles.item, { [styles.active]: isArticlesActive })}
+          onClick={navigateToArticles}
+        >
+          文章
+          {
+            isArticlesActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
+          }
+        </motion.div>
+        <motion.div
+          className={classnames(styles.item, { [styles.active]: isDailyActive })}
+          onClick={navigateToDaily}
+        >
+          日记
+          {
+            isDailyActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
+          }
+        </motion.div>
+      </motion.div>
       <WindowControl className={styles.windowControl} />
     </div>
   )

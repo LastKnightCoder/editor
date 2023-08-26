@@ -13,7 +13,7 @@ const Management = () => {
       <div className={styles.container}>
         <TitleBar className={styles.titleBar} />
         <div id={'detail-container'} className={styles.detail}>
-          <App>
+          <App className={styles.app}>
             <Outlet />
           </App>
         </div>
