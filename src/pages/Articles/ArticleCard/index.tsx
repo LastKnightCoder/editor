@@ -61,7 +61,7 @@ const ArticleCard = (props: IArticleCardProps) => {
           </div>
         </div>
         <div>
-          <Tags tags={article.tags} showIcon noWrap />
+          <Tags tags={article.tags.slice(0, 3)} showIcon noWrap />
         </div>
         <Editor
           initValue={article.content.slice(0, 1)}

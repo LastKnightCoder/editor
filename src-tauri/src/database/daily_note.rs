@@ -34,9 +34,6 @@ pub fn upgrade_daily_note_table(_conn: &Connection, old_version: i64, new_versio
     if old_version == new_version {
         return Ok(());
     }
-    match old_version {
-        _ => {}
-    }
     Ok(())
 }
 
@@ -46,7 +43,6 @@ pub fn insert_daily_note(
     content: &str,
 ) -> Result<i64> {
     let mut stmt = conn.prepare("INSERT INTO daily_notes (date, content) VALUES (?1, ?2)")?;
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     let result = stmt.insert(params![date, content])?;
 
     match insert_operation(conn, result as i64, "daily".to_string(), "insert".to_string()) {

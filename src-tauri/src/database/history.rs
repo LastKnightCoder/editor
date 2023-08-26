@@ -48,10 +48,6 @@ pub fn upgrade_history_table(_conn: &Connection, old_version: i64, new_version: 
     if old_version == new_version {
         return Ok(());
     }
-    // 多版本渐进式升级
-    match old_version {
-        _ => {}
-    }
     Ok(())
 }
 
