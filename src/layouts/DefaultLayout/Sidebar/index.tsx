@@ -24,6 +24,11 @@ const Sidebar = (props: ISidebarProps) => {
     darkMode: state.darkMode,
   }));
 
+  const toggleDarkMode = () => {
+    localStorage.setItem('darkMode', JSON.stringify(!darkMode));
+    useSettingStore.setState({ darkMode: !darkMode });
+  }
+
   return (
     <div className={classnames(styles.sidebar, className)} style={style}>
       <div>
@@ -33,7 +38,7 @@ const Sidebar = (props: ISidebarProps) => {
         <IconText
           icon={darkMode ? <MdOutlineLightMode /> : <MdOutlineDarkMode />}
           text={darkMode ? '浅色' : '深色'}
-          onClick={() => { useSettingStore.setState({ darkMode: !darkMode }) }}
+          onClick={toggleDarkMode}
         />
         <IconText
           icon={<SettingOutlined />}
