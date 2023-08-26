@@ -1,0 +1,22 @@
+.tagContainer {
+  --tag-bg: #e8e8e8;
+  --tag-hover-bg: #d9d9d9;
+  --tag-color: #333;
+  background-color: var(--tag-bg);
+  color: var(--tag-color);
+  cursor: pointer;
+  &:hover {
+    background-color: var(--tag-hover-bg);
+  }
+  &.dark {
+    --tag-bg: #333;
+    --tag-hover-bg: #444;
+    --tag-color: #fff;
+  }
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+}

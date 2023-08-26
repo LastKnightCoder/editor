@@ -1,7 +1,10 @@
 import {useEffect, useRef} from "react";
-import { Skeleton, FloatButton } from "antd";
+import {Skeleton, FloatButton, Modal} from "antd";
+import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import { CalendarOutlined, TagsOutlined, EditOutlined, ReadOutlined, UpOutlined } from '@ant-design/icons';
+
+import { CalendarOutlined, EditOutlined, ReadOutlined, UpOutlined, SaveOutlined } from '@ant-design/icons';
+import { IoExitOutline } from 'react-icons/io5';
 
 import Editor, { EditorRef } from "@/components/Editor";
 import useEditArticleStore, {EditingArticle} from "@/hooks/useEditArticleStore.ts";
@@ -9,6 +12,7 @@ import { CREATE_ARTICLE_ID } from "@/constants";
 
 import styles from './index.module.less';
 import { isArticleChanged } from "./utils.ts";
+import AddTag from "@/components/AddTag";
 
 const ArticleEdit = () => {
   const {
@@ -21,6 +25,8 @@ const ArticleEdit = () => {
     updateArticle,
     onTitleChange,
     onContentChange,
+    onAddTag,
+    onRemoveTag,
   } = useEditArticleStore((state) => ({
     editingArticleId: state.editingArticleId,
     initArticle: state.initArticle,
@@ -31,6 +37,8 @@ const ArticleEdit = () => {
     updateArticle: state.updateArticle,
     onTitleChange: state.onTitleChange,
     onContentChange: state.onContentChange,
+    onAddTag: state.onAddTag,
+    onRemoveTag: state.onRemoveTag,
   }));
 
   const editorRef = useRef<EditorRef>(null);
@@ -39,28 +47,16 @@ const ArticleEdit = () => {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!editingArticleId) return;
-    initArticle(editingArticleId).then(initArticle => {
-      originalArticle.current = initArticle;
-      editorRef.current?.setEditorValue(initArticle.content);
-    });
+  const navigate = useNavigate();
 
-    return () => {
-      if (changed.current) {
-        if (editingArticleId === CREATE_ARTICLE_ID) {
-          createArticle().then();
-        } else {
-          updateArticle().then();
-        }
-      }
+  const saveArticle = () => {
+    if (editingArticleId === CREATE_ARTICLE_ID) {
+      createArticle().then();
+    } else {
+      updateArticle().then();
     }
-  }, [editingArticleId]);
-
-  useEffect(() => {
-    if (!originalArticle.current || !editingArticle) return;
-    changed.current = isArticleChanged(originalArticle.current, editingArticle);
-  }, [editingArticle]);
+    changed.current = false;
+  }
 
   const toggleReadonly = () => {
     useEditArticleStore.setState({
@@ -75,6 +71,36 @@ const ArticleEdit = () => {
       behavior: 'smooth',
     })
   }
+
+  const quit = () => {
+    if (changed.current) {
+      Modal.confirm({
+        title: '文章已修改，是否保存？',
+        onOk: () => {
+          saveArticle();
+          navigate(-1);
+        },
+        onCancel: () => {
+          navigate(-1);
+        }
+      })
+    } else {
+      navigate(-1);
+    }
+  }
+
+  useEffect(() => {
+    if (!editingArticleId) return;
+    initArticle(editingArticleId).then(initArticle => {
+      originalArticle.current = initArticle;
+      editorRef.current?.setEditorValue(initArticle.content);
+    });
+  }, [editingArticleId]);
+
+  useEffect(() => {
+    if (!originalArticle.current || !editingArticle) return;
+    changed.current = isArticleChanged(originalArticle.current, editingArticle);
+  }, [editingArticle]);
 
   if (initLoading) return <Skeleton active />
   if (!editingArticle) return <div>文章不存在</div>
@@ -105,12 +131,6 @@ const ArticleEdit = () => {
             </span>
           </div>
         </div>
-        <div className={styles.metaInfo}>
-          <div className={styles.meta}>
-            <TagsOutlined />
-            <span className={styles.tags}>{editingArticle.tags.join(' ') || '无标签'}</span>
-          </div>
-        </div>
       </div>
       <div className={styles.contentContainer}>
         <Editor
@@ -119,8 +139,19 @@ const ArticleEdit = () => {
           initValue={editingArticle.content}
           readonly={readonly}
         />
+        <AddTag
+          tags={editingArticle.tags}
+          addTag={onAddTag}
+          removeTag={onRemoveTag}
+          readonly={readonly}
+        />
       </div>
       <FloatButton.Group shape={'square'}>
+        <FloatButton
+          icon={<SaveOutlined />}
+          onClick={saveArticle}
+          tooltip={'保存'}
+        />
         <FloatButton
           icon={readonly ? <EditOutlined /> : <ReadOutlined />}
           onClick={toggleReadonly}
@@ -130,6 +161,11 @@ const ArticleEdit = () => {
           icon={<UpOutlined />}
           onClick={scrollToTop}
           tooltip={'回到顶部'}
+        />
+        <FloatButton
+          icon={<IoExitOutline />}
+          onClick={quit}
+          tooltip={'返回'}
         />
       </FloatButton.Group>
     </div>

@@ -1,14 +1,41 @@
 .articleCard {
-  --card-bg: var(--primary-bg-color);
-  --card-box-shadow: 0 3px 8px 6px rgba(7,17,27,0.05);
+  --card-bg: #e1e5ea;
+  --text-color: #18151f;
+  --gradient-angle: -80deg;
   display: flex;
   align-items: center;
   overflow: hidden;
-  height: 324px;
-  border-radius: 8px;
-  box-shadow: var(--card-box-shadow);
-  :global(:root[data-theme="dark"]) & {
-    --card-box-shadow: 0 3px 8px 6px rgba(7,17,27,0.5);
+  height: 360px;
+  border-radius: 12px;
+  box-shadow: 0 4px 21px -12px rgba(0, 0, 0, 0.66);
+  background-color: var(--card-bg);
+  background-image: linear-gradient(var(--gradient-angle), var(--bg-color2), transparent 50%);
+  &.right {
+    --gradient-angle: 80deg;
+  }
+  &.green {
+    --bg-color1: #79dd09;
+    --bg-color2: rgba(121, 221, 9, 0.1);
+  }
+  &.blue {
+    --bg-color1: #0076bd;
+    --bg-color2: rgba(0, 118, 189, 0.1);
+  }
+  &.yellow {
+    --bg-color1: #bdbb49;
+    --bg-color2: rgba(189, 187, 73, 0.1);
+  }
+  &.red {
+    --bg-color1: #bd150b;
+    --bg-color2: rgba(189, 21, 11, 0.1);
+  }
+  &.purple {
+    --bg-color1: #7d1abd;
+    --bg-color2: rgba(125, 26, 189, 0.1);
+  }
+  &.dark {
+    --card-bg: #18151f;
+    --text-color: #fff;
   }
   .content {
     width: 66%;
@@ -22,7 +49,7 @@
       color: var(--text-normal);
       &:hover {
         cursor: pointer;
-        color: #1a66ff;
+        color: var(--bg-color1);
       }
     }
     .timeAndTags {

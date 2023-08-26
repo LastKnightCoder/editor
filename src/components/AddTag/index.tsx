@@ -51,7 +51,13 @@ const AddTag = (props: AddTagProps) => {
       {
         tags.length > 0 &&
         <div className={styles.tags}>
-          <Tags tags={tags} closable={!readonly} onClose={!readonly ? removeTag : undefined} noWrap />
+          <Tags
+            tags={tags}
+            closable={!readonly}
+            onClose={!readonly ? removeTag : undefined}
+            noWrap
+            showIcon
+          />
         </div>
       }
       { !readonly && renderTagView()}

@@ -4,8 +4,7 @@ import {LinkOutlined, CloseOutlined, EditOutlined, ReadOutlined} from '@ant-desi
 
 import useEditCardStore, { EditingCard } from "@/hooks/useEditCardStore.ts";
 import Editor, {EditorRef} from "@/components/Editor";
-
-import AddTag from "../AddTag";
+import AddTag from "@/components/AddTag";
 
 import styles from './index.module.less';
 

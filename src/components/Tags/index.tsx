@@ -1,48 +1,53 @@
-import styles from "./index.module.less";
-import {Tag} from "antd";
-import {TAG_COLORS} from "@/constants";
-import {useMemo} from "react";
 import classnames from "classnames";
 
-interface TagsProps {
+import Tag from './Tag';
+import styles from "./index.module.less";
+
+interface TagsProps<> {
   tags: string[];
   closable?: boolean;
   onClose?: (tag: string) => void;
   className?: string;
+  style?: React.CSSProperties;
   noWrap?: boolean;
   onClick?: (tag: string) => void;
+  showIcon?: boolean;
+  showSharp?: boolean;
 }
 
 const Tags = (props: TagsProps) => {
-  const { tags, closable, onClose, onClick, className, noWrap = false} = props;
+  const {
+    tags,
+    showSharp,
+    showIcon,
+    closable,
+    onClose,
+    onClick,
+    className,
+    style,
+    noWrap = false
+  } = props;
 
-  const realTags = useMemo(() => {
-    if (tags.length === 0) {
-      return ['暂无标签']
-    }
-    return tags;
-  }, [tags])
+  if (!tags || tags.length === 0) {
+    return null;
+  }
 
   return (
-    <div className={classnames(styles.tags, className, {
-      [styles.noWrap]: noWrap
-    })}>
+    <div className={classnames(styles.tags, className, {[styles.noWrap]: noWrap})} style={style}>
       {
-        realTags
+        tags
           .filter(tag => !!tag)
-          .map(
-            (tag, index) => (
+          .map((tag) => (
               <Tag
-                color={TAG_COLORS[index % TAG_COLORS.length]}
+                tag={tag}
                 key={tag}
                 closable={closable}
                 onClose={() => onClose && onClose(tag)}
                 onClick={() => onClick && onClick(tag)}
-              >
-                {tag}
-              </Tag>
-            )
-          )
+                showIcon={showIcon}
+                showSharp={showSharp}
+              />
+          ))
       }
     </div>
   )
