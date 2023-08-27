@@ -1,4 +1,5 @@
 import classnames from "classnames";
+import {ReactNode} from "react";
 
 import Tag from './Tag';
 import styles from "./index.module.less";
@@ -14,6 +15,7 @@ interface TagsProps {
   showIcon?: boolean;
   showSharp?: boolean;
   hoverAble?: boolean;
+  lastChild?: ReactNode;
 }
 
 const Tags = (props: TagsProps) => {
@@ -28,9 +30,10 @@ const Tags = (props: TagsProps) => {
     style,
     noWrap = false,
     hoverAble = false,
+    lastChild,
   } = props;
 
-  if (!tags || tags.length === 0) {
+  if (!lastChild && (!tags || tags.length === 0)) {
     return null;
   }
 
@@ -59,6 +62,9 @@ const Tags = (props: TagsProps) => {
                 hoverAble={hoverAble}
               />
           ))
+      }
+      {
+        lastChild
       }
     </div>
   )

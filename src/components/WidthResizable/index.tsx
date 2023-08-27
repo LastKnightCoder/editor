@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import { useMouse } from "ahooks";
+import classnames from "classnames";
 
 import styles from './index.module.less';
 
@@ -8,10 +9,19 @@ interface IWidthResizableProps {
   minWidth?: number;
   maxWidth?: number;
   onResize?: (width: number) => void;
+  shrinkAble?: boolean;
+  className?: string;
 }
 
 const WidthResizable: React.FC<React.PropsWithChildren<IWidthResizableProps>> = (props) => {
-  const { defaultWidth, minWidth, maxWidth, onResize } = props;
+  const {
+    defaultWidth,
+    minWidth,
+    maxWidth,
+    onResize,
+    className,
+    shrinkAble = false,
+  } = props;
   const ref = React.useRef<HTMLDivElement>(null);
 
   const [width, setWidth] = useState<number>(defaultWidth);
@@ -49,7 +59,7 @@ const WidthResizable: React.FC<React.PropsWithChildren<IWidthResizableProps>> = 
 
   return (
     <div
-      className={styles.widthResizable}
+      className={classnames(styles.widthResizable, {[styles.shrink]: shrinkAble}, className)}
       style={{ width }}
       ref={ref}
     >

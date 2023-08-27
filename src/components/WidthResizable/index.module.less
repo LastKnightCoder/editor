@@ -1,5 +1,9 @@
 .widthResizable {
   position: relative;
+  flex: none;
+  &.shrink {
+    flex: auto;
+  }
   .resizeBar {
     cursor: col-resize;
     height: 100%;
