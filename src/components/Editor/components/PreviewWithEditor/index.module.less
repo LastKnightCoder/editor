@@ -1,4 +1,8 @@
 .container {
+  --editing-bg-color: #fafafa;
+  &.dark {
+    --editing-bg-color: rgb(12, 16, 33);
+  }
   position: relative;
   .editor {
     height: auto;
@@ -36,7 +40,7 @@
     height: 2px;
   }
   &.editing {
-    background-color: rgb(12, 16, 33);
+    background-color: var(--editing-bg-color);
     padding: 0 0 16px;
   }
 

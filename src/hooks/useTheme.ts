@@ -2,7 +2,11 @@ import { useMutationObserver } from "ahooks";
 import {useMemo, useState} from "react";
 
 const useTheme = () => {
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState(() => {
+    const { theme = "" } = document.documentElement.dataset;
+    return theme;
+  });
+
   useMutationObserver(() => {
     const { theme = "" } = document.documentElement.dataset;
     setTheme(theme);

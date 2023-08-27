@@ -32,7 +32,10 @@ const SettingModal = () => {
   useEffect(() => {
     const darkMode = JSON.parse(localStorage.getItem('darkMode') || JSON.stringify(DEFAULT_DARK_MODE));
     const fontSetting = JSON.parse(localStorage.getItem('fontSetting') || JSON.stringify(DEFAULT_FONT_SETTING));
-    useSettingStore.setState({ darkMode, fontSetting });
+    useSettingStore.setState({ fontSetting });
+    setTimeout(() => {
+      useSettingStore.setState({ darkMode });
+    }, 50)
   }, [])
 
   useEffect(() => {

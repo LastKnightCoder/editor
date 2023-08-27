@@ -1,5 +1,5 @@
 import {useEffect, useRef} from "react";
-import { FloatButton, Modal, Spin, Empty } from "antd";
+import { FloatButton, Spin, Empty, App } from "antd";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 
@@ -48,6 +48,7 @@ const ArticleEdit = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
+  const { modal } = App.useApp();
 
   const saveArticle = () => {
     if (editingArticleId === CREATE_ARTICLE_ID) {
@@ -74,7 +75,7 @@ const ArticleEdit = () => {
 
   const quit = () => {
     if (changed.current) {
-      Modal.confirm({
+      modal.confirm({
         title: '文章已修改，是否保存？',
         onOk: () => {
           saveArticle();
@@ -152,6 +153,7 @@ const ArticleEdit = () => {
           readonly={readonly}
         />
         <AddTag
+          className={styles.tags}
           tags={editingArticle.tags}
           addTag={onAddTag}
           removeTag={onRemoveTag}

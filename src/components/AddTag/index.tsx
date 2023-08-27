@@ -10,10 +10,11 @@ interface AddTagProps {
   addTag: (tag: string) => void;
   removeTag: (tag: string) => void;
   readonly?: boolean;
+  className?: string;
 }
 
 const AddTag = (props: AddTagProps) => {
-  const { tags, addTag, removeTag, readonly = false } = props;
+  const { tags, addTag, removeTag, readonly = false, className } = props;
   const [addTagVisible, setAddTagVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -81,6 +82,7 @@ const AddTag = (props: AddTagProps) => {
 
   return (
     <Tags
+      className={className}
       tags={tags}
       hoverAble={!readonly}
       closable={!readonly}

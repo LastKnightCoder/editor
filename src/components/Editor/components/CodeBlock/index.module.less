@@ -1,5 +1,9 @@
 .codeBlockContainer {
   position: relative;
+  --code-block-bg-color: #fafafa;
+  &.dark {
+    --code-block-bg-color: #0c1021;
+  }
   .copyButton {
     position: absolute;
     top: 10px;
@@ -30,8 +34,7 @@
     z-index: 1;
   }
   .CodeMirrorContainer :global(.CodeMirror) {
-    color: #F8F8F8;
-    background-color: #0c1021;
+    background-color: var(--code-block-bg-color);
     height: auto;
     padding: 48px 12px 18px 12px;
     border-radius: 5px;

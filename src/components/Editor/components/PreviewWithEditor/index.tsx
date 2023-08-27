@@ -10,6 +10,7 @@ import {DeleteOutlined} from "@ant-design/icons";
 import {ReactEditor, useSlate, useReadOnly} from "slate-react";
 import {Transforms} from "slate";
 import { useDebounceFn } from "ahooks";
+import useTheme from "@/hooks/useTheme.ts";
 
 interface IPreviewWithEditorProps {
   mode: string;
@@ -53,6 +54,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
   const ref= useRef<HTMLDivElement>(null);
   const slateEditor = useSlate();
   const readOnly = useReadOnly();
+  const { isDark } = useTheme();
 
   useClickAway(() => {
     if (editing) {
@@ -84,9 +86,17 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     }, 100)
   }
 
+  const containerClassName = classnames(styles.container, {
+    [styles.editing]: editing,
+    [styles.dark]: isDark
+  });
+
   return (
     <div>
-      <div contentEditable={false} ref={ref} className={classnames(styles.container, { [styles.editing]: editing })}>
+      <div
+        contentEditable={false}
+        ref={ref}
+        className={containerClassName}>
         {
           editing &&
           <CodeEditor
@@ -95,7 +105,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
             autoScroll
             options={{
               mode,
-              theme: 'blackboard',
+              theme: isDark ? 'blackboard' : 'one-light',
               lineNumbers: false,
               firstLineNumber: 1,
               scrollbarStyle: "null",

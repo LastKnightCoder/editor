@@ -2,6 +2,7 @@ import { UnControlled as CodeEditor } from 'react-codemirror2';
 import styles from './index.module.less';
 import { Editor, EditorChange } from 'codemirror';
 import { useEffect, useState } from 'react';
+import classnames from "classnames";
 import { LANGUAGES } from './config';
 
 import isHotkey from "is-hotkey";
@@ -12,6 +13,7 @@ import { CodeBlockElement } from "../../types";
 import {message} from "antd";
 import AddParagraph from "../AddParagraph";
 import SelectLanguage from "./SelectLanguage";
+import useTheme from "@/hooks/useTheme.ts";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps['attributes'];
@@ -44,6 +46,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
   const slateEditor = useSlate();
   const readOnly = useReadOnly();
+  const { isDark } = useTheme();
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
@@ -58,6 +61,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   const handleOnChange = (_editor: Editor, _change: EditorChange, code: string) => {
     onChange(code);
   }
+
+  useEffect(() => {
+    console.log('isDark', isDark);
+  }, [isDark])
 
   const handleCopyCode = async () => {
     const editor = slateEditor.codeBlockMap.get(uuid);
@@ -75,7 +82,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   }
 
   return (
-    <div contentEditable={false} {...attributes} className={styles.codeBlockContainer}>
+    <div contentEditable={false} {...attributes} className={classnames(styles.codeBlockContainer, { [styles.dark]: isDark })}>
       {children}
       <div className={styles.windowsControl} />
       <div className={styles.copyButton} onClick={handleCopyCode} />
@@ -87,7 +94,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
         options={{
           inputStyle: 'textarea',
           mode: langConfig?.mime || langConfig?.mode || 'text/plain',
-          theme: 'blackboard',
+          theme: isDark ? 'blackboard' : 'one-light',
           lineNumbers: false,
           firstLineNumber: 1,
           scrollbarStyle: "null",

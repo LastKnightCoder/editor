@@ -36,7 +36,7 @@ const DailyNote = () => {
 
   useEffect(() => {
     init();
-  }, [init])
+  }, [init]);
 
   const onSelect = (value: Dayjs, { source }: SelectInfo) => {
     if (source === 'date') {
