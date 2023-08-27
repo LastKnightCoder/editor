@@ -6,4 +6,4 @@ export const DEFAULT_FONT_SETTING = {
   englishFont: DEFAULT_ENGLISH_FONT,
   fontSize: DEFAULT_FONT_SIZE,
 }
-export const DEFAULT_DARK_MODE = true;
+export const DEFAULT_DARK_MODE = false;

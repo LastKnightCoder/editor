@@ -57,7 +57,7 @@ const AddTag = (props: AddTagProps) => {
   const tag = useMemo(() => {
     return addTagVisible ?
       <div
-        style={{ paddingLeft: 2 }}
+        style={{ paddingLeft: 4 }}
         ref={ref}
         contentEditable={addTagVisible}
         suppressContentEditableWarning
