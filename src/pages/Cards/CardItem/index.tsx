@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import classnames from "classnames";
 
 import { ICard } from "@/types";
+import If from "@/components/If";
 import Tags from "@/components/Tags";
 import Editor from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -15,10 +16,11 @@ interface CardItemProps {
   onClick?: (e: any) => void;
   active?: boolean;
   onDelete?: (e: any) => void;
+  showDelete?: boolean;
 }
 
 const CardItem = memo((props: CardItemProps) => {
-  const { card, onClick, onDelete, active = false } = props;
+  const { card, onClick, onDelete, active = false, showDelete=true } = props;
   const { content, update_time, tags } = card;
 
   return (
@@ -36,9 +38,11 @@ const CardItem = memo((props: CardItemProps) => {
           <Editor initValue={(content && content.length > 0) ? content.slice(0, 1) : undefined} readonly={true} />
         </ErrorBoundary>
       </div>
-      <div onClick={onDelete} className={styles.delete}>
-        <CloseOutlined />
-      </div>
+      <If condition={showDelete}>
+        <div onClick={onDelete} className={styles.delete}>
+          <CloseOutlined />
+        </div>
+      </If>
     </div>
   )
 });

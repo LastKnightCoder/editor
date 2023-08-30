@@ -1,7 +1,7 @@
-import { useEffect } from "react";
+import {useEffect, useRef} from "react";
 import { useNavigate } from "react-router-dom";
 import { FloatButton } from "antd";
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, UpOutlined } from '@ant-design/icons';
 
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import useEditArticleStore from "@/stores/useEditArticleStore.ts";
@@ -20,6 +20,7 @@ const Articles = () => {
     init: state.init,
   }));
 
+  const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,8 +35,15 @@ const Articles = () => {
     navigate(`/articles/edit`);
   }
 
+  const scrollToTop = () => {
+    ref.current?.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  }
+
   return (
-    <div className={styles.container}>
+    <div className={styles.container} ref={ref}>
       {
         articles.map((article, index) => (
           <ArticleCard
@@ -46,18 +54,24 @@ const Articles = () => {
           />
         ))
       }
-      <FloatButton
-        shape={'circle'}
-        icon={<PlusOutlined />}
-        onClick={() => {
-          useEditArticleStore.setState({
-            editingArticleId: CREATE_ARTICLE_ID,
-            readonly: false,
-          });
-          navigate('/articles/edit');
-        }}
-        tooltip={'新建文章'}
-      />
+      <FloatButton.Group shape={'square'}>
+        <FloatButton
+          icon={<UpOutlined />}
+          onClick={scrollToTop}
+          tooltip={'回到顶部'}
+        />
+        <FloatButton
+          icon={<PlusOutlined />}
+          onClick={() => {
+            useEditArticleStore.setState({
+              editingArticleId: CREATE_ARTICLE_ID,
+              readonly: false,
+            });
+            navigate('/articles/edit');
+          }}
+          tooltip={'新建文章'}
+        />
+      </FloatButton.Group>
     </div>
   )
 }

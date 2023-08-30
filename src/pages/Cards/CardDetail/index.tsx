@@ -1,13 +1,19 @@
-import {forwardRef, useEffect, useImperativeHandle, useRef} from "react";
-import { Skeleton, FloatButton, message, App } from "antd";
+import {forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
+import {Skeleton, FloatButton, message, App, Button} from "antd";
 import { IoExitOutline } from "react-icons/io5";
-import {LinkOutlined, EditOutlined, ReadOutlined, SaveOutlined, UpOutlined} from '@ant-design/icons';
+import { LinkOutlined, EditOutlined, ReadOutlined, SaveOutlined } from '@ant-design/icons';
 
 import useEditCardStore, { EditingCard } from "@/stores/useEditCardStore.ts";
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import If from "@/components/If";
 import Editor, {EditorRef} from "@/components/Editor";
 import AddTag from "@/components/AddTag";
+import {ICard} from "@/types";
 
+import CardItem from "../CardItem";
+import AddCardLinkModal from "./AddCardLinkModal";
 import styles from './index.module.less';
+import classnames from "classnames";
 
 export interface CardDetailRef {
   quit: () => Promise<void>;
@@ -17,7 +23,6 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
   const editorRef = useRef<EditorRef>(null);
   const originalCard = useRef<EditingCard>();
   const changed = useRef<boolean>(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const {
     editingCard,
@@ -27,6 +32,7 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
     initLoading,
     addTag,
     removeTag,
+    removeLink,
     onEditingCardSave,
     readonly,
     toggleReadonly,
@@ -38,12 +44,20 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
     initLoading: state.initLoading,
     addTag: state.addTag,
     removeTag: state.removeTag,
+    removeLink: state.removeLink,
     onEditingCardSave: state.onEditingCardSave,
     readonly: state.readonly,
     toggleReadonly: state.toggleReadonly,
   }));
 
+  const { cards } = useCardsManagementStore((state) => ({
+    cards: state.cards,
+  }))
+
   const { modal } = App.useApp();
+
+  const [showLinkedCards, setShowLinkedCards] = useState<boolean>(false);
+  const linkedList = editingCard?.links.map(id => cards.find(card => card.id === id)) as ICard[];
 
   useEffect(() => {
     if (!editingCardId) return;
@@ -97,13 +111,6 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
     })
   }
 
-  const scrollToTop = () => {
-    containerRef.current?.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    })
-  }
-
   const openAddLinkModal = () => {
     if (readonly) {
       message.warning('只读模式下无法添加连接').then();
@@ -114,9 +121,35 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
     });
   }
 
+  const toggleShowLinkedCards = () => {
+    setShowLinkedCards(!showLinkedCards);
+  }
+
   const saveCard = async () => {
     await onEditingCardSave();
     changed.current = false;
+  }
+
+  const onClickLinkCard = async (cardId: number) => {
+    await quit();
+    useEditCardStore.setState({
+      editingCardId: cardId,
+    });
+  }
+
+  const onRemoveLink = async (cardId: number) => {
+    modal.confirm({
+      title: '确认删除连接？',
+      content: '删除连接后，该卡片将不再出现在连接列表中',
+      onOk: async () => {
+        await removeLink(cardId);
+      },
+      okText: '确认',
+      cancelText: '取消',
+      okButtonProps: {
+        danger: true
+      }
+    })
   }
 
   if (!editingCard || !editingCardId) {
@@ -125,7 +158,7 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
 
   return (
     <div className={styles.cardDetail}>
-      <div ref={containerRef} className={styles.editorContainer}>
+      <div className={styles.editorContainer}>
         <div className={styles.editor}>
           {
             initLoading
@@ -146,36 +179,50 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
             readonly={readonly}
           />
         </div>
-        <FloatButton.Group>
-          <FloatButton.Group shape={'square'}>
-            <FloatButton
-              icon={<SaveOutlined />}
-              onClick={saveCard}
-              tooltip={'保存'}
-            />
-            <FloatButton
-              icon={readonly ? <EditOutlined /> : <ReadOutlined />}
-              onClick={toggleReadonly}
-              tooltip={readonly ? '编辑' : '只读'}
-            />
-            <FloatButton
-              icon={<LinkOutlined />}
-              onClick={openAddLinkModal}
-              tooltip={'添加连接'}
-            />
-            <FloatButton
-              icon={<UpOutlined />}
-              onClick={scrollToTop}
-              tooltip={'回到顶部'}
-            />
-            <FloatButton
-              icon={<IoExitOutline />}
-              onClick={quit}
-              tooltip={'结束编辑'}
-            />
-          </FloatButton.Group>
-        </FloatButton.Group>
       </div>
+      <div className={classnames(styles.linksContainer, {[styles.hide]: !showLinkedCards})}>
+        <If condition={showLinkedCards}>
+          {
+            showLinkedCards && linkedList.map((card) => (
+              <CardItem
+                onClick={() => { onClickLinkCard(card.id) }}
+                card={card}
+                key={card.id}
+                onDelete={(e) => {
+                  e.stopPropagation();
+                  onRemoveLink(card.id);
+                }}
+              />
+            ))
+          }
+          <Button onClick={openAddLinkModal} size={'large'} type={'dashed'} block>添加卡片</Button>
+        </If>
+      </div>
+      <FloatButton.Group>
+        <FloatButton.Group shape={'square'}>
+          <FloatButton
+            icon={<SaveOutlined />}
+            onClick={saveCard}
+            tooltip={'保存'}
+          />
+          <FloatButton
+            icon={readonly ? <EditOutlined /> : <ReadOutlined />}
+            onClick={toggleReadonly}
+            tooltip={readonly ? '编辑' : '只读'}
+          />
+          <FloatButton
+            icon={<LinkOutlined />}
+            onClick={toggleShowLinkedCards}
+            tooltip={'相关卡片'}
+          />
+          <FloatButton
+            icon={<IoExitOutline />}
+            onClick={quit}
+            tooltip={'结束编辑'}
+          />
+        </FloatButton.Group>
+      </FloatButton.Group>
+      <AddCardLinkModal />
     </div>
   )
 });

@@ -62,10 +62,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
     onChange(code);
   }
 
-  useEffect(() => {
-    console.log('isDark', isDark);
-  }, [isDark])
-
   const handleCopyCode = async () => {
     const editor = slateEditor.codeBlockMap.get(uuid);
     if (navigator.clipboard && editor) {

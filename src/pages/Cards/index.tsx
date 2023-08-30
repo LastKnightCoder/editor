@@ -12,7 +12,6 @@ import { CREATE_CARD_ID } from "@/constants";
 
 import CardItem from "./CardItem";
 import CardDetail, {CardDetailRef} from './CardDetail';
-import AddCardLinkModal from "./AddCardLinkModal";
 
 import styles from './index.module.less';
 
@@ -278,7 +277,6 @@ const Cards = memo(() => {
           <CardDetail ref={cardDetailRef} />
         }
       </div>
-      <AddCardLinkModal />
     </div>
   )
 })

@@ -25,11 +25,6 @@ const TitleBar = (props: ITitleBarProps) => {
   const [activeNavKey, setActiveNavKey] = useState<ENavKey>(ENavKey.CARDS);
   const navigate = useNavigate();
 
-  const navigateToCards = () => {
-    setActiveNavKey(ENavKey.CARDS);
-    navigate('/cards/list');
-  }
-
   const navigateToDaily = () => {
     setActiveNavKey(ENavKey.DAILY);
     navigate('/daily');
@@ -52,7 +47,7 @@ const TitleBar = (props: ITitleBarProps) => {
     >
       <motion.div className={styles.nav}>
         <Popover
-          trigger={'hover'}
+          trigger={'click'}
           placement={'bottom'}
           overlayInnerStyle={{
             padding: 4,
@@ -81,7 +76,6 @@ const TitleBar = (props: ITitleBarProps) => {
         >
           <motion.div
             className={classnames(styles.item, { [styles.active]: isCardsActive })}
-            onClick={navigateToCards}
           >
             卡片 <CaretDownOutlined />
             {
