@@ -1,4 +1,4 @@
-import {useEffect, useRef} from "react";
+import {useEffect, useMemo, useRef} from "react";
 import { FloatButton, Spin, Empty, App } from "antd";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -13,6 +13,10 @@ import { CREATE_ARTICLE_ID } from "@/constants";
 import styles from './index.module.less';
 import { isArticleChanged } from "./utils.ts";
 import AddTag from "@/components/AddTag";
+import For from "@/components/For";
+import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
+import ArticleCard from "@/pages/Articles/ArticleCard";
+import {IArticle} from "@/types";
 
 const ArticleEdit = () => {
   const {
@@ -39,6 +43,12 @@ const ArticleEdit = () => {
     onContentChange: state.onContentChange,
     onAddTag: state.onAddTag,
     onRemoveTag: state.onRemoveTag,
+  }));
+  
+  const {
+    articles,
+  } = useArticleManagementStore(state => ({
+    articles: state.articles,
   }));
 
   const editorRef = useRef<EditorRef>(null);
@@ -89,6 +99,10 @@ const ArticleEdit = () => {
       navigate(-1);
     }
   }
+  
+  const linkedArticles = useMemo(() => {
+    return editingArticle?.links.map(id => articles.find(article => article.id === id)) as IArticle[];
+  }, [articles, editingArticle?.links]);
 
   useEffect(() => {
     if (!editingArticleId) return;
@@ -96,7 +110,7 @@ const ArticleEdit = () => {
       originalArticle.current = initArticle;
       editorRef.current?.setEditorValue(initArticle.content);
     });
-  }, [editingArticleId]);
+  }, [editingArticleId, initArticle]);
 
   useEffect(() => {
     if (!originalArticle.current || !editingArticle) return;
@@ -159,6 +173,12 @@ const ArticleEdit = () => {
           removeTag={onRemoveTag}
           readonly={readonly}
         />
+        <div className={styles.linkArticles}>
+          <For
+            data={linkedArticles}
+            renderItem={(article) => <ArticleCard article={article} />}
+          />
+        </div>
       </div>
       <FloatButton.Group shape={'square'}>
         <FloatButton
