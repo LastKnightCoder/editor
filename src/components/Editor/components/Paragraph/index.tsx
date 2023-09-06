@@ -12,7 +12,11 @@ interface IParagraphProps {
 }
 
 const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = (props) => {
-  const { children, attributes } = props;
+  const {
+    children,
+    attributes,
+    // element,
+  } = props;
 
   return (
     <p {...attributes} className={styles.paragraph}>

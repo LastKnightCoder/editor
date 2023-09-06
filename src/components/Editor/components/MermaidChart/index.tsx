@@ -1,13 +1,13 @@
 import React, {PropsWithChildren} from 'react';
+import { Transforms } from "slate";
 import { RenderElementProps, useSlate , ReactEditor } from 'slate-react';
+import Mermaid from './Mermaid';
+
 import { MermaidElement } from '../../types';
 import PreviewWithEditor from "../PreviewWithEditor";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { Mermaid } from 'mdx-mermaid/lib/Mermaid';
 
 import styles from './index.module.less';
-import { Transforms } from "slate";
+
 
 interface MermaidProps {
   attributes: RenderElementProps['attributes'];
@@ -36,6 +36,7 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
         initValue={chart}
         onChange={onChange}
         element={element}
+        center
       >
         { chart ? <Mermaid chart={chart} /> : renderEmpty() }
       </PreviewWithEditor>

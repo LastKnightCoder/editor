@@ -12,9 +12,12 @@ interface DraggableProps {
 }
 
 const Draggable: React.FC<React.PropsWithChildren<DraggableProps>> = (props) => {
+  const dragRef = React.useRef<HTMLDivElement>(null);
+  const dropRef = React.useRef<HTMLDivElement>(null);
+
   const { children, item } = props;
 
-  const [{ isDragging }, drag, preview] = useDrag(() => ({
+  const [, drag] = useDrag(() => ({
     type: TYPE,
     item,
     end: (item: RenderElementProps['element'], monitor) => {
@@ -32,25 +35,27 @@ const Draggable: React.FC<React.PropsWithChildren<DraggableProps>> = (props) => 
 
   const editor = useSlate();
 
-  const [{ isOver, canDrop }, drop] = useDrop(() => ({
+  const [{ isOver }, drop] = useDrop(() => ({
     accept: TYPE,
-    drop: (dropItem: RenderElementProps['element']) => {
-      return dropItem;
+    canDrop: () => {
+      return true;
     },
     collect: (monitor) => ({
       isOver: monitor.isOver(),
-      canDrop: monitor.canDrop(),
     })
   }));
 
+  drag(dragRef);
+  drop(dropRef);
+
   useEffect(() => {
-    console.log('Draggable', isDragging, isOver);
-  }, [isDragging, isOver]);
+    console.log('isOver', isOver);
+  }, [isOver])
 
   return (
-    <div className={classnames(styles.draggable, { [styles.over]: isOver, [styles.canDrop]: canDrop })}>
-      <div ref={drag} className={styles.handler} contentEditable={false} />
-      <div ref={(node) => preview(drop(node))}>{children}</div>
+    <div className={classnames(styles.draggable)}>
+      <div ref={dragRef} className={styles.handler} contentEditable={false} />
+      <div ref={dropRef} className={classnames({ [styles.over]: isOver })}>{children}</div>
     </div>
   )
 }

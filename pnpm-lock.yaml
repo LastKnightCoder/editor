@@ -33,7 +33,6 @@ specifiers:
   is-hotkey: ^0.2.0
   katex: ^0.16.8
   less: ^4.1.3
-  mdx-mermaid: ^1.3.2
   mermaid: ^10.1.0
   react: ^18.2.0
   react-cmdk: ^1.3.9
@@ -68,7 +67,6 @@ dependencies:
   immer: registry.npmmirror.com/immer/10.0.2
   is-hotkey: registry.npmmirror.com/is-hotkey/0.2.0
   katex: registry.npmmirror.com/katex/0.16.8
-  mdx-mermaid: registry.npmmirror.com/mdx-mermaid/1.3.2_zhyajvxfpui6dokyppqiuantk4
   mermaid: registry.npmmirror.com/mermaid/10.1.0_biqbaboplfbrettd7655fr4n2y
   react: registry.npmmirror.com/react/18.2.0
   react-cmdk: registry.npmmirror.com/react-cmdk/1.3.9_biqbaboplfbrettd7655fr4n2y
@@ -4082,20 +4080,6 @@ packages:
       semver: registry.npmmirror.com/semver/5.7.1
     dev: true
     optional: true
-
-  registry.npmmirror.com/mdx-mermaid/1.3.2_zhyajvxfpui6dokyppqiuantk4:
-    resolution: {integrity: sha512-8kw0tg3isKKBFzFwoe2DhIaEgKYtVeJXQtxZCCrdTPO0CTpXHnTHT0atDqsp7YkXi5iUCp/zAZPZu1cmr68T3w==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/mdx-mermaid/-/mdx-mermaid-1.3.2.tgz}
-    id: registry.npmmirror.com/mdx-mermaid/1.3.2
-    name: mdx-mermaid
-    version: 1.3.2
-    peerDependencies:
-      mermaid: '>=8.11.0'
-      react: ^16.8.4 || ^17.0.0 || ^18.0.0
-      unist-util-visit: ^2.0.0
-    dependencies:
-      mermaid: registry.npmmirror.com/mermaid/10.1.0_biqbaboplfbrettd7655fr4n2y
-      react: registry.npmmirror.com/react/18.2.0
-    dev: false
 
   registry.npmmirror.com/merge2/1.4.1:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/merge2/-/merge2-1.4.1.tgz}
