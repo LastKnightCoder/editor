@@ -1,9 +1,11 @@
 import React, {PropsWithChildren} from "react";
 import { RenderElementProps } from "slate-react";
-import { MathJax } from "better-react-mathjax";
-import { BlockMathElement } from "../../types";
 import { Transforms } from "slate";
 import { ReactEditor, useSlate } from "slate-react";
+
+import Katex from "@/components/Katex";
+
+import { BlockMathElement } from "../../types";
 import PreviewWithEditor from "../PreviewWithEditor";
 
 
@@ -32,9 +34,7 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
         onChange={handleInputChange}
         element={element}
       >
-        <MathJax style={{ margin: 0 }}>
-          {tex ? <div>{`$$${tex}$$`}</div> : <div contentEditable={false} className={styles.empty}>点击编辑公式</div>}
-        </MathJax>
+        {tex ? <Katex tex={tex} /> : <div contentEditable={false} className={styles.empty}>点击编辑公式</div>}
       </PreviewWithEditor>
       {children}
     </div>

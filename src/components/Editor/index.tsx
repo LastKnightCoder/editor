@@ -21,7 +21,6 @@ import { renderElement, renderLeaf } from "./renderMethods";
 import { useGithubStore, usePressedKeyStore } from "./stores";
 
 import ImagesOverview from "./components/ImagesOverview";
-import { MathJaxContext } from "better-react-mathjax";
 import Command from "./components/Command";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
@@ -45,8 +44,6 @@ import 'codemirror/addon/edit/closebrackets.js';
 
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/blackboard.css';
-
-import { mathjaxConfig } from "./configs";
 
 export type EditorRef = {
   focus: () => void;
@@ -134,30 +131,28 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <MathJaxContext config={mathjaxConfig}>
-        <Slate editor={editor} initialValue={initValue} onChange={handleOnChange} >
-          <Editable
-            readOnly={readonly}
-            renderElement={renderElement(editor)}
-            renderLeaf={renderLeaf()}
-            placeholder={'写下你的想法...'}
-            onKeyDown={(event) => {
-              registerHotKey(editor, event, hotKeyConfigs);
-              listenKeyPressed(event);
-            }}
-            onKeyUp={() => {
-              // 防止重复触发，频繁更新组件，编辑体验不好
-              if (!isReset) {
-                resetPressedKey();
-              }
-            }}
-          />
-          <ImagesOverview />
-          { !readonly && <Command /> }
-          { !readonly && <HoveringToolbar /> }
-          <BlockPanel />
-        </Slate>
-      </MathJaxContext>
+      <Slate editor={editor} initialValue={initValue} onChange={handleOnChange} >
+        <Editable
+          readOnly={readonly}
+          renderElement={renderElement(editor)}
+          renderLeaf={renderLeaf()}
+          placeholder={'写下你的想法...'}
+          onKeyDown={(event) => {
+            registerHotKey(editor, event, hotKeyConfigs);
+            listenKeyPressed(event);
+          }}
+          onKeyUp={() => {
+            // 防止重复触发，频繁更新组件，编辑体验不好
+            if (!isReset) {
+              resetPressedKey();
+            }
+          }}
+        />
+        <ImagesOverview />
+        { !readonly && <Command /> }
+        { !readonly && <HoveringToolbar /> }
+        <BlockPanel />
+      </Slate>
     </DndProvider>
   )
 });

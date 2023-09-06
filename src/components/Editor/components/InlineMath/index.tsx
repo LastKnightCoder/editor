@@ -1,12 +1,14 @@
 import React, {PropsWithChildren, useState} from "react";
-import {ReactEditor, RenderElementProps} from "slate-react";
-import { MathJax } from "better-react-mathjax";
+import {Transforms} from "slate";
+import {ReactEditor, RenderElementProps, useSlate} from "slate-react";
+import { Popover, Input } from "antd";
+
+import Katex from "@/components/Katex";
+
 import { InlineMathElement } from "../../types";
 import InlineChromiumBugfix from "../InlineChromiumBugFix";
-import { Popover, Input } from "antd";
+
 import styles from './index.module.less';
-import {Transforms} from "slate";
-import { useSlate } from "slate-react";
 
 interface InlineMathProps {
   attributes: RenderElementProps['attributes'];
@@ -33,7 +35,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
         placement={'bottom'}
         content={<Input size={'large'} style={{ width: 500 }} value={value} onChange={handleInputChange} />}
       >
-        { tex ? <MathJax inline dynamic><span>{`$${tex}$`}</span></MathJax> : null }
+        { tex ? <Katex tex={tex} inline/> : null }
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />
