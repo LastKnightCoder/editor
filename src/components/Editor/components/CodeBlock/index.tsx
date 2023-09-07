@@ -78,7 +78,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   }
 
   return (
-    <div contentEditable={false} {...attributes} className={classnames(styles.codeBlockContainer, { [styles.dark]: isDark })}>
+    <div contentEditable={false} {...attributes} className={classnames(styles.codeBlockContainer, { [styles.dark]: isDark, [styles.readOnly]: readOnly })}>
       {children}
       <div className={styles.windowsControl} />
       <div className={styles.copyButton} onClick={handleCopyCode} />
@@ -91,7 +91,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           inputStyle: 'textarea',
           mode: langConfig?.mime || langConfig?.mode || 'text/plain',
           theme: isDark ? 'blackboard' : 'one-light',
-          lineNumbers: false,
+          lineNumbers: true,
           firstLineNumber: 1,
           scrollbarStyle: "null",
           viewportMargin: Infinity,

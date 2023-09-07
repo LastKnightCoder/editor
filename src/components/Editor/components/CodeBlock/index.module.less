@@ -4,6 +4,11 @@
   &.dark {
     --code-block-bg-color: #0c1021;
   }
+  &.readOnly {
+    :global(.CodeMirror-cursors) {
+      display: none;
+    }
+  }
   .copyButton {
     position: absolute;
     top: 10px;

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import classnames from 'classnames';
 import styles from './index.module.less';
-import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlate, useReadOnly, ReactEditor } from "slate-react";
 import { CalloutElement } from "../../types";
 import AddParagraph from "../AddParagraph";
 import {Transforms} from "slate";
@@ -34,6 +34,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const { calloutType, title } = element;
   const { title: defaultTitle } = configs[calloutType];
   const editor = useSlate();
+  const readOnly = useReadOnly();
   const [realTitle, setRealTitle] = useState<string>(title || defaultTitle);
   const titleRef = useRef<HTMLParagraphElement>(null);
 
@@ -55,7 +56,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
             ref={titleRef}
             onBlur={handleTitleBlur}
             className={styles.title}
-            contentEditable
+            contentEditable={!readOnly}
             suppressContentEditableWarning
           >
             {realTitle}
