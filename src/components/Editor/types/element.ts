@@ -82,6 +82,7 @@ export interface ImageElement {
 
 export interface DetailElement {
   type: 'detail';
+  title: string;
   children: BlockElement[];
 }
 

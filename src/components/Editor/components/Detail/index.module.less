@@ -2,10 +2,18 @@
   background-color: #f9f9fa;
   border-radius: 8px;
   border: 1px solid rgba(60, 60, 67, 0.29);
-  padding: 16px;
+  padding: var(--block-distance) 16px;
+
+  &.dark {
+    background-color: #1c1c1e;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
 
   &:has(.show) {
-    padding-bottom: 6px;
+    padding-bottom: 0;
+    .title {
+      margin-bottom: calc(var(--block-distance) / 2);
+    }
   }
 
   transition: padding-bottom 0.2s ease-in-out;
@@ -14,6 +22,7 @@
     cursor: pointer;
     display: flex;
     gap: 5px;
+    transition: margin-bottom 0.2s ease-in-out;
     .arrow {
       transition: transform 0.2s linear;
       &.show {

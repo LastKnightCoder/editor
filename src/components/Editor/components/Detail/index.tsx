@@ -1,9 +1,14 @@
-import React from "react";
-import CaretRightOutlined from '@ant-design/icons/CaretRightOutlined';
-import { RenderElementProps } from "slate-react";
+import React, {useRef, useState} from "react";
+import classnames from 'classnames';
+import { Transforms } from "slate";
+import { RenderElementProps, useSlate, useReadOnly, ReactEditor } from "slate-react";
+
+import useTheme from "@/hooks/useTheme.ts";
+import { CaretRightOutlined } from '@ant-design/icons';
+
 import { DetailElement } from "../../types";
 import AddParagraph from "../AddParagraph";
-import classnames from 'classnames';
+
 import styles from './index.module.less';
 
 interface ICollapseElementProps {
@@ -14,7 +19,19 @@ interface ICollapseElementProps {
 const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (props) => {
   const { attributes, children, element } = props;
 
-  const [showContent, setShowContent] = React.useState(false);
+  const [showContent, setShowContent] = useState(false);
+  const [title, setTitle] = useState<string>(element.title || 'DETAIL');
+  const titleRef = useRef<HTMLDivElement>(null);
+
+  const { isDark } = useTheme();
+  const editor = useSlate();
+  const readOnly = useReadOnly();
+
+  const onTitleBlur = () => {
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, { title: titleRef.current?.innerText }, { at: path });
+    setTitle(titleRef.current?.innerText || 'DETAIL');
+  }
 
   const toggleShowContent = () => {
     setShowContent(!showContent);
@@ -31,14 +48,22 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (props)
   });
 
   return (
-    <div {...attributes}>
-      <div className={styles.container}>
-        <div className={styles.title} onClick={toggleShowContent} contentEditable={false} style={{ userSelect: 'none' }} >
-          <div className={arrowClass}><CaretRightOutlined /></div>
-          <div>DETAIL</div>
+    <div>
+      <div className={classnames(styles.container, { [styles.dark]: isDark })}>
+        <div className={styles.title} contentEditable={false} style={{ userSelect: 'none' }} >
+          <div className={arrowClass} onClick={toggleShowContent}><CaretRightOutlined /></div>
+          <div
+            data-slate-editor
+            ref={titleRef}
+            contentEditable={!readOnly}
+            suppressContentEditableWarning
+            onBlur={onTitleBlur}
+          >
+            {title}
+          </div>
         </div>
         <div className={contentClass}>
-          <div>
+          <div {...attributes}>
             {children}
           </div>
         </div>
