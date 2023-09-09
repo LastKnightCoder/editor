@@ -1,5 +1,5 @@
 import {Descendant} from "slate";
-import {ParagraphElement} from "@/components/Editor/types";
+import { ParagraphElement} from "@/components/Editor/types";
 
 export const getEditorTextValue = (value: Descendant[]) => {
   // 找到第一个段落，返回其文本内容
@@ -42,4 +42,8 @@ export const isEditorValueEmpty = (value: Descendant[]) => {
     }
   }
   return false;
+}
+
+export const getOutline = (value: Descendant[]) => {
+  return value.filter(node => node.type === 'header');
 }

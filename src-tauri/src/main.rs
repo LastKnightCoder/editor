@@ -9,7 +9,6 @@ use tauri::{Manager, State};
 use database::{init_database};
 use state::AppState;
 use commands::{
-    file,
     insert_one_card,
     find_one_card,
     find_all_cards,
@@ -30,6 +29,8 @@ use commands::{
     delete_article,
     find_article,
     find_all_articles,
+    write_setting,
+    read_setting,
 };
 
 fn main() {
@@ -45,7 +46,6 @@ fn main() {
           Ok(())
       })
       .invoke_handler(tauri::generate_handler![
-          file::read_from_file,
           insert_one_card,
           find_one_card,
           find_all_cards,
@@ -66,6 +66,8 @@ fn main() {
           delete_article,
           find_article,
           find_all_articles,
+          write_setting,
+          read_setting,
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

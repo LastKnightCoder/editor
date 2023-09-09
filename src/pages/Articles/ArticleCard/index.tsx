@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { Typography } from 'antd';
 import { CalendarOutlined } from '@ant-design/icons';
 
-import useSettingStore from "@/stores/useSettingStore.ts";
+import useTheme from "@/hooks/useTheme.ts";
 import Editor from "@/components/Editor";
 import Tags from "@/components/Tags";
 import {IArticle} from "@/types";
@@ -23,11 +23,7 @@ interface IArticleCardProps {
 const allThemes = [styles.green, styles.blue, styles.red, styles.yellow, styles.purple];
 
 const ArticleCard = (props: IArticleCardProps) => {
-  const {
-    darkMode,
-  } = useSettingStore(state => ({
-    darkMode: state.darkMode,
-  }));
+  const { isDark } = useTheme();
 
   const {
     article,
@@ -43,7 +39,7 @@ const ArticleCard = (props: IArticleCardProps) => {
     randomTheme,
     {
       [styles.right]: imageRight,
-      [styles.dark]: darkMode,
+      [styles.dark]: isDark,
     },
     className
   )

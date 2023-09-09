@@ -80,6 +80,7 @@ export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' |
 export const insertDetails = (editor: Editor) => {
   setOrInsertNode(editor, {
     type: 'detail',
+    title: '',
     children: [emptyParagraph],
   });
 

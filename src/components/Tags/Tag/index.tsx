@@ -1,9 +1,11 @@
+import {ReactNode} from "react";
 import classnames from "classnames";
+
+import useTheme from "@/hooks/useTheme.ts";
 import { CloseOutlined, TagOutlined } from "@ant-design/icons";
-import useSettingStore from "@/stores/useSettingStore.ts";
 
 import styles from "./index.module.less";
-import {ReactNode} from "react";
+
 
 interface ITagProps {
   tag: ReactNode;
@@ -32,14 +34,12 @@ const Tag = (props: ITagProps) => {
     style,
   } = props;
 
-  const { darkMode } = useSettingStore(state => ({
-    darkMode: state.darkMode
-  }))
+  const { isDark } = useTheme();
 
   const tagClassName = classnames(
     styles.tagContainer,
     {
-      [styles.dark]: darkMode,
+      [styles.dark]: isDark,
       [styles.hoverAble]: hoverAble
     },
     className

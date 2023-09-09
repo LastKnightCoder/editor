@@ -1,56 +1,66 @@
 import {Input, Modal, InputNumber} from "antd";
-import { useEffect } from "react";
+import {useEffect, useMemo} from "react";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
-import { DEFAULT_FONT_SETTING, DEFAULT_DARK_MODE } from "@/constants";
+import { saveSetting } from "@/commands";
 
 import styles from './index.module.less';
+import { produce } from "immer";
 
 const SettingModal = () => {
   const {
     open,
-    setOpen,
-    fontSetting,
-    onChineseFontChange,
-    onEnglishFontChange,
-    onFontSizeChange,
-    darkMode,
+    setting,
+    onFontSettingChange,
+    initSetting,
   } = useSettingStore(state => ({
     open: state.settingModalOpen,
     setOpen: state.setSettingModalOpen,
-    fontSetting: state.fontSetting,
-    onChineseFontChange: state.onChineseFontChange,
-    onEnglishFontChange: state.onEnglishFontChange,
-    onFontSizeChange: state.onFontSizeChange,
-    darkMode: state.darkMode,
+    setting: state.setting,
+    onFontSettingChange: state.onFontSettingChange,
+    initSetting: state.initSetting,
   }));
 
   const close = () => {
-    setOpen(false);
+    useSettingStore.setState({ settingModalOpen: false });
   }
 
   useEffect(() => {
-    const darkMode = JSON.parse(localStorage.getItem('darkMode') || JSON.stringify(DEFAULT_DARK_MODE));
-    const fontSetting = JSON.parse(localStorage.getItem('fontSetting') || JSON.stringify(DEFAULT_FONT_SETTING));
-    useSettingStore.setState({ fontSetting });
-    setTimeout(() => {
-      useSettingStore.setState({ darkMode });
-    }, 50)
+    initSetting();
   }, [])
 
   useEffect(() => {
-    const { chineseFont, englishFont, fontSize } = fontSetting;
-    const finalFont = `${englishFont}, ${chineseFont}`;
-    document.body.style.setProperty('--font', finalFont);
-    document.body.style.setProperty('--font-size', `${fontSize}px`);
-    localStorage.setItem('fontSetting', JSON.stringify(fontSetting));
-  }, [fontSetting]);
+    saveSetting(JSON.stringify(setting, null, 2)).then();
+  }, [setting]);
+
+  const fontSetting = useMemo(() => {
+    return setting.fontSetting;
+  }, [setting]);
 
   useEffect(() => {
-    const theme = darkMode ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('darkMode', JSON.stringify(darkMode));
-  }, [darkMode]);
+    const { chineseFont, englishFont, fontSize } = fontSetting;
+    const font = `${englishFont}, ${chineseFont}`;
+    document.body.style.setProperty('--font', font);
+    document.body.style.setProperty('--font-size', `${fontSize}px`);
+  }, [fontSetting]);
+
+  const onChineseFontChange = (font: string) => {
+    onFontSettingChange(produce(fontSetting, draft => {
+      draft.chineseFont = font;
+    }));
+  }
+
+  const onEnglishFontChange = (font: string) => {
+    onFontSettingChange(produce(fontSetting, draft => {
+      draft.englishFont = font;
+    }));
+  }
+
+  const onFontSizeChange = (size: number) => {
+    onFontSettingChange(produce(fontSetting, draft => {
+      draft.fontSize = size;
+    }));
+  }
 
   return (
     <Modal
@@ -88,7 +98,7 @@ const SettingModal = () => {
             value={fontSetting.fontSize}
             type={'number'}
             onChange={(size) => {
-              onFontSizeChange(size!);
+              onFontSizeChange(size as number);
             }}
           />
         </div>

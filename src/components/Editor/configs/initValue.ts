@@ -20,6 +20,7 @@ export const initValue: Descendant[] = [{
   }]
 }, {
   type: 'detail',
+  title: 'detail demo',
   children: [{
     type: 'paragraph',
     children: [{

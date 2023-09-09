@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect} from 'react';
 import classnames from "classnames";
 
 import { SettingOutlined } from '@ant-design/icons';
@@ -19,14 +19,20 @@ const Sidebar = (props: ISidebarProps) => {
   const {
     setSettingModalOpen,
     darkMode,
+    onDarkModeChange,
   } = useSettingStore(state => ({
     setSettingModalOpen: state.setSettingModalOpen,
-    darkMode: state.darkMode,
+    darkMode: state.setting.darkMode,
+    onDarkModeChange: state.onDarkModeChange,
   }));
 
   const toggleDarkMode = () => {
-    useSettingStore.setState({ darkMode: !darkMode });
+    onDarkModeChange(!darkMode);
   }
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
+  }, [darkMode]);
 
   return (
     <div className={classnames(styles.sidebar, className)} style={style}>
