@@ -1,10 +1,9 @@
-import {InputNumber, Space} from "antd";
+import {InputNumber, Space, Input} from "antd";
 import {useEffect, useMemo} from "react";
 import {produce} from "immer";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 
-import InputItem from "../InputItem";
 import styles from "./index.module.less";
 
 
@@ -49,8 +48,14 @@ const FontSetting = () => {
 
   return (
     <div className={styles.settingGroup}>
-      <InputItem label={'中文字体：'} value={fontSetting.chineseFont} onChange={onChineseFontChange} />
-      <InputItem label={'英文字体：'} value={fontSetting.englishFont} onChange={onEnglishFontChange} />
+      <Space>
+        <div>中文字体：</div>
+        <Input value={fontSetting.chineseFont} onChange={(e) => { onChineseFontChange(e.target.value) }} />
+      </Space>
+      <Space>
+        <div>英文字体：</div>
+        <Input value={fontSetting.englishFont} onChange={(e) => { onEnglishFontChange(e.target.value) }} />
+      </Space>
       <Space>
         <div>字体大小：</div>
         <InputNumber

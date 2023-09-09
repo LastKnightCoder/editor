@@ -122,7 +122,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           <div onClick={deleteImage} className={styles.item}>
             <DeleteOutlined />
           </div>
-          <div className={styles.divider}></div>
         </div>
       </div>
     )

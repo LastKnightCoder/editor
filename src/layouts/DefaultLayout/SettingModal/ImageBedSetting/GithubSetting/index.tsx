@@ -1,4 +1,4 @@
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import { Button, Input, message, Select, Space } from "antd";
 import { produce } from "immer";
 
@@ -23,7 +23,6 @@ const GithubSetting = () => {
     useSettingStore.setState(produce((state) => {
       state.setting.imageBed.github.repo = value;
     }));
-    // 获取分支列表
     const branches = await getBranchesByRepo(token, user.name, repo);
     if (branches) {
       setBranches(branches.map((i: any) => i.name));
@@ -32,8 +31,10 @@ const GithubSetting = () => {
     }
   }
 
-  const onCheckToken = async () => {
-    setCheckTokenLoading(true);
+  const onCheckToken = async (showLoading = true) => {
+    if (showLoading) {
+      setCheckTokenLoading(true);
+    }
     const res = await getGithubUserInfo(token);
     if (res) {
       const { login, email } = res;
@@ -61,6 +62,18 @@ const GithubSetting = () => {
     }));
   }
 
+  useEffect(() => {
+    if (!!repo && repos.length === 0 && token) {
+      onCheckToken(false).then();
+    }
+  }, [repo, repos]);
+
+  useEffect(() => {
+    if (!!branch && branches.length === 0 && token && !!repo) {
+      handleSelectRepo(repo).then();
+    }
+  }, [branch, branches])
+
   return (
     <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
       <Space>
@@ -78,7 +91,7 @@ const GithubSetting = () => {
           <Button loading={checkTokenLoading} onClick={onCheckToken}>确定</Button>
         </Space>
       </Space>
-      <If condition={repos.length > 0}>
+      <If condition={repos.length > 0 || !!repo}>
         <Space>
           <div>仓库：</div>
           <Select style={{ width: 400 }} onSelect={handleSelectRepo} value={repo}>
@@ -88,7 +101,7 @@ const GithubSetting = () => {
           </Select>
         </Space>
       </If>
-      <If condition={branches.length > 0}>
+      <If condition={branches.length > 0 || !!branch}>
         <Space>
           <div>分支：</div>
           <Select style={{ width: 400 }} onSelect={handleSelectBranch} value={branch}>
