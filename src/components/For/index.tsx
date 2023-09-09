@@ -11,6 +11,6 @@ const For = <T, >(props: IForProps<T>) => {
       {data.map(renderItem)}
     </>
   )
-}
+};
 
 export default For;

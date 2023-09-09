@@ -1,12 +1,12 @@
-import {Button, Input, Tabs, TabsProps} from "antd";
-import {useState} from "react";
+import { memo, useState } from "react";
+import { Button, Input, Tabs, TabsProps } from "antd";
 
 interface UploadTabProps {
   uploadImage: () => void;
   setLink: (link: string) => void;
 }
 
-const UploadTab = (props: UploadTabProps) => {
+const UploadTab = memo((props: UploadTabProps) => {
   const { uploadImage, setLink } = props;
 
   const [linkValue, setLinkValue] = useState('');
@@ -39,6 +39,6 @@ const UploadTab = (props: UploadTabProps) => {
       items={items}
     />
   )
-}
+});
 
 export default UploadTab;

@@ -4,9 +4,9 @@ import classnames from "classnames";
 import { SettingOutlined } from '@ant-design/icons';
 import { MdOutlineDarkMode, MdOutlineLightMode } from 'react-icons/md';
 import IconText from "@/components/IconText";
+import useSettingStore from "@/stores/useSettingStore.ts";
 
 import styles from './index.module.less';
-import useSettingStore from "@/stores/useSettingStore.ts";
 
 interface ISidebarProps {
   className?: string;
@@ -17,17 +17,19 @@ const Sidebar = (props: ISidebarProps) => {
   const { className, style } = props;
 
   const {
-    setSettingModalOpen,
     darkMode,
     onDarkModeChange,
   } = useSettingStore(state => ({
-    setSettingModalOpen: state.setSettingModalOpen,
     darkMode: state.setting.darkMode,
     onDarkModeChange: state.onDarkModeChange,
   }));
 
   const toggleDarkMode = () => {
     onDarkModeChange(!darkMode);
+  }
+
+  const openSettingModal = () => {
+    useSettingStore.setState({ settingModalOpen: true });
   }
 
   useEffect(() => {
@@ -48,7 +50,7 @@ const Sidebar = (props: ISidebarProps) => {
         <IconText
           icon={<SettingOutlined />}
           text={'设置'}
-          onClick={() => { setSettingModalOpen(true) }} />
+          onClick={openSettingModal} />
       </div>
     </div>
   )

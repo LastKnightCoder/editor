@@ -9,6 +9,17 @@ interface ISetting {
     englishFont: string;
     fontSize: number;
   },
+  imageBed: {
+    github: {
+      token: string;
+      repo: string;
+      branch: string;
+      user: {
+        name: string;
+        email: string;
+      }
+    }
+  },
   darkMode: boolean;
 }
 
@@ -31,6 +42,17 @@ const initialState: IState = {
       chineseFont: '新宋体',
       englishFont: 'Merriweather',
       fontSize: 16,
+    },
+    imageBed: {
+      github: {
+        token: '',
+        repo: '',
+        branch: '',
+        user: {
+          name: '',
+          email: '',
+        }
+      }
     }
   },
   settingModalOpen: false,
@@ -42,7 +64,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     const setting = await getSetting();
     if (setting) {
       set({
-        setting: JSON.parse(setting),
+        setting: {
+          ...initialState.setting,
+          ...JSON.parse(setting)
+        },
       });
     }
   },

@@ -1,21 +1,19 @@
-import React, { useRef, useState } from 'react';
-import { DeleteOutlined, FileImageOutlined, SettingOutlined, FullscreenOutlined } from '@ant-design/icons';
-import AddParagraph from "../AddParagraph";
-
+import React, {useCallback, useRef, useState} from 'react';
+import { Popover, Spin } from "antd";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { v4 as uuid } from 'uuid';
+import { useClickAway } from "ahooks";
+import { DeleteOutlined, FileImageOutlined, FullscreenOutlined } from '@ant-design/icons';
 
+import useSettingStore from "@/stores/useSettingStore.ts";
+import { uploadFileFromFile, transformGithubUrlToCDNUrl } from '@/utils';
+
+import AddParagraph from "../AddParagraph";
 import { useImagesOverviewStore } from "../../stores";
-import {replaceGithubUrlToCDNUrl, uploadSingleImage} from "../../utils";
 import { ImageElement } from "../../types";
 
 import styles from './index.module.less';
-import {Popover, Spin} from "antd";
-import GithubImageUploadSetting from "./GithubImageUploadSetting";
-import UploadTab from "@/components/Editor/components/Image/UploadTab";
-import {useClickAway} from "ahooks";
-
+import UploadTab from "./UploadTab";
 
 interface IImageProps {
   attributes: RenderElementProps['attributes'];
@@ -28,14 +26,17 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const [uploading, setUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false);
   const [showUploadTab, setShowUploadTab] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
   const editor = useSlate();
   const readOnly = useReadOnly();
+
   const { showImageOverview } = useImagesOverviewStore(state => ({
     showImageOverview: state.showImageOverview,
+  }));
+  const { github } = useSettingStore(state => ({
+    github: state.setting.imageBed.github,
   }));
 
   useClickAway(() => {
@@ -57,12 +58,12 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     ReactEditor.focus(editor);
   }
 
-  const upload = () => {
+  const upload = useCallback(() => {
     if (fileUploadRef.current) {
       setShowUploadTab(false);
       fileUploadRef.current.click();
     }
-  }
+  }, []);
 
   const setLink = (url: string) => {
     setShowUploadTab(false);
@@ -74,37 +75,26 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     });
   }
 
-  const handleUploadFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) {
       return;
     }
     const path = ReactEditor.findPath(editor, element);
     const file = files[0];
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      if (!ev.target) {
-        return;
-      }
-      const res = ev.target.result as string;
-      let fileName = file.name;
-      fileName = fileName.split('.')[0] + '_' + uuid() + '.' + fileName.split('.')[1];
-      setUploading(true);
-      const uploadRes = await uploadSingleImage(res.split(',')[1], fileName);
-      if (!uploadRes) {
-        setUploading(false);
-        return;
-      }
-      const { content: { download_url } } = uploadRes as any;
-      const cdnUrl = replaceGithubUrlToCDNUrl(download_url);
-      Transforms.setNodes(editor, {
-        url: cdnUrl,
-      }, {
-        at: path
-      });
+    const uploadRes = await uploadFileFromFile(file, github) as any;
+    if (!uploadRes) {
       setUploading(false);
+      return;
     }
-    reader.readAsDataURL(file);
+    const { content: { download_url } } = uploadRes;
+    const cdnUrl = transformGithubUrlToCDNUrl(download_url, github.branch);
+    Transforms.setNodes(editor, {
+      url: cdnUrl,
+    }, {
+      at: path
+    });
+    setUploading(false);
   }
 
   const renderUpload = () => {
@@ -133,14 +123,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             <DeleteOutlined />
           </div>
           <div className={styles.divider}></div>
-          <div className={styles.item} onClick={() => {setOpen(true)}}>
-            <SettingOutlined />
-          </div>
         </div>
-        {
-          !readOnly &&
-          <GithubImageUploadSetting open={open} onClose={() => {setOpen(false)}} />
-        }
       </div>
     )
   }

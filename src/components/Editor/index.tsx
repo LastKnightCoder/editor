@@ -18,7 +18,7 @@ import {
 } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import { renderElement, renderLeaf } from "./renderMethods";
-import { useGithubStore, usePressedKeyStore } from "./stores";
+import { usePressedKeyStore } from "./stores";
 
 import ImagesOverview from "./components/ImagesOverview";
 import Command from "./components/Command";
@@ -55,6 +55,11 @@ interface IEditorProps {
   initValue?: Descendant[];
   onChange?: (value: Descendant[]) => void;
   readonly?: boolean;
+  uploadImage?: (file: File) => Promise<{
+    content: {
+      download_url: string;
+    }
+  }>;
 }
 
 const plugins = [
@@ -79,29 +84,6 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
       setIsNormalized(true);
     }
   });
-
-  useEffect(() => {
-    const {
-      setBranches,
-      setRepo,
-      setToken,
-      setUserInfo,
-      setBranch,
-      setRepos,
-    } = useGithubStore.getState();
-    const token = localStorage.getItem('github_token') || '';
-    const user = JSON.parse(localStorage.getItem('github_user') || '{}') || null;
-    const repo = localStorage.getItem('github_repo') || '';
-    const branches = JSON.parse(localStorage.getItem('github_branches') || '[]');
-    const repos = JSON.parse(localStorage.getItem('github_repos') || '[]');
-    const branch = localStorage.getItem('github_branch') || '';
-    setToken(token);
-    setUserInfo(user);
-    setRepo(repo);
-    setBranches(branches);
-    setRepos(repos);
-    setBranch(branch);
-  }, []);
 
   useImperativeHandle(ref, () => ({
     focus: () => {
