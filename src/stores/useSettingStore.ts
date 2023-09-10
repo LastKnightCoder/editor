@@ -24,6 +24,7 @@ interface ISetting {
 }
 
 interface IState {
+  inited: boolean;
   setting: ISetting;
   settingModalOpen: boolean;
 }
@@ -36,8 +37,9 @@ interface IActions {
 }
 
 const initialState: IState = {
+  inited: false,
   setting: {
-    darkMode: true,
+    darkMode: false,
     fontSetting: {
       chineseFont: '新宋体',
       englishFont: 'Merriweather',
@@ -68,6 +70,11 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
           ...initialState.setting,
           ...JSON.parse(setting)
         },
+        inited: true,
+      });
+    } else {
+      set({
+        inited: true,
       });
     }
   },

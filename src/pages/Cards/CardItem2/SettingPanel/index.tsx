@@ -19,7 +19,7 @@ const SettingPanel = (props: ISettingPanelProps) => {
       <For
         data={settings}
         renderItem={(setting) => (
-          <div className={styles.settingItem} onClick={() => { setting?.onClick?.(cardId) }}>
+          <div key={setting.title} className={styles.settingItem} onClick={() => { setting?.onClick?.(cardId) }}>
             {setting.title}
           </div>
         )}

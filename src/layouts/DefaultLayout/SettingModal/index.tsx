@@ -12,9 +12,11 @@ const SettingModal = () => {
   const {
     open,
     setting,
+    inited,
   } = useSettingStore(state => ({
     open: state.settingModalOpen,
     setting: state.setting,
+    inited: state.inited,
   }));
 
   const close = () => {
@@ -22,8 +24,9 @@ const SettingModal = () => {
   }
 
   useEffect(() => {
+    if (!inited) return;
     saveSetting(JSON.stringify(setting, null, 2)).then();
-  }, [setting]);
+  }, [inited, setting]);
 
   const items: TabsProps['items'] = [{
     key: 'font',
