@@ -12,20 +12,14 @@ const SettingModal = () => {
   const {
     open,
     setting,
-    initSetting,
   } = useSettingStore(state => ({
     open: state.settingModalOpen,
     setting: state.setting,
-    initSetting: state.initSetting,
   }));
 
   const close = () => {
     useSettingStore.setState({ settingModalOpen: false });
   }
-
-  useEffect(() => {
-    initSetting();
-  }, []);
 
   useEffect(() => {
     saveSetting(JSON.stringify(setting, null, 2)).then();
@@ -51,7 +45,6 @@ const SettingModal = () => {
       centered
       bodyStyle={{
         height: 'calc(100vh - 160px)',
-        // paddingTop: 40,
       }}
     >
       <Tabs

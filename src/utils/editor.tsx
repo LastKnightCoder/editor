@@ -1,17 +1,27 @@
 import {Descendant} from "slate";
 import { ParagraphElement} from "@/components/Editor/types";
+import {Typography} from "antd";
 
 export const getEditorTextValue = (value: Descendant[]) => {
   // 找到第一个段落，返回其文本内容
   const firstParagraph = value.find(node => node.type === 'paragraph');
   if (firstParagraph) {
-    let text = '';
-    (firstParagraph as ParagraphElement).children.forEach(node => {
+    return (firstParagraph as ParagraphElement).children.map((node, index) => {
       if (node.type === 'formatted') {
-        text += node.text;
+        return (
+          <Typography.Text
+            key={index}
+            code={node.code}
+            strong={node.bold}
+            underline={node.underline}
+            italic={node.italic}
+            delete={node.strikethrough}
+          >
+            {node.text}
+          </Typography.Text>
+        );
       }
     });
-    return text;
   }
   if (value.length === 0) {
     return '';
