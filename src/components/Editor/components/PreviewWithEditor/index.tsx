@@ -1,16 +1,19 @@
 import React, {PropsWithChildren, useRef, useState} from "react";
 import {UnControlled as CodeEditor} from "react-codemirror2";
 import {Editor, EditorChange} from "codemirror";
-import styles from "./index.module.less";
-import AddParagraph from "../AddParagraph";
-import {CustomElement} from "../../types";
 import classnames from "classnames";
-import { useClickAway } from "ahooks";
-import {DeleteOutlined} from "@ant-design/icons";
+import { useClickAway, useDebounceFn } from "ahooks";
 import {ReactEditor, useSlate, useReadOnly} from "slate-react";
 import {Transforms} from "slate";
-import { useDebounceFn } from "ahooks";
+
+import {DeleteOutlined} from "@ant-design/icons";
 import useTheme from "@/hooks/useTheme.ts";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import If from "@/components/If";
+
+import AddParagraph from "../AddParagraph";
+import {CustomElement} from "../../types";
+import styles from "./index.module.less";
 
 interface IPreviewWithEditorProps {
   mode: string;
@@ -18,36 +21,11 @@ interface IPreviewWithEditorProps {
   onChange: (value: string) => void;
   element: CustomElement;
   center?: boolean;
-}
-
-class ErrorBoundary extends React.Component {
-  constructor(props: any) {
-    super(props);
-    this.state = {error: ""};
-  }
-
-  componentDidCatch(error: any) {
-    this.setState({error: `${error.name}: ${error.message}`});
-  }
-
-  render() {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const {error} = this.state;
-    if (error) {
-      return (
-        <div>{error}</div>
-      );
-    } else {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      return <>{this.props.children}</>;
-    }
-  }
+  extend?: boolean;
 }
 
 const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = (props) => {
-  const { mode, initValue, onChange, children, element, center } = props;
+  const { mode, initValue, onChange, children, element, center, extend } = props;
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initValue);
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -128,20 +106,24 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
             editorWillUnmount={() => { setEditor(null) }}
           />
         }
-        { editing && <div className={styles.divider}></div> }
-        <div className={classnames(styles.preview, {[styles.center]: center})} onClick={onClick}>
+        <If condition={editing}>
+          <div className={styles.divider}></div>
+        </If>
+        <div
+          className={classnames(styles.preview, {[styles.center]: center, [styles.extend]: extend})}
+          onClick={onClick}
+        >
           <ErrorBoundary>
             {children}
           </ErrorBoundary>
         </div>
-        {
-          !readOnly &&
+        <If condition={!readOnly}>
           <div className={styles.actions}>
             <div onClick={deleteElement} className={styles.item}>
               <DeleteOutlined />
             </div>
           </div>
-        }
+        </If>
       </div>
       <AddParagraph element={element} />
     </div>

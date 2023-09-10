@@ -4,6 +4,7 @@
     --editing-bg-color: rgb(12, 16, 33);
   }
   position: relative;
+
   .editor {
     height: auto;
     padding: 18px 12px 0;
@@ -39,15 +40,21 @@
     background-color: #e8e8e8;
     height: 2px;
   }
+
   &.editing {
     background-color: var(--editing-bg-color);
     padding: 0 0 16px;
   }
 
-  .preview.center {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .preview {
+    &.extend {
+      padding: 5px 0;
+    }
+    &.center {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
   }
 
   .actions {

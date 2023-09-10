@@ -32,6 +32,7 @@ const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = (props) => {
         initValue={html}
         onChange={handleOnChange}
         element={element}
+        extend
       >
         {html ? <div dangerouslySetInnerHTML={{ __html: html }} /> : renderEmpty()}
       </PreviewWithEditor>
