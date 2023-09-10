@@ -1,8 +1,11 @@
-import styles from './index.module.less';
-import { CustomElement } from "../../types";
 import React from "react";
-import {insertParagraphAndFocus} from "../../utils";
+import classnames from 'classnames';
 import {useSlate, useReadOnly} from "slate-react";
+
+import { CustomElement } from "../../types";
+import {insertParagraphAndFocus} from "../../utils";
+import styles from './index.module.less';
+
 
 interface IAddParagraphProps {
   element: CustomElement
@@ -21,7 +24,12 @@ const AddParagraph: React.FC<IAddParagraphProps> = (props) => {
   }
 
   return (
-    <div contentEditable={false} style={{ userSelect: 'none' }} onClick={handleAddParagraph} className={styles.addParagraph}></div>
+    <div
+      contentEditable={false}
+      style={{ userSelect: 'none' }}
+      onClick={handleAddParagraph}
+      className={classnames(styles.addParagraph, { [styles.pointer]: !readOnly })}>
+    </div>
   )
 }
 

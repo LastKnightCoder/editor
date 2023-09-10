@@ -88,7 +88,7 @@ const GithubSetting = () => {
               }));
             }}
           />
-          <Button loading={checkTokenLoading} onClick={onCheckToken}>确定</Button>
+          <Button loading={checkTokenLoading} onClick={() => { onCheckToken() }}>确定</Button>
         </Space>
       </Space>
       <If condition={repos.length > 0 || !!repo}>
