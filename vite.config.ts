@@ -1,5 +1,6 @@
 import { defineConfig, splitVendorChunkPlugin  } from 'vite'
 import react from '@vitejs/plugin-react-swc'
+import visualizer from "rollup-plugin-visualizer";
 import * as path from "path";
 
 // https://vitejs.dev/config/
@@ -9,7 +10,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     }
   },
-  plugins: [react(), splitVendorChunkPlugin()],
+  plugins: [react(), splitVendorChunkPlugin(), visualizer({
+    open: true,
+    gzipSize: true,
+    brotliSize: true
+  })],
   clearScreen: false,
   server: {
     strictPort: true,
@@ -22,5 +27,18 @@ export default defineConfig({
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react': ['react'],
+          'react-dom': ['react-dom'],
+          'react-router-dom': ['react-router-dom'],
+          'mermaid': ['mermaid'],
+          'katex': ['katex'],
+          '@babel/standalone': ['@babel/standalone'],
+        }
+      }
+    }
   },
+
 })

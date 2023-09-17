@@ -24,5 +24,6 @@ out
 *.sln
 *.sw?
 demos
+stats.html
 
 src-tauri/target

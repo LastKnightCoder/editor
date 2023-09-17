@@ -29,31 +29,6 @@ export const getEditorTextValue = (value: Descendant[]) => {
   return `【${value[0].type}】`;
 }
 
-export const isEditorValueEmpty = (value: Descendant[]) => {
-  if (value.length > 1) {
-    return false;
-  }
-  if (value.length === 0) {
-    return true;
-  }
-  const firstNode = value[0];
-  if (firstNode.type === 'paragraph') {
-    if ((firstNode as ParagraphElement).children.length === 0) {
-      return true;
-    }
-    if (firstNode.children.length > 1) {
-      return false;
-    }
-    const firstChild = firstNode.children[0];
-    if (firstChild.type === 'formatted') {
-      return firstChild.text === '';
-    } else {
-      return false;
-    }
-  }
-  return false;
-}
-
 export const getOutline = (value: Descendant[]) => {
   return value.filter(node => node.type === 'header');
 }

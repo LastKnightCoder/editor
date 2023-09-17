@@ -2,9 +2,10 @@ import { Editor, Transforms } from "slate";
 import { ReactEditor, RenderElementProps } from "slate-react";
 import { Editor as CodeMirrorEditor } from "codemirror";
 
+import loadable from "@loadable/component";
+
 import { CodeBlockElement } from "../types";
 
-import CodeBlock from "../components/CodeBlock";
 import Callout from "../components/Callout";
 import Header from "../components/Header";
 import Image from "../components/Image";
@@ -14,19 +15,22 @@ import Link from "../components/Link";
 import Table from "../components/Table";
 import TableRow from "../components/TableRow";
 import TableCell from "../components/TableCell";
-import InlineMath from "../components/InlineMath";
-import BlockMath from "../components/BlockMath";
 import BulletedList from "../components/BulletedList";
 import NumberedList from "../components/NumberedList";
 import CheckList from "../components/CheckList";
 import CheckListItem from "../components/CheckListItem";
-import MermaidChart from "../components/MermaidChart";
-import Tikz from "../components/Tikz";
 import HTMLBlock from "../components/HTMLBlock";
 import Graphviz from "../components/Graphviz";
-import CustomBlock from "../components/CustomBlock";
 import Paragraph from "../components/Paragraph";
 import DivideLineElement from "../components/DivideLine";
+
+const CustomBlock = loadable(() => import("../components/CustomBlock"));
+const MermaidChart = loadable(() => import("../components/MermaidChart"));
+const Tikz = loadable(() => import("../components/Tikz"));
+const InlineMath = loadable(() => import("../components/InlineMath"));
+const BlockMath = loadable(() => import("../components/BlockMath"));
+const CodeBlock = loadable(() => import("../components/CodeBlock"));
+
 
 export const renderElement = (editor: Editor) => {
   return (props: RenderElementProps) => {

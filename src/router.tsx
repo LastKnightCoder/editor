@@ -1,13 +1,14 @@
 import {createBrowserRouter, Navigate} from "react-router-dom";
+import loadable from "@loadable/component";
 
 import DefaultLayout from '@/layouts/DefaultLayout';
-import Cards from "@/pages/Cards";
-import Articles from "@/pages/Articles";
-import ArticleEdit from "@/pages/Articles/ArticleEdit";
-import Statistic from "@/pages/Statistic";
-import Animate from "@/pages/Animate";
-import DailyNote from "@/pages/DailyNote";
-import LinkGraph from "@/pages/Cards/LinkGraph";
+const Cards = loadable(() => import('@/pages/Cards'));
+const Articles = loadable(() => import('@/pages/Articles'));
+const ArticleEdit = loadable(() => import('@/pages/Articles/ArticleEdit'));
+const Statistic = loadable(() => import('@/pages/Statistic'));
+const Animate = loadable(() => import('@/pages/Animate'));
+const DailyNote = loadable(() => import('@/pages/DailyNote'));
+const LinkGraph = loadable(() => import('@/pages/Cards/LinkGraph'));
 
 const routes = [{
   path: '/',

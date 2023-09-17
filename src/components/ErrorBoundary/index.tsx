@@ -16,7 +16,6 @@ class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBoundaryS
   }
 
   componentDidCatch(error: Error) {
-    console.log('cardItem Error', error);
     this.setState({error: `${error.name}: ${error.message}`});
   }
 
