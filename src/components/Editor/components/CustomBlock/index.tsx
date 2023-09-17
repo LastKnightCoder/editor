@@ -13,8 +13,11 @@ interface CustomBlockProps {
 }
 
 const prefix = `const { antd } = components;\n`;
-const suffix = `\nconst root = ReactDOM.createRoot(el);
-root.render(<Component />);`
+const suffix = `
+if (typeof Component === 'function') {
+  const root = ReactDOM.createRoot(el);
+  root.render(<Component />);
+}`
 
 
 const CustomBlock = (props: { content: string; }) => {
@@ -57,7 +60,7 @@ const CustomBlock = (props: { content: string; }) => {
 
       return () => {
         root?.then((s: any) => {
-          s?.unmount();
+          s?.unmount?.();
         })
       }
     } catch (e) {

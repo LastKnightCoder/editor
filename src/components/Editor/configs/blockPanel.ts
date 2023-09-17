@@ -8,7 +8,10 @@ import {
   insertMermaid,
   insertBulletList,
   insertCheckList,
-  insertImage, insertNumberedList, insertHTMLBlock
+  insertImage,
+  insertNumberedList,
+  insertHTMLBlock,
+  insertCustomBlock,
 } from "../utils";
 import {Editor} from "slate";
 
@@ -77,7 +80,7 @@ export const blockPanelList: IBlockPanelListItem[] = [...generateHeader(), {
 }, {
   icon: 'math',
   title: '数学公式',
-  keywords: ['math', '数学公式'],
+  keywords: ['math', '数学公式', 'latex', 'katex'],
   description: '数学公式',
   onClick: (editor) => {
     insertBlockMath(editor);
@@ -146,6 +149,6 @@ export const blockPanelList: IBlockPanelListItem[] = [...generateHeader(), {
   keywords: ['custom', '自定义'],
   description: '自定义',
   onClick: (editor) => {
-    insertHTMLBlock(editor);
+    insertCustomBlock(editor);
   }
 }];
