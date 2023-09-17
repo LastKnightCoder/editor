@@ -1,5 +1,5 @@
 import {InputNumber, Space, Input} from "antd";
-import {useEffect, useMemo} from "react";
+import { useMemo } from "react";
 import {produce} from "immer";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
@@ -20,13 +20,6 @@ const FontSetting = () => {
   const fontSetting = useMemo(() => {
     return setting.fontSetting;
   }, [setting]);
-
-  useEffect(() => {
-    const { chineseFont, englishFont, fontSize } = fontSetting;
-    const font = `${englishFont}, ${chineseFont}`;
-    document.body.style.setProperty('--font', font);
-    document.body.style.setProperty('--font-size', `${fontSize}px`);
-  }, [fontSetting]);
 
   const onChineseFontChange = (font: string) => {
     onFontSettingChange(produce(fontSetting, draft => {

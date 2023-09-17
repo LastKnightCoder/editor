@@ -7,6 +7,7 @@ import TitleBar from "./TitleBar";
 import Sidebar from "./Sidebar";
 import styles from './index.module.less';
 
+import useSyncFont from "./hooks/useSyncFont.ts";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 const Management = () => {
@@ -19,6 +20,8 @@ const Management = () => {
   useEffect(() => {
     initSetting();
   }, []);
+
+  useSyncFont();
 
   return (
     <div className={styles.defaultLayout}>
