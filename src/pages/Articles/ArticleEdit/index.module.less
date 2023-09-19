@@ -30,13 +30,32 @@
     }
   }
   .contentContainer {
-    max-width: 800px;
-    margin: 40px auto;
-    .tags {
-      margin-top: 20px;
+    display: flex;
+    padding: 40px;
+    .leftPart {
+      flex: auto;
+      margin-right: 80px;
+      overflow-x: hidden;
+      .article {
+        max-width: 700px;
+        margin: 0 auto;
+        .tags {
+          margin-top: 20px;
+        }
+        .linkArticles {
+          margin-top: 20px;
+        }
+      }
     }
-    .linkArticles {
-      margin-top: 20px;
+    .rightPart {
+      flex: none;
+      max-width: 200px;
+      margin-left: auto;
+      margin-right: 80px;
+      .outline {
+        position: sticky;
+        top: 40px;
+      }
     }
   }
 }

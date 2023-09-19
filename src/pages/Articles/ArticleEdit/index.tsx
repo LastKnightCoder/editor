@@ -9,6 +9,7 @@ import { IoExitOutline } from 'react-icons/io5';
 import Editor, { EditorRef } from "@/components/Editor";
 import useEditArticleStore, {EditingArticle} from "@/stores/useEditArticleStore.ts";
 import { CREATE_ARTICLE_ID } from "@/constants";
+import Outline from "@/components/Outline";
 
 import styles from './index.module.less';
 import { isArticleChanged } from "./utils.ts";
@@ -99,6 +100,11 @@ const ArticleEdit = () => {
       navigate(-1);
     }
   }
+
+  const onClickHeader = (index: number) => {
+    if (!editorRef.current) return;
+    editorRef.current.scrollHeaderIntoView(index);
+  }
   
   const linkedArticles = useMemo(() => {
     return editingArticle?.links.map(id => articles.find(article => article.id === id)) as IArticle[];
@@ -115,6 +121,15 @@ const ArticleEdit = () => {
   useEffect(() => {
     if (!originalArticle.current || !editingArticle) return;
     changed.current = isArticleChanged(originalArticle.current, editingArticle);
+  }, [editingArticle]);
+  
+  const headers: any[] = useMemo(() => {
+    if (!editingArticle || !editingArticle.content) return [];
+    const headers =  editingArticle.content.filter(node => node.type === 'header');
+    return headers.map((header: any) => ({
+      level: header.level,
+      title: header.children.map((node: any) => node.text).join(''),
+    }));
   }, [editingArticle]);
 
   if (initLoading) {
@@ -160,24 +175,31 @@ const ArticleEdit = () => {
         </div>
       </div>
       <div className={styles.contentContainer}>
-        <Editor
-          ref={editorRef}
-          onChange={onContentChange}
-          initValue={editingArticle.content}
-          readonly={readonly}
-        />
-        <AddTag
-          className={styles.tags}
-          tags={editingArticle.tags}
-          addTag={onAddTag}
-          removeTag={onRemoveTag}
-          readonly={readonly}
-        />
-        <div className={styles.linkArticles}>
-          <For
-            data={linkedArticles}
-            renderItem={(article) => <ArticleCard article={article} />}
-          />
+        <div className={styles.leftPart}>
+          <div className={styles.article}>
+            <Editor
+              ref={editorRef}
+              onChange={onContentChange}
+              initValue={editingArticle.content}
+              readonly={readonly}
+            />
+            <AddTag
+              className={styles.tags}
+              tags={editingArticle.tags}
+              addTag={onAddTag}
+              removeTag={onRemoveTag}
+              readonly={readonly}
+            />
+            <div className={styles.linkArticles}>
+              <For
+                data={linkedArticles}
+                renderItem={(article) => <ArticleCard article={article} />}
+              />
+            </div>
+          </div>
+        </div>
+        <div className={styles.rightPart}>
+          <Outline className={styles.outline} headers={headers} onClick={onClickHeader} />
         </div>
       </div>
       <FloatButton.Group shape={'square'}>

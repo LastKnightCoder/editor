@@ -1,0 +1,22 @@
+.outlineContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  .header {
+    &:hover {
+      cursor: pointer;
+      font-weight: bold;
+      color: #1a66ff;
+    }
+    &.active {
+      font-weight: bold;
+      color: #1a66ff;
+    }
+    &[data-level="2"] {
+      padding-left: 16px;
+    }
+    &[data-level="3"] {
+      padding-left: 32px;
+    }
+  }
+}

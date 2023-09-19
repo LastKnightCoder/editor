@@ -49,6 +49,7 @@ export type EditorRef = {
   focus: () => void;
   setEditorValue: (value: Descendant[]) => void;
   getEditor: () => Editor;
+  scrollHeaderIntoView: (index: number) => void;
 }
 
 interface IEditorProps {
@@ -99,6 +100,15 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
       Transforms.select(editor, point)
     },
     getEditor: () => editor,
+    scrollHeaderIntoView: (index: number) => {
+      const headers = editor.children.filter(node => node.type === 'header');
+      const header = headers[index];
+      if (!header) return;
+      const dom = ReactEditor.toDOMNode(editor, header);
+      dom.scrollIntoView({
+        behavior: 'smooth',
+      });
+    }
   }));
 
   const { listenKeyPressed, resetPressedKey, isReset } = usePressedKeyStore(state => ({
