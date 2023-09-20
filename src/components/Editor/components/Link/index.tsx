@@ -42,7 +42,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
 
   const handleClick = useCallback(() => {
     if (isModKey || readOnly) {
-      openUrl(url);
+      openUrl(url).then();
       return;
     }
     setOpen(!open);
@@ -72,9 +72,6 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
         {...attributes}
         className={classnames(styles.link, {[styles.active]:  isModKey })}
         onClick={handleClick}
-        // href={url}
-        // target="_blank"
-        // rel="noopener noreferrer"
       >
         <InlineChromiumBugfix />
         {children}

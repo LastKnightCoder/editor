@@ -1,11 +1,14 @@
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
-import { CustomBlockElement } from "../../types";
-import PreviewWithEditor from "../PreviewWithEditor";
 import { Transforms } from "slate";
 import * as Babel from '@babel/standalone';
 import * as antd from 'antd';
+
+import styles from './index.module.less';
+
+import { CustomBlockElement } from "../../types";
+import PreviewWithEditor from "../PreviewWithEditor";
 
 interface CustomBlockProps {
   attributes: RenderElementProps['attributes'];
@@ -21,10 +24,9 @@ if (typeof Component === 'function') {
 
 
 const CustomBlock = (props: { content: string; }) => {
-  // 可用的英文是 available
   const [availableCode, setAvailableCode] = React.useState<string>('');
-
   const ref = useRef<HTMLDivElement>(null);
+
   const { content } = props;
 
   const code = useMemo(() => {
@@ -66,7 +68,6 @@ const CustomBlock = (props: { content: string; }) => {
     } catch (e) {
       console.error(e);
     }
-
   }, [code])
 
   return <div ref={ref}></div>
@@ -83,14 +84,14 @@ const CustomBlockElement: React.FC<PropsWithChildren<CustomBlockProps>> = (props
   }
 
   return (
-    <div {...attributes}>
+    <div className={styles.container} {...attributes}>
       <PreviewWithEditor
         mode={'jsx'}
         initValue={content}
         element={element}
         onChange={handleChange}
       >
-        { content ? <CustomBlock content={content} /> : <div>点击编辑代码</div> }
+        { content ? <CustomBlock content={content} /> : <div className={styles.empty}>点击编辑代码</div> }
       </PreviewWithEditor>
       {children}
     </div>

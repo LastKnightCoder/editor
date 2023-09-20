@@ -49,12 +49,17 @@
     }
     .rightPart {
       flex: none;
-      max-width: 200px;
+      max-width: 280px;
       margin-left: auto;
       margin-right: 80px;
       .outline {
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
         position: sticky;
         top: 40px;
+        &::-webkit-scrollbar {
+          display: none;
+        }
       }
     }
   }
