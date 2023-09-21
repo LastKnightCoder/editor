@@ -23,6 +23,7 @@ enum ENavKey {
 const TitleBar = (props: ITitleBarProps) => {
   const { className, style } = props;
   const [activeNavKey, setActiveNavKey] = useState<ENavKey>(ENavKey.CARDS);
+  const [cardPopoverOpen, setCardPopoverOpen] = useState<boolean>(false);
   const navigate = useNavigate();
 
   const navigateToDaily = () => {
@@ -47,6 +48,8 @@ const TitleBar = (props: ITitleBarProps) => {
     >
       <motion.div className={styles.nav}>
         <Popover
+          open={cardPopoverOpen}
+          onOpenChange={setCardPopoverOpen}
           trigger={'click'}
           placement={'bottom'}
           overlayInnerStyle={{
@@ -58,6 +61,7 @@ const TitleBar = (props: ITitleBarProps) => {
                 className={styles.childItem}
                 onClick={() => {
                   setActiveNavKey(ENavKey.CARDS);
+                  setCardPopoverOpen(false);
                   navigate('/cards/list')
                 }}
               >
@@ -67,6 +71,7 @@ const TitleBar = (props: ITitleBarProps) => {
                 className={styles.childItem}
                 onClick={() => {
                   setActiveNavKey(ENavKey.CARDS);
+                  setCardPopoverOpen(false);
                   navigate('/cards/link-graph')
                 }}>
                 关系图谱

@@ -1,10 +1,11 @@
-import {useEffect, useMemo, useRef} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FloatButton, Spin, Empty, App } from "antd";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 
 import { CalendarOutlined, EditOutlined, ReadOutlined, UpOutlined, SaveOutlined } from '@ant-design/icons';
 import { IoExitOutline } from 'react-icons/io5';
+import { HiOutlineMenuAlt3 } from 'react-icons/hi';
 
 import Editor, { EditorRef } from "@/components/Editor";
 import useEditArticleStore, {EditingArticle} from "@/stores/useEditArticleStore.ts";
@@ -15,6 +16,7 @@ import styles from './index.module.less';
 import { isArticleChanged } from "./utils.ts";
 import AddTag from "@/components/AddTag";
 import For from "@/components/For";
+import If from "@/components/If";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import ArticleCard from "@/pages/Articles/ArticleCard";
 import {IArticle} from "@/types";
@@ -57,6 +59,7 @@ const ArticleEdit = () => {
   const changed = useRef<boolean>(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showOutline, setShowOutline] = useState<boolean>(true);
 
   const navigate = useNavigate();
   const { modal } = App.useApp();
@@ -198,9 +201,11 @@ const ArticleEdit = () => {
             </div>
           </div>
         </div>
-        <div className={styles.rightPart}>
-          <Outline className={styles.outline} headers={headers} onClick={onClickHeader} />
-        </div>
+        <If condition={showOutline}>
+          <div className={styles.rightPart}>
+            <Outline className={styles.outline} headers={headers} onClick={onClickHeader} />
+          </div>
+        </If>
       </div>
       <FloatButton.Group shape={'square'}>
         <FloatButton
@@ -212,6 +217,11 @@ const ArticleEdit = () => {
           icon={readonly ? <EditOutlined /> : <ReadOutlined />}
           onClick={toggleReadonly}
           tooltip={readonly ? '编辑' : '只读'}
+        />
+        <FloatButton
+          icon={<HiOutlineMenuAlt3 />}
+          onClick={() => setShowOutline(!showOutline)}
+          tooltip={showOutline ? '隐藏大纲' : '显示大纲'}
         />
         <FloatButton
           icon={<UpOutlined />}

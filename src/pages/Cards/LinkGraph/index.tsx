@@ -2,6 +2,7 @@ import { Graph } from '@antv/g6';
 import {useEffect, useMemo, useRef, useState} from "react";
 import { useSize } from 'ahooks';
 
+import useTheme from "@/hooks/useTheme.ts";
 import {ICard} from "@/types";
 import {getAllCards} from "@/commands";
 import Editor, {EditorRef} from "@/components/Editor";
@@ -19,6 +20,7 @@ const LinkGraph = () => {
   const [position, setPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
   const [activeId, setActiveId] = useState<number>(-1);
   const size = useSize(ref);
+  const { isDark } = useTheme();
 
   const content = useMemo(() => {
     if (cards.length === 0 || activeId === -1) return undefined;
@@ -45,7 +47,7 @@ const LinkGraph = () => {
   useEffect(() => {
     if (graph.current || !ref.current || loading || cards.length === 0) return;
     const width = ref.current.clientWidth;
-    const height = window.innerHeight - 60;
+    const height = window.innerHeight - 80;
     graph.current = new Graph({
       container: ref.current,
       width,
@@ -57,14 +59,14 @@ const LinkGraph = () => {
         style: {
           fill: '#C6E5FF',
           stroke: '#5B8FF9',
-          lineWidth: 5,
+          lineWidth: 4,
         },
         type: 'circle',
       },
       defaultEdge: {
         style: {
-          stroke: '#565ea2',
-          lineWidth: 10,
+          stroke: isDark ? 'hsl(220, 100%, 30%)' : 'hsl(220, 100%, 70%)',
+          lineWidth: 8,
         }
       },
       layout: {
@@ -132,7 +134,7 @@ const LinkGraph = () => {
       if (graph.current) graph.current.destroy();
       graph.current = undefined;
     }
-  }, [cards, loading]);
+  }, [cards, loading, isDark]);
   
   useEffect(() => {
     if (!graph.current || activeId === -1) return;
