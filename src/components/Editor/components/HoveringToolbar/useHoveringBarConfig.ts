@@ -3,12 +3,7 @@ import {Editor, Range} from "slate";
 import React, {useCallback, useMemo} from "react";
 import {wrapInlineMath, wrapLink, unwrapLink, unWrapInlineMath} from "@/components/Editor/utils";
 
-type Mark = 'bold' | 'italic' | 'code' | 'underline' | 'highlight' | 'strikethrough';
-interface IConfigItem {
-  text: string;
-  active: boolean;
-  onClick: (event: React.MouseEvent) => void;
-}
+import { Mark, IConfigItem } from "./types";
 
 const useHoveringBarConfig = () => {
   const editor = useSlate();

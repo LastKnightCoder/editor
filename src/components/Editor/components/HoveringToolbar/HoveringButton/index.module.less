@@ -1,21 +1,20 @@
 .buttonContainer {
   user-select: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 32px;
-  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  font-family: Merriweather, serif;
+  font-style: italic;
   &:not(:last-child) {
     margin-right: 8px;
   }
-  color: rgb(26, 32, 44);
+  color: var(--text-normal);
   cursor: pointer;
-  font-family: 'Baloo 2', serif;
   border-radius: 8px;
   &:hover {
-    background-color: rgb(237, 242, 247);
+    background-color: var(--common-hover-bg);
   }
   &.active {
-    background-color: rgb(203, 213, 224);
+    background-color: rgb(203 213 224 / .4);
   }
 }
