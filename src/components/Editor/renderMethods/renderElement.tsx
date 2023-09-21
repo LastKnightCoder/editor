@@ -23,12 +23,12 @@ import HTMLBlock from "../components/HTMLBlock";
 import Graphviz from "../components/Graphviz";
 import Paragraph from "../components/Paragraph";
 import DivideLineElement from "../components/DivideLine";
+import BlockMath from "../components/BlockMath";
+import InlineMath from "../components/InlineMath";
 
 const CustomBlock = loadable(() => import("../components/CustomBlock"));
 const MermaidChart = loadable(() => import("../components/MermaidChart"));
 const Tikz = loadable(() => import("../components/Tikz"));
-const InlineMath = loadable(() => import("../components/InlineMath"));
-const BlockMath = loadable(() => import("../components/BlockMath"));
 const CodeBlock = loadable(() => import("../components/CodeBlock"));
 
 

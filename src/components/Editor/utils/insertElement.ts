@@ -11,7 +11,7 @@ import {
   LinkElement
 } from "../types";
 import {v4 as getUuid} from "uuid";
-import {isParagraphAndEmpty, isCollapsed, replaceNode} from "./editor";
+import {isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode} from "./editor";
 
 const emptyParagraph = {
   type: 'paragraph',
@@ -256,7 +256,7 @@ const isLinkActive = (editor: Editor) => {
   return !!link
 }
 
-const unwrapLink = (editor: Editor) => {
+export const unwrapLink = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
     match: n =>
       !Editor.isEditor(n) && Element.isElement(n) && n.type === 'link',
@@ -282,5 +282,34 @@ export const wrapLink = (editor: Editor, url: string, open = false) => {
   } else {
     Transforms.wrapNodes(editor, link, { split: true });
     Transforms.collapse(editor, { edge: 'end' });
+  }
+}
+
+export const unWrapInlineMath = (editor: Editor) => {
+  Transforms.unwrapNodes(editor, {
+    match: n => n.type === 'inline-math',
+  });
+}
+
+export const wrapInlineMath = (editor: Editor) => {
+  const { selection } = editor;
+  const [node] = getCurrentTextNode(editor);
+  if (selection && !Range.isCollapsed(selection) && node.type === 'formatted') {
+    const text = Editor.string(editor, selection);
+    ['bold', 'code', 'italic', 'underline', 'highlight'].forEach((type) => {
+      Editor.removeMark(editor, type);
+    });
+    editor.deleteBackward('character');
+    Transforms.wrapNodes(editor, {
+      type: 'inline-math',
+      tex: text,
+      children: [{
+        type: 'formatted',
+        text: ''
+      }]
+    }, {
+      at: selection,
+      split: true
+    })
   }
 }
