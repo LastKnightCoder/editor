@@ -21,7 +21,12 @@ const EditLink: React.FC<{ url:string, onSubmit: (url: string) => void }> = (pro
   return (
     <div>
       <Space>
-        <Input value={inputValue} placeholder="请输入链接地址" onChange={(e) => { setInputValue(e.target.value) }} />
+        <Input
+          width={500}
+          value={inputValue}
+          placeholder="请输入链接地址"
+          onChange={(e) => { setInputValue(e.target.value) }}
+        />
         <Button type="primary" onClick={() => { onSubmit(inputValue) }}>确定</Button>
       </Space>
     </div>

@@ -123,7 +123,7 @@ export const transformGithubUrlToCDNUrl = (url: string, branch: string) => {
   if (!branch) {
     return url;
   }
-  return url.replace('https://raw.githubusercontent.com', 'https://cdn.staticaly.com/gh').replace(`/${branch}`, `@${branch}`);
+  return url.replace('https://raw.githubusercontent.com', 'https://jsd.cdn.zzko.cn/gh').replace(`/${branch}`, `@${branch}`);
 }
 
 export const uploadFileFromFile = async (file: File, githubInfo: IGithubInfo) => {

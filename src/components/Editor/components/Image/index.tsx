@@ -1,4 +1,4 @@
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import { Popover, Spin } from "antd";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
@@ -42,6 +42,18 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   useClickAway(() => {
     setShowUploadTab(false);
   }, popoverRef);
+
+  useEffect(() => {
+    // 这个 CDN 地址失效了，需要替换
+    if (url.startsWith('https://cdn.staticaly.com')) {
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(editor, {
+        url: url.replace('https://cdn.staticaly.com', 'https://jsd.cdn.zzko.cn')
+      }, {
+        at: path
+      });
+    }
+  }, [url, editor, element]);
 
   const showOverView = () => {
     showImageOverview(element, editor);
