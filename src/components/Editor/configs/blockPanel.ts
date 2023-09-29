@@ -12,6 +12,7 @@ import {
   insertNumberedList,
   insertHTMLBlock,
   insertCustomBlock,
+  insertTikz
 } from "../utils";
 import {Editor} from "slate";
 
@@ -150,5 +151,13 @@ export const blockPanelList: IBlockPanelListItem[] = [...generateHeader(), {
   description: '自定义',
   onClick: (editor) => {
     insertCustomBlock(editor);
+  }
+}, {
+  icon: 'tikz',
+  title: 'TikZ',
+  keywords: ['tikz', 'TikZ'],
+  description: 'TikZ',
+  onClick: (editor) => {
+    insertTikz(editor);
   }
 }];

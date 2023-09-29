@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Popover, Button, Input, Space } from "antd";
+import { Popover, Button, Input } from "antd";
 import { open as openUrl } from '@tauri-apps/api/shell';
 import InlineChromiumBugfix from "../InlineChromiumBugFix";
 import {ReactEditor, RenderElementProps, useReadOnly, useSlate} from "slate-react";
@@ -15,20 +15,18 @@ interface LinkProps {
   element: LinkElement
 }
 
-const EditLink: React.FC<{ url:string, onSubmit: (url: string) => void }> = (props) => {
+const EditLink: React.FC<{ url: string, onSubmit: (url: string) => void }> = (props) => {
   const { url, onSubmit } = props;
   const [inputValue, setInputValue] = React.useState(url);
   return (
-    <div>
-      <Space>
-        <Input
-          width={500}
-          value={inputValue}
-          placeholder="请输入链接地址"
-          onChange={(e) => { setInputValue(e.target.value) }}
-        />
-        <Button type="primary" onClick={() => { onSubmit(inputValue) }}>确定</Button>
-      </Space>
+    <div className={styles.editContainer}>
+      <Input
+        className={styles.input}
+        value={inputValue}
+        placeholder="请输入链接地址"
+        onChange={(e) => { setInputValue(e.target.value) }}
+      />
+      <Button type="primary" onClick={() => { onSubmit(inputValue) }}>确定</Button>
     </div>
   )
 }
@@ -45,9 +43,11 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
     isModKey: state.isModKey,
   }));
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((e: React.MouseEvent<HTMLSpanElement>) => {
     if (isModKey || readOnly) {
       openUrl(url).then();
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
     setOpen(!open);
@@ -68,7 +68,9 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
 
   return (
     <Popover
+      trigger={'click'}
       open={open}
+      onOpenChange={setOpen}
       content={<EditLink url={url} onSubmit={changeUrl} />}
       arrow={false}
       title={'编辑链接'}

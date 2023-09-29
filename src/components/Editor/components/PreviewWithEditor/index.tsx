@@ -59,6 +59,13 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     Transforms.removeNodes(slateEditor, {
       at: path
     });
+    Transforms.insertNodes(slateEditor, {
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: ''
+      }],
+    });
     setTimeout(() => {
       ReactEditor.focus(slateEditor);
     }, 100)
