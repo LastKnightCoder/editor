@@ -1,4 +1,4 @@
-import {Editor} from "slate";
+import { Editor } from "slate";
 import useBlockPanelStore from "../stores/useBlockPanelStore.ts";
 
 export const withSlashCommands = (editor: Editor) => {
