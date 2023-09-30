@@ -22,7 +22,7 @@ export const isParagraphElement = (node: Node): node is ParagraphElement => {
 }
 
 export const isListItemElement = (node: Node): node is ListItemElement => {
-  return node.type === 'list-item';
+  return node.type === 'list-item' || node.type === 'check-list-item';
 }
 
 export const isCheckListItemElement = (node: Node): node is CheckListItemElement => {

@@ -45,6 +45,9 @@ import 'codemirror/addon/edit/closebrackets.js';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/blackboard.css';
 
+import Editor2 from './editor.tsx';
+import {startExtensions} from "@/components/Editor/extensions";
+
 export type EditorRef = {
   focus: () => void;
   setEditorValue: (value: Descendant[]) => void;
@@ -148,5 +151,11 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
     </DndProvider>
   )
 });
+const Index2 = forwardRef<EditorRef, IEditorProps>((props, ref) => {
+  return (
+    <Editor2 extensions={startExtensions} {...props} ref={ref} />
+  )
+});
 
-export default Index;
+// export default Index;
+export default Index2;

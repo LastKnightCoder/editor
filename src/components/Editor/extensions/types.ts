@@ -1,10 +1,10 @@
-import { Editor } from "slate";
 import { RenderElementProps } from "slate-react";
 import { HotKeyConfig } from "../hotkeys/types.ts";
+import { Plugin } from "../utils/plugin.ts";
 
 export default interface IExtension {
   type: string;
-  getPlugins: () => ((editor: Editor) => Editor)[];
+  getPlugins: () => Plugin[];
   render: (props: RenderElementProps) => JSX.Element;
-  getHotkeyConfig: () => HotKeyConfig[];
+  getHotkeyConfigs: () => HotKeyConfig[];
 }
