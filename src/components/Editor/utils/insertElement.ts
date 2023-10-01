@@ -12,6 +12,7 @@ import {
 } from "../types";
 import {v4 as getUuid} from "uuid";
 import {isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode} from "./editor";
+import { codeBlockMap } from "../extensions/code-block";
 
 const emptyParagraph = {
   type: 'paragraph',
@@ -185,7 +186,7 @@ export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
   });
   // 聚焦到 code-block
   setTimeout(() => {
-    const codeMirrorEditor = editor.codeBlockMap.get(uuid);
+    const codeMirrorEditor = codeBlockMap.get(uuid);
     if (codeMirrorEditor) {
       codeMirrorEditor.focus();
     }

@@ -1,17 +1,17 @@
+import {isAtFirst} from "@/components/Editor/plugins/withMarkdownShortcuts/utils.ts";
 import {Editor, NodeEntry, Transforms} from "slate";
-import {isAtFirst} from "./utils";
-import {FormattedText, HeaderElement} from "../../types";
+import {FormattedText} from "@/components/Editor/types";
+import {insertCodeBlock} from "@/components/Editor/utils";
 
-const header = (editor: Editor) => {
+export const markdownSyntax = (editor: Editor) => {
   const { insertText } = editor;
 
   editor.insertText = (text) => {
     if (isAtFirst(editor, text)) {
       const [node, path] = isAtFirst(editor, text)! as NodeEntry;
       const { text: nodeText } = node as FormattedText;
-      const levelMatched = nodeText.match(/^#{1,6}/);
-      if (levelMatched) {
-        const level = levelMatched[0].length as HeaderElement['level'];
+      if (nodeText.startsWith('```')) {
+        // 删除 ``` 符号
         Transforms.delete(editor, {
           at: {
             anchor: {
@@ -20,21 +20,17 @@ const header = (editor: Editor) => {
             },
             focus: {
               path,
-              offset: level
+              offset: nodeText.length
             }
           }
         });
-        Transforms.setNodes(editor, {
-          type: 'header',
-          level
-        });
+        // 获得 language
+        const language = nodeText.slice(3);
+        insertCodeBlock(editor, language);
         return;
       }
     }
     insertText(text);
   }
-
   return editor;
 }
-
-export default header;

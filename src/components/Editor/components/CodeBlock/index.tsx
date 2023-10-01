@@ -3,6 +3,7 @@ import styles from './index.module.less';
 import { Editor, EditorChange } from 'codemirror';
 import { useEffect, useState } from 'react';
 import classnames from "classnames";
+import { codeBlockMap } from "@/components/Editor/extensions/code-block";
 import { LANGUAGES } from './config';
 
 import isHotkey from "is-hotkey";
@@ -17,7 +18,7 @@ import useTheme from "@/hooks/useTheme.ts";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps['attributes'];
-  onChange: (code: string) => void;
+  onChange?: (code: string) => void;
   element: CodeBlockElement;
   onDidMount?: (editor: Editor) => void;
   onWillUnmount?: (editor: Editor) => void;
@@ -59,11 +60,13 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   }, [language]);
 
   const handleOnChange = (_editor: Editor, _change: EditorChange, code: string) => {
-    onChange(code);
+    const path = ReactEditor.findPath(slateEditor, element);
+    Transforms.setNodes(slateEditor, { code }, { at: path });
+    onChange && onChange(code);
   }
 
   const handleCopyCode = async () => {
-    const editor = slateEditor.codeBlockMap.get(uuid);
+    const editor = codeBlockMap.get(uuid);
     if (navigator.clipboard && editor) {
       const code = editor.getValue();
       await navigator.clipboard.writeText(code);
@@ -122,7 +125,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
               const path = ReactEditor.findPath(slateEditor, element);
               Transforms.setNodes(slateEditor, { type: 'paragraph', children: [{ type: 'formatted', text: '' }] }, { at: path });
               Transforms.unsetNodes(slateEditor, ['code', 'language', 'uuid'], { at: path });
-              slateEditor.codeBlockMap.delete(uuid);
+              codeBlockMap.delete(uuid);
               ReactEditor.focus(slateEditor);
             }
           }

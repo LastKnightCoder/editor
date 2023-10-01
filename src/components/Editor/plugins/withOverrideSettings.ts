@@ -1,5 +1,4 @@
 import { Editor, Node, Path, Transforms, Text } from "slate";
-import {Editor as CodeMirrorEditor} from "codemirror";
 
 export const withOverrideSettings = (editor: Editor) => {
   const { isBlock, isVoid, isInline, normalizeNode } = editor;
@@ -46,7 +45,6 @@ export const withOverrideSettings = (editor: Editor) => {
     const inlineTypes = ['link', 'inline-math'];
     return inlineTypes.includes(element.type) ? true : isInline(element);
   }
-  editor.codeBlockMap = new Map<string, CodeMirrorEditor>();
 
   editor.normalizeNode = (entry) => {
     const zeroWidthChar = "\uFEFF";

@@ -5,6 +5,7 @@ import { Editor as CodeMirrorEditor } from "codemirror";
 import loadable from "@loadable/component";
 
 import { CodeBlockElement } from "../types";
+import { codeBlockMap } from "@/components/Editor/extensions/code-block";
 
 import Callout from "../components/Callout";
 import Header from "../components/Header";
@@ -40,10 +41,10 @@ export const renderElement = (editor: Editor) => {
       Transforms.setNodes(editor, { code }, { at: path });
     }
     const onDidMount = (codeMirrorEditor: CodeMirrorEditor) => {
-      editor.codeBlockMap.set((element as CodeBlockElement).uuid, codeMirrorEditor)
+      codeBlockMap.set((element as CodeBlockElement).uuid, codeMirrorEditor)
     }
     const onWillUnmount = () => {
-      editor.codeBlockMap.delete((element as CodeBlockElement).uuid);
+      codeBlockMap.delete((element as CodeBlockElement).uuid);
     }
 
     switch (element.type) {

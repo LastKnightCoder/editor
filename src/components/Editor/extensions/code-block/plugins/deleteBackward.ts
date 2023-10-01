@@ -1,8 +1,9 @@
 import {Editor, Element as SlateElement, Range, Transforms} from "slate";
-import {CodeBlockElement} from "../../types";
-import {isAtParagraphStart, isParagraphAndEmpty} from "../../utils";
+import {isAtParagraphStart, isParagraphAndEmpty} from "@/components/Editor/utils";
+import {CodeBlockElement} from "@/components/Editor/types";
+import { codeBlockMap } from "..";
 
-const codeblock = (editor: Editor) => {
+export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;
 
   editor.deleteBackward = (unit) => {
@@ -26,7 +27,6 @@ const codeblock = (editor: Editor) => {
                 Transforms.removeNodes(editor, { at: path });
               }
               const [element] = prevMatch;
-              const codeBlockMap = editor.codeBlockMap;
               const codeMirrorEditor = codeBlockMap.get((element as CodeBlockElement).uuid);
               if (codeMirrorEditor) {
                 codeMirrorEditor.focus();
@@ -42,5 +42,3 @@ const codeblock = (editor: Editor) => {
 
   return editor;
 }
-
-export default codeblock;

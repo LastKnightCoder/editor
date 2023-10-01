@@ -1,10 +1,10 @@
-import {HotKeyConfig} from "./types";
-import {Editor, Transforms} from "slate";
-import {getParentNodeByNode, getPreviousSiblingNode, isAtParagraphStart} from "../utils";
-import {BulletedListElement, NumberedListElement} from "../types";
-import {message} from "antd";
+import {HotKeyConfig} from "@/components/Editor/hotkeys/types.ts";
+import { Editor, Transforms } from "slate";
+import { getParentNodeByNode, isAtParagraphStart, getPreviousSiblingNode } from "@/components/Editor/utils";
+import { message } from "antd";
 
-export const listConfig: HotKeyConfig[] = [{
+
+export const indent: HotKeyConfig[] = [{
   hotKey: 'Tab',
   action: (editor, event) => {
     const [match] = Editor.nodes(editor, {
@@ -27,7 +27,9 @@ export const listConfig: HotKeyConfig[] = [{
       const previousSibling = getPreviousSiblingNode(editor, match[0])!;
       // 包裹为 bulleted-list 或 numbered-list，并包裹在上一个 list-item 中
       Transforms.wrapNodes(editor, {
-        type: parentType as 'bulleted-list' | 'numbered-list',
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        type: parentType,
         children: []
       }, {
         match: n => n.type === 'list-item'
@@ -35,7 +37,9 @@ export const listConfig: HotKeyConfig[] = [{
       // 放在最后面
       Transforms.moveNodes(editor, {
         match: n => n.type === parentType,
-        to: [...previousSibling[1], (previousSibling[0]  as (BulletedListElement | NumberedListElement)).children.length]
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        to: [...previousSibling[1], previousSibling[0].children.length]
       })
       event.preventDefault();
     }

@@ -13,7 +13,6 @@ import {
   withOverrideSettings,
   withInsertBreak,
   withDeleteBackward,
-  withPasteImage,
   withSlashCommands
 } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
@@ -73,7 +72,6 @@ const plugins = [
   withMarkdownShortcuts,
   withInsertBreak,
   withDeleteBackward,
-  withPasteImage,
   withSlashCommands
 ];
 
