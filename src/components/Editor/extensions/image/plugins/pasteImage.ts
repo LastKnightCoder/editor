@@ -6,7 +6,7 @@ import {
 } from '@/utils';
 import useSettingStore from "@/stores/useSettingStore.ts";
 
-const withPasteImage = (editor: Editor) => {
+export const pasteImage = (editor: Editor) => {
   const { insertData } = editor;
 
   editor.insertData = async (data: DataTransfer) => {
@@ -49,5 +49,3 @@ const withPasteImage = (editor: Editor) => {
 
   return editor;
 }
-
-export default withPasteImage;

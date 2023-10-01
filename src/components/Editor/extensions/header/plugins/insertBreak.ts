@@ -1,6 +1,6 @@
 import { Editor, Transforms } from 'slate';
 
-const insertBreak = (editor: Editor) => {
+export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;
   editor.insertBreak = () => {
     const [match] = Editor.nodes(editor, {
@@ -18,5 +18,3 @@ const insertBreak = (editor: Editor) => {
 
   return editor;
 }
-
-export default insertBreak;

@@ -2,12 +2,14 @@ import ParagraphExtension from "./paragraph";
 import HeaderExtension from "./header";
 import ImageExtension from "./image";
 import BulletedListExtension from "./bulleted-list";
+import NumberedListExtension from "./numbered-list";
 import ListItemExtension from "./list-item";
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
 export const image = new ImageExtension();
 export const bulletedList = new BulletedListExtension();
+export const numberedList = new NumberedListExtension();
 export const listItem = new ListItemExtension();
 
 export const startExtensions = [
@@ -15,5 +17,6 @@ export const startExtensions = [
   header,
   image,
   bulletedList,
+  numberedList,
   listItem,
 ];

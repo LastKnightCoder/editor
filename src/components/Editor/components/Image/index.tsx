@@ -70,7 +70,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     Transforms.insertNodes(editor, {
       type: 'paragraph',
       children: [{ type: 'formatted', text: '' }],
+    }, {
+      at: path
     })
+    Transforms.select(editor, path);
     ReactEditor.focus(editor);
   }
 

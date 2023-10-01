@@ -7,6 +7,7 @@ import { DEFAULT_CARD_CONTENT } from "@/constants";
 
 import { applyPlugin, registerHotKey, Plugin } from "./utils";
 import { renderLeaf } from "./renderMethods";
+import { withOverrideSettings } from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
 
@@ -32,6 +33,7 @@ interface IEditorProps {
 const defaultPlugins: Plugin[] = [
   withReact,
   withHistory,
+  withOverrideSettings,
 ];
 
 const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {

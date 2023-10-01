@@ -6,13 +6,13 @@ import { RenderElementProps } from "slate-react";
 import Base from '../base.ts';
 import IExtension from "../types.ts";
 
-import { withHeader } from "./plugins";
+import { insertBreak, deleteBackward, markdownSyntax } from "./plugins";
 import headerHotKeys from "./hotkeys";
 
 class HeaderExtension extends Base implements IExtension {
   type = 'header';
   override getPlugins() {
-    return [withHeader];
+    return [insertBreak, deleteBackward, markdownSyntax];
   }
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;

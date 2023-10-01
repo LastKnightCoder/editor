@@ -2,7 +2,7 @@ import {Editor, NodeEntry, Transforms} from "slate";
 import {isAtFirst} from "@/components/Editor/plugins/withMarkdownShortcuts/utils.ts";
 import { FormattedText, HeaderElement } from "@/components/Editor/types";
 
-const markdownSyntax = (editor: Editor) => {
+export const markdownSyntax = (editor: Editor) => {
   const { insertText } = editor;
 
   editor.insertText = (text) => {
@@ -36,5 +36,3 @@ const markdownSyntax = (editor: Editor) => {
 
   return editor;
 }
-
-export default markdownSyntax;

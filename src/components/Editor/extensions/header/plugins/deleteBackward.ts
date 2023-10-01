@@ -1,7 +1,7 @@
 import {Editor, Element as SlateElement, Range, Transforms} from 'slate';
 
 // 删除标题时，将标题转换为 paragraph，而不是移到上一个块中
-const deleteBackward = (editor: Editor) => {
+export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;
 
   editor.deleteBackward = (unit) => {
@@ -28,5 +28,3 @@ const deleteBackward = (editor: Editor) => {
 
   return editor;
 }
-
-export default deleteBackward;
