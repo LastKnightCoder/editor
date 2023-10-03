@@ -76,7 +76,7 @@ const useHoveringBarConfig = () => {
       onClick: (event: React.MouseEvent) => toggleMark(event, config.mark),
     })),
     {
-      text: '$',
+      text: 'f(x)',
       active: isInlineMathActive,
       onClick: (event: React.MouseEvent) => {
         try {

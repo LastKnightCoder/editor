@@ -11,7 +11,6 @@ import Graphviz from "../components/Graphviz";
 import Paragraph from "../components/Paragraph";
 
 const CustomBlock = loadable(() => import("../components/CustomBlock"));
-const MermaidChart = loadable(() => import("../components/MermaidChart"));
 const Tikz = loadable(() => import("../components/Tikz"));
 
 
@@ -49,12 +48,6 @@ export const renderElement = () => {
           <CheckListItem attributes={attributes} element={element}>
             {children}
           </CheckListItem>
-        )
-      case 'mermaid':
-        return (
-          <MermaidChart element={element} attributes={attributes}>
-            {children}
-          </MermaidChart>
         )
       case 'tikz':
         return (

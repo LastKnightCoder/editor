@@ -11,6 +11,7 @@ import { InlineMathExtension, BlockMathExtension } from './math';
 import BlockquoteExtension from "./blockquote";
 import LinkExtension from './link';
 import DivideLineExtension from "./divide-line";
+import MermaidExtension from "./mermaid";
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
@@ -26,6 +27,7 @@ export const blockquote = new BlockquoteExtension();
 export const callout = new CalloutExtension();
 export const link = new LinkExtension();
 export const divideLine = new DivideLineExtension();
+export const mermaid = new MermaidExtension();
 
 
 export const startExtensions = [
@@ -43,4 +45,5 @@ export const startExtensions = [
   callout,
   link,
   divideLine,
+  mermaid
 ];
