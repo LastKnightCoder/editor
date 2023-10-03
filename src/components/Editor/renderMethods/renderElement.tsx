@@ -1,7 +1,6 @@
 import { RenderElementProps } from "slate-react";
 
 import loadable from "@loadable/component";
-import Blockquote from "../components/Blockquote";
 import Link from "../components/Link";
 import Table from "../components/Table";
 import TableRow from "../components/TableRow";
@@ -23,12 +22,6 @@ export const renderElement = () => {
     const { attributes, children, element } = props;
 
     switch (element.type) {
-      case 'blockquote':
-        return (
-          <Blockquote attributes={attributes} element={element}>
-            {children}
-          </Blockquote>
-        )
       case 'link':
         return (
           <Link element={element} attributes={attributes} >

@@ -9,6 +9,7 @@ import CalloutExtension from "./callout";
 import DetailExtension from "./detail";
 import { InlineMathExtension, BlockMathExtension } from './math';
 import BlockquoteExtension from "./blockquote";
+import LinkExtension from './link';
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
@@ -22,6 +23,8 @@ export const inlineMath = new InlineMathExtension();
 export const blockMath = new BlockMathExtension();
 export const blockquote = new BlockquoteExtension();
 export const callout = new CalloutExtension();
+export const link = new LinkExtension();
+
 
 export const startExtensions = [
   paragraph,
@@ -36,4 +39,5 @@ export const startExtensions = [
   blockMath,
   blockquote,
   callout,
+  link,
 ];
