@@ -1,16 +1,15 @@
 import {Editor, NodeEntry, Transforms} from "slate";
-import {FormattedText} from "../../types";
-import {isAtFirst} from "./utils";
+import {isAtFirst} from "@/components/Editor/plugins/withMarkdownShortcuts/utils.ts";
+import {FormattedText} from "@/components/Editor/types";
 
-const blockquote = (editor: Editor) => {
+export const markdownSyntax = (editor: Editor) => {
   const { insertText } = editor;
-
   editor.insertText = (text) => {
     if (isAtFirst(editor, text)) {
       const [node, path] = isAtFirst(editor, text)! as NodeEntry;
       const { text: nodeText } = node as FormattedText;
       const offset = editor.selection!.anchor.offset;
-      if (nodeText.slice(0, offset) === '>') {
+      if (nodeText.slice(0, offset) === '---') {
         Transforms.delete(editor, {
           at: {
             anchor: {
@@ -19,20 +18,25 @@ const blockquote = (editor: Editor) => {
             },
             focus: {
               path,
-              offset: 1
+              offset
             }
           }
         });
-        Transforms.wrapNodes(editor, {
-          type: 'blockquote',
-          children: []
+        Transforms.setNodes(editor, {
+          type: 'divide-line',
         });
+        Transforms.insertNodes(editor, [{
+          type: 'paragraph',
+          children: [{
+            type: 'formatted',
+            text: ''
+          }]
+        }]);
         return;
       }
     }
     insertText(text);
   }
+
   return editor;
 }
-
-export default blockquote;

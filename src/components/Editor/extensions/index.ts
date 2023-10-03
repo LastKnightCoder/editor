@@ -10,6 +10,7 @@ import DetailExtension from "./detail";
 import { InlineMathExtension, BlockMathExtension } from './math';
 import BlockquoteExtension from "./blockquote";
 import LinkExtension from './link';
+import DivideLineExtension from "./divide-line";
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
@@ -24,6 +25,7 @@ export const blockMath = new BlockMathExtension();
 export const blockquote = new BlockquoteExtension();
 export const callout = new CalloutExtension();
 export const link = new LinkExtension();
+export const divideLine = new DivideLineExtension();
 
 
 export const startExtensions = [
@@ -40,4 +42,5 @@ export const startExtensions = [
   blockquote,
   callout,
   link,
+  divideLine,
 ];

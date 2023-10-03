@@ -1,7 +1,6 @@
 import { RenderElementProps } from "slate-react";
 
 import loadable from "@loadable/component";
-import Link from "../components/Link";
 import Table from "../components/Table";
 import TableRow from "../components/TableRow";
 import TableCell from "../components/TableCell";
@@ -10,7 +9,6 @@ import CheckListItem from "../components/CheckListItem";
 import HTMLBlock from "../components/HTMLBlock";
 import Graphviz from "../components/Graphviz";
 import Paragraph from "../components/Paragraph";
-import DivideLineElement from "../components/DivideLine";
 
 const CustomBlock = loadable(() => import("../components/CustomBlock"));
 const MermaidChart = loadable(() => import("../components/MermaidChart"));
@@ -22,12 +20,6 @@ export const renderElement = () => {
     const { attributes, children, element } = props;
 
     switch (element.type) {
-      case 'link':
-        return (
-          <Link element={element} attributes={attributes} >
-            {children}
-          </Link>
-        )
       case 'table':
         return (
           <Table element={element} attributes={attributes} >
@@ -88,15 +80,9 @@ export const renderElement = () => {
             {children}
           </CustomBlock>
         )
-      case 'divide-line':
-        return (
-          <DivideLineElement attributes={attributes} element={element}>
-            {children}
-          </DivideLineElement>
-        )
       case 'paragraph':
       default:
-        return <Paragraph element={element} attributes={attributes}>{children}</Paragraph>
+        return <Paragraph element={element as any} attributes={attributes}>{children}</Paragraph>
     }
   }
 }
