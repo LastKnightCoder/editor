@@ -5,6 +5,7 @@ import styles from './index.module.less';
 import PreviewWithEditor from "../PreviewWithEditor";
 import {Transforms} from "slate";
 import { Graphviz } from 'graphviz-react';
+import If from '@/components/If';
 
 interface GraphvizProps {
   attributes: RenderElementProps['attributes'];
@@ -30,10 +31,12 @@ const GraphvizElement: React.FC<PropsWithChildren<GraphvizProps>> = (props) => {
         onChange={handleOnChange}
         center
       >
-        {
-          dot
-            ? <Graphviz dot={dot} options={{fit:true}} />
-            : <div contentEditable={false} className={styles.empty}>点击编辑图表</div> }
+        <If condition={!!dot}>
+          <Graphviz dot={dot} options={{fit:true}} />
+        </If>
+        <If condition={!dot}>
+          <div contentEditable={false} className={styles.empty}>点击编辑图表</div>
+        </If>
       </PreviewWithEditor>
       {children}
     </div>

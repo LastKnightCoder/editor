@@ -14,6 +14,9 @@ import LinkExtension from './link';
 import DivideLineExtension from "./divide-line";
 import MermaidExtension from "./mermaid";
 import { TableExtension, TableRowExtension, TableCellExtension } from './table';
+import TikzExtension from "./tikz";
+import CustomBlockExtension from "./custom-block";
+import GraphvizExtension from "./graphviz";
 
 
 export const paragraph = new ParagraphExtension();
@@ -36,7 +39,9 @@ export const mermaid = new MermaidExtension();
 export const table = new TableExtension();
 export const tableRow = new TableRowExtension();
 export const tableCell = new TableCellExtension();
-
+export const tikz = new TikzExtension();
+export const customBlock = new CustomBlockExtension();
+export const graphviz = new GraphvizExtension();
 
 export const startExtensions = [
   paragraph,
@@ -59,4 +64,7 @@ export const startExtensions = [
   table,
   tableRow,
   tableCell,
+  tikz,
+  customBlock,
+  graphviz,
 ];

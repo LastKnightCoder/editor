@@ -1,25 +1,20 @@
-import {useState, useEffect, forwardRef, useImperativeHandle} from "react";
+import {useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo} from "react";
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
-import {Slate, Editable, withReact, ReactEditor} from 'slate-react';
+import {Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps} from 'slate-react';
 import { withHistory } from 'slate-history';
-import { DndProvider } from 'react-dnd'
-import { HTML5Backend } from 'react-dnd-html5-backend'
 
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 
-import { applyPlugin, registerHotKey } from "./utils";
-import {
-  withOverrideSettings,
-  withSlashCommands
-} from "./plugins";
-import hotKeyConfigs from "./hotkeys";
-import { renderElement, renderLeaf } from "./renderMethods";
-import { usePressedKeyStore } from "./stores";
+import { applyPlugin, registerHotKey, Plugin } from "./utils";
+import { withOverrideSettings, withSlashCommands } from "@/components/Editor/plugins";
+import IExtension from "@/components/Editor/extensions/types.ts";
 
 import ImagesOverview from "./components/ImagesOverview";
 import Command from "./components/Command";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
+import FormattedText from "@/components/Editor/components/FormattedText";
+import { startExtensions } from "@/components/Editor/extensions";
 
 import 'codemirror/mode/stex/stex.js';
 import 'codemirror/mode/javascript/javascript.js';
@@ -41,8 +36,6 @@ import 'codemirror/addon/edit/closebrackets.js';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/blackboard.css';
 
-import Editor2 from './editor.tsx';
-import {startExtensions} from "@/components/Editor/extensions";
 
 export type EditorRef = {
   focus: () => void;
@@ -55,6 +48,7 @@ interface IEditorProps {
   initValue?: Descendant[];
   onChange?: (value: Descendant[]) => void;
   readonly?: boolean;
+  extensions?: IExtension[];
   uploadImage?: (file: File) => Promise<{
     content: {
       download_url: string;
@@ -62,16 +56,43 @@ interface IEditorProps {
   }>;
 }
 
-const plugins = [
+const defaultPlugins: Plugin[] = [
   withReact,
   withHistory,
   withOverrideSettings,
-  withSlashCommands
+  withSlashCommands,
 ];
 
 const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
-  const { initValue = DEFAULT_CARD_CONTENT, onChange, readonly = true } = props;
-  const [editor] = useState(() => applyPlugin(createEditor(), plugins));
+  const { initValue = DEFAULT_CARD_CONTENT, onChange, readonly = true, extensions = [] } = props;
+
+  const finalExtensions = useMemo(() => {
+    return [...startExtensions, ...extensions];
+  }, [extensions]);
+
+  const editor = useMemo(() => {
+    const extensionPlugins = finalExtensions.map(extension => extension.getPlugins()).flat();
+    return applyPlugin(createEditor(), defaultPlugins.concat(extensionPlugins))
+  }, [finalExtensions]);
+
+  const hotKeyConfigs = useMemo(() => {
+    return finalExtensions.map(extension => extension.getHotkeyConfigs()).flat();
+  }, [finalExtensions]);
+
+  const renderElement = useCallback((props: RenderElementProps) => {
+    const { type } = props.element;
+    const extension = finalExtensions.find(extension => extension.type === type);
+    if (extension) {
+      return extension.render(props);
+    }
+    return <p contentEditable={false} {...props}>无法识别的类型 {type} {props.children}</p>;
+  }, [finalExtensions]);
+
+  const renderLeaf = useCallback((props: RenderLeafProps) => {{
+    const { attributes, children, leaf } = props;
+    return <FormattedText leaf={leaf} attributes={attributes} >{children}</FormattedText>
+  }}, []);
+
   const [isNormalized, setIsNormalized] = useState(false);
 
   useEffect(() => {
@@ -106,33 +127,19 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
     }
   }));
 
-  const { listenKeyPressed, resetPressedKey, isReset } = usePressedKeyStore(state => ({
-    listenKeyPressed: state.listenKeyPressed,
-    resetPressedKey: state.resetPressedKey,
-    isReset: state.isReset
-  }));
-
   const handleOnChange = (value: Descendant[]) => {
     onChange && onChange(value);
   }
 
   return (
-    <DndProvider backend={HTML5Backend}>
       <Slate editor={editor} initialValue={initValue} onChange={handleOnChange} >
         <Editable
           readOnly={readonly}
-          renderElement={renderElement(editor)}
-          renderLeaf={renderLeaf()}
+          renderElement={renderElement}
+          renderLeaf={renderLeaf}
           placeholder={'写下你的想法...'}
           onKeyDown={(event) => {
             registerHotKey(editor, event, hotKeyConfigs);
-            listenKeyPressed(event);
-          }}
-          onKeyUp={() => {
-            // 防止重复触发，频繁更新组件，编辑体验不好
-            if (!isReset) {
-              resetPressedKey();
-            }
           }}
         />
         <ImagesOverview />
@@ -140,14 +147,7 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
         { !readonly && <HoveringToolbar /> }
         <BlockPanel />
       </Slate>
-    </DndProvider>
-  )
-});
-const Index2 = forwardRef<EditorRef, IEditorProps>((props, ref) => {
-  return (
-    <Editor2 extensions={startExtensions} {...props} ref={ref} />
   )
 });
 
-// export default Index;
-export default Index2;
+export default Index;
