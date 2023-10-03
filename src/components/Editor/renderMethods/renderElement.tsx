@@ -1,23 +1,11 @@
-import { Editor, Transforms } from "slate";
-import { ReactEditor, RenderElementProps } from "slate-react";
-import { Editor as CodeMirrorEditor } from "codemirror";
+import { RenderElementProps } from "slate-react";
 
 import loadable from "@loadable/component";
-
-import { CodeBlockElement } from "../types";
-import { codeBlockMap } from "@/components/Editor/extensions/code-block";
-
-import Callout from "../components/Callout";
-import Header from "../components/Header";
-import Image from "../components/Image";
-import Detail from "../components/Detail";
 import Blockquote from "../components/Blockquote";
 import Link from "../components/Link";
 import Table from "../components/Table";
 import TableRow from "../components/TableRow";
 import TableCell from "../components/TableCell";
-import BulletedList from "../components/BulletedList";
-import NumberedList from "../components/NumberedList";
 import CheckList from "../components/CheckList";
 import CheckListItem from "../components/CheckListItem";
 import HTMLBlock from "../components/HTMLBlock";
@@ -30,78 +18,13 @@ import InlineMath from "../components/InlineMath";
 const CustomBlock = loadable(() => import("../components/CustomBlock"));
 const MermaidChart = loadable(() => import("../components/MermaidChart"));
 const Tikz = loadable(() => import("../components/Tikz"));
-const CodeBlock = loadable(() => import("../components/CodeBlock"));
 
 
-export const renderElement = (editor: Editor) => {
+export const renderElement = () => {
   return (props: RenderElementProps) => {
     const { attributes, children, element } = props;
-    const setCode = (code: string) => {
-      const path = ReactEditor.findPath(editor, element);
-      Transforms.setNodes(editor, { code }, { at: path });
-    }
-    const onDidMount = (codeMirrorEditor: CodeMirrorEditor) => {
-      codeBlockMap.set((element as CodeBlockElement).uuid, codeMirrorEditor)
-    }
-    const onWillUnmount = () => {
-      codeBlockMap.delete((element as CodeBlockElement).uuid);
-    }
 
     switch (element.type) {
-      case 'code-block':
-        return (
-          <CodeBlock
-            attributes={attributes}
-            element={element}
-            onDidMount={onDidMount}
-            onWillUnmount={onWillUnmount}
-            onChange={setCode}
-          >
-            {children}
-          </CodeBlock>
-        )
-      case 'callout':
-        return (
-          <Callout attributes={attributes} element={element}>
-            {children}
-          </Callout>
-        )
-      case 'header':
-        return (
-          <Header attributes={attributes} element={element}>
-            {children}
-          </Header>
-        )
-      case 'list-item':
-        return (
-          <li {...attributes}>
-            {children}
-          </li>
-        )
-      case 'bulleted-list':
-        return (
-          <BulletedList element={element} attributes={attributes}>
-            {children}
-          </BulletedList>
-        )
-      case 'numbered-list':
-        return (
-          <NumberedList element={element} attributes={attributes}>
-            {children}
-          </NumberedList>
-        )
-      case 'image':
-        return (
-          <Image attributes={attributes} element={element}>
-            {children}
-          </Image>
-        )
-      case 'detail':
-        return (
-          <Detail attributes={attributes} element={element}>
-            {children}
-          </Detail>
-        )
       case 'blockquote':
         return (
           <Blockquote attributes={attributes} element={element}>

@@ -1,7 +1,7 @@
 import {Editor} from "slate";
-import {getPreviousSiblingNode, isAtParagraphStart, isParagraphElement} from "../../utils";
+import {getPreviousSiblingNode, isAtParagraphStart, isParagraphElement} from "@/components/Editor/utils";
 
-const detail = (editor: Editor) => {
+export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;
 
   editor.deleteBackward = (unit) => {
@@ -23,5 +23,3 @@ const detail = (editor: Editor) => {
 
   return editor;
 }
-
-export default detail;

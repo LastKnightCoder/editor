@@ -5,6 +5,8 @@ import BulletedListExtension from "./bulleted-list";
 import NumberedListExtension from "./numbered-list";
 import ListItemExtension from "./list-item";
 import CodeBlockExtension from "./code-block";
+import DetailExtension from "./detail";
+import { InlineMathExtension, BlockMathExtension } from './math';
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
@@ -13,6 +15,9 @@ export const bulletedList = new BulletedListExtension();
 export const numberedList = new NumberedListExtension();
 export const listItem = new ListItemExtension();
 export const codeBlock = new CodeBlockExtension();
+export const detail = new DetailExtension();
+export const inlineMath = new InlineMathExtension();
+export const blockMath = new BlockMathExtension();
 
 export const startExtensions = [
   paragraph,
@@ -22,4 +27,7 @@ export const startExtensions = [
   numberedList,
   listItem,
   codeBlock,
+  detail,
+  inlineMath,
+  blockMath
 ];

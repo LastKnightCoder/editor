@@ -10,6 +10,11 @@ import { renderLeaf } from "./renderMethods";
 import { withOverrideSettings } from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
+import ImagesOverview from "./components/ImagesOverview";
+import Command from "./components/Command";
+import HoveringToolbar from "./components/HoveringToolbar";
+import BlockPanel from "./components/BlockPanel";
+
 
 export type EditorRef = {
   focus: () => void;
@@ -103,6 +108,10 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
             registerHotKey(editor, event, hotKeyConfigs);
           }}
         />
+        <ImagesOverview />
+        { !readonly && <Command /> }
+        { !readonly && <HoveringToolbar /> }
+        <BlockPanel />
       </Slate>
   )
 });

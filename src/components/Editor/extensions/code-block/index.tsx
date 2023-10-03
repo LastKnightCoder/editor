@@ -1,5 +1,7 @@
 import { RenderElementProps } from "slate-react";
-import CodeBlock from "@/components/Editor/components/CodeBlock";
+import loadable from "@loadable/component";
+
+const CodeBlock = loadable(() => import("@/components/Editor/components/CodeBlock"));
 import { CodeBlockElement } from "@/components/Editor/types";
 
 import Base from '../base.ts';
