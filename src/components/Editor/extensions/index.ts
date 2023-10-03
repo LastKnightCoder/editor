@@ -5,8 +5,10 @@ import BulletedListExtension from "./bulleted-list";
 import NumberedListExtension from "./numbered-list";
 import ListItemExtension from "./list-item";
 import CodeBlockExtension from "./code-block";
+import CalloutExtension from "./callout";
 import DetailExtension from "./detail";
 import { InlineMathExtension, BlockMathExtension } from './math';
+import BlockquoteExtension from "./blockquote";
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
@@ -18,6 +20,8 @@ export const codeBlock = new CodeBlockExtension();
 export const detail = new DetailExtension();
 export const inlineMath = new InlineMathExtension();
 export const blockMath = new BlockMathExtension();
+export const blockquote = new BlockquoteExtension();
+export const callout = new CalloutExtension();
 
 export const startExtensions = [
   paragraph,
@@ -29,5 +33,7 @@ export const startExtensions = [
   codeBlock,
   detail,
   inlineMath,
-  blockMath
+  blockMath,
+  blockquote,
+  callout,
 ];

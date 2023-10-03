@@ -12,8 +12,6 @@ import HTMLBlock from "../components/HTMLBlock";
 import Graphviz from "../components/Graphviz";
 import Paragraph from "../components/Paragraph";
 import DivideLineElement from "../components/DivideLine";
-import BlockMath from "../components/BlockMath";
-import InlineMath from "../components/InlineMath";
 
 const CustomBlock = loadable(() => import("../components/CustomBlock"));
 const MermaidChart = loadable(() => import("../components/MermaidChart"));
@@ -54,18 +52,6 @@ export const renderElement = () => {
           <TableCell attributes={attributes} element={element}>
             {children}
           </TableCell>
-        )
-      case "inline-math":
-        return (
-          <InlineMath attributes={attributes} element={element}>
-            {children}
-          </InlineMath>
-        )
-      case 'block-math':
-        return (
-          <BlockMath attributes={attributes} element={element}>
-            {children}
-          </BlockMath>
         )
       case 'check-list':
         return (
