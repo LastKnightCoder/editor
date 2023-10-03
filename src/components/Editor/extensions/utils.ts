@@ -1,5 +1,5 @@
 import {Editor, Element as SlateElement, Node as SlateNode, Range} from "slate";
-import {ParagraphElement} from "../../types";
+import {ParagraphElement} from "@/components/Editor/types";
 
 export const isAtFirst = (editor: Editor, text: string) => {
   const { selection } = editor;

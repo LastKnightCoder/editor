@@ -9,10 +9,7 @@ import { DEFAULT_CARD_CONTENT } from "@/constants";
 
 import { applyPlugin, registerHotKey } from "./utils";
 import {
-  withMarkdownShortcuts,
   withOverrideSettings,
-  withInsertBreak,
-  withDeleteBackward,
   withSlashCommands
 } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
@@ -69,9 +66,6 @@ const plugins = [
   withReact,
   withHistory,
   withOverrideSettings,
-  withMarkdownShortcuts,
-  withInsertBreak,
-  withDeleteBackward,
   withSlashCommands
 ];
 

@@ -1,6 +1,6 @@
 import {Editor, Range} from "slate";
 
-const table = (editor: Editor) => {
+export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;
 
   editor.insertBreak = () => {
@@ -18,5 +18,3 @@ const table = (editor: Editor) => {
 
   return editor;
 }
-
-export default table;

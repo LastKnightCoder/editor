@@ -1,5 +1,5 @@
 import {Editor, NodeEntry, Transforms} from "slate";
-import {isAtFirst} from "@/components/Editor/plugins/withMarkdownShortcuts/utils.ts";
+import {isAtFirst} from "@/components/Editor/extensions/utils.ts";
 import {FormattedText} from "@/components/Editor/types";
 
 export const markdownSyntax = (editor: Editor) => {

@@ -3,6 +3,7 @@ import HeaderExtension from "./header";
 import ImageExtension from "./image";
 import BulletedListExtension from "./bulleted-list";
 import NumberedListExtension from "./numbered-list";
+import { CheckListExtension, CheckListItemExtension } from "./check-list";
 import ListItemExtension from "./list-item";
 import CodeBlockExtension from "./code-block";
 import CalloutExtension from "./callout";
@@ -12,12 +13,16 @@ import BlockquoteExtension from "./blockquote";
 import LinkExtension from './link';
 import DivideLineExtension from "./divide-line";
 import MermaidExtension from "./mermaid";
+import { TableExtension, TableRowExtension, TableCellExtension } from './table';
+
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
 export const image = new ImageExtension();
 export const bulletedList = new BulletedListExtension();
 export const numberedList = new NumberedListExtension();
+export const checkList = new CheckListExtension();
+export const checkListItem = new CheckListItemExtension();
 export const listItem = new ListItemExtension();
 export const codeBlock = new CodeBlockExtension();
 export const detail = new DetailExtension();
@@ -28,6 +33,9 @@ export const callout = new CalloutExtension();
 export const link = new LinkExtension();
 export const divideLine = new DivideLineExtension();
 export const mermaid = new MermaidExtension();
+export const table = new TableExtension();
+export const tableRow = new TableRowExtension();
+export const tableCell = new TableCellExtension();
 
 
 export const startExtensions = [
@@ -45,5 +53,10 @@ export const startExtensions = [
   callout,
   link,
   divideLine,
-  mermaid
+  mermaid,
+  checkList,
+  checkListItem,
+  table,
+  tableRow,
+  tableCell,
 ];

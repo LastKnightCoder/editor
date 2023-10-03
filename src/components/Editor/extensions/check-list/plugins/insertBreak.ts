@@ -1,12 +1,8 @@
 import {Editor, Element as SlateElement, Transforms} from "slate";
-import {
-  isCheckListItemElement,
-  isParagraphElement,
-  isParagraphAndEmpty
-} from "../../utils";
-import {ListItemElement} from "../../types";
+import {isCheckListItemElement, isParagraphAndEmpty, isParagraphElement} from "@/components/Editor/utils";
+import {ListItemElement} from "@/components/Editor/types";
 
-const checklist = (editor: Editor) => {
+export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;
   editor.insertBreak = () => {
     const [listMatch] = Editor.nodes(editor, {
@@ -52,5 +48,3 @@ const checklist = (editor: Editor) => {
 
   return editor;
 }
-
-export default checklist;

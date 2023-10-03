@@ -1,14 +1,13 @@
 import {Editor, Element as SlateElement, Transforms} from "slate";
 import {
   getClosestCurrentElement,
-  getElementParent,
-  getParentNodeByNode, getPrevPath,
-  isAtParagraphStart, isCheckListItemElement,
-  isParagraphElement
-} from "../../utils";
-import { CheckListItemElement } from "../../types";
+  getElementParent, getParentNodeByNode, getPrevPath,
+  isAtParagraphStart,
+  isCheckListItemElement, isParagraphElement
+} from "@/components/Editor/utils";
+import {CheckListItemElement} from "@/components/Editor/types";
 
-const checkList = (editor: Editor) => {
+export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;
   editor.deleteBackward = (unit) => {
     if (isAtParagraphStart(editor) && isCheckListItemElement(getElementParent(editor)![0])) {
@@ -47,5 +46,3 @@ const checkList = (editor: Editor) => {
 
   return editor;
 }
-
-export default checkList;

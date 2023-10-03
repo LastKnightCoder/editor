@@ -1,7 +1,7 @@
 import {Editor, Element as SlateElement, Range, Transforms} from "slate";
-import {isAtParagraphStart, isParagraphElement, isParagraphAndEmpty, movePrevCol} from "../../utils";
+import {isAtParagraphStart, isParagraphAndEmpty, isParagraphElement, movePrevCol} from "@/components/Editor/utils";
 
-const table = (editor: Editor) => {
+export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;
 
   editor.deleteBackward = (unit) => {
@@ -49,5 +49,3 @@ const table = (editor: Editor) => {
 
   return editor;
 }
-
-export default table;

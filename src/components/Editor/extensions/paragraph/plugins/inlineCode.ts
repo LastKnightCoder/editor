@@ -1,6 +1,6 @@
 import {Editor, Range, Transforms} from "slate";
 
-const inlineCode = (editor: Editor) => {
+export const inlineCode = (editor: Editor) => {
   const { insertText } = editor;
 
   editor.insertText = (text) => {
@@ -17,5 +17,3 @@ const inlineCode = (editor: Editor) => {
 
   return editor;
 }
-
-export default inlineCode;
