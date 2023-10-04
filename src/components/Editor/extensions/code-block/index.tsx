@@ -1,25 +1,37 @@
 import { RenderElementProps } from "slate-react";
+import {Editor as CodeMirrorEditor} from "codemirror";
+
 import loadable from "@loadable/component";
 
-const CodeBlock = loadable(() => import("@/components/Editor/components/CodeBlock"));
+
 import { CodeBlockElement } from "@/components/Editor/types";
 
 import Base from '../base.ts';
 import IExtension from "../types.ts";
+
 import { deleteBackward, markdownSyntax } from './plugins';
 import hotkeys from './hotkeys';
-import {Editor as CodeMirrorEditor} from "codemirror";
+import blockPanelItems from './block-panel-items';
+
+const CodeBlock = loadable(() => import("./components/CodeBlock"));
 
 export const codeBlockMap = new Map<string, CodeMirrorEditor>();
 
 class CodeBlockExtension extends Base implements IExtension {
   override type = 'code-block';
+
   override getPlugins() {
     return [deleteBackward, markdownSyntax];
   }
+
   override getHotkeyConfigs() {
     return hotkeys;
   }
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
+  }
+
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
     const onDidMount = (codeMirrorEditor: CodeMirrorEditor) => {

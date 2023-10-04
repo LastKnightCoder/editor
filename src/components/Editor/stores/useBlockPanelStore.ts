@@ -1,7 +1,7 @@
 import { create } from "zustand";
+import { Editor } from "slate";
+
 import { IBlockPanelListItem } from "../types/blockPanel.ts";
-import {Editor, Transforms} from "slate";
-import { blockPanelList } from '../configs';
 
 interface IState {
   blockPanelVisible: boolean;
@@ -15,9 +15,9 @@ interface IState {
 }
 
 interface IActions {
-  filterList: (value: string) => void;
+  filterList: (value: string, allListItem: IBlockPanelListItem[]) => void;
   setActiveIndex: (next: boolean) => void;
-  selectItem: (editor: Editor) => void;
+  selectItem: (editor: Editor, selectIndex: number) => void;
   reset: () => void;
 }
 
@@ -29,13 +29,13 @@ const initState: IState = {
   },
   activeIndex: 0,
   inputValue: '',
-  list: blockPanelList,
+  list: []
 }
 
 const useBlockPanelStore = create<IState & IActions>((set, get) => ({
   ...initState,
-  filterList: (value: string) => {
-    const list = blockPanelList.filter(item => {
+  filterList: (value: string, allListItem: IBlockPanelListItem[]) => {
+    const list = allListItem.filter(item => {
       return (
         item.keywords.some(keyword => keyword.includes(value)) ||
         item.title.includes(value) ||
@@ -58,20 +58,15 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
       })
     }
   },
-  selectItem: (editor: Editor) => {
-    const { list, activeIndex, inputValue } = get();
+  selectItem: (editor: Editor, selectIndex) => {
+    const { list, inputValue, reset } = get();
     const deleteCount = inputValue.length + 1;
     for (let i = 0; i < deleteCount; i++) {
       editor.deleteBackward('character');
     }
-    const item = list[activeIndex];
+    const item = list[selectIndex];
     item.onClick(editor);
-    Transforms.move(editor, {
-      unit: 'line',
-    });
-    set({
-      ...initState,
-    });
+    reset();
   },
   reset: () => {
     set({

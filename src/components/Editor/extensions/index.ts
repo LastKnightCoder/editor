@@ -14,6 +14,7 @@ import LinkExtension from './link';
 import DivideLineExtension from "./divide-line";
 import MermaidExtension from "./mermaid";
 import { TableExtension, TableRowExtension, TableCellExtension } from './table';
+import HtmlBlockExtension from "./html-block";
 import TikzExtension from "./tikz";
 import CustomBlockExtension from "./custom-block";
 import GraphvizExtension from "./graphviz";
@@ -36,10 +37,12 @@ export const callout = new CalloutExtension();
 export const link = new LinkExtension();
 export const divideLine = new DivideLineExtension();
 export const mermaid = new MermaidExtension();
+export const htmlBlock = new HtmlBlockExtension();
 export const table = new TableExtension();
 export const tableRow = new TableRowExtension();
 export const tableCell = new TableCellExtension();
 export const tikz = new TikzExtension();
+
 export const customBlock = new CustomBlockExtension();
 export const graphviz = new GraphvizExtension();
 
@@ -48,6 +51,8 @@ export const startExtensions = [
   header,
   image,
   bulletedList,
+  checkList,
+  checkListItem,
   numberedList,
   listItem,
   codeBlock,
@@ -59,8 +64,7 @@ export const startExtensions = [
   link,
   divideLine,
   mermaid,
-  checkList,
-  checkListItem,
+  htmlBlock,
   table,
   tableRow,
   tableCell,

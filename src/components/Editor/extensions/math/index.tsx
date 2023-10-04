@@ -1,16 +1,22 @@
 import { RenderElementProps } from "slate-react";
 import { InlineMathElement, BlockMathElement } from "@/components/Editor/types";
-import InlineMath from '@/components/Editor/components/InlineMath';
-import BlockMath from '@/components/Editor/components/BlockMath';
+import InlineMath from './components/InlineMath';
+import BlockMath from './components/BlockMath';
 
 import Base from '../base';
 import IExtension from "../types.ts";
+
 import { inlineShortcut, blockShortcut } from './hotkeys';
+import blockPanelItems from './block-panel-items';
 
 export class InlineMathExtension extends Base implements IExtension {
   type = 'inline-math';
   override getHotkeyConfigs() {
     return [...inlineShortcut];
+  }
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
   }
 
   render(props: RenderElementProps) {

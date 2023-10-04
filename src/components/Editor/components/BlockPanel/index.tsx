@@ -1,8 +1,19 @@
 import List from './List';
 import useBlockPanelStore from "../../stores/useBlockPanelStore.ts";
 import {useEffect, useMemo} from "react";
+import IExtension from "@/components/Editor/extensions/types.ts";
 
-const BlockPanel = () => {
+interface IBlockPanelProps {
+  extensions: IExtension[];
+}
+
+const BlockPanel = (props: IBlockPanelProps) => {
+  const { extensions } = props;
+
+  const blockPanelList = useMemo(() => {
+    return extensions.map(extension => extension.getBlockPanelItems()).flat();
+  }, [extensions]);
+
   const {
     blockPanelVisible,
     position,
@@ -18,8 +29,8 @@ const BlockPanel = () => {
   }));
 
   useEffect(() => {
-    filterList(inputValue);
-  }, [inputValue, filterList]);
+    filterList(inputValue, blockPanelList);
+  }, [inputValue, filterList, blockPanelList]);
 
   const [left, top] = useMemo(() => {
     const pageHeight = document.body.clientHeight;
@@ -34,7 +45,7 @@ const BlockPanel = () => {
     return [position.x + 10, position.y];
   }, [position, list]);
 
-  if (!blockPanelVisible) return null;
+  if (!blockPanelVisible || list.length === 0) return null;
 
   return (
     <div style={{ position: 'fixed', left, top, zIndex: 10 }}>

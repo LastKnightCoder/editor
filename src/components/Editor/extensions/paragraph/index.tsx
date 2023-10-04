@@ -1,6 +1,7 @@
 import { RenderElementProps } from "slate-react";
-import Paragraph from "@/components/Editor/components/Paragraph";
-import {ParagraphElement} from "@/components/Editor/types";
+import { ParagraphElement } from "@/components/Editor/types";
+
+import Paragraph from "./components/Paragraph";
 
 import Base from '../base';
 import IExtension from "../types";

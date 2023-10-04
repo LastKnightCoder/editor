@@ -1,16 +1,23 @@
-import Table from '@/components/Editor/components/Table';
-import TableRow from '@/components/Editor/components/TableRow';
-import TableCell from '@/components/Editor/components/TableCell';
+import {RenderElementProps} from "slate-react";
 
 import { TableElement, TableRowElement, TableCellElement } from "@/components/Editor/types";
-import {RenderElementProps} from "slate-react";
-import Base from '../base';
-import IExtension from "../types.ts";
+
+import Table from './components/Table';
+import TableRow from './components/TableRow';
+import TableCell from './components/TableCell';
 import { insertBreak, deleteBackward } from './plugins';
 import hotkeys from './hotkeys';
+import blockPanelItems from './block-panel-items';
+
+import Base from '../base';
+import IExtension from "../types.ts";
 
 export class TableExtension extends Base implements IExtension {
   type = 'table';
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
+  }
 
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;

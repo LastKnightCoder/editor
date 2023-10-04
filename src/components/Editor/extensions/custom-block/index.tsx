@@ -6,10 +6,16 @@ import { RenderElementProps } from "slate-react";
 import Base from '../base.ts';
 import IExtension from "../types.ts";
 
-const CustomBlock = loadable(() => import("@/components/Editor/components/CustomBlock"));
+import blockPanelItems from './block-panel-items';
+
+const CustomBlock = loadable(() => import("./components/CustomBlock"));
 
 class CustomBlockExtension extends Base implements IExtension {
   type = 'custom-block';
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
+  }
 
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;

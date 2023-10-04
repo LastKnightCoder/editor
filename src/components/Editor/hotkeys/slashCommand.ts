@@ -60,9 +60,9 @@ export const slashCommandConfig: HotKeyConfig[] = [{
 }, {
   hotKey: 'enter',
   action: (editor, event) => {
-    const { blockPanelVisible, selectItem } = useBlockPanelStore.getState();
+    const { blockPanelVisible, selectItem, activeIndex } = useBlockPanelStore.getState();
     if (blockPanelVisible) {
-      selectItem(editor);
+      selectItem(editor, activeIndex);
       event.preventDefault();
     }
   }

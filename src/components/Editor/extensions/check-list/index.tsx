@@ -1,16 +1,22 @@
-import CheckList from '@/components/Editor/components/CheckList';
-import CheckListItem from '@/components/Editor/components/CheckListItem';
+import {RenderElementProps} from "slate-react";
 
 import { CheckListElement, CheckListItemElement } from "@/components/Editor/types";
 
+
+import CheckList from './components/CheckList';
+import CheckListItem from './components/CheckListItem';
+import { insertBreak, deleteBackward } from './plugins';
+import blockPanelItems from "./block-panel-items";
+
 import Base from '../base';
 import IExtension from "../types.ts";
-import { insertBreak, deleteBackward } from './plugins';
-
-import {RenderElementProps} from "slate-react";
 
 export class CheckListExtension extends Base implements IExtension {
   type = 'check-list';
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
+  }
 
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;

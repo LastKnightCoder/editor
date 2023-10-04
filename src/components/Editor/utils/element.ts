@@ -4,7 +4,7 @@ import {
   ParagraphElement,
   BlockElement,
   CustomElement,
-  TableElement
+  TableElement, TableRowElement, TableCellElement
 } from "../types";
 import {Element, isEditor, Node, Editor, Path} from "slate";
 import {ReactEditor} from "slate-react";
@@ -56,14 +56,29 @@ export const isInlineElementEmpty = (element: InlineElement) => {
   return element.text === '';
 }
 
-export const isTableElementEmpty = (_element: TableElement) => {
-  return false;
+export const isTableElementEmpty = (element: TableElement) => {
+  const { children } = element;
+  if (children.length === 0) {
+    return true;
+  }
+
+  return children.every(child => isTableRowEmpty(child));
+}
+
+const isTableRowEmpty = (element: TableRowElement) => {
+  const { children } = element;
+  return children.every(child => isTableCellEmpty(child));
+}
+
+const isTableCellEmpty = (element: TableCellElement) => {
+  const { children } = element;
+  return children.every(child => isInlineElementEmpty(child));
 }
 
 export const isBlockElementEmpty = (element: BlockElement): boolean => {
   switch (element.type) {
     case 'paragraph':
-      return element.children.length === 1 && isInlineElementEmpty(element.children[0]);
+      return element.children.every(child => isInlineElementEmpty(child));
     case 'list-item':
     case 'check-list-item':
     case 'blockquote':
@@ -72,7 +87,7 @@ export const isBlockElementEmpty = (element: BlockElement): boolean => {
     case 'bulleted-list':
     case 'numbered-list':
     case 'check-list':
-      return element.children.length === 1 && isBlockElementEmpty(element.children[0]);
+      return element.children.every(child => isBlockElementEmpty(child));
     case 'table':
       return isTableElementEmpty(element);
     case 'code-block':

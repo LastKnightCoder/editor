@@ -5,10 +5,15 @@ import Base from '../base';
 import IExtension from "../types.ts";
 import {RenderElementProps} from "slate-react";
 
-const MermaidChart = loadable(() => import("@/components/Editor/components/MermaidChart"));
+import blockPanelItems from './block-panel-items';
+const MermaidChart = loadable(() => import("./components/MermaidChart"));
 
 class MermaidExtension extends Base implements IExtension {
   type = 'mermaid';
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
+  }
 
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;

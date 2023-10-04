@@ -1,5 +1,8 @@
 import {Editor, Path, Transforms, Element, Range} from 'slate';
-import {ReactEditor} from "slate-react";
+import {v4 as getUuid} from "uuid";
+
+import {isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode} from "./editor";
+
 import {
   BlockElement,
   FormattedText,
@@ -10,8 +13,6 @@ import {
   TableRowElement,
   LinkElement
 } from "../types";
-import {v4 as getUuid} from "uuid";
-import {isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode} from "./editor";
 import { codeBlockMap } from "../extensions/code-block";
 
 const emptyParagraph = {
@@ -35,7 +36,7 @@ const setOrInsertNode = (editor: Editor, node: BlockElement) => {
   if (isParagraphAndEmpty(editor)) {
     return replaceNode(editor, node, n => n.type === 'paragraph');
   } else {
-    Transforms.insertNodes(editor, node);
+    Transforms.insertNodes(editor, node, { select: true });
     return Path.next(match[1]);
   }
 }
@@ -64,38 +65,22 @@ export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' |
       }]
     }],
   });
-
-  const [callout] = Editor.nodes(editor, {
-    match: n => n.type === 'callout',
-  });
-  if (!callout) {
-    return;
-  }
-
-  setTimeout(() => {
-    ReactEditor.focus(editor);
-    Transforms.select(editor, [...callout[1], 0, 0])
-  }, 200)
 }
 
 export const insertDetails = (editor: Editor) => {
   setOrInsertNode(editor, {
     type: 'detail',
     title: '',
+    open: true,
     children: [emptyParagraph],
   });
-
   const [detail] = Editor.nodes(editor, {
     match: n => n.type === 'detail',
   });
   if (!detail) {
     return;
   }
-
-  setTimeout(() => {
-    ReactEditor.focus(editor);
-    Transforms.select(editor, [...detail[1], 0, 0])
-  }, 200)
+  console.log(detail);
 }
 
 interface ImageParams {
@@ -246,6 +231,16 @@ export const insertCustomBlock = (editor: Editor) => {
       type: 'formatted',
       text: '',
     }]
+  });
+}
+
+export const insertDivideLine = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: 'divide-line',
+    children: [{
+      type: 'formatted',
+      text: '',
+    }],
   });
 }
 

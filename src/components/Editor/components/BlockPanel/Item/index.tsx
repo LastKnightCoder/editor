@@ -7,10 +7,11 @@ interface IItemProps {
   showBottomLine: boolean;
   item: IBlockPanelListItem;
   active: boolean;
+  onClick?: () => void;
 }
 
 const Item = (props: IItemProps) => {
-  const { showBottomLine, item, active } = props;
+  const { showBottomLine, item, active, onClick } = props;
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,7 +26,7 @@ const Item = (props: IItemProps) => {
   }, [active]);
 
   return (
-    <div ref={ref} className={classnames(styles.item, { [styles.active]: active })}>
+    <div onClick={onClick} ref={ref} className={classnames(styles.item, { [styles.active]: active })}>
       <div className={styles.content}>
         {item.title}
       </div>

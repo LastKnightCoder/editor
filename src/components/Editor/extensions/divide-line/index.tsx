@@ -1,15 +1,22 @@
+import { RenderElementProps } from "slate-react";
+import { DivideLineElement } from "@/components/Editor/types";
+
+import DivideLine from "./components/DivideLine";
+import { markdownSyntax } from './plugins';
+import blockPanelItems from './block-panel-items';
+
 import Base from '../base.ts';
 import IExtension from '../types.ts';
-import { RenderElementProps } from "slate-react";
-import DivideLine from "@/components/Editor/components/DivideLine";
-import { DivideLineElement } from "@/components/Editor/types";
-import { markdownSyntax } from './plugins';
 
 class DivideLineExtension extends Base implements IExtension {
   type = 'divide-line';
 
   override getPlugins() {
     return [markdownSyntax]
+  }
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
   }
 
   render(props: RenderElementProps) {

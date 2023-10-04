@@ -1,9 +1,10 @@
 import { RenderElementProps } from "slate-react";
-
-import Detail from '@/components/Editor/components/Detail';
 import { DetailElement } from "@/components/Editor/types";
 
+import Detail from './components/Detail';
 import { deleteBackward } from './plugins';
+import blockPanelItems from './block-panel-items';
+
 import Base from '../base.ts';
 import IExtension from "../types.ts";
 
@@ -12,6 +13,11 @@ class DetailExtension extends Base implements IExtension {
   override getPlugins() {
     return [deleteBackward];
   }
+
+  override getBlockPanelItems() {
+    return blockPanelItems;
+  }
+
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
     return <Detail element={element as DetailElement} attributes={attributes}>{children}</Detail>;

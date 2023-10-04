@@ -1,6 +1,6 @@
 import React from "react";
 import classnames from 'classnames';
-import {useSlate, useReadOnly} from "slate-react";
+import { useSlate, useReadOnly } from "slate-react";
 
 import { CustomElement } from "../../types";
 import {insertParagraphAndFocus} from "../../utils";

@@ -19,14 +19,6 @@ export const getClosestCurrentElement = (editor: Editor): NodeEntry<BlockElement
   return match as NodeEntry<BlockElement>;
 }
 
-export const getFarthestCurrentElement = (editor: Editor) => {
-  const [match] = Editor.nodes(editor, {
-    match: n => isElementNode(n),
-    mode: 'highest',
-  });
-  return match;
-}
-
 export const getLeafParent = (editor: Editor) => {
   const [curLeafNode] = Editor.nodes(editor, {
     match: n => isLeafNode(n),

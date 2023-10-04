@@ -9,6 +9,7 @@ import { applyPlugin, registerHotKey, Plugin } from "./utils";
 import { withOverrideSettings, withSlashCommands } from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
+import hotkeys from './hotkeys';
 import ImagesOverview from "./components/ImagesOverview";
 import Command from "./components/Command";
 import HoveringToolbar from "./components/HoveringToolbar";
@@ -70,13 +71,18 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
     return [...startExtensions, ...extensions];
   }, [extensions]);
 
-  const editor = useMemo(() => {
+  const [editor] = useState(() => {
     const extensionPlugins = finalExtensions.map(extension => extension.getPlugins()).flat();
     return applyPlugin(createEditor(), defaultPlugins.concat(extensionPlugins))
-  }, [finalExtensions]);
+  });
 
   const hotKeyConfigs = useMemo(() => {
-    return finalExtensions.map(extension => extension.getHotkeyConfigs()).flat();
+    console.log(finalExtensions.map(extension => extension.getHotkeyConfigs()).flat().concat(hotkeys));
+    const downExtension = finalExtensions.filter(extension => extension.getHotkeyConfigs().some(hotkey => hotkey.hotKey === 'down'))
+    downExtension.forEach(extension => {
+      console.log(extension.type, extension.getHotkeyConfigs());
+    })
+    return finalExtensions.map(extension => extension.getHotkeyConfigs()).flat().concat(hotkeys);
   }, [finalExtensions]);
 
   const renderElement = useCallback((props: RenderElementProps) => {
@@ -132,7 +138,11 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
   }
 
   return (
-      <Slate editor={editor} initialValue={initValue} onChange={handleOnChange} >
+      <Slate
+        editor={editor}
+        initialValue={initValue}
+        onChange={handleOnChange}
+      >
         <Editable
           readOnly={readonly}
           renderElement={renderElement}
@@ -145,7 +155,7 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
         <ImagesOverview />
         { !readonly && <Command /> }
         { !readonly && <HoveringToolbar /> }
-        <BlockPanel />
+        <BlockPanel extensions={finalExtensions} />
       </Slate>
   )
 });

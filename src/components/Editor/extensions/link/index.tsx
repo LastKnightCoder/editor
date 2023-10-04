@@ -1,6 +1,6 @@
 import IExtension from "../types.ts";
 import Base from "../base.ts";
-import Link from "@/components/Editor/components/Link"
+import Link from "./components/Link"
 import {RenderElementProps} from "slate-react";
 import {LinkElement} from "@/components/Editor/types";
 import hotkeys from "./hotkeys";
