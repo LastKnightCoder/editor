@@ -1,13 +1,15 @@
 import {ReactEditor, useSlate, useSlateSelection} from "slate-react";
-import {Editor, Range} from "slate";
-import React, {useCallback, useMemo} from "react";
+import {Editor, Range, Transforms} from "slate";
+import React, {useCallback, useMemo, useState} from "react";
 import {wrapInlineMath, wrapLink, unwrapLink, unWrapInlineMath} from "@/components/Editor/utils";
 
+import ColorText from "./ColorText";
 import { Mark, IConfigItem } from "./types";
 
 const useHoveringBarConfig = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
+  const [openColorSelect, setOpenColorSelect] = useState(false);
 
   const isMarkActive = useCallback((mark: Mark) => {
     if (!selection) {
@@ -35,13 +37,13 @@ const useHoveringBarConfig = () => {
     return !!math;
   }, [editor, selection]);
 
-  const toggleMark = useCallback((event: React.MouseEvent, mark: Mark) => {
+  const toggleMark = useCallback((event: React.MouseEvent, mark: Mark, value: any = true) => {
     const selection = editor.selection;
     const marks = Editor.marks(editor);
     if (marks && marks[mark]) {
       Editor.removeMark(editor, mark);
     } else {
-      Editor.addMark(editor, mark, true);
+      Editor.addMark(editor, mark, value);
     }
     event.preventDefault();
     if (selection && !Range.isCollapsed(selection)) {
@@ -65,7 +67,7 @@ const useHoveringBarConfig = () => {
     text: 'M',
     mark: 'highlight',
   }, {
-    text: 'C',
+    text: '</>',
     mark: 'code',
   }] as const;
 
@@ -74,10 +76,25 @@ const useHoveringBarConfig = () => {
       text: config.text,
       active: isMarkActive(config.mark),
       onClick: (event: React.MouseEvent) => toggleMark(event, config.mark),
+      style: {
+        fontFamily: config.mark === 'code' ? 'var(--mono-font)' : undefined,
+        fontStyle: config.mark === 'italic' ? 'italic' : undefined,
+        fontWeight: config.mark === 'bold' ? 'bold' : undefined,
+        textDecoration:
+          config.mark === 'underline'
+            ? 'underline'
+            : config.mark === 'strikethrough'
+              ? 'line-through'
+              : undefined,
+        backgroundColor: config.mark === 'highlight' ? 'rgba(255, 212, 0, 0.9)' : undefined,
+      }
     })),
     {
       text: 'f(x)',
       active: isInlineMathActive,
+      style: {
+        fontStyle: 'italic',
+      },
       onClick: (event: React.MouseEvent) => {
         try {
           if (isInlineMathActive) {
@@ -94,7 +111,6 @@ const useHoveringBarConfig = () => {
       text: 'L',
       active: isLinkActive,
       onClick: (event: React.MouseEvent) => {
-        console.log('link', isLinkActive);
         try {
           if (isLinkActive) {
             unwrapLink(editor);
@@ -105,6 +121,29 @@ const useHoveringBarConfig = () => {
           event.preventDefault();
         }
       }
+    },
+    {
+      text: (
+        <ColorText
+          open={openColorSelect}
+          onClick={(event, color: string) => {
+            const selection = editor.selection;
+            Editor.addMark(editor, 'color', color);
+            event.preventDefault();
+            if (selection && !Range.isCollapsed(selection)) {
+              ReactEditor.focus(editor);
+              Transforms.collapse(editor, { edge: 'end' });
+            }
+          }}
+        />
+      ),
+      style: {
+        width: '48px',
+      },
+      active: isMarkActive('color'),
+      onClick: () => {
+        setOpenColorSelect(!openColorSelect);
+      },
     }
   ];
 

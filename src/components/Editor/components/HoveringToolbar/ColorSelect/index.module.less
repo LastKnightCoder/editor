@@ -1,0 +1,24 @@
+.colorSelectContainer {
+  position: absolute;
+  background-color: var(--primary-bg-color);
+  right: -70px;
+  top: 0;
+  width: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+  box-shadow: var(--box-shadow1);
+  .item {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    cursor: pointer;
+    line-height: 40px;
+    text-align: center;
+    &:hover {
+      background-color: var(--common-hover-bg);
+    }
+  }
+}

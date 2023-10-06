@@ -77,11 +77,6 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
   });
 
   const hotKeyConfigs = useMemo(() => {
-    console.log(finalExtensions.map(extension => extension.getHotkeyConfigs()).flat().concat(hotkeys));
-    const downExtension = finalExtensions.filter(extension => extension.getHotkeyConfigs().some(hotkey => hotkey.hotKey === 'down'))
-    downExtension.forEach(extension => {
-      console.log(extension.type, extension.getHotkeyConfigs());
-    })
     return finalExtensions.map(extension => extension.getHotkeyConfigs()).flat().concat(hotkeys);
   }, [finalExtensions]);
 

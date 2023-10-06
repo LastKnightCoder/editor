@@ -7,4 +7,5 @@ export interface FormattedText {
   highlight?: boolean;
   strikethrough?: boolean;
   code?: boolean;
+  color?: string;
 }

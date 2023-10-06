@@ -4,9 +4,16 @@ import styles from './index.module.less';
 import { IConfigItem } from "../types";
 
 const HoveringButton = (props: IConfigItem) => {
-  const { text, onClick, active } = props;
+  const { text, onClick, active, style } = props;
+
+  console.log('HoveringButton', props);
+
   return (
-    <div className={classnames(styles.buttonContainer, {[styles.active]: active})} onClick={onClick}>
+    <div
+      style={style}
+      className={classnames(styles.buttonContainer, {[styles.active]: active})}
+      onClick={onClick}
+    >
       {text}
     </div>
   )

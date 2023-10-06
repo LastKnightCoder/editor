@@ -19,7 +19,8 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
     underline,
     highlight,
     code,
-    strikethrough
+    strikethrough,
+    color,
   } = leaf;
 
   const className = classnames({
@@ -56,7 +57,8 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
 
   return (
     <span {...attributes} className={className} style={{
-      textDecoration: textDecorations
+      textDecoration: textDecorations,
+      color,
     }}>
       { addHighlightWrapper(addCodeWrapper(children)) }
     </span>
