@@ -2,7 +2,7 @@ import {Editor, Element as SlateElement, Range, Transforms} from "slate";
 import {isAtParagraphStart, isParagraphAndEmpty, isParagraphElement, movePrevCol} from "@/components/Editor/utils";
 
 export const deleteBackward = (editor: Editor) => {
-  const { deleteBackward } = editor;
+  const { deleteBackward, delete: editorDelete } = editor;
 
   editor.deleteBackward = (unit) => {
     const { selection } = editor;
@@ -45,6 +45,23 @@ export const deleteBackward = (editor: Editor) => {
     }
 
     deleteBackward(unit);
+  }
+
+  editor.delete = (unit) => {
+    const { selection } = editor;
+    const [match] = Editor.nodes(editor, {
+      match: n => SlateElement.isElement(n) && n.type === 'table-cell',
+    });
+    const anchor = selection?.anchor;
+    const focus = selection?.focus;
+    if (match && anchor && focus) {
+      const anchorPath = anchor.path;
+      const focusPath = focus.path;
+      if (anchorPath.some((v, i) => v !== focusPath[i])) {
+        return;
+      }
+    }
+    editorDelete(unit);
   }
 
   return editor;

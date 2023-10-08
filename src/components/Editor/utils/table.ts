@@ -200,7 +200,7 @@ export const insertColLeft = (editor: Editor) => {
   insertCol(editor, false);
 }
 
-export const deleteRow = (editor: Editor) => {
+export const deleteRowByIndex = (editor: Editor, index: number) => {
   const [table] = Editor.nodes(editor, {
     match: n => n.type === 'table',
   });
@@ -208,14 +208,17 @@ export const deleteRow = (editor: Editor) => {
     throw new Error('当前不在表格中');
   }
   const tableElement = table[0] as TableElement;
-  const currentRow = getCurrentRow(editor);
+  // 判断 index 处的 row 是否存在且不为标题行
+  if (index < 0 || index >= tableElement.children.length || index === 0) {
+    return;
+  }
   const newTable: TableElement = {
     type: 'table',
     children: [
-      ...tableElement.children.slice(0, currentRow),
-      ...tableElement.children.slice(currentRow + 1),
+      ...tableElement.children.slice(0, index),
+      ...tableElement.children.slice(index + 1),
     ],
-  };
+  }
   if (newTable.children.length === 0) {
     replaceNode(editor, { type: 'paragraph', children: [{ type: 'formatted', text: ''}] }, n => n.type === 'table');
     return;
@@ -223,8 +226,30 @@ export const deleteRow = (editor: Editor) => {
   replaceNode(editor, newTable, n => n.type === 'table');
 }
 
-export const deleteCol = (editor: Editor) => {
-  const curCol = getCurrentCol(editor);
+export const deletePrevRow = (editor: Editor) => {
+  const currentRow = getCurrentRow(editor);
+  const { selection } = editor;
+  deleteRowByIndex(editor, currentRow - 1);
+  if (selection) {
+    Transforms.select(editor, selection);
+  }
+}
+
+export const deleteNextRow = (editor: Editor) => {
+  const currentRow = getCurrentRow(editor);
+  const { selection } = editor;
+  deleteRowByIndex(editor, currentRow + 1);
+  if (selection) {
+    Transforms.select(editor, selection);
+  }
+}
+
+export const deleteCurrentRow = (editor: Editor) => {
+  const currentRow = getCurrentRow(editor);
+  deleteRowByIndex(editor, currentRow);
+}
+
+export const deleteColByIndex = (editor: Editor, index: number) => {
   const [table] = Editor.nodes(editor, {
     match: n => n.type === 'table',
   });
@@ -232,6 +257,10 @@ export const deleteCol = (editor: Editor) => {
     throw new Error('当前不在表格中');
   }
   const tableElement = table[0] as TableElement;
+  // 判断 index 处的 col 是否存在
+  if (index < 0 || index >= tableElement.children[0].children.length) {
+    return;
+  }
   const newTable: TableElement = {
     type: 'table',
     children: tableElement.children.map(row => {
@@ -239,8 +268,8 @@ export const deleteCol = (editor: Editor) => {
       return {
         type: 'table-row',
         children: [
-          ...rowElement.children.slice(0, curCol),
-          ...rowElement.children.slice(curCol + 1),
+          ...rowElement.children.slice(0, index),
+          ...rowElement.children.slice(index + 1),
         ],
       };
     }),
@@ -250,6 +279,29 @@ export const deleteCol = (editor: Editor) => {
     return;
   }
   replaceNode(editor, newTable, n => n.type === 'table');
+}
+
+export const deletePrevCol = (editor: Editor) => {
+  const { selection } = editor;
+  const curCol = getCurrentCol(editor);
+  deleteColByIndex(editor, curCol - 1);
+  if (selection) {
+    Transforms.select(editor, selection);
+  }
+}
+
+export const deleteNextCol = (editor: Editor) => {
+  const { selection } = editor;
+  const curCol = getCurrentCol(editor);
+  deleteColByIndex(editor, curCol + 1);
+  if (selection) {
+    Transforms.select(editor, selection);
+  }
+}
+
+export const deleteCurrentCol = (editor: Editor) => {
+  const curCol = getCurrentCol(editor);
+  deleteColByIndex(editor, curCol);
 }
 
 export const moveNextRow = (editor: Editor) => {

@@ -17,7 +17,7 @@ pub fn init_database() -> Result<Connection, rusqlite::Error> {
     let home_dir = home_dir().unwrap();
     let editor_dir = home_dir.join(".editor");
     std::fs::create_dir_all(&editor_dir).unwrap();
-    let db_path = editor_dir.join("data.db");
+    let db_path = editor_dir.join("test.db");
     let conn = Connection::open(&db_path)?;
     // 获取数据库版本
     let old_version = match conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0)) {

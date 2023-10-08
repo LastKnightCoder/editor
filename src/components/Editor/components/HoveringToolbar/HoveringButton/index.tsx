@@ -6,8 +6,6 @@ import { IConfigItem } from "../types";
 const HoveringButton = (props: IConfigItem) => {
   const { text, onClick, active, style } = props;
 
-  console.log('HoveringButton', props);
-
   return (
     <div
       style={style}

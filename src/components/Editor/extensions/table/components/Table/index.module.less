@@ -1,3 +1,48 @@
+.operate {
+  padding: 0 10px;
+  user-select: none;
+  height: 40px;
+  background: #f1f1f1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #666;
+  transition: height 0.3s ease-in-out;
+  &.hide {
+    height: 0;
+    overflow: hidden;
+    .right {
+      opacity: 0;
+    }
+  }
+  .left {
+
+  }
+  .right {
+    transition: opacity 0.2s 0.1s ease-in-out;
+    display: flex;
+    gap: 8px;
+    .item {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      &:hover {
+        background: #e5e5e5;
+      }
+    }
+    .more {
+      cursor: pointer;
+    }
+    .delete {
+      cursor: pointer;
+    }
+  }
+}
+
 .table {
   border-collapse: collapse;
   width: 100%;
