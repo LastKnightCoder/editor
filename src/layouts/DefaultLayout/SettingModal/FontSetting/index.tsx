@@ -2,9 +2,11 @@ import {InputNumber, Space, Input} from "antd";
 import { useMemo } from "react";
 import {produce} from "immer";
 
+import { getAllFonts } from '@/commands';
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 import styles from "./index.module.less";
+import {useAsyncEffect} from "ahooks";
 
 
 const FontSetting = () => {
@@ -38,6 +40,18 @@ const FontSetting = () => {
       draft.fontSize = size;
     }));
   }
+
+  useAsyncEffect(async () => {
+    const fonts = await getAllFonts();
+    const filterFonts = fonts.filter(font => !(
+      font.toLowerCase().includes('light') ||
+      font.toLowerCase().includes('regular') ||
+      font.toLowerCase().includes('bold') ||
+      font.toLowerCase().includes('semi'))
+    );
+    // 去除掉 light regular bold 声明的字体
+    console.log(filterFonts);
+  }, []);
 
   return (
     <div className={styles.settingGroup}>
