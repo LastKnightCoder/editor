@@ -1,8 +1,9 @@
 import classnames from 'classnames';
+import { HighlightColor } from "@/components/Editor/types";
 import styles from './index.module.less';
 
 interface IHighlightProps {
-  type?: 'blue' | 'yellow' | 'green' | 'red' | 'purple';
+  type?: HighlightColor;
 }
 
 const Highlight: React.FC<React.PropsWithChildren<IHighlightProps>> = (props) => {

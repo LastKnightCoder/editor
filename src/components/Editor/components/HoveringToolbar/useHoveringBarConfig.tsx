@@ -4,12 +4,14 @@ import React, {useCallback, useMemo, useState} from "react";
 import {wrapInlineMath, wrapLink, unwrapLink, unWrapInlineMath} from "@/components/Editor/utils";
 
 import ColorText from "./ColorText";
+import HighlightText from "./HighlightText";
 import { Mark, IConfigItem } from "./types";
 
 const useHoveringBarConfig = () => {
   const editor = useSlate();
   const selection = useSlateSelection();
   const [openColorSelect, setOpenColorSelect] = useState(false);
+  const [openHighlightSelect, setOpenHighlightSelect] = useState(false);
 
   const isMarkActive = useCallback((mark: Mark) => {
     if (!selection) {
@@ -64,9 +66,6 @@ const useHoveringBarConfig = () => {
     text: 'S',
     mark: 'strikethrough',
   }, {
-    text: 'M',
-    mark: 'highlight',
-  }, {
     text: '</>',
     mark: 'code',
   }] as const;
@@ -86,7 +85,6 @@ const useHoveringBarConfig = () => {
             : config.mark === 'strikethrough'
               ? 'line-through'
               : undefined,
-        backgroundColor: config.mark === 'highlight' ? 'rgba(255, 212, 0, 0.9)' : undefined,
       }
     })),
     {
@@ -124,6 +122,32 @@ const useHoveringBarConfig = () => {
     },
     {
       text: (
+        <HighlightText
+          open={openHighlightSelect}
+          onClick={(event, label: string | undefined) => {
+            const selection = editor.selection;
+            Editor.addMark(editor, 'highlight', label);
+            event.preventDefault();
+            if (selection && !Range.isCollapsed(selection)) {
+              ReactEditor.focus(editor);
+              Transforms.collapse(editor, { edge: 'end' });
+            }
+          }}
+        />
+      ),
+      style: {
+        width: '48px',
+      },
+      active: isMarkActive('highlight'),
+      onClick: (event: React.MouseEvent) => {
+        setOpenHighlightSelect(!openHighlightSelect);
+        setOpenColorSelect(false);
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    },
+    {
+      text: (
         <ColorText
           open={openColorSelect}
           onClick={(event, color: string) => {
@@ -141,8 +165,11 @@ const useHoveringBarConfig = () => {
         width: '48px',
       },
       active: isMarkActive('color'),
-      onClick: () => {
+      onClick: (event) => {
         setOpenColorSelect(!openColorSelect);
+        setOpenHighlightSelect(false);
+        event.preventDefault();
+        event.stopPropagation();
       },
     }
   ];

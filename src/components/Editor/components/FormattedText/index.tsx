@@ -4,7 +4,7 @@ import Highlight from "../Highlight";
 import classnames from 'classnames';
 import styles from './index.module.less';
 
-import {FormattedText} from "../../types";
+import {FormattedText, HighlightColor} from "../../types";
 
 interface IFormattedTextProps {
   attributes: RenderLeafProps['attributes'];
@@ -43,7 +43,11 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
 
   const addHighlightWrapper = (originChildren: React.ReactNode) => {
     if (highlight) {
-      return <Highlight>{originChildren}</Highlight>;
+      let type: HighlightColor = 'yellow';
+      if (typeof highlight === 'string') {
+        type = highlight;
+      }
+      return <Highlight type={type}>{originChildren}</Highlight>;
     }
     return originChildren;
   }
