@@ -10,7 +10,7 @@ export const markdownSyntax = (editor: Editor) => {
       const [node, path] = isAtFirst(editor, text)! as NodeEntry;
       const { text: nodeText } = node as FormattedText;
       const offset = editor.selection!.anchor.offset;
-      if (/\d+\./.exec(nodeText.slice(0, offset))) {
+      if (/^\d+\.$/.exec(nodeText.slice(0, offset))) {
         Transforms.delete(editor, {
           at: {
             anchor: {
@@ -19,7 +19,7 @@ export const markdownSyntax = (editor: Editor) => {
             },
             focus: {
               path,
-              offset: 2
+              offset
             }
           },
         });
