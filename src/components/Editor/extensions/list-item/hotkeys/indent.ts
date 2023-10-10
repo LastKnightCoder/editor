@@ -8,7 +8,8 @@ export const indent: HotKeyConfig[] = [{
   hotKey: 'Tab',
   action: (editor, event) => {
     const [match] = Editor.nodes(editor, {
-      match: n => n.type === 'list-item'
+      match: n => n.type === 'list-item',
+      mode: 'lowest'
     });
     const [para] = Editor.nodes(editor, {
       match: n => n.type === 'paragraph'
