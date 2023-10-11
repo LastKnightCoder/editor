@@ -4,6 +4,7 @@ export type Mark = 'bold' | 'italic' | 'code' | 'underline' | 'highlight' | 'str
 export interface IConfigItem {
   text: React.ReactNode;
   active: boolean;
+  tooltip?: string;
   style?: React.CSSProperties;
   onClick: (event: React.MouseEvent) => void;
 }

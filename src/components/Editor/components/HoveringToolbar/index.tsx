@@ -75,6 +75,7 @@ const HoveringToolbar = () => {
                 text={config.text}
                 onClick={config.onClick}
                 active={config.active}
+                tooltip={config.tooltip}
                 style={config.style}
               />
             )

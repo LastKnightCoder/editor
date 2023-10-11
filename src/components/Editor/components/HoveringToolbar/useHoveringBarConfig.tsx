@@ -1,7 +1,17 @@
 import {ReactEditor, useSlate, useSlateSelection} from "slate-react";
 import {Editor, Range, Transforms} from "slate";
 import React, {useCallback, useMemo, useState} from "react";
+import SVG from 'react-inlinesvg';
+
 import {wrapInlineMath, wrapLink, unwrapLink, unWrapInlineMath} from "@/components/Editor/utils";
+
+import bold from '@/assets/hovering_bar/bold.svg';
+import italic from '@/assets/hovering_bar/italic.svg';
+import underline from '@/assets/hovering_bar/underline.svg';
+import strikethrough from '@/assets/hovering_bar/strikethrough.svg';
+import code from '@/assets/hovering_bar/code.svg';
+import math from '@/assets/hovering_bar/math.svg';
+import link from '@/assets/hovering_bar/link.svg';
 
 import ColorText from "./ColorText";
 import HighlightText from "./HighlightText";
@@ -54,20 +64,25 @@ const useHoveringBarConfig = () => {
   }, [editor]);
 
   const formattedConfigs = [{
-    text: 'B',
+    text: <SVG src={bold} style={{ fill: 'currentcolor', width: 16, height: 16 }} />,
     mark: 'bold',
+    tooltip: '加粗',
   }, {
-    text: 'I',
+    text: <SVG src={italic} style={{ fill: 'currentcolor', width: 14, height: 14 }} />,
     mark: 'italic',
+    tooltip: '斜体',
   }, {
-    text: 'U',
+    text: <SVG src={underline} style={{ fill: 'currentcolor', width: 18, height: 18 }} />,
     mark: 'underline',
+    tooltip: '下划线',
   }, {
-    text: 'S',
+    text: <SVG src={strikethrough} style={{ fill: 'currentcolor', width: 18, height: 18 }} />,
     mark: 'strikethrough',
+    tooltip: '删除线',
   }, {
-    text: '</>',
+    text: <SVG src={code} style={{ fill: 'currentcolor', width: 18, height: 18 }} />,
     mark: 'code',
+    tooltip: '代码',
   }] as const;
 
   const configs: IConfigItem[] = [
@@ -75,24 +90,15 @@ const useHoveringBarConfig = () => {
       text: config.text,
       active: isMarkActive(config.mark),
       onClick: (event: React.MouseEvent) => toggleMark(event, config.mark),
-      style: {
-        fontFamily: config.mark === 'code' ? 'var(--mono-font)' : undefined,
-        fontStyle: config.mark === 'italic' ? 'italic' : undefined,
-        fontWeight: config.mark === 'bold' ? 'bold' : undefined,
-        textDecoration:
-          config.mark === 'underline'
-            ? 'underline'
-            : config.mark === 'strikethrough'
-              ? 'line-through'
-              : undefined,
-      }
+      tooltip: config.tooltip,
     })),
     {
-      text: 'f(x)',
+      text: <SVG src={math} style={{ fill: 'currentcolor', width: 20, height: 20 }} />,
       active: isInlineMathActive,
       style: {
         fontStyle: 'italic',
       },
+      tooltip: '行内公式',
       onClick: (event: React.MouseEvent) => {
         try {
           if (isInlineMathActive) {
@@ -106,8 +112,9 @@ const useHoveringBarConfig = () => {
       }
     },
     {
-      text: 'L',
+      text: <SVG src={link} style={{ fill: 'currentcolor', width: 16, height: 16 }} />,
       active: isLinkActive,
+      tooltip: '链接',
       onClick: (event: React.MouseEvent) => {
         try {
           if (isLinkActive) {
@@ -136,8 +143,9 @@ const useHoveringBarConfig = () => {
         />
       ),
       style: {
-        width: '48px',
+        width: '56px',
       },
+      tooltip: '高亮',
       active: isMarkActive('highlight'),
       onClick: (event: React.MouseEvent) => {
         setOpenHighlightSelect(!openHighlightSelect);
@@ -161,8 +169,9 @@ const useHoveringBarConfig = () => {
           }}
         />
       ),
+      tooltip: '颜色',
       style: {
-        width: '48px',
+        width: '56px',
       },
       active: isMarkActive('color'),
       onClick: (event) => {

@@ -1,6 +1,25 @@
 .cardsContainer {
+  position: relative;
   display: flex;
   height: calc(100vh - var(--title-bar-height));
+  .showSidebar {
+    position: absolute;
+    z-index: 1;
+    height: calc(100vh - var(--title-bar-height));
+    left: 0;
+    top: 0;
+    display: flex;
+    width: 48px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    &:hover {
+      opacity: 1;
+      background-color: var(--common-hover-bg);
+      box-shadow: var(--box-shadow1);
+    }
+  }
   .sidebar {
     flex: none;
     display: flex;

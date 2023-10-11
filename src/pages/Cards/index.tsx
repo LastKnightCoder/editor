@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback, memo } from "react";
 
-import { Button, Input, Skeleton, Spin, App } from 'antd';
-import { CloseOutlined, UpOutlined, PlusOutlined } from '@ant-design/icons';
+import {Button, Input, Skeleton, Spin, App, Tooltip} from 'antd';
+import { CloseOutlined, UpOutlined, PlusOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import If from "@/components/If";
 import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -18,6 +18,7 @@ import useLoadMore from "./hooks/useLoadMore.ts";
 import useSearch from "./hooks/useSearch.ts";
 
 import styles from './index.module.less';
+import isHotkey from "is-hotkey";
 
 
 const Cards = memo(() => {
@@ -41,6 +42,7 @@ const Cards = memo(() => {
 
   const { modal } = App.useApp();
 
+  const [isHideSidebar, setIsHideSidebar] = useState<boolean>(false);
   const [cardCount, setCardCount] = useState<number>(20);
   const [defaultSidebarWidth, setDefaultSidebarWidth] = useState<number>(() => {
     const width = localStorage.getItem('default-sidebar-width');
@@ -134,6 +136,24 @@ const Cards = memo(() => {
     });
   }
 
+  // 监听快捷键 mod + left 隐藏列表，mod + right 显示列表
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isHotkey('mod+left', e)) {
+        setIsHideSidebar(true);
+      }
+      if (isHotkey('mod+right', e)) {
+        setIsHideSidebar(false);
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [])
+
   useEffect(() => {
     init().then();
   }, [init]);
@@ -145,19 +165,32 @@ const Cards = memo(() => {
 
   return (
     <div className={styles.cardsContainer}>
+      <If condition={isHideSidebar}>
+        <div className={styles.showSidebar} onClick={() => { setIsHideSidebar(false) }}>
+          <RightOutlined className={styles.icon} />
+        </div>
+      </If>
       <WidthResizable
         defaultWidth={defaultSidebarWidth}
         minWidth={280}
         maxWidth={380}
         onResize={onResize}
+        hide={isHideSidebar}
       >
         <div className={styles.sidebar}>
           <div className={styles.header}>
             <div className={styles.total}>
-              <div className={styles.number}>总数：{filterCards.length}</div>
-              <div className={styles.buttons}>
-                <Button icon={<UpOutlined />} onClick={scrollToTop}></Button>
-                <Button icon={<PlusOutlined />} onClick={createCard}></Button>
+              <div className={styles.number} style={{ overflow: 'hide', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>总数：{filterCards.length}</div>
+              <div className={styles.buttons} style={{ display: isHideSidebar ? 'none' : 'flex' }}>
+                <Tooltip title={'隐藏列表'}>
+                  <Button icon={<LeftOutlined />} onClick={() => { setIsHideSidebar(true) }}></Button>
+                </Tooltip>
+                <Tooltip title={'返回顶部'}>
+                  <Button icon={<UpOutlined />} onClick={scrollToTop}></Button>
+                </Tooltip>
+                <Tooltip title={'新建卡片'}>
+                  <Button icon={<PlusOutlined />} onClick={createCard}></Button>
+                </Tooltip>
               </div>
             </div>
             <div className={styles.input}>
@@ -190,6 +223,7 @@ const Cards = memo(() => {
                 : filterCards.slice(0, cardCount).map((card) => (
                   <ErrorBoundary key={card.id}>
                     <CardItem2
+                      showTags
                       active={card.id === editingCardId}
                       card={card}
                       onClick={(e) => {

@@ -1,5 +1,8 @@
-import { DownOutlined } from '@ant-design/icons';
+import SVG from 'react-inlinesvg';
+import { BiChevronDown } from 'react-icons/bi';
 import HighlightSelect from "../HighlightSelect";
+
+import highlight from '@/assets/hovering_bar/highlight.svg';
 
 import styles from './index.module.less';
 
@@ -14,8 +17,8 @@ const HighlightText = (props: IHighlightTextProps) => {
   return (
     <div className={styles.textContainer}>
       <div className={styles.text}>
-        <span>M</span>
-        <DownOutlined />
+        <SVG src={highlight} style={{ fill: 'currentcolor', width: 16, height: 16 }} />
+        <BiChevronDown />
       </div>
       <HighlightSelect
         open={open}

@@ -43,6 +43,7 @@ specifiers:
   react-dnd-html5-backend: ^16.0.1
   react-dom: ^18.2.0
   react-icons: ^4.10.1
+  react-inlinesvg: ^4.0.5
   react-router-dom: ^6.12.1
   rollup-plugin-visualizer: ^5.9.2
   slate: ^0.94.1
@@ -79,6 +80,7 @@ dependencies:
   react-dnd-html5-backend: registry.npmmirror.com/react-dnd-html5-backend/16.0.1
   react-dom: registry.npmmirror.com/react-dom/18.2.0_react@18.2.0
   react-icons: registry.npmmirror.com/react-icons/4.10.1_react@18.2.0
+  react-inlinesvg: registry.npmmirror.com/react-inlinesvg/4.0.5_react@18.2.0
   react-router-dom: registry.npmmirror.com/react-router-dom/6.12.1_biqbaboplfbrettd7655fr4n2y
   slate: registry.npmmirror.com/slate/0.94.1
   slate-history: registry.npmmirror.com/slate-history/0.93.0_slate@0.94.1
@@ -5290,6 +5292,17 @@ packages:
       scheduler: registry.npmmirror.com/scheduler/0.23.0
     dev: false
 
+  registry.npmmirror.com/react-from-dom/0.6.2_react@18.2.0:
+    resolution: {integrity: sha512-qvWWTL/4xw4k/Dywd41RBpLQUSq97csuv15qrxN+izNeLYlD9wn5W8LspbfYe5CWbaSdkZ72BsaYBPQf2x4VbQ==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/react-from-dom/-/react-from-dom-0.6.2.tgz}
+    id: registry.npmmirror.com/react-from-dom/0.6.2
+    name: react-from-dom
+    version: 0.6.2
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: registry.npmmirror.com/react/18.2.0
+    dev: false
+
   registry.npmmirror.com/react-icons/4.10.1_react@18.2.0:
     resolution: {integrity: sha512-/ngzDP/77tlCfqthiiGNZeYFACw85fUjZtLbedmJ5DTlNDIwETxhwBzdOJ21zj4iJdvc0J3y7yOsX3PpxAJzrw==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/react-icons/-/react-icons-4.10.1.tgz}
     id: registry.npmmirror.com/react-icons/4.10.1
@@ -5299,6 +5312,18 @@ packages:
       react: '*'
     dependencies:
       react: registry.npmmirror.com/react/18.2.0
+    dev: false
+
+  registry.npmmirror.com/react-inlinesvg/4.0.5_react@18.2.0:
+    resolution: {integrity: sha512-gur6KP4la70Xt9Ku6kIRAiwPOsMxYGTFIJ1roG1igS9oZLvES72VtUfBEdaiZZfkej3jugQsVyq/mJkYr4OObQ==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/react-inlinesvg/-/react-inlinesvg-4.0.5.tgz}
+    id: registry.npmmirror.com/react-inlinesvg/4.0.5
+    name: react-inlinesvg
+    version: 4.0.5
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0
+    dependencies:
+      react: registry.npmmirror.com/react/18.2.0
+      react-from-dom: registry.npmmirror.com/react-from-dom/0.6.2_react@18.2.0
     dev: false
 
   registry.npmmirror.com/react-is/16.13.1:

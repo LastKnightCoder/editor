@@ -1,5 +1,9 @@
-import { DownOutlined } from '@ant-design/icons';
+import SVG from 'react-inlinesvg';
+import { BiChevronDown } from 'react-icons/bi';
+
 import ColorSelect from "../ColorSelect";
+
+import color from '@/assets/hovering_bar/color.svg';
 
 import styles from './index.module.less';
 
@@ -14,8 +18,8 @@ const ColorText = (props: IColorTextProps) => {
   return (
     <div className={styles.textContainer}>
       <div className={styles.text}>
-        <span>A</span>
-        <DownOutlined />
+        <SVG src={color} style={{ fill: 'currentcolor', width: 16, height: 16 }} />
+        <BiChevronDown />
       </div>
       <ColorSelect
         open={open}
