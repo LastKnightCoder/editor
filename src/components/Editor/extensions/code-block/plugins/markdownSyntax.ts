@@ -18,7 +18,6 @@ export const markdownSyntax = (editor: Editor) => {
         if (text.type === 'formatted') {
           const { text: nodeText } = text;
           if (nodeText.startsWith('```')) {
-            console.log('nodeText', nodeText);
             Transforms.delete(editor, {
               at: {
                 anchor: {

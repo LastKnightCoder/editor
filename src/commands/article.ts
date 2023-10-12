@@ -2,27 +2,17 @@ import { invoke } from "@tauri-apps/api";
 import {IArticle} from "@/types";
 
 export async function createArticle(article: Omit<IArticle, 'id' | 'create_time' | 'update_time'>): Promise<number> {
-  const { title, author, tags, links, content } = article;
-
   return await invoke('create_article', {
-    title,
-    author,
-    tags,
-    links,
-    content: JSON.stringify(content),
+    ...article,
+    content: JSON.stringify(article.content),
   });
 }
 
-export async function updateArticle(article: Pick<IArticle, 'id' | 'title' | 'author' | 'tags' | 'links' | 'content'>): Promise<number> {
-  const { id, title, author, tags, links, content } = article;
+export async function updateArticle(article: Pick<IArticle, 'id' | 'title' | 'author' | 'tags' | 'links' | 'content' | 'bannerBg' | 'isTop'>): Promise<number> {
 
   return await invoke('update_article', {
-    id,
-    title,
-    author,
-    tags,
-    links,
-    content: JSON.stringify(content),
+    ...article,
+    content: JSON.stringify(article.content),
   });
 }
 
@@ -39,6 +29,9 @@ export async function findOneArticle(id: number): Promise<IArticle> {
   return {
     ...res,
     content: JSON.parse(res.content),
+    bannerBg: res.banner_bg,
+    isTop: res.is_top,
+    isDelete: res.is_delete,
   }
 }
 
@@ -49,6 +42,23 @@ export async function getAllArticles(): Promise<IArticle[]> {
     return {
       ...item,
       content: JSON.parse(item.content),
+      bannerBg: item.banner_bg,
+      isTop: item.is_top,
+      isDelete: item.is_delete,
     }
+  });
+}
+
+export async function updateArticleIsTop(id: number, isTop: boolean): Promise<number> {
+  return await invoke('update_article_is_top', {
+    id,
+    isTop,
+  });
+}
+
+export async function updateArticleBannerBg(id: number, bannerBg: string): Promise<number> {
+  return await invoke('update_article_banner_bg', {
+    id,
+    bannerBg,
   });
 }

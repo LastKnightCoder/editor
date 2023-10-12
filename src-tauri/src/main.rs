@@ -6,7 +6,7 @@ mod state;
 mod commands;
 
 use tauri::{Manager, State};
-use database::{init_database};
+use database::init_database;
 use state::AppState;
 use commands::{
     insert_one_card,
@@ -26,6 +26,8 @@ use commands::{
     find_all_daily_notes,
     create_article,
     update_article,
+    update_article_banner_bg,
+    update_article_is_top,
     delete_article,
     find_article,
     find_all_articles,
@@ -64,6 +66,8 @@ fn main() {
           find_all_daily_notes,
           create_article,
           update_article,
+          update_article_banner_bg,
+          update_article_is_top, 
           delete_article,
           find_article,
           find_all_articles,

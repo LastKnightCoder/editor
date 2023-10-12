@@ -45,7 +45,10 @@ const useEditArticleStore = create<IState & IActions>((set, get) => ({
         author: '',
         links: [],
         tags: [],
-        content: DEFAULT_ARTICLE_CONTENT
+        content: DEFAULT_ARTICLE_CONTENT,
+        bannerBg: '',
+        isTop: false,
+        isDelete: false,
       };
       set({
         editingArticle: defaultArticle,
@@ -65,6 +68,7 @@ const useEditArticleStore = create<IState & IActions>((set, get) => ({
   },
   onTitleChange: (title) => {
     const { editingArticle } = get();
+    console.log('onTitleChange', title);
     if (!editingArticle) return;
     set({
       editingArticle: produce(editingArticle, draft => {

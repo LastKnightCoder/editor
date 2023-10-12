@@ -35,10 +35,8 @@ const setOrInsertNode = (editor: Editor, node: BlockElement) => {
     return;
   }
   if (isParagraphAndEmpty(editor)) {
-    console.log('replace');
     return replaceNode(editor, node, n => n.type === 'paragraph');
   } else {
-    console.log('insert');
     Transforms.insertNodes(editor, node, { select: true });
     return Path.next(match[1]);
   }
@@ -83,7 +81,6 @@ export const insertDetails = (editor: Editor) => {
   if (!detail) {
     return;
   }
-  console.log(detail);
 }
 
 interface ImageParams {

@@ -24,7 +24,7 @@ pub fn init_database() -> Result<Connection, rusqlite::Error> {
         Ok(v) => v,
         Err(_) => 0,
     };
-    let new_version = 1;
+    let new_version = 2;
     if old_version < new_version {
         conn.pragma_update(None, "user_version", &new_version)?;
     }

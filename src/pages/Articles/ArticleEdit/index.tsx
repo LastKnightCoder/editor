@@ -76,8 +76,7 @@ const ArticleEdit = () => {
   const toggleReadonly = () => {
     useEditArticleStore.setState({
       readonly: !readonly,
-    })
-    onTitleChange(titleRef.current?.textContent || '');
+    });
   }
 
   const scrollToTop = () => {
@@ -110,7 +109,9 @@ const ArticleEdit = () => {
   }
   
   const linkedArticles = useMemo(() => {
-    return editingArticle?.links.map(id => articles.find(article => article.id === id)) as IArticle[];
+    return editingArticle?.links
+      .map(id => articles.find(article => article.id === id))
+      .filter(article => !!article) as IArticle[];
   }, [articles, editingArticle?.links]);
 
   useEffect(() => {
@@ -123,15 +124,21 @@ const ArticleEdit = () => {
 
   useEffect(() => {
     if (!originalArticle.current || !editingArticle) return;
-    changed.current = isArticleChanged(originalArticle.current, editingArticle);
+    changed.current =
+      isArticleChanged(originalArticle.current, editingArticle) ||
+      editingArticle.title !== originalArticle.current.title ||
+      editingArticle.bannerBg !== originalArticle.current.bannerBg;
   }, [editingArticle]);
   
-  const headers: any[] = useMemo(() => {
+  const headers: Array<{
+    level: number;
+    title: string;
+  }> = useMemo(() => {
     if (!editingArticle || !editingArticle.content) return [];
     const headers =  editingArticle.content.filter(node => node.type === 'header');
     return headers.map((header: any) => ({
       level: header.level,
-      title: header.children.map((node: any) => node.text).join(''),
+      title: header.children.map((node: { text: string }) => node.text).join(''),
     }));
   }, [editingArticle]);
 
@@ -152,12 +159,15 @@ const ArticleEdit = () => {
 
   return (
     <div ref={containerRef} className={styles.editorContainer}>
-      <div className={styles.cover}>
+      <div className={styles.cover} style={{
+        backgroundImage: `url(${editingArticle.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'})`,
+      }}>
         <h1
           ref={titleRef}
           className={styles.title}
           contentEditable={!readonly}
           suppressContentEditableWarning
+          onBlur={(e) => onTitleChange(e.target.innerText)}
         >
           {editingArticle.title || '无标题'}
         </h1>
@@ -196,12 +206,12 @@ const ArticleEdit = () => {
             <div className={styles.linkArticles}>
               <For
                 data={linkedArticles}
-                renderItem={(article) => <ArticleCard article={article} />}
+                renderItem={(article) => <ArticleCard key={article.id} article={article} />}
               />
             </div>
           </div>
         </div>
-        <If condition={showOutline}>
+        <If condition={showOutline && headers.length > 0}>
           <div className={styles.rightPart}>
             <Outline className={styles.outline} headers={headers} onClick={onClickHeader} />
           </div>
