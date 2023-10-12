@@ -141,9 +141,11 @@ const Cards = memo(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isHotkey('mod+left', e)) {
         setIsHideSidebar(true);
+        e.preventDefault();
       }
       if (isHotkey('mod+right', e)) {
         setIsHideSidebar(false);
+        e.preventDefault();
       }
     }
 

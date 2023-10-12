@@ -53,7 +53,7 @@ const navigate: HotKeyConfig[] = [{
     }
   }
 }, {
-  hotKey: ['shift+enter', 'up'],
+  hotKey: ['up'],
   action: (editor, event) => {
     const { selection } = editor;
     if (selection && Range.isCollapsed(selection)) {

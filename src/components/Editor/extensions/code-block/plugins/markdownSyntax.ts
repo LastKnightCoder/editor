@@ -1,36 +1,46 @@
-import {isAtFirst} from "@/components/Editor/extensions/utils.ts";
-import {Editor, NodeEntry, Transforms} from "slate";
-import {FormattedText} from "@/components/Editor/types";
-import {insertCodeBlock} from "@/components/Editor/utils";
+import { Editor, Transforms } from "slate";
+import { ParagraphElement} from "@/components/Editor/types";
+import { insertCodeBlock } from "@/components/Editor/utils";
 
 export const markdownSyntax = (editor: Editor) => {
-  const { insertText } = editor;
+  const { insertBreak } = editor;
 
-  editor.insertText = (text) => {
-    if (isAtFirst(editor, text)) {
-      const [node, path] = isAtFirst(editor, text)! as NodeEntry;
-      const { text: nodeText } = node as FormattedText;
-      if (nodeText.startsWith('```')) {
-        // 删除 ``` 符号
-        Transforms.delete(editor, {
-          at: {
-            anchor: {
-              path,
-              offset: 0
-            },
-            focus: {
-              path,
-              offset: nodeText.length
-            }
+  editor.insertBreak = () => {
+    const [para] = Editor.nodes(editor, {
+      match: n => n.type === 'paragraph',
+      mode: 'lowest'
+    });
+    if (para) {
+      const [node, path] = para;
+      const children = (node as ParagraphElement).children;
+      if (children.length === 1) {
+        const [text] = children;
+        if (text.type === 'formatted') {
+          const { text: nodeText } = text;
+          if (nodeText.startsWith('```')) {
+            console.log('nodeText', nodeText);
+            Transforms.delete(editor, {
+              at: {
+                anchor: {
+                  path: [...path, 0],
+                  offset: 0
+                },
+                focus: {
+                  path: [...path, 0],
+                  offset: nodeText.length
+                }
+              }
+            });
+            const language = nodeText.slice(3).trim();
+            insertCodeBlock(editor, language);
+            return;
           }
-        });
-        // 获得 language
-        const language = nodeText.slice(3);
-        insertCodeBlock(editor, language);
-        return;
+        }
       }
     }
-    insertText(text);
+
+    insertBreak();
   }
+
   return editor;
 }

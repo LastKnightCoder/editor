@@ -62,3 +62,18 @@ export const quitFormattedMarks: HotKeyConfig[] = [{
     }
   }
 }]
+
+// 这两个是收起卡片和展开卡片列表的快捷键
+export const modMove: HotKeyConfig[] = [{
+  hotKey: 'mod+right',
+  action: (_editor: Editor, e) => {
+    // 阻止默认行为
+    e.preventDefault();
+  }
+}, {
+  hotKey: 'mod+left',
+  action: (_editor: Editor, e) => {
+    // 阻止默认行为
+    e.preventDefault();
+  }
+}]

@@ -29,13 +29,16 @@ const setOrInsertNode = (editor: Editor, node: BlockElement) => {
   }
   const [match] = Editor.nodes(editor, {
     match: n => n.type === 'paragraph',
+    mode: 'lowest',
   });
   if (!match) {
     return;
   }
   if (isParagraphAndEmpty(editor)) {
+    console.log('replace');
     return replaceNode(editor, node, n => n.type === 'paragraph');
   } else {
+    console.log('insert');
     Transforms.insertNodes(editor, node, { select: true });
     return Path.next(match[1]);
   }

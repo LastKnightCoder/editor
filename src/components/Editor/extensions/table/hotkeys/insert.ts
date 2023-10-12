@@ -15,6 +15,7 @@ const insert: HotKeyConfig[] = [{
       }
       insertColRight(editor);
       event.preventDefault();
+      event.stopPropagation();
     }
   }
 }, {
@@ -30,6 +31,7 @@ const insert: HotKeyConfig[] = [{
       }
       insertColLeft(editor);
       event.preventDefault();
+      event.stopPropagation();
     }
   }
 }, {
