@@ -127,6 +127,7 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
 
   const saveCard = async () => {
     await onEditingCardSave();
+    originalCard.current = editingCard;
     changed.current = false;
   }
 

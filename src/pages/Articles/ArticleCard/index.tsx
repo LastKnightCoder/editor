@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import classnames from "classnames";
 import dayjs from "dayjs";
-import {message, Popover, Spin, Typography} from 'antd';
+import {message, Modal, Popover, Spin, Typography} from 'antd';
 import SVG from 'react-inlinesvg';
 import { CalendarOutlined } from '@ant-design/icons';
 import { MdMoreVert } from 'react-icons/md';
@@ -82,6 +82,18 @@ const ArticleCard = (props: IArticleCardProps) => {
     setBannerUploading(false);
   }
 
+  const handleDeleteArticle = () => {
+    Modal.confirm({
+      title: '确定删除该文章？',
+      onOk: () => {
+        deleteArticle?.(article.id);
+      },
+      okText: '确定',
+      cancelText: '取消',
+    });
+    setSettingOpen(false);
+  }
+
   return (
     <Spin spinning={bannerUploading}>
       <div className={cardClassName} style={style}>
@@ -104,7 +116,7 @@ const ArticleCard = (props: IArticleCardProps) => {
               content={(
                 <div className={styles.settings}>
                   <div className={styles.settingItem} onClick={() => { updateArticleIsTop?.(article.id, !isTop); setSettingOpen(false) }}>{ isTop ? '取消置顶' : '置顶文章' }</div>
-                  <div className={styles.settingItem} onClick={() => { deleteArticle?.(article.id); setSettingOpen(false) }}>删除文章</div>
+                  <div className={styles.settingItem} onClick={handleDeleteArticle}>删除文章</div>
                   <div className={styles.settingItem} onClick={() => { setSettingOpen(false); fileUploadRef.current?.click(); }}>换背景图</div>
                   <input ref={fileUploadRef} type={'file'} accept={'image/*'} style={{ display: 'none' }} onChange={handleUploadFileChange} />
                 </div>

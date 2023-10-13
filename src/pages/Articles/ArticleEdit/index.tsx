@@ -124,10 +124,7 @@ const ArticleEdit = () => {
 
   useEffect(() => {
     if (!originalArticle.current || !editingArticle) return;
-    changed.current =
-      isArticleChanged(originalArticle.current, editingArticle) ||
-      editingArticle.title !== originalArticle.current.title ||
-      editingArticle.bannerBg !== originalArticle.current.bannerBg;
+    changed.current = isArticleChanged(originalArticle.current, editingArticle);
   }, [editingArticle]);
   
   const headers: Array<{
