@@ -1,4 +1,4 @@
-import { InputNumber, Space, Input, Select } from "antd";
+import { InputNumber, Space, Select } from "antd";
 import {useMemo, useState} from "react";
 import {produce} from "immer";
 
@@ -49,8 +49,9 @@ const FontSetting = () => {
       font.toLowerCase().includes('light') ||
       font.toLowerCase().includes('bold') ||
       font.toLowerCase().includes('semi')) ||
-      font.toLowerCase().includes('thin')
-    );
+      font.toLowerCase().includes('thin') ||
+      font.toLowerCase().includes('medium')
+    ).map(font => font.replace(/[R|r]egular/g, '').trim());
     // 去除掉 light regular bold 声明的字体
     setFonts(filterFonts);
   }, []);
