@@ -65,13 +65,3 @@ pub fn get_operation_list(conn: &Connection) -> Result<Vec<Operation>> {
     }
     Ok(res)
 }
-
-pub fn get_operation_list_by_type_and_id(conn: &Connection, operation_id: i64, operation_content_type: String) -> Result<Vec<Operation>> {
-    let mut stmt = conn.prepare("SELECT id, operation_time, operation_id, operation_content_type, operation_action FROM operation WHERE operation_content_type = ?1 AND operation_id = ?2 ORDER BY operation_time DESC")?;
-    let mut rows = stmt.query(params![operation_content_type, operation_id])?;
-    let mut res = Vec::new();
-    while let Some(row) = rows.next()? {
-        res.push(get_operation_from_query_result(&row));
-    }
-    Ok(res)
-}

@@ -1,4 +1,3 @@
-use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
 
@@ -62,11 +61,3 @@ pub fn get_history_list(conn: &Connection, query: Query) -> Result<Vec<History>>
     Ok(res)
 }
 
-pub fn insert_history(conn: &Connection, content_type: String, content_id: i64, content: String) -> Result<()> {
-    let create_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
-    conn.execute(
-        "INSERT INTO history (create_time, content, content_type, content_id) VALUES (?1, ?2, ?3, ?4)",
-        params![create_time, content, content_type, content_id],
-    )?;
-    Ok(())
-}

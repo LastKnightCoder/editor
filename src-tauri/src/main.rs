@@ -74,6 +74,10 @@ fn main() {
           write_setting,
           read_setting,
           get_all_fonts,
+
+
+
+
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

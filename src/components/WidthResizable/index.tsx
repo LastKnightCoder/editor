@@ -12,6 +12,7 @@ interface IWidthResizableProps {
   shrinkAble?: boolean;
   className?: string;
   hide?: boolean;
+  style?: React.CSSProperties;
 }
 
 const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props) => {
@@ -23,6 +24,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     className,
     shrinkAble = false,
     hide = false,
+    style = {}
   } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -96,7 +98,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
   return (
     <div
       className={classnames(styles.widthResizable, {[styles.shrink]: shrinkAble}, className)}
-      style={{ width }}
+      style={{ ...style, width }}
       ref={containerRef}
     >
       {props.children}

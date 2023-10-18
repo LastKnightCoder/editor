@@ -1,13 +1,12 @@
 import { InputNumber, Space, Select } from "antd";
 import {useMemo, useState} from "react";
+import { useAsyncEffect } from "ahooks";
 import {produce} from "immer";
 
 import { getAllFonts } from '@/commands';
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 import styles from "./index.module.less";
-import { useAsyncEffect } from "ahooks";
-
 
 const FontSetting = () => {
   const {
@@ -45,14 +44,20 @@ const FontSetting = () => {
 
   useAsyncEffect(async () => {
     const fonts = await getAllFonts();
-    const filterFonts = fonts.filter(font => !(
-      font.toLowerCase().includes('light') ||
-      font.toLowerCase().includes('bold') ||
-      font.toLowerCase().includes('semi')) ||
-      font.toLowerCase().includes('thin') ||
-      font.toLowerCase().includes('medium')
-    ).map(font => font.replace(/[R|r]egular/g, '').trim());
-    // 去除掉 light regular bold 声明的字体
+    const filterFonts =
+      fonts
+        .filter(font => !(
+          font.toLowerCase().includes('light') ||
+          font.toLowerCase().includes('bold') ||
+          font.toLowerCase().includes('semi')) ||
+          font.toLowerCase().includes('thin') ||
+          font.toLowerCase().includes('medium')
+        )
+        .map(font =>
+          font
+            .replace(/[R|r]egular/g, '')
+            .trim()
+        );
     setFonts(filterFonts);
   }, []);
 

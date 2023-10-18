@@ -1,7 +1,6 @@
-use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
-use super::operation::{insert_operation};
+use super::operation::insert_operation;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DailyNote {
