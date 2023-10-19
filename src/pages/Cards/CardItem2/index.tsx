@@ -1,20 +1,21 @@
-import classnames from "classnames";
 import { Typography, Popover } from 'antd';
-import { MoreOutlined } from '@ant-design/icons';
+import { MdMoreVert } from 'react-icons/md';
 import Tags from "@/components/Tags";
+import If from "@/components/If";
 import SettingPanel, { ISettingItem } from "./SettingPanel";
 
+import classnames from "classnames";
 import { getEditorTextValue } from '@/utils';
 import { ICard } from "@/types";
 
 import styles from './index.module.less';
-import If from "@/components/If";
+import React from "react";
 
 const { Paragraph } = Typography;
 
 interface ICardItem2Props {
   card: ICard;
-  onClick?: (e: any) => void;
+  onClick?: (e: React.MouseEvent) => void;
   showTags?: boolean;
   active?: boolean;
   settings?: ISettingItem[];
@@ -39,7 +40,7 @@ const CardItem2 = (props: ICardItem2Props) => {
         arrow={false}
       >
         <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
-          <MoreOutlined />
+          <MdMoreVert />
         </div>
       </Popover>
     </div>

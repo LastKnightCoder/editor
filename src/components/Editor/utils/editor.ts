@@ -94,7 +94,7 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
   }
 }
 
-export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>) => {
+export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, select = false) => {
   const [curEle] = Editor.nodes(editor, {
     match,
     mode: 'lowest',
@@ -107,6 +107,7 @@ export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>) 
   });
   Transforms.insertNodes(editor, node, {
     at: curEle[1],
+    select,
   });
   return curEle[1];
 }

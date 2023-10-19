@@ -13,9 +13,9 @@ import { CloseOutlined } from "@ant-design/icons";
 
 interface CardItemProps {
   card: ICard;
-  onClick?: (e: any) => void;
+  onClick?: (e: React.MouseEvent) => void;
   active?: boolean;
-  onDelete?: (e: any) => void;
+  onDelete?: (e: React.MouseEvent) => void;
   showDelete?: boolean;
 }
 

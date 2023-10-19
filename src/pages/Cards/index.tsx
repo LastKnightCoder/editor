@@ -174,8 +174,8 @@ const Cards = memo(() => {
       </If>
       <WidthResizable
         defaultWidth={defaultSidebarWidth}
-        minWidth={240}
-        maxWidth={240}
+        minWidth={280}
+        maxWidth={360}
         onResize={onResize}
         hide={isHideSidebar}
       >

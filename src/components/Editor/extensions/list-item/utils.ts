@@ -58,7 +58,13 @@ export const newLineInListItem = (editor: Editor, insertBreak: () => void): bool
   }
   const [para] = Editor.nodes(editor, {
     match: n => SlateElement.isElement(n) && isParagraphElement(n),
+    mode: 'lowest',
   });
+  console.log(para[1], listMatch[1]);
+  // 段落
+  if (para[1].length !== listMatch[1].length + 1) {
+    return false;
+  }
   // 在行首，并且内容为空
   if (isAtParagraphStart(editor) && para && isParagraphAndEmpty(editor)) {
     // 如果是第一个段落，并且后面没有段落，则转换为 paragraph

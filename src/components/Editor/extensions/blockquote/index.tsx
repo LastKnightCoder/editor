@@ -2,7 +2,7 @@ import { RenderElementProps } from "slate-react";
 import { BlockquoteElement } from "@/components/Editor/types";
 
 import Blockquote from "./components/Blockquote";
-import { markdownSyntax } from './plugins';
+import { markdownSyntax, quit } from './plugins';
 
 import Base from '../base';
 import IExtension from "../types.ts";
@@ -11,7 +11,7 @@ class BlockquoteExtension extends Base implements IExtension {
   type = 'blockquote';
 
   override getPlugins() {
-    return [markdownSyntax];
+    return [markdownSyntax, quit];
   }
 
   render(props: RenderElementProps) {
