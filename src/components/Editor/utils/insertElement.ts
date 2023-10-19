@@ -56,6 +56,8 @@ export const insertHeader = (editor: Editor, level: 1 | 2 | 3 | 4 | 5 | 6) => {
     type: 'header',
     level,
     children: [emptyText],
+  }, {
+    select: true,
   });
 }
 
