@@ -6,8 +6,10 @@ import dayjs from "dayjs";
 import { CalendarOutlined, EditOutlined, ReadOutlined, UpOutlined, SaveOutlined } from '@ant-design/icons';
 import { IoExitOutline } from 'react-icons/io5';
 import { HiOutlineMenuAlt3 } from 'react-icons/hi';
+import { MdOutlineContentPasteGo } from 'react-icons/md';
 
 import Editor, { EditorRef } from "@/components/Editor";
+import EditorSourceValue from "@/components/EditorSourceValue";
 import useEditArticleStore, {EditingArticle} from "@/stores/useEditArticleStore.ts";
 import { CREATE_ARTICLE_ID } from "@/constants";
 import Outline from "@/components/Outline";
@@ -60,6 +62,7 @@ const ArticleEdit = () => {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showOutline, setShowOutline] = useState<boolean>(true);
+  const [showContentSource, setShowContentSource] = useState<boolean>(false);
 
   const navigate = useNavigate();
   const { modal } = App.useApp();
@@ -231,6 +234,11 @@ const ArticleEdit = () => {
           tooltip={showOutline ? '隐藏大纲' : '显示大纲'}
         />
         <FloatButton
+          icon={<MdOutlineContentPasteGo />}
+          onClick={() => setShowContentSource(!showContentSource)}
+          tooltip={showContentSource ? '隐藏源码' : '显示源码'}
+        />
+        <FloatButton
           icon={<UpOutlined />}
           onClick={scrollToTop}
           tooltip={'回到顶部'}
@@ -241,6 +249,11 @@ const ArticleEdit = () => {
           tooltip={'返回'}
         />
       </FloatButton.Group>
+      <EditorSourceValue
+        open={showContentSource}
+        onClose={() => { setShowContentSource(false) }}
+        content={editingArticle.content}
+      />
     </div>
   )
 }

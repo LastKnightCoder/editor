@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import { Popover, Spin } from "antd";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
@@ -39,16 +39,23 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     github: state.setting.imageBed.github,
   }));
 
+  const previewUrl = useMemo(() => {
+    return url
+      .replace('https://cdn.staticaly.com', 'https://jsd.cdn.zzko.cn')
+      .replace('https://cdn.jsdelivr.net', 'https://jsd.cdn.zzko.cn');
+  }, [url])
+
   useClickAway(() => {
     setShowUploadTab(false);
   }, popoverRef);
 
   useEffect(() => {
     // 这个 CDN 地址失效了，需要替换
-    if (url.startsWith('https://cdn.staticaly.com')) {
+    if (url.startsWith('https://cdn.staticaly.com') || url.startsWith("https://cdn.jsdelivr.net")) {
       const path = ReactEditor.findPath(editor, element);
+      const replacedUrl = url.replace('https://cdn.staticaly.com', 'https://jsd.cdn.zzko.cn').replace('https://cdn.jsdelivr.net', 'https://jsd.cdn.zzko.cn');
       Transforms.setNodes(editor, {
-        url: url.replace('https://cdn.staticaly.com', 'https://jsd.cdn.zzko.cn')
+        url: replacedUrl,
       }, {
         at: path
       });
@@ -149,7 +156,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const renderPreview = () => {
     return (
       <div className={styles.imageContainer}>
-        <img className={styles.image} src={url} alt={alt} onClick={showOverView}/>
+        <img className={styles.image} src={previewUrl} alt={alt} onClick={showOverView}/>
         <div className={styles.actions}>
           <div onClick={showOverView} className={styles.item}>
             <FullscreenOutlined />

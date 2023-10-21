@@ -2,13 +2,14 @@
   position: relative;
   display: flex;
   gap: 40px;
-  padding: 40px;
+  height: 100%;
   .editorContainer {
     flex: auto;
     overflow-y: auto;
-    height: calc(100% - 60px);
+    height: 100%;
+    box-sizing: border-box;
     margin: 0 auto;
-    padding: 0 40px;
+    padding: 40px;
     min-width: 500px;
     max-width: 700px;
     @media screen and (max-width: 1280px) {
@@ -24,16 +25,22 @@
   }
 
   .linksContainer {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    width: 300px;
+    position: sticky;
+    top: 20px;
+    height: calc(100% - 40px);
     flex: none;
     box-sizing: border-box;
-    overflow: hidden;
-    transition: width 0.3s ease-in-out;
+    margin-right: 80px;
+    width: 280px;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: var(--card-bg-color);
+    transition: all 0.3s ease-in-out;
+    border: 1px solid var(--line-color);
     &.hide {
       width: 0;
+      padding: 0;
+      border: none;
     }
   }
 }

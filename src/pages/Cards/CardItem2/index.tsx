@@ -19,10 +19,19 @@ interface ICardItem2Props {
   showTags?: boolean;
   active?: boolean;
   settings?: ISettingItem[];
+  maxRows?: number;
 }
 
 const CardItem2 = (props: ICardItem2Props) => {
-  const { card, onClick, showTags = false, active = false, settings = []} = props;
+  const {
+    card,
+    onClick,
+    showTags = false,
+    active = false,
+    settings = [],
+    maxRows = 2,
+  } = props;
+
   const { content, tags } = card;
 
   return (
@@ -30,7 +39,7 @@ const CardItem2 = (props: ICardItem2Props) => {
       <If condition={showTags}>
         <Tags tags={tags} showIcon className={styles.tags} />
       </If>
-      <Paragraph className={styles.textContainer} ellipsis={{ rows: 2 }}>
+      <Paragraph className={styles.textContainer} ellipsis={{ rows: maxRows }}>
         {getEditorTextValue(content)}
       </Paragraph>
       <Popover

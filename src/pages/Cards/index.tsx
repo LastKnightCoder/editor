@@ -233,6 +233,7 @@ const Cards = memo(() => {
                         e.stopPropagation();
                       }}
                       settings={settings}
+                      maxRows={3}
                     />
                   </ErrorBoundary>
                 ))

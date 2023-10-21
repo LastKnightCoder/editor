@@ -8,7 +8,7 @@ const ArticleEdit = loadable(() => import('@/pages/Articles/ArticleEdit'));
 const Statistic = loadable(() => import('@/pages/Statistic'));
 const Animate = loadable(() => import('@/pages/Animate'));
 const DailyNote = loadable(() => import('@/pages/DailyNote'));
-const LinkGraph = loadable(() => import('@/pages/Cards/LinkGraph'));
+const CardGraph = loadable(() => import('@/pages/CardGraph'));
 
 const routes = [{
   path: '/',
@@ -26,7 +26,7 @@ const routes = [{
       element: <Cards />,
     }, {
       path: 'link-graph/',
-      element: <LinkGraph />,
+      element: <CardGraph />,
     }],
   }, {
     path: 'articles/',

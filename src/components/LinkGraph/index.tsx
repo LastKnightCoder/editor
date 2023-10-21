@@ -1,20 +1,37 @@
 import { Graph } from '@antv/g6';
 import {useEffect, useMemo, useRef, useState} from "react";
 import { useSize } from 'ahooks';
+import classnames from "classnames";
 
 import useTheme from "@/hooks/useTheme.ts";
 import {ICard} from "@/types";
-import {getAllCards} from "@/commands";
 import Editor, {EditorRef} from "@/components/Editor";
 
 import styles from './index.module.less';
 
-const LinkGraph = () => {
+interface ILinkGraphProps {
+  cards: ICard[];
+  className?: string;
+  style?: React.CSSProperties;
+  cardWidth?: number;
+  cardMaxHeight?: number;
+  cardFontSize?: number;
+  currentCardId?: number;
+}
+
+const LinkGraph = (props: ILinkGraphProps) => {
+  const {
+    className,
+    style,
+    cards,
+    cardWidth,
+    cardMaxHeight,
+    cardFontSize,
+    currentCardId,
+  } = props;
   const ref = useRef<HTMLDivElement>(null);
   const graph = useRef<Graph>();
   const editorRef = useRef<EditorRef>(null);
-  const [loading, setLoading] = useState(true);
-  const [cards, setCards] = useState<ICard[]>([]);
 
   const [show, setShow] = useState<boolean>(false);
   const [position, setPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
@@ -35,19 +52,11 @@ const LinkGraph = () => {
     }
     editorRef.current.setEditorValue(content);
   }, [content]);
-  
-  useEffect(() => {
-    setLoading(true);
-    getAllCards().then((cards) => {
-      setCards(cards);
-      setLoading(false);
-    });
-  }, []);
 
   useEffect(() => {
-    if (graph.current || !ref.current || loading || cards.length === 0) return;
+    if (graph.current || !ref.current || cards.length === 0) return;
     const width = ref.current.clientWidth;
-    const height = window.innerHeight - 80;
+    const height = ref.current.clientHeight;
     graph.current = new Graph({
       container: ref.current,
       width,
@@ -65,7 +74,7 @@ const LinkGraph = () => {
       },
       defaultEdge: {
         style: {
-          stroke: isDark ? 'hsl(220, 100%, 30%)' : 'hsl(220, 100%, 70%)',
+          stroke: isDark ? 'hsl(220, 100%, 35%)' : 'hsl(220, 100%, 70%)',
           lineWidth: 8,
         }
       },
@@ -84,12 +93,22 @@ const LinkGraph = () => {
           fill: '#91d5ff',
           stroke: '#40a9ff',
           lineWidth: 8,
+        },
+        focus: {
+          fill: 'rgba(251,185,87,0.58)',
+          stroke: '#fbb957',
+          lineWidth: 8,
         }
       }
     });
     const nodes = cards.map((card) => ({
       id: String(card.id),
       size: card.links.length * 10 + 30,
+      style: {
+        fill: card.id === currentCardId ? 'rgba(251,185,87,0.58)' : '#C6E5FF',
+        stroke: card.id === currentCardId ? '#fbb957' : '#5B8FF9',
+        lineWidth: 8,
+      }
     })) as any[];
     const edges = cards.map((card) => card.links.map((link) => ({
       source: String(card.id),
@@ -134,7 +153,7 @@ const LinkGraph = () => {
       if (graph.current) graph.current.destroy();
       graph.current = undefined;
     }
-  }, [cards, loading, isDark]);
+  }, [cards, isDark, currentCardId]);
   
   useEffect(() => {
     if (!graph.current || activeId === -1) return;
@@ -173,10 +192,19 @@ const LinkGraph = () => {
   }, [size]);
 
   return (
-    <div className={styles.container} ref={ref}>
+    <div className={classnames(styles.container, className)} style={style} ref={ref}>
       {
         show && (
-          <div className={styles.editor} style={{ left: position.x, top: position.y }}>
+          <div
+            className={styles.editor}
+            style={{
+              left: position.x,
+              top: position.y,
+              width: cardWidth,
+              maxHeight: cardMaxHeight,
+              fontSize: cardFontSize,
+          }}
+          >
             <Editor ref={editorRef} readonly={true} />
           </div>
         )
