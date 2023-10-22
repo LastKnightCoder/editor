@@ -15,7 +15,7 @@ import isHotkey from "is-hotkey";
 
 import { CREATE_CARD_ID } from "@/constants";
 
-import useLoadMore from "./hooks/useLoadMore.ts";
+import useLoadMore from "@/hooks/useLoadMore.ts";
 import useSearch from "./hooks/useSearch.ts";
 
 import styles from './index.module.less';

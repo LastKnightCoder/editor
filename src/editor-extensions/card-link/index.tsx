@@ -5,6 +5,9 @@ import IExtension from "@/components/Editor/extensions/types.ts";
 import { InlineElement } from "@/components/Editor/types";
 import CardLink from "./components/CardLink";
 
+import { withSetting } from './plugins';
+import hoveringBarConfigs from './hovering-bar-configs';
+
 export interface CardLinkElement {
   type: 'card-link';
   cardId: number;
@@ -13,6 +16,14 @@ export interface CardLinkElement {
 
 class CardLinkExtension extends Base implements IExtension {
   type = 'card-link';
+
+  override getPlugins() {
+    return [withSetting]
+  }
+
+  override getHoveringBarElements() {
+    return hoveringBarConfigs;
+  }
 
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;

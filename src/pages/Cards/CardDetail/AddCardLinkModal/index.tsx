@@ -1,15 +1,10 @@
-import {useEffect, useMemo, useState} from "react";
-import { Empty, Input, Modal } from 'antd';
+import { useMemo, useState } from "react";
 
 import useEditCardStore from "@/stores/useEditCardStore.ts";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 
-import Tags from "@/components/Tags";
+import SelectCardModal from "@/components/SelectCardModal";
 import {ICard} from "@/types";
-
-
-import styles from './index.module.less';
-import CardItem from "../../CardItem";
 
 const AddCardLinkModal = () => {
   const {
@@ -28,66 +23,23 @@ const AddCardLinkModal = () => {
     cards: state.cards
   }));
 
-  const [searchValue, setSearchValue] = useState('');
-  const [searchTags, setSearchTags] = useState<string[]>([]);
-  const [selectedCards, setSelectedCards] = useState<ICard[]>(() => {
-    return editingCard?.links.map(id => cards.find(card => card.id === id)) as ICard[];
-  });
-  
-  useEffect(() => {
-    setSearchValue('');
-    setSearchTags([]);
-    setSelectedCards(editingCard?.links.map(id => cards.find(card => card.id === id)) as ICard[]);
-  }, [cards, editingCard]);
-  
-  const notLinkedList = useMemo(() => {
-    const filteredCards =
-      cards
-        .filter(card => editingCard?.id !== card.id)
-        .filter(card => !editingCard?.links.includes(card.id))
-        .filter(card => !selectedCards.includes(card));
-    if (searchTags.length === 0) return filteredCards;
-    return (
-      filteredCards
-        .filter(
-          card =>
-            searchTags.every(
-              searchTag =>
-                card.tags.some(
-                  tag =>
-                    tag.toLowerCase().includes(searchTag.toLowerCase())
-                )
-            )
-        )
-    )
-  }, [cards, editingCard?.id, editingCard?.links, searchTags, selectedCards]);
-  
-  const onSearch = () => {
-    setSearchTags([...searchTags, searchValue]);
-    setSearchValue('');
-  }
+  const excludeCardIds = useMemo(() => {
+    if (!editingCard) return [];
+    return [editingCard.id, ...editingCard.links].filter(id => !!id) as number[];
+  }, [editingCard]);
 
-  const onDeleteTag = (tag: string) => {
-    setSearchTags(searchTags.filter(searchTag => searchTag !== tag));
-  }
+  const [selectedCards, setSelectedCards] = useState<ICard[]>(() => {
+    if (!editingCard) return [];
+    return editingCard.links.map(id => cards.find(card => card.id === id)).filter(card => !!card) as ICard[];
+  });
 
   const onCloseModal = () => {
-    setSearchValue('');
-    setSearchTags([]);
     useEditCardStore.setState({
       addLinkModalOpen: false,
     });
   }
-
-  const onAddCard = (card: ICard) => {
-    setSelectedCards([card, ...selectedCards]);
-  }
-
-  const onRemoveCard = (card: ICard) => {
-    setSelectedCards(selectedCards.filter(selectedCard => selectedCard.id !== card.id));
-  }
   
-  const onOk = () => {
+  const onOk = async (selectedCards: ICard[]) => {
     selectedCards.forEach(card => {
       addLink(card.id);
     })
@@ -99,46 +51,17 @@ const AddCardLinkModal = () => {
   }
   
   return (
-    <Modal
+    <SelectCardModal
       title={'添加相关卡片'}
+      selectedCards={selectedCards}
+      onChange={setSelectedCards}
       open={open}
+      multiple
       onOk={onOk}
       onCancel={onCloseModal}
-      width={800}
-      bodyStyle={{
-        height: 500,
-        boxSizing: 'border-box'
-      }}
-    >
-      <div className={styles.modal}>
-        <div className={styles.sidebar}>
-          {
-            <>
-              <Input
-                value={searchValue}
-                prefix={searchTags.length > 0 ? <Tags closable tags={searchTags} onClose={onDeleteTag} /> : undefined}
-                onChange={(e) => { setSearchValue(e.target.value) }}
-                onPressEnter={onSearch}
-                placeholder={'请输入标签进行筛选'}
-              />
-              {
-                notLinkedList.length > 0
-                  ? notLinkedList.slice(0, 20).map(card => (<CardItem onClick={() => { onAddCard(card) }} key={card.id} card={card} showDelete={false} />))
-                  : <Empty />
-              }
-            </>
-          }
-        </div>
-        <div className={styles.selectPanel}>
-          <div style={{ fontWeight: 700 }}>已选卡片：</div>
-          {
-            selectedCards.map(card => (
-              <CardItem key={card.id} card={card} onDelete={() => { onRemoveCard(card) }} />
-            ))
-          }
-        </div>
-      </div>
-    </Modal>
+      allCards={cards}
+      excludeCardIds={excludeCardIds}
+    />
   )
 }
 

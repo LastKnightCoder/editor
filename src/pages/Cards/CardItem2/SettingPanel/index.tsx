@@ -14,6 +14,9 @@ interface ISettingPanelProps {
 
 const SettingPanel = (props: ISettingPanelProps) => {
   const { settings, cardId } = props;
+
+  if (settings.length === 0) return null;
+
   return (
     <div className={styles.settings}>
       <For

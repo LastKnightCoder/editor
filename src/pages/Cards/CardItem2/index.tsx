@@ -42,16 +42,18 @@ const CardItem2 = (props: ICardItem2Props) => {
       <Paragraph className={styles.textContainer} ellipsis={{ rows: maxRows }}>
         {getEditorTextValue(content)}
       </Paragraph>
-      <Popover
-        placement="bottomRight"
-        trigger="click"
-        content={<SettingPanel settings={settings} cardId={card.id} />}
-        arrow={false}
-      >
-        <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
-          <MdMoreVert />
-        </div>
-      </Popover>
+      <If condition={settings.length > 0}>
+        <Popover
+          placement="bottomRight"
+          trigger="click"
+          content={<SettingPanel settings={settings} cardId={card.id} />}
+          arrow={false}
+        >
+          <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
+            <MdMoreVert />
+          </div>
+        </Popover>
+      </If>
     </div>
   )
 }
