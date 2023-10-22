@@ -19,7 +19,7 @@ const colors = [
 ]
 
 interface IColorSelectProps {
-  onClick: (event: React.MouseEvent, color: string) => void;
+  onClick: (event: React.MouseEvent, color?: string) => void;
   open: boolean;
 }
 
@@ -34,8 +34,8 @@ const ColorSelect = (props: IColorSelectProps) => {
     <div className={styles.colorSelectContainer}>
       <div
         className={styles.item}
-        onClick={(e) => { onClick(e, 'inherit') }}
-        style={{ color: 'inherit' }}
+        onClick={(e) => { onClick(e, undefined) }}
+        style={{ color: undefined }}
       >
         A
       </div>

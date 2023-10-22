@@ -62,12 +62,17 @@ const LinkTab = (props: ILinkTabProps) => {
     })
   }
 
-  const linkedList = editingCard?.links.map(id => cards.find(card => card.id === id)) as ICard[];
+  const linkedList = editingCard?.links
+    .map(id => cards.find(card => card.id === id))
+    .filter(Boolean) as ICard[];
+
   // 不能添加 editingCardId 依赖，否则每次编辑都会导致重新关系图
   const allLinkedCards = useMemo(() => {
     if (!editingCard || !editingCard.id) return [];
     return getAllLinkedCards(editingCard as ICard, cards);
   }, [editingCard?.id, editingCard?.links, cards]);
+
+  if (!editingCard) return null;
 
   const items: TabsProps['items'] = [{
     key: 'card',

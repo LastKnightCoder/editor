@@ -1,6 +1,6 @@
 import React from "react";
 import { Editor, Range, Transforms, Element } from "slate";
-import { HotKeyConfig } from "./types";
+import { IHotKeyConfig } from "../types";
 
 const inlineMove = (left: boolean) => {
   return (editor: Editor, event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -16,7 +16,7 @@ const inlineMove = (left: boolean) => {
   }
 }
 
-export const inline: HotKeyConfig[] = [{
+export const inline: IHotKeyConfig[] = [{
   hotKey: 'left',
   action: inlineMove(true)
 }, {

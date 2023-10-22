@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { Editor } from "slate";
 
-import { IBlockPanelListItem } from "../types/blockPanel.ts";
+import { IBlockPanelListItem } from "../types";
 
 interface IState {
   blockPanelVisible: boolean;

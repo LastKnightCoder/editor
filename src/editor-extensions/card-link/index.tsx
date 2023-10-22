@@ -2,16 +2,27 @@ import {RenderElementProps} from "slate-react";
 
 import Base from "@/components/Editor/extensions/base.ts";
 import IExtension from "@/components/Editor/extensions/types.ts";
+import { InlineElement } from "@/components/Editor/types";
+import CardLink from "./components/CardLink";
 
+export interface CardLinkElement {
+  type: 'card-link';
+  cardId: number;
+  children: InlineElement[];
+}
 
-class CardLink extends Base implements IExtension {
+class CardLinkExtension extends Base implements IExtension {
+  type = 'card-link';
+
   render(props: RenderElementProps) {
-    const { attributes, children } = props;
+    const { attributes, children, element } = props;
 
     return (
-      <span {...attributes}>{children}</span>
+      <CardLink attributes={attributes} element={element as unknown as CardLinkElement}>
+        {children}
+      </CardLink>
     )
   }
 }
 
-export default CardLink;
+export default CardLinkExtension;

@@ -28,7 +28,11 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
   } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
 
-  const [width, setWidth] = useState<number>(defaultWidth);
+  const [width, setWidth] = useState<number>(() => {
+    if (minWidth && defaultWidth < minWidth) return minWidth;
+    if (maxWidth && defaultWidth > maxWidth) return maxWidth;
+    return defaultWidth;
+  });
   const widthBeforeHide = React.useRef<number>(width);
   const [isResizing, setIsResizing] = useState<boolean>(false);
 
@@ -43,8 +47,8 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     ], {
       duration: 200,
       iterations: 1,
+      fill: 'forwards',
     });
-    containerRef.current.style.width = '0px';
     containerRef.current.style.overflow = 'hidden';
   });
 
@@ -57,9 +61,8 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     ], {
       duration: 200,
       iterations: 1,
+      fill: 'forwards',
     })
-
-    containerRef.current.style.width = `${widthBeforeHide.current}px`;
   });
 
   useEffect(() => {

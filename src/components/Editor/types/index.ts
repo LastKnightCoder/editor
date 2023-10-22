@@ -1,4 +1,6 @@
 export * from './element';
 export * from './text';
 export * from './editor';
-export * from './blockPanel';
+export * from './block-panel';
+export * from './hovering-bar';
+export * from './hotkeys';

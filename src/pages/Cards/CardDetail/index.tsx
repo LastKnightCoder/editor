@@ -1,5 +1,5 @@
-import {forwardRef, useEffect, useImperativeHandle, useRef, useState} from "react";
-import {Skeleton, FloatButton, App} from "antd";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Skeleton, FloatButton, App } from "antd";
 import { IoExitOutline } from "react-icons/io5";
 import { PiGraph } from "react-icons/pi";
 import { EditOutlined, ReadOutlined, SaveOutlined } from '@ant-design/icons';
@@ -11,10 +11,11 @@ import AddCardLinkModal from "./AddCardLinkModal";
 
 import useEditCardStore, { EditingCard } from "@/stores/useEditCardStore.ts";
 
+import { cardLinkExtension } from "@/editor-extensions";
+
 import classnames from "classnames";
 
 import styles from './index.module.less';
-
 
 export interface CardDetailRef {
   quit: () => Promise<void>;
@@ -35,7 +36,6 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
     removeTag,
     onEditingCardSave,
     readonly,
-    toggleReadonly,
   } = useEditCardStore((state) => ({
     editingCard: state.editingCard,
     editingCardId: state.editingCardId,
@@ -46,7 +46,6 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
     removeTag: state.removeTag,
     onEditingCardSave: state.onEditingCardSave,
     readonly: state.readonly,
-    toggleReadonly: state.toggleReadonly,
   }));
 
   const { modal } = App.useApp();
@@ -118,6 +117,12 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
     });
   }
 
+  const handleToggleReadonly = () => {
+    useEditCardStore.setState({
+      readonly: !readonly,
+    });
+  }
+
   if (!editingCard || !editingCardId) {
     return null;
   }
@@ -134,6 +139,7 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
                   initValue={editingCard?.content && editingCard.content.length > 0 ? editingCard.content : undefined}
                   readonly={readonly}
                   onChange={onEdit}
+                  extensions={[cardLinkExtension]}
                 />
           }
         </div>
@@ -159,7 +165,7 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
         />
         <FloatButton
           icon={readonly ? <EditOutlined /> : <ReadOutlined />}
-          onClick={toggleReadonly}
+          onClick={handleToggleReadonly}
           tooltip={readonly ? '编辑' : '只读'}
         />
         <FloatButton

@@ -1,7 +1,6 @@
 import IExtension from "./types.ts";
-import { HotKeyConfig } from "../hotkeys/types.ts";
 import { Plugin } from "../utils/plugin.ts";
-import {IBlockPanelListItem} from "@/components/Editor/types";
+import { IBlockPanelListItem, IConfigItem, IHotKeyConfig } from "@/components/Editor/types";
 
 export default class Base implements Omit<IExtension, 'render'> {
   type = 'base';
@@ -9,10 +8,14 @@ export default class Base implements Omit<IExtension, 'render'> {
     return [] as Plugin[];
   }
   getHotkeyConfigs() {
-    return [] as HotKeyConfig[];
+    return [] as IHotKeyConfig[];
   }
 
   getBlockPanelItems() {
     return [] as IBlockPanelListItem[];
+  }
+
+  getHoveringBarElements() {
+    return [] as IConfigItem[];
   }
 }

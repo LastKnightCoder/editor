@@ -13,6 +13,7 @@ specifiers:
   '@types/is-hotkey': ^0.1.7
   '@types/katex': ^0.16.2
   '@types/loadable__component': ^5.13.5
+  '@types/lodash': ^4.14.200
   '@types/node': ^20.2.1
   '@types/react': ^18.2.0
   '@types/react-dom': ^18.2.1
@@ -35,6 +36,7 @@ specifiers:
   is-hotkey: ^0.2.0
   katex: ^0.16.8
   less: ^4.1.3
+  lodash: ^4.17.21
   mermaid: ^10.1.0
   react: ^18.2.0
   react-cmdk: ^1.3.9
@@ -72,6 +74,7 @@ dependencies:
   immer: registry.npmmirror.com/immer/10.0.2
   is-hotkey: registry.npmmirror.com/is-hotkey/0.2.0
   katex: registry.npmmirror.com/katex/0.16.8
+  lodash: registry.npmmirror.com/lodash/4.17.21
   mermaid: registry.npmmirror.com/mermaid/10.1.0_biqbaboplfbrettd7655fr4n2y
   react: registry.npmmirror.com/react/18.2.0
   react-cmdk: registry.npmmirror.com/react-cmdk/1.3.9_biqbaboplfbrettd7655fr4n2y
@@ -95,6 +98,7 @@ devDependencies:
   '@types/is-hotkey': registry.npmmirror.com/@types/is-hotkey/0.1.7
   '@types/katex': registry.npmmirror.com/@types/katex/0.16.2
   '@types/loadable__component': registry.npmmirror.com/@types/loadable__component/5.13.5
+  '@types/lodash': registry.npmmirror.com/@types/lodash/4.14.200
   '@types/node': registry.npmmirror.com/@types/node/20.2.1
   '@types/react': registry.npmmirror.com/@types/react/18.2.0
   '@types/react-dom': registry.npmmirror.com/@types/react-dom/18.2.1
@@ -1831,11 +1835,10 @@ packages:
       '@types/react': registry.npmmirror.com/@types/react/18.2.0
     dev: true
 
-  registry.npmmirror.com/@types/lodash/4.14.194:
-    resolution: {integrity: sha512-r22s9tAS7imvBt2lyHC9B8AGwWnXaYb1tY09oyLkXDs4vArpYJzw09nj8MLx5VfciBPGIb+ZwG0ssYnEPJxn/g==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@types/lodash/-/lodash-4.14.194.tgz}
+  registry.npmmirror.com/@types/lodash/4.14.200:
+    resolution: {integrity: sha512-YI/M/4HRImtNf3pJgbF+W6FrXovqj+T+/HpENLTooK9PnkacBsDpeP3IpHab40CClUfhNmdM2WTNP2sa2dni5Q==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@types/lodash/-/lodash-4.14.200.tgz}
     name: '@types/lodash'
-    version: 4.14.194
-    dev: false
+    version: 4.14.200
 
   registry.npmmirror.com/@types/node/20.2.1:
     resolution: {integrity: sha512-DqJociPbZP1lbZ5SQPk4oag6W7AyaGMO6gSfRwq3PWl4PXTwJpRQJhDq4W0kzrg3w6tJ1SwlvGZ5uKFHY13LIg==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@types/node/-/node-20.2.1.tgz}
@@ -5660,7 +5663,7 @@ packages:
     dependencies:
       '@juggle/resize-observer': registry.npmmirror.com/@juggle/resize-observer/3.4.0
       '@types/is-hotkey': registry.npmmirror.com/@types/is-hotkey/0.1.7
-      '@types/lodash': registry.npmmirror.com/@types/lodash/4.14.194
+      '@types/lodash': registry.npmmirror.com/@types/lodash/4.14.200
       direction: registry.npmmirror.com/direction/1.0.4
       is-hotkey: registry.npmmirror.com/is-hotkey/0.1.8
       is-plain-object: registry.npmmirror.com/is-plain-object/5.0.0

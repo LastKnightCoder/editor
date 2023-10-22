@@ -4,7 +4,7 @@ import { CREATE_CARD_ID, DEFAULT_CARD_CONTENT } from "@/constants";
 import { findOneCard } from "@/commands";
 import { Descendant } from "slate";
 import useCardsManagementStore from "./useCardsManagementStore.ts";
-import {produce} from "immer";
+import { produce } from "immer";
 
 export type EditingCard = Pick<ICard, 'content' | 'tags' | 'links'> & Partial<ICard>;
 
@@ -21,13 +21,10 @@ interface IActions {
   onEditingCardChange: (content: Descendant[]) => void;
   onEditingCardCancel: () => void;
   onEditingCardSave: () => Promise<void>;
-  openAddLinkModal: () => void;
-  closeAddLinkModal: () => void;
   addTag: (tag: string) => void;
   removeTag: (tag: string) => void;
   addLink: (link: number) => void;
   removeLink: (link: number) => void;
-  toggleReadonly: () => void;
 }
 
 const initialState: IState = {
@@ -185,22 +182,6 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
       })
     })
   },
-  openAddLinkModal: () => {
-    set({
-      addLinkModalOpen: true,
-    });
-  },
-  closeAddLinkModal: () => {
-    set({
-      addLinkModalOpen: false,
-    });
-  },
-  toggleReadonly: () => {
-    const { readonly } = get();
-    set({
-      readonly: !readonly,
-    });
-  }
 }));
 
 export default useEditCardStore;

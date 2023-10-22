@@ -8,11 +8,17 @@ import IExtension from "../types.ts";
 
 import { inlineShortcut, blockShortcut } from './hotkeys';
 import blockPanelItems from './block-panel-items';
+import hoveringBarConfigs from './hovering-bar-configs';
 
 export class InlineMathExtension extends Base implements IExtension {
   type = 'inline-math';
+
   override getHotkeyConfigs() {
     return [...inlineShortcut];
+  }
+
+  override getHoveringBarElements() {
+    return hoveringBarConfigs;
   }
 
   override getBlockPanelItems() {

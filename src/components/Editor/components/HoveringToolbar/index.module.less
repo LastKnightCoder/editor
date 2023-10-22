@@ -4,10 +4,18 @@
   z-index: 9999;
   top: -1000px;
   left: -500px;
-  transition: opacity 0.75s;
+  transition:
+    opacity 0.3s ease-in-out,
+    top 0.3s ease-in-out,
+    left 0.3s ease-in-out;
   padding: 4px;
   background-color: var(--primary-bg-color);
   box-shadow: var(--box-shadow1);
-  display: flex;
   border-radius: 8px;
+  display: flex;
+  pointer-events: none;
+  &.show {
+    opacity: 1;
+    pointer-events: unset;
+  }
 }

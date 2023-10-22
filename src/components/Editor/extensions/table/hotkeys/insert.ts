@@ -1,8 +1,8 @@
 import {Editor, Range} from "slate";
 import {insertColLeft, insertColRight, insertRowAfter, insertRowBefore} from "@/components/Editor/utils";
-import {HotKeyConfig} from "@/components/Editor/hotkeys/types.ts";
+import {IHotKeyConfig} from "@/components/Editor/types";
 
-const insert: HotKeyConfig[] = [{
+const insert: IHotKeyConfig[] = [{
   hotKey: 'mod+right',
   action: (editor, event) => {
     const { selection } = editor;

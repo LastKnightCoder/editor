@@ -1,4 +1,4 @@
-import {HotKeyConfig} from "@/components/Editor/hotkeys/types.ts";
+import {IHotKeyConfig} from "@/components/Editor/types";
 import {Editor, Range} from "slate";
 import {
   moveNextCol,
@@ -7,7 +7,7 @@ import {
   movePrevRow
 } from "@/components/Editor/utils";
 
-const navigate: HotKeyConfig[] = [{
+const navigate: IHotKeyConfig[] = [{
   hotKey: 'tab',
   action: (editor, event) => {
     const { selection } = editor;

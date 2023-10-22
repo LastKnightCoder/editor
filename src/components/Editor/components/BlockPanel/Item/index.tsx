@@ -1,7 +1,9 @@
-import classnames from 'classnames';
-import styles from './index.module.less';
-import {IBlockPanelListItem} from "../../../types/blockPanel.ts";
 import {useEffect, useRef} from "react";
+import classnames from 'classnames';
+
+import { IBlockPanelListItem } from "@/components/Editor/types";
+
+import styles from './index.module.less';
 
 interface IItemProps {
   showBottomLine: boolean;

@@ -1,6 +1,6 @@
-import {useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo} from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
-import {Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps} from 'slate-react';
+import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory } from 'slate-history';
 
 import { DEFAULT_CARD_CONTENT } from "@/constants";
@@ -36,6 +36,7 @@ import 'codemirror/addon/edit/closebrackets.js';
 
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/blackboard.css';
+import {IConfigItem} from "@/components/Editor/types";
 
 
 export type EditorRef = {
@@ -50,11 +51,8 @@ interface IEditorProps {
   onChange?: (value: Descendant[]) => void;
   readonly?: boolean;
   extensions?: IExtension[];
-  uploadImage?: (file: File) => Promise<{
-    content: {
-      download_url: string;
-    }
-  }>;
+  hoveringBarConfigs?: IConfigItem[];
+  uploadImage?: (file: File) => Promise<string>;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -65,7 +63,13 @@ const defaultPlugins: Plugin[] = [
 ];
 
 const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
-  const { initValue = DEFAULT_CARD_CONTENT, onChange, readonly = true, extensions = [] } = props;
+  const {
+    initValue = DEFAULT_CARD_CONTENT,
+    onChange,
+    readonly = true,
+    extensions = [],
+    hoveringBarConfigs = [],
+  } = props;
 
   const finalExtensions = useMemo(() => {
     return [...startExtensions, ...extensions];
@@ -79,6 +83,10 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
   const hotKeyConfigs = useMemo(() => {
     return finalExtensions.map(extension => extension.getHotkeyConfigs()).flat().concat(hotkeys);
   }, [finalExtensions]);
+
+  const finalHoveringBarConfigs = useMemo(() => {
+    return finalExtensions.map(extension => extension.getHoveringBarElements()).flat().concat(hoveringBarConfigs);
+  }, [finalExtensions, hoveringBarConfigs]);
 
   const renderElement = useCallback((props: RenderElementProps) => {
     const { type } = props.element;
@@ -149,7 +157,7 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
         />
         <ImagesOverview />
         { !readonly && <Command /> }
-        { !readonly && <HoveringToolbar /> }
+        { !readonly && <HoveringToolbar configs={finalHoveringBarConfigs} /> }
         <BlockPanel extensions={finalExtensions} />
       </Slate>
   )

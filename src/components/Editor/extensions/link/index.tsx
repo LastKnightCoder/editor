@@ -1,15 +1,22 @@
 import IExtension from "../types.ts";
 import Base from "../base.ts";
 import Link from "./components/Link"
-import {RenderElementProps} from "slate-react";
-import {LinkElement} from "@/components/Editor/types";
+
+import { RenderElementProps } from "slate-react";
+import { LinkElement } from "@/components/Editor/types";
+
 import hotkeys from "./hotkeys";
+import hoveringBarConfigs from "./hovering-bar-configs";
 
 class LinkExtension extends Base implements IExtension {
   type = 'link';
 
   override getHotkeyConfigs() {
     return hotkeys;
+  }
+
+  override getHoveringBarElements() {
+    return hoveringBarConfigs;
   }
 
   render(props: RenderElementProps) {

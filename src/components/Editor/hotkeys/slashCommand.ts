@@ -1,7 +1,7 @@
-import {HotKeyConfig} from "./types.ts";
+import { IHotKeyConfig } from "../types";
 import useBlockPanelStore from "../stores/useBlockPanelStore.ts";
 
-export const slashCommandConfig: HotKeyConfig[] = [{
+export const slashCommandConfig: IHotKeyConfig[] = [{
   hotKey: 'esc',
   action: (_editor, event) => {
     // 关闭 blockPanel

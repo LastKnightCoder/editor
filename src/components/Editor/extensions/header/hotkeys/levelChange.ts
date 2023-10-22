@@ -1,8 +1,7 @@
-import {Editor, Element as SlateElement, Transforms} from "slate";
-import {HeaderElement} from "@/components/Editor/types";
-import {HotKeyConfig} from "@/components/Editor/hotkeys/types";
+import { Editor, Element as SlateElement, Transforms } from "slate";
+import { HeaderElement, IHotKeyConfig } from "@/components/Editor/types";
 
-export const levelChange: HotKeyConfig[] = [{
+export const levelChange: IHotKeyConfig[] = [{
   hotKey: 'alt+=',
   action: (editor: Editor) => {
     // 如果是 header，增加 level

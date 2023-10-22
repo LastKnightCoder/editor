@@ -6,6 +6,7 @@ import Paragraph from "./components/Paragraph";
 import Base from '../base';
 import IExtension from "../types";
 import { inlineCode } from "./plugins";
+import hoveringBarElements from "./hovering-bar-configs";
 
 class ParagraphExtension extends Base implements IExtension {
   override type = 'paragraph';
@@ -13,6 +14,11 @@ class ParagraphExtension extends Base implements IExtension {
   override getPlugins() {
     return [inlineCode]
   }
+  
+  override getHoveringBarElements() {
+    return hoveringBarElements;
+  }
+
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
     return <Paragraph element={element as ParagraphElement} attributes={attributes}>{children}</Paragraph>;

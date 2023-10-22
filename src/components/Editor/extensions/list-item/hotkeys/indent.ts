@@ -1,10 +1,10 @@
-import {HotKeyConfig} from "@/components/Editor/hotkeys/types.ts";
+import {IHotKeyConfig} from "@/components/Editor/types";
 import { Editor, Transforms } from "slate";
 import { getParentNodeByNode, isAtParagraphStart, getPreviousSiblingNode } from "@/components/Editor/utils";
 import { message } from "antd";
 
 
-export const indent: HotKeyConfig[] = [{
+export const indent: IHotKeyConfig[] = [{
   hotKey: 'Tab',
   action: (editor, event) => {
     const [match] = Editor.nodes(editor, {

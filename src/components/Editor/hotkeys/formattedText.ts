@@ -1,8 +1,7 @@
 import { getCurrentTextNode } from "../utils";
 import {Editor, Range, Transforms} from "slate";
-import { FormattedText } from "../types";
+import { FormattedText, Mark, IHotKeyConfig } from "../types";
 
-import { Mark, HotKeyConfig } from "./types";
 import React from "react";
 
 const markAction = (mark: Mark) => {
@@ -26,7 +25,7 @@ const markAction = (mark: Mark) => {
   }
 }
 
-export const formattedText: HotKeyConfig[] = [{
+export const formattedText: IHotKeyConfig[] = [{
   hotKey: 'mod+b',
   action: markAction('bold')
 }, {
@@ -46,7 +45,7 @@ export const formattedText: HotKeyConfig[] = [{
   action: markAction('code')
 }];
 
-export const quitFormattedMarks: HotKeyConfig[] = [{
+export const quitFormattedMarks: IHotKeyConfig[] = [{
   hotKey: 'escape',
   action: (editor: Editor) => {
     const { selection } = editor;
@@ -64,7 +63,7 @@ export const quitFormattedMarks: HotKeyConfig[] = [{
 }]
 
 // 这两个是收起卡片和展开卡片列表的快捷键
-export const modMove: HotKeyConfig[] = [{
+export const modMove: IHotKeyConfig[] = [{
   hotKey: 'mod+right',
   action: (_editor: Editor, e) => {
     // 阻止默认行为

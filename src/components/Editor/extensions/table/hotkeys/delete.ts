@@ -1,9 +1,9 @@
 import { Editor, Range } from "slate";
 import { deletePrevRow, deleteNextRow, deletePrevCol, deleteNextCol } from "@/components/Editor/utils";
 
-import { HotKeyConfig } from "@/components/Editor/hotkeys/types.ts";
+import { IHotKeyConfig } from "@/components/Editor/types";
 
-const deleteTable: HotKeyConfig[] = [{
+const deleteTable: IHotKeyConfig[] = [{
   hotKey: 'mod+shift+right',
   action: (editor, event) => {
     const { selection } = editor;

@@ -15,12 +15,10 @@ const AddCardLinkModal = () => {
   const {
     open,
     editingCard,
-    closeAddLinkModal,
     addLink,
   } = useEditCardStore((state) => ({
     open: state.addLinkModalOpen,
     editingCard: state.editingCard,
-    closeAddLinkModal: state.closeAddLinkModal,
     addLink: state.addLink,
   }));
 
@@ -76,7 +74,9 @@ const AddCardLinkModal = () => {
   const onCloseModal = () => {
     setSearchValue('');
     setSearchTags([]);
-    closeAddLinkModal();
+    useEditCardStore.setState({
+      addLinkModalOpen: false,
+    });
   }
 
   const onAddCard = (card: ICard) => {
@@ -91,7 +91,7 @@ const AddCardLinkModal = () => {
     selectedCards.forEach(card => {
       addLink(card.id);
     })
-    closeAddLinkModal();
+    onCloseModal();
   }
 
   if (!open) {

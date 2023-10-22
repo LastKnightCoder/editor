@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef, useCallback, memo } from "react";
-
 import {Button, Input, Skeleton, Spin, App, Tooltip} from 'antd';
 import { CloseOutlined, UpOutlined, PlusOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import If from "@/components/If";
@@ -12,13 +11,14 @@ import CardDetail, { CardDetailRef } from './CardDetail';
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useEditCardStore from "@/stores/useEditCardStore.ts";
 
+import isHotkey from "is-hotkey";
+
 import { CREATE_CARD_ID } from "@/constants";
 
 import useLoadMore from "./hooks/useLoadMore.ts";
 import useSearch from "./hooks/useSearch.ts";
 
 import styles from './index.module.less';
-import isHotkey from "is-hotkey";
 
 
 const Cards = memo(() => {
@@ -107,7 +107,7 @@ const Cards = memo(() => {
     cardDetailRef.current?.quit().then(() => {
       useEditCardStore.setState({
         editingCardId: id,
-      })
+      });
     });
   }
 
