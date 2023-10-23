@@ -43,7 +43,6 @@ const CardLink = (props: ICardLinkProps) => {
         top: 20,
       }}
       arrow={false}
-      placement={'rightBottom'}
     >
       <span className={styles.cardLinkContainer} {...attributes}>
         <InlineChromiumBugfix />
