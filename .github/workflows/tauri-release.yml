@@ -86,24 +86,24 @@ jobs:
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
 
-    # 生成静态资源并将其推送到 github pages
-    updater:
-      runs-on: ubuntu-latest
-      needs: [ create-release, build-tauri ]
+  # 生成静态资源并将其推送到 github pages
+  updater:
+    runs-on: ubuntu-latest
+    needs: [ create-release, build-tauri ]
 
-      steps:
-        - uses: actions/checkout@v2
-        - run: pnpm
-        - run: pnpm updater
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v2
+      - run: pnpm
+      - run: pnpm updater
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Deploy install.json
-          uses: peaceiris/actions-gh-pages@v3
-          with:
-            github_token: ${{ secrets.GITHUB_TOKEN }}
-            publish_dir: ./updater
-            force_orphan: true
+      - name: Deploy install.json
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./updater
+          force_orphan: true
 
 #  publish-release:
 #    permissions:

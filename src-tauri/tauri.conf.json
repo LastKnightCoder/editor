@@ -81,7 +81,8 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/LastKnightCoder/editor/releases/latest/download/latest.json"
+        "https://github.com/LastKnightCoder/editor/releases/latest/download/latest.json",
+        "https://lastknightcoder.github.io/editor/install.json"
       ],
       "windows": {
         "installMode": "passive"
