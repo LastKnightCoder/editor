@@ -86,24 +86,43 @@ jobs:
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
 
-  publish-release:
-    permissions:
-      contents: write
-    runs-on: ubuntu-20.04
-    needs: [create-release, build-tauri]
+    # 生成静态资源并将其推送到 github pages
+    updater:
+      runs-on: ubuntu-latest
+      needs: [ create-release, build-tauri ]
 
-    steps:
-      - name: publish release
-        id: publish-release
-        uses: actions/github-script@v6
-        env:
-          release_id: ${{ needs.create-release.outputs.release_id }}
-        with:
-          script: |
-            github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: process.env.release_id,
-              draft: false,
-              prerelease: false
-            })
+      steps:
+        - uses: actions/checkout@v2
+        - run: pnpm
+        - run: pnpm updater
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Deploy install.json
+          uses: peaceiris/actions-gh-pages@v3
+          with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            publish_dir: ./updater
+            force_orphan: true
+
+#  publish-release:
+#    permissions:
+#      contents: write
+#    runs-on: ubuntu-20.04
+#    needs: [create-release, build-tauri]
+#
+#    steps:
+#      - name: publish release
+#        id: publish-release
+#        uses: actions/github-script@v6
+#        env:
+#          release_id: ${{ needs.create-release.outputs.release_id }}
+#        with:
+#          script: |
+#            github.rest.repos.updateRelease({
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              release_id: process.env.release_id,
+#              draft: false,
+#              prerelease: false
+#            })

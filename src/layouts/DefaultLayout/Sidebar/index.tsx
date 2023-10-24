@@ -43,44 +43,17 @@ const Sidebar = (props: ISidebarProps) => {
   }, [darkMode]);
 
   const check = async () => {
-    message.info('敬请期待');
-    return;
-
     if (checking) return;
     setChecking(true);
     try {
-      // const res = await fetch('https://tauri-editor.oss-cn-hangzhou.aliyuncs.com/latest.json');
-      // const json = await res.json();
-      // const latestVersion = json.version;
-      // if (appVersion === latestVersion) {
-      //   message('有新版本');
-      //   const currentPlatform = await platform();
-      //   if (currentPlatform === 'darwin') {
-      //     const url = json.platforms['darwin-x86_64'].url;
-      //     message('有新版本: ' + url);
-      //   } else if (currentPlatform === 'linux') {
-      //     const url = json.platforms['linux-x86_64'].url;
-      //     message('有新版本: ' + url);
-      //   } else if (currentPlatform === 'win32') {
-      //     const url = json.platforms['windows-x86_64'].url;
-      //     message('有新版本: ' + url);
-      //   }
-      // } else {
-      //   message('已是最新版本');
-      // }
       const { shouldUpdate, manifest } = await checkUpdate()
 
       if (shouldUpdate) {
-        // You could show a dialog asking the user if they want to install the update here.
         console.log(
           `Installing update ${manifest?.version}, ${manifest?.date}, ${manifest?.body}`
         )
 
-        // Install the update. This will also restart the app on Windows!
         await installUpdate()
-
-        // On macOS and Linux you will need to restart the app manually.
-        // You could use this step to display another confirmation dialog.
         await relaunch()
       } else {
         message.info('已是最新版本')
