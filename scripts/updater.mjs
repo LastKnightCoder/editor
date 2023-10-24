@@ -1,7 +1,7 @@
 import { getOctokit, context } from '@actions/github';
+import fs from 'fs';
 
 import updatelog from './updatelog.mjs';
-const pkg = require('../package.json');
 
 const token = process.env.GITHUB_TOKEN;
 
@@ -11,6 +11,7 @@ async function updater() {
     process.exit(1);
   }
 
+  const pkg = JSON.parse(fs.readFileSync('./package.json', { encoding: 'utf8' }));
   const github = getOctokit(token);
 
   const version = pkg.version;
