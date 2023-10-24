@@ -113,7 +113,7 @@ jobs:
           release_id: ${{ needs.create-release.outputs.release_id }}
         with:
           script: |
-            import updatelog from './scripts/updatelog.js'
+            const updatelog = require('./scripts/updatelog.mjs')
             const pkg = require('./package.json')
             const tag = `v${pkg.version}`
             const notes = updatelog(tag)
