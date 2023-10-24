@@ -12,7 +12,7 @@
 
 - fix: release 自动更新 tauri.config.json 的版本
 
-## v0.2.11
+## v0.2.12
 
 - fix: workflow 脚本修改
 
