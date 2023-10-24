@@ -36,7 +36,7 @@ async function updater() {
   github.rest.repos.updateRelease({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    notes: updatelog(tag.name),
+    body: updatelog(tag.name),
     release_id: process.env.release_id,
     draft: false,
     prerelease: false
