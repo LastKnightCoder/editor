@@ -1,7 +1,7 @@
 import { getOctokit, context } from '@actions/github';
 
 import updatelog from './updatelog.mjs';
-import pkg from '../package.json';
+const pkg = require('../package.json');
 
 const token = process.env.GITHUB_TOKEN;
 
