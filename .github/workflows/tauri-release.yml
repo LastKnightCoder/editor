@@ -98,7 +98,6 @@ jobs:
         with:
           version: 8
           run_install: false
-      - run: pnpm
       - run: pnpm updater
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
