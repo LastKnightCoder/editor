@@ -106,22 +106,8 @@ jobs:
           cache: 'pnpm'
       - name: install frontend dependencies
         run: pnpm install --no-frozen-lockfile
-      - name: publish release
-        id: publish-release
-        uses: actions/github-script@v6
+      - name: run updater
+        run: |
+          node ./scripts/updater.mjs
         env:
-          release_id: ${{ needs.create-release.outputs.release_id }}
-        with:
-          script: |
-            const updatelog = require('./scripts/updatelog.mjs')
-            const pkg = require('./package.json')
-            const tag = `v${pkg.version}`
-            const notes = updatelog(tag)
-            github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              notes,
-              release_id: process.env.release_id,
-              draft: false,
-              prerelease: false
-            })
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
