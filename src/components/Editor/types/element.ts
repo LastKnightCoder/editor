@@ -28,7 +28,8 @@ export type CustomElement =
   | CustomBlockElement
   | DivideLineElement
   | MultiColumnContainerElement
-  | MultiColumnItemElement;
+  | MultiColumnItemElement
+  | HighlightBlockElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>
@@ -183,4 +184,12 @@ export interface MultiColumnItemElement {
   type:'multi-column-item';
   width?: number;
   children: BlockElement[];
+}
+
+export type Color = 'red' | 'green' | 'yellow' | 'blue' | 'orange' | 'purple';
+
+export interface HighlightBlockElement {
+  type: 'highlight-block',
+  children: BlockElement[];
+  color: Color;
 }

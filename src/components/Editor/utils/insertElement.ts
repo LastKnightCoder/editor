@@ -9,7 +9,9 @@ import {
   TableCellElement,
   TableElement,
   TableRowElement,
-  LinkElement, MultiColumnItemElement
+  LinkElement,
+  MultiColumnItemElement,
+  Color
 } from "../types";
 import { codeBlockMap } from "../extensions/code-block";
 
@@ -269,6 +271,22 @@ export const insertMultiColumnsContainer = (editor: Editor, columns = 2) => {
   }
 
   return res;
+}
+
+export const insertHighlightBlock = (editor: Editor, color = 'red' as Color) => {
+  return setOrInsertNode(editor, {
+    type: 'highlight-block',
+    color,
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '',
+      }],
+    }],
+  }, {
+    select: true
+  })
 }
 
 const isLinkActive = (editor: Editor) => {
