@@ -26,7 +26,9 @@ export type CustomElement =
   | HTMLBlockElement
   | GraphvizElement
   | CustomBlockElement
-  | DivideLineElement;
+  | DivideLineElement
+  | MultiColumnContainerElement
+  | MultiColumnItemElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>
@@ -170,4 +172,15 @@ export interface CustomBlockElement {
 export interface DivideLineElement {
   type: 'divide-line';
   children: Descendant[];
+}
+
+export interface MultiColumnContainerElement {
+  type:'multi-column-container';
+  children: MultiColumnItemElement[];
+}
+
+export interface MultiColumnItemElement {
+  type:'multi-column-item';
+  width?: number;
+  children: BlockElement[];
 }

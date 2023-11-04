@@ -71,8 +71,9 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
   }, [hide, hideEle, showEle]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-    e.preventDefault();
     setIsResizing(true);
+    e.stopPropagation();
+    e.preventDefault();
   }
 
   const handleMouseMove = useCallback(() => {
