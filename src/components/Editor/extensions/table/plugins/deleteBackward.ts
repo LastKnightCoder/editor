@@ -1,5 +1,5 @@
-import {Editor, Element as SlateElement, Range, Transforms} from "slate";
-import {isAtParagraphStart, isParagraphAndEmpty, isParagraphElement, movePrevCol} from "@/components/Editor/utils";
+import { Editor, Element as SlateElement, Range, Transforms } from "slate";
+import { isAtParagraphStart, isParagraphAndEmpty, isParagraphElement, movePrevCol } from "@/components/Editor/utils";
 
 export const deleteBackward = (editor: Editor) => {
   const { deleteBackward, delete: editorDelete } = editor;

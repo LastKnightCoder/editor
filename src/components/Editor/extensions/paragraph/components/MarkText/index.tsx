@@ -9,7 +9,7 @@ import { isMarkActive } from "../../hovering-bar-configs/utils.ts";
 import classnames from "classnames";
 
 import styles from './index.module.less';
-import {Editor, Range, Transforms} from "slate";
+import { Editor, Range, Transforms } from "slate";
 
 
 interface IMarkTextProps {

@@ -1,4 +1,4 @@
-import {Descendant} from "slate";
+import { Descendant } from "slate";
 
 export const CREATE_CARD_ID = -1;
 

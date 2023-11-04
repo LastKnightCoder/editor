@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
-import {Button} from "antd";
-import {useState} from "react";
+import { Button } from "antd";
+import { useState } from "react";
 
 import styles from './index.module.less';
 
@@ -30,7 +30,7 @@ const Animate = () => {
   const [j, setJ] = useState(1);
 
   const handleClick = () => {
-    const {value, done} = bubbleSort.next();
+    const { value, done } = bubbleSort.next();
 
     if (!done) {
       setNumbers(value.arr);

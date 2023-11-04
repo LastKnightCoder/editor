@@ -1,7 +1,7 @@
-import React, {PropsWithChildren} from "react";
-import {RenderElementProps} from "slate-react";
+import React, { PropsWithChildren } from "react";
+import { RenderElementProps } from "slate-react";
 
-import {NumberedListElement} from "@/components/Editor/types";
+import { NumberedListElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
 import styles from './index.module.less';

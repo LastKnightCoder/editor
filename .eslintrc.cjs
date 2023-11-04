@@ -11,5 +11,6 @@ module.exports = {
   rules: {
     'react-refresh/only-export-components': 'warn',
     "@typescript-eslint/ban-ts-comment": "off",
+    "object-curly-spacing": ["warn", "always"],
   },
 }

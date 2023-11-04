@@ -2,13 +2,13 @@ import React, { useCallback, useState } from 'react';
 import { Popover, Button, Input } from "antd";
 import { open as openUrl } from '@tauri-apps/api/shell';
 import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
-import {ReactEditor, RenderElementProps, useReadOnly, useSlate} from "slate-react";
+import { ReactEditor, RenderElementProps, useReadOnly, useSlate } from "slate-react";
 import classnames from 'classnames';
 import { usePressedKeyStore } from "@/components/Editor/stores";
 
 import styles from './index.module.less';
 import { LinkElement } from "@/components/Editor/types";
-import {Transforms} from "slate";
+import { Transforms } from "slate";
 
 interface LinkProps {
   attributes: RenderElementProps['attributes'];
@@ -82,7 +82,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
     >
       <span
         {...attributes}
-        className={classnames(styles.link, {[styles.active]:  isModKey })}
+        className={classnames(styles.link, { [styles.active]:  isModKey })}
         onClick={handleClick}
       >
         <InlineChromiumBugfix />

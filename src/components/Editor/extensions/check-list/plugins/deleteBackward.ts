@@ -1,11 +1,11 @@
-import {Editor, Element as SlateElement, Transforms} from "slate";
+import { Editor, Element as SlateElement, Transforms } from "slate";
 import {
   getClosestCurrentElement,
   getElementParent, getParentNodeByNode, getPrevPath,
   isAtParagraphStart,
   isCheckListItemElement, isParagraphElement
 } from "@/components/Editor/utils";
-import {CheckListItemElement} from "@/components/Editor/types";
+import { CheckListItemElement } from "@/components/Editor/types";
 
 export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;

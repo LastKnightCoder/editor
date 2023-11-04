@@ -1,4 +1,4 @@
-import {useEffect, useRef} from "react";
+import { useEffect, useRef } from "react";
 import classnames from 'classnames';
 
 import { IBlockPanelListItem } from "@/components/Editor/types";

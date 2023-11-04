@@ -1,5 +1,5 @@
-import {Editor} from "slate";
-import {insertHeader} from "@/components/Editor/utils";
+import { Editor } from "slate";
+import { insertHeader } from "@/components/Editor/utils";
 
 const headers = ([1, 2, 3, 4, 5, 6] as const).map(level => {
   return {

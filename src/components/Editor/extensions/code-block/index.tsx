@@ -1,5 +1,5 @@
 import { RenderElementProps } from "slate-react";
-import {Editor as CodeMirrorEditor} from "codemirror";
+import { Editor as CodeMirrorEditor } from "codemirror";
 
 import loadable from "@loadable/component";
 

@@ -1,7 +1,7 @@
-import {MenuProps} from "antd";
-import {MdOutlineArticle, MdOutlineListAlt, MdStickyNote2} from "react-icons/md";
-import {NavLink} from "react-router-dom";
-import {AiOutlineBarChart, AiOutlineHome} from "react-icons/ai";
+import { MenuProps } from "antd";
+import { MdOutlineArticle, MdOutlineListAlt, MdStickyNote2 } from "react-icons/md";
+import { NavLink } from "react-router-dom";
+import { AiOutlineBarChart, AiOutlineHome } from "react-icons/ai";
 import { BiNotepad } from "react-icons/bi";
 
 export const menuConfigs: MenuProps['items'] = [{

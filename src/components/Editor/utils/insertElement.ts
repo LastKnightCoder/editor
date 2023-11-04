@@ -1,7 +1,7 @@
-import {Editor, Path, Transforms, Element, Range} from 'slate';
-import {v4 as getUuid} from "uuid";
+import { Editor, Path, Transforms, Element, Range } from 'slate';
+import { v4 as getUuid } from "uuid";
 
-import {isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode} from "./editor";
+import { isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode } from "./editor";
 
 import {
   BlockElement,
@@ -9,14 +9,15 @@ import {
   TableCellElement,
   TableElement,
   TableRowElement,
-  LinkElement
+  LinkElement, MultiColumnItemElement
 } from "../types";
 import { codeBlockMap } from "../extensions/code-block";
 
-
 interface InsertElementOptions {
   select?: boolean;
+  reverse?: boolean;
 }
+
 const setOrInsertNode = (editor: Editor, node: BlockElement, options: InsertElementOptions = {}) => {
   if (!isCollapsed(editor)) {
     return;
@@ -29,7 +30,7 @@ const setOrInsertNode = (editor: Editor, node: BlockElement, options: InsertElem
     return;
   }
   if (isParagraphAndEmpty(editor)) {
-    return replaceNode(editor, node, n => n.type === 'paragraph', options.select);
+    return replaceNode(editor, node, n => n.type === 'paragraph', options);
   } else {
     Transforms.insertNodes(editor, node, options);
     return Path.next(match[1]);
@@ -233,6 +234,41 @@ export const insertDivideLine = (editor: Editor) => {
     type: 'divide-line',
     children: [{ type: 'formatted', text: '' }],
   });
+}
+
+export const insertMultiColumnsContainer = (editor: Editor, columns = 2) => {
+  if (columns < 1) {
+    return;
+  }
+
+  const children: MultiColumnItemElement[] = Array.from({ length: columns }).map(() => {
+    return {
+      type: 'multi-column-item',
+      children: [{
+        type: 'paragraph',
+        children: [{
+          type: 'formatted',
+          text: '',
+        }],
+      }],
+    }
+  });
+
+  const res =  setOrInsertNode(editor, {
+    type: 'multi-column-container',
+    children
+  }, {
+    select: true,
+  });
+
+  if (res) {
+    Transforms.select(editor, {
+      anchor: Editor.start(editor, [...res, 0]),
+      focus: Editor.start(editor, [...res, 0])
+    });
+  }
+
+  return res;
 }
 
 const isLinkActive = (editor: Editor) => {

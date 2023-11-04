@@ -1,4 +1,4 @@
-import {Editor} from "slate";
+import { Editor } from "slate";
 
 export interface IBlockPanelListItem {
   icon: string;

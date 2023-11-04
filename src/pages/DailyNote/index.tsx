@@ -1,11 +1,11 @@
-import {Button, Calendar, Skeleton, Drawer, Modal} from 'antd';
+import { Button, Calendar, Skeleton, Drawer, Modal } from 'antd';
 import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
-import {SelectInfo} from "antd/es/calendar/generateCalendar";
+import { SelectInfo } from "antd/es/calendar/generateCalendar";
 import type { Dayjs } from "dayjs";
 import styles from './index.module.less';
-import React, {useEffect} from "react";
+import React, { useEffect } from "react";
 import Editor from "@/components/Editor";
-import {DeleteOutlined} from "@ant-design/icons";
+import { DeleteOutlined } from "@ant-design/icons";
 
 const DailyNote = () => {
   const {
@@ -97,7 +97,7 @@ const DailyNote = () => {
         closable
         onClose={onCancelDailyNote}
         footer={(
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10}}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
             <Button onClick={onCancelDailyNote}>取消</Button>
             <Button type="primary" onClick={onSaveDailyNote}>保存</Button>
           </div>

@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import {FormattedText} from "./text";
+import { FormattedText } from "./text";
 
 export type InlineElement = FormattedText | LinkElement | InlineMathElement;
 export type CustomElement =

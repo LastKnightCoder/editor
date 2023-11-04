@@ -1,11 +1,11 @@
 import { Graph } from '@antv/g6';
-import {useEffect, useMemo, useRef, useState} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSize } from 'ahooks';
 import classnames from "classnames";
 
 import useTheme from "@/hooks/useTheme.ts";
-import {ICard} from "@/types";
-import Editor, {EditorRef} from "@/components/Editor";
+import { ICard } from "@/types";
+import Editor, { EditorRef } from "@/components/Editor";
 
 import styles from './index.module.less';
 
@@ -34,7 +34,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
   const editorRef = useRef<EditorRef>(null);
 
   const [show, setShow] = useState<boolean>(false);
-  const [position, setPosition] = useState<{x: number, y: number}>({x: 0, y: 0});
+  const [position, setPosition] = useState<{x: number, y: number}>({ x: 0, y: 0 });
   const [activeId, setActiveId] = useState<number>(-1);
   const size = useSize(ref);
   const { isDark } = useTheme();
@@ -137,7 +137,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
       // 获取容器偏移量
       const { top, left } = ref.current!.getBoundingClientRect();
       setShow(true);
-      setPosition({x: x - left + 10, y: y - top + 10});
+      setPosition({ x: x - left + 10, y: y - top + 10 });
       setActiveId(Number(id));
     });
 
@@ -173,7 +173,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
       const actualWidth = width * ratio;
       const actualHeight = height * ratio;
       const { x: cx, y: cy } = graph.current!.getClientByPoint(x, y);
-      setPosition({x: cx - left + actualWidth / 2, y: cy - top + actualHeight / 2});
+      setPosition({ x: cx - left + actualWidth / 2, y: cy - top + actualHeight / 2 });
     }
 
     // 图面缩放和移动时重新设置位置

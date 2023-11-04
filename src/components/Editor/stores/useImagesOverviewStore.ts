@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { ImageElement } from "../types";
-import {Descendant, Editor} from "slate";
+import { Descendant, Editor } from "slate";
 
 interface IState {
   imageElements: ImageElement[];

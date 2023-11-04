@@ -1,5 +1,5 @@
-import {IBlockPanelListItem} from "@/components/Editor/types";
-import {insertGraphviz} from "@/components/Editor/utils";
+import { IBlockPanelListItem } from "@/components/Editor/types";
+import { insertGraphviz } from "@/components/Editor/utils";
 
 const items: IBlockPanelListItem[] = [{
   icon: 'graphviz',

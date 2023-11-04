@@ -1,4 +1,4 @@
-import {Editor} from "slate";
+import { Editor } from "slate";
 import { IHotKeyConfig } from "../types";
 import isHotKey from "is-hotkey";
 

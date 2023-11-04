@@ -1,5 +1,5 @@
-import {IHotKeyConfig} from "@/components/Editor/types";
-import {Editor, Range} from "slate";
+import { IHotKeyConfig } from "@/components/Editor/types";
+import { Editor, Range } from "slate";
 import {
   moveNextCol,
   moveNextRow,

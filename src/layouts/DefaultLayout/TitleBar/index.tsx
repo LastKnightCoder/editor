@@ -7,7 +7,7 @@ import { CaretDownOutlined } from '@ant-design/icons';
 import WindowControl from "@/components/WindowControl";
 
 import styles from './index.module.less';
-import {Popover} from "antd";
+import { Popover } from "antd";
 
 interface ITitleBarProps {
   className?: string;

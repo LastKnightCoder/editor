@@ -1,12 +1,12 @@
 import { useMemo } from "react";
-import {App, Button, message, Tabs, TabsProps} from 'antd';
+import { App, Button, message, Tabs, TabsProps } from 'antd';
 import CardItem2 from "@/pages/Cards/CardItem2";
 import LinkGraph from "@/components/LinkGraph";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useEditCardStore from "@/stores/useEditCardStore.ts";
 
-import {getAllLinkedCards} from "../utils.ts";
+import { getAllLinkedCards } from "../utils.ts";
 
 import { ICard } from "@/types";
 

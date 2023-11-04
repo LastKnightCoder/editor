@@ -18,7 +18,7 @@ import HtmlBlockExtension from "./html-block";
 import TikzExtension from "./tikz";
 import CustomBlockExtension from "./custom-block";
 import GraphvizExtension from "./graphviz";
-
+import { MultiColumnsContainerExtension, MultiColumnItemExtension } from './multi-column-layout';
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
@@ -46,6 +46,9 @@ export const tikz = new TikzExtension();
 export const customBlock = new CustomBlockExtension();
 export const graphviz = new GraphvizExtension();
 
+const multiColumnContainer = new MultiColumnsContainerExtension();
+const multiColumnItem = new MultiColumnItemExtension();
+
 export const startExtensions = [
   paragraph,
   header,
@@ -71,4 +74,6 @@ export const startExtensions = [
   tikz,
   customBlock,
   graphviz,
+  multiColumnContainer,
+  multiColumnItem,
 ];

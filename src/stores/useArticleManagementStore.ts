@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import {IArticle} from "@/types";
+import { IArticle } from "@/types";
 import {
   getAllArticles,
   createArticle,

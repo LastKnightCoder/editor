@@ -1,4 +1,4 @@
-import React, {useRef, useState} from "react";
+import React, { useRef, useState } from "react";
 import classnames from 'classnames';
 import { Transforms } from "slate";
 import { RenderElementProps, useSlate, useReadOnly, ReactEditor } from "slate-react";

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { DailyNote } from "@/types/daily_note.ts";
 import { getAllDailyNotes, createDailyNote, updateDailyNote, deleteDailyNote } from '@/commands';
-import {Descendant} from "slate";
+import { Descendant } from "slate";
 
 interface IState {
   dailyNotes: DailyNote[];

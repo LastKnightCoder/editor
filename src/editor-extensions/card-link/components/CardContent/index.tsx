@@ -1,5 +1,5 @@
 import Editor from '@/components/Editor';
-import {ICard} from "@/types";
+import { ICard } from "@/types";
 import styles from './index.module.less';
 
 interface ICardContentProps {

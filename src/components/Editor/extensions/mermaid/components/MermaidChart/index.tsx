@@ -1,4 +1,4 @@
-import React, {PropsWithChildren} from 'react';
+import React, { PropsWithChildren } from 'react';
 import { Transforms } from "slate";
 import { RenderElementProps, useSlate , ReactEditor } from 'slate-react';
 import Mermaid from '../Mermaid';

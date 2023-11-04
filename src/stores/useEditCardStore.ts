@@ -66,7 +66,7 @@ const useEditCardStore = create<IState & IActions>((set, get) => ({
     return card;
   },
   onEditingCardChange: (content: Descendant[]) => {
-    const { editingCard} = get();
+    const { editingCard } = get();
     if (!editingCard) {
       return;
     }

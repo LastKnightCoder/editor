@@ -4,7 +4,7 @@ import { IoExitOutline } from "react-icons/io5";
 import { PiGraph } from "react-icons/pi";
 import { EditOutlined, ReadOutlined, SaveOutlined } from '@ant-design/icons';
 
-import Editor, {EditorRef} from "@/components/Editor";
+import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import LinkTab from "./LinkTab";
 import AddCardLinkModal from "./AddCardLinkModal";
@@ -20,6 +20,8 @@ import styles from './index.module.less';
 export interface CardDetailRef {
   quit: () => Promise<void>;
 }
+
+const customExtensions = [cardLinkExtension];
 
 const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
   const editorRef = useRef<EditorRef>(null);
@@ -139,7 +141,7 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
                   initValue={editingCard?.content && editingCard.content.length > 0 ? editingCard.content : undefined}
                   readonly={readonly}
                   onChange={onEdit}
-                  extensions={[cardLinkExtension]}
+                  extensions={customExtensions}
                 />
           }
         </div>
@@ -152,7 +154,7 @@ const CardDetail = forwardRef<CardDetailRef>((_, ref) => {
           />
         </div>
       </div>
-      <div className={classnames(styles.linksContainer, {[styles.hide]: !showLinksGraph})}>
+      <div className={classnames(styles.linksContainer, { [styles.hide]: !showLinksGraph })}>
         <LinkTab
           onClickLinkCard={onClickLinkCard}
         />

@@ -1,4 +1,4 @@
-import {useEffect, useMemo} from "react";
+import { useEffect, useMemo } from "react";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 const useSyncFont = () => {

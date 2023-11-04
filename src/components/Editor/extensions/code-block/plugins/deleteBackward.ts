@@ -1,6 +1,6 @@
-import {Editor, Element as SlateElement, Range, Transforms} from "slate";
-import {isAtParagraphStart, isParagraphAndEmpty} from "@/components/Editor/utils";
-import {CodeBlockElement} from "@/components/Editor/types";
+import { Editor, Element as SlateElement, Range, Transforms } from "slate";
+import { isAtParagraphStart, isParagraphAndEmpty } from "@/components/Editor/utils";
+import { CodeBlockElement } from "@/components/Editor/types";
 import { codeBlockMap } from "..";
 
 export const deleteBackward = (editor: Editor) => {

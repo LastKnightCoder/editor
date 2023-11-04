@@ -2,7 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 import styles from './index.module.less';
-import {Tooltip} from "antd";
+import { Tooltip } from "antd";
 
 interface IIconTextProps {
   icon: React.ReactNode;

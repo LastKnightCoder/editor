@@ -1,5 +1,5 @@
 import { Drawer } from "antd";
-import {Descendant} from "slate";
+import { Descendant } from "slate";
 
 interface EditorDetailProps {
   open: boolean;

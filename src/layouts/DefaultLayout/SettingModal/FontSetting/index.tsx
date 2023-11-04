@@ -1,7 +1,7 @@
 import { InputNumber, Space, Select } from "antd";
-import {useMemo, useState} from "react";
+import { useMemo, useState } from "react";
 import { useAsyncEffect } from "ahooks";
-import {produce} from "immer";
+import { produce } from "immer";
 
 import { getAllFonts } from '@/commands';
 import useSettingStore from "@/stores/useSettingStore.ts";

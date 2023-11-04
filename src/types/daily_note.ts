@@ -1,4 +1,4 @@
-import {Descendant} from "slate";
+import { Descendant } from "slate";
 
 export interface DailyNote {
   id: number;

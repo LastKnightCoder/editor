@@ -1,9 +1,9 @@
-import React, {PropsWithChildren} from 'react';
-import {RenderElementProps, useSlate, ReactEditor} from "slate-react";
-import {GraphvizElement} from "@/components/Editor/types";
+import React, { PropsWithChildren } from 'react';
+import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { GraphvizElement } from "@/components/Editor/types";
 import styles from './index.module.less';
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
-import {Transforms} from "slate";
+import { Transforms } from "slate";
 import { Graphviz } from 'graphviz-react';
 import If from '@/components/If';
 
@@ -32,7 +32,7 @@ const GraphvizElement: React.FC<PropsWithChildren<GraphvizProps>> = (props) => {
         center
       >
         <If condition={!!dot}>
-          <Graphviz dot={dot} options={{fit:true}} />
+          <Graphviz dot={dot} options={{ fit:true }} />
         </If>
         <If condition={!dot}>
           <div contentEditable={false} className={styles.empty}>点击编辑图表</div>

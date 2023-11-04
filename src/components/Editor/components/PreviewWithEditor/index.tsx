@@ -1,18 +1,18 @@
-import React, {PropsWithChildren, useRef, useState} from "react";
-import {UnControlled as CodeEditor} from "react-codemirror2";
-import {Editor, EditorChange} from "codemirror";
+import React, { PropsWithChildren, useRef, useState } from "react";
+import { UnControlled as CodeEditor } from "react-codemirror2";
+import { Editor, EditorChange } from "codemirror";
 import classnames from "classnames";
 import { useClickAway, useDebounceFn } from "ahooks";
-import {ReactEditor, useSlate, useReadOnly} from "slate-react";
-import {Transforms} from "slate";
+import { ReactEditor, useSlate, useReadOnly } from "slate-react";
+import { Transforms } from "slate";
 
-import {DeleteOutlined} from "@ant-design/icons";
+import { DeleteOutlined } from "@ant-design/icons";
 import useTheme from "@/hooks/useTheme.ts";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import If from "@/components/If";
 
 import AddParagraph from "../AddParagraph";
-import {CustomElement} from "../../types";
+import { CustomElement } from "../../types";
 import styles from "./index.module.less";
 
 interface IPreviewWithEditorProps {
@@ -117,7 +117,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
           <div className={styles.divider}></div>
         </If>
         <div
-          className={classnames(styles.preview, {[styles.center]: center, [styles.extend]: extend})}
+          className={classnames(styles.preview, { [styles.center]: center, [styles.extend]: extend })}
           onClick={onClick}
         >
           <ErrorBoundary>

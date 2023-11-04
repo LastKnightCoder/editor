@@ -1,6 +1,6 @@
-import {Editor, Range} from "slate";
-import {insertColLeft, insertColRight, insertRowAfter, insertRowBefore} from "@/components/Editor/utils";
-import {IHotKeyConfig} from "@/components/Editor/types";
+import { Editor, Range } from "slate";
+import { insertColLeft, insertColRight, insertRowAfter, insertRowBefore } from "@/components/Editor/utils";
+import { IHotKeyConfig } from "@/components/Editor/types";
 
 const insert: IHotKeyConfig[] = [{
   hotKey: 'mod+right',

@@ -1,4 +1,4 @@
-import {ICard} from "@/types/card.ts";
+import { ICard } from "@/types/card.ts";
 
 export interface History {
   id: number;

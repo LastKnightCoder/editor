@@ -1,4 +1,4 @@
-import {IHotKeyConfig} from "@/components/Editor/types";
+import { IHotKeyConfig } from "@/components/Editor/types";
 import { Editor, Transforms } from "slate";
 import { getParentNodeByNode, isAtParagraphStart, getPreviousSiblingNode } from "@/components/Editor/utils";
 import { message } from "antd";
@@ -28,7 +28,7 @@ export const indent: IHotKeyConfig[] = [{
       const previousSibling = getPreviousSiblingNode(editor, match[0])!;
       // 包裹为 bulleted-list 或 numbered-list，并包裹在上一个 list-item 中
       Transforms.wrapNodes(editor, {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+         
         // @ts-ignore
         type: parentType,
         children: []
@@ -38,7 +38,7 @@ export const indent: IHotKeyConfig[] = [{
       // 放在最后面
       Transforms.moveNodes(editor, {
         match: n => n.type === parentType,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+         
         // @ts-ignore
         to: [...previousSibling[1], previousSibling[0].children.length]
       })

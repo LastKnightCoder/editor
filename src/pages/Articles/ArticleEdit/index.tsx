@@ -10,7 +10,7 @@ import { MdOutlineContentPasteGo } from 'react-icons/md';
 
 import Editor, { EditorRef } from "@/components/Editor";
 import EditorSourceValue from "@/components/EditorSourceValue";
-import useEditArticleStore, {EditingArticle} from "@/stores/useEditArticleStore.ts";
+import useEditArticleStore, { EditingArticle } from "@/stores/useEditArticleStore.ts";
 import { CREATE_ARTICLE_ID } from "@/constants";
 import Outline from "@/components/Outline";
 
@@ -21,7 +21,7 @@ import For from "@/components/For";
 import If from "@/components/If";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import ArticleCard from "@/pages/Articles/ArticleCard";
-import {IArticle} from "@/types";
+import { IArticle } from "@/types";
 
 const ArticleEdit = () => {
   const {

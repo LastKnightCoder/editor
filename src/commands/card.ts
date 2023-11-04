@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api';
-import {ICard, History, CardHistory} from "@/types";
+import { ICard, History, CardHistory } from "@/types";
 
 export async function createCard(card: Pick<ICard, 'content' | 'tags' | 'links'>): Promise<number> {
   return await invoke('insert_one_card', {

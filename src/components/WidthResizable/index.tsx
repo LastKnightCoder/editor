@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState, PropsWithChildren} from 'react';
+import React, { useCallback, useEffect, useState, PropsWithChildren } from 'react';
 import { useMouse, useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 
@@ -101,7 +101,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
 
   return (
     <div
-      className={classnames(styles.widthResizable, {[styles.shrink]: shrinkAble}, className)}
+      className={classnames(styles.widthResizable, { [styles.shrink]: shrinkAble }, className)}
       style={{ ...style, width }}
       ref={containerRef}
     >

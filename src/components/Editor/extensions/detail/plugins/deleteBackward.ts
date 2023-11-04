@@ -1,5 +1,5 @@
-import {Editor, Transforms} from "slate";
-import {getPreviousSiblingNode, isAtParagraphStart, isParagraphElement} from "@/components/Editor/utils";
+import { Editor, Transforms } from "slate";
+import { getPreviousSiblingNode, isAtParagraphStart, isParagraphElement } from "@/components/Editor/utils";
 
 export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;

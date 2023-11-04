@@ -1,5 +1,5 @@
-import {insertBlockMath} from "@/components/Editor/utils";
-import {IBlockPanelListItem} from "@/components/Editor/types";
+import { insertBlockMath } from "@/components/Editor/utils";
+import { IBlockPanelListItem } from "@/components/Editor/types";
 
 const items: IBlockPanelListItem[] = [{
   icon: 'math',

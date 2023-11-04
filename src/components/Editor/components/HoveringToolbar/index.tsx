@@ -1,4 +1,4 @@
-import React, {ReactNode, useEffect, useMemo, useRef, useState} from "react";
+import React, { ReactNode, useEffect, useMemo, useRef, useState, memo } from "react";
 import { createPortal } from 'react-dom';
 
 import { Editor, Range } from 'slate';
@@ -27,7 +27,7 @@ export const HoveringBarContext = React.createContext<IHoveringBarContext>({
   isHoveringBarShow: false,
 })
 
-const HoveringToolbar = (props: IHoveringToolbarProps) => {
+const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
   const { configs } = props;
 
   const sortedConfigs: IConfigItem[] = useMemo(() => {
@@ -138,6 +138,6 @@ const HoveringToolbar = (props: IHoveringToolbarProps) => {
       </HoveringBarContext.Provider>
     </Portal>
   )
-}
+});
 
 export default HoveringToolbar;

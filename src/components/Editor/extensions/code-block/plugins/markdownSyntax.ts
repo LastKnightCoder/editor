@@ -1,5 +1,5 @@
 import { Editor, Transforms } from "slate";
-import { ParagraphElement} from "@/components/Editor/types";
+import { ParagraphElement } from "@/components/Editor/types";
 import { insertCodeBlock } from "@/components/Editor/utils";
 
 export const markdownSyntax = (editor: Editor) => {

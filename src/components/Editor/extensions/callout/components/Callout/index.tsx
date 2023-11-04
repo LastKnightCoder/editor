@@ -58,7 +58,8 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
             ref={titleRef}
             onBlur={handleTitleBlur}
             className={styles.title}
-            contentEditable={!readOnly}
+            // @ts-ignore
+            contentEditable={!readOnly ? 'plaintext-only' : false}
             suppressContentEditableWarning
           >
             {realTitle}

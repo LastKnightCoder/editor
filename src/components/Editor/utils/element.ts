@@ -6,8 +6,8 @@ import {
   CustomElement,
   TableElement, TableRowElement, TableCellElement
 } from "../types";
-import {Element, isEditor, Node, Editor, Path} from "slate";
-import {ReactEditor} from "slate-react";
+import { Element, isEditor, Node, Editor, Path } from "slate";
+import { ReactEditor } from "slate-react";
 
 export const isLeafNode = (node: Node) => {
   return !Element.isElement(node) && Node.isNode(node) && !isEditor(node);

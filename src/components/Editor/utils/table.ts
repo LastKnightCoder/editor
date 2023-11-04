@@ -121,9 +121,9 @@ const insertRow = (editor: Editor, after: boolean) => {
 
   const newRow: TableRowElement = {
     type: 'table-row',
-    children: Array.from({length: columns}, () => ({
+    children: Array.from({ length: columns }, () => ({
       type: 'table-cell',
-      children: [{ type: 'formatted', text: ''}],
+      children: [{ type: 'formatted', text: '' }],
     })),
   };
 
@@ -175,7 +175,7 @@ const insertCol = (editor: Editor, right: boolean) => {
           ...rowElement.children.slice(0, index),
           {
             type: 'table-cell',
-            children: [{ type: 'formatted', text: ''}],
+            children: [{ type: 'formatted', text: '' }],
           },
           ...rowElement.children.slice(index),
         ],
@@ -220,7 +220,7 @@ export const deleteRowByIndex = (editor: Editor, index: number) => {
     ],
   }
   if (newTable.children.length === 0) {
-    replaceNode(editor, { type: 'paragraph', children: [{ type: 'formatted', text: ''}] }, n => n.type === 'table');
+    replaceNode(editor, { type: 'paragraph', children: [{ type: 'formatted', text: '' }] }, n => n.type === 'table');
     return;
   }
   replaceNode(editor, newTable, n => n.type === 'table');
@@ -275,7 +275,7 @@ export const deleteColByIndex = (editor: Editor, index: number) => {
     }),
   }
   if (newTable.children[0].children.length === 0) {
-    replaceNode(editor, { type: 'paragraph', children: [{ type: 'formatted', text: ''}] }, n => n.type === 'table');
+    replaceNode(editor, { type: 'paragraph', children: [{ type: 'formatted', text: '' }] }, n => n.type === 'table');
     return;
   }
   replaceNode(editor, newTable, n => n.type === 'table');

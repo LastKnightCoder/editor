@@ -1,5 +1,5 @@
 import { IHotKeyConfig } from "@/components/Editor/types";
-import {insertCodeBlock, isCollapsed} from "@/components/Editor/utils";
+import { insertCodeBlock, isCollapsed } from "@/components/Editor/utils";
 
 export const insert: IHotKeyConfig[] = [{
   hotKey: 'mod+`',

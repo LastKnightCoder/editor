@@ -1,16 +1,12 @@
-import React, {useEffect, useState} from 'react';
+import React, { useEffect } from 'react';
 import classnames from "classnames";
 
-import { message } from 'antd';
-import { SettingOutlined, SyncOutlined } from '@ant-design/icons';
+import { SettingOutlined } from '@ant-design/icons';
 import { MdOutlineDarkMode, MdOutlineLightMode } from 'react-icons/md';
 import IconText from "@/components/IconText";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 import styles from './index.module.less';
-import { checkUpdate, installUpdate } from '@tauri-apps/api/updater'
-import { relaunch } from '@tauri-apps/api/process'
-
 
 interface ISidebarProps {
   className?: string;
@@ -20,7 +16,6 @@ interface ISidebarProps {
 const Sidebar = (props: ISidebarProps) => {
   const { className, style } = props;
 
-  const [checking, setChecking] = useState(false);
 
   const {
     darkMode,
@@ -42,31 +37,6 @@ const Sidebar = (props: ISidebarProps) => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
   }, [darkMode]);
 
-  const check = async () => {
-    if (checking) return;
-    setChecking(true);
-    try {
-      const { shouldUpdate, manifest } = await checkUpdate()
-
-      if (shouldUpdate) {
-        console.log(
-          `Installing update ${manifest?.version}, ${manifest?.date}, ${manifest?.body}`
-        )
-
-        await installUpdate()
-        await relaunch()
-      } else {
-        message.info('已是最新版本')
-      }
-    } catch (error) {
-      // @ts-ignore
-      message.error(error);
-      console.error(error)
-    } finally {
-      setChecking(false)
-    }
-  }
-
   return (
     <div className={classnames(styles.sidebar, className)} style={style}>
       <div>
@@ -77,11 +47,6 @@ const Sidebar = (props: ISidebarProps) => {
           icon={darkMode ? <MdOutlineLightMode /> : <MdOutlineDarkMode />}
           text={darkMode ? '浅色' : '深色'}
           onClick={toggleDarkMode}
-        />
-        <IconText
-          icon={<SyncOutlined className={checking ? styles.checking : ''} />}
-          text={'更新'}
-          onClick={check}
         />
         <IconText
           icon={<SettingOutlined />}

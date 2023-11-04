@@ -1,5 +1,5 @@
-import React, {PropsWithChildren} from "react";
-import {RenderElementProps} from "slate-react";
+import React, { PropsWithChildren } from "react";
+import { RenderElementProps } from "slate-react";
 
 import { BulletedListElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";

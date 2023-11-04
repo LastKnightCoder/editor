@@ -1,6 +1,6 @@
 import List from './List';
 import useBlockPanelStore from "../../stores/useBlockPanelStore.ts";
-import {useEffect, useMemo} from "react";
+import { useEffect, useMemo } from "react";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
 interface IBlockPanelProps {

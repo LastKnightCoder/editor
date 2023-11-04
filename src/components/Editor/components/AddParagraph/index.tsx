@@ -3,7 +3,7 @@ import classnames from 'classnames';
 import { useSlate, useReadOnly } from "slate-react";
 
 import { CustomElement } from "../../types";
-import {insertParagraphAndFocus} from "../../utils";
+import { insertParagraphAndFocus } from "../../utils";
 import styles from './index.module.less';
 
 

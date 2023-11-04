@@ -1,5 +1,5 @@
-import {Editor, Transforms, Element, Range} from "slate";
-import {getCurrentTextNode} from "@/components/Editor/utils";
+import { Editor, Transforms, Element, Range } from "slate";
+import { getCurrentTextNode } from "@/components/Editor/utils";
 
 export const unwrapCardLink = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {

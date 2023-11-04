@@ -15,7 +15,7 @@ import color from '@/assets/hovering_bar/color.svg';
 import { HoveringBarContext } from "@/components/Editor/components/HoveringToolbar";
 
 import styles from './index.module.less';
-import {Tooltip} from "antd";
+import { Tooltip } from "antd";
 
 const ColorText = () => {
   const editor = useSlate();

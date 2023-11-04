@@ -1,6 +1,6 @@
-import {Editor, Transforms} from "slate";
-import {CalloutElement} from "@/components/Editor/types";
-import {isParagraphAndEmpty} from "@/components/Editor/utils";
+import { Editor, Transforms } from "slate";
+import { CalloutElement } from "@/components/Editor/types";
+import { isParagraphAndEmpty } from "@/components/Editor/utils";
 
 // 如果 callout 在第一行，且内容为空时，删除 callout 时，转化为 paragraph
 export const deleteFirstLineCallout = (editor: Editor) => {

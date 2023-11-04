@@ -1,5 +1,5 @@
 import { useMutationObserver } from "ahooks";
-import {useMemo, useState} from "react";
+import { useMemo, useState } from "react";
 
 const useTheme = () => {
   const [theme, setTheme] = useState(() => {

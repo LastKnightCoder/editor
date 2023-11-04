@@ -36,10 +36,10 @@ const ImagesOverview = () => {
         <div className={styles.close} onClick={closeImagesOverview}>
           <CloseOutlined />
         </div>
-        <div className={classnames(styles.prev, {[styles.none]: !hasPrevImage})} onClick={switchPrev}>
+        <div className={classnames(styles.prev, { [styles.none]: !hasPrevImage })} onClick={switchPrev}>
           <LeftOutlined />
         </div>
-        <div className={classnames(styles.next, {[styles.none]: !hasNextImage})} onClick={switchNext}>
+        <div className={classnames(styles.next, { [styles.none]: !hasNextImage })} onClick={switchNext}>
           <RightOutlined />
         </div>
       </div>

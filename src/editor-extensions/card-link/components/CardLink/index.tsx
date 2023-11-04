@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Popover } from "antd";
 import { RenderElementProps } from "slate-react";
 
-import {CardLinkElement} from "@/editor-extensions/card-link";
+import { CardLinkElement } from "@/editor-extensions/card-link";
 import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
 import CardContent from "../CardContent";
 

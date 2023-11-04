@@ -1,4 +1,4 @@
-import {Editor, Range, Transforms} from "slate";
+import { Editor, Range, Transforms } from "slate";
 
 export const inlineCode = (editor: Editor) => {
   const { insertText } = editor;

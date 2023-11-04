@@ -1,5 +1,5 @@
-import {insertNumberedList} from "@/components/Editor/utils";
-import {IBlockPanelListItem} from "@/components/Editor/types";
+import { insertNumberedList } from "@/components/Editor/utils";
+import { IBlockPanelListItem } from "@/components/Editor/types";
 
 const items: IBlockPanelListItem[] = [{
   icon: 'numbered-list',

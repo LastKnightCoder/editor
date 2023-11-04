@@ -3,7 +3,7 @@ import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import classnames from "classnames";
 import { Editor, EditorChange } from 'codemirror';
-import {message} from "antd";
+import { message } from "antd";
 import { UnControlled as CodeEditor } from 'react-codemirror2';
 import isHotkey from "is-hotkey";
 
@@ -50,7 +50,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+     
     // @ts-ignore
     const alias: string = aliases[language] || language;
     const languageConfig = LANGUAGES.find((lang) => lang.name.toLowerCase() === alias.toLowerCase());

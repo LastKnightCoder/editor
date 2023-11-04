@@ -1,0 +1,52 @@
+.itemContainer {
+  flex: auto;
+  position: relative;
+  &.notLast {
+    &::after {
+      content: '';
+      position: absolute;
+      height: calc(100% - 20px);
+      right: -5px;
+      top: 10px;
+      width: 1px;
+      background-color: var(--line-color);
+    }
+  }
+  .addItem {
+    position: absolute;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: pointer;
+    &:hover {
+      opacity: 1;
+      background-color: var(--common-hover-bg);
+    }
+  }
+  .addLeft {
+    left: 0;
+  }
+  .addRight {
+    right: 0;
+  }
+  .delete {
+    position: absolute;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    right: 0;
+    &:hover {
+      background-color: var(--common-hover-bg);
+    }
+  }
+}

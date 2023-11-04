@@ -12,15 +12,15 @@ interface IErrorBoundaryState {
 class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBoundaryState> {
   constructor(props: IErrorBoundaryProps) {
     super(props);
-    this.state = {error: ""};
+    this.state = { error: "" };
   }
 
   componentDidCatch(error: Error) {
-    this.setState({error: `${error.name}: ${error.message}`});
+    this.setState({ error: `${error.name}: ${error.message}` });
   }
 
   render() {
-    const {error} = this.state;
+    const { error } = this.state;
     if (error) {
       return (
         <div>{error}</div>

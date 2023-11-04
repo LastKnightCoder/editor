@@ -1,7 +1,7 @@
 import React from 'react'
 import { RenderElementProps } from "slate-react";
 
-import {ParagraphElement} from "@/components/Editor/types";
+import { ParagraphElement } from "@/components/Editor/types";
 
 import styles from './index.module.less';
 

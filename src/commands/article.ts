@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api";
-import {IArticle} from "@/types";
+import { IArticle } from "@/types";
 
 export async function createArticle(article: Omit<IArticle, 'id' | 'create_time' | 'update_time'>): Promise<number> {
   return await invoke('create_article', {

@@ -1,4 +1,4 @@
-import {Editor, Range} from "slate";
+import { Editor, Range } from "slate";
 
 export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;

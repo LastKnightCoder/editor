@@ -1,6 +1,6 @@
-import {Editor, Element as SlateElement, Transforms} from "slate";
-import {isCheckListItemElement, isParagraphAndEmpty, isParagraphElement} from "@/components/Editor/utils";
-import {ListItemElement} from "@/components/Editor/types";
+import { Editor, Element as SlateElement, Transforms } from "slate";
+import { isCheckListItemElement, isParagraphAndEmpty, isParagraphElement } from "@/components/Editor/utils";
+import { ListItemElement } from "@/components/Editor/types";
 
 export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;

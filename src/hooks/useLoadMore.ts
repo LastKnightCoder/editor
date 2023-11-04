@@ -1,4 +1,4 @@
-import {useEffect} from "react";
+import { useEffect } from "react";
 
 const useLoadMore = (loaderRef: any, loadMore: () => void) => {
   useEffect(() => {

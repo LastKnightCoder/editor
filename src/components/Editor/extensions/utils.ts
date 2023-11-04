@@ -1,5 +1,5 @@
-import {Editor, Element as SlateElement, Node as SlateNode, Path, Range, Transforms} from "slate";
-import {ParagraphElement} from "@/components/Editor/types";
+import { Editor, Element as SlateElement, Node as SlateNode, Path, Range, Transforms } from "slate";
+import { ParagraphElement } from "@/components/Editor/types";
 
 // 是否在段落的开头按下的空格
 export const isAtFirst = (editor: Editor, text: string) => {

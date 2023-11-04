@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback, memo } from "react";
-import {Button, Input, Skeleton, Spin, App, Tooltip} from 'antd';
+import { Button, Input, Skeleton, Spin, App, Tooltip } from 'antd';
 import { CloseOutlined, UpOutlined, PlusOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import If from "@/components/If";
 import Tags from "@/components/Tags";

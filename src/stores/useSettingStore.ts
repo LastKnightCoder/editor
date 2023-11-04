@@ -41,8 +41,8 @@ const initialState: IState = {
   setting: {
     darkMode: false,
     fontSetting: {
-      chineseFont: '楷体',
-      englishFont: 'Consolas',
+      chineseFont: '华文楷体',
+      englishFont: 'American TypeWriter',
       fontSize: 16,
     },
     imageBed: {

@@ -1,5 +1,5 @@
 import HighlightText from "../components/HighlightText";
-import {IConfigItem} from "@/components/Editor/types";
+import { IConfigItem } from "@/components/Editor/types";
 
 const highlightConfigs: IConfigItem[] = [{
   id: 'highlight',

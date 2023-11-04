@@ -1,5 +1,5 @@
 import React from 'react';
-import {ICard} from "@/types";
+import { ICard } from "@/types";
 import Editor from '@/components/Editor';
 import styles from './index.module.less';
 import { CloseOutlined } from '@ant-design/icons';

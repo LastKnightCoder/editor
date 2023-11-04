@@ -1,10 +1,10 @@
-import React, {useMemo} from 'react';
+import React, { useMemo } from 'react';
 import { RenderLeafProps } from "slate-react";
 import Highlight from "../Highlight";
 import classnames from 'classnames';
 import styles from './index.module.less';
 
-import {FormattedText, HighlightColor} from "../../types";
+import { FormattedText, HighlightColor } from "../../types";
 
 interface IFormattedTextProps {
   attributes: RenderLeafProps['attributes'];

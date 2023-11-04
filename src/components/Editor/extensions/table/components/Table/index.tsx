@@ -26,7 +26,7 @@ import {
   deletePrevCol,
 } from "@/components/Editor/utils";
 
-import {TableElement} from "@/components/Editor/types";
+import { TableElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
 import ActionItem from "./ActionItem";
@@ -121,7 +121,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
     <div>
       <div
         contentEditable={false}
-        className={classnames(styles.operate, {[styles.hide]: !isActive || readOnly})}
+        className={classnames(styles.operate, { [styles.hide]: !isActive || readOnly })}
       >
         <div className={styles.left}></div>
         <div className={styles.right}>

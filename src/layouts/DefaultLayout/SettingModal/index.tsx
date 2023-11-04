@@ -1,4 +1,4 @@
-import {Modal, Tabs, TabsProps} from "antd";
+import { Modal, Tabs, TabsProps } from "antd";
 import { useEffect } from "react";
 
 import useSettingStore from "@/stores/useSettingStore.ts";

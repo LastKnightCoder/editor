@@ -1,6 +1,6 @@
 import { IHotKeyConfig } from "@/components/Editor/types";
 import { insertBlockMath } from "@/components/Editor/utils";
-import {Editor, Element as SlateElement, Range} from "slate";
+import { Editor, Element as SlateElement, Range } from "slate";
 
 export const blockShortcut:  IHotKeyConfig[] = [{
   hotKey: 'mod+shift+m',

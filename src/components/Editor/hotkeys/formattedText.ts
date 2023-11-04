@@ -1,5 +1,5 @@
 import { getCurrentTextNode } from "../utils";
-import {Editor, Range, Transforms} from "slate";
+import { Editor, Range, Transforms } from "slate";
 import { FormattedText, Mark, IHotKeyConfig } from "../types";
 
 import React from "react";

@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import {ReactNode} from "react";
+import { ReactNode } from "react";
 
 import Tag from './Tag';
 import styles from "./index.module.less";

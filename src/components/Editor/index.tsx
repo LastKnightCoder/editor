@@ -1,7 +1,8 @@
-import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo, memo } from "react";
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory } from 'slate-history';
+import { useWhyDidYouUpdate } from "ahooks";
 
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 
@@ -36,7 +37,7 @@ import 'codemirror/addon/edit/closebrackets.js';
 
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/blackboard.css';
-import {IConfigItem} from "@/components/Editor/types";
+import { IConfigItem } from "@/components/Editor/types";
 
 
 export type EditorRef = {
@@ -62,16 +63,17 @@ const defaultPlugins: Plugin[] = [
   withSlashCommands,
 ];
 
-const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
+const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
   const {
     initValue = DEFAULT_CARD_CONTENT,
     onChange,
     readonly = true,
-    extensions = [],
-    hoveringBarConfigs = [],
+    extensions,
+    hoveringBarConfigs,
   } = props;
 
   const finalExtensions = useMemo(() => {
+    if (!extensions) return startExtensions;
     return [...startExtensions, ...extensions];
   }, [extensions]);
 
@@ -85,7 +87,11 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
   }, [finalExtensions]);
 
   const finalHoveringBarConfigs = useMemo(() => {
-    return finalExtensions.map(extension => extension.getHoveringBarElements()).flat().concat(hoveringBarConfigs);
+    const configs =  finalExtensions.map(extension => extension.getHoveringBarElements()).flat();
+    if (hoveringBarConfigs) {
+      return configs.concat(hoveringBarConfigs);
+    }
+    return configs;
   }, [finalExtensions, hoveringBarConfigs]);
 
   const renderElement = useCallback((props: RenderElementProps) => {
@@ -110,6 +116,12 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
       setIsNormalized(true);
     }
   });
+
+  useWhyDidYouUpdate('Editor', {
+    ...props,
+    finalExtensions,
+    finalHoveringBarConfigs
+  })
 
   useImperativeHandle(ref, () => ({
     focus: () => {
@@ -161,6 +173,6 @@ const Index = forwardRef<EditorRef, IEditorProps>((props, ref) => {
         <BlockPanel extensions={finalExtensions} />
       </Slate>
   )
-});
+}));
 
 export default Index;

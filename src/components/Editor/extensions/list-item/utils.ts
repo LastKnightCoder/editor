@@ -1,4 +1,4 @@
-import {Editor, Element as SlateElement, Transforms} from "slate";
+import { Editor, Element as SlateElement, Transforms } from "slate";
 import {
   isAtParagraphStart,
   isListItemElement,
@@ -9,7 +9,7 @@ import {
   isParagraphElement,
   isParagraphAndEmpty
 } from "@/components/Editor/utils";
-import {ListItemElement} from "@/components/Editor/types";
+import { ListItemElement } from "@/components/Editor/types";
 
 // 在 list-item 中按下删除
 export const deleteListItem = (editor: Editor): boolean => {

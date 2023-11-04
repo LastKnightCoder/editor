@@ -3,7 +3,7 @@ import { MermaidElement } from "@/components/Editor/types";
 
 import Base from '../base';
 import IExtension from "../types.ts";
-import {RenderElementProps} from "slate-react";
+import { RenderElementProps } from "slate-react";
 
 import blockPanelItems from './block-panel-items';
 const MermaidChart = loadable(() => import("./components/MermaidChart"));

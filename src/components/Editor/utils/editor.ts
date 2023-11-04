@@ -1,5 +1,5 @@
-import {Editor, Transforms, Range, Node, Element, NodeMatch, NodeEntry} from "slate";
-import {isElementNode, isLeafNode, isParagraphElement, isInlineElementEmpty, isBlockElementEmpty} from "./element";
+import { Editor, Transforms, Range, Node, Element, NodeMatch, NodeEntry, Path } from "slate";
+import { isElementNode, isLeafNode, isParagraphElement, isInlineElementEmpty, isBlockElementEmpty } from "./element";
 import { ReactEditor } from "slate-react";
 import { ParagraphElement, BlockElement } from "@/components/Editor/types";
 
@@ -62,7 +62,7 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
     return;
   }
   const path = ReactEditor.findPath(editor, node);
-  const nextPath = [...path.slice(0, path.length - 1), path[path.length - 1] + 1];
+  const nextPath = Path.next(path);
   Transforms.insertNodes(editor, {
     type: 'paragraph',
     children: [{ type: 'formatted', text: '' }],
@@ -70,31 +70,9 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
     at: nextPath,
     select: true,
   });
-
-  const focus = () => {
-    ReactEditor.focus(editor);
-    Transforms.select(editor, {
-      anchor: {
-        path: [...nextPath, 0],
-        offset: 0,
-      },
-      focus: {
-        path: [...nextPath, 0],
-        offset: 0,
-      }
-    });
-  }
-
-  if (editor.isVoid(node)) {
-    setTimeout(() => {
-      focus();
-    }, 200);
-  } else {
-    focus();
-  }
 }
 
-export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, select = false) => {
+export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, options = {}) => {
   const [curEle] = Editor.nodes(editor, {
     match,
     mode: 'lowest',
@@ -107,7 +85,7 @@ export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, 
   });
   Transforms.insertNodes(editor, node, {
     at: curEle[1],
-    select,
+    ...options,
   });
   return curEle[1];
 }
@@ -191,3 +169,16 @@ export const removeCurrentEmptyNodeAndFocusPreviousNode = (editor: Editor) => {
   focusBlockElement(editor, prevNode[0]);
 }
 
+export const isFirstChild = (editor: Editor, node: Node) => {
+  const path = ReactEditor.findPath(editor, node);
+  if (!path) return false;
+  return path[path.length - 1] === 0;
+}
+
+export const isLastChild = (editor: Editor, node: Node) => {
+  const path = ReactEditor.findPath(editor, node);
+  if (!path) return false;
+  const parent = Editor.parent(editor, path);
+  if (!parent) return false;
+  return path[path.length - 1] === parent[0].children.length - 1;
+}

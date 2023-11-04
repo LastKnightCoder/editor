@@ -1,4 +1,4 @@
-import {ReactNode} from "react";
+import { ReactNode } from "react";
 import classnames from "classnames";
 
 import useTheme from "@/hooks/useTheme.ts";

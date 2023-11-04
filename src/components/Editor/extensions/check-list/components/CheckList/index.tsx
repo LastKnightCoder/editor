@@ -1,6 +1,6 @@
-import React, {PropsWithChildren} from 'react';
-import {RenderElementProps} from "slate-react";
-import {CheckListElement} from "@/components/Editor/types";
+import React, { PropsWithChildren } from 'react';
+import { RenderElementProps } from "slate-react";
+import { CheckListElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import styles from './index.module.less';
 

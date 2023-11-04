@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Popover, Spin } from "antd";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";

@@ -1,6 +1,6 @@
-import {Descendant} from "slate";
-import {DetailElement, ParagraphElement} from "@/components/Editor/types";
-import {Typography} from "antd";
+import { Descendant } from "slate";
+import { DetailElement, ParagraphElement } from "@/components/Editor/types";
+import { Typography } from "antd";
 import Katex from "@/components/Katex";
 
 export const getEditorTextValue = (value: Descendant[]) => {

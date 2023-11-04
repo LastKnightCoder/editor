@@ -1,8 +1,8 @@
 import { useMemo, useState, useRef } from 'react';
-import {BaseSelection, Editor, Transforms} from "slate";
+import { BaseSelection, Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
-import {message, Tooltip} from "antd";
+import { message, Tooltip } from "antd";
 import SVG from "react-inlinesvg";
 import SelectCardModal from "@/components/SelectCardModal";
 
@@ -15,7 +15,7 @@ import useEditCardStore from "@/stores/useEditCardStore.ts";
 import card from "@/assets/hovering_bar/card.svg";
 
 import styles from "./index.module.less";
-import {ICard} from "@/types";
+import { ICard } from "@/types";
 
 const LinkHoveringItem = () => {
   const selectionRef = useRef<BaseSelection | null>(null);

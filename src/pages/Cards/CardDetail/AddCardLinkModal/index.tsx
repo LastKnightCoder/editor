@@ -4,7 +4,7 @@ import useEditCardStore from "@/stores/useEditCardStore.ts";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 
 import SelectCardModal from "@/components/SelectCardModal";
-import {ICard} from "@/types";
+import { ICard } from "@/types";
 
 const AddCardLinkModal = () => {
   const {

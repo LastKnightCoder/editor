@@ -1,4 +1,4 @@
-import React, {PropsWithChildren} from "react";
+import React, { PropsWithChildren } from "react";
 import { RenderElementProps } from "slate-react";
 import { Transforms } from "slate";
 import { ReactEditor, useSlate } from "slate-react";

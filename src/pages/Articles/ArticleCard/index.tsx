@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import classnames from "classnames";
 import dayjs from "dayjs";
-import {message, Modal, Popover, Spin, Typography} from 'antd';
+import { message, Modal, Popover, Spin, Typography } from 'antd';
 import SVG from 'react-inlinesvg';
 import { CalendarOutlined } from '@ant-design/icons';
 import { MdMoreVert } from 'react-icons/md';
@@ -10,7 +10,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import Editor from "@/components/Editor";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
-import {IArticle} from "@/types";
+import { IArticle } from "@/types";
 
 import star from '@/assets/article/star.svg';
 

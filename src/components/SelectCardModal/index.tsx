@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import {Button, Empty, Input, Modal, Spin, Tooltip} from "antd";
+import { Button, Empty, Input, Modal, Spin, Tooltip } from "antd";
 import { UpOutlined } from "@ant-design/icons";
 
 import { ICard } from "@/types";

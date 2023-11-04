@@ -1,4 +1,4 @@
-import {createBrowserRouter, Navigate} from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import loadable from "@loadable/component";
 
 import DefaultLayout from '@/layouts/DefaultLayout';

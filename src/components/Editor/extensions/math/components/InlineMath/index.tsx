@@ -1,6 +1,6 @@
-import React, {PropsWithChildren, useState} from "react";
-import {Transforms} from "slate";
-import {ReactEditor, RenderElementProps, useSlate} from "slate-react";
+import React, { PropsWithChildren, useState } from "react";
+import { Transforms } from "slate";
+import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
 import { Popover, Input } from "antd";
 
 import Katex from "@/components/Katex";

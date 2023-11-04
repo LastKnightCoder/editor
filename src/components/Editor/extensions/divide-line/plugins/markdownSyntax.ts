@@ -1,5 +1,5 @@
-import {Editor, Transforms} from "slate";
-import {FormattedText, ParagraphElement} from "@/components/Editor/types";
+import { Editor, Transforms } from "slate";
+import { FormattedText, ParagraphElement } from "@/components/Editor/types";
 
 export const markdownSyntax = (editor: Editor) => {
   const { insertBreak } = editor;

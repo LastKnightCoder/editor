@@ -1,6 +1,6 @@
-import {RenderElementProps} from "slate-react";
-import {HTMLBlockElement} from "@/components/Editor/types";
-import React, {PropsWithChildren} from "react";
+import { RenderElementProps } from "slate-react";
+import { HTMLBlockElement } from "@/components/Editor/types";
+import React, { PropsWithChildren } from "react";
 import styles from './index.module.less';
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
 import { Transforms } from "slate";

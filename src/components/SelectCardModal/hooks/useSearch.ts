@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 
 import { findCardsByTags, excludeCards } from "@/utils/card.ts";
 
-import {ICard} from "@/types";
+import { ICard } from "@/types";
 
 const useSearch = (cards: ICard[], excludeCardIds: number[]) => {
   const [searchValue, setSearchValue] = useState<string>('');
