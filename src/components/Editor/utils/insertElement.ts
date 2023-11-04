@@ -5,28 +5,13 @@ import {isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode} from 
 
 import {
   BlockElement,
-  FormattedText,
   ImageElement,
-  ParagraphElement,
   TableCellElement,
   TableElement,
   TableRowElement,
   LinkElement
 } from "../types";
 import { codeBlockMap } from "../extensions/code-block";
-
-const emptyParagraph = {
-  type: 'paragraph',
-  children: [{
-    type: 'formatted',
-    text: '',
-  }] as FormattedText[],
-} as ParagraphElement;
-
-const emptyText = {
-  type: 'formatted',
-  text: '',
-} as const;
 
 
 interface InsertElementOptions {
@@ -46,7 +31,7 @@ const setOrInsertNode = (editor: Editor, node: BlockElement, options: InsertElem
   if (isParagraphAndEmpty(editor)) {
     return replaceNode(editor, node, n => n.type === 'paragraph', options.select);
   } else {
-    Transforms.insertNodes(editor, node, { select: true });
+    Transforms.insertNodes(editor, node, options);
     return Path.next(match[1]);
   }
 }
@@ -55,7 +40,7 @@ export const insertHeader = (editor: Editor, level: 1 | 2 | 3 | 4 | 5 | 6) => {
   setOrInsertNode(editor, {
     type: 'header',
     level,
-    children: [emptyText],
+    children: [{ type: 'formatted', text: '' }],
   }, {
     select: true,
   });
@@ -66,7 +51,13 @@ export const insertCallout = (editor: Editor, type: 'tip' | 'warning' | 'info' |
     type: 'callout',
     calloutType: type,
     title: '',
-    children: [emptyParagraph],
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '',
+      }],
+    }],
   }, {
     select: true,
   });
@@ -77,7 +68,13 @@ export const insertDetails = (editor: Editor) => {
     type: 'detail',
     title: '',
     open: true,
-    children: [emptyParagraph],
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: '',
+      }],
+    }],
   }, {
     select: true,
   });
@@ -99,7 +96,13 @@ export const insertBulletList = (editor: Editor) => {
     type: 'bulleted-list',
     children: [{
       type: 'list-item',
-      children: [emptyParagraph]
+      children: [{
+        type: 'paragraph',
+        children: [{
+          type: 'formatted',
+          text: '',
+        }],
+      }],
     }]
   });
 }
@@ -109,7 +112,13 @@ export const insertNumberedList = (editor: Editor) => {
     type: 'numbered-list',
     children: [{
       type: 'list-item',
-      children: [emptyParagraph]
+      children: [{
+        type: 'paragraph',
+        children: [{
+          type: 'formatted',
+          text: '',
+        }],
+      }],
     }]
   });
 }
@@ -120,7 +129,13 @@ export const insertCheckList = (editor: Editor) => {
     children: [{
       type: 'check-list-item',
       checked: false,
-      children: [emptyParagraph]
+      children: [{
+        type: 'paragraph',
+        children: [{
+          type: 'formatted',
+          text: '',
+        }],
+      }],
     }]
   });
 }
@@ -129,7 +144,7 @@ export const insertBlockMath = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: 'block-math',
     tex: '',
-    children: [emptyText]
+    children: [{ type: 'formatted', text: '' }]
   });
 }
 
@@ -139,7 +154,7 @@ export const insertTable = (editor: Editor, rows: number, cols: number) => {
     const tableCellElements: TableCellElement[] = Array.from({ length: cols }).map(() => {
       return {
         type: 'table-cell',
-        children: [emptyText],
+        children: [{ type: 'formatted', text: '' }],
       };
     });
     return {
@@ -161,7 +176,7 @@ export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
     code: '',
     language: language,
     uuid,
-    children: [emptyText]
+    children: [{ type: 'formatted', text: '' }]
   });
   // 聚焦到 code-block
   setTimeout(() => {
@@ -177,7 +192,7 @@ export const insertMermaid = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: 'mermaid',
     chart: '',
-    children: [emptyText]
+    children: [{ type: 'formatted', text: '' }]
   });
 }
 
@@ -185,7 +200,7 @@ export const insertTikz = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: 'tikz',
     content: '',
-    children: [emptyText]
+    children: [{ type: 'formatted', text: '' }]
   });
 }
 
@@ -193,7 +208,7 @@ export const insertGraphviz = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: 'graphviz',
     dot: '',
-    children: [emptyText]
+    children: [{ type: 'formatted', text: '' }]
   });
 }
 
@@ -201,7 +216,7 @@ export const insertHTMLBlock = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: 'html-block',
     html: '',
-    children: [emptyText]
+    children: [{ type: 'formatted', text: '' }]
   });
 }
 
@@ -209,14 +224,14 @@ export const insertCustomBlock = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: 'custom-block',
     content: '',
-    children: [emptyText]
+    children: [{ type: 'formatted', text: '' }]
   });
 }
 
 export const insertDivideLine = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: 'divide-line',
-    children: [emptyText],
+    children: [{ type: 'formatted', text: '' }],
   });
 }
 
@@ -275,7 +290,7 @@ export const wrapInlineMath = (editor: Editor) => {
     Transforms.wrapNodes(editor, {
       type: 'inline-math',
       tex: text,
-      children: [emptyText]
+      children: [{ type: 'formatted', text: '' }]
     }, {
       at: selection,
       split: true
