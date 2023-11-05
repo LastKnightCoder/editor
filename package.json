@@ -47,6 +47,7 @@
     "slate": "^0.94.1",
     "slate-history": "^0.93.0",
     "slate-react": "^0.97.0",
+    "swiper": "^11.0.3",
     "uuid": "^9.0.0",
     "zustand": "^4.3.8"
   },

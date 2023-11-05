@@ -1,15 +1,16 @@
-import { useState } from 'react';
-import { Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { Button, Modal } from 'antd';
-import { SettingOutlined } from '@ant-design/icons';
+import {useState} from 'react';
+import {Transforms} from "slate";
+import {ReactEditor, RenderElementProps, useReadOnly, useSlate} from "slate-react";
+import {Modal} from 'antd';
+import {SettingOutlined} from '@ant-design/icons';
 
-import HorizontalImageGallery from "../HorizontalImageGallery";
-import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
+import ImageGallerySetting, {ISetting} from "../ImageGallerySetting";
 import If from "@/components/If";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
+import SwipeImageGallery from "../SwipeImageGallery";
+import HorizontalImageGallery from "../HorizontalImageGallery";
 
-import { ImageGalleryElement } from "@/components/Editor/types";
+import { EGalleryMode, ImageGalleryElement } from "@/components/Editor/types";
 
 import styles from './index.module.less';
 
@@ -29,7 +30,6 @@ const ImageGallery = (props: IImageGalleryProps) => {
     height,
     images
   });
-  const [showSetting, setShowSetting] = useState(false);
 
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -56,22 +56,31 @@ const ImageGallery = (props: IImageGalleryProps) => {
 
   return (
     <div
-      onMouseEnter={() => { setShowSetting(true) }}
-      onMouseLeave={() => { setShowSetting(false) }}
       className={styles.imageGalleryContainer}
       {...attributes}
     >
       <If condition={images.length > 0}>
-        <HorizontalImageGallery items={images} height={height} />
+        <If condition={mode !== EGalleryMode.Inline}>
+          <HorizontalImageGallery items={images} height={height} />
+        </If>
+        <If condition={mode === EGalleryMode.Inline}>
+          <SwipeImageGallery items={images} />
+        </If>
       </If>
       <If condition={images.length === 0}>
         <div className={styles.emptySetting} onClick={() => { setSettingModalOpen(true) }}>
-          <SettingOutlined />
+          <div>上传图片</div>
         </div>
       </If>
-      <If condition={showSetting && !readOnly && images.length > 0}>
-        <div contentEditable={false} className={styles.settingButton}>
-          <Button onClick={() => { setSettingModalOpen(true) }}>设置</Button>
+      <If condition={!readOnly}>
+        <div contentEditable={false} className={styles.actions}>
+          <div className={styles.item} onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setSettingModalOpen(true);
+          }}>
+            <SettingOutlined />
+          </div>
         </div>
       </If>
       <AddParagraph element={element} />
