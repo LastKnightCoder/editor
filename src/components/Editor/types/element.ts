@@ -196,6 +196,7 @@ export interface HighlightBlockElement {
 }
 
 export interface ImageGalleryItem {
+  id: string;
   url: string;
   desc?: string;
 }
@@ -209,6 +210,7 @@ export enum EGalleryMode {
 export interface ImageGalleryElement {
   type: 'image-gallery';
   mode: EGalleryMode;
+  height?: number;
   images: ImageGalleryItem[];
   children: Descendant[];
 }

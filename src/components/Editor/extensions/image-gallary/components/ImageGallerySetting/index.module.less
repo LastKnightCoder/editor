@@ -1,0 +1,42 @@
+.settingContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  .title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  .imageListContainer {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 20px;
+    .uploadImage {
+      flex: none;
+      width: 120px;
+      height: 120px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      .content {
+        display: flex;
+        width: 100px;
+        height: 100px;
+        justify-content: center;
+        align-items: center;
+        border: 1px dashed gray;
+        cursor: pointer;
+        border-radius: 12px;
+      }
+    }
+    .imageList {
+      flex: auto;
+      overflow-x: auto;
+      display: flex;
+      gap: 10px;
+      height: 120px;
+      align-items: center;
+    }
+  }
+}
