@@ -22,7 +22,8 @@ export const withOverrideSettings = (editor: Editor) => {
       'html-block',
       'graphviz',
       'custom-block',
-      'divide-line'
+      'divide-line',
+      'image-gallery',
     ];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
@@ -37,7 +38,8 @@ export const withOverrideSettings = (editor: Editor) => {
       'html-block',
       'graphviz',
       'custom-block',
-      'divide-line'
+      'divide-line',
+      'image-gallery',
     ];
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }

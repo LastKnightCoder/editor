@@ -70,6 +70,12 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
     at: nextPath,
     select: true,
   });
+
+  ReactEditor.focus(editor);
+  Transforms.select(editor, {
+    anchor: Editor.start(editor, nextPath),
+    focus: Editor.end(editor, nextPath),
+  });
 }
 
 export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, options = {}) => {

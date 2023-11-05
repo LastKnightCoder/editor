@@ -16,10 +16,12 @@ const AddParagraph: React.FC<IAddParagraphProps> = (props) => {
   const editor = useSlate();
   const readOnly = useReadOnly();
 
-  const handleAddParagraph = () => {
+  const handleAddParagraph = (e: React.MouseEvent) => {
     if (readOnly) {
       return;
     }
+    e.preventDefault();
+    e.stopPropagation();
     insertParagraphAndFocus(editor, element);
   }
 

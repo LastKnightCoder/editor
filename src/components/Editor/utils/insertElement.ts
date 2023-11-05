@@ -11,7 +11,7 @@ import {
   TableRowElement,
   LinkElement,
   MultiColumnItemElement,
-  Color
+  Color, EGalleryMode
 } from "../types";
 import { codeBlockMap } from "../extensions/code-block";
 
@@ -286,6 +286,26 @@ export const insertHighlightBlock = (editor: Editor, color = 'red' as Color) => 
     }],
   }, {
     select: true
+  })
+}
+
+export const insertImageGallery = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: 'image-gallery',
+    mode: EGalleryMode.Horizontal,
+    images: [{
+      url: 'https://jsd.cdn.zzko.cn/gh/LastKnightCoder/image-for-2022@master/neom-Oj8w6hWC0dU-unsplash.79wmu5o5mls0.jpg'
+    }, {
+      url: 'https://jsd.cdn.zzko.cn/gh/LastKnightCoder/image-for-2022@master/neom-mPHOMhm45wk-unsplash.1j96j04ggu0.jpg'
+    }, {
+      url: 'https://jsd.cdn.zzko.cn/gh/LastKnightCoder/image-for-2022@master/claudio-schwarz-3N-QY4VqvnQ-unsplash.5phprprt0gk0.jpg'
+    }, {
+      url: 'https://jsd.cdn.zzko.cn/gh/LastKnightCoder/image-for-2022@master/benjamin-brunner-PhJJ4zlNZr0-unsplash.3h1ar3c355c0.jpg'
+    }],
+    children: [{
+      type: 'formatted',
+      text: ''
+    }]
   })
 }
 

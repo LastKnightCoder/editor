@@ -32,6 +32,7 @@
     "immer": "^10.0.2",
     "is-hotkey": "^0.2.0",
     "katex": "^0.16.8",
+    "lightgallery": "^2.7.2",
     "lodash": "^4.17.21",
     "mermaid": "^10.1.0",
     "react": "^18.2.0",

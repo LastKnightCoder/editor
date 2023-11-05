@@ -1,6 +1,7 @@
 import ParagraphExtension from "./paragraph";
 import HeaderExtension from "./header";
 import ImageExtension from "./image";
+import ImageGalleryExtension from "./image-gallary";
 import BulletedListExtension from "./bulleted-list";
 import NumberedListExtension from "./numbered-list";
 import { CheckListExtension, CheckListItemExtension } from "./check-list";
@@ -24,6 +25,7 @@ import HighlightBlockExtension from "./highlight-block";
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
 export const image = new ImageExtension();
+export const imageGallery = new ImageGalleryExtension();
 export const bulletedList = new BulletedListExtension();
 export const numberedList = new NumberedListExtension();
 export const checkList = new CheckListExtension();
@@ -56,6 +58,7 @@ export const startExtensions = [
   paragraph,
   header,
   image,
+  imageGallery,
   bulletedList,
   checkList,
   checkListItem,

@@ -29,7 +29,8 @@ export type CustomElement =
   | DivideLineElement
   | MultiColumnContainerElement
   | MultiColumnItemElement
-  | HighlightBlockElement;
+  | HighlightBlockElement
+  | ImageGalleryElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>
@@ -192,4 +193,22 @@ export interface HighlightBlockElement {
   type: 'highlight-block',
   children: BlockElement[];
   color: Color;
+}
+
+export interface ImageGalleryItem {
+  url: string;
+  desc?: string;
+}
+
+export enum EGalleryMode {
+  Horizontal = 1,
+  Vertical,
+  Inline,
+}
+
+export interface ImageGalleryElement {
+  type: 'image-gallery';
+  mode: EGalleryMode;
+  images: ImageGalleryItem[];
+  children: Descendant[];
 }
