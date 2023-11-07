@@ -1,19 +1,22 @@
 import React, {useRef, useState} from 'react';
-import { produce } from 'immer';
-import {InputNumber, Select, Space, Spin} from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { v4 as getUuid } from 'uuid';
+import {produce} from 'immer';
+import {InputNumber, Select, Space, Spin, Switch} from 'antd';
+import {PlusOutlined} from '@ant-design/icons';
+import {v4 as getUuid} from 'uuid';
 
-import { EGalleryMode, ImageGalleryItem } from "@/components/Editor/types";
-import { transformGithubUrlToCDNUrl, uploadFileFromFile } from "@/utils";
+import {EGalleryMode, ImageGalleryItem} from "@/components/Editor/types";
+import {transformGithubUrlToCDNUrl, uploadFileFromFile} from "@/utils";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 import ImageItem from "./ImageItem";
 import styles from './index.module.less';
+import If from "@/components/If";
 
 export interface ISetting {
   mode: EGalleryMode;
+  wider?: boolean;
   height?: number;
+  columnCount?: number;
   images: ImageGalleryItem[];
 }
 
@@ -41,6 +44,18 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   const onModeChange = (value: EGalleryMode) => {
     onSettingChange(produce(setting, draft => {
       draft.mode = value;
+    }))
+  }
+
+  const onWiderChange = (value: boolean) => {
+    onSettingChange(produce(setting, draft => {
+      draft.wider = value;
+    }))
+  }
+
+  const onColumnCountChange = (value: number) => {
+    onSettingChange(produce(setting, draft => {
+      draft.columnCount = value;
     }))
   }
 
@@ -99,21 +114,48 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
           </Select>
         </Space>
       </div>
-      <div>
+      <div className={styles.subContainer}>
         <div className={styles.title}>基础设置</div>
-        <Space>
-          <div>图片高度：</div>
-          <InputNumber
-            min={100}
-            max={400}
-            value={setting.height || 200}
-            onChange={value => {
-              if (value) {
-                onHeightChange(value);
-              }
-            }}
-          />
-        </Space>
+        <If condition={setting.mode === EGalleryMode.Horizontal}>
+          <div>
+            <Space>
+              <div>图片高度：</div>
+              <InputNumber
+                min={100}
+                max={400}
+                value={setting.height || 200}
+                onChange={value => {
+                  if (value) {
+                    onHeightChange(value);
+                  }
+                }}
+              />
+            </Space>
+          </div>
+        </If>
+        <If condition={setting.mode === EGalleryMode.Vertical}>
+          <div>
+            <Space>
+              <div>列数：</div>
+              <InputNumber
+                min={2}
+                max={5}
+                value={setting.columnCount || 3}
+                onChange={value => {
+                  if(value) {
+                    onColumnCountChange(value);
+                  }
+                }}
+              />
+            </Space>
+          </div>
+        </If>
+        <div>
+          <Space>
+            <div>更宽：</div>
+            <Switch checked={setting.wider} onChange={onWiderChange} />
+          </Space>
+        </div>
       </div>
       <div>
         <input ref={uploadRef} type={'file'} multiple accept={'image/*'} style={{ display: 'none' }} onChange={handleUploadFileChange} />

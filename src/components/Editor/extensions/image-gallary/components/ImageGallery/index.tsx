@@ -1,14 +1,16 @@
-import {useState} from 'react';
-import {Transforms} from "slate";
-import {ReactEditor, RenderElementProps, useReadOnly, useSlate} from "slate-react";
-import {Modal} from 'antd';
-import {SettingOutlined} from '@ant-design/icons';
+import { useState } from 'react';
+import { Transforms } from "slate";
+import { ReactEditor, RenderElementProps, useReadOnly, useSlate } from "slate-react";
+import { Modal } from 'antd';
+import classnames from 'classnames';
+import { SettingOutlined, PlusOutlined } from '@ant-design/icons';
 
-import ImageGallerySetting, {ISetting} from "../ImageGallerySetting";
+import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
 import If from "@/components/If";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import SwipeImageGallery from "../SwipeImageGallery";
 import HorizontalImageGallery from "../HorizontalImageGallery";
+import VerticalImageGallery from "../VerticalImageGallery";
 
 import { EGalleryMode, ImageGalleryElement } from "@/components/Editor/types";
 
@@ -22,7 +24,7 @@ interface IImageGalleryProps {
 
 const ImageGallery = (props: IImageGalleryProps) => {
   const { attributes, element, children } = props;
-  const { images, height, mode } = element;
+  const { images, height, mode, wider, columnCount } = element;
 
   const [settingModalOpen, setSettingModalOpen] = useState(false);
   const [setting, setSetting] = useState<ISetting>({
@@ -38,14 +40,15 @@ const ImageGallery = (props: IImageGalleryProps) => {
     setSetting({
       mode,
       height,
-      images
+      images,
+      wider,
+      columnCount
     });
     setSettingModalOpen(false);
   }
 
   const onOk = () => {
     setSettingModalOpen(false);
-    console.log('setting', setting);
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(editor, {
       ...setting,
@@ -56,20 +59,28 @@ const ImageGallery = (props: IImageGalleryProps) => {
 
   return (
     <div
-      className={styles.imageGalleryContainer}
+      className={classnames(styles.imageGalleryContainer, { [styles.wider]: wider })}
       {...attributes}
     >
       <If condition={images.length > 0}>
-        <If condition={mode !== EGalleryMode.Inline}>
-          <HorizontalImageGallery items={images} height={height} />
-        </If>
-        <If condition={mode === EGalleryMode.Inline}>
-          <SwipeImageGallery items={images} />
-        </If>
+        <div contentEditable={false}>
+          <If condition={mode === EGalleryMode.Horizontal}>
+            <HorizontalImageGallery items={images} height={height} />
+          </If>
+          <If condition={mode === EGalleryMode.Vertical}>
+            <VerticalImageGallery items={images} columnCount={columnCount} />
+          </If>
+          <If condition={mode === EGalleryMode.Inline}>
+            <SwipeImageGallery items={images} />
+          </If>
+        </div>
       </If>
       <If condition={images.length === 0}>
-        <div className={styles.emptySetting} onClick={() => { setSettingModalOpen(true) }}>
-          <div>上传图片</div>
+        <div contentEditable={false} className={styles.emptySetting} onClick={() => { setSettingModalOpen(true) }}>
+          <div className={styles.uploadTips}>
+            <PlusOutlined className={styles.icon} />
+            <div>上传图片</div>
+          </div>
         </div>
       </If>
       <If condition={!readOnly}>
@@ -85,7 +96,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
       </If>
       <AddParagraph element={element} />
       <Modal
-        width={600}
+        width={720}
         open={settingModalOpen}
         onCancel={onCancel}
         onOk={onOk}

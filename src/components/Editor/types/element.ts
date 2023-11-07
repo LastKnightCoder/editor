@@ -212,5 +212,7 @@ export interface ImageGalleryElement {
   mode: EGalleryMode;
   height?: number;
   images: ImageGalleryItem[];
+  wider?: boolean;
+  columnCount?: number;
   children: Descendant[];
 }

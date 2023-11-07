@@ -1,14 +1,31 @@
 .imageGalleryContainer {
   position: relative;
+  &.wider {
+    width: calc(100% + 160px);
+    transform: translateX(-80px);
+  }
   .emptySetting {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 160px;
     border-radius: 8px;
-    border: 1px dashed #E7E9E8;
+    border: 2px dashed #d3d7d4;
     cursor: pointer;
-    font-size: 24px;
+    font-size: 16px;
+    background-color: var(--primary-bg-color);
+    &:hover {
+      background-color: var(--common-hover-bg);
+    }
+    .uploadTips {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      .icon {
+        font-size: 24px;
+      }
+    }
   }
   .settingButton {
     border-radius: 8px;

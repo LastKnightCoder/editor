@@ -13,11 +13,11 @@ import styles from './index.module.less';
 
 interface IVerticalImageGalleryProps {
   items: ImageGalleryItem[];
-  height?: number;
+  columnCount?: number;
 }
 
-const HorizontalImageGallery = (props: IVerticalImageGalleryProps) => {
-  const { items, height } = props;
+const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
+  const { items, columnCount = 3 } = props;
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,17 +36,20 @@ const HorizontalImageGallery = (props: IVerticalImageGalleryProps) => {
   return (
     <div
       ref={ref}
-      className={styles.verticalGalleryContainer}
+      className={styles.gridContainer}
+      style={{
+        columnCount
+      }}
     >
       {
         items.map((item) => (
-          <a href={item.url} key={item.id} className={styles.item}>
-            <img src={item.url} style={{ height: height || 200 }} alt={item.desc || ''}/>
-          </a>
+          <div data-src={item.url} key={item.id} className={styles.gridItem}>
+            <img src={item.url} alt={item.desc || ''}/>
+          </div>
         ))
       }
     </div>
   )
 }
 
-export default HorizontalImageGallery;
+export default VerticalImageGallery;
