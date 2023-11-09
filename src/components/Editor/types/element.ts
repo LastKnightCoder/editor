@@ -30,7 +30,8 @@ export type CustomElement =
   | MultiColumnContainerElement
   | MultiColumnItemElement
   | HighlightBlockElement
-  | ImageGalleryElement;
+  | ImageGalleryElement
+  | TabsElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>
@@ -215,4 +216,17 @@ export interface ImageGalleryElement {
   wider?: boolean;
   columnCount?: number;
   children: Descendant[];
+}
+
+export interface ITabsContent {
+  key: string;
+  title: string;
+  content: Descendant[];
+}
+
+export interface TabsElement {
+  type: 'tabs';
+  activeKey: string;
+  tabsContent: ITabsContent[];
+  children: BlockElement[];
 }

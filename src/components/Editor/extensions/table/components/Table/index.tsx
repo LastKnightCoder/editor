@@ -58,7 +58,16 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
     // 将 table 转为 paragraph
     const path = ReactEditor.findPath(editor, element);
     Transforms.delete(editor, { at: path });
-    Transforms.insertNodes(editor, { type: 'paragraph', children: [{ type: 'formatted', text: '' }] });
+    Transforms.insertNodes(editor, {
+      type: 'paragraph',
+      children: [{
+          type: 'formatted',
+          text: ''
+      }]
+    }, {
+      at: path,
+      select: true
+    });
   }, [editor, element]);
 
   const items = useMemo(() => {

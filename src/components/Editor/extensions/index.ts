@@ -21,6 +21,7 @@ import CustomBlockExtension from "./custom-block";
 import GraphvizExtension from "./graphviz";
 import { MultiColumnsContainerExtension, MultiColumnItemExtension } from './multi-column-layout';
 import HighlightBlockExtension from "./highlight-block";
+import TabsExtension from "./tabs";
 
 export const paragraph = new ParagraphExtension();
 export const header = new HeaderExtension();
@@ -49,10 +50,11 @@ export const tikz = new TikzExtension();
 export const customBlock = new CustomBlockExtension();
 export const graphviz = new GraphvizExtension();
 
-const multiColumnContainer = new MultiColumnsContainerExtension();
-const multiColumnItem = new MultiColumnItemExtension();
+export const multiColumnContainer = new MultiColumnsContainerExtension();
+export const multiColumnItem = new MultiColumnItemExtension();
 
-const highlightBlock = new HighlightBlockExtension()
+export const highlightBlock = new HighlightBlockExtension();
+export const tabs = new TabsExtension();
 
 export const startExtensions = [
   paragraph,
@@ -65,6 +67,7 @@ export const startExtensions = [
   numberedList,
   listItem,
   codeBlock,
+  tabs,
   detail,
   highlightBlock,
   inlineMath,

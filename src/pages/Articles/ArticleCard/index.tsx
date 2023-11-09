@@ -6,7 +6,7 @@ import SVG from 'react-inlinesvg';
 import { CalendarOutlined } from '@ant-design/icons';
 import { MdMoreVert } from 'react-icons/md';
 
-import useTheme from "@/hooks/useTheme.ts";
+import useTheme from "@/hooks/useTheme";
 import Editor from "@/components/Editor";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
@@ -71,8 +71,8 @@ const ArticleCard = (props: IArticleCardProps) => {
       setBannerUploading(false);
       return;
     }
-    if (files[0].size > 5 * 1024 * 1024) {
-      message.warning('图片大小不能超过 5MB');
+    if (files[0].size > 8 * 1024 * 1024) {
+      message.warning('图片大小不能超过 8MB');
       setBannerUploading(false);
       return;
     }

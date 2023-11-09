@@ -23,6 +23,9 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import ArticleCard from "@/pages/Articles/ArticleCard";
 import { IArticle } from "@/types";
 
+import { cardLinkExtension } from '@/editor-extensions';
+const extensions = [cardLinkExtension];
+
 const ArticleEdit = () => {
   const {
     editingArticleId,
@@ -195,6 +198,7 @@ const ArticleEdit = () => {
               onChange={onContentChange}
               initValue={editingArticle.content}
               readonly={readonly}
+              extensions={extensions}
             />
             <AddTag
               className={styles.tags}

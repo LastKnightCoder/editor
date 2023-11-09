@@ -34,8 +34,6 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     return sortBy(configs, (config: IConfigItem) => config.order);
   }, [configs]);
 
-  console.log('sortedConfigs', sortedConfigs);
-
   const ref = useRef<HTMLDivElement>(null);
 
   const [isHoveringBarShow, setIsHoveringBarShow] = useState<boolean>(false);

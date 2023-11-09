@@ -11,7 +11,7 @@ import {
   TableRowElement,
   LinkElement,
   MultiColumnItemElement,
-  Color, EGalleryMode
+  Color, EGalleryMode, ITabsContent
 } from "../types";
 import { codeBlockMap } from "../extensions/code-block";
 
@@ -169,7 +169,15 @@ export const insertTable = (editor: Editor, rows: number, cols: number) => {
     type: 'table',
     children: tableRowElements,
   }
-  return setOrInsertNode(editor, tableElement);
+  const insertPath =  setOrInsertNode(editor, tableElement);
+  if (!insertPath) return;
+  const firstCellPath = [...insertPath, 0, 0];
+  Transforms.select(editor, {
+    anchor: Editor.start(editor, firstCellPath),
+    focus: Editor.start(editor, firstCellPath),
+  });
+
+  return insertPath;
 }
 
 export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
@@ -299,6 +307,36 @@ export const insertImageGallery = (editor: Editor) => {
       text: ''
     }]
   })
+}
+
+export const insertTabs = (editor: Editor) => {
+  const key = getUuid();
+  const tabs: ITabsContent[] = [{
+    key,
+    title: 'Tab 1',
+    content: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: ''
+      }]
+    }]
+  }];
+
+  return setOrInsertNode(editor, {
+    type: 'tabs',
+    tabsContent: tabs,
+    activeKey: key,
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: ''
+      }]
+    }]
+  }, {
+    select: true
+  });
 }
 
 const isLinkActive = (editor: Editor) => {
