@@ -40,7 +40,7 @@ const CardItem2 = (props: ICardItem2Props) => {
         <Tags tags={tags} showIcon className={styles.tags} />
       </If>
       <Paragraph className={styles.textContainer} ellipsis={{ rows: maxRows }}>
-        {getEditorTextValue(content)}
+        {getEditorTextValue(content) || '未知内容'}
       </Paragraph>
       <If condition={settings.length > 0}>
         <Popover

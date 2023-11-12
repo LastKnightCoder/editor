@@ -39,7 +39,9 @@ const HighlightText = () => {
     setOpen(false);
   }, ref);
 
-  const handleClick = useMemoizedFn((_event: React.MouseEvent, label?: string) => {
+  const handleClick = useMemoizedFn((event: React.MouseEvent, label?: string) => {
+    event.preventDefault();
+    event.stopPropagation();
     const selection = editor.selection;
     Editor.addMark(editor, 'highlight', label);
     if (selection && !Range.isCollapsed(selection)) {
@@ -49,7 +51,9 @@ const HighlightText = () => {
   });
 
   return (
-    <div ref={ref} className={classnames(styles.textContainer, { [styles.active]: active })} onClick={() => {
+    <div ref={ref} className={classnames(styles.textContainer, { [styles.active]: active })} onClick={(e) => {
+      e.preventDefault();
+      e.stopPropagation();
       setOpen(!open);
     }}>
       <Tooltip

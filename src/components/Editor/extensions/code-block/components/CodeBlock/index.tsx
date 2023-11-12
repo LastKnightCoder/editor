@@ -124,10 +124,18 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
             if (editor.getValue() === '') {
               event.preventDefault();
               const path = ReactEditor.findPath(slateEditor, element);
-              Transforms.setNodes(slateEditor, { type: 'paragraph', children: [{ type: 'formatted', text: '' }] }, { at: path });
-              Transforms.unsetNodes(slateEditor, ['code', 'language', 'uuid'], { at: path });
+              Transforms.delete(slateEditor, { at: path });
+              Transforms.insertNodes(slateEditor, {
+                type: 'paragraph',
+                children: [{
+                  type: 'formatted',
+                  text: ''
+                }]
+              }, {
+                at: path,
+                select: true
+              });
               codeBlockMap.delete(uuid);
-              ReactEditor.focus(slateEditor);
             }
           }
         }}

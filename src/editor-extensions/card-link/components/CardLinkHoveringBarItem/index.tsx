@@ -54,7 +54,6 @@ const LinkHoveringItem = () => {
       const { selection } = editor;
       selectionRef.current = selection;
     } finally {
-      ReactEditor.focus(editor);
       Transforms.collapse(editor, { edge: 'end' });
       event.preventDefault();
       event.stopPropagation();
@@ -64,6 +63,8 @@ const LinkHoveringItem = () => {
   const onCancelSelect = () => {
     setOpenSelectModal(false);
     setSelectedCards([]);
+    ReactEditor.focus(editor);
+    selectionRef.current && Transforms.select(editor, selectionRef.current);
     selectionRef.current = null;
   }
 

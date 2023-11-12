@@ -31,3 +31,9 @@
 
 - feat: 支持 Tabs 布局
 - fix: 表格聚焦优化
+
+## v0.3.7
+
+- fix: 代码块、图片、PreviewWithEditor 删除优化
+- fix: 颜色选择 bug 修复
+- feat: 优化选择卡片弹窗打开速度

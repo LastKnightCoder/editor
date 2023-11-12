@@ -60,12 +60,18 @@ const SelectCardModal = (props: ISelectCardModalProps) => {
     clear,
   } = useSearch(allCards, [...excludeCardIds, ...selectedCards.map(card => card.id)]);
 
-  const handleOk = async () => {
+  const handleOk = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMaxCardCount(20);
     if (!onOk || !selectedCards) return;
     await onOk(selectedCards);
   }
 
-  const handleCancel = () => {
+  const handleCancel = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setMaxCardCount(20);
     clear();
     if (!onCancel) return;
     onCancel();
@@ -123,8 +129,8 @@ const SelectCardModal = (props: ISelectCardModalProps) => {
           </div>
           <div ref={listRef} className={styles.cardList}>
             {
-              searchedCards.length > 0
-                ? searchedCards.map(card => (<CardItem2 showTags maxRows={4} onClick={() => { onAddCard(card) }} key={card.id} card={card} />))
+              searchedCards.slice(0, maxCardCount).length > 0
+                ? searchedCards.slice(0, maxCardCount).map(card => (<CardItem2 showTags maxRows={4} onClick={() => { onAddCard(card) }} key={card.id} card={card} />))
                 : <Empty />
             }
             <If condition={maxCardCount < searchedCards.length}>

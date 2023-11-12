@@ -71,6 +71,7 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     const close = !selection || isCollapsed || isEmpty;
 
     if (close) {
+      console.log('isCollapsed', isCollapsed, 'isEmpty', isEmpty, selection);
       setIsHoveringBarShow(false);
       return;
     }

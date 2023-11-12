@@ -71,17 +71,16 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       return;
     }
     const path = ReactEditor.findPath(editor, element);
-    Transforms.removeNodes(editor, {
+    Transforms.delete(editor, {
       at: path
     });
     Transforms.insertNodes(editor, {
       type: 'paragraph',
       children: [{ type: 'formatted', text: '' }],
     }, {
-      at: path
-    })
-    Transforms.select(editor, path);
-    ReactEditor.focus(editor);
+      at: path,
+      select: true
+    });
   }
 
   const upload = useCallback(() => {
@@ -104,6 +103,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const handleUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) {
+      event.target.value = '';
       return;
     }
     const path = ReactEditor.findPath(editor, element);
@@ -111,6 +111,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     const uploadRes = await uploadFileFromFile(file, github) as any;
     if (!uploadRes) {
       setUploading(false);
+      event.target.value = '';
       return;
     }
     const { content: { download_url } } = uploadRes;
@@ -121,6 +122,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       at: path
     });
     setUploading(false);
+    event.target.value = '';
   }
 
   const renderUpload = () => {

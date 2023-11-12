@@ -1,61 +1,56 @@
 import { Descendant } from "slate";
-import { DetailElement, ParagraphElement } from "@/components/Editor/types";
+import { ParagraphElement } from "@/components/Editor/types";
 import { Typography } from "antd";
 import Katex from "@/components/Katex";
 
-export const getEditorTextValue = (value: Descendant[]) => {
+export const getEditorTextValue = (value: Descendant[]): JSX.Element[] | undefined => {
   if (value.length === 0) {
-    return '';
+    return;
   }
 
-  // 找到第一个段落，返回其文本内容
-  const firstParagraph = value.find(node => node.type === 'paragraph');
-  if (firstParagraph) {
-    return getParagraphContent(firstParagraph as ParagraphElement);
-  }
-
-  const detail = value.find(node => node.type === 'detail');
-  if (detail) {
-    const paragraph = (detail as DetailElement).children.find(node => node.type === 'paragraph');
-    if (paragraph) {
-      return getParagraphContent(paragraph as ParagraphElement);
+  for (const child of value) {
+    if (child.type === 'paragraph') {
+      return getParagraphContent(child as ParagraphElement);
+    }
+    // @ts-ignore
+    if (child.children && child.children.length > 0) {
+      // @ts-ignore
+      const str = getEditorTextValue(child.children);
+      if (str) {
+        return str;
+      }
     }
   }
 
-  return `【${value[0].type}】`;
+  return;
 }
 
-const getParagraphContent = (paragraph: ParagraphElement) => {
+const getParagraphContent = (paragraph: ParagraphElement): Array<JSX.Element> => {
   return paragraph.children.map((node, index) => {
-    if (node.type === 'formatted') {
-      return (
-        <Typography.Text
-          key={index}
-          code={node.code}
-          strong={node.bold}
-          underline={node.underline}
-          italic={node.italic}
-          delete={node.strikethrough}
-        >
-          {node.text}
-        </Typography.Text>
-      );
+    switch(node.type) {
+      case "formatted":
+        return (
+          <Typography.Text
+            key={index}
+            code={node.code}
+            strong={node.bold}
+            underline={node.underline}
+            italic={node.italic}
+            delete={node.strikethrough}
+          >
+            {node.text}
+          </Typography.Text>
+        );
+      case "link":
+        return (
+          <Typography.Link key={index}>
+            {node.children?.[0].text}
+          </Typography.Link>
+        );
+      case "inline-math":
+        return (
+          <Katex tex={node.tex} key={index} inline />
+        )
     }
-    if (node.type === 'link') {
-      return (
-        <Typography.Link key={index}>
-          {node.children?.[0].text}
-        </Typography.Link>
-      );
-    }
-    if (node.type === 'inline-math') {
-      return (
-        <Katex tex={node.tex} key={index} inline />
-      )
-    }
-  });
-}
-
-export const getOutline = (value: Descendant[]) => {
-  return value.filter(node => node.type === 'header');
+  }).filter(Boolean);
 }

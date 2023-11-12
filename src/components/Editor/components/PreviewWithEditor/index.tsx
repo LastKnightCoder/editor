@@ -56,7 +56,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
 
   const deleteElement = () => {
     const path = ReactEditor.findPath(slateEditor, element);
-    Transforms.removeNodes(slateEditor, {
+    Transforms.delete(slateEditor, {
       at: path
     });
     Transforms.insertNodes(slateEditor, {
@@ -65,10 +65,10 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
         type: 'formatted',
         text: ''
       }],
+    }, {
+      at: path,
+      select: true,
     });
-    setTimeout(() => {
-      ReactEditor.focus(slateEditor);
-    }, 100)
   }
 
   const containerClassName = classnames(styles.container, {

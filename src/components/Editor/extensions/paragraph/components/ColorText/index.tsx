@@ -25,7 +25,7 @@ const ColorText = () => {
   const [open, setOpen] = useState<boolean>(false);
   const active = useMemo(() => {
     return isMarkActive('color', editor, selection);
-  }, [editor, selection])
+  }, [editor, selection]);
 
   const { isHoveringBarShow } = useContext(HoveringBarContext);
 
@@ -39,7 +39,9 @@ const ColorText = () => {
     setOpen(false);
   }, ref);
 
-  const handleClick = useMemoizedFn((_event: React.MouseEvent) => {
+  const handleSelectColor = useMemoizedFn((event: React.MouseEvent, color?: string) => {
+    event.preventDefault();
+    event.stopPropagation();
     Editor.addMark(editor, 'color', color);
     if (selection && !Range.isCollapsed(selection)) {
       ReactEditor.focus(editor);
@@ -51,7 +53,9 @@ const ColorText = () => {
     <div
       ref={ref}
       className={classnames(styles.textContainer, { [styles.active]: active })}
-      onClick={() => {
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
         setOpen(!open);
       }}
     >
@@ -66,7 +70,7 @@ const ColorText = () => {
       </Tooltip>
       <ColorSelect
         open={open}
-        onClick={handleClick}
+        onClick={handleSelectColor}
       />
     </div>
   )
