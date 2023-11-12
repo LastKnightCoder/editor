@@ -37,3 +37,4 @@
 - fix: 代码块、图片、PreviewWithEditor 删除优化
 - fix: 颜色选择 bug 修复
 - feat: 优化选择卡片弹窗打开速度
+- feat: 获取卡片简介方法优化
