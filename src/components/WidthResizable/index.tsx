@@ -79,8 +79,8 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
   const handleMouseMove = useCallback(() => {
     if (isResizing) {
       const newWidth = mouse.elementX;
-      if (minWidth && newWidth < minWidth) return;
-      if (maxWidth && newWidth > maxWidth) return;
+      // if (minWidth && newWidth < minWidth) return;
+      // if (maxWidth && newWidth > maxWidth) return;
       setWidth(newWidth);
       if (onResize) onResize(newWidth);
     }
@@ -102,7 +102,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
   return (
     <div
       className={classnames(styles.widthResizable, { [styles.shrink]: shrinkAble }, className)}
-      style={{ ...style, width }}
+      style={{ ...style, width, minWidth, maxWidth }}
       ref={containerRef}
     >
       {props.children}

@@ -1,5 +1,11 @@
 .cardContentContainer {
-
+  border: 24px solid transparent;
+  overflow-y: auto;
+  max-height: 300px;
+  max-width: 400px;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .notFound {

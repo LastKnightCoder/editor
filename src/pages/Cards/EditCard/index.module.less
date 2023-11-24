@@ -1,0 +1,54 @@
+.editCardContainer {
+  position: relative;
+  margin: 0 auto;
+  max-width: 720px;
+  @media screen and (max-width: 1280px) {
+    min-width: 300px;
+    max-width: 70%;
+  }
+  .fields {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--line-color);
+    padding: 24px;
+    .title {
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      font-weight: bold;
+      border-bottom: 1px solid var(--line-color);
+    }
+    .field {
+      display: flex;
+      gap: 20px;
+      .fieldKey {
+        width: 100px;
+        flex: none;
+        .icon {
+          vertical-align: -8%;
+          margin-right: 8px;
+        }
+      }
+      .fieldValue {
+        flex: auto;
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
+  .editor {
+    width: 100%;
+  }
+  .links {
+    margin-top: 20px;
+  }
+  .title {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    font-weight: bold;
+    border-bottom: 1px solid var(--line-color);
+    font-size: 1.1em;
+  }
+}

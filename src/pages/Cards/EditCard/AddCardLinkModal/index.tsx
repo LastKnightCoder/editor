@@ -1,21 +1,19 @@
 import { useMemo, useState } from "react";
 
-import useEditCardStore from "@/stores/useEditCardStore.ts";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 
 import SelectCardModal from "@/components/SelectCardModal";
 import { ICard } from "@/types";
 
-const AddCardLinkModal = () => {
-  const {
-    open,
-    editingCard,
-    addLink,
-  } = useEditCardStore((state) => ({
-    open: state.addLinkModalOpen,
-    editingCard: state.editingCard,
-    addLink: state.addLink,
-  }));
+interface IAddCardLinkModalProps {
+  open: boolean;
+  onClose: () => void;
+  onOk: (selectedCards: ICard[]) => Promise<void>;
+  editingCard: ICard;
+}
+
+const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
+  const { open, editingCard, onOk, onClose } = props;
 
   const {
     cards
@@ -34,16 +32,7 @@ const AddCardLinkModal = () => {
   });
 
   const onCloseModal = () => {
-    useEditCardStore.setState({
-      addLinkModalOpen: false,
-    });
-  }
-  
-  const onOk = async (selectedCards: ICard[]) => {
-    selectedCards.forEach(card => {
-      addLink(card.id);
-    })
-    onCloseModal();
+    onClose();
   }
 
   if (!open) {

@@ -9,7 +9,6 @@ import { getEditorTextValue } from '@/utils';
 import { ICard } from "@/types";
 
 import styles from './index.module.less';
-import React from "react";
 
 const { Paragraph } = Typography;
 

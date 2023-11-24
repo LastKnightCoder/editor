@@ -35,14 +35,13 @@ const CardLink = (props: ICardLinkProps) => {
       trigger={'click'}
       content={<CardContent card={linkCard} />}
       overlayInnerStyle={{
-        maxWidth: 400,
-        maxHeight: 300,
-        overflow: 'auto',
+        padding: 0,
       }}
       style={{
         top: 20,
       }}
       arrow={false}
+      placement={'bottom'}
     >
       <span className={styles.cardLinkContainer} {...attributes}>
         <InlineChromiumBugfix />

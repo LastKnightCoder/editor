@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import classnames from "classnames";
+import isHotkey from "is-hotkey";
 
 import { SettingOutlined } from '@ant-design/icons';
 import { MdOutlineDarkMode, MdOutlineLightMode } from 'react-icons/md';
@@ -36,6 +37,22 @@ const Sidebar = (props: ISidebarProps) => {
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
   }, [darkMode]);
+
+  useEffect(() => {
+    // 按下 mod + l 时切换浅色，mod + d 时切换深色
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isHotkey('mod+l', e)) {
+        onDarkModeChange(false);
+      } else if (isHotkey('mod+d', e)) {
+        onDarkModeChange(true);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [onDarkModeChange]);
 
   return (
     <div className={classnames(styles.sidebar, className)} style={style}>
