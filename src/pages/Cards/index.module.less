@@ -2,7 +2,14 @@
   position: relative;
   display: flex;
   height: calc(100vh - var(--title-bar-height));
+  width: 100%;
   --sidebar-width: 300px;
+  &.hideSidebar {
+    --sidebar-width: 0;
+    .content {
+      width: 100%;
+    }
+  }
   .sidebar {
     width: var(--sidebar-width);
     height: 100%;
@@ -11,7 +18,6 @@
     border-right: 1px solid var(--line-color);
     transition: width 0.3s ease-in-out;
     &.hide {
-      --sidebar-width: 0;
       overflow: hidden;
     }
   }
@@ -21,6 +27,12 @@
     flex: none;
     box-sizing: border-box;
     transition: width 0.3s ease-in-out;
+    .cardsPanel {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      gap: 10px;
+    }
   }
 
   .showSidebar {

@@ -21,10 +21,11 @@ const customExtensions = [cardLinkExtension];
 interface IEditCardProps {
   cardId: number;
   onClickLinkCard: (id: number) => void;
+  onChange: () => void;
 }
 
 const EditCard = (props: IEditCardProps) => {
-  const { cardId, onClickLinkCard } = props;
+  const { cardId, onClickLinkCard, onChange } = props;
 
   const [readonly, setReadonly] = useState(false);
   const editorRef = useRef<EditorRef>(null);
@@ -101,7 +102,10 @@ const EditCard = (props: IEditCardProps) => {
         <Editor
           ref={editorRef}
           initValue={initValue}
-          onChange={onContentChange}
+          onChange={(value) => {
+            onContentChange(value);
+            onChange();
+          }}
           extensions={customExtensions}
           readonly={readonly}
         />

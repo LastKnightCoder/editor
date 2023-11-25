@@ -10,6 +10,8 @@ interface ICardsManagementProps {
   onClickLinkCard: (id: number) => void;
   onClickTab: (id: number) => void;
   onCloseTab: (id: number) => void;
+  onMoveCard: (cardId) => void;
+  onActiveSideChange: (cardId: number) => void;
 }
 
 const CardsManagement = (props: ICardsManagementProps) => {
@@ -18,7 +20,9 @@ const CardsManagement = (props: ICardsManagementProps) => {
     activeCardId,
     onClickTab,
     onCloseTab,
-    onClickLinkCard
+    onClickLinkCard,
+    onMoveCard,
+    onActiveSideChange,
   } = props;
 
   return (
@@ -28,6 +32,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
         activeCardId={activeCardId}
         onClickTab={onClickTab}
         onCloseTab={onCloseTab}
+        onMoveCard={onMoveCard}
       />
       <If condition={!!activeCardId}>
         <div style={{
@@ -37,6 +42,9 @@ const CardsManagement = (props: ICardsManagementProps) => {
             key={activeCardId!}
             cardId={activeCardId!}
             onClickLinkCard={onClickLinkCard}
+            onChange={() => {
+              onActiveSideChange(activeCardId!);
+            }}
           />
         </div>
       </If>

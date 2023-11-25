@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Popover } from "antd";
+import {useClickAway, useMemoizedFn} from 'ahooks';
 
 import { DownOutlined } from '@ant-design/icons';
 import { getEditorText } from "@/utils";
@@ -10,12 +11,14 @@ import TabItem from './TabItem';
 import { ICard } from "@/types";
 import styles from './index.module.less';
 import Editor from "@/components/Editor";
+import If from "@/components/If";
 
 interface ICardTabsProps {
   cardIds: number[];
   activeCardId?: number;
   onClickTab: (id: number) => void;
   onCloseTab: (id: number) => void;
+  onMoveCard: (cardId: number) => void;
 }
 
 const CardTabs = (props: ICardTabsProps) => {
@@ -24,7 +27,7 @@ const CardTabs = (props: ICardTabsProps) => {
   } = useCardsManagementStore((state) => ({
     cards: state.cards,
   }));
-  const { cardIds, activeCardId, onClickTab, onCloseTab } = props;
+  const { cardIds, activeCardId, onClickTab, onCloseTab, onMoveCard } = props;
 
   const tabCards = useMemo(() => {
     const tabCards =  cardIds.map(id => cards.find(card => card.id === id)).filter(card => !!card) as ICard[];
@@ -35,7 +38,26 @@ const CardTabs = (props: ICardTabsProps) => {
   }, [cardIds, cards]);
 
   const [morePopoverOpen, setMorePopoverOpen] = useState(false);
-  
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [rightClickCardId, setRightClickCardId] = useState<number>();
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+
+  useClickAway(() => {
+    setShowContextMenu(false);
+  }, contextMenuRef);
+
+  const onContextMenu = useMemoizedFn((e: React.MouseEvent<HTMLDivElement, MouseEvent>, cardId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowContextMenu(true);
+    setContextMenuPosition({
+      x: e.clientX + 10,
+      y: e.clientY + 10,
+    });
+    setRightClickCardId(cardId);
+  })
+
   return (
     <div className={styles.tabsContainer}>
       <Popover
@@ -97,9 +119,28 @@ const CardTabs = (props: ICardTabsProps) => {
             onClose={() => {
               onCloseTab(cardId);
             }}
+            onContextMenu={(e) => {
+              onContextMenu(e, cardId);
+            }}
           />
         ))
       }
+      <If condition={showContextMenu}>
+        <div ref={contextMenuRef} className={styles.contextMenu} style={{
+          left: contextMenuPosition.x,
+          top: contextMenuPosition.y,
+        }}>
+          <div
+            className={styles.item}
+            onClick={() => {
+              setShowContextMenu(false);
+              onMoveCard(rightClickCardId);
+            }}
+          >
+            移动到另一侧
+          </div>
+        </div>
+      </If>
     </div>
   )
 }

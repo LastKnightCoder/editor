@@ -1,6 +1,4 @@
 import { useEffect, memo } from "react";
-import { useMemoizedFn } from 'ahooks';
-import { App } from "antd";
 import { RightOutlined } from "@ant-design/icons";
 import classnames from "classnames";
 import isHotkey from "is-hotkey";
@@ -16,9 +14,6 @@ import styles from './index.module.less';
 import If from "@/components/If";
 
 const Cards = memo(() => {
-
-  const { modal } = App.useApp();
-
   const {
     isHideSidebar,
   } = useSidebarManagementStore((state) => ({
@@ -27,20 +22,23 @@ const Cards = memo(() => {
 
   const {
     init,
-    createCard,
-    deleteCard,
   } = useCardsManagementStore((state) => ({
     init: state.init,
-    deleteCard: state.deleteCard,
-    createCard: state.createCard,
   }));
 
   const {
-    cardIds,
-    activeCardId,
-    addCard,
-    removeCard,
-    setActive,
+    leftCardIds,
+    leftActiveCardId,
+    rightCardIds,
+    rightActiveCardId,
+    onClickTab,
+    onCloseTab,
+    onClickCard,
+    onCreateCard,
+    onDeleteCard,
+    onMoveCard,
+    onActiveSideChange,
+    activeSide
   } = useCardManagement();
 
   useEffect(() => {
@@ -69,68 +67,19 @@ const Cards = memo(() => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     }
-  }, [])
+  }, []);
 
-  const onClickTab = useMemoizedFn((id: number) => {
-    if (id === activeCardId) return;
-    setActive(id);
-  })
-
-  const onCloseTab = useMemoizedFn((id: number) => {
-    removeCard(id);
-    if (id === activeCardId) {
-      setActive(undefined);
+  const onMoveCardToOther = (cardId: number) => {
+    onMoveCard(cardId);
+    if (!isHideSidebar && leftCardIds.length > 0 && rightCardIds.length > 0) {
+      useSidebarManagementStore.setState({
+        isHideSidebar: true,
+      });
     }
-  });
-
-  const onCreateCard = useMemoizedFn(async () => {
-    const id = await createCard({
-      content: [{
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: ''
-        }]
-      }],
-      tags: [],
-      links: [],
-    });
-    addCard(id);
-    setActive(id);
-  });
-
-  const onDeleteCard = useMemoizedFn(async (id: number) => {
-    modal.confirm({
-      title: '确认删除？',
-      content: '删除后无法恢复',
-      onOk: async () => {
-        await deleteCard(id);
-        if (cardIds.includes(id)) {
-          removeCard(id);
-        }
-        if (activeCardId === id) {
-          setActive(undefined);
-        }
-      },
-      okText: '确认',
-      cancelText: '取消',
-      okButtonProps: {
-        danger: true
-      }
-    });
-  });
-
-  const onClickCard = useMemoizedFn((id: number) => {
-    if (cardIds.includes(id)) {
-      onClickTab(id);
-    } else {
-      addCard(id);
-      setActive(id);
-    }
-  });
+  }
 
   return (
-    <div className={styles.cardsContainer}>
+    <div className={classnames(styles.cardsContainer, { [styles.hideSidebar]: isHideSidebar })}>
       <If condition={isHideSidebar}>
         <div
           className={styles.showSidebar}
@@ -144,20 +93,37 @@ const Cards = memo(() => {
       </If>
       <div className={classnames(styles.sidebar, { [styles.hide]: isHideSidebar })}>
         <Sidebar
-          editingCardId={activeCardId}
+          editingCardId={activeSide === 'left' ? leftActiveCardId : rightActiveCardId}
           onCreateCard={onCreateCard}
           onDeleteCard={onDeleteCard}
           onClickCard={onClickCard}
         />
       </div>
       <div className={styles.content}>
-        <CardsManagement
-          cardIds={cardIds}
-          activeCardId={activeCardId}
-          onClickLinkCard={onClickCard}
-          onClickTab={onClickTab}
-          onCloseTab={onCloseTab}
-        />
+        <div className={styles.cardsPanel}>
+          <If condition={leftCardIds.length > 0}>
+            <CardsManagement
+              cardIds={leftCardIds}
+              activeCardId={leftActiveCardId}
+              onClickLinkCard={onClickCard}
+              onClickTab={onClickTab}
+              onCloseTab={onCloseTab}
+              onMoveCard={onMoveCardToOther}
+              onActiveSideChange={onActiveSideChange}
+            />
+          </If>
+          <If condition={rightCardIds.length > 0}>
+            <CardsManagement
+              cardIds={rightCardIds}
+              activeCardId={rightActiveCardId}
+              onClickLinkCard={onClickCard}
+              onClickTab={onClickTab}
+              onCloseTab={onCloseTab}
+              onMoveCard={onMoveCardToOther}
+              onActiveSideChange={onActiveSideChange}
+            />
+          </If>
+        </div>
       </div>
     </div>
   )

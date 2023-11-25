@@ -5,16 +5,12 @@ interface IState {
   sidebarWidth: number;
 }
 
-interface IActions {
-
-}
-
 const initialState: IState = {
   isHideSidebar: false,
   sidebarWidth: 300,
 }
 
-const useSidebarManagementStore = create<IState & IActions>((set, get) => ({
+const useSidebarManagementStore = create<IState>(() => ({
   ...initialState
 }));
 
