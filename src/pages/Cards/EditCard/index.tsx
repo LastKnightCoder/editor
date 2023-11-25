@@ -1,5 +1,4 @@
-import {useEffect, useState, useRef} from "react";
-import { useRafInterval } from 'ahooks';
+import { useEffect, useState, useRef } from "react";
 import { Skeleton, Tag } from "antd";
 import isHotkey from "is-hotkey";
 import dayjs from "dayjs";
@@ -21,7 +20,7 @@ const customExtensions = [cardLinkExtension];
 
 interface IEditCardProps {
   cardId: number;
-  onClickLinkCard: (id: number) => Promise<void>;
+  onClickLinkCard: (id: number) => void;
 }
 
 const EditCard = (props: IEditCardProps) => {
@@ -41,10 +40,6 @@ const EditCard = (props: IEditCardProps) => {
     onAddLink,
     onRemoveLink,
   } = useEditCard(cardId);
-
-  useRafInterval(() => {
-    saveCard();
-  }, 3000);
 
   useEffect(() => {
     return () => {
@@ -102,7 +97,6 @@ const EditCard = (props: IEditCardProps) => {
           </div>
         </div>
       </div>
-
       <div className={styles.editor}>
         <Editor
           ref={editorRef}
@@ -112,7 +106,6 @@ const EditCard = (props: IEditCardProps) => {
           readonly={readonly}
         />
       </div>
-
       <div className={styles.links}>
         <div className={styles.title}>关联卡片</div>
         <LinkList

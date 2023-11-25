@@ -2,12 +2,43 @@
   position: relative;
   display: flex;
   height: calc(100vh - var(--title-bar-height));
-  .content {
-    border-top: 20px solid transparent;
-    border-bottom: 20px solid transparent;
+  --sidebar-width: 300px;
+  .sidebar {
+    width: var(--sidebar-width);
     height: 100%;
-    overflow-y: auto;
-    flex: auto;
     box-sizing: border-box;
+    flex: none;
+    border-right: 1px solid var(--line-color);
+    transition: width 0.3s ease-in-out;
+    &.hide {
+      --sidebar-width: 0;
+      overflow: hidden;
+    }
+  }
+  .content {
+    height: 100%;
+    width: calc(100% - var(--sidebar-width));
+    flex: none;
+    box-sizing: border-box;
+    transition: width 0.3s ease-in-out;
+  }
+
+  .showSidebar {
+    position: absolute;
+    z-index: 1;
+    height: 100%;
+    left: 0;
+    top: 0;
+    display: flex;
+    width: 48px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    &:hover {
+      opacity: 1;
+      background-color: var(--common-hover-bg);
+      box-shadow: var(--box-shadow1);
+    }
   }
 }

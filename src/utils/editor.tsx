@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import { ParagraphElement } from "@/components/Editor/types";
+import {FormattedText, ParagraphElement} from "@/components/Editor/types";
 import { Typography } from "antd";
 import Katex from "@/components/Katex";
 
@@ -53,4 +53,35 @@ const getParagraphContent = (paragraph: ParagraphElement): Array<JSX.Element> =>
         )
     }
   }).filter(Boolean);
+}
+
+export const getEditorText = (value: Descendant[]): string => {
+  if (value.length === 0) {
+    return '';
+  }
+
+  // 深度遍历，找到所有的 formatted 节点
+  const formattedNodes: Array<FormattedText> = [];
+  const traverse = (node: Descendant) => {
+    if (node.type === 'formatted') {
+      formattedNodes.push(node);
+      return;
+    }
+    if (node.children && node.children.length > 0) {
+      node.children.forEach(child => {
+        traverse(child);
+      })
+    }
+  }
+
+  value.forEach(node => {
+    traverse(node);
+  });
+
+  if (formattedNodes.length === 0) {
+    return '空卡片';
+  }
+
+  // 按照顺序拼接
+  return formattedNodes.map(node => node.text).join('').slice(0, 20);
 }

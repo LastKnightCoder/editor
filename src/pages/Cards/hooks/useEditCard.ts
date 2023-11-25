@@ -18,6 +18,7 @@ const useEditCard = (cardId: number) => {
       text: ''
     }],
   }]);
+  const timer = useRef<number>();
 
   const { cards, updateCard } = useCardsManagementStore((state) => ({
     cards: state.cards,
@@ -60,11 +61,18 @@ const useEditCard = (cardId: number) => {
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (timer.current) {
+      clearTimeout(timer.current);
+    }
     const newEditingCard = produce(editingCard, (draft) => {
       if (!draft) return;
       draft.content = content;
     });
     setEditingCard(newEditingCard);
+    // @ts-ignore
+    timer.current = setTimeout(() => {
+      saveCard();
+    }, 3000);
   })
 
   const onAddTag = useMemoizedFn((tag: string) => {

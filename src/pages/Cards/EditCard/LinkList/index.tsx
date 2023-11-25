@@ -13,7 +13,7 @@ import { ICard } from "@/types";
 import styles from "./index.module.less";
 
 interface ILinkTabProps {
-  onClickLinkCard: (id: number) => Promise<void>;
+  onClickLinkCard: (id: number) => void;
   addLink: (id: number) => Promise<void>;
   removeLink: (id: number) => Promise<void>;
   editingCard: ICard;
@@ -74,7 +74,7 @@ const LinkTab = (props: ILinkTabProps) => {
       {
         linkedList.map((card) => (
           <CardItem2
-            onClick={() => { onClickLinkCard(card.id).then() }}
+            onClick={() => { onClickLinkCard(card.id) }}
             card={card}
             key={card.id}
             showTags
