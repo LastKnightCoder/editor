@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { produce } from "immer";
 
 export enum EActiveSide {
   Left = 'left',
@@ -19,6 +20,7 @@ interface IActions {
   moveCard: (cardId: number) => void;
   moveCardToSide: (cardId: number, side: EActiveSide) => void;
   addCardToSide: (cardId: number, side: EActiveSide) => void;
+  dragCard: (dragCardId: number, dropCardId: number) => void;
 }
 
 const initState: IState = {
@@ -27,6 +29,22 @@ const initState: IState = {
   rightCardIds: [],
   rightActiveCardId: undefined,
   activeSide: EActiveSide.Left,
+}
+
+const getCardSideAndIndex = (leftCardIds: number[], rightCardIds: number[], cardId: number) => {
+  if (leftCardIds.includes(cardId)) {
+    return {
+      side: EActiveSide.Left,
+      index: leftCardIds.indexOf(cardId),
+    };
+  } else if (rightCardIds.includes(cardId)) {
+    return {
+      side: EActiveSide.Right,
+      index: rightCardIds.indexOf(cardId),
+    };
+  }
+
+  return null;
 }
 
 const useCardPanelStore = create<IState & IActions>((set, get) => ({
@@ -107,6 +125,56 @@ const useCardPanelStore = create<IState & IActions>((set, get) => ({
       [activeCardKey]: cardId,
       activeSide: side,
     });
+  },
+  dragCard: (dragCardId, dropCardId) => {
+    const { leftCardIds, rightCardIds } = get();
+
+    const dragInfo = getCardSideAndIndex(leftCardIds, rightCardIds, dragCardId);
+    const dropInfo = getCardSideAndIndex(leftCardIds, rightCardIds, dropCardId);
+
+    if (!dragInfo || !dropInfo) {
+      return;
+    }
+
+    const { side: dragSide, index: dragIndex } = dragInfo;
+    const { side: dropSide, index: dropIndex } = dropInfo;
+
+    if (dragSide === dropSide) {
+      const cards = dragSide === EActiveSide.Left ? leftCardIds : rightCardIds;
+      const cardsKey = dragSide === EActiveSide.Left ? 'leftCardIds' : 'rightCardIds';
+      const activeCardKey = dragSide === EActiveSide.Left ? 'leftActiveCardId' : 'rightActiveCardId';
+      const newCards = produce(cards, (draft) => {
+        // 先删除 drag
+        draft.splice(dragIndex, 1);
+        // 再插入 drop
+        draft.splice(dropIndex, 0, dragCardId);
+      });
+      set({
+        [cardsKey]: newCards,
+        [activeCardKey]: dragCardId,
+      });
+    } else {
+      const dragCards = dragSide === EActiveSide.Left ? leftCardIds : rightCardIds;
+      const dragCardsKey = dragSide === EActiveSide.Left ? 'leftCardIds' : 'rightCardIds';
+      const dragActiveCardKey = dragSide === EActiveSide.Left ? 'leftActiveCardId' : 'rightActiveCardId';
+      const dropCards = dropSide === EActiveSide.Left ? leftCardIds : rightCardIds;
+      const dropCardsKey = dropSide === EActiveSide.Left ? 'leftCardIds' : 'rightCardIds';
+      const dropActiveCardKey = dropSide === EActiveSide.Left ? 'leftActiveCardId' : 'rightActiveCardId';
+      const newDragCards = produce(dragCards, (draft) => {
+        draft.splice(dragIndex, 1);
+      });
+      const newDropCards = produce(dropCards, (draft) => {
+        draft.splice(dropIndex, 0, dragCardId);
+      });
+      const dragSideNextActiveCardId = dragCards.find(id => id !== dragCardId);
+      set({
+        [dragCardsKey]: newDragCards,
+        [dragActiveCardKey]: dragSideNextActiveCardId,
+        [dropCardsKey]: newDropCards,
+        [dropActiveCardKey]: dragCardId,
+        activeSide: dropSide,
+      });
+    }
   }
 }));
 

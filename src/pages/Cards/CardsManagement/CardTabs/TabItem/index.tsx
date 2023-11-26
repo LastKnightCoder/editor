@@ -1,9 +1,13 @@
+import React from "react";
+import { motion } from "framer-motion";
 import { CloseOutlined } from '@ant-design/icons';
 import classnames from "classnames";
 import styles from './index.module.less';
-import React from "react";
+
+import useDragAndDrop from "./useDragAndDrop";
 
 interface ITabItemProps {
+  cardId: number;
   title: string;
   active?: boolean;
   onClick?: () => void;
@@ -12,13 +16,29 @@ interface ITabItemProps {
 }
 
 const TabItem = (props: ITabItemProps) => {
-  const { title, active = false, onClick, onClose, onContextMenu } = props;
+  const { cardId, title, active = false, onClick, onClose, onContextMenu } = props;
+
+  const {
+    ref,
+    isDragging,
+    isOver,
+    canDrop,
+  } = useDragAndDrop({
+    cardId
+  });
 
   return (
-    <div
-      className={classnames(styles.item, { [styles.active]: active })}
+    <motion.div
+      ref={ref}
+      className={classnames(styles.item, {
+        [styles.active]: active,
+        [styles.drop]: isOver && canDrop,
+      })}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      style={{
+        opacity: isDragging ? 0.5 : 1,
+      }}
     >
       <div className={styles.textContainer}>
         <div className={styles.text}>{title}</div>
@@ -30,7 +50,7 @@ const TabItem = (props: ITabItemProps) => {
           <CloseOutlined />
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

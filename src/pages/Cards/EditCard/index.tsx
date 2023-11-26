@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, createContext } from "react";
 import { Button, Drawer, Skeleton, Tag } from "antd";
 import isHotkey from "is-hotkey";
 import dayjs from "dayjs";
@@ -34,6 +34,8 @@ interface IEditCardProps {
   onClickLinkCard: (id: number) => void;
 }
 
+export const EditCardContext = createContext<{ cardId: number } | null>(null);
+
 const EditCard = (props: IEditCardProps) => {
   const { cardId, onClickLinkCard } = props;
 
@@ -58,11 +60,10 @@ const EditCard = (props: IEditCardProps) => {
     cards: state.cards,
   }))
 
-  // 不能添加 editingCardId 依赖，否则每次编辑都会导致重新关系图
   const allLinkedCards = useMemo(() => {
-    if (!editingCard || !editingCard.id) return [];
+    if (!editingCard) return [];
     return getAllLinkedCards(editingCard as ICard, cards);
-  }, [editingCard?.id, editingCard?.links, cards]);
+  }, [editingCard?.links, cards]);
 
   useEffect(() => {
     return () => {
@@ -89,81 +90,85 @@ const EditCard = (props: IEditCardProps) => {
   if (!editingCard) return null;
 
   return (
-    <div className={styles.editCardContainer}>
-      <div className={styles.fields}>
-        <div className={styles.title}>卡片属性</div>
-        <div className={styles.field}>
-          <div className={styles.fieldKey}>
-            <MdAccessTime className={styles.icon} />
-            <span>创建时间</span>
+    <EditCardContext.Provider value={{
+      cardId
+    }}>
+      <div className={styles.editCardContainer}>
+        <div className={styles.fields}>
+          <div className={styles.title}>卡片属性</div>
+          <div className={styles.field}>
+            <div className={styles.fieldKey}>
+              <MdAccessTime className={styles.icon} />
+              <span>创建时间</span>
+            </div>
+            <div className={styles.fieldValue}>
+              <Tag color={'red'}>{dayjs(editingCard.create_time).format('YYYY/MM/DD HH:mm:ss')}</Tag>
+            </div>
           </div>
-          <div className={styles.fieldValue}>
-            <Tag color={'red'}>{dayjs(editingCard.create_time).format('YYYY/MM/DD HH:mm:ss')}</Tag>
+          <div className={styles.field}>
+            <div className={styles.fieldKey}>
+              <MdAccessTime className={styles.icon} />
+              <span>更新时间</span>
+            </div>
+            <div className={styles.fieldValue}>
+              <Tag color={'purple'}>{dayjs(editingCard.update_time).format('YYYY/MM/DD HH:mm:ss')}</Tag>
+            </div>
+          </div>
+          <div  className={styles.field}>
+            <div className={styles.fieldKey}>
+              <FaTags className={styles.icon} />
+              <span>标签</span>
+            </div>
+            <div className={styles.fieldValue}>
+              <AddTag tags={editingCard.tags} addTag={onAddTag} removeTag={onDeleteTag} readonly={readonly} />
+            </div>
+          </div>
+          <div  className={styles.field}>
+            <div className={styles.fieldKey}>
+              <SlGraph className={styles.icon} />
+              <span>关联图谱</span>
+            </div>
+            <div className={styles.fieldValue}>
+              <Button onClick={() => { setLinkGraphOpen(true) }}>打开</Button>
+            </div>
           </div>
         </div>
-        <div className={styles.field}>
-          <div className={styles.fieldKey}>
-            <MdAccessTime className={styles.icon} />
-            <span>更新时间</span>
-          </div>
-          <div className={styles.fieldValue}>
-            <Tag color={'purple'}>{dayjs(editingCard.update_time).format('YYYY/MM/DD HH:mm:ss')}</Tag>
-          </div>
+        <div className={styles.editor}>
+          <Editor
+            initValue={initValue}
+            onChange={onContentChange}
+            extensions={customExtensions}
+            readonly={readonly}
+          />
         </div>
-        <div  className={styles.field}>
-          <div className={styles.fieldKey}>
-            <FaTags className={styles.icon} />
-            <span>标签</span>
-          </div>
-          <div className={styles.fieldValue}>
-            <AddTag tags={editingCard.tags} addTag={onAddTag} removeTag={onDeleteTag} readonly={readonly} />
-          </div>
+        <div className={styles.links}>
+          <div className={styles.title}>关联卡片</div>
+          <LinkList
+            onClickLinkCard={onClickLinkCard}
+            addLink={onAddLink}
+            removeLink={onRemoveLink}
+            editingCard={editingCard}
+            readonly={readonly}
+          />
         </div>
-        <div  className={styles.field}>
-          <div className={styles.fieldKey}>
-            <SlGraph className={styles.icon} />
-            <span>关联图谱</span>
-          </div>
-          <div className={styles.fieldValue}>
-            <Button onClick={() => { setLinkGraphOpen(true) }}>打开</Button>
-          </div>
-        </div>
+        <Drawer
+          title={'关联图谱'}
+          width={720}
+          open={linkGraphOpen}
+          onClose={() => { setLinkGraphOpen(false) }}
+        >
+          <LinkGraph
+            cards={allLinkedCards}
+            currentCardId={editingCard.id}
+            cardWidth={320}
+            getCardLinks={getCardLinks}
+            style={{
+              height: 'calc(100vh - 105px)'
+            }}
+          />
+        </Drawer>
       </div>
-      <div className={styles.editor}>
-        <Editor
-          initValue={initValue}
-          onChange={onContentChange}
-          extensions={customExtensions}
-          readonly={readonly}
-        />
-      </div>
-      <div className={styles.links}>
-        <div className={styles.title}>关联卡片</div>
-        <LinkList
-          onClickLinkCard={onClickLinkCard}
-          addLink={onAddLink}
-          removeLink={onRemoveLink}
-          editingCard={editingCard}
-          readonly={readonly}
-        />
-      </div>
-      <Drawer
-        title={'关联图谱'}
-        width={720}
-        open={linkGraphOpen}
-        onClose={() => { setLinkGraphOpen(false) }}
-      >
-        <LinkGraph
-          cards={allLinkedCards}
-          currentCardId={editingCard.id}
-          cardWidth={320}
-          getCardLinks={getCardLinks}
-          style={{
-            height: 'calc(100vh - 105px)'
-          }}
-        />
-      </Drawer>
-    </div>
+    </EditCardContext.Provider>
   )
 }
 

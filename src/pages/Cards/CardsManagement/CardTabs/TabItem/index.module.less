@@ -2,7 +2,10 @@
   padding: 4px 8px;
   flex-shrink: 1;
   cursor: pointer;
-  &.active {
+  &.drop {
+    --tab-active-color: var(--common-hover-bg);
+  }
+  &.active, &.drop {
     background-color: var(--tab-active-color);
     position: relative;
     border-radius: 12px 12px 0 0;

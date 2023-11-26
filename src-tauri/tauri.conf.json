@@ -99,7 +99,8 @@
         "hiddenTitle": true,
         "width": 1200,
         "center": true,
-        "decorations": false
+        "decorations": false,
+        "fileDropEnabled": false
       }
     ]
   }

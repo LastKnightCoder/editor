@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef } from "react";
 import { Popover } from "antd";
-import {useClickAway, useMemoizedFn} from 'ahooks';
+import { motion } from "framer-motion";
+import { useClickAway, useMemoizedFn } from 'ahooks';
 
 import { DownOutlined } from '@ant-design/icons';
 import { getEditorText } from "@/utils";
@@ -59,7 +60,7 @@ const CardTabs = (props: ICardTabsProps) => {
   })
 
   return (
-    <div className={styles.tabsContainer}>
+    <motion.div className={styles.tabsContainer}>
       <Popover
         open={morePopoverOpen}
         onOpenChange={setMorePopoverOpen}
@@ -75,7 +76,7 @@ const CardTabs = (props: ICardTabsProps) => {
                   content={(
                     <div className={styles.popover}>
                       <Editor
-                        initValue={tabCards[cardId].content}
+                        initValue={tabCards[cardId]?.content || []}
                         readonly
                       />
                     </div>
@@ -93,7 +94,7 @@ const CardTabs = (props: ICardTabsProps) => {
                       setMorePopoverOpen(false);
                     }}
                   >
-                    {getEditorText(tabCards[cardId].content)}
+                    {getEditorText(tabCards[cardId]?.content || [])}
                   </div>
                 </Popover>
               ))
@@ -108,10 +109,11 @@ const CardTabs = (props: ICardTabsProps) => {
         </div>
       </Popover>
       {
-        cardIds.map(cardId => (
+        cardIds.map((cardId) => (
           <TabItem
             key={cardId}
-            title={getEditorText(tabCards[cardId].content)}
+            cardId={cardId}
+            title={getEditorText(tabCards[cardId]?.content || [])}
             active={cardId === activeCardId}
             onClick={() => {
               onClickTab(cardId);
@@ -143,7 +145,7 @@ const CardTabs = (props: ICardTabsProps) => {
           </div>
         </div>
       </If>
-    </div>
+    </motion.div>
   )
 }
 

@@ -1,5 +1,4 @@
-import React, { ReactNode, useEffect, useMemo, useRef, useState, memo } from "react";
-import { createPortal } from 'react-dom';
+import React, { useEffect, useMemo, useRef, useState, memo } from "react";
 
 import { Editor, Range } from 'slate';
 import { useSlate, useSlateSelection, useReadOnly, ReactEditor } from "slate-react";
@@ -10,10 +9,6 @@ import { sortBy } from 'lodash'
 import { IConfigItem } from "@/components/Editor/types";
 
 import styles from './index.module.less';
-
-const Portal = ({ children }: { children: ReactNode }) => {
-  return createPortal(children, document.body)
-}
 
 interface IHoveringToolbarProps {
   configs: IConfigItem[];
@@ -114,27 +109,25 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
   }, [editor, readOnly, isHoveringBarShow]);
 
   return (
-    <Portal>
-      <HoveringBarContext.Provider value={{ isHoveringBarShow }}>
-        <div
-          ref={ref}
-          className={classnames(styles.hoveringToolbar, { [styles.show]: isHoveringBarShow && !readOnly })}
-          style={{
-            left: position.left,
-            top: position.top,
-          }}
-        >
-          {
-            sortedConfigs.map((config) => {
-              const { element: Element, id } = config;
-              return (
-                <Element key={id} />
-              )
-            })
-          }
-        </div>
-      </HoveringBarContext.Provider>
-    </Portal>
+    <HoveringBarContext.Provider value={{ isHoveringBarShow }}>
+      <div
+        ref={ref}
+        className={classnames(styles.hoveringToolbar, { [styles.show]: isHoveringBarShow && !readOnly })}
+        style={{
+          left: position.left,
+          top: position.top,
+        }}
+      >
+        {
+          sortedConfigs.map((config) => {
+            const { element: Element, id } = config;
+            return (
+              <Element key={id} />
+            )
+          })
+        }
+      </div>
+    </HoveringBarContext.Provider>
   )
 });
 

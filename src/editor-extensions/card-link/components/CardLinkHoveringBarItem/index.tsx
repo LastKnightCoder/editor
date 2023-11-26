@@ -1,16 +1,16 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useContext } from 'react';
 import { BaseSelection, Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { message, Tooltip } from "antd";
 import SVG from "react-inlinesvg";
 import SelectCardModal from "@/components/SelectCardModal";
+import { EditCardContext } from "@/pages/Cards/EditCard";
 
 import classnames from "classnames";
 import { unwrapCardLink, wrapCardLink } from "../utils";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-import useEditCardStore from "@/stores/useEditCardStore.ts";
 
 import card from "@/assets/hovering_bar/card.svg";
 
@@ -21,13 +21,10 @@ const LinkHoveringItem = () => {
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openSelectModal, setOpenSelectModal] = useState<boolean>(false);
   const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
+  const { cardId } = useContext(EditCardContext) || {};
 
   const { cards } = useCardsManagementStore(state => ({
     cards: state.cards
-  }));
-
-  const { editingCard } = useEditCardStore(state => ({
-    editingCard: state.editingCard
   }));
 
   const editor = useSlate();
@@ -103,7 +100,7 @@ const LinkHoveringItem = () => {
         allCards={cards}
         onCancel={onCancelSelect}
         onOk={onSelectOk}
-        excludeCardIds={[editingCard && editingCard.id || -1]}
+        excludeCardIds={[cardId || -1]}
       />
     </div>
   )
