@@ -47,7 +47,7 @@ const CardTabs = (props: ICardTabsProps) => {
     setShowContextMenu(false);
   }, contextMenuRef);
 
-  const onContextMenu = useMemoizedFn((e: React.MouseEvent<HTMLDivElement, MouseEvent>, cardId: number) => {
+  const onContextMenu = useMemoizedFn((e: React.MouseEvent, cardId: number) => {
     e.preventDefault();
     e.stopPropagation();
     setShowContextMenu(true);
@@ -134,7 +134,9 @@ const CardTabs = (props: ICardTabsProps) => {
             className={styles.item}
             onClick={() => {
               setShowContextMenu(false);
-              onMoveCard(rightClickCardId);
+              if (rightClickCardId) {
+                onMoveCard(rightClickCardId);
+              }
             }}
           >
             移动到另一侧

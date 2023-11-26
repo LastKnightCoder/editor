@@ -11,6 +11,7 @@ import styles from './index.module.less';
 
 interface ILinkGraphProps {
   cards: ICard[];
+  getCardLinks?: (card: ICard) => number[];
   className?: string;
   style?: React.CSSProperties;
   cardWidth?: number;
@@ -28,6 +29,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
     cardMaxHeight,
     cardFontSize,
     currentCardId,
+    getCardLinks = (card) => card.links,
   } = props;
   const ref = useRef<HTMLDivElement>(null);
   const graph = useRef<Graph>();
@@ -110,7 +112,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
         lineWidth: 8,
       }
     })) as any[];
-    const edges = cards.map((card) => card.links.map((link) => ({
+    const edges = cards.map((card) => getCardLinks(card).map((link) => ({
       source: String(card.id),
       target: String(link),
     }))).flat() as any[];

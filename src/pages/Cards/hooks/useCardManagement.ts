@@ -1,17 +1,10 @@
-import { useState } from 'react';
 import { useMemoizedFn } from 'ahooks';
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import { App } from "antd";
 
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import useCardPanelStore from "@/stores/useCardPanelStore.ts";
+
 const useCardManagement = () => {
-  const [leftCardIds, setLeftCardIds] = useState<number[]>([]); // 左侧卡片的id
-  const [rightCardIds, setRightCardIds] = useState<number[]>([]); // 右侧卡片的id
-  const [leftActiveCardId, setLeftActiveCardId] = useState<number>(); // 当前激活的卡片id
-  const [rightActiveCardId, setRightActiveCardId] = useState<number>(); // 当前激活的卡片id
-  const [activeSide, setActiveSide] = useState<'left' | 'right'>('left'); // 当前活动窗口
-
-  const { modal } = App.useApp();
-
   const {
     createCard,
     deleteCard,
@@ -20,35 +13,53 @@ const useCardManagement = () => {
     createCard: state.createCard,
   }));
 
-  const onClickTab = useMemoizedFn((cardId: number) => {
-    if (leftCardIds.includes(cardId)) {
-      if (cardId === leftActiveCardId) {
-        setLeftActiveCardId(undefined);
-      } else {
-        setLeftActiveCardId(cardId);
-      }
-      setActiveSide('left');
-    } else if (rightCardIds.includes(cardId)) {
-      if (cardId === rightActiveCardId) {
-        setRightActiveCardId(undefined);
-      } else {
-        setRightActiveCardId(cardId);
-      }
-      setActiveSide('right');
-    }
-  });
+  const {
+    leftCardIds,
+    rightCardIds,
+    leftActiveCardId,
+    rightActiveCardId,
+    activeSide,
+    addCard,
+    removeCard,
+    moveCard,
+  } = useCardPanelStore((state) => ({
+    leftCardIds: state.leftCardIds,
+    rightCardIds: state.rightCardIds,
+    leftActiveCardId: state.leftActiveCardId,
+    rightActiveCardId: state.rightActiveCardId,
+    addCard: state.addCard,
+    removeCard: state.removeCard,
+    moveCard: state.moveCard,
+    activeSide: state.activeSide,
+  }));
 
-  const onCloseTab = useMemoizedFn((cardId: number) => {
-    removeCard(cardId);
-  });
+  const { modal } = App.useApp();
 
-  const onClickCard = useMemoizedFn((cardId: number) => {
-    if (leftCardIds.includes(cardId) || rightCardIds.includes(cardId)) {
-      onClickTab(cardId);
+  const onClickTab = useMemoizedFn((id: number) => {
+    if (!leftCardIds.includes(id) && !rightCardIds.includes(id)) {
       return;
     }
+    if (leftCardIds.includes(id)) {
+      useCardPanelStore.setState({
+        leftActiveCardId: id === leftActiveCardId ? undefined : id,
+      });
+    } else {
+      useCardPanelStore.setState({
+        rightActiveCardId: id === rightActiveCardId ? undefined : id,
+      });
+    }
+  });
 
-    addCard(cardId);
+  const onCloseTab = useMemoizedFn( (id: number) => {
+    removeCard(id);
+  });
+
+  const onClickCard = useMemoizedFn( (id: number) => {
+    if (leftCardIds.includes(id) || rightCardIds.includes(id)) {
+      onClickTab(id);
+    } else {
+      addCard(id);
+    }
   });
 
   const onCreateCard = useMemoizedFn(async () => {
@@ -72,9 +83,7 @@ const useCardManagement = () => {
       content: '删除后无法恢复',
       onOk: async () => {
         await deleteCard(cardId);
-        if (cardIds.includes(cardId)) {
-          removeCard(cardId);
-        }
+        removeCard(cardId);
       },
       okText: '确认',
       cancelText: '取消',
@@ -84,68 +93,9 @@ const useCardManagement = () => {
     });
   });
 
-  const onMoveCard = useMemoizedFn((cardId: number) => {
-    if (!leftCardIds.includes(cardId) && !rightCardIds.includes(cardId)) {
-      return;
-    }
-    if (leftCardIds.includes(cardId)) {
-      // 从左边移出，加入右边
-      setLeftCardIds(leftCardIds.filter((id) => id !== cardId));
-      setRightCardIds([...rightCardIds, cardId]);
-      setRightActiveCardId(cardId);
-      if (cardId === leftActiveCardId) {
-        setLeftActiveCardId(undefined);
-      }
-    } else {
-      // 从右边移出，加入左边
-      setRightCardIds(rightCardIds.filter((id) => id !== cardId));
-      setLeftCardIds([...leftCardIds, cardId]);
-      setLeftActiveCardId(cardId);
-      if (cardId === rightActiveCardId) {
-        setRightActiveCardId(undefined);
-      }
-    }
+  const onMoveCard = useMemoizedFn ((cardId: number) => {
+    moveCard(cardId);
   });
-
-  const addCard = useMemoizedFn((cardId: number) => {
-    if (leftCardIds.includes(cardId) || rightCardIds.includes(cardId)) {
-      return;
-    }
-    if (activeSide === 'left') {
-      setLeftCardIds([...leftCardIds, cardId]);
-      setLeftActiveCardId(cardId);
-    } else {
-      setRightCardIds([...rightCardIds, cardId]);
-      setRightActiveCardId(cardId);
-    }
-  });
-
-  const removeCard = useMemoizedFn((cardId: number) => {
-    if (leftCardIds.includes(cardId)) {
-      setLeftCardIds(leftCardIds.filter((id) => id !== cardId));
-      if (leftActiveCardId === cardId) {
-        const nextActiveCardId = leftCardIds.find((id) => id !== cardId);
-        setLeftActiveCardId(nextActiveCardId);
-      }
-    } else if (rightCardIds.includes(cardId)) {
-      setRightCardIds(rightCardIds.filter((id) => id !== cardId));
-      if (rightActiveCardId === cardId) {
-        const nextActiveCardId = rightCardIds.find((id) => id !== cardId);
-        setRightActiveCardId(nextActiveCardId);
-      }
-    }
-  });
-
-  const onActiveSideChange = useMemoizedFn((cardId: number) => {
-    if (!leftCardIds.includes(cardId) && !rightCardIds.includes(cardId)) {
-      return;
-    }
-    if (leftCardIds.includes(cardId)) {
-      setActiveSide('left');
-    } else {
-      setActiveSide('right');
-    }
-  })
 
   return {
     leftCardIds,
@@ -158,7 +108,6 @@ const useCardManagement = () => {
     onCreateCard,
     onDeleteCard,
     onMoveCard,
-    onActiveSideChange,
     activeSide,
   }
 }

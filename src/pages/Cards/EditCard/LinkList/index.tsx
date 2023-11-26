@@ -61,11 +61,7 @@ const LinkTab = (props: ILinkTabProps) => {
     .map(id => cards.find(card => card.id === id))
     .filter(Boolean) as ICard[];
 
-  // 不能添加 editingCardId 依赖，否则每次编辑都会导致重新关系图
-  // const allLinkedCards = useMemo(() => {
-  //   if (!editingCard || !editingCard.id) return [];
-  //   return getAllLinkedCards(editingCard as ICard, cards);
-  // }, [editingCard?.id, editingCard?.links, cards]);
+
 
   if (!editingCard) return null;
 
@@ -81,17 +77,7 @@ const LinkTab = (props: ILinkTabProps) => {
             maxRows={4}
             settings={[{
               title: '删除连接',
-              onClick: () => {
-                modal.confirm({
-                  title: '确认删除连接？',
-                  onOk: async () => {
-                    await onRemoveLink(card.id);
-                  },
-                  okButtonProps: {
-                    danger: true,
-                  }
-                })
-              }
+              onClick: onRemoveLink
             }]}
           />
         ))

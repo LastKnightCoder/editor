@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Typography, Popover } from 'antd';
 import { MdMoreVert } from 'react-icons/md';
 import Tags from "@/components/Tags";
@@ -33,6 +34,8 @@ const CardItem2 = (props: ICardItem2Props) => {
 
   const { content, tags } = card;
 
+  const [settingPanelOpen, setSettingPanelOpen] = useState(false);
+
   return (
     <div className={classnames(styles.itemContainer, { [styles.active]: active })} onClick={onClick}>
       <If condition={showTags}>
@@ -43,9 +46,11 @@ const CardItem2 = (props: ICardItem2Props) => {
       </Paragraph>
       <If condition={settings.length > 0}>
         <Popover
+          open={settingPanelOpen}
+          onOpenChange={setSettingPanelOpen}
           placement="bottomRight"
           trigger="click"
-          content={<SettingPanel settings={settings} cardId={card.id} />}
+          content={<SettingPanel closePanel={() => { setSettingPanelOpen(false) }} settings={settings} cardId={card.id} />}
           arrow={false}
         >
           <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>

@@ -1,34 +1,44 @@
-import { useEffect, useState, useRef } from "react";
-import { Skeleton, Tag } from "antd";
+import { useEffect, useState, useMemo } from "react";
+import { Button, Drawer, Skeleton, Tag } from "antd";
 import isHotkey from "is-hotkey";
 import dayjs from "dayjs";
+
 import { MdAccessTime } from "react-icons/md";
 import { FaTags } from "react-icons/fa6";
-
-import Editor, { EditorRef } from '@/components/Editor';
+import { SlGraph } from "react-icons/sl";
+import Editor from '@/components/Editor';
 import AddTag from "@/components/AddTag";
+import LinkGraph from "@/components/LinkGraph";
 import LinkList from './LinkList';
 
 import { cardLinkExtension } from "@/editor-extensions";
 
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useEditCard from "../hooks/useEditCard.ts";
 
+import { ICard } from "@/types";
+
+import { getAllLinkedCards, getInlineLinks } from "./utils.ts";
 import styles from './index.module.less';
 
 
 const customExtensions = [cardLinkExtension];
 
+const getCardLinks = (card: ICard) => {
+  const links = getInlineLinks(card);
+  return [...new Set([...links, ...card.links])];
+}
+
 interface IEditCardProps {
   cardId: number;
   onClickLinkCard: (id: number) => void;
-  onChange: () => void;
 }
 
 const EditCard = (props: IEditCardProps) => {
-  const { cardId, onClickLinkCard, onChange } = props;
+  const { cardId, onClickLinkCard } = props;
 
   const [readonly, setReadonly] = useState(false);
-  const editorRef = useRef<EditorRef>(null);
+  const [linkGraphOpen, setLinkGraphOpen] = useState(false);
 
   const {
     initValue,
@@ -41,6 +51,18 @@ const EditCard = (props: IEditCardProps) => {
     onAddLink,
     onRemoveLink,
   } = useEditCard(cardId);
+
+  const {
+    cards
+  } = useCardsManagementStore((state) => ({
+    cards: state.cards,
+  }))
+
+  // 不能添加 editingCardId 依赖，否则每次编辑都会导致重新关系图
+  const allLinkedCards = useMemo(() => {
+    if (!editingCard || !editingCard.id) return [];
+    return getAllLinkedCards(editingCard as ICard, cards);
+  }, [editingCard?.id, editingCard?.links, cards]);
 
   useEffect(() => {
     return () => {
@@ -97,15 +119,20 @@ const EditCard = (props: IEditCardProps) => {
             <AddTag tags={editingCard.tags} addTag={onAddTag} removeTag={onDeleteTag} readonly={readonly} />
           </div>
         </div>
+        <div  className={styles.field}>
+          <div className={styles.fieldKey}>
+            <SlGraph className={styles.icon} />
+            <span>关联图谱</span>
+          </div>
+          <div className={styles.fieldValue}>
+            <Button onClick={() => { setLinkGraphOpen(true) }}>打开</Button>
+          </div>
+        </div>
       </div>
       <div className={styles.editor}>
         <Editor
-          ref={editorRef}
           initValue={initValue}
-          onChange={(value) => {
-            onContentChange(value);
-            onChange();
-          }}
+          onChange={onContentChange}
           extensions={customExtensions}
           readonly={readonly}
         />
@@ -120,6 +147,22 @@ const EditCard = (props: IEditCardProps) => {
           readonly={readonly}
         />
       </div>
+      <Drawer
+        title={'关联图谱'}
+        width={720}
+        open={linkGraphOpen}
+        onClose={() => { setLinkGraphOpen(false) }}
+      >
+        <LinkGraph
+          cards={allLinkedCards}
+          currentCardId={editingCard.id}
+          cardWidth={320}
+          getCardLinks={getCardLinks}
+          style={{
+            height: 'calc(100vh - 105px)'
+          }}
+        />
+      </Drawer>
     </div>
   )
 }

@@ -10,10 +10,11 @@ export interface ISettingItem {
 interface ISettingPanelProps {
   cardId: number;
   settings: ISettingItem[];
+  closePanel?: () => void;
 }
 
 const SettingPanel = (props: ISettingPanelProps) => {
-  const { settings, cardId } = props;
+  const { settings, cardId, closePanel } = props;
 
   if (settings.length === 0) return null;
 
@@ -24,6 +25,7 @@ const SettingPanel = (props: ISettingPanelProps) => {
         renderItem={(setting) => (
           <div key={setting.title} className={styles.settingItem} onClick={(e) => {
             setting?.onClick?.(cardId);
+            closePanel?.();
             e.stopPropagation();
           }}>
             {setting.title}

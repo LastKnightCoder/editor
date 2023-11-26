@@ -19,9 +19,13 @@ interface IActions {
   deleteCard: (id: number) => Promise<number>;
 }
 
-const useCardsManagementStore = create<IState & IActions>((set, get) => ({
+const initState: IState = {
   cards: [],
   initLoading: false,
+}
+
+const useCardsManagementStore = create<IState & IActions>((set, get) => ({
+  ...initState,
   init: async () => {
     set({ initLoading: true });
     const cards = await getAllCards();

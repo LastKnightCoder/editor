@@ -7,22 +7,20 @@ import styles from './index.module.less';
 interface ICardsManagementProps {
   cardIds: number[];
   activeCardId?: number;
-  onClickLinkCard: (id: number) => void;
+  onClickCard: (id: number) => void;
   onClickTab: (id: number) => void;
   onCloseTab: (id: number) => void;
-  onMoveCard: (cardId) => void;
-  onActiveSideChange: (cardId: number) => void;
+  onMoveCard: (cardId: number) => void;
 }
 
 const CardsManagement = (props: ICardsManagementProps) => {
   const {
     cardIds,
     activeCardId,
-    onClickTab,
+    onClickCard: onClickLinkCard,
     onCloseTab,
-    onClickLinkCard,
+    onClickTab,
     onMoveCard,
-    onActiveSideChange,
   } = props;
 
   return (
@@ -42,9 +40,6 @@ const CardsManagement = (props: ICardsManagementProps) => {
             key={activeCardId!}
             cardId={activeCardId!}
             onClickLinkCard={onClickLinkCard}
-            onChange={() => {
-              onActiveSideChange(activeCardId!);
-            }}
           />
         </div>
       </If>

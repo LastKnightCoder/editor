@@ -1,9 +1,10 @@
-import { useEffect, memo } from "react";
+import { memo, useEffect } from "react";
 import { RightOutlined } from "@ant-design/icons";
 import classnames from "classnames";
 import isHotkey from "is-hotkey";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import { EActiveSide } from "@/stores/useCardPanelStore.ts";
 import useSidebarManagementStore from "./stores/useSidebarManagementStore.ts";
 
 import Sidebar from "./Sidebar";
@@ -28,17 +29,16 @@ const Cards = memo(() => {
 
   const {
     leftCardIds,
-    leftActiveCardId,
     rightCardIds,
+    leftActiveCardId,
     rightActiveCardId,
-    onClickTab,
-    onCloseTab,
-    onClickCard,
     onCreateCard,
     onDeleteCard,
+    onClickCard,
+    onClickTab,
+    onCloseTab,
     onMoveCard,
-    onActiveSideChange,
-    activeSide
+    activeSide,
   } = useCardManagement();
 
   useEffect(() => {
@@ -69,15 +69,6 @@ const Cards = memo(() => {
     }
   }, []);
 
-  const onMoveCardToOther = (cardId: number) => {
-    onMoveCard(cardId);
-    if (!isHideSidebar && leftCardIds.length > 0 && rightCardIds.length > 0) {
-      useSidebarManagementStore.setState({
-        isHideSidebar: true,
-      });
-    }
-  }
-
   return (
     <div className={classnames(styles.cardsContainer, { [styles.hideSidebar]: isHideSidebar })}>
       <If condition={isHideSidebar}>
@@ -93,7 +84,7 @@ const Cards = memo(() => {
       </If>
       <div className={classnames(styles.sidebar, { [styles.hide]: isHideSidebar })}>
         <Sidebar
-          editingCardId={activeSide === 'left' ? leftActiveCardId : rightActiveCardId}
+          editingCardId={activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId}
           onCreateCard={onCreateCard}
           onDeleteCard={onDeleteCard}
           onClickCard={onClickCard}
@@ -105,22 +96,20 @@ const Cards = memo(() => {
             <CardsManagement
               cardIds={leftCardIds}
               activeCardId={leftActiveCardId}
-              onClickLinkCard={onClickCard}
+              onClickCard={onClickCard}
               onClickTab={onClickTab}
               onCloseTab={onCloseTab}
-              onMoveCard={onMoveCardToOther}
-              onActiveSideChange={onActiveSideChange}
+              onMoveCard={onMoveCard}
             />
           </If>
           <If condition={rightCardIds.length > 0}>
             <CardsManagement
               cardIds={rightCardIds}
               activeCardId={rightActiveCardId}
-              onClickLinkCard={onClickCard}
+              onClickCard={onClickCard}
               onClickTab={onClickTab}
               onCloseTab={onCloseTab}
-              onMoveCard={onMoveCardToOther}
-              onActiveSideChange={onActiveSideChange}
+              onMoveCard={onMoveCard}
             />
           </If>
         </div>
