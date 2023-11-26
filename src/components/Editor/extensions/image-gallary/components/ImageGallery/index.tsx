@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlate } from "slate-react";
 import { Modal } from 'antd';
@@ -56,6 +56,10 @@ const ImageGallery = (props: IImageGalleryProps) => {
       at: path
     });
   }
+
+  useEffect(() => {
+    console.log('setting', setting);
+  }, [setting]);
 
   return (
     <div

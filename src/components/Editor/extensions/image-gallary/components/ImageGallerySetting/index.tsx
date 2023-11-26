@@ -1,4 +1,5 @@
 import React, {useRef, useState} from 'react';
+import {motion} from "framer-motion";
 import {produce} from 'immer';
 import {InputNumber, Select, Space, Spin, Switch} from 'antd';
 import {PlusOutlined} from '@ant-design/icons';
@@ -19,7 +20,6 @@ export interface ISetting {
   columnCount?: number;
   images: ImageGalleryItem[];
 }
-
 
 interface IImageGallerySettingProps {
   setting: ISetting;
@@ -63,6 +63,19 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     onSettingChange(produce(setting, draft => {
       draft.images = draft.images.concat(values);
     }))
+  }
+
+  const onDropImage = (dragImageItem: ImageGalleryItem, dropImageItem: ImageGalleryItem) => {
+    onSettingChange(produce(setting, draft => {
+      const dragIndex = draft.images.findIndex(item => item.id === dragImageItem.id);
+      const dropIndex = draft.images.findIndex(item => item.id === dropImageItem.id);
+      console.log(dragIndex, dropIndex);
+      if (dragIndex === -1 || dropIndex === -1) {
+        return;
+      }
+      draft.images.splice(dragIndex, 1);
+      draft.images.splice(dropIndex, 0, dragImageItem);
+    }));
   }
 
   const uploadFile = async (file: File) => {
@@ -172,17 +185,18 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
               </div>
             </Spin>
           </div>
-          <div className={styles.imageList}>
+          <motion.div className={styles.imageList}>
             {
               setting.images.map(item => (
                 <ImageItem
                   imageItem={item}
                   onDelete={onDeleteImage}
                   key={item.id}
+                  onDrop={onDropImage}
                 />
               ))
             }
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>

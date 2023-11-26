@@ -40,17 +40,20 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
     }),
-    hover: (item, monitor) => {
-      const canDrop = monitor.canDrop();
-      if (!canDrop) {
-        return;
-      }
+    // hover: (item, monitor) => {
+    //   const canDrop = monitor.canDrop();
+    //   if (!canDrop) {
+    //     return;
+    //   }
+    //   if (item.cardId === cardId) {
+    //     return;
+    //   }
+    //   dragCard(item.cardId, cardId);
+    // },
+    drop: (item) => {
       if (item.cardId === cardId) {
         return;
       }
-      dragCard(item.cardId, cardId);
-    },
-    drop: (item) => {
       dragCard(item.cardId, cardId);
     }
   });

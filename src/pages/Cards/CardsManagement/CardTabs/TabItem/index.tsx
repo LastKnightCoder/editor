@@ -29,6 +29,7 @@ const TabItem = (props: ITabItemProps) => {
 
   return (
     <motion.div
+      layoutId={String(cardId)}
       ref={ref}
       className={classnames(styles.item, {
         [styles.active]: active,
