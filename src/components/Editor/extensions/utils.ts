@@ -1,4 +1,4 @@
-import { Editor, Element as SlateElement, Node as SlateNode, Path, Range, Transforms } from "slate";
+import {Editor, Element as SlateElement, Node as SlateNode, NodeEntry, Path, Range, Transforms} from "slate";
 import { ParagraphElement } from "@/components/Editor/types";
 
 // 是否在段落的开头按下的空格
@@ -72,4 +72,25 @@ export const hitDoubleQuit = (editor: Editor, parentType: string) => {
   });
 
   return true;
+}
+
+export const hitEmptyOrInlineChild = (editor: Editor, [node, path]: NodeEntry, parentType: string) => {
+  if (node.type !== parentType) {
+    return false;
+  }
+
+  // @ts-ignore
+  if (!node.children) {
+    return false;
+  }
+
+  // @ts-ignore
+  if (node.children.length === 0 || (node.children.length === 1 && node.children[0].type === 'formatted' )) {
+    Transforms.removeNodes(editor, {
+      at: path,
+    });
+    return true;
+  }
+
+  return false;
 }

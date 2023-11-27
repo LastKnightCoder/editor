@@ -2,11 +2,13 @@ import React, { useState, useRef } from 'react';
 import { Transforms } from "slate";
 import { RenderElementProps, useSlate, useReadOnly, ReactEditor } from "slate-react";
 import classnames from 'classnames';
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 
 import { CalloutElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
 import styles from './index.module.less';
+import {MdDragIndicator} from "react-icons/md";
 
 interface ICalloutProps {
   attributes: RenderElementProps['attributes'];
@@ -40,6 +42,18 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const [realTitle, setRealTitle] = useState<string>(title || defaultTitle);
   const titleRef = useRef<HTMLParagraphElement>(null);
 
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  })
+
   const handleTitleBlur = () => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(editor, { title: titleRef.current?.innerText }, { at: path });
@@ -47,8 +61,13 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   }
 
   return (
-    <div>
-      <div className={classnames(styles.callout, styles[calloutType])}>
+    <div ref={drop} className={styles.container}>
+      <div className={classnames(styles.callout, styles[calloutType], {
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+      })}>
         <div
           contentEditable={false}
           style={{ userSelect: 'none' }}
@@ -70,6 +89,9 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
         </div>
       </div>
       <AddParagraph element={element} />
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, {[styles.canDrag]: canDrag})}>
+        <MdDragIndicator className={styles.icon}/>
+      </div>
     </div>
   )
 }

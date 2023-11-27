@@ -1,97 +1,97 @@
-.callout {
+.container {
   position: relative;
-  padding: 0.25rem 1rem;
-  background-color: var(--hint-background-color);
-  border-left: 0.3rem solid;
-  border-color: var(--hint-border-color);
-  border-radius: 0.5rem;
-
-  &.tip {
-    color: var(--hint-text-color);
-    --hint-border-color: #009400;
-    --hint-background-color: #e6ffe6;
-    --hint-text-color: #003100;
-    --icon-url: url('@/assets/tip.svg');
-  }
-
-  :global(:root[data-theme='dark']) &.tip {
-    --hint-background-color: #003100;
-    --hint-text-color: #e6ffe6;
-  }
-
-  &.info {
-    color: var(--hint-text-color);
-    --hint-border-color: #4cb3d4;
-    --hint-background-color: #eef9fd;
-    --hint-text-color: #193c47;
-    --icon-url: url('@/assets/info.svg');
-  }
-
-  :global(:root[data-theme='dark']) &.info {
-    --hint-background-color: #193c47;
-    --hint-text-color: #eef9fd;
-  }
-
-  &.danger {
-    color: var(--hint-text-color);
-    --hint-border-color: #e13238;
-    --hint-background-color: #ffebec;
-    --hint-text-color: #4b1113;
-    --icon-url: url('@/assets/danger.svg');
-  }
-
-  :global(:root[data-theme='dark']) &.danger {
-    --hint-background-color: #4b1113;
-    --hint-text-color: #ffebec;
-  }
-
-  &.warning {
-    color: var(--hint-text-color);
-    --hint-border-color: #e6a700;
-    --hint-background-color: #fff8e6;
-    --hint-text-color: #4d3800;
-    --icon-url: url('@/assets/warning.svg');
-  }
-
-  :global(:root[data-theme='dark']) &.warning {
-    --hint-background-color: #4d3800;
-    --hint-text-color: #fff8e6;
-  }
-
-  &.note {
-    color: var(--hint-text-color);
-    --hint-border-color: #d4d5d8;
-    --hint-background-color: #fdfdfe;
-    --hint-text-color: #474748;
-    --icon-url: url('@/assets/note.svg');
-  }
-
-  :global(:root[data-theme='dark']) &.note {
-    --hint-background-color: #474748;
-    --hint-text-color: #fdfdfe;
-  }
-
-  .title {
-    font-weight: 600;
+  .callout {
     position: relative;
-    padding-left: 1.5rem;
-    margin-top: 10px;
-    line-height: 1.25;
-    color: var(--hint-text-color);
-    &::before {
-      content: " ";
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      left: 0;
-      background-position: 0;
-      background-repeat: no-repeat;
-      background-image: var(--icon-url);
-    }
-  }
-}
+    padding: 0.25rem 1rem;
+    background-color: var(--hint-background-color);
+    border-left: 0.3rem solid;
+    border-color: var(--hint-border-color);
+    border-radius: 0.5rem;
 
-.addParagraph {
-  height: 10px;
-  cursor: pointer;
+    &.tip {
+      color: var(--hint-text-color);
+      --hint-border-color: #009400;
+      --hint-background-color: #e6ffe6;
+      --hint-text-color: #003100;
+      --icon-url: url('@/assets/tip.svg');
+    }
+
+    :global(:root[data-theme='dark']) &.tip {
+      --hint-background-color: #003100;
+      --hint-text-color: #e6ffe6;
+    }
+
+    &.info {
+      color: var(--hint-text-color);
+      --hint-border-color: #4cb3d4;
+      --hint-background-color: #eef9fd;
+      --hint-text-color: #193c47;
+      --icon-url: url('@/assets/info.svg');
+    }
+
+    :global(:root[data-theme='dark']) &.info {
+      --hint-background-color: #193c47;
+      --hint-text-color: #eef9fd;
+    }
+
+    &.danger {
+      color: var(--hint-text-color);
+      --hint-border-color: #e13238;
+      --hint-background-color: #ffebec;
+      --hint-text-color: #4b1113;
+      --icon-url: url('@/assets/danger.svg');
+    }
+
+    :global(:root[data-theme='dark']) &.danger {
+      --hint-background-color: #4b1113;
+      --hint-text-color: #ffebec;
+    }
+
+    &.warning {
+      color: var(--hint-text-color);
+      --hint-border-color: #e6a700;
+      --hint-background-color: #fff8e6;
+      --hint-text-color: #4d3800;
+      --icon-url: url('@/assets/warning.svg');
+    }
+
+    :global(:root[data-theme='dark']) &.warning {
+      --hint-background-color: #4d3800;
+      --hint-text-color: #fff8e6;
+    }
+
+    &.note {
+      color: var(--hint-text-color);
+      --hint-border-color: #d4d5d8;
+      --hint-background-color: #fdfdfe;
+      --hint-text-color: #474748;
+      --icon-url: url('@/assets/note.svg');
+    }
+
+    :global(:root[data-theme='dark']) &.note {
+      --hint-background-color: #474748;
+      --hint-text-color: #fdfdfe;
+    }
+
+    .title {
+      font-weight: 600;
+      position: relative;
+      padding-left: 1.5rem;
+      margin-top: 10px;
+      line-height: 1.25;
+      color: var(--hint-text-color);
+      &::before {
+        content: " ";
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        left: 0;
+        background-position: 0;
+        background-repeat: no-repeat;
+        background-image: var(--icon-url);
+      }
+    }
+    @import '@/components/Editor/extensions/drop-common.less';
+  }
+  @import '@/components/Editor/extensions/drag-common.less';
 }

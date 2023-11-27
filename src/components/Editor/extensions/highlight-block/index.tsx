@@ -6,7 +6,7 @@ import IExtension from "@/components/Editor/extensions/types.ts";
 import { HighlightBlockElement } from "@/components/Editor/types";
 
 import blockPanelItems from './block-panel-items';
-import { quit } from './plugins';
+import { quit, withNormalize } from './plugins';
 class HighlightBlockExtension extends Base implements IExtension {
   type = 'highlight-block';
 
@@ -15,7 +15,7 @@ class HighlightBlockExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [quit];
+    return [quit, withNormalize];
   }
 
   render(props: RenderElementProps) {
