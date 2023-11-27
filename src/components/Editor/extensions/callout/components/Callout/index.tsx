@@ -52,7 +52,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
     isOverCurrent,
   } = useDragAndDrop({
     element,
-  })
+  });
 
   const handleTitleBlur = () => {
     const path = ReactEditor.findPath(editor, element);
@@ -89,7 +89,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
         </div>
       </div>
       <AddParagraph element={element} />
-      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, {[styles.canDrag]: canDrag})}>
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
         <MdDragIndicator className={styles.icon}/>
       </div>
     </div>

@@ -14,6 +14,10 @@ interface IDragItem {
 }
 
 const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: boolean) => {
+  // 如果 dropPath 是 dragPath 的子节点，不允许移动
+  if (Path.isAncestor(dragPath, dropPath)) {
+    return;
+  }
   // 判断是否是同一级别的移动
   const dragParentPath = Path.parent(dragPath);
   const dropParentPath = Path.parent(dropPath);
@@ -23,11 +27,13 @@ const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: bool
       Transforms.moveNodes(editor, {
         at: dragPath,
         to: isBefore ? Path.previous(dropPath) : dropPath,
+        voids: true,
       });
     } else {
       Transforms.moveNodes(editor, {
         at: dragPath,
         to: isBefore ? dropPath : Path.next(dropPath),
+        voids: true,
       });
     }
   } else {
@@ -39,6 +45,7 @@ const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: bool
         Transforms.moveNodes(editor, {
           at: dragPath,
           to: isBefore ? dropPath : Path.next(dropPath),
+          voids: true,
         });
       } else {
         // drop 在 common 那一层要前移
@@ -118,21 +125,28 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       if (didDrop) {
         return;
       }
-      const dragElement = item.element;
-      const dragPath = ReactEditor.findPath(editor, dragElement);
+      try {
+        const dragElement = item.element;
+        const dragPath = ReactEditor.findPath(editor, dragElement);
 
-      const dropElement = element;
-      const dropPath = ReactEditor.findPath(editor, dropElement);
-      const dropDOMNode = ReactEditor.toDOMNode(editor, dropElement);
-      const dropRect = dropDOMNode.getBoundingClientRect();
-      // 如果在元素的上半部分，就插入到元素前面，否则插入到元素后面
-      const monitorClientOffset = monitor.getClientOffset();
-      if (!monitorClientOffset) {
-        return;
+        const dropElement = element;
+        const dropPath = ReactEditor.findPath(editor, dropElement);
+        const dropDOMNode = ReactEditor.toDOMNode(editor, dropElement);
+        const dropRect = dropDOMNode.getBoundingClientRect();
+        // 如果在元素的上半部分，就插入到元素前面，否则插入到元素后面
+        const monitorClientOffset = monitor.getClientOffset();
+        if (!monitorClientOffset) {
+          return;
+        }
+        const isBefore = monitorClientOffset.y - dropRect.top < dropRect.height / 2;
+
+        console.log('drop', dragPath, dropPath, isBefore);
+        console.log('drop', dragElement, dropElement, isBefore);
+
+        moveNode(editor, dragPath, dropPath, isBefore);
+      } catch (e) {
+        console.error(e);
       }
-      const isBefore = monitorClientOffset.y - dropRect.top < dropRect.height / 2;
-
-      moveNode(editor, dragPath, dropPath, isBefore);
     },
   });
 

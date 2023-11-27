@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import classnames from "classnames";
@@ -10,12 +10,14 @@ import isHotkey from "is-hotkey";
 import { CodeBlockElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import useTheme from "@/hooks/useTheme.ts";
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 
 import styles from './index.module.less';
 import { LANGUAGES } from './config';
 
 import SelectLanguage from "../SelectLanguage";
 import { codeBlockMap } from "../../index";
+import { MdDragIndicator } from "react-icons/md";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps['attributes'];
@@ -49,8 +51,20 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   const slateEditor = useSlate();
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
+
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  });
+
   useEffect(() => {
-     
     // @ts-ignore
     const alias: string = aliases[language] || language;
     const languageConfig = LANGUAGES.find((lang) => lang.name.toLowerCase() === alias.toLowerCase());
@@ -82,8 +96,31 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   }
 
   return (
-    <div contentEditable={false} {...attributes} className={classnames(styles.codeBlockContainer, { [styles.dark]: isDark, [styles.readOnly]: readOnly })}>
-      {children}
+    <div
+      contentEditable={false}
+      className={classnames(styles.codeBlockContainer, {
+        [styles.dark]: isDark,
+        [styles.readOnly]: readOnly,
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+      })}
+      ref={drop}
+    >
+      <div
+        {...attributes}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        {children}
+      </div>
       <div className={styles.windowsControl} />
       <div className={styles.copyButton} onClick={handleCopyCode} />
       { !readOnly && <SelectLanguage className={styles.languageSelect} value={language} onChange={handleOnLanguageChange} />}
@@ -104,7 +141,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           extraKeys: {
             'Shift-Tab': 'indentLess',
           },
-          readOnly,
+          readOnly: readOnly || (canDrop && isOverCurrent),
           indentUnit: 2,
           tabSize: 2,
           cursorHeight: 1,
@@ -141,6 +178,9 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
         }}
       />
       <AddParagraph element={element} />
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+        <MdDragIndicator className={styles.icon}/>
+      </div>
     </div>
   )
 }
