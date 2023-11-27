@@ -6,4 +6,11 @@
     left: 50%;
     transform: translateX(-50%);
   }
+  .highlightBlock {
+    &.dragging {
+      opacity: 0.5;
+    }
+    @import '@/components/Editor/extensions/drop-common.less';
+  }
+  @import '@/components/Editor/extensions/drag-common.less';
 }

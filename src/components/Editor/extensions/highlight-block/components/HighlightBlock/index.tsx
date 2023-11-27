@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Editor, NodeEntry, Path, Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useSlateSelection, useReadOnly } from "slate-react";
 import { HighlightBlockElement, Color } from "@/components/Editor/types";
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 
 import useTheme from "@/hooks/useTheme.ts";
 
@@ -13,6 +14,8 @@ import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { colors } from '../../configs.ts';
 
 import styles from './index.module.less';
+import classnames from "classnames";
+import {MdDragIndicator} from "react-icons/md";
 
 interface IHighBlockProps {
   attributes: RenderElementProps['attributes'];
@@ -28,6 +31,17 @@ const HighlightBlock = (props: IHighBlockProps) => {
   const editor = useSlate();
   const selection = useSlateSelection();
   const readOnly = useReadOnly();
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  })
 
   const isActive = useMemo(() => {
     const [match] = Editor.nodes(editor, {
@@ -53,13 +67,21 @@ const HighlightBlock = (props: IHighBlockProps) => {
   }
 
   return (
-    <div className={styles.container}>
+    <div ref={drop} className={styles.container}>
       <If condition={isActive && !readOnly}>
         <div className={styles.selectColorContainer} contentEditable={false}>
           <SelectColor activeColor={color} onSelectColor={onSelectColor} />
         </div>
       </If>
-      <div {...attributes}>
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, {[styles.canDrag]: canDrag})}>
+        <MdDragIndicator className={styles.icon}/>
+      </div>
+      <div {...attributes} className={classnames(styles.highlightBlock, {
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+      })}>
         <HighlightBlockPure
           backgroundColor={backgroundColor}
           borderColor={borderColor}

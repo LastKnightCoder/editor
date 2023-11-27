@@ -1,0 +1,28 @@
+&.dragging {
+  opacity: 0.5;
+}
+&.drop {
+  opacity: 0.5;
+  &.before {
+    &::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: #dbf3da;
+    }
+  }
+  &.after {
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: #dbf3da;
+    }
+  }
+}
