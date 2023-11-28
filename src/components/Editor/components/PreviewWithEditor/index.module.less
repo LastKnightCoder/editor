@@ -1,89 +1,94 @@
-.container {
-  --editing-bg-color: #fafafa;
-  &.dark {
-    --editing-bg-color: rgb(12, 16, 33);
-  }
+.dropContainer {
   position: relative;
-
-  .editor {
-    height: auto;
-    padding: 18px 12px 0;
-    :global(.CodeMirror) {
-      height: auto !important;
-      padding: 18px 12px 18px 12px;
-      border-radius: 0;
-      font-size: 14px;
-      font-family: var(--mono-font, "'Monaco', '楷体'");
+  .container {
+    --editing-bg-color: #fafafa;
+    &.dark {
+      --editing-bg-color: rgb(12, 16, 33);
     }
+    position: relative;
 
-    :global(.CodeMirror pre.CodeMirror-line),
-    :global(.CodeMirror pre.CodeMirror-line-like) {
-      padding: 0 12px;
-    }
+    .editor {
+      height: auto;
+      padding: 18px 12px 0;
+      :global(.CodeMirror) {
+        height: auto !important;
+        padding: 18px 12px 18px 12px;
+        border-radius: 0;
+        font-size: 14px;
+        font-family: var(--mono-font, "'Monaco', '楷体'");
+      }
 
-    :global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
-      overflow: hidden;
-    }
+      :global(.CodeMirror pre.CodeMirror-line),
+      :global(.CodeMirror pre.CodeMirror-line-like) {
+        padding: 0 12px;
+      }
 
-    :global(.CodeMirror-gutters) {
-      background-color: unset;
-      border-right: none;
-    }
+      :global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
+        overflow: hidden;
+      }
 
-    :global(.CodeMirror-linenumber) {
-      cursor: pointer;
-    }
-  }
+      :global(.CodeMirror-gutters) {
+        background-color: unset;
+        border-right: none;
+      }
 
-  .divider {
-    margin: 0 20px 20px;
-    background-color: #e8e8e8;
-    height: 2px;
-  }
-
-  &.editing {
-    background-color: var(--editing-bg-color);
-    padding: 0 0 16px;
-  }
-
-  .preview {
-    &.extend {
-      padding: 5px 0;
-    }
-    &.center {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-  }
-
-  .actions {
-    display: none;
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: rgba(38, 38, 38, 0.6);
-    border-radius: 8px;
-    color: white;
-
-    .item {
-      width: 28px;
-      height: 28px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
+      :global(.CodeMirror-linenumber) {
+        cursor: pointer;
+      }
     }
 
     .divider {
-      width: 1px;
-      height: 18px;
-      margin: 8px 4px;
-      background-color: var(--line-color);
+      margin: 0 20px 20px;
+      background-color: #e8e8e8;
+      height: 2px;
     }
-  }
 
-  &:hover .actions {
-    display: flex;
+    &.editing {
+      background-color: var(--editing-bg-color);
+      padding: 0 0 16px;
+    }
+
+    .preview {
+      &.extend {
+        padding: 5px 0;
+      }
+      &.center {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+    }
+
+    .actions {
+      display: none;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(38, 38, 38, 0.6);
+      border-radius: 8px;
+      color: white;
+
+      .item {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+      }
+
+      .divider {
+        width: 1px;
+        height: 18px;
+        margin: 8px 4px;
+        background-color: var(--line-color);
+      }
+    }
+
+    &:hover .actions {
+      display: flex;
+    }
+    @import '@/components/Editor/extensions/drop-common.less';
   }
+  @import '@/components/Editor/extensions/drag-common.less';
 }

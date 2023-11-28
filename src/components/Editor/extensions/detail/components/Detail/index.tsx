@@ -4,8 +4,13 @@ import { Transforms } from "slate";
 import { RenderElementProps, useSlate, useReadOnly, ReactEditor } from "slate-react";
 
 import useTheme from "@/hooks/useTheme.ts";
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+
 import { CaretRightOutlined } from '@ant-design/icons';
+import { MdDragIndicator } from "react-icons/md";
+
 import { DetailElement } from "@/components/Editor/types";
+
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
 import styles from './index.module.less';
@@ -27,6 +32,17 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (props)
   const { isDark } = useTheme();
   const editor = useSlate();
   const readOnly = useReadOnly();
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  })
 
   const onTitleBlur = () => {
     const path = ReactEditor.findPath(editor, element);
@@ -49,8 +65,16 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (props)
   });
 
   return (
-    <div>
-      <div className={classnames(styles.container, { [styles.dark]: isDark })}>
+    <div style={{
+      position: 'relative',
+    }}>
+      <div ref={drop} className={classnames(styles.container, {
+        [styles.dark]: isDark,
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+      })}>
         <div className={styles.title} contentEditable={false} style={{ userSelect: 'none' }} >
           <div className={arrowClass} onClick={toggleShowContent}><CaretRightOutlined /></div>
           <div
@@ -68,6 +92,9 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (props)
             {children}
           </div>
         </div>
+      </div>
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+        <MdDragIndicator className={styles.icon}/>
       </div>
       <AddParagraph element={element} />
     </div>

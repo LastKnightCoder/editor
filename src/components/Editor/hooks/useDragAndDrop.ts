@@ -99,7 +99,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     canDrop: (item) => {
       const dragPath = ReactEditor.findPath(editor, item.element);
       const dropPath = ReactEditor.findPath(editor, element);
-      return !Path.equals(dragPath, dropPath)
+      return !Path.equals(dragPath, dropPath) && editor.isBlock(item.element) && editor.isBlock(element);
     },
     collect: (monitor) => {
       return {

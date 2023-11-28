@@ -3,6 +3,7 @@
   border-radius: 8px;
   border: 1px solid rgba(60, 60, 67, 0.29);
   padding: var(--block-distance) 16px;
+  position: relative;
 
   &.dark {
     background-color: #1c1c1e;
@@ -46,4 +47,7 @@
       grid-template-rows: 1fr;
     }
   }
+  @import '@/components/Editor/extensions/drop-common.less';
 }
+
+@import '@/components/Editor/extensions/drag-common.less';
