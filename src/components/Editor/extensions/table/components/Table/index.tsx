@@ -32,6 +32,8 @@ import AddParagraph from "@/components/Editor/components/AddParagraph";
 import ActionItem from "./ActionItem";
 import Actions from './Actions';
 import styles from './index.module.less';
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import {MdDragIndicator} from "react-icons/md";
 
 
 interface ITableProps {
@@ -45,6 +47,18 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
   const editor = useSlate();
   const readOnly = useReadOnly();
   const { selection } = editor;
+
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  })
 
   const isActive = useMemo(() => {
     // 是否在 table
@@ -127,7 +141,12 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
   }, [editor, deleteTable]);
 
   return (
-    <div>
+    <div ref={drop} className={classnames(styles.dropContainer, {
+      [styles.dragging]: isDragging,
+      [styles.drop]: isOverCurrent && canDrop,
+      [styles.before]: isBefore,
+      [styles.after]: !isBefore,
+    })}>
       <div
         contentEditable={false}
         className={classnames(styles.operate, { [styles.hide]: !isActive || readOnly })}
@@ -161,6 +180,9 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
         </tbody>
       </table>
       <AddParagraph element={element} />
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+        <MdDragIndicator className={styles.icon}/>
+      </div>
     </div>
   )
 }

@@ -1,63 +1,68 @@
-.operate {
-  user-select: none;
-  height: 40px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: height 0.3s ease-in-out;
-  &.hide {
-    height: 0;
-    overflow: hidden;
-    .right {
-      opacity: 0;
-    }
-  }
-  .left {
-
-  }
-  .right {
-    transition: opacity 0.2s 0.1s ease-in-out;
+.dropContainer {
+  position: relative;
+  .operate {
+    user-select: none;
+    height: 40px;
     display: flex;
-    gap: 8px;
-    .item {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      cursor: pointer;
-      &:hover {
-        background: var(--common-hover-bg);
+    justify-content: space-between;
+    align-items: center;
+    transition: height 0.3s ease-in-out;
+    &.hide {
+      height: 0;
+      overflow: hidden;
+      .right {
+        opacity: 0;
       }
     }
-    .more {
-      cursor: pointer;
+    .left {
+
     }
-    .delete {
-      cursor: pointer;
+    .right {
+      transition: opacity 0.2s 0.1s ease-in-out;
+      display: flex;
+      gap: 8px;
+      .item {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        &:hover {
+          background: var(--common-hover-bg);
+        }
+      }
+      .more {
+        cursor: pointer;
+      }
+      .delete {
+        cursor: pointer;
+      }
     }
   }
-}
 
-.table {
-  border-collapse: collapse;
-  width: 100%;
+  .table {
+    border-collapse: collapse;
+    width: 100%;
 
-  tr:first-child {
-    font-weight: bold;
+    tr:first-child {
+      font-weight: bold;
+    }
+
+    tr:nth-child(odd) {
+      background: var(--table-odd-bg);
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border: 1px solid var(--table-border-color);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
+    }
   }
-
-  tr:nth-child(odd) {
-    background: var(--table-odd-bg);
-  }
-
-  th, td {
-    padding: 12px 16px;
-    text-align: left;
-    border: 1px solid var(--table-border-color);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    word-break: break-word;
-  }
+  @import '@/components/Editor/extensions/drop-common.less';
+  @import '@/components/Editor/extensions/drag-common.less';
 }

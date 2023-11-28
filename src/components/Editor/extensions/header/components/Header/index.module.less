@@ -73,7 +73,20 @@
     font-size: 16px;
   }
   @import '@/components/Editor/extensions/drop-common.less';
+  &.drop {
+    &.before {
+      &::before {
+        top: -4px;
+      }
+    }
+    &.after {
+      &::after {
+        bottom: -2px;
+      }
+    }
+  }
   @import '@/components/Editor/extensions/drag-common.less';
+
   .h1 + .dragHandler {
     top: 6px;
   }

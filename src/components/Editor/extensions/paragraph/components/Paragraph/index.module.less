@@ -1,9 +1,23 @@
 .container {
   position: relative;
   .paragraph {
-    //outline: 1px solid blue;
     margin: 0 0 var(--block-distance, 10px) 0;
     @import '@/components/Editor/extensions/drop-common.less';
+    &.drop {
+      &.before {
+        &::before {
+          top: -4px;
+        }
+      }
+      &.after {
+        &::after {
+          bottom: -2px;
+        }
+      }
+    }
   }
   @import '@/components/Editor/extensions/drag-common.less';
+  .dragHandler {
+    top: 1px;
+  }
 }
