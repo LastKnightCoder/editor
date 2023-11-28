@@ -137,9 +137,6 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         }
         const isBefore = monitorClientOffset.y - dropRect.top < dropRect.height / 2;
 
-        console.log('drop', dragPath, dropPath, isBefore);
-        console.log('drop', dragElement, dropElement, isBefore);
-
         moveNode(editor, dragPath, dropPath, isBefore);
       } catch (e) {
         console.error(e);

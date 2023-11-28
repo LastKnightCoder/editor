@@ -1,0 +1,12 @@
+.dropContainer {
+  position: relative;
+  &.drop {
+    &.before {
+      border-top: dashed #dbf3da;
+    }
+    &.after {
+      border-bottom: dashed #dbf3da;
+    }
+  }
+  @import '@/components/Editor/extensions/drag-common.less';
+}
