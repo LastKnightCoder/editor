@@ -1,10 +1,11 @@
-import {useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlate } from "slate-react";
 import { Modal } from 'antd';
 import classnames from 'classnames';
 import { SettingOutlined, PlusOutlined } from '@ant-design/icons';
 
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
 import If from "@/components/If";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
@@ -15,6 +16,7 @@ import VerticalImageGallery from "../VerticalImageGallery";
 import { EGalleryMode, ImageGalleryElement } from "@/components/Editor/types";
 
 import styles from './index.module.less';
+import {MdDragIndicator} from "react-icons/md";
 
 interface IImageGalleryProps {
   attributes: RenderElementProps['attributes'];
@@ -24,7 +26,19 @@ interface IImageGalleryProps {
 
 const ImageGallery = (props: IImageGalleryProps) => {
   const { attributes, element, children } = props;
-  const { images, height, mode, wider, columnCount } = element;
+  const { images, height = 200, mode, wider = false, columnCount = 3 } = element;
+
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  })
 
   const [settingModalOpen, setSettingModalOpen] = useState(false);
   const [setting, setSetting] = useState<ISetting>({
@@ -63,8 +77,14 @@ const ImageGallery = (props: IImageGalleryProps) => {
 
   return (
     <div
-      className={classnames(styles.imageGalleryContainer, { [styles.wider]: wider })}
-      {...attributes}
+      ref={drop}
+      className={classnames(styles.imageGalleryContainer, {
+        [styles.wider]: wider,
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+      })}
     >
       <If condition={images.length > 0}>
         <div contentEditable={false}>
@@ -110,7 +130,12 @@ const ImageGallery = (props: IImageGalleryProps) => {
           onSettingChange={setSetting}
         />
       </Modal>
-      {children}
+      <div {...attributes}>
+        {children}
+      </div>
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+        <MdDragIndicator className={styles.icon}/>
+      </div>
     </div>
   )
 }
