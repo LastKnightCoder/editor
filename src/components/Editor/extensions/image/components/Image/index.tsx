@@ -5,6 +5,7 @@ import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-re
 import { useClickAway } from "ahooks";
 import { DeleteOutlined, FileImageOutlined, FullscreenOutlined } from '@ant-design/icons';
 
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { uploadFileFromFile, transformGithubUrlToCDNUrl } from '@/utils';
 
@@ -14,6 +15,8 @@ import { ImageElement } from "@/components/Editor/types";
 
 import styles from './index.module.less';
 import UploadTab from "../UploadTab";
+import classnames from "classnames";
+import {MdDragIndicator} from "react-icons/md";
 
 interface IImageProps {
   attributes: RenderElementProps['attributes'];
@@ -23,6 +26,18 @@ interface IImageProps {
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { attributes, children, element } = props;
   const { url, alt = '', pasteUploading = false } = element;
+
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  })
 
   const [uploading, setUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
@@ -181,9 +196,24 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   }
 
   return (
-    <div contentEditable={false} style={{ userSelect: 'none' }} {...attributes}>
-      {children}
+    <div
+      className={classnames(styles.dropContainer, {
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+      })}
+      ref={drop}
+      contentEditable={false}
+      style={{ userSelect: 'none' }}
+    >
+      <div {...attributes}>
+        {children}
+      </div>
       {renderContent()}
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+        <MdDragIndicator className={styles.icon}/>
+      </div>
       <AddParagraph element={element} />
     </div>
   )

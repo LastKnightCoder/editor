@@ -3,7 +3,7 @@ import { RenderElementProps } from "slate-react";
 import styles from './index.module.less';
 import { HeaderElement } from "@/components/Editor/types";
 import classnames from "classnames";
-import {MdDragIndicator} from "react-icons/md";
+import { MdDragIndicator } from "react-icons/md";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 
 interface IHeaderProps {
