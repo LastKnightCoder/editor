@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Editor, Element, Path, Transforms } from "slate";
-import { useDrag, useDrop } from "react-dnd";
-import { ReactEditor, useSlate } from "slate-react";
+import {useState} from "react";
+import {Editor, Element, Path, Transforms} from "slate";
+import {useDrag, useDrop} from "react-dnd";
+import {ReactEditor, useSlate, useReadOnly} from "slate-react";
 
 interface IUseDragAndDropParams {
   element: Element;
@@ -11,6 +11,7 @@ const EDITOR_DRAG_TYPE = 'editor-item';
 
 interface IDragItem {
   element: Element;
+  editor: Editor;
 }
 
 const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: boolean) => {
@@ -69,6 +70,7 @@ const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: bool
 
 const useDragAndDrop = (params: IUseDragAndDropParams) => {
   const editor = useSlate();
+  const readOnly = useReadOnly();
   const { element } = params;
 
   const [isBefore, setIsBefore] = useState(false);
@@ -77,10 +79,10 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     type: EDITOR_DRAG_TYPE,
     item: {
       element,
+      editor,
     },
     canDrag: () => {
-      const isBlock = Editor.isBlock(editor, element);
-      return isBlock;
+      return Editor.isBlock(editor, element) && !readOnly;
     },
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
@@ -94,9 +96,17 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
   }>({
     accept: EDITOR_DRAG_TYPE,
     canDrop: (item) => {
+      if (readOnly) {
+        return false;
+      }
       const dragPath = ReactEditor.findPath(editor, item.element);
       const dropPath = ReactEditor.findPath(editor, element);
-      return !Path.equals(dragPath, dropPath) && editor.isBlock(item.element) && editor.isBlock(element);
+      const dragEditor = item.editor;
+      if (editor.isBlock(item.element) && editor.isBlock(element)) {
+        return editor !== dragEditor || !Path.equals(dragPath, dropPath);
+      } else {
+        return false;
+      }
     },
     collect: (monitor) => {
       return {
@@ -123,19 +133,20 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return;
       }
       try {
+        const dragEditor = item.editor;
         const dragElement = item.element;
-        const dragPath = ReactEditor.findPath(editor, dragElement);
+        const dragPath = ReactEditor.findPath(dragEditor, dragElement);
+        const dropPath = ReactEditor.findPath(editor, element);
 
-        const dropElement = element;
-        const dropPath = ReactEditor.findPath(editor, dropElement);
-        const dropDOMNode = ReactEditor.toDOMNode(editor, dropElement);
-        const dropRect = dropDOMNode.getBoundingClientRect();
-        // 如果在元素的上半部分，就插入到元素前面，否则插入到元素后面
-        const monitorClientOffset = monitor.getClientOffset();
-        if (!monitorClientOffset) {
+        if (editor !== dragEditor) {
+          Transforms.removeNodes(dragEditor, {
+            at: dragPath,
+          });
+          Transforms.insertNodes(editor, dragElement, {
+            at: isBefore ? dropPath : Path.next(dropPath),
+          });
           return;
         }
-        const isBefore = monitorClientOffset.y - dropRect.top < dropRect.height / 2;
 
         moveNode(editor, dragPath, dropPath, isBefore);
       } catch (e) {

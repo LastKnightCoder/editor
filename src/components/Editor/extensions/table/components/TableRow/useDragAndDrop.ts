@@ -1,8 +1,8 @@
-import { ReactEditor, useSlate } from "slate-react";
+import { ReactEditor, useSlate, useReadOnly } from "slate-react";
 import { useDrag, useDrop } from 'react-dnd';
 import { TableRowElement } from "@/components/Editor/types";
 import { useState } from "react";
-import { Path, Transforms } from "slate";
+import { Editor, Path, Transforms } from "slate";
 
 const TABLE_ROW_DRAG_TYPE = 'editor-table-row';
 
@@ -14,6 +14,7 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
   const { element } = params;
   const [isBefore, setIsBefore] = useState(false);
   const editor = useSlate();
+  const readOnly = useReadOnly();
   const tableRowPath = ReactEditor.findPath(editor, element);
   const tablePath = tableRowPath.slice(0, tableRowPath.length - 1);
   
@@ -23,6 +24,7 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
       element,
       tableRowPath,
       tablePath,
+      editor,
     },
     collect: monitor => ({
       isDragging: monitor.isDragging(),
@@ -30,7 +32,7 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
     }),
     canDrag: () => {
       // 标题行不能拖拽
-      return tableRowPath[tableRowPath.length - 1] !== 0;
+      return tableRowPath[tableRowPath.length - 1] !== 0 && !readOnly;
     }
   });
   
@@ -38,6 +40,7 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
     element: TableRowElement;
     tableRowPath: Path;
     tablePath: Path;
+    editor: Editor;
   }, void, {
     isOverCurrent: boolean;
     canDrop: boolean;
@@ -45,7 +48,7 @@ const useDragAndDrop = (params: IUseDragAndDrop) => {
     accept: TABLE_ROW_DRAG_TYPE,
     canDrop: (item) => {
       const { tablePath: dragTablePath } = item;
-      return Path.equals(tablePath, dragTablePath);
+      return item.editor === editor && Path.equals(tablePath, dragTablePath) && !readOnly;
     },
     hover: (_item, monitor) => {
       if (!monitor.canDrop()) {
