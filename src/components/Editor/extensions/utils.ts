@@ -85,10 +85,24 @@ export const hitEmptyOrInlineChild = (editor: Editor, [node, path]: NodeEntry, p
   }
 
   // @ts-ignore
-  if (node.children.length === 0 || (node.children.length === 1 && node.children[0].type === 'formatted' )) {
+  if (node.children.length === 0) {
     Transforms.removeNodes(editor, {
       at: path,
     });
+    return true;
+  }
+
+  // @ts-ignore
+  if (node.children.length === 1 && node.children[0].type === 'formatted' && node.children[0].text === '') {
+    Transforms.removeNodes(editor, {
+      at: path,
+    });
+    // Transforms.wrapNodes(editor, {
+    //   type: 'paragraph',
+    //   children: [],
+    // }, {
+    //   at: [...path, 0],
+    // });
     return true;
   }
 

@@ -9,6 +9,7 @@ import { SlGraph } from "react-icons/sl";
 import Editor from '@/components/Editor';
 import AddTag from "@/components/AddTag";
 import LinkGraph from "@/components/LinkGraph";
+import EditorSourceValue from "@/components/EditorSourceValue";
 import LinkList from './LinkList';
 
 import { cardLinkExtension } from "@/editor-extensions";
@@ -41,6 +42,7 @@ const EditCard = (props: IEditCardProps) => {
 
   const [readonly, setReadonly] = useState(false);
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
+  const [sourceValueOpen, setSourceValueOpen] = useState(false);
 
   const {
     initValue,
@@ -64,6 +66,20 @@ const EditCard = (props: IEditCardProps) => {
     if (!editingCard) return [];
     return getAllLinkedCards(editingCard as ICard, cards);
   }, [editingCard?.links, cards]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isHotkey('mod+shift+/', e)) {
+        setSourceValueOpen(open => !open);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -167,6 +183,11 @@ const EditCard = (props: IEditCardProps) => {
             }}
           />
         </Drawer>
+        <EditorSourceValue
+          open={sourceValueOpen}
+          onClose={() => { setSourceValueOpen(false) }}
+          content={editingCard.content}
+        />
       </div>
     </EditCardContext.Provider>
   )

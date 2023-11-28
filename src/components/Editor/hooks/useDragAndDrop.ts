@@ -79,10 +79,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       element,
     },
     canDrag: () => {
-      // const path = ReactEditor.findPath(editor, element);
       const isBlock = Editor.isBlock(editor, element);
-      // 最外层的元素才能拖拽，并且必须是 block 元素
-      // return path.length === 1 && isBlock;
       return isBlock;
     },
     collect: (monitor) => ({

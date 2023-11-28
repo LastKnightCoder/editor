@@ -1,6 +1,6 @@
 import { RenderElementProps } from "slate-react";
 
-import { deleteBackward, insertBreak } from "./plugins";
+import { deleteBackward, insertBreak, withNormalize } from "./plugins";
 import hotKeyConfigs from "./hotkeys";
 import Base from '../base.ts';
 import IExtension from "../types.ts";
@@ -8,7 +8,7 @@ import IExtension from "../types.ts";
 class ListItemExtension extends Base implements IExtension {
   type = 'list-item';
   override getPlugins() {
-    return [deleteBackward, insertBreak];
+    return [deleteBackward, insertBreak, withNormalize];
   }
 
   override getHotkeyConfigs() {

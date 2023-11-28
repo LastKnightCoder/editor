@@ -2,7 +2,7 @@ import { RenderElementProps } from "slate-react";
 import { BulletedListElement } from "@/components/Editor/types";
 
 import BulletedList from "./components/BulletedList";
-import { markdownSyntax } from './plugins';
+import { markdownSyntax, withNormalize } from './plugins';
 import blockPanelItems from './block-panle-items';
 
 import Base from '../base.ts';
@@ -12,7 +12,7 @@ class BulletedListExtension extends Base implements IExtension {
   type = 'bulleted-list';
   
   override getPlugins() {
-    return [markdownSyntax];
+    return [markdownSyntax, withNormalize];
   }
 
   override getBlockPanelItems() {

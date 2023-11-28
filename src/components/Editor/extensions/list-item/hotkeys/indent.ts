@@ -26,22 +26,22 @@ export const indent: IHotKeyConfig[] = [{
       }
       // 上面保证过上一个 list 一定存在
       const previousSibling = getPreviousSiblingNode(editor, match[0])!;
-      // 包裹为 bulleted-list 或 numbered-list，并包裹在上一个 list-item 中
-      Transforms.wrapNodes(editor, {
-         
-        // @ts-ignore
-        type: parentType,
-        children: []
-      }, {
-        match: n => n.type === 'list-item'
+      Editor.withoutNormalizing(editor, () => {
+        // 包裹为 bulleted-list 或 numbered-list，并包裹在上一个 list-item 中
+        Transforms.wrapNodes(editor, {
+          // @ts-ignore
+          type: parentType,
+          children: []
+        }, {
+          match: n => n.type === 'list-item'
+        });
+        // 放在最后面
+        Transforms.moveNodes(editor, {
+          match: n => n.type === parentType,
+          // @ts-ignore
+          to: [...previousSibling[1], previousSibling[0].children.length]
+        })
       });
-      // 放在最后面
-      Transforms.moveNodes(editor, {
-        match: n => n.type === parentType,
-         
-        // @ts-ignore
-        to: [...previousSibling[1], previousSibling[0].children.length]
-      })
       event.preventDefault();
     }
   }

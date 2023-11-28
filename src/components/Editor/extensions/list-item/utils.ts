@@ -60,7 +60,7 @@ export const newLineInListItem = (editor: Editor, insertBreak: () => void): bool
     match: n => SlateElement.isElement(n) && isParagraphElement(n),
     mode: 'lowest',
   });
-  console.log(para[1], listMatch[1]);
+
   // 段落
   if (para[1].length !== listMatch[1].length + 1) {
     return false;
@@ -69,29 +69,35 @@ export const newLineInListItem = (editor: Editor, insertBreak: () => void): bool
   if (isAtParagraphStart(editor) && para && isParagraphAndEmpty(editor)) {
     // 如果是第一个段落，并且后面没有段落，则转换为 paragraph
     if ((listMatch[0] as ListItemElement).children.length === 1) {
-      Transforms.unwrapNodes(editor, {
-        match: n => SlateElement.isElement(n) && isListItemElement(n),
-      });
-      Transforms.liftNodes(editor, {
-        match: n => SlateElement.isElement(n) && isParagraphElement(n),
+      Editor.withoutNormalizing(editor, () => {
+        Transforms.unwrapNodes(editor, {
+          match: n => SlateElement.isElement(n) && isListItemElement(n),
+        });
+        Transforms.liftNodes(editor, {
+          match: n => SlateElement.isElement(n) && isParagraphElement(n),
+        });
       });
       return true;
     }
     // 如果是最后一个段落，则将 paragraph 转换为 list-item
     if (para[1][para[1].length - 1] + 1 === (listMatch[0] as ListItemElement).children.length) {
-      Transforms.wrapNodes(editor, { type: 'list-item', children: [] });
-      Transforms.liftNodes(editor, {
-        match: n => SlateElement.isElement(n) && n.type === 'list-item',
-      });
+      Editor.withoutNormalizing(editor, () => {
+        Transforms.wrapNodes(editor, { type: 'list-item', children: [] });
+        Transforms.liftNodes(editor, {
+          match: n => SlateElement.isElement(n) && n.type === 'list-item',
+        });
+      })
       return true;
     }
   }
   // 不为空且是第一个段落，将 paragraph 转为 list-item
   if (para && para[1][para[1].length - 1] === 0) {
-    insertBreak();
-    Transforms.wrapNodes(editor, { type: 'list-item', children: [] });
-    Transforms.liftNodes(editor, {
-      match: n => SlateElement.isElement(n) && n.type === 'list-item',
+    Editor.withoutNormalizing(editor, () => {
+      insertBreak();
+      Transforms.wrapNodes(editor, { type: 'list-item', children: [] });
+      Transforms.liftNodes(editor, {
+        match: n => SlateElement.isElement(n) && n.type === 'list-item',
+      });
     });
     return true;
   }
