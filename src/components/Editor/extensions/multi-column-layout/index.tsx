@@ -9,7 +9,7 @@ import MultiColumnItem from "./components/MultiColumnItem";
 
 import hotkeys from './hotkeys';
 import blockPanelItems from './block-panel-items';
-import { normalizeColumnLayout, deleteBackward } from './plugins';
+import { normalizeColumnLayout, deleteBackward, normalizeItem } from './plugins';
 
 export class MultiColumnsContainerExtension extends Base implements IExtension {
   type = 'multi-column-container';
@@ -41,7 +41,7 @@ export class MultiColumnItemExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [deleteBackward]
+    return [deleteBackward, normalizeItem];
   }
 
   render(props: RenderElementProps) {
