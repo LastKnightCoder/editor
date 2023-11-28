@@ -5,7 +5,7 @@ import { TabsElement } from "@/components/Editor/types";
 
 import Tabs from './components/Tabs';
 import blockPanelItems from './block-panel-items';
-import { deleteEmptyTab, quit } from './plugins';
+import { deleteEmptyTab, quit, withNormalize } from './plugins';
 
 class TabsExtension extends Base implements IExtension {
   type = 'tabs';
@@ -15,7 +15,7 @@ class TabsExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [deleteEmptyTab, quit]
+    return [deleteEmptyTab, quit, withNormalize]
   }
 
   render(props: RenderElementProps) {

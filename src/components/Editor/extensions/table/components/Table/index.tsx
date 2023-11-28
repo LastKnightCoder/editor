@@ -33,7 +33,7 @@ import ActionItem from "./ActionItem";
 import Actions from './Actions';
 import styles from './index.module.less';
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
-import {MdDragIndicator} from "react-icons/md";
+import { MdDragIndicator } from "react-icons/md";
 
 
 interface ITableProps {

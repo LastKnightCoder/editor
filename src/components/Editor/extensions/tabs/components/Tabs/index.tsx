@@ -9,6 +9,9 @@ import AddParagraph from "@/components/Editor/components/AddParagraph";
 import TabsHeader from "../TabsHeader";
 
 import styles from './index.module.less';
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import classnames from "classnames";
+import { MdDragIndicator } from "react-icons/md";
 
 interface ITabsProps {
   element: TabsElement;
@@ -19,6 +22,18 @@ interface ITabsProps {
 const Tabs = (props: ITabsProps) => {
   const { attributes, element, children } = props;
   const { activeKey, tabsContent } = element;
+
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  })
   
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -157,8 +172,14 @@ const Tabs = (props: ITabsProps) => {
 
   return (
     <div
-      {...attributes}
+      ref={drop}
       onBlur={syncCurrentTabContent}
+      className={classnames(styles.dropContainer, {
+        [styles.dragging]: isDragging,
+        [styles.drop]: isOverCurrent && canDrop,
+        [styles.before]: isBefore,
+        [styles.after]: !isBefore,
+      })}
     >
       <div className={styles.tabsContainer}>
         <TabsHeader
@@ -170,11 +191,14 @@ const Tabs = (props: ITabsProps) => {
           onAddTab={onAddTab}
           onTitleChange={onTitleChange}
         />
-        <div className={styles.content}>
+        <div {...attributes} className={styles.content}>
           {children}
         </div>
       </div>
       <AddParagraph element={element} />
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+        <MdDragIndicator className={styles.icon}/>
+      </div>
     </div>
   )
 }

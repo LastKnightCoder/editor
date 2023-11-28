@@ -1,6 +1,7 @@
-import { Editor, NodeEntry, Transforms } from "slate";
+import { Editor, NodeEntry } from "slate";
 import { isParagraphAndEmpty } from "@/components/Editor/utils";
 import { TabsElement } from "@/components/Editor/types";
+import { deleteCurTab } from './utils.ts';
 
 export const deleteEmptyTab = (editor: Editor) => {
   const { deleteBackward } = editor;
@@ -19,38 +20,7 @@ export const deleteEmptyTab = (editor: Editor) => {
     }
 
     // 删除当前 Tab
-    const { tabsContent, activeKey } = tabsEle;
-    const nextTab = tabsContent.find(tab => tab.key !== activeKey);
-    const newTabsContent = tabsContent.filter(tab => tab.key !== activeKey);
-    if (!nextTab) {
-      Transforms.delete(editor, {
-        at: tabsPath,
-      });
-      Transforms.insertNodes(editor, {
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: ''
-        }]
-      }, {
-        at: tabsPath,
-        select: true,
-      });
-    } else {
-      const { key, content } = nextTab;
-      Transforms.delete(editor, {
-        at: tabsPath,
-      });
-      Transforms.insertNodes(editor, {
-        type: 'tabs',
-        tabsContent: newTabsContent,
-        activeKey: key,
-        children: content as any,
-      }, {
-        at: tabsPath,
-        select: true,
-      });
-    }
+    deleteCurTab(editor, tabsEle, tabsPath);
   }
 
   return editor;
