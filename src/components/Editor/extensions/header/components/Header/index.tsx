@@ -2,6 +2,9 @@ import React from "react";
 import { RenderElementProps } from "slate-react";
 import styles from './index.module.less';
 import { HeaderElement } from "@/components/Editor/types";
+import classnames from "classnames";
+import {MdDragIndicator} from "react-icons/md";
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 
 interface IHeaderProps {
   attributes: RenderElementProps['attributes'];
@@ -11,6 +14,18 @@ interface IHeaderProps {
 const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
   const { element, attributes, children } = props;
   const { level } = element;
+
+  const {
+    drag,
+    drop,
+    isDragging,
+    canDrag,
+    canDrop,
+    isBefore,
+    isOverCurrent,
+  } = useDragAndDrop({
+    element,
+  })
 
   const renderHeader = () => {
     switch (level) {
@@ -29,7 +44,19 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
     }
   }
 
-  return renderHeader();
+  return (
+    <div ref={drop} className={classnames(styles.container, {
+      [styles.dragging]: isDragging,
+      [styles.drop]: isOverCurrent && canDrop,
+      [styles.before]: isBefore,
+      [styles.after]: !isBefore,
+    })}>
+      {renderHeader()}
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+        <MdDragIndicator className={styles.icon}/>
+      </div>
+    </div>
+  );
 }
 
 export default Header;

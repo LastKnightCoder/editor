@@ -60,10 +60,19 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
   }
 
   return (
-    <span {...attributes} className={className} style={{
-      textDecoration: textDecorations,
-      color,
-    }}>
+    <span
+      {...attributes}
+      className={className} style={{
+        textDecoration: textDecorations,
+        color,
+      }}
+      onDragStart={(e) => {
+        e.preventDefault();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+      }}
+    >
       { addHighlightWrapper(addCodeWrapper(children)) }
     </span>
   )

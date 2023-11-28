@@ -10,6 +10,7 @@ import Editor from '@/components/Editor';
 import AddTag from "@/components/AddTag";
 import LinkGraph from "@/components/LinkGraph";
 import EditorSourceValue from "@/components/EditorSourceValue";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import LinkList from './LinkList';
 
 import { cardLinkExtension } from "@/editor-extensions";
@@ -150,12 +151,14 @@ const EditCard = (props: IEditCardProps) => {
           </div>
         </div>
         <div className={styles.editor}>
-          <Editor
-            initValue={initValue}
-            onChange={onContentChange}
-            extensions={customExtensions}
-            readonly={readonly}
-          />
+          <ErrorBoundary>
+            <Editor
+              initValue={initValue}
+              onChange={onContentChange}
+              extensions={customExtensions}
+              readonly={readonly}
+            />
+          </ErrorBoundary>
         </div>
         <div className={styles.links}>
           <div className={styles.title}>关联卡片</div>

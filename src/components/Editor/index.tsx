@@ -166,6 +166,12 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
           onKeyDown={(event) => {
             registerHotKey(editor, event, hotKeyConfigs);
           }}
+          onDrag={e => {
+            e.preventDefault();
+          }}
+          onDrop={e => {
+            e.preventDefault();
+          }}
         />
         <ImagesOverview />
         { !readonly && <Command /> }

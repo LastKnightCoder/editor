@@ -24,6 +24,14 @@ export const withNormalize = (editor: Editor) => {
         return;
       }
     }
+
+    if (children.length === 0) {
+      Transforms.removeNodes(editor, {
+        at: path,
+      });
+      return;
+    }
+
     return normalizeNode([node, path]);
   };
 
