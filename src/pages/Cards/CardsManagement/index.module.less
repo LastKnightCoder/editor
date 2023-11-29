@@ -1,7 +1,25 @@
 .cardsManagement {
+  position: relative;
   height: 100%;
   border-bottom: 20px solid transparent;
   box-sizing: border-box;
   overflow-y: auto;
   width: 100%;
+  .statusBar {
+    position: absolute;
+    bottom: 5px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    opacity: .8;
+    line-height: 20px;
+  }
+  .editCardContainer {
+    container-type: inline-size;
+    container-name: cardsManagement;
+    width: 100%;
+    margin-top: 24px;
+  }
 }

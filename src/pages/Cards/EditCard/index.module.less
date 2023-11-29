@@ -2,53 +2,76 @@
   position: relative;
   margin: 0 auto;
   max-width: 720px;
-  @media screen and (max-width: 1280px) {
-    min-width: 300px;
-    max-width: 70%;
-  }
-  .fields {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+  .fieldsContainer {
     margin-bottom: 20px;
+    padding: 24px 24px 0;
     border-radius: 8px;
     border: 1px solid var(--line-color);
-    padding: 24px;
-    .title {
-      margin-bottom: 10px;
-      padding-bottom: 8px;
-      font-weight: bold;
-      border-bottom: 1px solid var(--line-color);
-    }
-    .field {
+    .titleContainer {
       display: flex;
-      gap: 20px;
-      .fieldKey {
-        width: 100px;
-        flex: none;
-        .icon {
-          vertical-align: -8%;
-          margin-right: 8px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      .title {
+        font-weight: bold;
+      }
+      .arrow {
+        cursor: pointer;
+        transition: transform 0.2s linear;
+        &.show {
+          transform: rotate(90deg);
+        }
+        &.hide {
+          transform: rotate(180deg);
         }
       }
-      .fieldValue {
-        flex: auto;
+    }
+    .content {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: all 0.2s ease-in-out;
+      overflow: hidden;
+      &.show {
+        box-sizing: border-box;
+        grid-template-rows: 1fr;
+        .fields {
+          margin-bottom: 24px;
+        }
+      }
+      .fields {
+        min-height: 0;
         display: flex;
-        align-items: center;
+        flex-direction: column;
+        gap: 20px;
+        transition: all 0.2s ease-in-out;
+        .field {
+          display: flex;
+          gap: 20px;
+          .fieldKey {
+            width: 100px;
+            flex: none;
+            .icon {
+              vertical-align: -8%;
+              margin-right: 8px;
+            }
+          }
+          .fieldValue {
+            flex: auto;
+            display: flex;
+            align-items: center;
+          }
+        }
       }
     }
+
   }
   .editor {
     width: 100%;
   }
-  .links {
-    margin-top: 20px;
-  }
-  .title {
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    font-weight: bold;
-    border-bottom: 1px solid var(--line-color);
-    font-size: 1.1em;
+}
+
+@container cardsManagement (max-width: 1080px) {
+  .editCardContainer {
+    max-width: 70cqi;
   }
 }

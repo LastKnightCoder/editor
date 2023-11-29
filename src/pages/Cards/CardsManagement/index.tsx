@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
+import { EditOutlined, ReadOutlined } from '@ant-design/icons';
 import CardTabs from './CardTabs';
 import EditCard from "../EditCard";
 import If from "@/components/If";
 
 import styles from './index.module.less';
+import { Tooltip } from "antd";
+import isHotkey from "is-hotkey";
 
 interface ICardsManagementProps {
   cardIds: number[];
@@ -23,6 +27,22 @@ const CardsManagement = (props: ICardsManagementProps) => {
     onMoveCard,
   } = props;
 
+  const [readonly, setReadonly] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isHotkey('mod+/', e)) {
+        setReadonly(!readonly);
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [readonly]);
+
   return (
     <div className={styles.cardsManagement}>
       <CardTabs
@@ -33,14 +53,28 @@ const CardsManagement = (props: ICardsManagementProps) => {
         onMoveCard={onMoveCard}
       />
       <If condition={!!activeCardId}>
-        <div style={{
-          marginTop: 24
-        }}>
+        <div className={styles.editCardContainer}>
           <EditCard
             key={activeCardId!}
             cardId={activeCardId!}
             onClickLinkCard={onClickLinkCard}
+            readonly={readonly}
           />
+        </div>
+        <div className={styles.statusBar}>
+          <div>
+            {
+              readonly ? (
+                <Tooltip title={'编辑'}>
+                  <EditOutlined onClick={() => setReadonly(false)} />
+                </Tooltip>
+              ) : (
+                <Tooltip title={'预览'}>
+                  <ReadOutlined onClick={() => setReadonly(true)} />
+                </Tooltip>
+              )
+            }
+          </div>
         </div>
       </If>
     </div>

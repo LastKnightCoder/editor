@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { App, Button, message } from 'antd';
+import {App, Button, Empty, message} from 'antd';
 import CardItem2 from "@/pages/Cards/CardItem2";
 import AddCardLinkModal from "../AddCardLinkModal";
 // import LinkGraph from "@/components/LinkGraph";
@@ -11,6 +11,7 @@ import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import { ICard } from "@/types";
 
 import styles from "./index.module.less";
+import If from "@/components/If";
 
 interface ILinkTabProps {
   onClickLinkCard: (id: number) => void;
@@ -67,6 +68,9 @@ const LinkTab = (props: ILinkTabProps) => {
 
   return (
     <div className={styles.linkList}>
+      <If condition={linkedList.length === 0}>
+        <Empty description="暂无连接" />
+      </If>
       {
         linkedList.map((card) => (
           <CardItem2

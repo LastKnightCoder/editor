@@ -2,10 +2,13 @@ import { useEffect, useState, useMemo, createContext } from "react";
 import { Button, Drawer, Skeleton, Tag } from "antd";
 import isHotkey from "is-hotkey";
 import dayjs from "dayjs";
+import classnames from "classnames";
 
+import { CaretRightOutlined } from "@ant-design/icons";
 import { MdAccessTime } from "react-icons/md";
 import { FaTags } from "react-icons/fa6";
 import { SlGraph } from "react-icons/sl";
+
 import Editor from '@/components/Editor';
 import AddTag from "@/components/AddTag";
 import LinkGraph from "@/components/LinkGraph";
@@ -34,16 +37,18 @@ const getCardLinks = (card: ICard) => {
 interface IEditCardProps {
   cardId: number;
   onClickLinkCard: (id: number) => void;
+  readonly?: boolean;
 }
 
 export const EditCardContext = createContext<{ cardId: number } | null>(null);
 
 const EditCard = (props: IEditCardProps) => {
-  const { cardId, onClickLinkCard } = props;
+  const { cardId, onClickLinkCard, readonly = false } = props;
 
-  const [readonly, setReadonly] = useState(false);
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
+  const [linkListOpen, setLinkListOpen] = useState(false);
   const [sourceValueOpen, setSourceValueOpen] = useState(false);
+  const [isFieldsShow, setIsFieldsShow] = useState(false);
 
   const {
     initValue,
@@ -88,19 +93,10 @@ const EditCard = (props: IEditCardProps) => {
     }
   }, [saveCard]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isHotkey('mod+/', e)) {
-        setReadonly(!readonly);
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [readonly]);
+  const arrowClass = classnames(styles.arrow, {
+    [styles.show]: isFieldsShow,
+    [styles.hide]: !isFieldsShow
+  });
 
   if (loading) return <Skeleton active />;
 
@@ -111,42 +107,59 @@ const EditCard = (props: IEditCardProps) => {
       cardId
     }}>
       <div className={styles.editCardContainer}>
-        <div className={styles.fields}>
-          <div className={styles.title}>卡片属性</div>
-          <div className={styles.field}>
-            <div className={styles.fieldKey}>
-              <MdAccessTime className={styles.icon} />
-              <span>创建时间</span>
-            </div>
-            <div className={styles.fieldValue}>
-              <Tag color={'red'}>{dayjs(editingCard.create_time).format('YYYY/MM/DD HH:mm:ss')}</Tag>
-            </div>
-          </div>
-          <div className={styles.field}>
-            <div className={styles.fieldKey}>
-              <MdAccessTime className={styles.icon} />
-              <span>更新时间</span>
-            </div>
-            <div className={styles.fieldValue}>
-              <Tag color={'purple'}>{dayjs(editingCard.update_time).format('YYYY/MM/DD HH:mm:ss')}</Tag>
+        <div className={classnames(styles.fieldsContainer)}>
+          <div className={styles.titleContainer}>
+            <div className={styles.title}>卡片属性</div>
+            <div
+              className={arrowClass}
+              onClick={() => {
+                setIsFieldsShow(!isFieldsShow);
+              }}
+            >
+              <CaretRightOutlined />
             </div>
           </div>
-          <div  className={styles.field}>
-            <div className={styles.fieldKey}>
-              <FaTags className={styles.icon} />
-              <span>标签</span>
-            </div>
-            <div className={styles.fieldValue}>
-              <AddTag tags={editingCard.tags} addTag={onAddTag} removeTag={onDeleteTag} readonly={readonly} />
-            </div>
-          </div>
-          <div  className={styles.field}>
-            <div className={styles.fieldKey}>
-              <SlGraph className={styles.icon} />
-              <span>关联图谱</span>
-            </div>
-            <div className={styles.fieldValue}>
-              <Button onClick={() => { setLinkGraphOpen(true) }}>打开</Button>
+          <div className={classnames(styles.content, {
+            [styles.show]: isFieldsShow
+          })}>
+            <div className={styles.fields}>
+              <div className={styles.field}>
+                <div className={styles.fieldKey}>
+                  <MdAccessTime className={styles.icon} />
+                  <span>创建时间</span>
+                </div>
+                <div className={styles.fieldValue}>
+                  <Tag color={'red'}>{dayjs(editingCard.create_time).format('YYYY/MM/DD HH:mm:ss')}</Tag>
+                </div>
+              </div>
+              <div className={styles.field}>
+                <div className={styles.fieldKey}>
+                  <MdAccessTime className={styles.icon} />
+                  <span>更新时间</span>
+                </div>
+                <div className={styles.fieldValue}>
+                  <Tag color={'purple'}>{dayjs(editingCard.update_time).format('YYYY/MM/DD HH:mm:ss')}</Tag>
+                </div>
+              </div>
+              <div  className={styles.field}>
+                <div className={styles.fieldKey}>
+                  <FaTags className={styles.icon} />
+                  <span>标签</span>
+                </div>
+                <div className={styles.fieldValue}>
+                  <AddTag tags={editingCard.tags} addTag={onAddTag} removeTag={onDeleteTag} readonly={readonly} />
+                </div>
+              </div>
+              <div  className={styles.field}>
+                <div className={styles.fieldKey}>
+                  <SlGraph className={styles.icon} />
+                  <span>关联卡片</span>
+                </div>
+                <div className={styles.fieldValue}>
+                  <Button onClick={() => { setLinkGraphOpen(true) }}>图谱</Button>
+                  <Button style={{ marginLeft: 8 }} onClick={() => { setLinkListOpen(true) }}>列表</Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -160,8 +173,12 @@ const EditCard = (props: IEditCardProps) => {
             />
           </ErrorBoundary>
         </div>
-        <div className={styles.links}>
-          <div className={styles.title}>关联卡片</div>
+        <Drawer
+          title={'关联列表'}
+          width={720}
+          open={linkListOpen}
+          onClose={() => { setLinkListOpen(false) }}
+        >
           <LinkList
             onClickLinkCard={onClickLinkCard}
             addLink={onAddLink}
@@ -169,7 +186,7 @@ const EditCard = (props: IEditCardProps) => {
             editingCard={editingCard}
             readonly={readonly}
           />
-        </div>
+        </Drawer>
         <Drawer
           title={'关联图谱'}
           width={720}
