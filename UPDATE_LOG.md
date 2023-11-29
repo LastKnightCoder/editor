@@ -70,3 +70,8 @@
 - feat: 编辑器大小根据容器自适应
 - feat: 支持 statusBar
 - feat: 关联列表右侧打开查看
+
+## v0.3.14
+
+- fix: 修复 bug，hovering bar 位置不对
+- fix: status bar 导致窗口抖动，以及位置会随着滚动发生改变

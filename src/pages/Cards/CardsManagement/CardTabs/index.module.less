@@ -34,21 +34,22 @@
       cursor: pointer;
     }
   }
-  .contextMenu {
-    position: fixed;
-    z-index: 1;
-    width: 120px;
-    padding: 12px;
+}
+
+.contextMenu {
+  position: fixed;
+  z-index: 1;
+  width: 120px;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: var(--primary-bg-color);
+  box-shadow: var(--box-shadow1);
+  .item {
+    padding: 8px;
+    cursor: pointer;
     border-radius: 8px;
-    background-color: var(--primary-bg-color);
-    box-shadow: var(--box-shadow1);
-    .item {
-      padding: 8px;
-      cursor: pointer;
-      border-radius: 8px;
-      &:hover {
-        background-color: var(--common-hover-bg);
-      }
+    &:hover {
+      background-color: var(--common-hover-bg);
     }
   }
 }

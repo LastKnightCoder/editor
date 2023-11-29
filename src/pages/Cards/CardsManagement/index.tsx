@@ -44,23 +44,27 @@ const CardsManagement = (props: ICardsManagementProps) => {
   }, [readonly]);
 
   return (
-    <div className={styles.cardsManagement}>
-      <CardTabs
-        cardIds={cardIds}
-        activeCardId={activeCardId}
-        onClickTab={onClickTab}
-        onCloseTab={onCloseTab}
-        onMoveCard={onMoveCard}
-      />
+    <div className={styles.manageContainer}>
+      <div className={styles.cardsManagement}>
+        <CardTabs
+          cardIds={cardIds}
+          activeCardId={activeCardId}
+          onClickTab={onClickTab}
+          onCloseTab={onCloseTab}
+          onMoveCard={onMoveCard}
+        />
+        <If condition={!!activeCardId}>
+          <div className={styles.editCardContainer}>
+            <EditCard
+              key={activeCardId!}
+              cardId={activeCardId!}
+              onClickLinkCard={onClickLinkCard}
+              readonly={readonly}
+            />
+          </div>
+        </If>
+      </div>
       <If condition={!!activeCardId}>
-        <div className={styles.editCardContainer}>
-          <EditCard
-            key={activeCardId!}
-            cardId={activeCardId!}
-            onClickLinkCard={onClickLinkCard}
-            readonly={readonly}
-          />
-        </div>
         <div className={styles.statusBar}>
           <div>
             {

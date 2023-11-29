@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Popover } from "antd";
 import { motion } from "framer-motion";
 import { useClickAway, useMemoizedFn } from 'ahooks';
@@ -20,6 +21,10 @@ interface ICardTabsProps {
   onClickTab: (id: number) => void;
   onCloseTab: (id: number) => void;
   onMoveCard: (cardId: number) => void;
+}
+
+const Portal = ({ children }: { children: React.ReactNode }) => {
+  return createPortal(children, document.body);
 }
 
 const CardTabs = (props: ICardTabsProps) => {
@@ -128,22 +133,24 @@ const CardTabs = (props: ICardTabsProps) => {
         ))
       }
       <If condition={showContextMenu}>
-        <div ref={contextMenuRef} className={styles.contextMenu} style={{
-          left: contextMenuPosition.x,
-          top: contextMenuPosition.y,
-        }}>
-          <div
-            className={styles.item}
-            onClick={() => {
-              setShowContextMenu(false);
-              if (rightClickCardId) {
-                onMoveCard(rightClickCardId);
-              }
-            }}
-          >
-            移动到另一侧
+        <Portal>
+          <div ref={contextMenuRef} className={styles.contextMenu} style={{
+            left: contextMenuPosition.x,
+            top: contextMenuPosition.y,
+          }}>
+            <div
+              className={styles.item}
+              onClick={() => {
+                setShowContextMenu(false);
+                if (rightClickCardId) {
+                  onMoveCard(rightClickCardId);
+                }
+              }}
+            >
+              移动到另一侧
+            </div>
           </div>
-        </div>
+        </Portal>
       </If>
     </motion.div>
   )
