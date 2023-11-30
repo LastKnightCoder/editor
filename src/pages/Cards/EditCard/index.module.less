@@ -17,7 +17,7 @@
       }
       .arrow {
         cursor: pointer;
-        transition: transform 0.2s linear;
+        transition: transform 0.1s linear;
         &.show {
           transform: rotate(90deg);
         }
@@ -29,13 +29,13 @@
     .content {
       display: grid;
       grid-template-rows: 0fr;
-      transition: all 0.2s ease-in-out;
+      transition: all 0.1s ease-in-out;
       overflow: hidden;
       &.show {
         box-sizing: border-box;
         grid-template-rows: 1fr;
         .fields {
-          margin-bottom: 24px;
+          padding-bottom: 24px;
         }
       }
       .fields {
@@ -43,7 +43,7 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
-        transition: all 0.2s ease-in-out;
+        transition: all 0.1s ease-in-out;
         .field {
           display: flex;
           gap: 20px;

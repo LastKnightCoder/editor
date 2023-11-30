@@ -1,7 +1,9 @@
-import List from './List';
-import useBlockPanelStore from "../../stores/useBlockPanelStore.ts";
 import { useEffect, useMemo } from "react";
+import List from './List';
 import IExtension from "@/components/Editor/extensions/types.ts";
+import PortalToBody from "@/components/PortalToBody";
+
+import useBlockPanelStore from "../../stores/useBlockPanelStore.ts";
 
 interface IBlockPanelProps {
   extensions: IExtension[];
@@ -48,9 +50,11 @@ const BlockPanel = (props: IBlockPanelProps) => {
   if (!blockPanelVisible || list.length === 0) return null;
 
   return (
-    <div style={{ position: 'fixed', left, top, zIndex: 10 }}>
-      <List />
-    </div>
+    <PortalToBody>
+      <div style={{ position: 'fixed', left, top, zIndex: 10 }}>
+        <List />
+      </div>
+    </PortalToBody>
   )
 }
 

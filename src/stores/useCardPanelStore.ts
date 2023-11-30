@@ -21,6 +21,7 @@ interface IActions {
   moveCardToSide: (cardId: number, side: EActiveSide) => void;
   addCardToSide: (cardId: number, side: EActiveSide) => void;
   dragCard: (dragCardId: number, dropCardId: number) => void;
+  dragCardToTabContainer: (dragCardId: number, side: EActiveSide, last?: boolean) => void;
 }
 
 const initState: IState = {
@@ -174,6 +175,64 @@ const useCardPanelStore = create<IState & IActions>((set, get) => ({
         [dropActiveCardKey]: dragCardId,
         activeSide: dropSide,
       });
+    }
+  },
+  dragCardToTabContainer: (dragCardId, side, last = true) => {
+    const { leftCardIds, rightCardIds, leftActiveCardId, rightActiveCardId } = get();
+    const dragInfo = getCardSideAndIndex(leftCardIds, rightCardIds, dragCardId);
+    if (!dragInfo) {
+      return;
+    }
+    const { side: dragSide, index: dragIndex } = dragInfo;
+    const dragCards = dragSide === EActiveSide.Left ? leftCardIds : rightCardIds;
+    const dragCardsKey = dragSide === EActiveSide.Left ? 'leftCardIds' : 'rightCardIds';
+    const dragActiveCardKey = dragSide === EActiveSide.Left ? 'leftActiveCardId' : 'rightActiveCardId';
+    const isDragSideActiveId = dragSide === EActiveSide.Left ? leftActiveCardId === dragCardId : rightActiveCardId === dragCardId;
+
+    const dropCards = side === EActiveSide.Left ? leftCardIds : rightCardIds;
+    const dropCardsKey = side === EActiveSide.Left ? 'leftCardIds' : 'rightCardIds';
+    const dropActiveCardKey = side === EActiveSide.Left ? 'leftActiveCardId' : 'rightActiveCardId';
+
+    if (dragSide === side) {
+      // 将此卡片添加到最后
+      const newDragCards = produce(dragCards, (draft) => {
+        draft.splice(dragIndex, 1);
+        if (last) {
+          draft.push(dragCardId);
+        } else {
+          draft.unshift(dragCardId);
+        }
+      });
+      set({
+        [dragCardsKey]: newDragCards,
+        [dragActiveCardKey]: dragCardId,
+        activeSide: side,
+      });
+    } else {
+      // 将 drag 卡片从原来的 side 中删除，添加到新的 side 中
+      const newDragCards = produce(dragCards, (draft) => {
+        draft.splice(dragIndex, 1);
+      });
+
+      const nextDragActiveCardId = dragCards.find(id => id !== dragCardId);
+      const newDropCards = produce(dropCards, (draft) => {
+        if (last) {
+          draft.push(dragCardId);
+        } else {
+          draft.unshift(dragCardId);
+        }
+      });
+      set({
+        [dragCardsKey]: newDragCards,
+        [dropCardsKey]: newDropCards,
+        [dropActiveCardKey]: dragCardId,
+        activeSide: side,
+      });
+      if (isDragSideActiveId) {
+        set({
+          [dragActiveCardKey]: nextDragActiveCardId,
+        });
+      }
     }
   }
 }));

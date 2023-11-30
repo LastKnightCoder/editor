@@ -4,7 +4,7 @@ import { IBlockPanelListItem } from "@/components/Editor/types";
 const items: IBlockPanelListItem[] = [{
   icon: 'math',
   title: '数学公式',
-  keywords: ['math', '数学公式', 'latex', 'katex'],
+  keywords: ['math', '数学公式', 'latex', 'katex', 'shuxue'],
   description: '数学公式',
   onClick: (editor) => {
     insertBlockMath(editor);

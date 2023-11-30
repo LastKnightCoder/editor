@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, createContext } from "react";
 import { Button, Drawer, Skeleton, Tag } from "antd";
-import isHotkey from "is-hotkey";
 import dayjs from "dayjs";
 import classnames from "classnames";
 
@@ -72,20 +71,6 @@ const EditCard = (props: IEditCardProps) => {
     if (!editingCard) return [];
     return getAllLinkedCards(editingCard as ICard, cards);
   }, [editingCard?.links, cards]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isHotkey('mod+shift+/', e)) {
-        setSourceValueOpen(open => !open);
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [])
 
   useEffect(() => {
     return () => {

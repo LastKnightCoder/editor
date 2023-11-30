@@ -5,7 +5,7 @@ import { IBlockPanelListItem } from "@/components/Editor/types";
 const items: IBlockPanelListItem[] = [{
   icon: 'callout',
   title: '提示',
-  keywords: ['callout', '提示', 'tip'],
+  keywords: ['callout', '提示', 'tip', 'tishi'],
   description: '提示',
   onClick: (editor) => {
     insertCallout(editor, 'tip');
@@ -13,7 +13,7 @@ const items: IBlockPanelListItem[] = [{
 }, {
   icon: 'callout',
   title: '信息',
-  keywords: ['callout', '信息', 'info'],
+  keywords: ['callout', '信息', 'info', 'xinxi'],
   description: '信息',
   onClick: (editor) => {
     insertCallout(editor, 'info');
@@ -21,7 +21,7 @@ const items: IBlockPanelListItem[] = [{
 }, {
   icon: 'callout',
   title: '笔记',
-  keywords: ['callout', '笔记', 'note'],
+  keywords: ['callout', '笔记', 'note', 'biji'],
   description: '笔记',
   onClick: (editor) => {
     insertCallout(editor, 'note');
@@ -29,7 +29,7 @@ const items: IBlockPanelListItem[] = [{
 }, {
   icon: 'callout',
   title: '危险',
-  keywords: ['callout', '危险', 'danger'],
+  keywords: ['callout', '危险', 'danger', 'weixian'],
   description: '危险',
   onClick: (editor) => {
     insertCallout(editor, 'danger');
@@ -37,7 +37,7 @@ const items: IBlockPanelListItem[] = [{
 }, {
   icon: 'callout',
   title: '警告',
-  keywords: ['callout', '警告', 'warning'],
+  keywords: ['callout', '警告', 'warning', 'jinggao'],
   description: '警告',
   onClick: (editor) => {
     insertCallout(editor, 'warning');

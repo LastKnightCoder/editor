@@ -6,7 +6,7 @@ interface IUseDragAndDropParams {
   cardId: number;
 }
 
-const CARD_TAB_TYPE = 'card-tab';
+export const CARD_TAB_TYPE = 'card-tab';
 
 const useDragAndDrop = (params: IUseDragAndDropParams) => {
   const { cardId } = params;
@@ -40,17 +40,10 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
     }),
-    // hover: (item, monitor) => {
-    //   const canDrop = monitor.canDrop();
-    //   if (!canDrop) {
-    //     return;
-    //   }
-    //   if (item.cardId === cardId) {
-    //     return;
-    //   }
-    //   dragCard(item.cardId, cardId);
-    // },
-    drop: (item) => {
+    drop: (item, monitor) => {
+      if (monitor.didDrop()) {
+        return;
+      }
       if (item.cardId === cardId) {
         return;
       }

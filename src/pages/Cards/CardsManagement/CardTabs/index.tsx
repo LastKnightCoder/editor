@@ -3,10 +3,12 @@ import { createPortal } from "react-dom";
 import { Popover } from "antd";
 import { motion } from "framer-motion";
 import { useClickAway, useMemoizedFn } from 'ahooks';
+import { useDrop } from "react-dnd";
 
 import { DownOutlined } from '@ant-design/icons';
 import { getEditorText } from "@/utils";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore.ts";
 
 import TabItem from './TabItem';
 
@@ -18,6 +20,7 @@ import If from "@/components/If";
 interface ICardTabsProps {
   cardIds: number[];
   activeCardId?: number;
+  side: EActiveSide;
   onClickTab: (id: number) => void;
   onCloseTab: (id: number) => void;
   onMoveCard: (cardId: number) => void;
@@ -33,7 +36,12 @@ const CardTabs = (props: ICardTabsProps) => {
   } = useCardsManagementStore((state) => ({
     cards: state.cards,
   }));
-  const { cardIds, activeCardId, onClickTab, onCloseTab, onMoveCard } = props;
+  const {
+    dragCardToTabContainer,
+  } = useCardPanelStore((state) => ({
+    dragCardToTabContainer: state.dragCardToTabContainer,
+  }));
+  const { cardIds, activeCardId, side, onClickTab, onCloseTab, onMoveCard } = props;
 
   const tabCards = useMemo(() => {
     const tabCards =  cardIds.map(id => cards.find(card => card.id === id)).filter(card => !!card) as ICard[];
@@ -42,6 +50,43 @@ const CardTabs = (props: ICardTabsProps) => {
       return acc;
     }, {} as Record<number, ICard>)
   }, [cardIds, cards]);
+  const tabContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const [{ isOver, canDrop}, drop] = useDrop<{cardId: number}, void, {
+    isOver: boolean;
+    canDrop: boolean;
+  }>({
+    accept: 'card-tab',
+    drop: (item, monitor) => {
+      if (monitor.didDrop()) {
+        return;
+      }
+
+      const monitorClientOffset = monitor.getClientOffset();
+      if (!monitorClientOffset) {
+        return;
+      }
+      const tabContainerRect = tabContainerRef.current?.getBoundingClientRect();
+      if (!tabContainerRect) {
+        return;
+      }
+
+      console.log('dis', monitorClientOffset.x - tabContainerRect.x);
+
+      if (monitorClientOffset.x - tabContainerRect.x > 0 && monitorClientOffset.x - tabContainerRect.x < 60) {
+        dragCardToTabContainer(item.cardId, EActiveSide.Left, false);
+      } else {
+        dragCardToTabContainer(item.cardId, side);
+      }
+    },
+    canDrop: () => {
+      return cardIds.length > 0;
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+      canDrop: monitor.canDrop(),
+    })
+  })
 
   const [morePopoverOpen, setMorePopoverOpen] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -65,7 +110,15 @@ const CardTabs = (props: ICardTabsProps) => {
   })
 
   return (
-    <motion.div className={styles.tabsContainer}>
+    <motion.div
+      ref={node => {
+        drop(node);
+        tabContainerRef.current = node;
+      }}
+      className={styles.tabsContainer} style={{
+        opacity: isOver && canDrop ? 0.5 : 1,
+      }}
+    >
       <Popover
         open={morePopoverOpen}
         onOpenChange={setMorePopoverOpen}

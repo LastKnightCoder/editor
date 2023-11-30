@@ -4,7 +4,7 @@ import { insertDetails } from "@/components/Editor/utils";
 const items: IBlockPanelListItem[] = [{
   icon: 'detail',
   title: '详情块',
-  keywords: ['detail', '详情块'],
+  keywords: ['detail', '详情块', 'xiangqingkuai'],
   description: '详情块',
   onClick: (editor) => {
     insertDetails(editor);

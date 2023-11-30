@@ -4,7 +4,7 @@ import { insertTikz } from "@/components/Editor/utils";
 const items: IBlockPanelListItem[] = [{
   icon: 'tikz',
   title: 'TikZ',
-  keywords: ['tikz', 'TikZ'],
+  keywords: ['tikz', 'TikZ', 'huitu'],
   description: 'TikZ',
   onClick: (editor) => {
     insertTikz(editor);

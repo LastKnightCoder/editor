@@ -7,10 +7,12 @@ import If from "@/components/If";
 import styles from './index.module.less';
 import { Tooltip } from "antd";
 import isHotkey from "is-hotkey";
+import {EActiveSide} from "@/stores/useCardPanelStore.ts";
 
 interface ICardsManagementProps {
   cardIds: number[];
   activeCardId?: number;
+  side: EActiveSide;
   onClickCard: (id: number) => void;
   onClickTab: (id: number) => void;
   onCloseTab: (id: number) => void;
@@ -21,6 +23,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
   const {
     cardIds,
     activeCardId,
+    side,
     onClickCard: onClickLinkCard,
     onCloseTab,
     onClickTab,
@@ -49,6 +52,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
         <CardTabs
           cardIds={cardIds}
           activeCardId={activeCardId}
+          side={side}
           onClickTab={onClickTab}
           onCloseTab={onCloseTab}
           onMoveCard={onMoveCard}
