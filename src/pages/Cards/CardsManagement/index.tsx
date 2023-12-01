@@ -7,7 +7,7 @@ import If from "@/components/If";
 import styles from './index.module.less';
 import { Tooltip } from "antd";
 import isHotkey from "is-hotkey";
-import {EActiveSide} from "@/stores/useCardPanelStore.ts";
+import { EActiveSide } from "@/stores/useCardPanelStore.ts";
 
 interface ICardsManagementProps {
   cardIds: number[];
@@ -57,16 +57,18 @@ const CardsManagement = (props: ICardsManagementProps) => {
           onCloseTab={onCloseTab}
           onMoveCard={onMoveCard}
         />
-        <If condition={!!activeCardId}>
-          <div className={styles.editCardContainer}>
-            <EditCard
-              key={activeCardId!}
-              cardId={activeCardId!}
-              onClickLinkCard={onClickLinkCard}
-              readonly={readonly}
-            />
-          </div>
-        </If>
+        {
+          activeCardId && (
+            <div className={styles.editCardContainer}>
+              <EditCard
+                key={activeCardId}
+                cardId={activeCardId}
+                onClickLinkCard={onClickLinkCard}
+                readonly={readonly}
+              />
+            </div>
+          )
+        }
       </div>
       <If condition={!!activeCardId}>
         <div className={styles.statusBar}>

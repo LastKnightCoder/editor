@@ -45,6 +45,7 @@ export type EditorRef = {
   setEditorValue: (value: Descendant[]) => void;
   getEditor: () => Editor;
   scrollHeaderIntoView: (index: number) => void;
+  isFocus: () => boolean;
 }
 
 interface IEditorProps {
@@ -145,6 +146,9 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
       dom.scrollIntoView({
         behavior: 'smooth',
       });
+    },
+    isFocus: () => {
+      return ReactEditor.isFocused(editor);
     }
   }));
 

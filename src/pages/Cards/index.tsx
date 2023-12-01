@@ -1,5 +1,5 @@
-import {memo, useEffect} from "react";
-import {RightOutlined} from "@ant-design/icons";
+import { memo, useEffect } from "react";
+import { RightOutlined } from "@ant-design/icons";
 
 import classnames from "classnames";
 import isHotkey from "is-hotkey";
@@ -7,7 +7,7 @@ import isHotkey from "is-hotkey";
 import If from "@/components/If";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
-import {EActiveSide} from "@/stores/useCardPanelStore.ts";
+import { EActiveSide } from "@/stores/useCardPanelStore.ts";
 import useSidebarManagementStore from "./stores/useSidebarManagementStore.ts";
 
 import Sidebar from "./Sidebar";

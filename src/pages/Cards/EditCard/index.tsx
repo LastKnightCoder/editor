@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, createContext } from "react";
+import { useEffect, useState, useMemo, createContext, useRef } from "react";
 import { Button, Drawer, Skeleton, Tag } from "antd";
 import dayjs from "dayjs";
 import classnames from "classnames";
@@ -8,7 +8,7 @@ import { MdAccessTime } from "react-icons/md";
 import { FaTags } from "react-icons/fa6";
 import { SlGraph } from "react-icons/sl";
 
-import Editor from '@/components/Editor';
+import Editor, { EditorRef } from '@/components/Editor';
 import AddTag from "@/components/AddTag";
 import LinkGraph from "@/components/LinkGraph";
 import EditorSourceValue from "@/components/EditorSourceValue";
@@ -24,6 +24,7 @@ import { ICard } from "@/types";
 
 import { getAllLinkedCards, getInlineLinks } from "./utils.ts";
 import styles from './index.module.less';
+import isHotkey from "is-hotkey";
 
 
 const customExtensions = [cardLinkExtension];
@@ -48,6 +49,7 @@ const EditCard = (props: IEditCardProps) => {
   const [linkListOpen, setLinkListOpen] = useState(false);
   const [sourceValueOpen, setSourceValueOpen] = useState(false);
   const [isFieldsShow, setIsFieldsShow] = useState(false);
+  const editorRef = useRef<EditorRef>(null);
 
   const {
     initValue,
@@ -82,6 +84,22 @@ const EditCard = (props: IEditCardProps) => {
     [styles.show]: isFieldsShow,
     [styles.hide]: !isFieldsShow
   });
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isHotkey('mod+shift+/', e)) {
+        if (editorRef.current && editorRef.current.isFocus()) {
+          setSourceValueOpen(true);
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      }
+    }
+  })
 
   if (loading) return <Skeleton active />;
 
@@ -151,6 +169,7 @@ const EditCard = (props: IEditCardProps) => {
         <div className={styles.editor}>
           <ErrorBoundary>
             <Editor
+              ref={editorRef}
               initValue={initValue}
               onChange={onContentChange}
               extensions={customExtensions}
