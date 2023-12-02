@@ -9,6 +9,7 @@ specifiers:
   '@loadable/component': ^5.15.3
   '@tauri-apps/api': ^1.5.1
   '@tauri-apps/cli': ^1.5.6
+  '@tauri-apps/plugin-updater': 2.0.0-alpha.3
   '@types/babel__standalone': ^7.1.4
   '@types/codemirror': ^5.60.7
   '@types/is-hotkey': ^0.1.7
@@ -67,6 +68,7 @@ dependencies:
   '@babel/standalone': registry.npmmirror.com/@babel/standalone/7.22.2
   '@loadable/component': registry.npmmirror.com/@loadable/component/5.15.3_react@18.2.0
   '@tauri-apps/api': registry.npmmirror.com/@tauri-apps/api/1.5.1
+  '@tauri-apps/plugin-updater': registry.npmmirror.com/@tauri-apps/plugin-updater/2.0.0-alpha.3
   ahooks: registry.npmmirror.com/ahooks/3.7.7_react@18.2.0
   antd: registry.npmmirror.com/antd/5.7.3_biqbaboplfbrettd7655fr4n2y
   axios: registry.npmmirror.com/axios/1.4.0
@@ -1790,6 +1792,13 @@ packages:
     engines: {node: '>= 14.6.0', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
     dev: false
 
+  registry.npmmirror.com/@tauri-apps/api/2.0.0-alpha.11:
+    resolution: {integrity: sha512-aw7jic+MQAe/LH4fYhbd3bwx3YjXhDIwqKJIn5QO4yKmGdVURIhZSFcyeKkSe4P6Itdto0Pcz99vLfkgBwdQKw==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@tauri-apps/api/-/api-2.0.0-alpha.11.tgz}
+    name: '@tauri-apps/api'
+    version: 2.0.0-alpha.11
+    engines: {node: '>= 18', npm: '>= 6.6.0', yarn: '>= 1.19.1'}
+    dev: false
+
   registry.npmmirror.com/@tauri-apps/cli-darwin-arm64/1.5.6:
     resolution: {integrity: sha512-NNvG3XLtciCMsBahbDNUEvq184VZmOveTGOuy0So2R33b/6FDkuWaSgWZsR1mISpOuP034htQYW0VITCLelfqg==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@tauri-apps/cli-darwin-arm64/-/cli-darwin-arm64-1.5.6.tgz}
     name: '@tauri-apps/cli-darwin-arm64'
@@ -1922,6 +1931,14 @@ packages:
       '@tauri-apps/cli-win32-ia32-msvc': registry.npmmirror.com/@tauri-apps/cli-win32-ia32-msvc/1.5.6
       '@tauri-apps/cli-win32-x64-msvc': registry.npmmirror.com/@tauri-apps/cli-win32-x64-msvc/1.5.6
     dev: true
+
+  registry.npmmirror.com/@tauri-apps/plugin-updater/2.0.0-alpha.3:
+    resolution: {integrity: sha512-ZMNOpMrBEMCSBmI5Re09mhEldiDmHZBWaFkLXbDo8rcSM8OH2WaUQMDc6kmsu4pWgE/gs7RlwULmf9h3UZ+wLQ==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@tauri-apps/plugin-updater/-/plugin-updater-2.0.0-alpha.3.tgz}
+    name: '@tauri-apps/plugin-updater'
+    version: 2.0.0-alpha.3
+    dependencies:
+      '@tauri-apps/api': registry.npmmirror.com/@tauri-apps/api/2.0.0-alpha.11
+    dev: false
 
   registry.npmmirror.com/@types/babel__standalone/7.1.4:
     resolution: {integrity: sha512-HijIDmcNl3Wmo0guqjYkQvMzyRCM6zMCkYcdG8f+2X7mPBNa9ikSeaQlWs2Yg18KN1klOJzyupX5BPOf+7ahaw==, registry: https://registry.npm.taobao.org/, tarball: https://registry.npmmirror.com/@types/babel__standalone/-/babel__standalone-7.1.4.tgz}
