@@ -81,7 +81,7 @@ pub fn delete_document_item(id: i64, app_state: tauri::State<state::AppState>) -
 }
 
 #[tauri::command]
-pub fn update_document_item(id: i64, title: String, authors: Vec<String>, tags: Vec<String>, is_directory: bool, children: Vec<i64>, is_article: bool, article_id: i64, is_card: bool, card_id: i64, content: String, banner_bg: String, icon: String, app_state: tauri::State<state::AppState>) -> Result<usize, String> {
+pub fn update_document_item(id: i64, title: String, authors: Vec<String>, tags: Vec<String>, is_directory: bool, children: Vec<i64>, is_article: bool, article_id: i64, is_card: bool, card_id: i64, content: String, banner_bg: String, icon: String, app_state: tauri::State<state::AppState>) -> Result<document::DocumentItem, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {

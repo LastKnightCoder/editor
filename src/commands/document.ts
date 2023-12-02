@@ -66,11 +66,25 @@ export const createDocumentItem = async (documentItem: ICreateDocumentItem): Pro
   });
 }
 
-export const updateDocumentItem = async (documentItem: IUpdateDocumentItem): Promise<number> => {
-  return await invoke('update_document_item', {
-    ...documentItem,
-    content: JSON.stringify(documentItem.content),
+export const updateDocumentItem = async (updateDoc: IUpdateDocumentItem): Promise<IDocumentItem> => {
+  const documentItem: any = await invoke('update_document_item', {
+    ...updateDoc,
+    content: JSON.stringify(updateDoc.content),
   });
+
+  return {
+    ...documentItem,
+    content: JSON.parse(documentItem.content),
+    isDelete: documentItem.is_delete,
+    createTime: documentItem.create_time,
+    updateTime: documentItem.update_time,
+    bannerBg: documentItem.banner_bg,
+    isDirectory: documentItem.is_directory,
+    isArticle: documentItem.is_article,
+    isCard: documentItem.is_card,
+    articleId: documentItem.article_id,
+    cardId: documentItem.card_id,
+  }
 }
 
 export const deleteDocumentItem = async (documentItem: IDeleteDocumentItem): Promise<number> => {

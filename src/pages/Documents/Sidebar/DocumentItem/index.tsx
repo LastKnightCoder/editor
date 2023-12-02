@@ -1,18 +1,20 @@
 import { useState } from "react";
+import { App, message, Popover } from "antd";
+import { MoreOutlined, PlusOutlined, FolderOutlined, FileOutlined } from "@ant-design/icons";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
+import classnames from "classnames";
 import { motion } from 'framer-motion';
-import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
+
+import If from "@/components/If";
 import { createDocumentItem, getDocumentItem, updateDocumentItem } from "@/commands";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useDragAndDrop, { EDragPosition, IDragItem } from './useDragAndDrop.ts';
+
 import { IDocumentItem } from "@/types";
 
 import styles from './index.module.less';
-import If from "@/components/If";
-import { App, message, Popover } from "antd";
-import classnames from "classnames";
 
 interface IDocumentItemProps {
   itemId: number;
@@ -62,11 +64,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
         await onParentAddChild(dragId, itemId, dragPosition);
       }
     }
-    console.log('drop', dragItem, itemId, dragPosition, path);
   })
 
   const onDragEnd = useMemoizedFn(async (dragItem: IDragItem) => {
-    console.log('drag end', dragItem, path);
     await onParentDeleteChild(dragItem.itemId);
   })
 
@@ -95,11 +95,11 @@ const DocumentItem = (props: IDocumentItemProps) => {
     const newItem = produce(item, draft => {
       draft.children.push(itemId);
     });
-    await updateDocumentItem(newItem);
-    setItem(newItem);
+    const updatedDoc = await updateDocumentItem(newItem);
+    setItem(updatedDoc);
     if (item.id === activeDocumentItemId) {
       useDocumentsStore.setState({
-        activeDocumentItem: newItem,
+        activeDocumentItem: updatedDoc,
       });
     }
   })
@@ -125,11 +125,11 @@ const DocumentItem = (props: IDocumentItemProps) => {
       });
     }
 
-    await updateDocumentItem(newItem);
-    setItem(newItem);
+    const updatedDoc = await updateDocumentItem(newItem);
+    setItem(updatedDoc);
     if (item.id === activeDocumentItemId) {
       useDocumentsStore.setState({
-        activeDocumentItem: newItem,
+        activeDocumentItem: updatedDoc,
       });
     }
   })
@@ -141,12 +141,11 @@ const DocumentItem = (props: IDocumentItemProps) => {
     const newItem = produce(item, draft => {
       draft.children = draft.children.filter(childId => childId !== id);
     });
-    await updateDocumentItem(newItem);
-    // await deleteDocumentItem({ id });
-    setItem(newItem);
+    const updatedDoc = await updateDocumentItem(newItem);
+    setItem(updatedDoc);
     if (item.id === activeDocumentItemId) {
       useDocumentsStore.setState({
-        activeDocumentItem: newItem,
+        activeDocumentItem: updatedDoc,
       });
     }
   });
@@ -174,11 +173,11 @@ const DocumentItem = (props: IDocumentItemProps) => {
         draft.children.splice(spliceIndex, 0, sourceId);
       }
     });
-    await updateDocumentItem(newItem);
-    setItem(newItem);
+    const updatedDoc = await updateDocumentItem(newItem);
+    setItem(updatedDoc);
     if (item.id === activeDocumentItemId) {
       useDocumentsStore.setState({
-        activeDocumentItem: newItem,
+        activeDocumentItem: updatedDoc,
       });
     }
   });
@@ -238,7 +237,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
           [styles.inside]: isOver && canDrop && dragPosition === EDragPosition.Inside,
         })}
         onClick={() => {
-          console.log('click header', item.id);
           useDocumentsStore.setState({
             activeDocumentItemId: item.id,
             activeDocumentItem: item,
@@ -246,8 +244,15 @@ const DocumentItem = (props: IDocumentItemProps) => {
           });
         }}
       >
-        <div className={styles.title}>
-          {item.title}
+        <div className={styles.titleContainer}>
+          <div className={styles.icon}>
+            {
+              item.children.length > 0 ? <FolderOutlined /> : <FileOutlined />
+            }
+          </div>
+          <div className={styles.title}>
+            {item.title}
+          </div>
         </div>
         <div className={styles.icons}>
           <Popover

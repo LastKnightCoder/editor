@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
 use rusqlite::{Connection, params, Result, Row};
+use crate::database::document;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Document {
@@ -209,14 +210,16 @@ pub fn delete_document_item(conn: &Connection, id: i64) -> Result<usize> {
     Ok(res)
 }
 
-pub fn update_document_item(conn: &Connection, id: i64, title: &str, authors: Vec<String>, tags: Vec<String>, is_directory: bool, children: Vec<i64>, is_article: bool, article_id: i64, is_card: bool, card_id: i64, content: &str, banner_bg: &str, icon: &str) -> Result<usize> {
+pub fn update_document_item(conn: &Connection, id: i64, title: &str, authors: Vec<String>, tags: Vec<String>, is_directory: bool, children: Vec<i64>, is_article: bool, article_id: i64, is_card: bool, card_id: i64, content: &str, banner_bg: &str, icon: &str) -> Result<DocumentItem> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
     let mut stmt = conn.prepare("UPDATE document_items SET update_time = ?1, title = ?2, authors = ?3, tags = ?4, is_directory = ?5, children = ?6, is_article = ?7, article_id = ?8, is_card = ?9, card_id = ?10, content = ?11, banner_bg = ?12, icon = ?13 WHERE id = ?14")?;
     let authors_str = serde_json::to_string(&authors).unwrap();
     let tags_str = serde_json::to_string(&tags).unwrap();
     let children_str = serde_json::to_string(&children).unwrap();
-    let res = stmt.execute(params![now as i64, title, authors_str, tags_str, is_directory, children_str, is_article, article_id, is_card, card_id, content, banner_bg, icon, id])?;
-    Ok(res)
+    stmt.execute(params![now as i64, title, authors_str, tags_str, is_directory, children_str, is_article, article_id, is_card, card_id, content, banner_bg, icon, id])?;
+
+    let document_item = get_document_item(conn, id)?;
+    Ok(document_item)
 }
 
 pub fn get_document_item(conn: &Connection, id: i64) -> Result<DocumentItem> {

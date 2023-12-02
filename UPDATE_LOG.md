@@ -75,7 +75,7 @@
 
 - fix: 修复 bug，hovering bar 位置不对
 - fix: status bar 导致窗口抖动，以及位置会随着滚动发生改变
-- fix: blockpanel 位置修复，支持拼音关键字
+- fix: block-panel 位置修复，支持拼音关键字
 - feat: tabsContainer 也支持拖拽
 
 ## v0.4.0
@@ -86,3 +86,6 @@
 ## v0.4.1
 
 - feat: 支持动画
+- feat: 文档项支持图标
+- feat: 显示创建和更新时间
+- fix: 文字超长处理

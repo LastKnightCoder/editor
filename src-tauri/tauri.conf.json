@@ -99,7 +99,8 @@
         "width": 1200,
         "center": true,
         "decorations": false,
-        "fileDropEnabled": false
+        "fileDropEnabled": false,
+        "transparent": true
       }
     ]
   }

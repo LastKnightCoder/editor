@@ -22,9 +22,9 @@ const useEditDoc = () => {
 
   const saveDocument = useMemoizedFn((saveAnyway = false) => {
     if (!activeDocumentItem || !(documentChanged.current || saveAnyway)) return;
-    console.log('save document');
-    updateDocumentItem(activeDocumentItem).then(() => {
-      prevDocument.current = activeDocumentItem;
+    updateDocumentItem(activeDocumentItem).then((updatedDoc) => {
+      useDocumentsStore.setState({ activeDocumentItem: updatedDoc });
+      prevDocument.current = updatedDoc;
       documentChanged.current = false;
     });
   });
