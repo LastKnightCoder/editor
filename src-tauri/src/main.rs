@@ -34,6 +34,15 @@ use commands::{
     write_setting,
     read_setting,
     get_all_fonts,
+    create_document,
+    delete_document,
+    update_document,
+    get_document_list,
+    get_document,
+    create_document_item,
+    delete_document_item,
+    update_document_item,
+    get_document_item,
 };
 
 fn main() {
@@ -67,17 +76,22 @@ fn main() {
           create_article,
           update_article,
           update_article_banner_bg,
-          update_article_is_top, 
+          update_article_is_top,
           delete_article,
           find_article,
           find_all_articles,
           write_setting,
           read_setting,
           get_all_fonts,
-
-
-
-
+          create_document,
+          delete_document,
+          update_document,
+          get_document_list,
+          get_document,
+          create_document_item,
+          delete_document_item,
+          update_document_item,
+          get_document_item,
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -81,13 +81,12 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/LastKnightCoder/editor/releases/latest/download/latest.json",
-        "https://lastknightcoder.github.io/editor/install.json"
+        "https://github.com/LastKnightCoder/editor/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"
       },
-      "dialog": true,
+      "dialog": false,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU3NTg4MjY2RUI5MEUzOTIKUldTUzQ1RHJab0pZVi91OVhvSEFra3pwc1hCM2o1L2ZhZktqUTFTMlZBWlo0K0dLa2VMM3FYUloK"
     },
     "windows": [
