@@ -4,6 +4,7 @@ import loadable from "@loadable/component";
 import DefaultLayout from '@/layouts/DefaultLayout';
 const Cards = loadable(() => import('@/pages/Cards'));
 const Articles = loadable(() => import('@/pages/Articles'));
+const Documents = loadable(() => import('@/pages/Documents'));
 const ArticleEdit = loadable(() => import('@/pages/Articles/ArticleEdit'));
 const Statistic = loadable(() => import('@/pages/Statistic'));
 const Animate = loadable(() => import('@/pages/Animate'));
@@ -40,6 +41,9 @@ const routes = [{
       path: 'edit',
       element: <ArticleEdit />,
     }]
+  }, {
+    path: 'documents/',
+    element: <Documents />,
   }, {
     path: 'statistic/',
     element: <Statistic />,

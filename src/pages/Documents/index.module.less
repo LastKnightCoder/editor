@@ -1,0 +1,18 @@
+.documentContainer {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  --sidebar-width: 280px;
+  .sidebar {
+    width: var(--sidebar-width);
+    height: 100%;
+    padding: 16px;
+    box-sizing: border-box;
+    border-right: 1px solid var(--line-color);
+  }
+  .content {
+    width: calc(100% - var(--sidebar-width));
+    height: 100%;
+    box-sizing: border-box;
+  }
+}

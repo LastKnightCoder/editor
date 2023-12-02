@@ -18,6 +18,7 @@ enum ENavKey {
   CARDS = 'CARDS',
   ARTICLES = 'ARTICLES',
   DAILY = 'DAILY',
+  DOCUMENTS = 'DOCUMENTS',
 }
 
 const TitleBar = (props: ITitleBarProps) => {
@@ -36,9 +37,15 @@ const TitleBar = (props: ITitleBarProps) => {
     navigate('/articles/list');
   }
 
+  const navigateToDocuments = () => {
+    setActiveNavKey(ENavKey.DOCUMENTS);
+    navigate('/documents');
+  }
+
   const isCardsActive = activeNavKey === ENavKey.CARDS;
   const isArticlesActive = activeNavKey === ENavKey.ARTICLES;
   const isDailyActive = activeNavKey === ENavKey.DAILY;
+  const isDocumentsActive = activeNavKey === ENavKey.DOCUMENTS;
 
   return (
     <div
@@ -95,6 +102,15 @@ const TitleBar = (props: ITitleBarProps) => {
           文章
           {
             isArticlesActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
+          }
+        </motion.div>
+        <motion.div
+          className={classnames(styles.item, { [styles.active]: isDailyActive })}
+          onClick={navigateToDocuments}
+        >
+          文档
+          {
+            isDocumentsActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
           }
         </motion.div>
         <motion.div

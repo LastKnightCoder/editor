@@ -1,0 +1,55 @@
+.itemContainer {
+  position: relative;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line-color);
+  cursor: pointer;
+  .title {
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 8px 0;
+    //border-bottom: 1px solid var(--line-color);
+    margin-bottom: 12px;
+  }
+  .desc {
+    font-size: .9em;
+    white-space: pre-line;
+  }
+  &:hover {
+    background-color: var(--common-hover-bg);
+    .moreIcon {
+      display: flex;
+    }
+  }
+  .moreIcon {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    display: none;
+    border-radius: 50%;
+    &:hover {
+      background-color: var(--common-hover-bg);
+      cursor: pointer;
+    }
+  }
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 80px;
+  .item {
+    border-radius: 8px;
+    padding: 8px 12px;
+    &:hover {
+      background-color: var(--doc-fill-active);
+      color: var(--doc-fill-text-color);
+      cursor: pointer;
+    }
+  }
+}

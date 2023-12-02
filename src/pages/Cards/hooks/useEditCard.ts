@@ -72,7 +72,7 @@ const useEditCard = (cardId: number) => {
     // @ts-ignore
     timer.current = setTimeout(() => {
       saveCard();
-    }, 3000);
+    }, 1000);
   })
 
   const onAddTag = useMemoizedFn((tag: string) => {
