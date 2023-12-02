@@ -77,3 +77,8 @@
 - fix: status bar 导致窗口抖动，以及位置会随着滚动发生改变
 - fix: blockpanel 位置修复，支持拼音关键字
 - feat: tabsContainer 也支持拖拽
+
+## v0.4.0
+
+- feat: 支持文档模式
+- feat: 文档支持拖拽
