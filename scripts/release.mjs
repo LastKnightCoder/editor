@@ -8,7 +8,7 @@ const require = createRequire(import.meta.url);
 
 async function release() {
   // 本地执行一次 tsc 命令，防止发布时 tauri 打包失败
-  execSync('tsc');
+  execSync('npx tsc');
   const flag = process.argv[2] ?? 'patch';
   const packageJson = require('../package.json');
   const tauriConfig = require('../src-tauri/tauri.conf.json');

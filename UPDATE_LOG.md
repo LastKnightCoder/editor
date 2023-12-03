@@ -104,3 +104,9 @@
 
 - feat: 支持阿里云 OSS
 - feat: 图片上传统一
+
+## v0.4.5
+
+- feat: check-list 去掉 Add Paragraph，间距更加合理
+- feat: 自定义块支持跟随主题变化
+- feat: 发布之前检查类型是否通过

@@ -4,6 +4,8 @@ import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
 import * as Babel from '@babel/standalone';
 import * as antd from 'antd';
+import * as antdIcons from '@ant-design/icons';
+import useTheme from "@/hooks/useTheme.ts";
 
 import styles from './index.module.less';
 
@@ -18,8 +20,21 @@ interface CustomBlockProps {
 const prefix = `const { antd } = components;\n`;
 const suffix = `
 if (typeof Component === 'function') {
+  const App = () => {
+    const { isDark = false } = hooks.useTheme();
+    const { ConfigProvider, theme } = antd;
+    return (
+      <ConfigProvider
+        theme={{
+          algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        }}
+      >
+        <Component />
+      </ConfigProvider>
+    )
+  }
   const root = ReactDOM.createRoot(el);
-  root.render(<Component />);
+  root.render(<App />);
 }`
 
 
@@ -55,10 +70,10 @@ const CustomBlock = (props: { content: string; }) => {
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
-    const fn = new AsyncFunction('React', 'ReactDOM', 'el', 'components', code + '\nreturn root;');
+    const fn = new AsyncFunction('React', 'ReactDOM', 'el', 'components', 'hooks', code + '\nreturn root;');
 
     try {
-      const root = fn(React, ReactDOM, ref.current, { antd });
+      const root = fn(React, ReactDOM, ref.current, { antd, antdIcons }, { useTheme });
 
       return () => {
         root?.then((s: any) => {
