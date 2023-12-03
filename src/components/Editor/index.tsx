@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo, memo } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo, memo, createContext } from "react";
 import { createEditor, Descendant, Editor, Transforms } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory } from 'slate-history';
@@ -39,6 +39,11 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/blackboard.css';
 import { IConfigItem } from "@/components/Editor/types";
 
+interface IEditorContext {
+  uploadImage?: (file: File) => Promise<string | null>;
+}
+
+export const EditorContext = createContext<IEditorContext | null>(null);
 
 export type EditorRef = {
   focus: () => void;
@@ -54,7 +59,7 @@ interface IEditorProps {
   readonly?: boolean;
   extensions?: IExtension[];
   hoveringBarConfigs?: IConfigItem[];
-  uploadImage?: (file: File) => Promise<string>;
+  uploadImage?: (file: File) => Promise<string | null>;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -71,6 +76,7 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
     readonly = true,
     extensions,
     hoveringBarConfigs,
+    uploadImage,
   } = props;
 
   const finalExtensions = useMemo(() => {
@@ -157,6 +163,9 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
   }
 
   return (
+    <EditorContext.Provider value={{
+      uploadImage,
+    }}>
       <Slate
         editor={editor}
         initialValue={initValue}
@@ -182,6 +191,7 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
         { !readonly && <HoveringToolbar configs={finalHoveringBarConfigs} /> }
         <BlockPanel extensions={finalExtensions} />
       </Slate>
+    </EditorContext.Provider>
   )
 }));
 

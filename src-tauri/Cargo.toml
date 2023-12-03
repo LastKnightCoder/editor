@@ -21,6 +21,7 @@ tauri = { version = "1.3.0", features = ["dialog-all", "os-all", "shell-all", "u
 rusqlite = { version = "0.29.0", features = ["bundled"] }
 simple-home-dir = "0.2.0"
 font-loader = "0.11.0"
+aliyun-oss-rs = "0.0.5"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

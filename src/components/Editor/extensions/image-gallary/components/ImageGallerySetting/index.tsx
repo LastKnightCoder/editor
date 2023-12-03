@@ -1,13 +1,12 @@
-import React, {useRef, useState} from 'react';
-import {motion} from "framer-motion";
-import {produce} from 'immer';
-import {InputNumber, Select, Space, Spin, Switch} from 'antd';
-import {PlusOutlined} from '@ant-design/icons';
-import {v4 as getUuid} from 'uuid';
+import React, { useRef, useState, useContext } from 'react';
+import { motion } from "framer-motion";
+import { produce } from 'immer';
+import { InputNumber, message, Select, Space, Spin, Switch } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import { v4 as getUuid } from 'uuid';
 
-import {EGalleryMode, ImageGalleryItem} from "@/components/Editor/types";
-import {transformGithubUrlToCDNUrl, uploadFileFromFile} from "@/utils";
-import useSettingStore from "@/stores/useSettingStore.ts";
+import { EGalleryMode, ImageGalleryItem } from "@/components/Editor/types";
+import { EditorContext } from '@/components/Editor';
 
 import ImageItem from "./ImageItem";
 import styles from './index.module.less';
@@ -31,9 +30,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   const uploadRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
-  const { github } = useSettingStore(state => ({
-    github: state.setting.imageBed.github,
-  }));
+  const { uploadImage } = useContext(EditorContext) || {};
 
   const onHeightChange = (value: number) => {
     onSettingChange(produce(setting, draft => {
@@ -69,7 +66,6 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     onSettingChange(produce(setting, draft => {
       const dragIndex = draft.images.findIndex(item => item.id === dragImageItem.id);
       const dropIndex = draft.images.findIndex(item => item.id === dropImageItem.id);
-      console.log(dragIndex, dropIndex);
       if (dragIndex === -1 || dropIndex === -1) {
         return;
       }
@@ -79,12 +75,15 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   }
 
   const uploadFile = async (file: File) => {
-    const uploadRes = await uploadFileFromFile(file, github) as any;
-    if (!uploadRes) {
-      return '';
+    if (!uploadImage) {
+      message.warning('尚未配置任何图床，无法上传图片');
+      return null;
     }
-    const { content: { download_url } } = uploadRes;
-    return transformGithubUrlToCDNUrl(download_url, github.branch);
+    try {
+      return await uploadImage(file);
+    } catch (e) {
+      return null;
+    }
   }
 
   const handleUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,16 +92,24 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
       return;
     }
     setUploading(true);
-    const promises: Promise<string>[] = [];
+    const promises: Promise<string | null>[] = [];
     for (const file of files) {
       promises.push(uploadFile(file));
     }
-    const urls = (await Promise.all(promises)).filter(url =>!!url);
-    onAddImage(urls.map(url => ({
-      id: getUuid(),
-      url,
-    })));
-    setUploading(false);
+    try {
+      const urls = (await Promise.all(promises)).filter(url =>!!url) as string[];
+      onAddImage(urls.map(url => ({
+        id: getUuid(),
+        url,
+      })));
+      if (urls.length < files.length) {
+        message.warning('有部分图片上传失败');
+      }
+    } catch (e) {
+      message.error('上传失败');
+    } finally {
+      setUploading(false);
+    }
   }
 
   const onDeleteImage = (item: ImageGalleryItem) => {

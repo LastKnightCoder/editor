@@ -43,6 +43,7 @@ use commands::{
     delete_document_item,
     update_document_item,
     get_document_item,
+    get_ali_oss_buckets,
 };
 
 fn main() {
@@ -92,6 +93,7 @@ fn main() {
           delete_document_item,
           update_document_item,
           get_document_item,
+          get_ali_oss_buckets,
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

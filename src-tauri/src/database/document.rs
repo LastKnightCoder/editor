@@ -1,7 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
 use rusqlite::{Connection, params, Result, Row};
-use crate::database::document;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Document {

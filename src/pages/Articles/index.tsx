@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { FloatButton } from "antd";
 import { PlusOutlined, UpOutlined } from '@ant-design/icons';
 
+import useUploadImage from "@/hooks/useUploadImage.ts";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import useEditArticleStore from "@/stores/useEditArticleStore.ts";
 import { CREATE_ARTICLE_ID } from "@/constants";
 
 import ArticleCard from "./ArticleCard";
+
 import styles from './index.module.less';
-import useSettingStore from "@/stores/useSettingStore.ts";
-import { transformGithubUrlToCDNUrl, uploadFileFromFile } from "@/utils";
 
 const Articles = () => {
   const {
@@ -27,18 +27,7 @@ const Articles = () => {
     updateArticleBannerBg: state.updateArticleBannerBg,
   }));
 
-  const { github } = useSettingStore(state => ({
-    github: state.setting.imageBed.github,
-  }));
-
-  const uploadFile = async (file: File) => {
-    const uploadRes = await uploadFileFromFile(file, github) as any;
-    if (!uploadRes) {
-      return '';
-    }
-    const { content: { download_url } } = uploadRes;
-    return transformGithubUrlToCDNUrl(download_url, github.branch);
-  }
+  const uploadImage = useUploadImage();
 
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -75,7 +64,7 @@ const Articles = () => {
             updateArticleIsTop={updateArticleIsTop}
             deleteArticle={deleteArticle}
             updateArticleBannerBg={updateArticleBannerBg}
-            uploadFile={uploadFile}
+            uploadFile={uploadImage}
           />
         ))
       }

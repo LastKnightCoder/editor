@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { produce } from "immer";
+import { merge, cloneDeep } from 'lodash';
 
 import { getSetting } from '@/commands';
+
+export enum EImageBed {
+  Github = 'github',
+  AliOSS = 'aliOSS',
+}
 
 interface ISetting {
   fontSetting: {
@@ -10,6 +16,7 @@ interface ISetting {
     fontSize: number;
   },
   imageBed: {
+    active: EImageBed;
     github: {
       token: string;
       repo: string;
@@ -18,6 +25,12 @@ interface ISetting {
         name: string;
         email: string;
       }
+    },
+    aliOSS: {
+      accessKeyId: string;
+      accessKeySecret: string;
+      bucket: string;
+      region: string;
     }
   },
   darkMode: boolean;
@@ -46,6 +59,7 @@ const initialState: IState = {
       fontSize: 16,
     },
     imageBed: {
+      active: EImageBed.Github,
       github: {
         token: '',
         repo: '',
@@ -54,6 +68,12 @@ const initialState: IState = {
           name: '',
           email: '',
         }
+      },
+      aliOSS: {
+        accessKeyId: '',
+        accessKeySecret: '',
+        bucket: '',
+        region: '',
       }
     }
   },
@@ -64,15 +84,15 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
   initSetting: async () => {
     const setting = await getSetting();
-    if (setting) {
+    try {
+      const parsedSetting = JSON.parse(setting);
+      const newSetting = cloneDeep(initialState.setting);
+      merge(newSetting, parsedSetting);
+      console.log('newSetting', newSetting);
       set({
-        setting: {
-          ...initialState.setting,
-          ...JSON.parse(setting)
-        },
-        inited: true,
-      });
-    } else {
+        setting: newSetting,
+      })
+    } finally {
       set({
         inited: true,
       });

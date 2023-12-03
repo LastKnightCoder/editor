@@ -20,6 +20,7 @@ import AddTag from "@/components/AddTag";
 import For from "@/components/For";
 import If from "@/components/If";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
+import useUploadImage from "@/hooks/useUploadImage.ts";
 import ArticleCard from "@/pages/Articles/ArticleCard";
 import { IArticle } from "@/types";
 
@@ -58,6 +59,8 @@ const ArticleEdit = () => {
   } = useArticleManagementStore(state => ({
     articles: state.articles,
   }));
+
+  const uploadImage = useUploadImage();
 
   const editorRef = useRef<EditorRef>(null);
   const originalArticle = useRef<EditingArticle>();
@@ -199,6 +202,7 @@ const ArticleEdit = () => {
               initValue={editingArticle.content}
               readonly={readonly}
               extensions={extensions}
+              uploadImage={uploadImage}
             />
             <AddTag
               className={styles.tags}

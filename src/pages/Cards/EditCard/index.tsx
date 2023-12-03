@@ -18,6 +18,7 @@ import LinkList from './LinkList';
 import { cardLinkExtension } from "@/editor-extensions";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import useUploadImage from "@/hooks/useUploadImage.ts";
 import useEditCard from "../hooks/useEditCard.ts";
 
 import { ICard } from "@/types";
@@ -50,6 +51,8 @@ const EditCard = (props: IEditCardProps) => {
   const [sourceValueOpen, setSourceValueOpen] = useState(false);
   const [isFieldsShow, setIsFieldsShow] = useState(false);
   const editorRef = useRef<EditorRef>(null);
+
+  const uploadImage = useUploadImage();
 
   const {
     initValue,
@@ -174,6 +177,7 @@ const EditCard = (props: IEditCardProps) => {
               onChange={onContentChange}
               extensions={customExtensions}
               readonly={readonly}
+              uploadImage={uploadImage}
             />
           </ErrorBoundary>
         </div>

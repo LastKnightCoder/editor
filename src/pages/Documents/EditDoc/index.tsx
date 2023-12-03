@@ -6,6 +6,7 @@ import { EditOutlined, ReadOutlined } from "@ant-design/icons";
 
 import { formatDate } from "@/utils/time.ts";
 
+import useUploadImage from "@/hooks/useUploadImage.ts";
 import useEditDoc from "./useEditDoc";
 import styles from './index.module.less';
 
@@ -20,6 +21,7 @@ const EditDoc = () => {
     onContentChange,
     onTitleChange,
   } = useEditDoc();
+  const uploadImage = useUploadImage();
 
   useRafInterval(() => {
     saveDocument();
@@ -80,6 +82,7 @@ const EditDoc = () => {
             initValue={activeDocumentItem.content}
             onChange={onContentChange}
             readonly={readonly}
+            uploadImage={uploadImage}
           />
         </div>
       </div>

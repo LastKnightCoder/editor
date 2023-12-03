@@ -28,7 +28,7 @@ interface IArticleCardProps {
   updateArticleIsTop?: (articleId: number, isTop: boolean) => void;
   deleteArticle?: (articleId: number) => void;
   updateArticleBannerBg?: (articleId: number, bannerBg: string) => void;
-  uploadFile?: (file: File) => Promise<string>;
+  uploadFile?: (file: File) => Promise<string | null>;
 }
 
 const allThemes = [styles.green, styles.blue, styles.red, styles.yellow, styles.purple];
@@ -66,18 +66,17 @@ const ArticleCard = (props: IArticleCardProps) => {
   const handleUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     setBannerUploading(true);
     const files = event.target.files;
-    // 5MB 以上不支持
     if (!files) {
-      setBannerUploading(false);
-      return;
-    }
-    if (files[0].size > 8 * 1024 * 1024) {
-      message.warning('图片大小不能超过 8MB');
       setBannerUploading(false);
       return;
     }
     const file = files[0];
     const url = await uploadFile?.(file);
+    if (!url) {
+      message.error('上传失败');
+      setBannerUploading(false);
+      return;
+    }
     updateArticleBannerBg?.(article.id, url || '');
     setBannerUploading(false);
   }

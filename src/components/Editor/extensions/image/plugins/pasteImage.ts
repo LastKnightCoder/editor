@@ -1,10 +1,7 @@
 import { Editor, Transforms } from "slate";
 import { insertImage } from "@/components/Editor/utils";
-import {
-  uploadFileFromFile,
-  transformGithubUrlToCDNUrl,
-} from '@/utils';
-import useSettingStore from "@/stores/useSettingStore.ts";
+import { uploadImage } from "@/hooks/useUploadImage.ts";
+import { message } from "antd";
 
 export const pasteImage = (editor: Editor) => {
   const { insertData } = editor;
@@ -25,9 +22,9 @@ export const pasteImage = (editor: Editor) => {
       if (!insertPath) {
         return;
       }
-      const githubInfo = useSettingStore.getState().setting.imageBed.github;
-      const uploadRes = await uploadFileFromFile(file, githubInfo);
-      if (!uploadRes) {
+      const url = await uploadImage(file);
+      if (!url) {
+        message.error('上传失败');
         Transforms.setNodes(editor, {
           pasteUploading: false
         }, {
@@ -35,9 +32,8 @@ export const pasteImage = (editor: Editor) => {
         });
         return;
       }
-      const { content: { download_url } } = uploadRes as any;
       Transforms.setNodes(editor, {
-        url: transformGithubUrlToCDNUrl(download_url, githubInfo.branch),
+        url,
         pasteUploading: false
       }, {
         at: insertPath

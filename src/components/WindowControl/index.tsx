@@ -1,12 +1,12 @@
-import {useCallback, useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 import classnames from "classnames";
 import { appWindow } from '@tauri-apps/api/window'
 
 import { MinusOutlined, CloseOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons';
 
 import styles from './index.module.less';
-import {UnlistenFn} from "@tauri-apps/api/event";
-import {useMemoizedFn} from "ahooks";
+import { UnlistenFn } from "@tauri-apps/api/event";
+import { useMemoizedFn } from "ahooks";
 
 interface IWindowControlProps {
   className?: string;
