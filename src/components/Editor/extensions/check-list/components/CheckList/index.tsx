@@ -14,7 +14,6 @@ const CheckList: React.FC<PropsWithChildren<ICheckListProps>> = (props) => {
   return (
     <ul className={styles.list} {...attributes}>
       {children}
-      <AddParagraph element={element} />
     </ul>
   )
 }
