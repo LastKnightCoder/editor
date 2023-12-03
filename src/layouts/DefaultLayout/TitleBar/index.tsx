@@ -105,10 +105,10 @@ const TitleBar = (props: ITitleBarProps) => {
           }
         </motion.div>
         <motion.div
-          className={classnames(styles.item, { [styles.active]: isDailyActive })}
+          className={classnames(styles.item, { [styles.active]: isDocumentsActive })}
           onClick={navigateToDocuments}
         >
-          文档
+          知识库
           {
             isDocumentsActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
           }

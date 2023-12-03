@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 export const formatDate = (timestamp: number, hideCurYear: boolean) => {
   const date = dayjs(timestamp);
   const now = dayjs();
-  const diff = now.diff(date, "day");
+  const diff = now.get("date") - date.get("date");
   if (diff < 1) {
     return date.format("HH:mm");
   } else if (diff < 2) {

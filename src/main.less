@@ -13,7 +13,6 @@ body {
   --detail-bg-color: var(--primary-bg-color);
   --header-bg-color: var(--primary-bg-color);
   --block-panel-bg: var(--primary-bg-color);
-  background-color: var(--primary-bg-color);
   font-family: var(--font);
   color: var(--text-normal);
   font-size: var(--font-size);
@@ -128,6 +127,12 @@ p {
   box-shadow: var(--clay-shadow-outset, 8px 8px 16px 0 rgba(0, 0, 0, .25)), inset var(--clay-shadow-inset-primary,-8px -8px 16px 0 rgba(0, 0, 0, .25)), inset var(--clay-shadow-inset-secondary, 8px 8px 16px 0 hsla(0, 0%, 100%, .2))
 }
 
-#app {
+#root {
   border-radius: 12px;
+  overflow: hidden;
+  background: var(--primary-bg-color);
+}
+
+#root.maximized {
+  border-radius: 0;
 }
