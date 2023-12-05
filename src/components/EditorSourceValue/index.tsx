@@ -13,7 +13,7 @@ const EditorSourceValue = (props: EditorDetailProps) => {
   return (
     <Drawer
       title="源码"
-      width={600}
+      width={480}
       open={open}
       onClose={onClose}
     >

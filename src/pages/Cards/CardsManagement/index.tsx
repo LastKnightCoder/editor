@@ -1,13 +1,24 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMemoizedFn } from "ahooks";
+import { Drawer, Skeleton, Tooltip } from "antd";
 import { EditOutlined, ReadOutlined } from '@ant-design/icons';
+import { MdOutlineCode } from "react-icons/md";
+import { PiGraph, PiListBullets } from "react-icons/pi";
+
 import CardTabs from './CardTabs';
 import EditCard from "../EditCard";
 import If from "@/components/If";
 
-import styles from './index.module.less';
-import { Tooltip } from "antd";
-import isHotkey from "is-hotkey";
+import useEditCard from "../hooks/useEditCard.ts";
 import { EActiveSide } from "@/stores/useCardPanelStore.ts";
+
+import styles from './index.module.less';
+import LinkList from "@/pages/Cards/EditCard/LinkList";
+import LinkGraph from "@/components/LinkGraph";
+import EditorSourceValue from "@/components/EditorSourceValue";
+import { getAllLinkedCards, getInlineLinks } from "./utils.ts";
+import { ICard } from "@/types";
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 
 interface ICardsManagementProps {
   cardIds: number[];
@@ -30,21 +41,37 @@ const CardsManagement = (props: ICardsManagementProps) => {
     onMoveCard,
   } = props;
 
-  const [readonly, setReadonly] = useState(false);
+  const {
+    cards
+  } = useCardsManagementStore((state) => ({
+    cards: state.cards,
+  }));
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isHotkey('mod+/', e)) {
-        setReadonly(!readonly);
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [readonly]);
+  const [readonly, setReadonly] = useState(false);
+  const [sourceValueOpen, setSourceValueOpen] = useState(false);
+  const [linkGraphOpen, setLinkGraphOpen] = useState(false);
+  const [linkListOpen, setLinkListOpen] = useState(false);
+
+  const {
+    editingCard,
+    loading,
+    saveCard,
+    onContentChange,
+    onAddTag,
+    onDeleteTag,
+    onAddLink,
+    onRemoveLink,
+  } = useEditCard(activeCardId);
+
+  const getCardLinks = useMemoizedFn((card: ICard) => {
+    const links = getInlineLinks(card);
+    return [...new Set([...links, ...card.links])];
+  })
+
+  const allLinkedCards = useMemo(() => {
+    if (!editingCard) return [];
+    return getAllLinkedCards(editingCard, cards);
+  }, [editingCard?.links, cards]);
 
   return (
     <div className={styles.manageContainer}>
@@ -60,18 +87,51 @@ const CardsManagement = (props: ICardsManagementProps) => {
         {
           activeCardId && (
             <div className={styles.editCardContainer}>
-              <EditCard
-                key={activeCardId}
-                cardId={activeCardId}
-                onClickLinkCard={onClickLinkCard}
-                readonly={readonly}
-              />
+              {
+                loading ? (
+                  <Skeleton active paragraph={{ rows: 4 }} />
+                ) : (
+                  editingCard && (
+                    <EditCard
+                      key={editingCard.id}
+                      readonly={readonly}
+                      editingCard={editingCard}
+                      onContentChange={onContentChange}
+                      onAddTag={onAddTag}
+                      onDeleteTag={onDeleteTag}
+                      saveCard={saveCard}
+                    />
+                  )
+                )
+              }
             </div>
           )
         }
       </div>
       <If condition={!!activeCardId}>
         <div className={styles.statusBar}>
+          <div>
+            <If condition={!!activeCardId}>
+              <Tooltip title={'关联图谱'}>
+                <PiGraph
+                  style={{ transform: 'translateY(1.5px)' }}
+                  className={styles.icon}
+                  onClick={() => setLinkGraphOpen(true)}
+                />
+              </Tooltip>
+            </If>
+          </div>
+          <div>
+            <If condition={!!activeCardId}>
+              <Tooltip title={'关联列表'}>
+                <PiListBullets
+                  style={{ transform: 'translateY(1.5px)' }}
+                  className={styles.icon}
+                  onClick={() => setLinkListOpen(true)}
+                />
+              </Tooltip>
+            </If>
+          </div>
           <div>
             {
               readonly ? (
@@ -85,8 +145,61 @@ const CardsManagement = (props: ICardsManagementProps) => {
               )
             }
           </div>
+          <div>
+            <If condition={!!activeCardId}>
+              <Tooltip title={'源码'}>
+                <MdOutlineCode
+                  className={styles.icon}
+                  style={{ transform: 'scale(1.2)', transformOrigin: 'center top' }}
+                  onClick={() => setSourceValueOpen(true)}
+                />
+              </Tooltip>
+            </If>
+          </div>
         </div>
       </If>
+      {
+        editingCard && (
+          <>
+            <Drawer
+              title={'关联列表'}
+              width={420}
+              open={linkListOpen}
+              onClose={() => { setLinkListOpen(false) }}
+            >
+              <LinkList
+                onClickLinkCard={onClickLinkCard}
+                addLink={onAddLink}
+                removeLink={onRemoveLink}
+                editingCard={editingCard}
+                readonly={readonly}
+              />
+            </Drawer>
+            <Drawer
+              title={'关联图谱'}
+              width={420}
+              open={linkGraphOpen}
+              onClose={() => { setLinkGraphOpen(false) }}
+            >
+              <LinkGraph
+                cards={allLinkedCards}
+                currentCardId={editingCard.id}
+                cardWidth={320}
+                getCardLinks={getCardLinks}
+                style={{
+                  height: 'calc(100vh - 105px)'
+                }}
+                fitView={allLinkedCards.length > 20}
+              />
+            </Drawer>
+            <EditorSourceValue
+              open={sourceValueOpen}
+              onClose={() => { setSourceValueOpen(false) }}
+              content={editingCard.content}
+            />
+          </>
+        )
+      }
     </div>
   )
 }

@@ -5,19 +5,12 @@ import { produce } from 'immer';
 import useCardsManagementStore from '@/stores/useCardsManagementStore.ts';
 import { ICard } from "@/types";
 
-const useEditCard = (cardId: number) => {
+const useEditCard = (cardId: number | undefined) => {
   const [loading, setLoading] = useState(false);
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
   const prevCard = useRef<ICard | null>(null);
   const cardChanged = useRef(false);
-  const [readonly, setReadonly] = useState(true);
-  const [initValue, setInitValue] = useState<Descendant[]>([{
-    type: 'paragraph',
-    children: [{
-      type: 'formatted',
-      text: ''
-    }],
-  }]);
+
   const timer = useRef<number>();
 
   const { cards, updateCard } = useCardsManagementStore((state) => ({
@@ -26,17 +19,17 @@ const useEditCard = (cardId: number) => {
   }));
 
   useAsyncEffect(async () => {
+    if (!cardId) return;
     setLoading(true);
+
     const card = cards.find(c => c.id === cardId);
     if (!card) {
-      console.error('Card not found');
       setLoading(false);
       return;
     }
 
     setEditingCard(card);
     prevCard.current = card;
-    setInitValue(card.content);
     setLoading(false);
   }, [cardId]);
 
@@ -126,14 +119,11 @@ const useEditCard = (cardId: number) => {
     loading,
     editingCard,
     saveCard,
-    readonly,
     onContentChange,
     onAddTag,
     onDeleteTag,
     onAddLink,
     onRemoveLink,
-    setReadonly,
-    initValue,
   }
 }
 

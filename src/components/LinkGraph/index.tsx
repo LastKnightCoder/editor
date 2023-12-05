@@ -18,6 +18,7 @@ interface ILinkGraphProps {
   cardMaxHeight?: number;
   cardFontSize?: number;
   currentCardId?: number;
+  fitView?: boolean;
 }
 
 const LinkGraph = (props: ILinkGraphProps) => {
@@ -30,6 +31,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
     cardFontSize,
     currentCardId,
     getCardLinks = (card) => card.links,
+    fitView = true,
   } = props;
   const ref = useRef<HTMLDivElement>(null);
   const graph = useRef<Graph>();
@@ -63,7 +65,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
       container: ref.current,
       width,
       height,
-      fitView: true,
+      fitView,
       fitViewPadding: [40],
       animate: true,
       defaultNode: {

@@ -2,71 +2,18 @@
   position: relative;
   margin: 0 auto;
   max-width: 720px;
-  .fieldsContainer {
-    margin-bottom: 20px;
-    padding: 24px 24px 0;
-    border-radius: 8px;
-    border: 1px solid var(--line-color);
-    .titleContainer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      .title {
-        font-weight: bold;
-      }
-      .arrow {
-        cursor: pointer;
-        transition: transform 0.1s linear;
-        &.show {
-          transform: rotate(90deg);
-        }
-        &.hide {
-          transform: rotate(180deg);
-        }
-      }
-    }
-    .content {
-      display: grid;
-      grid-template-rows: 0fr;
-      transition: all 0.1s ease-in-out;
-      overflow: hidden;
-      &.show {
-        box-sizing: border-box;
-        grid-template-rows: 1fr;
-        .fields {
-          padding-bottom: 24px;
-        }
-      }
-      .fields {
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        transition: all 0.1s ease-in-out;
-        .field {
-          display: flex;
-          gap: 20px;
-          .fieldKey {
-            width: 100px;
-            flex: none;
-            .icon {
-              vertical-align: -8%;
-              margin-right: 8px;
-            }
-          }
-          .fieldValue {
-            flex: auto;
-            display: flex;
-            align-items: center;
-          }
-        }
-      }
-    }
-
+  .time {
+    margin-bottom: 24px;
+    display: flex;
+    gap: 10px;
+    opacity: .8;
+    font-size: .9em;
   }
   .editor {
     width: 100%;
+  }
+  .addTag {
+    margin-top: 24px;
   }
 }
 

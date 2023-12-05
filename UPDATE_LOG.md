@@ -120,3 +120,7 @@
 - feat: Mac 下不监听 resize 事件
 - feat: 提供快捷键手动下载
 - feat: 上传、下载提示优化
+
+## v0.4.8
+
+- feat: 卡片编辑快捷操作收拢到 statusBar
