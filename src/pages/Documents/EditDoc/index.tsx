@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import {useRef, useState, useEffect, useMemo} from "react";
 import { Tooltip } from "antd";
 import { useRafInterval } from "ahooks";
 import Editor, { EditorRef } from "@/components/Editor";
@@ -9,6 +9,8 @@ import { formatDate } from "@/utils/time.ts";
 import useUploadImage from "@/hooks/useUploadImage.ts";
 import useEditDoc from "./useEditDoc";
 import styles from './index.module.less';
+import Outline from "@/components/Outline";
+import If from "@/components/If";
 
 const EditDoc = () => {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -50,6 +52,23 @@ const EditDoc = () => {
     }
   }, [editingTitle]);
 
+  const headers: Array<{
+    level: number;
+    title: string;
+  }> = useMemo(() => {
+    if (!activeDocumentItem || !activeDocumentItem.content) return [];
+    const headers =  activeDocumentItem.content.filter(node => node.type === 'header');
+    return headers.map((header: any) => ({
+      level: header.level,
+      title: header.children.map((node: { text: string }) => node.text).join(''),
+    }));
+  }, [activeDocumentItem]);
+
+  const onClickHeader = (index: number) => {
+    if (!editorRef.current) return;
+    editorRef.current.scrollHeaderIntoView(index);
+  }
+
   if (!activeDocumentItem) {
     return null;
   }
@@ -85,6 +104,11 @@ const EditDoc = () => {
             uploadImage={uploadImage}
           />
         </div>
+        <If condition={headers.length > 0}>
+          <div className={styles.outline}>
+            <Outline headers={headers} onClick={onClickHeader} />
+          </div>
+        </If>
       </div>
       <div className={styles.statusBar}>
         <div>

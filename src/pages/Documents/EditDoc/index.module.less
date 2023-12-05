@@ -3,17 +3,19 @@
   width: 100%;
   position: relative;
   .editDoc {
+    width: 100%;
     height: 100%;
     box-sizing: border-box;
     overflow-y: auto;
-    padding: 20px;
+    border: 20px solid transparent;
+    display: flex;
+    container-name: editDoc;
+    container-type: inline-size;
     .editorContainer {
+      flex: auto;
       position: relative;
       margin: 0 auto;
       max-width: 720px;
-      @media screen and (max-width: 1280px) {
-        max-width: 70%;
-      }
       .title {
         font-size: 1.2em;
         font-weight: bold;
@@ -29,17 +31,53 @@
         font-size: .9em;
       }
     }
+    .outline {
+      width: 300px;
+      box-sizing: border-box;
+      position: sticky;
+      flex: none;
+      border: 20px solid transparent;
+      top: 20px;
+      height: calc(100% - 20px);
+      overflow-y: auto;
+    }
   }
-
   .statusBar {
     position: absolute;
     bottom: 10px;
-    right: 25px;
+    right: 40px;
     display: flex;
     align-items: center;
     gap: 10px;
     font-size: 14px;
     opacity: .8;
     line-height: 20px;
+  }
+}
+
+@container editDoc (max-width: 1080px) {
+  .editDocContainer {
+    .editDoc {
+      .editorContainer {
+          max-width: 60cqi;
+      }
+      .outline {
+        max-width: 30cqi;
+      }
+    }
+  }
+}
+
+@container editDoc (max-width: 720px) {
+  .editDocContainer {
+    .editDoc {
+      .editorContainer {
+          max-width: 80cqi;
+      }
+      .outline {
+        max-width: 0;
+        display: none;
+      }
+    }
   }
 }
