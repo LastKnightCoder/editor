@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "editor",
-    "version": "0.4.5"
+    "version": "0.4.6"
   },
   "tauri": {
     "allowlist": {
@@ -42,7 +42,9 @@
       },
       "fs": {
         "all": true,
-        "scope": ["$HOME/**/*"]
+        "scope": [
+          "$HOME/**/*"
+        ]
       },
       "process": {
         "all": true
