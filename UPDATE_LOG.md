@@ -110,3 +110,8 @@
 - feat: check-list 去掉 Add Paragraph，间距更加合理
 - feat: 自定义块支持跟随主题变化
 - feat: 发布之前检查类型是否通过
+
+## v0.4.6
+
+- feat: 支持通过阿里云 OSS 同步数据库
+

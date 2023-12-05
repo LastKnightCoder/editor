@@ -11,8 +11,12 @@
     gap: 20px;
   }
 
-  .checking {
+  .syncing {
     animation: rotate 1s linear infinite;
+  }
+
+  .checking {
+    animation: fadeInout 1s linear infinite;
   }
 }
 
@@ -22,5 +26,17 @@
   }
   100% {
       transform: rotate(359deg);
+  }
+}
+
+@keyframes fadeInout {
+  0% {
+    opacity: 1;
+  }
+  50% {
+      opacity: 0.5;
+  }
+  100% {
+      opacity: 1;
   }
 }

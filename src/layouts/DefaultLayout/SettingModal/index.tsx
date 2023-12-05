@@ -6,6 +6,7 @@ import { saveSetting } from "@/commands";
 
 import FontSetting from "./FontSetting";
 import ImageBedSetting from "./ImageBedSetting";
+import SyncSetting from "./SyncSetting";
 import styles from './index.module.less';
 
 const SettingModal = () => {
@@ -36,6 +37,10 @@ const SettingModal = () => {
     key: 'imageBed',
     label: '图床',
     children: <ImageBedSetting />,
+  }, {
+    key: 'sync',
+    label: '同步',
+    children: <SyncSetting />,
   }]
 
   return (

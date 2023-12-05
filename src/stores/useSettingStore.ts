@@ -9,6 +9,10 @@ export enum EImageBed {
   AliOSS = 'aliOSS',
 }
 
+export enum ESync {
+  AliOSS = 'aliOSS',
+}
+
 interface ISetting {
   fontSetting: {
     chineseFont: string;
@@ -33,6 +37,17 @@ interface ISetting {
       region: string;
     }
   },
+  sync: {
+    active: ESync;
+    version: number;
+    aliOSS: {
+      accessKeyId: string;
+      accessKeySecret: string;
+      bucket: string;
+      region: string;
+      path: string;
+    }
+  }
   darkMode: boolean;
 }
 
@@ -75,6 +90,17 @@ const initialState: IState = {
         bucket: '',
         region: '',
       }
+    },
+    sync: {
+      active: ESync.AliOSS,
+      version: 1,
+      aliOSS: {
+        accessKeyId: '',
+        accessKeySecret: '',
+        bucket: '',
+        region: '',
+        path: '/',
+      }
     }
   },
   settingModalOpen: false,
@@ -88,7 +114,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       const parsedSetting = JSON.parse(setting);
       const newSetting = cloneDeep(initialState.setting);
       merge(newSetting, parsedSetting);
-      console.log('newSetting', newSetting);
       set({
         setting: newSetting,
       })

@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
+import { message, Modal } from "antd";
+import { useAsyncEffect } from "ahooks";
 import classnames from "classnames";
 import isHotkey from "is-hotkey";
+import { SettingOutlined, SyncOutlined } from '@ant-design/icons';
+import { MdOutlineDarkMode, MdOutlineLightMode, MdOutlineBrowserUpdated } from 'react-icons/md';
+
 import {
   checkUpdate,
   installUpdate,
 } from '@tauri-apps/api/updater'
 import { relaunch } from '@tauri-apps/api/process'
+import { upload, download, getOriginDatabaseInfo } from '@/commands';
 
-import { SettingOutlined, SyncOutlined } from '@ant-design/icons';
-import { MdOutlineDarkMode, MdOutlineLightMode } from 'react-icons/md';
 import IconText from "@/components/IconText";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 import styles from './index.module.less';
-import {message} from "antd";
-
 
 interface ISidebarProps {
   className?: string;
@@ -25,17 +27,38 @@ const Sidebar = (props: ISidebarProps) => {
   const { className, style } = props;
 
   const [isChecking, setIsChecking] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const {
     darkMode,
     onDarkModeChange,
+    sync,
   } = useSettingStore(state => ({
     darkMode: state.setting.darkMode,
     onDarkModeChange: state.onDarkModeChange,
+    sync: state.setting.sync,
   }));
+
+  const currentVersion = sync.version;
+  const { accessKeyId, accessKeySecret, bucket, region } = sync.aliOSS;
+
 
   const toggleDarkMode = () => {
     onDarkModeChange(!darkMode);
+  }
+
+  const onSync = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await upload();
+      message.success('同步成功');
+    } catch (error) {
+      message.error('同步失败');
+      console.error(error);
+    } finally {
+      setIsSyncing(false);
+    }
   }
 
   const openSettingModal = () => {
@@ -91,6 +114,30 @@ const Sidebar = (props: ISidebarProps) => {
     }
   }, [onDarkModeChange]);
 
+  useAsyncEffect(async () => {
+    if (!accessKeyId || !accessKeySecret || !bucket || !region) return;
+    const originDatabaseInfo = await getOriginDatabaseInfo();
+    if (!originDatabaseInfo) return;
+    const { databaseInfo } = originDatabaseInfo;
+    if (!databaseInfo) return;
+    // @ts-ignore
+    const originVersion = Number(databaseInfo.version || 0);
+    if (currentVersion < originVersion) {
+      Modal.confirm({
+        title: '同步远程数据库',
+        content: '检测到有新的数据库版本，是否下载？',
+        onOk: async () => {
+          const isSuccess = await download();
+          if (!isSuccess) {
+            message.error('下载失败');
+          } else {
+            message.success('下载成功，已为你刷新数据库，原文件已备份至 backup 文件夹！');
+          }
+        }
+      })
+    }
+  }, [accessKeyId, accessKeySecret, bucket, region, currentVersion]);
+
   return (
     <div className={classnames(styles.sidebar, className)} style={style}>
       <div>
@@ -99,6 +146,13 @@ const Sidebar = (props: ISidebarProps) => {
       <div className={styles.settingList}>
         <IconText
           icon={<SyncOutlined className={classnames({
+            [styles.syncing]: isSyncing,
+          })} />}
+          text={'同步'}
+          onClick={onSync}
+        />
+        <IconText
+          icon={<MdOutlineBrowserUpdated className={classnames({
             [styles.checking]: isChecking,
           })} />}
           text={'更新'}

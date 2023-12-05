@@ -39,6 +39,16 @@
       },
       "os": {
         "all": true
+      },
+      "fs": {
+        "all": true,
+        "scope": ["$HOME/**/*"]
+      },
+      "process": {
+        "all": true
+      },
+      "path": {
+        "all": true
       }
     },
     "bundle": {

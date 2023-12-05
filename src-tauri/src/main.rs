@@ -44,6 +44,8 @@ use commands::{
     update_document_item,
     get_document_item,
     get_ali_oss_buckets,
+    get_database_path,
+    reconnect_database,
 };
 
 fn main() {
@@ -94,6 +96,8 @@ fn main() {
           update_document_item,
           get_document_item,
           get_ali_oss_buckets,
+          get_database_path,
+          reconnect_database,
       ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

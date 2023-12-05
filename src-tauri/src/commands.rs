@@ -7,6 +7,8 @@ pub mod daily_note;
 pub mod font;
 pub mod document;
 pub mod ali_oss;
+pub mod fs_help;
+pub mod database;
 
 pub use card::*;
 pub use setting::*;
@@ -17,3 +19,5 @@ pub use daily_note::*;
 pub use font::*;
 pub use document::*;
 pub use ali_oss::*;
+pub use fs_help::*;
+pub use database::*;
