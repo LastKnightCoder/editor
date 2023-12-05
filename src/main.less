@@ -128,11 +128,18 @@ p {
 }
 
 #root {
-  border-radius: 12px;
-  overflow: hidden;
   background: var(--primary-bg-color);
 }
 
+#root:not(.mac) {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
 #root.maximized {
+  border-radius: 0;
+}
+
+#root.fullscreen {
   border-radius: 0;
 }

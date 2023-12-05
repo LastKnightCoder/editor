@@ -62,12 +62,14 @@ export const upload = async () => {
     const isSuccess = await createOrUpdateFile(ossOptions, databaseInfoObjectName, new Blob([JSON.stringify(newDatabaseInfo)]));
     if (!isSuccess) {
       console.log('...upload database info failed');
+      message.error('上传数据库信息失败');
       return false;
     }
     useSettingStore.setState(produce(useSettingStore.getState(), (draft) => {
       draft.setting.sync.version = currentVersion + 1;
     }));
   } catch (e) {
+    message.error('上传数据库信息失败, in catch' + e);
     console.log('...upload database info failed, in catch', e);
     return false;
   }
@@ -81,15 +83,19 @@ export const upload = async () => {
     const dataObjectName = `${path}/data.db`;
     const isSuccessful =  await createOrUpdateFile(ossOptions, dataObjectName, blob);
     if (!isSuccessful) {
+      message.error('上传数据库文件失败');
       console.log('...upload database file failed');
       return false;
     }
+    return true;
   } catch (e) {
     // 恢复数据库信息
     const isSuccess = await createOrUpdateFile(ossOptions, databaseInfoObjectName, new Blob([JSON.stringify(databaseInfo)]));
     if (!isSuccess) {
+      message.error('上传数据库文件失败后恢复数据库信息失败');
       console.log('...restore database info failed');
     }
+    message.error('上传数据库文件失败，error: ' + e);
     console.log('...upload database file failed, in catch', e);
     return false;
   }
@@ -154,6 +160,7 @@ export const download = async () => {
     await useDocumentsStore.getState().init();
     return true;
   } catch (e) {
+    message.error('下载数据库文件失败，error: ' + e);
     console.log('...download database file failed', e);
     return false;
   }
@@ -184,11 +191,16 @@ export const getOriginDatabaseInfo = async () => {
   });
   let databaseInfo = {};
   if (isDatabaseInfoExist) {
-    const databaseInfoResult = await getObject({
-      ...ossOptions,
-      objectName: databaseInfoObjectName,
-    });
-    databaseInfo = JSON.parse(databaseInfoResult.content.toString());
+    try {
+      const databaseInfoResult = await getObject({
+        ...ossOptions,
+        objectName: databaseInfoObjectName,
+      });
+      databaseInfo = JSON.parse(databaseInfoResult.content.toString());
+    } catch (e) {
+      message.error('获取远程数据库信息失败');
+      console.log('...get database info failed', e);
+    }
   }
 
   return {

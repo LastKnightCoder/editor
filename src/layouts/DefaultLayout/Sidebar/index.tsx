@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import { message, Modal } from "antd";
 import { useAsyncEffect } from "ahooks";
 import classnames from "classnames";
@@ -114,12 +114,11 @@ const Sidebar = (props: ISidebarProps) => {
     }
   }, [onDarkModeChange]);
 
-  useAsyncEffect(async () => {
+  const checkDownload = useCallback(async () => {
     if (!accessKeyId || !accessKeySecret || !bucket || !region) return;
     const originDatabaseInfo = await getOriginDatabaseInfo();
     if (!originDatabaseInfo) return;
-    const { databaseInfo } = originDatabaseInfo;
-    if (!databaseInfo) return;
+    const { databaseInfo = {} } = originDatabaseInfo;
     // @ts-ignore
     const originVersion = Number(databaseInfo.version || 0);
     if (currentVersion < originVersion) {
@@ -135,8 +134,27 @@ const Sidebar = (props: ISidebarProps) => {
           }
         }
       })
+    } else {
+      message.success('当前已是最新版本');
     }
   }, [accessKeyId, accessKeySecret, bucket, region, currentVersion]);
+
+  useAsyncEffect(async () => {
+    await checkDownload()
+  }, [checkDownload]);
+
+  useEffect(() => {
+    // mod + d -> check download
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isHotkey('mod+d', e)) {
+        checkDownload();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [checkDownload])
 
   return (
     <div className={classnames(styles.sidebar, className)} style={style}>
