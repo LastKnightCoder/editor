@@ -126,3 +126,8 @@
 - feat: 卡片编辑快捷操作收拢到 statusBar
 - feat: 文档支持目录
 - feat: 滚动条颜色优化
+
+## v0.4.9
+
+- feat: 支持热力图
+- feat: 支持 Ctrl + K 打开命令面板跳转页面

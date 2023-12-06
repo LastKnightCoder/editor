@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import classnames from "classnames";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { CaretDownOutlined } from '@ant-design/icons';
 
@@ -19,6 +19,7 @@ enum ENavKey {
   ARTICLES = 'ARTICLES',
   DAILY = 'DAILY',
   DOCUMENTS = 'DOCUMENTS',
+  STATISTIC = 'STATISTIC',
 }
 
 const TitleBar = (props: ITitleBarProps) => {
@@ -26,19 +27,32 @@ const TitleBar = (props: ITitleBarProps) => {
   const [activeNavKey, setActiveNavKey] = useState<ENavKey>(ENavKey.CARDS);
   const [cardPopoverOpen, setCardPopoverOpen] = useState<boolean>(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const { pathname } = location;
+    if (pathname.startsWith('/cards')) {
+      setActiveNavKey(ENavKey.CARDS);
+    } else if (pathname.startsWith('/articles')) {
+      setActiveNavKey(ENavKey.ARTICLES);
+    } else if (pathname.startsWith('/daily')) {
+      setActiveNavKey(ENavKey.DAILY);
+    } else if (pathname.startsWith('/documents')) {
+      setActiveNavKey(ENavKey.DOCUMENTS);
+    } else if (pathname.startsWith('/statistic')) {
+      setActiveNavKey(ENavKey.STATISTIC);
+    }
+  }, [location]);
 
   const navigateToDaily = () => {
-    setActiveNavKey(ENavKey.DAILY);
     navigate('/daily');
   }
 
   const navigateToArticles = () => {
-    setActiveNavKey(ENavKey.ARTICLES);
     navigate('/articles/list');
   }
 
   const navigateToDocuments = () => {
-    setActiveNavKey(ENavKey.DOCUMENTS);
     navigate('/documents');
   }
 
@@ -67,7 +81,6 @@ const TitleBar = (props: ITitleBarProps) => {
               <div
                 className={styles.childItem}
                 onClick={() => {
-                  setActiveNavKey(ENavKey.CARDS);
                   setCardPopoverOpen(false);
                   navigate('/cards/list')
                 }}
@@ -77,7 +90,6 @@ const TitleBar = (props: ITitleBarProps) => {
               <div
                 className={styles.childItem}
                 onClick={() => {
-                  setActiveNavKey(ENavKey.CARDS);
                   setCardPopoverOpen(false);
                   navigate('/cards/link-graph')
                 }}>

@@ -43,7 +43,12 @@
       "fs": {
         "all": true,
         "scope": [
-          "$HOME/**/*"
+          "$HOME",
+          "$HOME/**/*",
+          "$HOME/.editor",
+          "$HOME/.editor/**/*",
+          "$HOME/.editor/backup",
+          "$HOME/.editor/backup/**/*"
         ]
       },
       "process": {

@@ -1,6 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
 use rusqlite::{Connection, params, Result, Row};
+use super::operation::insert_operation;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Document {
@@ -150,7 +151,12 @@ pub fn create_document(conn: &Connection, title: &str, desc: &str, authors: Vec<
     let children_str = serde_json::to_string(&children).unwrap();
     let links_str = serde_json::to_string(&links).unwrap();
     let res = stmt.insert(params![now as i64, now as i64, title, desc, authors_str, children_str, tags_str, links_str, content, banner_bg, icon])?;
-
+    match insert_operation(conn, res as i64, "document".to_string(), "insert".to_string()) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("插入操作记录错误: {}", e);
+        }
+    };
     Ok(res)
 }
 
@@ -187,7 +193,12 @@ pub fn update_document(conn: &Connection, id: i64, title: &str, desc: &str, auth
     let children_str = serde_json::to_string(&children).unwrap();
     let links_str = serde_json::to_string(&links).unwrap();
     let res = stmt.execute(params![now as i64, title, desc, authors_str, children_str, tags_str, links_str, content, banner_bg, icon, is_top, id])?;
-
+    match insert_operation(conn, id, "document".to_string(), "update".to_string()) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("插入操作记录错误: {}", e);
+        }
+    };
     Ok(res)
 }
 
@@ -198,6 +209,13 @@ pub fn create_document_item(conn: &Connection, title: &str, authors: Vec<String>
     let tags_str = serde_json::to_string(&tags).unwrap();
     let children_str = serde_json::to_string(&children).unwrap();
     let res = stmt.insert(params![now as i64, now as i64, title, authors_str, tags_str, is_directory, children_str, is_article, article_id, is_card, card_id, content, banner_bg, icon])?;
+
+    match insert_operation(conn, res as i64, "document_item".to_string(), "insert".to_string()) {
+        Ok(_) => {},
+        Err(e) => {
+            println!("插入操作记录错误: {}", e);
+        }
+    };
 
     Ok(res)
 }
@@ -216,6 +234,13 @@ pub fn update_document_item(conn: &Connection, id: i64, title: &str, authors: Ve
     let tags_str = serde_json::to_string(&tags).unwrap();
     let children_str = serde_json::to_string(&children).unwrap();
     stmt.execute(params![now as i64, title, authors_str, tags_str, is_directory, children_str, is_article, article_id, is_card, card_id, content, banner_bg, icon, id])?;
+
+    match insert_operation(conn, id, "document_item".to_string(), "update".to_string()) {
+        Ok(_) => {},
+        Err(e) => {
+            println!("插入操作记录错误: {}", e);
+        }
+    }
 
     let document_item = get_document_item(conn, id)?;
     Ok(document_item)

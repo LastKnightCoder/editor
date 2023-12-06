@@ -5,6 +5,7 @@ import { Outlet } from "react-router-dom";
 import SettingModal from "./SettingModal";
 import TitleBar from "./TitleBar";
 import Sidebar from "./Sidebar";
+import NavigatePage from "./NavigatePage";
 import styles from './index.module.less';
 
 import useSyncFont from "./hooks/useSyncFont.ts";
@@ -35,6 +36,7 @@ const Management = () => {
         </div>
       </div>
       <SettingModal />
+      <NavigatePage />
     </div>
   )
 }
