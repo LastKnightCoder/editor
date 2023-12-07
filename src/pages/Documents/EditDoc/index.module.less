@@ -33,13 +33,22 @@
     }
     .outline {
       width: 300px;
+      max-width: 300px;
       box-sizing: border-box;
       position: sticky;
       flex: none;
       border: 20px solid transparent;
       top: 20px;
       height: calc(100% - 20px);
-      overflow-y: auto;
+      overflow: auto;
+      transition: max-width .3s ease-in-out;
+      &.hide {
+        max-width: 0;
+        overflow: hidden;
+      }
+      &::-webkit-scrollbar {
+        display: none;
+      }
     }
   }
   .statusBar {
@@ -48,10 +57,21 @@
     right: 40px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 14px;
+    gap: 8px;
     opacity: .8;
-    line-height: 20px;
+    .item {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      .icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+      }
+    }
   }
 }
 
@@ -59,7 +79,7 @@
   .editDocContainer {
     .editDoc {
       .editorContainer {
-          max-width: 60cqi;
+        max-width: 60cqi;
       }
       .outline {
         max-width: 30cqi;
@@ -72,7 +92,7 @@
   .editDocContainer {
     .editDoc {
       .editorContainer {
-          max-width: 80cqi;
+        max-width: 80cqi;
       }
       .outline {
         max-width: 0;

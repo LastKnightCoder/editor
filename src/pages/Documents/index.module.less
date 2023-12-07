@@ -5,13 +5,12 @@
   --sidebar-width: 280px;
   .sidebar {
     width: var(--sidebar-width);
+    flex: none;
     height: 100%;
-    padding: 16px;
-    box-sizing: border-box;
-    border-right: 1px solid var(--line-color);
+    overflow: hidden;
   }
   .content {
-    width: calc(100% - var(--sidebar-width));
+    flex: auto;
     height: 100%;
     box-sizing: border-box;
   }

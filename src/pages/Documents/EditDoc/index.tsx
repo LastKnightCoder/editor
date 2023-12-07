@@ -1,8 +1,11 @@
 import {useRef, useState, useEffect, useMemo} from "react";
+import { motion } from "framer-motion";
 import { Tooltip } from "antd";
 import { useRafInterval } from "ahooks";
 import Editor, { EditorRef } from "@/components/Editor";
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
+import { MdFormatIndentIncrease, MdFormatIndentDecrease } from "react-icons/md";
+
 
 import { formatDate } from "@/utils/time.ts";
 
@@ -11,12 +14,16 @@ import useEditDoc from "./useEditDoc";
 import styles from './index.module.less';
 import Outline from "@/components/Outline";
 import If from "@/components/If";
+import classnames from "classnames";
 
 const EditDoc = () => {
   const [editingTitle, setEditingTitle] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(true);
+  const outlineRef = useRef<HTMLDivElement>(null);
+
   const {
     activeDocumentItem,
     saveDocument,
@@ -74,7 +81,7 @@ const EditDoc = () => {
   }
 
   return (
-    <div className={styles.editDocContainer}>
+    <motion.div layout className={styles.editDocContainer}>
       <div className={styles.editDoc}>
         <div className={styles.editorContainer}>
           <div
@@ -105,27 +112,60 @@ const EditDoc = () => {
           />
         </div>
         <If condition={headers.length > 0}>
-          <div className={styles.outline}>
-            <Outline headers={headers} onClick={onClickHeader} />
-          </div>
+          <motion.div layout layoutRoot className={classnames(styles.outline, {
+            [styles.hide]: !outlineOpen
+          })}>
+            <div ref={outlineRef}>
+              <Outline headers={headers} onClick={onClickHeader} />
+            </div>
+          </motion.div>
         </If>
       </div>
       <div className={styles.statusBar}>
-        <div>
+        <div className={styles.item}>
           {
             readonly ? (
               <Tooltip title={'编辑'}>
-                <EditOutlined onClick={() => setReadonly(false)} />
+                <EditOutlined className={styles.icon} onClick={() => setReadonly(false)} />
               </Tooltip>
             ) : (
               <Tooltip title={'预览'}>
-                <ReadOutlined onClick={() => setReadonly(true)} />
+                <ReadOutlined className={styles.icon} onClick={() => setReadonly(true)} />
+              </Tooltip>
+            )
+          }
+        </div>
+        <div className={styles.item}>
+          {
+            outlineOpen ? (
+              <Tooltip title={'隐藏目录'}>
+                <MdFormatIndentIncrease className={styles.icon} onClick={() => {
+                  if (outlineRef.current) {
+                    const clientWidth = outlineRef.current.clientWidth;
+                    outlineRef.current.style.width = `${clientWidth}px`;
+                    outlineRef.current.style.overflow = 'hidden';
+                  }
+                  setOutlineOpen(false);
+                }} />
+              </Tooltip>
+            ) : (
+              <Tooltip title={'显示目录'}>
+                <MdFormatIndentDecrease className={styles.icon} onClick={() => {
+                  setOutlineOpen(true);
+                  setTimeout(() => {
+                    if (outlineRef.current) {
+                      outlineRef.current.style.width = 'auto';
+                      outlineRef.current.style.overflow = 'visible';
+                      outlineRef.current.style.position = 'static';
+                    }
+                  }, 300);
+                }} />
               </Tooltip>
             )
           }
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 

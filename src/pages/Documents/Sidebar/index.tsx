@@ -9,7 +9,7 @@ import EditDocumentModal from "./EditDocumentModal";
 import DocumentList from "./DocumentList";
 import Document from "./Document";
 import styles from './index.module.less';
-import {useMemoizedFn, useWhyDidYouUpdate} from "ahooks";
+import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
 
 const Sidebar = () => {
   const [editDocumentModalOpen, setEditDocumentModalOpen] = useState<boolean>(false);

@@ -1,6 +1,15 @@
 .sidebarContainer {
+  width: var(--sidebar-width);
+  border: 16px solid transparent;
+  padding: 0 16px;
+  box-sizing: border-box;
+  border-left: 0;
+  border-right: 1px solid var(--line-color);
   height: 100%;
   overflow-y: auto;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .empty {
