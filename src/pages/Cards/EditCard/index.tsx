@@ -66,8 +66,8 @@ const EditCard = (props: IEditCardProps) => {
     }}>
       <div className={styles.editCardContainer}>
         <div className={styles.time}>
-          <div>创建于 {formatDate(editingCard.create_time, true)}</div>
-          <div>最后修改于 {formatDate(editingCard.update_time, true)}</div>
+          <div><span>创建于 {formatDate(editingCard.create_time, true)}</span></div>
+          <div><span>最后修改于 {formatDate(editingCard.update_time, true)}</span></div>
         </div>
         <div className={styles.editor}>
           <ErrorBoundary>

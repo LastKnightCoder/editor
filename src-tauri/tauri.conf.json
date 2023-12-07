@@ -109,11 +109,11 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 780,
+        "height": 640,
         "resizable": true,
         "title": "editor",
         "hiddenTitle": true,
-        "width": 1200,
+        "width": 920,
         "center": true,
         "decorations": false,
         "fileDropEnabled": false,

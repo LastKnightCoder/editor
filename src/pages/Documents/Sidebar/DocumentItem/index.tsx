@@ -9,12 +9,14 @@ import { motion } from 'framer-motion';
 import If from "@/components/If";
 import { createDocumentItem, getDocumentItem, updateDocumentItem } from "@/commands";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useDragAndDrop, { EDragPosition, IDragItem } from './useDragAndDrop.ts';
 
-import { IDocumentItem } from "@/types";
+import { ICard, IDocumentItem } from "@/types";
 
 import styles from './index.module.less';
+import SelectCardModal from "@/components/SelectCardModal";
 
 interface IDocumentItemProps {
   itemId: number;
@@ -32,7 +34,15 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [item, setItem] = useState<IDocumentItem | null>(null);
   const [addPopoverOpen, setAddPopoverOpen] = useState(false);
   const [morePopoverOpen, setMorePopoverOpen] = useState(false);
+  const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
+  const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
   const { modal } = App.useApp();
+
+  const {
+    cards,
+  } = useCardsManagementStore(state => ({
+    cards: state.cards,
+  }))
 
   const {
     activeDocumentItemId,
@@ -209,6 +219,33 @@ const DocumentItem = (props: IDocumentItemProps) => {
         danger: true,
       }
     })
+  });
+
+  const onSelectCardFinish = useMemoizedFn(async (selectedCards: ICard[]) => {
+    if (selectedCards.length === 0) {
+      message.warning('请选择卡片');
+      return;
+    }
+    if (!item) {
+      return;
+    }
+    const cardItemId = await createDocumentItem({
+      ...DEFAULT_CREATE_DOCUMENT_ITEM,
+      isCard: true,
+      cardId: selectedCards[0].id,
+      content: selectedCards[0].content,
+    });
+    const newItem = produce(item, draft => {
+      draft.children.push(cardItemId);
+    });
+    const updatedDoc = await updateDocumentItem(newItem);
+    setItem(updatedDoc);
+    if (item.id === activeDocumentItemId) {
+      useDocumentsStore.setState({
+        activeDocumentItem: updatedDoc,
+      });
+    }
+    setSelectCardModalOpen(false);
   })
 
   useAsyncEffect(async () => {
@@ -292,6 +329,17 @@ const DocumentItem = (props: IDocumentItemProps) => {
                   setAddPopoverOpen(false);
                   await onAddNewDocumentItem();
                 }}>添加文档</div>
+                <div
+                  className={styles.item}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setAddPopoverOpen(false);
+                    setSelectCardModalOpen(true);
+                  }}
+                >
+                  关联卡片
+                </div>
               </div>
             )}
             placement={'bottomLeft'}
@@ -324,6 +372,16 @@ const DocumentItem = (props: IDocumentItemProps) => {
           }
         </div>
       </If>
+      <SelectCardModal
+        title={'选择关联卡片'}
+        selectedCards={selectedCards}
+        onChange={setSelectedCards}
+        open={selectCardModalOpen}
+        allCards={cards}
+        onCancel={() => { setSelectCardModalOpen(false); }}
+        onOk={onSelectCardFinish}
+        excludeCardIds={[]}
+      />
     </motion.div>
   )
 }

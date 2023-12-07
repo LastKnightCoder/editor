@@ -49,10 +49,11 @@ const SettingModal = () => {
       open={open}
       footer={null}
       onCancel={close}
-      width={800}
-      centered
+      width={720}
+      // centered
       bodyStyle={{
-        height: 'calc(100vh - 160px)',
+        minHeight: 300,
+        maxHeight: 'calc(100vh - 160px)',
       }}
     >
       <Tabs

@@ -13,6 +13,7 @@ import DocumentItem from "../DocumentItem";
 import styles from './index.module.less';
 import { EDragPosition } from "../DocumentItem/useDragAndDrop.ts";
 import { useMemoizedFn } from "ahooks";
+import { useEffect } from "react";
 
 interface IDocumentProps {
   document: IDocument;
@@ -74,14 +75,22 @@ const Document = (props: IDocumentProps) => {
       draft.children = draft.children.filter(childId => childId !== id);
     });
     await updateDocument(newDocument);
-  })
+  });
+
+  useEffect(() => {
+    return () => {
+      useDocumentsStore.setState({
+        activeDocumentId: null,
+        activeDocumentItem: null,
+        activeDocumentItemId: null,
+        activeDocumentItemPath: [],
+      });
+    }
+  }, []);
 
   const goBack = useMemoizedFn(() => {
     useDocumentsStore.setState({
       activeDocumentId: null,
-      activeDocumentItem: null,
-      activeDocumentItemId: null,
-      activeDocumentItemPath: [],
     });
   });
 

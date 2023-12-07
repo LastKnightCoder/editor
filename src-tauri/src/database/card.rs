@@ -102,6 +102,15 @@ pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>
 
     insert_operation(conn, id, "card".to_string(), "update".to_string())?;
 
+    // 从 document_items 表中找到 is_card 为 1 且 card_id 为 id 的所有记录，并更新其 content 和 update_time
+    let mut stmt = conn.prepare("UPDATE document_items SET update_time = ?1, content = ?2 WHERE is_card = 1 AND card_id = ?3")?;
+    match stmt.execute(params![now as i64, content, id]) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("更新 document_items 表错误: {}", e);
+        }
+    }
+
     Ok(res)
 }
 

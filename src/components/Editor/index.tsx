@@ -12,7 +12,6 @@ import IExtension from "@/components/Editor/extensions/types.ts";
 
 import hotkeys from './hotkeys';
 import ImagesOverview from "./components/ImagesOverview";
-import Command from "./components/Command";
 import HoveringToolbar from "./components/HoveringToolbar";
 import BlockPanel from "./components/BlockPanel";
 import FormattedText from "@/components/Editor/components/FormattedText";
@@ -187,7 +186,6 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
           }}
         />
         <ImagesOverview />
-        { !readonly && <Command /> }
         { !readonly && <HoveringToolbar configs={finalHoveringBarConfigs} /> }
         <BlockPanel extensions={finalExtensions} />
       </Slate>
