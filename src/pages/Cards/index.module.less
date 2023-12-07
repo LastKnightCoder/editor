@@ -4,53 +4,21 @@
   height: calc(100vh - var(--title-bar-height));
   width: 100%;
   --sidebar-width: 300px;
-  &.hideSidebar {
-    --sidebar-width: 0;
-    .content {
-      width: 100%;
-    }
-  }
   .sidebar {
     width: var(--sidebar-width);
     height: 100%;
     box-sizing: border-box;
     flex: none;
-    border-right: 1px solid var(--line-color);
-    transition: width 0.3s ease-in-out;
-    &.hide {
-      overflow: hidden;
-    }
+    overflow: hidden;
   }
   .content {
     height: 100%;
-    width: calc(100% - var(--sidebar-width));
-    flex: none;
-    box-sizing: border-box;
-    transition: width 0.3s ease-in-out;
+    flex: auto;
     .cardsPanel {
       height: 100%;
       width: 100%;
       display: flex;
       gap: 10px;
-    }
-  }
-
-  .showSidebar {
-    position: absolute;
-    z-index: 1;
-    height: 100%;
-    left: 0;
-    top: 0;
-    display: flex;
-    width: 48px;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    opacity: 0;
-    &:hover {
-      opacity: 1;
-      background-color: var(--common-hover-bg);
-      box-shadow: var(--box-shadow1);
     }
   }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from 'framer-motion';
 import { FloatButton, Spin, Empty, App } from "antd";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
@@ -18,7 +19,6 @@ import styles from './index.module.less';
 import { isArticleChanged } from "./utils.ts";
 import AddTag from "@/components/AddTag";
 import For from "@/components/For";
-import If from "@/components/If";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import useUploadImage from "@/hooks/useUploadImage.ts";
 import ArticleCard from "@/pages/Articles/ArticleCard";
@@ -72,6 +72,15 @@ const ArticleEdit = () => {
 
   const navigate = useNavigate();
   const { modal } = App.useApp();
+
+  const outlineVariants = {
+    open: {
+      width: 280,
+    },
+    close: {
+      width: 0,
+    }
+  }
 
   const saveArticle = () => {
     if (editingArticleId === CREATE_ARTICLE_ID) {
@@ -219,11 +228,9 @@ const ArticleEdit = () => {
             </div>
           </div>
         </div>
-        <If condition={showOutline && headers.length > 0}>
-          <div className={styles.rightPart}>
-            <Outline className={styles.outline} headers={headers} onClick={onClickHeader} />
-          </div>
-        </If>
+        <motion.div animate={showOutline && headers.length > 0 ? 'open' : 'close'} variants={outlineVariants} className={styles.rightPart}>
+          <Outline className={styles.outline} headers={headers} onClick={onClickHeader} />
+        </motion.div>
       </div>
       <FloatButton.Group shape={'square'}>
         <FloatButton

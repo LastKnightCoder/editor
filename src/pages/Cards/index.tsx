@@ -1,6 +1,5 @@
 import { memo, useEffect } from "react";
-import { RightOutlined } from "@ant-design/icons";
-
+import { motion } from 'framer-motion';
 import classnames from "classnames";
 import isHotkey from "is-hotkey";
 
@@ -8,7 +7,7 @@ import If from "@/components/If";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import { EActiveSide } from "@/stores/useCardPanelStore.ts";
-import useSidebarManagementStore from "./stores/useSidebarManagementStore.ts";
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 import Sidebar from "./Sidebar";
 import CardsManagement from "./CardsManagement";
@@ -17,10 +16,11 @@ import useCardManagement from "./hooks/useCardManagement.ts";
 import styles from './index.module.less';
 
 const Cards = memo(() => {
+
   const {
-    isHideSidebar,
-  } = useSidebarManagementStore((state) => ({
-    isHideSidebar: state.isHideSidebar,
+    sidebarOpen,
+  } = useGlobalStateStore(state => ({
+    sidebarOpen: state.sidebarOpen,
   }));
 
   const {
@@ -28,6 +28,24 @@ const Cards = memo(() => {
   } = useCardsManagementStore((state) => ({
     init: state.init,
   }));
+
+  const sidebarVariants = {
+    open: {
+      width: 300,
+    },
+    close: {
+      width: 0,
+    }
+  }
+
+  const contentVariants = {
+    open: {
+      width: 'calc(100% - 300px)',
+    },
+    close: {
+      width: '100%',
+    }
+  }
 
   const {
     leftCardIds,
@@ -51,14 +69,14 @@ const Cards = memo(() => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isHotkey('mod+left', e)) {
-        useSidebarManagementStore.setState({
-          isHideSidebar: true,
+        useGlobalStateStore.setState({
+          sidebarOpen: false,
         })
         e.preventDefault();
       }
       if (isHotkey('mod+right', e)) {
-        useSidebarManagementStore.setState({
-          isHideSidebar: false,
+        useGlobalStateStore.setState({
+          sidebarOpen: true,
         });
         e.preventDefault();
       }
@@ -72,27 +90,16 @@ const Cards = memo(() => {
   }, []);
 
   return (
-    <div className={classnames(styles.cardsContainer, { [styles.hideSidebar]: isHideSidebar })}>
-      <If condition={isHideSidebar}>
-        <div
-          className={styles.showSidebar}
-          onClick={() => {
-            useSidebarManagementStore.setState({
-              isHideSidebar: false,
-            });
-          }}>
-          <RightOutlined />
-        </div>
-      </If>
-      <div className={classnames(styles.sidebar, { [styles.hide]: isHideSidebar })}>
+    <motion.div animate={sidebarOpen ? 'open' : 'close'} className={classnames(styles.cardsContainer)}>
+      <motion.div variants={sidebarVariants} className={classnames(styles.sidebar)}>
         <Sidebar
           editingCardId={activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId}
           onCreateCard={onCreateCard}
           onDeleteCard={onDeleteCard}
           onClickCard={onClickCard}
         />
-      </div>
-      <div className={styles.content}>
+      </motion.div>
+      <motion.div variants={contentVariants} className={styles.content}>
         <div className={styles.cardsPanel}>
           <If condition={leftCardIds.length > 0}>
             <CardsManagement
@@ -117,8 +124,8 @@ const Cards = memo(() => {
             />
           </If>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 })
 

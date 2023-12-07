@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Button, Input, Skeleton, Spin, Tooltip } from "antd";
-import { CloseOutlined, LeftOutlined, PlusOutlined, UpOutlined } from "@ant-design/icons";
+import { CloseOutlined, PlusOutlined, UpOutlined } from "@ant-design/icons";
 
-// import WidthResizable from "@/components/WidthResizable";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
 
@@ -13,7 +12,6 @@ import useSearch from "../hooks/useSearch.ts";
 import useLoadMore from "@/hooks/useLoadMore.ts";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-import useSidebarManagementStore from "../stores/useSidebarManagementStore.ts";
 
 import styles from "./index.module.less";
 
@@ -29,12 +27,6 @@ const Sidebar = (props: ISidebarProps) => {
   const [cardCount, setCardCount] = useState<number>(20);
   const loaderRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-
-  const {
-    isHideSidebar,
-  } = useSidebarManagementStore((state) => ({
-    isHideSidebar: state.isHideSidebar,
-  }));
 
   const {
     cards,
@@ -76,11 +68,6 @@ const Sidebar = (props: ISidebarProps) => {
 
   useLoadMore(loaderRef, loadMore);
 
-  // const onResize = (width: number) => {
-  //   setDefaultSidebarWidth(width);
-  //   localStorage.setItem('default-sidebar-width', String(width));
-  // }
-
   const settings = [{
     title: '删除卡片',
     onClick: onDeleteCard,
@@ -91,14 +78,7 @@ const Sidebar = (props: ISidebarProps) => {
       <div className={styles.header}>
         <div className={styles.total}>
           <div className={styles.number} style={{ overflow: 'hide', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>总数：{filterCards.length}</div>
-          <div className={styles.buttons} style={{ display: isHideSidebar ? 'none' : 'flex' }}>
-            <Tooltip title={'隐藏列表'}>
-              <Button icon={<LeftOutlined />} onClick={() => {
-                useSidebarManagementStore.setState({
-                  isHideSidebar: true,
-                });
-              }}></Button>
-            </Tooltip>
+          <div className={styles.buttons}>
             <Tooltip title={'返回顶部'}>
               <Button icon={<UpOutlined />} onClick={scrollToTop}></Button>
             </Tooltip>

@@ -1,20 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import isHotkey from "is-hotkey";
 
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import Sidebar from './Sidebar';
 import EditDoc from "./EditDoc";
 import styles from './index.module.less';
 
 const Documents = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   const {
     init,
     activeDocumentItem,
   } = useDocumentsStore(state => ({
     init: state.init,
     activeDocumentItem: state.activeDocumentItem,
+  }));
+
+  const {
+    sidebarOpen
+  } = useGlobalStateStore(state => ({
+    sidebarOpen: state.sidebarOpen,
   }));
 
   useEffect(() => {
@@ -42,9 +48,13 @@ const Documents = () => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isHotkey('mod+left', event)) {
-        setSidebarOpen(false);
+        useGlobalStateStore.setState({
+          sidebarOpen: false,
+        })
       } else if (isHotkey('mod+right', event)) {
-        setSidebarOpen(true);
+        useGlobalStateStore.setState({
+          sidebarOpen: true,
+        })
       }
     }
 

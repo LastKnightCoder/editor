@@ -5,6 +5,7 @@ import classnames from "classnames";
 import isHotkey from "is-hotkey";
 import { SettingOutlined, SyncOutlined } from '@ant-design/icons';
 import { MdOutlineDarkMode, MdOutlineLightMode, MdOutlineBrowserUpdated } from 'react-icons/md';
+import { FiSidebar } from "react-icons/fi";
 
 import {
   checkUpdate,
@@ -15,6 +16,7 @@ import { upload, download, getOriginDatabaseInfo } from '@/commands';
 
 import IconText from "@/components/IconText";
 import useSettingStore from "@/stores/useSettingStore.ts";
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 import styles from './index.module.less';
 
@@ -28,6 +30,12 @@ const Sidebar = (props: ISidebarProps) => {
 
   const [isChecking, setIsChecking] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  const {
+    sidebarOpen,
+  } = useGlobalStateStore(state => ({
+    sidebarOpen: state.sidebarOpen,
+  }));
 
   const {
     darkMode,
@@ -159,7 +167,16 @@ const Sidebar = (props: ISidebarProps) => {
   return (
     <div className={classnames(styles.sidebar, className)} style={style}>
       <div>
-
+        <IconText
+          icon={<FiSidebar />}
+          text={`${sidebarOpen ? '隐藏' : '显示'}侧边栏`}
+          onlyShowIcon
+          onClick={() => {
+            useGlobalStateStore.setState({
+              sidebarOpen: !sidebarOpen,
+            })
+          }}
+        />
       </div>
       <div className={styles.settingList}>
         <IconText
