@@ -91,7 +91,7 @@ const Cards = memo(() => {
 
   return (
     <motion.div animate={sidebarOpen ? 'open' : 'close'} className={classnames(styles.cardsContainer)}>
-      <motion.div variants={sidebarVariants} className={classnames(styles.sidebar)}>
+      <motion.div initial={false} variants={sidebarVariants} className={classnames(styles.sidebar)}>
         <Sidebar
           editingCardId={activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId}
           onCreateCard={onCreateCard}
@@ -99,7 +99,7 @@ const Cards = memo(() => {
           onClickCard={onClickCard}
         />
       </motion.div>
-      <motion.div variants={contentVariants} className={styles.content}>
+      <motion.div initial={false} variants={contentVariants} className={styles.content}>
         <div className={styles.cardsPanel}>
           <If condition={leftCardIds.length > 0}>
             <CardsManagement

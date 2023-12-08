@@ -248,6 +248,11 @@ pub fn update_document_item(conn: &Connection, id: i64, title: &str, authors: Ve
         stmt.execute(params![now as i64, content, card_id])?;
     }
 
+    if is_article && article_id > 0 {
+        let mut stmt = conn.prepare("UPDATE articles SET update_time = ?1, content = ?2, title = ?3 WHERE id = ?4")?;
+        stmt.execute(params![now as i64, content, title, article_id])?;
+    }
+
     // 并且更新除 id 为自己以外的所有 is_card 为 1 且 card_id 和当前 card_id 相同的 document_item 的 content 和 update_time
     let mut stmt = conn.prepare("UPDATE document_items SET update_time = ?1, content = ?2 WHERE is_card = 1 AND card_id = ?3 AND id != ?4")?;
     stmt.execute(params![now as i64, content, card_id, id])?;

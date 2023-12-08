@@ -24,24 +24,26 @@ export const deleteListItem = (editor: Editor): boolean => {
       const curList = getParentNodeByNode(editor, curPara[0]);
       const curListWrapper = getParentNodeByNode(editor, curList[0])[0];
       const onlyOneChild = curListWrapper.children.length === 1;
-      Transforms.unwrapNodes(editor, {
-        match: n => SlateElement.isElement(n) && isListItemElement(n),
-      });
-      if (onlyOneChild) {
+      Editor.withoutNormalizing(editor, () => {
         Transforms.unwrapNodes(editor, {
-          match: n => SlateElement.isElement(n) && n.type === curListWrapper.type,
-        })
-      } else {
-        // 移动到上一个 list-item 中
-        const prevListItemPath = getPrevPath(curList[1]);
-        if (prevListItemPath) {
-          const prevListElement = Editor.node(editor, prevListItemPath)[0] as ListItemElement;
-          Transforms.moveNodes(editor, {
-            to: [...prevListItemPath, prevListElement.children.length],
-            match: n => SlateElement.isElement(n) && isParagraphElement(n),
+          match: n => SlateElement.isElement(n) && isListItemElement(n),
+        });
+        if (onlyOneChild) {
+          Transforms.unwrapNodes(editor, {
+            match: n => SlateElement.isElement(n) && n.type === curListWrapper.type,
           })
+        } else {
+          // 移动到上一个 list-item 中
+          const prevListItemPath = getPrevPath(curList[1]);
+          if (prevListItemPath) {
+            const prevListElement = Editor.node(editor, prevListItemPath)[0] as ListItemElement;
+            Transforms.moveNodes(editor, {
+              to: [...prevListItemPath, prevListElement.children.length],
+              match: n => SlateElement.isElement(n) && isParagraphElement(n),
+            })
+          }
         }
-      }
+      });
       return true;
     }
   }

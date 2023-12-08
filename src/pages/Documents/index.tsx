@@ -66,10 +66,10 @@ const Documents = () => {
 
   return (
     <motion.div animate={sidebarOpen ? 'open' : 'close'} className={styles.documentContainer}>
-      <motion.div  variants={sidebarVariants} className={styles.sidebar}>
+      <motion.div initial={false}  variants={sidebarVariants} className={styles.sidebar}>
         <Sidebar />
       </motion.div>
-      <motion.div className={styles.content} layout layoutRoot>
+      <motion.div initial={false} className={styles.content} layout layoutRoot>
         { activeDocumentItem && <EditDoc key={activeDocumentItem.id} /> }
       </motion.div>
     </motion.div>
