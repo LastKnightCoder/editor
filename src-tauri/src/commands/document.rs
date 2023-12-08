@@ -101,3 +101,25 @@ pub fn get_document_item(id: i64, app_state: tauri::State<state::AppState>) -> R
         None => Err("Database connection not initialized".to_string()),
     }
 }
+
+#[tauri::command]
+pub fn get_document_items_by_ids(ids: Vec<i64>, app_state: tauri::State<state::AppState>) -> Result<Vec<document::DocumentItem>, String> {
+    let conn = app_state.db.lock().unwrap();
+    match &*conn {
+        Some(conn) => {
+            document::get_document_items_by_ids(&conn, ids).map_err(|e| e.to_string())
+        }
+        None => Err("Database connection not initialized".to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn is_document_item_child_of(id: i64, parent_id: i64, app_state: tauri::State<state::AppState>) -> Result<bool, String> {
+    let conn = app_state.db.lock().unwrap();
+    match &*conn {
+        Some(conn) => {
+            document::is_document_item_child_of(&conn, id, parent_id).map_err(|e| e.to_string())
+        }
+        None => Err("Database connection not initialized".to_string()),
+    }
+}

@@ -3,8 +3,9 @@ import { motion } from "framer-motion";
 import { Tooltip } from "antd";
 import { useRafInterval } from "ahooks";
 import Editor, { EditorRef } from "@/components/Editor";
+import EditorSourceValue from "@/components/EditorSourceValue";
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
-import { MdFormatIndentIncrease, MdFormatIndentDecrease } from "react-icons/md";
+import { MdFormatIndentIncrease, MdFormatIndentDecrease, MdOutlineCode } from "react-icons/md";
 
 
 import { formatDate } from "@/utils/time.ts";
@@ -15,6 +16,12 @@ import styles from './index.module.less';
 import Outline from "@/components/Outline";
 import If from "@/components/If";
 import classnames from "classnames";
+import { cardLinkExtension, documentCardListExtension } from "@/editor-extensions";
+
+const extensions = [
+  cardLinkExtension,
+  documentCardListExtension,
+];
 
 const EditDoc = () => {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -23,6 +30,7 @@ const EditDoc = () => {
   const [readonly, setReadonly] = useState(false);
   const [outlineOpen, setOutlineOpen] = useState(true);
   const outlineRef = useRef<HTMLDivElement>(null);
+  const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
 
   const {
     activeDocumentItem,
@@ -109,6 +117,7 @@ const EditDoc = () => {
             onChange={onContentChange}
             readonly={readonly}
             uploadImage={uploadImage}
+            extensions={extensions}
           />
         </div>
         <If condition={headers.length > 0}>
@@ -164,7 +173,21 @@ const EditDoc = () => {
             )
           }
         </div>
+        <div className={styles.item}>
+          <Tooltip title={'源码'}>
+            <MdOutlineCode
+              className={styles.icon}
+              // style={{ transform: 'scale(1.2)', transformOrigin: 'center top' }}
+              onClick={() => setEditorSourceValueOpen(true)}
+            />
+          </Tooltip>
+        </div>
       </div>
+      <EditorSourceValue
+        open={editorSourceValueOpen}
+        onClose={() => { setEditorSourceValueOpen(false); }}
+        content={activeDocumentItem.content}
+      />
     </motion.div>
   )
 }

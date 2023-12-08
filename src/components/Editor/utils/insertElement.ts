@@ -20,7 +20,7 @@ interface InsertElementOptions {
   reverse?: boolean;
 }
 
-const setOrInsertNode = (editor: Editor, node: BlockElement, options: InsertElementOptions = {}) => {
+export const setOrInsertNode = (editor: Editor, node: BlockElement, options: InsertElementOptions = {}) => {
   if (!isCollapsed(editor)) {
     return;
   }

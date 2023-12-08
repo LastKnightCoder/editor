@@ -112,3 +112,30 @@ export const getDocumentItem = async (id: number): Promise<IDocumentItem> => {
     cardId: documentItem.card_id,
   }
 }
+
+export const getDocumentItemsByIds = async (ids: number[]): Promise<IDocumentItem[]> => {
+  const list: any[] = await invoke('get_document_items_by_ids', {
+    ids
+  });
+
+  return list.map((item) => ({
+    ...item,
+    content: JSON.parse(item.content),
+    isDelete: item.is_delete,
+    createTime: item.create_time,
+    updateTime: item.update_time,
+    bannerBg: item.banner_bg,
+    isDirectory: item.is_directory,
+    isArticle: item.is_article,
+    isCard: item.is_card,
+    articleId: item.article_id,
+    cardId: item.card_id,
+  }));
+}
+
+export const isDocumentItemChildOf = async (id: number, parentId: number): Promise<boolean> => {
+  return await invoke('is_document_item_child_of', {
+    id,
+    parentId
+  });
+}

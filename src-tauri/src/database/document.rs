@@ -271,3 +271,46 @@ pub fn get_document_item(conn: &Connection, id: i64) -> Result<DocumentItem> {
     let row = rows.next()?.unwrap();
     Ok(get_document_item_from_query_result(&row))
 }
+
+// sqlite语法，根据 ids 查询文档项
+pub fn get_document_items_by_ids(conn: &Connection, ids: Vec<i64>) -> Result<Vec<DocumentItem>> {
+    // 使用 while 循环的方式，一次性查询所有的结果
+    let mut res = Vec::new();
+    for id in ids {
+        res.push(get_document_item(&conn, id)?);
+    }
+    Ok(res)
+}
+
+// root_id 是否是 child_id 的父节点，可能存在多级父节点，这里查询所有父节点，如果 root_id 是 child_id 的父节点，则返回 true
+// 为了防止死循环，这里限制最多查询 10 层
+// 思路：先判断 root_id 是否是 child_id 的父节点，如果是，则返回 true，
+// 如果不是，则继续查询 root_id 的 children 是不是 child_id 的父节点，如果是，则返回 true，
+// 如果不是，则继续查询 root_id 的 children 的 children 是不是 child_id 的父节点，以此类推
+pub fn is_document_item_child_of(conn: &Connection, id: i64, parent_id: i64) -> Result<bool> {
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete FROM document_items WHERE id = ?1")?;
+    let mut rows = stmt.query(params![parent_id])?;
+    let row = rows.next()?.unwrap();
+    let document_item = get_document_item_from_query_result(&row);
+    if document_item.children.contains(&id) {
+        return Ok(true);
+    }
+    let mut children = document_item.children;
+    let mut count = 0;
+    while children.len() > 0 && count < 10 {
+        let mut new_children = Vec::new();
+        for child in children {
+            let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete FROM document_items WHERE id = ?1")?;
+            let mut rows = stmt.query(params![child])?;
+            let row = rows.next()?.unwrap();
+            let document_item = get_document_item_from_query_result(&row);
+            if document_item.children.contains(&id) {
+                return Ok(true);
+            }
+            new_children.extend(document_item.children);
+        }
+        children = new_children;
+        count += 1;
+    }
+    Ok(false)
+}

@@ -12,9 +12,7 @@ interface IState {
   documents: IDocument[];
   loading: boolean;
   activeDocumentId: number | null;
-  activeDocumentItemId: number | null;
   activeDocumentItem: IDocumentItem | null;
-  activeDocumentItemPath: number[];
 }
 
 interface IActions {
@@ -29,9 +27,7 @@ const initState: IState = {
   documents: [],
   loading: false,
   activeDocumentId: null,
-  activeDocumentItemId: null,
   activeDocumentItem: null,
-  activeDocumentItemPath: [],
 }
 
 const useDocumentsStore = create<IState & IActions>((set, get) => ({

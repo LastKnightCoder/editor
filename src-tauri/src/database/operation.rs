@@ -137,7 +137,7 @@ pub fn get_operation_records_by_year(conn: &Connection, year: String) -> Result<
         for operation in operation_record.operation_list {
             let operation_content_type = operation.operation_content_type.clone();
             if map.contains_key(&operation_content_type) {
-                let mut operation_list = map.get_mut(&operation_content_type).unwrap();
+                let operation_list = map.get_mut(&operation_content_type).unwrap();
                 let mut index = 0;
                 let mut found = false;
                 for i in 0..operation_list.len() {

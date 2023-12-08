@@ -82,8 +82,6 @@ const Document = (props: IDocumentProps) => {
       useDocumentsStore.setState({
         activeDocumentId: null,
         activeDocumentItem: null,
-        activeDocumentItemId: null,
-        activeDocumentItemPath: [],
       });
     }
   }, []);

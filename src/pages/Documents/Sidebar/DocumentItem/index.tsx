@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { App, message, Popover } from "antd";
 import { MoreOutlined, PlusOutlined, FolderOutlined, FileOutlined } from "@ant-design/icons";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
@@ -7,11 +7,17 @@ import classnames from "classnames";
 import { motion } from 'framer-motion';
 
 import If from "@/components/If";
-import { createDocumentItem, getDocumentItem, updateDocumentItem } from "@/commands";
+import {
+  createDocumentItem,
+  getDocumentItem,
+  isDocumentItemChildOf,
+  updateDocumentItem
+} from "@/commands";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+
 import useDragAndDrop, { EDragPosition, IDragItem } from './useDragAndDrop.ts';
 
 import { IArticle, ICard, IDocumentItem } from "@/types";
@@ -54,13 +60,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
   }))
 
   const {
-    activeDocumentItemId,
     activeDocumentItem,
-    activeDocumentItemPath,
   } = useDocumentsStore(state => ({
-    activeDocumentItemId: state.activeDocumentItemId,
     activeDocumentItem: state.activeDocumentItem,
-    activeDocumentItemPath: state.activeDocumentItemPath,
   }));
 
   useAsyncEffect(async () => {
@@ -116,7 +118,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
-    if (item.id === activeDocumentItemId) {
+    if (item.id === activeDocumentItem?.id) {
       useDocumentsStore.setState({
         activeDocumentItem: updatedDoc,
       });
@@ -146,7 +148,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
-    if (item.id === activeDocumentItemId) {
+    if (item.id === activeDocumentItem?.id) {
       useDocumentsStore.setState({
         activeDocumentItem: updatedDoc,
       });
@@ -162,7 +164,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
-    if (item.id === activeDocumentItemId) {
+    if (item.id === activeDocumentItem?.id) {
       useDocumentsStore.setState({
         activeDocumentItem: updatedDoc,
       });
@@ -194,7 +196,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
-    if (item.id === activeDocumentItemId) {
+    if (item.id === activeDocumentItem?.id) {
       useDocumentsStore.setState({
         activeDocumentItem: updatedDoc,
       });
@@ -208,17 +210,20 @@ const DocumentItem = (props: IDocumentItemProps) => {
       content: item.children.length > 0 ? '该文档下包含多篇子文档，是否删除' : '删除后无法恢复',
       onOk: async () => {
         await onParentDeleteChild(item.id);
-        if (activeDocumentItemPath && activeDocumentItemPath.length > 0 && activeDocumentItemPath.length > path.length) {
-          // 如果当前编辑的文档是被删除的文档的子文档，则清空编辑器
-          for (let i = 0; i < path.length; i++) {
-            if (activeDocumentItemPath[i] !== path[i]) {
-              return;
-            }
-          }
+        if (!activeDocumentItem || item.id === activeDocumentItem.id) {
           useDocumentsStore.setState({
-            activeDocumentItemId: null,
             activeDocumentItem: null,
-            activeDocumentItemPath: [],
+          });
+          return;
+        }
+        if (item.children.length === 0) return;
+
+        // 判断所有的孩子以及子孙是否包含 activeDocumentItem，如果包含需要将 activeDocumentItem 设置为 null
+        const activeDocumentItemId = activeDocumentItem.id;
+        const isChildOf = await isDocumentItemChildOf(activeDocumentItemId, item.id);
+        if (isChildOf) {
+          useDocumentsStore.setState({
+            activeDocumentItem: null,
           });
         }
       },
@@ -249,7 +254,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
-    if (item.id === activeDocumentItemId) {
+    if (item.id === activeDocumentItem?.id) {
       useDocumentsStore.setState({
         activeDocumentItem: updatedDoc,
       });
@@ -277,7 +282,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
-    if (item.id === activeDocumentItemId) {
+    if (item.id === activeDocumentItem?.id) {
       useDocumentsStore.setState({
         activeDocumentItem: updatedDoc,
       });
@@ -285,11 +290,12 @@ const DocumentItem = (props: IDocumentItemProps) => {
     setSelectArticleModalOpen(false);
   });
 
-  useAsyncEffect(async () => {
-    if (activeDocumentItemId === itemId) {
+  // 监听 Editdoc 导致的 activeDocumentItem 变化，同步到当前 item
+  useEffect(() => {
+    if (activeDocumentItem?.id === itemId) {
       setItem(activeDocumentItem);
     }
-  }, [itemId, activeDocumentItemId, activeDocumentItem]);
+  }, [itemId, activeDocumentItem]);
 
   if (!item) {
     return null;
@@ -305,16 +311,14 @@ const DocumentItem = (props: IDocumentItemProps) => {
           drop(node);
         }}
         className={classnames(styles.header, {
-          [styles.active]: activeDocumentItemId === item.id,
+          [styles.active]: activeDocumentItem?.id === item.id,
           [styles.top]: isOver && canDrop && dragPosition === EDragPosition.Top,
           [styles.bottom]: isOver && canDrop && dragPosition === EDragPosition.Bottom,
           [styles.inside]: isOver && canDrop && dragPosition === EDragPosition.Inside,
         })}
         onClick={() => {
           useDocumentsStore.setState({
-            activeDocumentItemId: item.id,
             activeDocumentItem: item,
-            activeDocumentItemPath: path,
           });
         }}
       >

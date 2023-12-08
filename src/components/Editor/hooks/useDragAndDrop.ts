@@ -1,7 +1,7 @@
-import {useState} from "react";
-import {Editor, Element, Path, Transforms} from "slate";
-import {useDrag, useDrop} from "react-dnd";
-import {ReactEditor, useSlate, useReadOnly} from "slate-react";
+import { useState } from "react";
+import { Editor, Element, Path, Transforms } from "slate";
+import { useDrag, useDrop } from "react-dnd";
+import { ReactEditor, useSlate, useReadOnly } from "slate-react";
 
 interface IUseDragAndDropParams {
   element: Element;
@@ -90,7 +90,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     }),
   });
 
-  const [{  canDrop, isOverCurrent }, drop] = useDrop<IDragItem, void, {
+  const [{ canDrop, isOverCurrent }, drop] = useDrop<IDragItem, void, {
     isOverCurrent: boolean;
     canDrop: boolean;
   }>({

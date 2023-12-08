@@ -29,9 +29,7 @@ const Documents = () => {
     return () => {
       useDocumentsStore.setState({
         activeDocumentId: null,
-        activeDocumentItemId: null,
         activeDocumentItem: null,
-        activeDocumentItemPath: [],
       });
     }
   }, [init]);
