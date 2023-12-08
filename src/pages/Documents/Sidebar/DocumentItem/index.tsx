@@ -10,13 +10,15 @@ import If from "@/components/If";
 import { createDocumentItem, getDocumentItem, updateDocumentItem } from "@/commands";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useDragAndDrop, { EDragPosition, IDragItem } from './useDragAndDrop.ts';
 
-import { ICard, IDocumentItem } from "@/types";
+import { IArticle, ICard, IDocumentItem } from "@/types";
 
 import styles from './index.module.less';
 import SelectCardModal from "@/components/SelectCardModal";
+import SelectArticleModal from "@/components/SelectArticleModal";
 
 interface IDocumentItemProps {
   itemId: number;
@@ -36,12 +38,19 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [morePopoverOpen, setMorePopoverOpen] = useState(false);
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
   const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
+  const [selectArticleModalOpen, setSelectArticleModalOpen] = useState(false);
   const { modal } = App.useApp();
 
   const {
     cards,
   } = useCardsManagementStore(state => ({
     cards: state.cards,
+  }));
+
+  const {
+    articles,
+  } = useArticleManagementStore(state => ({
+    articles: state.articles,
   }))
 
   const {
@@ -246,7 +255,35 @@ const DocumentItem = (props: IDocumentItemProps) => {
       });
     }
     setSelectCardModalOpen(false);
-  })
+  });
+
+  const onSelectArticleFinish = useMemoizedFn(async (selectedArticles: IArticle[]) => {
+    if (selectedArticles.length === 0) {
+      message.warning('请选择文章');
+      return;
+    }
+    if (!item) {
+      return;
+    }
+    const articleItemId = await createDocumentItem({
+      ...DEFAULT_CREATE_DOCUMENT_ITEM,
+      isArticle: true,
+      articleId: selectedArticles[0].id,
+      title: selectedArticles[0].title,
+      content: selectedArticles[0].content,
+    });
+    const newItem = produce(item, draft => {
+      draft.children.push(articleItemId);
+    });
+    const updatedDoc = await updateDocumentItem(newItem);
+    setItem(updatedDoc);
+    if (item.id === activeDocumentItemId) {
+      useDocumentsStore.setState({
+        activeDocumentItem: updatedDoc,
+      });
+    }
+    setSelectArticleModalOpen(false);
+  });
 
   useAsyncEffect(async () => {
     if (activeDocumentItemId === itemId) {
@@ -340,6 +377,17 @@ const DocumentItem = (props: IDocumentItemProps) => {
                 >
                   关联卡片
                 </div>
+                <div
+                  className={styles.item}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setAddPopoverOpen(false);
+                    setSelectArticleModalOpen(true);
+                  }}
+                >
+                  关联文章
+                </div>
               </div>
             )}
             placement={'bottomLeft'}
@@ -380,7 +428,15 @@ const DocumentItem = (props: IDocumentItemProps) => {
         allCards={cards}
         onCancel={() => { setSelectCardModalOpen(false); }}
         onOk={onSelectCardFinish}
-        excludeCardIds={[]}
+        excludeCardIds={[activeDocumentItem?.cardId || -1]}
+      />
+      <SelectArticleModal
+        title={'选择关联文章'}
+        open={selectArticleModalOpen}
+        allItems={articles}
+        excludeIds={[activeDocumentItem?.articleId || -1]}
+        onCancel={() => { setSelectArticleModalOpen(false); }}
+        onOk={onSelectArticleFinish}
       />
     </motion.div>
   )

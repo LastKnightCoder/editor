@@ -148,6 +148,15 @@ pub fn update_article(
 
     insert_operation(conn, id, "article".to_string(), "update".to_string())?;
 
+    // 从 document_items 表中找到 is_article 为 1 且 article 为 id 的所有记录，并更新其 content 和 update_time 和 title
+    let mut stmt = conn.prepare("UPDATE document_items SET update_time = ?1, content = ?2, title = ?3 WHERE is_article = 1 AND article_id = ?4")?;
+    match stmt.execute(params![now as i64, content, title, id]) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("更新 document_items 表错误: {}", e);
+        }
+    };
+
     Ok(res)
 }
 
