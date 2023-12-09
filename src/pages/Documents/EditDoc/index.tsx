@@ -37,7 +37,9 @@ const EditDoc = () => {
     saveDocument,
     onContentChange,
     onTitleChange,
+    initValue,
   } = useEditDoc();
+
   const uploadImage = useUploadImage();
 
   useRafInterval(() => {
@@ -113,7 +115,7 @@ const EditDoc = () => {
           <Editor
             key={activeDocumentItem.id}
             ref={editorRef}
-            initValue={activeDocumentItem.content}
+            initValue={initValue}
             onChange={onContentChange}
             readonly={readonly}
             uploadImage={uploadImage}

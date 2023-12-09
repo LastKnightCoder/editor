@@ -1,6 +1,6 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, { useEffect, useState } from 'react';
 import { message, Modal } from "antd";
-import { useAsyncEffect } from "ahooks";
+import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import isHotkey from "is-hotkey";
 import { SettingOutlined, SyncOutlined } from '@ant-design/icons';
@@ -62,8 +62,7 @@ const Sidebar = (props: ISidebarProps) => {
       await upload();
       message.success('同步成功');
     } catch (error) {
-      message.error('同步失败');
-      console.error(error);
+      message.error('同步失败' + error);
     } finally {
       setIsSyncing(false);
     }
@@ -78,7 +77,6 @@ const Sidebar = (props: ISidebarProps) => {
     setIsChecking(true);
     try {
       const { shouldUpdate, manifest } = await checkUpdate()
-      console.log('shouldUpdate', shouldUpdate, manifest);
       if (shouldUpdate) {
         // You could show a dialog asking the user if they want to install the update here.
         console.log(
@@ -122,7 +120,7 @@ const Sidebar = (props: ISidebarProps) => {
     }
   }, [onDarkModeChange]);
 
-  const checkDownload = useCallback(async () => {
+  const checkDownload = useMemoizedFn(async () => {
     if (!accessKeyId || !accessKeySecret || !bucket || !region) return;
     const originDatabaseInfo = await getOriginDatabaseInfo();
     if (!originDatabaseInfo) return;
@@ -145,17 +143,17 @@ const Sidebar = (props: ISidebarProps) => {
     } else {
       message.success('当前已是最新版本');
     }
-  }, [accessKeyId, accessKeySecret, bucket, region, currentVersion]);
+  });
 
   useAsyncEffect(async () => {
     await checkDownload()
   }, [checkDownload]);
 
   useEffect(() => {
-    // mod + d -> check download
+    // mod + shift +  d -> check download
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isHotkey('mod+d', e)) {
-        checkDownload();
+      if (isHotkey('mod+shift+d', e)) {
+        checkDownload().then();
       }
     }
     document.addEventListener('keydown', handleKeyDown);

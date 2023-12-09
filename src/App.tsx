@@ -14,6 +14,11 @@ const App = () => {
     <ConfigProvider
       theme={{
         algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+        components: {
+          Calendar: {
+            fullBg: 'transparent',
+          },
+        },
       }}
       locale={zhCN}
     >

@@ -1,7 +1,7 @@
 import { Empty, Input, Modal, Spin } from "antd";
 import { Descendant } from "slate";
 import { useRef, useState } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
 import useLoadMore from "@/hooks/useLoadMore.ts";
 import useSearch from './hooks/useSearch.ts';
 
@@ -46,7 +46,12 @@ const SelectArticleModal = <T extends IItem,>(props: ISelectArticleModalProps<T>
     excludeIds,
   });
 
-  console.log('searchedItems', searchedItems, allItems);
+  useWhyDidYouUpdate('SelectArticleModal', {
+    ...props,
+    searchedItems,
+    searchValue,
+    onSearchValueChange,
+  })
 
   const [selectedItems, setSelectedItems] = useState<T[]>([]);
   const [maxItemCount, setMaxItemCount] = useState<number>(20);

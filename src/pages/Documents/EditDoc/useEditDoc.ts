@@ -1,6 +1,6 @@
 import { IDocumentItem } from "@/types";
 import { updateDocumentItem } from "@/commands";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
@@ -12,6 +12,13 @@ const useEditDoc = () => {
   } = useDocumentsStore((state) => ({
     activeDocumentItem: state.activeDocumentItem,
   }));
+  const [initValue] = useState<Descendant[]>(() => {
+    if (!activeDocumentItem) return [{
+      type: 'paragraph',
+      children: [{ type: 'formatted', text: '' }],
+    }];
+    return activeDocumentItem.content;
+  });
   const prevDocument = useRef<IDocumentItem | null>(activeDocumentItem);
   const documentChanged = useRef(false);
 
@@ -50,6 +57,7 @@ const useEditDoc = () => {
     onContentChange,
     saveDocument,
     activeDocumentItem,
+    initValue,
   }
 }
 

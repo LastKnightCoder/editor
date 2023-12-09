@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
-import { App, message, Popover } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { App, message, Popover, Tooltip } from "antd";
+import { motion } from 'framer-motion';
 import { MoreOutlined, PlusOutlined, FolderOutlined, FileOutlined } from "@ant-design/icons";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import classnames from "classnames";
-import { motion } from 'framer-motion';
 
-import If from "@/components/If";
 import {
   createDocumentItem,
   getDocumentItem,
@@ -45,6 +44,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
   const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
   const [selectArticleModalOpen, setSelectArticleModalOpen] = useState(false);
+  const [folderOpen, setFolderOpen] = useState(() => {
+    return path.length === 1;
+  });
   const { modal } = App.useApp();
 
   const {
@@ -290,6 +292,17 @@ const DocumentItem = (props: IDocumentItemProps) => {
     setSelectArticleModalOpen(false);
   });
 
+  const onSelectArticleCancel = useMemoizedFn(() => {
+    setSelectArticleModalOpen(false);
+  });
+
+  const excludeArticleIds = useMemo(() => {
+    if (!activeDocumentItem?.articleId) {
+      return [-1];
+    }
+    return [activeDocumentItem.articleId];
+  }, [activeDocumentItem?.articleId]);
+
   // 监听 Editdoc 导致的 activeDocumentItem 变化，同步到当前 item
   useEffect(() => {
     if (activeDocumentItem?.id === itemId) {
@@ -302,7 +315,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   }
 
   return (
-    <motion.div layoutId={String(item.id)} ref={drag} className={classnames(styles.item, {
+    <motion.div layoutRoot layoutId={String(item.id)} ref={drag} className={classnames(styles.item, {
       [styles.dragging]: isDragging,
     })}>
       <div
@@ -323,11 +336,20 @@ const DocumentItem = (props: IDocumentItemProps) => {
         }}
       >
         <div className={styles.titleContainer}>
-          <div className={styles.icon}>
-            {
-              item.children.length > 0 ? <FolderOutlined /> : <FileOutlined />
-            }
-          </div>
+          <Tooltip
+            title={item.children.length > 0 ? folderOpen ? '收起' : '展开' : undefined}
+          >
+            <div className={classnames(styles.icon, { [styles.hoverable]: item.children.length > 0 })} onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (item.children.length === 0) return;
+              setFolderOpen(!folderOpen);
+            }}>
+              {
+                item.children.length > 0 ? <FolderOutlined /> : <FileOutlined />
+              }
+            </div>
+          </Tooltip>
           <div className={styles.title}>
             {item.title}
           </div>
@@ -407,7 +429,11 @@ const DocumentItem = (props: IDocumentItemProps) => {
           </Popover>
         </div>
       </div>
-      <If condition={item.children.length > 0}>
+      <div
+        className={classnames(styles.gridContainer, {
+          [styles.hide]: item.children.length === 0 || !folderOpen,
+        })}
+      >
         <div className={styles.children}>
           {
             item.children.map((id, index) => (
@@ -423,7 +449,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
             ))
           }
         </div>
-      </If>
+      </div>
       <SelectCardModal
         title={'选择关联卡片'}
         selectedCards={selectedCards}
@@ -438,8 +464,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
         title={'选择关联文章'}
         open={selectArticleModalOpen}
         allItems={articles}
-        excludeIds={[activeDocumentItem?.articleId || -1]}
-        onCancel={() => { setSelectArticleModalOpen(false); }}
+        excludeIds={excludeArticleIds}
+        onCancel={onSelectArticleCancel}
         onOk={onSelectArticleFinish}
       />
     </motion.div>

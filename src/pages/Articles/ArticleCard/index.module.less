@@ -13,8 +13,14 @@
   box-shadow: 0 4px 21px -12px rgba(0, 0, 0, 0.66);
   background-color: var(--card-bg);
   background-image: linear-gradient(var(--gradient-angle), var(--bg-color2), transparent 50%);
-  @media screen and (max-width: 800px) {
+  @media screen and (max-width: 1200px) {
+    width: 800px;
+  }
+  @media screen and (max-width: 1000px) {
     width: 600px;
+  }
+  @media screen and (max-width: 800px) {
+      width: 400px;
   }
   &.right {
     --gradient-angle: 80deg;

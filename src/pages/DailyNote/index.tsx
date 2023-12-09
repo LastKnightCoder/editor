@@ -86,6 +86,9 @@ const DailyNote = () => {
           ? <Skeleton active />
           : (
             <Calendar
+              style={{
+                backgroundColor: 'transparent'
+              }}
               onSelect={onSelect}
               cellRender={cellRender}
             />

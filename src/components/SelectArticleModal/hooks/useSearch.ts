@@ -1,5 +1,6 @@
 import { IItem } from "../index.tsx";
 import { useMemo, useState } from "react";
+import { useMemoizedFn } from "ahooks";
 
 interface SearchProps<T extends IItem> {
   allItems: T[];
@@ -18,9 +19,9 @@ const useSearch = <T extends IItem>(props: SearchProps<T>) => {
       .filter(item => !excludeIds.includes(item.id));
   }, [allItems, excludeIds, searchValue]);
 
-  const onSearchValueChange = (value: string) => {
+  const onSearchValueChange = useMemoizedFn((value: string) => {
     setSearchValue(value);
-  }
+  });
 
   return {
     searchValue,

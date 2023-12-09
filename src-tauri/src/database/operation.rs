@@ -119,7 +119,7 @@ pub fn get_operation_records_by_year(conn: &Connection, year: String) -> Result<
     }
 
     // 每一组都要根据 operation_id 和 operation_content_type 去重，
-    // 去重的条件是 operation_id 和 operation_content_type 不同同时相同，保留最后一条
+    // 去重的条件是 operation_id 和 operation_content_type 不同时相同，保留最后一条
     // operation_id 和 operation_content_type 相同的记录，只保留一条，但是这个列表是无序的，id 相同可能不相邻
     // 建议先按照 operation_content_type 分组，然后根据 operation_id 去重，最后恢复
     // 代码如下：

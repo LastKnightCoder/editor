@@ -48,9 +48,7 @@ export const getObject = async (objInfo: IGetObject) => {
     bucket,
     region,
   });
-  const result = await oss.get(objectName);
-  console.log(result);
-  return result;
+  return await oss.get(objectName);
 }
 
 export const isObjectExist = async (objInfo: IGetObject) => {

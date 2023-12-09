@@ -55,7 +55,7 @@ const getParagraphContent = (paragraph: ParagraphElement): Array<JSX.Element> =>
   }).filter(Boolean);
 }
 
-export const getEditorText = (value: Descendant[]): string => {
+export const getEditorText = (value: Descendant[], maxLength = 20): string => {
   if (value.length === 0) {
     return '';
   }
@@ -83,5 +83,5 @@ export const getEditorText = (value: Descendant[]): string => {
   }
 
   // 按照顺序拼接
-  return formattedNodes.map(node => node.text).join('').slice(0, 20);
+  return formattedNodes.map(node => node.text).join('').slice(0, maxLength);
 }

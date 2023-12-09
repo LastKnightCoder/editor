@@ -184,6 +184,34 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
           onDrop={e => {
             e.preventDefault();
           }}
+          onSelect={() => {
+            /**
+             * Chrome doesn't scroll at bottom of the page. This fixes that.
+             */
+            if (!(window as any).chrome) return
+            if (editor.selection == null) return
+            try {
+              /**
+               * Need a try/catch because sometimes you get an error like:
+               *
+               * Error: Cannot resolve a DOM node from Slate node: {"type":"p","children":[{"text":"","by":-1,"at":-1}]}
+               */
+              const domPoint = ReactEditor.toDOMPoint(
+                editor,
+                editor.selection.focus
+              )
+              const node = domPoint[0]
+              if (node == null) return
+              const element = node.parentElement
+              if (element == null) return
+              // @ts-ignore
+              element.scrollIntoViewIfNeeded();
+            } catch (e) {
+              /**
+               * Empty catch. Do nothing if there is an error.
+               */
+            }
+          }}
         />
         <ImagesOverview />
         { !readonly && <HoveringToolbar configs={finalHoveringBarConfigs} /> }
