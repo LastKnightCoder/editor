@@ -1,17 +1,20 @@
 import { useEffect } from "react";
-import { motion } from "framer-motion";
 import isHotkey from "is-hotkey";
 
 import { initAllDocumentItemParents } from"@/commands";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
+import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
 
 import WidthResizable from "@/components/WidthResizable";
 import Sidebar from './Sidebar';
+
 import EditDoc from "./EditDoc";
 import styles from './index.module.less';
 
 const Documents = () => {
+  const scope = useDragAndHideSidebar();
+
   const {
     activeDocumentItem,
   } = useDocumentsStore(state => ({
@@ -19,10 +22,8 @@ const Documents = () => {
   }));
 
   const {
-    sidebarOpen,
     sidebarWidth,
   } = useGlobalStateStore(state => ({
-    sidebarOpen: state.sidebarOpen,
     sidebarWidth: state.sidebarWidth,
   }));
 
@@ -50,18 +51,9 @@ const Documents = () => {
     }
   }, []);
 
-  const sidebarVariants = {
-    open: {
-      width: sidebarWidth,
-    },
-    close: {
-      width: 0,
-    }
-  }
-
   return (
-    <motion.div animate={sidebarOpen ? 'open' : 'close'} className={styles.documentContainer}>
-      <motion.div initial={false} style={{ flexBasis: sidebarWidth }} variants={sidebarVariants} className={styles.sidebar}>
+    <div className={styles.documentContainer}>
+      <div ref={scope} className={styles.sidebar}>
         <WidthResizable
           defaultWidth={sidebarWidth}
           minWidth={200}
@@ -78,11 +70,11 @@ const Documents = () => {
         >
           <Sidebar />
         </WidthResizable>
-      </motion.div>
-      <motion.div initial={false} className={styles.content} layout layoutRoot>
+      </div>
+      <div className={styles.content}>
         { activeDocumentItem && <EditDoc key={activeDocumentItem.id} /> }
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { App, message, Popover, Tooltip } from "antd";
-import { FileOutlined, FolderOutlined, MoreOutlined, PlusOutlined } from "@ant-design/icons";
+import { FileOutlined, MoreOutlined, PlusOutlined, FolderOpenTwoTone } from "@ant-design/icons";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import classnames from "classnames";
@@ -472,7 +472,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
               setFolderOpen(!folderOpen);
             }}>
               {
-                item.children.length > 0 ? <FolderOutlined /> : <FileOutlined />
+                item.children.length > 0 ? <FolderOpenTwoTone /> : <FileOutlined />
               }
             </div>
           </Tooltip>

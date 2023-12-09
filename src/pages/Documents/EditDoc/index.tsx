@@ -97,7 +97,8 @@ const EditDoc = () => {
           <div
             className={styles.title}
             ref={titleRef}
-            contentEditable={!readonly}
+            // @ts-ignore
+            contentEditable={!readonly ? 'plaintext-only' : false}
             suppressContentEditableWarning
             onFocus={() => setEditingTitle(true)}
             onBlur={(e) => {

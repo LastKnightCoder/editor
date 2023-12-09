@@ -180,7 +180,8 @@ const ArticleEdit = () => {
         <h1
           ref={titleRef}
           className={styles.title}
-          contentEditable={!readonly}
+          // @ts-ignore
+          contentEditable={!readonly ? 'plaintext-only' : false}
           suppressContentEditableWarning
           onBlur={(e) => onTitleChange(e.target.innerText)}
         >

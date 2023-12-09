@@ -1,5 +1,4 @@
 import { memo } from "react";
-import { motion } from 'framer-motion';
 import classnames from "classnames";
 
 import If from "@/components/If";
@@ -13,26 +12,17 @@ import useCardManagement from "./hooks/useCardManagement.ts";
 import WidthResizable from "@/components/WidthResizable";
 
 import styles from './index.module.less';
+import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
 
 const Cards = memo(() => {
 
+  const scope = useDragAndHideSidebar();
+
   const {
-    sidebarOpen,
     sidebarWidth,
   } = useGlobalStateStore(state => ({
-    sidebarOpen: state.sidebarOpen,
     sidebarWidth: state.sidebarWidth,
   }));
-
-
-  const sidebarVariants = {
-    open: {
-      width: sidebarWidth,
-    },
-    close: {
-      width: 0,
-    }
-  }
 
   const {
     leftCardIds,
@@ -49,31 +39,31 @@ const Cards = memo(() => {
   } = useCardManagement();
 
   return (
-    <motion.div animate={sidebarOpen ? 'open' : 'close'} className={classnames(styles.cardsContainer)}>
-      <motion.div style={{ flexBasis: sidebarWidth }} initial={false} variants={sidebarVariants} className={classnames(styles.sidebar)}>
-        <WidthResizable
-          defaultWidth={sidebarWidth}
-          minWidth={200}
-          maxWidth={500}
-          onResize={(width) => {
-            useGlobalStateStore.setState({
-              sidebarWidth: width,
-            });
-            localStorage.setItem('sidebarWidth', String(width));
-          }}
-          style={{
-            height: '100%'
-          }}
-        >
-          <Sidebar
-            editingCardId={activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId}
-            onCreateCard={onCreateCard}
-            onDeleteCard={onDeleteCard}
-            onClickCard={onClickCard}
-          />
-        </WidthResizable>
-      </motion.div>
-      <motion.div initial={false}  className={styles.content}>
+    <div className={classnames(styles.cardsContainer)}>
+      <div ref={scope} style={{ width: sidebarWidth }} className={classnames(styles.sidebar)}>
+          <WidthResizable
+            defaultWidth={sidebarWidth}
+            minWidth={200}
+            maxWidth={500}
+            onResize={(width) => {
+              useGlobalStateStore.setState({
+                sidebarWidth: width,
+              });
+              localStorage.setItem('sidebarWidth', String(width));
+            }}
+            style={{
+              height: '100%'
+            }}
+          >
+            <Sidebar
+              editingCardId={activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId}
+              onCreateCard={onCreateCard}
+              onDeleteCard={onDeleteCard}
+              onClickCard={onClickCard}
+            />
+          </WidthResizable>
+      </div>
+      <div className={styles.content}>
         <div className={styles.cardsPanel}>
           <If condition={leftCardIds.length > 0}>
             <CardsManagement
@@ -98,8 +88,8 @@ const Cards = memo(() => {
             />
           </If>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 })
 

@@ -68,7 +68,6 @@ const useEditArticleStore = create<IState & IActions>((set, get) => ({
   },
   onTitleChange: (title) => {
     const { editingArticle } = get();
-    console.log('onTitleChange', title);
     if (!editingArticle) return;
     set({
       editingArticle: produce(editingArticle, draft => {

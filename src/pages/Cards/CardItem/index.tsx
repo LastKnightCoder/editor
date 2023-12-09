@@ -1,5 +1,5 @@
 import { memo } from "react";
-import dayjs from "dayjs";
+import { CloseOutlined } from "@ant-design/icons";
 import classnames from "classnames";
 
 import { ICard } from "@/types";
@@ -7,9 +7,9 @@ import If from "@/components/If";
 import Tags from "@/components/Tags";
 import Editor from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { formatDate } from "@/utils/time.ts";
 
 import styles from './index.module.less';
-import { CloseOutlined } from "@ant-design/icons";
 
 interface CardItemProps {
   card: ICard;
@@ -31,7 +31,7 @@ const CardItem = memo((props: CardItemProps) => {
         showIcon
       />
       <div className={styles.time}>
-        更新于 {dayjs(update_time).format('YYYY/MM/DD HH:mm:ss')}
+        更新于 {formatDate(update_time, true)}
       </div>
       <div className={styles.content}>
         <ErrorBoundary>
