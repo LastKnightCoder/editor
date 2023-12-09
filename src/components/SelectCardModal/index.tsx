@@ -9,7 +9,6 @@ import CardItem from "@/pages/Cards/CardItem";
 import CardItem2 from "@/pages/Cards/CardItem2";
 
 import { useMemoizedFn } from "ahooks";
-import useLoadMore from "@/hooks/useLoadMore.ts";
 import useSearch from "./hooks/useSearch";
 
 import styles from "./index.module.less";
@@ -41,14 +40,12 @@ const SelectCardModal = (props: ISelectCardModalProps) => {
   } = props;
 
   const [maxCardCount, setMaxCardCount] = useState<number>(20);
-  const loaderRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver>();
 
   const loadMore = useMemoizedFn(() => {
     setMaxCardCount(maxCardCount => Math.min(maxCardCount + 20, searchedCards.length));
   });
-
-  useLoadMore(loaderRef, loadMore);
 
   const {
     searchValue,
@@ -135,7 +132,22 @@ const SelectCardModal = (props: ISelectCardModalProps) => {
             }
             <If condition={maxCardCount < searchedCards.length}>
               <Spin>
-                <div ref={loaderRef} style={{ height: 100 }} />
+                <div
+                  ref={(node) => {
+                    if (node) {
+                      if (observerRef.current) {
+                        observerRef.current.disconnect();
+                      }
+                      observerRef.current = new IntersectionObserver((entries) => {
+                        if (entries[0].isIntersecting) {
+                          loadMore();
+                        }
+                      });
+                      observerRef.current.observe(node);
+                    }
+                  }}
+                  style={{ height: 100 }}
+                />
               </Spin>
             </If>
           </div>

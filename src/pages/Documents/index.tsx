@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { motion } from "framer-motion";
 import isHotkey from "is-hotkey";
 
+import { initAllDocumentItemParents } from"@/commands";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import Sidebar from './Sidebar';
@@ -10,10 +11,8 @@ import styles from './index.module.less';
 
 const Documents = () => {
   const {
-    init,
     activeDocumentItem,
   } = useDocumentsStore(state => ({
-    init: state.init,
     activeDocumentItem: state.activeDocumentItem,
   }));
 
@@ -24,15 +23,27 @@ const Documents = () => {
   }));
 
   useEffect(() => {
-    init();
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      // mod + p
+      if (isHotkey('mod+p', event)) {
+        event.preventDefault();
+        await initAllDocumentItemParents();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, []);
 
+  useEffect(() => {
     return () => {
       useDocumentsStore.setState({
         activeDocumentId: null,
         activeDocumentItem: null,
       });
     }
-  }, [init]);
+  }, []);
 
   const sidebarVariants = {
     open: {

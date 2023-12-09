@@ -50,6 +50,7 @@ export interface IDocumentItem {
   bannerBg: string;
   icon: string;
   isDelete: boolean;
+  parents: number[];
 }
 
 export interface ICreateDocumentItem {
@@ -65,6 +66,7 @@ export interface ICreateDocumentItem {
   content: Descendant[];
   bannerBg: string;
   icon: string;
+  parents: number[];
 }
 
 export type IUpdateDocumentItem = Exclude<IDocumentItem, 'id' | 'is_delete'>;

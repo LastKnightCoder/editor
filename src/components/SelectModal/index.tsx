@@ -2,7 +2,6 @@ import { Empty, Input, Modal, Spin } from "antd";
 import { Descendant } from "slate";
 import { useRef, useState } from "react";
 import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
-import useLoadMore from "@/hooks/useLoadMore.ts";
 import useSearch from './hooks/useSearch.ts';
 
 import Card from './Card';
@@ -55,14 +54,13 @@ const SelectArticleModal = <T extends IItem,>(props: ISelectArticleModalProps<T>
 
   const [selectedItems, setSelectedItems] = useState<T[]>([]);
   const [maxItemCount, setMaxItemCount] = useState<number>(20);
-  const loaderRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver>();
 
   const loadMore = useMemoizedFn(() => {
-    setMaxItemCount(maxItemCount => Math.min(maxItemCount + 20, selectedItems.length));
+    console.log('loadMore', searchedItems.length);
+    setMaxItemCount(maxItemCount => Math.min(maxItemCount + 20, searchedItems.length));
   });
-
-  useLoadMore(loaderRef, loadMore);
 
   const handleOk = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -128,9 +126,24 @@ const SelectArticleModal = <T extends IItem,>(props: ISelectArticleModalProps<T>
                 ))
                 : <Empty />
             }
-            <If condition={maxItemCount < searchedItems.length && searchedItems.length > 0}>
+            <If condition={maxItemCount < searchedItems.length}>
               <Spin>
-                <div ref={loaderRef} style={{ height: 100 }} />
+                <div
+                  ref={(node) => {
+                    if (node) {
+                      if (observerRef.current) {
+                        observerRef.current.disconnect();
+                      }
+                      observerRef.current = new IntersectionObserver((entries) => {
+                        if (entries[0].isIntersecting) {
+                          loadMore();
+                        }
+                      });
+                      observerRef.current.observe(node);
+                    }
+                  }}
+                  style={{ height: 100 }}
+                />
               </Spin>
             </If>
           </div>

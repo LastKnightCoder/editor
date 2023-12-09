@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FloatButton } from "antd";
 import { PlusOutlined, UpOutlined } from '@ant-design/icons';
@@ -15,13 +15,11 @@ import styles from './index.module.less';
 const Articles = () => {
   const {
     articles,
-    init,
     updateArticleIsTop,
     deleteArticle,
     updateArticleBannerBg,
   } = useArticleManagementStore(state => ({
     articles: state.articles,
-    init: state.init,
     updateArticleIsTop: state.updateArticleIsTop,
     deleteArticle: state.deleteArticle,
     updateArticleBannerBg: state.updateArticleBannerBg,
@@ -31,10 +29,6 @@ const Articles = () => {
 
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    init().then();
-  }, [init])
 
   const handleClickArticleCard = (articleId: number) => {
     useEditArticleStore.setState({

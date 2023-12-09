@@ -5,7 +5,6 @@ import isHotkey from "is-hotkey";
 
 import If from "@/components/If";
 
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import { EActiveSide } from "@/stores/useCardPanelStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
@@ -21,12 +20,6 @@ const Cards = memo(() => {
     sidebarOpen,
   } = useGlobalStateStore(state => ({
     sidebarOpen: state.sidebarOpen,
-  }));
-
-  const {
-    init,
-  } = useCardsManagementStore((state) => ({
-    init: state.init,
   }));
 
   const sidebarVariants = {
@@ -60,10 +53,6 @@ const Cards = memo(() => {
     onMoveCard,
     activeSide,
   } = useCardManagement();
-
-  useEffect(() => {
-    init().then();
-  }, [init]);
 
   // 监听快捷键 mod + left 隐藏列表，mod + right 显示列表
   useEffect(() => {

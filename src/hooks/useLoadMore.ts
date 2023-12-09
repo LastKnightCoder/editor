@@ -8,7 +8,9 @@ const useLoadMore = (loaderRef: any, loadMore: () => void) => {
       }
     });
     const loader = loaderRef.current;
+    console.log('loaderRef', loaderRef);
     if (loader) {
+      console.log('loader', loader);
       observer.observe(loader);
     }
     return () => {

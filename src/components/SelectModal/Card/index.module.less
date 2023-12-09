@@ -1,11 +1,12 @@
 .card {
   padding: 12px;
   border-radius: 8px;
+  cursor: pointer;
   &.selected {
     background-color: var(--doc-fill-active);
     color: var(--doc-fill-text-color);
   }
-  &:hover {
+  &:not(.selected):hover {
     background-color: var(--common-hover-bg);
     cursor: pointer;
   }

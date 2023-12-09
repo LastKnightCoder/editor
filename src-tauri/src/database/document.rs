@@ -39,6 +39,7 @@ pub struct DocumentItem {
     pub banner_bg: String,
     pub icon: String,
     pub is_delete: bool,
+    pub parents: Vec<i64>,
 }
 
 pub fn init_document_table(conn: &Connection) -> Result<()> {
@@ -82,10 +83,32 @@ pub fn init_document_item_table(conn: &Connection) -> Result<()> {
             content TEXT,
             banner_bg TEXT,
             icon TEXT,
-            is_delete INTEGER DEFAULT 0
+            is_delete INTEGER DEFAULT 0,
+            parents TEXT DEFAULT '[]'
         )",
         [],
     )?;
+    Ok(())
+}
+
+pub fn upgrade_document_table(_conn: &Connection, _old_version: i64, _new_version: i64) -> Result<()> {
+    Ok(())
+}
+
+pub fn upgrade_document_items_table(conn: &Connection, _old_version: i64, _new_version: i64) -> Result<()> {
+    // 如果 document_items 表没有 parents 字段，添加 parents 字段
+    let mut stmt = conn.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'document_items'")?;
+    let mut rows = stmt.query([])?;
+    if let Some(row) = rows.next()? {
+        let sql: String = row.get(0)?;
+        if !sql.contains("parents") {
+            conn.execute(
+                "ALTER TABLE document_items ADD COLUMN parents TEXT DEFAULT '[]'",
+                [],
+            )?;
+        }
+    }
+
     Ok(())
 }
 
@@ -123,6 +146,8 @@ pub fn get_document_item_from_query_result(row: &Row) -> DocumentItem {
     let tags: Vec<String> = serde_json::from_str(&tags).unwrap();
     let children: String = row.get(7).unwrap();
     let children: Vec<i64> = serde_json::from_str(&children).unwrap();
+    let parents: String = row.get(16).unwrap();
+    let parents: Vec<i64> = serde_json::from_str(&parents).unwrap();
     DocumentItem {
         id: row.get(0).unwrap(),
         create_time: row.get(1).unwrap(),
@@ -140,6 +165,7 @@ pub fn get_document_item_from_query_result(row: &Row) -> DocumentItem {
         banner_bg: row.get(13).unwrap(),
         icon: row.get(14).unwrap(),
         is_delete: row.get(15).unwrap(),
+        parents
     }
 }
 
@@ -202,13 +228,14 @@ pub fn update_document(conn: &Connection, id: i64, title: &str, desc: &str, auth
     Ok(res)
 }
 
-pub fn create_document_item(conn: &Connection, title: &str, authors: Vec<String>, tags: Vec<String>, is_directory: bool, children: Vec<i64>, is_article: bool, article_id: i64, is_card: bool, card_id: i64, content: &str, banner_bg: &str, icon: &str) -> Result<i64> {
+pub fn create_document_item(conn: &Connection, title: &str, authors: Vec<String>, tags: Vec<String>, is_directory: bool, children: Vec<i64>, is_article: bool, article_id: i64, is_card: bool, card_id: i64, content: &str, banner_bg: &str, icon: &str, parents: Vec<i64>) -> Result<i64> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-    let mut stmt = conn.prepare("INSERT INTO document_items (create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)")?;
+    let mut stmt = conn.prepare("INSERT INTO document_items (create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, parents) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)")?;
     let authors_str = serde_json::to_string(&authors).unwrap();
     let tags_str = serde_json::to_string(&tags).unwrap();
     let children_str = serde_json::to_string(&children).unwrap();
-    let res = stmt.insert(params![now as i64, now as i64, title, authors_str, tags_str, is_directory, children_str, is_article, article_id, is_card, card_id, content, banner_bg, icon])?;
+    let parents_str = serde_json::to_string(&parents).unwrap();
+    let res = stmt.insert(params![now as i64, now as i64, title, authors_str, tags_str, is_directory, children_str, is_article, article_id, is_card, card_id, content, banner_bg, icon, parents_str])?;
 
     match insert_operation(conn, res as i64, "document_item".to_string(), "insert".to_string()) {
         Ok(_) => {},
@@ -227,13 +254,14 @@ pub fn delete_document_item(conn: &Connection, id: i64) -> Result<usize> {
     Ok(res)
 }
 
-pub fn update_document_item(conn: &Connection, id: i64, title: &str, authors: Vec<String>, tags: Vec<String>, is_directory: bool, children: Vec<i64>, is_article: bool, article_id: i64, is_card: bool, card_id: i64, content: &str, banner_bg: &str, icon: &str) -> Result<DocumentItem> {
+pub fn update_document_item(conn: &Connection, id: i64, title: &str, authors: Vec<String>, tags: Vec<String>, is_directory: bool, children: Vec<i64>, is_article: bool, article_id: i64, is_card: bool, card_id: i64, content: &str, banner_bg: &str, icon: &str, parents: Vec<i64>) -> Result<DocumentItem> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-    let mut stmt = conn.prepare("UPDATE document_items SET update_time = ?1, title = ?2, authors = ?3, tags = ?4, is_directory = ?5, children = ?6, is_article = ?7, article_id = ?8, is_card = ?9, card_id = ?10, content = ?11, banner_bg = ?12, icon = ?13 WHERE id = ?14")?;
+    let mut stmt = conn.prepare("UPDATE document_items SET update_time = ?1, title = ?2, authors = ?3, tags = ?4, is_directory = ?5, children = ?6, is_article = ?7, article_id = ?8, is_card = ?9, card_id = ?10, content = ?11, banner_bg = ?12, icon = ?13, parents = ?14 WHERE id = ?15")?;
     let authors_str = serde_json::to_string(&authors).unwrap();
     let tags_str = serde_json::to_string(&tags).unwrap();
     let children_str = serde_json::to_string(&children).unwrap();
-    stmt.execute(params![now as i64, title, authors_str, tags_str, is_directory, children_str, is_article, article_id, is_card, card_id, content, banner_bg, icon, id])?;
+    let parents_str = serde_json::to_string(&parents).unwrap();
+    stmt.execute(params![now as i64, title, authors_str, tags_str, is_directory, children_str, is_article, article_id, is_card, card_id, content, banner_bg, icon, parents_str, id])?;
 
     match insert_operation(conn, id, "document_item".to_string(), "update".to_string()) {
         Ok(_) => {},
@@ -266,7 +294,7 @@ pub fn update_document_item(conn: &Connection, id: i64, title: &str, authors: Ve
 }
 
 pub fn get_document_item(conn: &Connection, id: i64) -> Result<DocumentItem> {
-    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete FROM document_items WHERE id = ?1")?;
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete, parents FROM document_items WHERE id = ?1")?;
     let mut rows = stmt.query(params![id])?;
     let row = rows.next()?.unwrap();
     Ok(get_document_item_from_query_result(&row))
@@ -282,13 +310,23 @@ pub fn get_document_items_by_ids(conn: &Connection, ids: Vec<i64>) -> Result<Vec
     Ok(res)
 }
 
+pub fn get_all_document_items(conn: &Connection) -> Result<Vec<DocumentItem>> {
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete, parents FROM document_items WHERE is_delete = 0")?;
+    let mut rows = stmt.query([])?;
+    let mut res = Vec::new();
+    while let Some(row) = rows.next()? {
+        res.push(get_document_item_from_query_result(&row));
+    }
+    Ok(res)
+}
+
 // root_id 是否是 child_id 的父节点，可能存在多级父节点，这里查询所有父节点，如果 root_id 是 child_id 的父节点，则返回 true
 // 为了防止死循环，这里限制最多查询 10 层
 // 思路：先判断 root_id 是否是 child_id 的父节点，如果是，则返回 true，
 // 如果不是，则继续查询 root_id 的 children 是不是 child_id 的父节点，如果是，则返回 true，
 // 如果不是，则继续查询 root_id 的 children 的 children 是不是 child_id 的父节点，以此类推
 pub fn is_document_item_child_of(conn: &Connection, id: i64, parent_id: i64) -> Result<bool> {
-    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete FROM document_items WHERE id = ?1")?;
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete, parents FROM document_items WHERE id = ?1")?;
     let mut rows = stmt.query(params![parent_id])?;
     let row = rows.next()?.unwrap();
     let document_item = get_document_item_from_query_result(&row);
@@ -300,7 +338,7 @@ pub fn is_document_item_child_of(conn: &Connection, id: i64, parent_id: i64) -> 
     while children.len() > 0 && count < 10 {
         let mut new_children = Vec::new();
         for child in children {
-            let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete FROM document_items WHERE id = ?1")?;
+            let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete, parents FROM document_items WHERE id = ?1")?;
             let mut rows = stmt.query(params![child])?;
             let row = rows.next()?.unwrap();
             let document_item = get_document_item_from_query_result(&row);
@@ -313,4 +351,77 @@ pub fn is_document_item_child_of(conn: &Connection, id: i64, parent_id: i64) -> 
         count += 1;
     }
     Ok(false)
+}
+
+// 首先获取所有的文档项，对于每一个文档项，判断是否有某个文档项的 children 包含该文档项的 id，如果有，则将该文档添加到这个文档的 parents 中
+pub fn init_all_document_item_parents(conn: &Connection) -> Result<()> {
+    // 统计执行时间
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete, parents FROM document_items WHERE is_delete = 0")?;
+    let mut rows = stmt.query([])?;
+    let mut all_document_items = Vec::new();
+    while let Some(row) = rows.next()? {
+        let document_item = get_document_item_from_query_result(&row);
+        all_document_items.push(document_item);
+    }
+
+    // 对于每一个文档项，判断是否有某个文档项的 children 包含该文档项的 id，如果有，则将该文档添加到这个文档的 parents 中
+    for document_item in all_document_items.iter() {
+        let document_item_id = document_item.id;
+        let mut parents = Vec::new();
+        for parent_document_item in all_document_items.iter() {
+            if parent_document_item.children.contains(&document_item_id) {
+                parents.push(parent_document_item.id);
+            }
+        }
+        let mut stmt = conn.prepare("UPDATE document_items SET parents = ?1 WHERE id = ?2")?;
+        let parents_str = serde_json::to_string(&parents).unwrap();
+        stmt.execute(params![parents_str, document_item_id])?;
+    }
+    let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+    println!("init_all_document_item_parents 耗时: {} ms", end - now);
+    Ok(())
+}
+
+pub fn init_document_item_parents_by_ids(conn: &Connection, ids: Vec<i64>) -> Result<()> {
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete, parents FROM document_items WHERE is_delete = 0")?;
+    let mut rows = stmt.query([])?;
+    let mut all_document_items = Vec::new();
+    while let Some(row) = rows.next()? {
+        let document_item = get_document_item_from_query_result(&row);
+        all_document_items.push(document_item);
+    }
+
+    for id in ids {
+        let mut parents = Vec::new();
+        for parent_document_item in all_document_items.iter() {
+            if parent_document_item.children.contains(&id) {
+                parents.push(parent_document_item.id);
+            }
+        }
+        let mut stmt = conn.prepare("UPDATE document_items SET parents = ?1 WHERE id = ?2")?;
+        let parents_str = serde_json::to_string(&parents).unwrap();
+        stmt.execute(params![parents_str, id])?;
+    }
+
+    Ok(())
+}
+
+pub fn get_document_item_all_parents(conn: &Connection, id: i64) -> Result<Vec<i64>> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+    let mut res = Vec::new();
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete, parents FROM document_items WHERE id = ?1")?;
+    let mut rows = stmt.query(params![id])?;
+    let row = rows.next()?.unwrap();
+    let document_item = get_document_item_from_query_result(&row);
+    res.extend(document_item.parents.clone());
+    if res.len() > 0 {
+        for parent_id in document_item.parents {
+            let result = get_document_item_all_parents(conn, parent_id)?;
+            res.extend(result);
+        }
+    }
+    let end = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
+    println!("get_document_item_all_parents 耗时: {} ms", end - now);
+    Ok(res)
 }

@@ -114,6 +114,7 @@ const Document = (props: IDocumentProps) => {
               <DocumentItem
                 key={itemId}
                 path={[index]}
+                parentChildren={children}
                 onParentDeleteChild={onRemoveDocumentItem}
                 onParentAddChild={onAddDocumentItemWithPosition}
                 onParentMoveChild={onMoveDocumentItem}

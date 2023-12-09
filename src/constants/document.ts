@@ -1,4 +1,4 @@
-import {ICreateDocument, ICreateDocumentItem} from "@/types";
+import { ICreateDocument, ICreateDocumentItem } from "@/types";
 
 export const DEFAULT_CREATE_DOCUMENT: ICreateDocument = {
   title: '',
@@ -29,4 +29,5 @@ export const DEFAULT_CREATE_DOCUMENT_ITEM: ICreateDocumentItem = {
   }],
   bannerBg: '',
   icon: '',
+  parents: [],
 }

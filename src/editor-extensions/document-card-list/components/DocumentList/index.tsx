@@ -29,7 +29,6 @@ const DocumentList = (props: IProps) => {
   useAsyncEffect(async () => {
     if (!documentItemId) return;
     const documentItem = await getDocumentItem(documentItemId);
-    console.log('documentItem', documentItem);
     if (!documentItem) return;
     const { children } = documentItem;
 
@@ -52,7 +51,6 @@ const DocumentList = (props: IProps) => {
       </div>
     )
   }
-
 
   return (
     <div className={styles.list}>

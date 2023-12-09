@@ -133,9 +133,42 @@ export const getDocumentItemsByIds = async (ids: number[]): Promise<IDocumentIte
   }));
 }
 
+export const getAllDocumentItems = async (): Promise<IDocumentItem[]> => {
+  const list: any[] = await invoke('get_all_document_items');
+  return list.map((item) => ({
+    ...item,
+    content: JSON.parse(item.content),
+    isDelete: item.is_delete,
+    createTime: item.create_time,
+    updateTime: item.update_time,
+    bannerBg: item.banner_bg,
+    isDirectory: item.is_directory,
+    isArticle: item.is_article,
+    isCard: item.is_card,
+    articleId: item.article_id,
+    cardId: item.card_id,
+  }));
+}
+
 export const isDocumentItemChildOf = async (id: number, parentId: number): Promise<boolean> => {
   return await invoke('is_document_item_child_of', {
     id,
     parentId
+  });
+}
+
+export const initAllDocumentItemParents = async (): Promise<void> => {
+  await invoke('init_all_document_item_parents');
+}
+
+export const initDocumentItemParentsByIds = async (ids: number[]): Promise<void> => {
+  await invoke('init_document_item_parents_by_ids', {
+    ids
+  });
+}
+
+export const getDocumentItemAllParents = async (id: number): Promise<number[]> => {
+  return await invoke('get_document_item_all_parents', {
+    id
   });
 }

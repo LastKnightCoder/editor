@@ -10,6 +10,10 @@ import styles from './index.module.less';
 
 import useSyncFont from "./hooks/useSyncFont.ts";
 import useSettingStore from "@/stores/useSettingStore.ts";
+import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+
 
 const Management = () => {
   const {
@@ -18,9 +22,30 @@ const Management = () => {
     initSetting: state.initSetting,
   }));
 
+  const {
+    initArticles
+  } = useArticleManagementStore(state => ({
+    initArticles: state.init
+  }));
+
+  const {
+    initCards,
+  } = useCardsManagementStore((state) => ({
+    initCards: state.init,
+  }));
+
+  const {
+    initDocuments,
+  } = useDocumentsStore(state => ({
+    initDocuments: state.init,
+  }));
+
   useEffect(() => {
     initSetting();
-  }, [initSetting]);
+    initArticles().then();
+    initCards().then();
+    initDocuments().then();
+  }, [initSetting, initArticles, initCards, initDocuments]);
 
   useSyncFont();
 
