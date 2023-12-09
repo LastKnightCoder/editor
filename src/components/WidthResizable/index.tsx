@@ -1,17 +1,15 @@
-import React, { useCallback, useEffect, useState, PropsWithChildren } from 'react';
-import { useMouse, useMemoizedFn } from "ahooks";
+import React, { useEffect, useState, PropsWithChildren } from 'react';
 import classnames from "classnames";
 
 import styles from './index.module.less';
+import { useMemoizedFn } from "ahooks";
 
 interface IWidthResizableProps {
   defaultWidth: number;
   minWidth?: number;
   maxWidth?: number;
   onResize?: (width: number) => void;
-  shrinkAble?: boolean;
   className?: string;
-  hide?: boolean;
   style?: React.CSSProperties;
 }
 
@@ -22,8 +20,6 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     maxWidth,
     onResize,
     className,
-    shrinkAble = false,
-    hide = false,
     style = {}
   } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -33,42 +29,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     if (maxWidth && defaultWidth > maxWidth) return maxWidth;
     return defaultWidth;
   });
-  const widthBeforeHide = React.useRef<number>(width);
   const [isResizing, setIsResizing] = useState<boolean>(false);
-
-  const mouse = useMouse(containerRef.current);
-
-  const hideEle = useMemoizedFn(() => {
-    widthBeforeHide.current = width;
-    if (!containerRef.current) return;
-    containerRef.current.animate([
-      { width: `${width}px` },
-      { width: '0px' },
-    ], {
-      duration: 200,
-      iterations: 1,
-      fill: 'forwards',
-    });
-    containerRef.current.style.overflow = 'hidden';
-  });
-
-  const showEle = useMemoizedFn(() => {
-    if (!containerRef.current) return;
-    containerRef.current.style.overflow = 'auto';
-    containerRef.current.animate([
-      { width: '0px' },
-      { width: `${widthBeforeHide.current}px` },
-    ], {
-      duration: 200,
-      iterations: 1,
-      fill: 'forwards',
-    })
-  });
-
-  useEffect(() => {
-    if (hide) hideEle();
-    else showEle();
-  }, [hide, hideEle, showEle]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     setIsResizing(true);
@@ -76,15 +37,21 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     e.preventDefault();
   }
 
-  const handleMouseMove = useCallback(() => {
+  const handleMouseMove = useMemoizedFn((e: MouseEvent) => {
     if (isResizing) {
-      const newWidth = mouse.elementX;
-      // if (minWidth && newWidth < minWidth) return;
-      // if (maxWidth && newWidth > maxWidth) return;
+      const container = containerRef.current;
+      if (!container) return;
+      let newWidth = e.clientX - container.getBoundingClientRect().left;
+      if (minWidth && newWidth < minWidth) {
+        newWidth = minWidth;
+      }
+      if (maxWidth && newWidth > maxWidth) {
+        newWidth = maxWidth;
+      }
       setWidth(newWidth);
       if (onResize) onResize(newWidth);
     }
-  }, [isResizing, mouse.elementX, minWidth, maxWidth, onResize])
+  })
 
   const handleMouseUp = () => {
     setIsResizing(false);
@@ -101,15 +68,19 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
 
   return (
     <div
-      className={classnames(styles.widthResizable, { [styles.shrink]: shrinkAble }, className)}
-      style={{ ...style, width, minWidth, maxWidth }}
+      className={classnames(styles.widthResizable, className)}
+      style={{
+        ...style,
+        width,
+        minWidth,
+        maxWidth
+    }}
       ref={containerRef}
     >
       {props.children}
       <div
         className={styles.resizeBar}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       />
     </div>

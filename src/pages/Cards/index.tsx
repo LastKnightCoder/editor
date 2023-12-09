@@ -1,7 +1,6 @@
-import { memo, useEffect } from "react";
+import { memo } from "react";
 import { motion } from 'framer-motion';
 import classnames from "classnames";
-import isHotkey from "is-hotkey";
 
 import If from "@/components/If";
 
@@ -11,6 +10,7 @@ import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import Sidebar from "./Sidebar";
 import CardsManagement from "./CardsManagement";
 import useCardManagement from "./hooks/useCardManagement.ts";
+import WidthResizable from "@/components/WidthResizable";
 
 import styles from './index.module.less';
 
@@ -18,25 +18,19 @@ const Cards = memo(() => {
 
   const {
     sidebarOpen,
+    sidebarWidth,
   } = useGlobalStateStore(state => ({
     sidebarOpen: state.sidebarOpen,
+    sidebarWidth: state.sidebarWidth,
   }));
+
 
   const sidebarVariants = {
     open: {
-      width: 300,
+      width: sidebarWidth,
     },
     close: {
       width: 0,
-    }
-  }
-
-  const contentVariants = {
-    open: {
-      width: 'calc(100% - 300px)',
-    },
-    close: {
-      width: '100%',
     }
   }
 
@@ -54,41 +48,32 @@ const Cards = memo(() => {
     activeSide,
   } = useCardManagement();
 
-  // 监听快捷键 mod + left 隐藏列表，mod + right 显示列表
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isHotkey('mod+left', e)) {
-        useGlobalStateStore.setState({
-          sidebarOpen: false,
-        })
-        e.preventDefault();
-      }
-      if (isHotkey('mod+right', e)) {
-        useGlobalStateStore.setState({
-          sidebarOpen: true,
-        });
-        e.preventDefault();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, []);
-
   return (
     <motion.div animate={sidebarOpen ? 'open' : 'close'} className={classnames(styles.cardsContainer)}>
-      <motion.div initial={false} variants={sidebarVariants} className={classnames(styles.sidebar)}>
-        <Sidebar
-          editingCardId={activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId}
-          onCreateCard={onCreateCard}
-          onDeleteCard={onDeleteCard}
-          onClickCard={onClickCard}
-        />
+      <motion.div style={{ flexBasis: sidebarWidth }} initial={false} variants={sidebarVariants} className={classnames(styles.sidebar)}>
+        <WidthResizable
+          defaultWidth={sidebarWidth}
+          minWidth={200}
+          maxWidth={500}
+          onResize={(width) => {
+            useGlobalStateStore.setState({
+              sidebarWidth: width,
+            });
+            localStorage.setItem('sidebarWidth', String(width));
+          }}
+          style={{
+            height: '100%'
+          }}
+        >
+          <Sidebar
+            editingCardId={activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId}
+            onCreateCard={onCreateCard}
+            onDeleteCard={onDeleteCard}
+            onClickCard={onClickCard}
+          />
+        </WidthResizable>
       </motion.div>
-      <motion.div initial={false} variants={contentVariants} className={styles.content}>
+      <motion.div initial={false}  className={styles.content}>
         <div className={styles.cardsPanel}>
           <If condition={leftCardIds.length > 0}>
             <CardsManagement

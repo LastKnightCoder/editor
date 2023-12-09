@@ -12,6 +12,7 @@ import useSearch from "../hooks/useSearch.ts";
 import useLoadMore from "@/hooks/useLoadMore.ts";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 import styles from "./index.module.less";
 
@@ -34,6 +35,12 @@ const Sidebar = (props: ISidebarProps) => {
   } = useCardsManagementStore((state) => ({
     cards: state.cards,
     loading: state.initLoading,
+  }));
+
+  const {
+    sidebarWidth,
+  } = useGlobalStateStore((state) => ({
+    sidebarWidth: state.sidebarWidth,
   }));
 
   const scrollToTop = () => {
@@ -74,7 +81,9 @@ const Sidebar = (props: ISidebarProps) => {
   }]
 
   return (
-    <div className={styles.sidebar}>
+    <div className={styles.sidebar} style={{
+      width: sidebarWidth,
+    }}>
       <div className={styles.header}>
         <div className={styles.total}>
           <div className={styles.number} style={{ overflow: 'hide', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>总数：{filterCards.length}</div>

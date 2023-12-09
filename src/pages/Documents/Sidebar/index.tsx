@@ -9,7 +9,8 @@ import EditDocumentModal from "./EditDocumentModal";
 import DocumentList from "./DocumentList";
 import Document from "./Document";
 import styles from './index.module.less';
-import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
+import { useMemoizedFn } from "ahooks";
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 const Sidebar = () => {
   const [editDocumentModalOpen, setEditDocumentModalOpen] = useState<boolean>(false);
@@ -26,6 +27,12 @@ const Sidebar = () => {
     activeDocumentId: state.activeDocumentId,
   }));
 
+  const {
+    sidebarWidth,
+  } = useGlobalStateStore(state => ({
+    sidebarWidth: state.sidebarWidth,
+  }))
+
   const activeDocument = documents.find(document => document.id === activeDocumentId);
 
   const onEditFinish = useMemoizedFn(async (document: ICreateDocument) => {
@@ -37,13 +44,6 @@ const Sidebar = () => {
     setEditDocumentModalOpen(false);
   });
 
-  useWhyDidYouUpdate('Sidebar', {
-    documents,
-    loading,
-    activeDocumentId,
-    onEditFinish,
-  })
-
   if (loading) {
     return (
       <Skeleton active />
@@ -52,7 +52,7 @@ const Sidebar = () => {
 
   if (documents.length === 0) {
     return (
-      <div className={styles.empty}>
+      <div style={{ width: sidebarWidth }} className={styles.empty}>
         <Empty description={'暂无文档'} />
         <Button type={'primary'} onClick={() => { setEditDocumentModalOpen(true) }}>新建文档</Button>
         <EditDocumentModal
@@ -68,7 +68,7 @@ const Sidebar = () => {
   }
 
   return (
-    <div className={styles.sidebarContainer}>
+    <div style={{ width: sidebarWidth }} className={styles.sidebarContainer}>
       {
         activeDocument ? (
           <Document document={activeDocument} />
