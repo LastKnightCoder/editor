@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::state;
 use crate::database::card;
 
@@ -62,10 +63,18 @@ pub fn get_tags_by_id(id: i64, app_state: tauri::State<state::AppState>) -> Resu
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {
-            match card::get_tags_by_card_id(&conn, id) {
-                Ok(tags) => Ok(tags),
-                Err(_e) => Ok(vec![]),
-            }
+            card::get_tags_by_card_id(&conn, id).map_err(|e| e.to_string())
+        }
+        None => Err("Database connection not initialized".to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn get_cards_group_by_tag(app_state: tauri::State<state::AppState>) -> Result<HashMap<String, Vec<card::Card>>, String> {
+    let conn = app_state.db.lock().unwrap();
+    match &*conn {
+        Some(conn) => {
+            card::get_cards_group_by_tag(&conn).map_err(|e| e.to_string())
         }
         None => Err("Database connection not initialized".to_string()),
     }

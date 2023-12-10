@@ -1,9 +1,10 @@
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
 use super::operation::{insert_operation};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Card {
     pub id: i64,
     pub create_time: i64,
@@ -133,4 +134,25 @@ pub fn get_tags_by_card_id(conn: &Connection, card_id: i64) -> Result<Vec<String
     let tags: String = row.get(0).unwrap();
     let tags: Vec<String> = serde_json::from_str(&tags).unwrap();
     Ok(tags)
+}
+
+// 根据 tag 中的而每个 tag 对卡片进行分组，忽略大小写，返回一个 HashMap，tag 为 key，对应的卡片数组为 value
+// 要查询所有的卡片才能获得 tags
+pub fn get_cards_group_by_tag(conn: &Connection) -> Result<HashMap<String, Vec<Card>>> {
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, tags, links, content FROM cards")?;
+    let mut rows = stmt.query([])?;
+    let mut res: HashMap<String, Vec<Card>> = HashMap::new();
+    while let Some(row) = rows.next()? {
+        let card = get_card_from_query_result(&row);
+        for tag in &card.tags {
+            let tag = tag.to_lowercase();
+            if res.contains_key(&tag) {
+                let cards = res.get_mut(&tag).unwrap();
+                cards.push(card.clone());
+            } else {
+                res.insert(tag, vec![card.clone()]);
+            }
+        }
+    }
+    Ok(res)
 }

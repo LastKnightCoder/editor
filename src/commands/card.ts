@@ -65,3 +65,20 @@ export async function getCardHistory(id: number, pageNumber: number, pageSize: n
 export async function getCardOperationList() {
   return await invoke('get_operation_list');
 }
+
+export async function getCardsGroupByTag(): Promise<Record<string, ICard[]>> {
+  const res: any = await invoke('get_cards_group_by_tag');
+
+  for (const key in res) {
+    if (Object.prototype.hasOwnProperty.call(res, key)) {
+      res[key] = res[key].map((item: any) => {
+        return {
+          ...item,
+          content: JSON.parse(item.content),
+        }
+      })
+    }
+  }
+
+  return res;
+}

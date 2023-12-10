@@ -35,9 +35,11 @@ const EditDoc = () => {
   const {
     activeDocumentItem,
     saveDocument,
+    onInit,
     onContentChange,
     onTitleChange,
     initValue,
+    wordsCount,
   } = useEditDoc();
 
   const uploadImage = useUploadImage();
@@ -121,6 +123,7 @@ const EditDoc = () => {
             readonly={readonly}
             uploadImage={uploadImage}
             extensions={extensions}
+            onInit={onInit}
           />
         </div>
         <If condition={headers.length > 0}>
@@ -134,6 +137,13 @@ const EditDoc = () => {
         </If>
       </div>
       <div className={styles.statusBar}>
+        <div style={{
+          lineHeight: '20px',
+          fontSize: 14,
+          opacity: .8
+        }}>
+          <div>字数：{wordsCount}</div>
+        </div>
         <div className={styles.item}>
           {
             readonly ? (

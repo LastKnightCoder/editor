@@ -51,6 +51,7 @@
     "slate-react": "^0.97.0",
     "swiper": "^11.0.3",
     "uuid": "^9.0.0",
+    "words-count": "^2.0.2",
     "zustand": "^4.3.8"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
-import {createContext, useEffect, useRef, useState} from "react";
-import { Descendant } from "slate";
+import {createContext, useEffect, useRef, useState } from "react";
+import { Descendant, Editor as SlateEditor } from "slate";
 
 import Editor, { EditorRef } from '@/components/Editor';
 import AddTag from "@/components/AddTag";
@@ -14,13 +14,14 @@ import { ICard } from "@/types";
 import { formatDate } from "@/utils/time.ts";
 
 import styles from './index.module.less';
-import {useWhyDidYouUpdate} from "ahooks";
+import { useWhyDidYouUpdate } from "ahooks";
 
 const customExtensions = [cardLinkExtension];
 
 interface IEditCardProps {
   readonly: boolean;
   editingCard: ICard;
+  onInit?: (editor: SlateEditor, content: Descendant[]) => void;
   onContentChange: (value: Descendant[]) => void;
   onAddTag: (tag: string) => void;
   onDeleteTag: (tag: string) => void;
@@ -33,6 +34,7 @@ const EditCard = (props: IEditCardProps) => {
   const {
     readonly = false,
     editingCard,
+    onInit,
     onContentChange,
     onAddTag,
     onDeleteTag,
@@ -74,6 +76,7 @@ const EditCard = (props: IEditCardProps) => {
             <Editor
               key={editingCard.id}
               ref={editorRef}
+              onInit={onInit}
               initValue={initValue}
               onChange={onContentChange}
               extensions={customExtensions}

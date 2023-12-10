@@ -20,6 +20,7 @@ interface ICardItem2Props {
   active?: boolean;
   settings?: ISettingItem[];
   maxRows?: number;
+  showLine?: boolean;
 }
 
 const CardItem2 = (props: ICardItem2Props) => {
@@ -30,6 +31,7 @@ const CardItem2 = (props: ICardItem2Props) => {
     active = false,
     settings = [],
     maxRows = 2,
+    showLine = true,
   } = props;
 
   const { content, tags } = card;
@@ -37,7 +39,7 @@ const CardItem2 = (props: ICardItem2Props) => {
   const [settingPanelOpen, setSettingPanelOpen] = useState(false);
 
   return (
-    <div className={classnames(styles.itemContainer, { [styles.active]: active })} onClick={onClick}>
+    <div className={classnames(styles.itemContainer, { [styles.active]: active, [styles.showLine]: showLine })} onClick={onClick}>
       <If condition={showTags}>
         <Tags tags={tags} showIcon className={styles.tags} />
       </If>

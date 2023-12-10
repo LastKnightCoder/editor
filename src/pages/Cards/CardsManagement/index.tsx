@@ -56,11 +56,13 @@ const CardsManagement = (props: ICardsManagementProps) => {
     editingCard,
     loading,
     saveCard,
+    onInit,
     onContentChange,
     onAddTag,
     onDeleteTag,
     onAddLink,
     onRemoveLink,
+    wordsCount,
   } = useEditCard(activeCardId);
 
   const getCardLinks = useMemoizedFn((card: ICard) => {
@@ -96,6 +98,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
                       key={editingCard.id}
                       readonly={readonly}
                       editingCard={editingCard}
+                      onInit={onInit}
                       onContentChange={onContentChange}
                       onAddTag={onAddTag}
                       onDeleteTag={onDeleteTag}
@@ -111,26 +114,25 @@ const CardsManagement = (props: ICardsManagementProps) => {
       <If condition={!!activeCardId}>
         <div className={styles.statusBar}>
           <div>
-            <If condition={!!activeCardId}>
-              <Tooltip title={'关联图谱'}>
-                <PiGraph
-                  style={{ transform: 'translateY(1.5px)' }}
-                  className={styles.icon}
-                  onClick={() => setLinkGraphOpen(true)}
-                />
-              </Tooltip>
-            </If>
+            <div>字数：{wordsCount}</div>
           </div>
           <div>
-            <If condition={!!activeCardId}>
-              <Tooltip title={'关联列表'}>
-                <PiListBullets
-                  style={{ transform: 'translateY(1.5px)' }}
-                  className={styles.icon}
-                  onClick={() => setLinkListOpen(true)}
-                />
-              </Tooltip>
-            </If>
+            <Tooltip title={'关联图谱'}>
+              <PiGraph
+                style={{ transform: 'translateY(1.5px)' }}
+                className={styles.icon}
+                onClick={() => setLinkGraphOpen(true)}
+              />
+            </Tooltip>
+          </div>
+          <div>
+            <Tooltip title={'关联列表'}>
+              <PiListBullets
+                style={{ transform: 'translateY(1.5px)' }}
+                className={styles.icon}
+                onClick={() => setLinkListOpen(true)}
+              />
+            </Tooltip>
           </div>
           <div>
             {
@@ -146,15 +148,13 @@ const CardsManagement = (props: ICardsManagementProps) => {
             }
           </div>
           <div>
-            <If condition={!!activeCardId}>
-              <Tooltip title={'源码'}>
-                <MdOutlineCode
-                  className={styles.icon}
-                  style={{ transform: 'scale(1.2)', transformOrigin: 'center top' }}
-                  onClick={() => setSourceValueOpen(true)}
-                />
-              </Tooltip>
-            </If>
+            <Tooltip title={'源码'}>
+              <MdOutlineCode
+                className={styles.icon}
+                style={{ transform: 'scale(1.2)', transformOrigin: 'center top' }}
+                onClick={() => setSourceValueOpen(true)}
+              />
+            </Tooltip>
           </div>
         </div>
       </If>

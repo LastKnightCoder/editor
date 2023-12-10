@@ -54,11 +54,12 @@ export type EditorRef = {
 
 interface IEditorProps {
   initValue?: Descendant[];
-  onChange?: (value: Descendant[]) => void;
+  onChange?: (value: Descendant[], editor?: Editor) => void;
   readonly?: boolean;
   extensions?: IExtension[];
   hoveringBarConfigs?: IConfigItem[];
   uploadImage?: (file: File) => Promise<string | null>;
+  onInit?: (editor: Editor, content: Descendant[]) => void;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -76,6 +77,7 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
     extensions,
     hoveringBarConfigs,
     uploadImage,
+    onInit,
   } = props;
 
   const finalExtensions = useMemo(() => {
@@ -115,6 +117,7 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
   }}, []);
 
   const [isNormalized, setIsNormalized] = useState(false);
+  const [isInit, setIsInit] = useState(false);
 
   useEffect(() => {
     if (!isNormalized) {
@@ -155,11 +158,17 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
     isFocus: () => {
       return ReactEditor.isFocused(editor);
     }
-  }));
+  }), [editor]);
 
   const handleOnChange = (value: Descendant[]) => {
-    onChange && onChange(value);
+    onChange && onChange(value, editor);
   }
+
+  useEffect(() => {
+    if (isInit || !editor) return;
+    onInit && onInit(editor, initValue);
+    setIsInit(true);
+  }, [editor, initValue, isInit, onInit]);
 
   return (
     <EditorContext.Provider value={{

@@ -1,15 +1,17 @@
-import { Descendant } from "slate";
+import { Descendant, Editor } from "slate";
 import { useEffect, useState, useRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from 'ahooks';
 import { produce } from 'immer';
 import useCardsManagementStore from '@/stores/useCardsManagementStore.ts';
 import { ICard } from "@/types";
+import { getEditorTextLength } from "@/utils";
 
 const useEditCard = (cardId: number | undefined) => {
   const [loading, setLoading] = useState(false);
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
   const prevCard = useRef<ICard | null>(null);
   const cardChanged = useRef(false);
+  const [wordsCount, setWordsCount] = useState(0);
 
   const timer = useRef<number>();
 
@@ -53,7 +55,14 @@ const useEditCard = (cardId: number | undefined) => {
     });
   });
 
-  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+  const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
+    console.log('editor', editor, content, 'init');
+    if (!editor) return;
+    const wordsCount = getEditorTextLength(editor, content);
+    setWordsCount(wordsCount);
+  });
+
+  const onContentChange = useMemoizedFn((content: Descendant[], editor?: Editor) => {
     if (timer.current) {
       clearTimeout(timer.current);
     }
@@ -66,6 +75,10 @@ const useEditCard = (cardId: number | undefined) => {
     timer.current = setTimeout(() => {
       saveCard();
     }, 1000);
+    if (!editor) return;
+    console.log('editor', editor);
+    const wordsCount = getEditorTextLength(editor, content);
+    setWordsCount(wordsCount);
   })
 
   const onAddTag = useMemoizedFn((tag: string) => {
@@ -119,11 +132,13 @@ const useEditCard = (cardId: number | undefined) => {
     loading,
     editingCard,
     saveCard,
+    onInit,
     onContentChange,
     onAddTag,
     onDeleteTag,
     onAddLink,
     onRemoveLink,
+    wordsCount,
   }
 }
 
