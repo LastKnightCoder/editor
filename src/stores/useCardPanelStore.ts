@@ -22,6 +22,7 @@ interface IActions {
   addCardToSide: (cardId: number, side: EActiveSide) => void;
   dragCard: (dragCardId: number, dropCardId: number) => void;
   dragCardToTabContainer: (dragCardId: number, side: EActiveSide, last?: boolean) => void;
+  closeOtherTabs: (cardId: number, side: EActiveSide) => void;
 }
 
 const initState: IState = {
@@ -234,6 +235,18 @@ const useCardPanelStore = create<IState & IActions>((set, get) => ({
         });
       }
     }
+  },
+  closeOtherTabs: (cardId, side) => {
+    const { leftCardIds, rightCardIds } = get();
+    const cards = side === EActiveSide.Left ? leftCardIds : rightCardIds;
+    const cardsKey = side === EActiveSide.Left ? 'leftCardIds' : 'rightCardIds';
+    const activeCardKey = side === EActiveSide.Left ? 'leftActiveCardId' : 'rightActiveCardId';
+    const nextActiveCardId = cards.find(id => id === cardId);
+    set({
+      [cardsKey]: [cardId],
+      [activeCardKey]: nextActiveCardId,
+      activeSide: side,
+    });
   }
 }));
 

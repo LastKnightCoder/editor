@@ -2,7 +2,7 @@ import { useMemoizedFn } from 'ahooks';
 import { App } from "antd";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-import useCardPanelStore from "@/stores/useCardPanelStore.ts";
+import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore.ts";
 
 const useCardManagement = () => {
   const {
@@ -22,6 +22,7 @@ const useCardManagement = () => {
     addCard,
     removeCard,
     moveCard,
+    closeOtherTabs,
   } = useCardPanelStore((state) => ({
     leftCardIds: state.leftCardIds,
     rightCardIds: state.rightCardIds,
@@ -31,6 +32,7 @@ const useCardManagement = () => {
     removeCard: state.removeCard,
     moveCard: state.moveCard,
     activeSide: state.activeSide,
+    closeOtherTabs: state.closeOtherTabs,
   }));
 
   const { modal } = App.useApp();
@@ -97,6 +99,10 @@ const useCardManagement = () => {
     moveCard(cardId);
   });
 
+  const onCloseOtherTabs = useMemoizedFn((id: number, side: EActiveSide) => {
+    closeOtherTabs(id, side);
+  });
+
   return {
     leftCardIds,
     leftActiveCardId,
@@ -109,6 +115,7 @@ const useCardManagement = () => {
     onDeleteCard,
     onMoveCard,
     activeSide,
+    onCloseOtherTabs,
   }
 }
 

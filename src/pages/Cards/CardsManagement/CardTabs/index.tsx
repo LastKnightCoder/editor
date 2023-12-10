@@ -22,6 +22,7 @@ interface ICardTabsProps {
   activeCardId?: number;
   side: EActiveSide;
   onClickTab: (id: number) => void;
+  onCloseOtherTabs: (id: number, side: EActiveSide) => void;
   onCloseTab: (id: number) => void;
   onMoveCard: (cardId: number) => void;
 }
@@ -41,7 +42,15 @@ const CardTabs = (props: ICardTabsProps) => {
   } = useCardPanelStore((state) => ({
     dragCardToTabContainer: state.dragCardToTabContainer,
   }));
-  const { cardIds, activeCardId, side, onClickTab, onCloseTab, onMoveCard } = props;
+  const {
+    cardIds,
+    activeCardId,
+    side,
+    onClickTab,
+    onCloseTab,
+    onMoveCard,
+    onCloseOtherTabs
+  } = props;
 
   const tabCards = useMemo(() => {
     const tabCards =  cardIds.map(id => cards.find(card => card.id === id)).filter(card => !!card) as ICard[];
@@ -201,6 +210,17 @@ const CardTabs = (props: ICardTabsProps) => {
               }}
             >
               移动到另一侧
+            </div>
+            <div
+              className={styles.item}
+              onClick={() => {
+                setShowContextMenu(false);
+                if (rightClickCardId) {
+                  onCloseOtherTabs(rightClickCardId, side);
+                }
+              }}
+            >
+              关闭其它卡片
             </div>
           </div>
         </Portal>

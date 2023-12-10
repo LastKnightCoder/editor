@@ -28,6 +28,7 @@ interface ICardsManagementProps {
   onClickTab: (id: number) => void;
   onCloseTab: (id: number) => void;
   onMoveCard: (cardId: number) => void;
+  onCloseOtherTabs: (id: number, side: EActiveSide) => void;
 }
 
 const CardsManagement = (props: ICardsManagementProps) => {
@@ -39,6 +40,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
     onCloseTab,
     onClickTab,
     onMoveCard,
+    onCloseOtherTabs,
   } = props;
 
   const {
@@ -85,6 +87,9 @@ const CardsManagement = (props: ICardsManagementProps) => {
           onClickTab={onClickTab}
           onCloseTab={onCloseTab}
           onMoveCard={onMoveCard}
+          onCloseOtherTabs={(id) => {
+            onCloseOtherTabs(id, side);
+          }}
         />
         {
           activeCardId && (

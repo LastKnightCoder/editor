@@ -1,5 +1,5 @@
 import { useMemoizedFn } from "ahooks";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import { useAnimate } from "framer-motion";
 
@@ -12,6 +12,8 @@ const useDragAndHideSidebar = () => {
     sidebarWidth: state.sidebarWidth,
   }));
 
+  const first = useRef(true);
+
   const [scope, animate] = useAnimate();
 
   const handleSidebarOpenChange = useMemoizedFn((open: boolean) => {
@@ -23,8 +25,11 @@ const useDragAndHideSidebar = () => {
     } else {
       animate(scope.current, {
         width: 0,
+      }, {
+        duration: first.current ? 0 : 0.3,
       })
     }
+    first.current = false;
   });
 
   const handleSidebarWidthChange = useMemoizedFn((width: number) => {

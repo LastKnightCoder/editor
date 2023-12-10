@@ -36,6 +36,7 @@ const Cards = memo(() => {
     onCloseTab,
     onMoveCard,
     activeSide,
+    onCloseOtherTabs,
   } = useCardManagement();
 
   return (
@@ -74,6 +75,7 @@ const Cards = memo(() => {
               onClickTab={onClickTab}
               onCloseTab={onCloseTab}
               onMoveCard={onMoveCard}
+              onCloseOtherTabs={onCloseOtherTabs}
             />
           </If>
           <If condition={rightCardIds.length > 0}>
@@ -85,6 +87,7 @@ const Cards = memo(() => {
               onClickTab={onClickTab}
               onCloseTab={onCloseTab}
               onMoveCard={onMoveCard}
+              onCloseOtherTabs={onCloseOtherTabs}
             />
           </If>
         </div>
