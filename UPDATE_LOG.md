@@ -169,7 +169,5 @@
 
 - feat: sidebar 宽度可拖动，所有地方的宽度一致
 - feat: 支持字数统计
-- feat: 文章编辑支持自动保存
-- feat: 文章编辑支持 statusbar
 - feat: 卡片支持标签系统
 - fix: sidebar 拖拽和隐藏冲突修复
