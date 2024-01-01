@@ -118,7 +118,7 @@ pub fn create_article(
     content: String, 
     banner_bg: String, 
     is_top: bool
-) -> Result<i64> {
+) -> Result<Article> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
     let mut stmt = conn.prepare("INSERT INTO articles (title, author, create_time, update_time, tags, links, content, banner_bg, is_top) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)")?;
     let tags_str = serde_json::to_string(&tags).unwrap();
@@ -127,7 +127,11 @@ pub fn create_article(
 
     insert_operation(conn, res, "article".to_string(), "insert".to_string())?;
 
-    Ok(res)
+    // 根据 id 查询插入的文章，返回
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, author, tags, links, content, banner_bg, is_top, is_delete FROM articles WHERE id = ?1")?;
+    let mut rows = stmt.query(params![res])?;
+    let row = rows.next()?.unwrap();
+    Ok(get_article_from_query_result(&row))
 }
 
 pub fn update_article(
@@ -139,7 +143,7 @@ pub fn update_article(
     content: String,
     banner_bg: String,
     is_top: bool,
-) -> Result<usize> {
+) -> Result<Article> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
     let mut stmt = conn.prepare("UPDATE articles SET title = ?1, author = ?2, update_time = ?3, tags = ?4, links = ?5, content = ?6, banner_bg = ?7, is_top = ?8 WHERE id = ?9")?;
     let tags_str = serde_json::to_string(&tags).unwrap();
@@ -152,7 +156,11 @@ pub fn update_article(
     let mut stmt = conn.prepare("UPDATE document_items SET update_time = ?1, content = ?2, title = ?3 WHERE is_article = 1 AND article_id = ?4")?;
     stmt.execute(params![now as i64, content, title, id])?;
 
-    Ok(res)
+    // 查询刚刚更新的文章，然后返回
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, author, tags, links, content, banner_bg, is_top, is_delete FROM articles WHERE id = ?1")?;
+    let mut rows = stmt.query(params![id])?;
+    let row = rows.next()?.unwrap();
+    Ok(get_article_from_query_result(&row))
 }
 
 pub fn find_article(conn: &Connection, id: i64) -> Result<Article> {

@@ -5,14 +5,14 @@ import Paragraph from "./components/Paragraph";
 
 import Base from '../base';
 import IExtension from "../types";
-import { inlineCode } from "./plugins";
+import { inlineCode, normalizeParagraph } from "./plugins";
 import hoveringBarElements from "./hovering-bar-configs";
 
 class ParagraphExtension extends Base implements IExtension {
   override type = 'paragraph';
 
   override getPlugins() {
-    return [inlineCode]
+    return [inlineCode, normalizeParagraph]
   }
   
   override getHoveringBarElements() {

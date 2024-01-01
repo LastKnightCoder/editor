@@ -2,6 +2,7 @@ import { Descendant, Editor } from "slate";
 import { useEffect, useState, useRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from 'ahooks';
 import { produce } from 'immer';
+
 import useCardsManagementStore from '@/stores/useCardsManagementStore.ts';
 import { ICard } from "@/types";
 import { getEditorTextLength } from "@/utils";
@@ -56,7 +57,6 @@ const useEditCard = (cardId: number | undefined) => {
   });
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
-    console.log('editor', editor, content, 'init');
     if (!editor) return;
     const wordsCount = getEditorTextLength(editor, content);
     setWordsCount(wordsCount);
@@ -76,7 +76,6 @@ const useEditCard = (cardId: number | undefined) => {
       saveCard();
     }, 1000);
     if (!editor) return;
-    console.log('editor', editor);
     const wordsCount = getEditorTextLength(editor, content);
     setWordsCount(wordsCount);
   })

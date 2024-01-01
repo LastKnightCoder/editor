@@ -1,77 +1,82 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { motion } from 'framer-motion';
-import { FloatButton, Spin, Empty, App } from "antd";
-import { useNavigate } from "react-router-dom";
-import dayjs from "dayjs";
+import { FloatButton, Spin, Empty } from "antd";
+import { useRafInterval } from 'ahooks';
 
-import { CalendarOutlined, EditOutlined, ReadOutlined, UpOutlined, SaveOutlined } from '@ant-design/icons';
-import { IoExitOutline } from 'react-icons/io5';
+import { CalendarOutlined, EditOutlined, ReadOutlined, UpOutlined } from '@ant-design/icons';
 import { HiOutlineMenuAlt3 } from 'react-icons/hi';
 import { MdOutlineContentPasteGo } from 'react-icons/md';
+import { IoExitOutline } from 'react-icons/io5';
 
 import Editor, { EditorRef } from "@/components/Editor";
 import EditorSourceValue from "@/components/EditorSourceValue";
-import useEditArticleStore, { EditingArticle } from "@/stores/useEditArticleStore.ts";
-import { CREATE_ARTICLE_ID } from "@/constants";
 import Outline from "@/components/Outline";
+import AddTag from "@/components/AddTag";
+
+import useEditArticle from "../useEditArticle";
+import useUploadImage from "@/hooks/useUploadImage.ts";
+import { formatDate } from "@/utils/time";
 
 import styles from './index.module.less';
-import { isArticleChanged } from "./utils.ts";
-import AddTag from "@/components/AddTag";
-import For from "@/components/For";
-import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
-import useUploadImage from "@/hooks/useUploadImage.ts";
-import ArticleCard from "@/pages/Articles/ArticleCard";
-import { IArticle } from "@/types";
 
 import { cardLinkExtension } from '@/editor-extensions';
 const extensions = [cardLinkExtension];
 
 const ArticleEdit = () => {
+  const { articleId } = useParams();
   const {
-    editingArticleId,
-    initArticle,
-    initLoading,
+    initValue,
     editingArticle,
-    readonly,
-    createArticle,
-    updateArticle,
-    onTitleChange,
+    wordsCount,
+    initLoading,
     onContentChange,
+    onInit,
+    onDeleteTag,
     onAddTag,
-    onRemoveTag,
-  } = useEditArticleStore((state) => ({
-    editingArticleId: state.editingArticleId,
-    initArticle: state.initArticle,
-    initLoading: state.initLoading,
-    editingArticle: state.editingArticle,
-    readonly: state.readonly,
-    createArticle: state.createArticle,
-    updateArticle: state.updateArticle,
-    onTitleChange: state.onTitleChange,
-    onContentChange: state.onContentChange,
-    onAddTag: state.onAddTag,
-    onRemoveTag: state.onRemoveTag,
-  }));
-  
-  const {
-    articles,
-  } = useArticleManagementStore(state => ({
-    articles: state.articles,
-  }));
+    onTitleChange,
+    saveArticle
+  } = useEditArticle(Number(articleId));
+
+  const [readonly, setReadonly] = useState<boolean>(true);
 
   const uploadImage = useUploadImage();
 
   const editorRef = useRef<EditorRef>(null);
-  const originalArticle = useRef<EditingArticle>();
-  const changed = useRef<boolean>(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const [editingTitle, setEditingTitle] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showOutline, setShowOutline] = useState<boolean>(true);
   const [showContentSource, setShowContentSource] = useState<boolean>(false);
 
   const navigate = useNavigate();
-  const { modal } = App.useApp();
+
+  useRafInterval(() => {
+    saveArticle()
+  }, 1000);
+
+  useEffect(() => {
+    return () => {
+      saveArticle();
+    }
+  }, [saveArticle]);
+
+  useEffect(() => {
+    // 禁止在标题中输入回车
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && editingTitle) {
+        e.preventDefault();
+        e.stopPropagation();
+        titleRef.current?.blur();
+        editorRef.current?.focus();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [editingTitle]);
 
   const outlineVariants = {
     open: {
@@ -82,19 +87,8 @@ const ArticleEdit = () => {
     }
   }
 
-  const saveArticle = () => {
-    if (editingArticleId === CREATE_ARTICLE_ID) {
-      createArticle().then();
-    } else {
-      updateArticle().then();
-    }
-    changed.current = false;
-  }
-
   const toggleReadonly = () => {
-    useEditArticleStore.setState({
-      readonly: !readonly,
-    });
+    setReadonly(!readonly);
   }
 
   const scrollToTop = () => {
@@ -104,46 +98,10 @@ const ArticleEdit = () => {
     })
   }
 
-  const quit = () => {
-    if (changed.current) {
-      modal.confirm({
-        title: '文章已修改，是否保存？',
-        onOk: () => {
-          saveArticle();
-          navigate(-1);
-        },
-        onCancel: () => {
-          navigate(-1);
-        }
-      })
-    } else {
-      navigate(-1);
-    }
-  }
-
   const onClickHeader = (index: number) => {
     if (!editorRef.current) return;
     editorRef.current.scrollHeaderIntoView(index);
   }
-  
-  const linkedArticles = useMemo(() => {
-    return editingArticle?.links
-      .map(id => articles.find(article => article.id === id))
-      .filter(article => !!article) as IArticle[];
-  }, [articles, editingArticle?.links]);
-
-  useEffect(() => {
-    if (!editingArticleId) return;
-    initArticle(editingArticleId).then(initArticle => {
-      originalArticle.current = initArticle;
-      editorRef.current?.setEditorValue(initArticle.content);
-    });
-  }, [editingArticleId, initArticle]);
-
-  useEffect(() => {
-    if (!originalArticle.current || !editingArticle) return;
-    changed.current = isArticleChanged(originalArticle.current, editingArticle);
-  }, [editingArticle]);
   
   const headers: Array<{
     level: number;
@@ -164,6 +122,7 @@ const ArticleEdit = () => {
       </div>
     )
   }
+
   if (!editingArticle) {
     return (
       <div className={styles.empty}>
@@ -183,7 +142,11 @@ const ArticleEdit = () => {
           // @ts-ignore
           contentEditable={!readonly ? 'plaintext-only' : false}
           suppressContentEditableWarning
-          onBlur={(e) => onTitleChange(e.target.innerText)}
+          onFocus={() => setEditingTitle(true)}
+          onBlur={(e) => {
+            onTitleChange(e.target.innerText);
+            setEditingTitle(false);
+          }}
         >
           {editingArticle.title || '无标题'}
         </h1>
@@ -191,15 +154,20 @@ const ArticleEdit = () => {
           <div className={styles.meta}>
             <CalendarOutlined />
             <span className={styles.date}>
-              创建于{dayjs(editingArticle.create_time).format('YYYY-MM-DD HH:mm:ss')}
+              创建于{formatDate(editingArticle.create_time, true)}
             </span>
           </div>
           <div className={styles.divider}>|</div>
           <div className={styles.meta}>
             <CalendarOutlined />
             <span className={styles.date}>
-              更新于{dayjs(editingArticle.update_time).format('YYYY-MM-DD HH:mm:ss')}
+              更新于{formatDate(editingArticle.update_time, true)}
             </span>
+          </div>
+        </div>
+        <div className={styles.me}>
+          <div>
+            {wordsCount}字
           </div>
         </div>
       </div>
@@ -208,8 +176,10 @@ const ArticleEdit = () => {
           <div className={styles.article}>
             <Editor
               ref={editorRef}
+              key={editingArticle.id}
+              onInit={onInit}
               onChange={onContentChange}
-              initValue={editingArticle.content}
+              initValue={initValue}
               readonly={readonly}
               extensions={extensions}
               uploadImage={uploadImage}
@@ -218,15 +188,9 @@ const ArticleEdit = () => {
               className={styles.tags}
               tags={editingArticle.tags}
               addTag={onAddTag}
-              removeTag={onRemoveTag}
+              removeTag={onDeleteTag}
               readonly={readonly}
             />
-            <div className={styles.linkArticles}>
-              <For
-                data={linkedArticles}
-                renderItem={(article) => <ArticleCard key={article.id} article={article} />}
-              />
-            </div>
           </div>
         </div>
         <motion.div animate={showOutline && headers.length > 0 ? 'open' : 'close'} variants={outlineVariants} className={styles.rightPart}>
@@ -234,11 +198,6 @@ const ArticleEdit = () => {
         </motion.div>
       </div>
       <FloatButton.Group shape={'square'}>
-        <FloatButton
-          icon={<SaveOutlined />}
-          onClick={saveArticle}
-          tooltip={'保存'}
-        />
         <FloatButton
           icon={readonly ? <EditOutlined /> : <ReadOutlined />}
           onClick={toggleReadonly}
@@ -261,7 +220,9 @@ const ArticleEdit = () => {
         />
         <FloatButton
           icon={<IoExitOutline />}
-          onClick={quit}
+          onClick={() => {
+            navigate(-1);
+          }}
           tooltip={'返回'}
         />
       </FloatButton.Group>

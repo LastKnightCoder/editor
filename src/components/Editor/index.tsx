@@ -54,7 +54,7 @@ export type EditorRef = {
 
 interface IEditorProps {
   initValue?: Descendant[];
-  onChange?: (value: Descendant[], editor?: Editor) => void;
+  onChange?: (value: Descendant[], editor: Editor) => void;
   readonly?: boolean;
   extensions?: IExtension[];
   hoveringBarConfigs?: IConfigItem[];

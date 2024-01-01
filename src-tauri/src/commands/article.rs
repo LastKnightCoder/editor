@@ -1,5 +1,6 @@
 use crate::state;
 use crate::database::article;
+use crate::database::article::Article;
 
 #[tauri::command]
 pub fn create_article(
@@ -11,14 +12,14 @@ pub fn create_article(
     banner_bg: String, 
     is_top: bool,
     app_state: tauri::State<state::AppState>
-) -> Result<i64, String> {
+) -> Result<Article, String> {
     let conn = app_state.db.lock().unwrap();
     // 打印所有参数
     println!("create_article: title: {}, author: {}, tags: {:?}, links: {:?}, content: {}, banner_bg: {}, is_top: {}", title, author, tags, links, content, banner_bg, is_top);
     match &*conn {
         Some(conn) => {
             match article::create_article(&conn, title, author, tags, links, content, banner_bg, is_top).map_err(|e| e.to_string()) {
-                Ok(id) => Ok(id),
+                Ok(article) => Ok(article),
                 Err(e) => {
                     println!("create_article error: {}", e);
                     Err(e)
@@ -40,7 +41,7 @@ pub fn update_article(
     banner_bg: String,
     is_top: bool,
     app_state: tauri::State<state::AppState>
-) -> Result<usize, String> {
+) -> Result<Article, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {

@@ -3,18 +3,17 @@ import { useNavigate } from "react-router-dom";
 import { FloatButton } from "antd";
 import { PlusOutlined, UpOutlined } from '@ant-design/icons';
 
-import useUploadImage from "@/hooks/useUploadImage.ts";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
-import useEditArticleStore from "@/stores/useEditArticleStore.ts";
-import { CREATE_ARTICLE_ID } from "@/constants";
+import useUploadImage from "@/hooks/useUploadImage.ts";
+import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 
 import ArticleCard from "./ArticleCard";
-
 import styles from './index.module.less';
 
 const Articles = () => {
   const {
     articles,
+    createArticle,
     updateArticleIsTop,
     deleteArticle,
     updateArticleBannerBg,
@@ -23,6 +22,7 @@ const Articles = () => {
     updateArticleIsTop: state.updateArticleIsTop,
     deleteArticle: state.deleteArticle,
     updateArticleBannerBg: state.updateArticleBannerBg,
+    createArticle: state.createArticle,
   }));
 
   const uploadImage = useUploadImage();
@@ -31,11 +31,7 @@ const Articles = () => {
   const navigate = useNavigate();
 
   const handleClickArticleCard = (articleId: number) => {
-    useEditArticleStore.setState({
-      editingArticleId: articleId,
-      readonly: true,
-    });
-    navigate(`/articles/edit`);
+    navigate(`/articles/edit/${articleId}`);
   }
 
   const scrollToTop = () => {
@@ -70,12 +66,17 @@ const Articles = () => {
         />
         <FloatButton
           icon={<PlusOutlined />}
-          onClick={() => {
-            useEditArticleStore.setState({
-              editingArticleId: CREATE_ARTICLE_ID,
-              readonly: false,
-            });
-            navigate('/articles/edit');
+          onClick={async () => {
+            const createdArticle = await createArticle({
+              title: '默认文章标题',
+              content: DEFAULT_ARTICLE_CONTENT,
+              bannerBg: '',
+              isTop: false,
+              author: 'Tao',
+              links: [],
+              tags: []
+            })
+            navigate(`/articles/edit/${createdArticle.id}`);
           }}
           tooltip={'新建文章'}
         />

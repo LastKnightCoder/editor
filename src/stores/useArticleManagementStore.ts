@@ -17,8 +17,8 @@ interface IState {
 
 interface IActions {
   init: () => Promise<void>;
-  createArticle: (article: Omit<IArticle, 'id' | 'create_time' | 'update_time'>) => Promise<number>;
-  updateArticle: (article: Pick<IArticle, 'id' | 'title' | 'author' | 'tags' | 'links' | 'content' | 'bannerBg' | 'isTop'>) => Promise<number>;
+  createArticle: (article: Omit<IArticle, 'id' | 'create_time' | 'update_time' | 'isDelete'>) => Promise<IArticle>;
+  updateArticle: (article: Omit<IArticle, 'create_time' | 'update_time' | 'isDelete'>) => Promise<IArticle>;
   deleteArticle: (id: number) => Promise<number>;
   updateArticleIsTop: (id: number, isTop: boolean) => Promise<number>;
   updateArticleBannerBg: (id: number, bannerBg: string) => Promise<number>;
@@ -43,13 +43,16 @@ const useArticleManagementStore = create<IState & IActions>((set) => ({
   createArticle: async (article) => {
     const res = await createArticle(article);
     const articles = await getAllArticles();
-    set({ articles });
+    const processedArticles = processArticles(articles);
+    set({ articles: processedArticles });
     return res;
   },
   updateArticle: async (article) => {
+    console.log('update article', article);
     const res = await updateArticle(article);
     const articles = await getAllArticles();
-    set({ articles });
+    const processedArticles = processArticles(articles);
+    set({ articles: processedArticles });
     return res;
   },
   deleteArticle: async (id) => {

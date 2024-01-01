@@ -1,19 +1,32 @@
 import { invoke } from "@tauri-apps/api";
 import { IArticle } from "@/types";
 
-export async function createArticle(article: Omit<IArticle, 'id' | 'create_time' | 'update_time'>): Promise<number> {
-  return await invoke('create_article', {
+export async function createArticle(article: Omit<IArticle, 'id' | 'create_time' | 'update_time' | 'isDelete'>): Promise<IArticle> {
+  const res:any = await invoke('create_article', {
     ...article,
     content: JSON.stringify(article.content),
   });
+  return {
+    ...res,
+    content: JSON.parse(res.content),
+    bannerBg: res.banner_bg,
+    isTop: res.is_top,
+    isDelete: res.is_delete,
+  }
 }
 
-export async function updateArticle(article: Pick<IArticle, 'id' | 'title' | 'author' | 'tags' | 'links' | 'content' | 'bannerBg' | 'isTop'>): Promise<number> {
-
-  return await invoke('update_article', {
+export async function updateArticle(article: Omit<IArticle, 'create_time' | 'update_time' | 'isDelete'>): Promise<IArticle> {
+  const res: any = await invoke('update_article', {
     ...article,
     content: JSON.stringify(article.content),
   });
+  return {
+    ...res,
+    content: JSON.parse(res.content),
+    bannerBg: res.banner_bg,
+    isTop: res.is_top,
+    isDelete: res.is_delete,
+  }
 }
 
 export async function deleteArticle(id: number): Promise<number> {

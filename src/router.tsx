@@ -38,7 +38,7 @@ const routes = [{
       path: 'list/',
       element: <Articles />,
     }, {
-      path: 'edit',
+      path: 'edit/:articleId/',
       element: <ArticleEdit />,
     }]
   }, {
