@@ -3,28 +3,18 @@ import isHotkey from "is-hotkey";
 
 import { initAllDocumentItemParents } from"@/commands";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
-import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
-import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
 
-import WidthResizable from "@/components/WidthResizable";
+import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import Sidebar from './Sidebar';
 
 import EditDoc from "./EditDoc";
 import styles from './index.module.less';
 
 const Documents = () => {
-  const scope = useDragAndHideSidebar();
-
   const {
     activeDocumentItem,
   } = useDocumentsStore(state => ({
     activeDocumentItem: state.activeDocumentItem,
-  }));
-
-  const {
-    sidebarWidth,
-  } = useGlobalStateStore(state => ({
-    sidebarWidth: state.sidebarWidth,
   }));
 
   useEffect(() => {
@@ -53,24 +43,9 @@ const Documents = () => {
 
   return (
     <div className={styles.documentContainer}>
-      <div ref={scope} className={styles.sidebar}>
-        <WidthResizable
-          defaultWidth={sidebarWidth}
-          minWidth={200}
-          maxWidth={500}
-          onResize={(width) => {
-            useGlobalStateStore.setState({
-              sidebarWidth: width,
-            });
-            localStorage.setItem('sidebarWidth', String(sidebarWidth));
-          }}
-          style={{
-            height: '100%'
-          }}
-        >
-          <Sidebar />
-        </WidthResizable>
-      </div>
+      <ResizeableAndHideableSidebar className={styles.sidebar}>
+        <Sidebar />
+      </ResizeableAndHideableSidebar>
       <div className={styles.content}>
         { activeDocumentItem && <EditDoc key={activeDocumentItem.id} /> }
       </div>

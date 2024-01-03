@@ -44,7 +44,6 @@ pub fn init_operation_table(conn: &Connection) -> Result<()> {
 }
 
 pub fn upgrade_operation_table(_conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
-    println!("upgrade_operation_table: {} -> {}", old_version, new_version);
     if old_version == new_version {
         return Ok(());
     }

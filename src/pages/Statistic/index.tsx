@@ -11,7 +11,6 @@ const Statistic = () => {
   useAsyncEffect(async () => {
     setLoading(true);
     const data = await getCalendarHeatmap("2023");
-    console.log('data', data);
     // message.success('获取日历热力图数据成功');
     setData(data.map((item) => ({
       date: item.time,
@@ -31,7 +30,7 @@ const Statistic = () => {
     } }>
       <CalendarHeatmap
         data={ data }
-        year={ '2023' }
+        year={ '2024' }
         renderTooltip={ (date, value) => {
           if (value && value.operation_list) {
             const operationList = value.operation_list;

@@ -43,7 +43,6 @@ pub fn init_history_table(conn: &Connection) -> Result<()> {
 }
 
 pub fn upgrade_history_table(_conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
-    println!("upgrade_history_table: {} -> {}", old_version, new_version);
     if old_version == new_version {
         return Ok(());
     }

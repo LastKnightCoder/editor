@@ -75,6 +75,15 @@ const NavigatePage = () => {
             onClick: () => {
               navigate('/statistic');
             }
+          },
+          {
+            id: 'time-record',
+            children: '时间记录',
+            keywords: ['time', '时间'],
+            closeOnSelect: true,
+            onClick: () => {
+              navigate('/time-record');
+            }
           }
         ],
       },

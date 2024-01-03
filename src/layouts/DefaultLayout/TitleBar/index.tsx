@@ -20,6 +20,7 @@ enum ENavKey {
   DAILY = 'DAILY',
   DOCUMENTS = 'DOCUMENTS',
   STATISTIC = 'STATISTIC',
+  TIME_RECORD = 'TIME_RECORD',
 }
 
 const TitleBar = (props: ITitleBarProps) => {
@@ -41,6 +42,8 @@ const TitleBar = (props: ITitleBarProps) => {
       setActiveNavKey(ENavKey.DOCUMENTS);
     } else if (pathname.startsWith('/statistic')) {
       setActiveNavKey(ENavKey.STATISTIC);
+    } else if (pathname.startsWith('/time-record')) {
+      setActiveNavKey(ENavKey.TIME_RECORD);
     }
   }, [location]);
 
@@ -56,10 +59,15 @@ const TitleBar = (props: ITitleBarProps) => {
     navigate('/documents');
   }
 
+  const navigateToTimeRecord = () => {
+    navigate('/time-record');
+  }
+
   const isCardsActive = activeNavKey === ENavKey.CARDS;
   const isArticlesActive = activeNavKey === ENavKey.ARTICLES;
   const isDailyActive = activeNavKey === ENavKey.DAILY;
   const isDocumentsActive = activeNavKey === ENavKey.DOCUMENTS;
+  const isTimeRecordActive = activeNavKey === ENavKey.TIME_RECORD;
 
   return (
     <div
@@ -132,6 +140,15 @@ const TitleBar = (props: ITitleBarProps) => {
           日记
           {
             isDailyActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
+          }
+        </motion.div>
+        <motion.div
+          className={classnames(styles.item, { [styles.active]: isTimeRecordActive })}
+          onClick={navigateToTimeRecord}
+        >
+          时间记录
+          {
+            isTimeRecordActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
           }
         </motion.div>
       </motion.div>

@@ -60,7 +60,6 @@ pub fn init_article_table(conn: &Connection) -> Result<()> {
 }
 
 pub fn upgrade_article_table(conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
-    println!("upgrade_article_table: {} -> {}", old_version, new_version);
     if old_version == new_version {
         return Ok(());
     }
@@ -148,7 +147,7 @@ pub fn update_article(
     let mut stmt = conn.prepare("UPDATE articles SET title = ?1, author = ?2, update_time = ?3, tags = ?4, links = ?5, content = ?6, banner_bg = ?7, is_top = ?8 WHERE id = ?9")?;
     let tags_str = serde_json::to_string(&tags).unwrap();
     let links_str = serde_json::to_string(&links).unwrap();
-    let res = stmt.execute(params![title, author, now, tags_str, links_str, content, banner_bg, is_top, id])?;
+    stmt.execute(params![title, author, now, tags_str, links_str, content, banner_bg, is_top, id])?;
 
     insert_operation(conn, id, "article".to_string(), "update".to_string())?;
 

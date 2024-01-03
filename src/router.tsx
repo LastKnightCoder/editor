@@ -10,6 +10,7 @@ const Statistic = loadable(() => import('@/pages/Statistic'));
 const Animate = loadable(() => import('@/pages/Animate'));
 const DailyNote = loadable(() => import('@/pages/DailyNote'));
 const CardGraph = loadable(() => import('@/pages/CardGraph'));
+const TimeRecord = loadable(() => import('@/pages/TimeRecord'));
 
 const routes = [{
   path: '/',
@@ -53,6 +54,9 @@ const routes = [{
   }, {
     path: '/daily',
     element: <DailyNote />,
+  }, {
+    path: '/time-record',
+    element: <TimeRecord />,
   }]
 }]
 

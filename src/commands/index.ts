@@ -7,3 +7,4 @@ export * from './document.ts';
 export * from './ali_oss.ts';
 export * from './sync.ts';
 export * from './statistic.ts';
+export * from './time_record.ts';

@@ -54,67 +54,85 @@ use commands::{
     get_ali_oss_buckets,
     get_database_path,
     reconnect_database,
+    create_time_record,
+    update_time_record,
+    delete_time_record,
+    get_time_record_by_id,
+    get_time_records_by_date,
+    get_all_time_records,
+    get_time_records_by_time_range,
+    get_all_event_types,
+    get_all_time_types,
 };
 
 fn main() {
-  tauri::Builder::default()
-      .manage(state::AppState {
-          db: std::sync::Mutex::new(None),
-      })
-      .setup(|app| {
-          let handle = app.handle();
-          let conn = init_database().unwrap();
-          let app_state: State<AppState> = handle.state();
-          *app_state.db.lock().unwrap() = Some(conn);
-          Ok(())
-      })
-      .invoke_handler(tauri::generate_handler![
-          insert_one_card,
-          find_one_card,
-          find_all_cards,
-          delete_one_card,
-          update_one_card,
-          get_tags_by_id,
-          get_cards_group_by_tag,
-          get_card_history_list,
-          get_article_history_list,
-          get_operation_list,
-          get_operation_records_by_year,
-          insert_daily_note,
-          update_daily_note,
-          delete_daily_note,
-          find_daily_note_by_id,
-          find_daily_note_by_date,
-          find_all_daily_notes,
-          create_article,
-          update_article,
-          update_article_banner_bg,
-          update_article_is_top,
-          delete_article,
-          find_article,
-          find_all_articles,
-          write_setting,
-          read_setting,
-          get_all_fonts,
-          create_document,
-          delete_document,
-          update_document,
-          get_document_list,
-          get_document,
-          create_document_item,
-          delete_document_item,
-          update_document_item,
-          get_document_item,
-          get_document_items_by_ids,
-          get_all_document_items,
-          is_document_item_child_of,
-          get_document_item_all_parents,
-          init_all_document_item_parents,
-          init_document_item_parents_by_ids,
-          get_ali_oss_buckets,
-          get_database_path,
-          reconnect_database,
-      ])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    tauri::Builder::default()
+        .manage(state::AppState {
+            db: std::sync::Mutex::new(None),
+        })
+        .setup(|app| {
+            let handle = app.handle();
+            let conn = init_database().unwrap();
+            let app_state: State<AppState> = handle.state();
+            *app_state.db.lock().unwrap() = Some(conn);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            insert_one_card,
+            find_one_card,
+            find_all_cards,
+            delete_one_card,
+            update_one_card,
+            get_tags_by_id,
+            get_cards_group_by_tag,
+            get_card_history_list,
+            get_article_history_list,
+            get_operation_list,
+            get_operation_records_by_year,
+            insert_daily_note,
+            update_daily_note,
+            delete_daily_note,
+            find_daily_note_by_id,
+            find_daily_note_by_date,
+            find_all_daily_notes,
+            create_article,
+            update_article,
+            update_article_banner_bg,
+            update_article_is_top,
+            delete_article,
+            find_article,
+            find_all_articles,
+            write_setting,
+            read_setting,
+            get_all_fonts,
+            create_document,
+            delete_document,
+            update_document,
+            get_document_list,
+            get_document,
+            create_document_item,
+            delete_document_item,
+            update_document_item,
+            get_document_item,
+            get_document_items_by_ids,
+            get_all_document_items,
+            is_document_item_child_of,
+            get_document_item_all_parents,
+            init_all_document_item_parents,
+            init_document_item_parents_by_ids,
+            get_ali_oss_buckets,
+            get_database_path,
+            reconnect_database,
+            create_time_record,
+            update_time_record,
+            delete_time_record,
+            get_time_record_by_id,
+            get_time_records_by_date,
+            get_all_time_records,
+            get_time_records_by_time_range,
+            get_all_event_types,
+            get_all_time_types,
+        ])
+      .run(tauri::generate_context!())
+      .expect("error while running tauri application");
 }

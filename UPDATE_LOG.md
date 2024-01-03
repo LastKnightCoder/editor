@@ -178,3 +178,7 @@
 - feat: 编辑文章支持自动保存
 - fix: 编辑器添加规范化 paragraph 规则
 - fix: PreviewEditor 字体大小
+
+## v0.4.17
+
+- feat: 支持时间统计

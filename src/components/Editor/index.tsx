@@ -60,6 +60,8 @@ interface IEditorProps {
   hoveringBarConfigs?: IConfigItem[];
   uploadImage?: (file: File) => Promise<string | null>;
   onInit?: (editor: Editor, content: Descendant[]) => void;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -180,6 +182,8 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
         onChange={handleOnChange}
       >
         <Editable
+          className={props.className}
+          style={props.style}
           readOnly={readonly}
           renderElement={renderElement}
           renderLeaf={renderLeaf}
