@@ -1,5 +1,11 @@
 import { Descendant } from "slate";
 
+export enum ECardCategory {
+  Temporary = "temporary",
+  Permanent = "permanent",
+  Theme = "theme",
+}
+
 export interface ICard {
   id: number;
   create_time: number;
@@ -7,4 +13,5 @@ export interface ICard {
   tags: string[];
   links: number[];
   content: Descendant[];
+  category: ECardCategory;
 }

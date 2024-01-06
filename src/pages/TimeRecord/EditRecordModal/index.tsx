@@ -86,6 +86,7 @@ const EditRecordModal = (props: EditRecordModalProps) => {
         <div className={styles.eventType}>
           <div>事件类型：</div>
           <AutoComplete
+            value={editingTimeRecord.eventType}
             style={{ width: 200 }}
             options={eventTypeOptions}
             filterOption={(inputValue, option) => {

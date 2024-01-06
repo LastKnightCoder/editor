@@ -5,23 +5,25 @@ import {
   updateCard,
   deleteCard,
 } from '@/commands';
-import { ICard } from "@/types";
+import { ECardCategory, ICard } from "@/types";
 
 interface IState {
   cards: ICard[];
   initLoading: boolean;
+  selectCategory: ECardCategory;
 }
 
 interface IActions {
   init: () => Promise<void>;
-  createCard: (card: Pick<ICard, 'content' | 'tags' | 'links'>) => Promise<number>;
-  updateCard: (card: Pick<ICard, 'content' | 'tags' | 'id' | 'links'>) => Promise<number>;
+  createCard: (card: Pick<ICard, 'content' | 'tags' | 'links' | 'category'>) => Promise<number>;
+  updateCard: (card: Pick<ICard, 'content' | 'tags' | 'id' | 'links' | 'category'>) => Promise<number>;
   deleteCard: (id: number) => Promise<number>;
 }
 
 const initState: IState = {
   cards: [],
   initLoading: false,
+  selectCategory: ECardCategory.Permanent,
 }
 
 const useCardsManagementStore = create<IState & IActions>((set, get) => ({

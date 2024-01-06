@@ -54,6 +54,9 @@ const CardItem2 = (props: ICardItem2Props) => {
           trigger="click"
           content={<SettingPanel closePanel={() => { setSettingPanelOpen(false) }} settings={settings} cardId={card.id} />}
           arrow={false}
+          overlayInnerStyle={{
+            padding: 4,
+          }}
         >
           <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
             <MdMoreVert />

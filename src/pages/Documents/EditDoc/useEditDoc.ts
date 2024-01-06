@@ -3,15 +3,22 @@ import { updateDocumentItem } from "@/commands";
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
-import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { Descendant, Editor } from "slate";
 import { getEditorTextLength } from "@/utils";
+
+import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import useCardsManagementStore from "@/stores/useCardsManagementStore";
 
 const useEditDoc = () => {
   const {
     activeDocumentItem,
   } = useDocumentsStore((state) => ({
     activeDocumentItem: state.activeDocumentItem,
+  }));
+  const {
+    initCards,
+  } = useCardsManagementStore((state) => ({
+    initCards: state.init,
   }));
   const [initValue] = useState<Descendant[]>(() => {
     if (!activeDocumentItem) return [{
@@ -36,6 +43,10 @@ const useEditDoc = () => {
       prevDocument.current = updatedDoc;
       documentChanged.current = false;
     });
+    if (activeDocumentItem.isCard && activeDocumentItem.cardId) {
+      // 更新卡片数据，暂时拉取全部数据
+      initCards();
+    }
   });
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {

@@ -7,8 +7,12 @@ import TagsManagement from "../TagsManagement";
 import CardList from '../CardList';
 
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
+import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import { cardCategoryName } from "@/constants";
+import { ECardCategory } from '@/types';
 
 import styles from "./index.module.less";
+import { Select } from "antd";
 
 interface ISidebarProps {
   editingCardId?: number;
@@ -16,6 +20,8 @@ interface ISidebarProps {
   onCreateCard: () => Promise<void>;
   onClickCard: (id: number) => void;
 }
+
+
 
 const Sidebar = (props: ISidebarProps) => {
   const { editingCardId, onDeleteCard, onCreateCard, onClickCard } = props;
@@ -25,6 +31,12 @@ const Sidebar = (props: ISidebarProps) => {
     sidebarWidth,
   } = useGlobalStateStore((state) => ({
     sidebarWidth: state.sidebarWidth,
+  }));
+
+  const {
+    selectCategory
+  } = useCardsManagementStore((state) => ({
+    selectCategory: state.selectCategory
   }));
 
   return (
@@ -37,6 +49,20 @@ const Sidebar = (props: ISidebarProps) => {
         </div>
         <div className={classnames(styles.icon, { [styles.select]: activeTab === 'tags' })} onClick={() => { setActiveTab('tags') }}>
           <TagsOutlined />
+        </div>
+        <div className={styles.category}>
+          <Select
+            value={selectCategory}
+            options={Object.keys(cardCategoryName).map((key) => ({
+              label: cardCategoryName[key as ECardCategory],
+              value: key,
+            }))}
+            onChange={(value) => {
+              useCardsManagementStore.setState({
+                selectCategory: value,
+              })
+            }}
+          ></Select>
         </div>
       </div>
       <If condition={activeTab === 'tags'}>

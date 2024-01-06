@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { Button, Input, Skeleton, Spin, Tooltip } from "antd";
+import classnames from 'classnames';
+import { Button, Input, Skeleton, Spin, Tooltip, Popover } from "antd";
 import { CloseOutlined, PlusOutlined, UpOutlined } from "@ant-design/icons";
 
 import Tags from "@/components/Tags";
@@ -10,10 +11,11 @@ import CardItem2 from "../CardItem2";
 
 import useSearch from "../hooks/useSearch.ts";
 import useLoadMore from "@/hooks/useLoadMore.ts";
-
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import { cardCategoryName } from "@/constants";
 
 import styles from "./index.module.less";
+import { ECardCategory } from "@/types";
 
 interface ICardListProps {
   editingCardId?: number;
@@ -31,10 +33,18 @@ const CardList = (props: ICardListProps) => {
   const {
     cards,
     loading,
+    selectCardCategory,
+    updateCard,
   } = useCardsManagementStore((state) => ({
     cards: state.cards,
     loading: state.initLoading,
+    selectCardCategory: state.selectCategory,
+    updateCard: state.updateCard,
   }));
+
+  const selectCards = cards.filter((card) => {
+    return card.category === selectCardCategory;
+  });
 
   const scrollToTop = () => {
     if (listRef.current) {
@@ -59,7 +69,7 @@ const CardList = (props: ICardListProps) => {
     deleteTag,
     handleFocus,
     handleBlur,
-  } = useSearch(cards, scrollToTop);
+  } = useSearch(selectCards, scrollToTop);
 
   const loadMore = useCallback(() => {
     if (loading) return;
@@ -68,10 +78,50 @@ const CardList = (props: ICardListProps) => {
 
   useLoadMore(loaderRef, loadMore);
 
-  const settings = [{
-    title: '删除卡片',
-    onClick: onDeleteCard,
-  }];
+  const getSettings = (cardId: number) => {
+    return [{
+      title: '删除卡片',
+      onClick: onDeleteCard,
+    }, {
+      title: (
+        <Popover
+          placement="right"
+          trigger="hover"
+          overlayInnerStyle={{
+            padding: 4
+          }}
+          content={(
+            <div className={styles.categories}>
+              {
+                Object.keys(cardCategoryName).map((category) => (
+                  <div
+                    key={category}
+                    className={classnames(styles.categoryItem, { [styles.disable]: category === selectCardCategory })}
+                    onClick={async (event) => {
+                      if (category === selectCardCategory) return;
+                      const toUpdateCard = cards.find((card) => card.id === cardId);
+                      if (!toUpdateCard) return;
+                      await updateCard({
+                        ...toUpdateCard,
+                        category: category as ECardCategory,
+                      });
+                      event.stopPropagation();
+                    }}
+                  >
+                    {cardCategoryName[category as ECardCategory]}
+                  </div>
+                ))
+              }
+            </div>
+          )}
+        >
+          <div>
+            编辑分类
+          </div>
+        </Popover>
+      ),
+    }]
+  };
 
   return (
     <div className={styles.sidebar}>
@@ -124,7 +174,7 @@ const CardList = (props: ICardListProps) => {
                     onClickCard(card.id);
                     e.stopPropagation();
                   }}
-                  settings={settings}
+                  settings={getSettings(card.id)}
                   maxRows={3}
                 />
               </ErrorBoundary>

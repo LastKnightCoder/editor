@@ -1,11 +1,12 @@
 import { invoke } from '@tauri-apps/api';
-import { ICard, History, CardHistory } from "@/types";
+import { ICard } from "@/types";
 
-export async function createCard(card: Pick<ICard, 'content' | 'tags' | 'links'>): Promise<number> {
+export async function createCard(card: Pick<ICard, 'content' | 'tags' | 'links' | 'category'>): Promise<number> {
   return await invoke('insert_one_card', {
     content: JSON.stringify(card.content),
     tags: card.tags,
     links: card.links,
+    category: card.category,
   });
 }
 
@@ -25,12 +26,13 @@ export async function deleteCard(id: number): Promise<number> {
   });
 }
 
-export async function updateCard(card: Pick<ICard, 'content' | 'tags' | 'id' | 'links'>): Promise<number> {
+export async function updateCard(card: Pick<ICard, 'content' | 'tags' | 'id' | 'links' | 'category'>): Promise<number> {
   return await invoke('update_one_card', {
     id: card.id,
     content: JSON.stringify(card.content),
     tags: card.tags,
     links: card.links,
+    category: card.category,
   });
 }
 
@@ -48,22 +50,6 @@ export async function getTagsById(id: number): Promise<string[]> {
   return await invoke('get_tags_by_id', {
     id
   });
-}
-
-export async function getCardHistory(id: number, pageNumber: number, pageSize: number, ): Promise<CardHistory[]> {
-  const list: History[] =  await invoke('get_card_history_list', {
-    cardId: id,
-    pageSize,
-    pageNumber,
-  });
-  return list.map((item) => ({
-    ...item,
-    content: JSON.parse(item.content),
-  }));
-}
-
-export async function getCardOperationList() {
-  return await invoke('get_operation_list');
 }
 
 export async function getCardsGroupByTag(): Promise<Record<string, ICard[]>> {

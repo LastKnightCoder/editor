@@ -1,9 +1,10 @@
+import { ReactNode } from "react";
 import For from '@/components/For';
 
 import styles from './index.module.less';
 
 export interface ISettingItem {
-  title: string;
+  title: ReactNode;
   onClick?: (cardId: number) => void;
 }
 
@@ -22,8 +23,8 @@ const SettingPanel = (props: ISettingPanelProps) => {
     <div className={styles.settings}>
       <For
         data={settings}
-        renderItem={(setting) => (
-          <div key={setting.title} className={styles.settingItem} onClick={(e) => {
+        renderItem={(setting, index) => (
+          <div key={index} className={styles.settingItem} onClick={(e) => {
             setting?.onClick?.(cardId);
             closePanel?.();
             e.stopPropagation();

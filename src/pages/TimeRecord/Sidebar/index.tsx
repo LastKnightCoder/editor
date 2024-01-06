@@ -128,7 +128,7 @@ const Sidebar = () => {
                     }
                   </div>
                   <Editor
-                    key={timeRecord.id}
+                    key={JSON.stringify(timeRecord.content) + timeRecord.id}
                     className={styles.content}
                     initValue={timeRecord.content}
                     readonly

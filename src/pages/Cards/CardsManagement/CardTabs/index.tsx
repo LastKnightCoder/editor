@@ -61,7 +61,7 @@ const CardTabs = (props: ICardTabsProps) => {
   }, [cardIds, cards]);
   const tabContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const [{ isOver, canDrop}, drop] = useDrop<{cardId: number}, void, {
+  const [{ isOver, canDrop }, drop] = useDrop<{cardId: number}, void, {
     isOver: boolean;
     canDrop: boolean;
   }>({
@@ -79,8 +79,6 @@ const CardTabs = (props: ICardTabsProps) => {
       if (!tabContainerRect) {
         return;
       }
-
-      console.log('dis', monitorClientOffset.x - tabContainerRect.x);
 
       if (monitorClientOffset.x - tabContainerRect.x > 0 && monitorClientOffset.x - tabContainerRect.x < 60) {
         dragCardToTabContainer(item.cardId, EActiveSide.Left, false);

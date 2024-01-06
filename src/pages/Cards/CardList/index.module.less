@@ -60,3 +60,21 @@
     }
   }
 }
+
+.categories {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  .categoryItem {
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+    &:hover:not(.disable) {
+      background-color: var(--common-hover-bg);
+    }
+    &.disable {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+}

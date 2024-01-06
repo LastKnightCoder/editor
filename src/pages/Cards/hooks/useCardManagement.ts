@@ -8,9 +8,11 @@ const useCardManagement = () => {
   const {
     createCard,
     deleteCard,
+    selectCategory,
   } = useCardsManagementStore((state) => ({
     deleteCard: state.deleteCard,
     createCard: state.createCard,
+    selectCategory: state.selectCategory,
   }));
 
   const {
@@ -75,6 +77,7 @@ const useCardManagement = () => {
       }],
       tags: [],
       links: [],
+      category: selectCategory,
     });
     addCard(id);
   });

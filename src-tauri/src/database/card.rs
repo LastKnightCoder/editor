@@ -12,6 +12,7 @@ pub struct Card {
     pub tags: Vec<String>,
     pub links: Vec<i64>,
     pub content: String,
+    pub category: String,
 }
 
 fn get_card_from_query_result(row: &Row) -> Card {
@@ -26,6 +27,7 @@ fn get_card_from_query_result(row: &Row) -> Card {
         tags,
         links,
         content: row.get(5).unwrap(),
+        category: row.get(6).unwrap(),
     }
 }
 
@@ -37,26 +39,35 @@ pub fn init_card_table(conn: &Connection) -> Result<()> {
             update_time INTEGER NOT NULL,
             tags TEXT,
             links TEXT,
-            content TEXT
+            content TEXT,
+            category TEXT DEFAULT 'permanent'
         )",
         [],
     )?;
     Ok(())
 }
 
-pub fn upgrade_card_table(_conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
-    if old_version == new_version {
-        return Ok(());
+pub fn upgrade_card_table(conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
+    let mut stmt = conn.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cards'")?;
+    let mut rows = stmt.query([])?;
+    if let Some(row) = rows.next()? {
+        let sql: String = row.get(0)?;
+        if !sql.contains("category") {
+            conn.execute(
+                "ALTER TABLE cards ADD COLUMN category TEXT DEFAULT 'permanent'",
+                [],
+            )?;
+        }
     }
     Ok(())
 }
 
-pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content: &str,) -> Result<i64> {
+pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content: &str, category: &str) -> Result<i64> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-    let mut stmt = conn.prepare("INSERT INTO cards (create_time, update_time, tags, links, content) VALUES (?1, ?2, ?3, ?4, ?5)")?;
+    let mut stmt = conn.prepare("INSERT INTO cards (create_time, update_time, tags, links, content, category) VALUES (?1, ?2, ?3, ?4, ?5, ?6)")?;
     let tags_str = serde_json::to_string(&tags).unwrap();
     let links_str = serde_json::to_string(&links).unwrap();
-    let res = stmt.insert(params![now as i64, now as i64, tags_str, links_str, content])?;
+    let res = stmt.insert(params![now as i64, now as i64, tags_str, links_str, content, category])?;
 
     match insert_operation(conn, res as i64, "card".to_string(), "insert".to_string()) {
         Ok(_) => {}
@@ -69,7 +80,7 @@ pub fn insert_one(conn: &Connection, tags: Vec<String>, links: Vec<i64>, content
 }
 
 pub fn find_one(conn: &Connection, id: i64) -> Result<Card> {
-    let mut stmt = conn.prepare("SELECT id, create_time, update_time, tags, links, content FROM cards WHERE id = ?1")?;
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, tags, links, content, category FROM cards WHERE id = ?1")?;
     let mut rows = stmt.query(params![id])?;
     let row = rows.next()?.unwrap();
     Ok(get_card_from_query_result(&row))
@@ -77,7 +88,7 @@ pub fn find_one(conn: &Connection, id: i64) -> Result<Card> {
 
 pub fn find_all(conn: &Connection) -> Result<Vec<Card>> {
     // 根据更新时间倒序
-    let sql = "SELECT id, create_time, update_time, tags, links, content FROM cards ORDER BY update_time DESC";
+    let sql = "SELECT id, create_time, update_time, tags, links, content, category FROM cards ORDER BY update_time DESC";
     let mut stmt = conn.prepare(sql)?;
     let mut rows = stmt.query([])?;
     let mut res = Vec::new();
@@ -93,12 +104,12 @@ pub fn delete_one(conn: &Connection, id: i64) -> Result<usize> {
     Ok(res)
 }
 
-pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>, content: &str) -> Result<usize> {
+pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>, content: &str, category: &str) -> Result<usize> {
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-    let mut stmt = conn.prepare("UPDATE cards SET update_time = ?1, tags = ?2, links = ?3, content = ?4 WHERE id = ?5")?;
+    let mut stmt = conn.prepare("UPDATE cards SET update_time = ?1, tags = ?2, links = ?3, content = ?4, category = ?5 WHERE id = ?6")?;
     let tags = serde_json::to_string(&tags).unwrap();
     let links = serde_json::to_string(&links).unwrap();
-    let res = stmt.execute(params![now as i64, tags, links, content, id])?;
+    let res = stmt.execute(params![now as i64, tags, links, content, category, id])?;
 
     insert_operation(conn, id, "card".to_string(), "update".to_string())?;
 
@@ -138,7 +149,7 @@ pub fn get_tags_by_card_id(conn: &Connection, card_id: i64) -> Result<Vec<String
 // 根据 tag 中的而每个 tag 对卡片进行分组，忽略大小写，返回一个 HashMap，tag 为 key，对应的卡片数组为 value
 // 要查询所有的卡片才能获得 tags
 pub fn get_cards_group_by_tag(conn: &Connection) -> Result<HashMap<String, Vec<Card>>> {
-    let mut stmt = conn.prepare("SELECT id, create_time, update_time, tags, links, content FROM cards")?;
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, tags, links, content, category FROM cards")?;
     let mut rows = stmt.query([])?;
     let mut res: HashMap<String, Vec<Card>> = HashMap::new();
     while let Some(row) = rows.next()? {

@@ -10,7 +10,7 @@ const Statistic = () => {
 
   useAsyncEffect(async () => {
     setLoading(true);
-    const data = await getCalendarHeatmap("2023");
+    const data = await getCalendarHeatmap("2024");
     // message.success('获取日历热力图数据成功');
     setData(data.map((item) => ({
       date: item.time,

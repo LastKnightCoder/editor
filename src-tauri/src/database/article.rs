@@ -84,7 +84,6 @@ pub fn upgrade_article_table(conn: &Connection, old_version: i64, new_version: i
         let mut rows = stmt.query([])?;
         if let Some(row) = rows.next()? {
             let sql: String = row.get(0)?;
-            println!("sql: {}", sql);
             if !sql.contains("banner_bg") {
                 conn.execute(
                     "ALTER TABLE articles ADD COLUMN banner_bg TEXT DEFAULT ''",
