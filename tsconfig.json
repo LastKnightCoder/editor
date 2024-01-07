@@ -20,9 +20,11 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@quick-card/*": ["./quick-card/*"],
+      "@quick-time-record/*": ["./quick-time-record/*"],
     },
   },
-  "include": ["src"],
+  "include": ["src", "quick-card", "quick-time-record"],
   "exclude": ["demos"],
 }

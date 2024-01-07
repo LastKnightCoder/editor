@@ -27,7 +27,8 @@
         "unmaximize": true,
         "unminimize": true,
         "startDragging": true,
-        "setFullscreen": true
+        "setFullscreen": true,
+        "setAlwaysOnTop": true
       },
       "dialog": {
         "all": true,
@@ -119,6 +120,10 @@
         "fileDropEnabled": false,
         "transparent": true
       }
-    ]
+    ],
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
+    }
   }
 }

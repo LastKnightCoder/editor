@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import classnames from 'classnames';
 import { Button, Input, Skeleton, Spin, Tooltip, Popover } from "antd";
-import { CloseOutlined, PlusOutlined, UpOutlined } from "@ant-design/icons";
+import { CloseOutlined, PlusOutlined, UpOutlined, SyncOutlined } from "@ant-design/icons";
 
 import Tags from "@/components/Tags";
 import If from "@/components/If";
@@ -35,11 +35,13 @@ const CardList = (props: ICardListProps) => {
     loading,
     selectCardCategory,
     updateCard,
+    init,
   } = useCardsManagementStore((state) => ({
     cards: state.cards,
     loading: state.initLoading,
     selectCardCategory: state.selectCategory,
     updateCard: state.updateCard,
+    init: state.init
   }));
 
   const selectCards = cards.filter((card) => {
@@ -129,6 +131,9 @@ const CardList = (props: ICardListProps) => {
         <div className={styles.total}>
           <div className={styles.number} style={{ overflow: 'hide', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>总数：{filterCards.length}</div>
           <div className={styles.buttons}>
+            <Tooltip title={'刷新'}>
+              <Button icon={<SyncOutlined />} onClick={init}></Button>
+            </Tooltip>
             <Tooltip title={'返回顶部'}>
               <Button icon={<UpOutlined />} onClick={scrollToTop}></Button>
             </Tooltip>

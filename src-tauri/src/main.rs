@@ -5,7 +5,7 @@ mod database;
 mod state;
 mod commands;
 
-use tauri::{Manager, State};
+use tauri::{Manager, Window, State, SystemTray, CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem};
 use database::init_database;
 use state::AppState;
 use commands::{
@@ -66,7 +66,48 @@ use commands::{
 };
 
 fn main() {
+    let quit = CustomMenuItem::new("quick_card_note".to_string(), "快捷卡片");
+    let hide = CustomMenuItem::new("quick_time_record".to_string(), "快捷记录");
+    let tray_menu = SystemTrayMenu::new()
+        .add_item(quit)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(hide);
+    let tray = SystemTray::new().with_menu(tray_menu);
     tauri::Builder::default()
+        .system_tray(tray)
+        .on_system_tray_event(|app, event| {
+            match event {
+                tauri::SystemTrayEvent::MenuItemClick { id, .. } => {
+                    if id == "quick_card_note" {
+                        // 查找是否存在 quick-card 的窗口
+                        let quick_card_window = app.get_window("quick-card");
+                        // 如果不存在，则创建
+                        if quick_card_window.is_none() {
+                            let quick_card_window = tauri::WindowBuilder::new(app, "quick-card", tauri::WindowUrl::App("/quick-card".into()))
+                                .title("quick-card")
+                                .decorations(false)
+                                .inner_size(500.0, 400.0)
+                                .fullscreen(false)
+                                .resizable(false)
+                                .always_on_top(true)
+                                .transparent(true)
+                                .disable_file_drop_handler()
+                                .build()
+                                .unwrap();
+                        } else {
+                            // 如果存在且是最小化状态，则取消最小化
+                            let quick_card_window = quick_card_window.unwrap();
+                            if quick_card_window.is_minimized().unwrap() {
+                                quick_card_window.unminimize().unwrap();
+                            }
+                        }
+                    } else if id == "quick_time_record" {
+
+                    }
+                }
+                _ => {}
+            }
+        })
         .manage(state::AppState {
             db: std::sync::Mutex::new(None),
         })

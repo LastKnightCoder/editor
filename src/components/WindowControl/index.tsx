@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MinusOutlined, CloseOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons';
-import {useAsyncEffect, useMemoizedFn} from "ahooks";
+import { PiPushPinSimple } from "react-icons/pi";
+import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 
 import { appWindow } from '@tauri-apps/api/window'
@@ -9,15 +10,20 @@ import { UnlistenFn } from "@tauri-apps/api/event";
 
 
 import styles from './index.module.less';
+import If from "@/components/If";
+import { Tooltip } from "antd";
 
 interface IWindowControlProps {
   className?: string;
   style?: React.CSSProperties;
+  notShowFullscreen?: boolean;
+  initAlwaysOnTop?: boolean;
 }
 
 const WindowControl = (props: IWindowControlProps) => {
-  const { className, style } = props;
+  const { className, style, notShowFullscreen = false, initAlwaysOnTop = false } = props;
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [alwaysOnTop, setAlwaysOnTop] = useState<boolean>(initAlwaysOnTop);
 
   useAsyncEffect(async () => {
     const osType = await type();
@@ -72,20 +78,34 @@ const WindowControl = (props: IWindowControlProps) => {
     }
   }
 
+  const toggleAlwaysOnTop = async () => {
+    setAlwaysOnTop(!alwaysOnTop);
+    await appWindow.setAlwaysOnTop(!alwaysOnTop);
+  }
+
   const close = async () => {
     await appWindow.close();
   }
 
   return (
     <div className={classnames(styles.windowControl, className)} style={style}>
+      <Tooltip
+        title={alwaysOnTop ? '取消置顶' : '置顶'}
+      >
+        <div className={classnames(styles.item, { [styles.onTop]: alwaysOnTop })} onClick={toggleAlwaysOnTop}>
+          <PiPushPinSimple />
+        </div>
+      </Tooltip>
       <div className={styles.item} onClick={minimize}>
         <MinusOutlined />
       </div>
-      <div className={styles.item} onClick={toggleFullscreen}>
-        {
-          isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />
-        }
-      </div>
+      <If condition={!notShowFullscreen}>
+        <div className={styles.item} onClick={toggleFullscreen}>
+          {
+            isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />
+          }
+        </div>
+      </If>
       <div className={styles.item} onClick={close}>
         <CloseOutlined />
       </div>

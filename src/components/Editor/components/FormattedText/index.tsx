@@ -1,7 +1,11 @@
 import React, { useMemo } from 'react';
 import { RenderLeafProps } from "slate-react";
-import Highlight from "../Highlight";
 import classnames from 'classnames';
+
+import Highlight from "../Highlight";
+
+import useTheme from "@/hooks/useTheme";
+
 import styles from './index.module.less';
 
 import { FormattedText, HighlightColor } from "../../types";
@@ -21,7 +25,10 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
     code,
     strikethrough,
     color,
+    darkColor = color,
   } = leaf;
+
+  const { isDark } = useTheme();
 
   const className = classnames({
     [styles.bold]: bold,
@@ -64,7 +71,7 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
       {...attributes}
       className={className} style={{
         textDecoration: textDecorations,
-        color,
+        color: isDark ? darkColor : color,
       }}
       onDragStart={(e) => {
         e.preventDefault();

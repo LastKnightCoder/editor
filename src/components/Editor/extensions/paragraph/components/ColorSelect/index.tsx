@@ -1,30 +1,51 @@
 import React from 'react';
+import { Tooltip } from "antd";
+
 import For from '@/components/For';
+
+import useTheme from "@/hooks/useTheme";
 
 import styles from './index.module.less';
 
-const colors = [
-  'hsl(0, 100%, 50%)',
-  'hsl(30, 100%, 50%)',
-  'hsl(60, 100%, 50%)',
-  'hsl(90, 100%, 50%)',
-  'hsl(120, 100%, 50%)',
-  'hsl(150, 100%, 50%)',
-  'hsl(180, 100%, 50%)',
-  'hsl(210, 100%, 50%)',
-  'hsl(240, 100%, 50%)',
-  'hsl(270, 100%, 50%)',
-  'hsl(300, 100%, 50%)',
-  'hsl(330, 100%, 50%)',
-]
+const themeColors = [{
+  label: '灰色',
+  light: '#8f959e',
+  dark: '#757575',
+}, {
+  label: '红色',
+  light: '#e33a32',
+  dark: '#fa7873',
+}, {
+  label: '橙色',
+  light: '#e57d05',
+  dark: '#f5a54a',
+}, {
+  label: '黄色',
+  light: '#dc9b04',
+  dark: '#fcd456',
+}, {
+  label: '绿色',
+  light: '#2ea121',
+  dark: '#6dd162',
+}, {
+  label: '蓝色',
+  light: '#245bdb',
+  dark: '#70a0ff',
+}, {
+  label: '紫色',
+  light: '#6425d0',
+  dark: '#a472fc',
+},]
 
 interface IColorSelectProps {
-  onClick: (event: React.MouseEvent, color?: string) => void;
+  onClick: (event: React.MouseEvent, lightColor?: string, darkColor?: string) => void;
   open: boolean;
 }
 
 const ColorSelect = (props: IColorSelectProps) => {
   const { onClick, open } = props;
+
+  const { isDark } = useTheme();
 
   if (!open) {
     return null;
@@ -32,24 +53,32 @@ const ColorSelect = (props: IColorSelectProps) => {
 
   return (
     <div className={styles.colorSelectContainer}>
-      <div
-        className={styles.item}
-        onClick={(e) => { onClick(e, undefined) }}
-        style={{ color: undefined }}
+      <Tooltip
+        title={'默认颜色'}
       >
-        A
-      </div>
+        <div
+          className={styles.item}
+          onClick={(e) => { onClick(e, undefined, undefined) }}
+          style={{ color: undefined }}
+        >
+          A
+        </div>
+      </Tooltip>
       <For
-        data={colors}
+        data={themeColors}
         renderItem={(color) => (
-          <div
-            className={styles.item}
-            onClick={(e) => { onClick(e, color) }}
-            style={{ color }}
-            key={color}
+          <Tooltip
+            title={color.label}
+            key={color.label}
           >
-            A
-          </div>
+            <div
+              className={styles.item}
+              onClick={(e) => { onClick(e, color.light, color.dark) }}
+              style={{ color: isDark ? color.dark : color.light }}
+            >
+              A
+            </div>
+          </Tooltip>
         )}
       />
     </div>

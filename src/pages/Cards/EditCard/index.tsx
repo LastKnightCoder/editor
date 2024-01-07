@@ -1,22 +1,19 @@
-import {createContext, useEffect, useRef, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { Descendant, Editor as SlateEditor } from "slate";
+import { useRafInterval } from "ahooks";
 
 import Editor, { EditorRef } from '@/components/Editor';
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-import { cardLinkExtension } from "@/editor-extensions";
-
 import useUploadImage from "@/hooks/useUploadImage.ts";
-
+// import { cardLinkExtension } from "@/editor-extensions";
 import { ICard } from "@/types";
-
 import { formatDate } from "@/utils/time.ts";
 
 import styles from './index.module.less';
-import { useWhyDidYouUpdate } from "ahooks";
 
-const customExtensions = [cardLinkExtension];
+// const customExtensions = [cardLinkExtension];
 
 interface IEditCardProps {
   readonly: boolean;
@@ -54,13 +51,15 @@ const EditCard = (props: IEditCardProps) => {
 
   const uploadImage = useUploadImage();
 
+  useRafInterval(() => {
+    saveCard();
+  }, 1000)
+
   useEffect(() => {
     return () => {
       saveCard();
     }
   }, [saveCard]);
-
-  useWhyDidYouUpdate('EditCard', props);
 
   return (
     <EditCardContext.Provider value={{
@@ -79,7 +78,7 @@ const EditCard = (props: IEditCardProps) => {
               onInit={onInit}
               initValue={initValue}
               onChange={onContentChange}
-              extensions={customExtensions}
+              // extensions={customExtensions}
               readonly={readonly}
               uploadImage={uploadImage}
             />

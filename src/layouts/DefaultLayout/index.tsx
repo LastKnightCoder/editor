@@ -8,47 +8,11 @@ import TitleBar from "./TitleBar";
 import Sidebar from "./Sidebar";
 import NavigatePage from "./NavigatePage";
 
-import useSyncFont from "./hooks/useSyncFont.ts";
-import useSettingStore from "@/stores/useSettingStore.ts";
-import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 import styles from './index.module.less';
 
 const Management = () => {
-  const {
-    initSetting,
-  } = useSettingStore(state => ({
-    initSetting: state.initSetting,
-  }));
-
-  const {
-    initArticles
-  } = useArticleManagementStore(state => ({
-    initArticles: state.init
-  }));
-
-  const {
-    initCards,
-  } = useCardsManagementStore((state) => ({
-    initCards: state.init,
-  }));
-
-  const {
-    initDocuments,
-  } = useDocumentsStore(state => ({
-    initDocuments: state.init,
-  }));
-
-  useEffect(() => {
-    initSetting();
-    initArticles().then();
-    initCards().then();
-    initDocuments().then();
-  }, [initSetting, initArticles, initCards, initDocuments]);
-
   // 监听快捷键 mod + left 隐藏列表，mod + right 显示列表
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -72,8 +36,6 @@ const Management = () => {
       document.removeEventListener('keydown', handleKeyDown);
     }
   }, []);
-
-  useSyncFont();
 
   return (
     <div className={styles.defaultLayout}>

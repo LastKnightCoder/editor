@@ -50,7 +50,6 @@ const Sidebar = (props: ISidebarProps) => {
   const currentVersion = sync.version;
   const { accessKeyId, accessKeySecret, bucket, region } = sync.aliOSS;
 
-
   const toggleDarkMode = () => {
     onDarkModeChange(!darkMode);
   }
@@ -99,10 +98,6 @@ const Sidebar = (props: ISidebarProps) => {
       setIsChecking(false);
     }
   }
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
-  }, [darkMode]);
 
   useEffect(() => {
     // 按下 mod + l 时切换浅色，mod + d 时切换深色

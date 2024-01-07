@@ -10,4 +10,5 @@ export interface FormattedText {
   strikethrough?: boolean;
   code?: boolean;
   color?: string;
+  darkColor?: string;
 }

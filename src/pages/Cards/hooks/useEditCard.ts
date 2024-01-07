@@ -14,8 +14,6 @@ const useEditCard = (cardId: number | undefined) => {
   const cardChanged = useRef(false);
   const [wordsCount, setWordsCount] = useState(0);
 
-  const timer = useRef<number>();
-
   const { cards, updateCard } = useCardsManagementStore((state) => ({
     cards: state.cards,
     updateCard: state.updateCard,
@@ -63,18 +61,11 @@ const useEditCard = (cardId: number | undefined) => {
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[], editor?: Editor) => {
-    if (timer.current) {
-      clearTimeout(timer.current);
-    }
     const newEditingCard = produce(editingCard, (draft) => {
       if (!draft) return;
       draft.content = content;
     });
     setEditingCard(newEditingCard);
-    // @ts-ignore
-    timer.current = setTimeout(() => {
-      saveCard();
-    }, 1000);
     if (!editor) return;
     const wordsCount = getEditorTextLength(editor, content);
     setWordsCount(wordsCount);
@@ -86,7 +77,7 @@ const useEditCard = (cardId: number | undefined) => {
       draft.tags.push(tag);
     });
     setEditingCard(newEditingCard);
-  })
+  });
 
   const onDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingCard || !editingCard.tags.includes(tag)) return;

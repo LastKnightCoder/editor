@@ -2,7 +2,8 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import loadable from "@loadable/component";
 
 import DefaultLayout from '@/layouts/DefaultLayout';
-const Cards = loadable(() => import('@/pages/Cards'));
+import QuickCard from "@/pages/QuickCard";
+import Cards from "@/pages/Cards";
 const Articles = loadable(() => import('@/pages/Articles'));
 const Documents = loadable(() => import('@/pages/Documents'));
 const ArticleEdit = loadable(() => import('@/pages/Articles/ArticleEdit'));
@@ -58,6 +59,9 @@ const routes = [{
     path: '/time-record',
     element: <TimeRecord />,
   }]
+}, {
+  path: '/quick-card',
+  element: <QuickCard />,
 }]
 
 const router = createBrowserRouter(routes);
