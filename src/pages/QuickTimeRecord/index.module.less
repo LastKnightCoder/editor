@@ -1,4 +1,4 @@
-.quickCardContainer {
+.quickTimeRecordContainer {
   box-sizing: border-box;
   overflow-y: auto;
   display: flex;
@@ -19,13 +19,25 @@
       margin-left: auto;
     }
   }
-  .editor {
-
-  }
-  .tags {
-    position: fixed;
-    left: 24px;
-    bottom: 24px;
+  .form {
+    padding-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    .content {
+      display: flex;
+      gap: 10px;
+    }
+    .cost {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .eventType {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
   }
   .buttons {
     position: fixed;

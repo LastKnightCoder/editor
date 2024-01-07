@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Descendant } from "slate";
 import { Button } from "antd";
 
@@ -24,10 +24,8 @@ const initValue: Descendant[] = [{
 const QuickCard = () => {
   const {
     createCard,
-    init
   } = useCardsManagementStore(state => ({
     createCard: state.createCard,
-    init: state.init,
   }));
 
   const uploadImage = useUploadImage();
@@ -36,10 +34,6 @@ const QuickCard = () => {
   const [content, setContent] = useState(initValue);
   const [tags, setTags] = useState<string[]>([]);
   const [saveLoading, setSaveLoading] = useState(false);
-
-  useEffect(() => {
-    init()
-  }, [init])
 
   const onAddTag = (tag: string) => {
     // 如果已经存在直接返回

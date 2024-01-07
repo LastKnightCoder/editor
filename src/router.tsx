@@ -3,6 +3,7 @@ import loadable from "@loadable/component";
 
 import DefaultLayout from '@/layouts/DefaultLayout';
 import QuickCard from "@/pages/QuickCard";
+import QuickTimeRecord from "@/pages/QuickTimeRecord";
 import Cards from "@/pages/Cards";
 const Articles = loadable(() => import('@/pages/Articles'));
 const Documents = loadable(() => import('@/pages/Documents'));
@@ -62,6 +63,9 @@ const routes = [{
 }, {
   path: '/quick-card',
   element: <QuickCard />,
+}, {
+  path: '/quick-time-record',
+  element: <QuickTimeRecord />,
 }]
 
 const router = createBrowserRouter(routes);
