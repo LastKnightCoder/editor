@@ -15,3 +15,6 @@ export interface ICard {
   content: Descendant[];
   category: ECardCategory;
 }
+
+export type ICreateCard = Omit<ICard, "id" | "create_time" | "update_time">;
+export type IUpdateCard = Omit<ICard, "update_time">

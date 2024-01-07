@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Button, Calendar, Tag } from 'antd';
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
-import dayjs, { Dayjs } from 'dayjs';
+import { Dayjs } from 'dayjs';
 import classnames from "classnames";
 
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
@@ -32,7 +32,6 @@ const tagColors = [
 ]
 
 const Sidebar = () => {
-  const [activeDate, setActiveDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
   const [editAction, setEditAction] = useState<'create' | 'edit' | null>(null);
   const [editRecordModalOpen, setEditRecordModalOpen] = useState<boolean>(false);
   const [editingTimeRecord, setEditingTimeRecord] = useState<ITimeRecord | null>(null);
@@ -48,13 +47,15 @@ const Sidebar = () => {
     updateTimeRecord,
     deleteTimeRecord,
     timeRecords,
-    init
+    init,
+    currentDate,
   } = useTimeRecordStore(state => ({
     createTimeRecord: state.createTimeRecord,
     updateTimeRecord: state.updateTimeRecord,
     deleteTimeRecord: state.deleteTimeRecord,
     timeRecords: state.timeRecords,
     init: state.init,
+    currentDate: state.currentDate,
   }));
 
   useEffect(() => {
@@ -62,17 +63,17 @@ const Sidebar = () => {
   }, [init])
 
   const selectedTimeRecords = useMemo(() => {
-    const selectedTimeRecords = timeRecords.filter(timeRecord => timeRecord.date === activeDate);
+    const selectedTimeRecords = timeRecords.filter(timeRecord => timeRecord.date === currentDate);
     if (selectedTimeRecords.length > 0) {
       return selectedTimeRecords[0].timeRecords;
     }
     return [];
-  }, [activeDate, timeRecords]);
+  }, [currentDate, timeRecords]);
 
   const onSelect = (value: Dayjs, { source }: SelectInfo) => {
     if (source === 'date') {
       const date = value.format('YYYY-MM-DD');
-      setActiveDate(date);
+      useTimeRecordStore.setState({ currentDate: date });
     }
   }
 
@@ -162,7 +163,7 @@ const Sidebar = () => {
               children: [{ text: '', type: 'formatted' }],
             }],
             cost: 0,
-            date: activeDate,
+            date: currentDate,
             eventType: '',
             timeType: ''
           });

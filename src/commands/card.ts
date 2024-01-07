@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api';
-import { ICard } from "@/types";
+import { ICard, ICreateCard, IUpdateCard } from "@/types";
 
-export async function createCard(card: Pick<ICard, 'content' | 'tags' | 'links' | 'category'>): Promise<number> {
+export async function createCard(card: ICreateCard): Promise<number> {
   return await invoke('insert_one_card', {
     content: JSON.stringify(card.content),
     tags: card.tags,
@@ -26,7 +26,7 @@ export async function deleteCard(id: number): Promise<number> {
   });
 }
 
-export async function updateCard(card: Pick<ICard, 'content' | 'tags' | 'id' | 'links' | 'category'>): Promise<number> {
+export async function updateCard(card: IUpdateCard): Promise<number> {
   return await invoke('update_one_card', {
     id: card.id,
     content: JSON.stringify(card.content),

@@ -5,7 +5,7 @@ import {
   updateCard,
   deleteCard,
 } from '@/commands';
-import { ECardCategory, ICard } from "@/types";
+import { ECardCategory, ICard, ICreateCard, IUpdateCard } from "@/types";
 
 interface IState {
   cards: ICard[];
@@ -15,8 +15,8 @@ interface IState {
 
 interface IActions {
   init: () => Promise<void>;
-  createCard: (card: Pick<ICard, 'content' | 'tags' | 'links' | 'category'>) => Promise<number>;
-  updateCard: (card: Pick<ICard, 'content' | 'tags' | 'id' | 'links' | 'category'>) => Promise<number>;
+  createCard: (card: ICreateCard) => Promise<number>;
+  updateCard: (card: IUpdateCard) => Promise<number>;
   deleteCard: (id: number) => Promise<number>;
 }
 

@@ -47,7 +47,7 @@ pub fn init_card_table(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-pub fn upgrade_card_table(conn: &Connection, old_version: i64, new_version: i64) -> Result<()> {
+pub fn upgrade_card_table(conn: &Connection, _old_version: i64, _new_version: i64) -> Result<()> {
     let mut stmt = conn.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cards'")?;
     let mut rows = stmt.query([])?;
     if let Some(row) = rows.next()? {

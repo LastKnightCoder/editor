@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { createTimeRecord, updateTimeRecord, deleteTimeRecord, getAllTimeRecords } from '@/commands';
 import { ITimeRecord, TimeRecordGroup } from "@/types";
+import dayjs from "dayjs";
 
 interface IState {
   loading: boolean;
   timeRecords: TimeRecordGroup;
+  currentDate: string;
 }
 
 interface IActions {
@@ -17,6 +19,7 @@ interface IActions {
 const initState: IState = {
   loading: false,
   timeRecords: [],
+  currentDate: dayjs().format('YYYY-MM-DD')
 }
 
 const useTimeRecordStore = create<IState & IActions>((set) => ({

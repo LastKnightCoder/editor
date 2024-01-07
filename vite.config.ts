@@ -29,10 +29,6 @@ export default defineConfig({
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
     rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html'),
-        "quick-card": path.resolve(__dirname, 'quick-card/index.html'),
-      },
       output: {
         manualChunks: {
           'react': ['react'],

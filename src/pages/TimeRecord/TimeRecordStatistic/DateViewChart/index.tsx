@@ -1,44 +1,34 @@
-import { useMemo, useState } from "react";
-import { DatePicker } from "antd";
-import dayjs, { Dayjs } from "dayjs";
+import { useMemo } from "react";
 
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
-import { useMemoizedFn } from "ahooks";
 
-import styles from './index.module.less';
+import { ITimeRecord } from '@/types';
 
 interface DateViewChartProps {
-  Chart: any;
+  Chart: ({ timeRecords }: { timeRecords: ITimeRecord[] }) => JSX.Element;
 }
 
 const DateViewChart = (props: DateViewChartProps) => {
   const { Chart } = props;
   
-  const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
   const {
-    timeRecords
+    timeRecords,
+    currentDate
   } = useTimeRecordStore((state) => ({
-    timeRecords: state.timeRecords
+    timeRecords: state.timeRecords,
+    currentDate: state.currentDate,
   }));
   
   const selectedTimeRecords = useMemo(() => {
-    const selectedTimeRecords = timeRecords.filter(timeRecord => timeRecord.date === date);
+    const selectedTimeRecords = timeRecords.filter(timeRecord => timeRecord.date === currentDate);
     if (selectedTimeRecords.length > 0) {
       return selectedTimeRecords[0].timeRecords;
     }
     return [];
-  }, [timeRecords, date]);
-
-  const onDateChange = useMemoizedFn((date: Dayjs | null) => {
-    if (!date) return;
-    setDate(date.format('YYYY-MM-DD'))
-  });
+  }, [timeRecords, currentDate]);
   
   return (
-    <div className={styles.dateView}>
-      <DatePicker className={styles.datePicker} value={dayjs(date)} onChange={onDateChange} />
-      <Chart timeRecords={selectedTimeRecords} />
-    </div>
+    <Chart timeRecords={selectedTimeRecords} />
   )
 }
 
