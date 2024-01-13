@@ -59,11 +59,12 @@ const QuickTimeRecord = () => {
         data-tauri-drag-region
         className={styles.titleBar}
       >
+        <div className={styles.title}>快捷时间记录</div>
         <WindowControl className={styles.windowControl} notShowFullscreen initAlwaysOnTop />
       </div>
       <div className={styles.form}>
         <div className={styles.content}>
-          <div>事件：</div>
+          <div style={{ lineHeight: 1.8 }}>事件：</div>
           <Editor
             ref={editorRef}
             initValue={initValue}

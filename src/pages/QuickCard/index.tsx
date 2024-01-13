@@ -66,6 +66,7 @@ const QuickCard = () => {
         data-tauri-drag-region
         className={styles.titleBar}
       >
+        <div className={styles.title}>快捷卡片</div>
         <WindowControl className={styles.windowControl} notShowFullscreen initAlwaysOnTop />
       </div>
       <div className={styles.editor}>

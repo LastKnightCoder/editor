@@ -200,3 +200,7 @@
 ## v0.4.20
 
 - feat: 时间记录日期选择联动
+- fix: card-link 添加规则，必须在 paragraph 里面
+- fix: 卡片列表显示不全
+- fix: HoveringBar 层级问题修复
+- fix: 时间记录页面侧边栏宽度调整问题

@@ -7,13 +7,13 @@ import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 import useUploadImage from "@/hooks/useUploadImage.ts";
-// import { cardLinkExtension } from "@/editor-extensions";
+import { cardLinkExtension } from "@/editor-extensions";
 import { ICard } from "@/types";
 import { formatDate } from "@/utils/time.ts";
 
 import styles from './index.module.less';
 
-// const customExtensions = [cardLinkExtension];
+const customExtensions = [cardLinkExtension];
 
 interface IEditCardProps {
   readonly: boolean;
@@ -78,7 +78,7 @@ const EditCard = (props: IEditCardProps) => {
               onInit={onInit}
               initValue={initValue}
               onChange={onContentChange}
-              // extensions={customExtensions}
+              extensions={customExtensions}
               readonly={readonly}
               uploadImage={uploadImage}
             />

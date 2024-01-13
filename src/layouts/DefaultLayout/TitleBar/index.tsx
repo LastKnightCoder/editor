@@ -2,12 +2,10 @@ import React, { useEffect, useState } from 'react';
 import classnames from "classnames";
 import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CaretDownOutlined } from '@ant-design/icons';
 
 import WindowControl from "@/components/WindowControl";
 
 import styles from './index.module.less';
-import { Popover } from "antd";
 
 interface ITitleBarProps {
   className?: string;
@@ -23,10 +21,31 @@ enum ENavKey {
   TIME_RECORD = 'TIME_RECORD',
 }
 
+const configs = [{
+  key: ENavKey.CARDS,
+  title: '卡片',
+  path: '/cards'
+}, {
+  key: ENavKey.ARTICLES,
+  title: '文章',
+  path: '/articles'
+}, {
+  key: ENavKey.DOCUMENTS,
+  title: '知识库',
+  path: '/documents'
+}, {
+  key: ENavKey.DAILY,
+  title: '日记',
+  path: '/daily'
+}, {
+  key: ENavKey.TIME_RECORD,
+  title: '时间记录',
+  path: '/time-record'
+}]
+
 const TitleBar = (props: ITitleBarProps) => {
   const { className, style } = props;
   const [activeNavKey, setActiveNavKey] = useState<ENavKey>(ENavKey.CARDS);
-  const [cardPopoverOpen, setCardPopoverOpen] = useState<boolean>(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,28 +66,6 @@ const TitleBar = (props: ITitleBarProps) => {
     }
   }, [location]);
 
-  const navigateToDaily = () => {
-    navigate('/daily');
-  }
-
-  const navigateToArticles = () => {
-    navigate('/articles/list');
-  }
-
-  const navigateToDocuments = () => {
-    navigate('/documents');
-  }
-
-  const navigateToTimeRecord = () => {
-    navigate('/time-record');
-  }
-
-  const isCardsActive = activeNavKey === ENavKey.CARDS;
-  const isArticlesActive = activeNavKey === ENavKey.ARTICLES;
-  const isDailyActive = activeNavKey === ENavKey.DAILY;
-  const isDocumentsActive = activeNavKey === ENavKey.DOCUMENTS;
-  const isTimeRecordActive = activeNavKey === ENavKey.TIME_RECORD;
-
   return (
     <div
       data-tauri-drag-region
@@ -76,81 +73,26 @@ const TitleBar = (props: ITitleBarProps) => {
       className={classnames(styles.titleBar, className)}
     >
       <motion.div className={styles.nav}>
-        <Popover
-          open={cardPopoverOpen}
-          onOpenChange={setCardPopoverOpen}
-          trigger={'click'}
-          placement={'bottom'}
-          overlayInnerStyle={{
-            padding: 4,
-          }}
-          content={
-            <div className={styles.dropCard}>
-              <div
-                className={styles.childItem}
+        {
+          configs.map((config) => {
+            const { key, title, path } = config;
+            const isActive = activeNavKey === key;
+            return (
+              <motion.div
+                key={key}
+                className={classnames(styles.item, { [styles.active]: isActive })}
                 onClick={() => {
-                  setCardPopoverOpen(false);
-                  navigate('/cards/list')
+                  navigate(path);
                 }}
               >
-                卡片列表
-              </div>
-              <div
-                className={styles.childItem}
-                onClick={() => {
-                  setCardPopoverOpen(false);
-                  navigate('/cards/link-graph')
-                }}>
-                关系图谱
-              </div>
-            </div>
-          }
-        >
-          <motion.div
-            className={classnames(styles.item, { [styles.active]: isCardsActive })}
-          >
-            卡片 <CaretDownOutlined />
-            {
-              isCardsActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
-            }
-          </motion.div>
-        </Popover>
-        <motion.div
-          className={classnames(styles.item, { [styles.active]: isArticlesActive })}
-          onClick={navigateToArticles}
-        >
-          文章
-          {
-            isArticlesActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
-          }
-        </motion.div>
-        <motion.div
-          className={classnames(styles.item, { [styles.active]: isDocumentsActive })}
-          onClick={navigateToDocuments}
-        >
-          知识库
-          {
-            isDocumentsActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
-          }
-        </motion.div>
-        <motion.div
-          className={classnames(styles.item, { [styles.active]: isDailyActive })}
-          onClick={navigateToDaily}
-        >
-          日记
-          {
-            isDailyActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
-          }
-        </motion.div>
-        <motion.div
-          className={classnames(styles.item, { [styles.active]: isTimeRecordActive })}
-          onClick={navigateToTimeRecord}
-        >
-          时间记录
-          {
-            isTimeRecordActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
-          }
-        </motion.div>
+                {title}
+                {
+                  isActive && <motion.div layoutId={'line'} className={styles.line}></motion.div>
+                }
+              </motion.div>
+            )
+          })
+        }
       </motion.div>
       <WindowControl className={styles.windowControl} />
     </div>

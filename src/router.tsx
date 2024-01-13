@@ -2,16 +2,16 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import loadable from "@loadable/component";
 
 import DefaultLayout from '@/layouts/DefaultLayout';
+import Cards from "@/pages/Cards";
 import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
-import Cards from "@/pages/Cards";
+
 const Articles = loadable(() => import('@/pages/Articles'));
 const Documents = loadable(() => import('@/pages/Documents'));
 const ArticleEdit = loadable(() => import('@/pages/Articles/ArticleEdit'));
 const Statistic = loadable(() => import('@/pages/Statistic'));
 const Animate = loadable(() => import('@/pages/Animate'));
 const DailyNote = loadable(() => import('@/pages/DailyNote'));
-const CardGraph = loadable(() => import('@/pages/CardGraph'));
 const TimeRecord = loadable(() => import('@/pages/TimeRecord'));
 
 const routes = [{
@@ -22,16 +22,7 @@ const routes = [{
     element: <Navigate to="/cards" replace />,
   } ,{
     path: 'cards/',
-    children: [{
-      index: true,
-      element: <Navigate to="/cards/list/" replace />,
-    }, {
-      path: 'list/',
-      element: <Cards />,
-    }, {
-      path: 'link-graph/',
-      element: <CardGraph />,
-    }],
+    element: <Cards />,
   }, {
     path: 'articles/',
     children: [{
