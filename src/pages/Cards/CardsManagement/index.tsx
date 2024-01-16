@@ -70,7 +70,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
   const getCardLinks = useMemoizedFn((card: ICard) => {
     const links = getInlineLinks(card);
     return [...new Set([...links, ...card.links])];
-  })
+  });
 
   const allLinkedCards = useMemo(() => {
     if (!editingCard) return [];

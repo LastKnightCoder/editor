@@ -205,3 +205,8 @@
 - fix: 卡片列表显示不全
 - fix: HoveringBar 层级问题修复
 - fix: 时间记录页面侧边栏宽度调整问题
+
+## v0.4.21
+
+- feat: GraphView 宽度自适应
+- feat: GraphView 预览支持 CardLink

@@ -43,32 +43,34 @@ const Cards = memo(() => {
         <If condition={leftCardIds.length === 0 && rightCardIds.length === 0}>
           <CardGraph />
         </If>
-        <div className={styles.cardsPanel}>
-          <If condition={leftCardIds.length > 0}>
-            <CardsManagement
-              cardIds={leftCardIds}
-              activeCardId={leftActiveCardId}
-              side={EActiveSide.Left}
-              onClickCard={onClickCard}
-              onClickTab={onClickTab}
-              onCloseTab={onCloseTab}
-              onMoveCard={onMoveCard}
-              onCloseOtherTabs={onCloseOtherTabs}
-            />
-          </If>
-          <If condition={rightCardIds.length > 0}>
-            <CardsManagement
-              cardIds={rightCardIds}
-              activeCardId={rightActiveCardId}
-              side={EActiveSide.Right}
-              onClickCard={onClickCard}
-              onClickTab={onClickTab}
-              onCloseTab={onCloseTab}
-              onMoveCard={onMoveCard}
-              onCloseOtherTabs={onCloseOtherTabs}
-            />
-          </If>
-        </div>
+        <If condition={leftCardIds.length > 0 || rightCardIds.length > 0}>
+          <div className={styles.cardsPanel}>
+            <If condition={leftCardIds.length > 0}>
+              <CardsManagement
+                cardIds={leftCardIds}
+                activeCardId={leftActiveCardId}
+                side={EActiveSide.Left}
+                onClickCard={onClickCard}
+                onClickTab={onClickTab}
+                onCloseTab={onCloseTab}
+                onMoveCard={onMoveCard}
+                onCloseOtherTabs={onCloseOtherTabs}
+              />
+            </If>
+            <If condition={rightCardIds.length > 0}>
+              <CardsManagement
+                cardIds={rightCardIds}
+                activeCardId={rightActiveCardId}
+                side={EActiveSide.Right}
+                onClickCard={onClickCard}
+                onClickTab={onClickTab}
+                onCloseTab={onCloseTab}
+                onMoveCard={onMoveCard}
+                onCloseOtherTabs={onCloseOtherTabs}
+              />
+            </If>
+          </div>
+        </If>
       </div>
     </div>
   )

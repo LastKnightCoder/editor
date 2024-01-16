@@ -1,13 +1,15 @@
 import { Graph } from '@antv/g6';
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSize } from 'ahooks';
 import classnames from "classnames";
 
 import useTheme from "@/hooks/useTheme.ts";
 import { ICard } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
+import { cardLinkExtension } from "@/editor-extensions";
 
 import styles from './index.module.less';
+
+const customExtensions = [cardLinkExtension];
 
 interface ILinkGraphProps {
   cards: ICard[];
@@ -33,14 +35,15 @@ const LinkGraph = (props: ILinkGraphProps) => {
     getCardLinks = (card) => card.links,
     fitView = true,
   } = props;
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver>();
   const graph = useRef<Graph>();
   const editorRef = useRef<EditorRef>(null);
+  const prevSize = useRef<{ width: number, height: number }>({ width: 0, height: 0 });
 
   const [show, setShow] = useState<boolean>(false);
   const [position, setPosition] = useState<{x: number, y: number}>({ x: 0, y: 0 });
   const [activeId, setActiveId] = useState<number>(-1);
-  const size = useSize(ref);
   const { isDark } = useTheme();
 
   const content = useMemo(() => {
@@ -58,9 +61,12 @@ const LinkGraph = (props: ILinkGraphProps) => {
   }, [content]);
 
   useEffect(() => {
-    if (graph.current || !ref.current || cards.length === 0) return;
+    if (!ref.current) return;
     const width = ref.current.clientWidth;
     const height = ref.current.clientHeight;
+    if (graph.current) {
+      graph.current.destroy();
+    }
     graph.current = new Graph({
       container: ref.current,
       width,
@@ -113,11 +119,11 @@ const LinkGraph = (props: ILinkGraphProps) => {
         stroke: card.id === currentCardId ? '#fbb957' : '#5B8FF9',
         lineWidth: 8,
       }
-    })) as any[];
+    }) as const);
     const edges = cards.map((card) => getCardLinks(card).map((link) => ({
       source: String(card.id),
       target: String(link),
-    }))).flat() as any[];
+    }) as const)).flat();
 
     graph.current.data({
       nodes,
@@ -126,6 +132,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
     graph.current.render();
 
     graph.current.on('node:click', (evt) => {
+      if (!ref.current) return;
       const { item } = evt;
       if(!item) return;
       const { id } = item.getModel();
@@ -139,15 +146,17 @@ const LinkGraph = (props: ILinkGraphProps) => {
       const x = evt.clientX;
       const y = evt.clientY;
       // 获取容器偏移量
-      const { top, left } = ref.current!.getBoundingClientRect();
+      const { top, left } = ref.current.getBoundingClientRect();
       setShow(true);
       setPosition({ x: x - left + 10, y: y - top + 10 });
       setActiveId(Number(id));
     });
 
     graph.current.on('canvas:click', () => {
-      graph.current?.getNodes().forEach((node) => {
-        graph.current?.clearItemStates(node);
+      if (!graph.current) return;
+      graph.current.getNodes().forEach((node) => {
+        if (!graph.current) return;
+        graph.current.clearItemStates(node);
         setShow(false);
         setActiveId(-1);
       });
@@ -157,26 +166,27 @@ const LinkGraph = (props: ILinkGraphProps) => {
       if (graph.current) graph.current.destroy();
       graph.current = undefined;
     }
-  }, [cards, isDark, currentCardId]);
+  }, [cards, isDark, currentCardId, fitView, getCardLinks]);
   
   useEffect(() => {
-    if (!graph.current || activeId === -1) return;
+    if (!graph.current || !ref.current || activeId === -1) return;
 
     const handleGraphZoomAndMove = () => {
+      if (!graph.current || !ref.current) return;
       // 根据节点找到 item，获取其中心位置
-      const item = graph.current?.findById(String(activeId));
+      const item = graph.current.findById(String(activeId));
       if (!item) {
         return;
       }
       const { x, y } = item.getModel();
       if (x === undefined || y === undefined) return;
-      const { top, left } = ref.current!.getBoundingClientRect();
+      const { top, left } = ref.current.getBoundingClientRect();
       const { width, height } = item.getBBox();
       // 获取画布的缩放比例
-      const ratio = graph.current!.getZoom();
+      const ratio = graph.current.getZoom();
       const actualWidth = width * ratio;
       const actualHeight = height * ratio;
-      const { x: cx, y: cy } = graph.current!.getClientByPoint(x, y);
+      const { x: cx, y: cy } = graph.current.getClientByPoint(x, y);
       setPosition({ x: cx - left + actualWidth / 2, y: cy - top + actualHeight / 2 });
     }
 
@@ -185,18 +195,37 @@ const LinkGraph = (props: ILinkGraphProps) => {
     graph.current.on('wheel', handleGraphZoomAndMove);
     
     return () => {
-      graph.current?.off('canvas:drag', handleGraphZoomAndMove);
-      graph.current?.off('wheel', handleGraphZoomAndMove);
+      if (!graph.current) return;
+      graph.current.off('canvas:drag', handleGraphZoomAndMove);
+      graph.current.off('wheel', handleGraphZoomAndMove);
     }
-  }, [activeId])
-
-  useEffect(() => {
-    if (!ref.current || !graph.current || !size?.width || size?.height) return;
-    graph.current.changeSize(size.width, size.height);
-  }, [size]);
+  }, [activeId]);
 
   return (
-    <div className={classnames(styles.container, className)} style={style} ref={ref}>
+    <div
+      className={classnames(styles.container, className)}
+      style={style}
+      ref={node => {
+        if (node) {
+          ref.current = node;
+          if (resizeObserverRef.current) {
+            resizeObserverRef.current.disconnect();
+          }
+          resizeObserverRef.current = new ResizeObserver(() => {
+            if (graph.current) {
+              const width = node.clientWidth;
+              const height = node.clientHeight;
+              if (prevSize.current.width === width && prevSize.current.height === height) {
+                return;
+              }
+              graph.current.changeSize(width, height);
+              prevSize.current = { width, height };
+            }
+          });
+          resizeObserverRef.current.observe(node);
+        }
+      }}
+    >
       {
         show && (
           <div
@@ -209,7 +238,11 @@ const LinkGraph = (props: ILinkGraphProps) => {
               fontSize: cardFontSize,
           }}
           >
-            <Editor ref={editorRef} readonly={true} />
+            <Editor 
+              ref={editorRef} 
+              readonly={true}
+              extensions={customExtensions}
+            />
           </div>
         )
       }

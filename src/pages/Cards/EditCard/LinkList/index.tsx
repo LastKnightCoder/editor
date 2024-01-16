@@ -1,5 +1,5 @@
 import { useState } from "react";
-import {App, Button, Empty, message} from 'antd';
+import { App, Button, Empty, message } from 'antd';
 import CardItem2 from "@/pages/Cards/CardItem2";
 import AddCardLinkModal from "../AddCardLinkModal";
 // import LinkGraph from "@/components/LinkGraph";
