@@ -94,6 +94,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
         linkDistance: 100,
         preventOverlap: true,
         workerEnabled: true,
+        nodeSize: 50
       },
       modes: {
         default: ['drag-canvas', 'zoom-canvas']
@@ -113,7 +114,7 @@ const LinkGraph = (props: ILinkGraphProps) => {
     });
     const nodes = cards.map((card) => ({
       id: String(card.id),
-      size: card.links.length * 10 + 30,
+      size: getCardLinks(card).length * 10 + 30,
       style: {
         fill: card.id === currentCardId ? 'rgba(251,185,87,0.58)' : '#C6E5FF',
         stroke: card.id === currentCardId ? '#fbb957' : '#5B8FF9',
