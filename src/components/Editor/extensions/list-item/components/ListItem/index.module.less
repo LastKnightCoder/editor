@@ -1,0 +1,39 @@
+.listItem {
+  position: relative;
+  &:hover {
+    .arrowContainer {
+      &.show {
+        .arrow {
+          cursor: pointer;
+          display: block;
+        }
+      }
+    }
+  }
+  .arrowContainer {
+    position: absolute;
+    top: .9em;
+    left: -2em;
+    width: 10px;
+    height: 100%;
+    &:hover {
+      &.show {
+        .arrow {
+          cursor: pointer;
+          display: block;
+        }
+      }
+    }
+    .arrow {
+      width: 0;
+      height: 0;
+      border: 5px solid transparent;
+      border-top-color: #666;
+      display: none;
+      transform: translateY(-2.5px);
+      &.fold {
+        transform: translateY(-5px) rotate(-90deg);
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { Transforms } from "slate";
 import { produce } from 'immer';
 import { v4 as getUUid } from 'uuid';
@@ -40,10 +40,6 @@ const Tabs = (props: ITabsProps) => {
   const bottomLineId = useMemo(() => {
     return ReactEditor.findPath(editor, element).join('-');
   }, [editor, element]);
-
-  useEffect(() => {
-    console.log('element', element);
-  }, [element]);
 
   const setTabsData = (newActiveKey: string, newTabsContent: ITabsContent[], newChildren: any) => {
     const path = ReactEditor.findPath(editor, element);

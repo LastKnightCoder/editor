@@ -23,6 +23,7 @@ interface IActions {
   dragCard: (dragCardId: number, dropCardId: number) => void;
   dragCardToTabContainer: (dragCardId: number, side: EActiveSide, last?: boolean) => void;
   closeOtherTabs: (cardId: number, side: EActiveSide) => void;
+  addCardToNotActiveSide: (cardId: number) => void;
 }
 
 const initState: IState = {
@@ -115,10 +116,12 @@ const useCardPanelStore = create<IState & IActions>((set, get) => ({
     }
   },
   addCardToSide: (cardId, side) => {
-    const { leftCardIds, rightCardIds } = get();
+    const { leftCardIds, rightCardIds, moveCardToSide } = get();
     if (leftCardIds.includes(cardId) || rightCardIds.includes(cardId)) {
+      moveCardToSide(cardId, side);
       return;
     }
+
     const cards = side === EActiveSide.Left ? leftCardIds : rightCardIds;
     const cardsKey = side === EActiveSide.Left ? 'leftCardIds' : 'rightCardIds';
     const activeCardKey = side === EActiveSide.Left ? 'leftActiveCardId' : 'rightActiveCardId';
@@ -247,6 +250,11 @@ const useCardPanelStore = create<IState & IActions>((set, get) => ({
       [activeCardKey]: nextActiveCardId,
       activeSide: side,
     });
+  },
+  addCardToNotActiveSide: (cardId) => {
+    const { activeSide, addCardToSide } = get();
+    const notActiveSide = activeSide === EActiveSide.Left ? EActiveSide.Right : EActiveSide.Left;
+    addCardToSide(cardId, notActiveSide);
   }
 }));
 

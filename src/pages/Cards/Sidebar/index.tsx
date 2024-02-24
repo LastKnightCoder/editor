@@ -21,8 +21,6 @@ interface ISidebarProps {
   onClickCard: (id: number) => void;
 }
 
-
-
 const Sidebar = (props: ISidebarProps) => {
   const { editingCardId, onDeleteCard, onCreateCard, onClickCard } = props;
   const [activeTab, setActiveTab] = useState<'all' | 'tags'>('all'); // ['all', 'tags']

@@ -2,13 +2,13 @@ import React, { useState, useRef } from 'react';
 import { Transforms } from "slate";
 import { RenderElementProps, useSlate, useReadOnly, ReactEditor } from "slate-react";
 import classnames from 'classnames';
-import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import { MdDragIndicator } from "react-icons/md";
 
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import { CalloutElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
 import styles from './index.module.less';
-import {MdDragIndicator} from "react-icons/md";
 
 interface ICalloutProps {
   attributes: RenderElementProps['attributes'];
@@ -17,19 +17,19 @@ interface ICalloutProps {
 
 const configs = {
   tip: {
-    title: 'TIP',
+    title: '技巧',
   },
   info: {
-    title: 'INFO',
+    title: '信息',
   },
   warning: {
-    title: 'WARNING',
+    title: '警告',
   },
   danger: {
-    title: 'DANGER',
+    title: '危险',
   },
   note: {
-    title: 'NOTE',
+    title: '注意',
   }
 }
 
@@ -89,7 +89,11 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
         </div>
       </div>
       <AddParagraph element={element} />
-      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+      <div
+        contentEditable={false}
+        ref={drag}
+        className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}
+      >
         <MdDragIndicator className={styles.icon}/>
       </div>
     </div>

@@ -1,14 +1,12 @@
 .list {
   padding-inline-start: 32px;
   margin: 0;
-  li:last-child *:last-child {
+  li:last-child *:last-of-type([data-slate-node='element']) {
     margin: 0;
   }
-  li {
+  &>li {
     position: relative;
-    &::marker {
-      content: none;
-    }
+    list-style-type: none;
     &::before {
       position: absolute;
       content: '';
@@ -16,7 +14,7 @@
       height: .3em;
       border-radius: 50%;
       background: rgba(255, 255, 255, 0.4);
-      box-shadow: 0 0 0 3px rgba(250, 250, 250, 0.2);
+      box-shadow: 0 0 0 .2em rgba(250, 250, 250, 0.15);
       left: -1em;
       top: .75em;
       transition: transform .3s ease-in-out;

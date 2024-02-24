@@ -210,3 +210,8 @@
 
 - feat: GraphView 宽度自适应
 - feat: GraphView 预览支持 CardLink
+- feat: 点击图中的节点自动跳转到对应的卡片
+- feat: 行内卡片连接点击在另一侧打开
+- feat: GraphView 与 CardView 切换时，不会重新计算布局
+- feat: 鼠标放置在节点延迟 500ms 才会显示卡片内容
+- feat: 列表项支持折叠

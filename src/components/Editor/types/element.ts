@@ -65,6 +65,8 @@ export interface HeaderElement {
 export interface ListItemElement {
   type: 'list-item';
   children: BlockElement[];
+  isFold?: boolean;
+  allContent?: BlockElement[];
 }
 
 export interface BulletedListElement {
