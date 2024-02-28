@@ -1,6 +1,6 @@
-import { createContext, useEffect, useRef, useState } from "react";
+import { createContext, useRef, useState } from "react";
 import { Descendant, Editor as SlateEditor } from "slate";
-import { useRafInterval } from "ahooks";
+import { useRafInterval, useUnmount } from "ahooks";
 
 import Editor, { EditorRef } from '@/components/Editor';
 import AddTag from "@/components/AddTag";
@@ -52,14 +52,16 @@ const EditCard = (props: IEditCardProps) => {
   const uploadImage = useUploadImage();
 
   useRafInterval(() => {
-    saveCard();
-  }, 1000)
-
-  useEffect(() => {
-    return () => {
+    if (!readonly) {
       saveCard();
     }
-  }, [saveCard]);
+  }, 1000)
+
+  useUnmount(() => {
+    if (!readonly) {
+      saveCard();
+    }
+  })
 
   return (
     <EditCardContext.Provider value={{

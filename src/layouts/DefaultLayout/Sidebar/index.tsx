@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { message, Modal } from "antd";
-import { useAsyncEffect, useMemoizedFn } from "ahooks";
+import { useAsyncEffect } from "ahooks";
 import classnames from "classnames";
 import isHotkey from "is-hotkey";
 import { SettingOutlined, SyncOutlined } from '@ant-design/icons';
@@ -115,7 +115,7 @@ const Sidebar = (props: ISidebarProps) => {
     }
   }, [onDarkModeChange]);
 
-  const checkDownload = useMemoizedFn(async () => {
+  const checkDownload = useCallback(async () => {
     if (!accessKeyId || !accessKeySecret || !bucket || !region) return;
     const originDatabaseInfo = await getOriginDatabaseInfo();
     if (!originDatabaseInfo) return;
@@ -138,7 +138,7 @@ const Sidebar = (props: ISidebarProps) => {
     } else {
       message.success('当前已是最新版本');
     }
-  });
+  }, [accessKeyId, accessKeySecret, bucket, currentVersion, region]);
 
   useAsyncEffect(async () => {
     await checkDownload()

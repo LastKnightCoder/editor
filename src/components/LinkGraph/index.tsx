@@ -146,7 +146,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     });
     const nodes = cards.map((card) => ({
       id: String(card.id),
-      size: Math.min(getCardLinks(card).length * 5 + 25, 50),
+      size: Math.min(getCardLinks(card).length * 10 + 30, 80),
       style: {
         fill: card.id === currentCardId ? 'rgba(251,185,87,0.58)' : '#e0eaf1',
         stroke: card.id === currentCardId ? '#fbb957' : '#799eee',
@@ -244,7 +244,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
                 return;
               }
               graph.current.changeSize(width, height);
-              graph.current.fitView([40], undefined, true);
+              graph.current.fitView([40], undefined, false);
               prevSize.current = { width, height };
             }
           });

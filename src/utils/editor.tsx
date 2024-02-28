@@ -1,5 +1,5 @@
 import { Descendant, Editor } from "slate";
-import { CodeBlockElement, FormattedText, ParagraphElement } from "@/components/Editor/types";
+import { CodeBlockElement, FormattedText, ParagraphElement, InlineMathElement, BlockMathElement } from "@/components/Editor/types";
 import { Typography } from "antd";
 import Katex from "@/components/Katex";
 import { wordsCount } from 'words-count';
@@ -91,9 +91,14 @@ export const getEditorTextLength = (editor: Editor, value: Descendant[]): number
 
   // 找到所有的 CodeBlock
   const codeBlocks: Array<CodeBlockElement> = [];
+  const mathElements: Array<InlineMathElement | BlockMathElement> = [];
   const traverse = (node: Descendant) => {
     if (node.type === 'code-block') {
       codeBlocks.push(node);
+      return;
+    }
+    if (node.type === 'inline-math' || node.type === 'block-math') {
+      mathElements.push(node);
       return;
     }
     // @ts-ignore
@@ -112,8 +117,13 @@ export const getEditorTextLength = (editor: Editor, value: Descendant[]): number
     codeBlockLength += wordsCount(node.code);
   });
 
+  let mathLength = 0;
+  mathElements.forEach(node => {
+    mathLength += wordsCount(node.tex)
+  })
+
   return wordsCount(Editor.string(editor, {
     anchor: Editor.start(editor, [0]),
     focus: Editor.end(editor, []),
-  })) + codeBlockLength;
+  })) + codeBlockLength + mathLength;
 }
