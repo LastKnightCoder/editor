@@ -1,0 +1,47 @@
+.container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+  --sidebar-width: 200px;
+  --list-width: 320px;
+  --title-bar-height: 60px;
+  .sidebar {
+    flex: none;
+    width: var(--sidebar-width);
+    height: 100vh;
+    box-sizing: border-box;
+    overflow-y: auto;
+    border-right: 1px solid var(--line-color);
+  }
+  .list {
+    flex: none;
+    width: var(--list-width);
+    height: 100vh;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-right: 1px solid var(--line-color);
+  }
+  .contentArea {
+    flex-basis: calc(100% - var(--sidebar-width) - var(--list-width));
+    width: calc(100% - var(--sidebar-width) - var(--list-width));
+    height: 100vh;
+    box-sizing: border-box;
+    .titleBar {
+      width: 100%;
+      height: var(--title-bar-height);
+      box-sizing: border-box;
+      border-bottom: 1px solid var(--line-color);
+    }
+    .content {
+      width: 100%;
+      height: calc(100% - var(--title-bar-height));
+      box-sizing: border-box;
+      overflow: auto;
+      display: flex;
+      gap: 10px;
+
+    }
+  }
+}

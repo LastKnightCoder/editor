@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import classnames from 'classnames';
 
 import { IBlockPanelListItem } from "@/components/Editor/types";
@@ -12,7 +12,7 @@ interface IItemProps {
   onClick?: () => void;
 }
 
-const Item = (props: IItemProps) => {
+const Item = memo((props: IItemProps) => {
   const { showBottomLine, item, active, onClick } = props;
   const ref = useRef<HTMLDivElement>(null);
 
@@ -35,6 +35,6 @@ const Item = (props: IItemProps) => {
       { showBottomLine && <div className={styles.bottomLine} /> }
     </div>
   )
-}
+});
 
 export default Item;

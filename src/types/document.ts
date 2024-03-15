@@ -30,7 +30,7 @@ export interface IUpdateDocument {
   isTop: boolean;
 }
 
-export type ICreateDocument = Exclude<IUpdateDocument, 'id'>;
+export type ICreateDocument = Omit<IUpdateDocument, 'id'>;
 export type IDeleteDocument = Pick<IDocument, 'id'>;
 
 export interface IDocumentItem {
@@ -69,5 +69,5 @@ export interface ICreateDocumentItem {
   parents: number[];
 }
 
-export type IUpdateDocumentItem = Exclude<IDocumentItem, 'id' | 'is_delete'>;
+export type IUpdateDocumentItem = Omit<IDocumentItem, 'id' | 'is_delete'>;
 export type IDeleteDocumentItem = Pick<IDocumentItem, 'id'>;

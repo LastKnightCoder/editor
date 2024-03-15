@@ -35,7 +35,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = (props) =>
       >
         {children}
       </p>
-      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, {[styles.canDrag]: canDrag})}>
+      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
         <MdDragIndicator className={styles.icon}/>
       </div>
     </div>

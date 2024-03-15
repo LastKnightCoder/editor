@@ -1,8 +1,11 @@
-import { CloseOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
-import { useImagesOverviewStore } from "../../stores";
-import styles from './index.module.less';
+import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
+import { CloseOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import PortalToBody from "@/components/PortalToBody";
+
+import { useImagesOverviewStore } from "../../stores";
+
+import styles from './index.module.less';
 
 const ImagesOverview = () => {
   const { isShowImagesOverview, imageElements, hasNextImage, hasPrevImage, currentImageIndex, switchImage, closeImagesOverview } = useImagesOverviewStore(state => ({
@@ -15,20 +18,18 @@ const ImagesOverview = () => {
     closeImagesOverview: state.closeImagesOverview,
   }));
 
-  const switchNext = () => {
+  const switchNext = useMemoizedFn(() => {
     switchImage(true);
-  }
+  });
 
-  const switchPrev = () => {
+  const switchPrev = useMemoizedFn(() => {
     switchImage(false);
-  }
+  });
 
-  const renderContent = () => {
-    if (!isShowImagesOverview) {
-      return null;
-    }
+  if (!isShowImagesOverview) return null;
 
-    return (
+  return (
+    <div>
       <PortalToBody>
         <div className={styles.container}>
           <div className={styles.mask}></div>
@@ -46,12 +47,6 @@ const ImagesOverview = () => {
           </div>
         </div>
       </PortalToBody>
-    )
-  }
-
-  return (
-    <div>
-      {renderContent()}
     </div>
   )
 }

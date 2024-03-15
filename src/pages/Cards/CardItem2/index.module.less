@@ -1,9 +1,12 @@
 .itemContainer {
   padding: 12px;
   margin-bottom: 10px;
-  border-radius: 4px;
+  border-radius: 8px;
   position: relative;
   user-select: none;
+  background-color: #FAFAFA;
+  border: 2px solid transparent;
+  box-sizing: border-box;
 
   &.showLine::after {
     content: '';
@@ -18,17 +21,24 @@
     background-color: var(--common-hover-bg);
     cursor: pointer;
   }
-  &:hover {
-    .moreIcon {
-      display: flex;
-    }
-  }
   &.active {
-    background-color: var(--doc-fill-active);
+    border: 2px solid #E1B9AB;
+    background-color: #FEF6F4;
+    .moreIcon {
+      background-color: #FDE9E2;
+    }
   }
 
   .tags {
-    width: calc(100% - 20px);
+    width: calc(100% - 54px);
+  }
+
+  .time {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    color: gray;
+    font-size: .8em;
   }
 
   .textContainer {
@@ -36,6 +46,9 @@
     margin-top: 10px;
     margin-bottom: 0;
     content-visibility: auto;
+    &.noTag {
+      margin-top: 0;
+    }
     :global(code) {
       color: var(--code-normal, #FBDE2D);
       background-color: var(--code-bg, transparent);
@@ -48,18 +61,16 @@
 
   .moreIcon {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: 12px;
+    right: 12px;
     width: 30px;
     height: 30px;
     align-items: center;
     justify-content: center;
-    display: none;
-    border-radius: 50%;
-    &:hover {
-      background-color: var(--common-hover-bg);
-      cursor: pointer;
-    }
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    background-color: #F2F2F2;
   }
 }
 

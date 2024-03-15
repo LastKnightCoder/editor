@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Typography, Popover } from 'antd';
-import { MdMoreVert } from 'react-icons/md';
+import { MdMoreHoriz } from "react-icons/md";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
 import SettingPanel, { ISettingItem } from "./SettingPanel";
 
 import classnames from "classnames";
-import { getEditorTextValue } from '@/utils';
+import { getEditorText } from '@/utils';
+import { formatDate } from "@/utils/time";
 import { ICard } from "@/types";
 
 import styles from './index.module.less';
@@ -21,9 +22,10 @@ interface ICardItem2Props {
   settings?: ISettingItem[];
   maxRows?: number;
   showLine?: boolean;
+  showTime?: boolean;
 }
 
-const CardItem2 = (props: ICardItem2Props) => {
+const CardItem2 = memo((props: ICardItem2Props) => {
   const {
     card,
     onClick,
@@ -32,19 +34,25 @@ const CardItem2 = (props: ICardItem2Props) => {
     settings = [],
     maxRows = 2,
     showLine = true,
+    showTime = false,
   } = props;
 
   const { content, tags } = card;
 
   const [settingPanelOpen, setSettingPanelOpen] = useState(false);
-
+  
   return (
     <div className={classnames(styles.itemContainer, { [styles.active]: active, [styles.showLine]: showLine })} onClick={onClick}>
       <If condition={showTags}>
-        <Tags tags={tags} showIcon className={styles.tags} />
+        <Tags tags={tags} showIcon className={styles.tags} tagStyle={active ? { backgroundColor: '#FDE9E2' } : {}} />
       </If>
-      <Paragraph className={styles.textContainer} ellipsis={{ rows: maxRows }}>
-        {getEditorTextValue(content) || '未知内容'}
+      <If condition={showTime}>
+        <div className={styles.time}>
+          {formatDate(card.update_time, true)}
+        </div>
+      </If>
+      <Paragraph className={classnames(styles.textContainer, { [styles.noTag]: !showTags || tags.length < 1 })} ellipsis={{ rows: maxRows }}>
+        {getEditorText(content, 40) || '未知内容'}
       </Paragraph>
       <If condition={settings.length > 0}>
         <Popover
@@ -59,12 +67,12 @@ const CardItem2 = (props: ICardItem2Props) => {
           }}
         >
           <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
-            <MdMoreVert />
+            <MdMoreHoriz />
           </div>
         </Popover>
       </If>
     </div>
   )
-}
+});
 
 export default CardItem2;

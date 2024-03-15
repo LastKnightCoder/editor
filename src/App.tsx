@@ -1,11 +1,12 @@
 import { useEffect } from "react";
-import { ConfigProvider, theme } from "antd";
+import { useLocalStorageState } from "ahooks";
+import { ConfigProvider, theme, App } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { RouterProvider } from "react-router-dom";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
-import router from "@/router.tsx";
+import { router, classicRouter } from "@/router.tsx";
 import useTheme from "@/hooks/useTheme.ts";
 import useSettingStore from "@/stores/useSettingStore";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
@@ -14,8 +15,7 @@ import useDocumentsStore from "@/stores/useDocumentsStore";
 import useSyncFont from "@/hooks/useSyncFont.ts";
 import useSyncTheme from "@/hooks/useSyncTheme";
 
-
-const App = () => {
+const Application = () => {
   const { isDark } = useTheme();
 
   const {
@@ -52,6 +52,12 @@ const App = () => {
   useSyncFont();
   useSyncTheme();
 
+  const [layout] = useLocalStorageState('layout', {
+    defaultValue: 'classic',
+  });
+
+  const isClassic = layout === 'classic';
+
   return (
     <ConfigProvider
       theme={{
@@ -64,11 +70,17 @@ const App = () => {
       }}
       locale={zhCN}
     >
-      <DndProvider backend={HTML5Backend}>
-        <RouterProvider router={router} />
-      </DndProvider>
+      <App style={{
+        height: '100%',
+        fontSize: 'var(--font-size)',
+        color: 'var(--text-normal)',
+      }}>
+        <DndProvider backend={HTML5Backend}>
+          <RouterProvider router={isClassic ? classicRouter : router} />
+        </DndProvider>
+      </App>
     </ConfigProvider>
   )
 }
 
-export default App;
+export default Application;

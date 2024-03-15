@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import classnames from 'classnames';
 import { useSlate, useReadOnly } from "slate-react";
 
@@ -11,7 +11,7 @@ interface IAddParagraphProps {
   element: CustomElement
 }
 
-const AddParagraph: React.FC<IAddParagraphProps> = (props) => {
+const AddParagraph: React.FC<IAddParagraphProps> = memo((props) => {
   const { element } = props;
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -33,6 +33,6 @@ const AddParagraph: React.FC<IAddParagraphProps> = (props) => {
       className={classnames(styles.addParagraph, { [styles.pointer]: !readOnly })}>
     </div>
   )
-}
+});
 
 export default AddParagraph;

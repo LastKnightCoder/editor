@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react';
-import { MinusOutlined, CloseOutlined, FullscreenExitOutlined, FullscreenOutlined } from '@ant-design/icons';
-import { PiPushPinSimple } from "react-icons/pi";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import classnames from "classnames";
+
+import If from "@/components/If";
+import SVG from 'react-inlinesvg';
+import { Tooltip } from "antd";
+
+import { MinusOutlined, CloseOutlined } from '@ant-design/icons';
+import { PiPushPinSimple } from "react-icons/pi";
+import maxMax from '@/assets/window-control/max-max.svg';
+import maxMin from '@/assets/window-control/max-min.svg';
 
 import { appWindow } from '@tauri-apps/api/window'
 import { type } from '@tauri-apps/api/os'
 import { UnlistenFn } from "@tauri-apps/api/event";
 
-
 import styles from './index.module.less';
-import If from "@/components/If";
-import { Tooltip } from "antd";
+
 
 interface IWindowControlProps {
   className?: string;
@@ -22,7 +27,7 @@ interface IWindowControlProps {
 
 const WindowControl = (props: IWindowControlProps) => {
   const { className, style, notShowFullscreen = false, initAlwaysOnTop = false } = props;
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isMaximizable, setIsMaximizable] = useState<boolean>(false);
   const [alwaysOnTop, setAlwaysOnTop] = useState<boolean>(initAlwaysOnTop);
 
   useAsyncEffect(async () => {
@@ -41,8 +46,10 @@ const WindowControl = (props: IWindowControlProps) => {
     if (!root) return;
     if (isWindowMaximized) {
       root.classList.add('maximized');
+      setIsMaximizable(true);
     } else {
       root.classList.remove('maximized');
+      setIsMaximizable(false);
     }
   });
 
@@ -52,7 +59,7 @@ const WindowControl = (props: IWindowControlProps) => {
     type().then((osType) => {
       if (osType !== 'Windows_NT') return;
       appWindow.onResized(() => {
-        updateIsWindowMaximized();
+        updateIsWindowMaximized().then();
       }).then((unlistenFn) => {
         unlisten = unlistenFn;
       });
@@ -65,17 +72,14 @@ const WindowControl = (props: IWindowControlProps) => {
     await appWindow.minimize();
   }
 
-  const toggleFullscreen = async () => {
-    const isFullscreen = await appWindow.isFullscreen();
-    setIsFullscreen(!isFullscreen);
-    await appWindow.setFullscreen(!isFullscreen);
-    const root = document.getElementById('root');
-    if (!root) return;
-    if (isFullscreen) {
-      root.classList.remove('fullscreen');
+  const toggleMaximizable = async () => {
+    const isMaximized = await appWindow.isMaximized();
+    if (isMaximized) {
+      await appWindow.unmaximize();
     } else {
-      root.classList.add('fullscreen');
+      await appWindow.maximize();
     }
+    setIsMaximizable(!isMaximized);
   }
 
   const toggleAlwaysOnTop = async () => {
@@ -100,9 +104,9 @@ const WindowControl = (props: IWindowControlProps) => {
         <MinusOutlined />
       </div>
       <If condition={!notShowFullscreen}>
-        <div className={styles.item} onClick={toggleFullscreen}>
+        <div className={styles.item} onClick={toggleMaximizable}>
           {
-            isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />
+            isMaximizable ? <SVG src={maxMin} style={{ width: '1.6em', height: '1.6em' }} /> : <SVG src={maxMax} />
           }
         </div>
       </If>

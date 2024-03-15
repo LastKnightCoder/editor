@@ -43,7 +43,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   const graph = useRef<Graph>();
   const editorRef = useRef<EditorRef>(null);
   const prevSize = useRef<{ width: number, height: number }>({ width: 0, height: 0 });
-  const isMouseLeaveNode = useRef<boolean>(false);
+  const mouseEnterId = useRef<string>();
 
   const [show, setShow] = useState<boolean>(false);
   const [position, setPosition] = useState<{x: number, y: number}>({ x: 0, y: 0 });
@@ -58,12 +58,12 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   }, [activeId, cards]);
 
   const handleNodeMouseEnter = useMemoizedFn((evt: IG6GraphEvent) => {
-    isMouseLeaveNode.current = false;
+    const { item } = evt;
+    if(!item) return;
+    const { id } = item.getModel();
+    mouseEnterId.current = id;
     setTimeout(() => {
-      if (!ref.current || isMouseLeaveNode.current) return;
-      const { item } = evt;
-      if(!item) return;
-      const { id } = item.getModel();
+      if (!ref.current || mouseEnterId.current !== id) return;
       graph.current?.setItemState(item, 'selected', true);
       graph.current?.getNodes().forEach((node) => {
         if (node !== item) {
@@ -82,7 +82,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   });
 
   const handleNodeMouseLeave = useMemoizedFn(() => {
-    isMouseLeaveNode.current = true;
+    mouseEnterId.current = undefined;
   });
   
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import List from './List';
 import IExtension from "@/components/Editor/extensions/types.ts";
 import PortalToBody from "@/components/PortalToBody";
@@ -9,7 +9,7 @@ interface IBlockPanelProps {
   extensions: IExtension[];
 }
 
-const BlockPanel = (props: IBlockPanelProps) => {
+const BlockPanel = memo((props: IBlockPanelProps) => {
   const { extensions } = props;
 
   const blockPanelList = useMemo(() => {
@@ -56,6 +56,6 @@ const BlockPanel = (props: IBlockPanelProps) => {
       </div>
     </PortalToBody>
   )
-}
+});
 
 export default BlockPanel;

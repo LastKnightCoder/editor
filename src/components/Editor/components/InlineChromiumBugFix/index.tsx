@@ -1,4 +1,6 @@
-const InlineChromiumBugfix = () => {
+import { memo } from 'react';
+
+const InlineChromiumBugfix = memo(() => {
   return (
     <span
       contentEditable={false}
@@ -7,6 +9,6 @@ const InlineChromiumBugfix = () => {
     {String.fromCodePoint(160) /* Non-breaking space */}
   </span>
   )
-}
+});
 
 export default InlineChromiumBugfix;

@@ -48,7 +48,7 @@ const Tag = (props: ITagProps) => {
   return (
     <div className={tagClassName} style={style} onClick={onClick}>
       {
-        showIcon && icon || <TagOutlined />
+        showIcon && (icon || <TagOutlined />)
       }
       <div className={styles.tag}>{ showSharp ? '#' : '' }{tag}</div>
       {

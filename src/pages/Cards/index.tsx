@@ -9,7 +9,7 @@ import If from "@/components/If";
 
 import { EActiveSide } from "@/stores/useCardPanelStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
-import useCardManagement from "./hooks/useCardManagement.ts";
+import useCardManagement from "@/hooks/useCardManagement.ts";
 
 import styles from './index.module.less';
 

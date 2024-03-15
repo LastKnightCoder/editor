@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { RenderLeafProps } from "slate-react";
 import classnames from 'classnames';
 
@@ -15,7 +15,7 @@ interface IFormattedTextProps {
   leaf: FormattedText;
 }
 
-const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (props) => {
+const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = memo((props) => {
   const { attributes, leaf, children } = props;
   const {
     bold,
@@ -83,6 +83,6 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> = (p
       { addHighlightWrapper(addCodeWrapper(children)) }
     </span>
   )
-}
+});
 
 export default FormattedText;

@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { useSlate } from "slate-react";
 import styles from './index.module.less';
 import Item from '../Item';
 import useBlockPanelStore from "../../../stores/useBlockPanelStore.ts";
 
 
-const List = () => {
+const List = memo(() => {
   const editor = useSlate();
   const {
     list,
@@ -33,6 +34,6 @@ const List = () => {
       }
     </div>
   )
-}
+});
 
 export default List;

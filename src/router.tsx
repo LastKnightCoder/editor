@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import loadable from "@loadable/component";
 
 import DefaultLayout from '@/layouts/DefaultLayout';
+import ClassicLayout from "@/layouts/ClassicLayout";
 import Cards from "@/pages/Cards";
 import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
@@ -10,7 +11,6 @@ const Articles = loadable(() => import('@/pages/Articles'));
 const Documents = loadable(() => import('@/pages/Documents'));
 const ArticleEdit = loadable(() => import('@/pages/Articles/ArticleEdit'));
 const Statistic = loadable(() => import('@/pages/Statistic'));
-const Animate = loadable(() => import('@/pages/Animate'));
 const DailyNote = loadable(() => import('@/pages/DailyNote'));
 const TimeRecord = loadable(() => import('@/pages/TimeRecord'));
 
@@ -20,7 +20,7 @@ const routes = [{
   children: [{
     index: true,
     element: <Navigate to="/cards" replace />,
-  } ,{
+  }, {
     path: 'cards/',
     element: <Cards />,
   }, {
@@ -42,9 +42,6 @@ const routes = [{
     path: 'statistic/',
     element: <Statistic />,
   }, {
-    path: '/animate',
-    element: <Animate />,
-  }, {
     path: '/daily',
     element: <DailyNote />,
   }, {
@@ -57,8 +54,18 @@ const routes = [{
 }, {
   path: '/quick-time-record',
   element: <QuickTimeRecord />,
-}]
+}];
 
-const router = createBrowserRouter(routes);
+const classicRoutes = [{
+  path: '/',
+  element: <ClassicLayout />,
+  children: [{
+    index: true,
+    element: <Navigate to="/cards" replace />,
+  }]
+}];
+
+export const router = createBrowserRouter(routes);
+export const classicRouter = createBrowserRouter(classicRoutes);
 
 export default router;

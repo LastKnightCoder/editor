@@ -16,6 +16,7 @@ interface TagsProps {
   showSharp?: boolean;
   hoverAble?: boolean;
   lastChild?: ReactNode;
+  tagStyle?: React.CSSProperties;
 }
 
 const Tags = (props: TagsProps) => {
@@ -31,6 +32,7 @@ const Tags = (props: TagsProps) => {
     noWrap = false,
     hoverAble = false,
     lastChild,
+    tagStyle,
   } = props;
 
   if (!lastChild && (!tags || tags.length === 0)) {
@@ -60,6 +62,7 @@ const Tags = (props: TagsProps) => {
                 showIcon={showIcon}
                 showSharp={showSharp}
                 hoverAble={hoverAble}
+                style={tagStyle}
               />
           ))
       }

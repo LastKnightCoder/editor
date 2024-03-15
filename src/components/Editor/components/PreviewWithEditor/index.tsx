@@ -1,4 +1,4 @@
-import React, { PropsWithChildren, useRef, useState } from "react";
+import React, { PropsWithChildren, useRef, useState, memo } from "react";
 import { UnControlled as CodeEditor } from "react-codemirror2";
 import { Editor, EditorChange } from "codemirror";
 import classnames from "classnames";
@@ -27,7 +27,7 @@ interface IPreviewWithEditorProps {
   extend?: boolean;
 }
 
-const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = (props) => {
+const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = memo((props) => {
   const { mode, initValue, onChange, children, element, center, extend } = props;
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initValue);
@@ -158,6 +158,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       </div>
     </div>
   )
-}
+});
 
 export default PreviewWithEditor;

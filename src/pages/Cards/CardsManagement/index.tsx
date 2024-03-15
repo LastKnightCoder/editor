@@ -9,7 +9,7 @@ import CardTabs from './CardTabs';
 import EditCard from "../EditCard";
 import If from "@/components/If";
 
-import useEditCard from "../hooks/useEditCard.ts";
+import useEditCard from "@/hooks/useEditCard.ts";
 import { EActiveSide } from "@/stores/useCardPanelStore.ts";
 
 import styles from './index.module.less';
