@@ -166,9 +166,7 @@ const ArticleEdit = () => {
           </div>
         </div>
         <div className={styles.me}>
-          <div>
-            {wordsCount}字
-          </div>
+          {wordsCount}字
         </div>
       </div>
       <div className={styles.contentContainer}>

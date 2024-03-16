@@ -7,6 +7,7 @@
   background-color: #FAFAFA;
   border: 2px solid transparent;
   box-sizing: border-box;
+  cursor: pointer;
 
   &.showLine::after {
     content: '';
@@ -19,13 +20,14 @@
   }
   &:not(.active):hover {
     background-color: var(--common-hover-bg);
-    cursor: pointer;
+    box-shadow: var(--box-shadow1);
   }
   &.active {
     border: 2px solid #E1B9AB;
     background-color: #FEF6F4;
     .moreIcon {
       background-color: #FDE9E2;
+      color: #997163;
     }
   }
 
@@ -38,7 +40,7 @@
     display: flex;
     gap: 10px;
     color: gray;
-    font-size: .8em;
+    font-size: .75em;
   }
 
   .textContainer {
@@ -71,6 +73,7 @@
     cursor: pointer;
     display: flex;
     background-color: #F2F2F2;
+    color: #B5B5B5;
   }
 }
 

@@ -1,10 +1,8 @@
 .codeBlockContainer {
   position: relative;
-  --code-block-bg-color: transparent;
-  //--code-block-bg-color: rgba(255, 255, 255, 0.3);
+  --code-block-bg-color: rgba(209, 210, 215, 0.11);
   &.dark {
-    //--code-block-bg-color: #0c1021;
-    --code-block-bg-color: transparent;
+    --code-block-bg-color: #0c1021;
   }
   &.readOnly {
     :global(.CodeMirror-cursors) {
@@ -18,7 +16,6 @@
     width: 32px;
     z-index: 2;
     height: 32px;
-    background: url('https://cdn.jsdelivr.net/gh/LastKnightCoder/image-for-2022@master/copy2022-12-10-15-44-50.svg') no-repeat center center / 60% 60%;
     cursor: pointer;
   }
   .windowsControl {

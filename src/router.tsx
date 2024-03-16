@@ -57,12 +57,8 @@ const routes = [{
 }];
 
 const classicRoutes = [{
-  path: '/',
+  path: '/*',
   element: <ClassicLayout />,
-  children: [{
-    index: true,
-    element: <Navigate to="/cards" replace />,
-  }]
 }];
 
 export const router = createBrowserRouter(routes);

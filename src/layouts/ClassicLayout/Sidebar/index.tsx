@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useMemo } from "react";
+import { useLocation, useNavigate } from 'react-router-dom';
 import classnames from 'classnames';
 
 import SVG from 'react-inlinesvg';
@@ -10,14 +11,13 @@ import article from '@/assets/icons/article.svg';
 import documents from '@/assets/icons/documents.svg';
 import daily from '@/assets/icons/daily.svg';
 import timeRecord from '@/assets/icons/time-record.svg';
-import logo from '@/assets/logo.svg';
 
 import styles from './index.module.less';
 import useSettingStore from "@/stores/useSettingStore";
 
 enum EListItem {
-  Card = 'card',
-  Article = 'article',
+  Cards = 'cards',
+  Articles = 'articles',
   Documents = 'documents',
   Daily = 'daily',
   TimeRecord = 'timeRecord',
@@ -30,11 +30,11 @@ interface ListItem {
 }
 
 const list: ListItem[] = [{
-  key: EListItem.Card,
+  key: EListItem.Cards,
   icon: <SVG src={card} />,
   label: '卡片',
 }, {
-  key: EListItem.Article,
+  key: EListItem.Articles,
   icon: <SVG src={article} />,
   label: '文章',
 }, {
@@ -52,7 +52,13 @@ const list: ListItem[] = [{
 }];
 
 const Sidebar = () => {
-  const [activeItem, setActiveItem] = useState<EListItem>(EListItem.Card);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const activeItem = useMemo(() => {
+    const pathname = location.pathname;
+    return pathname.split('/')[1] as EListItem;
+  }, [location.pathname]);
 
   const {
     darkMode,
@@ -81,7 +87,9 @@ const Sidebar = () => {
           <div
             key={item.key}
             className={classnames(styles.item, { [styles.active]: item.key === activeItem })}
-            onClick={() => { setActiveItem(item.key) }}
+            onClick={() => {
+              navigate(`/${item.key}`);
+            }}
           >
             {item.icon}
             <span>{item.label}</span>

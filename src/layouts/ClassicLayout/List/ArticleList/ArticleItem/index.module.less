@@ -1,0 +1,64 @@
+.articleItem {
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  position: relative;
+  user-select: none;
+  background-color: #FAFAFA;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+  cursor: pointer;
+
+  .cover {
+    width: 100%;
+    height: 120px;
+    position: relative;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    .title {
+      color: white;
+      font-size: 1.2em;
+      font-weight: bold;
+      // 超出部分用省略号显示
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &:not(.active):hover {
+    box-shadow: var(--box-shadow1);
+  }
+
+  &.active {
+    border: 2px solid #E1B9AB;
+    background-color: #FEF6F4;
+    .moreIcon {
+      background-color: #FDE9E2;
+    }
+    .content {
+      opacity: 1;
+    }
+    .tag {
+      font-weight: bold;
+      color: #8E6558;
+    }
+  }
+
+  .content {
+    opacity: .75;
+    :global(.ant-typography) {
+      margin-bottom: 0;
+    }
+  }
+  .tags {
+    margin-top: 10px;
+    color: #747474;
+  }
+}

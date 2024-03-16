@@ -1,14 +1,17 @@
-import SVG from 'react-inlinesvg';
 import WindowControl from "@/components/WindowControl";
-
-import leftSidebar from '@/assets/icons/left-sidebar.svg';
+import { Routes, Route } from "react-router-dom";
 
 import styles from './index.module.less';
 
 const Titlebar = () => {
   return (
     <div data-tauri-drag-region className={styles.titleBar}>
-      <SVG src={leftSidebar} className={styles.sidebar} />
+      <div>
+        <Routes>
+          <Route path="/cards" element={<div>Cards</div>} />
+          <Route path="/articles" element={<div>Articles</div>} />
+        </Routes>
+      </div>
       <WindowControl className={styles.windowControl} />
     </div>
   )

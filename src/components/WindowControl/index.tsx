@@ -6,8 +6,7 @@ import If from "@/components/If";
 import SVG from 'react-inlinesvg';
 import { Tooltip } from "antd";
 
-import { MinusOutlined, CloseOutlined } from '@ant-design/icons';
-import { PiPushPinSimple } from "react-icons/pi";
+import { MinusOutlined, CloseOutlined, PushpinOutlined } from '@ant-design/icons';
 import maxMax from '@/assets/window-control/max-max.svg';
 import maxMin from '@/assets/window-control/max-min.svg';
 
@@ -96,8 +95,8 @@ const WindowControl = (props: IWindowControlProps) => {
       <Tooltip
         title={alwaysOnTop ? '取消置顶' : '置顶'}
       >
-        <div className={classnames(styles.item, { [styles.onTop]: alwaysOnTop })} onClick={toggleAlwaysOnTop}>
-          <PiPushPinSimple />
+        <div className={classnames(styles.item)} onClick={toggleAlwaysOnTop}>
+          <PushpinOutlined className={classnames(styles.pin, { [styles.onTop]: alwaysOnTop })} />
         </div>
       </Tooltip>
       <div className={styles.item} onClick={minimize}>

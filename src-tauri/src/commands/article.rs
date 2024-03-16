@@ -14,8 +14,6 @@ pub fn create_article(
     app_state: tauri::State<state::AppState>
 ) -> Result<Article, String> {
     let conn = app_state.db.lock().unwrap();
-    // 打印所有参数
-    println!("create_article: title: {}, author: {}, tags: {:?}, links: {:?}, content: {}, banner_bg: {}, is_top: {}", title, author, tags, links, content, banner_bg, is_top);
     match &*conn {
         Some(conn) => {
             match article::create_article(&conn, title, author, tags, links, content, banner_bg, is_top).map_err(|e| e.to_string()) {

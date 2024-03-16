@@ -11,13 +11,15 @@ import { CodeBlockElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import useTheme from "@/hooks/useTheme.ts";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import SelectLanguage from "../SelectLanguage";
+
+import copyIcon from "@/assets/icons/copy.svg";
+import { MdDragIndicator } from "react-icons/md";
+
+import { LANGUAGES } from './config';
+import { codeBlockMap } from "../../index";
 
 import styles from './index.module.less';
-import { LANGUAGES } from './config';
-
-import SelectLanguage from "../SelectLanguage";
-import { codeBlockMap } from "../../index";
-import { MdDragIndicator } from "react-icons/md";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps['attributes'];
@@ -122,7 +124,13 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
         {children}
       </div>
       <div className={styles.windowsControl} />
-      <div className={styles.copyButton} onClick={handleCopyCode} />
+      <div
+        style={{
+          background: `url(${copyIcon}) no-repeat center center / 60% 60%`,
+        }}
+        className={styles.copyButton}
+        onClick={handleCopyCode}
+      />
       { !readOnly && <SelectLanguage className={styles.languageSelect} value={language} onChange={handleOnLanguageChange} />}
       <CodeEditor
         value={code || ''}

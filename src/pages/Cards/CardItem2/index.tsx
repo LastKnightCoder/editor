@@ -48,7 +48,7 @@ const CardItem2 = memo((props: ICardItem2Props) => {
       </If>
       <If condition={showTime}>
         <div className={styles.time}>
-          {formatDate(card.update_time, true)}
+          更新于：{formatDate(card.update_time, true)}
         </div>
       </If>
       <Paragraph className={classnames(styles.textContainer, { [styles.noTag]: !showTags || tags.length < 1 })} ellipsis={{ rows: maxRows }}>
