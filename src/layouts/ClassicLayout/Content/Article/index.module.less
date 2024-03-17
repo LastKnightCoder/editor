@@ -3,8 +3,8 @@
   height: 100%;
   overflow-y: auto;
   .cover {
-    height: 400px;
     width: 100%;
+    aspect-ratio: 8 / 3;
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
@@ -39,10 +39,11 @@
     border-top: 40px solid transparent;
     border-bottom: 40px solid transparent;
     box-sizing: border-box;
-    gap: 20px;
+    gap: 40px;
     .editor {
       margin: 0 auto;
       max-width: 720px;
+      flex: auto;
     }
     .outline {
       display: flex;
@@ -52,7 +53,6 @@
       width: fit-content;
       flex: none;
       margin-left: auto;
-      margin-right: 40px;
       overflow: hidden;
       max-height: calc(100vh - 80px - var(--title-bar-height));
       overflow-y: auto;

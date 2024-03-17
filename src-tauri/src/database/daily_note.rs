@@ -40,36 +40,41 @@ pub fn insert_daily_note(
     conn: &Connection,
     date: &str,
     content: &str,
-) -> Result<i64> {
+) -> Result<DailyNote> {
     let mut stmt = conn.prepare("INSERT INTO daily_notes (date, content) VALUES (?1, ?2)")?;
-    let result = stmt.insert(params![date, content])?;
+    let insert_id = stmt.insert(params![date, content])?;
 
-    match insert_operation(conn, result as i64, "daily".to_string(), "insert".to_string()) {
+    // 查询刚刚插入的数据
+    let created_daily_note = get_daily_note_by_id(conn, insert_id).unwrap();
+
+    match insert_operation(conn, insert_id.clone() as i64, "daily".to_string(), "insert".to_string()) {
         Ok(_) => {}
         Err(e) => {
             println!("插入操作记录错误: {}", e);
         }
     };
 
-    Ok(result)
+    Ok(created_daily_note)
 }
 
 pub fn update_daily_note(
     conn: &Connection,
     id: i64,
     content: &str,
-) -> Result<usize> {
+) -> Result<DailyNote> {
     let mut stmt = conn.prepare("UPDATE daily_notes SET content = ?1 WHERE id = ?2")?;
-    let result = stmt.execute(params![content, id])?;
+    stmt.execute(params![content, id])?;
 
-    match insert_operation(conn, result as i64, "daily".to_string(), "update".to_string()) {
+    let update_daily_note = get_daily_note_by_id(conn, id).unwrap();
+
+    match insert_operation(conn, id.clone(), "daily".to_string(), "update".to_string()) {
         Ok(_) => {}
         Err(e) => {
             println!("插入操作记录错误: {}", e);
         }
     };
 
-    Ok(result)
+    Ok(update_daily_note)
 }
 
 pub fn delete_daily_note(

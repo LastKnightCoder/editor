@@ -40,46 +40,72 @@
       }
     }
   }
-  .tabs {
-    display: flex;
-    gap: 10px;
-    padding-bottom: 16px;
-    .tab {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      box-sizing: border-box;
-      border: 1px solid var(--line-color);
-      cursor: pointer;
-      &.active {
-        background-color: var(--doc-fill-active);
-        color: var(--doc-fill-text-color);
-        border-color: var(--doc-fill-text-color);
-        border-width: 2px;
-      }
-    }
-  }
   .list {
     padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 4px;
     .item {
-      user-select: none;
-      box-sizing: border-box;
-      display: flex;
-      gap: 4px;
-      align-items: center;
-      padding: 8px;
-      height: 40px;
-      cursor: pointer;
-      border-radius: 8px;
-      &:hover, &.active {
-        background-color: var(--doc-fill-active);
-        color: var(--doc-fill-text-color);
+      .header {
+        user-select: none;
+        box-sizing: border-box;
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        padding: 8px;
+        height: 40px;
+        cursor: pointer;
+        border-radius: 8px;
+        &.active {
+          background-color: #FEF6F4;
+          color: #8F6657;
+        }
+        &:not(.active):hover {
+          background-color: var(--common-hover-bg);
+        }
+      }
+      .children {
+        padding-left: 12px;
+        margin-top: 8px;
+        max-height: 240px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        &::-webkit-scrollbar {
+          display: none;
+        }
+        .documentItem {
+          height: 40px;
+          padding: 4px;
+          box-sizing: border-box;
+          display: flex;
+          align-items: center;
+          color: #909090;
+          border-radius: 8px;
+          gap: 4px;
+          .icon {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .title {
+            line-height: 32px;
+          }
+          &.active {
+            background-color: #FEF6F4;
+            color: #8F6657;
+            .tagCount {
+              background-color: #FDE9E2;
+              color: #997163;
+            }
+          }
+          &:not(.active):hover {
+            background-color: var(--common-hover-bg);
+          }
+        }
       }
     }
   }

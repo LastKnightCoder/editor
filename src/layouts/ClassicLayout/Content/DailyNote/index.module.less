@@ -1,0 +1,37 @@
+.editingDailyContainer {
+  padding: 16px;
+  width: 100%;
+  height: calc(100vh - var(--title-bar-height));
+  box-sizing: border-box;
+  overflow: hidden;
+  container-name: dailyNoteContainer;
+  container-type: inline-size;
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    .title {
+      display: flex;
+      align-items: center;
+      height: 40px;
+      box-sizing: border-box;
+      font-weight: bold;
+      font-size: 1.2em;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    .editor {
+      margin-top: 10px;
+      height: calc(100vh - var(--title-bar-height) - 50px);
+      box-sizing: border-box;
+      overflow-y: auto;
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
+  }
+}
+
+@container dailyNoteContainer (max-width: 1080px) {
+  .content {
+    max-width: 70cqi !important;
+  }
+}

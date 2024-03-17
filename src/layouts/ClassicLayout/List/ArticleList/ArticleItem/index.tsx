@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Typography } from 'antd';
 import classnames from "classnames";
 
@@ -16,7 +17,7 @@ interface IArticleItemProps {
 
 const { Paragraph } = Typography;
 
-const ArticleItem = (props: IArticleItemProps) => {
+const ArticleItem = memo((props: IArticleItemProps) => {
   const { article, active = false, onClickArticle } = props;
 
   return (
@@ -40,6 +41,6 @@ const ArticleItem = (props: IArticleItemProps) => {
       </div>
     </div>
   )
-}
+});
 
 export default ArticleItem;

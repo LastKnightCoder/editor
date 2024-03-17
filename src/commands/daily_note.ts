@@ -1,31 +1,50 @@
 import { DailyNote } from "@/types/daily_note.ts";
 import { invoke } from "@tauri-apps/api";
 
-export const createDailyNote = async (dailyNote: Omit<DailyNote, 'id'>): Promise<number> => {
-  return await invoke('insert_daily_note', {
+export const createDailyNote = async (dailyNote: Omit<DailyNote, 'id'>): Promise<DailyNote> => {
+  const createdDailyNote: any = await invoke('insert_daily_note', {
     content: JSON.stringify(dailyNote.content),
     date: dailyNote.date,
-  })
+  });
+
+  return {
+    ...createdDailyNote,
+    content: JSON.parse(createdDailyNote.content),
+  }
 }
 
-export const updateDailyNote = async (dailyNote: Omit<DailyNote, 'date'>): Promise<number> => {
+export const updateDailyNote = async (dailyNote: Omit<DailyNote, 'date'>): Promise<DailyNote> => {
   const { id, content } = dailyNote;
-  return await invoke('update_daily_note', {
+  const res: any = await invoke('update_daily_note', {
     id,
     content: JSON.stringify(content),
-  })
+  });
+  return {
+    ...res,
+    content: JSON.parse(res.content),
+  }
 }
 
 export const getDailyNoteById = async (id: number): Promise<DailyNote> => {
-  return await invoke('find_daily_note_by_id', {
+  const res: any = await invoke('find_daily_note_by_id', {
     id
-  })
+  });
+
+  return {
+    ...res,
+    content: JSON.parse(res.content),
+  }
 }
 
 export const getDailyNoteByDate = async (date: string): Promise<DailyNote> => {
-  return await invoke('find_daily_note_by_date', {
+  const res: any =  await invoke('find_daily_note_by_date', {
     date
-  })
+  });
+
+  return {
+    ...res,
+    content: JSON.parse(res.content),
+  }
 }
 
 export const getAllDailyNotes = async (): Promise<DailyNote[]> => {
@@ -38,7 +57,7 @@ export const getAllDailyNotes = async (): Promise<DailyNote[]> => {
   });
 }
 
-export const deleteDailyNote = async (id: number): Promise<void> => {
+export const deleteDailyNote = async (id: number): Promise<number> => {
   return await invoke('delete_daily_note', {
     id
   })

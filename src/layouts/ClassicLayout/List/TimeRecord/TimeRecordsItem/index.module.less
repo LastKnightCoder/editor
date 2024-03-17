@@ -1,0 +1,70 @@
+.listContainer {
+  padding: 16px;
+  border: 2px solid var(--line-color);
+  border-radius: 8px;
+  box-sizing: border-box;
+  margin-bottom: 24px;
+  content-visibility: auto;
+  .date {
+    font-size: .8em;
+    font-weight: bold;
+    margin-bottom: 16px;
+    color: #8F6657;
+  }
+  .recordsList {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    .item {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      .content {
+        margin-top: 12px;
+        font-size: .9em;
+      }
+      &:hover {
+        .actions {
+          display: flex;
+        }
+      }
+      &.line {
+        position: relative;
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: -10px;
+          left: 0;
+          width: 100%;
+          height: 1px;
+          background-color: var(--line-color);
+        }
+      }
+      .actions {
+        display: none;
+        position: absolute;
+        top: 0;
+        right: 0;
+        gap: 8px;
+        align-items: center;
+        height: 25px;
+        .icon {
+          cursor: pointer;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          font-size: 12px;
+          &:hover {
+            background-color: var(--common-hover-bg);
+          }
+        }
+      }
+    }
+  }
+  [data-slate-editor] p:last-of-type {
+    margin-bottom: 0;
+  }
+}

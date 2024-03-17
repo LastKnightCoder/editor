@@ -1,38 +1,47 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
 
 import Sidebar from './Sidebar';
 import Titlebar from "./Titlebar";
-import CardList from './List/Card';
+import CardList from './List/CardList';
 import ArticleList from "./List/ArticleList";
+import DocumentList from "./List/DocumentList";
+import DailyList from "./List/DailyList";
+import TimeRecordList from "./List/TimeRecord";
 import CardContent from './Content/Card';
 import ArticleContent from './Content/Article';
+import DocumentContent from './Content/Document';
+import DailyNoteContent from "./Content/DailyNote";
+import TimeRecordContent from "./Content/TimeRecord";
+import CardTitlebar from "./Titlebar/Card";
+import ArticleTitlebar from "./Titlebar/Article";
+import DocumentTitlebar from "./Titlebar/Document";
+import DailyNoteTitlebar from "./Titlebar/DailyNote";
+import TimeRecordTitlebar from "./Titlebar/TimeRecord";
+import SettingModal from "./SettingModal";
+import EditRecordModal from "@/components/EditRecordModal";
 
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
-import useArticleManagementStore from "@/stores/useArticleManagementStore";
-import useCardManagement from "@/hooks/useCardManagement";
+import { createDocumentItem, initAllDocumentItemParents } from "@/commands";
+import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 
-import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
-import { ECardCategory, IArticle } from "@/types";
+import useCard from './hooks/useCard';
+import useArticle from "./hooks/useArticle";
+import useDocumentsStore from "@/stores/useDocumentsStore";
+import useDailyNoteStore from "@/stores/useDailyNoteStore";
+import useTimeRecordStore from "@/stores/useTimeRecordStore";
 
 import styles from './index.module.less';
-import If from "@/components/If";
+import useEditDailyNote from "@/hooks/useEditDailyNote";
+import { EFilterType } from "@/types/time";
+import dayjs from "dayjs";
+import { ITimeRecord } from "@/types";
+import isHotkey from "is-hotkey";
 
 const ClassicLayout = memo(() => {
-  const [activeArticleId, setActiveArticleId] = useState<number | undefined>(undefined);
-
-  const location = useLocation();
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    // 如果当前路是 /，重定向到 /cards/
-    if (location.pathname === '/') {
-      navigate('/cards');
-    }
-  }, [location, navigate])
-  
   const {
+    activeCardTag,
+    selectCategory,
     leftCardIds,
     rightCardIds,
     leftActiveCardId,
@@ -44,59 +53,206 @@ const ClassicLayout = memo(() => {
     onCloseTab,
     onMoveCard,
     onCloseOtherTabs,
-  } = useCardManagement();
-
-  const { cards, selectCategory, updateCard } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-    selectCategory: state.selectCategory,
-    updateCard: state.updateCard,
-  }));
-
-  const onSelectCategoryChange = useMemoizedFn((category: ECardCategory) => {
-    useCardsManagementStore.setState({
-      selectCategory: category,
-    })
-  })
-
-  const cardsWithCategory = useMemo(() => {
-    return cards.filter((card) => {
-      return card.category === selectCategory;
-    })
-  }, [cards, selectCategory]);
+    onSelectCategoryChange,
+    onActiveCardTagChange,
+    filteredCards,
+    updateCard,
+  } = useCard();
 
   const {
     articles,
-    createArticle
-  } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-    createArticle: state.createArticle,
+    activeArticleId,
+    readonly,
+    initValue,
+    editingArticle,
+    wordsCount,
+    onContentChange,
+    onInit,
+    onDeleteTag,
+    onAddTag,
+    onTitleChange,
+    saveArticle,
+    toggleIsTop,
+    toggleReadOnly,
+    handleAddNewArticle,
+    handleClickArticle,
+    quitEditArticle,
+    handleDeleteArticle,
+  } = useArticle();
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const {
+    addDocumentItem,
+    activeDocumentId,
+  } = useDocumentsStore(state => ({
+    addDocumentItem: state.addDocumentItem,
+    activeDocumentId: state.activeDocumentId,
   }));
 
-  const handleAddNewArticle = async () => {
-    const article = await createArticle({
-      title: '默认文章标题',
-      content: DEFAULT_ARTICLE_CONTENT,
-      bannerBg: '',
-      isTop: false,
-      author: 'Tao',
-      links: [],
-      tags: [],
-    });
-    setActiveArticleId(article.id);
-  }
+  const addNewDocumentItem = useMemoizedFn(async () => {
+    if (!activeDocumentId) return;
+    const itemId = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
+    addDocumentItem(activeDocumentId, itemId);
+  });
 
-  const handleClickArticle = (article: IArticle) => {
-    if (article.id === activeArticleId) {
-      setActiveArticleId(undefined);
-      return;
+  const handleQuitEditDocument = useMemoizedFn(() => {
+    if (!activeDocumentId) return;
+    useDocumentsStore.setState({
+      activeDocumentId: null,
+      activeDocumentItem: null,
+    })
+  });
+
+  useEffect(() => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      // mod + p
+      if (isHotkey('mod+p', event)) {
+        event.preventDefault();
+        event.stopPropagation();
+        await initAllDocumentItemParents();
+      }
     }
-    setActiveArticleId(article.id);
-  }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, []);
+
+  const [dailyNoteReadonly, setDailyNoteReadonly] = useState<boolean>(true);
+
+  const {
+    dailyNotes,
+    activeDailyId,
+  } = useDailyNoteStore(state => ({
+    dailyNotes: state.dailyNotes,
+    activeDailyId: state.activeDailyId,
+  }))
+
+  const {
+    editingDailyNote,
+    onInit: onInitEditingDailyNote,
+    onContentChange: onEditingDailyNoteContentChange,
+    createNewDailyNote,
+    saveDailyNote,
+    quitEditDailyNote,
+    handleDeleteDailyNote,
+  } = useEditDailyNote(activeDailyId);
+
+  const toggleDailyNoteReadonly = useMemoizedFn(() => {
+    setDailyNoteReadonly(!dailyNoteReadonly);
+  });
+
+  const [editAction, setEditAction] = useState<'create' | 'edit' | null>(null);
+  const [editRecordModalOpen, setEditRecordModalOpen] = useState<boolean>(false);
+  const [editingTimeRecord, setEditingTimeRecord] = useState<ITimeRecord | null>(null);
+
+  const {
+    timeRecords,
+    filterType,
+    filterValue,
+    createTimeRecord,
+    deleteTimeRecord,
+    updateTimeRecord,
+  } = useTimeRecordStore((state) => ({
+    timeRecords: state.timeRecords,
+    filterType: state.filterType,
+    filterValue: state.filterValue,
+    createTimeRecord: state.createTimeRecord,
+    deleteTimeRecord: state.deleteTimeRecord,
+    updateTimeRecord: state.updateTimeRecord,
+  }));
+
+  const onFilterValueChange = useMemoizedFn((value: string | string[]) => {
+    useTimeRecordStore.setState({
+      filterValue: value,
+    })
+  });
+
+  const onEditTimeRecordFinish = useMemoizedFn(async (timeRecord: ITimeRecord) => {
+    if (!editAction) return;
+    if (editAction === 'create') {
+      await createTimeRecord(timeRecord);
+    } else {
+      await updateTimeRecord(timeRecord);
+    }
+    setEditRecordModalOpen(false);
+    setEditAction(null);
+    setEditingTimeRecord(null);
+  });
+
+  const onEditTimeRecordCancel = useMemoizedFn(() => {
+    setEditRecordModalOpen(false);
+    setEditAction(null);
+    setEditingTimeRecord(null);
+  });
+
+  const onEditTimeRecord = useMemoizedFn((timeRecord: ITimeRecord) => {
+    setEditingTimeRecord(timeRecord);
+    setEditAction('edit');
+    setEditRecordModalOpen(true);
+  });
+
+  const onCreateNewTimeRecord = useMemoizedFn((date) => {
+    setEditingTimeRecord({
+      id: -1,
+      content: [{
+        type: 'paragraph',
+        children: [{ text: '', type: 'formatted' }],
+      }],
+      cost: 0,
+      date,
+      eventType: '',
+      timeType: ''
+    });
+    setEditAction('create');
+    setEditRecordModalOpen(true);
+  })
+
+  const onSelectFilterTypeChange = useMemoizedFn((type: EFilterType) => {
+    let filterValue = '';
+    if (type === EFilterType.YEAR) {
+      filterValue = new Date().getFullYear().toString();
+    } else if (type === EFilterType.QUARTER) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const quarter = Math.floor(month / 3) + 1;
+      filterValue = `${year}-Q${quarter}`;
+    } else if (type === EFilterType.MONTH) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      filterValue = `${year}-${month}`;
+    } else if (type === EFilterType.WEEK) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const week = Math.floor((now.getTime() - new Date(year, 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+      filterValue = `${year}-${week}周`;
+    } else if (type === EFilterType.DATE) {
+      filterValue = dayjs().format('YYYY-MM-DD');
+    }
+    useTimeRecordStore.setState({
+      filterType: type,
+      filterValue,
+    });
+  })
+  
+  useEffect(() => {
+    // 如果当前路是 /，重定向到 /cards
+    if (location.pathname === '/') {
+      navigate('/cards');
+    }
+  }, [location, navigate]);
 
   return (
     <div className={styles.container}>
       <div className={styles.sidebar}>
-        <Sidebar />
+        <Sidebar
+          activeCardTag={activeCardTag}
+          onActiveCardTagChange={onActiveCardTagChange}
+        />
       </div>
       <div className={styles.list}>
         <Routes>
@@ -104,10 +260,9 @@ const ClassicLayout = memo(() => {
             <CardList
               activeCardIds={[leftActiveCardId, rightActiveCardId].filter(Boolean) as number[]}
               onClickCard={onClickCard}
-              onCreateCard={onCreateCard}
               onDeleteCard={onDeleteCard}
               updateCard={updateCard}
-              cards={cardsWithCategory}
+              cards={filteredCards}
               selectCategory={selectCategory}
               onSelectCategoryChange={onSelectCategoryChange}
             />
@@ -116,15 +271,74 @@ const ClassicLayout = memo(() => {
             <ArticleList
               activeArticleId={activeArticleId}
               articles={articles}
-              addArticle={handleAddNewArticle}
               onClickArticle={handleClickArticle}
+            />
+          )} />
+          <Route path="/documents/" element={(
+            <DocumentList />
+          )} />
+          <Route path="/daily/" element={(
+            <DailyList
+              dailyNotes={dailyNotes}
+              activeDailyId={activeDailyId}
+            />
+          )} />
+          <Route path="/timeRecord/" element={(
+            <TimeRecordList
+              timeRecords={timeRecords}
+              filterType={filterType}
+              filterValue={filterValue}
+              onSelectFilterTypeChange={onSelectFilterTypeChange}
+              onFilterValueChange={onFilterValueChange}
+              deleteTimeRecord={deleteTimeRecord}
+              updateTimeRecord={updateTimeRecord}
+              onClickEdit={onEditTimeRecord}
             />
           )} />
         </Routes>
       </div>
       <div className={styles.contentArea}>
         <div className={styles.titleBar}>
-          <Titlebar />
+          <Routes>
+            <Route path="/" element={<Titlebar />}>
+              <Route path="cards/" element={(
+                <CardTitlebar
+                  createCard={onCreateCard}
+                />
+              )} />
+              <Route path="articles/" element={(
+                <ArticleTitlebar
+                  readonly={readonly}
+                  toggleReadOnly={toggleReadOnly}
+                  isTop={!!editingArticle?.isTop}
+                  toggleIsTop={toggleIsTop}
+                  quitEdit={quitEditArticle}
+                  createArticle={handleAddNewArticle}
+                  deleteArticle={handleDeleteArticle}
+                />
+              )} />
+              <Route path={"documents/"} element={(
+                <DocumentTitlebar
+                  createDocument={addNewDocumentItem}
+                  quitEditDocument={handleQuitEditDocument}
+                />
+              )} />
+              <Route path={"daily/"} element={(
+                <DailyNoteTitlebar
+                  createDailyNote={createNewDailyNote}
+                  readonly={dailyNoteReadonly}
+                  toggleReadOnly={toggleDailyNoteReadonly}
+                  quitEdit={quitEditDailyNote}
+                  deleteDailyNote={handleDeleteDailyNote}
+                />
+              )} />
+              <Route path="timeRecord/" element={(
+                <TimeRecordTitlebar
+                  onCreateNewTimeRecord={onCreateNewTimeRecord}
+                />
+              )} />
+            </Route>
+          </Routes>
         </div>
         <div className={styles.content}>
           <Routes>
@@ -142,13 +356,52 @@ const ClassicLayout = memo(() => {
               />
             )} />
             <Route path="/articles/" element={(
-              <If condition={!!activeArticleId}>
-                <ArticleContent key={activeArticleId} articleId={activeArticleId!} />
-              </If>
+              <ArticleContent
+                key={activeArticleId}
+                initValue={initValue}
+                editingArticle={editingArticle}
+                wordsCount={wordsCount}
+                onContentChange={onContentChange}
+                onInit={onInit}
+                onDeleteTag={onDeleteTag}
+                onAddTag={onAddTag}
+                onTitleChange={onTitleChange}
+                saveArticle={saveArticle}
+                readonly={readonly}
+              />
+            )} />
+            <Route path="/documents/" element={(
+              <DocumentContent />
+            )} />
+            <Route path="/daily/" element={(
+              <DailyNoteContent
+                key={activeDailyId}
+                readonly={dailyNoteReadonly}
+                editingDailyNote={editingDailyNote}
+                onInit={onInitEditingDailyNote}
+                onContentChange={onEditingDailyNoteContentChange}
+                saveDailyNote={saveDailyNote}
+              />
+            )} />
+            <Route path="/timeRecord/" element={(
+              <TimeRecordContent
+                filterType={filterType}
+                filterValue={filterValue}
+                timeRecords={timeRecords}
+              />
             )} />
           </Routes>
         </div>
       </div>
+      <EditRecordModal
+        key={editingTimeRecord?.id}
+        title={'编辑记录'}
+        open={editRecordModalOpen}
+        timeRecord={editingTimeRecord}
+        onOk={onEditTimeRecordFinish}
+        onCancel={onEditTimeRecordCancel}
+      />
+      <SettingModal />
     </div>
   )
 });

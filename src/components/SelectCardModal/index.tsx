@@ -5,8 +5,8 @@ import { UpOutlined } from "@ant-design/icons";
 import { ICard } from "@/types";
 
 import Tags from "@/components/Tags";
-import CardItem from "@/pages/Cards/CardItem";
-import CardItem2 from "@/pages/Cards/CardItem2";
+import CardItem from "./CardItem";
+import CardItem2 from "@/components/CardItem2";
 
 import { useMemoizedFn } from "ahooks";
 import useSearch from "./hooks/useSearch";

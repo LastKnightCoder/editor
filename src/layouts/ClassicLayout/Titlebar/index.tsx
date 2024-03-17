@@ -1,20 +1,16 @@
+import { memo } from 'react';
 import WindowControl from "@/components/WindowControl";
-import { Routes, Route } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 
 import styles from './index.module.less';
 
-const Titlebar = () => {
+const Titlebar = memo(() => {
   return (
     <div data-tauri-drag-region className={styles.titleBar}>
-      <div>
-        <Routes>
-          <Route path="/cards" element={<div>Cards</div>} />
-          <Route path="/articles" element={<div>Articles</div>} />
-        </Routes>
-      </div>
+      <Outlet />
       <WindowControl className={styles.windowControl} />
     </div>
   )
-}
+});
 
 export default Titlebar;

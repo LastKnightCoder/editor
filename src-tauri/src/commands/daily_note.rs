@@ -1,12 +1,13 @@
 use crate::state;
 use crate::database::daily_note;
+use crate::database::daily_note::DailyNote;
 
 #[tauri::command]
 pub fn insert_daily_note(
     date: String,
     content: String,
     app_state: tauri::State<state::AppState>
-) -> Result<i64, String> {
+) -> Result<DailyNote, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {
@@ -22,7 +23,7 @@ pub fn update_daily_note(
     id: i64,
     content: String,
     app_state: tauri::State<state::AppState>
-) -> Result<usize, String> {
+) -> Result<DailyNote, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {

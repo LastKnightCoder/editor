@@ -1,29 +1,25 @@
 import { create } from "zustand";
 import { DailyNote } from "@/types/daily_note.ts";
 import { getAllDailyNotes, createDailyNote, updateDailyNote, deleteDailyNote } from '@/commands';
-import { Descendant } from "slate";
+import { produce } from "immer";
 
 interface IState {
-  dailyNotes: DailyNote[];
   initLoading: boolean;
-  editingDailyNote?: Partial<DailyNote>;
-  editingDailyNoteOpen: boolean;
+  dailyNotes: DailyNote[];
+  activeDailyId?: number;
 }
 
 interface IActions {
   init: () => Promise<void>;
-  onCreateDailyNote: (date: string) => void;
-  onUpdateDailyNote: (dailyNote: DailyNote) => Promise<void>;
-  onDailyContentChange: (content: Descendant[]) => void;
-  onSaveDailyNote: () => Promise<void>;
-  onCancelDailyNote: () => void;
-  deleteDailyNote: (id: number) => Promise<void>;
+  onCreateDailyNote: (date: string) => Promise<DailyNote>;
+  onUpdateDailyNote: (dailyNote: DailyNote) => Promise<DailyNote>;
+  deleteDailyNote: (id: number) => Promise<number>;
 }
 
 const initialState: IState = {
   dailyNotes: [],
   initLoading: false,
-  editingDailyNoteOpen: false,
+  activeDailyId: undefined,
 }
 
 const useDailyNoteStore = create<IState & IActions>((set, get) => ({
@@ -33,67 +29,51 @@ const useDailyNoteStore = create<IState & IActions>((set, get) => ({
     const dailyNotes = await getAllDailyNotes();
     set({ dailyNotes, initLoading: false });
   },
-  onCreateDailyNote: (date: string) => {
-    set({
-      editingDailyNoteOpen: true,
-      editingDailyNote: {
-        content: [{
-          type: 'paragraph',
-          children: [{ type: 'formatted',text: '' }],
-        }],
-        date,
-      }
+  onCreateDailyNote: async (date: string) => {
+    const { dailyNotes } = get();
+    const res = await createDailyNote({
+      date,
+      content: [{
+        type: 'paragraph',
+        children: [{ type: 'formatted', text: '' }],
+      }]
     });
+    const newDailyNotes = produce(dailyNotes, (draft) => {
+      draft.push(res);
+    });
+    set({
+      dailyNotes: newDailyNotes,
+    });
+
+    return res;
   },
   onUpdateDailyNote: async (dailyNote: DailyNote) => {
-    set({
-      editingDailyNoteOpen: true,
-      editingDailyNote: dailyNote,
-    });
-  },
-  onSaveDailyNote: async () => {
-    const { editingDailyNote } = get();
-    if (!editingDailyNote) return;
-    const { id } = editingDailyNote;
-    if (id) {
-      await updateDailyNote({
-        id,
-        content: editingDailyNote.content!,
-      });
-    } else {
-      await createDailyNote({
-        content: editingDailyNote.content!,
-        date: editingDailyNote.date!,
-      });
-    }
-    const dailyNotes = await getAllDailyNotes();
-    set({
-      editingDailyNote: undefined,
-      editingDailyNoteOpen: false,
-      dailyNotes,
-    });
-  },
-  onCancelDailyNote: () => {
-    set({
-      editingDailyNote: undefined,
-      editingDailyNoteOpen: false,
-    })
-  },
-  onDailyContentChange: (content: Descendant[]) => {
-    const { editingDailyNote } = get();
-    set({
-      editingDailyNote: {
-        ...editingDailyNote,
-        content,
+    const { dailyNotes } = get();
+    const res = await updateDailyNote(dailyNote);
+    const newDailyNotes = produce(dailyNotes, (draft) => {
+      const index = draft.findIndex((item) => item.id === dailyNote.id);
+      if (index !== -1) {
+        draft[index] = res;
       }
     });
+    set({
+      dailyNotes: newDailyNotes,
+    });
+    return res;
   },
   deleteDailyNote: async (id: number) => {
-    await deleteDailyNote(id);
-    const dailyNotes = await getAllDailyNotes();
-    set({
-      dailyNotes,
+    const { dailyNotes } = get();
+    const res = await deleteDailyNote(id);
+    const newDailyNotes = produce(dailyNotes, (draft) => {
+      const index = draft.findIndex((item) => item.id === id);
+      if (index !== -1) {
+        draft.splice(index, 1);
+      }
     });
+    set({
+      dailyNotes: newDailyNotes,
+    });
+    return res;
   }
 }))
 

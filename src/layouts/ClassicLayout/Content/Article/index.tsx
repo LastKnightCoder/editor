@@ -1,25 +1,35 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, memo } from "react";
+import { Descendant, Editor } from "slate";
 import { useMemoizedFn, useRafInterval, useSize } from "ahooks";
 import { motion } from "framer-motion";
-import { Empty, Spin } from "antd";
 import classnames from 'classnames';
 
-import Editor, { EditorRef } from "@/components/Editor";
+import If from "@/components/If";
+import ArticleEditor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import Outline from "@/components/Outline";
 import EditText from "@/components/EditText";
 import { CalendarOutlined } from "@ant-design/icons";
 
-import useEditArticle from "@/pages/Articles/useEditArticle";
 import useUploadImage from "@/hooks/useUploadImage";
 
 import { formatDate } from "@/utils/time";
 
+import { IArticle } from "@/types";
+
 import styles from './index.module.less';
-import If from "@/components/If";
 
 interface IArticleItemProps {
-  articleId: number;
+  initValue: Descendant[],
+  editingArticle?: IArticle,
+  wordsCount: number,
+  onContentChange: (content: Descendant[], editor: Editor) => void,
+  onInit: (editor: Editor, content: Descendant[]) => void,
+  onDeleteTag: (tag: string) => void,
+  onAddTag: (tag: string) => void,
+  onTitleChange: (value: string) => void,
+  saveArticle: () => void,
+  readonly: boolean,
 }
 
 const outlineVariants = {
@@ -31,24 +41,22 @@ const outlineVariants = {
   }
 }
 
-const EditArticle = (props: IArticleItemProps) => {
-  const { articleId } = props;
-
-  const editorRef = useRef<EditorRef>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
+const EditArticle = memo((props: IArticleItemProps) => {
   const {
     initValue,
     editingArticle,
     wordsCount,
-    initLoading,
     onContentChange,
     onInit,
     onDeleteTag,
     onAddTag,
     onTitleChange,
-    saveArticle
-  } = useEditArticle(articleId);
+    saveArticle,
+    readonly,
+  } = props;
+
+  const editorRef = useRef<EditorRef>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const uploadImage = useUploadImage();
   const size = useSize(containerRef.current);
@@ -85,15 +93,7 @@ const EditArticle = (props: IArticleItemProps) => {
     editorRef.current.scrollHeaderIntoView(index);
   })
 
-  if (initLoading) return <Spin />
-
-  if (!editingArticle) {
-    return (
-      <div className={styles.empty}>
-        <Empty description={'未查询到数据'} />
-      </div>
-    )
-  }
+  if (!editingArticle) return null;
 
   return (
     <div ref={containerRef} className={styles.editArticleContainer}>
@@ -107,7 +107,7 @@ const EditArticle = (props: IArticleItemProps) => {
           onPressEnter={() => {
             editorRef.current?.focus();
           }}
-          contentEditable={true}
+          contentEditable={!readonly}
         />
         <div className={styles.metaInfo}>
           <div className={styles.meta}>
@@ -130,15 +130,16 @@ const EditArticle = (props: IArticleItemProps) => {
       </div>
       <div className={styles.content}>
         <div className={styles.editor}>
-          <Editor
+          <ArticleEditor
+            key={editingArticle.id}
             ref={editorRef}
             initValue={initValue}
             onInit={onInit}
             onChange={onContentChange}
             uploadImage={uploadImage}
-            readonly={false}
+            readonly={readonly}
           />
-          <AddTag tags={editingArticle.tags} addTag={onAddTag} removeTag={onDeleteTag} />
+          <AddTag readonly={readonly} tags={editingArticle.tags} addTag={onAddTag} removeTag={onDeleteTag} />
         </div>
         <If condition={showOutline}>
           <motion.div
@@ -146,12 +147,12 @@ const EditArticle = (props: IArticleItemProps) => {
             variants={outlineVariants}
             className={classnames(styles.outline)}
           >
-            <Outline headers={headers} onClick={onClickHeader} />
+            <Outline style={{ marginRight: 50 }} headers={headers} onClick={onClickHeader} />
           </motion.div>
         </If>
       </div>
     </div>
   )
-}
+});
 
 export default EditArticle;

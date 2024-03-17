@@ -5,7 +5,7 @@ import { useMemoizedFn } from "ahooks";
 import { message, Tooltip } from "antd";
 import SVG from "react-inlinesvg";
 import SelectCardModal from "@/components/SelectCardModal";
-import { EditCardContext } from "@/pages/Cards/EditCard";
+import { EditCardContext } from "@/layouts/ClassicLayout/Content/Card/EditCard";
 
 import classnames from "classnames";
 import { unwrapCardLink, wrapCardLink } from "../utils";

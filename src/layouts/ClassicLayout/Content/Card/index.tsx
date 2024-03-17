@@ -1,4 +1,6 @@
-import CardsManagement from "@/pages/Cards/CardsManagement";
+import { memo } from 'react';
+
+import CardsManagement from "./CardsManagement";
 import If from "@/components/If";
 
 import { EActiveSide } from "@/stores/useCardPanelStore";
@@ -15,7 +17,7 @@ interface ICardProps {
   onCloseOtherTabs: (id: number, side: EActiveSide) => void;
 }
 
-const Card = (props: ICardProps) => {
+const Card = memo((props: ICardProps) => {
   const {
     leftCardIds,
     rightCardIds,
@@ -56,6 +58,6 @@ const Card = (props: ICardProps) => {
       </If>
     </If>
   )
-}
+});
 
 export default Card;

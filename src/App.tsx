@@ -1,17 +1,18 @@
 import { useEffect } from "react";
-import { useLocalStorageState } from "ahooks";
 import { ConfigProvider, theme, App } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import { RouterProvider } from "react-router-dom";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
-import { router, classicRouter } from "@/router.tsx";
+import router from "@/router.tsx";
 import useTheme from "@/hooks/useTheme.ts";
 import useSettingStore from "@/stores/useSettingStore";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
+import useDailyNoteStore from "@/stores/useDailyNoteStore";
+import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import useSyncFont from "@/hooks/useSyncFont.ts";
 import useSyncTheme from "@/hooks/useSyncTheme";
 
@@ -42,21 +43,29 @@ const Application = () => {
     initDocuments: state.init,
   }));
 
+  const {
+    initDailyNotes,
+  } = useDailyNoteStore(state => ({
+    initDailyNotes: state.init
+  }));
+
+  const {
+    initTimeRecords,
+  } = useTimeRecordStore(state => ({
+    initTimeRecords: state.init
+  }))
+
   useEffect(() => {
     initSetting();
     initArticles().then();
     initCards().then();
     initDocuments().then();
-  }, [initSetting, initArticles, initCards, initDocuments]);
+    initDailyNotes().then();
+    initTimeRecords().then();
+  }, [initSetting, initArticles, initCards, initDocuments, initDailyNotes, initTimeRecords]);
 
   useSyncFont();
   useSyncTheme();
-
-  const [layout] = useLocalStorageState('layout', {
-    defaultValue: 'classic',
-  });
-
-  const isClassic = layout === 'classic';
 
   return (
     <ConfigProvider
@@ -76,7 +85,7 @@ const Application = () => {
         color: 'var(--text-normal)',
       }}>
         <DndProvider backend={HTML5Backend}>
-          <RouterProvider router={isClassic ? classicRouter : router} />
+          <RouterProvider router={router} />
         </DndProvider>
       </App>
     </ConfigProvider>

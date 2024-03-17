@@ -1,39 +1,44 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { useState, memo } from 'react';
 
 import styles from './index.module.less';
 import { IArticle } from "@/types";
 import For from "@/components/For";
+import LoadMoreComponent from "@/components/LoadMoreComponent";
 import ArticleItem from './ArticleItem';
+import { useMemoizedFn } from "ahooks";
 
 interface IArticleListProps {
   articles: IArticle[];
-  addArticle: () => void;
   onClickArticle: (article: IArticle) => void;
   activeArticleId?: number;
 }
 
-const ArticleList = (props: IArticleListProps) => {
-  const { addArticle, articles, onClickArticle, activeArticleId } = props;
+const ArticleList = memo((props: IArticleListProps) => {
+  const { articles, onClickArticle, activeArticleId } = props;
+
+  const [articleCount, setArticleCount] = useState<number>(10);
+  const slicedArticles = articles.slice(0, articleCount);
+  
+  const onLoadMore = useMemoizedFn(async () => {
+   setArticleCount(Math.min(articleCount + 10, articles.length));
+  });
 
   return (
     <div className={styles.articleListContainer}>
-      <div className={styles.header}>
-        <div className={styles.add} onClick={addArticle}>
-          <PlusOutlined />
-        </div>
-      </div>
       <div className={styles.list}>
-        <For data={articles} renderItem={(article) => (
-          <ArticleItem
-            key={article.id}
-            article={article}
-            active={article.id === activeArticleId}
-            onClickArticle={onClickArticle}
-          />
-        )} />
+        <LoadMoreComponent onLoadMore={onLoadMore} showLoader={slicedArticles.length < articles.length}>
+          <For data={slicedArticles} renderItem={(article) => (
+            <ArticleItem
+              key={article.id}
+              article={article}
+              active={article.id === activeArticleId}
+              onClickArticle={onClickArticle}
+            />
+          )} />
+        </LoadMoreComponent>
       </div>
     </div>
   )
-}
+});
 
 export default ArticleList;

@@ -1,0 +1,28 @@
+.dailyList {
+  .header {
+    height: var(--title-bar-height);
+    box-sizing: border-box;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    .select {
+      flex: none;
+      width: 80px;
+    }
+    .picker {
+
+    }
+  }
+  .list {
+    padding: 0 16px;
+    border-top: 20px solid transparent;
+    border-bottom: 20px solid transparent;
+    height: calc(100vh - var(--title-bar-height));
+    box-sizing: border-box;
+    overflow-y: auto;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}

@@ -11,6 +11,9 @@
   },
   "tauri": {
     "allowlist": {
+      "app": {
+        "all": true
+      },
       "shell": {
         "all": true,
         "execute": true,
@@ -113,11 +116,11 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 640,
+        "height": 720,
         "resizable": true,
         "title": "editor",
         "hiddenTitle": true,
-        "width": 920,
+        "width": 1280,
         "center": true,
         "decorations": false,
         "fileDropEnabled": false,

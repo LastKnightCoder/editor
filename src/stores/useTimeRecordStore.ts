@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 import { createTimeRecord, updateTimeRecord, deleteTimeRecord, getAllTimeRecords } from '@/commands';
+
 import { ITimeRecord, TimeRecordGroup } from "@/types";
-import dayjs from "dayjs";
+import { EFilterType } from "@/types/time";
 
 interface IState {
   loading: boolean;
   timeRecords: TimeRecordGroup;
-  currentDate: string;
+  filterType: EFilterType;
+  filterValue: string | string[];
 }
 
 interface IActions {
@@ -19,7 +21,8 @@ interface IActions {
 const initState: IState = {
   loading: false,
   timeRecords: [],
-  currentDate: dayjs().format('YYYY-MM-DD')
+  filterType: EFilterType.ALL,
+  filterValue: ''
 }
 
 const useTimeRecordStore = create<IState & IActions>((set) => ({

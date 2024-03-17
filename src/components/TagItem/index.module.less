@@ -1,0 +1,67 @@
+.tagItem {
+  display: flex;
+  flex-direction: column;
+  content-visibility: auto;
+  user-select: none;
+  .header {
+    position: relative;
+    height: 40px;
+    padding: 4px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    color: #909090;
+    border-radius: 8px;
+    transition: background-color .3s ease;
+
+    .tagIcon {
+      flex: none;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tagName {
+      font-size: .9em;
+      margin-left: 8px;
+      flex: auto;
+      align-self: start;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 32px;
+    }
+
+    .tagCount {
+      box-sizing: border-box;
+      height: 20px;
+      border-radius: 10px;
+      margin-left: auto;
+      flex: none;
+      background-color: #F2F2F2;
+      font-size: .65em;
+      line-height: 20px;
+      padding: 0 6px;
+      font-weight: bold;
+      margin-right: 4px;
+    }
+
+    &.active {
+      background-color: #FEF6F4;
+      color: #8F6657;
+      .tagCount {
+        background-color: #FDE9E2;
+        color: #997163;
+      }
+    }
+    &:not(.active):hover {
+      background-color: var(--common-hover-bg);
+    }
+  }
+  .children {
+    margin: 8px 0;
+    padding-left: 16px;
+  }
+}
