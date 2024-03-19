@@ -4,7 +4,7 @@
   border-radius: 8px;
   position: relative;
   user-select: none;
-  background-color: #FAFAFA;
+  background-color: var(--normal-card-bg);
   border: 2px solid transparent;
   box-sizing: border-box;
   cursor: pointer;
@@ -21,14 +21,13 @@
   }
   &:not(.active):hover {
     background-color: var(--common-hover-bg);
-    box-shadow: var(--box-shadow1);
   }
   &.active {
-    border: 2px solid #E1B9AB;
-    background-color: #FEF6F4;
+    border: 2px solid var(--active-text-color);
+    background-color: var(--active-bg-color);
     .moreIcon {
-      background-color: #FDE9E2;
-      color: #997163;
+      background-color: var(--active-icon-bg);
+      color: var(--active-text-color);
     }
   }
 
@@ -73,7 +72,7 @@
     border-radius: 8px;
     cursor: pointer;
     display: flex;
-    background-color: #F2F2F2;
+    background-color: var(--normal-icon-bg);
     color: #B5B5B5;
   }
 }

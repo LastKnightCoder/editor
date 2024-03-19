@@ -46,14 +46,15 @@
       padding: 0 6px;
       font-weight: bold;
       margin-right: 4px;
+      opacity: .8;
     }
 
     &.active {
-      background-color: #FEF6F4;
-      color: #8F6657;
+      background-color: var(--active-bg-color);
+      color: var(--active-text-color);
       .tagCount {
-        background-color: #FDE9E2;
-        color: #997163;
+        background-color: var(--active-icon-bg);
+        color: var(--active-text-color);
       }
     }
     &:not(.active):hover {

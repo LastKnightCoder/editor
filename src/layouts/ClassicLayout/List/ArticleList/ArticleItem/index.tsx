@@ -37,7 +37,7 @@ const ArticleItem = memo((props: IArticleItemProps) => {
         </Paragraph>
       </div>
       <div className={styles.tags}>
-        <Tags tags={article.tags} showIcon tagStyle={active ? { backgroundColor: '#FDE9E2' } : {}} />
+        <Tags tags={article.tags} showIcon tagStyle={active ? { backgroundColor: 'var(--active-icon-bg)' } : {}} />
       </div>
     </div>
   )

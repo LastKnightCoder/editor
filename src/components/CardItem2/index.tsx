@@ -44,7 +44,12 @@ const CardItem2 = memo((props: ICardItem2Props) => {
   return (
     <div className={classnames(styles.itemContainer, { [styles.active]: active, [styles.showLine]: showLine })} onClick={onClick}>
       <If condition={showTags}>
-        <Tags tags={tags} showIcon className={styles.tags} tagStyle={active ? { backgroundColor: '#FDE9E2' } : {}} />
+        <Tags
+          tags={tags}
+          showIcon
+          className={styles.tags}
+          tagStyle={active ? { backgroundColor: 'var(--active-icon-bg)' } : {}}
+        />
       </If>
       <If condition={showTime}>
         <div className={styles.time}>

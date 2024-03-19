@@ -1,6 +1,6 @@
 import { Empty, Input, Modal, Spin } from "antd";
 import { Descendant } from "slate";
-import { useRef, useState } from "react";
+import { useRef, useState, memo } from "react";
 import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
 import useSearch from './hooks/useSearch.ts';
 
@@ -25,7 +25,7 @@ interface ISelectArticleModalProps<T> {
   allItems: T[];
 }
 
-const SelectArticleModal = <T extends IItem,>(props: ISelectArticleModalProps<T>) => {
+const SelectArticleModal = memo(<T extends IItem,>(props: ISelectArticleModalProps<T>) => {
   const {
     open,
     multiple = false,
@@ -162,6 +162,6 @@ const SelectArticleModal = <T extends IItem,>(props: ISelectArticleModalProps<T>
       </div>
     </Modal>
   )
-}
+})
 
 export default SelectArticleModal;

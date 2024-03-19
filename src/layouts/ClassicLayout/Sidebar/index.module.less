@@ -57,8 +57,8 @@
         cursor: pointer;
         border-radius: 8px;
         &.active {
-          background-color: #FEF6F4;
-          color: #8F6657;
+          background-color: var(--active-bg-color);
+          color: var(--active-text-color);
         }
         &:not(.active):hover {
           background-color: var(--common-hover-bg);
@@ -95,12 +95,8 @@
             line-height: 32px;
           }
           &.active {
-            background-color: #FEF6F4;
-            color: #8F6657;
-            .tagCount {
-              background-color: #FDE9E2;
-              color: #997163;
-            }
+            background-color: var(--active-bg-color);
+            color: var(--active-text-color);
           }
           &:not(.active):hover {
             background-color: var(--common-hover-bg);
