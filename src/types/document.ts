@@ -15,6 +15,7 @@ export interface IDocument {
   icon: string;
   isTop: boolean;
   isDelete: boolean;
+  count: number;
 }
 
 export interface IUpdateDocument {

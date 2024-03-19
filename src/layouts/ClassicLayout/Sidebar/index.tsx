@@ -10,7 +10,13 @@ import useCardsManagementStore from "@/stores/useCardsManagementStore";
 
 import { generateCardTree } from "@/utils/card";
 
-import { MdOutlineSettingsSuggest, MdOutlineDarkMode, MdOutlineLightMode, MdOutlineDocumentScanner } from "react-icons/md";
+import {
+  MdOutlineSettingsSuggest,
+  MdOutlineDarkMode,
+  MdOutlineLightMode,
+  MdOutlineDocumentScanner,
+  MdKeyboardArrowRight,
+} from "react-icons/md";
 import card from '@/assets/icons/card.svg';
 import article from '@/assets/icons/article.svg';
 import document from '@/assets/icons/documents.svg';
@@ -23,6 +29,9 @@ import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import If from "@/components/If";
 import useDocumentsStore from "@/stores/useDocumentsStore";
+import useArticleManagementStore from "@/stores/useArticleManagementStore";
+import useDailyNoteStore from "@/stores/useDailyNoteStore";
+import useTimeRecordStore from "@/stores/useTimeRecordStore";
 
 enum EListItem {
   Cards = 'cards',
@@ -68,6 +77,12 @@ const Sidebar = memo((props: ISidebarProps) => {
     setCardTreeCount(Math.min(cardTreeCount + 10, cardTree.length));
   });
 
+  const {
+    articles,
+  } = useArticleManagementStore(state => ({
+    articles: state.articles
+  }))
+
   const [documentListOpen, setDocumentListOpen] = useState(false);
   const {
     documents,
@@ -76,6 +91,18 @@ const Sidebar = memo((props: ISidebarProps) => {
     documents: state.documents,
     activeDocumentId: state.activeDocumentId,
   }));
+
+  const {
+    dailyNotes,
+  } = useDailyNoteStore(state => ({
+    dailyNotes: state.dailyNotes,
+  }));
+
+  const {
+    timeRecords,
+  } = useTimeRecordStore(state => ({
+    timeRecords: state.timeRecords,
+  }))
 
   const activeItem = useMemo(() => {
     const pathname = location.pathname;
@@ -113,16 +140,23 @@ const Sidebar = memo((props: ISidebarProps) => {
           <div
             className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Cards })}
             onClick={() => {
-              if (activeItem === EListItem.Cards) {
-                setCardTreeOpen(!cardTreeOpen);
-              } else {
-                setCardTreeOpen(true);
-              }
-              navigate('/cards');
+              onClickCardTreeTag('');
             }}
           >
-            <SVG src={card} />
-            <span>卡片</span>
+            <div className={styles.title}>
+              <SVG src={card} />
+              <span>卡片</span>
+              <div className={styles.count}>({cards.length})</div>
+            </div>
+            <div
+              className={classnames(styles.arrow, { [styles.open]: cardTreeOpen })}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCardTreeOpen(!cardTreeOpen);
+              }}
+            >
+              <MdKeyboardArrowRight />
+            </div>
           </div>
           <If condition={cardTreeOpen}>
             <LoadMoreComponent
@@ -151,24 +185,38 @@ const Sidebar = memo((props: ISidebarProps) => {
               navigate('/articles');
             }}
           >
-            <SVG src={article} />
-            <span>文章</span>
+            <div className={styles.title}>
+              <SVG src={article} />
+              <span>文章</span>
+              <div className={styles.count}>({articles.length})</div>
+            </div>
           </div>
         </div>
         <div className={styles.item}>
           <div
             className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Documents })}
             onClick={() => {
-              if (activeItem === EListItem.Documents) {
-                setDocumentListOpen(!documentListOpen);
-              } else {
-                setDocumentListOpen(true);
-              }
               navigate('/documents');
+              useDocumentsStore.setState({
+                activeDocumentId: null,
+                activeDocumentItem: null,
+              })
             }}
           >
-            <SVG src={document} />
-            <span>知识库</span>
+            <div className={styles.title}>
+              <SVG src={document} />
+              <span>知识库</span>
+              <div className={styles.count}>({documents.length}/{documents.reduce((count, doc) => doc.count + count, 0)})</div>
+            </div>
+            <div
+              className={classnames(styles.arrow, { [styles.open]: documentListOpen })}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDocumentListOpen(!documentListOpen);
+              }}
+            >
+              <MdKeyboardArrowRight />
+            </div>
           </div>
           <If condition={documentListOpen}>
             <div className={styles.children}>
@@ -193,6 +241,7 @@ const Sidebar = memo((props: ISidebarProps) => {
                   >
                     <div className={styles.icon}><MdOutlineDocumentScanner /></div>
                     <div className={styles.title}>{document.title}</div>
+                    <div className={styles.count}>({document.count})</div>
                   </div>
                 )} />
             </div>
@@ -205,8 +254,11 @@ const Sidebar = memo((props: ISidebarProps) => {
               navigate('/daily');
             }}
           >
-            <SVG src={daily} />
-            <span>日记</span>
+            <div className={styles.title}>
+              <SVG src={daily} />
+              <span>日记</span>
+              <div className={styles.count}>({dailyNotes.length})</div>
+            </div>
           </div>
         </div>
         <div className={styles.item}>
@@ -216,8 +268,13 @@ const Sidebar = memo((props: ISidebarProps) => {
               navigate('/timeRecord');
             }}
           >
-            <SVG src={timeRecord} />
-            <span>时间记录</span>
+            <div className={styles.title}>
+              <SVG src={timeRecord} />
+              <span>时间记录</span>
+              <div className={styles.count}>
+                ({timeRecords.map(timeRecord => timeRecord.timeRecords).flat().length})
+              </div>
+            </div>
           </div>
         </div>
       </div>

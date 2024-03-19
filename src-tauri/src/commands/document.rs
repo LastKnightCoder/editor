@@ -36,7 +36,7 @@ pub fn update_document(id: i64, title: String, desc: String, authors: Vec<String
 }
 
 #[tauri::command]
-pub fn get_document_list(app_state: tauri::State<state::AppState>) -> Result<Vec<document::Document>, String> {
+pub fn get_document_list(app_state: tauri::State<state::AppState>) -> Result<Vec<document::DocumentWithCount>, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {

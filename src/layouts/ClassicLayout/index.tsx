@@ -1,42 +1,59 @@
 import { memo, useEffect, useState } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
+import dayjs from "dayjs";
+import isHotkey from "is-hotkey";
 
 import Sidebar from './Sidebar';
 import Titlebar from "./Titlebar";
 import CardList from './List/CardList';
-import ArticleList from "./List/ArticleList";
-import DocumentList from "./List/DocumentList";
-import DailyList from "./List/DailyList";
-import TimeRecordList from "./List/TimeRecord";
+// import ArticleList from "./List/ArticleList";
+// import DocumentList from "./List/DocumentList";
+// import DailyList from "./List/DailyList";
+// import TimeRecordList from "./List/TimeRecord";
 import CardContent from './Content/Card';
-import ArticleContent from './Content/Article';
-import DocumentContent from './Content/Document';
-import DailyNoteContent from "./Content/DailyNote";
-import TimeRecordContent from "./Content/TimeRecord";
+// import ArticleContent from './Content/Article';
+// import DocumentContent from './Content/Document';
+// import DailyNoteContent from "./Content/DailyNote";
+// import TimeRecordContent from "./Content/TimeRecord";
 import CardTitlebar from "./Titlebar/Card";
-import ArticleTitlebar from "./Titlebar/Article";
-import DocumentTitlebar from "./Titlebar/Document";
-import DailyNoteTitlebar from "./Titlebar/DailyNote";
-import TimeRecordTitlebar from "./Titlebar/TimeRecord";
+// import ArticleTitlebar from "./Titlebar/Article";
+// import DocumentTitlebar from "./Titlebar/Document";
+// import DailyNoteTitlebar from "./Titlebar/DailyNote";
+// import TimeRecordTitlebar from "./Titlebar/TimeRecord";
 import SettingModal from "./SettingModal";
 import EditRecordModal from "@/components/EditRecordModal";
 
 import { createDocumentItem, initAllDocumentItemParents } from "@/commands";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 
+import { EFilterType } from "@/types/time";
+import { ITimeRecord } from "@/types";
+
 import useCard from './hooks/useCard';
 import useArticle from "./hooks/useArticle";
+import useEditDailyNote from "@/hooks/useEditDailyNote";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 
 import styles from './index.module.less';
-import useEditDailyNote from "@/hooks/useEditDailyNote";
-import { EFilterType } from "@/types/time";
-import dayjs from "dayjs";
-import { ITimeRecord } from "@/types";
-import isHotkey from "is-hotkey";
+import loadable from "@loadable/component";
+
+const ArticleList = loadable(() => import('./List/ArticleList'));
+const DocumentList = loadable(() => import('./List/DocumentList'));
+const DailyList = loadable(() => import('./List/DailyList'));
+const TimeRecordList = loadable(() => import('./List/TimeRecord'));
+
+const ArticleContent = loadable(() => import('./Content/Article'));
+const DocumentContent = loadable(() => import('./Content/Document'));
+const DailyNoteContent = loadable(() => import('./Content/DailyNote'));
+const TimeRecordContent = loadable(() => import('./Content/TimeRecord'));
+
+const ArticleTitlebar = loadable(() => import('./Titlebar/Article'));
+const DocumentTitlebar = loadable(() => import('./Titlebar/Document'));
+const DailyNoteTitlebar = loadable(() => import('./Titlebar/DailyNote'));
+const TimeRecordTitlebar = loadable(() => import('./Titlebar/TimeRecord'));
 
 const ClassicLayout = memo(() => {
   const {

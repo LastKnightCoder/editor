@@ -49,13 +49,14 @@ export const getDocument = async (id: number): Promise<IDocument> => {
 export const getAllDocuments = async (): Promise<IDocument[]> => {
   const list: any[] = await invoke('get_document_list');
   return list.map((item) => ({
-    ...item,
-    content: JSON.parse(item.content),
-    isDelete: item.is_delete,
-    createTime: item.create_time,
-    updateTime: item.update_time,
-    bannerBg: item.banner_bg,
-    isTop: item.is_top,
+    ...item.document,
+    count: item.count,
+    content: JSON.parse(item.document.content),
+    isDelete: item.document.is_delete,
+    createTime: item.document.create_time,
+    updateTime: item.document.update_time,
+    bannerBg: item.document.banner_bg,
+    isTop: item.document.is_top,
   }));
 }
 

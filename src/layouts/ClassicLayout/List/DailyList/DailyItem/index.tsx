@@ -29,7 +29,7 @@ const DailyItem = memo((props: IDailyItemProps) => {
         </Paragraph>
       </div>
       <div className={styles.time}>
-        <Tags tags={[dailyNote.date]} showIcon={false} tagStyle={active ? { backgroundColor: '#FDE9E2' } : {}} />
+        <Tags tags={[dailyNote.date]} showIcon={false} tagStyle={active ? { backgroundColor: 'var(--active-icon-bg)' } : {}} />
       </div>
     </div>
   )

@@ -42,6 +42,12 @@ pub struct DocumentItem {
     pub parents: Vec<i64>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DocumentWithCount {
+    pub document: Document,
+    pub count: i64,
+}
+
 pub fn init_document_table(conn: &Connection) -> Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS documents (
@@ -193,15 +199,50 @@ pub fn delete_document(conn: &Connection, id: i64) -> Result<usize> {
     Ok(res)
 }
 
-pub fn get_document_list(conn: &Connection) -> Result<Vec<Document>> {
+pub fn get_document_list(conn: &Connection) -> Result<Vec<DocumentWithCount>> {
     let sql = "SELECT id, create_time, update_time, title, desc, authors, children, tags, links, content, banner_bg, icon, is_top, is_delete FROM documents WHERE is_delete = 0 ORDER BY update_time DESC";
     let mut stmt = conn.prepare(sql)?;
     let mut rows = stmt.query([])?;
     let mut res = Vec::new();
     while let Some(row) = rows.next()? {
-        res.push(get_document_from_query_result(&row));
+        let document = get_document_from_query_result(&row);
+        let count = get_document_children_count(conn, &document)?;
+        let document_with_count = DocumentWithCount {
+            document,
+            count
+        };
+        res.push(document_with_count);
     }
     Ok(res)
+}
+
+pub fn get_document_children_count(conn: &Connection, document: &Document) -> Result<i64> {
+    // 根据 children 查询 document_items 表，递归搜索，为了防止嵌套，维护一个 visited 数组
+    let mut visited = Vec::new();
+    let mut count_vec: Vec<i64> = Vec::new();
+    for child_id in &document.children {
+        count_vec.extend(get_document_children_count_recursive(conn, child_id.clone(), &mut visited)?);
+    }
+    // 根据 id 去重
+    count_vec.sort();
+    count_vec.dedup();
+    Ok(count_vec.len() as i64)
+}
+
+pub fn get_document_children_count_recursive(conn: &Connection, id: i64, visited: &mut Vec<i64>) -> Result<Vec<i64>> {
+    if visited.contains(&id) {
+        return Ok(Vec::new());
+    }
+    visited.push(id);
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, authors, tags, is_directory, children, is_article, article_id, is_card, card_id, content, banner_bg, icon, is_delete, parents FROM document_items WHERE id = ?1")?;
+    let mut rows = stmt.query(params![id])?;
+    let row = rows.next()?.unwrap();
+    let document_item = get_document_item_from_query_result(&row);
+    let mut count = vec![id];
+    for child_id in document_item.children {
+        count.extend(get_document_children_count_recursive(conn, child_id, visited)?);
+    }
+    Ok(count)
 }
 
 pub fn get_document(conn: &Connection, id: i64) -> Result<Document> {

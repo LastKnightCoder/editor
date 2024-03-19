@@ -34,7 +34,6 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: rgba(0, 0, 0, 0.04);
         cursor: pointer;
         border-radius: 10px;
       }
@@ -47,21 +46,50 @@
     gap: 4px;
     .item {
       .header {
-        user-select: none;
-        box-sizing: border-box;
         display: flex;
-        gap: 4px;
+        justify-content: space-between;
         align-items: center;
         padding: 8px;
         height: 40px;
-        cursor: pointer;
+        box-sizing: border-box;
         border-radius: 8px;
         &.active {
           background-color: var(--active-bg-color);
           color: var(--active-text-color);
+          .arrow {
+            &:hover {
+              background-color: var(--active-icon-bg);
+            }
+          }
         }
         &:not(.active):hover {
           background-color: var(--common-hover-bg);
+        }
+        .title {
+          user-select: none;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          height: 40px;
+          cursor: pointer;
+          .count {
+            font-size: .8em;
+          }
+        }
+        .arrow {
+          display: flex;
+          height: 28px;
+          width: 28px;
+          border-radius: 50%;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          &:hover {
+            background-color: var(--normal-icon-bg);
+          }
+          &.open {
+            transform: rotate(90deg);
+          }
         }
       }
       .children {
@@ -81,9 +109,9 @@
           box-sizing: border-box;
           display: flex;
           align-items: center;
-          color: #909090;
           border-radius: 8px;
           gap: 4px;
+          cursor: pointer;
           .icon {
             width: 30px;
             height: 30px;
@@ -93,6 +121,9 @@
           }
           .title {
             line-height: 32px;
+          }
+          .count {
+            font-size: .8em;
           }
           &.active {
             background-color: var(--active-bg-color);
