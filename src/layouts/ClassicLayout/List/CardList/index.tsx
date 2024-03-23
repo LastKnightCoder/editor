@@ -19,6 +19,7 @@ interface ICardProps {
   updateCard: (card: IUpdateCard) => Promise<number>;
   selectCategory: ECardCategory;
   onSelectCategoryChange: (category: ECardCategory) => void;
+  onCtrlClickCard: (id: number) => void;
 }
 
 const CardList = memo((props: ICardProps) => {
@@ -29,7 +30,8 @@ const CardList = memo((props: ICardProps) => {
     updateCard,
     activeCardIds,
     selectCategory,
-    onSelectCategoryChange
+    onSelectCategoryChange,
+    onCtrlClickCard
   } = props;
 
   const [cardsCount, setCardsCount] = useState<number>(10);
@@ -104,8 +106,13 @@ const CardList = memo((props: ICardProps) => {
               <CardItem
                 key={card.id}
                 card={card}
-                onClick={() => {
-                  onClickCard(card.id);
+                onClick={(e) => {
+                  // 是否按下了 mod 或 ctrl 键
+                  if (e.ctrlKey || e.metaKey) {
+                    onCtrlClickCard(card.id);
+                  } else {
+                    onClickCard(card.id);
+                  }
                 }}
                 active={activeCardIds.includes(card.id)}
                 showTags

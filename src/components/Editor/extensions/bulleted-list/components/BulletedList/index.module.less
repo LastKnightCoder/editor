@@ -10,10 +10,10 @@
     &::before {
       position: absolute;
       content: '';
-      width: .3em;
-      height: .3em;
+      width: .35em;
+      height: .35em;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.4);
+      background: var(--bullet-list-item-bg);
       left: -1em;
       top: .7em;
       transition: transform .3s ease-in-out;
@@ -23,14 +23,7 @@
       }
     }
     &[data-fold="fold"]::before {
-      box-shadow: 0 0 0 .2em rgba(250, 250, 250, 0.15);
-    }
-  }
-
-  :global(:root[data-theme='light']) & {
-    li::before {
-      background: rgba(56, 54, 54, 0.3);
-      box-shadow: 0 0 0 .2em rgba(0, 0, 0, .1);
+      box-shadow: var(--bullet-list-item-shodow);
     }
   }
 }

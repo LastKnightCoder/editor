@@ -58,10 +58,23 @@ const useCardManagement = () => {
     removeCard(id);
   });
 
-  const onClickCard = useMemoizedFn( (id: number) => {
+  const onCtrlClickCard = useMemoizedFn( (id: number) => {
     if (leftCardIds.includes(id) || rightCardIds.includes(id)) {
       onClickTab(id);
     } else {
+      addCard(id);
+    }
+  });
+
+  const onClickCard = useMemoizedFn((id: number) => {
+    const activeCardId = activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId;
+    if (activeCardId === id) {
+      removeCard(id);
+    }
+    if (id !== activeCardId) {
+      if (activeCardId) {
+        removeCard(activeCardId);
+      }
       addCard(id);
     }
   });
@@ -114,6 +127,7 @@ const useCardManagement = () => {
     onClickTab,
     onCloseTab,
     onClickCard,
+    onCtrlClickCard,
     onCreateCard,
     onDeleteCard,
     onMoveCard,

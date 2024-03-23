@@ -82,17 +82,19 @@ const CardsManagement = (props: ICardsManagementProps) => {
   return (
     <div className={styles.manageContainer}>
       <div className={styles.cardsManagement}>
-        <CardTabs
-          cardIds={cardIds}
-          activeCardId={activeCardId}
-          side={side}
-          onClickTab={onClickTab}
-          onCloseTab={onCloseTab}
-          onMoveCard={onMoveCard}
-          onCloseOtherTabs={(id) => {
-            onCloseOtherTabs(id, side);
-          }}
-        />
+        <If condition={cardIds.length > 1}>
+          <CardTabs
+            cardIds={cardIds}
+            activeCardId={activeCardId}
+            side={side}
+            onClickTab={onClickTab}
+            onCloseTab={onCloseTab}
+            onMoveCard={onMoveCard}
+            onCloseOtherTabs={(id) => {
+              onCloseOtherTabs(id, side);
+            }}
+          />
+        </If>
         {
           activeCardId && (
             <div className={styles.editCardContainer}>

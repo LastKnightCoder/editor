@@ -7,20 +7,8 @@ import isHotkey from "is-hotkey";
 import Sidebar from './Sidebar';
 import Titlebar from "./Titlebar";
 import CardList from './List/CardList';
-// import ArticleList from "./List/ArticleList";
-// import DocumentList from "./List/DocumentList";
-// import DailyList from "./List/DailyList";
-// import TimeRecordList from "./List/TimeRecord";
 import CardContent from './Content/Card';
-// import ArticleContent from './Content/Article';
-// import DocumentContent from './Content/Document';
-// import DailyNoteContent from "./Content/DailyNote";
-// import TimeRecordContent from "./Content/TimeRecord";
 import CardTitlebar from "./Titlebar/Card";
-// import ArticleTitlebar from "./Titlebar/Article";
-// import DocumentTitlebar from "./Titlebar/Document";
-// import DailyNoteTitlebar from "./Titlebar/DailyNote";
-// import TimeRecordTitlebar from "./Titlebar/TimeRecord";
 import SettingModal from "./SettingModal";
 import EditRecordModal from "@/components/EditRecordModal";
 
@@ -32,13 +20,17 @@ import { ITimeRecord } from "@/types";
 
 import useCard from './hooks/useCard';
 import useArticle from "./hooks/useArticle";
+import useExitFocusMode from "./hooks/useExitFocusMode";
 import useEditDailyNote from "@/hooks/useEditDailyNote";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
+import useGlobalStateStore from "@/stores/useGlobalStateStore";
+
+import loadable from "@loadable/component";
 
 import styles from './index.module.less';
-import loadable from "@loadable/component";
+import classnames from "classnames";
 
 const ArticleList = loadable(() => import('./List/ArticleList'));
 const DocumentList = loadable(() => import('./List/DocumentList'));
@@ -57,6 +49,14 @@ const TimeRecordTitlebar = loadable(() => import('./Titlebar/TimeRecord'));
 
 const ClassicLayout = memo(() => {
   const {
+    focusMode
+  } = useGlobalStateStore(state => ({
+    focusMode: state.focusMode,
+  }));
+
+  useExitFocusMode();
+
+  const {
     activeCardTag,
     selectCategory,
     leftCardIds,
@@ -66,6 +66,7 @@ const ClassicLayout = memo(() => {
     onCreateCard,
     onDeleteCard,
     onClickCard,
+    onCtrlClickCard,
     onClickTab,
     onCloseTab,
     onMoveCard,
@@ -264,7 +265,7 @@ const ClassicLayout = memo(() => {
   }, [location, navigate]);
 
   return (
-    <div className={styles.container}>
+    <div className={classnames(styles.container, { [styles.focusMode]: focusMode })}>
       <div className={styles.sidebar}>
         <Sidebar
           activeCardTag={activeCardTag}
@@ -277,6 +278,7 @@ const ClassicLayout = memo(() => {
             <CardList
               activeCardIds={[leftActiveCardId, rightActiveCardId].filter(Boolean) as number[]}
               onClickCard={onClickCard}
+              onCtrlClickCard={onCtrlClickCard}
               onDeleteCard={onDeleteCard}
               updateCard={updateCard}
               cards={filteredCards}

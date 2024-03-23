@@ -7,6 +7,30 @@
   --sidebar-width: 240px;
   --list-width: 300px;
   --title-bar-height: 60px;
+  &.focusMode {
+    --sidebar-width: 0;
+    --list-width: 0;
+    --title-bar-height: 0;
+    .sidebar {
+      overflow: hidden;
+      border: none;
+    }
+    .list {
+      overflow: hidden;
+      border: none;
+    }
+    .contentArea {
+      width: 100vw;
+      flex-basis: 100vw;
+      .titleBar {
+        overflow: hidden;
+        border: none;
+      }
+      .content {
+        height: 100%;
+      }
+    }
+  }
   .sidebar {
     flex: none;
     width: var(--sidebar-width);
@@ -41,7 +65,6 @@
       overflow: auto;
       display: flex;
       gap: 10px;
-
     }
   }
 }

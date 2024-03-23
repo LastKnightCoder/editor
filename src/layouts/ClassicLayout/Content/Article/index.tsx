@@ -12,10 +12,10 @@ import EditText from "@/components/EditText";
 import { CalendarOutlined } from "@ant-design/icons";
 
 import useUploadImage from "@/hooks/useUploadImage";
-
 import { formatDate } from "@/utils/time";
-
 import { IArticle } from "@/types";
+
+import { cardLinkExtension } from '@/editor-extensions';
 
 import styles from './index.module.less';
 
@@ -40,6 +40,8 @@ const outlineVariants = {
     width: 0,
   }
 }
+
+const extensions = [cardLinkExtension];
 
 const EditArticle = memo((props: IArticleItemProps) => {
   const {
@@ -75,7 +77,7 @@ const EditArticle = memo((props: IArticleItemProps) => {
 
   const showOutline = useMemo(() => {
     if (!size) return false;
-    return headers.length > 0 && size.width > 720;
+    return headers.length > 0 && size.width > 1080;
   }, [headers, size]);
 
   useRafInterval(() => {
@@ -135,6 +137,7 @@ const EditArticle = memo((props: IArticleItemProps) => {
             ref={editorRef}
             initValue={initValue}
             onInit={onInit}
+            extensions={extensions}
             onChange={onContentChange}
             uploadImage={uploadImage}
             readonly={readonly}
@@ -147,7 +150,7 @@ const EditArticle = memo((props: IArticleItemProps) => {
             variants={outlineVariants}
             className={classnames(styles.outline)}
           >
-            <Outline style={{ marginRight: 50 }} headers={headers} onClick={onClickHeader} />
+            <Outline style={{ marginRight: 0 }} headers={headers} onClick={onClickHeader} />
           </motion.div>
         </If>
       </div>
