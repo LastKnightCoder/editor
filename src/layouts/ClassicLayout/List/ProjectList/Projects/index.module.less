@@ -1,0 +1,39 @@
+.list {
+  padding: 0 16px;
+  height: 100vh;
+  overflow-y: auto;
+  border-top: 16px solid transparent;
+  border-bottom: 16px solid transparent;
+  box-sizing: border-box;
+  display: flex;
+  gap: 4px;
+  flex-direction: column;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  .project {
+    padding: 12px;
+    border-radius: 8px;
+    position: relative;
+    user-select: none;
+    background-color: var(--normal-card-bg);
+    border: 2px solid transparent;
+    box-sizing: border-box;
+    cursor: pointer;
+    content-visibility: auto;
+    &:hover {
+      background-color: var(--common-hover-bg);
+    }
+    .title {
+      font-size: 1.2em;
+      font-weight: bold;
+      // 超出部分用省略号显示
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .editor {
+      margin-top: 10px;
+    }
+  }
+}

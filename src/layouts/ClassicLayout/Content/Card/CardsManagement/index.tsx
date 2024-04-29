@@ -26,6 +26,7 @@ interface ICardsManagementProps {
   cardIds: number[];
   activeCardId?: number;
   side: EActiveSide;
+  showCardTabs: boolean;
   onClickCard: (id: number) => void;
   onClickTab: (id: number) => void;
   onCloseTab: (id: number) => void;
@@ -38,6 +39,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
     cardIds,
     activeCardId,
     side,
+    showCardTabs,
     onClickCard: onClickLinkCard,
     onCloseTab,
     onClickTab,
@@ -82,7 +84,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
   return (
     <div className={styles.manageContainer}>
       <div className={styles.cardsManagement}>
-        <If condition={cardIds.length > 1}>
+        <If condition={showCardTabs}>
           <CardTabs
             cardIds={cardIds}
             activeCardId={activeCardId}

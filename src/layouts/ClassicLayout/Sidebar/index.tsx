@@ -32,11 +32,13 @@ import useDocumentsStore from "@/stores/useDocumentsStore";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
+import useProjectsStore from "@/stores/useProjectsStore";
 
 enum EListItem {
   Cards = 'cards',
   Articles = 'articles',
   Documents = 'documents',
+  Projects = 'projects',
   Daily = 'daily',
   TimeRecord = 'timeRecord',
 }
@@ -102,6 +104,14 @@ const Sidebar = memo((props: ISidebarProps) => {
     timeRecords,
   } = useTimeRecordStore(state => ({
     timeRecords: state.timeRecords,
+  }));
+
+  const {
+    projects,
+    activeProjectId,
+  } = useProjectsStore(state => ({
+    projects: state.projects,
+    activeProjectId: state.activeProjectId,
   }))
 
   const activeItem = useMemo(() => {
@@ -136,6 +146,46 @@ const Sidebar = memo((props: ISidebarProps) => {
         </div>
       </div>
       <div className={styles.list}>
+        <div className={styles.item}>
+          <div
+            className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Projects })}
+            onClick={() => {
+              navigate('/projects');
+              useProjectsStore.setState({
+                activeProjectId: null,
+              })
+            }}
+          >
+            <div className={styles.title}>
+              <SVG src={document} />
+              <span>项目</span>
+              <div className={styles.count}>
+                ({projects.length})
+              </div>
+            </div>
+          </div>
+          <div className={styles.children}>
+            <For
+              data={projects}
+              renderItem={project => (
+                <div
+                  key={project.id}
+                  className={classnames(styles.documentItem, { [styles.active]: project.id === activeProjectId })}
+                  onClick={() => {
+                    navigate('/projects');
+                    useProjectsStore.setState({
+                      activeProjectId: project.id,
+                    });
+                  }}
+                >
+                  <div className={styles.icon}><MdOutlineDocumentScanner /></div>
+                  <div className={styles.title}>{project.title}</div>
+                  <div className={styles.count}>({project.children.length})</div>
+                </div>
+              )}
+            />
+          </div>
+        </div>
         <div className={classnames(styles.item)}>
           <div
             className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Cards })}
@@ -230,7 +280,7 @@ const Sidebar = memo((props: ISidebarProps) => {
                       navigate('/documents');
                       useDocumentsStore.setState({
                         activeDocumentId: document.id,
-                      })
+                      });
                       // 切换了不同的知识库，需要清空当前正在编辑的文档
                       if (activeDocumentId !== document.id) {
                         useDocumentsStore.setState({

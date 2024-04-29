@@ -154,6 +154,9 @@ pub fn update_article(
     let mut stmt = conn.prepare("UPDATE document_items SET update_time = ?1, content = ?2, title = ?3 WHERE is_article = 1 AND article_id = ?4")?;
     stmt.execute(params![now as i64, content, title, id])?;
 
+    // 从 project_item 找到 ref_type 为 article 且 ref_id 为 id 的所有记录，并更新其 update_time 和 content 和 title
+    let mut stmt = conn.prepare("UPDATE project_item SET update_time = ?1, content = ?2, title = ?3 WHERE ref_type = 'article' AND ref_id = ?4")?;
+
     // 查询刚刚更新的文章，然后返回
     let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, author, tags, links, content, banner_bg, is_top, is_delete FROM articles WHERE id = ?1")?;
     let mut rows = stmt.query(params![id])?;

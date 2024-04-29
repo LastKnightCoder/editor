@@ -26,6 +26,7 @@ import useDocumentsStore from "@/stores/useDocumentsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
+// import useProjectsStore from "@/stores/useProjectsStore";
 
 import loadable from "@loadable/component";
 
@@ -36,16 +37,19 @@ const ArticleList = loadable(() => import('./List/ArticleList'));
 const DocumentList = loadable(() => import('./List/DocumentList'));
 const DailyList = loadable(() => import('./List/DailyList'));
 const TimeRecordList = loadable(() => import('./List/TimeRecord'));
+const ProjectList = loadable(() => import('./List/ProjectList'));
 
 const ArticleContent = loadable(() => import('./Content/Article'));
 const DocumentContent = loadable(() => import('./Content/Document'));
 const DailyNoteContent = loadable(() => import('./Content/DailyNote'));
 const TimeRecordContent = loadable(() => import('./Content/TimeRecord'));
+const ProjectContent = loadable(() => import('./Content/Project'));
 
 const ArticleTitlebar = loadable(() => import('./Titlebar/Article'));
 const DocumentTitlebar = loadable(() => import('./Titlebar/Document'));
 const DailyNoteTitlebar = loadable(() => import('./Titlebar/DailyNote'));
 const TimeRecordTitlebar = loadable(() => import('./Titlebar/TimeRecord'));
+const ProjectTitlebar = loadable(() => import('./Titlebar/Project'));
 
 const ClassicLayout = memo(() => {
   const {
@@ -314,6 +318,9 @@ const ClassicLayout = memo(() => {
               onClickEdit={onEditTimeRecord}
             />
           )} />
+          <Route path={"/projects/"} element={(
+            <ProjectList />
+          )} />
         </Routes>
       </div>
       <div className={styles.contentArea}>
@@ -355,6 +362,9 @@ const ClassicLayout = memo(() => {
                 <TimeRecordTitlebar
                   onCreateNewTimeRecord={onCreateNewTimeRecord}
                 />
+              )} />
+              <Route path={"projects/"} element={(
+                <ProjectTitlebar />
               )} />
             </Route>
           </Routes>
@@ -408,6 +418,9 @@ const ClassicLayout = memo(() => {
                 filterValue={filterValue}
                 timeRecords={timeRecords}
               />
+            )} />
+            <Route path={'/projects/'} element={(
+              <ProjectContent />
             )} />
           </Routes>
         </div>

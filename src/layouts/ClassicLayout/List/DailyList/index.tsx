@@ -64,9 +64,15 @@ const DailyList = memo((props: IDailyListProps) => {
     }
   }, [dailyNotes, filterType, filterValue]);
 
+  filteredDailyNotes.sort((a, b) => {
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
+  })
   const slicedDailyNotes = filteredDailyNotes.slice(0, dailyNotesCount);
 
+  console.log('slicedDailyNotes => ', slicedDailyNotes);
+
   const loadMore = async () => {
+    console.log('loadMore...')
     setDailyNotesCount(Math.min(dailyNotesCount + 10, filteredDailyNotes.length));
   }
 

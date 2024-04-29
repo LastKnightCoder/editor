@@ -7,6 +7,7 @@ import Base from '../base.ts';
 import IExtension from "../types.ts";
 
 import blockPanelItems from './block-panel-items';
+import { deleteBackward } from './plugins';
 
 const CustomBlock = loadable(() => import("./components/CustomBlock"));
 
@@ -15,6 +16,10 @@ class CustomBlockExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override getPlugins() {
+    return [deleteBackward]
   }
 
   render(props: RenderElementProps) {

@@ -13,6 +13,7 @@ import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
+import useProjectsStore from "@/stores/useProjectsStore";
 import useSyncFont from "@/hooks/useSyncFont.ts";
 import useSyncTheme from "@/hooks/useSyncTheme";
 
@@ -53,7 +54,13 @@ const Application = () => {
     initTimeRecords,
   } = useTimeRecordStore(state => ({
     initTimeRecords: state.init
-  }))
+  }));
+
+  const {
+    initProjects,
+  } = useProjectsStore(state => ({
+    initProjects: state.init
+  }));
 
   useEffect(() => {
     initSetting();
@@ -62,7 +69,8 @@ const Application = () => {
     initDocuments().then();
     initDailyNotes().then();
     initTimeRecords().then();
-  }, [initSetting, initArticles, initCards, initDocuments, initDailyNotes, initTimeRecords]);
+    initProjects().then();
+  }, [initSetting, initArticles, initCards, initDocuments, initDailyNotes, initTimeRecords, initProjects]);
 
   useSyncFont();
   useSyncTheme();

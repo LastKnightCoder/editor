@@ -1,7 +1,6 @@
 import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
 import { ListItemElement } from "@/components/Editor/types";
 import { Editor, Transforms } from "slate";
-import { motion } from 'framer-motion';
 import classnames from "classnames";
 
 import styles from './index.module.less';
@@ -72,7 +71,7 @@ const ListItem = (props: IListItemProps) => {
   const foldAble = element.children.length > 1;
 
   return (
-    <motion.li data-fold={isFold ? 'fold' : 'unfold'} layout className={styles.listItem} {...attributes}>
+    <li data-fold={isFold ? 'fold' : 'unfold'} className={styles.listItem} {...attributes}>
       <div className={classnames(styles.arrowContainer, {
         [styles.show]: isFold || foldAble,
       })}>
@@ -85,7 +84,7 @@ const ListItem = (props: IListItemProps) => {
         />
       </div>
       {children}
-    </motion.li>
+    </li>
   )
 }
 

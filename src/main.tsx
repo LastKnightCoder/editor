@@ -12,4 +12,3 @@ dayjs.locale('zh-cn');
 ReactDOM
   .createRoot(document.getElementById('root')!)
   .render(<App />)
-

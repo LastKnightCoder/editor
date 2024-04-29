@@ -122,6 +122,15 @@ pub fn update_one(conn: &Connection, id: i64, tags: Vec<String>, links: Vec<i64>
         }
     }
 
+    // 从 project_item 找到 ref_type 为 card 且 ref_id 为 id 的所有记录，并更新其 update_time 和 content
+    let mut stmt = conn.prepare("UPDATE project_item SET update_time = ?1, content = ?2 WHERE ref_type = 'card' AND ref_id = ?3")?;
+    match stmt.execute(params![now as i64, content, id]) {
+        Ok(_) => {}
+        Err(e) => {
+            println!("更新 project_items 表错误: {}", e);
+        }
+    }
+
     Ok(res)
 }
 

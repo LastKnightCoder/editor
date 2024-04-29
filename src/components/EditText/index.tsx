@@ -7,13 +7,21 @@ interface IEditTextProps {
   contentEditable?: boolean;
   onChange?: (value: string) => void;
   onPressEnter?: () => void;
+  defaultFocus?: boolean;
 }
 
 const EditText = (props: IEditTextProps) => {
-  const { className, style, defaultValue, contentEditable = false, onChange, onPressEnter } = props;
+  const { className, style, defaultValue, contentEditable = false, onChange, onPressEnter, defaultFocus = false } = props;
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (defaultFocus) {
+      ref.current?.focus();
+      setIsEditing(true);
+    }
+  }, [defaultFocus])
 
   useEffect(() => {
     // 禁止在标题中输入回车

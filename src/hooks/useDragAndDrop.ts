@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
 
-export const type = 'sidebar-document-item';
+export const type = 'sidebar-item';
 
 export interface IDragItem {
   itemId: number;
@@ -13,8 +13,8 @@ export interface IDragItem {
 }
 
 type IDragAndDropParams = IDragItem & {
-  onDragEnd: (dragItem: IDragItem) => void;
-  onDrop: (dragItem: IDragItem, dragPosition: EDragPosition) => void;
+  onDragEnd?: (dragItem: IDragItem) => void;
+  onDrop?: (dragItem: IDragItem, dragPosition: EDragPosition) => void;
 }
 
 export enum EDragPosition {
@@ -45,7 +45,7 @@ const useDragAndDrop = (item: IDragAndDropParams) => {
       if (item.parentId === dropResult.parentId && dropResult.dragPosition !== EDragPosition.Inside) {
         return;
       }
-      onDragEnd(item);
+      onDragEnd?.(item);
     }
   }), [item]);
 
@@ -102,7 +102,7 @@ const useDragAndDrop = (item: IDragAndDropParams) => {
       if (monitor.didDrop()) {
         return;
       }
-      onDrop(dragItem, dragPosition);
+      onDrop?.(dragItem, dragPosition);
       return {
         ...item,
         dragPosition,

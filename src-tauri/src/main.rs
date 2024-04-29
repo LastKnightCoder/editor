@@ -6,7 +6,6 @@ mod state;
 mod commands;
 
 use tauri::{Manager, State, SystemTray, CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem, AppHandle, Wry};
-use tauri::GlobalShortcutManager;
 use database::init_database;
 use state::AppState;
 use commands::{
@@ -64,26 +63,28 @@ use commands::{
     get_time_records_by_time_range,
     get_all_event_types,
     get_all_time_types,
+    create_project,
+    delete_project,
+    update_project,
+    get_project_list,
+    get_project_by_id,
+    create_project_item,
+    update_project_item,
+    delete_project_item,
+    get_project_item_by_id,
+    get_project_items_by_ref,
+    get_all_project_items_not_in_project,
+    delete_all_project_items_not_in_project,
+    get_project_item_count_in_project,
+    is_project_item_not_in_any_project,
+    get_project_items_not_in_any_project,
+    delete_project_items_not_in_any_project,
 };
 
 fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
     let quick_window = app.get_window(label);
     // 如果不存在，则创建
     if quick_window.is_none() {
-        #[cfg(target_os="window")]
-        tauri::WindowBuilder::new(app, label, tauri::WindowUrl::App(url.into()))
-            .title(label)
-            .decorations(false)
-            .inner_size(500.0, 400.0)
-            .fullscreen(false)
-            .resizable(true)
-            .always_on_top(true)
-            .transparent(true)
-            .disable_file_drop_handler()
-            .build()
-            .unwrap();
-
-        #[cfg(target_os="macos")]
         tauri::WindowBuilder::new(app, label, tauri::WindowUrl::App(url.into()))
             .title(label)
             .decorations(false)
@@ -133,20 +134,6 @@ fn main() {
             let conn = init_database().unwrap();
             let app_state: State<AppState> = handle.state();
             *app_state.db.lock().unwrap() = Some(conn);
-
-            let handle_clone = handle.clone();
-            let handel_clone2 = handle.clone();
-
-            app.global_shortcut_manager()
-                .register("CommandOrControl+Shift+D", move || {
-                    create_or_show_quick_window(&handle_clone, "quick-card", "/quick-card");
-                })
-                .expect("failed to register shortcut");
-            app.global_shortcut_manager()
-                .register("CommandOrControl+Shift+T", move || {
-                    create_or_show_quick_window(&handel_clone2, "quick-time-record", "/quick-time-record");
-                })
-                .expect("failed to register shortcut");
 
             Ok(())
         })
@@ -205,6 +192,22 @@ fn main() {
             get_time_records_by_time_range,
             get_all_event_types,
             get_all_time_types,
+            create_project,
+            delete_project,
+            update_project,
+            get_project_list,
+            get_project_by_id,
+            create_project_item,
+            update_project_item,
+            delete_project_item,
+            get_project_item_by_id,
+            get_project_items_by_ref,
+            get_all_project_items_not_in_project,
+            delete_all_project_items_not_in_project,
+            get_project_item_count_in_project,
+            is_project_item_not_in_any_project,
+            get_project_items_not_in_any_project,
+            delete_project_items_not_in_any_project,
         ])
       .run(tauri::generate_context!())
       .expect("error while running tauri application");

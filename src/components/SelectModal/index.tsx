@@ -119,6 +119,7 @@ const SelectArticleModal = <T extends IItem,>(props: ISelectArticleModalProps<T>
               searchedItems.slice(0, maxItemCount).length > 0
                 ? searchedItems.slice(0, maxItemCount).map(item => (
                   <Card
+                    key={item.id}
                     card={item}
                     onClick={() => { onSelectItem(item) }}
                     selected={selectedItems.some(selectedItem => selectedItem.id === item.id)}

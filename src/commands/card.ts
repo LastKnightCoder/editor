@@ -36,7 +36,7 @@ export async function updateCard(card: IUpdateCard): Promise<number> {
   });
 }
 
-export async function findOneCard(id: number): Promise<ICard> {
+export async function getCardById(id: number): Promise<ICard> {
   const res: any =  await invoke('find_one_card', {
     id
   });

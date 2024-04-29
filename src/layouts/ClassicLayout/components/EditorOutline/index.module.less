@@ -1,0 +1,18 @@
+.outline {
+  max-width: 300px;
+  box-sizing: border-box;
+  position: sticky;
+  flex: none;
+  border: 20px solid transparent;
+  top: 20px;
+  height: calc(100% - 20px);
+  overflow: auto;
+  transition: max-width .3s ease-in-out;
+  &.hide {
+    max-width: 0;
+    overflow: hidden;
+  }
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

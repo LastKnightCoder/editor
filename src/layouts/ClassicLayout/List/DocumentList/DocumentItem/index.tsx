@@ -5,6 +5,11 @@ import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import classnames from "classnames";
 
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
+import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import useDragAndDrop, { EDragPosition, IDragItem } from '@/hooks/useDragAndDrop.ts';
+
 import {
   createDocumentItem,
   getAllDocumentItems,
@@ -15,13 +20,8 @@ import {
 } from "@/commands";
 import SelectCardModal from "@/components/SelectCardModal";
 import SelectModal from "@/components/SelectModal";
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
-import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import { IArticle, ICard, IDocumentItem } from "@/types";
-
-import useDragAndDrop, { EDragPosition, IDragItem } from './useDragAndDrop.ts';
 
 import styles from './index.module.less';
 
@@ -148,7 +148,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     onDrop,
     onDragEnd,
     children: item?.children || [],
-    parentChildren: parentChildren,
+    parentChildren,
   });
 
   const onAddNewDocumentItem = useMemoizedFn(async () => {

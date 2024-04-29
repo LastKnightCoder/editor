@@ -1,4 +1,4 @@
-import { Editor, Path, Transforms, Element, Range } from 'slate';
+import { Editor, Path, Transforms, Element, Range, Node } from 'slate';
 import { v4 as getUuid } from "uuid";
 
 import { isParagraphAndEmpty, isCollapsed, replaceNode, getCurrentTextNode } from "./editor";
@@ -231,12 +231,34 @@ export const insertHTMLBlock = (editor: Editor) => {
   });
 }
 
+const defaultCustomBlockContent = `const Component = () => {
+  
+}`
+
 export const insertCustomBlock = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: 'custom-block',
-    content: '',
+    content: defaultCustomBlockContent,
     children: [{ type: 'formatted', text: '' }]
   });
+  if (!path) return;
+
+  const focusEditor = (leftTryCount: number) => {
+    if (leftTryCount <= 0) return;
+    setTimeout(() => {
+      const node = Node.get(editor, path);
+      if (node && Element.isElement(node)) {
+        const focusEvent = new CustomEvent('preview-editor-focus', {
+          detail: node,
+        });
+        document.dispatchEvent(focusEvent);
+      } else {
+        focusEditor(leftTryCount - 1);
+      }
+    }, 100);
+  }
+
+  focusEditor(5);
 }
 
 export const insertDivideLine = (editor: Editor) => {

@@ -10,7 +10,7 @@ import { createDocumentItem } from "@/commands";
 
 import { IDocument } from "@/types";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
-import { EDragPosition } from "../DocumentItem/useDragAndDrop.ts";
+import { EDragPosition } from "@/hooks/useDragAndDrop.ts";
 
 import styles from './index.module.less';
 
