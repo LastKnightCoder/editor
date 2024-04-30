@@ -25,7 +25,10 @@ const initialState: IState = {
 const useDailyNoteStore = create<IState & IActions>((set, get) => ({
   ...initialState,
   init: async () => {
-    set({ initLoading: true });
+    set({
+      ...initialState,
+      initLoading: true
+    });
     const dailyNotes = await getAllDailyNotes();
     set({ dailyNotes, initLoading: false });
   },

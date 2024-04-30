@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import SVG from 'react-inlinesvg';
 import For from "@/components/For";
 import LoadMoreComponent from "@/components/LoadMoreComponent";
+import SelectDatabase from './SelectDatabase';
 
 import useSettingStore from "@/stores/useSettingStore";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
@@ -112,7 +113,9 @@ const Sidebar = memo((props: ISidebarProps) => {
   } = useProjectsStore(state => ({
     projects: state.projects,
     activeProjectId: state.activeProjectId,
-  }))
+  }));
+
+  const [projectListOpen, setProjectListOpen] = useState(false);
 
   const activeItem = useMemo(() => {
     const pathname = location.pathname;
@@ -130,8 +133,7 @@ const Sidebar = memo((props: ISidebarProps) => {
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
-        <div className={styles.logo}>
-        </div>
+        <SelectDatabase />
         <div className={styles.icons}>
           <div className={styles.theme}>
             {
@@ -163,28 +165,39 @@ const Sidebar = memo((props: ISidebarProps) => {
                 ({projects.length})
               </div>
             </div>
+            <div
+              className={classnames(styles.arrow, { [styles.open]: projectListOpen })}
+              onClick={(e) => {
+                e.stopPropagation();
+                setProjectListOpen(!projectListOpen);
+              }}
+            >
+              <MdKeyboardArrowRight />
+            </div>
           </div>
-          <div className={styles.children}>
-            <For
-              data={projects}
-              renderItem={project => (
-                <div
-                  key={project.id}
-                  className={classnames(styles.documentItem, { [styles.active]: project.id === activeProjectId })}
-                  onClick={() => {
-                    navigate('/projects');
-                    useProjectsStore.setState({
-                      activeProjectId: project.id,
-                    });
-                  }}
-                >
-                  <div className={styles.icon}><MdOutlineDocumentScanner /></div>
-                  <div className={styles.title}>{project.title}</div>
-                  <div className={styles.count}>({project.children.length})</div>
-                </div>
-              )}
-            />
-          </div>
+          <If condition={projectListOpen}>
+            <div className={styles.children}>
+              <For
+                data={projects}
+                renderItem={project => (
+                  <div
+                    key={project.id}
+                    className={classnames(styles.documentItem, { [styles.active]: project.id === activeProjectId })}
+                    onClick={() => {
+                      navigate('/projects');
+                      useProjectsStore.setState({
+                        activeProjectId: project.id,
+                      });
+                    }}
+                  >
+                    <div className={styles.icon}><MdOutlineDocumentScanner /></div>
+                    <div className={styles.title}>{project.title}</div>
+                    <div className={styles.count}>({project.children.length})</div>
+                  </div>
+                )}
+              />
+            </div>
+          </If>
         </div>
         <div className={classnames(styles.item)}>
           <div

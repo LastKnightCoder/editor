@@ -28,7 +28,10 @@ const initState: IState = {
 const useTimeRecordStore = create<IState & IActions>((set) => ({
   ...initState,
   init: async () => {
-    set({ loading: true });
+    set({
+      ...initState,
+      loading: true
+    });
     try {
       const timeRecords = await getAllTimeRecords();
       set({ timeRecords });

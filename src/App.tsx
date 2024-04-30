@@ -6,14 +6,8 @@ import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
 import router from "@/router.tsx";
-import useTheme from "@/hooks/useTheme.ts";
 import useSettingStore from "@/stores/useSettingStore";
-import useArticleManagementStore from "@/stores/useArticleManagementStore";
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
-import useDocumentsStore from "@/stores/useDocumentsStore";
-import useDailyNoteStore from "@/stores/useDailyNoteStore";
-import useTimeRecordStore from "@/stores/useTimeRecordStore";
-import useProjectsStore from "@/stores/useProjectsStore";
+import useTheme from "@/hooks/useTheme.ts";
 import useSyncFont from "@/hooks/useSyncFont.ts";
 import useSyncTheme from "@/hooks/useSyncTheme";
 
@@ -26,51 +20,9 @@ const Application = () => {
     initSetting: state.initSetting,
   }));
 
-  const {
-    initArticles
-  } = useArticleManagementStore(state => ({
-    initArticles: state.init
-  }));
-
-  const {
-    initCards,
-  } = useCardsManagementStore((state) => ({
-    initCards: state.init,
-  }));
-
-  const {
-    initDocuments,
-  } = useDocumentsStore(state => ({
-    initDocuments: state.init,
-  }));
-
-  const {
-    initDailyNotes,
-  } = useDailyNoteStore(state => ({
-    initDailyNotes: state.init
-  }));
-
-  const {
-    initTimeRecords,
-  } = useTimeRecordStore(state => ({
-    initTimeRecords: state.init
-  }));
-
-  const {
-    initProjects,
-  } = useProjectsStore(state => ({
-    initProjects: state.init
-  }));
-
   useEffect(() => {
     initSetting();
-    initArticles().then();
-    initCards().then();
-    initDocuments().then();
-    initDailyNotes().then();
-    initTimeRecords().then();
-    initProjects().then();
-  }, [initSetting, initArticles, initCards, initDocuments, initDailyNotes, initTimeRecords, initProjects]);
+  }, [initSetting]);
 
   useSyncFont();
   useSyncTheme();

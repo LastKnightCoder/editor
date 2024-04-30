@@ -54,6 +54,7 @@ use commands::{
     get_ali_oss_buckets,
     get_database_path,
     reconnect_database,
+    connect_database_by_name,
     create_time_record,
     update_time_record,
     delete_time_record,
@@ -131,7 +132,7 @@ fn main() {
         })
         .setup(|app| {
             let handle = app.handle();
-            let conn = init_database().unwrap();
+            let conn = init_database("data.db").unwrap();
             let app_state: State<AppState> = handle.state();
             *app_state.db.lock().unwrap() = Some(conn);
 
@@ -183,6 +184,7 @@ fn main() {
             get_ali_oss_buckets,
             get_database_path,
             reconnect_database,
+            connect_database_by_name,
             create_time_record,
             update_time_record,
             delete_time_record,

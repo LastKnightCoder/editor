@@ -5,28 +5,27 @@ import dayjs from "dayjs";
 import { invoke } from "@tauri-apps/api";
 import { readBinaryFile, writeBinaryFile, createDir, exists } from '@tauri-apps/api/fs';
 import { sep } from '@tauri-apps/api/path';
-import { getObject, isObjectExist, createObject, updateObject } from "@/commands/ali_oss.ts";
+import { getObject, isObjectExist, createObject, updateObject, connectDatabaseByName } from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import useProjectsStore from "@/stores/useProjectsStore";
+import useDailyNoteStore from "@/stores/useDailyNoteStore";
+import useTimeRecordStore from "@/stores/useTimeRecordStore";
 
-export const getDatabasePath = async (): Promise<string> => {
+export const getDatabasePath = async (databaseName: string): Promise<string> => {
   try {
-    return await invoke('get_database_path');
+    return await invoke('get_database_path', {
+      databaseName,
+    });
   } catch (e) {
     return '';
   }
 }
 
 export const upload = async () => {
-  const databasePath = await getDatabasePath();
-  if (!databasePath) {
-    message.error('请先设置数据库目录');
-    return false;
-  }
-
   const {
     accessKeyId,
     accessKeySecret,
@@ -34,6 +33,20 @@ export const upload = async () => {
     region,
     path,
   } = useSettingStore.getState().setting.sync.aliOSS;
+  const {
+    active: databaseName,
+    databases,
+  } = useSettingStore.getState().setting.database;
+
+  const database = databases.find((item) => item.name === databaseName);
+  if (!database) return;
+  const { version: currentVersion } = database;
+
+  const databasePath = await getDatabasePath(databaseName);
+  if (!databasePath) {
+    message.error('请先设置数据库目录');
+    return false;
+  }
 
   const ossOptions = {
     accessKeyId,
@@ -46,7 +59,10 @@ export const upload = async () => {
 
   // @ts-ignore
   const originVersion = Number(databaseInfo.version || 0);
-  const currentVersion = useSettingStore.getState().setting.sync.version;
+  if (isNaN(originVersion)) {
+    message.error('远程数据库信息版本号不是一个数字');
+    return false;
+  }
   if (originVersion > currentVersion) {
     message.error('远程的数据库版本高于本地版本，请先同步远程数据库');
     return false;
@@ -58,14 +74,15 @@ export const upload = async () => {
   }
 
   try {
-    console.log('...upload database info', newDatabaseInfo);
     const isSuccess = await createOrUpdateFile(ossOptions, databaseInfoObjectName, new Blob([JSON.stringify(newDatabaseInfo)]));
     if (!isSuccess) {
       message.error('上传数据库信息失败');
       return false;
     }
     useSettingStore.setState(produce(useSettingStore.getState(), (draft) => {
-      draft.setting.sync.version = currentVersion + 1;
+      const databases = draft.setting.database.databases;
+      const index = databases.findIndex((item) => item.name === databaseName);
+      databases[index].version = currentVersion + 1;
     }));
   } catch (e) {
     message.error('上传数据库信息失败, in catch' + e);
@@ -73,17 +90,17 @@ export const upload = async () => {
   }
 
   try {
-    console.log('...upload database file');
     // 读取本地数据库文件并上传
     const contents = await readBinaryFile(databasePath);
     // 将 Uint8Array 转换为 Blob
     const blob = new Blob([contents], { type: 'application/octet-stream' });
-    const dataObjectName = `${path}/data.db`;
+    const dataObjectName = `${path}/${databaseName}`;
     const isSuccessful =  await createOrUpdateFile(ossOptions, dataObjectName, blob);
     if (!isSuccessful) {
       message.error('上传数据库文件失败');
       return false;
     }
+
     return true;
   } catch (e) {
     // 恢复数据库信息
@@ -97,12 +114,6 @@ export const upload = async () => {
 }
 
 export const download = async () => {
-  const databasePath = await getDatabasePath();
-  if (!databasePath) {
-    message.error('请先设置数据库目录');
-    return false;
-  }
-
   const {
     accessKeyId,
     accessKeySecret,
@@ -110,6 +121,21 @@ export const download = async () => {
     region,
     path,
   } = useSettingStore.getState().setting.sync.aliOSS;
+
+  const {
+    active: databaseName,
+    databases,
+  } = useSettingStore.getState().setting.database;
+
+  const database = databases.find((item) => item.name === databaseName);
+  if (!database) return;
+  const { version: currentVersion } = database;
+
+  const databasePath = await getDatabasePath(databaseName);
+  if (!databasePath) {
+    message.error('请先设置数据库目录');
+    return false;
+  }
 
   const ossOptions = {
     accessKeyId,
@@ -122,14 +148,13 @@ export const download = async () => {
 
   // @ts-ignore
   const originVersion = Number(databaseInfo.version || 0);
-  const currentVersion = useSettingStore.getState().setting.sync.version;
   if (currentVersion > originVersion) {
     message.error('本地的数据库版本高于远程版本，请先同步本地数据库');
     return false;
   }
 
   // 下载数据库文件
-  const dataObjectName = `${path}/data.db`;
+  const dataObjectName = `${path}/${databaseName}`;
   try {
     const dataObject = await getObject({
       ...ossOptions,
@@ -142,17 +167,25 @@ export const download = async () => {
     if (!await exists(backupDir)) {
       await createDir(backupDir, { recursive: true });
     }
-    const backupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-data.db`;
+    const backupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}`;
     const originContents = await readBinaryFile(databasePath);
     await writeBinaryFile(backupPath, originContents);
     await writeBinaryFile(databasePath, contents);
     useSettingStore.setState(produce(useSettingStore.getState(), (draft) => {
-      draft.setting.sync.version = originVersion;
+      const databases = draft.setting.database.databases;
+      const index = databases.findIndex((item) => item.name === databaseName);
+      databases[index].version = currentVersion + 1;
     }));
-    await invoke('reconnect_database');
-    await useCardsManagementStore.getState().init();
-    await useArticleManagementStore.getState().init();
-    await useDocumentsStore.getState().init();
+    await connectDatabaseByName(databaseName);
+    await Promise.all([
+      useCardsManagementStore.getState().init(),
+      useArticleManagementStore.getState().init(),
+      useDocumentsStore.getState().init(),
+      useProjectsStore.getState().init(),
+      useDailyNoteStore.getState().init(),
+      useTimeRecordStore.getState().init(),
+    ]);
+
     return true;
   } catch (e) {
     message.error('下载数据库文件失败，error: ' + e);
@@ -168,6 +201,9 @@ export const getOriginDatabaseInfo = async () => {
     region,
     path,
   } = useSettingStore.getState().setting.sync.aliOSS;
+  const {
+    active: databaseName,
+  } = useSettingStore.getState().setting.database;
 
   const ossOptions = {
     accessKeyId,
@@ -176,7 +212,7 @@ export const getOriginDatabaseInfo = async () => {
     region,
   }
 
-  const databaseInfoFileName = 'database.json';
+  const databaseInfoFileName = `database_${databaseName}.json`;
   const databaseInfoObjectName = `${path}/${databaseInfoFileName}`;
 
   const isDatabaseInfoExist = await isObjectExist({
@@ -222,7 +258,6 @@ const createOrUpdateFile = async (ossOptions: any, objectName: string, content: 
     }
     return true;
   } catch (e) {
-    console.log('...createOrUpdateFile failed', objectName, e);
     return false;
   }
 }

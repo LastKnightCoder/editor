@@ -33,7 +33,10 @@ const initState: IState = {
 const useDocumentsStore = create<IState & IActions>((set, get) => ({
   ...initState,
   init: async () => {
-    set({ loading: true });
+    set({
+      ...initState,
+      loading: true
+    });
     const documents = await getAllDocuments();
     set({ documents, loading: false });
   },

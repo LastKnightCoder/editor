@@ -47,6 +47,14 @@ interface ISetting {
       region: string;
       path: string;
     }
+  },
+
+  database: {
+    active: string;
+    databases: Array<{
+      name: string;
+      version: number;
+    }>;
   }
   darkMode: boolean;
 }
@@ -101,6 +109,13 @@ const initialState: IState = {
         region: '',
         path: '/',
       }
+    },
+    database: {
+      active: 'data.db',
+      databases: [{
+        name: 'data.db',
+        version: 1,
+      }],
     }
   },
   settingModalOpen: false,

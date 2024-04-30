@@ -48,7 +48,10 @@ const initState: IState = {
 const useProjectsStore = create<IState & IActions>((set, get) => ({
   ...initState,
   init: async () => {
-    set({ loading: true });
+    set({
+      ...initState,
+      loading: true
+    });
     const projects = await getProjectList();
     set({ projects, loading: false });
   },

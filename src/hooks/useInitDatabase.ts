@@ -1,0 +1,62 @@
+import { useMemoizedFn } from "ahooks";
+import useArticleManagementStore from "@/stores/useArticleManagementStore";
+import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import useDocumentsStore from "@/stores/useDocumentsStore";
+import useDailyNoteStore from "@/stores/useDailyNoteStore";
+import useTimeRecordStore from "@/stores/useTimeRecordStore";
+import useProjectsStore from "@/stores/useProjectsStore";
+
+const useInitDatabase = () => {
+  const {
+    initArticles
+  } = useArticleManagementStore(state => ({
+    initArticles: state.init
+  }));
+
+  const {
+    initCards,
+  } = useCardsManagementStore((state) => ({
+    initCards: state.init,
+  }));
+
+  const {
+    initDocuments,
+  } = useDocumentsStore(state => ({
+    initDocuments: state.init,
+  }));
+
+  const {
+    initDailyNotes,
+  } = useDailyNoteStore(state => ({
+    initDailyNotes: state.init
+  }));
+
+  const {
+    initTimeRecords,
+  } = useTimeRecordStore(state => ({
+    initTimeRecords: state.init
+  }));
+
+  const {
+    initProjects,
+  } = useProjectsStore(state => ({
+    initProjects: state.init
+  }));
+
+  const initDatabase = useMemoizedFn(async () => {
+    await Promise.all([
+      initArticles(),
+      initCards(),
+      initDocuments(),
+      initDailyNotes(),
+      initTimeRecords(),
+      initProjects(),
+    ]);
+  });
+
+  return {
+    initDatabase,
+  }
+}
+
+export default useInitDatabase;

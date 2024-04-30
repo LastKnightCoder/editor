@@ -19,11 +19,11 @@ use self::document::{init_document_table, init_document_item_table, upgrade_docu
 use self::time_record::{init_time_record_table};
 use self::project::{init_project_table, init_project_item_table};
 
-pub fn init_database() -> Result<Connection, rusqlite::Error> {
+pub fn init_database(database_name: &str) -> Result<Connection, rusqlite::Error> {
     let home_dir = home_dir().unwrap();
     let editor_dir = home_dir.join(".editor");
     std::fs::create_dir_all(&editor_dir).unwrap();
-    let db_path = editor_dir.join("data.db");
+    let db_path = editor_dir.join(database_name);
     let conn = Connection::open(&db_path)?;
     // 获取数据库版本
     let old_version = match conn.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0)) {

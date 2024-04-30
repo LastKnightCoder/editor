@@ -29,7 +29,10 @@ const initState: IState = {
 const useCardsManagementStore = create<IState & IActions>((set, get) => ({
   ...initState,
   init: async () => {
-    set({ initLoading: true });
+    set({
+      ...initState,
+      initLoading: true
+    });
     const cards = await getAllCards();
     set({ cards, initLoading: false });
   },

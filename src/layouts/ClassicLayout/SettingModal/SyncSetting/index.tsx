@@ -18,12 +18,18 @@ const SyncSetting = () => {
   const {
     activeKey,
     sync,
+    activeDatabaseName,
+    activeDatabases,
   } = useSettingStore(state => ({
     sync: state.setting.sync,
     activeKey: state.setting.sync.active,
+    activeDatabaseName: state.setting.database.active,
+    activeDatabases: state.setting.database.databases,
   }));
 
-  const currentVersion = sync.version;
+  const activeDatabase = activeDatabases.find(item => item.name === activeDatabaseName);
+  const currentVersion = activeDatabase?.version || 0;
+
   const { accessKeyId, accessKeySecret, bucket, region } = sync.aliOSS;
 
   useAsyncEffect(async () => {
@@ -41,6 +47,7 @@ const SyncSetting = () => {
     setIsSyncing(true);
     try {
       await upload();
+      setRemoteVersion(currentVersion);
       message.success('同步成功');
     } catch (error) {
       message.error('同步失败' + error);
@@ -56,6 +63,7 @@ const SyncSetting = () => {
     const { databaseInfo = {} } = originDatabaseInfo;
     // @ts-ignore
     const originVersion = Number(databaseInfo.version || 0);
+    setRemoteVersion(originVersion);
     if (currentVersion < originVersion) {
       Modal.confirm({
         title: '同步远程数据库',

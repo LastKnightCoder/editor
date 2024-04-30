@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api";
 import { IArticle } from "@/types";
 
 export async function createArticle(article: Omit<IArticle, 'id' | 'create_time' | 'update_time' | 'isDelete'>): Promise<IArticle> {
-  const res:any = await invoke('create_article', {
+  const res: any = await invoke('create_article', {
     ...article,
     content: JSON.stringify(article.content),
   });

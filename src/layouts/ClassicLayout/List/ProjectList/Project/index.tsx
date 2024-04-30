@@ -1,8 +1,10 @@
 import { useMemo } from "react";
+import { Empty } from "antd";
 
 import useProjectsStore from "@/stores/useProjectsStore";
 
 import ProjectItem from '../ProjectItem';
+import If from "@/components/If";
 import For from "@/components/For";
 
 import styles from './index.module.less';
@@ -24,6 +26,9 @@ const Project = () => {
 
   return (
     <div className={styles.list}>
+      <If condition={project.children.length === 0}>
+        <Empty description={'项目下暂无文档'} />
+      </If>
       <For
         data={project.children}
         renderItem={(projectItemId, index) => (
