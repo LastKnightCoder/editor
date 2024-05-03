@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 
 import { TableElement, TableRowElement, TableCellElement } from "@/components/Editor/types";
@@ -19,6 +20,10 @@ export class TableExtension extends Base implements IExtension {
     return blockPanelItems;
   }
 
+  override toMarkdown(_element: Element, children: string): string {
+    return `<table>\n<tbody>\n${children}\n</tbody>\n</table>\n`;
+  }
+
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
@@ -31,6 +36,10 @@ export class TableExtension extends Base implements IExtension {
 
 export class TableRowExtension extends Base implements IExtension {
   type = 'table-row';
+
+  override toMarkdown(_element: Element, children: string): string {
+    return `<tr>\n${children}\n</tr>\n`
+  }
 
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
@@ -51,6 +60,10 @@ export class TableCellExtension extends Base implements IExtension {
 
   override getHotkeyConfigs() {
     return hotkeys;
+  }
+
+  override toMarkdown(_element: Element, children: string): string {
+    return `<td>${children}</td>\n`;
   }
 
   render(props: RenderElementProps) {

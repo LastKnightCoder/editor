@@ -86,6 +86,20 @@ fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
     let quick_window = app.get_window(label);
     // 如果不存在，则创建
     if quick_window.is_none() {
+        #[cfg(target_os="window")]
+        tauri::WindowBuilder::new(app, label, tauri::WindowUrl::App(url.into()))
+            .title(label)
+            .decorations(false)
+            .inner_size(500.0, 400.0)
+            .fullscreen(false)
+            .resizable(true)
+            .always_on_top(true)
+            .transparent(true)
+            .disable_file_drop_handler()
+            .build()
+            .unwrap();
+
+        #[cfg(target_os="macos")]
         tauri::WindowBuilder::new(app, label, tauri::WindowUrl::App(url.into()))
             .title(label)
             .decorations(false)

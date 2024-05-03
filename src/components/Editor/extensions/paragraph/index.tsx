@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 import { ParagraphElement } from "@/components/Editor/types";
 
@@ -10,6 +11,10 @@ import hoveringBarElements from "./hovering-bar-configs";
 
 class ParagraphExtension extends Base implements IExtension {
   override type = 'paragraph';
+
+  override toMarkdown(_element: Element, children: string): string {
+    return children + '\n';
+  }
 
   override getPlugins() {
     return [inlineCode, normalizeParagraph]

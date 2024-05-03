@@ -1,3 +1,4 @@
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { NumberedListElement } from "@/components/Editor/types";
 
@@ -16,6 +17,10 @@ class NumberedListExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override toMarkdown(_element: Element, children: string): string {
+    return children;
   }
 
   render(props: RenderElementProps) {

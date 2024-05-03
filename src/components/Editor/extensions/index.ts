@@ -1,4 +1,5 @@
 import ParagraphExtension from "./paragraph";
+import UnderlineExtension from "./underline";
 import HeaderExtension from "./header";
 import ImageExtension from "./image";
 import ImageGalleryExtension from "./image-gallary";
@@ -24,6 +25,7 @@ import HighlightBlockExtension from "./highlight-block";
 import TabsExtension from "./tabs";
 
 export const paragraph = new ParagraphExtension();
+export const underline = new UnderlineExtension();
 export const header = new HeaderExtension();
 export const image = new ImageExtension();
 export const imageGallery = new ImageGalleryExtension();
@@ -58,6 +60,7 @@ export const tabs = new TabsExtension();
 
 export const startExtensions = [
   paragraph,
+  underline,
   header,
   image,
   imageGallery,

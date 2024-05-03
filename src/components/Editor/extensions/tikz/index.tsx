@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 
 import loadable from "@loadable/component";
@@ -16,6 +17,12 @@ class TikzExtension extends Base implements IExtension {
   override getBlockPanelItems() {
     return blockPanelItems;
   }
+
+  override toMarkdown(element: Element): string {
+    const { content } = element as TikzElement;
+    return `\`\`\`tikz\n${content}\n\`\`\`\n`;
+  }
+
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
     return <Tikz element={element as TikzElement} attributes={attributes}>{children}</Tikz>;

@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { GraphvizElement } from "@/components/Editor/types";
 import Graphviz from "./components/Graphviz";
 
@@ -13,6 +14,12 @@ class GraphvizExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override toMarkdown(element: Element,): string {
+    const graphvizEle = element as unknown as GraphvizElement;
+    const { dot } = graphvizEle;
+    return `\`\`\` graphviz\n${dot}\n\`\`\`\n`;
   }
 
   render(props: RenderElementProps) {

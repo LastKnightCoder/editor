@@ -6,3 +6,4 @@ export * from './path';
 export * from './table';
 export * from './insertElement';
 export * from './multi-columns-layout.ts';
+export * from './markdown';

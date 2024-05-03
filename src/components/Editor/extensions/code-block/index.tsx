@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 import { Editor as CodeMirrorEditor } from "codemirror";
 
@@ -30,6 +31,12 @@ class CodeBlockExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override toMarkdown(element: Element): string {
+    const codeBlockEle = element as unknown as CodeBlockElement;
+    const { language, code } = codeBlockEle;
+    return `\`\`\`${language}\n${code}\n\`\`\`\n`;
   }
 
   render(props: RenderElementProps) {

@@ -1,7 +1,8 @@
-import HTMLBlock from './components/HTMLBlock';
-import { HTMLBlockElement } from "@/components/Editor/types";
-
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
+import HTMLBlock from './components/HTMLBlock';
+
+import { HTMLBlockElement } from "@/components/Editor/types";
 
 import Base from '../base.ts';
 import IExtension from "../types.ts";
@@ -13,6 +14,13 @@ class HtmlBlockExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override toMarkdown(element: Element): string {
+    const htmlBlockElement = element as HTMLBlockElement;
+    const { html } = htmlBlockElement;
+
+    return html + '\n';
   }
 
   render(props: RenderElementProps) {

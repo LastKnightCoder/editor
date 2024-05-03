@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 import Base from "@/components/Editor/extensions/base.ts";
 
@@ -22,6 +23,10 @@ export class MultiColumnsContainerExtension extends Base implements IExtension {
     return [normalizeColumnLayout];
   }
 
+  override toMarkdown(_element: Element, children: string): string {
+    return children;
+  }
+
   render(props: RenderElementProps) {
     const { attributes, element, children } = props;
 
@@ -42,6 +47,10 @@ export class MultiColumnItemExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [deleteBackward, normalizeItem];
+  }
+
+  override toMarkdown(_element: Element, children: string): string {
+    return children + '\n';
   }
 
   render(props: RenderElementProps) {

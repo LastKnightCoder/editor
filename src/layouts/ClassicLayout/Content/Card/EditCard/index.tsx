@@ -1,4 +1,4 @@
-import { createContext, useRef, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { Descendant, Editor as SlateEditor } from "slate";
 import { useRafInterval, useUnmount } from "ahooks";
 
@@ -61,7 +61,29 @@ const EditCard = (props: IEditCardProps) => {
     if (!readonly) {
       saveCard();
     }
-  })
+  });
+  
+  useEffect(() => {
+    const exportCardToMarkdown = (e: any) => {
+      if (e.detail !== editingCard.id) {
+        return;
+      }
+      const markdown = editorRef.current?.toMarkdown() || '';
+      // 下载 markdown 文件
+      const blob = new Blob([markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${editingCard.id}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    document.addEventListener('export-card-to-markdown', exportCardToMarkdown);
+    return () => {
+      document.removeEventListener('export-card-to-markdown', exportCardToMarkdown);
+    }
+  }, [editingCard.id]);
 
   return (
     <EditCardContext.Provider value={{

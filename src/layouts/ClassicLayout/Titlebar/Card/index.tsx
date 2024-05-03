@@ -1,7 +1,8 @@
 import TitlebarIcon from "@/components/TitlebarIcon";
-import { PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined, FileMarkdownOutlined } from "@ant-design/icons";
 import { MdCenterFocusWeak } from "react-icons/md";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
+import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";
 import { Tooltip } from 'antd';
 
 import styles from './index.module.less';
@@ -12,6 +13,18 @@ interface ICardProps {
 
 const Card = (props: ICardProps) => {
   const { createCard } = props;
+
+  const {
+    leftActiveId,
+    rightActiveId,
+    activeSide,
+  } = useCardPanelStore(state => ({
+    leftActiveId: state.leftActiveCardId,
+    rightActiveId: state.rightActiveCardId,
+    activeSide: state.activeSide,
+  }));
+
+  const activeId = activeSide === EActiveSide.Left ? leftActiveId : rightActiveId;
 
   const {
     focusMode,
@@ -31,6 +44,17 @@ const Card = (props: ICardProps) => {
           });
         }}>
           <MdCenterFocusWeak />
+        </TitlebarIcon>
+      </Tooltip>
+      <Tooltip title={'导出 Markdown'} trigger={'hover'}>
+        <TitlebarIcon onClick={() => {
+          if (!activeId) return;
+          const event = new CustomEvent('export-card-to-markdown', {
+            detail: activeId,
+          });
+          document.dispatchEvent(event);
+        }}>
+          <FileMarkdownOutlined />
         </TitlebarIcon>
       </Tooltip>
     </div>

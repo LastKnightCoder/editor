@@ -14,7 +14,7 @@ const classicRoutes = [{
   path: '/quick-time-record',
   element: <QuickTimeRecord/>,
 }, {
-  path: 'statistic/',
+  path: '/statistic',
   element: <Statistic/>,
 }, {
   path: '/*',

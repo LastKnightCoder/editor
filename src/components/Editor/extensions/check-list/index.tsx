@@ -1,3 +1,4 @@
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 
 import { CheckListElement, CheckListItemElement } from "@/components/Editor/types";
@@ -18,6 +19,10 @@ export class CheckListExtension extends Base implements IExtension {
     return blockPanelItems;
   }
 
+  override toMarkdown(_element: Element, children: string): string {
+    return children;
+  }
+
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
@@ -33,6 +38,23 @@ export class CheckListItemExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [insertBreak, deleteBackward]
+  }
+
+  override toMarkdown(element: Element, children: string): string {
+    // 按 \n 分割，第一行根据是否选中添加 - [x] 或 - [ ]
+    // 后面添加两个空格
+    const checkListItemEle = element as unknown as CheckListItemElement;
+    const { checked } = checkListItemEle;
+    const check = checked ? 'x' : ' ';
+    return children
+            .split('\n')
+            .map((child, index) => {
+              if (index === 0) {
+                return `- [${check}] ${child}`;
+              }
+              return `  ${child}`;
+            })
+            .join('\n') + '\n';
   }
 
   render(props: RenderElementProps) {

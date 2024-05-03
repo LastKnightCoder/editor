@@ -1,7 +1,7 @@
 import { Descendant } from "slate";
 import { FormattedText } from "./text";
 
-export type InlineElement = FormattedText | LinkElement | InlineMathElement;
+export type InlineElement = FormattedText | LinkElement | InlineMathElement | UnderlineElement;
 export type CustomElement =
   | ParagraphElement
   | CodeBlockElement
@@ -31,7 +31,8 @@ export type CustomElement =
   | MultiColumnItemElement
   | HighlightBlockElement
   | ImageGalleryElement
-  | TabsElement;
+  | TabsElement
+  | UnderlineElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>
@@ -231,4 +232,12 @@ export interface TabsElement {
   activeKey: string;
   tabsContent: ITabsContent[];
   children: BlockElement[];
+}
+
+export interface UnderlineElement {
+  type: 'underline',
+  color: string;
+  lineType: string;
+  colorSelectOpen: boolean;
+  children: FormattedText[];
 }

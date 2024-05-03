@@ -3,7 +3,6 @@ import MarkText from "../components/MarkText";
 
 import bold from '@/assets/hovering_bar/bold.svg';
 import italic from '@/assets/hovering_bar/italic.svg';
-import underline from '@/assets/hovering_bar/underline.svg';
 import strikethrough from '@/assets/hovering_bar/strikethrough.svg';
 import code from '@/assets/hovering_bar/code.svg';
 import { IConfigItem } from "@/components/Editor/types";
@@ -18,11 +17,6 @@ const markConfigs = [{
   mark: 'italic',
   tooltip: '斜体',
   order: 2,
-}, {
-  icon: <SVG src={underline} style={{ fill: 'currentcolor', width: 18, height: 18 }} />,
-  mark: 'underline',
-  tooltip: '下划线',
-  order: 3,
 }, {
   icon: <SVG src={strikethrough} style={{ fill: 'currentcolor', width: 18, height: 18 }} />,
   mark: 'strikethrough',

@@ -1,12 +1,12 @@
 import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo, memo, createContext } from "react";
-import { createEditor, Descendant, Editor, Transforms } from 'slate';
+import { createEditor, Descendant, Editor, Transforms, Element } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory } from 'slate-history';
-import { useWhyDidYouUpdate } from "ahooks";
+import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
 
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 
-import { applyPlugin, registerHotKey, Plugin } from "./utils";
+import { applyPlugin, registerHotKey, Plugin, elementToMarkdown } from "./utils";
 import { withOverrideSettings, withSlashCommands } from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
@@ -50,6 +50,7 @@ export type EditorRef = {
   getEditor: () => Editor;
   scrollHeaderIntoView: (index: number) => void;
   isFocus: () => boolean;
+  toMarkdown: () => string;
 }
 
 interface IEditorProps {
@@ -120,6 +121,10 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
 
   const [isNormalized, setIsNormalized] = useState(false);
   const [isInit, setIsInit] = useState(false);
+  
+  const toMarkdown = useMemoizedFn((content: Descendant[]) => {
+    return content.map((element) => elementToMarkdown(element as Element, editor as Element, finalExtensions)).join('');
+  });
 
   useEffect(() => {
     if (!isNormalized) {
@@ -159,8 +164,11 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
     },
     isFocus: () => {
       return ReactEditor.isFocused(editor);
+    },
+    toMarkdown: () => {
+      return toMarkdown(editor.children);
     }
-  }), [editor]);
+  }), [editor, toMarkdown]);
 
   const handleOnChange = (value: Descendant[]) => {
     onChange && onChange(value, editor);

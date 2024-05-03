@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 import { BlockquoteElement } from "@/components/Editor/types";
 
@@ -12,6 +13,11 @@ class BlockquoteExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [markdownSyntax, quit, withNormalizeBlockquote];
+  }
+
+  override toMarkdown(_element: Element, children: string) {
+    // 按照 \n 分割
+    return children.split('\n').map((child) => `> ${child}`).join('\n') + '\n';
   }
 
   render(props: RenderElementProps) {

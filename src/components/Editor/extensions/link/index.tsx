@@ -2,6 +2,7 @@ import IExtension from "../types.ts";
 import Base from "../base.ts";
 import Link from "./components/Link"
 
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 import { LinkElement } from "@/components/Editor/types";
 
@@ -17,6 +18,12 @@ class LinkExtension extends Base implements IExtension {
 
   override getHoveringBarElements() {
     return hoveringBarConfigs;
+  }
+
+  override toMarkdown(element: Element, children: string): string {
+    const { url } = element as LinkElement;
+
+    return `[${children}](${url})`;
   }
 
   render(props: RenderElementProps) {

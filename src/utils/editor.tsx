@@ -52,6 +52,12 @@ const getParagraphContent = (paragraph: ParagraphElement): Array<JSX.Element> =>
         return (
           <Katex tex={node.tex} key={index} inline />
         )
+      case "underline":
+        return (
+          <Typography.Text key={index} underline>
+            {node.children?.[0].text}
+          </Typography.Text>
+        );
     }
   }).filter(Boolean);
 }

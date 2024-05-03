@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 import { ImageElement } from "@/components/Editor/types";
 
@@ -17,6 +18,12 @@ class ImageExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [pasteImage];
+  }
+
+  override toMarkdown(element: Element): string {
+    const { url, alt } = element as ImageElement;
+
+    return `![${alt || ''}](${url})\n`;
   }
 
   render(props: RenderElementProps) {

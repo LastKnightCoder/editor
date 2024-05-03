@@ -3,6 +3,7 @@ import { MermaidElement } from "@/components/Editor/types";
 
 import Base from '../base';
 import IExtension from "../types.ts";
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 
 import blockPanelItems from './block-panel-items';
@@ -13,6 +14,11 @@ class MermaidExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override toMarkdown(element: Element): string {
+    const { chart } = element as MermaidElement;
+    return `\`\`\`mermaid\n${chart}\n\`\`\`\n`;
   }
 
   render(props: RenderElementProps) {

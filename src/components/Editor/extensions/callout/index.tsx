@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 import { CalloutElement } from "@/components/Editor/types";
 
@@ -17,6 +18,13 @@ class CalloutExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override toMarkdown(element: Element, children: string): string {
+    const calloutEle = element as unknown as CalloutElement;
+    const { type, title } = calloutEle;
+
+    return `::: ${type} ${title}\n${children}\n:::\n`;
   }
 
   render(props: RenderElementProps) {

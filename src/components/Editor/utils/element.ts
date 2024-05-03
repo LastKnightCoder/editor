@@ -53,6 +53,11 @@ export const isInlineElementEmpty = (element: InlineElement) => {
   if (element.type === 'inline-math') {
     return element.tex === '';
   }
+
+  if (element.type === 'underline') {
+    return element.children.length === 1 && element.children[0].text === '';
+  }
+
   return element.text === '';
 }
 
@@ -109,4 +114,10 @@ export const isBlockElementEmpty = (element: BlockElement): boolean => {
     default:
       return false;
   }
+}
+
+export const isInlineElement = (element: Element) => {
+  const { type } = element;
+
+  return type === 'inline-math' || type === 'link' || type === 'underline';
 }

@@ -423,3 +423,28 @@ export const wrapInlineMath = (editor: Editor) => {
     })
   }
 }
+
+export const unwrapUnderline = (editor: Editor) => {
+  Transforms.unwrapNodes(editor, {
+    match: n => n.type === 'underline',
+  });
+}
+
+export const wrapUnderline = (editor: Editor) => {
+  const { selection } = editor;
+  const [node] = getCurrentTextNode(editor);
+  if (selection && !Range.isCollapsed(selection) && node.type === 'formatted') {
+    const text = Editor.string(editor, selection);
+    editor.deleteBackward('character');
+    Transforms.wrapNodes(editor, {
+      type: 'underline',
+      color: localStorage.getItem('underline-color') || 'red',
+      lineType: localStorage.getItem('underline-line-type') || 'solid',
+      colorSelectOpen: true,
+      children: [{ type: 'formatted', text }],
+    }, {
+      at: selection,
+      split: true
+    })
+  }
+}

@@ -1,3 +1,4 @@
+import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
 
 import { HeaderElement } from "@/components/Editor/types";
@@ -18,6 +19,11 @@ class HeaderExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+  override toMarkdown(element: Element, children: string): string {
+    const headerEle = element as unknown as HeaderElement;
+    const { level } = headerEle;
+    return `${'#'.repeat(level)} ${children}\n`;
   }
 
   render(props: RenderElementProps) {

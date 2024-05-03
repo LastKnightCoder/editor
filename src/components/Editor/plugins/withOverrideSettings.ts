@@ -44,7 +44,7 @@ export const withOverrideSettings = (editor: Editor) => {
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }
   editor.isInline = (element) => {
-    const inlineTypes = ['link', 'inline-math'];
+    const inlineTypes = ['link', 'inline-math', 'underline'];
     return inlineTypes.includes(element.type) ? true : isInline(element);
   }
 
