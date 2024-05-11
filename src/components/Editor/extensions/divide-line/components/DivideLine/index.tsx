@@ -1,14 +1,14 @@
 import React, { PropsWithChildren } from "react";
 import { RenderElementProps } from "slate-react";
 
-import { DivideLineElement } from "@/components/Editor/types";
+import { type DivideLineElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 
 import styles from './index.module.less';
 import classnames from "classnames";
-import {MdDragIndicator} from "react-icons/md";
+import { MdDragIndicator } from "react-icons/md";
 
 interface DivideLineProps {
   attributes: RenderElementProps['attributes'];

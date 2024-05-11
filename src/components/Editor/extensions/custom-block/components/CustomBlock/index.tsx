@@ -9,7 +9,7 @@ import useTheme from "@/hooks/useTheme.ts";
 
 import styles from './index.module.less';
 
-import { CustomBlockElement } from "@/components/Editor/types";
+import { type CustomBlockElement } from "@/components/Editor/types";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
 
 interface CustomBlockProps {
@@ -59,7 +59,7 @@ const CustomBlock = (props: { content: string; }) => {
             }
           ]
         ]
-      }).code;
+      }).code || '';
       setAvailableCode(code);
       return code;
     } catch (e) {

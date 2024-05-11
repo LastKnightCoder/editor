@@ -8,7 +8,7 @@ import useTheme from "@/hooks/useTheme";
 
 import styles from './index.module.less';
 
-import { FormattedText, HighlightColor } from "../../types";
+import { type FormattedText, HighlightColor } from "../../types";
 
 interface IFormattedTextProps {
   attributes: RenderLeafProps['attributes'];

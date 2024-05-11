@@ -4,7 +4,7 @@ import { useMemoizedFn } from "ahooks";
 import SelectTime from "@/components/SelectTime";
 import LoadMoreComponent from "@/components/LoadMoreComponent";
 import For from "@/components/For";
-import TimeRecordsItem from './TimeRecordsItem';
+import TimeRecordsList from './TimeRecordsList';
 
 import {
   filterTimeRecordsByYear,
@@ -26,7 +26,7 @@ interface ITimeRecordProps {
   filterValue: string | string[];
   onSelectFilterTypeChange: (type: EFilterType) => void;
   onFilterValueChange: (value: string | string[]) => void;
-  updateTimeRecord?: (timeRecord: ITimeRecord) => void;
+  updateTimeRecord?: (timeRecord: ITimeRecord) => Promise<ITimeRecord>;
   deleteTimeRecord?: (id: number) => void;
   onClickEdit?: (timeRecord: ITimeRecord) => void;
 }
@@ -40,6 +40,7 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
     onFilterValueChange,
     onClickEdit,
     deleteTimeRecord,
+    updateTimeRecord,
   } = props;
 
   const [timeRecordsCount, setTimeRecordsCount] = useState<number>(10);
@@ -95,11 +96,12 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
           <For
             data={slicedTimeRecords}
             renderItem={timeRecordItems => (
-              <TimeRecordsItem
+              <TimeRecordsList
                 key={timeRecordItems.date}
                 timeRecordGroup={timeRecordItems}
                 onClickEdit={onClickEdit}
                 onClickDelete={deleteTimeRecord}
+                updateTimeRecord={updateTimeRecord}
               />
             )}
           />

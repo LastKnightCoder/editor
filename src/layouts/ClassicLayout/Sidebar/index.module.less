@@ -123,10 +123,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex: none;
           }
           .title {
             user-select: none;
             line-height: 32px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
           .count {
             font-size: .8em;

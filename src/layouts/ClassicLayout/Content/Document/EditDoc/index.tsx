@@ -109,7 +109,6 @@ const EditDoc = memo(() => {
               onTitleChange(e.target.innerText);
               setEditingTitle(false);
             }}
-            placeholder={'请输入标题'}
           >
             {activeDocumentItem.title}
           </div>

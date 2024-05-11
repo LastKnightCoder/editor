@@ -7,9 +7,6 @@ import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumB
 import CardContent from "../CardContent";
 import { EditCardContext } from "@/layouts/ClassicLayout/Content/Card/EditCard";
 
-import { MdNoteAlt } from "react-icons/md";
-
-
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";
 
@@ -77,7 +74,6 @@ const CardLink = (props: ICardLinkProps) => {
         className={styles.cardLinkContainer}
         {...attributes}
       >
-        <MdNoteAlt className={styles.icon} />
         <InlineChromiumBugfix />
           {children}
         <InlineChromiumBugfix />

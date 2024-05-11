@@ -9,7 +9,7 @@ import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop
 import useAddRefCar from "./useAddRefCard";
 
 import { getProjectById, getProjectItemById, updateProjectItem } from '@/commands';
-import { CreateProjectItem, ProjectItem } from "@/types";
+import { CreateProjectItem, type ProjectItem } from "@/types";
 import { FileOutlined, FolderOpenTwoTone, MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import For from "@/components/For";
 
@@ -295,7 +295,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   
   useEffect(() => {
     const handleRefreshProjectItem = (e: any) => {
-      const { id } = e.detail;
+      const { id } = (e as CustomEvent<{ id: number }>).detail;
       if (id === projectItemId) {
         refresh(projectItemId);
       }

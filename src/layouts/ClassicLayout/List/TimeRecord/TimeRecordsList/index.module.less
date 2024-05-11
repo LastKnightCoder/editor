@@ -1,0 +1,22 @@
+.listContainer {
+  padding: 16px;
+  border: 2px solid var(--line-color);
+  border-radius: 8px;
+  box-sizing: border-box;
+  margin-bottom: 24px;
+  content-visibility: auto;
+  .date {
+    font-size: .8em;
+    font-weight: bold;
+    margin-bottom: 16px;
+    color: #8F6657;
+  }
+  .recordsList {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  [data-slate-editor] p:last-of-type {
+    margin-bottom: 0;
+  }
+}

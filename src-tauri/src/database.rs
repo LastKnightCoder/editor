@@ -16,7 +16,7 @@ use self::history::{init_history_table, upgrade_history_table};
 use self::operation::{init_operation_table, upgrade_operation_table};
 use self::daily_note::{init_daily_note_table, upgrade_daily_note_table};
 use self::document::{init_document_table, init_document_item_table, upgrade_document_table, upgrade_document_items_table};
-use self::time_record::{init_time_record_table};
+use self::time_record::init_time_record_table;
 use self::project::{init_project_table, init_project_item_table};
 
 pub fn init_database(database_name: &str) -> Result<Connection, rusqlite::Error> {

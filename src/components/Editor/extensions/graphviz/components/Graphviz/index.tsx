@@ -1,6 +1,6 @@
 import React, { PropsWithChildren } from 'react';
 import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
-import { GraphvizElement } from "@/components/Editor/types";
+import { type GraphvizElement } from "@/components/Editor/types";
 import styles from './index.module.less';
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
 import { Transforms } from "slate";
