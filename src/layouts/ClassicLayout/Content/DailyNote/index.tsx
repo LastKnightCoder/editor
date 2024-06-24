@@ -1,5 +1,6 @@
 import { Descendant, Editor as SlateEditor } from "slate";
 import { useRafInterval, useUnmount } from "ahooks";
+import useUploadImage from "@/hooks/useUploadImage.ts";
 
 import Editor from "@/components/Editor";
 
@@ -25,6 +26,8 @@ const DailyNoteContent = (props: IDailyNoteProps) => {
     saveDailyNote?.();
   });
 
+  const uploadImage = useUploadImage();
+
   if (!editingDailyNote) return null;
 
   return (
@@ -40,6 +43,7 @@ const DailyNoteContent = (props: IDailyNoteProps) => {
             onInit={onInit}
             onChange={onContentChange}
             readonly={readonly}
+            uploadImage={uploadImage}
           />
         </div>
       </div>

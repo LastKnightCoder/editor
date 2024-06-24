@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlate } from "slate-react";
 import { Modal } from 'antd';
@@ -16,7 +16,7 @@ import VerticalImageGallery from "../VerticalImageGallery";
 import { EGalleryMode, ImageGalleryElement } from "@/components/Editor/types";
 
 import styles from './index.module.less';
-import {MdDragIndicator} from "react-icons/md";
+import { MdDragIndicator } from "react-icons/md";
 
 interface IImageGalleryProps {
   attributes: RenderElementProps['attributes'];
@@ -70,10 +70,6 @@ const ImageGallery = (props: IImageGalleryProps) => {
       at: path
     });
   }
-
-  useEffect(() => {
-    console.log('setting', setting);
-  }, [setting]);
 
   return (
     <div

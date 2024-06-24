@@ -17,7 +17,7 @@ import DivideLineExtension from "./divide-line";
 import MermaidExtension from "./mermaid";
 import { TableExtension, TableRowExtension, TableCellExtension } from './table';
 import HtmlBlockExtension from "./html-block";
-import TikzExtension from "./tikz";
+// import TikzExtension from "./tikz";
 import CustomBlockExtension from "./custom-block";
 import GraphvizExtension from "./graphviz";
 import { MultiColumnsContainerExtension, MultiColumnItemExtension } from './multi-column-layout';
@@ -47,7 +47,7 @@ export const htmlBlock = new HtmlBlockExtension();
 export const table = new TableExtension();
 export const tableRow = new TableRowExtension();
 export const tableCell = new TableCellExtension();
-export const tikz = new TikzExtension();
+// export const tikz = new TikzExtension();
 
 export const customBlock = new CustomBlockExtension();
 export const graphviz = new GraphvizExtension();
@@ -84,7 +84,7 @@ export const startExtensions = [
   table,
   tableRow,
   tableCell,
-  tikz,
+  // tikz,
   customBlock,
   graphviz,
   multiColumnContainer,
