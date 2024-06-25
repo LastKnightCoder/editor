@@ -174,7 +174,7 @@ export const download = async () => {
     useSettingStore.setState(produce(useSettingStore.getState(), (draft) => {
       const databases = draft.setting.database.databases;
       const index = databases.findIndex((item) => item.name === databaseName);
-      databases[index].version = currentVersion + 1;
+      databases[index].version = originVersion;
     }));
     await connectDatabaseByName(databaseName);
     await Promise.all([
