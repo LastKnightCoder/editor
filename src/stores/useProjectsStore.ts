@@ -32,6 +32,7 @@ interface IActions {
   removeRootProjectItem: (projectId: number, projectItemId: number) => Promise<void>;
   removeChildProjectItem: (parentProjectItemId: number, projectItemId: number) => Promise<void>;
   tryRemoveFromProject: (projectItemId: number, projectId: number) => Promise<void>;
+  archiveProject: (projectId: number) => Promise<Project | undefined>;
 }
 
 const initState: IState = {
@@ -178,6 +179,15 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
       });
       await updateProjectItem(newProjectItem);
     }
+  },
+  archiveProject: async (projectId: number) => {
+    const { projects, updateProject } = get();
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    const newProject = produce(project, (draft) => {
+      draft.archived = true;
+    });
+    return updateProject(newProject);
   },
 }));
 

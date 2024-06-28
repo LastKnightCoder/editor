@@ -1,13 +1,16 @@
 import { useMemo, useState, memo } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { Popover, App } from "antd";
 import SVG from 'react-inlinesvg';
 import For from "@/components/For";
 import LoadMoreComponent from "@/components/LoadMoreComponent";
+import TagItem from "@/components/TagItem";
+import { useMemoizedFn } from "ahooks";
+import classnames from "classnames";
+import If from "@/components/If";
 import SelectDatabase from './SelectDatabase';
-
-import useSettingStore from "@/stores/useSettingStore";
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import ExpandList from "../components/ExpandList";
 
 import { generateCardTree } from "@/utils/card";
 
@@ -16,7 +19,7 @@ import {
   MdOutlineDarkMode,
   MdOutlineLightMode,
   MdOutlineDocumentScanner,
-  MdKeyboardArrowRight,
+  MdMoreVert
 } from "react-icons/md";
 import card from '@/assets/icons/card.svg';
 import article from '@/assets/icons/article.svg';
@@ -24,16 +27,16 @@ import document from '@/assets/icons/documents.svg';
 import daily from '@/assets/icons/daily.svg';
 import timeRecord from '@/assets/icons/time-record.svg';
 
-import styles from './index.module.less';
-import TagItem from "@/components/TagItem";
-import { useMemoizedFn } from "ahooks";
-import classnames from "classnames";
-import If from "@/components/If";
+import useSettingStore from "@/stores/useSettingStore";
+import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import useProjectsStore from "@/stores/useProjectsStore";
+
+
+import styles from './index.module.less';
 
 enum EListItem {
   Cards = 'cards',
@@ -51,6 +54,8 @@ interface ISidebarProps {
 
 const Sidebar = memo((props: ISidebarProps) => {
   const { activeCardTag, onActiveCardTagChange } = props;
+
+  const { modal } = App.useApp();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -110,12 +115,25 @@ const Sidebar = memo((props: ISidebarProps) => {
   const {
     projects,
     activeProjectId,
+    archiveProject,
+    deleteProject,
   } = useProjectsStore(state => ({
     projects: state.projects,
     activeProjectId: state.activeProjectId,
+    archiveProject: state.archiveProject,
+    deleteProject: state.deleteProject,
   }));
 
+  const archivedProjects = useMemo(() => {
+    return projects.filter(project => project.archived);
+  }, [projects]);
+
+  const activeProjects = useMemo(() => {
+    return projects.filter(project => !project.archived);
+  }, [projects]);
+
   const [projectListOpen, setProjectListOpen] = useState(false);
+  const [archivedProjectListOpen, setArchivedProjectListOpen] = useState(false);
 
   const activeItem = useMemo(() => {
     const pathname = location.pathname;
@@ -148,198 +166,265 @@ const Sidebar = memo((props: ISidebarProps) => {
         </div>
       </div>
       <div className={styles.list}>
-        <div className={styles.item}>
-          <div
-            className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Projects })}
-            onClick={() => {
-              navigate('/projects');
-              useProjectsStore.setState({
-                activeProjectId: null,
-              })
-            }}
-          >
-            <div className={styles.title}>
-              <SVG src={document} />
-              <span>项目</span>
-              <div className={styles.count}>
-                ({projects.length})
-              </div>
-            </div>
-            <div
-              className={classnames(styles.arrow, { [styles.open]: projectListOpen })}
-              onClick={(e) => {
-                e.stopPropagation();
-                setProjectListOpen(!projectListOpen);
-              }}
-            >
-              <MdKeyboardArrowRight />
-            </div>
-          </div>
-          <If condition={projectListOpen}>
-            <div className={styles.children}>
-              <For
-                data={projects}
-                renderItem={project => (
-                  <div
-                    key={project.id}
-                    className={classnames(styles.documentItem, { [styles.active]: project.id === activeProjectId })}
-                    onClick={() => {
+        <ExpandList
+          active={activeItem === EListItem.Projects}
+          title={'项目'}
+          expand={projectListOpen}
+          titleIcon={<SVG src={document}/>}
+          count={projects.length}
+          onClickTitle={() => {
+            navigate('/projects');
+            useProjectsStore.setState({
+              activeProjectId: null,
+            })
+          }}
+          onClickArrow={(e) => {
+            e.stopPropagation();
+            setProjectListOpen(!projectListOpen);
+          }}
+        >
+          <div className={styles.children}>
+            <For
+              data={activeProjects}
+              renderItem={project => (
+                <div
+                  key={project.id}
+                  className={classnames(styles.childItem, { [styles.active]: project.id === activeProjectId })}
+                >
+                  <ExpandList
+                    showArrow={false}
+                    active={project.id === activeProjectId}
+                    title={project.title}
+                    expand={false}
+                    count={project.children.length}
+                    onClickTitle={() => {
                       navigate('/projects');
                       useProjectsStore.setState({
                         activeProjectId: project.id,
                       });
                     }}
-                  >
-                    <div className={styles.icon}><MdOutlineDocumentScanner /></div>
-                    <div className={styles.title}>{project.title}</div>
-                    <div className={styles.count}>({project.children.length})</div>
-                  </div>
-                )}
-              />
-            </div>
-          </If>
-        </div>
-        <div className={classnames(styles.item)}>
-          <div
-            className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Cards })}
-            onClick={() => {
-              onClickCardTreeTag('');
-            }}
-          >
-            <div className={styles.title}>
-              <SVG src={card} />
-              <span>卡片</span>
-              <div className={styles.count}>({cards.length})</div>
-            </div>
-            <div
-              className={classnames(styles.arrow, { [styles.open]: cardTreeOpen })}
-              onClick={(e) => {
-                e.stopPropagation();
-                setCardTreeOpen(!cardTreeOpen);
-              }}
-            >
-              <MdKeyboardArrowRight />
-            </div>
-          </div>
-          <If condition={cardTreeOpen}>
-            <LoadMoreComponent
-              className={styles.children}
-              onLoadMore={loadMoreCardTree}
-              showLoader={cardTreeCount < cardTree.length}
-            >
-              <For
-                data={slicedCardTree}
-                renderItem={item => (
-                  <TagItem
-                    item={item}
-                    key={item.tag}
-                    onClickTag={onClickCardTreeTag}
-                    activeTag={activeCardTag}
+                    titleIcon={(
+                      <div className={styles.icon}>
+                        <MdOutlineDocumentScanner/>
+                      </div>
+                    )}
+                    extra={(
+                      <div className={styles.icon}>
+                        <Popover
+                          trigger={'hover'}
+                          content={(
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 4
+                              }}
+                            >
+                              <div
+                                className={styles.contextItem}
+                                onClick={() => {
+                                  archiveProject(project.id);
+                                }}
+                              >
+                                归档项目
+                              </div>
+                              <div
+                                className={styles.contextItem}
+                                onClick={() => {
+                                  modal.confirm({
+                                    title: '确认删除项目？',
+                                    content: '删除项目后，将无法恢复。',
+                                    okText: '确认',
+                                    cancelText: '取消',
+                                    okButtonProps: {
+                                      danger: true,
+                                    },
+                                    onOk: async () => {
+                                      await deleteProject(project.id);
+                                      if (activeProjectId === project.id) {
+                                        useProjectsStore.setState({
+                                          activeProjectId: null,
+                                          activeProjectItemId: null,
+                                        });
+                                      }
+                                    }
+                                  })
+
+                                }}
+                              >
+                                删除项目
+                              </div>
+                            </div>
+                          )}
+                          arrow={false}
+                          placement={'rightTop'}
+                        >
+                          <MdMoreVert/>
+                        </Popover>
+                      </div>
+                    )}
                   />
-                )}
-              />
-            </LoadMoreComponent>
-          </If>
-        </div>
-        <div className={styles.item}>
-          <div
-            className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Articles })}
-            onClick={() => {
-              navigate('/articles');
-            }}
-          >
-            <div className={styles.title}>
-              <SVG src={article} />
-              <span>文章</span>
-              <div className={styles.count}>({articles.length})</div>
-            </div>
-          </div>
-        </div>
-        <div className={styles.item}>
-          <div
-            className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Documents })}
-            onClick={() => {
-              navigate('/documents');
-              useDocumentsStore.setState({
-                activeDocumentId: null,
-                activeDocumentItem: null,
-              })
-            }}
-          >
-            <div className={styles.title}>
-              <SVG src={document} />
-              <span>知识库</span>
-              <div className={styles.count}>({documents.length}/{documents.reduce((count, doc) => doc.count + count, 0)})</div>
-            </div>
-            <div
-              className={classnames(styles.arrow, { [styles.open]: documentListOpen })}
-              onClick={(e) => {
-                e.stopPropagation();
-                setDocumentListOpen(!documentListOpen);
-              }}
-            >
-              <MdKeyboardArrowRight />
-            </div>
-          </div>
-          <If condition={documentListOpen}>
-            <div className={styles.children}>
-              <For
-                data={documents}
-                renderItem={document => (
-                  <div
-                    key={document.id}
-                    className={classnames(styles.documentItem, { [styles.active]: document.id === activeDocumentId })}
-                    onClick={() => {
-                      navigate('/documents');
-                      useDocumentsStore.setState({
-                        activeDocumentId: document.id,
-                      });
-                      // 切换了不同的知识库，需要清空当前正在编辑的文档
-                      if (activeDocumentId !== document.id) {
-                        useDocumentsStore.setState({
-                          activeDocumentItem: null,
-                        });
-                      }
-                    }}
-                  >
-                    <div className={styles.icon}><MdOutlineDocumentScanner /></div>
-                    <div className={styles.title}>{document.title}</div>
-                    <div className={styles.count}>({document.count})</div>
-                  </div>
-                )} />
-            </div>
-          </If>
-        </div>
-        <div className={styles.item}>
-          <div
-            className={classnames(styles.header, { [styles.active]: activeItem === EListItem.Daily })}
-            onClick={() => {
-              navigate('/daily');
-            }}
-          >
-            <div className={styles.title}>
-              <SVG src={daily} />
-              <span>日记</span>
-              <div className={styles.count}>({dailyNotes.length})</div>
-            </div>
-          </div>
-        </div>
-        <div className={styles.item}>
-          <div
-            className={classnames(styles.header, { [styles.active]: activeItem === EListItem.TimeRecord })}
-            onClick={() => {
-              navigate('/timeRecord');
-            }}
-          >
-            <div className={styles.title}>
-              <SVG src={timeRecord} />
-              <span>时间记录</span>
-              <div className={styles.count}>
-                ({timeRecords.map(timeRecord => timeRecord.timeRecords).flat().length})
+                </div>
+              )}
+            />
+            <If condition={archivedProjects.length > 0}>
+              <div className={styles.childItem}>
+                <ExpandList
+                  active={!!activeProjectId && archivedProjects.map(project => project.id).includes(activeProjectId)}
+                  title={'归档'}
+                  expand={archivedProjectListOpen}
+                  titleIcon={(
+                    <div
+                      className={styles.icon}><MdOutlineDocumentScanner/></div>
+                  )}
+                  count={archivedProjects.length}
+                  onClickArrow={(e) => {
+                    e.stopPropagation();
+                    setArchivedProjectListOpen(!archivedProjectListOpen);
+                  }}
+                >
+                  <For
+                    data={archivedProjects}
+                    renderItem={project => (
+                      <div
+                        key={project.id}
+                        className={classnames(styles.childItem, { [styles.active]: project.id === activeProjectId })}
+                      >
+                        <ExpandList
+                          showArrow={false}
+                          active={project.id === activeProjectId}
+                          title={project.title}
+                          expand={false}
+                          count={project.children.length}
+                          onClickTitle={() => {
+                            navigate('/projects');
+                            useProjectsStore.setState({
+                              activeProjectId: project.id,
+                            });
+                          }}
+                          titleIcon={(
+                            <div
+                              className={styles.icon}><MdOutlineDocumentScanner/></div>
+                          )}
+                        />
+                      </div>
+                    )}
+                  />
+                </ExpandList>
               </div>
-            </div>
+            </If>
           </div>
-        </div>
+        </ExpandList>
+        <ExpandList
+          active={activeItem === EListItem.Cards}
+          title={'卡片'}
+          expand={cardTreeOpen}
+          titleIcon={<SVG src={card} />}
+          count={cards.length}
+          onClickTitle={() => {
+            onClickCardTreeTag('');
+          }}
+          onClickArrow={(e) => {
+            e.stopPropagation();
+            setCardTreeOpen(!cardTreeOpen);
+          }}
+        >
+          <LoadMoreComponent
+            className={styles.children}
+            onLoadMore={loadMoreCardTree}
+            showLoader={cardTreeCount < cardTree.length}
+          >
+            <For
+              data={slicedCardTree}
+              renderItem={item => (
+                <TagItem
+                  item={item}
+                  key={item.tag}
+                  onClickTag={onClickCardTreeTag}
+                  activeTag={activeCardTag}
+                />
+              )}
+            />
+          </LoadMoreComponent>
+        </ExpandList>
+        <ExpandList
+          active={activeItem === EListItem.Articles}
+          title={'文章'}
+          expand={false}
+          titleIcon={<SVG src={article} />}
+          count={articles.length}
+          onClickTitle={() => {
+            navigate('/articles');
+          }}
+          showArrow={false}
+        />
+        <ExpandList
+          active={activeItem === EListItem.Documents}
+          title={'知识库'}
+          expand={documentListOpen}
+          titleIcon={<SVG src={document}/>}
+          onClickTitle={() => {
+            navigate('/documents');
+            useDocumentsStore.setState({
+              activeDocumentId: null,
+              activeDocumentItem: null,
+            })
+          }}
+          onClickArrow={(e) => {
+            e.stopPropagation();
+            setDocumentListOpen(!documentListOpen);
+          }}
+          count={`${documents.length}/${documents.reduce((count, doc) => doc.count + count, 0)}`}
+        >
+          <div className={styles.children}>
+            <For
+              data={documents}
+              renderItem={document => (
+                <div
+                  key={document.id}
+                  className={classnames(styles.childItem, { [styles.active]: document.id === activeDocumentId })}
+                  onClick={() => {
+                    navigate('/documents');
+                    useDocumentsStore.setState({
+                      activeDocumentId: document.id,
+                    });
+                    // 切换了不同的知识库，需要清空当前正在编辑的文档
+                    if (activeDocumentId !== document.id) {
+                      useDocumentsStore.setState({
+                        activeDocumentItem: null,
+                      });
+                    }
+                  }}
+                >
+                  <div className={styles.icon}><MdOutlineDocumentScanner/></div>
+                  <div className={styles.title}>{document.title}</div>
+                  <div className={styles.count}>({document.count})</div>
+                </div>
+              )}/>
+          </div>
+        </ExpandList>
+        <ExpandList
+          active={activeItem === EListItem.Daily}
+          title={'日记'}
+          expand={false}
+          titleIcon={<SVG src={daily} />}
+          count={dailyNotes.length}
+          onClickTitle={() => {
+            navigate('/daily');
+          }}
+          showArrow={false}
+        />
+        <ExpandList
+          active={activeItem === EListItem.TimeRecord}
+          title={'时间记录'}
+          expand={false}
+          titleIcon={<SVG src={timeRecord} />}
+          count={timeRecords.map(timeRecord => timeRecord.timeRecords).flat().length}
+          onClickTitle={() => {
+            navigate('/timeRecord');
+          }}
+          showArrow={false}
+        />
       </div>
     </div>
   )

@@ -47,11 +47,11 @@ pub fn get_project_by_id(id: i64, app_state: tauri::State<state::AppState>) -> R
 }
 
 #[tauri::command]
-pub fn update_project(id: i64, title: String, desc: String, children: Vec<i64>, app_state: tauri::State<state::AppState>) -> Result<Project, String> {
+pub fn update_project(id: i64, title: String, desc: String, children: Vec<i64>, archived: bool, app_state: tauri::State<state::AppState>) -> Result<Project, String> {
     let conn = app_state.db.lock().unwrap();
     match &*conn {
         Some(conn) => {
-            project::update_project(&conn, id, title, desc, children).map_err(|e| e.to_string())
+            project::update_project(&conn, id, title, desc, children, archived).map_err(|e| e.to_string())
         }
         None => Err("Database connection not initialized".to_string()),
     }

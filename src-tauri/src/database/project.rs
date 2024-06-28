@@ -11,6 +11,7 @@ pub struct Project {
     pub title: String,
     pub children: Vec<i64>,
     pub desc: String,
+    pub archived: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,11 +36,27 @@ pub fn init_project_table(conn: &Connection) -> Result<()> {
             update_time INTEGER NOT NULL,
             title TEXT NOT NULL,
             desc TEXT,
-            children TEXT
+            children TEXT,
+            archived INTEGER DEFAULT 0
         )",
         [],
     )?;
 
+    Ok(())
+}
+
+pub fn upgrade_project_table(conn: &Connection, _old_version: i64, _new_version: i64) -> Result<()> {
+    let mut stmt = conn.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'project'")?;
+    let mut rows = stmt.query([])?;
+    if let Some(row) = rows.next()? {
+        let sql: String = row.get(0)?;
+        if !sql.contains("archived") {
+            conn.execute(
+                "ALTER TABLE project ADD COLUMN archived INTEGER DEFAULT 0",
+                [],
+            )?;
+        }
+    }
     Ok(())
 }
 
@@ -71,6 +88,7 @@ pub fn get_project_from_query_result(row: &Row) -> Project {
         title: row.get(3).unwrap(),
         desc: row.get(4).unwrap(),
         children: serde_json::from_str(&row.get::<usize, String>(5).unwrap()).unwrap(),
+        archived: row.get(6).unwrap(),
     }
 }
 
@@ -111,7 +129,7 @@ pub fn delete_project(conn: &Connection, id: i64) -> Result<usize> {
 }
 
 pub fn get_project_list(conn: &Connection) -> Result<Vec<Project>> {
-    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, desc, children FROM project ORDER BY update_time DESC")?;
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, desc, children, archived FROM project ORDER BY update_time DESC")?;
     let mut rows = stmt.query(params![])?;
     let mut res = Vec::new();
     while let Some(row) = rows.next()? {
@@ -121,16 +139,16 @@ pub fn get_project_list(conn: &Connection) -> Result<Vec<Project>> {
 }
 
 pub fn get_project_by_id(conn: &Connection, id: i64) -> Result<Project> {
-    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, desc, children FROM project WHERE id = ?1")?;
+    let mut stmt = conn.prepare("SELECT id, create_time, update_time, title, desc, children, archived FROM project WHERE id = ?1")?;
     let mut rows = stmt.query(params![id])?;
     let row = rows.next()?.unwrap();
     Ok(get_project_from_query_result(&row))
 }
 
-pub fn update_project(conn: &Connection, id: i64, title: String, desc: String, children: Vec<i64>) -> Result<Project> {
+pub fn update_project(conn: &Connection, id: i64, title: String, desc: String, children: Vec<i64>, archived: bool) -> Result<Project> {
     let update_time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as i64;
-    let mut stmt = conn.prepare("UPDATE project SET update_time = ?1, title = ?2, desc = ?3, children = ?4 WHERE id = ?5")?;
-    stmt.execute(params![update_time, title, desc, serde_json::to_string(&children).unwrap(), id])?;
+    let mut stmt = conn.prepare("UPDATE project SET update_time = ?1, title = ?2, desc = ?3, children = ?4, archived = ?5 WHERE id = ?6")?;
+    stmt.execute(params![update_time, title, desc, serde_json::to_string(&children).unwrap(), archived, id])?;
     let update_project = get_project_by_id(conn, id).unwrap();
     insert_operation(conn, id, "project".to_string(), "update".to_string())?;
     Ok(update_project)
