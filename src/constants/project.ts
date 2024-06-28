@@ -6,5 +6,6 @@ export const DEFAULT_CREATE_PROJECT: CreateProject = {
   desc: [{
     type: 'paragraph',
     children: [{ type: 'formatted', text: '' }],
-  }]
+  }],
+  archived: false,
 }

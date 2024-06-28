@@ -55,7 +55,8 @@ const Project = () => {
     const project: CreateProject = {
       title,
       desc,
-      children: []
+      children: [],
+      archived: false
     }
 
     const createdProject = await createProject(project);
