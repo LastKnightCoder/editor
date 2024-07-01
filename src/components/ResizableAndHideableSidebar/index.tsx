@@ -1,3 +1,4 @@
+import React from 'react';
 import WidthResizable from "@/components/WidthResizable";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";

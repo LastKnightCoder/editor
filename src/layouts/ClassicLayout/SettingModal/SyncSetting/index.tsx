@@ -47,7 +47,7 @@ const SyncSetting = () => {
     setIsSyncing(true);
     try {
       await upload();
-      setRemoteVersion(currentVersion);
+      setRemoteVersion(currentVersion + 1);
       message.success('同步成功');
     } catch (error) {
       message.error('同步失败' + error);

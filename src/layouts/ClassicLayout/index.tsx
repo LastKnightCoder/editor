@@ -328,9 +328,7 @@ const ClassicLayout = memo(() => {
           <Routes>
             <Route path="/" element={<Titlebar />}>
               <Route path="cards/" element={(
-                <CardTitlebar
-                  createCard={onCreateCard}
-                />
+                <CardTitlebar createCard={onCreateCard} />
               )} />
               <Route path="articles/" element={(
                 <ArticleTitlebar
