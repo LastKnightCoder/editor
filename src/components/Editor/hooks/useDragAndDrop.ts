@@ -153,7 +153,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         console.error(e);
       }
     },
-  }, [readOnly]);
+  }, [readOnly, isBefore]);
 
   return {
     drag,

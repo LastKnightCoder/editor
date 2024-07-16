@@ -1,4 +1,4 @@
-import { Editor, Element as SlateElement, Transforms } from "slate";
+import { Editor, Element as SlateElement, Path, Transforms } from "slate";
 import {
   isAtParagraphStart,
   isListItemElement,
@@ -39,6 +39,14 @@ export const deleteListItem = (editor: Editor): boolean => {
             const prevListElement = Editor.node(editor, prevListItemPath)[0] as ListItemElement;
             Transforms.moveNodes(editor, {
               to: [...prevListItemPath, prevListElement.children.length],
+              match: n => SlateElement.isElement(n) && isParagraphElement(n),
+            })
+          } else {
+            // 没有上一个说明是第一个 list-item，这个时候把段落放到最外面就行
+            const curListPath = curList[1];
+            const wrapListPath = Path.parent(curListPath);
+            Transforms.moveNodes(editor, {
+              to: wrapListPath,
               match: n => SlateElement.isElement(n) && isParagraphElement(n),
             })
           }
