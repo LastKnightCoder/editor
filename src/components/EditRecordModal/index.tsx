@@ -5,7 +5,7 @@ import { produce } from 'immer';
 import { Descendant } from "slate";
 import Editor from '@/components/Editor';
 
-import { getAllEventTypes } from '@/commands';
+import { getAllEventTypes, getAllTimeTypes } from '@/commands';
 import { ITimeRecord } from "@/types";
 
 import styles from './index.module.less';
@@ -29,11 +29,15 @@ const EditRecordModal = (props: EditRecordModalProps) => {
 
   const [editingTimeRecord, setEditingTimeRecord] = useState<ITimeRecord | null>(timeRecord);
   const [allEventTypes, setAllEventTypes] = useState<string[]>([]);
+  const [allTimeTypes, setAllTimeTypes] = useState<string[]>([]);
 
   useEffect(() => {
     getAllEventTypes().then((res) => {
       setAllEventTypes(res);
-    })
+    });
+    getAllTimeTypes().then((res) => {
+      setAllTimeTypes(res);
+    });
   }, []);
 
   const eventTypeOptions = allEventTypes.map((eventType) => ({
@@ -61,6 +65,13 @@ const EditRecordModal = (props: EditRecordModalProps) => {
     }));
   });
 
+  const onTimeTypeChange = useMemoizedFn((timeType: string) => {
+    if (!editingTimeRecord) return;
+    setEditingTimeRecord(produce(editingTimeRecord, (draft) => {
+      draft.timeType = timeType;
+    }))
+  })
+
   if (!editingTimeRecord) return null;
 
   return (
@@ -81,6 +92,20 @@ const EditRecordModal = (props: EditRecordModalProps) => {
             initValue={editingTimeRecord.content}
             onChange={onContentChange}
             readonly={false}
+          />
+        </div>
+        <div className={styles.timeType}>
+          <div>时间类型：</div>
+          <AutoComplete
+            value={editingTimeRecord.timeType}
+            style={{ width: 200 }}
+            options={allTimeTypes.map((timeType) => ({
+              value: timeType,
+            }))}
+            filterOption={(inputValue, option) => {
+              return !!option?.value.includes(inputValue);
+            }}
+            onChange={onTimeTypeChange}
           />
         </div>
         <div className={styles.eventType}>

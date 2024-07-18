@@ -60,6 +60,16 @@ const TimeRecordItem = (props: TimeRecordItemProps) => {
           {timeRecord.cost} min
         </Tag>
         {
+          timeRecord.timeType && (
+            <Tag
+              color={nextColor}
+              bordered={false}
+            >
+              {timeRecord.timeType}
+            </Tag>
+          )
+        }
+        {
           timeRecord.eventType && (
             <Tag
               color={nextColor}
