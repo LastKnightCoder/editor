@@ -1,15 +1,17 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Popover, Select } from "antd";
 import classnames from "classnames";
 
 import CardItem from '@/components/CardItem2'
 import For from "@/components/For";
 import LoadMoreComponent from "@/components/LoadMoreComponent";
-
+import SearchTag from "@/components/SearchTag";
+import useSearchKeywords from "@/hooks/useSearchKeywords.ts";
 import { cardCategoryName } from "@/constants";
 import { ICard, ECardCategory, IUpdateCard } from "@/types";
 
 import styles from './index.module.less';
+import { useMemoizedFn } from "ahooks";
 
 interface ICardProps {
   cards: ICard[];
@@ -35,9 +37,41 @@ const CardList = memo((props: ICardProps) => {
   } = props;
 
   const [cardsCount, setCardsCount] = useState<number>(10);
-  const sliceCards = cards.slice(0, cardsCount);
+  const [searchCards, setSearchCards] = useState<ICard[]>(cards);
+  const sliceCards = searchCards.slice(0, cardsCount);
+  const {
+    searchValue,
+    handleValueChange,
+    handleBlur,
+    handleFocus,
+    handleDeleteKeyword,
+    keywords,
+    inputRef,
+    handleAddKeyword,
+  } = useSearchKeywords();
+
+  const onSearchTags = useMemoizedFn((keywords: string[]) => {
+    if (keywords.length === 0) {
+      setSearchCards(cards);
+      setCardsCount(10);
+      return;
+    }
+    const filteredCards = cards.filter((card) => {
+      return keywords.every((keyword) => {
+        const allTags = card.tags.map(tag => tag.split('/')).flat(Infinity);
+        return allTags.includes(keyword);
+      });
+    });
+    setSearchCards(filteredCards);
+    setCardsCount(10);
+  });
+
+  useEffect(() => {
+    onSearchTags(keywords);
+  }, [keywords, onSearchTags]);
+
   const loadMore = async () => {
-    setCardsCount(Math.min(cardsCount + 10, cards.length));
+    setCardsCount(Math.min(cardsCount + 10, searchCards.length));
   }
 
   const getSettings = (cardId: number) => {
@@ -98,9 +132,19 @@ const CardList = memo((props: ICardProps) => {
             onChange={onSelectCategoryChange}
           ></Select>
         </div>
+        <SearchTag
+          ref={inputRef}
+          searchValue={searchValue}
+          tags={keywords}
+          onDeleteTag={handleDeleteKeyword}
+          onSearchValueChange={handleValueChange}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onSearch={handleAddKeyword}
+        />
       </div>
       <div className={styles.list}>
-        <LoadMoreComponent onLoadMore={loadMore} showLoader={cardsCount < cards.length}>
+        <LoadMoreComponent onLoadMore={loadMore} showLoader={cardsCount < searchCards.length}>
           <For data={sliceCards} renderItem={(card) => {
             return (
               <CardItem

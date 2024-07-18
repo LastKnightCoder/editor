@@ -21,10 +21,10 @@ const useSearchKeywords = () => {
     return () => {
       document.removeEventListener('keydown', handleDelete);
     }
-  }, [searchValue])
+  }, [searchValue]);
 
-  const handleValueChange = useMemoizedFn((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchValue(e.target.value);
+  const handleValueChange = useMemoizedFn((value: string) => {
+    setSearchValue(value);
   })
   const handleFocus = useMemoizedFn(() => {
     isFocus.current = true;
@@ -36,6 +36,7 @@ const useSearchKeywords = () => {
   const handleDeleteKeyword = useMemoizedFn((keyword: string) => {
     setKeywords((keywords) => keywords.filter((item) => item !== keyword));
   });
+
   const handleAddKeyword = useMemoizedFn(() => {
     if (searchValue && !keywords.includes(searchValue)) {
       setKeywords((keywords) => [...keywords, searchValue]);

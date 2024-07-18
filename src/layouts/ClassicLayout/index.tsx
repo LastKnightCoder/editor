@@ -26,7 +26,6 @@ import useDocumentsStore from "@/stores/useDocumentsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
-// import useProjectsStore from "@/stores/useProjectsStore";
 
 import loadable from "@loadable/component";
 
@@ -142,7 +141,7 @@ const ClassicLayout = memo(() => {
     }
   }, []);
 
-  const [dailyNoteReadonly, setDailyNoteReadonly] = useState<boolean>(true);
+  const [dailyNoteReadonly, setDailyNoteReadonly] = useState<boolean>(false);
 
   const {
     dailyNotes,
@@ -150,7 +149,7 @@ const ClassicLayout = memo(() => {
   } = useDailyNoteStore(state => ({
     dailyNotes: state.dailyNotes,
     activeDailyId: state.activeDailyId,
-  }))
+  }));
 
   const {
     editingDailyNote,
