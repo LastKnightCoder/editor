@@ -50,7 +50,7 @@ const CardList = memo((props: ICardProps) => {
     handleAddKeyword,
   } = useSearchKeywords();
 
-  const onSearchTags = useMemoizedFn((keywords: string[]) => {
+  const onSearchTags = useMemoizedFn((cards: ICard[], keywords: string[]) => {
     if (keywords.length === 0) {
       setSearchCards(cards);
       setCardsCount(10);
@@ -67,8 +67,8 @@ const CardList = memo((props: ICardProps) => {
   });
 
   useEffect(() => {
-    onSearchTags(keywords);
-  }, [keywords, onSearchTags]);
+    onSearchTags(cards, keywords);
+  }, [keywords, onSearchTags, cards]);
 
   const loadMore = async () => {
     setCardsCount(Math.min(cardsCount + 10, searchCards.length));
