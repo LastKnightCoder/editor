@@ -15,7 +15,7 @@ import useUploadImage from "@/hooks/useUploadImage";
 import { formatDate } from "@/utils/time";
 import { IArticle } from "@/types";
 
-import { cardLinkExtension } from '@/editor-extensions';
+import { cardLinkExtension, fileAttachmentExtension } from '@/editor-extensions';
 
 import styles from './index.module.less';
 
@@ -41,7 +41,7 @@ const outlineVariants = {
   }
 }
 
-const extensions = [cardLinkExtension];
+const extensions = [cardLinkExtension, fileAttachmentExtension];
 
 const EditArticle = memo((props: IArticleItemProps) => {
   const {

@@ -16,13 +16,14 @@ import { EditOutlined, ReadOutlined } from "@ant-design/icons";
 import { MdFormatIndentIncrease, MdFormatIndentDecrease, MdOutlineCode } from "react-icons/md";
 
 import { formatDate } from "@/utils/time.ts";
-import { cardLinkExtension, documentCardListExtension } from "@/editor-extensions";
+import { cardLinkExtension, documentCardListExtension, fileAttachmentExtension } from "@/editor-extensions";
 
 import styles from './index.module.less';
 
 const extensions = [
   cardLinkExtension,
   documentCardListExtension,
+  fileAttachmentExtension,
 ];
 
 const EditDoc = memo(() => {

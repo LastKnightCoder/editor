@@ -11,6 +11,7 @@ pub mod fs_help;
 pub mod database;
 pub mod time_record;
 pub mod project;
+pub mod system;
 
 pub use card::*;
 pub use setting::*;
@@ -25,3 +26,4 @@ pub use fs_help::*;
 pub use database::*;
 pub use time_record::*;
 pub use project::*;
+pub use system::*;

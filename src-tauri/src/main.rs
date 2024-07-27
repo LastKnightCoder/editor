@@ -80,6 +80,7 @@ use commands::{
     is_project_item_not_in_any_project,
     get_project_items_not_in_any_project,
     delete_project_items_not_in_any_project,
+    show_in_folder,
 };
 
 fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
@@ -224,6 +225,7 @@ fn main() {
             is_project_item_not_in_any_project,
             get_project_items_not_in_any_project,
             delete_project_items_not_in_any_project,
+            show_in_folder,
         ])
       .run(tauri::generate_context!())
       .expect("error while running tauri application");

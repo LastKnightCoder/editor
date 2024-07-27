@@ -6,11 +6,11 @@ import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import { ICard } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
-import { cardLinkExtension } from "@/editor-extensions";
+import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
 
 import styles from './index.module.less';
 
-const customExtensions = [cardLinkExtension];
+const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 interface ILinkGraphProps {
   cards: ICard[];

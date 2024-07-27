@@ -1,0 +1,30 @@
+.container {
+  position: relative;
+  @import '@/components/Editor/extensions/drop-common.less';
+  @import '@/components/Editor/extensions/drag-common.less';
+  .fileAttachmentContainer {
+    cursor: pointer;
+    border: 1px solid var(--line-color);
+    padding: 12px 16px;
+    background-color: var(--card-bg-color);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    &:hover {
+      background-color: var(--common-hover-bg);
+    }
+    .fileName {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-color);
+    }
+    .filePath {
+      font-size: 12px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      color: gray;
+    }
+  }
+}
+

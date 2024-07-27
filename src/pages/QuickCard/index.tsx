@@ -10,11 +10,11 @@ import AddTag from "@/components/AddTag";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useUploadImage from "@/hooks/useUploadImage.ts";
 import { ECardCategory } from "@/types";
-import { cardLinkExtension } from "@/editor-extensions";
+import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
 
 import styles from './index.module.less';
 
-const customExtensions = [cardLinkExtension];
+const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 const initValue: Descendant[] = [{
   type: 'paragraph',
