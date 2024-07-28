@@ -66,10 +66,7 @@ const DailyList = memo((props: IDailyListProps) => {
 
   const slicedDailyNotes = filteredDailyNotes.slice(0, dailyNotesCount);
 
-  console.log('slicedDailyNotes => ', slicedDailyNotes);
-
   const loadMore = async () => {
-    console.log('loadMore...')
     setDailyNotesCount(Math.min(dailyNotesCount + 10, filteredDailyNotes.length));
   }
 

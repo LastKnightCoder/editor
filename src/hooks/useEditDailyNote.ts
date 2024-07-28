@@ -33,7 +33,10 @@ const useEditDailyNote = (id?: number) => {
   }));
 
   useAsyncEffect(async () => {
-    if (!id) return;
+    if (!id) {
+      await quitEditDailyNote();
+      return;
+    }
     setLoading(true);
     const dailyNote = dailyNotes.find((item) => item.id === id);
     if (dailyNote) {

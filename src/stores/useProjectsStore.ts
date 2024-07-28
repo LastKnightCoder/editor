@@ -42,7 +42,7 @@ const initState: IState = {
   dragging: false,
   activeProjectId: null,
   activeProjectItemId: null,
-  showOutline: true,
+  showOutline: false,
   readonly: false,
 }
 

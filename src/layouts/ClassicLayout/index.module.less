@@ -4,13 +4,8 @@
   height: 100vh;
   overflow: hidden;
   box-sizing: border-box;
-  --sidebar-width: 280px;
-  --list-width: 320px;
   --title-bar-height: 60px;
   &.focusMode {
-    --sidebar-width: 0;
-    --list-width: 0;
-    //--title-bar-height: 0;
     .sidebar {
       overflow: hidden;
       border: none;
@@ -20,8 +15,6 @@
       border: none;
     }
     .contentArea {
-      width: 100vw;
-      flex-basis: 100vw;
       .titleBar {
         overflow: hidden;
         border: none;
@@ -33,23 +26,16 @@
   }
   .sidebar {
     flex: none;
-    width: var(--sidebar-width);
     height: 100vh;
-    box-sizing: border-box;
-    overflow-y: auto;
-    border-right: 1px solid var(--line-color);
+    overflow: hidden;
   }
   .list {
     flex: none;
-    width: var(--list-width);
     height: 100vh;
-    box-sizing: border-box;
     overflow: hidden;
     border-right: 1px solid var(--line-color);
   }
   .contentArea {
-    flex-basis: calc(100% - var(--sidebar-width) - var(--list-width));
-    width: calc(100% - var(--sidebar-width) - var(--list-width));
     height: 100vh;
     box-sizing: border-box;
     .titleBar {

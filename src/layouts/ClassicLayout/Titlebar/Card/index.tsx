@@ -1,9 +1,9 @@
 import TitlebarIcon from "@/components/TitlebarIcon";
 import { PlusOutlined, FileMarkdownOutlined } from "@ant-design/icons";
-import { MdCenterFocusWeak } from "react-icons/md";
-import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";
 import { Tooltip } from 'antd';
+import ListOpen from '../components/ListOpen';
+import FocusMode from "../components/FocusMode";
 
 import styles from './index.module.less';
 
@@ -26,26 +26,13 @@ const Card = (props: ICardProps) => {
 
   const activeId = activeSide === EActiveSide.Left ? leftActiveId : rightActiveId;
 
-  const {
-    focusMode,
-  } = useGlobalStateStore(state => ({
-    focusMode: state.focusMode,
-  }));
-
   return (
     <div className={styles.iconList}>
+      <ListOpen />
       <TitlebarIcon onClick={createCard}>
         <PlusOutlined />
       </TitlebarIcon>
-      <Tooltip title={'专注模式'} trigger={'hover'}>
-        <TitlebarIcon active={focusMode} onClick={() => {
-          useGlobalStateStore.setState({
-            focusMode: !focusMode,
-          });
-        }}>
-          <MdCenterFocusWeak />
-        </TitlebarIcon>
-      </Tooltip>
+      <FocusMode />
       <Tooltip title={'导出 Markdown'} trigger={'hover'}>
         <TitlebarIcon onClick={() => {
           if (!activeId) return;

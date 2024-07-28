@@ -326,9 +326,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           [styles.bottom]: isOver && canDrop && dragPosition === EDragPosition.Bottom,
           [styles.inside]: isOver && canDrop && dragPosition === EDragPosition.Inside,
         })}
-        onClick={() => {
+        onClick={async () => {
+          const activeProjectItem = await getProjectItemById(projectItem.id);
+          if (!activeProjectItem) return;
+          const headers =  activeProjectItem.content.filter(node => node.type === 'header');
           useProjectsStore.setState({
             activeProjectItemId: projectItem.id,
+            showOutline: headers.length > 0,
           });
         }}
       >

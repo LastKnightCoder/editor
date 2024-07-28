@@ -1,9 +1,11 @@
 import React from 'react';
 import WidthResizable from "@/components/WidthResizable";
-import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
 
 interface ResizeableAndHideableSidebarProps {
+  width: number;
+  open: boolean;
+  onWidthChange?: (width: number) => void;
   className?: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
@@ -13,6 +15,9 @@ interface ResizeableAndHideableSidebarProps {
 
 const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) => {
   const {
+    width,
+    open,
+    onWidthChange,
     className,
     style,
     children,
@@ -20,25 +25,19 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
     maxWidth = 500,
   } = props;
 
-  const scope = useDragAndHideSidebar();
-
-  const {
-    sidebarWidth,
-  } = useGlobalStateStore(state => ({
-    sidebarWidth: state.sidebarWidth,
-  }));
+  const scope = useDragAndHideSidebar({
+    width,
+    open,
+  });
 
   return (
-    <div ref={scope} style={{ ...style, width: sidebarWidth }} className={className}>
+    <div ref={scope} style={{ ...style, width }} className={className}>
       <WidthResizable
-        defaultWidth={sidebarWidth}
+        defaultWidth={width}
         minWidth={minWidth}
         maxWidth={maxWidth}
         onResize={(width) => {
-          useGlobalStateStore.setState({
-            sidebarWidth: width,
-          });
-          localStorage.setItem('sidebarWidth', String(width));
+          onWidthChange?.(width);
         }}
         style={{
           height: '100%'

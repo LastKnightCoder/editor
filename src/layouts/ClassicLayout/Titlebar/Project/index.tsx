@@ -2,14 +2,15 @@ import { useState } from 'react';
 
 import TitlebarIcon from "@/components/TitlebarIcon";
 import EditProjectInfoModal from "@/layouts/ClassicLayout/components/EditProjectInfoModal";
+import ListOpen from '../components/ListOpen';
+import FocusMode from "../components/FocusMode";
 
-import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import useProjectsStore from "@/stores/useProjectsStore";
 import { useMemoizedFn } from "ahooks";
 
 import { CreateProject, CreateProjectItem } from "@/types";
 
-import { MdCenterFocusWeak, MdExitToApp, MdFormatIndentIncrease, MdFormatIndentDecrease } from "react-icons/md";
+import { MdExitToApp, MdFormatIndentIncrease, MdFormatIndentDecrease } from "react-icons/md";
 import { EditOutlined, PlusOutlined, ReadOutlined } from "@ant-design/icons";
 import { Descendant } from "slate";
 import { message } from "antd";
@@ -23,12 +24,6 @@ const EMPTY_DESC: Descendant[] = [{
 
 const Project = () => {
   const [createProjectModalOpen, setCreateProjectModalOpen] = useState(false);
-
-  const {
-    focusMode,
-  } = useGlobalStateStore(state => ({
-    focusMode: state.focusMode,
-  }));
 
   const {
     activeProjectId,
@@ -107,16 +102,11 @@ const Project = () => {
 
   return (
     <div className={styles.iconList}>
+      <ListOpen />
       <TitlebarIcon onClick={handleCreate}>
         <PlusOutlined />
       </TitlebarIcon>
-      <TitlebarIcon active={focusMode} onClick={() => {
-        useGlobalStateStore.setState({
-          focusMode: !focusMode,
-        });
-      }}>
-        <MdCenterFocusWeak />
-      </TitlebarIcon>
+      <FocusMode />
       <TitlebarIcon onClick={toggleReadOnly}>
         { readonly ? <EditOutlined /> : <ReadOutlined /> }
       </TitlebarIcon>

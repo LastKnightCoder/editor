@@ -2,6 +2,7 @@
   width: 100%;
   height: 100%;
   box-sizing: border-box;
+  border-right: 1px solid var(--line-color);
   overflow-y: hidden;
   .header {
     padding: 0 16px;
@@ -84,6 +85,18 @@
     &:hover {
       background-color: var(--normal-icon-bg);
     }
+  }
+  &.active {
+    background-color: var(--active-bg-color);
+    color: var(--active-text-color);
+    .arrow {
+      &:hover {
+        background-color: var(--active-icon-bg);
+      }
+    }
+  }
+  &:not(.active):hover {
+    background-color: var(--common-hover-bg);
   }
 }
 

@@ -31,7 +31,7 @@ const EditDoc = memo(() => {
   const titleRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
-  const [outlineOpen, setOutlineOpen] = useState(true);
+
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
 
@@ -44,6 +44,8 @@ const EditDoc = memo(() => {
     initValue,
     wordsCount,
   } = useEditDoc();
+
+
 
   const uploadImage = useUploadImage();
 
@@ -85,6 +87,11 @@ const EditDoc = memo(() => {
       title: header.children.map((node: { text: string }) => node.text).join(''),
     }));
   }, [activeDocumentItem]);
+
+  const [outlineOpen, setOutlineOpen] = useState(() => {
+    if (!activeDocumentItem) return false;
+    return headers.length > 0;
+  });
 
   const onClickHeader = (index: number) => {
     if (!editorRef.current) return;

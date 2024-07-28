@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import classnames from "classnames";
 
@@ -21,12 +21,9 @@ const EditorOutline = (props: EditorOutlineProps) => {
 
   const outlineRef = useRef<HTMLDivElement>(null);
 
-  const [outlineOpen, setOutlineOpen] = useState(show);
-
   useEffect(() => {
     if (!outlineRef.current) return;
     if (show) {
-      setOutlineOpen(true);
       outlineRef.current.style.width = 'auto';
       outlineRef.current.style.overflow = 'visible';
       outlineRef.current.style.position = 'static';
@@ -34,7 +31,6 @@ const EditorOutline = (props: EditorOutlineProps) => {
       const clientWidth = outlineRef.current.clientWidth;
       outlineRef.current.style.width = `${clientWidth}px`;
       outlineRef.current.style.overflow = 'hidden';
-      setOutlineOpen(false);
     }
   }, [show]);
 
@@ -55,7 +51,7 @@ const EditorOutline = (props: EditorOutlineProps) => {
         layout
         layoutRoot
         className={classnames(styles.outline, {
-          [styles.hide]: !outlineOpen
+          [styles.hide]: !show
         }, className)}
         style={style}
       >

@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
 import dayjs from "dayjs";
@@ -11,6 +11,7 @@ import CardContent from './Content/Card';
 import CardTitlebar from "./Titlebar/Card";
 import SettingModal from "./SettingModal";
 import EditRecordModal from "@/components/EditRecordModal";
+import ResizeableAndHideableSidebar from '@/components/ResizableAndHideableSidebar';
 
 import { createDocumentItem, initAllDocumentItemParents } from "@/commands";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
@@ -52,12 +53,26 @@ const ProjectTitlebar = loadable(() => import('./Titlebar/Project'));
 
 const ClassicLayout = memo(() => {
   const {
-    focusMode
+    focusMode,
+    listWidth,
+    listOpen,
+    sidebarOpen,
+    sidebarWidth,
   } = useGlobalStateStore(state => ({
     focusMode: state.focusMode,
+    listOpen: state.listOpen,
+    listWidth: state.listWidth,
+    sidebarOpen: state.sidebarOpen,
+    sidebarWidth: state.sidebarWidth,
   }));
 
   useExitFocusMode();
+
+  const contentAreaWidth = useMemo(() => {
+    const finalSidebarWidth = (focusMode || !sidebarOpen) ? 0 : sidebarWidth;
+    const finalListWidth =  (focusMode ||  !listOpen) ? 0 : listWidth;
+    return `calc(100vw - ${finalSidebarWidth}px - ${finalListWidth}px)`
+  }, [focusMode, listOpen, listWidth, sidebarOpen, sidebarWidth]);
 
   const {
     activeCardTag,
@@ -268,14 +283,36 @@ const ClassicLayout = memo(() => {
   }, [location, navigate]);
 
   return (
-    <div className={classnames(styles.container, { [styles.focusMode]: focusMode })}>
-      <div className={styles.sidebar}>
+    <div
+      className={classnames(styles.container, { [styles.focusMode]: focusMode })}
+    >
+      <ResizeableAndHideableSidebar
+        width={sidebarWidth}
+        open={sidebarOpen && !focusMode}
+        onWidthChange={(width) => {
+          useGlobalStateStore.setState({
+            sidebarWidth: width,
+          });
+          localStorage.setItem('sidebarWidth', width.toString());
+        }}
+        className={styles.sidebar}
+      >
         <Sidebar
           activeCardTag={activeCardTag}
           onActiveCardTagChange={onActiveCardTagChange}
         />
-      </div>
-      <div className={styles.list}>
+      </ResizeableAndHideableSidebar>
+      <ResizeableAndHideableSidebar
+        width={listWidth}
+        open={listOpen && !focusMode}
+        onWidthChange={(width) => {
+          useGlobalStateStore.setState({
+            listWidth: width,
+          });
+          localStorage.setItem('listWidth', width.toString());
+        }}
+        className={styles.list}
+      >
         <Routes>
           <Route path="/cards/" element={(
             <CardList
@@ -288,23 +325,23 @@ const ClassicLayout = memo(() => {
               selectCategory={selectCategory}
               onSelectCategoryChange={onSelectCategoryChange}
             />
-          )} />
+          )}/>
           <Route path="/articles/" element={(
             <ArticleList
               activeArticleId={activeArticleId}
               articles={articles}
               onClickArticle={handleClickArticle}
             />
-          )} />
+          )}/>
           <Route path="/documents/" element={(
-            <DocumentList />
-          )} />
+            <DocumentList/>
+          )}/>
           <Route path="/daily/" element={(
             <DailyList
               dailyNotes={dailyNotes}
               activeDailyId={activeDailyId}
             />
-          )} />
+          )}/>
           <Route path="/timeRecord/" element={(
             <TimeRecordList
               timeRecords={timeRecords}
@@ -316,19 +353,25 @@ const ClassicLayout = memo(() => {
               updateTimeRecord={updateTimeRecord}
               onClickEdit={onEditTimeRecord}
             />
-          )} />
+          )}/>
           <Route path={"/projects/"} element={(
-            <ProjectList />
-          )} />
+            <ProjectList/>
+          )}/>
         </Routes>
-      </div>
-      <div className={styles.contentArea}>
+      </ResizeableAndHideableSidebar>
+      <div
+        className={styles.contentArea}
+        style={{
+          width: contentAreaWidth,
+          flexBasis: contentAreaWidth,
+        }}
+      >
         <div className={styles.titleBar}>
           <Routes>
-            <Route path="/" element={<Titlebar />}>
+            <Route path="/" element={<Titlebar/>}>
               <Route path="cards/" element={(
-                <CardTitlebar createCard={onCreateCard} />
-              )} />
+                <CardTitlebar createCard={onCreateCard}/>
+              )}/>
               <Route path="articles/" element={(
                 <ArticleTitlebar
                   readonly={readonly}
@@ -339,13 +382,13 @@ const ClassicLayout = memo(() => {
                   createArticle={handleAddNewArticle}
                   deleteArticle={handleDeleteArticle}
                 />
-              )} />
+              )}/>
               <Route path={"documents/"} element={(
                 <DocumentTitlebar
                   createDocument={addNewDocumentItem}
                   quitEditDocument={handleQuitEditDocument}
                 />
-              )} />
+              )}/>
               <Route path={"daily/"} element={(
                 <DailyNoteTitlebar
                   createDailyNote={createNewDailyNote}
@@ -354,15 +397,15 @@ const ClassicLayout = memo(() => {
                   quitEdit={quitEditDailyNote}
                   deleteDailyNote={handleDeleteDailyNote}
                 />
-              )} />
+              )}/>
               <Route path="timeRecord/" element={(
                 <TimeRecordTitlebar
                   onCreateNewTimeRecord={onCreateNewTimeRecord}
                 />
-              )} />
+              )}/>
               <Route path={"projects/"} element={(
-                <ProjectTitlebar />
-              )} />
+                <ProjectTitlebar/>
+              )}/>
             </Route>
           </Routes>
         </div>

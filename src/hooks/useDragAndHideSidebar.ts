@@ -1,18 +1,14 @@
 import { useMemoizedFn } from "ahooks";
 import { useEffect, useRef } from "react";
-import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import { useAnimate } from "framer-motion";
 
-const useDragAndHideSidebar = () => {
-  const {
-    sidebarOpen,
-    sidebarWidth,
-  } = useGlobalStateStore(state => ({
-    sidebarOpen: state.sidebarOpen,
-    sidebarWidth: state.sidebarWidth,
-  }));
+interface UseDragAndHideSidebarProps {
+  width: number;
+  open: boolean;
+}
 
-  const first = useRef(true);
+const useDragAndHideSidebar = ({ open, width }: UseDragAndHideSidebarProps) => {
+  const firstOpen = useRef(true);
 
   const [scope, animate] = useAnimate();
 
@@ -20,36 +16,36 @@ const useDragAndHideSidebar = () => {
     if (!scope.current) return;
     if (open) {
       animate(scope.current, {
-        width: sidebarWidth,
-      })
+        width,
+      });
     } else {
       animate(scope.current, {
         width: 0,
       }, {
-        duration: first.current ? 0 : 0.3,
+        duration: firstOpen.current ? 0 : 0.3,
       })
     }
-    first.current = false;
+    firstOpen.current = false;
   });
 
   const handleSidebarWidthChange = useMemoizedFn((width: number) => {
     if (!scope.current) return;
-    if(sidebarOpen) {
+    if(open) {
       animate(scope.current, {
         width,
       }, {
         duration: 0,
-      })
+      });
     }
   });
 
   useEffect(() => {
-    handleSidebarOpenChange(sidebarOpen);
-  }, [sidebarOpen, handleSidebarOpenChange]);
+    handleSidebarOpenChange(open);
+  }, [open, handleSidebarOpenChange]);
 
   useEffect(() => {
-    handleSidebarWidthChange(sidebarWidth);
-  }, [sidebarWidth, handleSidebarWidthChange]);
+    handleSidebarWidthChange(width);
+  }, [width, handleSidebarWidthChange]);
 
   return scope;
 }

@@ -16,7 +16,13 @@ interface IDailyNoteProps {
 }
 
 const DailyNoteContent = (props: IDailyNoteProps) => {
-  const { editingDailyNote, onInit, onContentChange, readonly, saveDailyNote } = props;
+  const {
+    editingDailyNote,
+    onInit,
+    onContentChange,
+    readonly,
+    saveDailyNote
+  } = props;
 
   useRafInterval(() => {
     saveDailyNote?.();

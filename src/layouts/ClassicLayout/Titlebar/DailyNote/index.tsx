@@ -2,6 +2,8 @@ import TitlebarIcon from "@/components/TitlebarIcon";
 import { PlusOutlined, EditOutlined, ReadOutlined } from "@ant-design/icons";
 import { MdDeleteOutline } from "react-icons/md";
 import { Popover, Calendar, Button } from "antd";
+import ListOpen from '../components/ListOpen';
+import FocusMode from "../components/FocusMode";
 
 import styles from './index.module.less';
 import dayjs, { Dayjs } from "dayjs";
@@ -35,6 +37,7 @@ const DailyNote = (props: IDailyNoteProps) => {
 
   return (
     <div className={styles.iconList}>
+      <ListOpen />
       <Popover
         open={createPopoverOpen}
         onOpenChange={setCreatePopoverOpen}
@@ -57,6 +60,7 @@ const DailyNote = (props: IDailyNoteProps) => {
           <PlusOutlined />
         </TitlebarIcon>
       </Popover>
+      <FocusMode />
       <TitlebarIcon onClick={toggleReadOnly}>
         { readonly ? <EditOutlined /> : <ReadOutlined /> }
       </TitlebarIcon>

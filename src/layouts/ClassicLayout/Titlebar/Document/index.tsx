@@ -1,10 +1,8 @@
-import TitlebarIcon from "@/components/TitlebarIcon";
-
 import { PlusOutlined } from '@ant-design/icons';
 import { MdExitToApp } from "react-icons/md";
-import { MdCenterFocusWeak } from "react-icons/md";
-
-import useGlobalStateStore from "@/stores/useGlobalStateStore";
+import TitlebarIcon from "@/components/TitlebarIcon";
+import ListOpen from '../components/ListOpen';
+import FocusMode from "../components/FocusMode";
 
 import styles from './index.module.less';
 
@@ -16,24 +14,13 @@ interface IDocumentTitlebarProps {
 const Document = (props: IDocumentTitlebarProps) => {
   const { createDocument, quitEditDocument } = props;
 
-  const {
-    focusMode,
-  } = useGlobalStateStore(state => ({
-    focusMode: state.focusMode,
-  }));
-
   return (
     <div className={styles.iconList}>
+      <ListOpen />
       <TitlebarIcon onClick={createDocument}>
         <PlusOutlined />
       </TitlebarIcon>
-      <TitlebarIcon active={focusMode} onClick={() => {
-        useGlobalStateStore.setState({
-          focusMode: !focusMode,
-        });
-      }}>
-        <MdCenterFocusWeak />
-      </TitlebarIcon>
+      <FocusMode />
       <TitlebarIcon onClick={quitEditDocument}>
         <MdExitToApp />
       </TitlebarIcon>
