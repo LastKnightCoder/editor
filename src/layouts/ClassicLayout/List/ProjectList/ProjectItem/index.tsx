@@ -1,12 +1,12 @@
 import { useState, useEffect, memo } from "react";
 import classnames from 'classnames';
 import { useMemoizedFn } from "ahooks";
-import { App, Dropdown, MenuProps, Tooltip } from 'antd';
+import { App, Dropdown, MenuProps, message, Tooltip } from 'antd';
 import { produce } from "immer";
 
 import useProjectsStore from "@/stores/useProjectsStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
-import useAddRefCar from "./useAddRefCard";
+import useAddRefCard from "./useAddRefCard";
 
 import { getProjectById, getProjectItemById, updateProjectItem } from '@/commands';
 import { CreateProjectItem, type ProjectItem } from "@/types";
@@ -40,7 +40,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     onOk,
     onCancel,
     onChange,
-  } = useAddRefCar(projectItem);
+    buildCardFromProjectItem,
+  } = useAddRefCard(projectItem);
   const { modal } = App.useApp();
 
   const refresh = useMemoizedFn((projectItemId) => {
@@ -230,12 +231,19 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   });
 
   const moreMenuItems: MenuProps['items'] = [{
+    key: 'to-card',
+    label: '建立卡片',
+  }, {
     key: 'remove',
     label: '删除文档',
   }];
 
   const handleMoreMenuClick: MenuProps['onClick'] = useMemoizedFn(async ({ key }) => {
-    if (key === 'remove') {
+    if (key === 'to-card') {
+      if (!projectItem) return;
+      await buildCardFromProjectItem(projectItem);
+      message.success('成功建立卡片');
+    } else if (key === 'remove') {
       await onRemoveProjectItem();
     }
   });

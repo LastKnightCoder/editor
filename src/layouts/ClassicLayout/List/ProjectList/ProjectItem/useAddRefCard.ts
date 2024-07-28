@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { CreateProjectItem, ICard, ProjectItem } from "@/types";
+import { CreateProjectItem, ECardCategory, ICard, ICreateCard, ProjectItem } from "@/types";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import { useMemoizedFn } from "ahooks";
 import { App } from "antd";
+import { produce } from "immer";
+import { updateProjectItem } from "@/commands";
 
 const useAddRefCard = (projectItem?: ProjectItem) => {
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
@@ -20,9 +22,11 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
   }))
 
   const {
-    cards
+    cards,
+    createCard
   } = useCardsManagementStore((state) => ({
-    cards: state.cards
+    cards: state.cards,
+    createCard: state.createCard
   }));
 
   const excludeCardIds = useMemo(() => {
@@ -32,6 +36,28 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
 
   const onChange = useMemoizedFn((selectedCards: ICard[]) => {
     setSelectedCards(selectedCards);
+  });
+
+  const buildCardFromProjectItem = useMemoizedFn(async (projectItem: ProjectItem) => {
+    const { content } = projectItem;
+    const newCard: ICreateCard = {
+      content,
+      tags: [],
+      links: [],
+      category: ECardCategory.Permanent,
+    }
+    const cardId = await createCard(newCard);
+    const newProjectItem = produce(projectItem, draft => {
+      draft.refId = cardId;
+      draft.refType = 'card';
+    });
+    await updateProjectItem(newProjectItem);
+    const event = new CustomEvent('refreshProjectItem', {
+      detail: {
+        id: projectItem.id
+      },
+    })
+    document.dispatchEvent(event);
   });
 
   const onOk = useMemoizedFn(async (selectedCards: ICard[]) => {
@@ -85,6 +111,7 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
     onOk,
     onCancel,
     onChange,
+    buildCardFromProjectItem,
   }
 }
 
