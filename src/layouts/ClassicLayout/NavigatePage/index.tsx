@@ -84,6 +84,15 @@ const NavigatePage = () => {
             onClick: () => {
               navigate('/time-record');
             }
+          },
+          {
+            id: 'pdf-demo',
+            children: 'PDF Demo',
+            keywords: ['pdf', 'PDF'],
+            closeOnSelect: true,
+            onClick: () => {
+              navigate('/pdf-demo');
+            }
           }
         ],
       },

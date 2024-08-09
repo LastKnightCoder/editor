@@ -1,0 +1,10 @@
+.pdf-highlight-layer {
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
+    background-color: rgba(0, 0, 0, 0.05);
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}

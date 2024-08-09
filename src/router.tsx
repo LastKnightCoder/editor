@@ -4,6 +4,7 @@ import loadable from "@loadable/component";
 import ClassicLayout from "@/layouts/ClassicLayout";
 import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
+import PDFDemo from "@/pages/PDF";
 
 const Statistic = loadable(() => import('@/pages/Statistic'));
 
@@ -16,6 +17,9 @@ const classicRoutes = [{
 }, {
   path: '/statistic',
   element: <Statistic/>,
+}, {
+  path: '/pdf-demo',
+  element: <PDFDemo />,
 }, {
   path: '/*',
   element: <ClassicLayout />,

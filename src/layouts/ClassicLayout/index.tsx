@@ -10,6 +10,7 @@ import CardList from './List/CardList';
 import CardContent from './Content/Card';
 import CardTitlebar from "./Titlebar/Card";
 import SettingModal from "./SettingModal";
+import NavigatePage from "./NavigatePage";
 import EditRecordModal from "@/components/EditRecordModal";
 import ResizeableAndHideableSidebar from '@/components/ResizableAndHideableSidebar';
 
@@ -474,6 +475,7 @@ const ClassicLayout = memo(() => {
         onCancel={onEditTimeRecordCancel}
       />
       <SettingModal />
+      <NavigatePage />
     </div>
   )
 });

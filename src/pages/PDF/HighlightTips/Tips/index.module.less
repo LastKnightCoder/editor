@@ -1,0 +1,88 @@
+.notesTipContainer {
+  position: relative;
+  padding: 12px;
+  border-radius: 12px;
+  background-color: #F4F5F7;
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
+  .title {
+    color: #333333;
+    text-align: center;
+    line-height: 24px;
+  }
+  .textStyleSelect {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background-color: #fff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    .selectContainer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      .styleItem {
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid transparent;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+    }
+    .verticalLine {
+      width: 1px;
+      height: 24px;
+      background-color: #F4F5F7;
+      margin: 0 16px;
+    }
+    .colorContainer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      .colorItem {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+      }
+    }
+  }
+  .noteContainer {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    .noteItem {
+      padding: 12px;
+      background-color: white;
+      box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+    }
+  }
+  .leftArrow {
+    background-color: transparent;
+    position: absolute;
+    top: 50%;
+    left: -16px;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border: 8px solid transparent;
+    border-right: 8px solid #F4F5F7;
+    z-index: 1;
+    filter: drop-shadow(0 2px 4px 0 rgba(0, 0, 0, 0.08));
+  }
+  .closeArea {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
