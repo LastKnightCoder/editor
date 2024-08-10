@@ -4,17 +4,45 @@ import * as pdfjsViewer from 'pdfjs-dist/web/pdf_viewer.mjs';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import 'pdfjs-dist/build/pdf.worker.min.mjs';
 import HighlightManager from "./HighlightManager.tsx";
+import AreaSelect from "./AreaSelect";
 import useMouseSelection from './useMouseSelection.ts';
-import optimizeClientRects from './utils/optimizeClientRects.ts';
-import './index.css';
-import { EHighlightColor, EHighlightTextStyle, EHighlightType } from "@/pages/PDF/constants";
+import { optimizeClientRects, transformToRelativeRect, transformToPercentRect, transformToRelativePercentRect } from './utils';
 import { v4 as getUUid } from 'uuid';
-import PortalToBody from "@/components/PortalToBody";
-import HighlightTips from './HighlightTips';
+import './index.css';
+import { EHighlightColor, EHighlightTextStyle, EHighlightType } from "./constants";
+import { useMemoizedFn } from "ahooks";
+import { Rect } from "./types.ts";
 
 const PDFDemo = () => {
   const highlightManager = useRef<HighlightManager | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+
+  const onAreaSelectStart = useMemoizedFn(() => {
+    highlightManager.current?.setTextLayerSelectable(false);
+  });
+
+  const onAreaSelectEnd = useMemoizedFn((rect: Rect, pageNum) => {
+    highlightManager.current?.setTextLayerSelectable(true);
+
+    if (highlightManager.current) {
+      const pageRect = highlightManager.current.getPageRect(pageNum);
+      if (!pageRect) return;
+      highlightManager.current.addHighlight(pageNum, {
+        boundingClientRect: {
+          ...transformToRelativePercentRect(rect, pageRect),
+          pageNum,
+        },
+        rects: [],
+        color: EHighlightColor.Red,
+        highlightTextStyle: EHighlightTextStyle.Highlight,
+        id: getUUid(),
+        type: EHighlightType.Area,
+        pageNumber: pageNum,
+        notes: [],
+      });
+      highlightManager.current.renderHighlights(pageNum);
+    }
+  });
 
   useMouseSelection({
     onSelectEnd: () => {
@@ -26,35 +54,27 @@ const PDFDemo = () => {
         const boundClientRect = range.getBoundingClientRect();
         const startPage = start?.closest('.page') as HTMLElement | null;
         const endPage = end?.closest('.page') as HTMLElement | null;
-        if (startPage && endPage && boundClientRect.width > 1) {
+        if (startPage && endPage && boundClientRect.width > 1 && boundClientRect.height > 1 && startPage.dataset.pageNumber === endPage.dataset.pageNumber) {
           const pageNum = Number(startPage.dataset.pageNumber);
           const rects = range.getClientRects();
           const boundClientRect = range.getBoundingClientRect()
           const pageRect = startPage.getBoundingClientRect();
           let relativeRects: any[] = Array.from(rects).map(rect => {
             return {
-              top: rect.top - pageRect.top,
-              left: rect.left - pageRect.left,
-              width: rect.width,
-              height: rect.height,
+              ...transformToRelativeRect(rect, pageRect),
               pageNum,
             }
           }).filter(rect=> rect.width > 0);
           relativeRects = optimizeClientRects(relativeRects);
           relativeRects = relativeRects.map(rect => ({
-            top: `${rect.top / pageRect.height * 100}%`,
-            left: `${rect.left / pageRect.width * 100}%`,
-            width: `${rect.width / pageRect.width * 100}%`,
-            height: `${rect.height / pageRect.height * 100}%`,
+            ...transformToPercentRect(rect, pageRect),
             pageNum,
           }));
           if (highlightManager.current) {
             highlightManager.current.addHighlight(pageNum, {
               boundingClientRect: {
-                top: `${boundClientRect.top / pageRect.height * 100}%`,
-                left: `${boundClientRect.left / pageRect.width * 100}%`,
-                width: `${boundClientRect.width / pageRect.width * 100}%`,
-                height: `${boundClientRect.height / pageRect.height * 100}%`,
+                ...transformToRelativePercentRect(boundClientRect, pageRect),
+                pageNum,
               },
               rects: relativeRects,
               color: EHighlightColor.Pink,
@@ -111,42 +131,10 @@ const PDFDemo = () => {
       ref={pdfContainerRef}
     >
       <div className={'pdfViewer'}></div>
-      <PortalToBody>
-        <HighlightTips
-          open
-          highlight={{
-            boundingClientRect: {
-              top: '10%',
-              left: '10%',
-              width: '80%',
-              height: '80%',
-            },
-            color: EHighlightColor.Purple,
-            highlightTextStyle: EHighlightTextStyle.Underline,
-            id: '1',
-            notes: [],
-            pageNumber: 1,
-            rects: [
-              {
-                top: '10%',
-                left: '10%',
-                width: '80%',
-                height: '80%',
-              }
-            ],
-            type: EHighlightType.Text,
-          }}
-          onHighlightChange={() => {}}
-          onClose={() => {}}
-          removeHighlight={() => {}}
-          style={{
-            position: 'fixed',
-            left: 100,
-            top: 100,
-            zIndex: 3
-          }}
-        />
-      </PortalToBody>
+      <AreaSelect
+        onSelectStart={onAreaSelectStart}
+        onSelectFinish={onAreaSelectEnd}
+      />
     </div>
   )
 }

@@ -32,7 +32,19 @@ class HighlightManager {
     this.viewer.eventBus.off('textlayerrendered', this.handleTextLayerRendered.bind(this))
   }
 
-  handleTextLayerRendered() {
+  getPageRect(pageNumber: number): DOMRect | null {
+    const page = this.viewer.getPageView(pageNumber - 1);
+    if (!page) return null;
+    const { textLayer } = page;
+    if (!textLayer) return null;
+    const { div: textLayerEle } = textLayer;
+    if (!textLayerEle) return null;
+    const pageEle = (textLayerEle as HTMLElement).closest('.page') as HTMLElement | null;
+    if (!pageEle) return null;
+    return pageEle.getBoundingClientRect();
+  }
+
+  private handleTextLayerRendered() {
     const numPages = this.pdfDocument.numPages;
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
       const highlightLayer = this.highlightLayers.get(pageNum);
@@ -70,6 +82,20 @@ class HighlightManager {
     }
   }
 
+  updateHighlight(pageNumber: number, highlightId: string, highlight: Highlight) {
+    const highlights = this.highlights.get(pageNumber);
+    if (highlights) {
+      const index = highlights.findIndex((highlight) => highlight.id === highlightId);
+      if (index !== -1) {
+        highlights[index] = highlight;
+      }
+    }
+  }
+
+  setTextLayerSelectable(selectable: boolean) {
+    this.viewer.viewer?.classList.toggle('disable-selection', !selectable);
+  }
+
   getHighlights(pageNumber: number): Array<Highlight> {
     return this.highlights.get(pageNumber) || [];
   }
@@ -82,14 +108,6 @@ class HighlightManager {
     return undefined;
   }
 
-  handleClickHighlight(pageNumber: number, highlightId: string) {
-    const highlight = this.getHighLightById(pageNumber, highlightId);
-    if (!highlight) {
-      return;
-    }
-    // const { boundingClientRect } = highlight;
-  }
-
   renderHighlights(pageNumber: number) {
     const highlights = this.highlights.get(pageNumber);
     if (!highlights) return;
@@ -100,7 +118,18 @@ class HighlightManager {
       <For
         data={highlights}
         renderItem={highlight => (
-          <HighlightNode highlight={highlight} key={highlight.id} onClick={() => this.handleClickHighlight(pageNumber, highlight.id)} />
+          <HighlightNode
+            highlight={highlight}
+            key={highlight.id}
+            onHighlightChange={(highlight) => {
+              this.updateHighlight(pageNumber, highlight.id, highlight);
+              this.renderHighlights(pageNumber);
+            }}
+            onRemoveHighlight={() => {
+              this.removeHighlight(pageNumber, highlight.id);
+              this.renderHighlights(pageNumber);
+            }}
+          />
         )}
       />
     ))

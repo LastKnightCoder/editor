@@ -1,6 +1,6 @@
-import type { LTWHP } from "../types.ts";
+import type { RectWithPageNumber } from "../types.ts";
 
-const sort = (rects: Array<LTWHP>) =>
+const sort = (rects: Array<RectWithPageNumber>) =>
   rects.sort((A, B) => {
     const top = (A.pageNumber || 0) * A.top - (B.pageNumber || 0) * B.top;
 
@@ -11,24 +11,24 @@ const sort = (rects: Array<LTWHP>) =>
     return top;
   });
 
-const overlaps = (A: LTWHP, B: LTWHP) =>
+const overlaps = (A: RectWithPageNumber, B: RectWithPageNumber) =>
   A.pageNumber === B.pageNumber &&
   A.left <= B.left &&
   B.left <= A.left + A.width;
 
-const sameLine = (A: LTWHP, B: LTWHP, yMargin = 5) =>
+const sameLine = (A: RectWithPageNumber, B: RectWithPageNumber, yMargin = 5) =>
   A.pageNumber === B.pageNumber &&
   Math.abs(A.top - B.top) < yMargin &&
   Math.abs(A.height - B.height) < yMargin;
 
-const inside = (A: LTWHP, B: LTWHP) =>
+const inside = (A: RectWithPageNumber, B: RectWithPageNumber) =>
   A.pageNumber === B.pageNumber &&
   A.top > B.top &&
   A.left > B.left &&
   A.top + A.height < B.top + B.height &&
   A.left + A.width < B.left + B.width;
 
-const nextTo = (A: LTWHP, B: LTWHP, xMargin = 10) => {
+const nextTo = (A: RectWithPageNumber, B: RectWithPageNumber, xMargin = 10) => {
   const Aright = A.left + A.width;
   const Bright = B.left + B.width;
 
@@ -40,12 +40,12 @@ const nextTo = (A: LTWHP, B: LTWHP, xMargin = 10) => {
   );
 };
 
-const extendWidth = (A: LTWHP, B: LTWHP) => {
+const extendWidth = (A: RectWithPageNumber, B: RectWithPageNumber) => {
   // extend width of A to cover B
   A.width = Math.max(B.width - A.left + B.left, A.width);
 };
 
-const optimizeClientRects = (clientRects: Array<LTWHP>): Array<LTWHP> => {
+export const optimizeClientRects = (clientRects: Array<RectWithPageNumber>): Array<RectWithPageNumber> => {
   const rects = sort(clientRects);
 
   const toRemove = new Set();
@@ -89,4 +89,3 @@ const optimizeClientRects = (clientRects: Array<LTWHP>): Array<LTWHP> => {
   return firstPass.filter((rect) => !toRemove.has(rect));
 };
 
-export default optimizeClientRects;

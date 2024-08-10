@@ -1,9 +1,14 @@
 .notesTipContainer {
   position: relative;
-  padding: 12px;
   border-radius: 12px;
   background-color: #F4F5F7;
   box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+  .strictHeight {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 24px;
+  }
   .title {
     color: #333333;
     text-align: center;
@@ -46,6 +51,7 @@
         height: 20px;
         border-radius: 50%;
         border: 2px solid transparent;
+        cursor: pointer;
       }
     }
   }
@@ -55,34 +61,91 @@
     flex-direction: column;
     gap: 8px;
     .noteItem {
-      padding: 12px;
+      position: relative;
+      padding: 24px;
       background-color: white;
       box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08);
       border-radius: 8px;
+      .editor > [class*="container"]:last-child > p {
+        margin-bottom: 0;
+      }
+      &:hover {
+        box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.08), 0 0 0 2px #F4F5F7;
+        .editorIcons {
+          display: flex;
+        }
+      }
+      .editorIcons {
+        position: absolute;
+        top: 6px;
+        right: 12px;
+        display: none;
+        gap: 4px;
+        .icon {
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+      }
     }
   }
-  .leftArrow {
-    background-color: transparent;
+  .arrow {
     position: absolute;
-    top: 50%;
-    left: -16px;
-    transform: translateY(-50%);
+    z-index: 1;
+    filter: drop-shadow(0 2px 4px 0 rgba(0, 0, 0, 0.08));
     width: 0;
     height: 0;
     border: 8px solid transparent;
-    border-right: 8px solid #F4F5F7;
-    z-index: 1;
-    filter: drop-shadow(0 2px 4px 0 rgba(0, 0, 0, 0.08));
+    &.left {
+      left: -16px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-right: 8px solid #F4F5F7;
+    }
+    &.right {
+      right: -16px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-left: 8px solid #F4F5F7;
+    }
+    &.top {
+      top: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-bottom: 8px solid #F4F5F7;
+    }
+    &.bottom {
+      bottom: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-top: 8px solid #F4F5F7;
+    }
   }
-  .closeArea {
+  .icons {
     position: absolute;
-    top: 12px;
-    right: 12px;
-    cursor: pointer;
-    width: 24px;
-    height: 24px;
+    top: 24px;
+    right: 24px;
     display: flex;
+    gap: 12px;
     align-items: center;
-    justify-content: center;
+    .deleteArea {
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .closeArea {
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   }
 }

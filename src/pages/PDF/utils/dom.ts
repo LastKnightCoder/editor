@@ -12,4 +12,3 @@ export const findOrCreateHighlightLayer = (pageNum: number, viewer: PDFViewer) =
   }
   return highlightLayer;
 }
-
