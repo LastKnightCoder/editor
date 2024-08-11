@@ -297,4 +297,8 @@
 
 ## v0.7.1
 
-- feat: Github Actions 编译报错
+- fix: Github Actions 编译报错
+
+## v0.7.2
+
+- fix: Github Actions 编译报错，删除 Cargo.lock
