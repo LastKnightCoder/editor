@@ -293,3 +293,8 @@
 ## v0.7.0
 
 - feat: 支持 PDF 高亮标注笔记
+
+
+## v0.7.1
+
+- feat: Github Actions 编译报错
