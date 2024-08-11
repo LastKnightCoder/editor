@@ -13,8 +13,7 @@ import NoteEditView from "../NoteEditView";
 import { CloseOutlined, HighlightOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { MdOutlineWaves, MdOutlineTextFormat } from "react-icons/md";
 
-import { EHighlightColor, EHighlightTextStyle } from "../../constants";
-import { Highlight, Note } from '../../types.ts';
+import { EHighlightColor, EHighlightTextStyle, PdfHighlight, Note } from "@/types";
 
 import styles from './index.module.less';
 import { DndProvider } from "react-dnd";
@@ -23,10 +22,10 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 interface TipsProps {
   activeHighlightTextStyle: EHighlightTextStyle;
   activeColor: EHighlightColor;
-  notes: Highlight['notes'];
+  notes: PdfHighlight['notes'];
   onSelectTextStyle?: (textStyle: EHighlightTextStyle) => void;
   onSelectColor?: (color: EHighlightColor) => void;
-  onNotesChange?: (notes: Highlight['notes']) => void;
+  onNotesChange?: (notes: PdfHighlight['notes']) => void;
   onClose?: () => void;
   onRemove?: () => void;
   arrowDirection?: 'left' | 'right' | 'top' | 'bottom';

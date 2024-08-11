@@ -4,7 +4,7 @@ import { useMemoizedFn } from "ahooks";
 import Editor from "@/components/Editor";
 import { Descendant } from "slate";
 
-import { Note } from '../../types.ts';
+import { Note } from '@/types';
 
 import styles from './index.module.less';
 

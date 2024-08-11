@@ -1,22 +1,4 @@
-export enum EHighlightType {
-  Text = 'text',
-  Area = 'area',
-}
-
-export enum EHighlightTextStyle {
-  Highlight = 'highlight',
-  Underline = 'underline',
-  Wave = 'wave',
-}
-
-export enum EHighlightColor {
-  Red = 'red',
-  Blue = 'blue',
-  Green = 'green',
-  Yellow = 'yellow',
-  Purple = 'purple',
-  Pink = 'pink',
-}
+import { EHighlightColor } from "@/types";
 
 export const HIGHLIGHT_COLOR_CLASS_NAMES = {
   [EHighlightColor.Red]: 'pdf-highlight-red',

@@ -11,3 +11,4 @@ export * from './time_record.ts';
 export * from './project.ts';
 export * from './database';
 export * from './file.ts';
+export * from './pdf.ts';

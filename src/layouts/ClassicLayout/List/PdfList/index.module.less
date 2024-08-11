@@ -1,0 +1,19 @@
+.list {
+  padding: 12px;
+  box-sizing: border-box;
+  height: 100%;
+  overflow-y: auto;
+}
+.item {
+  box-shadow: 0 0 4px 0 var(--line-color);
+  border-radius: 8px;
+  padding: 8px;
+  border: 1px solid var(--line-color);
+  cursor: pointer;
+  &.active {
+    background-color: var(--active-bg-color);
+  }
+  &:hover:not(.active) {
+    background-color: var(--common-hover-bg);
+  }
+}

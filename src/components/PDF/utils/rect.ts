@@ -1,4 +1,4 @@
-import { Rect, RectPercent } from "../types.ts";
+import { Rect, RectPercent } from "@/types";
 
 export const transformToRelativeRect = (rect: Rect, pageRect: Rect) => {
   return {

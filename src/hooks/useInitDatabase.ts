@@ -5,6 +5,7 @@ import useDocumentsStore from "@/stores/useDocumentsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import useProjectsStore from "@/stores/useProjectsStore";
+import usePdfsStore from "@/stores/usePdfsStore.ts";
 
 const useInitDatabase = () => {
   const {
@@ -43,6 +44,12 @@ const useInitDatabase = () => {
     initProjects: state.init
   }));
 
+  const {
+    initPdfs
+  } = usePdfsStore(state => ({
+    initPdfs: state.initPdfs
+  }));
+
   const initDatabase = useMemoizedFn(async () => {
     await Promise.all([
       initArticles(),
@@ -51,6 +58,7 @@ const useInitDatabase = () => {
       initDailyNotes(),
       initTimeRecords(),
       initProjects(),
+      initPdfs(),
     ]);
   });
 

@@ -81,6 +81,16 @@ use commands::{
     get_project_items_not_in_any_project,
     delete_project_items_not_in_any_project,
     show_in_folder,
+    add_pdf,
+    get_pdf_by_id,
+    get_pdf_list,
+    update_pdf,
+    remove_pdf,
+    add_highlight,
+    update_highlight,
+    remove_highlight,
+    get_highlights,
+    get_highlight_by_id,
 };
 
 fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
@@ -95,7 +105,6 @@ fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
             .fullscreen(false)
             .resizable(true)
             .always_on_top(true)
-            .transparent(true)
             .disable_file_drop_handler()
             .build()
             .unwrap();
@@ -226,6 +235,16 @@ fn main() {
             get_project_items_not_in_any_project,
             delete_project_items_not_in_any_project,
             show_in_folder,
+            add_pdf,
+            get_pdf_by_id,
+            get_pdf_list,
+            update_pdf,
+            remove_pdf,
+            add_highlight,
+            update_highlight,
+            remove_highlight,
+            get_highlights,
+            get_highlight_by_id,
         ])
       .run(tauri::generate_context!())
       .expect("error while running tauri application");

@@ -1,4 +1,4 @@
-import type { RectWithPageNumber } from "../types.ts";
+import type { RectWithPageNumber } from "@/types";
 
 const sort = (rects: Array<RectWithPageNumber>) =>
   rects.sort((A, B) => {

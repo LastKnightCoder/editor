@@ -6,15 +6,15 @@ import For from "@/components/For";
 import If from "@/components/If";
 import HighlightTips from "../HighlightTips";
 
-import { EHighlightType, HIGHLIGHT_COLOR_CLASS_NAMES } from '../constants';
-import { Highlight } from '../types.ts';
+import {  HIGHLIGHT_COLOR_CLASS_NAMES } from '../constants';
+import { EHighlightType, PdfHighlight } from '@/types'
 
 import styles from './index.module.less';
 
 interface HighlightProps {
-  highlight: Highlight;
+  highlight: PdfHighlight;
   onRemoveHighlight?: () => void;
-  onHighlightChange?: (highlight: Highlight) => void;
+  onHighlightChange?: (highlight: PdfHighlight) => void;
 }
 
 const transformPercent = (value: string) => {
@@ -29,19 +29,21 @@ const HighlightNode = (props: HighlightProps) => {
   const { rects, color, boundingClientRect } = highlight;
 
   const onClickHighlight = useMemoizedFn(() => {
-    setTipsOpen(true);
+    setTipsOpen(!tipsOpen);
   });
 
   const onCloseTip = useMemoizedFn(() => {
     setTipsOpen(false);
   });
 
-  const highlightTipLeft = `${transformPercent(boundingClientRect.left) + transformPercent(boundingClientRect.width) / 2}%`;
-  const highlightTipTop = `calc(${transformPercent(boundingClientRect.top)}% - 10px)`;
+  const highlightTipLeft = `calc(${transformPercent(boundingClientRect.left) + transformPercent(boundingClientRect.width)}% + 20px)`;
+  const highlightTipTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height) / 2}%)`;
+
+  console.log(boundingClientRect, highlightTipLeft, highlightTipTop);
 
   return (
     <>
-      <If condition={highlight.type === EHighlightType.Text}>
+      <If condition={highlight.highlightType === EHighlightType.Text}>
         <For
           data={rects}
           renderItem={(rect, index) => (
@@ -59,7 +61,7 @@ const HighlightNode = (props: HighlightProps) => {
           )}
         />
       </If>
-      <If condition={highlight.type === EHighlightType.Area}>
+      <If condition={highlight.highlightType === EHighlightType.Area}>
         <div
           className={classnames(styles[HIGHLIGHT_COLOR_CLASS_NAMES[color]], styles.highlightRect, styles.area)}
           style={{
@@ -77,10 +79,10 @@ const HighlightNode = (props: HighlightProps) => {
           left: highlightTipLeft,
           top: highlightTipTop,
           pointerEvents: 'auto',
-          transform: 'translate(-50%, -100%)',
+          transform: 'translate(0%, -50%)',
           zIndex: 1
         }}
-        arrowDirection={'bottom'}
+        arrowDirection={'left'}
         open={tipsOpen}
         highlight={highlight}
         onHighlightChange={onHighlightChange}

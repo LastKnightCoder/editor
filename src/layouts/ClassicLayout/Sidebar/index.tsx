@@ -34,6 +34,7 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import useProjectsStore from "@/stores/useProjectsStore";
+import usePdfsStore from "@/stores/usePdfsStore.ts";
 
 
 import styles from './index.module.less';
@@ -45,6 +46,7 @@ enum EListItem {
   Projects = 'projects',
   Daily = 'daily',
   TimeRecord = 'timeRecord',
+  Pdf = 'pdf'
 }
 
 interface ISidebarProps {
@@ -111,6 +113,12 @@ const Sidebar = memo((props: ISidebarProps) => {
   } = useTimeRecordStore(state => ({
     timeRecords: state.timeRecords,
   }));
+
+  const {
+    pdfs,
+  } = usePdfsStore(state => ({
+    pdfs: state.pdfs
+  }))
 
   const {
     projects,
@@ -355,6 +363,17 @@ const Sidebar = memo((props: ISidebarProps) => {
           count={articles.length}
           onClickTitle={() => {
             navigate('/articles');
+          }}
+          showArrow={false}
+        />
+        <ExpandList
+          active={activeItem === EListItem.Pdf}
+          title={'PDF'}
+          expand={false}
+          titleIcon={<SVG src={article} /> }
+          count={pdfs.length}
+          onClickTitle={() => {
+            navigate('/pdf');
           }}
           showArrow={false}
         />

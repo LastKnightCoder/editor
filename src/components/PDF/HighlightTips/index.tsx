@@ -4,15 +4,13 @@ import Tips from './Tips';
 
 import { Modal } from 'antd';
 import { useMemoizedFn } from 'ahooks';
-
-import { Highlight } from "../types.ts";
-import { EHighlightColor, EHighlightTextStyle } from "../constants";
+import { PdfHighlight, EHighlightColor, EHighlightTextStyle } from '@/types';
 
 interface HighlightProps {
   open: boolean;
   arrowDirection?: 'left' | 'right' | 'top' | 'bottom';
-  highlight: Highlight;
-  onHighlightChange?: (highlight: Highlight) => void;
+  highlight: PdfHighlight;
+  onHighlightChange?: (highlight: PdfHighlight) => void;
   removeHighlight?: () => void;
   onClose?: () => void;
   className?: string;
@@ -31,7 +29,7 @@ const HighlightTips = (props: HighlightProps) => {
     style
   } = props;
 
-  const onNotesChange = useMemoizedFn((notes: Highlight['notes']) => {
+  const onNotesChange = useMemoizedFn((notes: PdfHighlight['notes']) => {
     const newHighlight = produce(highlight, (draft) => {
       draft.notes = notes;
     });

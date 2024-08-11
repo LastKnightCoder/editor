@@ -39,18 +39,21 @@ const DocumentList = loadable(() => import('./List/DocumentList'));
 const DailyList = loadable(() => import('./List/DailyList'));
 const TimeRecordList = loadable(() => import('./List/TimeRecord'));
 const ProjectList = loadable(() => import('./List/ProjectList'));
+const PdfList = loadable(() => import('./List/PdfList'));
 
 const ArticleContent = loadable(() => import('./Content/Article'));
 const DocumentContent = loadable(() => import('./Content/Document'));
 const DailyNoteContent = loadable(() => import('./Content/DailyNote'));
 const TimeRecordContent = loadable(() => import('./Content/TimeRecord'));
 const ProjectContent = loadable(() => import('./Content/Project'));
+const PdfContent = loadable(() => import('./Content/Pdf'));
 
 const ArticleTitlebar = loadable(() => import('./Titlebar/Article'));
 const DocumentTitlebar = loadable(() => import('./Titlebar/Document'));
 const DailyNoteTitlebar = loadable(() => import('./Titlebar/DailyNote'));
 const TimeRecordTitlebar = loadable(() => import('./Titlebar/TimeRecord'));
 const ProjectTitlebar = loadable(() => import('./Titlebar/Project'));
+const PdfTitlebar = loadable(() => import('./Titlebar/Pdf'));
 
 const ClassicLayout = memo(() => {
   const {
@@ -358,6 +361,9 @@ const ClassicLayout = memo(() => {
           <Route path={"/projects/"} element={(
             <ProjectList/>
           )}/>
+          <Route path={"/pdf"} element={(
+            <PdfList />
+          )} />
         </Routes>
       </ResizeableAndHideableSidebar>
       <div
@@ -407,6 +413,9 @@ const ClassicLayout = memo(() => {
               <Route path={"projects/"} element={(
                 <ProjectTitlebar/>
               )}/>
+              <Route path={"pdf"} element={(
+                <PdfTitlebar />
+              )} />
             </Route>
           </Routes>
         </div>
@@ -462,6 +471,9 @@ const ClassicLayout = memo(() => {
             )} />
             <Route path={'/projects/'} element={(
               <ProjectContent />
+            )} />
+            <Route path={'/pdf'} element={(
+              <PdfContent />
             )} />
           </Routes>
         </div>

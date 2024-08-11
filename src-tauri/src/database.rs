@@ -9,6 +9,7 @@ pub mod daily_note;
 pub mod document;
 pub mod time_record;
 pub mod project;
+pub mod pdf;
 
 use self::card::{init_card_table, upgrade_card_table};
 use self::article::{init_article_table, upgrade_article_table};
@@ -18,6 +19,7 @@ use self::daily_note::{init_daily_note_table, upgrade_daily_note_table};
 use self::document::{init_document_table, init_document_item_table, upgrade_document_table, upgrade_document_items_table};
 use self::time_record::init_time_record_table;
 use self::project::{init_project_table, init_project_item_table, upgrade_project_table};
+use self::pdf::{init_pdf_table, init_pdf_highlight_table};
 
 pub fn init_database(database_name: &str) -> Result<Connection, rusqlite::Error> {
     let home_dir = home_dir().unwrap();
@@ -50,6 +52,8 @@ fn init_tables(conn: &Connection) -> Result<()> {
     init_time_record_table(conn)?;
     init_project_table(conn)?;
     init_project_item_table(conn)?;
+    init_pdf_table(conn)?;
+    init_pdf_highlight_table(conn)?;
     Ok(())
 }
 

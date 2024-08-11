@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import PortalToBody from "@/components/PortalToBody";
-import { Rect } from '../types.ts';
+import { Rect } from '@/types';
 
 interface Point {
   x: number;
