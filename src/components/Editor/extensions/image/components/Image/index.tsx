@@ -16,7 +16,7 @@ import { ImageElement } from "@/components/Editor/types";
 import styles from './index.module.less';
 import UploadTab from "../UploadTab";
 import classnames from "classnames";
-import {MdDragIndicator} from "react-icons/md";
+import { MdDragIndicator } from "react-icons/md";
 
 interface IImageProps {
   attributes: RenderElementProps['attributes'];
