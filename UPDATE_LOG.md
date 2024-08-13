@@ -302,3 +302,7 @@
 ## v0.7.2
 
 - fix: Github Actions 编译报错，删除 Cargo.lock
+
+## v0.7.3
+
+- fix: MacOS PDF 无法打开的问题
