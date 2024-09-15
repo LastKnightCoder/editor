@@ -32,7 +32,7 @@ const ImagesOverview = () => {
     <div>
       <PortalToBody>
         <div className={styles.container}>
-          <div className={styles.mask}></div>
+          <div className={styles.mask} onClick={closeImagesOverview}></div>
           <div className={styles.imageContainer} onClick={closeImagesOverview}>
             <img className={styles.image} src={imageElements[currentImageIndex].url} alt={imageElements[currentImageIndex].alt}/>
           </div>

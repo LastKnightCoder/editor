@@ -21,7 +21,10 @@ const uploadImageInner = async (imageBed: any, file: File) => {
     }
   } else if (imageBed.active === EImageBed.AliOSS) {
     const fileName = file.name;
-    const objectName = fileName.split('.')[0] + '_' + uuid() + '.' + fileName.split('.')[1];
+    const all = fileName.split('.');
+    const other = all.slice(0, all.length - 1);
+    const extension = all[all.length - 1];
+    const objectName = other.join('.') + '_' + uuid() + '.' + extension;
     try {
       return await putObject({
         ...aliOSSInfo,

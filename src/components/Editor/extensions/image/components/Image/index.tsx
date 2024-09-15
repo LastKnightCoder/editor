@@ -1,13 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Popover, Spin } from "antd";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { useClickAway } from "ahooks";
+import { useAsyncEffect, useClickAway } from "ahooks";
 import { DeleteOutlined, FileImageOutlined, FullscreenOutlined } from '@ant-design/icons';
+import { convertFileSrc } from '@tauri-apps/api/tauri';
 
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
-import useSettingStore from "@/stores/useSettingStore.ts";
-import { uploadFileFromFile, transformGithubUrlToCDNUrl } from '@/utils';
+import { remoteResourceToLocal } from '@/utils';
+import { uploadImage } from "@/hooks/useUploadImage.ts";
 
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { useImagesOverviewStore } from "@/components/Editor/stores";
@@ -43,6 +44,19 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const fileUploadRef = useRef<HTMLInputElement>(null);
   const [showUploadTab, setShowUploadTab] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const [isFileLoading, setIsFileLoading] = useState(true);
+  const [previewUrl, setPreviewUrl] = useState(url);
+
+  useAsyncEffect(async () => {
+    setIsFileLoading(true);
+    try {
+      const localUrl = await remoteResourceToLocal(url);
+      const filePath = convertFileSrc(localUrl);
+      setPreviewUrl(filePath);
+    } finally {
+      setIsFileLoading(false);
+    }
+  }, [url]);
 
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -50,32 +64,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { showImageOverview } = useImagesOverviewStore(state => ({
     showImageOverview: state.showImageOverview,
   }));
-  const { github } = useSettingStore(state => ({
-    github: state.setting.imageBed.github,
-  }));
-
-  const previewUrl = useMemo(() => {
-    return url
-      .replace('https://cdn.staticaly.com', 'https://jsd.cdn.zzko.cn')
-      .replace('https://cdn.jsdelivr.net', 'https://jsd.cdn.zzko.cn');
-  }, [url])
 
   useClickAway(() => {
     setShowUploadTab(false);
   }, popoverRef);
-
-  useEffect(() => {
-    // 这个 CDN 地址失效了，需要替换
-    if (url.startsWith('https://cdn.staticaly.com') || url.startsWith("https://cdn.jsdelivr.net")) {
-      const path = ReactEditor.findPath(editor, element);
-      const replacedUrl = url.replace('https://cdn.staticaly.com', 'https://jsd.cdn.zzko.cn').replace('https://cdn.jsdelivr.net', 'https://jsd.cdn.zzko.cn');
-      Transforms.setNodes(editor, {
-        url: replacedUrl,
-      }, {
-        at: path
-      });
-    }
-  }, [url, editor, element]);
 
   const showOverView = () => {
     showImageOverview(element, editor);
@@ -123,16 +115,15 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     }
     const path = ReactEditor.findPath(editor, element);
     const file = files[0];
-    const uploadRes = await uploadFileFromFile(file, github) as any;
+    const uploadRes = await uploadImage(file);
+    console.log('uploadRes', uploadRes);
     if (!uploadRes) {
       setUploading(false);
       event.target.value = '';
       return;
     }
-    const { content: { download_url } } = uploadRes;
-    const cdnUrl = transformGithubUrlToCDNUrl(download_url, github.branch);
     Transforms.setNodes(editor, {
-      url: cdnUrl,
+      url: uploadRes,
     }, {
       at: path
     });
@@ -193,6 +184,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     } else {
       return renderUpload();
     }
+  }
+
+  if (isFileLoading) {
+    return null;
   }
 
   return (

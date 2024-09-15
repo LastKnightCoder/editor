@@ -1,3 +1,4 @@
+import React from 'react';
 import classnames from 'classnames';
 import { HighlightColor } from "@/components/Editor/types";
 import styles from './index.module.less';
