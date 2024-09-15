@@ -10,7 +10,7 @@ const ListOpen = () => {
   }));
 
   return (
-    <TitlebarIcon onClick={() => {
+    <TitlebarIcon tip={listOpen ? '收起列表' : '打开列表'} onClick={() => {
       useGlobalStateStore.setState({
         listOpen: !listOpen,
       })

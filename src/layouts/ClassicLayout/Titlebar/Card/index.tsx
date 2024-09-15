@@ -1,7 +1,6 @@
 import TitlebarIcon from "@/components/TitlebarIcon";
 import { PlusOutlined, FileMarkdownOutlined } from "@ant-design/icons";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";
-import { Tooltip } from 'antd';
 import ListOpen from '../components/ListOpen';
 import FocusMode from "../components/FocusMode";
 
@@ -29,21 +28,19 @@ const Card = (props: ICardProps) => {
   return (
     <div className={styles.iconList}>
       <ListOpen />
-      <TitlebarIcon onClick={createCard}>
+      <TitlebarIcon onClick={createCard} tip={'新建卡片'}>
         <PlusOutlined />
       </TitlebarIcon>
       <FocusMode />
-      <Tooltip title={'导出 Markdown'} trigger={'hover'}>
-        <TitlebarIcon onClick={() => {
-          if (!activeId) return;
-          const event = new CustomEvent('export-card-to-markdown', {
-            detail: activeId,
-          });
-          document.dispatchEvent(event);
-        }}>
-          <FileMarkdownOutlined />
-        </TitlebarIcon>
-      </Tooltip>
+      <TitlebarIcon tip={'导出 Markdown'} onClick={() => {
+        if (!activeId) return;
+        const event = new CustomEvent('export-card-to-markdown', {
+          detail: activeId,
+        });
+        document.dispatchEvent(event);
+      }}>
+        <FileMarkdownOutlined />
+      </TitlebarIcon>
     </div>
   )
 }

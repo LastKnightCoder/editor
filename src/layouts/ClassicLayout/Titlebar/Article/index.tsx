@@ -1,5 +1,4 @@
 import TitlebarIcon from "@/components/TitlebarIcon";
-import { Tooltip } from "antd";
 import ListOpen from '../components/ListOpen';
 import FocusMode from "../components/FocusMode";
 
@@ -11,6 +10,7 @@ import styles from './index.module.less';
 interface IArticleTitlebarProps {
   readonly: boolean;
   isTop: boolean;
+  hasActiveArticle: boolean;
   quitEdit: () => void;
   toggleIsTop: () => void;
   toggleReadOnly: () => void;
@@ -19,29 +19,33 @@ interface IArticleTitlebarProps {
 }
 
 const Article = (props: IArticleTitlebarProps) => {
-  const { readonly, isTop, quitEdit, toggleIsTop, toggleReadOnly, createArticle, deleteArticle } = props;
+  const { readonly, isTop, quitEdit, toggleIsTop, toggleReadOnly, createArticle, deleteArticle,hasActiveArticle } = props;
 
   return (
     <div className={styles.iconList}>
       <ListOpen />
-      <TitlebarIcon onClick={createArticle}>
+      <TitlebarIcon onClick={createArticle} tip={'新建文章'}>
         <PlusOutlined />
       </TitlebarIcon>
       <FocusMode />
-      <TitlebarIcon onClick={toggleReadOnly}>
-        <Tooltip title={readonly ? '编辑' : '阅读'}>
-          { readonly ? <EditOutlined /> : <ReadOutlined /> }
-        </Tooltip>
-      </TitlebarIcon>
-      <TitlebarIcon active={isTop} onClick={toggleIsTop}>
-        <MdOutlineFavoriteBorder />
-      </TitlebarIcon>
-      <TitlebarIcon onClick={quitEdit}>
-        <MdExitToApp />
-      </TitlebarIcon>
-      <TitlebarIcon onClick={deleteArticle}>
-        <MdOutlineDeleteOutline />
-      </TitlebarIcon>
+      {
+        hasActiveArticle && (
+          <>
+            <TitlebarIcon onClick={toggleReadOnly} tip={readonly ? '切换编辑' : '切换只读'}>
+              { readonly ? <EditOutlined /> : <ReadOutlined /> }
+            </TitlebarIcon>
+            <TitlebarIcon active={isTop} onClick={toggleIsTop} tip={isTop ? '取消置顶' : '置顶'}>
+              <MdOutlineFavoriteBorder />
+            </TitlebarIcon>
+            <TitlebarIcon onClick={quitEdit} tip={'退出编辑'}>
+              <MdExitToApp />
+            </TitlebarIcon>
+            <TitlebarIcon onClick={deleteArticle} tip={'删除文章'}>
+              <MdOutlineDeleteOutline />
+            </TitlebarIcon>
+          </>
+        )
+      }
     </div>
   )
 }

@@ -11,9 +11,11 @@ import {
   TableRowElement,
   LinkElement,
   MultiColumnItemElement,
-  Color, EGalleryMode, ITabsContent
+  Color, ITabsContent
 } from "../types";
+import { EGalleryMode, EStyledColor } from '../constants';
 import { codeBlockMap } from "../extensions/code-block";
+import { STYLED_TEXT_SELECT_COLOR_KEY } from "@editor/extensions/styled-text/components/StyledText";
 
 interface InsertElementOptions {
   select?: boolean;
@@ -441,6 +443,29 @@ export const wrapUnderline = (editor: Editor) => {
       color: localStorage.getItem('underline-color') || 'red',
       lineType: localStorage.getItem('underline-line-type') || 'solid',
       colorSelectOpen: true,
+      children: [{ type: 'formatted', text }],
+    }, {
+      at: selection,
+      split: true
+    })
+  }
+}
+
+export const unwrapStyledText = (editor: Editor) => {
+  Transforms.unwrapNodes(editor, {
+    match: n => n.type === 'styled-text',
+  });
+}
+
+export const wrapStyledText = (editor: Editor) => {
+  const { selection } = editor;
+  const [node] = getCurrentTextNode(editor);
+  if (selection && !Range.isCollapsed(selection) && node.type === 'formatted') {
+    const text = Editor.string(editor, selection);
+    editor.deleteBackward('character');
+    Transforms.wrapNodes(editor, {
+      type: 'styled-text',
+      color: localStorage.getItem(STYLED_TEXT_SELECT_COLOR_KEY) as EStyledColor || EStyledColor.Red,
       children: [{ type: 'formatted', text }],
     }, {
       at: selection,

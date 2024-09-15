@@ -1,7 +1,7 @@
 import { BaseEditor } from "slate";
 import { ReactEditor } from "slate-react";
 import { HistoryEditor } from "slate-history";
-import { CustomElement, CustomText } from "./element";
+import { CustomElement, CustomText } from "./custom-element.ts";
 
 export type CustomField = {
   type: string,

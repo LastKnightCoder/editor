@@ -1,16 +1,19 @@
 .icon {
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--line-color);
+  width: 32px;
+  height: 32px;
+  //border: 1px solid var(--line-color);
   border-radius: 8px;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--active-text-color);
   cursor: pointer;
+  font-size: 0.8em;
+  &:hover {
+    background-color: var(--common-hover-bg);
+  }
   &.active {
-    border: 2px solid var(--active-text-color);
+    //border: 1px solid var(--active-text-color);
     background-color: var(--active-bg-color);
   }
 }

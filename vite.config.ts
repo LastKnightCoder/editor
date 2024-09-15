@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@quick-card': path.resolve(__dirname, 'quick-card'),
+      '@editor': path.resolve(__dirname, 'src/components/Editor'),
     }
   },
   plugins: [react(), splitVendorChunkPlugin(), visualizer({

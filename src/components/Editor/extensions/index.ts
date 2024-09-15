@@ -23,6 +23,7 @@ import GraphvizExtension from "./graphviz";
 import { MultiColumnsContainerExtension, MultiColumnItemExtension } from './multi-column-layout';
 import HighlightBlockExtension from "./highlight-block";
 import TabsExtension from "./tabs";
+import StyledTextExtension from "./styled-text";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -57,6 +58,7 @@ export const multiColumnItem = new MultiColumnItemExtension();
 
 export const highlightBlock = new HighlightBlockExtension();
 export const tabs = new TabsExtension();
+export const styledText = new StyledTextExtension();
 
 export const startExtensions = [
   paragraph,
@@ -89,4 +91,5 @@ export const startExtensions = [
   graphviz,
   multiColumnContainer,
   multiColumnItem,
+  styledText
 ];

@@ -1,16 +1,60 @@
 .link {
-  color: #1890ff;
   text-decoration: none;
   cursor: pointer;
-  border-bottom: #1a66ff;
+  border-bottom: 1px dashed gray;
+  color: gray;
+  .icon {
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.2em;
+  }
 }
 
 .editContainer {
+  padding: 12px;
   width: 400px;
   display: flex;
-  gap: 10px;
-  .input {
+  flex-direction: column;
+  gap: 16px;
+  .inputArea {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    .label {
+      flex: none;
+    }
+    .input {
+      flex: auto;
+    }
+  }
+  .btnGroups {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+}
+
+.unEditable {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  max-width: 300px;
+  gap: 12px;
+  padding: 0 8px;
+  border-radius: 8px;
+  color: gray;
+  .text {
     flex: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .icon {
+    flex: none;
+    cursor: pointer;
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
   }
 }
 

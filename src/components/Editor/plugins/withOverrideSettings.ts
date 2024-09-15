@@ -3,7 +3,7 @@ import { Editor, Node, Path, Transforms, Text } from "slate";
 export const withOverrideSettings = (editor: Editor) => {
   const { isBlock, isVoid, isInline, normalizeNode } = editor;
   editor.isBlock = (element) => {
-    const blockTypes = [
+    const blockTypes: string[] = [
       'paragraph',
       'header',
       'callout',
@@ -44,7 +44,7 @@ export const withOverrideSettings = (editor: Editor) => {
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }
   editor.isInline = (element) => {
-    const inlineTypes = ['link', 'inline-math', 'underline'];
+    const inlineTypes = ['link', 'inline-math', 'underline', 'styled-text'];
     return inlineTypes.includes(element.type) ? true : isInline(element);
   }
 
