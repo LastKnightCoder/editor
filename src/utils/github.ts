@@ -67,7 +67,10 @@ export const getPathAndContentFromFile = async (file: File): Promise<{
       }
       const dataUrl = e.target.result as string;
       const fileName = file.name;
-      const path = fileName.split('.')[0] + '_' + uuid() + '.' + fileName.split('.')[1];
+      const all = fileName.split('.');
+      const other = all.slice(0, all.length - 1);
+      const extension = all[all.length - 1];
+      const path = other.join('.') + '_' + uuid() + '.' + extension;
       const content = dataUrl.split(',')[1];
       resolve({
         path,

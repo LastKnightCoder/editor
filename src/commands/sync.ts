@@ -14,6 +14,7 @@ import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
+import usePdfsStore from "@/stores/usePdfsStore.ts";
 
 export const getDatabasePath = async (databaseName: string): Promise<string> => {
   try {
@@ -184,6 +185,7 @@ export const download = async () => {
       useProjectsStore.getState().init(),
       useDailyNoteStore.getState().init(),
       useTimeRecordStore.getState().init(),
+      usePdfsStore.getState().initPdfs(),
     ]);
 
     return true;
