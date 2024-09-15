@@ -4,9 +4,9 @@ import { Popover } from "antd";
 import classnames from "classnames";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlate } from "slate-react";
 
-import { UnderlineElement } from "@/components/Editor/types";
-import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
-import ColorSelect from '../ColorSelect';
+import { UnderlineElement } from "@editor/types";
+import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
+import ColorSelect from '@editor/components/ColorSelect';
 
 import styles from './index.module.less';
 
@@ -15,6 +15,23 @@ interface UnderlineProps {
   element: UnderlineElement;
   children: React.ReactNode;
 }
+
+const colors = [{
+  label: 'yellow',
+  color: 'rgb(255, 212, 0)',
+}, {
+  label: 'green',
+  color: 'rgb(42, 157, 143)',
+}, {
+  label: 'blue',
+  color: 'rgb(162, 210, 255)',
+}, {
+  label: 'purple',
+  color: 'rgb(94, 84, 142)',
+}, {
+  label: 'red',
+  color: 'rgb(239, 35, 60)',
+}];
 
 const Underline = (props: UnderlineProps) => {
   const { attributes, children, element } = props;
@@ -46,7 +63,7 @@ const Underline = (props: UnderlineProps) => {
       trigger={'click'}
       open={!readonly && colorSelectOpen}
       onOpenChange={setColorSelectOpen}
-      content={<ColorSelect color={color} selectColor={selectColor} />}
+      content={<ColorSelect colors={colors} selectColor={color} onSelectColor={selectColor} />}
       placement={'bottom'}
     >
       <span

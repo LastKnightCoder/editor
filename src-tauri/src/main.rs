@@ -5,6 +5,7 @@ mod database;
 mod state;
 mod commands;
 
+use window_shadows::set_shadow;
 use tauri::{Manager, State, SystemTray, CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem, AppHandle, Wry};
 use database::init_database;
 use state::AppState;
@@ -159,6 +160,9 @@ fn main() {
             let conn = init_database("data.db").unwrap();
             let app_state: State<AppState> = handle.state();
             *app_state.db.lock().unwrap() = Some(conn);
+
+            let window = app.get_window("main").unwrap();
+            set_shadow(&window, true).expect("Unsupported platform!");
 
             Ok(())
         })

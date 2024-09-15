@@ -24,6 +24,7 @@
       "@/*": ["./src/*"],
       "@quick-card/*": ["./quick-card/*"],
       "@quick-time-record/*": ["./quick-time-record/*"],
+      "@editor/*": ["./src/components/Editor/*"]
     },
   },
   "include": ["src", "quick-card", "quick-time-record"],

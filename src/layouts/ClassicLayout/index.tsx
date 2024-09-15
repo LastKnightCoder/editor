@@ -388,6 +388,7 @@ const ClassicLayout = memo(() => {
                   quitEdit={quitEditArticle}
                   createArticle={handleAddNewArticle}
                   deleteArticle={handleDeleteArticle}
+                  hasActiveArticle={!!activeArticleId}
                 />
               )}/>
               <Route path={"documents/"} element={(

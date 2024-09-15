@@ -23,6 +23,7 @@ simple-home-dir = "0.2.0"
 font-loader = "0.11.0"
 aliyun-oss-rs = "0.0.5"
 chrono = "0.4.31"
+window-shadows = "0.2.2"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

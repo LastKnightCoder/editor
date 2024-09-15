@@ -5,7 +5,8 @@ import { InputNumber, message, Select, Space, Spin, Switch } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { v4 as getUuid } from 'uuid';
 
-import { EGalleryMode, ImageGalleryItem } from "@/components/Editor/types";
+import { ImageGalleryItem } from "@editor/types";
+import { EGalleryMode } from '@editor/constants';
 import { EditorContext } from '@/components/Editor';
 
 import ImageItem from "./ImageItem";

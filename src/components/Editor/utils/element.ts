@@ -58,6 +58,10 @@ export const isInlineElementEmpty = (element: InlineElement) => {
     return element.children.length === 1 && element.children[0].text === '';
   }
 
+  if (element.type === 'styled-text') {
+    return element.children.length === 1 && element.children[0].text === '';
+  }
+
   return element.text === '';
 }
 

@@ -13,7 +13,8 @@ import SwipeImageGallery from "../SwipeImageGallery";
 import HorizontalImageGallery from "../HorizontalImageGallery";
 import VerticalImageGallery from "../VerticalImageGallery";
 
-import { EGalleryMode, ImageGalleryElement } from "@/components/Editor/types";
+import { ImageGalleryElement } from "@editor/types";
+import { EGalleryMode } from '@editor/constants';
 
 import styles from './index.module.less';
 import { MdDragIndicator } from "react-icons/md";

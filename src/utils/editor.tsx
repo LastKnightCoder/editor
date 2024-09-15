@@ -3,6 +3,7 @@ import { CodeBlockElement, FormattedText, ParagraphElement, InlineMathElement, B
 import { Typography } from "antd";
 import Katex from "@/components/Katex";
 import { wordsCount } from 'words-count';
+import { StyledTextColorStyle } from "@editor/constants";
 
 export const getEditorTextValue = (value: Descendant[]): JSX.Element[] | undefined => {
   if (value.length === 0) {
@@ -55,6 +56,20 @@ const getParagraphContent = (paragraph: ParagraphElement): Array<JSX.Element> =>
       case "underline":
         return (
           <Typography.Text key={index} underline>
+            {node.children?.[0].text}
+          </Typography.Text>
+        );
+      case "styled-text":
+        return (
+          <Typography.Text
+            key={index}
+            color={StyledTextColorStyle['light'][node.color].color}
+            style={{
+              backgroundColor: StyledTextColorStyle['light'][node.color].backgroundColor,
+              border: `1px solid ${StyledTextColorStyle['light'][node.color].color}`,
+              padding: '4px 8px'
+            }}
+          >
             {node.children?.[0].text}
           </Typography.Text>
         );
