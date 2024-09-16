@@ -17,10 +17,12 @@ import {
   Pdf,
   RectPercentWithPageNumber
 } from "@/types";
-import { filePathToArrayBuffer, urlToArrayBuffer } from '@/utils';
+import { remoteResourceToLocal } from '@/utils';
 import { useMemoizedFn } from "ahooks";
-import { Flex, message, Spin } from "antd";
+import { Flex, message, Spin, Result, Button } from "antd";
 import { ZoomInOutlined, ZoomOutOutlined } from "@ant-design/icons";
+import If from "@/components/If";
+import { convertFileSrc } from "@tauri-apps/api/tauri";
 
 interface PDFViewerProps {
   pdf: Pdf;
@@ -28,10 +30,16 @@ interface PDFViewerProps {
   style?: React.CSSProperties;
 }
 
+enum PAGE_STATUS {
+  LOADING = 'loading',
+  SUCCESS = 'success',
+  ERROR = 'error'
+}
+
 const PDFViewer = (props: PDFViewerProps) => {
   const { pdf, className, style = {} } = props;
 
-  const [pdfLoading, setPdfLoading] = useState(true);
+  const [pdfLoadingStatus, setPdfLoadingStatus] = useState(PAGE_STATUS.LOADING);
   const highlightManager = useRef<HighlightManager | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const [currentScale, setCurrentScale] = useState(1);
@@ -127,8 +135,14 @@ const PDFViewer = (props: PDFViewerProps) => {
   });
   
   const loadArrayBuffer = useMemoizedFn(async (isLocal: boolean, filePath: string, remoteUrl) => {
-    return isLocal ? filePathToArrayBuffer(filePath) : urlToArrayBuffer(remoteUrl);
-  })
+    if (isLocal) {
+      return convertFileSrc(filePath);
+    } else {
+      // 先下载到本地，提升加载性能
+      const remoteToLocal = await remoteResourceToLocal(remoteUrl);
+      return convertFileSrc(remoteToLocal);
+    }
+  });
   
   const handleLoadPdf = useMemoizedFn((pdf: Pdf) => {
     const { id, isLocal, filePath, remoteUrl } = pdf;
@@ -156,14 +170,18 @@ const PDFViewer = (props: PDFViewerProps) => {
         viewer.setDocument(pdf);
 
         highlightManager.current = new HighlightManager(pdf, viewer, highlights);
-        setPdfLoading(false);
+        setPdfLoadingStatus(PAGE_STATUS.SUCCESS);
         setCurrentScale(viewer.currentScale);
       });
+    }).catch(e => {
+      console.error(e);
+      message.error(e.message);
+      setPdfLoadingStatus(PAGE_STATUS.ERROR)
     })
   })
   
   useEffect(() => {
-    setPdfLoading(true);
+    setPdfLoadingStatus(PAGE_STATUS.LOADING);
     handleLoadPdf(pdf);
     
     return () => {
@@ -189,47 +207,64 @@ const PDFViewer = (props: PDFViewerProps) => {
           onSelectStart={onAreaSelectStart}
           onSelectFinish={onAreaSelectEnd}
         />
-        {pdfLoading && <Spin style={{
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-        }} spinning={pdfLoading} />}
-      </div>
-      {
-        !pdfLoading && (
-          <Flex
+        <If condition={pdfLoadingStatus === PAGE_STATUS.LOADING}>
+          <Spin
             style={{
               position: 'absolute',
               left: '50%',
-              transform: 'translateX(-50%)',
-              height: 40,
-              boxSizing: 'border-box',
-              borderRadius: 8,
-              bottom: 60,
-              zIndex: 3,
-              background: 'rgba(0, 0, 0, 0.5)',
-              padding: 8,
+              top: '50%',
+              transform: 'translate(-50%, -50%)',
             }}
-            gap={"middle"}
-            align={"center"}
-          >
-            <ZoomInOutlined onClick={() => {
-              if (!highlightManager.current) return;
-              const currentScale = highlightManager.current.viewer.currentScale;
-              highlightManager.current.viewer.currentScaleValue = String((currentScale * 1.1).toFixed(2));
-              setCurrentScale(highlightManager.current.viewer.currentScale);
-            }}/>
-            <div style={{ height: 24, lineHeight: '24px', fontSize: 16, userSelect: 'none' }}>{currentScale.toFixed(2)}</div>
-            <ZoomOutOutlined onClick={() => {
-              if (!highlightManager.current) return;
-              const currentScale = highlightManager.current.viewer.currentScale;
-              highlightManager.current.viewer.currentScaleValue = String((currentScale / 1.1).toFixed(2));
-              setCurrentScale(highlightManager.current.viewer.currentScale);
-            }}/>
-          </Flex>
-        )
-      }
+            spinning={PAGE_STATUS.LOADING === pdfLoadingStatus}
+          />
+        </If>
+      </div>
+      <If condition={pdfLoadingStatus === PAGE_STATUS.SUCCESS}>
+        <Flex
+          style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            height: 40,
+            boxSizing: 'border-box',
+            borderRadius: 8,
+            bottom: 60,
+            zIndex: 3,
+            background: 'rgba(0, 0, 0, 0.5)',
+            color: '#fff',
+            padding: 8,
+          }}
+          gap={"middle"}
+          align={"center"}
+        >
+          <ZoomInOutlined onClick={() => {
+            if (!highlightManager.current) return;
+            const currentScale = highlightManager.current.viewer.currentScale;
+            highlightManager.current.viewer.currentScaleValue = String((currentScale * 1.1).toFixed(2));
+            setCurrentScale(highlightManager.current.viewer.currentScale);
+          }}/>
+          <div style={{ height: 24, lineHeight: '24px', fontSize: 16, userSelect: 'none' }}>{currentScale.toFixed(2)}</div>
+          <ZoomOutOutlined onClick={() => {
+            if (!highlightManager.current) return;
+            const currentScale = highlightManager.current.viewer.currentScale;
+            highlightManager.current.viewer.currentScaleValue = String((currentScale / 1.1).toFixed(2));
+            setCurrentScale(highlightManager.current.viewer.currentScale);
+          }}/>
+        </Flex>
+      </If>
+      <If condition={pdfLoadingStatus === PAGE_STATUS.ERROR}>
+        <Result
+          status={'error'}
+          title={'PDF 加载失败'}
+          subTitle={'请检查网络连接，或者尝试重新加载'}
+          extra={(
+            <Button type="primary" onClick={() => {
+              setPdfLoadingStatus(PAGE_STATUS.LOADING);
+              handleLoadPdf(pdf);
+            }}>重新加载</Button>
+          )}
+        />
+      </If>
     </>
 
   )
