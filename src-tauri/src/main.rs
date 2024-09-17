@@ -4,11 +4,14 @@
 mod database;
 mod state;
 mod commands;
+mod plugins;
 
 use window_shadows::set_shadow;
 use tauri::{Manager, State, SystemTray, CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem, AppHandle, Wry};
 use database::init_database;
 use state::AppState;
+use plugins::{pdf};
+
 use commands::{
     insert_one_card,
     find_one_card,
@@ -82,27 +85,18 @@ use commands::{
     get_project_items_not_in_any_project,
     delete_project_items_not_in_any_project,
     show_in_folder,
-    add_pdf,
-    get_pdf_by_id,
-    get_pdf_list,
-    update_pdf,
-    remove_pdf,
-    add_highlight,
-    update_highlight,
-    remove_highlight,
-    get_highlights,
-    get_highlight_by_id,
 };
 
 fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
     let quick_window = app.get_window(label);
     // 如果不存在，则创建
     if quick_window.is_none() {
-        #[cfg(target_os="window")]
+        #[cfg(target_os="windows")]
         tauri::WindowBuilder::new(app, label, tauri::WindowUrl::App(url.into()))
             .title(label)
             .decorations(false)
-            .inner_size(500.0, 400.0)
+            .inner_size(400.0, 800.0)
+            .transparent(true)
             .fullscreen(false)
             .resizable(true)
             .always_on_top(true)
@@ -114,13 +108,16 @@ fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
         tauri::WindowBuilder::new(app, label, tauri::WindowUrl::App(url.into()))
             .title(label)
             .decorations(false)
-            .inner_size(500.0, 400.0)
+            .inner_size(400.0, 800.0)
             .fullscreen(false)
             .resizable(true)
             .always_on_top(true)
             .disable_file_drop_handler()
             .build()
             .unwrap();
+
+        let window = app.get_window(label).unwrap();
+        set_shadow(&window, true).expect("Unsupported platform!");
     } else {
         // 如果存在且是最小化状态，则取消最小化
         let quick_window = quick_window.unwrap();
@@ -139,6 +136,7 @@ fn main() {
         .add_item(hide);
     let tray = SystemTray::new().with_menu(tray_menu);
     tauri::Builder::default()
+        .plugin(pdf::init())
         .system_tray(tray)
         .on_system_tray_event(|app, event| {
             match event {
@@ -239,16 +237,6 @@ fn main() {
             get_project_items_not_in_any_project,
             delete_project_items_not_in_any_project,
             show_in_folder,
-            add_pdf,
-            get_pdf_by_id,
-            get_pdf_list,
-            update_pdf,
-            remove_pdf,
-            add_highlight,
-            update_highlight,
-            remove_highlight,
-            get_highlights,
-            get_highlight_by_id,
         ])
       .run(tauri::generate_context!())
       .expect("error while running tauri application");
