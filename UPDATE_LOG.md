@@ -332,3 +332,4 @@
 ## v0.7.5
 
 - feat: pdf commands 模块替换为插件
+- feat: 侧边栏管理

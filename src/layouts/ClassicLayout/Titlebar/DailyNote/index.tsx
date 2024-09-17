@@ -2,7 +2,6 @@ import TitlebarIcon from "@/components/TitlebarIcon";
 import { PlusOutlined, EditOutlined, ReadOutlined } from "@ant-design/icons";
 import { MdDeleteOutline } from "react-icons/md";
 import { Popover, Calendar, Button } from "antd";
-import ListOpen from '../components/ListOpen';
 import FocusMode from "../components/FocusMode";
 
 import styles from './index.module.less';
@@ -37,7 +36,6 @@ const DailyNote = (props: IDailyNoteProps) => {
 
   return (
     <div className={styles.iconList}>
-      <ListOpen />
       <Popover
         open={createPopoverOpen}
         onOpenChange={setCreatePopoverOpen}

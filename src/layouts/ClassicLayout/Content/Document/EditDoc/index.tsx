@@ -45,8 +45,6 @@ const EditDoc = memo(() => {
     wordsCount,
   } = useEditDoc();
 
-
-
   const uploadImage = useUploadImage();
 
   useRafInterval(() => {
