@@ -14,14 +14,24 @@
     width: 100%;
     height: 120px;
     position: relative;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: cover;
+    //background-repeat: no-repeat;
+    //background-position: center;
+    //background-size: cover;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 10px;
     border-radius: 4px;
+    .img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      z-index: -1;
+    }
     .title {
       color: #fff;
       font-size: 1.2em;

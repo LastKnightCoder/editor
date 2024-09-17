@@ -26,7 +26,7 @@ const LocalImage = (props: ILocalImageProps) => {
         console.error(e);
       }
     }
-  })
+  }, [url]);
 
   return (
     <img src={previewUrl} alt={alt} className={className} style={style} onClick={onClick} {...restProps} />

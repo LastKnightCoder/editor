@@ -8,6 +8,7 @@ import { getEditorTextValue } from "@/utils";
 import { IArticle } from "@/types";
 
 import styles from './index.module.less';
+import LocalImage from "@editor/components/LocalImage";
 
 interface IArticleItemProps {
   article: IArticle;
@@ -24,9 +25,8 @@ const ArticleItem = memo((props: IArticleItemProps) => {
     <div className={classnames(styles.articleItem, { [styles.active]: active })} onClick={() => {
       onClickArticle?.(article);
     }}>
-      <div className={styles.cover} style={{
-        backgroundImage: `url(${article.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'})`,
-      }}>
+      <div className={styles.cover} >
+        <LocalImage className={styles.img} url={article.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'} />
         <div className={styles.title}>
           {article.title}
         </div>
