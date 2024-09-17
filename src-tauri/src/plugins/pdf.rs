@@ -1,3 +1,21 @@
+use tauri::{
+  plugin::{Builder, TauriPlugin},
+  Runtime,
+};
+
+// use crate::commands::{
+//     add_pdf,
+//     get_pdf_by_id,
+//     get_pdf_list,
+//     update_pdf,
+//     remove_pdf,
+//     add_highlight,
+//     update_highlight,
+//     remove_highlight,
+//     get_highlights,
+//     get_highlight_by_id,
+// };
+
 use crate::state;
 use crate::database::pdf;
 
@@ -110,4 +128,22 @@ pub fn remove_highlight(id: i64, app_state: tauri::State<state::AppState>) -> Re
         }
         None => Err("Database connection not initialized".to_string()),
     }
+}
+
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("pdf")
+    .invoke_handler(tauri::generate_handler![
+        add_pdf,
+        get_pdf_by_id,
+        get_pdf_list,
+        update_pdf,
+        remove_pdf,
+        add_highlight,
+        update_highlight,
+        remove_highlight,
+        get_highlights,
+        get_highlight_by_id,
+    ])
+    .build()
 }

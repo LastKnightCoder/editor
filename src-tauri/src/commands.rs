@@ -12,7 +12,6 @@ pub mod database;
 pub mod time_record;
 pub mod project;
 pub mod system;
-pub mod pdf;
 
 pub use card::*;
 pub use setting::*;
@@ -28,4 +27,3 @@ pub use database::*;
 pub use time_record::*;
 pub use project::*;
 pub use system::*;
-pub use pdf::*;

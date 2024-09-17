@@ -30,39 +30,39 @@ const transformPdfHighlightItem = (item: any): PdfHighlight => {
 };
 
 export const createPdf = async (pdf: Omit<Pdf, 'id' | 'createTime' | 'updateTime'>): Promise<Pdf> => {
-  const res: any = await invoke('add_pdf', {
+  const res: any = await invoke('plugin:pdf|add_pdf', {
     ...pdf,
   });
   return transformPdfItem(res);
 }
 
 export const updatePdf = async (pdf: Pdf): Promise<Pdf> => {
-  const res: any = await invoke('update_pdf', {
+  const res: any = await invoke('plugin:pdf|update_pdf', {
     ...pdf,
   });
   return transformPdfItem(res);
 }
 
 export const getPdfById = async (id: number): Promise<Pdf> => {
-  const res: any = await invoke('get_pdf_by_id', {
+  const res: any = await invoke('plugin:pdf|get_pdf_by_id', {
     id,
   });
   return transformPdfItem(res);
 }
 
 export const getPdfList = async (): Promise<Pdf[]> => {
-  const list: any[] = await invoke('get_pdf_list');
+  const list: any[] = await invoke('plugin:pdf|get_pdf_list');
   return list.map(transformPdfItem);
 }
 
 export const removePdf = async (id: number): Promise<number> => {
-  return await invoke('remove_pdf', {
+  return await invoke('plugin:pdf|remove_pdf', {
     id,
   });
 }
 
 export const addPdfHighlight = async (highlight: Omit<PdfHighlight, 'id' | 'createTime' | 'updateTime'>): Promise<PdfHighlight> => {
-  const res: any = await invoke('add_highlight', {
+  const res: any = await invoke('plugin:pdf|add_highlight', {
     ...highlight,
     notes: JSON.stringify(highlight.notes),
     rects: JSON.stringify(highlight.rects),
@@ -72,7 +72,7 @@ export const addPdfHighlight = async (highlight: Omit<PdfHighlight, 'id' | 'crea
 }
 
 export const updatePdfHighlight = async (highlight: PdfHighlight): Promise<PdfHighlight> => {
-  const res: any = await invoke('update_highlight', {
+  const res: any = await invoke('plugin:pdf|update_highlight', {
     ...highlight,
     notes: JSON.stringify(highlight.notes),
     rects: JSON.stringify(highlight.rects),
@@ -82,21 +82,21 @@ export const updatePdfHighlight = async (highlight: PdfHighlight): Promise<PdfHi
 }
 
 export const getPdfHighlightById = async (id: number): Promise<PdfHighlight> => {
-  const res: any = await invoke('get_highlight_by_id', {
+  const res: any = await invoke('plugin:pdf|get_highlight_by_id', {
     id,
   });
   return transformPdfHighlightItem(res);
 }
 
 export const getPdfHighlights = async (pdfId: number): Promise<PdfHighlight[]> => {
-  const list: any[] = await invoke('get_highlights', {
+  const list: any[] = await invoke('plugin:pdf|get_highlights', {
     pdfId
   });
   return list.map(transformPdfHighlightItem);
 }
 
 export const removePdfHighlight = async (id: number): Promise<number> => {
-  return await invoke('remove_highlight', {
+  return await invoke('plugin:pdf|remove_highlight', {
     id,
   });
 }
