@@ -2,6 +2,7 @@ import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { CloseOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import PortalToBody from "@/components/PortalToBody";
+import LocalImage from "@editor/components/LocalImage";
 
 import { useImagesOverviewStore } from "../../stores";
 
@@ -34,7 +35,7 @@ const ImagesOverview = () => {
         <div className={styles.container}>
           <div className={styles.mask} onClick={closeImagesOverview}></div>
           <div className={styles.imageContainer} onClick={closeImagesOverview}>
-            <img className={styles.image} src={imageElements[currentImageIndex].url} alt={imageElements[currentImageIndex].alt}/>
+            <LocalImage url={imageElements[currentImageIndex].url} alt={imageElements[currentImageIndex].alt} className={styles.image} />
           </div>
           <div className={styles.close} onClick={closeImagesOverview}>
             <CloseOutlined />

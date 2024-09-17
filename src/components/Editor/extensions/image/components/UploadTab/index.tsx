@@ -25,7 +25,15 @@ const UploadTab = memo((props: UploadTabProps) => {
           onChange={e => setLinkValue(e.target.value)}
           placeholder="请输入网络图片地址"
         />
-        <Button style={{ marginLeft: 16 }} onClick={() => setLink(linkValue)}>确定</Button>
+        <Button
+          style={{ marginLeft: 16 }}
+          onClick={() => {
+            setLink(linkValue)
+            setLinkValue('');
+          }}
+        >
+          确定
+        </Button>
       </div>
     )
   }];

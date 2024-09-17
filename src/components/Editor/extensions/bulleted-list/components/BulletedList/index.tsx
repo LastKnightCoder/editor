@@ -14,11 +14,9 @@ const BulletedList: React.FC<PropsWithChildren<IBulletedListProps>> = (props) =>
   const { attributes, children } = props;
 
   return (
-    <div>
-      <ul className={styles.list} {...attributes}>
-        {children}
-      </ul>
-    </div>
+    <ul className={styles.list} {...attributes}>
+      {children}
+    </ul>
   )
 }
 

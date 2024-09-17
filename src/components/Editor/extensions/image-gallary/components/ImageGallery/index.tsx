@@ -86,20 +86,22 @@ const ImageGallery = (props: IImageGalleryProps) => {
       <If condition={images.length > 0}>
         <div contentEditable={false}>
           <If condition={mode === EGalleryMode.Horizontal}>
-            <HorizontalImageGallery items={images} height={height} />
+            <HorizontalImageGallery items={images} height={height}/>
           </If>
           <If condition={mode === EGalleryMode.Vertical}>
-            <VerticalImageGallery items={images} columnCount={columnCount} />
+            <VerticalImageGallery items={images} columnCount={columnCount}/>
           </If>
           <If condition={mode === EGalleryMode.Inline}>
-            <SwipeImageGallery items={images} />
+            <SwipeImageGallery items={images}/>
           </If>
         </div>
       </If>
       <If condition={images.length === 0}>
-        <div contentEditable={false} className={styles.emptySetting} onClick={() => { setSettingModalOpen(true) }}>
+        <div contentEditable={false} className={styles.emptySetting} onClick={() => {
+          setSettingModalOpen(true)
+        }}>
           <div className={styles.uploadTips}>
-            <PlusOutlined className={styles.icon} />
+            <PlusOutlined className={styles.icon}/>
             <div>上传图片</div>
           </div>
         </div>
@@ -111,11 +113,11 @@ const ImageGallery = (props: IImageGalleryProps) => {
             e.stopPropagation();
             setSettingModalOpen(true);
           }}>
-            <SettingOutlined />
+            <SettingOutlined/>
           </div>
         </div>
       </If>
-      <AddParagraph element={element} />
+      <AddParagraph element={element}/>
       <Modal
         width={720}
         open={settingModalOpen}

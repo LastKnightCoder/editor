@@ -1,17 +1,18 @@
 import React, { useRef, useState, useContext } from 'react';
 import { motion } from "framer-motion";
 import { produce } from 'immer';
-import { InputNumber, message, Select, Space, Spin, Switch } from 'antd';
+import { InputNumber, message, Popover, Select, Space, Spin, Switch, Tag } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { v4 as getUuid } from 'uuid';
 
 import { ImageGalleryItem } from "@editor/types";
 import { EGalleryMode } from '@editor/constants';
-import { EditorContext } from '@/components/Editor';
-
-import ImageItem from "./ImageItem";
-import styles from './index.module.less';
 import If from "@/components/If";
+import { EditorContext } from '@/components/Editor';
+import UploadTab from '../../../image/components/UploadTab';
+import ImageItem from "./ImageItem";
+
+import styles from './index.module.less';
 
 export interface ISetting {
   mode: EGalleryMode;
@@ -26,10 +27,16 @@ interface IImageGallerySettingProps {
   onSettingChange: (setting: ISetting) => void;
 }
 
+const timeoutPromise = (ms: number): Promise<never> => new Promise((_resolve, reject) => setTimeout(reject, ms));
+
 const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   const { setting, onSettingChange } = props;
   const uploadRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [showUploadTab, setShowUploadTab] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [successCount, setSuccessCount] = useState(0);
+  const [errorCount, setErrorCount] = useState(0);
 
   const { uploadImage } = useContext(EditorContext) || {};
 
@@ -81,7 +88,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
       return null;
     }
     try {
-      return await uploadImage(file);
+      return await Promise.race([uploadImage(file), timeoutPromise(10000)]);
     } catch (e) {
       return null;
     }
@@ -92,24 +99,46 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     if (!files) {
       return;
     }
+    setShowUploadTab(false);
     setUploading(true);
+    setTotalCount(files.length);
+    setSuccessCount(0);
+    setErrorCount(0);
+
     const promises: Promise<string | null>[] = [];
     for (const file of files) {
       promises.push(uploadFile(file));
     }
-    try {
-      const urls = (await Promise.all(promises)).filter(url =>!!url) as string[];
-      onAddImage(urls.map(url => ({
-        id: getUuid(),
-        url,
-      })));
-      if (urls.length < files.length) {
-        message.warning('有部分图片上传失败');
-      }
-    } catch (e) {
-      message.error('上传失败');
-    } finally {
-      setUploading(false);
+    const successUrls: string[] = [];
+    for (const promise of promises) {
+      promise.then(url => {
+        if (url) {
+          successUrls.push(url);
+          setSuccessCount((successCount) => {
+            return successCount + 1;
+          });
+        } else {
+          setErrorCount((errorCount) => {
+            return errorCount + 1;
+          });
+        }
+      }).catch(() => {
+        setErrorCount((errorCount) => {
+          return errorCount + 1;
+        });
+      }).finally(() => {
+        if (successCount + errorCount === totalCount) {
+          if (errorCount > 0) {
+            message.error('有部分图片上传失败');
+          }
+          onAddImage(successUrls.map(url => ({
+            id: getUuid(),
+            url,
+          })))
+          setUploading(false);
+        }
+        event.target.value = '';
+      })
     }
   }
 
@@ -180,19 +209,47 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
       </div>
       <div>
         <input ref={uploadRef} type={'file'} multiple accept={'image/*'} style={{ display: 'none' }} onChange={handleUploadFileChange} />
-        <div className={styles.title}>图片设置</div>
+        <div className={styles.title}>
+          图片设置：
+          {uploading && (
+            <>
+              <Tag color={'cyan'}>上传中</Tag>
+              <Tag color={'success'}>成功：{successCount}</Tag>
+              <Tag color={'error'}>失败：{errorCount}</Tag>
+              <Tag color={'default'}>总数：{totalCount}</Tag>
+            </>
+          )}
+        </div>
         <div className={styles.imageListContainer}>
-          <div className={styles.uploadImage} onClick={() => {
-            if (uploadRef.current) {
-              uploadRef.current.click();
-            }
-          }}>
-            <Spin spinning={uploading}>
-              <div className={styles.content}>
-                <PlusOutlined />
-              </div>
-            </Spin>
-          </div>
+          <Popover
+            open={showUploadTab}
+            onOpenChange={setShowUploadTab}
+            trigger={'click'}
+            content={(
+              <UploadTab
+                uploadImage={() => {
+                  if (uploadRef.current) {
+                    uploadRef.current.click();
+                  }
+                }}
+                setLink={url => {
+                  onAddImage([{
+                    id: getUuid(),
+                    url,
+                  }]);
+                  setShowUploadTab(false);
+                }}
+              />
+            )}
+          >
+            <div className={styles.uploadImage} onClick={() => setShowUploadTab(true)}>
+              <Spin spinning={uploading}>
+                <div className={styles.content}>
+                  <PlusOutlined/>
+                </div>
+              </Spin>
+            </div>
+          </Popover>
           <motion.div className={styles.imageList}>
             {
               setting.images.map(item => (

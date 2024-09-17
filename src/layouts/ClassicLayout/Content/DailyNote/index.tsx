@@ -38,10 +38,10 @@ const DailyNoteContent = (props: IDailyNoteProps) => {
 
   return (
     <div className={styles.editingDailyContainer}>
+      <div className={styles.title}>
+        {editingDailyNote.date}
+      </div>
       <div className={styles.content}>
-        <div className={styles.title}>
-          {editingDailyNote.date}
-        </div>
         <div className={styles.editor}>
           <Editor
             key={editingDailyNote.id}

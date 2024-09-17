@@ -2,6 +2,7 @@ import { SwiperSlide, Swiper } from 'swiper/react'
 
 import { Pagination, Thumbs } from 'swiper/modules';
 import { ImageGalleryItem } from '@/components/Editor/types';
+import LocalImage from "@editor/components/LocalImage";
 
 import 'swiper/css';
 import 'swiper/css/pagination';
@@ -39,12 +40,16 @@ const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              <img src={item.url} alt={item.desc || ''} style={{
-                display: 'block',
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover'
-              }}/>
+              <LocalImage
+                url={item.url}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+                alt={item.desc || ''}
+              />
             </SwiperSlide>
           ))
         }
