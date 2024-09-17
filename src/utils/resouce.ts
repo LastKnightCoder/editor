@@ -1,6 +1,7 @@
-import { writeBinaryFile, writeTextFile, createDir, readTextFile, exists } from '@tauri-apps/api/fs';
-import { getDatabasePath } from '@/commands';
+import { fetch, ResponseType } from '@tauri-apps/api/http';
 import { basename, sep } from "@tauri-apps/api/path";
+import { createDir, exists, readTextFile, writeBinaryFile, writeTextFile } from '@tauri-apps/api/fs';
+import { getDatabasePath } from '@/commands';
 
 
 // 将远程资源下载到本地
@@ -29,9 +30,13 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!await exists(resourceDirPath)) {
     await createDir(resourceDirPath);
   }
-  const remoteContent = await fetch(url).then(res => res.blob());
+  const remoteContent = await fetch(url, {
+    method: "GET",
+    responseType: ResponseType.Binary
+  }).then(res => res.data) as unknown as ArrayBuffer;
+
   const resourcePath = resourceDirPath + sep + fileName;
-  await writeBinaryFile(resourcePath, new Uint8Array(await remoteContent.arrayBuffer()));
+  await writeBinaryFile(resourcePath, new Uint8Array(remoteContent));
   configObj[url] = resourcePath;
   await writeTextFile(configPath, JSON.stringify(configObj));
   return resourcePath;

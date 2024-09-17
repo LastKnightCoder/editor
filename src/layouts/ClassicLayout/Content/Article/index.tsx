@@ -18,6 +18,7 @@ import { IArticle } from "@/types";
 import { cardLinkExtension, fileAttachmentExtension } from '@/editor-extensions';
 
 import styles from './index.module.less';
+import LocalImage from "@editor/components/LocalImage";
 
 interface IArticleItemProps {
   initValue: Descendant[],
@@ -99,9 +100,8 @@ const EditArticle = memo((props: IArticleItemProps) => {
 
   return (
     <div ref={containerRef} className={styles.editArticleContainer}>
-      <div className={styles.cover} style={{
-        backgroundImage: `url(${editingArticle.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'})`,
-      }}>
+      <div className={styles.cover}>
+        <LocalImage key={editingArticle.bannerBg} url={editingArticle.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'} className={styles.img} />
         <EditText
           className={styles.title}
           defaultValue={editingArticle.title || '默认标题'}
