@@ -1,7 +1,6 @@
 import { Button, Flex, Input, message, Modal, Tabs } from "antd";
 import { useState } from "react";
 import TitlebarIcon from "@/components/TitlebarIcon";
-import ListOpen from '../components/ListOpen';
 import FocusMode from "../components/FocusMode";
 
 import usePdfsStore from "@/stores/usePdfsStore.ts";
@@ -103,7 +102,6 @@ const PdfTitlebar = () => {
 
   return (
     <div className={styles.iconList}>
-      <ListOpen />
       <TitlebarIcon onClick={onClickAddPdf}>
         <PlusOutlined />
       </TitlebarIcon>

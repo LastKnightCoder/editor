@@ -1,7 +1,6 @@
 import TitlebarIcon from "@/components/TitlebarIcon";
 import { PlusOutlined, FileMarkdownOutlined } from "@ant-design/icons";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";
-import ListOpen from '../components/ListOpen';
 import FocusMode from "../components/FocusMode";
 
 import styles from './index.module.less';
@@ -27,7 +26,6 @@ const Card = (props: ICardProps) => {
 
   return (
     <div className={styles.iconList}>
-      <ListOpen />
       <TitlebarIcon onClick={createCard} tip={'新建卡片'}>
         <PlusOutlined />
       </TitlebarIcon>

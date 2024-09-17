@@ -1,7 +1,6 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { MdExitToApp } from "react-icons/md";
 import TitlebarIcon from "@/components/TitlebarIcon";
-import ListOpen from '../components/ListOpen';
 import FocusMode from "../components/FocusMode";
 
 import styles from './index.module.less';
@@ -16,7 +15,6 @@ const Document = (props: IDocumentTitlebarProps) => {
 
   return (
     <div className={styles.iconList}>
-      <ListOpen />
       <TitlebarIcon onClick={createDocument}>
         <PlusOutlined />
       </TitlebarIcon>

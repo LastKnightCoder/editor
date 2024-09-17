@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import If from "@/components/If";
 import SVG from 'react-inlinesvg';
-import { Tooltip } from "antd";
+import { Popover, Tooltip } from "antd";
 
 import { MinusOutlined, CloseOutlined, PushpinOutlined } from '@ant-design/icons';
+import { TbColumns3, TbColumns2, TbColumns1 } from "react-icons/tb";
 import maxMax from '@/assets/window-control/max-max.svg';
 import maxMin from '@/assets/window-control/max-min.svg';
 
@@ -22,12 +24,37 @@ interface IWindowControlProps {
   style?: React.CSSProperties;
   notShowFullscreen?: boolean;
   initAlwaysOnTop?: boolean;
+  showColumns?: boolean;
 }
 
 const WindowControl = (props: IWindowControlProps) => {
-  const { className, style, notShowFullscreen = false, initAlwaysOnTop = false } = props;
+  const { className, style, notShowFullscreen = false, initAlwaysOnTop = false, showColumns = false } = props;
   const [isMaximizable, setIsMaximizable] = useState<boolean>(false);
   const [alwaysOnTop, setAlwaysOnTop] = useState<boolean>(initAlwaysOnTop);
+
+  const { listOpen, sidebarOpen } = useGlobalStateStore(state => ({
+    listOpen: state.listOpen,
+    sidebarOpen: state.sidebarOpen,
+  }));
+
+  const onClickColumnIcon = () => {
+    if (listOpen && sidebarOpen) {
+      useGlobalStateStore.setState({
+        listOpen: false,
+      });
+    }
+    if (sidebarOpen && !listOpen) {
+      useGlobalStateStore.setState({
+        sidebarOpen: false
+      });
+    }
+    if (!listOpen && !sidebarOpen) {
+      useGlobalStateStore.setState({
+        listOpen: true,
+        sidebarOpen: true
+      });
+    }
+  }
 
   useAsyncEffect(async () => {
     const osType = await type();
@@ -92,6 +119,60 @@ const WindowControl = (props: IWindowControlProps) => {
 
   return (
     <div className={classnames(styles.windowControl, className)} style={style}>
+      {
+        showColumns && (
+          <Popover
+            trigger={'hover'}
+            overlayInnerStyle={{
+              padding: 4
+            }}
+            content={(
+              <div className={styles.columns}>
+                <div
+                  className={styles.column}
+                  onClick={() => {
+                    useGlobalStateStore.setState({
+                      listOpen: false,
+                      sidebarOpen: false
+                    })
+                  }}
+                >
+                  <TbColumns1 className={styles.icon}/>
+                  <div>编辑器视图</div>
+                </div>
+                <div
+                  className={styles.column}
+                  onClick={() => {
+                    useGlobalStateStore.setState({
+                      listOpen: true,
+                      sidebarOpen: false
+                    })
+                  }}
+                >
+                  <TbColumns2 className={styles.icon} />
+                  <div>笔记视图</div>
+                </div>
+                <div
+                  className={styles.column}
+                  onClick={() => {
+                    useGlobalStateStore.setState({
+                      listOpen: true,
+                      sidebarOpen: true
+                    })
+                  }}
+                >
+                  <TbColumns3 className={styles.icon} />
+                  <div>笔记本视图</div>
+                </div>
+              </div>
+            )}
+          >
+            <div className={styles.item} onClick={onClickColumnIcon}>
+              <TbColumns2 />
+            </div>
+          </Popover>
+        )
+      }
       <Tooltip
         title={alwaysOnTop ? '取消置顶' : '置顶'}
       >

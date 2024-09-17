@@ -1,5 +1,4 @@
 import TitlebarIcon from "@/components/TitlebarIcon";
-import ListOpen from '../components/ListOpen';
 import FocusMode from "../components/FocusMode";
 
 import { EditOutlined, ReadOutlined, PlusOutlined } from '@ant-design/icons';
@@ -23,7 +22,6 @@ const Article = (props: IArticleTitlebarProps) => {
 
   return (
     <div className={styles.iconList}>
-      <ListOpen />
       <TitlebarIcon onClick={createArticle} tip={'新建文章'}>
         <PlusOutlined />
       </TitlebarIcon>

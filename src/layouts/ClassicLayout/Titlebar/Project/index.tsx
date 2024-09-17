@@ -2,7 +2,6 @@ import { useState } from 'react';
 
 import TitlebarIcon from "@/components/TitlebarIcon";
 import EditProjectInfoModal from "@/layouts/ClassicLayout/components/EditProjectInfoModal";
-import ListOpen from '../components/ListOpen';
 import FocusMode from "../components/FocusMode";
 
 import useProjectsStore from "@/stores/useProjectsStore";
@@ -102,15 +101,14 @@ const Project = () => {
 
   return (
     <div className={styles.iconList}>
-      <ListOpen />
-      <TitlebarIcon onClick={handleCreate}>
+      <TitlebarIcon onClick={handleCreate} tip={'创建项目'}>
         <PlusOutlined />
       </TitlebarIcon>
       <FocusMode />
-      <TitlebarIcon onClick={toggleReadOnly}>
+      <TitlebarIcon onClick={toggleReadOnly} tip={readonly ? '切换编辑' : '切换只读'}>
         { readonly ? <EditOutlined /> : <ReadOutlined /> }
       </TitlebarIcon>
-      <TitlebarIcon onClick={handleQuit}>
+      <TitlebarIcon onClick={handleQuit} tip={'退出编辑'}>
         <MdExitToApp />
       </TitlebarIcon>
       <TitlebarIcon
@@ -118,6 +116,7 @@ const Project = () => {
         onClick={() => {
           useProjectsStore.setState({ showOutline: !showOutline })
         }}
+        tip={showOutline ? '收起目录' : '打开目录'}
       >
         { showOutline ? <MdFormatIndentIncrease /> : <MdFormatIndentDecrease /> }
       </TitlebarIcon>
