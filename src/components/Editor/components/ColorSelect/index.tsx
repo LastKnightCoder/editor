@@ -42,7 +42,7 @@ const ColorSelect = <ColorType extends string,>(props: ColorSelectProps<ColorTyp
           >
             {
               label === selectColor && (
-                <SVG src={checkIcon} className={styles.checkIcon} style={{ fill: isDark ? '#fff' : 'gray' }} />
+                <SVG src={checkIcon} className={styles.checkIcon} style={{ fill: isDark ? '#fff' : '#555' }} />
               )
             }
           </div>

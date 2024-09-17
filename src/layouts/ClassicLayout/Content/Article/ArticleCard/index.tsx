@@ -7,6 +7,7 @@ import { CalendarOutlined } from '@ant-design/icons';
 import { MdMoreVert } from 'react-icons/md';
 
 import useTheme from "@/hooks/useTheme";
+import LocalImage from "@editor/components/LocalImage";
 import Editor from "@/components/Editor";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
@@ -97,7 +98,7 @@ const ArticleCard = (props: IArticleCardProps) => {
     <Spin spinning={bannerUploading}>
       <div className={cardClassName} style={style}>
         <div className={classnames(styles.imageContainer, { [styles.right]: imageRight })} onClick={onClick}>
-          <img src={article.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'} alt={''} />
+          <LocalImage url={article.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'} />
           <If condition={isTop}>
             <SVG src={star} className={styles.topStar} />
           </If>

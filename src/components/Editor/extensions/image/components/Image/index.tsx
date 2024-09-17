@@ -1,23 +1,22 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { Popover, Spin } from "antd";
+import React, { useCallback, useContext, useRef, useState } from 'react';
+import { message, Popover, Spin } from "antd";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { useAsyncEffect, useClickAway } from "ahooks";
+import { useClickAway } from "ahooks";
 import { DeleteOutlined, FileImageOutlined, FullscreenOutlined } from '@ant-design/icons';
-import { convertFileSrc } from '@tauri-apps/api/tauri';
 
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
-import { remoteResourceToLocal } from '@/utils';
-import { uploadImage } from "@/hooks/useUploadImage.ts";
 
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { useImagesOverviewStore } from "@/components/Editor/stores";
 import { ImageElement } from "@/components/Editor/types";
+import LocalImage from "@editor/components/LocalImage";
 
 import styles from './index.module.less';
 import UploadTab from "../UploadTab";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
+import { EditorContext } from "@editor/index.tsx";
 
 interface IImageProps {
   attributes: RenderElementProps['attributes'];
@@ -27,6 +26,8 @@ interface IImageProps {
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { attributes, children, element } = props;
   const { url, alt = '', pasteUploading = false } = element;
+
+  const { uploadImage } = useContext(EditorContext) || {};
 
   const {
     drag,
@@ -44,19 +45,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const fileUploadRef = useRef<HTMLInputElement>(null);
   const [showUploadTab, setShowUploadTab] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [isFileLoading, setIsFileLoading] = useState(true);
-  const [previewUrl, setPreviewUrl] = useState(url);
-
-  useAsyncEffect(async () => {
-    setIsFileLoading(true);
-    try {
-      const localUrl = await remoteResourceToLocal(url);
-      const filePath = convertFileSrc(localUrl);
-      setPreviewUrl(filePath);
-    } finally {
-      setIsFileLoading(false);
-    }
-  }, [url]);
 
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -113,6 +101,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       event.target.value = '';
       return;
     }
+    if (!uploadImage) {
+      message.warning('尚未配置任何图床，无法上传图片');
+      return null;
+    }
     const path = ReactEditor.findPath(editor, element);
     const file = files[0];
     const uploadRes = await uploadImage(file);
@@ -164,7 +156,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const renderPreview = () => {
     return (
       <div className={styles.imageContainer}>
-        <img className={styles.image} src={previewUrl} alt={alt} onClick={showOverView}/>
+        <LocalImage className={styles.image} url={url} alt={alt} onClick={showOverView} />
         <div className={styles.actions}>
           <div onClick={showOverView} className={styles.item}>
             <FullscreenOutlined />
@@ -184,10 +176,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     } else {
       return renderUpload();
     }
-  }
-
-  if (isFileLoading) {
-    return null;
   }
 
   return (

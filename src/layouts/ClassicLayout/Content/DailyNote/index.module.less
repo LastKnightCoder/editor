@@ -6,24 +6,26 @@
   overflow: hidden;
   container-name: dailyNoteContainer;
   container-type: inline-size;
-  .content {
+  .title {
     max-width: 720px;
     margin: 0 auto;
-    .title {
-      display: flex;
-      align-items: center;
-      height: 40px;
-      box-sizing: border-box;
-      font-weight: bold;
-      font-size: 1.2em;
-      border-bottom: 1px solid #e8e8e8;
-    }
+    display: flex;
+    align-items: center;
+    height: 40px;
+    box-sizing: border-box;
+    font-weight: bold;
+    font-size: 1.2em;
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .content {
+    overflow-y: auto;
+    height: calc(100vh - var(--title-bar-height) - 40px);
+    box-sizing: border-box;
+    border-bottom: 20px solid transparent;
     .editor {
-      margin-top: 10px;
-      height: calc(100vh - var(--title-bar-height) - 50px);
-      padding: 10px 20px 20px;
+      max-width: 720px;
+      margin: 20px auto 0;
       box-sizing: border-box;
-      overflow-y: auto;
       &::-webkit-scrollbar {
         display: none;
       }

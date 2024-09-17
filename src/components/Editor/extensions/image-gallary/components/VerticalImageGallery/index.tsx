@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import lightGallery from "lightgallery";
 
 import { ImageGalleryItem } from '@/components/Editor/types';
+import LocalImage from "@editor/components/LocalImage";
 
 import lgThumbnail from 'lightgallery/plugins/thumbnail';
 import lgZoom from 'lightgallery/plugins/zoom';
@@ -44,7 +45,7 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
       {
         items.map((item) => (
           <div data-src={item.url} key={item.id} className={styles.gridItem}>
-            <img src={item.url} alt={item.desc || ''}/>
+            <LocalImage url={item.url} alt={item.desc || ''} />
           </div>
         ))
       }

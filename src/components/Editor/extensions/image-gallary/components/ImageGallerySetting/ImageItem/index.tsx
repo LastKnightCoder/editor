@@ -3,10 +3,10 @@ import { DeleteOutlined } from '@ant-design/icons';
 
 import classnames from "classnames";
 
-import { ImageGalleryItem } from "@/components/Editor/types";
+import LocalImage from "@editor/components/LocalImage";
+import { ImageGalleryItem } from "@editor/types";
 
 import useDragAndDrop from "./useDragAndDrop";
-
 import styles from './index.module.less';
 
 interface IImageItemProps {
@@ -26,7 +26,7 @@ const ImageItem = (props: IImageItemProps) => {
   } = useDragAndDrop({
     imageItem,
     onDrop
-  })
+  });
 
   return (
     <motion.div
@@ -37,7 +37,7 @@ const ImageItem = (props: IImageItemProps) => {
         [styles.dragging]: isDragging,
       })}
     >
-      <img className={styles.img} src={imageItem.url} alt={imageItem.desc || ''} />
+      <LocalImage url={imageItem.url} alt={imageItem.desc || ''} className={styles.img} />
       <div className={styles.delete} onClick={() => { onDelete(imageItem) }}>
         <DeleteOutlined />
       </div>

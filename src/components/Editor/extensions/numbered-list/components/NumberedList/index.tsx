@@ -14,12 +14,9 @@ interface INumberedListProps {
 const NumberedList: React.FC<PropsWithChildren<INumberedListProps>> = (props) => {
   const { attributes, children } = props;
   return (
-    <div>
-      <ol className={styles.list} {...attributes}>
-        {children}
-      </ol>
-      {/* <AddParagraph element={element} /> */}
-    </div>
+    <ol className={styles.list} {...attributes}>
+      {children}
+    </ol>
   )
 }
 
