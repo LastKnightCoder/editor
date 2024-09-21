@@ -36,7 +36,7 @@ fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
         tauri::WindowBuilder::new(app, label, tauri::WindowUrl::App(url.into()))
             .title(label)
             .decorations(false)
-            .inner_size(400.0, 800.0)
+            .inner_size(800.0, 1000.0)
             .transparent(true)
             .fullscreen(false)
             .resizable(true)
@@ -69,12 +69,15 @@ fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
 }
 
 fn main() {
-    let quit = CustomMenuItem::new("quick_card_note".to_string(), "快捷卡片");
-    let hide = CustomMenuItem::new("quick_time_record".to_string(), "快捷记录");
+    let quick_card_note = CustomMenuItem::new("quick_card_note".to_string(), "快捷卡片");
+    let quick_time_record = CustomMenuItem::new("quick_time_record".to_string(), "快捷记录");
+    let white_board = CustomMenuItem::new("white_board".to_string(), "白板");
     let tray_menu = SystemTrayMenu::new()
-        .add_item(quit)
+        .add_item(quick_card_note)
         .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(hide);
+        .add_item(quick_time_record)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(white_board);
     let tray = SystemTray::new().with_menu(tray_menu);
     tauri::Builder::default()
         .plugin(card::init())
@@ -92,6 +95,8 @@ fn main() {
                         create_or_show_quick_window(app, "quick-card", "/quick-card");
                     } else if id == "quick_time_record" {
                         create_or_show_quick_window(app, "quick-time-record", "/quick-time-record");
+                    } else if id == "white_board" {
+                        create_or_show_quick_window(app, "white-board", "/white-board");
                     }
                 }
                 _ => {}

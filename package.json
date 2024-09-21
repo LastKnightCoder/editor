@@ -34,6 +34,7 @@
     "clsx": "^2.1.1",
     "codemirror": "5",
     "dayjs": "^1.11.8",
+    "eventemitter3": "^5.0.1",
     "framer-motion": "^10.13.0",
     "graphviz-react": "^1.2.5",
     "immer": "^10.0.2",
@@ -59,6 +60,7 @@
     "swiper": "^11.0.3",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "tapable": "^2.2.1",
     "uuid": "^9.0.0",
     "words-count": "^2.0.2",
     "zustand": "^4.3.8"

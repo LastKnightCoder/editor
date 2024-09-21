@@ -1,0 +1,31 @@
+.whiteBoardPageContainer {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  --title-bar-height: 56px;
+  .titleBar {
+    padding: 0 24px;
+    box-sizing: border-box;
+    height: var(--title-bar-height);
+    display: flex;
+    align-items: center;
+    .title {
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    .windowControl {
+      margin-left: auto;
+    }
+  }
+  .whiteBoardContainer {
+    width: 100%;
+    height: calc(100vh - var(--title-bar-height));
+    position: relative;
+  }
+
+  .control {
+    position: absolute;
+    top: 100px;
+    right: 20px;
+  }
+}
