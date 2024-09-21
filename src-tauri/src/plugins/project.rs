@@ -1,3 +1,8 @@
+use tauri::{
+  plugin::{Builder, TauriPlugin},
+  Runtime,
+};
+
 use crate::state;
 use crate::database::project::{self, Project, ProjectItem};
 
@@ -181,4 +186,27 @@ pub fn delete_project_items_not_in_any_project(app_state: tauri::State<state::Ap
         }
         None => Err("Database connection not initialized".to_string()),
     }
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("project")
+    .invoke_handler(tauri::generate_handler![
+        create_project,
+        delete_project,
+        update_project,
+        get_project_list,
+        get_project_by_id,
+        create_project_item,
+        update_project_item,
+        delete_project_item,
+        get_project_item_by_id,
+        get_project_items_by_ref,
+        get_all_project_items_not_in_project,
+        delete_all_project_items_not_in_project,
+        get_project_item_count_in_project,
+        is_project_item_not_in_any_project,
+        get_project_items_not_in_any_project,
+        delete_project_items_not_in_any_project,
+    ])
+    .build()
 }

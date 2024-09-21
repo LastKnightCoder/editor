@@ -1,5 +1,12 @@
 import { Descendant, Editor } from "slate";
-import { CodeBlockElement, FormattedText, ParagraphElement, InlineMathElement, BlockMathElement } from "@/components/Editor/types";
+import {
+  CodeBlockElement,
+  FormattedText,
+  ParagraphElement,
+  InlineMathElement,
+  BlockMathElement,
+  InlineElement
+} from "@/components/Editor/types";
 import { Typography } from "antd";
 import Katex from "@/components/Katex";
 import { wordsCount } from 'words-count';
@@ -147,4 +154,21 @@ export const getEditorTextLength = (editor: Editor, value: Descendant[]): number
     anchor: Editor.start(editor, [0]),
     focus: Editor.end(editor, []),
   })) + codeBlockLength + mathLength;
+}
+
+export const getInlineElementText = (element: InlineElement): string => {
+  switch (element.type){
+    case 'formatted':
+      return element.text;
+    case 'link':
+      return element.children?.[0].text;
+    case 'inline-math':
+      return element.tex;
+    case 'underline':
+      return element.children?.[0].text;
+    case 'styled-text':
+      return element.children?.[0].text;
+    default:
+      return '';
+  }
 }

@@ -5,3 +5,7 @@ export const showInFolder = async (path: string) => {
     path,
   })
 }
+
+export const getEditorDir = async () => {
+  return await invoke('get_editor_dir');
+}

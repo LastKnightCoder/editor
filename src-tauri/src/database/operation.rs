@@ -123,7 +123,6 @@ pub fn get_operation_records_by_year(conn: &Connection, year: String) -> Result<
     // 建议先按照 operation_content_type 分组，然后根据 operation_id 去重，最后恢复
     // 代码如下：
     #[derive(Debug)]
-
     struct OperationRecordGroupByContentType {
         pub time: String,
         // 键就是 operation_content_type

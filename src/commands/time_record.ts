@@ -2,21 +2,21 @@ import { invoke } from "@tauri-apps/api";
 import { ITimeRecord, TimeRecordGroup } from "@/types";
 
 export const createTimeRecord = async (timeRecord: Omit<ITimeRecord, 'id'>): Promise<ITimeRecord> => {
-  return invoke('create_time_record', {
+  return invoke('plugin:time_record|create_time_record', {
     ...timeRecord,
     content: JSON.stringify(timeRecord.content),
   });
 }
 
 export const updateTimeRecord = async (timeRecord: ITimeRecord): Promise<ITimeRecord> => {
-  return invoke('update_time_record', {
+  return invoke('plugin:time_record|update_time_record', {
     ...timeRecord,
     content: JSON.stringify(timeRecord.content),
   });
 }
 
 export const deleteTimeRecord = async (id: number): Promise<number> => {
-  return invoke('delete_time_record', {
+  return invoke('plugin:time_record|delete_time_record', {
     id
   });
 }
@@ -34,7 +34,7 @@ const transformTimeRecord = (item: any): ITimeRecord => {
 }
 
 export const getAllTimeRecords = async (): Promise<TimeRecordGroup> => {
-  const list: any[] = await invoke('get_all_time_records');
+  const list: any[] = await invoke('plugin:time_record|get_all_time_records');
   return list.map((item) => {
     return {
       date: item.date,
@@ -44,21 +44,21 @@ export const getAllTimeRecords = async (): Promise<TimeRecordGroup> => {
 }
 
 export const getTimeRecordById = async (id: number): Promise<ITimeRecord> => {
-  const item: any = await invoke('get_time_record_by_id', {
+  const item: any = await invoke('plugin:time_record|get_time_record_by_id', {
     id
   });
   return transformTimeRecord(item);
 }
 
 export const getTimeRecordsByDate = async (date: string): Promise<ITimeRecord[]> => {
-  const list: any[] = await invoke('get_time_records_by_date', {
+  const list: any[] = await invoke('plugin:time_record|get_time_records_by_date', {
     date
   });
   return list.map(transformTimeRecord);
 }
 
 export const getTimeRecordsByDateRange = async (startDate: string, endDate: string): Promise<TimeRecordGroup> => {
-  const list: any[] = await invoke('get_time_records_by_date_range', {
+  const list: any[] = await invoke('plugin:time_record|get_time_records_by_date_range', {
     startDate,
     endDate,
   });
@@ -71,9 +71,9 @@ export const getTimeRecordsByDateRange = async (startDate: string, endDate: stri
 }
 
 export const getAllEventTypes = async (): Promise<string[]> => {
-  return invoke('get_all_event_types');
+  return invoke('plugin:time_record|get_all_event_types');
 }
 
 export const getAllTimeTypes = async (): Promise<string[]> => {
-  return invoke('get_all_time_types');
+  return invoke('plugin:time_record|get_all_time_types');
 }

@@ -1,3 +1,8 @@
+use tauri::{
+  plugin::{Builder, TauriPlugin},
+  Runtime,
+};
+
 use crate::state;
 use crate::database::time_record::{self, TimeRecord, TimeRecordGroup};
 
@@ -133,4 +138,20 @@ pub fn get_all_time_types(
         }
         None => Err("Database connection not initialized".to_string()),
     }
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("time_record")
+    .invoke_handler(tauri::generate_handler![
+        create_time_record,
+        update_time_record,
+        delete_time_record,
+        get_time_record_by_id,
+        get_time_records_by_date,
+        get_all_time_records,
+        get_time_records_by_time_range,
+        get_all_event_types,
+        get_all_time_types,
+    ])
+    .build()
 }
