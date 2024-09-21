@@ -331,5 +331,8 @@
 
 ## v0.7.5
 
-- feat: pdf commands 模块替换为插件
 - feat: 侧边栏管理
+- feat: Rust 各功能插件化
+- feat: 优化各页面布局
+- feat: 各页面大纲展示优化
+- fix: Windows 下小窗口无法显示修复

@@ -6,8 +6,6 @@ import classnames from "classnames";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import EditorSourceValue from "@/components/EditorSourceValue";
-import Outline from "@/components/Outline";
-import If from "@/components/If";
 
 import useUploadImage from "@/hooks/useUploadImage.ts";
 import useEditDoc from "./useEditDoc";
@@ -19,6 +17,7 @@ import { formatDate } from "@/utils/time.ts";
 import { cardLinkExtension, documentCardListExtension, fileAttachmentExtension } from "@/editor-extensions";
 
 import styles from './index.module.less';
+import EditorOutline from "@/layouts/ClassicLayout/components/EditorOutline";
 
 const extensions = [
   cardLinkExtension,
@@ -133,15 +132,12 @@ const EditDoc = memo(() => {
             onInit={onInit}
           />
         </div>
-        <If condition={headers.length > 0}>
-          <motion.div layout layoutRoot className={classnames(styles.outline, {
-            [styles.hide]: !outlineOpen
-          })}>
-            <div ref={outlineRef}>
-              <Outline headers={headers} onClick={onClickHeader} />
-            </div>
-          </motion.div>
-        </If>
+        <EditorOutline
+          className={classnames(styles.outline, { [styles.hide]: !outlineOpen })}
+          content={activeDocumentItem.content}
+          show={outlineOpen}
+          onClickHeader={onClickHeader}
+        />
       </div>
       <div className={styles.statusBar}>
         <div style={{

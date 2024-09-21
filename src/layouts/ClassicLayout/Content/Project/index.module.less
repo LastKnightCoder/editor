@@ -9,12 +9,13 @@
     overflow-y: auto;
     border: 20px solid transparent;
     display: flex;
+    justify-content: center;
     container-name: editProject;
     container-type: inline-size;
+    gap: 40px;
     .editorContainer {
       flex: auto;
       position: relative;
-      margin: 0 auto;
       max-width: 720px;
       .title {
         font-size: 2.2em;
@@ -56,14 +57,31 @@
   }
 }
 
-@container editProject (max-width: 720px) {
+@container editProject (max-width: 1080px) {
   .editProjectContainer {
     .editProject {
       .editorContainer {
-        max-width: 480px !important;
+        max-width: calc(44.444% + 240px) !important;
       }
       .outline {
         max-width: 0;
+        border: 0;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+    }
+  }
+}
+
+@container editProject (max-width: 540px) {
+  .editProjectContainer {
+    .editProject {
+      .editorContainer {
+        max-width: calc(100% - 60px) !important;
+      }
+      .outline {
+        max-width: 0;
+        border: 0;
         box-sizing: border-box;
         overflow: hidden;
       }

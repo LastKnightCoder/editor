@@ -1,8 +1,7 @@
 import { fetch, ResponseType } from '@tauri-apps/api/http';
 import { basename, sep } from "@tauri-apps/api/path";
 import { createDir, exists, readTextFile, writeBinaryFile, writeTextFile } from '@tauri-apps/api/fs';
-import { getDatabasePath } from '@/commands';
-
+import { getEditorDir } from '@/commands';
 
 // 将远程资源下载到本地
 // 先查看是否已经下载过，如果没有则下载
@@ -13,8 +12,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!fileName) {
     fileName = await basename(url);
   }
-  const path = await getDatabasePath('xxx');
-  const configDirPath = path.split(sep).slice(0, -1).join(sep);
+  const configDirPath = await getEditorDir();
   const configPath = configDirPath + sep + REMOTE_RESOURCE_CONFIG_NAME;
   const isExist = await exists(configPath);
   if (!isExist) {

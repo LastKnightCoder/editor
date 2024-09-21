@@ -2,7 +2,7 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 import { useEffect, useState } from "react";
 import { produce } from "immer";
 import { getBucketList } from "@/commands";
-import {Input, message, Select, Space} from "antd";
+import { Input, message, Select, Space } from "antd";
 import If from "@/components/If";
 
 const AliOssSetting = () => {

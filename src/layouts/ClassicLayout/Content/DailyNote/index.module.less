@@ -19,6 +19,7 @@
   }
   .content {
     overflow-y: auto;
+    width: 100%;
     height: calc(100vh - var(--title-bar-height) - 40px);
     box-sizing: border-box;
     border-bottom: 20px solid transparent;
@@ -34,7 +35,7 @@
 }
 
 @container dailyNoteContainer (max-width: 1080px) {
-  .content {
+  .title, .editor {
     max-width: 70cqi !important;
   }
 }

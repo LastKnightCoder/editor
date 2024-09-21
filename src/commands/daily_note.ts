@@ -2,7 +2,7 @@ import { DailyNote } from "@/types/daily_note.ts";
 import { invoke } from "@tauri-apps/api";
 
 export const createDailyNote = async (dailyNote: Omit<DailyNote, 'id'>): Promise<DailyNote> => {
-  const createdDailyNote: any = await invoke('insert_daily_note', {
+  const createdDailyNote: any = await invoke('plugin:daily_note|insert_daily_note', {
     content: JSON.stringify(dailyNote.content),
     date: dailyNote.date,
   });
@@ -15,7 +15,7 @@ export const createDailyNote = async (dailyNote: Omit<DailyNote, 'id'>): Promise
 
 export const updateDailyNote = async (dailyNote: Omit<DailyNote, 'date'>): Promise<DailyNote> => {
   const { id, content } = dailyNote;
-  const res: any = await invoke('update_daily_note', {
+  const res: any = await invoke('plugin:daily_note|update_daily_note', {
     id,
     content: JSON.stringify(content),
   });
@@ -26,7 +26,7 @@ export const updateDailyNote = async (dailyNote: Omit<DailyNote, 'date'>): Promi
 }
 
 export const getDailyNoteById = async (id: number): Promise<DailyNote> => {
-  const res: any = await invoke('find_daily_note_by_id', {
+  const res: any = await invoke('plugin:daily_note|find_daily_note_by_id', {
     id
   });
 
@@ -37,7 +37,7 @@ export const getDailyNoteById = async (id: number): Promise<DailyNote> => {
 }
 
 export const getDailyNoteByDate = async (date: string): Promise<DailyNote> => {
-  const res: any =  await invoke('find_daily_note_by_date', {
+  const res: any =  await invoke('plugin:daily_note|find_daily_note_by_date', {
     date
   });
 
@@ -48,7 +48,7 @@ export const getDailyNoteByDate = async (date: string): Promise<DailyNote> => {
 }
 
 export const getAllDailyNotes = async (): Promise<DailyNote[]> => {
-  const list: any[] = await invoke('find_all_daily_notes');
+  const list: any[] = await invoke('plugin:daily_note|find_all_daily_notes');
   return list.map((item) => {
     return {
       ...item,
@@ -58,7 +58,7 @@ export const getAllDailyNotes = async (): Promise<DailyNote[]> => {
 }
 
 export const deleteDailyNote = async (id: number): Promise<number> => {
-  return await invoke('delete_daily_note', {
+  return await invoke('plugin:daily_note|delete_daily_note', {
     id
   })
 }

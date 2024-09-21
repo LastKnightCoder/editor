@@ -7,6 +7,8 @@ import Outline from "@/components/Outline";
 import If from "@/components/If";
 
 import styles from './index.module.less';
+import { HeaderElement } from "@editor/types";
+import { getInlineElementText } from "@/utils";
 
 interface EditorOutlineProps {
   className?: string;
@@ -34,14 +36,12 @@ const EditorOutline = (props: EditorOutlineProps) => {
     }
   }, [show]);
 
-  const headers: Array<{
-    level: number;
-    title: string;
-  }> = useMemo(() => {
-    const headers =  content.filter(node => node.type === 'header');
-    return headers.map((header: any) => ({
+  const headers = useMemo(() => {
+    if (!content) return [];
+    const headers =  content.filter(node => node.type === 'header') as HeaderElement[];
+    return headers.map((header) => ({
       level: header.level,
-      title: header.children.map((node: { text: string }) => node.text).join(''),
+      title: header.children.map(getInlineElementText).join(''),
     }));
   }, [content]);
 

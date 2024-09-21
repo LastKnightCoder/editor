@@ -1,3 +1,8 @@
+use tauri::{
+  plugin::{Builder, TauriPlugin},
+  Runtime,
+};
+
 use crate::state;
 use crate::database::document;
 
@@ -166,4 +171,26 @@ pub fn get_document_item_all_parents(id: i64, app_state: tauri::State<state::App
         }
         None => Err("Database connection not initialized".to_string()),
     }
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("document")
+    .invoke_handler(tauri::generate_handler![
+        create_document,
+        delete_document,
+        update_document,
+        get_document_list,
+        get_document,
+        create_document_item,
+        delete_document_item,
+        update_document_item,
+        get_document_item,
+        get_document_items_by_ids,
+        get_all_document_items,
+        is_document_item_child_of,
+        get_document_item_all_parents,
+        init_all_document_item_parents,
+        init_document_item_parents_by_ids,
+    ])
+    .build()
 }

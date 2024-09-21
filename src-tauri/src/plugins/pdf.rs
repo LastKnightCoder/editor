@@ -3,19 +3,6 @@ use tauri::{
   Runtime,
 };
 
-// use crate::commands::{
-//     add_pdf,
-//     get_pdf_by_id,
-//     get_pdf_list,
-//     update_pdf,
-//     remove_pdf,
-//     add_highlight,
-//     update_highlight,
-//     remove_highlight,
-//     get_highlights,
-//     get_highlight_by_id,
-// };
-
 use crate::state;
 use crate::database::pdf;
 

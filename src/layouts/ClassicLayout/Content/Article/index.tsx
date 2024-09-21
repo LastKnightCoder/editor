@@ -1,24 +1,24 @@
-import { useEffect, useMemo, useRef, memo } from "react";
+import { useEffect, useMemo, useRef, memo, useState } from "react";
 import { Descendant, Editor } from "slate";
-import { useMemoizedFn, useRafInterval, useSize } from "ahooks";
-import { motion } from "framer-motion";
-import classnames from 'classnames';
+import { useMemoizedFn, useRafInterval, useThrottleFn } from "ahooks";
 
-import If from "@/components/If";
 import ArticleEditor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
-import Outline from "@/components/Outline";
 import EditText from "@/components/EditText";
 import { CalendarOutlined } from "@ant-design/icons";
+import LocalImage from "@editor/components/LocalImage";
+import EditorOutline from "@/layouts/ClassicLayout/components/EditorOutline";
 
 import useUploadImage from "@/hooks/useUploadImage";
+import { getInlineElementText } from "@/utils";
 import { formatDate } from "@/utils/time";
+import { HeaderElement } from "@editor/types";
 import { IArticle } from "@/types";
 
 import { cardLinkExtension, fileAttachmentExtension } from '@/editor-extensions';
 
 import styles from './index.module.less';
-import LocalImage from "@editor/components/LocalImage";
+
 
 interface IArticleItemProps {
   initValue: Descendant[],
@@ -31,15 +31,6 @@ interface IArticleItemProps {
   onTitleChange: (value: string) => void,
   saveArticle: () => void,
   readonly: boolean,
-}
-
-const outlineVariants = {
-  open: {
-    width: 'fit-content',
-  },
-  close: {
-    width: 0,
-  }
 }
 
 const extensions = [cardLinkExtension, fileAttachmentExtension];
@@ -60,26 +51,42 @@ const EditArticle = memo((props: IArticleItemProps) => {
 
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showOutline, setShowOutline] = useState(false);
 
   const uploadImage = useUploadImage();
-  const size = useSize(containerRef.current);
 
   const headers: Array<{
     level: number;
     title: string;
   }> = useMemo(() => {
     if (!editingArticle || !editingArticle.content) return [];
-    const headers =  editingArticle.content.filter(node => node.type === 'header');
-    return headers.map((header: any) => ({
+    const headers =  editingArticle.content.filter(node => node.type === 'header') as HeaderElement[];
+    return headers.map((header) => ({
       level: header.level,
-      title: header.children.map((node: { text: string }) => node.text).join(''),
+      title: header.children.map(getInlineElementText).join(''),
     }));
   }, [editingArticle]);
+  
+  const { run: handleContentResize } = useThrottleFn((entries: ResizeObserverEntry[]) => {
+    const { width } = entries[0].contentRect;
+    if (headers.length > 0 && width > 1080) {
+      setShowOutline(true);
+    } else {
+      setShowOutline(false);
+    }
+  }, { wait: 500 });
 
-  const showOutline = useMemo(() => {
-    if (!size) return false;
-    return headers.length > 0 && size.width > 1080;
-  }, [headers, size]);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(handleContentResize);
+    observer.observe(containerRef.current);
+
+    return () => {
+      observer.disconnect();
+    }
+  }, [handleContentResize, headers]);
+
+  console.log('setShowOutline', showOutline);
 
   useRafInterval(() => {
     saveArticle()
@@ -142,17 +149,14 @@ const EditArticle = memo((props: IArticleItemProps) => {
             uploadImage={uploadImage}
             readonly={readonly}
           />
-          <AddTag readonly={readonly} tags={editingArticle.tags} addTag={onAddTag} removeTag={onDeleteTag} />
+          <AddTag readonly={readonly} tags={editingArticle.tags} addTag={onAddTag} removeTag={onDeleteTag}/>
         </div>
-        <If condition={showOutline}>
-          <motion.div
-            animate={showOutline ? 'open' : 'close'}
-            variants={outlineVariants}
-            className={classnames(styles.outline)}
-          >
-            <Outline style={{ marginRight: 0 }} headers={headers} onClick={onClickHeader} />
-          </motion.div>
-        </If>
+        <EditorOutline
+          className={styles.outline}
+          content={editingArticle.content}
+          show={showOutline}
+          onClickHeader={onClickHeader}
+        />
       </div>
     </div>
   )

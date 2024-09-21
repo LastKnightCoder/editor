@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api";
 import { IArticle } from "@/types";
 
 export async function createArticle(article: Omit<IArticle, 'id' | 'create_time' | 'update_time' | 'isDelete'>): Promise<IArticle> {
-  const res: any = await invoke('create_article', {
+  const res: any = await invoke('plugin:article|create_article', {
     ...article,
     content: JSON.stringify(article.content),
   });
@@ -16,7 +16,7 @@ export async function createArticle(article: Omit<IArticle, 'id' | 'create_time'
 }
 
 export async function updateArticle(article: Omit<IArticle, 'create_time' | 'update_time' | 'isDelete'>): Promise<IArticle> {
-  const res: any = await invoke('update_article', {
+  const res: any = await invoke('plugin:article|update_article', {
     ...article,
     content: JSON.stringify(article.content),
   });
@@ -30,13 +30,13 @@ export async function updateArticle(article: Omit<IArticle, 'create_time' | 'upd
 }
 
 export async function deleteArticle(id: number): Promise<number> {
-  return await invoke('delete_article', {
+  return await invoke('plugin:article|delete_article', {
     id,
   });
 }
 
 export async function findOneArticle(id: number): Promise<IArticle> {
-  const res: any =  await invoke('find_article', {
+  const res: any =  await invoke('plugin:article|find_article', {
     id
   });
   return {
@@ -49,7 +49,7 @@ export async function findOneArticle(id: number): Promise<IArticle> {
 }
 
 export async function getAllArticles(): Promise<IArticle[]> {
-  const list: any[] =  await invoke('find_all_articles');
+  const list: any[] =  await invoke('plugin:article|find_all_articles');
 
   return list.map((item) => {
     return {
@@ -63,14 +63,14 @@ export async function getAllArticles(): Promise<IArticle[]> {
 }
 
 export async function updateArticleIsTop(id: number, isTop: boolean): Promise<number> {
-  return await invoke('update_article_is_top', {
+  return await invoke('plugin:article|update_article_is_top', {
     id,
     isTop,
   });
 }
 
 export async function updateArticleBannerBg(id: number, bannerBg: string): Promise<number> {
-  return await invoke('update_article_banner_bg', {
+  return await invoke('plugin:article|update_article_banner_bg', {
     id,
     bannerBg,
   });

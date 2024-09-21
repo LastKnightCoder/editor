@@ -19,6 +19,18 @@
 
 @container cardsManagement (max-width: 1080px) {
   .editCardContainer {
-    max-width: 70cqi;
+    max-width: calc(44.44444% + 240px);
+  }
+}
+
+@container cardsManagement (max-width: 540px) {
+  .editCardContainer {
+    max-width: calc(100% - 60px);
+  }
+}
+
+@container cardsManagement (max-width: 420px) {
+  .time {
+    flex-direction: column !important;
   }
 }

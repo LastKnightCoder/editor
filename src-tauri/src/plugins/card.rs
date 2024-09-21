@@ -1,3 +1,8 @@
+use tauri::{
+  plugin::{Builder, TauriPlugin},
+  Runtime,
+};
+
 use std::collections::HashMap;
 use crate::state;
 use crate::database::card;
@@ -78,4 +83,18 @@ pub fn get_cards_group_by_tag(app_state: tauri::State<state::AppState>) -> Resul
         }
         None => Err("Database connection not initialized".to_string()),
     }
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("card")
+    .invoke_handler(tauri::generate_handler![
+        insert_one_card,
+        find_one_card,
+        find_all_cards,
+        delete_one_card,
+        update_one_card,
+        get_tags_by_id,
+        get_cards_group_by_tag,
+    ])
+    .build()
 }

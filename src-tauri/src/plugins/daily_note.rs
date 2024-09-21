@@ -1,3 +1,8 @@
+use tauri::{
+  plugin::{Builder, TauriPlugin},
+  Runtime,
+};
+
 use crate::state;
 use crate::database::daily_note;
 use crate::database::daily_note::DailyNote;
@@ -86,4 +91,17 @@ pub fn find_all_daily_notes(
         }
         None => Err("Database connection not initialized".to_string()),
     }
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("daily_note")
+    .invoke_handler(tauri::generate_handler![
+        insert_daily_note,
+        update_daily_note,
+        delete_daily_note,
+        find_daily_note_by_id,
+        find_daily_note_by_date,
+        find_all_daily_notes,
+    ])
+    .build()
 }

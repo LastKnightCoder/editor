@@ -1,15 +1,20 @@
+use tauri::{
+  plugin::{Builder, TauriPlugin},
+  Runtime,
+};
+
 use crate::state;
 use crate::database::article;
 use crate::database::article::Article;
 
 #[tauri::command]
 pub fn create_article(
-    title: String, 
-    author: String, 
-    tags: Vec<String>, 
-    links: Vec<i64>, 
-    content: String, 
-    banner_bg: String, 
+    title: String,
+    author: String,
+    tags: Vec<String>,
+    links: Vec<i64>,
+    content: String,
+    banner_bg: String,
     is_top: bool,
     app_state: tauri::State<state::AppState>
 ) -> Result<Article, String> {
@@ -30,11 +35,11 @@ pub fn create_article(
 
 #[tauri::command]
 pub fn update_article(
-    id: i64, 
-    title: String, 
-    author: String, 
-    tags: Vec<String>, 
-    links: Vec<i64>, 
+    id: i64,
+    title: String,
+    author: String,
+    tags: Vec<String>,
+    links: Vec<i64>,
     content: String,
     banner_bg: String,
     is_top: bool,
@@ -102,4 +107,18 @@ pub fn update_article_is_top(id: i64, is_top: bool, app_state: tauri::State<stat
         }
         None => Err("Database connection not initialized".to_string()),
     }
+}
+
+pub fn init<R: Runtime>() -> TauriPlugin<R> {
+  Builder::new("article")
+    .invoke_handler(tauri::generate_handler![
+        create_article,
+        update_article,
+        update_article_banner_bg,
+        update_article_is_top,
+        delete_article,
+        find_article,
+        find_all_articles,
+    ])
+    .build()
 }
