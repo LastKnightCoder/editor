@@ -1,4 +1,4 @@
-import Board, { IBoardPlugin, BoardElement } from "../Board.ts";
+import { IBoardPlugin, BoardElement } from "../Board.ts";
 
 interface CircleElement extends BoardElement {
   type: "circle",
@@ -11,12 +11,6 @@ interface CircleElement extends BoardElement {
 
 export class CirclePlugin implements IBoardPlugin {
   name = "circle";
-
-  init(board: Board) {
-    board.hooks.onClick.tap('onClick', (e: MouseEvent) => {
-      e.preventDefault();
-    });
-  }
 
   render({ element }: { element: CircleElement }) {
     const { id, center, radius, fill, stroke, strokeWidth } = element;
