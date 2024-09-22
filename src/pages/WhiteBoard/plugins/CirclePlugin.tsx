@@ -16,7 +16,6 @@ export class CirclePlugin implements IBoardPlugin {
   isHit(_board: Board, element: CircleElement, x: number, y: number): boolean {
     const { center, radius } = element;
     const [cx, cy] = center;
-    console.log("isHit", x, y, cx, cy, radius, Math.pow(x - cx, 2) + Math.pow(y - cy, 2) <= Math.pow(radius, 2))
     return Math.pow(x - cx, 2) + Math.pow(y - cy, 2) <= Math.pow(radius, 2);
   }
 

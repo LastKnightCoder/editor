@@ -1,6 +1,5 @@
 import Board, { IBoardPlugin, BoardElement } from "../Board.ts";
 import PathUtil from "@/pages/WhiteBoard/PathUtil.ts";
-// import { BOARD_TO_CONTAINER } from "@/pages/WhiteBoard/constants/map.ts";
 
 interface RectElement extends BoardElement {
   type: "rect",
@@ -15,33 +14,6 @@ interface RectElement extends BoardElement {
 
 export class RectPlugin implements IBoardPlugin {
   name = "rect";
-
-  // onClick(e: MouseEvent, board: Board) {
-  //   const container = BOARD_TO_CONTAINER.get(board);
-  //   if (!container) return;
-  //
-  //   const { x, y } = container.getBoundingClientRect();
-  //
-  //   const viewPort = board.viewPort;
-  //   const { minX, minY, zoom } = viewPort;
-  //
-  //   board.apply({
-  //     type: 'set_node',
-  //     path: [0],
-  //     properties: {
-  //
-  //     },
-  //     newProperties: {
-  //       x: (e.clientX - x) / zoom + minX,
-  //       y: (e.clientY - y) / zoom + minY,
-  //       width: 100 + Math.random() * 200,
-  //       height: 100 + Math.random() * 200,
-  //       fill: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`,
-  //       stroke: `rgb(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255})`,
-  //       strokeWidth: Math.random() * 10
-  //     }
-  //   })
-  // }
 
   isHit(_board: Board, element: RectElement, x: number, y: number) {
     const { x: left, y: top, width, height } = element;

@@ -1,12 +1,11 @@
 import { useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { InputNumber } from "antd";
 import { v4 as getUuid } from 'uuid';
 import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
 import Board from './Board.ts';
-import { RectPlugin, ViewPortPlugin, CirclePlugin, MovePlugin } from './plugins';
+import { RectPlugin, ViewPortPlugin, CirclePlugin, MovePlugin, CardPlugin } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
 import { useInitBoard } from './hooks';
@@ -16,6 +15,7 @@ const rectPlugin = new RectPlugin();
 const viewPortPlugin = new ViewPortPlugin();
 const circlePlugin = new CirclePlugin();
 const movePlugin = new MovePlugin();
+const cardPlugin = new CardPlugin();
 
 const WhiteBoard = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +34,14 @@ const WhiteBoard = () => {
     center: [100, 100],
     radius: 50,
     fill: 'red',
+  }, {
+    id: getUuid(),
+    type: 'card',
+    x: 200,
+    y: 200,
+    width: 400,
+    height: 200,
+    cardId: 200,
   }]));
 
   const { children, viewPort } = useWhiteBoardStore(state => ({
@@ -41,9 +49,9 @@ const WhiteBoard = () => {
     viewPort: state.viewPort,
   }));
 
-  const { minX, minY, width, height, zoom } = viewPort;
+  const { minX, minY, width, height } = viewPort;
 
-  useInitBoard(boardRef.current, containerRef.current, [movePlugin, circlePlugin, rectPlugin, viewPortPlugin]);
+  useInitBoard(boardRef.current, containerRef.current, [movePlugin, circlePlugin, rectPlugin, cardPlugin, viewPortPlugin]);
   
   const handleContainerResize = useMemoizedFn(() => {
     ViewPortTransforms.onContainerResize(boardRef.current);
@@ -57,33 +65,6 @@ const WhiteBoard = () => {
       observer.disconnect();
     }
   }, [handleContainerResize]);
-
-  const onOffsetXChange = useMemoizedFn((value: number | null) => {
-    if (value === null) return;
-    boardRef.current.apply({
-      type: 'set_viewport',
-      properties: boardRef.current.viewPort,
-      newProperties: {
-        minX: value
-      }
-    })
-  });
-
-  const onOffsetYChange = useMemoizedFn((value: number | null) => {
-    if (value === null) return;
-    boardRef.current.apply({
-      type: 'set_viewport',
-      properties: boardRef.current.viewPort,
-      newProperties: {
-        minY: value
-      }
-    })
-  });
-
-  const handleZoomChange = useMemoizedFn((value: number | null) => {
-    if (value === null) return;
-    ViewPortTransforms.updateZoom(boardRef.current, value);
-  });
 
   return (
     <div className={classnames(styles.whiteBoardPageContainer)}>
@@ -100,11 +81,6 @@ const WhiteBoard = () => {
             {boardRef.current.renderElements(children)}
           </g>
         </svg>
-      </div>
-      <div className={styles.control}>
-        <InputNumber<number> value={minX} onChange={onOffsetXChange} />
-        <InputNumber<number> value={minY} onChange={onOffsetYChange} />
-        <InputNumber<number> min={0.1} max={10} step={0.1} value={zoom} onChange={handleZoomChange} />
       </div>
     </div>
   )
