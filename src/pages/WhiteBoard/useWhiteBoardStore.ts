@@ -2,12 +2,12 @@ import { create } from 'zustand';
 import { BoardElement, ViewPort } from "@/pages/WhiteBoard/Board.ts";
 
 interface IWhiteBoardState {
-  value: BoardElement[];
+  children: BoardElement[];
   viewPort: ViewPort;
 }
 
 const useWhiteBoardStore = create<IWhiteBoardState>(() => ({
-  value: [],
+  children: [],
   viewPort: {
     width: 0,
     height: 0,

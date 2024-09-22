@@ -6,7 +6,7 @@ import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
 import Board from './Board.ts';
-import { RectPlugin, ViewPortPlugin, CirclePlugin } from './plugins';
+import { RectPlugin, ViewPortPlugin, CirclePlugin, MovePlugin } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
 import { useInitBoard } from './hooks';
@@ -15,6 +15,7 @@ import styles from './index.module.less';
 const rectPlugin = new RectPlugin();
 const viewPortPlugin = new ViewPortPlugin();
 const circlePlugin = new CirclePlugin();
+const movePlugin = new MovePlugin();
 
 const WhiteBoard = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,14 +36,14 @@ const WhiteBoard = () => {
     fill: 'red',
   }]));
 
-  const { value, viewPort } = useWhiteBoardStore(state => ({
-    value: state.value,
+  const { children, viewPort } = useWhiteBoardStore(state => ({
+    children: state.children,
     viewPort: state.viewPort,
   }));
 
   const { minX, minY, width, height, zoom } = viewPort;
 
-  useInitBoard(boardRef.current, containerRef.current, [circlePlugin, rectPlugin, viewPortPlugin]);
+  useInitBoard(boardRef.current, containerRef.current, [movePlugin, circlePlugin, rectPlugin, viewPortPlugin]);
   
   const handleContainerResize = useMemoizedFn(() => {
     ViewPortTransforms.onContainerResize(boardRef.current);
@@ -96,7 +97,7 @@ const WhiteBoard = () => {
       <div ref={containerRef} className={styles.whiteBoardContainer}>
         <svg ref={svgRef} width={'100%'} height={'100%'} viewBox={`${minX} ${minY} ${width} ${height}`}>
           <g>
-            {boardRef.current.renderElements(value)}
+            {boardRef.current.renderElements(children)}
           </g>
         </svg>
       </div>
