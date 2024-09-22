@@ -6,30 +6,27 @@ import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
 import Board from './Board.ts';
-import { RectPlugin, BoardPlugin, CirclePlugin } from './plugins';
+import { RectPlugin, ViewPortPlugin, CirclePlugin } from './plugins';
+import { ViewPortTransforms } from "./transforms";
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
 import { useInitBoard } from './hooks';
 import styles from './index.module.less';
 
 const rectPlugin = new RectPlugin();
-const boardPlugin = new BoardPlugin();
+const viewPortPlugin = new ViewPortPlugin();
 const circlePlugin = new CirclePlugin();
 
 const WhiteBoard = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  
-  const containerWidth = useRef(0);
-  const containerHeight = useRef(0);
-  const viewBoxMinX = useRef(0);
-  const viewBoxMinY = useRef(0);
+
   const boardRef = useRef<Board>(new Board([{
     id: getUuid(),
     type: 'rect',
     width: 200,
     height: 200,
-    x: 100,
-    y: 100,
+    x: 300,
+    y: 375,
   }, {
     id: getUuid(),
     type: 'circle',
@@ -38,30 +35,17 @@ const WhiteBoard = () => {
     fill: 'red',
   }]));
 
-  const { value } = useWhiteBoardStore(state => ({
-    value: state.value
+  const { value, viewPort } = useWhiteBoardStore(state => ({
+    value: state.value,
+    viewPort: state.viewPort,
   }));
 
-  boardRef.current.initPlugins([circlePlugin, rectPlugin, boardPlugin]);
+  const { minX, minY, width, height, zoom } = viewPort;
 
-  useInitBoard(boardRef.current, containerRef.current);
+  useInitBoard(boardRef.current, containerRef.current, [circlePlugin, rectPlugin, viewPortPlugin]);
   
   const handleContainerResize = useMemoizedFn(() => {
-    const container = containerRef.current;
-    const svgEle = svgRef.current;
-    if (!container || !svgEle) {
-      return;
-    }
-
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-
-    containerWidth.current = width;
-    containerHeight.current = height;
-
-    svgEle.style.width = `${width}px`;
-    svgEle.style.height = `${height}px`;
-    svgEle.setAttribute('viewBox', `${viewBoxMinX.current} ${viewBoxMinY.current} ${width} ${height}`);
+    ViewPortTransforms.onContainerResize(boardRef.current);
   });
 
   useEffect(() => {
@@ -75,14 +59,29 @@ const WhiteBoard = () => {
 
   const onOffsetXChange = useMemoizedFn((value: number | null) => {
     if (value === null) return;
-    viewBoxMinX.current = value;
-    svgRef.current?.setAttribute('viewBox', `${viewBoxMinX.current} ${viewBoxMinY.current} ${containerWidth.current} ${containerHeight.current}`);
+    boardRef.current.apply({
+      type: 'set_viewport',
+      properties: boardRef.current.viewPort,
+      newProperties: {
+        minX: value
+      }
+    })
   });
 
   const onOffsetYChange = useMemoizedFn((value: number | null) => {
     if (value === null) return;
-    viewBoxMinY.current = value;
-    svgRef.current?.setAttribute('viewBox', `${viewBoxMinX.current} ${viewBoxMinY.current} ${containerWidth.current} ${containerHeight.current}`);
+    boardRef.current.apply({
+      type: 'set_viewport',
+      properties: boardRef.current.viewPort,
+      newProperties: {
+        minY: value
+      }
+    })
+  });
+
+  const handleZoomChange = useMemoizedFn((value: number | null) => {
+    if (value === null) return;
+    ViewPortTransforms.updateZoom(boardRef.current, value);
   });
 
   return (
@@ -95,15 +94,16 @@ const WhiteBoard = () => {
         <WindowControl className={styles.windowControl} initAlwaysOnTop/>
       </div>
       <div ref={containerRef} className={styles.whiteBoardContainer}>
-        <svg ref={svgRef} width={'100%'} height={'100%'}>
+        <svg ref={svgRef} width={'100%'} height={'100%'} viewBox={`${minX} ${minY} ${width} ${height}`}>
           <g>
             {boardRef.current.renderElements(value)}
           </g>
         </svg>
       </div>
       <div className={styles.control}>
-        <InputNumber<number> onChange={onOffsetXChange} />
-        <InputNumber<number> onChange={onOffsetYChange} />
+        <InputNumber<number> value={minX} onChange={onOffsetXChange} />
+        <InputNumber<number> value={minY} onChange={onOffsetYChange} />
+        <InputNumber<number> min={0.1} max={10} step={0.1} value={zoom} onChange={handleZoomChange} />
       </div>
     </div>
   )

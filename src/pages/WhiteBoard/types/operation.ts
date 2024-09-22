@@ -1,4 +1,4 @@
-import { BoardElement } from "../Board.ts";
+import { BoardElement, ViewPort, BoardTheme } from "../Board.ts";
 
 type Path = number[];
 
@@ -27,4 +27,22 @@ export type SetNodeOperation = {
   newProperties: Partial<BoardElement>;
 };
 
-export type Operation = InsertNodeOperation | RemoveNodeOperation | MoveNodeOperation | SetNodeOperation;
+export type SetSelectionOperation = {
+  type: 'set_selection';
+  properties: Selection | null;
+  newProperties: Selection | null;
+};
+
+export type SetViewportOperation = {
+  type: 'set_viewport';
+  properties: Partial<ViewPort>;
+  newProperties: Partial<ViewPort>;
+};
+
+export type SetThemeOperation = {
+  type: 'set_theme';
+  properties: Partial<BoardTheme>;
+  newProperties: Partial<BoardTheme>;
+};
+
+export type Operation = InsertNodeOperation | RemoveNodeOperation | MoveNodeOperation | SetNodeOperation | SetViewportOperation;
