@@ -39,7 +39,7 @@ export default class BoardUtil {
       const node = queue.shift();
       if (!node) continue;
       if (!this.isBoard(node)) {
-        const result =visit(node);
+        const result = visit(node);
         if (quickQuit && result) {
           return result;
         }
