@@ -21,6 +21,14 @@ export interface IBoardPlugin {
   onWheel?: EventHandler;
   onKeyUp?: EventHandler;
   onKeyDown?: EventHandler;
+  onPointerDown?: EventHandler;
+  onPointerUp?: EventHandler;
+  onPointerMove?: EventHandler;
+  onGlobalPointerDown?: EventHandler;
+  onGlobalPointerUp?: EventHandler;
+  onGlobalPointerMove?: EventHandler;
+  moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => void;
+  isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
   render?: (value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;
   // destroy?: (board: Board) => void;
 }
@@ -32,7 +40,26 @@ export interface BoardTheme {
 const isValid = <T>(value: T | null | undefined): value is T => value !== null && value !== undefined;
 
 type EventHandler = (event: Event & any, board: Board) => void | boolean;
-type Events = 'onMouseDown' | 'onMouseMove' | 'onMouseUp' | 'onMouseEnter' | 'onMouseLeave' | 'onContextMenu' | 'onClick' | 'onDblClick' | 'onGlobalMouseDown' | 'onGlobalMouseUp' | 'onKeyDown' | 'onKeyUp' | 'onWheel';
+export type Events =
+  | 'onMouseDown'
+  | 'onMouseMove'
+  | 'onMouseUp'
+  | 'onMouseEnter'
+  | 'onMouseLeave'
+  | 'onContextMenu'
+  | 'onClick'
+  | 'onDblClick'
+  | 'onGlobalMouseDown'
+  | 'onGlobalMouseUp'
+  | 'onKeyDown'
+  | 'onKeyUp'
+  | 'onWheel'
+  | 'onPointerDown'
+  | 'onPointerUp'
+  | 'onPointerMove'
+  | 'onGlobalPointerDown'
+  | 'onGlobalPointerUp'
+  | 'onGlobalPointerMove';
 
 const executeSequence = (fns: EventHandler[], event: Event, board: Board) => {
   for (let i = 0; i < fns.length; i++) {
@@ -73,15 +100,15 @@ class Board {
 
   public boardFlag: typeof boardFlag;
   public isDestroyed: boolean;
-  public value: BoardElement[];
+  public children: BoardElement[];
   private plugins: IBoardPlugin[];
   private eventEmitter: EventEmitter;
   public viewPort: ViewPort;
 
-  constructor(value: BoardElement[]) {
+  constructor(children: BoardElement[]) {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
-    this.value = value;
+    this.children = children;
     this.plugins = [];
     this.eventEmitter = new EventEmitter();
     this.viewPort = {
@@ -139,6 +166,18 @@ class Board {
     }
   }
 
+  isHit(element: BoardElement, x: number, y: number): boolean {
+    const plugin = this.plugins.find(p => p.name === element.type);
+    if (!plugin) return false;
+    return !!plugin.isHit?.(this, element, x, y);
+  }
+
+  moveElement(element: BoardElement, offsetX: number, offsetY: number) {
+    const plugin = this.plugins.find(p => p.name === element.type);
+    if (!plugin) return;
+    plugin.moveElement?.(this, element, offsetX, offsetY);
+  }
+
   onMouseDown(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onMouseDown')).filter(isValid);
     executeSequence(fns, event, this);
@@ -192,14 +231,43 @@ class Board {
     executeSequence(fns, event, this);
   }
 
+  onPointerDown(event: PointerEvent) {
+    const fns = this.plugins.map(bindHandler('onPointerDown')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onPointerUp(event: PointerEvent) {
+    const fns = this.plugins.map(bindHandler('onPointerUp')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onPointerMove(event: PointerEvent) {
+    const fns = this.plugins.map(bindHandler('onPointerMove')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onGlobalPointerDown(event: PointerEvent) {
+    const fns = this.plugins.map(bindHandler('onGlobalPointerDown')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onGlobalPointerUp(event: PointerEvent) {
+    const fns = this.plugins.map(bindHandler('onGlobalPointerUp')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onGlobalPointerMove(event: PointerEvent) {
+    const fns = this.plugins.map(bindHandler('onGlobalPointerMove')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
   apply(op: Operation) {
-    this.value = createDraft(this.value);
+    this.children = createDraft(this.children);
 
     if (op.type === 'set_node') {
       const { path, newProperties, properties } = op;
       try {
         const node = BoardUtil.getNodeByPath(this, path);
-        console.log('set_node', node);
         for (const key in newProperties) {
           const value = newProperties[key];
 
@@ -216,9 +284,9 @@ class Board {
           }
         }
       } finally {
-        this.value = finishDraft(this.value);
+        this.children = finishDraft(this.children);
       }
-      this.emit('onChange', this.value);
+      this.emit('onValueChange', this.children);
       return;
     } else if (op.type === 'set_viewport') {
       this.viewPort = createDraft(this.viewPort);
