@@ -1,4 +1,4 @@
-import Board, { BoardElement } from "@/pages/WhiteBoard/Board.ts";
+import Board, { BoardElement } from "@/pages/WhiteBoard/Board";
 import BoardUtil from "@/pages/WhiteBoard/BoardUtil.ts";
 
 export type Path = number[];

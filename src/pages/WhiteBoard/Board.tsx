@@ -1,13 +1,12 @@
 import React from "react";
 import EventEmitter from 'eventemitter3';
 import { createDraft, finishDraft } from 'immer';
-import { Operation } from './types';
+import { Operation, Selection } from './types';
 import BoardUtil from "@/pages/WhiteBoard/BoardUtil.ts";
 import curry from 'lodash/curry';
 
 export interface IBoardPlugin {
   name: string;
-  // init: (board: Board) => void;
   onMouseDown?: EventHandler;
   onGlobalMouseDown?: EventHandler;
   onMouseMove?: EventHandler;
@@ -27,17 +26,19 @@ export interface IBoardPlugin {
   onGlobalPointerDown?: EventHandler;
   onGlobalPointerUp?: EventHandler;
   onGlobalPointerMove?: EventHandler;
-  moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => void;
+  getBBox?: (board: Board, element: BoardElement & any) => { x: number; y: number; width: number; height: number };
+  isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
+  resizeElement?: (board: Board, element: BoardElement & any, width: number, height: number) => void;
+  moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement;
   isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
   render?: (value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;
-  // destroy?: (board: Board) => void;
 }
 
 export interface BoardTheme {
   theme: string;
 }
 
-const isValid = <T>(value: T | null | undefined): value is T => value !== null && value !== undefined;
+const isValid = <T,>(value: T | null | undefined): value is T => value !== null && value !== undefined;
 
 type EventHandler = (event: Event & any, board: Board) => void | boolean;
 export type Events =
@@ -104,7 +105,7 @@ class Board {
   private plugins: IBoardPlugin[];
   private eventEmitter: EventEmitter;
   public viewPort: ViewPort;
-
+  public selection: Selection;
   constructor(children: BoardElement[]) {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
@@ -117,6 +118,10 @@ class Board {
       width: 0,
       height: 0,
       zoom: 1
+    }
+    this.selection = {
+      selectArea: null,
+      selectedElements: []
     }
   }
 
@@ -175,7 +180,7 @@ class Board {
   moveElement(element: BoardElement, offsetX: number, offsetY: number) {
     const plugin = this.plugins.find(p => p.name === element.type);
     if (!plugin) return;
-    plugin.moveElement?.(this, element, offsetX, offsetY);
+    return plugin.moveElement?.(this, element, offsetX, offsetY);
   }
 
   onMouseDown(event: MouseEvent) {
@@ -302,7 +307,26 @@ class Board {
       }
       this.viewPort = finishDraft(this.viewPort);
       this.emit('onViewPortChange', this.viewPort);
+    } else if (op.type === 'set_selection') {
+      this.selection = createDraft(this.selection);
+      const { newProperties } = op;
+      for (const key in newProperties) {
+        const value = newProperties[key];
+
+        if (value == null) {
+          delete this.selection[key];
+        } else {
+          this.selection[key] = value;
+        }
+      }
+      this.selection = finishDraft(this.selection);
+      this.emit('onSelectionChange', this.selection);
     }
+  }
+
+  isElementSelected(element: BoardElement, selectArea?: Selection['selectArea']): boolean {
+    const plugin = this.plugins.find(plugin => plugin.name === element.type);
+    return plugin?.isElementSelected?.(this, element, selectArea) ?? false;
   }
 
   renderElement(element: BoardElement): React.ReactElement | null | undefined {
@@ -315,6 +339,17 @@ class Board {
   renderElements(value?: BoardElement[]) {
     if (!value) return [];
     return value.map(element => this.renderElement(element));
+  }
+
+  renderSelectedRect(elements: BoardElement[]) {
+    return elements.map(element => {
+      const plugin = this.plugins.find(plugin => plugin.name === element.type);
+      if (!plugin) return null;
+      const bounds = plugin.getBBox?.(this, element);
+      if (bounds) {
+        return <rect {...bounds} fillOpacity={0.2} fill={'red'} />
+      }
+    })
   }
 }
 

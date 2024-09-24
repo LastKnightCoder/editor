@@ -1,6 +1,14 @@
 import { BoardElement, ViewPort, BoardTheme } from "../Board.ts";
 
 type Path = number[];
+export interface Selection {
+  selectArea: {
+    anchor: { x: number; y: number };
+    focus: { x: number; y: number };
+  } | null;
+  selectedElements: BoardElement[];
+  [key: string]: any;
+}
 
 export type InsertNodeOperation = {
   type: 'insert_node';
@@ -29,8 +37,8 @@ export type SetNodeOperation = {
 
 export type SetSelectionOperation = {
   type: 'set_selection';
-  properties: Selection | null;
-  newProperties: Selection | null;
+  properties: Partial<Selection>;
+  newProperties: Partial<Selection>;
 };
 
 export type SetViewportOperation = {
@@ -45,4 +53,11 @@ export type SetThemeOperation = {
   newProperties: Partial<BoardTheme>;
 };
 
-export type Operation = InsertNodeOperation | RemoveNodeOperation | MoveNodeOperation | SetNodeOperation | SetViewportOperation;
+export type Operation =
+  | InsertNodeOperation
+  | RemoveNodeOperation
+  | MoveNodeOperation
+  | SetNodeOperation
+  | SetViewportOperation
+  | SetSelectionOperation
+  | SetThemeOperation;

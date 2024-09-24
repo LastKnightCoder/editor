@@ -1,5 +1,6 @@
 import Board, { IBoardPlugin, BoardElement } from "../Board.ts";
-import PathUtil from "@/pages/WhiteBoard/PathUtil.ts";
+import { Selection } from "@/pages/WhiteBoard/types";
+import { isRectIntersect, selectAreaToRect } from "@/pages/WhiteBoard/utils.ts";
 
 interface CircleElement extends BoardElement {
   type: "circle",
@@ -19,19 +20,28 @@ export class CirclePlugin implements IBoardPlugin {
     return Math.pow(x - cx, 2) + Math.pow(y - cy, 2) <= Math.pow(radius, 2);
   }
 
-  moveElement(board: Board, element: CircleElement, dx: number, dy: number) {
-    const path = PathUtil.getPathByElement(board, element);
-    if (!path) return;
+  moveElement(_board: Board, element: CircleElement, dx: number, dy: number) {
     const { center } = element;
-    board.apply({
-      type: 'set_node',
-      path,
-      properties: element,
-      newProperties: {
-        ...element,
-        center: [center[0] + dx, center[1] + dy]
-      }
-    });
+    return {
+      ...element,
+      center: [center[0] + dx, center[1] + dy]
+    }
+  }
+
+  isElementSelected(board: Board, element: CircleElement, selectArea: Selection['selectArea'] = board.selection.selectArea) {
+    if (!selectArea) return false;
+    const eleRect = this.getBBox(board, element);
+    const selectRect = selectAreaToRect(selectArea);
+    return isRectIntersect(eleRect, selectRect!);
+  }
+
+  getBBox(_board: Board, element: CircleElement) {
+    return {
+      x: element.center[0] - element.radius,
+      y: element.center[1] - element.radius,
+      width: element.radius * 2,
+      height: element.radius * 2
+    };
   }
 
   render({ element }: { element: CircleElement }) {

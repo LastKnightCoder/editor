@@ -1,39 +1,93 @@
 import Board, { BoardElement, IBoardPlugin } from "@/pages/WhiteBoard/Board.ts";
 import BoardUtil from "@/pages/WhiteBoard/BoardUtil.ts";
 import PointUtil from "@/pages/WhiteBoard/PointUtil.ts";
+import PathUtil from "@/pages/WhiteBoard/PathUtil.ts";
 
 export class MovePlugin implements IBoardPlugin {
   name = 'move-plugin';
 
-  hitElement: BoardElement | null = null;
+  moveElements: BoardElement[] | null = null;
   startPoint: { x: number; y: number } | null = null;
 
   onPointerDown(e: PointerEvent, board: Board) {
     const viewPortPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!viewPortPoint) return;
+
+    const selectedElements = board.selection.selectedElements;
     const hitElements = BoardUtil.getHitElements(board, viewPortPoint.x, viewPortPoint.y);
-    if (hitElements.length > 0) {
-      this.hitElement = hitElements[hitElements.length - 1];
-      this.startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    const isHitSelected = hitElements.some(element => selectedElements.find(selectedElement => selectedElement.id === element.id));
+    if (selectedElements.length > 0 && isHitSelected) {
+      this.moveElements = selectedElements;
+
+    } else if (hitElements.length > 0) {
+      this.moveElements = [hitElements[hitElements.length - 1]];
     } else {
-      this.hitElement = null;
+      this.moveElements = null;
+    }
+
+    if (this.moveElements) {
+      this.startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+      board.apply({
+        type: 'set_selection',
+        properties: board.selection,
+        newProperties: {
+          selectedElements: []
+        }
+      });
     }
   }
+
   onPointerMove(e: PointerEvent, board: Board) {
-    if (!this.hitElement || !this.startPoint) return;
+    if (!this.moveElements || !this.startPoint) return;
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint) return;
     const offsetX = endPoint.x - this.startPoint.x;
     const offsetY = endPoint.y - this.startPoint.y;
-    board.moveElement(this.hitElement, offsetX, offsetY);
+    this.moveElements.forEach(element => {
+      const movedElement = board.moveElement(element, offsetX, offsetY);
+      if (movedElement) {
+        const path = PathUtil.getPathByElement(board, movedElement);
+        if (!path) return;
+        board.apply({
+          type: 'set_node',
+          path,
+          properties: element,
+          newProperties: movedElement
+        })
+      }
+    })
   }
+
   onPointerUp(e: PointerEvent, board: Board) {
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!endPoint || !this.startPoint || !this.hitElement) return;
+    if (!endPoint || !this.startPoint || !this.moveElements) return;
     const offsetX = endPoint.x - this.startPoint.x;
     const offsetY = endPoint.y - this.startPoint.y;
-    board.moveElement(this.hitElement, offsetX, offsetY);
-    this.hitElement = null;
+
+    const movedElements: BoardElement[] = [];
+    this.moveElements.forEach(element => {
+      const movedElement = board.moveElement(element, offsetX, offsetY);
+      if (movedElement) {
+        const path = PathUtil.getPathByElement(board, movedElement);
+        if (!path) return;
+        board.apply({
+          type: 'set_node',
+          path,
+          properties: element,
+          newProperties: movedElement
+        })
+        movedElements.push(movedElement);
+      }
+    })
+    board.apply({
+      type: 'set_selection',
+      properties: board.selection,
+      newProperties: {
+        selectedElements: movedElements
+      }
+    });
+
+    this.moveElements = null;
     this.startPoint = null;
   }
 }
