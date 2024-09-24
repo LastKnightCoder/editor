@@ -1,4 +1,4 @@
-import Board, { BoardElement } from "./Board.ts";
+import Board, { BoardElement } from "./Board";
 import get from 'lodash/get';
 
 export default class BoardUtil {

@@ -1,6 +1,7 @@
 import Board, { BoardElement, IBoardPlugin } from "@/pages/WhiteBoard/Board.ts";
 import Card from "@/pages/WhiteBoard/components/Card";
-import PathUtil from "@/pages/WhiteBoard/PathUtil.ts";
+import { Selection } from "@/pages/WhiteBoard/types";
+import { isRectIntersect, selectAreaToRect } from "@/pages/WhiteBoard/utils.ts";
 
 interface CardElement extends BoardElement {
   type: 'card';
@@ -22,19 +23,29 @@ export class CardPlugin implements IBoardPlugin {
     return isInCard && ((x >= left && x <= left + 20) || (y >= top && y <= top + 20) || (x >= left + width - 20 && x <= left + width) || (y >= top + height - 20 && y <= top + height))
   }
 
-  moveElement(board: Board, element: CardElement, dx: number, dy: number) {
-    const path = PathUtil.getPathByElement(board, element);
-    if (!path) return;
-    board.apply({
-      type: 'set_node',
-      path,
-      properties: element,
-      newProperties: {
-        ...element,
-        x: element.x + dx,
-        y: element.y + dy
-      }
-    });
+  moveElement(_board: Board, element: CardElement, dx: number, dy: number) {
+    return {
+    ...element,
+      x: element.x + dx,
+      y: element.y + dy
+    }
+  }
+
+  isElementSelected(board: Board, element: CardElement, selectArea: Selection['selectArea'] = board.selection.selectArea) {
+    if (!selectArea) return false;
+    const eleRect = this.getBBox(board, element);
+    const selectRect = selectAreaToRect(selectArea);
+    return isRectIntersect(eleRect, selectRect!);
+  }
+
+  getBBox(_board: Board, element: CardElement) {
+    const { x, y, width, height } = element;
+    return {
+      x,
+      y,
+      width,
+      height
+    }
   }
 
   render({ element }: { element: CardElement }) {

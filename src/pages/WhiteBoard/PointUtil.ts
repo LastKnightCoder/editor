@@ -1,4 +1,4 @@
-import Board from "@/pages/WhiteBoard/Board.ts";
+import Board from "@/pages/WhiteBoard/Board";
 import { BOARD_TO_CONTAINER } from "@/pages/WhiteBoard/constants/map.ts";
 
 export class PointUtil {

@@ -1,4 +1,5 @@
 import Board, { BoardElement, IBoardPlugin, ViewPort, Events } from "@/pages/WhiteBoard/Board.ts";
+import { Selection } from '../types';
 import { useMemoizedFn } from "ahooks";
 import { useEffect } from "react";
 import useWhiteBoardStore from "@/pages/WhiteBoard/useWhiteBoardStore.ts";
@@ -91,6 +92,7 @@ export const useInitBoard = (board: Board, container: HTMLDivElement | null, plu
     useWhiteBoardStore.setState({
       children: board.children,
       viewPort: board.viewPort,
+      selection: board.selection
     });
 
     const handleValueChange = (children: BoardElement[]) => {
@@ -104,12 +106,20 @@ export const useInitBoard = (board: Board, container: HTMLDivElement | null, plu
       });
     }
 
+    const handleSelectionChange = (selection: Selection) => {
+      useWhiteBoardStore.setState({
+        selection
+      });
+    }
+
     board.on('onValueChange', handleValueChange);
     board.on('onViewPortChange', handleViewPortChange);
+    board.on('onSelectionChange', handleSelectionChange);
 
     return () => {
       board.off('onValueChange', handleValueChange);
       board.off('onViewPortChange', handleViewPortChange);
+      board.off('onSelectionChange', handleSelectionChange);
     }
   }, [board]);
 

@@ -4,8 +4,8 @@ import { v4 as getUuid } from 'uuid';
 import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
-import Board from './Board.ts';
-import { RectPlugin, ViewPortPlugin, CirclePlugin, MovePlugin, CardPlugin } from './plugins';
+import Board from './Board';
+import { RectPlugin, ViewPortPlugin, CirclePlugin, MovePlugin, CardPlugin, SelectPlugin } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
 import { useInitBoard } from './hooks';
@@ -16,6 +16,7 @@ const viewPortPlugin = new ViewPortPlugin();
 const circlePlugin = new CirclePlugin();
 const movePlugin = new MovePlugin();
 const cardPlugin = new CardPlugin();
+const selectPlugin = new SelectPlugin();
 
 const WhiteBoard = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,14 +45,15 @@ const WhiteBoard = () => {
     cardId: 200,
   }]));
 
-  const { children, viewPort } = useWhiteBoardStore(state => ({
+  const { children, viewPort, selection } = useWhiteBoardStore(state => ({
     children: state.children,
     viewPort: state.viewPort,
+    selection: state.selection,
   }));
 
   const { minX, minY, width, height } = viewPort;
 
-  useInitBoard(boardRef.current, containerRef.current, [movePlugin, circlePlugin, rectPlugin, cardPlugin, viewPortPlugin]);
+  useInitBoard(boardRef.current, containerRef.current, [movePlugin, circlePlugin, rectPlugin, cardPlugin, viewPortPlugin, selectPlugin]);
   
   const handleContainerResize = useMemoizedFn(() => {
     ViewPortTransforms.onContainerResize(boardRef.current);
@@ -79,6 +81,27 @@ const WhiteBoard = () => {
         <svg ref={svgRef} width={'100%'} height={'100%'} viewBox={`${minX} ${minY} ${width} ${height}`}>
           <g>
             {boardRef.current.renderElements(children)}
+          </g>
+          <g>
+            {
+              selection.selectArea && (
+                <rect
+                  x={Math.min(selection.selectArea.anchor.x, selection.selectArea.focus.x)}
+                  y={Math.min(selection.selectArea.anchor.y, selection.selectArea.focus.y)}
+                  width={Math.abs(selection.selectArea.anchor.x - selection.selectArea.focus.x)}
+                  height={Math.abs(selection.selectArea.anchor.y - selection.selectArea.focus.y)}
+                  fill={'rgb(62,103,187)'}
+                  fillOpacity={0.2}
+                  stroke={'rgb(62,103,187)'}
+                  strokeWidth={1}
+                />
+              )
+            }
+            {
+              selection.selectedElements && (
+                boardRef.current.renderSelectedRect(selection.selectedElements)
+              )
+            }
           </g>
         </svg>
       </div>
