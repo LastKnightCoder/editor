@@ -28,7 +28,7 @@ export interface IBoardPlugin {
   onGlobalPointerMove?: EventHandler;
   getBBox?: (board: Board, element: BoardElement & any) => { x: number; y: number; width: number; height: number };
   isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
-  resizeElement?: (board: Board, element: BoardElement & any, width: number, height: number) => void;
+  // resizeElement?: (board: Board, element: BoardElement & any, width: number, height: number) => void;
   moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement;
   isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
   render?: (value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;
@@ -99,18 +99,19 @@ const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandle
 class Board {
   static boardFlag = boardFlag;
 
+  private plugins: IBoardPlugin[] = [];
+  private eventEmitter: EventEmitter;
+
   public boardFlag: typeof boardFlag;
   public isDestroyed: boolean;
   public children: BoardElement[];
-  private plugins: IBoardPlugin[];
-  private eventEmitter: EventEmitter;
   public viewPort: ViewPort;
   public selection: Selection;
-  constructor(children: BoardElement[]) {
+
+  constructor(children: BoardElement[], plugins: IBoardPlugin[] = []) {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
     this.children = children;
-    this.plugins = [];
     this.eventEmitter = new EventEmitter();
     this.viewPort = {
       minX: 0,
@@ -123,6 +124,12 @@ class Board {
       selectArea: null,
       selectedElements: []
     }
+    this.initPlugins(plugins);
+    this.emit('onChange', {
+      children: this.children,
+      viewPort: this.viewPort,
+      selection: this.selection,
+    })
   }
 
   on(event: string, listener: (...args: any[]) => void) {
