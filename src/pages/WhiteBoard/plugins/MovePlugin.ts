@@ -8,6 +8,7 @@ export class MovePlugin implements IBoardPlugin {
 
   moveElements: BoardElement[] | null = null;
   startPoint: { x: number; y: number } | null = null;
+  isHitSelected = false
 
   onPointerDown(e: PointerEvent, board: Board) {
     const viewPortPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
@@ -18,12 +19,13 @@ export class MovePlugin implements IBoardPlugin {
     const isHitSelected = hitElements.some(element => selectedElements.find(selectedElement => selectedElement.id === element.id));
     if (selectedElements.length > 0 && isHitSelected) {
       this.moveElements = selectedElements;
-
     } else if (hitElements.length > 0) {
       this.moveElements = [hitElements[hitElements.length - 1]];
     } else {
       this.moveElements = null;
     }
+
+    this.isHitSelected = isHitSelected;
 
     if (this.moveElements) {
       this.startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
@@ -79,13 +81,16 @@ export class MovePlugin implements IBoardPlugin {
         movedElements.push(movedElement);
       }
     })
-    board.apply({
-      type: 'set_selection',
-      properties: board.selection,
-      newProperties: {
-        selectedElements: movedElements
-      }
-    });
+    if (this.isHitSelected) {
+      board.apply({
+        type: 'set_selection',
+        properties: board.selection,
+        newProperties: {
+          selectedElements: movedElements
+        }
+      });
+      this.isHitSelected = false;
+    }
 
     this.moveElements = null;
     this.startPoint = null;
