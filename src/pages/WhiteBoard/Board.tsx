@@ -296,7 +296,16 @@ class Board {
             <rect {...bounds} fillOpacity={0} stroke={'#4578db'} strokeWidth={1}/>
             {
               Object.entries(resizePoints).map(([position, point]) => (
-                <circle key={`${element.id}-${position}`} cx={point.x} cy={point.y} r={4} fill={'#84a1d9'}/>
+                <circle
+                  style={{
+                    cursor: PointUtil.getResizeCursor(position as EHandlerPosition)
+                  }}
+                  key={`${element.id}-${position}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={4}
+                  fill={'#84a1d9'}
+                />
               ))
             }
           </g>

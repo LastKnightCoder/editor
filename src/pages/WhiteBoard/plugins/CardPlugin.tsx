@@ -1,6 +1,6 @@
 import { Board, IBoardPlugin, BoardElement, Selection, EHandlerPosition, Point } from "../types";
 import { isRectIntersect, PointUtil, selectAreaToRect } from "../utils";
-import Card from "@/pages/WhiteBoard/components/Card";
+import Card from "../components/Card";
 
 interface CardElement extends BoardElement {
   type: 'card';
@@ -39,7 +39,7 @@ export class CardPlugin implements IBoardPlugin {
     if (!selectArea) return false;
     const eleRect = this.getBBox(board, element);
     const selectRect = selectAreaToRect(selectArea);
-    return isRectIntersect(eleRect, selectRect!);
+    return isRectIntersect(eleRect, selectRect);
   }
 
   getBBox(_board: Board, element: CardElement) {
