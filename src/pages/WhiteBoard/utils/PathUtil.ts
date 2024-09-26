@@ -1,5 +1,6 @@
-import Board, { BoardElement } from "@/pages/WhiteBoard/Board";
-import BoardUtil from "@/pages/WhiteBoard/BoardUtil.ts";
+import { BoardElement, Board } from '../types';
+import BoardUtil from "./BoardUtil.ts";
+import get from "lodash/get";
 
 export type Path = number[];
 
@@ -25,6 +26,21 @@ export class PathUtil {
       }
     }
     return dfs(board) && path.length > 0 ? path : null;
+  }
+
+  static getElementByPath(board: Board, path: number[]): BoardElement {
+    if (path.length === 0) {
+      throw new Error('path is empty');
+    }
+    const { children } = board;
+    // 根据 path 从数组中找到对应的节点，如果不存在抛出异常
+    // value 是一个数组
+    const node: BoardElement | undefined = get(children, path);
+    if (!node) {
+      throw new Error(`node not found by path: ${path}`);
+    } else {
+      return node;
+    }
   }
 }
 

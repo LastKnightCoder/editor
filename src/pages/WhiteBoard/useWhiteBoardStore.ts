@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { BoardElement, ViewPort } from "@/pages/WhiteBoard/Board.ts";
-import { Selection } from './types';
+import { BoardElement, ViewPort, Selection } from "./types";
 
 interface IWhiteBoardState {
   children: BoardElement[];

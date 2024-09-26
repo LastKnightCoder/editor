@@ -1,94 +1,22 @@
 import React from "react";
 import EventEmitter from 'eventemitter3';
 import { createDraft, finishDraft } from 'immer';
-import { Operation, Selection } from './types';
-import BoardUtil from "@/pages/WhiteBoard/BoardUtil.ts";
 import curry from 'lodash/curry';
 
-export interface IBoardPlugin {
-  name: string;
-  onMouseDown?: EventHandler;
-  onGlobalMouseDown?: EventHandler;
-  onMouseMove?: EventHandler;
-  onMouseUp?: EventHandler;
-  onGlobalMouseUp?: EventHandler;
-  onMouseLeave?: EventHandler;
-  onMouseEnter?: EventHandler;
-  onClick?: EventHandler;
-  onDblClick?: EventHandler;
-  onContextMenu?: EventHandler;
-  onWheel?: EventHandler;
-  onKeyUp?: EventHandler;
-  onKeyDown?: EventHandler;
-  onPointerDown?: EventHandler;
-  onPointerUp?: EventHandler;
-  onPointerMove?: EventHandler;
-  onGlobalPointerDown?: EventHandler;
-  onGlobalPointerUp?: EventHandler;
-  onGlobalPointerMove?: EventHandler;
-  getBBox?: (board: Board, element: BoardElement & any) => { x: number; y: number; width: number; height: number };
-  isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
-  // resizeElement?: (board: Board, element: BoardElement & any, width: number, height: number) => void;
-  moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement;
-  isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
-  render?: (value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;
-}
-
-export interface BoardTheme {
-  theme: string;
-}
-
-const isValid = <T,>(value: T | null | undefined): value is T => value !== null && value !== undefined;
-
-type EventHandler = (event: Event & any, board: Board) => void | boolean;
-export type Events =
-  | 'onMouseDown'
-  | 'onMouseMove'
-  | 'onMouseUp'
-  | 'onMouseEnter'
-  | 'onMouseLeave'
-  | 'onContextMenu'
-  | 'onClick'
-  | 'onDblClick'
-  | 'onGlobalMouseDown'
-  | 'onGlobalMouseUp'
-  | 'onKeyDown'
-  | 'onKeyUp'
-  | 'onWheel'
-  | 'onPointerDown'
-  | 'onPointerUp'
-  | 'onPointerMove'
-  | 'onGlobalPointerDown'
-  | 'onGlobalPointerUp'
-  | 'onGlobalPointerMove';
-
-const executeSequence = (fns: EventHandler[], event: Event, board: Board) => {
-  for (let i = 0; i < fns.length; i++) {
-    const fn = fns[i];
-    const result = fn(event, board);
-    if (result === false) return;
-    if (event.defaultPrevented) return;
-  }
-}
+import {
+  Operation,
+  Selection,
+  Events,
+  EventHandler,
+  IBoardPlugin,
+  BoardElement,
+  ViewPort,
+  EHandlerPosition,
+  Point
+} from './types';
+import { isValid, executeSequence, PathUtil, PointUtil } from './utils';
 
 const boardFlag = Symbol('board');
-
-export interface BoardElement {
-  id: string;
-  type: string;
-  groupId?: string;
-  children?: BoardElement[];
-  [key: string]: any;
-}
-
-export interface ViewPort {
-  minX: number;
-  minY: number;
-  width: number;
-  height: number;
-  zoom: number;
-  [key: string]: any;
-}
 
 const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandler | undefined => {
   if (plugin[eventName]) {
@@ -125,11 +53,6 @@ class Board {
       selectedElements: []
     }
     this.initPlugins(plugins);
-    this.emit('onChange', {
-      children: this.children,
-      viewPort: this.viewPort,
-      selection: this.selection,
-    })
   }
 
   on(event: string, listener: (...args: any[]) => void) {
@@ -178,6 +101,12 @@ class Board {
     }
   }
 
+  getBBox(element: BoardElement & any): { x: number; y: number; width: number; height: number } | undefined {
+    const plugin = this.plugins.find(p => p.name === element.type);
+    if (!plugin) return;
+    return plugin.getBBox?.(this, element);
+  }
+
   isHit(element: BoardElement, x: number, y: number): boolean {
     const plugin = this.plugins.find(p => p.name === element.type);
     if (!plugin) return false;
@@ -188,6 +117,13 @@ class Board {
     const plugin = this.plugins.find(p => p.name === element.type);
     if (!plugin) return;
     return plugin.moveElement?.(this, element, offsetX, offsetY);
+  }
+
+  resizeElement(element: BoardElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
+    const plugin = this.plugins.find(p => p.name === element.type);
+    if (plugin && typeof plugin.resizeElement === 'function') {
+      return plugin.resizeElement(this, element, options);
+    }
   }
 
   onMouseDown(event: MouseEvent) {
@@ -279,7 +215,7 @@ class Board {
     if (op.type === 'set_node') {
       const { path, newProperties, properties } = op;
       try {
-        const node = BoardUtil.getNodeByPath(this, path);
+        const node = PathUtil.getElementByPath(this, path);
         for (const key in newProperties) {
           const value = newProperties[key];
 
@@ -354,7 +290,17 @@ class Board {
       if (!plugin) return null;
       const bounds = plugin.getBBox?.(this, element);
       if (bounds) {
-        return <rect {...bounds} fillOpacity={0.2} fill={'red'} />
+        const resizePoints = PointUtil.getResizePointFromRect(bounds);
+        return (
+          <g key={element.id}>
+            <rect {...bounds} fillOpacity={0} stroke={'#4578db'} strokeWidth={1}/>
+            {
+              Object.entries(resizePoints).map(([position, point]) => (
+                <circle key={`${element.id}-${position}`} cx={point.x} cy={point.y} r={4} fill={'#84a1d9'}/>
+              ))
+            }
+          </g>
+        )
       }
     })
   }

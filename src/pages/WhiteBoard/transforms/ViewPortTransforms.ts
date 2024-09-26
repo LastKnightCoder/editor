@@ -1,4 +1,4 @@
-import Board, { ViewPort } from "@/pages/WhiteBoard/Board.ts";
+import { ViewPort, Board } from '../types';
 import { BOARD_TO_CONTAINER } from '../constants/map.ts';
 
 export class ViewPortTransforms {

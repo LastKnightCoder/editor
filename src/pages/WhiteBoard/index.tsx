@@ -5,18 +5,20 @@ import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
 import Board from './Board';
-import { RectPlugin, ViewPortPlugin, CirclePlugin, MovePlugin, CardPlugin, SelectPlugin } from './plugins';
+import { RectPlugin, ViewPortPlugin, CirclePlugin, MovePlugin, CardPlugin, SelectPlugin, ResizePlugin } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
 import { useInitBoard } from './hooks';
 import styles from './index.module.less';
 
-const rectPlugin = new RectPlugin();
 const viewPortPlugin = new ViewPortPlugin();
-const circlePlugin = new CirclePlugin();
-const movePlugin = new MovePlugin();
-const cardPlugin = new CardPlugin();
 const selectPlugin = new SelectPlugin();
+const resizePlugin = new ResizePlugin();
+const movePlugin = new MovePlugin();
+
+const rectPlugin = new RectPlugin();
+const circlePlugin = new CirclePlugin();
+const cardPlugin = new CardPlugin();
 
 const WhiteBoard = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +55,19 @@ const WhiteBoard = () => {
 
   const { minX, minY, width, height } = viewPort;
 
-  useInitBoard(boardRef.current, containerRef.current, [movePlugin, circlePlugin, rectPlugin, cardPlugin, viewPortPlugin, selectPlugin]);
+  useInitBoard(
+    boardRef.current,
+    containerRef.current,
+    [
+      viewPortPlugin,
+      selectPlugin,
+      movePlugin,
+      resizePlugin,
+      circlePlugin,
+      rectPlugin,
+      cardPlugin,
+    ]
+  );
   
   const handleContainerResize = useMemoizedFn(() => {
     ViewPortTransforms.onContainerResize(boardRef.current);

@@ -1,14 +1,7 @@
-import { BoardElement, ViewPort, BoardTheme } from "../Board.ts";
-
-type Path = number[];
-export interface Selection {
-  selectArea: {
-    anchor: { x: number; y: number };
-    focus: { x: number; y: number };
-  } | null;
-  selectedElements: BoardElement[];
-  [key: string]: any;
-}
+import { Selection } from './selection.ts';
+import { BoardElement, BoardTheme } from "./board.ts";
+import { ViewPort } from './viewport.ts';
+import { Path } from './path.ts';
 
 export type InsertNodeOperation = {
   type: 'insert_node';

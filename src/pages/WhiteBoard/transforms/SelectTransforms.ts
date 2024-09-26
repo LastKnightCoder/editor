@@ -1,5 +1,4 @@
-import Board from "@/pages/WhiteBoard/Board.ts";
-import { Selection } from "@/pages/WhiteBoard/types";
+import { Selection, Board } from "../types";
 
 export class SelectTransforms {
   static updateSelectArea(board: Board, selection: Partial<Selection>) {

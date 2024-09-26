@@ -1,7 +1,6 @@
-import Board, { BoardElement, IBoardPlugin } from "@/pages/WhiteBoard/Board.ts";
+import { Board, IBoardPlugin, BoardElement, Selection, EHandlerPosition, Point } from "../types";
+import { isRectIntersect, PointUtil, selectAreaToRect } from "../utils";
 import Card from "@/pages/WhiteBoard/components/Card";
-import { Selection } from "@/pages/WhiteBoard/types";
-import { isRectIntersect, selectAreaToRect } from "@/pages/WhiteBoard/utils.ts";
 
 interface CardElement extends BoardElement {
   type: 'card';
@@ -14,6 +13,11 @@ interface CardElement extends BoardElement {
 
 export class CardPlugin implements IBoardPlugin {
   name = 'card';
+
+  resizeElement(board: Board, element: CardElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
+    const { position, anchor, focus } = options;
+    return PointUtil.getResizedBBox(board, element, position, anchor, focus)!;
+  }
 
   isHit(_board: Board, element: CardElement, x: number, y: number): boolean {
     const { x: left, y: top, width, height } = element;

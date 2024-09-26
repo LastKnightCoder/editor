@@ -1,6 +1,5 @@
-import Board, { IBoardPlugin, BoardElement } from "../Board.ts";
-import { Selection } from "@/pages/WhiteBoard/types";
-import { isRectIntersect, selectAreaToRect } from "@/pages/WhiteBoard/utils.ts";
+import { Board, IBoardPlugin, BoardElement, Selection } from "../types";
+import { isRectIntersect, selectAreaToRect } from "../utils";
 
 interface CircleElement extends BoardElement {
   type: "circle",

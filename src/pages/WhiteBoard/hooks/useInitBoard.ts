@@ -1,9 +1,8 @@
-import Board, { BoardElement, IBoardPlugin, ViewPort, Events } from "@/pages/WhiteBoard/Board.ts";
-import { Selection } from '../types';
+import{ Board, BoardElement, IBoardPlugin, ViewPort, Events, Selection } from "../types";
 import { useMemoizedFn } from "ahooks";
 import { useEffect } from "react";
-import useWhiteBoardStore from "@/pages/WhiteBoard/useWhiteBoardStore.ts";
-import { BOARD_TO_CONTAINER } from '../constants/map.ts';
+import useWhiteBoardStore from "../useWhiteBoardStore.ts";
+import { BOARD_TO_CONTAINER } from '../constants';
 export const useInitBoard = (board: Board, container: HTMLDivElement | null, plugins: IBoardPlugin[]) => {
   const eventHandlerGenerator = useMemoizedFn((eventName: Events) => {
     return (event: any) => {

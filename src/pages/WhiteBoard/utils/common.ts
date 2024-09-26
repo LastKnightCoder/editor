@@ -1,5 +1,4 @@
-import { Selection } from "@/pages/WhiteBoard/types";
-
+import { EventHandler, Selection, Board } from "../types";
 
 export interface Rect {
   x: number;
@@ -25,5 +24,16 @@ export const selectAreaToRect = (selectArea: Selection['selectArea']) => {
     y: Math.min(selectArea.anchor.y, selectArea.focus.y),
     width: Math.abs(selectArea.anchor.x - selectArea.focus.x),
     height: Math.abs(selectArea.anchor.y - selectArea.focus.y)
+  }
+}
+
+export const isValid = <T,>(value: T | null | undefined): value is T => value !== null && value !== undefined;
+
+export const executeSequence = (fns: EventHandler[], event: Event, board: Board) => {
+  for (let i = 0; i < fns.length; i++) {
+    const fn = fns[i];
+    const result = fn(event, board);
+    if (result === false) return;
+    if (event.defaultPrevented) return;
   }
 }
