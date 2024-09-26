@@ -1,6 +1,5 @@
-import Board, { IBoardPlugin, BoardElement } from "../Board";
-import { Selection } from "@/pages/WhiteBoard/types";
-import { isRectIntersect, selectAreaToRect } from "@/pages/WhiteBoard/utils.ts";
+import { Board, IBoardPlugin, BoardElement, Selection, EHandlerPosition, Point } from "../types";
+import { isRectIntersect, PointUtil, selectAreaToRect } from "../utils";
 
 interface RectElement extends BoardElement {
   type: "rect",
@@ -28,6 +27,11 @@ export class RectPlugin implements IBoardPlugin {
       x: element.x + dx,
       y: element.y + dy
     }
+  }
+
+  resizeElement(board: Board, element: RectElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
+    const { position, anchor, focus } = options;
+    return PointUtil.getResizedBBox(board, element, position, anchor, focus)!;
   }
 
   isElementSelected(board: Board, element: RectElement, selectArea: Selection['selectArea'] = board.selection.selectArea) {

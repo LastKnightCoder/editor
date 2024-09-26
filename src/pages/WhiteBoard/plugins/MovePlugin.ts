@@ -1,7 +1,5 @@
-import Board, { BoardElement, IBoardPlugin } from "@/pages/WhiteBoard/Board.ts";
-import BoardUtil from "@/pages/WhiteBoard/BoardUtil.ts";
-import PointUtil from "@/pages/WhiteBoard/PointUtil.ts";
-import PathUtil from "@/pages/WhiteBoard/PathUtil.ts";
+import { Board, BoardElement, IBoardPlugin } from "../types";
+import { BoardUtil, PointUtil, PathUtil } from "../utils";
 
 export class MovePlugin implements IBoardPlugin {
   name = 'move-plugin';
@@ -13,6 +11,13 @@ export class MovePlugin implements IBoardPlugin {
   onPointerDown(e: PointerEvent, board: Board) {
     const viewPortPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!viewPortPoint) return;
+
+    const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    if (!startPoint) return;
+
+    // 缩放，禁止移动
+    const hitResizeHandle = PointUtil.getHitResizeHandle(board, startPoint);
+    if (hitResizeHandle) return;
 
     const selectedElements = board.selection.selectedElements;
     const hitElements = BoardUtil.getHitElements(board, viewPortPoint.x, viewPortPoint.y);
@@ -28,7 +33,7 @@ export class MovePlugin implements IBoardPlugin {
     this.isHitSelected = isHitSelected;
 
     if (this.moveElements) {
-      this.startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+      this.startPoint = startPoint;
       board.apply({
         type: 'set_selection',
         properties: board.selection,

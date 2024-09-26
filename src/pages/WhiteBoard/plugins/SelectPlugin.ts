@@ -1,7 +1,6 @@
-import Board, { BoardElement, IBoardPlugin } from "@/pages/WhiteBoard/Board.ts";
-import BoardUtil from "@/pages/WhiteBoard/BoardUtil.ts";
-import { SelectTransforms } from "@/pages/WhiteBoard/transforms";
-import PointUtil from "@/pages/WhiteBoard/PointUtil.ts";
+import { BoardElement, IBoardPlugin, Board } from "../types";
+import { BoardUtil, PointUtil } from "../utils";
+import { SelectTransforms } from "../transforms";
 
 export class SelectPlugin implements IBoardPlugin {
   name = "select";
@@ -17,6 +16,10 @@ export class SelectPlugin implements IBoardPlugin {
 
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
+
+    // 缩放，禁止选择
+    const hitResizeHandle = PointUtil.getHitResizeHandle(board, startPoint);
+    if (hitResizeHandle) return;
 
     this.hitElements = BoardUtil.getHitElements(board, startPoint.x, startPoint.y);
 

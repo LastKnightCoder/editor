@@ -1,6 +1,6 @@
-import Board, { IBoardPlugin, ViewPort } from '../Board.ts';
-import { BOARD_TO_CONTAINER } from "@/pages/WhiteBoard/constants/map.ts";
-import { ViewPortTransforms } from "@/pages/WhiteBoard/transforms";
+import { IBoardPlugin, ViewPort, Board } from '../types';
+import { BOARD_TO_CONTAINER } from "../constants";
+import { ViewPortTransforms } from "../transforms";
 
 export class ViewPortPlugin implements IBoardPlugin {
   name = 'viewport-plugin';
