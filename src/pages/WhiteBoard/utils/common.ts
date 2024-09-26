@@ -1,4 +1,4 @@
-import { EventHandler, Selection, Board } from "../types";
+import { EventHandler, Board, SelectArea } from "../types";
 
 export interface Rect {
   x: number;
@@ -17,8 +17,7 @@ export const isRectIntersect = (rect1: Rect, rect2: Rect) => {
   );
 }
 
-export const selectAreaToRect = (selectArea: Selection['selectArea']) => {
-  if (!selectArea) return null;
+export const selectAreaToRect = (selectArea: SelectArea) => {
   return {
     x: Math.min(selectArea.anchor.x, selectArea.focus.x),
     y: Math.min(selectArea.anchor.y, selectArea.focus.y),

@@ -5,7 +5,7 @@ import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
 import Board from './Board';
-import { RectPlugin, ViewPortPlugin, CirclePlugin, MovePlugin, CardPlugin, SelectPlugin, ResizePlugin } from './plugins';
+import { ViewPortPlugin, MovePlugin, CardPlugin, SelectPlugin, ResizePlugin, GeometryPlugin } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
 import { useInitBoard } from './hooks';
@@ -16,8 +16,7 @@ const selectPlugin = new SelectPlugin();
 const resizePlugin = new ResizePlugin();
 const movePlugin = new MovePlugin();
 
-const rectPlugin = new RectPlugin();
-const circlePlugin = new CirclePlugin();
+const geometryPlugin = new GeometryPlugin();
 const cardPlugin = new CardPlugin();
 
 const WhiteBoard = () => {
@@ -26,25 +25,35 @@ const WhiteBoard = () => {
 
   const boardRef = useRef<Board>(new Board([{
     id: getUuid(),
-    type: 'rect',
-    width: 200,
-    height: 200,
-    x: 300,
-    y: 375,
-  }, {
-    id: getUuid(),
-    type: 'circle',
-    center: [100, 100],
-    radius: 50,
-    fill: 'red',
-  }, {
-    id: getUuid(),
     type: 'card',
     x: 200,
     y: 200,
     width: 400,
     height: 200,
     cardId: 200,
+  }, {
+    id: getUuid(),
+    type: 'geometry',
+    x: 300,
+    y: 300,
+    width: 100,
+    height: 100,
+    paths: ['M 0 0 L 1 0 L 1 1 L 0 1 Z'],
+    fill: '#aaa',
+    fillOpacity: 0.5,
+    stroke: 'black',
+    strokeWidth: 2
+  }, {
+    id: getUuid(),
+    type: 'geometry',
+    x: 100,
+    y: 100,
+    width: 100,
+    height: 100,
+    paths: ['M 1,0.5 A 0.5,0.5 0 1,0 0,0.5 A 0.5,0.5 0 1,0 1,0.5', 'M 0 0 L 1 0 L 1 1 L 0 1 Z'],
+    fill: 'none',
+    stroke: 'red',
+    strokeWidth: 2
   }]));
 
   const { children, viewPort, selection } = useWhiteBoardStore(state => ({
@@ -63,8 +72,7 @@ const WhiteBoard = () => {
       selectPlugin,
       movePlugin,
       resizePlugin,
-      circlePlugin,
-      rectPlugin,
+      geometryPlugin,
       cardPlugin,
     ]
   );

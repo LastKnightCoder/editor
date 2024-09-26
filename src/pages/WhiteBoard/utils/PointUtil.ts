@@ -111,6 +111,29 @@ export class PointUtil {
     }
   }
 
+  static getResizeCursor(position: EHandlerPosition) {
+    switch (position) {
+      case EHandlerPosition.Left:
+        return 'w-resize'
+      case EHandlerPosition.Right:
+        return 'e-resize'
+      case EHandlerPosition.Top:
+        return 'n-resize'
+      case EHandlerPosition.Bottom:
+        return 's-resize'
+      case EHandlerPosition.TopLeft:
+        return 'nw-resize'
+      case EHandlerPosition.TopRight:
+        return 'ne-resize'
+      case EHandlerPosition.BottomLeft:
+        return 'sw-resize'
+      case EHandlerPosition.BottomRight:
+        return 'se-resize'
+      default:
+        return 'move'
+    }
+  }
+
 }
 
 export default PointUtil;
