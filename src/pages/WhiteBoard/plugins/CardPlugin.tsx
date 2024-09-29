@@ -1,5 +1,5 @@
 import { Board, IBoardPlugin, BoardElement, Selection, EHandlerPosition, Point } from "../types";
-import { isRectIntersect, PointUtil, selectAreaToRect } from "../utils";
+import { isRectIntersect, selectAreaToRect, getResizedBBox, PathUtil } from "../utils";
 import Card from "../components/Card";
 
 interface CardElement extends BoardElement {
@@ -9,22 +9,54 @@ interface CardElement extends BoardElement {
   y: number;
   width: number;
   height: number;
+  maxWidth: number;
+  maxHeight: number;
+  borderWidth?: number;
+  borderColor?: string;
+  paddingWidth?: number;
+  paddingHeight: number;
+  resized: boolean;
 }
 
 export class CardPlugin implements IBoardPlugin {
   name = 'card';
 
-  resizeElement(board: Board, element: CardElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
+  resizeElement(_board: Board, element: CardElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
     const { position, anchor, focus } = options;
-    return PointUtil.getResizedBBox(board, element, position, anchor, focus)!;
+    const newBBox = getResizedBBox(element, position, anchor, focus);
+    return {
+      ...element,
+      ...newBBox,
+      resized: true,
+      maxWidth: newBBox.width,
+      maxHeight: newBBox.height,
+    }
   }
 
   isHit(_board: Board, element: CardElement, x: number, y: number): boolean {
     const { x: left, y: top, width, height } = element;
 
-    const isInCard = x >= left && x <= left + width && y >= top && y <= top + height;
+    return x >= left && x <= left + width && y >= top && y <= top + height;
+  }
 
-    return isInCard && ((x >= left && x <= left + 20) || (y >= top && y <= top + 20) || (x >= left + width - 20 && x <= left + width) || (y >= top + height - 20 && y <= top + height))
+  private onResize = (board: Board, element: CardElement, width: number, height: number) => {
+    const { width: w, height: h } = element;
+    if (w === width && h === height) return;
+
+    const path = PathUtil.getPathByElement(board, element);
+    if (!path) return;
+
+    const newElement = {
+      ...element,
+      width: parseFloat(width.toFixed(2)),
+      height: parseFloat(height.toFixed(2)),
+    }
+    board.apply({
+      type: 'set_node',
+      path,
+      properties: element,
+      newProperties: newElement,
+    });
   }
 
   moveElement(_board: Board, element: CardElement, dx: number, dy: number) {
@@ -52,12 +84,27 @@ export class CardPlugin implements IBoardPlugin {
     }
   }
 
-  render({ element }: { element: CardElement }) {
-    const { x, y, cardId, width, height } = element;
+  render(board: Board, { element }: { element: CardElement }) {
+    const { x, y, cardId, width, height, id, resized, readonly, borderWidth, borderColor, paddingWidth, paddingHeight } = element;
     return (
-      <foreignObject x={x} y={y} width={width} height={height}>
-        <Card cardId={cardId} />
-      </foreignObject>
+      <Card
+        key={id}
+        elementId={id}
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        cardId={cardId}
+        maxWidth={width}
+        maxHeight={height}
+        resized={resized}
+        onResize={this.onResize.bind(this, board, element)}
+        readonly={readonly}
+        borderWidth={borderWidth}
+        borderColor={borderColor}
+        paddingWidth={paddingWidth}
+        paddingHeight={paddingHeight}
+      />
     )
   }
 }

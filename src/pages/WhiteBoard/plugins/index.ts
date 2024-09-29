@@ -3,5 +3,6 @@ export * from './MovePlugin';
 export * from './SelectPlugin';
 export * from './ResizePlugin';
 
+export * from './RichTextPlugin';
 export * from './GeometryPlugin';
 export * from './CardPlugin';

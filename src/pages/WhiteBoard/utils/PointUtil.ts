@@ -1,4 +1,4 @@
-import { Board, BoardElement, EHandlerPosition, Point } from "../types";
+import { Board, BoardElement, EHandlerPosition, Point, BBox } from "../types";
 import { BOARD_TO_CONTAINER } from "../constants";
 import { isValid } from '../utils';
 
@@ -18,7 +18,7 @@ export class PointUtil {
     }
   }
 
-  static getResizePointFromRect(rect: { x: number, y: number, width: number, height: number}) {
+  static getResizePointFromRect(rect: BBox) {
     const { x, y } = rect;
     // 获取矩形的 8 个可 resize 的圆点，保证圆心在线上
     return {
@@ -61,9 +61,7 @@ export class PointUtil {
     }
   }
 
-  static getResizedBBox(board: Board, element: BoardElement, position: EHandlerPosition, anchor: Point, focus: Point) {
-    const bbox = board.getBBox(element);
-    if (!bbox) return;
+  static getResizedBBox(bbox: BBox, position: EHandlerPosition, anchor: Point, focus: Point): BBox {
     const { x: left, y: top, width, height } = bbox;
     const moveX = focus.x - anchor.x;
     const moveY = focus.y - anchor.y;
@@ -102,8 +100,8 @@ export class PointUtil {
         newY = top + height + moveY;
       }
     }
+
     return {
-      ...element,
       x: newX,
       y: newY,
       width: newWidth,

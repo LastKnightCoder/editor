@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { ICard } from "@/types";
-
 import { getCardById, updateCard } from '@/commands';
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
@@ -11,7 +10,6 @@ const useEditCard = (cardId: number) => {
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
   const prevCard = useRef<ICard | null>(null);
   const cardChanged = useRef(false);
-
   useAsyncEffect(async () => {
     setLoading(true);
 

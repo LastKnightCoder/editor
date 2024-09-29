@@ -1,20 +1,46 @@
 import useEditCard from "./useEditCard.ts";
 import { Skeleton } from "antd";
-import Editor from '@/components/Editor';
 import { useRafInterval, useUnmount } from "ahooks";
-import useUploadImage from "@/hooks/useUploadImage.ts";
-import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
-
-const customExtensions = [
-  cardLinkExtension,
-  fileAttachmentExtension
-];
+import { memo } from "react";
+import RichText from "../RichText";
 
 interface CardProps {
+  elementId: string;
   cardId: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  maxWidth: number;
+  maxHeight: number;
+  resized: boolean;
+  onResize: (width: number, height: number) => void;
+  readonly?: boolean;
+  paddingWidth?: number;
+  paddingHeight?: number;
+  borderWidth?: number;
+  borderColor?: string;
 }
 
-const Card = ({ cardId }: CardProps) => {
+const Card = memo((props: CardProps) => {
+  const {
+    elementId,
+    cardId,
+    x,
+    y,
+    width,
+    height,
+    maxWidth,
+    maxHeight,
+    resized,
+    onResize,
+    readonly,
+    borderWidth,
+    borderColor,
+    paddingWidth,
+    paddingHeight,
+  } = props;
+
   const {
     loading,
     editingCard,
@@ -30,11 +56,9 @@ const Card = ({ cardId }: CardProps) => {
     saveCard();
   });
 
-  const uploadImage = useUploadImage();
-
   if (loading) {
     return (
-      <div style={{ width: '100%', height: '100%' }}>
+      <div style={{ width, height }}>
         <Skeleton paragraph={{ rows: 4 }} />
       </div>
     )
@@ -43,17 +67,25 @@ const Card = ({ cardId }: CardProps) => {
   if (!editingCard) return null;
 
   return (
-    <div style={{ width: '100%', height: '100%', overflowY: 'auto', boxSizing: 'border-box', border: '20px solid transparent', boxShadow: 'var(--box-shadow1)', backgroundColor: 'var(--normal-card-bg)' }}>
-      <Editor
-        key={cardId}
-        initValue={editingCard.content}
-        onChange={onContentChange}
-        uploadImage={uploadImage}
-        extensions={customExtensions}
-        readonly={false}
-      />
-    </div>
+    <RichText
+      elementId={elementId}
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      maxWidth={maxWidth}
+      maxHeight={maxHeight}
+      resized={resized}
+      onResize={onResize}
+      content={editingCard.content}
+      onChange={onContentChange}
+      borderWidth={borderWidth}
+      borderColor={borderColor}
+      paddingWidth={paddingWidth}
+      paddingHeight={paddingHeight}
+      readonly={readonly}
+    />
   )
-}
+});
 
 export default Card;
