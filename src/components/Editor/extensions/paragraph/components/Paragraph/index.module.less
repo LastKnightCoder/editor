@@ -2,6 +2,9 @@
   position: relative;
   .paragraph {
     margin: 0 0 var(--block-distance, 10px) 0;
+    &.noMargin {
+      margin: 0;
+    }
     @import '@/components/Editor/extensions/drop-common.less';
     &.drop {
       &.before {

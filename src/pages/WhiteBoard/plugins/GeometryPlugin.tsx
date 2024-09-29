@@ -1,5 +1,5 @@
 import { Board, IBoardPlugin, BoardElement, Selection, EHandlerPosition, Point } from "../types";
-import { isRectIntersect, PointUtil, selectAreaToRect } from "../utils";
+import { isRectIntersect, PointUtil, selectAreaToRect, getResizedBBox } from "../utils";
 
 interface GeometryElement extends BoardElement {
   type: "geometry",
@@ -31,9 +31,13 @@ export class GeometryPlugin implements IBoardPlugin {
     }
   }
 
-  resizeElement(board: Board, element: GeometryElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
+  resizeElement(_board: Board, element: GeometryElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
     const { position, anchor, focus } = options;
-    return PointUtil.getResizedBBox(board, element, position, anchor, focus)!;
+    const newBBox = getResizedBBox(element, position, anchor, focus);
+    return {
+      ...element,
+      ...newBBox
+    }
   }
 
   // TODO 优化，如何判断两个路径是否有重合的区域
@@ -92,7 +96,7 @@ export class GeometryPlugin implements IBoardPlugin {
     return transformedCommands.join(' '); // 返回变换后的路径字符串
   }
 
-  render({ element }: { element: GeometryElement }) {
+  render(_board: Board, { element }: { element: GeometryElement }) {
     const {
       id,
       width,

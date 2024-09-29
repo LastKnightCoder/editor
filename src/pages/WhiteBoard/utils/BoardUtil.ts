@@ -7,7 +7,7 @@ export class BoardUtil {
 
   static getHitElements(board: Board, x: number, y: number): BoardElement[] {
     const hitElements: BoardElement[] = [];
-    this.bfs(board, node => {
+    this.dfs(board, node => {
       if (board.isHit(node, x, y)) {
         hitElements.push(node);
       }

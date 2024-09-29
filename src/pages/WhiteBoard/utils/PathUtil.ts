@@ -5,7 +5,7 @@ import get from "lodash/get";
 export type Path = number[];
 
 export class PathUtil {
-  static getPathByElement(board: Board, element: BoardElement): Path | null {
+  static getPathByElement(board: Board, element: BoardElement & any): Path | null {
     const path: Path = [];
     const dfs = (node: Board | BoardElement, index?: number) => {
       if (!BoardUtil.isBoard(node)) {

@@ -10,7 +10,7 @@ export class ViewPortPlugin implements IBoardPlugin {
   boardOriginOffset: { x: number; y: number } | null = null;
   lastWheelTime = 0;
 
-  onMouseDown(e: MouseEvent, board: Board) {
+  onPointerDown(e: PointerEvent, board: Board) {
     // 右键
     if (e.button === 2) {
       this.isMouseDown = true;
@@ -19,7 +19,7 @@ export class ViewPortPlugin implements IBoardPlugin {
     }
   }
 
-  onMouseMove(e: MouseEvent, board: Board) {
+  onPointerMove(e: PointerEvent, board: Board) {
     if (!this.isMouseDown || !this.boardOriginOffset || !this.boardOriginViewPort) return;
 
     const { x, y } = { x: e.clientX, y: e.clientY }
@@ -30,7 +30,7 @@ export class ViewPortPlugin implements IBoardPlugin {
     ViewPortTransforms.moveViewPort(board, minX + deltaX / zoom, minY + deltaY / zoom);
   }
 
-  onGlobalMouseUp() {
+  onGlobalPointerUp() {
     this.isMouseDown = false;
     this.boardOriginOffset = null;
     this.boardOriginViewPort = null;

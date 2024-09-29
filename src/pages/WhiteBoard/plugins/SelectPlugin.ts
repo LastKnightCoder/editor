@@ -26,10 +26,6 @@ export class SelectPlugin implements IBoardPlugin {
     this.startPoint = startPoint;
 
     SelectTransforms.updateSelectArea(board, {
-      selectArea: {
-        anchor: startPoint,
-        focus: startPoint
-      },
       selectedElements: this.hitElements && this.hitElements.length > 0 ? board.selection.selectedElements : []
     });
   }
@@ -43,6 +39,8 @@ export class SelectPlugin implements IBoardPlugin {
       if (!this.moved && (Math.abs(endPoint.x - this.startPoint.x) > 3 ||Math.abs(endPoint.y - this.startPoint.y) > 3)) {
         this.moved = true;
       }
+
+      // 选中的情况，要么是移动元素，要么是点选，在鼠标抬起时处理点选，移动元素在 MovePlugin 中
       if (this.hitElements && this.hitElements.length > 0) return;
 
       const selectArea = {
@@ -63,11 +61,11 @@ export class SelectPlugin implements IBoardPlugin {
       });
     }
   }
-  onPointerUp(_e: PointerEvent, board: Board) {
+  onGlobalPointerUp(_e: PointerEvent, board: Board) {
     if (this.startPoint) {
       let selectedElements: BoardElement[] = board.selection.selectedElements;
       if (!this.moved && this.hitElements && this.hitElements.length > 0) {
-        selectedElements = [this.hitElements[0]];
+        selectedElements = [this.hitElements[this.hitElements.length - 1]];
       }
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,

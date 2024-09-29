@@ -20,7 +20,7 @@ const boardFlag = Symbol('board');
 
 const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandler | undefined => {
   if (plugin[eventName]) {
-    return plugin[eventName]!.bind(plugin);
+    return plugin[eventName].bind(plugin);
   }
 });
 
@@ -35,6 +35,7 @@ class Board {
   public children: BoardElement[];
   public viewPort: ViewPort;
   public selection: Selection;
+  public movingElements: BoardElement[] = [];
 
   constructor(children: BoardElement[], plugins: IBoardPlugin[] = []) {
     this.boardFlag = boardFlag;
@@ -52,6 +53,7 @@ class Board {
       selectArea: null,
       selectedElements: []
     }
+    this.movingElements = [];
     this.initPlugins(plugins);
   }
 
@@ -276,7 +278,7 @@ class Board {
     const { children } = element;
     const plugin = this.plugins.find(plugin => plugin.name === element.type);
     if (!plugin) return null;
-    return plugin.render?.({ element, children: this.renderElements(children).filter(isValid) })
+    return plugin.render?.(this, { element, children: this.renderElements(children).filter(isValid) })
   }
 
   renderElements(value?: BoardElement[]) {
@@ -293,7 +295,7 @@ class Board {
         const resizePoints = PointUtil.getResizePointFromRect(bounds);
         return (
           <g key={element.id}>
-            <rect {...bounds} fillOpacity={0} stroke={'#4578db'} strokeWidth={1}/>
+            <rect {...bounds} fillOpacity={0} stroke={'#4578db'} strokeWidth={1} style={{ pointerEvents: 'none' }} />
             {
               Object.entries(resizePoints).map(([position, point]) => (
                 <circle

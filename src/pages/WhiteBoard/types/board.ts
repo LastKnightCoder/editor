@@ -62,7 +62,7 @@ export interface IBoardPlugin {
   resizeElement?: (board: Board, element: BoardElement & any, options: { position: EHandlerPosition, anchor: Point, focus: Point }) => BoardElement;
   moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement;
   isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
-  render?: (value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;
+  render?: (board: Board, value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;
 }
 
 export interface BoardTheme {

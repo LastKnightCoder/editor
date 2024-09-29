@@ -25,6 +25,9 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = (props) =>
   
   const editor = useSlate();
 
+  const path = ReactEditor.findPath(editor, element);
+  const isLast = path.length === 1 && editor.children.length - 1 === path[0];
+
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } = useDragAndDrop({
     element,
   });
@@ -72,6 +75,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = (props) =>
         [styles.drop]: isOverCurrent && canDrop,
         [styles.before]: isBefore,
         [styles.after]: !isBefore,
+        [styles.noMargin]: isLast,
       })}
       >
         {children}

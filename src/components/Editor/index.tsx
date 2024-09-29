@@ -51,6 +51,7 @@ export type EditorRef = {
   scrollHeaderIntoView: (index: number) => void;
   isFocus: () => boolean;
   toMarkdown: () => string;
+  deselect: () => void;
 }
 
 interface IEditorProps {
@@ -63,6 +64,9 @@ interface IEditorProps {
   onInit?: (editor: Editor, content: Descendant[]) => void;
   className?: string;
   style?: React.CSSProperties;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  placeHolder?: string;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -81,6 +85,9 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
     hoveringBarConfigs,
     uploadImage,
     onInit,
+    onFocus,
+    onBlur,
+    placeHolder,
   } = props;
 
   const finalExtensions = useMemo(() => {
@@ -145,6 +152,9 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
       // 移动到末尾
       Transforms.select(editor, Editor.end(editor, []));
     },
+    deselect: () => {
+      ReactEditor.deselect(editor);
+    },
     setEditorValue: (nodes: Descendant[]) => {
       const children = [...editor.children]
       children.forEach((node) => editor.apply({ type: 'remove_node', path: [0], node }))
@@ -195,7 +205,7 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
           readOnly={readonly}
           renderElement={renderElement}
           renderLeaf={renderLeaf}
-          placeholder={'写下你的想法...'}
+          placeholder={placeHolder}
           onKeyDown={(event) => {
             registerHotKey(editor, event, hotKeyConfigs);
           }}
@@ -233,6 +243,8 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
                */
             }
           }}
+          onFocus={onFocus}
+          onBlur={onBlur}
         />
         <ImagesOverview />
         { !readonly && <HoveringToolbar configs={finalHoveringBarConfigs} /> }
