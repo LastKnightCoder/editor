@@ -1,14 +1,12 @@
-import { Board, IBoardPlugin, BoardElement, Selection, EHandlerPosition, Point } from "../types";
-import { isRectIntersect, selectAreaToRect, getResizedBBox, PathUtil } from "../utils";
+import { Board, IBoardPlugin, EHandlerPosition, Point } from "../types";
+import { getResizedBBox, PathUtil } from "../utils";
 import Card from "../components/Card";
+import { CommonPlugin, CommonElement } from './CommonPlugin';
+import { SelectTransforms } from "../transforms";
 
-interface CardElement extends BoardElement {
+export interface CardElement extends CommonElement {
   type: 'card';
   cardId: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
   maxWidth: number;
   maxHeight: number;
   borderWidth?: number;
@@ -16,30 +14,45 @@ interface CardElement extends BoardElement {
   paddingWidth?: number;
   paddingHeight: number;
   resized: boolean;
+  readonly?: boolean;
 }
 
-export class CardPlugin implements IBoardPlugin {
+export class CardPlugin extends CommonPlugin implements IBoardPlugin {
   name = 'card';
 
-  resizeElement(_board: Board, element: CardElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
-    const { position, anchor, focus } = options;
-    const newBBox = getResizedBBox(element, position, anchor, focus);
-    return {
+  constructor() {
+    super();
+    this.onEditorSizeChange = this.onEditorSizeChange.bind(this);
+    this.onResize = this.onResize.bind(this);
+  }
+
+  onResize(board: Board, element: CardElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) {
+    if (!this.originResizeElement) return;
+    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint);
+    const newElement = {
       ...element,
       ...newBBox,
       resized: true,
       maxWidth: newBBox.width,
       maxHeight: newBBox.height,
     }
+    const path = PathUtil.getPathByElement(board, newElement);
+    if (!path) return;
+
+    board.apply({
+      type: 'set_node',
+      path,
+      properties: element,
+      newProperties: newElement
+    });
+
+    SelectTransforms.updateSelectArea(board, {
+      selectArea: null,
+      selectedElements: [newElement]
+    });
   }
 
-  isHit(_board: Board, element: CardElement, x: number, y: number): boolean {
-    const { x: left, y: top, width, height } = element;
-
-    return x >= left && x <= left + width && y >= top && y <= top + height;
-  }
-
-  private onResize = (board: Board, element: CardElement, width: number, height: number) => {
+  private onEditorSizeChange = (board: Board, element: CardElement, width: number, height: number) => {
     const { width: w, height: h } = element;
     if (w === width && h === height) return;
 
@@ -59,51 +72,16 @@ export class CardPlugin implements IBoardPlugin {
     });
   }
 
-  moveElement(_board: Board, element: CardElement, dx: number, dy: number) {
-    return {
-    ...element,
-      x: element.x + dx,
-      y: element.y + dy
-    }
-  }
-
-  isElementSelected(board: Board, element: CardElement, selectArea: Selection['selectArea'] = board.selection.selectArea) {
-    if (!selectArea) return false;
-    const eleRect = this.getBBox(board, element);
-    const selectRect = selectAreaToRect(selectArea);
-    return isRectIntersect(eleRect, selectRect);
-  }
-
-  getBBox(_board: Board, element: CardElement) {
-    const { x, y, width, height } = element;
-    return {
-      x,
-      y,
-      width,
-      height
-    }
-  }
-
-  render(board: Board, { element }: { element: CardElement }) {
-    const { x, y, cardId, width, height, id, resized, readonly, borderWidth, borderColor, paddingWidth, paddingHeight } = element;
+  render(_board: Board, { element }: { element: CardElement }) {
+    const { id } = element;
     return (
       <Card
         key={id}
-        elementId={id}
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        cardId={cardId}
-        maxWidth={width}
-        maxHeight={height}
-        resized={resized}
-        onResize={this.onResize.bind(this, board, element)}
-        readonly={readonly}
-        borderWidth={borderWidth}
-        borderColor={borderColor}
-        paddingWidth={paddingWidth}
-        paddingHeight={paddingHeight}
+        element={element}
+        onEditorSizeChange={this.onEditorSizeChange}
+        onResizeStart={this.onResizeStart}
+        onResizeEnd={this.onResizeEnd}
+        onResize={this.onResize}
       />
     )
   }

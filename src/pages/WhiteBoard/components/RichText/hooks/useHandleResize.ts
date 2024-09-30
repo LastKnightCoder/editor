@@ -2,7 +2,7 @@ import { useDebounceFn } from "ahooks";
 import { useEffect, useMemo } from "react";
 
 interface UseHandleResizeProps {
-  onResize: (width: number, height: number) => void;
+  handleOnEditorSizeChange: (width: number, height: number) => void;
   maxWidth: number;
   maxHeight: number;
   paddingWidth: number;
@@ -12,12 +12,12 @@ interface UseHandleResizeProps {
   resized: boolean;
 }
 
-const useHandleResize = ({ onResize, maxWidth, maxHeight, container, resized, paddingWidth, paddingHeight, focus }: UseHandleResizeProps) => {
+const useHandleResize = ({ handleOnEditorSizeChange, maxWidth, maxHeight, container, resized, paddingWidth, paddingHeight, focus }: UseHandleResizeProps) => {
   const { run: handleResize } = useDebounceFn((entries: ResizeObserverEntry[]) => {
     if (!focus) return;
     const entry = entries[0];
     const { blockSize, inlineSize } = entry.borderBoxSize[0];
-    onResize(Math.min(maxWidth, inlineSize), Math.min(maxHeight, blockSize));
+    handleOnEditorSizeChange(Math.min(maxWidth, inlineSize), Math.min(maxHeight, blockSize));
   }, { wait: 40 });
 
   useEffect(() => {

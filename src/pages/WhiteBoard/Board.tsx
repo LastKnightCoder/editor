@@ -11,10 +11,8 @@ import {
   IBoardPlugin,
   BoardElement,
   ViewPort,
-  EHandlerPosition,
-  Point
 } from './types';
-import { isValid, executeSequence, PathUtil, PointUtil } from './utils';
+import { isValid, executeSequence, PathUtil } from './utils';
 
 const boardFlag = Symbol('board');
 
@@ -103,12 +101,6 @@ class Board {
     }
   }
 
-  getBBox(element: BoardElement & any): { x: number; y: number; width: number; height: number } | undefined {
-    const plugin = this.plugins.find(p => p.name === element.type);
-    if (!plugin) return;
-    return plugin.getBBox?.(this, element);
-  }
-
   isHit(element: BoardElement, x: number, y: number): boolean {
     const plugin = this.plugins.find(p => p.name === element.type);
     if (!plugin) return false;
@@ -119,13 +111,6 @@ class Board {
     const plugin = this.plugins.find(p => p.name === element.type);
     if (!plugin) return;
     return plugin.moveElement?.(this, element, offsetX, offsetY);
-  }
-
-  resizeElement(element: BoardElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
-    const plugin = this.plugins.find(p => p.name === element.type);
-    if (plugin && typeof plugin.resizeElement === 'function') {
-      return plugin.resizeElement(this, element, options);
-    }
   }
 
   onMouseDown(event: MouseEvent) {
@@ -237,7 +222,6 @@ class Board {
         this.children = finishDraft(this.children);
       }
       this.emit('onValueChange', this.children);
-      return;
     } else if (op.type === 'insert_node') {
       const { path, node } = op;
       const parent = PathUtil.getParentByPath(this, path);
@@ -310,36 +294,6 @@ class Board {
   renderElements(value?: BoardElement[]) {
     if (!value) return [];
     return value.map(element => this.renderElement(element));
-  }
-
-  renderSelectedRect(elements: BoardElement[]) {
-    return elements.map(element => {
-      const plugin = this.plugins.find(plugin => plugin.name === element.type);
-      if (!plugin) return null;
-      const bounds = plugin.getBBox?.(this, element);
-      if (bounds) {
-        const resizePoints = PointUtil.getResizePointFromRect(bounds);
-        return (
-          <g key={element.id}>
-            <rect {...bounds} fillOpacity={0} stroke={'#4578db'} strokeWidth={1} style={{ pointerEvents: 'none' }} />
-            {
-              Object.entries(resizePoints).map(([position, point]) => (
-                <circle
-                  style={{
-                    cursor: PointUtil.getResizeCursor(position as EHandlerPosition)
-                  }}
-                  key={`${element.id}-${position}`}
-                  cx={point.x}
-                  cy={point.y}
-                  r={4}
-                  fill={'#84a1d9'}
-                />
-              ))
-            }
-          </g>
-        )
-      }
-    })
   }
 }
 

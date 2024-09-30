@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import classnames from "classnames";
@@ -8,7 +8,7 @@ import { UnControlled as CodeEditor } from 'react-codemirror2';
 import isHotkey from "is-hotkey";
 
 import { CodeBlockElement } from "@/components/Editor/types";
-import AddParagraph from "@/components/Editor/components/AddParagraph";
+import AddParagraph, { AddParagraphRef } from "@/components/Editor/components/AddParagraph";
 import useTheme from "@/hooks/useTheme.ts";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import SelectLanguage from "../SelectLanguage";
@@ -53,6 +53,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
   const slateEditor = useSlate();
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
+  const addParagraphRef = useRef<AddParagraphRef>(null);
 
   const {
     drag,
@@ -183,9 +184,32 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
               codeBlockMap.delete(uuid);
             }
           }
+          if (isHotkey('enter', event)) {
+            // 所在最后一行，且最后一行为空行，删除最后一行，并且聚焦到下一行
+            const cursor = editor.getCursor();
+            const line = editor.getLine(cursor.line);
+            const lineCount = editor.lineCount();
+            if (cursor.line === lineCount - 1 && line === '') {
+              event.preventDefault();
+              // 只处理超过一行的情况
+              if (lineCount !== 1)  {
+                const doc = editor.getDoc();
+                const previousLine = cursor.line - 1;
+                const previousLineLength = doc.getLine(previousLine).length;
+                const from = { line: previousLine, ch: previousLineLength };
+                const to = { line: cursor.line, ch: cursor.ch };
+                doc.replaceRange('', from, to);
+                doc.setCursor({ line: previousLine, ch: previousLineLength });
+                if (addParagraphRef.current) {
+                  addParagraphRef.current.addParagraph();
+                }
+              }
+              
+            }
+          }
         }}
       />
-      <AddParagraph element={element} />
+      <AddParagraph element={element} ref={addParagraphRef} />
       <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
         <MdDragIndicator className={styles.icon}/>
       </div>

@@ -1,6 +1,5 @@
-import { Board, BoardElement, EHandlerPosition, Point, BBox } from "../types";
+import { Board, EHandlerPosition, Point, BBox } from "../types";
 import { BOARD_TO_CONTAINER } from "../constants";
-import { isValid } from '../utils';
 
 export class PointUtil {
   static screenToViewPort(board: Board, x: number, y: number) {
@@ -30,34 +29,6 @@ export class PointUtil {
       [EHandlerPosition.BottomLeft]: { x, y: y + rect.height },
       [EHandlerPosition.Bottom]: { x: x + rect.width / 2, y: y + rect.height },
       [EHandlerPosition.BottomRight]: { x: x + rect.width, y: y + rect.height }
-    }
-  }
-
-  static getHitResizeHandle(board: Board, point: Point) {
-    const selectedElements = board.selection.selectedElements;
-
-    // 根据 selectedElements 获取 resize handle 的坐标
-    const resizeHandles = selectedElements.map(element => {
-      const bbox = board.getBBox(element);
-      if (!bbox) return;
-      return {
-        element,
-        bbox,
-        handles: PointUtil.getResizePointFromRect(bbox)
-      }
-    }).filter(isValid);
-
-    for (let i = 0; i < resizeHandles.length; i++) {
-      const { element, handles } = resizeHandles[i];
-      const hitHandle = Object.entries(handles).find(([, { x, y }]) => {
-        return Math.sqrt(Math.hypot(point.x - x, point.y - y)) < 4;
-      });
-      if (hitHandle) {
-        return {
-          element,
-          position: hitHandle[0] as EHandlerPosition,
-        }
-      }
     }
   }
 

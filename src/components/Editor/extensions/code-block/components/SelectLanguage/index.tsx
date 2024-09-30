@@ -1,4 +1,7 @@
+import classnames from 'classnames';
 import { Select } from "antd";
+
+import styles from './index.module.less';
 
 interface SelectLanguageProps {
   value: string;
@@ -50,14 +53,14 @@ const SelectLanguage = (props: SelectLanguageProps) => {
       showSearch
       value={value}
       onChange={onChange}
-      placeholder="Select a language"
+      placeholder="选择语言"
       optionFilterProp="children"
       options={languages}
       filterOption={(input, option) =>
         (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
       }
-      className={className}
-      style={{ width: 120, ...style }}
+      className={classnames(className, styles.selectLanguage)}
+      style={style}
     />
   )
 }

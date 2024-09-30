@@ -76,3 +76,42 @@ export const getResizedBBox = (bbox: BBox, position: EHandlerPosition, anchor: P
     height: newHeight
   }
 }
+
+export const transformPath = (pathString: string, scaleX: number, scaleY: number) => {
+  // 正则表达式匹配所有路径命令及其参数
+  const commands = pathString.match(/[a-zA-Z][^a-zA-Z]*/g);
+
+  if (!commands) return pathString;
+
+  const transformedCommands = commands?.map(command => {
+    const type = command[0]; // 获取命令类型
+    const coords = command.slice(1).trim().split(/[\s,]+/); // 获取坐标部分
+
+    // 变换坐标
+    const transformedCoords = coords.map((coord, index) => {
+      // 对于 A 指令需要特殊处理，只需要处理起点坐标和重点坐标
+      if (type.toUpperCase() === 'A') {
+        if (index === 0 || index === 5) {
+          return (parseFloat(coord) * scaleX).toFixed(2)
+        } else if (index === 1 || index === 6) {
+          return (parseFloat(coord) * scaleY).toFixed(2)
+        } else {
+          return coord;
+        }
+      }
+      if (type.toUpperCase() === 'Z') {
+        return coord;
+      }
+      // 处理坐标
+      if (index % 2 === 0) { // x 坐标
+        return (parseFloat(coord) * scaleX).toFixed(2);
+      } else { // y 坐标
+        return (parseFloat(coord) * scaleY).toFixed(2);
+      }
+    });
+
+    return type + transformedCoords.join(' '); // 重新组合成命令
+  });
+
+  return transformedCommands.join(' '); // 返回变换后的路径字符串
+}

@@ -5,9 +5,17 @@ import useUploadImage from "@/hooks/useUploadImage.ts";
 import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
 
 import Editor, { EditorRef } from '@/components/Editor';
+import If from '@/components/If';
+import ResizeCircle from '../ResizeCircle';
+
 import useHandleResize from './hooks/useHandleResize';
 import useHandlePointer from './hooks/useHandlePointer';
-import useSelectState from './hooks/useSelectState';
+import useSelectState from '../../hooks/useSelectState';
+import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH, SELECT_RECT_FILL_OPACITY, RESIZE_CIRCLE_FILL, RESIZE_CIRCLE_RADIUS } from '../../constants';
+import { Board, EHandlerPosition, Point } from '../../types';
+import { RichTextElement, CommonElement } from '../../plugins';
+import { PointUtil } from '../../utils';
+import { useBoard } from '../../hooks';
 
 import styles from './index.module.less';
 
@@ -16,25 +24,16 @@ const customExtensions = [
   fileAttachmentExtension
 ];
 
+type RichTextNoType = Omit<RichTextElement, 'type'> & any;
+
 interface RichtextProps {
-  elementId: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  content: Descendant[];
-  maxWidth: number;
-  maxHeight: number;
-  resized: boolean;
-  onChange: (value: Descendant[]) => void;
-  onResize: (width: number, height: number) => void;
-  borderWidth?: number;
-  borderColor?: string;
-  paddingWidth?: number;
-  paddingHeight?: number;
-  readonly?: boolean;
-  autoFocus?: boolean;
-  removeAutoFocus?: () => void;
+  element: RichTextNoType;
+  onContentChange: (board: Board, element: RichTextNoType, value: Descendant[]) => void;
+  onEditorSizeChange: (board: Board, element: RichTextNoType, width: number, height: number) => void;
+  removeAutoFocus?: (board: Board, element: RichTextNoType) => void;
+  onResizeStart?: (element: CommonElement & any, startPoint: Point) => void;
+  onResizeEnd?: (element: CommonElement & any, endPoint: Point) => void;
+  onResize: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
 const PADDING_WIDTH = 16;
@@ -42,35 +41,49 @@ const PADDING_HEIGHT = 12;
 
 const Richtext = memo((props: RichtextProps) => {
   const {
-    elementId,
-    x,
-    y,
-    width,
-    height,
-    content,
-    onChange,
+    element,
+    onResizeStart,
+    onResizeEnd,
     onResize,
-    maxWidth,
-    maxHeight,
-    readonly,
-    resized,
-    borderColor = 'transparent',
-    borderWidth = 0,
-    paddingWidth = PADDING_WIDTH,
-    paddingHeight = PADDING_HEIGHT,
-    autoFocus = false,
+    onContentChange,
+    onEditorSizeChange,
     removeAutoFocus
   } = props;
+
+  const { 
+    x, 
+    y, 
+    width, 
+    height, 
+    id: elementId, 
+    content, 
+    maxWidth, 
+    maxHeight, 
+    resized,
+    readonly,
+    autoFocus,
+    borderWidth = 0, 
+    borderColor, 
+    paddingWidth = PADDING_WIDTH, 
+    paddingHeight = PADDING_HEIGHT 
+  } = element;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorRef>(null);
   const [initValue] = useState(content);
   const [focus, setFocus] = useState(false);
+  const board = useBoard();
   const {
     isSelected,
     isSelecting,
     isMoving,
   } = useSelectState(elementId);
+  const resizePoints = PointUtil.getResizePointFromRect({
+    x,
+    y,
+    width,
+    height
+  });
 
   const handleFocus = useMemoizedFn(() => {
     if (readonly) return;
@@ -86,6 +99,30 @@ const Richtext = memo((props: RichtextProps) => {
     // editorRef.current?.deselect();
   });
 
+  const handleOnContentChange = useMemoizedFn((value: Descendant[]) => {
+    onContentChange(board, element, value);
+  });
+
+  const handleOnEditorSizeChange = useMemoizedFn((width: number, height: number) => {
+    onEditorSizeChange(board, element, width, height);
+  });
+
+  const handleRemoveAutoFocus = useMemoizedFn(() => {
+    removeAutoFocus?.(board, element);
+  });
+
+  const handleOnResizeStart = useMemoizedFn((startPoint: Point) => {
+    onResizeStart?.(element, startPoint);
+  });
+
+  const handleOnResizeEnd = useMemoizedFn((endPoint: Point) => {
+    onResizeEnd?.(element, endPoint);
+  });
+
+  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
+    onResize(board, element, position, startPoint, endPoint);
+  });
+
   const containerStyle = useMemo(() => {
     return {
       userSelect: !focus || isSelecting || isSelected ? 'none' : 'auto',
@@ -95,7 +132,7 @@ const Richtext = memo((props: RichtextProps) => {
   const handleAutoFocus = useMemoizedFn(() => {
     if (autoFocus) {
       editorRef.current?.focus();
-      removeAutoFocus?.();
+      handleRemoveAutoFocus();
     }
   });
 
@@ -106,7 +143,7 @@ const Richtext = memo((props: RichtextProps) => {
   const uploadImage = useUploadImage();
 
   const { handleResize, editorStyle } = useHandleResize({
-    onResize,
+    handleOnEditorSizeChange,
     maxWidth,
     maxHeight,
     container: containerRef.current,
@@ -122,10 +159,6 @@ const Richtext = memo((props: RichtextProps) => {
     isSelected,
     width,
     height
-  });
-    
-  const handleOnChange = useMemoizedFn((value: Descendant[]) => {
-    onChange(value);
   });
 
   return (
@@ -157,7 +190,7 @@ const Richtext = memo((props: RichtextProps) => {
             ref={editorRef}
             style={editorStyle}
             initValue={initValue}
-            onChange={handleOnChange}
+            onChange={handleOnContentChange}
             readonly={isSelected || isMoving || isSelecting || readonly}
             onFocus={handleFocus}
             onBlur={handleBlur}
@@ -166,6 +199,36 @@ const Richtext = memo((props: RichtextProps) => {
           />
         </div>
       </foreignObject>
+      <If condition={isSelected}>
+        <g>
+          <rect
+            x={x}
+            y={y}
+            rx={4}
+            ry={4}
+            width={width}
+            height={height}
+            fillOpacity={SELECT_RECT_FILL_OPACITY}
+            stroke={SELECT_RECT_STROKE}
+            strokeWidth={SELECT_RECT_STROKE_WIDTH}
+          />
+          {
+            Object.entries(resizePoints).map(([position, point]) => (
+              <ResizeCircle
+                key={position}
+                cx={point.x}
+                cy={point.y}
+                r={RESIZE_CIRCLE_RADIUS}
+                fill={RESIZE_CIRCLE_FILL}
+                position={position as EHandlerPosition}
+                onResizeStart={handleOnResizeStart}
+                onResize={handleOnResize}
+                onResizeEnd={handleOnResizeEnd}
+              />
+            ))
+          }
+        </g>
+      </If>
     </>
   )
 })
