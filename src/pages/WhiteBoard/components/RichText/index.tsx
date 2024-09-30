@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef, useMemo, memo } from 'react';
+import { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { Descendant } from 'slate';
-import { useMemoizedFn, useDebounceFn } from 'ahooks';
+import { useMemoizedFn } from 'ahooks';
 import useUploadImage from "@/hooks/useUploadImage.ts";
 import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
-import styles from './index.module.less';
 
 import Editor, { EditorRef } from '@/components/Editor';
-import { useSelection } from '../../hooks/useSelection';
-import { useBoard } from '../../hooks/useBoard';
-import { PointUtil } from '../../utils';
+import useHandleResize from './hooks/useHandleResize';
+import useHandlePointer from './hooks/useHandlePointer';
+import useSelectState from './hooks/useSelectState';
+
+import styles from './index.module.less';
 
 const customExtensions = [
   cardLinkExtension,
@@ -32,6 +33,8 @@ interface RichtextProps {
   paddingWidth?: number;
   paddingHeight?: number;
   readonly?: boolean;
+  autoFocus?: boolean;
+  removeAutoFocus?: () => void;
 }
 
 const PADDING_WIDTH = 16;
@@ -54,21 +57,20 @@ const Richtext = memo((props: RichtextProps) => {
     borderColor = 'transparent',
     borderWidth = 0,
     paddingWidth = PADDING_WIDTH,
-    paddingHeight = PADDING_HEIGHT
+    paddingHeight = PADDING_HEIGHT,
+    autoFocus = false,
+    removeAutoFocus
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorRef>(null);
-
   const [initValue] = useState(content);
   const [focus, setFocus] = useState(false);
-
-  const selection = useSelection();
-  const board = useBoard();
-  const isSelected = selection?.selectedElements.some(element => element.id === elementId);
-  const isMoving = board?.movingElements.some(element => element.id === elementId);
-
-  const uploadImage = useUploadImage();
+  const {
+    isSelected,
+    isSelecting,
+    isMoving,
+  } = useSelectState(elementId);
 
   const handleFocus = useMemoizedFn(() => {
     if (readonly) return;
@@ -79,78 +81,10 @@ const Richtext = memo((props: RichtextProps) => {
     if (readonly) return;
     handleResize.flush();
     setFocus(false);
-    editorRef.current?.deselect();
+    // 按道理 blur 的时候取消选中，但是这个时候如果想通过工具栏改变样式就没法做到了
+    // 暂时不 deselect 了，后续改为右键菜单的时候在改回来
+    // editorRef.current?.deselect();
   });
-
-  const { run: handleResize } = useDebounceFn((entries: ResizeObserverEntry[]) => {
-    const entry = entries[0];
-    const { blockSize, inlineSize } = entry.borderBoxSize[0];
-    onResize(Math.min(maxWidth, inlineSize), Math.min(maxHeight, blockSize));
-  }, { wait: 100 });
-
-  const handleOnChange = useMemoizedFn((value: Descendant[]) => {
-    onChange(value);
-  });
-
-  const handleFirstResize = useMemoizedFn((width: number, height: number) => {
-    onResize(width, height);
-  });
-
-  const handlePointerDown = useMemoizedFn((e: React.PointerEvent) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    const { x, y } = container.getBoundingClientRect();
-    const containerPoint = PointUtil.screenToViewPort(board, x, y);
-    if (!currentPoint || !containerPoint) return;
-    const offsetX = currentPoint.x - containerPoint.x;
-    const offsetY = currentPoint.y - containerPoint.y;
-    const hitWidth = paddingWidth - 2;
-    const hitHeight = paddingHeight - 2;
-    // offsetX 和 offsetY 在 padding 中
-    const isHitPadding = offsetX < hitWidth || offsetX > width - hitWidth || offsetY < hitHeight || offsetY > height - hitHeight;
-    if (!isSelected && !isHitPadding) {
-      e.stopPropagation();
-    }
-  });
-
-  // 鼠标样式
-  const handleOnPointerMove = useMemoizedFn((e: React.PointerEvent) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    const { x, y } = container.getBoundingClientRect();
-    const containerPoint = PointUtil.screenToViewPort(board, x, y);
-    if (!currentPoint || !containerPoint) return;
-    const offsetX = currentPoint.x - containerPoint.x;
-    const offsetY = currentPoint.y - containerPoint.y;
-    // 没有内容的时候方便编辑
-    const hitWidth = paddingWidth - 2;
-    const hitHeight = paddingHeight - 2;
-    const isHitPadding = offsetX < hitWidth || offsetX > width - hitWidth || offsetY < hitHeight || offsetY > height - hitHeight;
-    if (isHitPadding || isSelected) {
-      container.style.cursor = 'move';
-    } else {
-      // 可编辑的样式
-      container.style.cursor = 'text';
-    }
-  })
-
-  const isSelecting = useMemo(() => {
-    return !!selection?.selectArea;
-  }, [selection?.selectArea]);
-
-  const editorStyle = useMemo(() => {
-    return {
-      width: resized ? maxWidth : 'fit-content',
-      height: resized ? maxHeight : 'auto',
-      overflow: 'auto',
-      boxSizing: 'border-box',
-      padding: `${paddingHeight}px ${paddingWidth}px`,
-      maxWidth,
-      maxHeight,
-    } as React.CSSProperties;
-  }, [maxWidth, maxHeight, resized, paddingWidth, paddingHeight]);
 
   const containerStyle = useMemo(() => {
     return {
@@ -158,53 +92,45 @@ const Richtext = memo((props: RichtextProps) => {
     } as React.CSSProperties;
   }, [focus, isSelecting, isSelected]);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || resized) return;
-
-    const observer = new ResizeObserver(handleResize);
-    const editor = container.querySelector(':scope > [data-slate-editor]');
-    if (!editor) return;
-
-    observer.observe(editor);
-
-    return () => {
-      observer.disconnect();
+  const handleAutoFocus = useMemoizedFn(() => {
+    if (autoFocus) {
+      editorRef.current?.focus();
+      removeAutoFocus?.();
     }
-  }, [handleResize, resized]);
+  });
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || resized) return;
+    handleAutoFocus()
+  }, [handleAutoFocus]);
 
-    const editor = container.querySelector(':scope > [data-slate-editor]');
-    if (!editor) return;
+  const uploadImage = useUploadImage();
 
-    const { width, height } = editor.getBoundingClientRect();
-    handleFirstResize(width, height);
-  }, [resized, handleFirstResize]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    // @ts-expect-error
-    container.addEventListener('pointerdown', handlePointerDown);
-    // @ts-expect-error
-    container.addEventListener('pointermove', handleOnPointerMove);
-
-    return () => {
-      // @ts-expect-error
-      container.removeEventListener('pointerdown', handlePointerDown);
-      // @ts-expect-error
-      container.removeEventListener('pointermove', handleOnPointerMove);
-    }
-  }, [handlePointerDown, handleOnPointerMove]);
+  const { handleResize, editorStyle } = useHandleResize({
+    onResize,
+    maxWidth,
+    maxHeight,
+    container: containerRef.current,
+    resized,
+    paddingWidth,
+    paddingHeight,
+    focus
+  });
+  useHandlePointer({
+    container: containerRef.current,
+    paddingWidth,
+    paddingHeight,
+    isSelected,
+    width,
+    height
+  });
+    
+  const handleOnChange = useMemoizedFn((value: Descendant[]) => {
+    onChange(value);
+  });
 
   return (
     <>
-      {/* 使用 rect 作为边框而不是 border，是因为放大时拖动内容边框会产生残痕遗留，而 rect 不会*/}
-      {/* 使用 rect 的问题就是宽度变化时没那么流畅，有种卡顿感 */}
+      {/* 使用 rect 作为边框而不是 border，是因为放大时拖动内容边框会产生残痕遗留，而 rect 不会 */}
       <rect 
         x={x} 
         y={y} 
@@ -237,7 +163,6 @@ const Richtext = memo((props: RichtextProps) => {
             onBlur={handleBlur}
             uploadImage={uploadImage}
             extensions={customExtensions}
-            placeHolder={'  '}
           />
         </div>
       </foreignObject>

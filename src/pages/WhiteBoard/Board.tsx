@@ -221,7 +221,7 @@ class Board {
         for (const key in newProperties) {
           const value = newProperties[key];
 
-          if (value == null) {
+          if (value === null) {
             delete node[key];
           } else {
             node[key] = value;
@@ -238,6 +238,32 @@ class Board {
       }
       this.emit('onValueChange', this.children);
       return;
+    } else if (op.type === 'insert_node') {
+      const { path, node } = op;
+      const parent = PathUtil.getParentByPath(this, path);
+      if (!parent) return;
+
+      const index = path[path.length - 1];
+      if (parent.children && parent.children.length >= index) {
+        parent.children.splice(index, 0, node);
+        this.children = finishDraft(this.children);
+        this.emit('onValueChange', this.children);
+      } else {
+        console.error('insert_node error: index out of range', { path, index, parent });
+      }
+    } else if (op.type === 'remove_node') {
+      const { path } = op;
+      const parent = PathUtil.getParentByPath(this, path);
+      if (!parent) return;
+
+      const index = path[path.length - 1];
+      if (parent.children && parent.children.length > index) {
+        parent.children.splice(index, 1);
+        this.children = finishDraft(this.children);
+        this.emit('onValueChange', this.children);
+      } else {
+        console.error('insert_node error: index out of range', { path, index, parent });
+      }
     } else if (op.type === 'set_viewport') {
       this.viewPort = createDraft(this.viewPort);
       const {  newProperties } = op;

@@ -95,6 +95,7 @@ export const useInitBoard = (board: Board, container: HTMLDivElement | null, plu
     });
 
     const handleValueChange = (children: BoardElement[]) => {
+      localStorage.setItem('whiteBoardData', JSON.stringify(children));
       useWhiteBoardStore.setState({
         children
       });
