@@ -42,6 +42,13 @@ export class PathUtil {
       return node;
     }
   }
+
+  static getParentByPath(board: Board, path: Path): Board | BoardElement | null {
+    if (path.length === 0) return null;
+    if (path.length === 1) return board;
+    const parentPath = path.slice(0, -1);
+    return this.getElementByPath(board, parentPath);
+  }
 }
 
 export default PathUtil;

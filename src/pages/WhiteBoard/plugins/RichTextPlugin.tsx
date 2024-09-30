@@ -1,8 +1,9 @@
 import { Descendant } from 'slate';
+import { v4 as getUuid } from 'uuid';
 
 import { Board, IBoardPlugin, BoardElement, EHandlerPosition, Point, SelectArea } from '../types';
+import { PathUtil, getResizedBBox, selectAreaToRect, isRectIntersect, PointUtil } from '../utils';
 import RichText from '../components/RichText';
-import { PathUtil, getResizedBBox, selectAreaToRect, isRectIntersect } from '../utils';
 
 
 interface RichTextElement extends BoardElement {
@@ -20,10 +21,48 @@ interface RichTextElement extends BoardElement {
   borderColor?: string;
   paddingWidth?: number;
   paddingHeight?: number;
+  autoFocus?: boolean;
 }
 
 export class RichTextPlugin implements IBoardPlugin {
   name = 'richtext';
+
+  onDblClick(event: MouseEvent, board: Board) {
+    const currentPoint = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
+    if (!currentPoint) return;
+
+    const { x, y } = currentPoint;
+    const element: RichTextElement = {
+      id: getUuid(),
+      type: 'richtext',
+      x,
+      y,
+      width: 42,
+      height: 42,
+      maxWidth: 300,
+      maxHeight: 1000,
+      readonly: false,
+      resized: false,
+      content: [{
+        type: 'paragraph',
+        children: [{
+          type: 'formatted',
+          text: '',
+        }]
+      }],
+      borderWidth: 2,
+      borderColor: '#ed556a',
+      paddingWidth: 16,
+      paddingHeight: 8,
+      autoFocus: true,
+    }
+
+    board.apply({
+      type: 'insert_node',
+      path: [board.children.length],
+      node: element,
+    });
+  }
 
   resizeElement(_board: Board, element: RichTextElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
     const { position, anchor, focus } = options;
@@ -68,6 +107,21 @@ export class RichTextPlugin implements IBoardPlugin {
     }
   }
 
+  private removeAutoFocus = (board: Board, element: RichTextElement) => { 
+    const path = PathUtil.getPathByElement(board, element);
+    if (!path) return;
+    const newElement = {
+      ...element,
+      autoFocus: false,
+    }
+    board.apply({
+      type: 'set_node',
+      path,
+      properties: element,
+      newProperties: newElement,
+    });
+  }
+
   private onResize = (board: Board, element: RichTextElement, width: number, height: number) => {
     const { width: w, height: h } = element;
     if (w === width && h === height) return;
@@ -104,7 +158,7 @@ export class RichTextPlugin implements IBoardPlugin {
   }
 
   render(board: Board, { element }: { element: RichTextElement }) {
-    const { id, content, x, y, width, height, maxWidth, maxHeight, readonly, resized, borderWidth, borderColor, paddingWidth, paddingHeight } = element;
+    const { id, content, x, y, width, height, maxWidth, maxHeight, readonly, resized, borderWidth, borderColor, paddingWidth, paddingHeight, autoFocus } = element;
     return (
       <RichText
           key={id}
@@ -124,6 +178,8 @@ export class RichTextPlugin implements IBoardPlugin {
           borderColor={borderColor}
           paddingWidth={paddingWidth}
           paddingHeight={paddingHeight}
+          autoFocus={autoFocus}
+          removeAutoFocus={this.removeAutoFocus.bind(this, board, element)}
         />
     );
   }
