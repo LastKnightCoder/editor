@@ -1,18 +1,15 @@
 import { Descendant } from 'slate';
 import { v4 as getUuid } from 'uuid';
 
-import { Board, IBoardPlugin, BoardElement, EHandlerPosition, Point, SelectArea } from '../types';
-import { PathUtil, getResizedBBox, selectAreaToRect, isRectIntersect, PointUtil } from '../utils';
+import { Board, EHandlerPosition, Point } from '../types';
+import { PathUtil, PointUtil, getResizedBBox } from '../utils';
 import RichText from '../components/RichText';
+import { CommonPlugin, CommonElement } from './CommonPlugin';
+import { SelectTransforms } from '../transforms';
 
-
-interface RichTextElement extends BoardElement {
+export interface RichTextElement extends CommonElement {
   type: 'richtext';
   content: Descendant[];
-  x: number;
-  y: number;
-  width: number;
-  height: number;
   readonly?: boolean;
   maxWidth: number;
   maxHeight: number;
@@ -24,8 +21,17 @@ interface RichTextElement extends BoardElement {
   autoFocus?: boolean;
 }
 
-export class RichTextPlugin implements IBoardPlugin {
+export class RichTextPlugin extends CommonPlugin {
   name = 'richtext';
+
+  constructor() {
+    super();
+    this.onDblClick = this.onDblClick.bind(this);
+    this.onEditorSizeChange = this.onEditorSizeChange.bind(this);
+    this.onContentChange = this.onContentChange.bind(this);
+    this.removeAutoFocus = this.removeAutoFocus.bind(this);
+    this.onResize = this.onResize.bind(this);
+  }
 
   onDblClick(event: MouseEvent, board: Board) {
     const currentPoint = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
@@ -64,47 +70,30 @@ export class RichTextPlugin implements IBoardPlugin {
     });
   }
 
-  resizeElement(_board: Board, element: RichTextElement, options: { position: EHandlerPosition, anchor: Point, focus: Point }) {
-    const { position, anchor, focus } = options;
-    const newBBox = getResizedBBox(element, position, anchor, focus);
-    return {
+  onResize(board: Board, element: RichTextElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) {
+    if (!this.originResizeElement) return;
+    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint);
+    const newElement = {
       ...element,
       ...newBBox,
       resized: true,
       maxWidth: newBBox.width,
       maxHeight: newBBox.height,
     }
-  }
+    const path = PathUtil.getPathByElement(board, newElement);
+    if (!path) return;
 
-  isHit(_board: Board, element: RichTextElement, x: number, y: number): boolean {
-    const { x: left, y: top, width, height } = element;
+    board.apply({
+      type: 'set_node',
+      path,
+      properties: element,
+      newProperties: newElement
+    });
 
-    return x >= left && x <= left + width && y >= top && y <= top + height;
-  }
-
-  moveElement(_board: Board, element: RichTextElement, dx: number, dy: number) {
-    return {
-      ...element,
-      x: element.x + dx,
-      y: element.y + dy
-    }
-  }
-
-  isElementSelected(board: Board, element: RichTextElement, selectArea: SelectArea | null = board.selection.selectArea) {
-    if (!selectArea) return false;
-    const eleRect = this.getBBox(board, element);
-    const selectRect = selectAreaToRect(selectArea);
-    return isRectIntersect(eleRect, selectRect);
-  }
-
-  getBBox(_board: Board, element: RichTextElement) {
-    const { x, y, width, height } = element;
-    return {
-      x,
-      y,
-      width,
-      height
-    }
+    SelectTransforms.updateSelectArea(board, {
+      selectArea: null,
+      selectedElements: [newElement]
+    });
   }
 
   private removeAutoFocus = (board: Board, element: RichTextElement) => { 
@@ -122,7 +111,7 @@ export class RichTextPlugin implements IBoardPlugin {
     });
   }
 
-  private onResize = (board: Board, element: RichTextElement, width: number, height: number) => {
+  private onEditorSizeChange = (board: Board, element: RichTextElement, width: number, height: number) => {
     const { width: w, height: h } = element;
     if (w === width && h === height) return;
 
@@ -142,7 +131,7 @@ export class RichTextPlugin implements IBoardPlugin {
     });
   }
 
-  private onChange = (board: Board, element: RichTextElement, value: Descendant[]) => {
+  private onContentChange = (board: Board, element: RichTextElement, value: Descendant[]) => {
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
     const newElement = {
@@ -157,30 +146,19 @@ export class RichTextPlugin implements IBoardPlugin {
     });
   }
 
-  render(board: Board, { element }: { element: RichTextElement }) {
-    const { id, content, x, y, width, height, maxWidth, maxHeight, readonly, resized, borderWidth, borderColor, paddingWidth, paddingHeight, autoFocus } = element;
+  render(_board: Board, { element }: { element: RichTextElement }) {
+    const { id } = element;
     return (
       <RichText
-          key={id}
-          elementId={id}
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          maxWidth={maxWidth}
-          maxHeight={maxHeight}
-          content={content}
-          onChange={this.onChange.bind(this, board, element)}
-          onResize={this.onResize.bind(this, board, element)}
-          readonly={readonly}
-          resized={resized}
-          borderWidth={borderWidth}
-          borderColor={borderColor}
-          paddingWidth={paddingWidth}
-          paddingHeight={paddingHeight}
-          autoFocus={autoFocus}
-          removeAutoFocus={this.removeAutoFocus.bind(this, board, element)}
-        />
+        key={id}
+        element={element}
+        onContentChange={this.onContentChange}
+        onEditorSizeChange={this.onEditorSizeChange}
+        removeAutoFocus={this.removeAutoFocus}
+        onResizeStart={this.onResizeStart}
+        onResize={this.onResize}
+        onResizeEnd={this.onResizeEnd}
+      />
     );
   }
 }

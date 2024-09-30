@@ -1,6 +1,3 @@
-import React from "react";
-import { Point } from './point.ts';
-import { EHandlerPosition } from './resize.ts';
 import { Selection } from "./selection.ts";
 import Board from '../Board.tsx';
 
@@ -57,9 +54,7 @@ export interface IBoardPlugin {
   onGlobalPointerDown?: EventHandler;
   onGlobalPointerUp?: EventHandler;
   onGlobalPointerMove?: EventHandler;
-  getBBox?: (board: Board, element: BoardElement & any) => { x: number; y: number; width: number; height: number };
   isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
-  resizeElement?: (board: Board, element: BoardElement & any, options: { position: EHandlerPosition, anchor: Point, focus: Point }) => BoardElement;
   moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement;
   isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
   render?: (board: Board, value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;

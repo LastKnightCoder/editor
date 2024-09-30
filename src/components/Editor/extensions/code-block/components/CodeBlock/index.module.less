@@ -9,6 +9,11 @@
       display: none;
     }
   }
+  &:hover {
+    .languageSelect {
+      opacity: 1;
+    }
+  }
   .copyButton {
     position: absolute;
     top: 10px;
@@ -36,6 +41,12 @@
     top: 10px;
     right: 50px;
     z-index: 1;
+    opacity: 1;
+    transition: opacity 0.3s;
+    :global(.ant-select-selector) {
+      background-color: transparent;
+      border: none;
+    }
   }
   .CodeMirrorContainer :global(.CodeMirror) {
     background-color: var(--code-block-bg-color);

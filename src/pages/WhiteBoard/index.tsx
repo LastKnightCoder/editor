@@ -4,7 +4,7 @@ import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
 import Board from './Board';
-import { ViewPortPlugin, MovePlugin, CardPlugin, SelectPlugin, ResizePlugin, GeometryPlugin, RichTextPlugin } from './plugins';
+import { ViewPortPlugin, MovePlugin, CardPlugin, SelectPlugin, GeometryPlugin, RichTextPlugin } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import { Selection } from './types';
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
@@ -14,7 +14,6 @@ import styles from './index.module.less';
 
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
-const resizePlugin = new ResizePlugin();
 const movePlugin = new MovePlugin();
 
 const richTextPlugin = new RichTextPlugin();
@@ -48,7 +47,6 @@ const WhiteBoard = () => {
       richTextPlugin,
       geometryPlugin,
       cardPlugin,
-      resizePlugin,
       viewPortPlugin,
       selectPlugin,
       movePlugin,
@@ -100,11 +98,6 @@ const WhiteBoard = () => {
                         pointerEvents: 'none',
                       }}
                     />
-                  )
-                }
-                {
-                  selection.selectedElements && (
-                    boardRef.current.renderSelectedRect(selection.selectedElements)
                   )
                 }
               </g>

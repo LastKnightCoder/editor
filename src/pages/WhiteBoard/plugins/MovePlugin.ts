@@ -12,10 +12,6 @@ export class MovePlugin implements IBoardPlugin {
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 
-    // 缩放，禁止移动
-    const hitResizeHandle = PointUtil.getHitResizeHandle(board, startPoint);
-    if (hitResizeHandle) return;
-
     const selectedElements = board.selection.selectedElements;
     const hitElements = BoardUtil.getHitElements(board, startPoint.x, startPoint.y);
     const isHitSelected = hitElements.some(element => selectedElements.find(selectedElement => selectedElement.id === element.id));

@@ -1,6 +1,7 @@
-import { useSelection } from "../../../hooks/useSelection";
-import { useBoard } from "../../../hooks/useBoard";
-const useSelectState = (elementId: string) => {
+import { useSelection } from "./useSelection";
+import { useBoard } from "./useBoard";
+
+export const useSelectState = (elementId: string) => {
   const selection = useSelection();
   const board = useBoard();
   const isSelected = !!selection?.selectedElements.some(element => element.id === elementId);

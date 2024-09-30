@@ -2,44 +2,30 @@ import useEditCard from "./useEditCard.ts";
 import { Skeleton } from "antd";
 import { useRafInterval, useUnmount } from "ahooks";
 import { memo } from "react";
+
 import RichText from "../RichText";
+import { CardElement, CommonElement } from "../../plugins";
+import { EHandlerPosition, Point, Board } from "../../types";
+import { Descendant } from "slate";
 
 interface CardProps {
-  elementId: string;
-  cardId: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  maxWidth: number;
-  maxHeight: number;
-  resized: boolean;
-  onResize: (width: number, height: number) => void;
-  readonly?: boolean;
-  paddingWidth?: number;
-  paddingHeight?: number;
-  borderWidth?: number;
-  borderColor?: string;
+  element: CardElement;
+  onEditorSizeChange: (board: Board, element: CardElement, width: number, height: number) => void;
+  onResizeStart?: (element: CommonElement & any) => void;
+  onResizeEnd?: (element: CommonElement & any) => void;
+  onResize: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
 const Card = memo((props: CardProps) => {
   const {
-    elementId,
-    cardId,
-    x,
-    y,
-    width,
-    height,
-    maxWidth,
-    maxHeight,
-    resized,
-    onResize,
-    readonly,
-    borderWidth,
-    borderColor,
-    paddingWidth,
-    paddingHeight,
+    element,
+    onEditorSizeChange,
+    onResizeStart,
+    onResizeEnd,
+    onResize
   } = props;
+
+  const { cardId, width, height } = element;
 
   const {
     loading,
@@ -56,6 +42,10 @@ const Card = memo((props: CardProps) => {
     saveCard();
   });
 
+  const handleOnContentChange = (_board: Board, _element: CardElement, value: Descendant[]) => {
+    onContentChange(value);
+  }
+
   if (loading) {
     return (
       <div style={{ width, height }}>
@@ -68,22 +58,15 @@ const Card = memo((props: CardProps) => {
 
   return (
     <RichText
-      elementId={elementId}
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      maxWidth={maxWidth}
-      maxHeight={maxHeight}
-      resized={resized}
+      element={{
+        ...element,
+        content: editingCard.content,
+      }}
+      onEditorSizeChange={onEditorSizeChange}
+      onContentChange={handleOnContentChange}
+      onResizeStart={onResizeStart}
+      onResizeEnd={onResizeEnd}
       onResize={onResize}
-      content={editingCard.content}
-      onChange={onContentChange}
-      borderWidth={borderWidth}
-      borderColor={borderColor}
-      paddingWidth={paddingWidth}
-      paddingHeight={paddingHeight}
-      readonly={readonly}
     />
   )
 });

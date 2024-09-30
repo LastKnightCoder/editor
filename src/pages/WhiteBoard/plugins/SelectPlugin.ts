@@ -18,10 +18,6 @@ export class SelectPlugin implements IBoardPlugin {
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 
-    // 缩放，禁止选择
-    const hitResizeHandle = PointUtil.getHitResizeHandle(board, startPoint);
-    if (hitResizeHandle) return;
-
     this.hitElements = BoardUtil.getHitElements(board, startPoint.x, startPoint.y);
 
     this.startPoint = startPoint;
