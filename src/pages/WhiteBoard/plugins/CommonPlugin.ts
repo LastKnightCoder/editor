@@ -20,6 +20,14 @@ export abstract class CommonPlugin implements IBoardPlugin {
     this.onResizeEnd = this.onResizeEnd.bind(this);
   }
 
+  getArrowBindPoint(_board: Board, element: CommonElement, connection: [number, number]) {
+    const { x, y, width, height } = element;
+    return {
+      x: x + connection[0] * width,
+      y: y + connection[1] * height,
+    }
+  }
+
   isHit(_board: Board, element: CommonElement & any, x: number, y: number) {
     const { x: left, y: top, width, height } = element;
 
@@ -60,6 +68,8 @@ export abstract class CommonPlugin implements IBoardPlugin {
       properties: element,
       newProperties: newElement
     });
+
+    board.emit('element:resize', [newElement]);
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,

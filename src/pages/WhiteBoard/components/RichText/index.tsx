@@ -12,7 +12,7 @@ import useHandleResize from './hooks/useHandleResize';
 import useHandlePointer from './hooks/useHandlePointer';
 import useSelectState from '../../hooks/useSelectState';
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH, SELECT_RECT_FILL_OPACITY, RESIZE_CIRCLE_FILL, RESIZE_CIRCLE_RADIUS } from '../../constants';
-import { Board, EHandlerPosition, Point } from '../../types';
+import { Board, BoardElement, EHandlerPosition, Point } from '../../types';
 import { RichTextElement, CommonElement } from '../../plugins';
 import { PointUtil } from '../../utils';
 import { useBoard } from '../../hooks';
@@ -73,10 +73,10 @@ const Richtext = memo((props: RichtextProps) => {
   const [initValue] = useState(content);
   const [focus, setFocus] = useState(false);
   const board = useBoard();
+  const [isMoving, setIsMoving] = useState(false);
   const {
     isSelected,
     isSelecting,
-    isMoving,
   } = useSelectState(elementId);
   const resizePoints = PointUtil.getResizePointFromRect({
     x,
@@ -160,6 +160,17 @@ const Richtext = memo((props: RichtextProps) => {
     width,
     height
   });
+
+  useEffect(() => {
+    const onMovingChange = (movingElements: BoardElement[]) => {
+      setIsMoving(movingElements.length > 0);
+    }
+    board.on('element:move', onMovingChange);
+
+    return () => {
+      board.off('element:move', onMovingChange);
+    }
+  }, []);
 
   return (
     <>

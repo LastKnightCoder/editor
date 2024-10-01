@@ -19,7 +19,7 @@ const useWhiteBoardStore = create<IWhiteBoardState>(() => ({
   selection: {
     selectedElements: [],
     selectArea: null
-  }
+  },
 }))
 
 export default useWhiteBoardStore;

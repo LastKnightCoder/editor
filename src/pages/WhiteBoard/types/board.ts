@@ -1,5 +1,6 @@
 import { Selection } from "./selection.ts";
 import Board from '../Board.tsx';
+import { Point } from "./point.ts";
 
 export { default as Board } from '../Board.tsx';
 
@@ -54,6 +55,7 @@ export interface IBoardPlugin {
   onGlobalPointerDown?: EventHandler;
   onGlobalPointerUp?: EventHandler;
   onGlobalPointerMove?: EventHandler;
+  getArrowBindPoint?: (board: Board, element: BoardElement & any, connection: [number, number]) => Point | null;
   isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
   moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement;
   isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
