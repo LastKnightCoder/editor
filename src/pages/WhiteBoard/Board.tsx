@@ -33,7 +33,6 @@ class Board {
   public children: BoardElement[];
   public viewPort: ViewPort;
   public selection: Selection;
-  public movingElements: BoardElement[] = [];
 
   constructor(children: BoardElement[], plugins: IBoardPlugin[] = []) {
     this.boardFlag = boardFlag;
@@ -51,7 +50,6 @@ class Board {
       selectArea: null,
       selectedElements: []
     }
-    this.movingElements = [];
     this.initPlugins(plugins);
   }
 
@@ -294,6 +292,11 @@ class Board {
   renderElements(value?: BoardElement[]) {
     if (!value) return [];
     return value.map(element => this.renderElement(element));
+  }
+
+  getArrowBindPoint(element: BoardElement, connection: [number, number]) {
+    const plugin = this.plugins.find(plugin => plugin.name === element.type);
+    return plugin?.getArrowBindPoint?.(this, element, connection) ?? null;
   }
 }
 

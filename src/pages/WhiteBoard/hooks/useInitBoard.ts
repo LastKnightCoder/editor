@@ -3,6 +3,8 @@ import { useMemoizedFn } from "ahooks";
 import { useEffect } from "react";
 import useWhiteBoardStore from "../useWhiteBoardStore.ts";
 import { BOARD_TO_CONTAINER } from '../constants';
+
+
 export const useInitBoard = (board: Board, container: HTMLDivElement | null, plugins: IBoardPlugin[]) => {
   const eventHandlerGenerator = useMemoizedFn((eventName: Events) => {
     return (event: any) => {

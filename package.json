@@ -40,6 +40,7 @@
     "immer": "^10.0.2",
     "is-hotkey": "^0.2.0",
     "katex": "^0.16.8",
+    "kld-intersections": "^0.7.0",
     "lightgallery": "^2.7.2",
     "lodash": "^4.17.21",
     "lucide-react": "^0.399.0",

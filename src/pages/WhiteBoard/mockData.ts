@@ -1,7 +1,7 @@
 import { v4 as getUuid } from 'uuid';
 
 export const mockData = [{
-  id: getUuid(),
+  id: '1',
   type: 'card',
   x: 200,
   y: 200,
@@ -17,7 +17,7 @@ export const mockData = [{
   paddingWidth: 24,
   paddingHeight: 24,
 }, {
-  id: getUuid(),
+  id: '2',
   type: 'geometry',
   x: 300,
   y: 300,
@@ -60,4 +60,24 @@ export const mockData = [{
   borderColor: '#ed556a',
   paddingWidth: 16,
   paddingHeight: 8,
+}, {
+  id: getUuid(),
+  type: 'arrow',
+  lineType: 'straight',
+  source: {
+    marker: 'none',
+    connection: [0.5, 0.5],
+    bindId: '1',
+  },
+  target: {
+    marker: 'arrow',
+    connection: [0.5, 0],
+    bindId: '2',
+  },
+  points: [
+    {x: 400, y: 300},
+    {x: 350, y: 100},
+  ],
+  lineColor: '#1871c2',
+  lineWidth: 2,
 }]

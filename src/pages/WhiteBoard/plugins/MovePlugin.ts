@@ -34,7 +34,7 @@ export class MovePlugin implements IBoardPlugin {
           selectedElements: []
         }
       });
-      board.movingElements = this.moveElements;
+      board.emit('element:move', this.moveElements || []);
     }
   }
 
@@ -44,6 +44,7 @@ export class MovePlugin implements IBoardPlugin {
     if (!endPoint) return;
     const offsetX = endPoint.x - this.startPoint.x;
     const offsetY = endPoint.y - this.startPoint.y;
+    const movedElements: BoardElement[] = [];
     this.moveElements.forEach(element => {
       const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
@@ -55,8 +56,10 @@ export class MovePlugin implements IBoardPlugin {
           properties: element,
           newProperties: movedElement
         })
+        movedElements.push(movedElement);
       }
     })
+    board.emit('element:move', movedElements);
   }
 
   onPointerUp(e: PointerEvent, board: Board) {
@@ -93,6 +96,6 @@ export class MovePlugin implements IBoardPlugin {
 
     this.moveElements = null;
     this.startPoint = null;
-    board.movingElements = [];
+    board.emit('element:move', []);
   }
 }

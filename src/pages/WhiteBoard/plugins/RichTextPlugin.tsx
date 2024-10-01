@@ -90,6 +90,8 @@ export class RichTextPlugin extends CommonPlugin {
       newProperties: newElement
     });
 
+    board.emit('element:resize', [newElement]);
+
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
       selectedElements: [newElement]

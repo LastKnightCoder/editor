@@ -5,4 +5,4 @@ export * from './board.ts';
 export * from './viewport.ts';
 export * from './resize.ts';
 export * from './path.ts';
-
+export * from './arrow.ts';

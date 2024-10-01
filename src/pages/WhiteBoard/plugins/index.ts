@@ -6,3 +6,4 @@ export * from './RichTextPlugin';
 export * from './GeometryPlugin';
 export * from './CardPlugin';
 export * from './CommonPlugin';
+export * from './ArrowPlugin';
