@@ -59,6 +59,19 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     }
   })
 
+  const handleOnMove = useMemoizedFn((_startPoint: Point, endPoint: Point, index: number) => {
+    // if (index === 0 && source.bindId) {
+    //   return;
+    // }
+    // if (index === points.length - 1 && target.bindId) {
+    //   return;
+    // }
+
+    const newPoints = [...points];
+    newPoints[index] = endPoint;
+    handleOnPointsChange(newPoints);
+  })
+
 
   useEffect(() => {
     board.on('element:resize', handleElementsChange);
@@ -87,6 +100,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
               key={index}
               point={point}
               outerFill={lineColor}
+              index={index}
+              onMove={handleOnMove}
             />
           ))
         }

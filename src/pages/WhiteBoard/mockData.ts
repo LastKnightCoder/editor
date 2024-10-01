@@ -80,4 +80,20 @@ export const mockData = [{
   ],
   lineColor: '#1871c2',
   lineWidth: 2,
+}, {
+  id: getUuid(),
+  type: 'arrow',
+  lineType: 'straight',
+  source: {
+    marker: 'none',
+  },
+  target: {
+    marker: 'arrow',
+  },
+  points: [
+    {x: 300, y: 300},
+    {x: 400, y: 600},
+  ],
+  lineColor: '#2b1216',
+  lineWidth: 2,
 }]
