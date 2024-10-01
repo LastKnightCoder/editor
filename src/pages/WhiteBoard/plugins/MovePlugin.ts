@@ -1,4 +1,4 @@
-import { Board, BoardElement, IBoardPlugin } from "../types";
+import { Board, BoardElement, IBoardPlugin, Operation } from "../types";
 import { BoardUtil, PointUtil, PathUtil } from "../utils";
 
 export class MovePlugin implements IBoardPlugin {
@@ -45,12 +45,13 @@ export class MovePlugin implements IBoardPlugin {
     const offsetX = endPoint.x - this.startPoint.x;
     const offsetY = endPoint.y - this.startPoint.y;
     const movedElements: BoardElement[] = [];
+    const operations: Operation[] = [];
     this.moveElements.forEach(element => {
       const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
         const path = PathUtil.getPathByElement(board, movedElement);
         if (!path) return;
-        board.apply({
+        operations.push({
           type: 'set_node',
           path,
           properties: element,
@@ -59,6 +60,9 @@ export class MovePlugin implements IBoardPlugin {
         movedElements.push(movedElement);
       }
     })
+    if (operations.length > 0) {
+      board.apply(operations);
+    }
     board.emit('element:move', movedElements);
   }
 
@@ -69,12 +73,13 @@ export class MovePlugin implements IBoardPlugin {
     const offsetY = endPoint.y - this.startPoint.y;
 
     const movedElements: BoardElement[] = [];
+    const operations: Operation[] = [];
     this.moveElements.forEach(element => {
       const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
         const path = PathUtil.getPathByElement(board, movedElement);
         if (!path) return;
-        board.apply({
+        operations.push({
           type: 'set_node',
           path,
           properties: element,
@@ -84,7 +89,7 @@ export class MovePlugin implements IBoardPlugin {
       }
     })
     if (this.isHitSelected) {
-      board.apply({
+      operations.push({
         type: 'set_selection',
         properties: board.selection,
         newProperties: {
@@ -96,6 +101,9 @@ export class MovePlugin implements IBoardPlugin {
 
     this.moveElements = null;
     this.startPoint = null;
+    if (operations.length > 0) {
+      board.apply(operations);
+    }
     board.emit('element:move', []);
   }
 }

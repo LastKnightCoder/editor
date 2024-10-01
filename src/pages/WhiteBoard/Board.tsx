@@ -1,6 +1,6 @@
 import React from "react";
 import EventEmitter from 'eventemitter3';
-import { createDraft, finishDraft } from 'immer';
+import { createDraft, finishDraft, isDraft } from 'immer';
 import curry from 'lodash/curry';
 
 import {
@@ -194,86 +194,101 @@ class Board {
     executeSequence(fns, event, this);
   }
 
-  apply(op: Operation) {
-    this.children = createDraft(this.children);
+  apply(ops: Operation | Operation[]) {
+    if (!Array.isArray(ops)) {
+      ops = [ops];
+    }
 
-    if (op.type === 'set_node') {
-      const { path, newProperties, properties } = op;
-      try {
-        const node = PathUtil.getElementByPath(this, path);
-        for (const key in newProperties) {
-          const value = newProperties[key];
-
-          if (value === null) {
-            delete node[key];
+    try {
+      for (const op of ops) {
+        if (op.type === 'set_node') {
+          if (!isDraft(this.children)) {
+            this.children = createDraft(this.children);
+          }
+          const { path, newProperties, properties } = op;
+          const node = PathUtil.getElementByPath(this, path);
+          for (const key in newProperties) {
+            const value = newProperties[key];
+  
+            if (value === null) {
+              delete node[key];
+            } else {
+              node[key] = value;
+            }
+          }
+  
+          for (const key in properties) {
+            if (!Object.prototype.hasOwnProperty.call(newProperties, key)) {
+              delete node[key];
+            }
+          }
+        } else if (op.type === 'insert_node') {
+          if (!isDraft(this.children)) {
+            this.children = createDraft(this.children);
+          }
+          const { path, node } = op;
+          const parent = PathUtil.getParentByPath(this, path);
+          if (!parent) return;
+    
+          const index = path[path.length - 1];
+          if (parent.children && parent.children.length >= index) {
+            parent.children.splice(index, 0, node);
           } else {
-            node[key] = value;
+            console.error('insert_node error: index out of range', { path, index, parent });
+          }
+        } else if (op.type === 'remove_node') {
+          if (!isDraft(this.children)) {
+            this.children = createDraft(this.children);
+          }
+          const { path } = op;
+          const parent = PathUtil.getParentByPath(this, path);
+          if (!parent) return;
+    
+          const index = path[path.length - 1];
+          if (parent.children && parent.children.length > index) {
+            parent.children.splice(index, 1);
+          } else {
+            console.error('insert_node error: index out of range', { path, index, parent });
+          }
+        } else if (op.type === 'set_viewport') {
+          this.viewPort = createDraft(this.viewPort);
+          const {  newProperties } = op;
+          for (const key in newProperties) {
+            const value = newProperties[key];
+    
+            if (value == null) {
+              delete this.viewPort[key];
+            } else {
+              this.viewPort[key] = value;
+            }
+          }
+        } else if (op.type === 'set_selection') {
+          this.selection = createDraft(this.selection);
+          const { newProperties } = op;
+          for (const key in newProperties) {
+            const value = newProperties[key];
+    
+            if (value == null) {
+              delete this.selection[key];
+            } else {
+              this.selection[key] = value;
+            }
           }
         }
-
-        for (const key in properties) {
-          if (!Object.prototype.hasOwnProperty.call(newProperties, key)) {
-            delete node[key];
-          }
-        }
-      } finally {
-        this.children = finishDraft(this.children);
       }
-      this.emit('onValueChange', this.children);
-    } else if (op.type === 'insert_node') {
-      const { path, node } = op;
-      const parent = PathUtil.getParentByPath(this, path);
-      if (!parent) return;
-
-      const index = path[path.length - 1];
-      if (parent.children && parent.children.length >= index) {
-        parent.children.splice(index, 0, node);
+    } finally {
+      if (isDraft(this.children)) {
         this.children = finishDraft(this.children);
         this.emit('onValueChange', this.children);
-      } else {
-        console.error('insert_node error: index out of range', { path, index, parent });
       }
-    } else if (op.type === 'remove_node') {
-      const { path } = op;
-      const parent = PathUtil.getParentByPath(this, path);
-      if (!parent) return;
-
-      const index = path[path.length - 1];
-      if (parent.children && parent.children.length > index) {
-        parent.children.splice(index, 1);
-        this.children = finishDraft(this.children);
-        this.emit('onValueChange', this.children);
-      } else {
-        console.error('insert_node error: index out of range', { path, index, parent });
+      if (isDraft(this.viewPort)) {
+        this.viewPort = finishDraft(this.viewPort);
+        this.emit('onViewPortChange', this.viewPort);
       }
-    } else if (op.type === 'set_viewport') {
-      this.viewPort = createDraft(this.viewPort);
-      const {  newProperties } = op;
-      for (const key in newProperties) {
-        const value = newProperties[key];
-
-        if (value == null) {
-          delete this.viewPort[key];
-        } else {
-          this.viewPort[key] = value;
-        }
+      if (isDraft(this.selection)) {
+        this.selection = finishDraft(this.selection);
+        this.emit('onSelectionChange', this.selection);
       }
-      this.viewPort = finishDraft(this.viewPort);
-      this.emit('onViewPortChange', this.viewPort);
-    } else if (op.type === 'set_selection') {
-      this.selection = createDraft(this.selection);
-      const { newProperties } = op;
-      for (const key in newProperties) {
-        const value = newProperties[key];
-
-        if (value == null) {
-          delete this.selection[key];
-        } else {
-          this.selection[key] = value;
-        }
-      }
-      this.selection = finishDraft(this.selection);
-      this.emit('onSelectionChange', this.selection);
     }
   }
 

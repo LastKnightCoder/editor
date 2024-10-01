@@ -67,6 +67,11 @@ export class ViewPortPlugin implements IBoardPlugin {
         ViewPortTransforms.updateZoom(board, newZoom, [boardX, boardY]);
       }
       e.preventDefault();
+    } else {
+      // 移动
+      const newX = board.viewPort.minX + 5 * e.deltaX;
+      const newY = board.viewPort.minY + 2 * e.deltaY;
+      ViewPortTransforms.moveViewPort(board, newX, newY);
     }
   }
 }
