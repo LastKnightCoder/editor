@@ -163,14 +163,14 @@ const Richtext = memo((props: RichtextProps) => {
 
   useEffect(() => {
     const onMovingChange = (movingElements: BoardElement[]) => {
-      setIsMoving(movingElements.length > 0);
+      setIsMoving(movingElements.some(element => element.id === elementId));
     }
     board.on('element:move', onMovingChange);
 
     return () => {
       board.off('element:move', onMovingChange);
     }
-  }, []);
+  }, [elementId]);
 
   return (
     <>

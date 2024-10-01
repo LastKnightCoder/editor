@@ -1,6 +1,6 @@
 import { IBoardPlugin, ArrowElement, Board, Point, EArrowLineType } from "../types";
 import ArrowElementComponent from '../components/ArrowElementComponent';
-import { PathUtil } from "../utils";
+import { PathUtil, CanvasUtil } from "../utils";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = 'arrow';
@@ -13,6 +13,7 @@ export class ArrowPlugin implements IBoardPlugin {
     const { points, lineType } = element;
     const padding = 10;
     if (lineType === EArrowLineType.STRAIGHT) {
+      // TODO 扩展算法优化
       const upperPoints = points.map(point => ({
         x: point.x,
         y: point.y - padding,
@@ -30,10 +31,7 @@ export class ArrowPlugin implements IBoardPlugin {
         path.lineTo(lowerPoints[i].x, lowerPoints[i].y);
       }
       path.closePath();
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return false;
-      return ctx.isPointInPath(path, x, y);
+      return CanvasUtil.isPointInPath(path, x, y);
     }
     return false;
   }

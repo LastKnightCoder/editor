@@ -68,9 +68,9 @@ export class ViewPortPlugin implements IBoardPlugin {
       }
       e.preventDefault();
     } else {
-      // 移动
-      const newX = board.viewPort.minX + 5 * e.deltaX;
-      const newY = board.viewPort.minY + 2 * e.deltaY;
+      const newX = board.viewPort.minX + 3 * e.deltaX;
+      const newY = board.viewPort.minY + 3 * e.deltaY;
+      
       ViewPortTransforms.moveViewPort(board, newX, newY);
     }
   }
