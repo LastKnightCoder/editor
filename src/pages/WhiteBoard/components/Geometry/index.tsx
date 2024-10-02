@@ -108,8 +108,8 @@ const Geometry = memo((props: GeometryProps) => {
           {
             arrowConnectPoints.map((point) => (
               <ArrowConnectPoint
-                key={point.postion}
-                position={point.postion}
+                key={point.position}
+                position={point.position}
                 x={point.point.x}
                 y={point.point.y}
                 r={ARROW_CONNECT_POINT_RADIUS} 
