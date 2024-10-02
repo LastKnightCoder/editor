@@ -103,6 +103,43 @@ export class PointUtil {
     }
   }
 
+  /**
+   * extend：向外扩展距离，长度为 CSS 像素
+   */
+  static getArrowConnectPoints(board: Board, bbox: BBox, extend = 20) {
+    const { x, y, width, height } = bbox;
+    const { zoom } = board.viewPort;
+    extend = extend / zoom;
+    return [{
+      postion: 'top',
+      connection: [0.5, 0],
+      point: {
+        x: x + 0.5 * width,
+        y: y - extend
+      }
+    }, {
+      postion: 'bottom',
+      connection: [0.5, 1],
+      point: {
+        x: x + 0.5 * width,
+        y: y + height + extend
+      }
+    }, {
+      postion: 'left',
+      connection: [0, 0.5],
+      point: {
+        x: x - extend,
+        y: y + 0.5 * height
+      }
+    }, {
+      postion: 'right',
+      connection: [1, 0.5], 
+      point: {
+        x: x + width + extend,
+        y: y + 0.5 * height
+      }
+    }]
+  }
 }
 
 export default PointUtil;

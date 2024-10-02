@@ -5,8 +5,17 @@ import { Board, EHandlerPosition, Point } from '../../types';
 import { PointUtil, transformPath } from '../../utils';
 import { useBoard, useSelectState } from '../../hooks';
 import ResizeCircle from '../ResizeCircle';
+import ArrowConnectPoint from '../ArrowConnectPoint';
 import { GeometryElement } from '../../plugins';
-import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH, SELECT_RECT_FILL_OPACITY, RESIZE_CIRCLE_FILL, RESIZE_CIRCLE_RADIUS } from '../../constants';
+import { 
+  SELECT_RECT_STROKE, 
+  SELECT_RECT_STROKE_WIDTH, 
+  SELECT_RECT_FILL_OPACITY, 
+  RESIZE_CIRCLE_FILL, 
+  RESIZE_CIRCLE_RADIUS,
+  ARROW_CONNECT_POINT_FILL,
+  ARROW_CONNECT_POINT_RADIUS,
+} from '../../constants';
 import { useMemoizedFn } from 'ahooks';
 
 interface GeometryProps {
@@ -25,6 +34,12 @@ const Geometry = memo((props: GeometryProps) => {
   const { isSelected } = useSelectState(id);
 
   const resizePoints = PointUtil.getResizePointFromRect({
+    x,
+    y,
+    width,
+    height
+  });
+  const arrowConnectPoints = PointUtil.getArrowConnectPoints(board, {
     x,
     y,
     width,
@@ -87,6 +102,18 @@ const Geometry = memo((props: GeometryProps) => {
                 onResizeStart={handleOnResizeStart}
                 onResize={handleOnResize}
                 onResizeEnd={handleOnResizeEnd}
+              />
+            ))
+          }
+          {
+            arrowConnectPoints.map((point) => (
+              <ArrowConnectPoint
+                key={point.postion}
+                position={point.postion}
+                x={point.point.x}
+                y={point.point.y}
+                r={ARROW_CONNECT_POINT_RADIUS} 
+                fill={ARROW_CONNECT_POINT_FILL}
               />
             ))
           }

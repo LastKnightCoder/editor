@@ -6,7 +6,7 @@ import { useMemoizedFn } from "ahooks";
 import { BOARD_TO_CONTAINER } from "../constants";
 
 interface IUseResize {
-  ref: React.RefObject<SVGCircleElement>;
+  ref: React.RefObject<SVGElement>;
   onResizeStart?: (startPoint: Point) => void;
   onResize: (startPoint: Point, endPoint: Point) => void;
   onResizeEnd?: (startPoint: Point, endPoint: Point) => void;

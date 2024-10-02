@@ -69,7 +69,7 @@ export class ViewPortPlugin implements IBoardPlugin {
       e.preventDefault();
     } else {
       const newX = board.viewPort.minX + 3 * e.deltaX;
-      const newY = board.viewPort.minY + 3 * e.deltaY;
+      const newY = board.viewPort.minY + 2 * e.deltaY;
       
       ViewPortTransforms.moveViewPort(board, newX, newY);
     }

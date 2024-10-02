@@ -10,14 +10,22 @@ import ResizeCircle from '../ResizeCircle';
 
 import useHandleResize from './hooks/useHandleResize';
 import useHandlePointer from './hooks/useHandlePointer';
-import useSelectState from '../../hooks/useSelectState';
-import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH, SELECT_RECT_FILL_OPACITY, RESIZE_CIRCLE_FILL, RESIZE_CIRCLE_RADIUS } from '../../constants';
+import { 
+  SELECT_RECT_STROKE, 
+  SELECT_RECT_STROKE_WIDTH, 
+  SELECT_RECT_FILL_OPACITY, 
+  RESIZE_CIRCLE_FILL, 
+  RESIZE_CIRCLE_RADIUS, 
+  ARROW_CONNECT_POINT_RADIUS, 
+  ARROW_CONNECT_POINT_FILL 
+} from '../../constants';
 import { Board, BoardElement, EHandlerPosition, Point } from '../../types';
 import { RichTextElement, CommonElement } from '../../plugins';
 import { PointUtil } from '../../utils';
-import { useBoard } from '../../hooks';
+import { useBoard, useSelectState } from '../../hooks';
 
 import styles from './index.module.less';
+import ArrowConnectPoint from '../ArrowConnectPoint';
 
 const customExtensions = [
   cardLinkExtension,
@@ -78,7 +86,14 @@ const Richtext = memo((props: RichtextProps) => {
     isSelected,
     isSelecting,
   } = useSelectState(elementId);
+
   const resizePoints = PointUtil.getResizePointFromRect({
+    x,
+    y,
+    width,
+    height
+  });
+  const arrowConnectPoints = PointUtil.getArrowConnectPoints(board, {
     x,
     y,
     width,
@@ -172,6 +187,27 @@ const Richtext = memo((props: RichtextProps) => {
     }
   }, [elementId]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+
+    if (!container) return;
+
+    const editor = container.querySelector(':scope > [data-slate-editor]');
+    if (!editor) return;
+
+    const stopWheelPropagation = (e: WheelEvent) => {
+      e.stopPropagation();
+    }
+
+    // @ts-expect-error
+    editor.addEventListener('wheel', stopWheelPropagation);
+
+    return () => {
+      // @ts-expect-error
+      editor.removeEventListener('wheel', stopWheelPropagation);
+    }
+  }, [])
+
   return (
     <>
       {/* 使用 rect 作为边框而不是 border，是因为放大时拖动内容边框会产生残痕遗留，而 rect 不会 */}
@@ -235,6 +271,18 @@ const Richtext = memo((props: RichtextProps) => {
                 onResizeStart={handleOnResizeStart}
                 onResize={handleOnResize}
                 onResizeEnd={handleOnResizeEnd}
+              />
+            ))
+          }
+          {
+            arrowConnectPoints.map((point) => (
+              <ArrowConnectPoint
+                key={point.postion}
+                position={point.position}
+                x={point.point.x}
+                y={point.point.y}
+                r={ARROW_CONNECT_POINT_RADIUS} 
+                fill={ARROW_CONNECT_POINT_FILL}
               />
             ))
           }

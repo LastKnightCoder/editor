@@ -43,7 +43,7 @@ export class RichTextPlugin extends CommonPlugin {
       type: 'richtext',
       x,
       y,
-      width: 42,
+      width: 32,
       height: 42,
       maxWidth: 300,
       maxHeight: 1000,

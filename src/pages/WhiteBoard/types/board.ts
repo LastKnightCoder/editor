@@ -57,7 +57,7 @@ export interface IBoardPlugin {
   onGlobalPointerMove?: EventHandler;
   getArrowBindPoint?: (board: Board, element: BoardElement & any, connection: [number, number]) => Point | null;
   isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
-  moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement;
+  moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement | null;
   isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
   render?: (board: Board, value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;
 }
