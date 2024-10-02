@@ -8,11 +8,12 @@ import ArrowActivePoint from './ArrowActivePoint';
 
 interface ArrowElementProps {
   element: ArrowElement;
+  onPointMove: (board: Board, element: ArrowElement, anchor: Point, focus: Point, index: number) => void;
   onPointsChange: (board: Board, element: ArrowElement, points: Point[]) => void;
 }
 
 const ArrowElementComponent = memo((props: ArrowElementProps) => {
-  const { element, onPointsChange } = props;
+  const { element, onPointMove, onPointsChange } = props;
   const { points, lineColor, lineWidth, lineType, source, target } = element;
 
   const board = useBoard();
@@ -23,15 +24,15 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   })
 
   const handleElementsChange = useMemoizedFn((elements: BoardElement[]) => {
-    const sourceBindElement = elements.find(element => element.id === source.bindId);
-    const targetBindElement = elements.find(element => element.id === target.bindId);
+    const sourceBindElement = elements.find(element => element.id === source?.bindId);
+    const targetBindElement = elements.find(element => element.id === target?.bindId);
 
     let sourcePoint: Point | null = null;
     let targetPoint: Point | null = null;
 
     if (sourceBindElement) {
       const { connection } = source;
-      const sourceBindPoint = board.getArrowBindPoint(sourceBindElement, connection);
+      const sourceBindPoint = board.getArrowBindPoint(sourceBindElement, connection!);
       if (sourceBindPoint) {
         sourcePoint = sourceBindPoint;
       }
@@ -39,7 +40,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
 
     if (targetBindElement) {
       const { connection } = target;
-      const targetBindPoint = board.getArrowBindPoint(targetBindElement, connection);
+      const targetBindPoint = board.getArrowBindPoint(targetBindElement, connection!);
       if (targetBindPoint) {
         targetPoint = targetBindPoint;
       }
@@ -59,19 +60,9 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     }
   })
 
-  const handleOnMove = useMemoizedFn((_startPoint: Point, endPoint: Point, index: number) => {
-    // if (index === 0 && source.bindId) {
-    //   return;
-    // }
-    // if (index === points.length - 1 && target.bindId) {
-    //   return;
-    // }
-
-    const newPoints = [...points];
-    newPoints[index] = endPoint;
-    handleOnPointsChange(newPoints);
+  const handleOnMove = useMemoizedFn((startPoint: Point, endPoint: Point, index: number) => {
+    onPointMove(board, element, startPoint, endPoint, index);
   })
-
 
   useEffect(() => {
     board.on('element:resize', handleElementsChange);
@@ -99,6 +90,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
             <ArrowActivePoint
               key={index}
               point={point}
+              innerSize={3}
+              outerSize={5}
               outerFill={lineColor}
               index={index}
               onMove={handleOnMove}
