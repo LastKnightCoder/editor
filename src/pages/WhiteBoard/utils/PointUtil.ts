@@ -111,28 +111,28 @@ export class PointUtil {
     const { zoom } = board.viewPort;
     extend = extend / zoom;
     return [{
-      postion: 'top',
+      position: 'top',
       connection: [0.5, 0],
       point: {
         x: x + 0.5 * width,
         y: y - extend
       }
     }, {
-      postion: 'bottom',
+      position: 'bottom',
       connection: [0.5, 1],
       point: {
         x: x + 0.5 * width,
         y: y + height + extend
       }
     }, {
-      postion: 'left',
+      position: 'left',
       connection: [0, 0.5],
       point: {
         x: x - extend,
         y: y + 0.5 * height
       }
     }, {
-      postion: 'right',
+      position: 'right',
       connection: [1, 0.5], 
       point: {
         x: x + width + extend,

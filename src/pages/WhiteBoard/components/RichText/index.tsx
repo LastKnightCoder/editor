@@ -277,7 +277,7 @@ const Richtext = memo((props: RichtextProps) => {
           {
             arrowConnectPoints.map((point) => (
               <ArrowConnectPoint
-                key={point.postion}
+                key={point.position}
                 position={point.position}
                 x={point.point.x}
                 y={point.point.y}
