@@ -44,8 +44,8 @@ export const mockData = [{
   type: 'richtext',
   x: 400,
   y: 600,
-  width: 52,
-  height: 60,
+  width: 33,
+  height: 42,
   maxWidth: 300,
   maxHeight: 1000,
   readonly: false,
@@ -66,12 +66,12 @@ export const mockData = [{
   lineType: 'straight',
   source: {
     marker: 'none',
-    connection: [0.5, 0.5],
+    connectId: 'left',
     bindId: '1',
   },
   target: {
     marker: 'arrow',
-    connection: [0.5, 0],
+    connectId: 'top',
     bindId: '2',
   },
   points: [

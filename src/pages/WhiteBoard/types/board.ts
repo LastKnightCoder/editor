@@ -55,7 +55,7 @@ export interface IBoardPlugin {
   onGlobalPointerDown?: EventHandler;
   onGlobalPointerUp?: EventHandler;
   onGlobalPointerMove?: EventHandler;
-  getArrowBindPoint?: (board: Board, element: BoardElement & any, connection: [number, number]) => Point | null;
+  getArrowBindPoint?: (board: Board, element: BoardElement & any, connectId: string) => Point | null;
   isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
   moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement | null;
   isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;

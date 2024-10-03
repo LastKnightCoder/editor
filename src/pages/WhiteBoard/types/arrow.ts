@@ -13,7 +13,7 @@ export enum EMarkerType {
 
 export interface ArrowBound {
   marker: EMarkerType;
-  connection?: [number, number];
+  connectId?: string;
   bindId?: string;
 }
 

@@ -309,9 +309,9 @@ class Board {
     return value.map(element => this.renderElement(element));
   }
 
-  getArrowBindPoint(element: BoardElement, connection: [number, number]) {
+  getArrowBindPoint(element: BoardElement, connectId: string) {
     const plugin = this.plugins.find(plugin => plugin.name === element.type);
-    return plugin?.getArrowBindPoint?.(this, element, connection) ?? null;
+    return plugin?.getArrowBindPoint?.(this, element, connectId) ?? null;
   }
 }
 

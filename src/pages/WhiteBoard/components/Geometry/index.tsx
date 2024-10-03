@@ -1,22 +1,23 @@
-import React, { memo } from 'react';
+import { memo, useMemo } from 'react';
+import { useMemoizedFn } from 'ahooks';
 import If from '@/components/If';
+import ResizeCircle from '../ResizeCircle';
+import ArrowConnectPoint from '../ArrowConnectPoint';
+import ArrowDropConnectPoint from '../ArrowDropConnectPoint';
 
 import { Board, EHandlerPosition, Point } from '../../types';
 import { PointUtil, transformPath } from '../../utils';
-import { useBoard, useSelectState } from '../../hooks';
-import ResizeCircle from '../ResizeCircle';
-import ArrowConnectPoint from '../ArrowConnectPoint';
+import { useBoard, useSelectState, useDropArrow } from '../../hooks';
 import { GeometryElement } from '../../plugins';
-import { 
-  SELECT_RECT_STROKE, 
-  SELECT_RECT_STROKE_WIDTH, 
-  SELECT_RECT_FILL_OPACITY, 
-  RESIZE_CIRCLE_FILL, 
+import {
+  SELECT_RECT_STROKE,
+  SELECT_RECT_STROKE_WIDTH,
+  SELECT_RECT_FILL_OPACITY,
+  RESIZE_CIRCLE_FILL,
   RESIZE_CIRCLE_RADIUS,
   ARROW_CONNECT_POINT_FILL,
   ARROW_CONNECT_POINT_RADIUS,
 } from '../../constants';
-import { useMemoizedFn } from 'ahooks';
 
 interface GeometryProps {
   element: GeometryElement;
@@ -33,18 +34,18 @@ const Geometry = memo((props: GeometryProps) => {
   const board = useBoard();
   const { isSelected } = useSelectState(id);
 
-  const resizePoints = PointUtil.getResizePointFromRect({
-    x,
-    y,
-    width,
-    height
-  });
-  const arrowConnectPoints = PointUtil.getArrowConnectPoints(board, {
-    x,
-    y,
-    width,
-    height
-  });
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } = useDropArrow(element);
+
+  const [resizePoints] = useMemo(() => {
+    const resizePoints = PointUtil.getResizePointFromRect({
+      x,
+      y,
+      width,
+      height
+    });
+
+    return [resizePoints];
+  }, [x, y, width, height]);
 
   const handleOnResizeStart = useMemoizedFn((startPoint: Point) => {
     onResizeStart?.(element, startPoint);
@@ -59,20 +60,28 @@ const Geometry = memo((props: GeometryProps) => {
   });
 
   return (
-    <React.Fragment key={id}>
-      <svg style={{ overflow: "visible" }} key={id} x={x} y={y} width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+    <>
+      <svg 
+        style={{ overflow: "visible" }} 
+        key={id} 
+        x={x} 
+        y={y} 
+        width={width} 
+        height={height} 
+        viewBox={`0 0 ${width} ${height}`}
+      >
         {
           paths.map((path) => {
             // 提取 path 中的所有坐标，分别乘以 width 和 height
             const pathString = transformPath(path, width, height);
             return (
-              <path 
-                key={path} 
-                d={pathString} 
-                fill={fill} 
-                fillOpacity={fillOpacity} 
-                stroke={stroke} 
-                strokeWidth={strokeWidth} 
+              <path
+                key={path}
+                d={pathString}
+                fill={fill}
+                fillOpacity={fillOpacity}
+                stroke={stroke}
+                strokeWidth={strokeWidth}
               />
             )
           })
@@ -106,20 +115,33 @@ const Geometry = memo((props: GeometryProps) => {
             ))
           }
           {
-            arrowConnectPoints.map((point) => (
+            arrowConnectExtendPoints.map((point) => (
               <ArrowConnectPoint
-                key={point.position}
-                position={point.position}
+                key={point.connectId}
+                element={element}
+                connectId={point.connectId}
                 x={point.point.x}
                 y={point.point.y}
-                r={ARROW_CONNECT_POINT_RADIUS} 
+                r={ARROW_CONNECT_POINT_RADIUS}
                 fill={ARROW_CONNECT_POINT_FILL}
               />
             ))
           }
         </g>
       </If>
-    </React.Fragment>
+      <If condition={isMoveArrowClosing}>
+        {
+          arrowConnectPoints.map((point) => (
+            <ArrowDropConnectPoint
+              key={point.connectId}
+              cx={point.point.x}
+              cy={point.point.y}
+              isActive={activeConnectId === point.connectId}
+            />
+          ))
+        }
+      </If>
+    </>
   );
 });
 

@@ -37,6 +37,7 @@
     "eventemitter3": "^5.0.1",
     "framer-motion": "^10.13.0",
     "graphviz-react": "^1.2.5",
+    "gsap": "^3.12.5",
     "immer": "^10.0.2",
     "is-hotkey": "^0.2.0",
     "katex": "^0.16.8",

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, memo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { Descendant } from 'slate';
 import { useMemoizedFn } from 'ahooks';
 import useUploadImage from "@/hooks/useUploadImage.ts";
@@ -22,10 +22,11 @@ import {
 import { Board, BoardElement, EHandlerPosition, Point } from '../../types';
 import { RichTextElement, CommonElement } from '../../plugins';
 import { PointUtil } from '../../utils';
-import { useBoard, useSelectState } from '../../hooks';
+import { useBoard, useSelectState, useDropArrow } from '../../hooks';
 
 import styles from './index.module.less';
 import ArrowConnectPoint from '../ArrowConnectPoint';
+import ArrowDropConnectPoint from '../ArrowDropConnectPoint';
 
 const customExtensions = [
   cardLinkExtension,
@@ -82,23 +83,22 @@ const Richtext = memo((props: RichtextProps) => {
   const [focus, setFocus] = useState(false);
   const board = useBoard();
   const [isMoving, setIsMoving] = useState(false);
+  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } = useDropArrow(element);
   const {
     isSelected,
     isSelecting,
   } = useSelectState(elementId);
 
-  const resizePoints = PointUtil.getResizePointFromRect({
-    x,
-    y,
-    width,
-    height
-  });
-  const arrowConnectPoints = PointUtil.getArrowConnectPoints(board, {
-    x,
-    y,
-    width,
-    height
-  });
+  const [resizePoints] = useMemo(() => {
+    const resizePoints = PointUtil.getResizePointFromRect({
+      x,
+      y,
+      width,
+      height
+    });
+
+    return [resizePoints];
+  }, [x, y, width, height]);
 
   const handleFocus = useMemoizedFn(() => {
     if (readonly) return;
@@ -140,9 +140,9 @@ const Richtext = memo((props: RichtextProps) => {
 
   const containerStyle = useMemo(() => {
     return {
-      userSelect: !focus || isSelecting || isSelected ? 'none' : 'auto',
+      pointerEvents: isMoving ||isSelecting || isSelected ? 'none' : 'auto',
     } as React.CSSProperties;
-  }, [focus, isSelecting, isSelected]);
+  }, [isMoving, isSelecting, isSelected]);
 
   const handleAutoFocus = useMemoizedFn(() => {
     if (autoFocus) {
@@ -238,7 +238,7 @@ const Richtext = memo((props: RichtextProps) => {
             style={editorStyle}
             initValue={initValue}
             onChange={handleOnContentChange}
-            readonly={isSelected || isMoving || isSelecting || readonly}
+            readonly={readonly}
             onFocus={handleFocus}
             onBlur={handleBlur}
             uploadImage={uploadImage}
@@ -275,10 +275,11 @@ const Richtext = memo((props: RichtextProps) => {
             ))
           }
           {
-            arrowConnectPoints.map((point) => (
+            arrowConnectExtendPoints.map((point) => (
               <ArrowConnectPoint
-                key={point.position}
-                position={point.position}
+                key={point.connectId}
+                element={element}
+                connectId={point.connectId}
                 x={point.point.x}
                 y={point.point.y}
                 r={ARROW_CONNECT_POINT_RADIUS} 
@@ -287,6 +288,18 @@ const Richtext = memo((props: RichtextProps) => {
             ))
           }
         </g>
+      </If>
+      <If condition={isMoveArrowClosing}>
+        {
+          arrowConnectPoints.map((point) => (
+            <ArrowDropConnectPoint
+              key={point.connectId}
+              cx={point.point.x}
+              cy={point.point.y}
+              isActive={activeConnectId === point.connectId}
+            />
+          ))
+        }
       </If>
     </>
   )
