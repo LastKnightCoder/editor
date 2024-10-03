@@ -43,6 +43,7 @@ specifiers:
   eventemitter3: ^5.0.1
   framer-motion: ^10.13.0
   graphviz-react: ^1.2.5
+  gsap: ^3.12.5
   immer: ^10.0.2
   is-hotkey: ^0.2.0
   katex: ^0.16.8
@@ -101,6 +102,7 @@ dependencies:
   eventemitter3: 5.0.1
   framer-motion: 10.18.0_nnrd3gsncyragczmpvfhocinkq
   graphviz-react: 1.2.5_react@18.3.1
+  gsap: 3.12.5
   immer: 10.1.1
   is-hotkey: 0.2.0
   katex: 0.16.11
@@ -4544,6 +4546,10 @@ packages:
     dependencies:
       d3-graphviz: 2.6.1
       react: 18.3.1
+    dev: false
+
+  /gsap/3.12.5:
+    resolution: {integrity: sha512-srBfnk4n+Oe/ZnMIOXt3gT605BX9x5+rh/prT2F1SsNJsU1XuMiP0E2aptW481OnonOGACZWBqseH5Z7csHxhQ==}
     dev: false
 
   /has-ansi/2.0.0:

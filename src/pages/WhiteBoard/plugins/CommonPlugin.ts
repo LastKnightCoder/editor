@@ -20,12 +20,95 @@ export abstract class CommonPlugin implements IBoardPlugin {
     this.onResizeEnd = this.onResizeEnd.bind(this);
   }
 
-  getArrowBindPoint(_board: Board, element: CommonElement, connection: [number, number]) {
+  static getArrowConnectPoints(_board: Board, element: CommonElement) {
     const { x, y, width, height } = element;
-    return {
-      x: x + connection[0] * width,
-      y: y + connection[1] * height,
+    return [{
+      connectId: 'top',
+      point: {
+        x: x + 0.5 * width,
+        y
+      }
+    }, {
+      connectId: 'bottom',
+      point: {
+        x: x + 0.5 * width,
+        y: y + height
+      }
+    }, {
+      connectId: 'left',
+      point: {
+        x,
+        y: y + 0.5 * height
+      }
+    }, {
+      connectId: 'right',
+      point: {
+        x: x + width,
+        y: y + 0.5 * height
+      }
+    }]
+  }
+
+  /**
+   * extend：向外扩展距离，长度为 CSS 像素
+   */
+  static getArrowConnectExtendPoints(board: Board, element: CommonElement, extend = 20) {
+    const { x, y, width, height } = element;
+    const { zoom } = board.viewPort;
+    extend = extend / zoom;
+    return [{
+      connectId: 'top',
+      point: {
+        x: x + 0.5 * width,
+        y: y - extend
+      }
+    }, {
+      connectId: 'bottom',
+      point: {
+        x: x + 0.5 * width,
+        y: y + height + extend
+      }
+    }, {
+      connectId: 'left',
+      point: {
+        x: x - extend,
+        y: y + 0.5 * height
+      }
+    }, {
+      connectId: 'right',
+      point: {
+        x: x + width + extend,
+        y: y + 0.5 * height
+      }
+    }]
+  }
+
+  getArrowBindPoint(_board: Board, element: CommonElement, connectId: string) {
+    const { x, y, width, height } = element;
+
+    if (connectId === 'left') {
+      return {
+        x: x,
+        y: y + 0.5 * height
+      }
+    } else if (connectId === 'right') {
+      return {
+        x: x + width,
+        y: y + 0.5 * height
+      }
+    } else if (connectId === 'top') {
+      return {
+        x: x + 0.5 * width,
+        y: y
+      }
+    } else if (connectId === 'bottom') {
+      return {
+        x: x + 0.5 * width,
+        y: y + height
+      }
     }
+
+    return null;
   }
 
   isHit(_board: Board, element: CommonElement & any, x: number, y: number) {

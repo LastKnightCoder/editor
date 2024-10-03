@@ -8,7 +8,6 @@ export class ArrowPlugin implements IBoardPlugin {
 
   constructor() {
     this.onPointsChange = this.onPointsChange.bind(this);
-    this.onPointMove = this.onPointMove.bind(this);
   }
 
   private getArrowPaddingPath(points: Point[], padding: number) {
@@ -115,45 +114,6 @@ export class ArrowPlugin implements IBoardPlugin {
     )
   }
 
-  private onPointMove(board: Board, element: ArrowElement, _anchor: Point, focus: Point, index: number) {
-    const { points, source, target } = element;
-    const newPoints = [...points];
-    newPoints[index] = focus;
-    const path = PathUtil.getPathByElement(board, element);
-    if (!path) return;
-
-    const newElement = {
-      ...element,
-      points: newPoints,
-    }
-
-    if (index === 0 && source.bindId) {
-      newElement.source = {
-        marker: source.marker
-      }
-    }
-
-    if (index === points.length - 1 && target.bindId) {
-      newElement.target = {
-        marker: target.marker
-      }
-    }
-
-    board.apply([{
-      type: 'set_node',
-      path,
-      properties: element,
-      newProperties: newElement,
-    }, {
-      type: 'set_selection',
-      properties: board.selection,
-      newProperties: {
-        selectArea: null,
-        selectedElements: [newElement]
-      }
-    }])
-  }
-
   private onPointsChange(board: Board, element: ArrowElement, points: Point[]) {
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
@@ -176,7 +136,6 @@ export class ArrowPlugin implements IBoardPlugin {
         key={element.id}
         element={element}
         onPointsChange={this.onPointsChange}
-        onPointMove={this.onPointMove}
       />
     )
   }

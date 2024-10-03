@@ -49,7 +49,7 @@ const useHandlePointer = ({ container, paddingWidth, paddingHeight, isSelected, 
       container.style.cursor = 'move';
     } else {
       // 可编辑的样式
-      container.style.cursor = 'text';
+      container.style.cursor = 'auto';
     }
   });
 

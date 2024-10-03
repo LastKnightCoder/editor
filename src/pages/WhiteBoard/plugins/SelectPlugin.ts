@@ -79,7 +79,6 @@ export class SelectPlugin implements IBoardPlugin {
     if (isHotkey(['delete', 'backspace'], e)) {
       for (const element of selectedElements) {
         const path = PathUtil.getPathByElement(board, element);
-        console.log('path', path);
         if (!path) continue;
         board.apply({
           type: 'remove_node',

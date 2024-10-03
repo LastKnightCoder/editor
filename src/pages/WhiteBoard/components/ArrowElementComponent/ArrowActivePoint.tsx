@@ -1,31 +1,89 @@
 import { memo, useRef, useEffect } from 'react';
-import { useMemoizedFn } from 'ahooks';
-import { Point } from "../../types";
-import { PointUtil } from '../../utils';
-import { useBoard } from '../../hooks';
+import { ArrowElement, Point } from "../../types";
+import { PathUtil, PointUtil } from '../../utils';
+import { useBoard, useMoveArrow } from '../../hooks';
 import { BOARD_TO_CONTAINER } from '../../constants';
+import { useMemoizedFn } from 'ahooks';
 
 interface ArrowActivePointProps {
+  arrowElement: ArrowElement;
   point: Point;
   innerSize?: number;
   innerFill?: string;
   outerSize?: number;
   outerFill?: string;
   index: number;
-  onMove?: (startPoint: Point, endPoint: Point, index: number) => void;
 }
 
 const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
-  const { point, innerSize = 4, innerFill = '#FFFFFF', outerSize = 6, outerFill, onMove, index } = props;
+  const { point, innerSize = 3, innerFill = '#FFFFFF', outerSize = 5, outerFill, index, arrowElement } = props;
+  const originalArrowElement = useRef<ArrowElement>(arrowElement);
+  const pathRef = useRef<number[] | null>(null);
 
   const board = useBoard();
 
   const ref = useRef<SVGGElement>(null);
   const startPoint = useRef<Point | null>(null);
+  const currentPoint = useRef<Point | null>(null);
+  const isMoved = useRef(false);
 
-  const handleOnMove = useMemoizedFn((startPoint: Point, endPoint: Point) => {
-    onMove?.(startPoint, endPoint, index);
-  });
+  const {
+    getUpdateArrowElement
+  } = useMoveArrow({
+    isMoved,
+    currentPoint
+  })
+
+  const handlePointerMove = useMemoizedFn((e: PointerEvent) => {
+    if (!startPoint.current) return;
+    const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    if (!endPoint) return;
+    currentPoint.current = endPoint;
+    if (!isMoved.current) {
+      isMoved.current = true;
+    }
+    const updateArrowElement = getUpdateArrowElement(originalArrowElement.current, currentPoint.current, index);
+    if (!pathRef.current) {
+      pathRef.current = PathUtil.getPathByElement(board, originalArrowElement.current);
+    }
+
+    if (pathRef.current) {
+      board.apply([{
+        type: 'set_node',
+        path: pathRef.current,
+        properties: originalArrowElement.current,
+        newProperties: updateArrowElement
+      }, {
+        type: 'set_selection',
+        properties: board.selection,
+        newProperties: {
+          selectArea: null,
+          selectedElements: [updateArrowElement]
+        }
+      }]);
+      board.emit('arrow:update', {
+        arrow: originalArrowElement.current,
+        path: pathRef.current,
+        currentPoint: currentPoint.current,
+      });
+      originalArrowElement.current = updateArrowElement;
+    }
+  })
+
+  const handlePointerUp = useMemoizedFn(() => {
+    startPoint.current = null;
+    currentPoint.current = null;
+    isMoved.current = false;
+    pathRef.current = null;
+    originalArrowElement.current = arrowElement;
+    
+    board.emit('arrow:move-end');
+
+    const boardContainer = BOARD_TO_CONTAINER.get(board);
+    document.removeEventListener('pointerup', handlePointerUp);
+    if (!boardContainer) return;
+    boardContainer.removeEventListener('pointermove', handlePointerMove);
+  })
 
   useEffect(() => {
     const g = ref.current;
@@ -43,20 +101,6 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
       boardContainer.addEventListener('pointermove', handlePointerMove);
       document.addEventListener('pointerup', handlePointerUp);
     }
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!startPoint.current) return;
-      const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-      if (!endPoint) return;
-      handleOnMove(startPoint.current, endPoint);
-    }
-
-    const handlePointerUp = () => {
-      startPoint.current = null;
-      const boardContainer = BOARD_TO_CONTAINER.get(board);
-      if (!boardContainer) return;
-      boardContainer.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
-    }
 
     g.addEventListener('pointerdown', handlePointerDown);
 
@@ -67,7 +111,7 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
       if (!boardContainer) return;
       boardContainer.removeEventListener('pointermove', handlePointerMove);
     }
-  }, [handleOnMove])
+  }, [getUpdateArrowElement, board, handlePointerMove, handlePointerUp]);
 
   return (
     <g ref={ref}>

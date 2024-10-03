@@ -44,13 +44,13 @@ const WhiteBoard = () => {
     boardRef.current,
     containerRef.current,
     [
+      arrowPlugin,
       richTextPlugin,
       geometryPlugin,
       cardPlugin,
-      viewPortPlugin,
       selectPlugin,
       movePlugin,
-      arrowPlugin,
+      viewPortPlugin,
     ]
   );
 
