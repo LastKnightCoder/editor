@@ -4,7 +4,7 @@ import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
 import Board from './Board';
-import { ViewPortPlugin, MovePlugin, CardPlugin, SelectPlugin, GeometryPlugin, RichTextPlugin, ArrowPlugin } from './plugins';
+import { ViewPortPlugin, MovePlugin, CardPlugin, SelectPlugin, GeometryPlugin, RichTextPlugin, ArrowPlugin, ImagePlugin } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
 import { useInitBoard } from './hooks';
@@ -20,6 +20,7 @@ const arrowPlugin = new ArrowPlugin();
 const richTextPlugin = new RichTextPlugin();
 const geometryPlugin = new GeometryPlugin();
 const cardPlugin = new CardPlugin();
+const imagePlugin = new ImagePlugin();
 
 const localData = localStorage.getItem('whiteBoardData');
 const boardData = localData ? JSON.parse(localData) : mockData;
@@ -46,8 +47,9 @@ const WhiteBoard = () => {
     [
       arrowPlugin,
       richTextPlugin,
-      geometryPlugin,
       cardPlugin,
+      geometryPlugin,
+      imagePlugin,
       selectPlugin,
       movePlugin,
       viewPortPlugin,

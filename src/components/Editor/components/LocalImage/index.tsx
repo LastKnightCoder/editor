@@ -9,6 +9,7 @@ interface ILocalImageProps {
   className?: string;
   style?: React.CSSProperties;
   onClick?: () => void;
+  [key: string]: any;
 }
 
 const LocalImage = (props: ILocalImageProps) => {

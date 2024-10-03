@@ -5,6 +5,7 @@ import { useSelectState, useBoard } from '../../hooks';
 import { ArrowElement, Board, BoardElement, Point } from '../../types';
 import Arrow from '../Arrow';
 import ArrowActivePoint from './ArrowActivePoint';
+import { PathUtil } from '../../utils';
 
 interface ArrowElementProps {
   element: ArrowElement;
@@ -17,6 +18,29 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
 
   const board = useBoard();
   const { isSelected } = useSelectState(element.id);
+
+  const handleElementsRemove = useMemoizedFn((elements: BoardElement[]) => {
+    const sourceBindElement = elements.find(element => element.id === source?.bindId);
+    const targetBindElement = elements.find(element => element.id === target?.bindId);
+
+    if (sourceBindElement || targetBindElement) {
+      const newElement = {
+        ...element,
+        source: sourceBindElement ? { marker: element.source.marker } : element.source,
+        target: targetBindElement ? { marker: element.target.marker } : element.target
+      }
+      const path = PathUtil.getPathByElement(board, element);
+      if (!path) return;
+
+      board.apply([{
+        type: 'set_node',
+        path,
+        properties: element,
+        newProperties: newElement
+      }])
+    }
+  })
+
 
   const handleElementsChange = useMemoizedFn((elements: BoardElement[]) => {
     const sourceBindElement = elements.find(element => element.id === source?.bindId);
@@ -58,12 +82,14 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   useEffect(() => {
     board.on('element:resize', handleElementsChange);
     board.on('element:move', handleElementsChange);
+    board.on('element:remove', handleElementsRemove);
 
     return () => {
       board.off('element:resize', handleElementsChange);
       board.off('element:move', handleElementsChange);
+      board.off('element:remove', handleElementsRemove);
     }
-  }, [board, handleElementsChange])
+  }, [board, handleElementsChange, handleElementsRemove])
 
   return (
     <g>

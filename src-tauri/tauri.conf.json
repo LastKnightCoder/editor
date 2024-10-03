@@ -68,7 +68,8 @@
       "protocol": {
         "asset": true,
         "assetScope": [
-          "**"
+          "**",
+          "$HOME/.editor/resources/**/*"
         ]
       },
       "http": {
@@ -131,7 +132,7 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 880,
+        "height": 800,
         "resizable": true,
         "title": "editor",
         "hiddenTitle": true,

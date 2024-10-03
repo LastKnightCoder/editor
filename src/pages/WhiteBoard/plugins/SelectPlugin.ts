@@ -76,6 +76,7 @@ export class SelectPlugin implements IBoardPlugin {
   onKeyDown(e: KeyboardEvent, board: Board) {
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
+    const removedElements = [];
     if (isHotkey(['delete', 'backspace'], e)) {
       for (const element of selectedElements) {
         const path = PathUtil.getPathByElement(board, element);
@@ -85,12 +86,14 @@ export class SelectPlugin implements IBoardPlugin {
           path,
           node: element
         })
+        removedElements.push(element);
       }
+      board.emit('element:remove', removedElements);
+      SelectTransforms.updateSelectArea(board, {
+        selectArea: null,
+        selectedElements: []
+      });
     }
-    SelectTransforms.updateSelectArea(board, {
-      selectArea: null,
-      selectedElements: []
-    });
   }
 }
 
