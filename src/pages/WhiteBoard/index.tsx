@@ -4,7 +4,7 @@ import classnames from "classnames";
 import WindowControl from "@/components/WindowControl";
 
 import Board from './Board';
-import { ViewPortPlugin, MovePlugin, CardPlugin, SelectPlugin, GeometryPlugin, RichTextPlugin, ArrowPlugin, ImagePlugin } from './plugins';
+import { ViewPortPlugin, MovePlugin, HistoryPlugin, CardPlugin, SelectPlugin, GeometryPlugin, RichTextPlugin, ArrowPlugin, ImagePlugin } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import useWhiteBoardStore from "./useWhiteBoardStore.ts";
 import { useInitBoard } from './hooks';
@@ -15,6 +15,7 @@ import styles from './index.module.less';
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
 const movePlugin = new MovePlugin();
+const historyPlugin = new HistoryPlugin();
 
 const arrowPlugin = new ArrowPlugin();
 const richTextPlugin = new RichTextPlugin();
@@ -50,6 +51,7 @@ const WhiteBoard = () => {
       cardPlugin,
       geometryPlugin,
       imagePlugin,
+      historyPlugin,
       selectPlugin,
       movePlugin,
       viewPortPlugin,

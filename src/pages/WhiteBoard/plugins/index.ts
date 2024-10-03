@@ -1,6 +1,7 @@
 export * from './ViewPortPlugin';
 export * from './MovePlugin';
 export * from './SelectPlugin';
+export * from './HistoryPlugin';
 
 export * from './RichTextPlugin';
 export * from './GeometryPlugin';
