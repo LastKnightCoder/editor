@@ -3,23 +3,23 @@ import { useEffect, useMemo, useState } from "react";
 import { CommonElement, CommonPlugin } from "../plugins";
 import { Point } from "../types";
 import { useBoard } from "./useBoard";
-
+import { useViewPort } from "./useViewPort";
 export const useDropArrow = (element: CommonElement & any) => {
   const { x, y, width, height, id } = element;
 
   const [isMoveArrowClosing, setIsMoveArrowClosing] = useState(false);
   const [activeConnectId, setActiveConnectId] = useState('');
   const board = useBoard();
+  const { zoom } = useViewPort();
 
   const [arrowConnectPoints, arrowConnectExtendPoints] = useMemo(() => {
-    const arrowConnectPoints = CommonPlugin.getArrowConnectPoints(board, element)
-    const arrowConnectExtendPoints = CommonPlugin.getArrowConnectExtendPoints(board, element);
-    return [arrowConnectPoints, arrowConnectExtendPoints];
+    const arrowConnectPoints = CommonPlugin.getArrowConnectPoints(element)
+    const arrowConnectExtendPoints = CommonPlugin.getArrowConnectExtendPoints(element);
+    return [arrowConnectPoints, arrowConnectExtendPoints, zoom];
   }, [element]);
 
   const handleArrowMove = useMemoizedFn((data: { currentPoint: Point }) => {
-    const { zoom } = board.viewPort;
-    const extend = 10 / zoom;
+    const extend = 10;
     const { currentPoint } = data;
     const extendBox = {
       x: x - extend,

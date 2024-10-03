@@ -96,4 +96,13 @@ export const mockData = [{
   ],
   lineColor: '#2b1216',
   lineWidth: 2,
+}, {
+  id: getUuid(),
+  type: 'image',
+  x: 500,
+  y: 500,
+  width: 100,
+  height: 100,
+  src: 'https://jsd.cdn.zzko.cn/gh/LastKnightCoder/image-for-2023@master/wallhaven-281d5y_0ee0d318-9208-403f-9a79-cce4b9424898.png',
+  preserveAspectRatio: 'xMidYMid slice'
 }]

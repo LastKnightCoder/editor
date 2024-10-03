@@ -20,7 +20,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
     this.onResizeEnd = this.onResizeEnd.bind(this);
   }
 
-  static getArrowConnectPoints(_board: Board, element: CommonElement) {
+  static getArrowConnectPoints(element: CommonElement) {
     const { x, y, width, height } = element;
     return [{
       connectId: 'top',
@@ -52,10 +52,8 @@ export abstract class CommonPlugin implements IBoardPlugin {
   /**
    * extend：向外扩展距离，长度为 CSS 像素
    */
-  static getArrowConnectExtendPoints(board: Board, element: CommonElement, extend = 20) {
+  static getArrowConnectExtendPoints(element: CommonElement, extend = 20) {
     const { x, y, width, height } = element;
-    const { zoom } = board.viewPort;
-    extend = extend / zoom;
     return [{
       connectId: 'top',
       point: {

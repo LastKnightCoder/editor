@@ -7,3 +7,4 @@ export * from './GeometryPlugin';
 export * from './CardPlugin';
 export * from './CommonPlugin';
 export * from './ArrowPlugin';
+export * from './ImagePlugin';
