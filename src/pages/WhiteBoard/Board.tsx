@@ -12,7 +12,7 @@ import {
   BoardElement,
   ViewPort,
 } from './types';
-import { isValid, executeSequence, PathUtil } from './utils';
+import { isValid, executeSequence, PathUtil, BoardUtil } from './utils';
 
 const boardFlag = Symbol('board');
 
@@ -33,6 +33,8 @@ class Board {
   public children: BoardElement[];
   public viewPort: ViewPort;
   public selection: Selection;
+  public undos: Array<Operation[]>;
+  public redos: Array<Operation[]>;
 
   constructor(children: BoardElement[], plugins: IBoardPlugin[] = []) {
     this.boardFlag = boardFlag;
@@ -50,6 +52,8 @@ class Board {
       selectArea: null,
       selectedElements: []
     }
+    this.undos = [];
+    this.redos = [];
     this.initPlugins(plugins);
   }
 
@@ -194,7 +198,7 @@ class Board {
     executeSequence(fns, event, this);
   }
 
-  apply(ops: Operation | Operation[]) {
+  apply(ops: Operation | Operation[], updateHistory = true) {
     if (!Array.isArray(ops)) {
       ops = [ops];
     }
@@ -276,6 +280,14 @@ class Board {
           }
         }
       }
+
+      if (updateHistory) {
+        this.undos.push(ops);
+        if (this.undos.length > 100) {
+          this.undos.shift();
+        }
+        this.redos = [];
+      }
     } finally {
       if (isDraft(this.children)) {
         this.children = finishDraft(this.children);
@@ -312,6 +324,21 @@ class Board {
   getArrowBindPoint(element: BoardElement, connectId: string) {
     const plugin = this.plugins.find(plugin => plugin.name === element.type);
     return plugin?.getArrowBindPoint?.(this, element, connectId) ?? null;
+  }
+
+  undo() {
+    if (this.undos.length === 0) return;
+    const undo = this.undos.pop()!;
+    const inverseOps = undo.map(item => BoardUtil.inverseOperation(item)).reverse();
+    this.apply(inverseOps, false);
+    this.redos.push(undo);
+  }
+
+  redo() {
+    if (this.redos.length === 0) return;
+    const redo = this.redos.pop()!;
+    this.apply(redo, false);
+    this.undos.push(redo);
   }
 }
 
