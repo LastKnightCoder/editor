@@ -2,18 +2,17 @@ import If from '@/components/If';
 import { useEffect, memo } from 'react';
 import { useMemoizedFn } from 'ahooks';
 import { useSelectState, useBoard } from '../../hooks';
-import { ArrowElement, Board, BoardElement, Point } from '../../types';
+import { ArrowElement, BoardElement, Operation, Point } from '../../types';
 import Arrow from '../Arrow';
 import ArrowActivePoint from './ArrowActivePoint';
 import { PathUtil } from '../../utils';
 
 interface ArrowElementProps {
   element: ArrowElement;
-  onPointsChange: (board: Board, element: ArrowElement, points: Point[]) => void;
 }
 
 const ArrowElementComponent = memo((props: ArrowElementProps) => {
-  const { element, onPointsChange } = props;
+  const { element } = props;
   const { points, lineColor, lineWidth, lineType, source, target } = element;
 
   const board = useBoard();
@@ -32,12 +31,28 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       const path = PathUtil.getPathByElement(board, element);
       if (!path) return;
 
-      board.apply([{
+      const undos = board.undos;
+      let updateHistory = true;
+      const op: Operation = {
         type: 'set_node',
         path,
         properties: element,
         newProperties: newElement
-      }])
+      }
+      // 取消箭头绑定的操作和删除元素的操作放到一个 undo 里面，这样恢复时可以一起恢复，不用按两下 Ctrl + Z
+      if (undos.length > 0) {
+        const lastBatch = undos[undos.length - 1];
+        if (lastBatch.length > 0) {
+          const lastOp = lastBatch[lastBatch.length - 1];
+          const { type } = lastOp;
+          if (type === 'remove_node' && (lastOp.node.id === sourceBindElement?.id || lastOp.node.id === targetBindElement?.id)) {
+            lastBatch.push(op)
+            updateHistory = false;
+          }
+        }
+      }
+
+      board.apply([op], updateHistory);
     }
   })
 
@@ -75,18 +90,27 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     }
 
     if (sourcePoint || targetPoint) {
-      onPointsChange(board, element, newPoints);
+      const path = PathUtil.getPathByElement(board, element);
+      if (!path) return;
+
+      const newElement = {
+        ...element,
+        points: newPoints,
+      }
+      board.apply([{
+        type: 'set_node',
+        path,
+        properties: element,
+        newProperties: newElement,
+      }], false)
     }
   })
 
   useEffect(() => {
-    board.on('element:resize', handleElementsChange);
-    board.on('element:move', handleElementsChange);
+    board.on('element:change', handleElementsChange);
     board.on('element:remove', handleElementsRemove);
-
     return () => {
-      board.off('element:resize', handleElementsChange);
-      board.off('element:move', handleElementsChange);
+      board.off('element:change', handleElementsChange);
       board.off('element:remove', handleElementsRemove);
     }
   }, [board, handleElementsChange, handleElementsRemove])

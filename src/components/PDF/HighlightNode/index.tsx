@@ -39,8 +39,6 @@ const HighlightNode = (props: HighlightProps) => {
   const highlightTipLeft = `calc(${transformPercent(boundingClientRect.left) + transformPercent(boundingClientRect.width)}% + 20px)`;
   const highlightTipTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height) / 2}%)`;
 
-  console.log(boundingClientRect, highlightTipLeft, highlightTipTop);
-
   return (
     <>
       <If condition={highlight.highlightType === EHighlightType.Text}>

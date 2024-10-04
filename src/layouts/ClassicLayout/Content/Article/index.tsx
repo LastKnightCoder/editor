@@ -86,8 +86,6 @@ const EditArticle = memo((props: IArticleItemProps) => {
     }
   }, [handleContentResize, headers]);
 
-  console.log('setShowOutline', showOutline);
-
   useRafInterval(() => {
     saveArticle()
   }, 1000);

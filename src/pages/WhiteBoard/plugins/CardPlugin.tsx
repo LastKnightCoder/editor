@@ -44,9 +44,7 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
       path,
       properties: element,
       newProperties: newElement
-    });
-
-    board.emit('element:resize', [newElement]);
+    }, false);
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,

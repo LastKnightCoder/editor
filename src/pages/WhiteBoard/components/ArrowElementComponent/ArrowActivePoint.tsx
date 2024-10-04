@@ -17,6 +17,8 @@ interface ArrowActivePointProps {
 
 const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
   const { point, innerSize = 3, innerFill = '#FFFFFF', outerSize = 5, outerFill, index, arrowElement } = props;
+  // 防止监听 element 变化无限更新
+  const lastArrowElement = useRef<ArrowElement>(arrowElement);
   const originalArrowElement = useRef<ArrowElement>(arrowElement);
   const pathRef = useRef<number[] | null>(null);
 
@@ -42,9 +44,9 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
     if (!isMoved.current) {
       isMoved.current = true;
     }
-    const updateArrowElement = getUpdateArrowElement(originalArrowElement.current, currentPoint.current, index);
+    const updateArrowElement = getUpdateArrowElement(lastArrowElement.current, currentPoint.current, index);
     if (!pathRef.current) {
-      pathRef.current = PathUtil.getPathByElement(board, originalArrowElement.current);
+      pathRef.current = PathUtil.getPathByElement(board, lastArrowElement.current);
     }
 
     if (pathRef.current) {
@@ -60,21 +62,38 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
           selectArea: null,
           selectedElements: [updateArrowElement]
         }
-      }]);
+      }], false);
       board.emit('arrow:update', {
-        arrow: originalArrowElement.current,
+        arrow: lastArrowElement.current,
         path: pathRef.current,
         currentPoint: currentPoint.current,
       });
-      originalArrowElement.current = updateArrowElement;
+      lastArrowElement.current = updateArrowElement;
     }
   })
 
   const handlePointerUp = useMemoizedFn(() => {
+    if (startPoint.current && isMoved.current && currentPoint.current) {
+      const updateArrowElement = getUpdateArrowElement(lastArrowElement.current, currentPoint.current, index);
+      if (!pathRef.current) {
+        pathRef.current = PathUtil.getPathByElement(board, lastArrowElement.current);
+      }
+  
+      if (pathRef.current) {
+        board.apply([{
+          type: 'set_node',
+          path: pathRef.current,
+          properties: originalArrowElement.current,
+          newProperties: updateArrowElement
+        }], true);
+      }
+    }
+
     startPoint.current = null;
     currentPoint.current = null;
     isMoved.current = false;
     pathRef.current = null;
+    lastArrowElement.current = arrowElement;
     originalArrowElement.current = arrowElement;
     
     board.emit('arrow:move-end');

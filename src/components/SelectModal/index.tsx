@@ -58,7 +58,6 @@ const SelectArticleModal = <T extends IItem,>(props: ISelectArticleModalProps<T>
   const observerRef = useRef<IntersectionObserver>();
 
   const loadMore = useMemoizedFn(() => {
-    console.log('loadMore', searchedItems.length);
     setMaxItemCount(maxItemCount => Math.min(maxItemCount + 20, searchedItems.length));
   });
 

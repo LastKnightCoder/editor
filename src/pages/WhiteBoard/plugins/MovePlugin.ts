@@ -6,7 +6,8 @@ export class MovePlugin implements IBoardPlugin {
 
   moveElements: BoardElement[] | null = null;
   startPoint: { x: number; y: number } | null = null;
-  isHitSelected = false
+  isHitSelected = false;
+  isMoved = false;
 
   onPointerDown(e: PointerEvent, board: Board) {
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
@@ -33,8 +34,8 @@ export class MovePlugin implements IBoardPlugin {
         newProperties: {
           selectedElements: []
         }
-      });
-      board.emit('element:move', this.moveElements || []);
+      }, false);
+      board.emit('element:move', this.moveElements);
     }
   }
 
@@ -44,8 +45,18 @@ export class MovePlugin implements IBoardPlugin {
     if (!endPoint) return;
     const offsetX = endPoint.x - this.startPoint.x;
     const offsetY = endPoint.y - this.startPoint.y;
+
+    if (!this.isMoved) {
+      const diffL = Math.hypot(offsetX, offsetY);
+      if (diffL > 5) {
+        this.isMoved = true;
+      }
+    }
+    if (!this.isMoved) return;
+
     const movedElements: BoardElement[] = [];
     const operations: Operation[] = [];
+
     this.moveElements.forEach(element => {
       const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
@@ -61,14 +72,20 @@ export class MovePlugin implements IBoardPlugin {
       }
     })
     if (operations.length > 0) {
-      board.apply(operations);
+      board.apply(operations, false);
     }
     board.emit('element:move', movedElements);
   }
 
   onPointerUp(e: PointerEvent, board: Board) {
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!endPoint || !this.startPoint || !this.moveElements) return;
+    if (!endPoint || !this.startPoint || !this.moveElements || !this.isMoved) {
+      this.moveElements = null;
+      this.startPoint = null;
+      this.isMoved = false;
+      return;
+    };
+
     const offsetX = endPoint.x - this.startPoint.x;
     const offsetY = endPoint.y - this.startPoint.y;
 
@@ -98,12 +115,13 @@ export class MovePlugin implements IBoardPlugin {
       });
       this.isHitSelected = false;
     }
+    board.emit('element:move-end');
 
     this.moveElements = null;
     this.startPoint = null;
+    this.isMoved = false;
     if (operations.length > 0) {
       board.apply(operations);
     }
-    board.emit('element:move', []);
   }
 }
