@@ -1,6 +1,7 @@
 import { IBoardPlugin, ViewPort, Board } from '../types';
 import { BOARD_TO_CONTAINER } from "../constants";
 import { ViewPortTransforms } from "../transforms";
+import isHotkey from 'is-hotkey';
 
 export class ViewPortPlugin implements IBoardPlugin {
   name = 'viewport-plugin';
@@ -72,6 +73,16 @@ export class ViewPortPlugin implements IBoardPlugin {
       const newY = board.viewPort.minY + 2 * e.deltaY;
       
       ViewPortTransforms.moveViewPort(board, newX, newY);
+    }
+  }
+
+  onKeyDown(e: KeyboardEvent, board: Board) {
+    if (isHotkey('mod+=', e)) {
+      const newZoom = Math.min(board.viewPort.zoom * 1.1, 10);
+      ViewPortTransforms.updateZoom(board, newZoom);
+    } else if (isHotkey('mod+-', e)) {
+      const newZoom = Math.max(board.viewPort.zoom / 1.1, 0.1);
+      ViewPortTransforms.updateZoom(board, newZoom);
     }
   }
 }

@@ -22,7 +22,7 @@ import {
 interface GeometryProps {
   element: GeometryElement;
   onResizeStart?: (element: GeometryElement, startPoint: Point) => void;
-  onResize: (board: Board, element: GeometryElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
+  onResize: (board: Board, element: GeometryElement, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => void;
   onResizeEnd?: (board: Board, element: GeometryElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
@@ -51,12 +51,12 @@ const Geometry = memo((props: GeometryProps) => {
     onResizeStart?.(element, startPoint);
   });
 
-  const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
-    onResizeEnd?.(board, element, position, startPoint, endPoint);
+  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => {
+    onResize(board, element, position, startPoint, endPoint, isPreserveRatio);
   });
 
-  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
-    onResize(board, element, position, startPoint, endPoint);
+  const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
+    onResizeEnd?.(board, element, position, startPoint, endPoint);
   });
 
   return (

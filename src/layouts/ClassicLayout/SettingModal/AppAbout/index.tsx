@@ -18,8 +18,8 @@ const AppAbout = () => {
   } = App.useApp();
 
   useAsyncEffect(async () => {
-   setLoading(true);
-   const version = await getVersion();
+    setLoading(true);
+    const version = await getVersion();
     setVersion(version);
     setLoading(false);
   })

@@ -14,7 +14,7 @@ interface ResizeCircleProps {
   innerRadius?: number;
   innerFill?: string;
   onResizeStart?: (startPoint: Point) => void;
-  onResize: (position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
+  onResize: (position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => void;
   onResizeEnd?: (position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
@@ -34,8 +34,8 @@ const ResizeCircle = memo((props: ResizeCircleProps) => {
 
   const ref = useRef<SVGGElement>(null);
 
-  const { run: handleOnResize } = useThrottleFn((startPoint: Point, endPoint: Point) => {
-    onResize(position, startPoint, endPoint);
+  const { run: handleOnResize } = useThrottleFn((startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => {
+    onResize(position, startPoint, endPoint, isPreserveRatio);
   }, { wait: 25 });
 
   const handleOnResizeEnd = useMemoizedFn((startPoint: Point, endPoint: Point) => {

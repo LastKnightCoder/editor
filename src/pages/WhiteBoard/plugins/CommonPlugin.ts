@@ -133,9 +133,9 @@ export abstract class CommonPlugin implements IBoardPlugin {
     this.originResizeElement = element;
   }
 
-  protected onResize(board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point) {
+  protected onResize(board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio = false) {
     if (!this.originResizeElement) return;
-    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint);
+    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint, isPreserveRatio);
     const newElement = {
       ...element,
       ...newBBox

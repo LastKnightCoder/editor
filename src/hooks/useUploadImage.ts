@@ -1,7 +1,7 @@
 import { useMemoizedFn } from "ahooks";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore.ts";
 import { putObject } from '@/commands';
-import { transformGithubUrlToCDNUrl, uploadFileFromFile } from "@/utils";
+import { copyFileToLocal, transformGithubUrlToCDNUrl, uploadFileFromFile } from "@/utils";
 import { v4 as uuid } from "uuid";
 
 const uploadImageInner = async (imageBed: any, file: File) => {
@@ -35,8 +35,16 @@ const uploadImageInner = async (imageBed: any, file: File) => {
       console.error(e);
     }
     return null;
+  } else {
+    // 移动到本地目录
+    const fileName = file.name;
+    const all = fileName.split('.');
+    const other = all.slice(0, all.length - 1);
+    const extension = all[all.length - 1];
+    const objectName = other.join('.') + '_' + uuid() + '.' + extension;
+    // 复制文件到本地文件夹
+    return await copyFileToLocal(file, objectName);
   }
-  return null;
 }
 
 const useUploadImage = () => {
