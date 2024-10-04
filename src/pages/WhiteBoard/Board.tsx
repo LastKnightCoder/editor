@@ -1,6 +1,6 @@
 import React from "react";
 import EventEmitter from 'eventemitter3';
-import { createDraft, finishDraft, isDraft } from 'immer';
+import { createDraft, finishDraft, isDraft, current } from 'immer';
 import curry from 'lodash/curry';
 
 import {
@@ -203,6 +203,9 @@ class Board {
       ops = [ops];
     }
 
+    const changedElements = [];
+    const removedElements = [];
+
     try {
       for (const op of ops) {
         if (op.type === 'set_node') {
@@ -226,6 +229,7 @@ class Board {
               delete node[key];
             }
           }
+          changedElements.push(current(node));
         } else if (op.type === 'insert_node') {
           if (!isDraft(this.children)) {
             this.children = createDraft(this.children);
@@ -250,6 +254,7 @@ class Board {
     
           const index = path[path.length - 1];
           if (parent.children && parent.children.length > index) {
+            removedElements.push(current(parent.children[index]));
             parent.children.splice(index, 1);
           } else {
             console.error('insert_node error: index out of range', { path, index, parent });
@@ -288,6 +293,8 @@ class Board {
         }
         this.redos = [];
       }
+    } catch(e) {
+      console.error('e', e);
     } finally {
       if (isDraft(this.children)) {
         this.children = finishDraft(this.children);
@@ -300,6 +307,13 @@ class Board {
       if (isDraft(this.selection)) {
         this.selection = finishDraft(this.selection);
         this.emit('onSelectionChange', this.selection);
+      }
+
+      if (changedElements.length > 0) {
+        this.emit('element:change', changedElements)
+      }
+      if (removedElements.length > 0) {
+        this.emit('element:remove', removedElements);
       }
     }
   }

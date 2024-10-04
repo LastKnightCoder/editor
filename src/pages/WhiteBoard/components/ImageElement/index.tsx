@@ -24,7 +24,7 @@ interface ImageElementProps {
   element: ImageElement;
   onResizeStart?: (element: ImageElement, startPoint: Point) => void;
   onResize: (board: Board, element: ImageElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
-  onResizeEnd?: (element: ImageElement, endPoint: Point) => void;
+  onResizeEnd?: (board: Board, element: ImageElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
 const ImageElementComponent = memo((props: ImageElementProps) => {
@@ -66,8 +66,8 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     onResizeStart?.(element, startPoint);
   });
 
-  const handleOnResizeEnd = useMemoizedFn((endPoint: Point) => {
-    onResizeEnd?.(element, endPoint);
+  const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
+    onResizeEnd?.(board, element, position, startPoint, endPoint);
   });
 
   const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {

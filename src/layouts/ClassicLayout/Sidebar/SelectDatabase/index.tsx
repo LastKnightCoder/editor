@@ -61,7 +61,6 @@ const SelectDatabase = () => {
     connectDatabaseByName(active).then(() => {
       initDatabase().then(() => {
         message.destroy('initDatabase');
-        console.log('init database success', active);
       });
     });
   }, [inited, active, initDatabase, message]);

@@ -31,7 +31,6 @@ const AliOssSetting = () => {
 
   useEffect(() => {
     if (!accessKeySecret || !accessKeyId) return;
-    console.log()
     getBucketList(accessKeyId, accessKeySecret).then((bucketsInfo) => {
       setBucketsInfo(bucketsInfo);
     }).catch(() => {

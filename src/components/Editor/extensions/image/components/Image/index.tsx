@@ -108,7 +108,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     const path = ReactEditor.findPath(editor, element);
     const file = files[0];
     const uploadRes = await uploadImage(file);
-    console.log('uploadRes', uploadRes);
     if (!uploadRes) {
       setUploading(false);
       event.target.value = '';

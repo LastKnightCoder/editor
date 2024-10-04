@@ -11,7 +11,7 @@ export class ViewPortTransforms {
       type: 'set_viewport',
       properties: originViewPort,
       newProperties: newViewport
-    });
+    }, false);
   }
 
   static onContainerResize(board: Board) {
@@ -22,7 +22,7 @@ export class ViewPortTransforms {
       type: 'set_viewport',
       properties: board.viewPort,
       newProperties: newViewport
-    });
+    }, false);
   }
 
   static moveViewPort(board: Board, minX: number, minY: number) {
@@ -33,7 +33,7 @@ export class ViewPortTransforms {
         minX,
         minY,
       }
-    })
+    }, false)
   }
 
   private static getNewViewport(originViewPort: ViewPort, container: HTMLDivElement, newZoom: number, point?: [number, number]): ViewPort {

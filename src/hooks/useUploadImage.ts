@@ -32,7 +32,7 @@ const uploadImageInner = async (imageBed: any, file: File) => {
         file,
       });
     } catch (e) {
-      console.log(e);
+      console.error(e);
     }
     return null;
   }

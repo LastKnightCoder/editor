@@ -48,7 +48,6 @@ const useArticleManagementStore = create<IState & IActions>((set) => ({
     return res;
   },
   updateArticle: async (article) => {
-    console.log('update article', article);
     const res = await updateArticle(article);
     const articles = await getAllArticles();
     const processedArticles = processArticles(articles);

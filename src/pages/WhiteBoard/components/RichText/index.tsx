@@ -41,7 +41,7 @@ interface RichtextProps {
   onEditorSizeChange: (board: Board, element: RichTextNoType, width: number, height: number) => void;
   removeAutoFocus?: (board: Board, element: RichTextNoType) => void;
   onResizeStart?: (element: CommonElement & any, startPoint: Point) => void;
-  onResizeEnd?: (element: CommonElement & any, endPoint: Point) => void;
+  onResizeEnd?: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
   onResize: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
@@ -130,8 +130,8 @@ const Richtext = memo((props: RichtextProps) => {
     onResizeStart?.(element, startPoint);
   });
 
-  const handleOnResizeEnd = useMemoizedFn((endPoint: Point) => {
-    onResizeEnd?.(element, endPoint);
+  const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
+    onResizeEnd?.(board, element, position, startPoint, endPoint);
   });
 
   const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
@@ -180,10 +180,15 @@ const Richtext = memo((props: RichtextProps) => {
     const onMovingChange = (movingElements: BoardElement[]) => {
       setIsMoving(movingElements.some(element => element.id === elementId));
     }
+    const onMovingEnd = () => {
+      setIsMoving(false);
+    }
     board.on('element:move', onMovingChange);
+    board.on('element:move-end', onMovingEnd);
 
     return () => {
       board.off('element:move', onMovingChange);
+      board.off('element:move-end', onMovingEnd);
     }
   }, [elementId]);
 

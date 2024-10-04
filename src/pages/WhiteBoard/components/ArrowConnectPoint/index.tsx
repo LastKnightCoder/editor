@@ -88,12 +88,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
         type: 'insert_node',
         path: [board.children.length],
         node: createArrow
-      }])
-      // 暂无其他地方监听
-      board.emit('arrow:create', {
-        arrow: createdArrow.current,
-        path: createdArrowPath.current,
-      });
+      }], false);
     } else {
       const updateArrowElement = getUpdateArrowElement(createdArrow.current, currentPoint.current, createdArrow.current.points.length - 1);
       
@@ -102,7 +97,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
         path: createdArrowPath.current,
         properties: createdArrow.current,
         newProperties: updateArrowElement
-      }]);
+      }], false);
       createdArrow.current = updateArrowElement;
       // 让其他元素监听，是否显示 arrow drop connect point
       board.emit('arrow:update', {
@@ -130,6 +125,19 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     }
 
     const handlePointerUp = (_e: PointerEvent) => {
+      if (startPoint.current && currentPoint.current && isMoved.current && createdArrow.current && createdArrowPath.current) {      
+        board.apply([{
+          type: 'remove_node',
+          path: createdArrowPath.current,
+          node: createdArrow.current
+        }], false);
+        board.apply([{
+          type: 'insert_node',
+          path: [board.children.length],
+          node: createdArrow.current,
+        }], true);
+      }
+
       startPoint.current = null;
       isMoved.current = false;
       createdArrow.current = null;

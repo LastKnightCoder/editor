@@ -6,6 +6,6 @@ export class SelectTransforms {
       type: 'set_selection',
       properties: board.selection,
       newProperties: selection
-    })
+    }, false);
   }
 }

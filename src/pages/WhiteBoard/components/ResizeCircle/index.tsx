@@ -1,5 +1,5 @@
 import { useRef, memo } from "react";
-import { useThrottleFn } from "ahooks";
+import { useMemoizedFn, useThrottleFn } from "ahooks";
 
 import { EHandlerPosition, Point } from "../../types";
 import { PointUtil } from "../../utils";
@@ -15,7 +15,7 @@ interface ResizeCircleProps {
   innerFill?: string;
   onResizeStart?: (startPoint: Point) => void;
   onResize: (position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
-  onResizeEnd?: (startPoint: Point, endPoint: Point) => void;
+  onResizeEnd?: (position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
 const ResizeCircle = memo((props: ResizeCircleProps) => {
@@ -38,11 +38,15 @@ const ResizeCircle = memo((props: ResizeCircleProps) => {
     onResize(position, startPoint, endPoint);
   }, { wait: 25 });
 
+  const handleOnResizeEnd = useMemoizedFn((startPoint: Point, endPoint: Point) => {
+    onResizeEnd?.(position, startPoint, endPoint);
+  });
+
   useResize({
     ref,
     onResizeStart,
     onResize: handleOnResize,
-    onResizeEnd
+    onResizeEnd: handleOnResizeEnd
   })
 
   return (

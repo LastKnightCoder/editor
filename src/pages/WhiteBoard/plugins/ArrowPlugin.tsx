@@ -1,14 +1,10 @@
 import intersect from 'path-intersection';
 import { IBoardPlugin, ArrowElement, Board, Point, EArrowLineType, SelectArea } from "../types";
 import ArrowElementComponent from '../components/ArrowElementComponent';
-import { PathUtil, CanvasUtil, selectAreaToRect } from "../utils";
+import { CanvasUtil, selectAreaToRect } from "../utils";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = 'arrow';
-
-  constructor() {
-    this.onPointsChange = this.onPointsChange.bind(this);
-  }
 
   private getArrowPaddingPath(points: Point[], padding: number) {
     const upperPoints = points.map(point => ({
@@ -114,28 +110,11 @@ export class ArrowPlugin implements IBoardPlugin {
     )
   }
 
-  private onPointsChange(board: Board, element: ArrowElement, points: Point[]) {
-    const path = PathUtil.getPathByElement(board, element);
-    if (!path) return;
-
-    const newElement = {
-      ...element,
-      points,
-    }
-    board.apply([{
-      type: 'set_node',
-      path,
-      properties: element,
-      newProperties: newElement,
-    }])
-  }
-
   render(_board: Board, { element }: { element: ArrowElement }) {
     return (
       <ArrowElementComponent
         key={element.id}
         element={element}
-        onPointsChange={this.onPointsChange}
       />
     )
   }
