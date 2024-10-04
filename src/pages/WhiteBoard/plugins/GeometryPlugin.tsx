@@ -1,6 +1,7 @@
 import { Board } from "../types";
 import Geometry from "../components/Geometry";
 import { CommonPlugin, CommonElement } from './CommonPlugin';
+import { Descendant } from "slate";
 
 export interface GeometryElement extends CommonElement {
   type: "geometry",
@@ -9,6 +10,10 @@ export interface GeometryElement extends CommonElement {
   stroke?: string;
   strokeWidth?: number;
   paths: string[];
+  text: {
+    align: 'left' | 'center' | 'right';
+    content: Descendant[];
+  }
 }
 
 export class GeometryPlugin extends CommonPlugin {

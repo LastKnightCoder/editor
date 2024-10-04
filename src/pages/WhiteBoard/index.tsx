@@ -47,9 +47,9 @@ const WhiteBoard = () => {
     containerRef.current,
     [
       arrowPlugin,
-      richTextPlugin,
-      cardPlugin,
       geometryPlugin,
+      cardPlugin,
+      richTextPlugin,
       imagePlugin,
       historyPlugin,
       selectPlugin,

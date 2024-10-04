@@ -27,7 +27,17 @@ export const mockData = [{
   fill: '#7a7374',
   fillOpacity: 0.5,
   stroke: 'black',
-  strokeWidth: 2
+  strokeWidth: 2,
+  text: {
+    align: 'right',
+    content: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: ''
+      }]
+    }]
+  }
 }, {
   id: getUuid(),
   type: 'geometry',
@@ -38,7 +48,17 @@ export const mockData = [{
   paths: ['M 1,0.5 A 0.5,0.5 0 1,0 0,0.5 A 0.5,0.5 0 1,0 1,0.5', 'M 0 0 L 1 0 L 1 1 L 0 1 Z'],
   fill: 'none',
   stroke: 'red',
-  strokeWidth: 2
+  strokeWidth: 2,
+  text: {
+    align: 'center',
+    content: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: 'Hello'
+      }]
+    }]
+  }
 }, {
   id: getUuid(),
   type: 'richtext',
