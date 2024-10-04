@@ -32,20 +32,25 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
 
   const { id, x, y, width, height, src, preserveAspectRatio } = element;
 
+  const [isConverting, setIsConverting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(src);
 
   useAsyncEffect(async () => {
-    if (src.startsWith('http')) {
-      try {
-        const localUrl = await remoteResourceToLocal(src);
-        const filePath = convertFileSrc(localUrl);
+    setIsConverting(true);
+    try{ 
+      if (src.startsWith('http')) {
+        
+          const localUrl = await remoteResourceToLocal(src);
+          const filePath = convertFileSrc(localUrl);
+          setPreviewUrl(filePath);
+      } else {
+        const filePath = convertFileSrc(src);
         setPreviewUrl(filePath);
-      } catch(e) {
-        console.error(e);
       }
-    } else {
-      const filePath = convertFileSrc(src);
-      setPreviewUrl(filePath);
+    } catch(e) {
+      console.error(e);
+    } finally {
+      setIsConverting(false);
     }
   }, [src]);
 
@@ -77,10 +82,13 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     onResizeEnd?.(board, element, position, startPoint, endPoint);
   });
 
+  if (isConverting) {
+    return null;
+  }
 
   return (
     <>
-    <image href={previewUrl} x={x} y={y} width={width} height={height} preserveAspectRatio={preserveAspectRatio} />
+      <image href={previewUrl} x={x} y={y} width={width} height={height} preserveAspectRatio={preserveAspectRatio} />
       <If condition={isSelected}>
         <g>
           <rect

@@ -1,7 +1,8 @@
 import { memo } from 'react';
 import If from "@/components/If";
+// import { useWhyDidYouUpdate } from 'ahooks';
+
 import { EMarkerType, Point, EArrowLineType } from "../../types";
-import { useWhyDidYouUpdate } from 'ahooks';
 
 interface ArrowProps {
   sourceMarker: EMarkerType;
@@ -14,7 +15,7 @@ interface ArrowProps {
 
 const Arrow = memo((props: ArrowProps) => {
 
-  useWhyDidYouUpdate('Arrow', props);
+  // useWhyDidYouUpdate('Arrow', props);
 
   const { sourceMarker, targetMarker, lineColor, lineWidth, points, lineType } = props;
   return (

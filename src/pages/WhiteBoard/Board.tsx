@@ -35,26 +35,30 @@ class Board {
   public selection: Selection;
   public undos: Array<Operation[]>;
   public redos: Array<Operation[]>;
+  private snapshot: {
+    children: BoardElement[];
+    viewPort: ViewPort;
+    selection: Selection;
+  }
 
-  constructor(children: BoardElement[], plugins: IBoardPlugin[] = []) {
+  constructor(children: BoardElement[], viewPort: ViewPort, selection: Selection, plugins: IBoardPlugin[] = []) {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
     this.children = children;
     this.eventEmitter = new EventEmitter();
-    this.viewPort = {
-      minX: 0,
-      minY: 0,
-      width: 0,
-      height: 0,
-      zoom: 1
-    }
-    this.selection = {
-      selectArea: null,
-      selectedElements: []
-    }
+    this.viewPort = viewPort;
+    this.selection = selection;
     this.undos = [];
     this.redos = [];
+    this.snapshot = {
+      children: this.children,
+      viewPort: this.viewPort,
+      selection: this.selection
+    }
+    
     this.initPlugins(plugins);
+    this.subscribe = this.subscribe.bind(this);
+    this.getSnapshot = this.getSnapshot.bind(this);
   }
 
   on(event: string, listener: (...args: any[]) => void) {
@@ -208,6 +212,9 @@ class Board {
       ops = [ops];
     }
 
+    if (this.isDestroyed) return;
+    if (ops.length === 0) return;
+
     const changedElements = [];
     const removedElements = [];
 
@@ -301,15 +308,19 @@ class Board {
     } catch(e) {
       console.error('e', e);
     } finally {
+      let changed = false;
       if (isDraft(this.children)) {
+        changed = true;
         this.children = finishDraft(this.children);
         this.emit('onValueChange', this.children);
       }
       if (isDraft(this.viewPort)) {
+        changed = true;
         this.viewPort = finishDraft(this.viewPort);
         this.emit('onViewPortChange', this.viewPort);
       }
       if (isDraft(this.selection)) {
+        changed = true;
         this.selection = finishDraft(this.selection);
         this.emit('onSelectionChange', this.selection);
       }
@@ -319,6 +330,15 @@ class Board {
       }
       if (removedElements.length > 0) {
         this.emit('element:remove', removedElements);
+      }
+
+      if (changed) {
+        this.snapshot = {
+          children: this.children,
+          selection: this.selection,
+          viewPort: this.viewPort
+        }
+        this.emit('change');
       }
     }
   }
@@ -358,6 +378,18 @@ class Board {
     const redo = this.redos.pop()!;
     this.apply(redo, false);
     this.undos.push(redo);
+  }
+
+  subscribe(callback: () => void) {
+    this.on('change', callback);
+
+    return () => {
+      this.off('change', callback);
+    }
+  }
+
+  getSnapshot() {
+    return this.snapshot;
   }
 }
 
