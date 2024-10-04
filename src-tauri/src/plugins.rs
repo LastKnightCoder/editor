@@ -5,3 +5,4 @@ pub mod article;
 pub mod document;
 pub mod daily_note;
 pub mod time_record;
+pub mod white_board;

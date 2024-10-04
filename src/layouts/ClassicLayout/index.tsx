@@ -40,6 +40,7 @@ const DailyList = loadable(() => import('./List/DailyList'));
 const TimeRecordList = loadable(() => import('./List/TimeRecord'));
 const ProjectList = loadable(() => import('./List/ProjectList'));
 const PdfList = loadable(() => import('./List/PdfList'));
+const WhiteBoardList = loadable(() => import('./List/WhiteBoardList'));
 
 const ArticleContent = loadable(() => import('./Content/Article'));
 const DocumentContent = loadable(() => import('./Content/Document'));
@@ -47,6 +48,7 @@ const DailyNoteContent = loadable(() => import('./Content/DailyNote'));
 const TimeRecordContent = loadable(() => import('./Content/TimeRecord'));
 const ProjectContent = loadable(() => import('./Content/Project'));
 const PdfContent = loadable(() => import('./Content/Pdf'));
+const WhiteBoardContent = loadable(() => import('./Content/WhiteBoard'));
 
 const ArticleTitlebar = loadable(() => import('./Titlebar/Article'));
 const DocumentTitlebar = loadable(() => import('./Titlebar/Document'));
@@ -54,7 +56,7 @@ const DailyNoteTitlebar = loadable(() => import('./Titlebar/DailyNote'));
 const TimeRecordTitlebar = loadable(() => import('./Titlebar/TimeRecord'));
 const ProjectTitlebar = loadable(() => import('./Titlebar/Project'));
 const PdfTitlebar = loadable(() => import('./Titlebar/Pdf'));
-
+const WhiteBoard = loadable(() => import('./Titlebar/WhiteBoard'));
 const ClassicLayout = memo(() => {
   const {
     focusMode,
@@ -318,6 +320,9 @@ const ClassicLayout = memo(() => {
         className={styles.list}
       >
         <Routes>
+          <Route path="/whiteBoard/" element={(
+            <WhiteBoardList />
+          )}/>
           <Route path="/cards/" element={(
             <CardList
               activeCardIds={[leftActiveCardId, rightActiveCardId].filter(Boolean) as number[]}
@@ -376,6 +381,9 @@ const ClassicLayout = memo(() => {
         <div className={styles.titleBar}>
           <Routes>
             <Route path="/" element={<Titlebar/>}>
+              <Route path="whiteBoard/" element={(
+                <WhiteBoard />
+              )}/>
               <Route path="cards/" element={(
                 <CardTitlebar createCard={onCreateCard}/>
               )}/>
@@ -422,6 +430,9 @@ const ClassicLayout = memo(() => {
         </div>
         <div className={styles.content}>
           <Routes>
+            <Route path="/whiteBoard/" element={(
+              <WhiteBoardContent />
+            )}/>
             <Route path="/cards/" element={(
               <CardContent
                 leftCardIds={leftCardIds}

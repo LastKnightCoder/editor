@@ -17,7 +17,6 @@ import { ViewPortTransforms } from "./transforms";
 import { BoardContext, SelectionContext, ViewPortContext } from './context';
 import { BOARD_TO_CONTAINER, ARROW_SIZE } from "./constants";
 import { BoardElement, Events, ViewPort, Selection } from "./types";
-import { mockData } from './mockData'
 
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
@@ -29,9 +28,6 @@ const richTextPlugin = new RichTextPlugin();
 const geometryPlugin = new GeometryPlugin();
 const cardPlugin = new CardPlugin();
 const imagePlugin = new ImagePlugin();
-
-const localData = localStorage.getItem('whiteBoardData');
-const boardData = localData ? JSON.parse(localData) : mockData;
 
 const plugins = [
   arrowPlugin,
@@ -54,14 +50,14 @@ interface WhiteBoardProps {
   onDataChange?: (children: BoardElement[]) => void;
   onViewPortChange?: (viewPort: ViewPort) => void;
   onSelectionChange?: (selection: Selection) => void;
-  onChange?: ({ children, viewPort, selection }: { children: BoardElement[], viewPort: ViewPort, selection: Selection }) => void;
+  onChange?: (data: { children: BoardElement[], viewPort: ViewPort, selection: Selection }) => void;
 }
 
 const WhiteBoard = memo((props: WhiteBoardProps) => {
   const { 
     className,
     style,
-    initData = boardData, 
+    initData, 
     initViewPort = { minX: 0, minY: 0, width: 0, height: 0, zoom: 1 }, 
     initSelection = { selectArea: null, selectedElements: [] as BoardElement[] }, 
     onDataChange,
@@ -79,7 +75,6 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const { minX, minY, width, height } = viewPort;
 
   useEffect(() => {
-    localStorage.setItem('whiteBoardData', JSON.stringify(children));
     onDataChange?.(children);
   }, [children, onDataChange]);
 

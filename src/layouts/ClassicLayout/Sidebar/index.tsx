@@ -26,7 +26,8 @@ import article from '@/assets/icons/article.svg';
 import document from '@/assets/icons/documents.svg';
 import daily from '@/assets/icons/daily.svg';
 import timeRecord from '@/assets/icons/time-record.svg';
-
+import whiteBoard from '@/assets/icons/white-board.svg';
+import pdf from '@/assets/icons/pdf.svg';
 import useSettingStore from "@/stores/useSettingStore";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
@@ -35,11 +36,12 @@ import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import useProjectsStore from "@/stores/useProjectsStore";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
-
+import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 
 import styles from './index.module.less';
 
 enum EListItem {
+  WhiteBoard = 'whiteBoard',
   Cards = 'cards',
   Articles = 'articles',
   Documents = 'documents',
@@ -132,6 +134,12 @@ const Sidebar = memo((props: ISidebarProps) => {
     deleteProject: state.deleteProject,
   }));
 
+  const {
+    whiteBoards,
+  } = useWhiteBoardStore(state => ({
+    whiteBoards: state.whiteBoards,
+  }));
+
   const archivedProjects = useMemo(() => {
     return projects.filter(project => project.archived);
   }, [projects]);
@@ -174,6 +182,17 @@ const Sidebar = memo((props: ISidebarProps) => {
         </div>
       </div>
       <div className={styles.list}>
+        <ExpandList
+          active={activeItem === EListItem.WhiteBoard}
+          title={'白板'}
+          expand={false}
+          titleIcon={<SVG src={whiteBoard} />}
+          count={whiteBoards.length}
+          onClickTitle={() => {
+            navigate('/whiteBoard');
+          }}
+          showArrow={false}
+        />
         <ExpandList
           active={activeItem === EListItem.Projects}
           title={'项目'}
@@ -370,7 +389,7 @@ const Sidebar = memo((props: ISidebarProps) => {
           active={activeItem === EListItem.Pdf}
           title={'PDF'}
           expand={false}
-          titleIcon={<SVG src={article} /> }
+          titleIcon={<SVG src={pdf} /> }
           count={pdfs.length}
           onClickTitle={() => {
             navigate('/pdf');

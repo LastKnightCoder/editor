@@ -10,7 +10,7 @@ use window_shadows::set_shadow;
 use tauri::{Manager, State, SystemTray, CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem, AppHandle, Wry};
 use database::init_database;
 use state::AppState;
-use plugins::{card, article, document, pdf, project, daily_note, time_record};
+use plugins::{card, article, document, pdf, project, daily_note, time_record, white_board};
 
 use commands::{
     get_card_history_list,
@@ -87,6 +87,7 @@ fn main() {
         .plugin(project::init())
         .plugin(daily_note::init())
         .plugin(time_record::init())
+        .plugin(white_board::init())
         .system_tray(tray)
         .on_system_tray_event(|app, event| {
             match event {
