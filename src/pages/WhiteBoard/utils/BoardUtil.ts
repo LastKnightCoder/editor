@@ -62,6 +62,7 @@ export class BoardUtil {
             return { ...op, type: 'insert_node' };
         }
 
+        // TODO
         // case 'move_node': {
         //     const { newPath, path } = op;
 
