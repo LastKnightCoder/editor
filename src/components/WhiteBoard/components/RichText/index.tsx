@@ -144,6 +144,7 @@ const Richtext = memo((props: RichtextProps) => {
   const containerStyle = useMemo(() => {
     return {
       pointerEvents: isMoving ||isSelecting || isSelected ? 'none' : 'auto',
+      userSelect: isMoving || isSelecting || isSelected ? 'none' : 'auto',
     } as React.CSSProperties;
   }, [isMoving, isSelecting, isSelected]);
 
