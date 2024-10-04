@@ -42,7 +42,7 @@ interface RichtextProps {
   removeAutoFocus?: (board: Board, element: RichTextNoType) => void;
   onResizeStart?: (element: CommonElement & any, startPoint: Point) => void;
   onResizeEnd?: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
-  onResize: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
+  onResize: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => void;
 }
 
 const PADDING_WIDTH = 16;
@@ -130,13 +130,14 @@ const Richtext = memo((props: RichtextProps) => {
     onResizeStart?.(element, startPoint);
   });
 
+  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => {
+    onResize(board, element, position, startPoint, endPoint, isPreserveRatio);
+  });
+
   const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
     onResizeEnd?.(board, element, position, startPoint, endPoint);
   });
 
-  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
-    onResize(board, element, position, startPoint, endPoint);
-  });
 
   const containerStyle = useMemo(() => {
     return {

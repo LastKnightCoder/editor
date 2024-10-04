@@ -29,7 +29,7 @@ export const executeSequence = (fns: EventHandler[], event: Event, board: Board)
   }
 }
 
-export const getResizedBBox = (bbox: BBox, position: EHandlerPosition, anchor: Point, focus: Point): BBox => {
+export const getResizedBBox = (bbox: BBox, position: EHandlerPosition, anchor: Point, focus: Point, isPreserveRatio = false): BBox => {
   const { x: left, y: top, width, height } = bbox;
   const moveX = focus.x - anchor.x;
   const moveY = focus.y - anchor.y;
@@ -37,6 +37,7 @@ export const getResizedBBox = (bbox: BBox, position: EHandlerPosition, anchor: P
   let newY = top;
   let newWidth = width;
   let newHeight = height;
+  const ratio = width / height;
   // 还需要考虑拖拽超出了另一边，比如拖拽左边，超出了右边，那么 x, y 和 width, height 的值需要调整
   if ([EHandlerPosition.Left, EHandlerPosition.BottomLeft, EHandlerPosition.TopLeft].includes(position)) {
     newX = left + moveX;
@@ -53,12 +54,16 @@ export const getResizedBBox = (bbox: BBox, position: EHandlerPosition, anchor: P
       newX = left + width + moveX;
     }
   }
+  
   if ([EHandlerPosition.Top, EHandlerPosition.TopLeft, EHandlerPosition.TopRight].includes(position)) {
     newY = top + moveY;
     newHeight = height - moveY;
     if (newHeight < 0) {
       newY = top + height;
       newHeight = moveY - height;
+    }
+    if (isPreserveRatio) {
+      newHeight = newWidth / ratio;
     }
   }
   if ([EHandlerPosition.Bottom, EHandlerPosition.BottomLeft, EHandlerPosition.BottomRight].includes(position)) {
@@ -67,6 +72,15 @@ export const getResizedBBox = (bbox: BBox, position: EHandlerPosition, anchor: P
       newHeight = Math.abs(moveY + height);
       newY = top + height + moveY;
     }
+    if (isPreserveRatio) {
+      newHeight = newWidth / ratio;
+    }
+  }
+
+  if ([EHandlerPosition.Left, EHandlerPosition.Right].includes(position) && isPreserveRatio) {
+    newHeight = newWidth / ratio;
+  } else if ([EHandlerPosition.Bottom, EHandlerPosition.Top].includes(position) && isPreserveRatio) {
+    newWidth = newHeight * ratio;
   }
 
   return {

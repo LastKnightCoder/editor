@@ -36,6 +36,7 @@ export const useInitBoard = (board: Board, container: HTMLDivElement | null, plu
     const handleOnGlobalPointerDown = eventHandlerGenerator('onGlobalPointerDown');
     const handleOnGlobalPointerMove = eventHandlerGenerator('onGlobalPointerMove');
     const handleOnGlobalPointerUp = eventHandlerGenerator('onGlobalPointerUp');
+    const handleOnPaste = eventHandlerGenerator('onPaste');
 
     container.addEventListener('mousedown', handleMouseDown);
     container.addEventListener('mousemove', handleMouseMove);
@@ -50,6 +51,8 @@ export const useInitBoard = (board: Board, container: HTMLDivElement | null, plu
     container.addEventListener('pointerdown', handleOnPointerDown);
     container.addEventListener('pointermove', handleOnPointerMove);
     container.addEventListener('pointerup', handleOnPointerUp);
+
+    document.addEventListener('paste', handleOnPaste);
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
@@ -72,6 +75,7 @@ export const useInitBoard = (board: Board, container: HTMLDivElement | null, plu
       document.removeEventListener('pointerdown', handleOnGlobalPointerDown);
       document.removeEventListener('pointermove', handleOnGlobalPointerMove);
       document.removeEventListener('pointerup', handleOnGlobalPointerUp);
+      document.removeEventListener('paste', handleOnPaste);
       if (container) {
         container.removeEventListener('mousedown', handleMouseDown);
         container.removeEventListener('mousemove', handleMouseMove);
@@ -84,6 +88,7 @@ export const useInitBoard = (board: Board, container: HTMLDivElement | null, plu
         container.removeEventListener('pointerdown', handleOnPointerDown);
         container.removeEventListener('pointermove', handleOnPointerMove);
         container.removeEventListener('pointerup', handleOnPointerUp);
+        
       }
       board.destroy();
     }

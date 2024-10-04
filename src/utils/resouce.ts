@@ -7,7 +7,8 @@ import { getEditorDir } from '@/commands';
 // 先查看是否已经下载过，如果没有则下载
 // 下载记录保存到文件中
 const REMOTE_RESOURCE_CONFIG_NAME = "remote_local_map.json";
-const RESOURCE_PATH = 'resources';
+const REMOTR_RESOURCE_PATH = 'remote-resources';
+const LOCAL_RESOURCE_PATH = 'resources';
 export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!fileName) {
     fileName = await basename(url);
@@ -24,7 +25,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (configObj[url]) {
     return configObj[url];
   }
-  const resourceDirPath = configDirPath + sep + RESOURCE_PATH;
+  const resourceDirPath = configDirPath + sep + REMOTR_RESOURCE_PATH;
   if (!await exists(resourceDirPath)) {
     await createDir(resourceDirPath);
   }
@@ -37,5 +38,16 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   await writeBinaryFile(resourcePath, new Uint8Array(remoteContent));
   configObj[url] = resourcePath;
   await writeTextFile(configPath, JSON.stringify(configObj));
+  return resourcePath;
+}
+
+export const copyFileToLocal = async (file: File, fileName = file.name) => {
+  const editorPath = await getEditorDir();
+  const resourceDirPath = editorPath + sep + LOCAL_RESOURCE_PATH
+  if (!await exists(resourceDirPath)) {
+    await createDir(resourceDirPath);
+  }
+  const resourcePath = resourceDirPath + sep + fileName;
+  await writeBinaryFile(resourcePath, new Uint8Array(await file.arrayBuffer()));
   return resourcePath;
 }

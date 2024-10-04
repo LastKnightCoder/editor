@@ -198,6 +198,11 @@ class Board {
     executeSequence(fns, event, this);
   }
 
+  onPaste(event: ClipboardEvent) {
+    const fns = this.plugins.map(bindHandler('onPaste')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
   apply(ops: Operation | Operation[], updateHistory = true) {
     if (!Array.isArray(ops)) {
       ops = [ops];

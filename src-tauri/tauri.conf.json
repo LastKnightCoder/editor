@@ -53,7 +53,8 @@
           "$HOME/.editor/**/*",
           "$HOME/.editor/backup",
           "$HOME/.editor/backup/**/*",
-          "$HOME/.editor/resources/**/*"
+          "$HOME/.editor/resources/**/*",
+          "$HOME/.editor/remote-resources/**/*"
         ]
       },
       "process": {
@@ -69,7 +70,8 @@
         "asset": true,
         "assetScope": [
           "**",
-          "$HOME/.editor/resources/**/*"
+          "$HOME/.editor/resources/**/*",
+          "$HOME/.editor/remote-resources/**/*"
         ]
       },
       "http": {
@@ -79,6 +81,9 @@
           "https://**",
           "http://**"
         ]
+      },
+      "clipboard": {
+        "all": true
       }
     },
     "bundle": {

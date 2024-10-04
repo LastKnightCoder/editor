@@ -23,7 +23,7 @@ import { convertFileSrc } from '@tauri-apps/api/tauri';
 interface ImageElementProps {
   element: ImageElement;
   onResizeStart?: (element: ImageElement, startPoint: Point) => void;
-  onResize: (board: Board, element: ImageElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
+  onResize: (board: Board, element: ImageElement, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => void;
   onResizeEnd?: (board: Board, element: ImageElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
@@ -43,6 +43,9 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
       } catch(e) {
         console.error(e);
       }
+    } else {
+      const filePath = convertFileSrc(src);
+      setPreviewUrl(filePath);
     }
   }, [src]);
 
@@ -66,13 +69,14 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     onResizeStart?.(element, startPoint);
   });
 
+  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => {
+    onResize(board, element, position, startPoint, endPoint, isPreserveRatio);
+  });
+
   const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
     onResizeEnd?.(board, element, position, startPoint, endPoint);
   });
 
-  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
-    onResize(board, element, position, startPoint, endPoint);
-  });
 
   return (
     <>

@@ -2,6 +2,7 @@ import { Tabs, TabsProps } from "antd";
 import { produce } from "immer";
 import GithubSetting from "./GithubSetting";
 import AliOssSetting from "./AliOssSetting";
+import LocalSetting from "./LocalSetting";
 import useSettingStore, {EImageBed} from "@/stores/useSettingStore.ts";
 
 const ImageBedSetting = () => {
@@ -12,6 +13,10 @@ const ImageBedSetting = () => {
   }));
 
   const items: TabsProps['items'] = [{
+    key: EImageBed.Local,
+    label: '本地',
+    children: <LocalSetting />,
+  }, {
     key: EImageBed.Github,
     label: 'Github',
     children: <GithubSetting />,

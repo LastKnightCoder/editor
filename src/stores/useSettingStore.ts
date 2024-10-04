@@ -5,6 +5,7 @@ import { merge, cloneDeep } from 'lodash';
 import { getSetting } from '@/commands';
 
 export enum EImageBed {
+  Local = 'local',
   Github = 'github',
   AliOSS = 'aliOSS',
 }
@@ -35,6 +36,9 @@ interface ISetting {
       accessKeySecret: string;
       bucket: string;
       region: string;
+    },
+    local: {
+      path: string;
     }
   },
   sync: {
@@ -97,6 +101,9 @@ const initialState: IState = {
         accessKeySecret: '',
         bucket: '',
         region: '',
+      },
+      local: {
+        path: 'resources',
       }
     },
     sync: {
