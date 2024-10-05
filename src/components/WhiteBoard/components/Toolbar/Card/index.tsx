@@ -63,6 +63,7 @@ const Card = (props: CardProps) => {
       maxHeight: 300,
       paddingHeight: 20,
       paddingWidth: 20,
+      readonly: false,
       ...CardUtil.getPrevCardStyle(),
     }
 

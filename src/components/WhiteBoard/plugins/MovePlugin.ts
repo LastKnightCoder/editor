@@ -39,7 +39,6 @@ export class MovePlugin implements IBoardPlugin {
           selectedElements: []
         }
       }, false);
-      board.emit('element:move', this.moveElements);
     }
   }
 

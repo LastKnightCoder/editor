@@ -3,7 +3,6 @@ import { Descendant } from 'slate';
 import { useMemoizedFn } from 'ahooks';
 import useUploadImage from "@/hooks/useUploadImage.ts";
 import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
-
 import Editor, { EditorRef } from '@/components/Editor';
 import If from '@/components/If';
 import ResizeCircle from '../ResizeCircle';
