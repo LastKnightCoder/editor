@@ -1,4 +1,4 @@
-export const DEFAULT_RICHTEXT_FILL = 'white';
+export const DEFAULT_RICHTEXT_FILL = 'none';
 export const DEFAULT_RICHTEXT_FILL_OPACITY = 1;
 export const DEFAULT_RICHTEXT_STROKE = '#ed556a';
 export const DEFAULT_RICHTEXT_STROKE_WIDTH = 2;

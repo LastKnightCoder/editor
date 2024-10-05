@@ -1,19 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { ICard } from "@/types";
-import { getCardById, updateCard } from '@/commands';
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import { produce } from "immer";
+import useCardsManagementStore from '@/stores/useCardsManagementStore.ts';
 
 const useEditCard = (cardId: number) => {
   const [loading, setLoading] = useState(false);
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
   const prevCard = useRef<ICard | null>(null);
   const cardChanged = useRef(false);
+
+  const { cards, updateCard } = useCardsManagementStore((state) => ({
+    cards: state.cards,
+    updateCard: state.updateCard
+  }))
+
   useAsyncEffect(async () => {
     setLoading(true);
 
-    const card = await getCardById(cardId);
+    const card = cards.find(c => c.id === cardId);
     if (!card) {
       setLoading(false);
       return;

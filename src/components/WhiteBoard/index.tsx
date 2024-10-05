@@ -16,10 +16,10 @@ import {
 } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import { BoardContext, SelectionContext, ViewPortContext } from './context';
-import { BOARD_TO_CONTAINER, ARROW_SIZE, SELECT_AREA_COLOR } from "./constants";
+import { BOARD_TO_CONTAINER, ARROW_SIZE } from "./constants";
 import { BoardElement, Events, ViewPort, Selection } from "./types";
 import Toolbar from './components/Toolbar';
-
+import SelectArea from './components/SelectArea';
 import styles from './index.module.less';
 
 const viewPortPlugin = new ViewPortPlugin();
@@ -98,7 +98,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     return () => {
       boardRef.current.off('change', handleChange);
     }
-  }, [onChange])
+  }, [onChange]);
 
   const eventHandlerGenerator = useMemoizedFn((eventName: Events) => {
     return (event: any) => {
@@ -227,23 +227,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 {boardRef.current.renderElements(children)}
               </g>
               <g>
-                {
-                  selection.selectArea && (
-                    <rect
-                      x={Math.min(selection.selectArea.anchor.x, selection.selectArea.focus.x)}
-                      y={Math.min(selection.selectArea.anchor.y, selection.selectArea.focus.y)}
-                      width={Math.abs(selection.selectArea.anchor.x - selection.selectArea.focus.x)}
-                      height={Math.abs(selection.selectArea.anchor.y - selection.selectArea.focus.y)}
-                      fill={SELECT_AREA_COLOR}
-                      fillOpacity={0.2}
-                      stroke={SELECT_AREA_COLOR}
-                      strokeWidth={1}
-                      style={{
-                        pointerEvents: 'none',
-                      }}
-                    />
-                  )
-                }
+                <SelectArea />
               </g>
             </svg>
             <div className={styles.attributeBar}>
