@@ -1,8 +1,8 @@
 import { Descendant } from 'slate';
 import { v4 as getUuid } from 'uuid';
 
-import { Board, EHandlerPosition, Point } from '../types';
-import { PathUtil, PointUtil, getResizedBBox } from '../utils';
+import { Board, ECreateBoardElementType, EHandlerPosition, Point } from '../types';
+import { PathUtil, PointUtil, RichTextUtil, getResizedBBox } from '../utils';
 import RichText from '../components/RichText';
 import { CommonPlugin, CommonElement } from './CommonPlugin';
 import { SelectTransforms } from '../transforms';
@@ -14,11 +14,14 @@ export interface RichTextElement extends CommonElement {
   maxWidth: number;
   maxHeight: number;
   resized: boolean;
-  borderWidth?: number;
-  borderColor?: string;
   paddingWidth?: number;
   paddingHeight?: number;
   autoFocus?: boolean;
+  fill?: string;
+  fillOpacity?: number;
+  stroke?: string;
+  strokeOpacity?: number;
+  strokeWidth?: number;
 }
 
 export class RichTextPlugin extends CommonPlugin {
@@ -56,11 +59,10 @@ export class RichTextPlugin extends CommonPlugin {
           text: '',
         }]
       }],
-      borderWidth: 2,
-      borderColor: '#ed556a',
       paddingWidth: 16,
       paddingHeight: 8,
       autoFocus: true,
+      ...RichTextUtil.getPrevRichtextStyle(),
     }
 
     board.apply({
@@ -68,6 +70,52 @@ export class RichTextPlugin extends CommonPlugin {
       path: [board.children.length],
       node: element,
     });
+  }
+
+  onClick(e: MouseEvent, board: Board) {
+    if (board.currentCreateType !== ECreateBoardElementType.Text) {
+      return;
+    }
+
+    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    if (!currentPoint) return;
+
+    const { x, y } = currentPoint;
+    const element: RichTextElement = {
+      id: getUuid(),
+      type: 'richtext',
+      x,
+      y,
+      width: 32,
+      height: 42,
+      maxWidth: 300,
+      maxHeight: 1000,
+      readonly: false,
+      content: [{
+        type: 'paragraph',
+        children: [{
+          type: 'formatted',
+          text: '',
+        }]
+      }],
+      paddingWidth: 16,
+      paddingHeight: 8,
+      autoFocus: true,
+      resized: false,
+      ...RichTextUtil.getPrevRichtextStyle(),
+    }
+    board.apply({
+      type: 'insert_node',
+      path: [board.children.length],
+      node: element,
+    });
+
+    SelectTransforms.updateSelectArea(board, {
+      selectArea: null,
+      selectedElements: []
+    });
+
+    board.currentCreateType = ECreateBoardElementType.None;
   }
 
   onResize(board: Board, element: RichTextElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) {

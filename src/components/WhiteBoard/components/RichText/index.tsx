@@ -71,10 +71,13 @@ const Richtext = memo((props: RichtextProps) => {
     resized,
     readonly,
     autoFocus,
-    borderWidth = 0, 
-    borderColor, 
     paddingWidth = PADDING_WIDTH, 
-    paddingHeight = PADDING_HEIGHT 
+    paddingHeight = PADDING_HEIGHT,
+    fill,
+    fillOpacity,
+    stroke,
+    strokeOpacity,
+    strokeWidth
   } = element;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -220,14 +223,16 @@ const Richtext = memo((props: RichtextProps) => {
   return (
     <>
       {/* 使用 rect 作为边框而不是 border，是因为放大时拖动内容边框会产生残痕遗留，而 rect 不会 */}
-      <rect 
+      <rect
         x={x} 
         y={y} 
         width={width} 
         height={height} 
-        stroke={borderColor} 
-        strokeWidth={borderWidth} 
-        fill='none'
+        stroke={stroke} 
+        strokeWidth={strokeWidth} 
+        fill={fill}
+        fillOpacity={fillOpacity}
+        strokeOpacity={strokeOpacity}
         rx={4} 
         ry={4} 
       />

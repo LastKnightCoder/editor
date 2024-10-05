@@ -4,6 +4,15 @@ import { Point } from "./point.ts";
 
 export { default as Board } from '../Board.tsx';
 
+export enum ECreateBoardElementType {
+  None = 'none',
+  Geometry = 'geometry',
+  StraightArrow = 'straightArrow',
+  Text = 'text',
+  Image = 'image',
+  Card = 'card',
+}
+
 export interface BoardElement {
   id: string;
   type: string;

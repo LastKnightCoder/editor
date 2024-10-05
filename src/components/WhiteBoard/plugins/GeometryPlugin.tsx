@@ -9,6 +9,7 @@ export interface GeometryElement extends CommonElement {
   fillOpacity?: number;
   stroke?: string;
   strokeWidth?: number;
+  strokeOpacity?: number;
   paths: string[];
   text: {
     align: 'left' | 'center' | 'right';

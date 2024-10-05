@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useSyncExternalStore } from "react";
 import { useMemoizedFn } from "ahooks";
+import classnames from 'classnames';
 
 import Board from './Board';
 import { 
@@ -15,8 +16,11 @@ import {
 } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import { BoardContext, SelectionContext, ViewPortContext } from './context';
-import { BOARD_TO_CONTAINER, ARROW_SIZE } from "./constants";
+import { BOARD_TO_CONTAINER, ARROW_SIZE, SELECT_AREA_COLOR } from "./constants";
 import { BoardElement, Events, ViewPort, Selection } from "./types";
+import Toolbar from './components/Toolbar';
+
+import styles from './index.module.less';
 
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
@@ -68,12 +72,11 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-
   const boardRef = useRef<Board>(new Board(initData, initViewPort, initSelection, plugins));
-
+  
   const { children, viewPort, selection } = useSyncExternalStore(boardRef.current.subscribe, boardRef.current.getSnapshot);
   const { minX, minY, width, height } = viewPort;
-
+  
   useEffect(() => {
     onDataChange?.(children);
   }, [children, onDataChange]);
@@ -194,17 +197,18 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   }, [eventHandlerGenerator, handleContainerResize]);
 
   return (
-    <div ref={containerRef} className={className} style={style}>
+    <div ref={containerRef} className={classnames(styles.boardContainer, className)} style={style}>
       <BoardContext.Provider value={boardRef.current}>
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
+            <Toolbar />
             <svg ref={svgRef} width={'100%'} height={'100%'} viewBox={`${minX} ${minY} ${width} ${height}`}>
               <defs>
                 <marker
                   id={`whiteboard-arrow`}
                   markerWidth={ARROW_SIZE}
                   markerHeight={ARROW_SIZE}
-                  // 箭头太细了，盖不住底下的线，向右偏移一点
+                  // 箭头太细了，盖不住底下的线，向左偏移一点
                   refX={ARROW_SIZE - 0.5}
                   refY={ARROW_SIZE / 2}
                   orient="auto-start-reverse"
@@ -230,9 +234,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                       y={Math.min(selection.selectArea.anchor.y, selection.selectArea.focus.y)}
                       width={Math.abs(selection.selectArea.anchor.x - selection.selectArea.focus.x)}
                       height={Math.abs(selection.selectArea.anchor.y - selection.selectArea.focus.y)}
-                      fill={'rgb(62,103,187)'}
+                      fill={SELECT_AREA_COLOR}
                       fillOpacity={0.2}
-                      stroke={'rgb(62,103,187)'}
+                      stroke={SELECT_AREA_COLOR}
                       strokeWidth={1}
                       style={{
                         pointerEvents: 'none',
@@ -242,6 +246,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 }
               </g>
             </svg>
+            <div className={styles.attributeBar}>
+              
+            </div>
           </ViewPortContext.Provider>
         </SelectionContext.Provider>
       </BoardContext.Provider>

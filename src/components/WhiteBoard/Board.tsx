@@ -11,6 +11,7 @@ import {
   IBoardPlugin,
   BoardElement,
   ViewPort,
+  ECreateBoardElementType,
 } from './types';
 import { isValid, executeSequence, PathUtil, BoardUtil } from './utils';
 
@@ -40,6 +41,9 @@ class Board {
     viewPort: ViewPort;
     selection: Selection;
   }
+
+  private _currentCreateType: ECreateBoardElementType = ECreateBoardElementType.None;
+  public createOptions: any = null;
 
   constructor(children: BoardElement[], viewPort: ViewPort, selection: Selection, plugins: IBoardPlugin[] = []) {
     this.boardFlag = boardFlag;
@@ -390,6 +394,16 @@ class Board {
 
   getSnapshot() {
     return this.snapshot;
+  }
+
+  get currentCreateType(): ECreateBoardElementType {
+    return this._currentCreateType;
+  }
+
+  set currentCreateType(value: ECreateBoardElementType) {
+    this._currentCreateType = value;
+    console.log('set currentCreateType', value);
+    this.emit('onCurrentCreateTypeChange');
   }
 }
 

@@ -9,12 +9,15 @@ export interface CardElement extends CommonElement {
   cardId: number;
   maxWidth: number;
   maxHeight: number;
-  borderWidth?: number;
-  borderColor?: string;
   paddingWidth?: number;
   paddingHeight: number;
   resized: boolean;
   readonly?: boolean;
+  fill?: string;
+  fillOpacity?: number;
+  stroke?: string;
+  strokeOpacity?: number;
+  strokeWidth?: number;
 }
 
 export class CardPlugin extends CommonPlugin implements IBoardPlugin {
