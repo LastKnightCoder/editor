@@ -1,4 +1,4 @@
-import { Board, BoardElement, IBoardPlugin, Operation } from "../types";
+import { Board, BoardElement, ECreateBoardElementType, IBoardPlugin, Operation } from "../types";
 import { BoardUtil, PointUtil, PathUtil } from "../utils";
 
 export class MovePlugin implements IBoardPlugin {
@@ -10,6 +10,10 @@ export class MovePlugin implements IBoardPlugin {
   isMoved = false;
 
   onPointerDown(e: PointerEvent, board: Board) {
+    if (board.currentCreateType !== ECreateBoardElementType.None) {
+      return;
+    }
+    
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 

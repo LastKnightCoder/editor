@@ -44,6 +44,7 @@ const Geometry = memo((props: GeometryProps) => {
     fill, 
     stroke, 
     strokeWidth,
+    strokeOpacity,
     text
   } = element;
 
@@ -153,6 +154,7 @@ const Geometry = memo((props: GeometryProps) => {
                 fillOpacity={fillOpacity}
                 stroke={stroke}
                 strokeWidth={strokeWidth}
+                strokeOpacity={strokeOpacity}
               />
             )
           })

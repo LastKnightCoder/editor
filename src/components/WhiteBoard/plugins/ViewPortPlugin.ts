@@ -1,4 +1,4 @@
-import { IBoardPlugin, ViewPort, Board } from '../types';
+import { IBoardPlugin, ViewPort, Board, ECreateBoardElementType } from '../types';
 import { BOARD_TO_CONTAINER } from "../constants";
 import { ViewPortTransforms } from "../transforms";
 import isHotkey from 'is-hotkey';
@@ -42,11 +42,11 @@ export class ViewPortPlugin implements IBoardPlugin {
   }
 
   onWheel(e: WheelEvent, board: Board) {
+    if (board.currentCreateType !== ECreateBoardElementType.None) return;
+
     const now = Date.now();
     if (now - this.lastWheelTime < 100) return;
     this.lastWheelTime = now;
-
-    if (e.defaultPrevented) return;
 
     if (e.ctrlKey) {
       // 获取当前鼠标的位置

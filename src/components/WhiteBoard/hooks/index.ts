@@ -5,3 +5,4 @@ export * from './useViewPort';
 export * from './useResize';
 export * from './useDropArrow'
 export * from './useMoveArrow';
+export * from './useCreateElementType';

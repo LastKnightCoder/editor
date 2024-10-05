@@ -1,4 +1,4 @@
-import { BoardElement, IBoardPlugin, Board } from "../types";
+import { BoardElement, IBoardPlugin, Board, ECreateBoardElementType } from "../types";
 import { BoardUtil, PathUtil, PointUtil } from "../utils";
 import { SelectTransforms } from "../transforms";
 import isHotkey from "is-hotkey";
@@ -10,6 +10,10 @@ export class SelectPlugin implements IBoardPlugin {
   moved = false;
 
   onPointerDown(e: PointerEvent, board: Board) {
+    if (board.currentCreateType !== ECreateBoardElementType.None) {
+      return;
+    }
+    
     // 如果按下的是右键
     if (e.button === 2) {
       return;

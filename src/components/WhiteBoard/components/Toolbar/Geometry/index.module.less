@@ -1,0 +1,22 @@
+.popoverContainer {
+  max-width: 200px;
+  max-height: 200px;
+  overflow: auto;
+  .list {
+    display: flex;
+    flex-wrap: wrap;
+    .item {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #999;
+      border-radius: 4px;
+      &:hover {
+        background-color: #f0f0f0;
+      }
+    }
+  }
+}
