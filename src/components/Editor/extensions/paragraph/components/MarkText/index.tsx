@@ -1,6 +1,6 @@
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
-import { message, Tooltip } from "antd";
+import { Tooltip } from "antd";
 import { Mark } from "@/components/Editor/types";
 
 import { useMemoizedFn } from "ahooks";
