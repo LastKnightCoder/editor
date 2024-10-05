@@ -1,15 +1,18 @@
-import { useEffect, memo } from "react";
+import { useEffect, memo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { SELECT_AREA_COLOR } from "../../constants";
-import { useSelection } from "../../hooks";
+import { useSelection, useBoard } from "../../hooks";
 
 const SelectArea = memo(() => {
+  const board = useBoard();
   const selection = useSelection();
+
+  const [isMoving, setIsMoving] = useState(false);
 
   const isSelecting = Boolean(selection && selection.selectArea && selection.selectArea.anchor !== selection.selectArea.focus);
 
   const removeSelect = useMemoizedFn((e: Event) => {
-    if (isSelecting) {
+    if (isSelecting || isMoving) {
       const selection = window.getSelection();
       if (selection) {
         selection.removeAllRanges();
@@ -17,6 +20,22 @@ const SelectArea = memo(() => {
       e.preventDefault();
     }
   })
+
+  useEffect(() => {
+    const onMove = () => {
+      setIsMoving(true);
+    }
+    const onMoveEnd = () => {
+      setIsMoving(false);
+    }
+    board.on('element:move', onMove)
+    board.on('element:move-end', onMoveEnd)
+
+    return () => {
+      board.off('element:move', onMove)
+      board.off('element:move-end', onMoveEnd)
+    }
+  }, [board])
 
   // 在选择的过程中禁止选中文本
   useEffect(() => {

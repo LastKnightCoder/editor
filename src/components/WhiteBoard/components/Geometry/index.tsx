@@ -1,14 +1,16 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useMemoizedFn } from 'ahooks';
+import { Descendant } from 'slate';
+import classnames from 'classnames';
+
 import If from '@/components/If';
 import Editor, { EditorRef } from '@/components/Editor';
-import classnames from 'classnames';
 import ResizeCircle from '../ResizeCircle';
 import ArrowConnectPoint from '../ArrowConnectPoint';
 import ArrowDropConnectPoint from '../ArrowDropConnectPoint';
 
 import { Board, EHandlerPosition, Point } from '../../types';
-import { PointUtil, transformPath } from '../../utils';
+import { PathUtil, PointUtil, transformPath } from '../../utils';
 import { useBoard, useSelectState, useDropArrow } from '../../hooks';
 import { GeometryElement } from '../../plugins';
 import {
@@ -114,6 +116,24 @@ const Geometry = memo((props: GeometryProps) => {
     if (isEditing) {
       e.stopPropagation();
     }
+  });
+
+  const handleTextContentChange = useMemoizedFn((content: Descendant[]) => {
+    const newElement = {
+      ...element,
+      text: {
+        ...text,
+        content
+      }
+    }
+    const path = PathUtil.getPathByElement(board, element);
+    if (!path) return;
+    board.apply([{
+      type: 'set_node',
+      path,
+      properties: element,
+      newProperties: newElement
+    }], false);
   })
 
   useEffect(() => {
@@ -168,6 +188,7 @@ const Geometry = memo((props: GeometryProps) => {
             onFocus={handleOnFocus}
             onBlur={handleOnBlur}
             readonly={!isEditing}
+            onChange={handleTextContentChange}
           />
         </div>
       </foreignObject>

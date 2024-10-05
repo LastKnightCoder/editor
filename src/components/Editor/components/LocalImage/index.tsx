@@ -18,14 +18,17 @@ const LocalImage = (props: ILocalImageProps) => {
   const [previewUrl, setPreviewUrl] = useState(url);
 
   useAsyncEffect(async () => {
-    if (url.startsWith('http')) {
-      try {
+    try {
+      if (url.startsWith('http')) {
         const localUrl = await remoteResourceToLocal(url);
         const filePath = convertFileSrc(localUrl);
         setPreviewUrl(filePath);
-      } catch(e) {
-        console.error(e);
+      } else {
+        const filePath = convertFileSrc(url);
+        setPreviewUrl(filePath);
       }
+    } catch(e) {
+      console.error(e);
     }
   }, [url]);
 
