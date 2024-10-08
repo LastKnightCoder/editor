@@ -32,6 +32,9 @@ const useEditArticle = (articleId?: number) => {
     const article = articles.find((article) => article.id === articleId);
     if (!article) {
       setInitLoading(false);
+      setInitValue(DEFAULT_ARTICLE_CONTENT);
+      setEditingArticle(undefined);
+      prevArticle.current = undefined;
       return;
     }
     setInitValue(article.content);

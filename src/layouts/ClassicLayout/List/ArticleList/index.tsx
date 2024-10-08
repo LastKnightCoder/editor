@@ -1,20 +1,18 @@
 import { useState, memo } from 'react';
+import { useMemoizedFn } from "ahooks";
 
-import styles from './index.module.less';
-import { IArticle } from "@/types";
 import For from "@/components/For";
 import LoadMoreComponent from "@/components/LoadMoreComponent";
 import ArticleItem from './ArticleItem';
-import { useMemoizedFn } from "ahooks";
 
-interface IArticleListProps {
-  articles: IArticle[];
-  onClickArticle: (article: IArticle) => void;
-  activeArticleId?: number;
-}
+import useArticleManagementStore from "@/stores/useArticleManagementStore";
 
-const ArticleList = memo((props: IArticleListProps) => {
-  const { articles, onClickArticle, activeArticleId } = props;
+import styles from './index.module.less';
+
+const ArticleList = memo(() => {
+  const { articles } = useArticleManagementStore((state) => ({
+    articles: state.articles
+  }));
 
   const [articleCount, setArticleCount] = useState<number>(10);
   const slicedArticles = articles.slice(0, articleCount);
@@ -31,8 +29,6 @@ const ArticleList = memo((props: IArticleListProps) => {
             <ArticleItem
               key={article.id}
               article={article}
-              active={article.id === activeArticleId}
-              onClickArticle={onClickArticle}
             />
           )} />
         </LoadMoreComponent>

@@ -14,7 +14,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import If from "@/components/If";
 import AddParagraph, { AddParagraphRef } from "../AddParagraph";
 import { MdDragIndicator } from "react-icons/md";
-import { DeleteOutlined } from "@ant-design/icons";
+import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 
 import { CustomElement } from "../../types";
 import styles from "./index.module.less";
@@ -74,12 +74,12 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     }
   }, [element]);
 
-  const onClick = useMemoizedFn(() => {
-    if (readOnly) {
-      return;
-    }
-    setEditing(true);
-  });
+  // const onClick = useMemoizedFn(() => {
+  //   if (readOnly) {
+  //     return;
+  //   }
+  //   setEditing(true);
+  // });
 
   const onCodeEditorKeyDown = useMemoizedFn((editor, event) => {
     if (!isHotkey('down', event)) return;
@@ -139,6 +139,10 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     });
   });
 
+  const editElement = useMemoizedFn(() => {
+    setEditing(true);
+  });
+
   const containerClassName = classnames(styles.container, {
     [styles.editing]: editing,
     [styles.dark]: isDark,
@@ -153,47 +157,45 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
       <div
         contentEditable={false}
         ref={ref}
-        className={containerClassName}>
-        {
-          <div style={{ height: editing ? 'auto' : 0, overflow: 'hidden' }}>
-            <CodeEditor
-              value={value || ''}
-              autoCursor
-              autoScroll
-              options={{
-                mode,
-                theme: isDark ? 'blackboard' : 'one-light',
-                lineNumbers: false,
-                firstLineNumber: 1,
-                scrollbarStyle: "null",
-                viewportMargin: Infinity,
-                lineWrapping: false,
-                smartIndent: true,
-                extraKeys: {
-                  'Shift-Tab': 'indentLess',
-                },
-                readOnly,
-                indentUnit: 2,
-                tabSize: 2,
-                cursorHeight: 1,
-                autoCloseBrackets: true,
-                tabindex: -1,
-              }}
-              className={styles.editor}
-              onChange={handleInputChange}
-              editorDidMount={(editor) => { editorRef.current = editor }}
-              editorWillUnmount={() => { editorRef.current = undefined }}
-              onKeyDown={onCodeEditorKeyDown}
-            />
-          </div>
-        }
+        className={containerClassName}
+      >
+        <div style={{ height: editing ? 'auto' : 0, overflow: 'hidden' }}>
+          <CodeEditor
+            value={value || ''}
+            autoCursor
+            autoScroll
+            options={{
+              mode,
+              theme: isDark ? 'blackboard' : 'one-light',
+              lineNumbers: false,
+              firstLineNumber: 1,
+              scrollbarStyle: "null",
+              viewportMargin: Infinity,
+              lineWrapping: false,
+              smartIndent: true,
+              extraKeys: {
+                'Shift-Tab': 'indentLess',
+              },
+              readOnly,
+              indentUnit: 2,
+              tabSize: 2,
+              cursorHeight: 1,
+              autoCloseBrackets: true,
+              tabindex: -1,
+            }}
+            className={styles.editor}
+            onChange={handleInputChange}
+            editorDidMount={(editor) => { editorRef.current = editor }}
+            editorWillUnmount={() => { editorRef.current = undefined }}
+            onKeyDown={onCodeEditorKeyDown}
+          />
+        </div>
         <If condition={editing}>
           <div className={styles.divider}></div>
         </If>
         <div
           ref={drop}
           className={classnames(styles.preview, { [styles.center]: center, [styles.extend]: extend })}
-          onClick={onClick}
         >
           <ErrorBoundary>
             {children}
@@ -201,6 +203,9 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
         </div>
         <If condition={!readOnly}>
           <div className={styles.actions}>
+            <div onClick={editElement} className={styles.item}>
+              <EditOutlined />
+            </div>
             <div onClick={deleteElement} className={styles.item}>
               <DeleteOutlined />
             </div>

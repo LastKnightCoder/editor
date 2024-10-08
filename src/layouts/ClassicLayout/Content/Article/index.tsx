@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, memo, useState } from "react";
-import { Descendant, Editor } from "slate";
 import { useMemoizedFn, useRafInterval, useThrottleFn } from "ahooks";
 
-import ArticleEditor, { EditorRef } from "@/components/Editor";
+import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import EditText from "@/components/EditText";
 import { CalendarOutlined } from "@ant-design/icons";
@@ -13,30 +12,23 @@ import useUploadImage from "@/hooks/useUploadImage";
 import { getInlineElementText } from "@/utils";
 import { formatDate } from "@/utils/time";
 import { HeaderElement } from "@editor/types";
-import { IArticle } from "@/types";
+import useEditArticle from "@/hooks/useEditArticle";
 
 import { cardLinkExtension, fileAttachmentExtension } from '@/editor-extensions';
+import useArticleManagementStore from "@/stores/useArticleManagementStore";
 
 import styles from './index.module.less';
 
-
-interface IArticleItemProps {
-  initValue: Descendant[],
-  editingArticle?: IArticle,
-  wordsCount: number,
-  onContentChange: (content: Descendant[], editor: Editor) => void,
-  onInit: (editor: Editor, content: Descendant[]) => void,
-  onDeleteTag: (tag: string) => void,
-  onAddTag: (tag: string) => void,
-  onTitleChange: (value: string) => void,
-  saveArticle: () => void,
-  readonly: boolean,
-}
-
 const extensions = [cardLinkExtension, fileAttachmentExtension];
 
-const EditArticle = memo((props: IArticleItemProps) => {
+const EditArticle = memo(() => {
   const {
+    activeArticleId,
+  } = useArticleManagementStore(state => ({
+    activeArticleId: state.activeArticleId,
+  }));
+
+  const { 
     initValue,
     editingArticle,
     wordsCount,
@@ -47,7 +39,7 @@ const EditArticle = memo((props: IArticleItemProps) => {
     onTitleChange,
     saveArticle,
     readonly,
-  } = props;
+   } = useEditArticle(activeArticleId);
 
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -88,7 +80,7 @@ const EditArticle = memo((props: IArticleItemProps) => {
 
   useRafInterval(() => {
     saveArticle()
-  }, 1000);
+  }, 3000);
 
   useEffect(() => {
     return () => {
@@ -101,7 +93,9 @@ const EditArticle = memo((props: IArticleItemProps) => {
     editorRef.current.scrollHeaderIntoView(index);
   })
 
-  if (!editingArticle) return null;
+  if (!editingArticle) {
+    return null;
+  };
 
   return (
     <div ref={containerRef} className={styles.editArticleContainer}>
@@ -137,7 +131,7 @@ const EditArticle = memo((props: IArticleItemProps) => {
       </div>
       <div className={styles.content}>
         <div className={styles.editor}>
-          <ArticleEditor
+          <Editor
             key={editingArticle.id}
             ref={editorRef}
             initValue={initValue}

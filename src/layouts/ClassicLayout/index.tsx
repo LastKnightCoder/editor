@@ -21,7 +21,6 @@ import { EFilterType } from "@/types/time";
 import { ITimeRecord } from "@/types";
 
 import useCard from './hooks/useCard';
-import useArticle from "./hooks/useArticle";
 import useExitFocusMode from "./hooks/useExitFocusMode";
 import useEditDailyNote from "@/hooks/useEditDailyNote";
 import useDocumentsStore from "@/stores/useDocumentsStore";
@@ -100,27 +99,6 @@ const ClassicLayout = memo(() => {
     filteredCards,
     updateCard,
   } = useCard();
-
-  const {
-    articles,
-    activeArticleId,
-    readonly,
-    initValue,
-    editingArticle,
-    wordsCount,
-    onContentChange,
-    onInit,
-    onDeleteTag,
-    onAddTag,
-    onTitleChange,
-    saveArticle,
-    toggleIsTop,
-    toggleReadOnly,
-    handleAddNewArticle,
-    handleClickArticle,
-    quitEditArticle,
-    handleDeleteArticle,
-  } = useArticle();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -336,14 +314,10 @@ const ClassicLayout = memo(() => {
             />
           )}/>
           <Route path="/articles/" element={(
-            <ArticleList
-              activeArticleId={activeArticleId}
-              articles={articles}
-              onClickArticle={handleClickArticle}
-            />
+            <ArticleList />
           )}/>
           <Route path="/documents/" element={(
-            <DocumentList/>
+            <DocumentList />
           )}/>
           <Route path="/daily/" element={(
             <DailyList
@@ -388,16 +362,7 @@ const ClassicLayout = memo(() => {
                 <CardTitlebar createCard={onCreateCard}/>
               )}/>
               <Route path="articles/" element={(
-                <ArticleTitlebar
-                  readonly={readonly}
-                  toggleReadOnly={toggleReadOnly}
-                  isTop={!!editingArticle?.isTop}
-                  toggleIsTop={toggleIsTop}
-                  quitEdit={quitEditArticle}
-                  createArticle={handleAddNewArticle}
-                  deleteArticle={handleDeleteArticle}
-                  hasActiveArticle={!!activeArticleId}
-                />
+                <ArticleTitlebar />
               )}/>
               <Route path={"documents/"} element={(
                 <DocumentTitlebar
@@ -420,7 +385,7 @@ const ClassicLayout = memo(() => {
                 />
               )}/>
               <Route path={"projects/"} element={(
-                <ProjectTitlebar/>
+                <ProjectTitlebar />
               )}/>
               <Route path={"pdf"} element={(
                 <PdfTitlebar />
@@ -447,19 +412,7 @@ const ClassicLayout = memo(() => {
               />
             )} />
             <Route path="/articles/" element={(
-              <ArticleContent
-                key={activeArticleId}
-                initValue={initValue}
-                editingArticle={editingArticle}
-                wordsCount={wordsCount}
-                onContentChange={onContentChange}
-                onInit={onInit}
-                onDeleteTag={onDeleteTag}
-                onAddTag={onAddTag}
-                onTitleChange={onTitleChange}
-                saveArticle={saveArticle}
-                readonly={readonly}
-              />
+              <ArticleContent />
             )} />
             <Route path="/documents/" element={(
               <DocumentContent />

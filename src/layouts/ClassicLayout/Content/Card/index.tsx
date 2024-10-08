@@ -42,7 +42,7 @@ const Card = memo((props: ICardProps) => {
           onCloseTab={onCloseTab}
           onMoveCard={onMoveCard}
           onCloseOtherTabs={onCloseOtherTabs}
-          showCardTabs={leftCardIds.length > 1 || (leftCardIds.length > 0 && rightCardIds.length > 0)}
+          showCardTabs={leftCardIds.length > 0}
         />
       </If>
       <If condition={rightCardIds.length > 0}>
@@ -55,7 +55,7 @@ const Card = memo((props: ICardProps) => {
           onCloseTab={onCloseTab}
           onMoveCard={onMoveCard}
           onCloseOtherTabs={onCloseOtherTabs}
-          showCardTabs={rightCardIds.length > 1 || (leftCardIds.length > 0 && rightCardIds.length > 0)}
+          showCardTabs={leftCardIds.length > 0}
         />
       </If>
     </If>
