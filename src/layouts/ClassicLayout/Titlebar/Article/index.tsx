@@ -1,49 +1,40 @@
 import TitlebarIcon from "@/components/TitlebarIcon";
 import FocusMode from "../components/FocusMode";
 
-import { EditOutlined, ReadOutlined, PlusOutlined } from '@ant-design/icons';
-import { MdOutlineFavoriteBorder, MdExitToApp, MdOutlineDeleteOutline } from "react-icons/md";
+import { PlusOutlined } from '@ant-design/icons';
+import useArticleManagementStore from "@/stores/useArticleManagementStore";
 
 import styles from './index.module.less';
+import { useMemoizedFn } from "ahooks";
+import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 
-interface IArticleTitlebarProps {
-  readonly: boolean;
-  isTop: boolean;
-  hasActiveArticle: boolean;
-  quitEdit: () => void;
-  toggleIsTop: () => void;
-  toggleReadOnly: () => void;
-  createArticle: () => void;
-  deleteArticle: () => void;
-}
+const Article = () => {
+  const { createArticle } = useArticleManagementStore(state => ({
+    activeArticleId: state.activeArticleId,
+    createArticle: state.createArticle,
+  }))
 
-const Article = (props: IArticleTitlebarProps) => {
-  const { readonly, isTop, quitEdit, toggleIsTop, toggleReadOnly, createArticle, deleteArticle,hasActiveArticle } = props;
+  const handleAddNewArticle = useMemoizedFn(async () => {
+    const article = await createArticle({
+      title: '默认文章标题',
+      content: DEFAULT_ARTICLE_CONTENT,
+      bannerBg: '',
+      isTop: false,
+      author: '',
+      links: [],
+      tags: [],
+    });
+    useArticleManagementStore.setState({
+      activeArticleId: article.id,
+    });
+  });
 
   return (
     <div className={styles.iconList}>
-      <TitlebarIcon onClick={createArticle} tip={'新建文章'}>
+      <TitlebarIcon onClick={handleAddNewArticle} tip={'新建文章'}>
         <PlusOutlined />
       </TitlebarIcon>
       <FocusMode />
-      {
-        hasActiveArticle && (
-          <>
-            <TitlebarIcon onClick={toggleReadOnly} tip={readonly ? '切换编辑' : '切换只读'}>
-              { readonly ? <EditOutlined /> : <ReadOutlined /> }
-            </TitlebarIcon>
-            <TitlebarIcon active={isTop} onClick={toggleIsTop} tip={isTop ? '取消置顶' : '置顶'}>
-              <MdOutlineFavoriteBorder />
-            </TitlebarIcon>
-            <TitlebarIcon onClick={quitEdit} tip={'退出编辑'}>
-              <MdExitToApp />
-            </TitlebarIcon>
-            <TitlebarIcon onClick={deleteArticle} tip={'删除文章'}>
-              <MdOutlineDeleteOutline />
-            </TitlebarIcon>
-          </>
-        )
-      }
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { produce } from 'immer';
 
 import { IArticle } from "@/types";
 import {
@@ -13,6 +14,7 @@ import {
 interface IState {
   articles: IArticle[];
   initLoading: boolean;
+  activeArticleId: number | undefined;
 }
 
 interface IActions {
@@ -31,9 +33,10 @@ const processArticles = (articles: IArticle[]) => {
   return [...topArticles, ...notTopArticles];
 }
 
-const useArticleManagementStore = create<IState & IActions>((set) => ({
+const useArticleManagementStore = create<IState & IActions>((set, get) => ({
   articles: [],
   initLoading: false,
+  activeArticleId: undefined,
   init: async () => {
     set({ initLoading: true });
     const articles = await getAllArticles();
@@ -41,39 +44,66 @@ const useArticleManagementStore = create<IState & IActions>((set) => ({
     set({ articles: processedArticles, initLoading: false });
   },
   createArticle: async (article) => {
-    const res = await createArticle(article);
-    const articles = await getAllArticles();
-    const processedArticles = processArticles(articles);
+    const { articles } = get();
+    const createdArticle = await createArticle(article);
+    const newArticles = produce(articles, (draft) => {
+      draft.unshift(createdArticle);
+    });
+    const processedArticles = processArticles(newArticles);
     set({ articles: processedArticles });
-    return res;
+    return createdArticle;
   },
   updateArticle: async (article) => {
-    const res = await updateArticle(article);
-    const articles = await getAllArticles();
-    const processedArticles = processArticles(articles);
+    const { articles } = get();
+    const updatedArticle = await updateArticle(article);
+    const newArticles = produce(articles, (draft) => {
+      const index = draft.findIndex(a => a.id === updatedArticle.id);
+      if (index !== -1) {
+        draft[index] = updatedArticle;
+      }
+    });
+    const processedArticles = processArticles(newArticles);
     set({ articles: processedArticles });
-    return res;
+    return updatedArticle;
   },
   deleteArticle: async (id) => {
+    const { articles } = get();
     const res = await deleteArticle(id);
-    const articles = await getAllArticles();
-    const processedArticles = processArticles(articles);
+    const newArticles = produce(articles, (draft) => {
+      const index = draft.findIndex(a => a.id === id);
+      if (index !== -1) {
+        draft.splice(index, 1);
+      }
+    });
+    const processedArticles = processArticles(newArticles);
     set({ articles: processedArticles });
     return res;
   },
   updateArticleIsTop: async (id, isTop) => {
-    const res = await updateArticleIsTop(id, isTop);
-    const articles = await getAllArticles();
-    const processedArticles = processArticles(articles);
+    const { articles } = get();
+    const updatedArticle = await updateArticleIsTop(id, isTop);
+    const newArticles = produce(articles, (draft) => {
+      const index = draft.findIndex(a => a.id === id);
+      if (index !== -1) {
+        draft[index].isTop = isTop;
+      }
+    });
+    const processedArticles = processArticles(newArticles);
     set({ articles: processedArticles });
-    return res;
+    return updatedArticle;
   },
   updateArticleBannerBg: async (id: number, bannerBg: string) => {
-    const res = await updateArticleBannerBg(id, bannerBg);
-    const articles = await getAllArticles();
-    const processedArticles = processArticles(articles);
+    const { articles } = get();
+    const updatedArticle = await updateArticleBannerBg(id, bannerBg);
+    const newArticles = produce(articles, (draft) => {
+      const index = draft.findIndex(a => a.id === id);
+      if (index !== -1) {
+        draft[index].bannerBg = bannerBg;
+      }
+    });
+    const processedArticles = processArticles(newArticles);
     set({ articles: processedArticles });
-    return res;
+    return updatedArticle;
   }
 }));
 
