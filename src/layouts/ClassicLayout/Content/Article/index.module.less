@@ -4,6 +4,8 @@
   overflow-y: auto;
   container-name: articleContainer;
   container-type: inline-size;
+  box-sizing: border-box;
+  border-bottom: 40px solid transparent;
   .cover {
     width: 100%;
     aspect-ratio: 8 / 3;
@@ -46,11 +48,10 @@
     }
   }
   .content {
+    border-top: 40px solid transparent;
     width: 100%;
     display: flex;
     padding: 0 40px;
-    border-top: 40px solid transparent;
-    border-bottom: 40px solid transparent;
     box-sizing: border-box;
     gap: 40px;
     justify-content: center;
@@ -73,6 +74,12 @@
       }
     }
   }
+}
+
+.statusBar {
+  position: absolute;
+  bottom: 10px;
+  right: 25px;
 }
 
 .empty {
