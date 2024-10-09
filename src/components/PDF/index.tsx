@@ -18,7 +18,7 @@ import {
   RectPercentWithPageNumber
 } from "@/types";
 import { remoteResourceToLocal } from '@/utils';
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { Flex, message, Spin, Result, Button } from "antd";
 import { ZoomInOutlined, ZoomOutOutlined } from "@ant-design/icons";
 import If from "@/components/If";
@@ -26,6 +26,7 @@ import { convertFileSrc } from "@tauri-apps/api/tauri";
 
 interface PDFViewerProps {
   pdf: Pdf;
+  autoFitWidth?: boolean;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -37,7 +38,7 @@ enum PAGE_STATUS {
 }
 
 const PDFViewer = (props: PDFViewerProps) => {
-  const { pdf, className, style = {} } = props;
+  const { pdf, className, style = {}, autoFitWidth = true } = props;
 
   const [pdfLoadingStatus, setPdfLoadingStatus] = useState(PAGE_STATUS.LOADING);
   const highlightManager = useRef<HighlightManager | null>(null);
@@ -78,6 +79,9 @@ const PDFViewer = (props: PDFViewerProps) => {
       highlightManager.current.addHighlight(pageNum, highlight);
       highlightManager.current.renderHighlights(pageNum);
     });
+  });
+  const [currentPageNum, setCurrentPageNum] = useLocalStorageState(`pdf-${pdf.id}:current-page-num`, {
+    defaultValue: 1
   });
 
   useMouseSelection({
@@ -134,7 +138,7 @@ const PDFViewer = (props: PDFViewerProps) => {
     }
   });
   
-  const loadArrayBuffer = useMemoizedFn(async (isLocal: boolean, filePath: string, remoteUrl) => {
+  const getLoadUrl = useMemoizedFn(async (isLocal: boolean, filePath: string, remoteUrl) => {
     if (isLocal) {
       return convertFileSrc(filePath);
     } else {
@@ -146,7 +150,7 @@ const PDFViewer = (props: PDFViewerProps) => {
   
   const handleLoadPdf = useMemoizedFn((pdf: Pdf) => {
     const { id, isLocal, filePath, remoteUrl } = pdf;
-    Promise.all([loadArrayBuffer(isLocal, filePath, remoteUrl), getPdfHighlights(id)]).then(([arrayBuffer, highlights]) => {
+    Promise.all([getLoadUrl(isLocal, filePath, remoteUrl), getPdfHighlights(id)]).then(([arrayBuffer, highlights]) => {
       pdfjs.getDocument(arrayBuffer).promise.then(pdf => {
         if (!pdfContainerRef.current) return;
         if (highlightManager.current) {
@@ -169,13 +173,36 @@ const PDFViewer = (props: PDFViewerProps) => {
         linkService.setViewer(viewer);
         viewer.setDocument(pdf);
 
+        const handlePageRendered = () => {
+          viewer.currentPageNumber = currentPageNum || 1;
+
+          if (autoFitWidth) {
+            const fitPadding = 20;
+            const viewport = viewer.getPageView(0);
+            const scale = (viewer.container.clientWidth - 2 * fitPadding) / viewport.width;
+            viewer.currentScaleValue = String(scale);
+            setCurrentScale(viewer.currentScale);
+          }
+
+          viewer.eventBus.off('pagerendered', handlePageRendered)
+        }
+
+        viewer.eventBus.on('pagerendered', handlePageRendered)
+
+        viewer.eventBus.on('pagechanging', ({ pageNumber }: { pageNumber: number }) => {
+          console.log('pagechanging', pageNumber);
+          setCurrentPageNum(pageNumber);
+        })
+
         highlightManager.current = new HighlightManager(pdf, viewer, highlights);
         setPdfLoadingStatus(PAGE_STATUS.SUCCESS);
         setCurrentScale(viewer.currentScale);
-      });
+      }).catch(e => {
+        console.error(e);
+        setPdfLoadingStatus(PAGE_STATUS.ERROR)
+      })
     }).catch(e => {
       console.error(e);
-      message.error(e.message);
       setPdfLoadingStatus(PAGE_STATUS.ERROR)
     })
   })

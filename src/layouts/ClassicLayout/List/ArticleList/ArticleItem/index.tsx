@@ -13,6 +13,7 @@ import { IArticle } from "@/types";
 
 import styles from './index.module.less';
 import { useMemoizedFn } from 'ahooks';
+import Tags from "@/components/Tags";
 
 interface IArticleItemProps {
   article: IArticle;
@@ -145,7 +146,7 @@ const ArticleItem = memo((props: IArticleItemProps) => {
             </div>
           )}
         >
-          <MdMoreVert />
+          <MdMoreVert/>
         </Popover>
       </div>
       <div className={styles.time}>
@@ -163,9 +164,15 @@ const ArticleItem = memo((props: IArticleItemProps) => {
           </div>
         </Flex>
         <Spin spinning={bannerUploading}>
-          <LocalImage className={styles.img} url={article.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'} />
+          <LocalImage
+            className={styles.img}
+            url={article.bannerBg || 'https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png'}
+          />
         </Spin>
       </Flex>
+      <div className={styles.tags}>
+        <Tags tags={article.tags} showIcon tagStyle={isActive ? { backgroundColor: 'var(--active-icon-bg)' } : {}}/>
+      </div>
     </div>
   )
 });
