@@ -51,9 +51,6 @@ interface WhiteBoardProps {
   initData: BoardElement[];
   initViewPort?: ViewPort;
   initSelection?: Selection;
-  onDataChange?: (children: BoardElement[]) => void;
-  onViewPortChange?: (viewPort: ViewPort) => void;
-  onSelectionChange?: (selection: Selection) => void;
   onChange?: (data: { children: BoardElement[], viewPort: ViewPort, selection: Selection }) => void;
 }
 
@@ -63,10 +60,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     style,
     initData, 
     initViewPort = { minX: 0, minY: 0, width: 0, height: 0, zoom: 1 }, 
-    initSelection = { selectArea: null, selectedElements: [] as BoardElement[] }, 
-    onDataChange,
-    onViewPortChange,
-    onSelectionChange,
+    initSelection = { selectArea: null, selectedElements: [] as BoardElement[] },
     onChange
   } = props;
 
@@ -76,18 +70,6 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   
   const { children, viewPort, selection } = useSyncExternalStore(boardRef.current.subscribe, boardRef.current.getSnapshot);
   const { minX, minY, width, height } = viewPort;
-  
-  useEffect(() => {
-    onDataChange?.(children);
-  }, [children, onDataChange]);
-
-  useEffect(() => {
-    onViewPortChange?.(viewPort);
-  }, [viewPort, onViewPortChange]);
-
-  useEffect(() => {
-    onSelectionChange?.(selection);
-  }, [selection, onSelectionChange]);
 
   useEffect(() => {
     const handleChange = () => {

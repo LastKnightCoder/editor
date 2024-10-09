@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import If from "@/components/If";
+import CurveArrow from "./CurveArrow.tsx";
 // import { useWhyDidYouUpdate } from 'ahooks';
 
 import { EMarkerType, Point, EArrowLineType } from "../../types";
@@ -28,6 +29,15 @@ const Arrow = memo((props: ArrowProps) => {
           strokeWidth={lineWidth}
           markerEnd={targetMarker !== EMarkerType.None ? `url(#whiteboard-arrow)` : 'none'}
           markerStart={sourceMarker !== EMarkerType.None ? `url(#whiteboard-arrow)` : 'none'}
+        />
+      </If>
+      <If condition={lineType === EArrowLineType.CURVE}>
+        <CurveArrow
+          points={points}
+          lineColor={lineColor}
+          lineWidth={lineWidth}
+          sourceMarker={sourceMarker}
+          targetMarker={targetMarker}
         />
       </If>
     </g>

@@ -10,6 +10,7 @@ export class ViewPortPlugin implements IBoardPlugin {
   boardOriginViewPort: ViewPort | null = null;
   boardOriginOffset: { x: number; y: number } | null = null;
   lastWheelTime = 0;
+  lastMoveTime = 0;
 
   onPointerDown(e: PointerEvent, board: Board) {
     // 右键
@@ -22,6 +23,10 @@ export class ViewPortPlugin implements IBoardPlugin {
 
   onPointerMove(e: PointerEvent, board: Board) {
     if (!this.isMouseDown || !this.boardOriginOffset || !this.boardOriginViewPort) return;
+
+    const now = Date.now();
+    if (now - this.lastMoveTime < 30) return;
+    this.lastMoveTime = now;
 
     const { x, y } = { x: e.clientX, y: e.clientY }
     const { x: originX, y: originY } = this.boardOriginOffset;
