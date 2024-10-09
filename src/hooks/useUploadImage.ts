@@ -3,17 +3,17 @@ import useSettingStore, { EImageBed } from "@/stores/useSettingStore.ts";
 import { putObject } from '@/commands';
 import { copyFileToLocal, transformGithubUrlToCDNUrl, uploadFileFromFile } from "@/utils";
 import { v4 as uuid } from "uuid";
-import TinyPng, { CompressResult } from 'tinypng-lib';
+// import TinyPng, { CompressResult } from 'tinypng-lib';
 
 const uploadImageInner = async (imageBed: any, file: File) => {
   const githubInfo = imageBed.github;
   const aliOSSInfo = imageBed.aliOSS;
 
-  const compressRes = (await TinyPng.compress(file, {}));
-  if (compressRes.success) {
-    file = (compressRes as CompressResult).file;
-    console.log('压缩后文件大小：', compressRes);
-  }
+  // const compressRes = (await TinyPng.compress(file, {}));
+  // if (compressRes.success) {
+  //   file = (compressRes as CompressResult).file;
+  //   console.log('压缩后文件大小：', compressRes);
+  // }
 
   if (imageBed.active === EImageBed.Github) {
     try {
