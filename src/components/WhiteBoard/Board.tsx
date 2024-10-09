@@ -19,7 +19,7 @@ const boardFlag = Symbol('board');
 
 const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandler | undefined => {
   if (plugin[eventName]) {
-    return plugin[eventName].bind(plugin);
+    return plugin[eventName]!.bind(plugin);
   }
 });
 
