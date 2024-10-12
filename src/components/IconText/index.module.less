@@ -2,12 +2,22 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  &.active {
-    color: var(--doc-fill-text-color);
+  width: 48px;
+  font-size: 24px;
+  .icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  &:hover {
-    color: var(--doc-fill-text-color);
+  &.active {
+    color: var(--active-text-color);
+    fill: var(--active-text-color);
+  }
+  &:not(.active):hover {
+    color: var(--active-text-color);
+    fill: var(--active-text-color);
     cursor: pointer;
   }
   .text {

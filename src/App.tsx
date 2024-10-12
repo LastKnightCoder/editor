@@ -5,7 +5,7 @@ import { RouterProvider } from "react-router-dom";
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
-import router from "@/router.tsx";
+import { classicRouter, shortSidebarRouter } from "@/router.tsx";
 import useSettingStore from "@/stores/useSettingStore";
 import useTheme from "@/hooks/useTheme.ts";
 import useSyncFont from "@/hooks/useSyncFont.ts";
@@ -45,7 +45,7 @@ const Application = () => {
         color: 'var(--text-normal)',
       }}>
         <DndProvider backend={HTML5Backend}>
-          <RouterProvider router={router} />
+          <RouterProvider router={shortSidebarRouter} />
         </DndProvider>
       </App>
     </ConfigProvider>

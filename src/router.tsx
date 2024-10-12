@@ -1,9 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
 import loadable from "@loadable/component";
 
-import ClassicLayout from "@/layouts/ClassicLayout";
+import ThreeColumnLayout from "@/layouts/ThreeColumnLayout";
 import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
+import ShortSidebarLayout from "./layouts/ShortSidebarLayout";
 
 const Statistic = loadable(() => import('@/pages/Statistic'));
 
@@ -18,10 +19,26 @@ const classicRoutes = [{
   element: <Statistic/>,
 }, {
   path: '/*',
-  element: <ClassicLayout />,
+  element: <ThreeColumnLayout />,
 }];
 
-export const router = createBrowserRouter(classicRoutes);
+const shortSidebarRoutes = [{
+  path: '/',
+  element: <ShortSidebarLayout />,
+  children: [{
+    path: 'cards/*',
+    element: <div>1111</div>
+  }, {
+    path: 'cards/:id/',
+  }, {
+    path: 'articles/',
+    element: <div>2222</div>
+  }]
+}]
+
+export const classicRouter = createBrowserRouter(classicRoutes);
+
+export const shortSidebarRouter = createBrowserRouter(shortSidebarRoutes);
 
 
-export default router;
+export default classicRouter;

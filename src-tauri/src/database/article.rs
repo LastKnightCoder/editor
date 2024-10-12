@@ -174,7 +174,7 @@ pub fn find_article(conn: &Connection, id: i64) -> Result<Article> {
 
 pub fn find_all_articles(conn: &Connection) -> Result<Vec<Article>> {
     // 根据更新时间倒序
-    let sql = "SELECT id, create_time, update_time, title, author, tags, links, content, banner_bg, is_top, is_delete FROM articles WHERE is_delete = 0 ORDER BY update_time DESC";
+    let sql = "SELECT id, create_time, update_time, title, author, tags, links, content, banner_bg, is_top, is_delete FROM articles WHERE is_delete = 0 ORDER BY create_time DESC";
     let mut stmt = conn.prepare(sql)?;
     let mut rows = stmt.query([])?;
     let mut res = Vec::new();

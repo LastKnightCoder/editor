@@ -5,7 +5,7 @@ import { RenderElementProps } from "slate-react";
 import { CardLinkElement } from "@/editor-extensions/card-link";
 import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
 import CardContent from "../CardContent";
-import { EditCardContext } from "@/layouts/ClassicLayout/Content/Card/EditCard";
+import { EditCardContext } from "@/context";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";

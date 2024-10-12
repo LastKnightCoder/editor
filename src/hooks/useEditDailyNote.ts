@@ -76,7 +76,6 @@ const useEditDailyNote = (id?: number) => {
     useDailyNoteStore.setState({
       activeDailyId: createdDailyNote.id,
     });
-    setEditingDailyNote(createdDailyNote);
   });
 
   const saveDailyNote = useMemoizedFn(async () => {
@@ -92,9 +91,6 @@ const useEditDailyNote = (id?: number) => {
     useDailyNoteStore.setState({
       activeDailyId: undefined,
     });
-    setEditingDailyNote(undefined);
-    prevDailyNote.current = null;
-    contentChanged.current = false;
   });
 
   const handleDeleteDailyNote = useMemoizedFn(async () => {

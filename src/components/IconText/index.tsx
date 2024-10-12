@@ -1,12 +1,14 @@
 import React from "react";
 import classnames from "classnames";
+import SVG from 'react-inlinesvg';
 
 import styles from './index.module.less';
 import { Tooltip } from "antd";
 
 interface IIconTextProps {
-  icon: React.ReactNode;
+  icon: string;
   text: React.ReactNode;
+  active?: boolean;
   onlyShowIcon?: boolean;
   onClick?: () => void;
   className?: string;
@@ -14,11 +16,13 @@ interface IIconTextProps {
 }
 
 const IconText = (props: IIconTextProps) => {
-  const { icon, text, onClick, className, style, onlyShowIcon } = props;
+  const { icon, text, onClick, className, style, onlyShowIcon, active } = props;
   return (
-    <div className={classnames(styles.iconText, className)} onClick={onClick} style={style}>
+    <div className={classnames(styles.iconText, { [styles.active]: active }, className)} onClick={onClick} style={style}>
       <Tooltip title={onlyShowIcon ? text : ''} trigger={'hover'} placement={'right'}>
-        <div>{icon}</div>
+        <div className={styles.icon}>
+          <SVG src={icon} />
+        </div>
       </Tooltip>
       {
         !onlyShowIcon && (

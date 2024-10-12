@@ -1,0 +1,43 @@
+.titleBar {
+  box-sizing: border-box;
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  .sidebar {
+    width: 1.5em;
+    height: 1.5em;
+    cursor: pointer;
+  }
+  .windowControl {
+    margin-left: auto;
+  }
+}
+
+.quitFocus {
+  position: fixed;
+  width: 100vw;
+  height: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  left: 0;
+  top: -100%;
+  transition: top 0.3s ease-in-out;
+  .quitIcon {
+    opacity: .7;
+    background-color: var(--primary-bg-color);
+    color: var(--text-color);
+    width: 48px;
+    height: 48px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: invert(1);
+  }
+  &.show {
+    top: 60px;
+  }
+}
