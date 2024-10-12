@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import isHotKey from "is-hotkey";
 
 import { PlusOutlined } from "@ant-design/icons";
@@ -11,10 +11,11 @@ interface AddTagProps {
   removeTag: (tag: string) => void;
   readonly?: boolean;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 const AddTag = (props: AddTagProps) => {
-  const { tags, addTag, removeTag, readonly = false, className } = props;
+  const { tags, addTag, removeTag, readonly = false, className, style } = props;
   const [addTagVisible, setAddTagVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -83,6 +84,7 @@ const AddTag = (props: AddTagProps) => {
   return (
     <Tags
       className={className}
+      style={style}
       tags={tags}
       hoverAble={!readonly}
       closable={!readonly}

@@ -7,6 +7,7 @@ interface IState {
   initLoading: boolean;
   dailyNotes: DailyNote[];
   activeDailyId?: number;
+  readonly: boolean;
 }
 
 interface IActions {
@@ -20,6 +21,7 @@ const initialState: IState = {
   dailyNotes: [],
   initLoading: false,
   activeDailyId: undefined,
+  readonly: false
 }
 
 const useDailyNoteStore = create<IState & IActions>((set, get) => ({

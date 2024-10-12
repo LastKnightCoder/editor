@@ -1,0 +1,24 @@
+.container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  --sidebar-width: 80px;
+  --title-bar-height: 60px;
+  .sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+  }
+  .content {
+    width: calc(100vw - var(--sidebar-width));
+    height: 100vh;
+    .titlebar {
+      width: 100%;
+      height: var(--title-bar-height);
+      box-sizing: border-box;
+      border-bottom: 1px solid var(--line-color);
+    }
+    .main {
+      height: calc(100vh - var(--titlebar-height));
+    }
+  }
+}

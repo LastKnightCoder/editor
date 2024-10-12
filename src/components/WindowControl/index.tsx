@@ -4,6 +4,7 @@ import classnames from "classnames";
 
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import If from "@/components/If";
+import FocusMode from '../FocusMode';
 import SVG from 'react-inlinesvg';
 import { Popover, Tooltip } from "antd";
 
@@ -173,6 +174,7 @@ const WindowControl = (props: IWindowControlProps) => {
           </Popover>
         )
       }
+      <FocusMode />
       <Tooltip
         title={alwaysOnTop ? '取消置顶' : '置顶'}
       >
