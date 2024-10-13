@@ -23,6 +23,8 @@ interface ICardItem2Props {
   maxRows?: number;
   showLine?: boolean;
   showTime?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
 const CardItem2 = memo((props: ICardItem2Props) => {
@@ -35,6 +37,8 @@ const CardItem2 = memo((props: ICardItem2Props) => {
     maxRows = 2,
     showLine = true,
     showTime = false,
+    className,
+    style,
   } = props;
 
   const { content, tags } = card;
@@ -44,7 +48,19 @@ const CardItem2 = memo((props: ICardItem2Props) => {
   const [settingPanelOpen, setSettingPanelOpen] = useState(false);
   
   return (
-    <div className={classnames(styles.itemContainer, { [styles.active]: active, [styles.showLine]: showLine })} onClick={onClick}>
+    <div 
+      className={
+        classnames(
+          styles.itemContainer, 
+          { 
+            [styles.active]: active, 
+            [styles.showLine]: showLine 
+          }, 
+          className
+      )} 
+      onClick={onClick}
+      style={style}
+    >
       <If condition={showTags}>
         <Tags
           tags={showedTags}

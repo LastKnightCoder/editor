@@ -1,0 +1,115 @@
+.queryContainer {
+  width: 100%;
+  height: 100%;
+  container: cardListContainer / inline-size;
+}
+
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  --card-tree-width: 240px;
+  --card-grid-width: calc(100% - var(--card-tree-width));
+  --list-width: calc(var(--card-grid-width) + var(--card-tree-width));
+  &.hideCardTree {
+    --card-tree-width: 0px;
+    .list .cardTree {
+      padding-left: 0;
+    }
+  }
+  &.showEdit {
+    --card-grid-width: 360px;
+  }
+  
+  .list {
+    width: var(--list-width);
+    overflow: hidden;
+    transition: width 0.3s;
+    .select {
+      display: flex;
+      margin: 20px 40px;
+      height: 40px;
+      .showCardTreeIcon {
+        box-sizing: border-box;
+        border: 2px solid var(--line-color);
+        margin-right: 12px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        flex: none;
+        cursor: pointer;
+        &:hover {
+          background-color: var(--common-hover-bg);
+        }
+      }
+    }
+    .cards {
+      display: flex;
+      height: calc(100% - 100px);
+    }
+    .cardTree {
+      .header {
+        position: sticky;
+        background-color: var(--primary-bg-color);
+        z-index: 1;
+        top: 0;
+        display: flex;
+        justify-content: space-between;
+        padding: 4px;
+        border-bottom: 1px solid var(--line-color);
+        .title {
+          // margin-left: calc(15px - 0.5em);
+          color: gray;
+        }
+        .icon {
+          margin-left: auto;
+          cursor: pointer;
+          margin-right: 10px;
+        }
+      }
+      padding-left: 40px;
+      box-sizing: border-box;
+      transition: all 0.3s;
+      width: var(--card-tree-width);
+      height: 100%;
+      overflow-y: auto;
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
+    .cardGridContainer {
+      width: var(--card-grid-width);
+      height: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      overflow-y: auto;
+      box-sizing: border-box;
+      padding: 0 40px;
+      transition: width 0.3s;
+      .item {
+        height: 180px;
+        margin-bottom: 0;
+      }
+    }
+  }
+  .edit {
+    width: calc(100% - var(--list-width));
+    height: 100%;
+    flex: none;
+    display: flex;
+    gap: 20px;
+    transition: width 0.3s;
+  }
+}
+
+@container cardListContainer (max-width: 1080px) {
+  .container {
+    &.showEdit {
+      --list-width: 0px;
+    }
+  }
+}

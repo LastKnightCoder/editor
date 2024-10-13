@@ -6,6 +6,9 @@ import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
 import ShortSidebarLayout from "./layouts/ShortSidebarLayout";
 
+import CardGrid from "@/layouts/ShortSidebarLayout/components/CardGrid";
+import CardLinkGraph from "@/layouts/ShortSidebarLayout/components/CardLinkGraph";
+
 const Statistic = loadable(() => import('@/pages/Statistic'));
 
 const classicRoutes = [{
@@ -26,10 +29,11 @@ const shortSidebarRoutes = [{
   path: '/',
   element: <ShortSidebarLayout />,
   children: [{
-    path: 'cards/*',
-    element: <div>1111</div>
+    path: 'cards/list',
+    element: <CardGrid />
   }, {
-    path: 'cards/:id/',
+    path: 'cards/link-graph/',
+    element: <CardLinkGraph />,
   }, {
     path: 'articles/',
     element: <div>2222</div>

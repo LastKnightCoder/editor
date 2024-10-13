@@ -5,8 +5,15 @@ import Titlebar from '../components/Titlebar';
 import CardTitlebar from './components/Titlebar/CardTitlebar';
 
 import styles from './index.module.less';
+import { useEffect } from 'react';
+import useCardsManagementStore from '@/stores/useCardsManagementStore';
 
 const ShortSidebarLayout = () => {
+
+  useEffect(() => {
+    useCardsManagementStore.getState().init();
+  }, []);
+
   return (
     <div className={styles.container}>
       <Sidebar className={styles.sidebar} />
@@ -19,7 +26,9 @@ const ShortSidebarLayout = () => {
             </Route>
           </Routes>
         </div>
-        <Outlet />
+        <div className={styles.main}>
+          <Outlet />
+        </div>
       </div>
     </div>
   )

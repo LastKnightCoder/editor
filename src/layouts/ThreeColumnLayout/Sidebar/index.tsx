@@ -29,6 +29,7 @@ import timeRecord from '@/assets/icons/time-record.svg';
 import whiteBoard from '@/assets/icons/white-board.svg';
 import pdf from '@/assets/icons/pdf.svg';
 
+import useCardTree from "@/hooks/useCardTree";
 import useSettingStore from "@/stores/useSettingStore";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
@@ -58,32 +59,24 @@ const Sidebar = memo(() => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const {
+    slicedCardTree,
+    cardTreeCount,
+    loadMoreCardTree,
+    cardTree
+  } = useCardTree();
+
   const [cardTreeOpen, setCardTreeOpen] = useState(false);
-  const [cardTreeCount, setCardTreeCount] = useState(10);
   const { cards, activeCardTag } = useCardsManagementStore(state => ({
     cards: state.cards,
     activeCardTag: state.activeCardTag,
   }));
-
-  const cardTree = useMemo(() => {
-    return generateCardTree(cards);
-  }, [cards]);
-
-  cardTree.sort((a, b) => b.cardIds.length - a.cardIds.length);
-
-  const slicedCardTree = useMemo(() => {
-    return cardTree.slice(0, cardTreeCount);
-  }, [cardTree, cardTreeCount]);
 
   const onClickCardTreeTag = useMemoizedFn((tag: string) => {
     useCardsManagementStore.setState({
       activeCardTag: tag
     })
     navigate(`/cards/`);
-  });
-
-  const loadMoreCardTree = useMemoizedFn(async () => {
-    setCardTreeCount(Math.min(cardTreeCount + 10, cardTree.length));
   });
 
   const {
@@ -173,7 +166,7 @@ const Sidebar = memo(() => {
                 : <MdOutlineDarkMode onClick={() => onDarkModeChange(true)} />
             }
           </div>
-          <div className={styles.setting} onClick={ () => { useSettingStore.setState({ settingModalOpen: true }) }} >
+          <div className={styles.setting} onClick={() => { useSettingStore.setState({ settingModalOpen: true }) }} >
             <MdOutlineSettingsSuggest />
           </div>
         </div>
@@ -194,7 +187,7 @@ const Sidebar = memo(() => {
           active={activeItem === EListItem.Projects}
           title={'项目'}
           expand={projectListOpen}
-          titleIcon={<SVG src={document}/>}
+          titleIcon={<SVG src={document} />}
           count={projects.length}
           onClickTitle={() => {
             navigate('/projects');
@@ -229,7 +222,7 @@ const Sidebar = memo(() => {
                     }}
                     titleIcon={(
                       <div className={styles.icon}>
-                        <MdOutlineDocumentScanner/>
+                        <MdOutlineDocumentScanner />
                       </div>
                     )}
                     extra={(
@@ -283,7 +276,7 @@ const Sidebar = memo(() => {
                           arrow={false}
                           placement={'rightTop'}
                         >
-                          <MdMoreVert/>
+                          <MdMoreVert />
                         </Popover>
                       </div>
                     )}
@@ -299,7 +292,7 @@ const Sidebar = memo(() => {
                   expand={archivedProjectListOpen}
                   titleIcon={(
                     <div
-                      className={styles.icon}><MdOutlineDocumentScanner/></div>
+                      className={styles.icon}><MdOutlineDocumentScanner /></div>
                   )}
                   count={archivedProjects.length}
                   onClickArrow={(e) => {
@@ -328,7 +321,7 @@ const Sidebar = memo(() => {
                           }}
                           titleIcon={(
                             <div
-                              className={styles.icon}><MdOutlineDocumentScanner/></div>
+                              className={styles.icon}><MdOutlineDocumentScanner /></div>
                           )}
                         />
                       </div>
@@ -353,23 +346,25 @@ const Sidebar = memo(() => {
             setCardTreeOpen(!cardTreeOpen);
           }}
         >
-          <LoadMoreComponent
-            className={styles.children}
-            onLoadMore={loadMoreCardTree}
-            showLoader={cardTreeCount < cardTree.length}
-          >
-            <For
-              data={slicedCardTree}
-              renderItem={item => (
-                <TagItem
-                  item={item}
-                  key={item.tag}
-                  onClickTag={onClickCardTreeTag}
-                  activeTag={activeCardTag}
-                />
-              )}
-            />
-          </LoadMoreComponent>
+          <div className={styles.children}>
+            <LoadMoreComponent
+              onLoadMore={loadMoreCardTree}
+              showLoader={cardTreeCount < cardTree.length}
+            >
+              <For
+                data={slicedCardTree}
+                renderItem={item => (
+                  <TagItem
+                    item={item}
+                    key={item.tag}
+                    onClickTag={onClickCardTreeTag}
+                    activeTag={activeCardTag}
+                  />
+                )}
+              />
+            </LoadMoreComponent>
+          </div>
+
         </ExpandList>
         <ExpandList
           active={activeItem === EListItem.Articles}
@@ -386,7 +381,7 @@ const Sidebar = memo(() => {
           active={activeItem === EListItem.Pdf}
           title={'PDF'}
           expand={false}
-          titleIcon={<SVG src={pdf} /> }
+          titleIcon={<SVG src={pdf} />}
           count={pdfs.length}
           onClickTitle={() => {
             navigate('/pdf');
@@ -397,7 +392,7 @@ const Sidebar = memo(() => {
           active={activeItem === EListItem.Documents}
           title={'知识库'}
           expand={documentListOpen}
-          titleIcon={<SVG src={document}/>}
+          titleIcon={<SVG src={document} />}
           onClickTitle={() => {
             navigate('/documents');
             useDocumentsStore.setState({
@@ -431,11 +426,11 @@ const Sidebar = memo(() => {
                     }
                   }}
                 >
-                  <div className={styles.icon}><MdOutlineDocumentScanner/></div>
+                  <div className={styles.icon}><MdOutlineDocumentScanner /></div>
                   <div className={styles.title}>{document.title}</div>
                   <div className={styles.count}>({document.count})</div>
                 </div>
-              )}/>
+              )} />
           </div>
         </ExpandList>
         <ExpandList

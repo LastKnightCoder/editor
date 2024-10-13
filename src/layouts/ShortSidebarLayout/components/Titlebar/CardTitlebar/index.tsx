@@ -23,7 +23,8 @@ const CardTitlebar = () => {
       <For
         data={tabsConfig}
         renderItem={item => (
-          <motion.div 
+          <motion.div
+            key={item.label}
             className={classnames(styles.item, { [styles.active]: item.active })}
             onClick={() => navigate(item.to)}
           >

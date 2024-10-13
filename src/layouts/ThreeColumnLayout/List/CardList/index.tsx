@@ -14,13 +14,8 @@ import { ICard, ECardCategory } from "@/types";
 import useCard from "../../hooks/useCard";
 
 import styles from './index.module.less';
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
 
 const CardList = memo(() => {
-  const { cards } = useCardsManagementStore(state => ({
-    cards: state.cards,
-  }));
-
   const {
     leftActiveCardId,
     rightActiveCardId,
@@ -30,12 +25,13 @@ const CardList = memo(() => {
     onCtrlClickCard,
     onSelectCategoryChange,
     updateCard,
+    filteredCards
   } = useCard();
 
   const activeCardIds = [leftActiveCardId, rightActiveCardId].filter(Boolean) as number[];
 
   const [cardsCount, setCardsCount] = useState<number>(10);
-  const [searchCards, setSearchCards] = useState<ICard[]>(cards);
+  const [searchCards, setSearchCards] = useState<ICard[]>(filteredCards);
   const sliceCards = searchCards.slice(0, cardsCount);
   const {
     searchValue,
@@ -65,8 +61,8 @@ const CardList = memo(() => {
   });
 
   useEffect(() => {
-    onSearchTags(cards, keywords);
-  }, [keywords, onSearchTags, cards]);
+    onSearchTags(filteredCards, keywords);
+  }, [keywords, onSearchTags, filteredCards]);
 
   const loadMore = async () => {
     setCardsCount(Math.min(cardsCount + 10, searchCards.length));
@@ -93,7 +89,7 @@ const CardList = memo(() => {
                     className={classnames(styles.categoryItem, { [styles.disable]: category === selectCategory })}
                     onClick={async (event) => {
                       if (category === selectCategory) return;
-                      const toUpdateCard = cards.find((card) => card.id === cardId);
+                      const toUpdateCard = filteredCards.find((card) => card.id === cardId);
                       if (!toUpdateCard) return;
                       await updateCard({
                         ...toUpdateCard,
