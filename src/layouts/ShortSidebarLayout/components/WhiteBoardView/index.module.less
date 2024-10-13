@@ -1,0 +1,30 @@
+.viewContainer {
+  width: 100%;
+  display: flex;
+  --white-board-grid-width: 100%;
+  &.showEdit {
+    --white-board-grid-width: 0px;
+    .gridContainer {
+      padding: 0;
+    }
+  }
+}
+
+.gridContainer {
+  width: var(--white-board-grid-width);
+  height: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 40px;
+  align-content: flex-start;
+  overflow-y: auto;
+  box-sizing: border-box;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.edit {
+  width: calc(100% - var(--white-board-grid-width));
+  height: 100%;
+}
