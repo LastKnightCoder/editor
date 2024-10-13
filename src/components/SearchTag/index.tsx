@@ -11,6 +11,7 @@ interface SearchTagProps {
   onFocus?: () => void;
   onBlur?: () => void;
   allowClear?: boolean;
+  style?: React.CSSProperties;
 }
 
 const SearchTag = forwardRef<InputRef, SearchTagProps>((props, ref) => {
@@ -23,6 +24,7 @@ const SearchTag = forwardRef<InputRef, SearchTagProps>((props, ref) => {
     allowClear = false,
     onFocus,
     onBlur,
+    style
   } = props;
 
   return (
@@ -36,6 +38,7 @@ const SearchTag = forwardRef<InputRef, SearchTagProps>((props, ref) => {
       allowClear={allowClear}
       onFocus={onFocus}
       onBlur={onBlur}
+      style={style}
     />
   )
 })

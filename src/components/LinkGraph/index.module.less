@@ -4,6 +4,29 @@
   overflow: hidden;
 }
 
+.loadingContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--primary-bg-color);
+  .loading {
+    width: 50px;
+    aspect-ratio: 1;
+    color: #f03355;
+    --_c: no-repeat radial-gradient(farthest-side, currentColor 92%, #0000);
+    background: var(--_c) 50% 0 / 12px 12px, var(--_c) 50% 100% / 12px 12px, var(--_c) 100% 50% / 12px 12px, var(--_c) 0 50% / 12px 12px, var(--_c) 50% 50% / 12px 12px, conic-gradient(from 90deg at 4px 4px, #0000 90deg, currentColor 0) -4px -4px / calc(50% + 2px) calc(50% + 2px);
+    animation: l8 1s infinite linear;
+  }
+}
+
+@keyframes l8 {
+  to{
+    transform: rotate(.5turn)
+  }
+}
+
 .editor {
   position: absolute;
   border-bottom: 20px solid transparent;

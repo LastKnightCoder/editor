@@ -194,7 +194,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
             >
               <LinkGraph
                 cards={allLinkedCards}
-                currentCardId={editingCard.id}
+                currentCardIds={[editingCard.id]}
                 cardWidth={320}
                 getCardLinks={getCardLinks}
                 style={{

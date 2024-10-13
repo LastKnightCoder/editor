@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation, useNavigate, useMatch } from 'react-router-dom';
+import { useNavigate, useMatch } from 'react-router-dom';
 import classnames from 'classnames';
 import IconText from '@/components/IconText';
 import For from '@/components/For';
@@ -33,7 +33,7 @@ const Sidebar = (props: SidebarProps) => {
     icon: document,
     desc: '项目',
     path: '/projects/list',
-    active: useMatch('/projects') !== null
+    active: useMatch('/projects/*') !== null
   }, {
     key: 'card',
     icon: card,
@@ -45,34 +45,33 @@ const Sidebar = (props: SidebarProps) => {
     icon: article,
     desc: '文章',
     path: '/articles',
-    active: useMatch('/articles') !== null
+    active: useMatch('/articles/*') !== null
   }, {
     key: 'document',
     icon: document,
-    desc: '文档',
+    desc: '知识库',
     path: '/documents',
-    active: useMatch('/documents') !== null
+    active: useMatch('/documents/*') !== null
   }, {
     key: 'pdf',
     icon: pdf,
     desc: 'PDF',
     path: '/pdfs',
-    active: useMatch('/pdfs') !== null
+    active: useMatch('/pdfs/*') !== null
   }, {
     key: 'daily',
     icon: daily,
-    desc:'日报',
+    desc:'日记',
     path: '/dailies',
-    active: useMatch('/dailies') !== null
+    active: useMatch('/dailies/*') !== null
     }, {
     key: 'timeRecord',
     icon: timeRecord,
     desc: '时间统计',
     path: '/time-records',
-    active: useMatch('/time-records') !== null
+    active: useMatch('/time-records/*') !== null
   },]
 
-  const location = useLocation();
   const navigate = useNavigate();
 
   return (
@@ -93,6 +92,7 @@ const Sidebar = (props: SidebarProps) => {
       </div>
       <div className={styles.setting}>
           <IconText
+            onlyShowIcon
             icon={document}
             text={'设置'}
           />

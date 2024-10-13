@@ -1,0 +1,13 @@
+.loader {
+  width: 100%;
+  font-weight: bold;
+  font-family: monospace;
+  font-size: 1.2em;
+  clip-path: inset(0 100% 0 0);
+  animation: l5 2s steps(11) infinite;
+  text-align: center;
+}
+.loader:before {
+  content:"Loading..."
+}
+@keyframes l5 {to{clip-path: inset(0 -1ch 0 0)}}
