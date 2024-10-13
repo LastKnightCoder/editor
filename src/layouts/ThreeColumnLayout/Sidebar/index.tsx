@@ -12,8 +12,6 @@ import If from "@/components/If";
 import SelectDatabase from '../components/SelectDatabase';
 import ExpandList from "../components/ExpandList";
 
-import { generateCardTree } from "@/utils/card";
-
 import {
   MdOutlineSettingsSuggest,
   MdOutlineDarkMode,

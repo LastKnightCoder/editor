@@ -1,18 +1,16 @@
 import { Outlet, Routes, Route } from 'react-router-dom';
 
-import Sidebar from './components/Sidebar';
 import Titlebar from '../components/Titlebar';
+import SettingModal from "../components/SettingModal";
+import Sidebar from './components/Sidebar';
 import CardTitlebar from './components/Titlebar/CardTitlebar';
 
+import useInitDatabase from "@/hooks/useInitDatabase.ts";
+
 import styles from './index.module.less';
-import { useEffect } from 'react';
-import useCardsManagementStore from '@/stores/useCardsManagementStore';
 
 const ShortSidebarLayout = () => {
-
-  useEffect(() => {
-    useCardsManagementStore.getState().init();
-  }, []);
+  useInitDatabase();
 
   return (
     <div className={styles.container}>
@@ -30,6 +28,7 @@ const ShortSidebarLayout = () => {
           <Outlet />
         </div>
       </div>
+      <SettingModal />
     </div>
   )
 }
