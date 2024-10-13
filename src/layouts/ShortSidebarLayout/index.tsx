@@ -4,6 +4,7 @@ import Titlebar from '../components/Titlebar';
 import SettingModal from "../components/SettingModal";
 import Sidebar from './components/Sidebar';
 import CardTitlebar from './components/Titlebar/CardTitlebar';
+import WhiteBoardTitlebar from "./components/Titlebar/WhiteBoardTitlebar";
 
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
 
@@ -20,6 +21,7 @@ const ShortSidebarLayout = () => {
           <Routes>
             <Route path='/' element={<Titlebar />}>
               <Route path="cards/*" element={<CardTitlebar />} />
+              <Route path="white-boards/*" element={<WhiteBoardTitlebar />} />
               <Route path="*" element={<div />} />
             </Route>
           </Routes>

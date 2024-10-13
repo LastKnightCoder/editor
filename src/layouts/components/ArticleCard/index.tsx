@@ -179,8 +179,8 @@ const ArticleCard = (props: IArticleCardProps) => {
               <div className={styles.time}>
                 <CalendarOutlined />
                 <span className={styles.date}>
-              发表于：{formatDate(article.create_time, true)}
-            </span>
+                  发表于：{formatDate(article.create_time, true)}
+                </span>
               </div>
             </div>
             <div>

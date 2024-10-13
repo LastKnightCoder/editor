@@ -9,6 +9,7 @@ import ShortSidebarLayout from "./layouts/ShortSidebarLayout";
 import CardView from "@/layouts/ShortSidebarLayout/components/CardView";
 import ArticleView from '@/layouts/ShortSidebarLayout/components/ArticleView';
 import CardLinkGraph from "@/layouts/ShortSidebarLayout/components/CardLinkGraph";
+import WhiteBoardView from "@/layouts/ShortSidebarLayout/components/WhiteBoardView";
 
 const Statistic = loadable(() => import('@/pages/Statistic'));
 
@@ -38,6 +39,9 @@ const shortSidebarRoutes = [{
   }, {
     path: 'articles/',
     element: <ArticleView />
+  }, {
+    path: 'white-boards/',
+    element: <WhiteBoardView />
   }]
 }]
 
