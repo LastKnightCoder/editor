@@ -9,6 +9,7 @@ import AppAbout from "./AppAbout";
 import FontSetting from "./FontSetting";
 import ImageBedSetting from "./ImageBedSetting";
 import SyncSetting from "./SyncSetting";
+import ModuleSetting from "./ModuleSetting";
 
 import styles from './index.module.less';
 
@@ -36,6 +37,10 @@ const SettingModal = () => {
     key: 'app',
     label: '关于软件',
     children: <AppAbout />,
+  }, {
+    key: 'module',
+    label: '模块功能',
+    children: <ModuleSetting />,
   }, {
     key: 'font',
     label: '字体',

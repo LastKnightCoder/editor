@@ -52,13 +52,46 @@ interface ISetting {
       path: string;
     }
   },
-
   database: {
     active: string;
     databases: Array<{
       name: string;
       version: number;
     }>;
+  }
+  module: {
+    card: {
+      enable: boolean;
+      name: '卡片'
+    },
+    article: {
+      enable: boolean;
+      name: '文章'
+    },
+    whiteBoard: {
+      enable: boolean;
+      name: '白板'
+    },
+    project: {
+      enable: boolean;
+      name: '项目'
+    },
+    document: {
+      enable: boolean;
+      name: '知识库'
+    },
+    dailyNote: {
+      enable: boolean;
+      name: '日记'
+    },
+    pdf: {
+      enable: boolean;
+      name: 'PDF'
+    },
+    timeRecord: {
+      enable: boolean;
+      name: '时间记录'
+    }
   }
   darkMode: boolean;
 }
@@ -123,6 +156,40 @@ const initialState: IState = {
         name: 'data.db',
         version: 1,
       }],
+    },
+    module: {
+      card: {
+        enable: true,
+        name: '卡片'
+      },
+      article: {
+        enable: true,
+        name: '文章'
+      },
+      whiteBoard: {
+        enable: true,
+        name: '白板'
+      },
+      project: {
+        enable: true,
+        name: '项目'
+      },
+      document: {
+        enable: true,
+        name: '知识库'
+      },
+      dailyNote: {
+        enable: true,
+        name: '日记'
+      },
+      pdf: {
+        enable: true,
+        name: 'PDF'
+      },
+      timeRecord: {
+        enable: true,
+        name: '时间记录'
+      }
     }
   },
   settingModalOpen: false,

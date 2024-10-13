@@ -30,7 +30,6 @@ const AppAbout = () => {
     try {
       const { shouldUpdate, manifest } = await checkUpdate()
       if (shouldUpdate) {
-
         modal.confirm({
           title: '发现新版本',
           content: `发现新版本 ${manifest?.version}, 是否立即更新？`,
@@ -54,7 +53,13 @@ const AppAbout = () => {
     }
   }
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className={styles.loadContainer}>
+        <div className={styles.loader}/>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.container}>

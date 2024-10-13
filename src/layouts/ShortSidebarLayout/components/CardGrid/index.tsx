@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import classnames from 'classnames';
-import { Select, Tooltip, FloatButton } from 'antd';
+import { Select, Tooltip, FloatButton, Popover } from 'antd';
 import { useMemoizedFn } from 'ahooks';
 
 import For from '@/components/For';
@@ -30,10 +30,16 @@ const CardContainer = () => {
 
   const { cardTree } = useCardTree();
 
-  const { cards, selectCategory, activeCardTag } = useCardsManagementStore(state => ({
+  const { 
+    cards, 
+    selectCategory, 
+    activeCardTag, 
+    updateCard 
+  } = useCardsManagementStore(state => ({
     cards: state.cards,
     selectCategory: state.selectCategory,
     activeCardTag: state.activeCardTag,
+    updateCard: state.updateCard
   }));
 
   const filteredCards = useMemo(() => {
@@ -107,7 +113,7 @@ const CardContainer = () => {
     setCardsCount(Math.min(cardsCount + 10, searchCards.length));
   })
 
-  const handleGapChange = useMemoizedFn((entries: ResizeObserverEntry[]) => {
+  const handleResize = useMemoizedFn((entries: ResizeObserverEntry[]) => {
     const { width } = entries[0].contentRect;
 
     const nMin = Math.ceil((width + GAP) / (MAX_WIDTH + GAP));
@@ -132,19 +138,63 @@ const CardContainer = () => {
     })
   });
 
+  const getSettings = (cardId: number) => {
+    return [{
+      title: '删除卡片',
+      onClick: onDeleteCard,
+    }, {
+      title: (
+        <Popover
+          placement="right"
+          trigger="hover"
+          overlayInnerStyle={{
+            padding: 4
+          }}
+          content={(
+            <div className={styles.categories}>
+              {
+                Object.keys(cardCategoryName).map((category) => (
+                  <div
+                    key={category}
+                    className={classnames(styles.categoryItem, { [styles.disable]: category === selectCategory })}
+                    onClick={async (event) => {
+                      if (category === selectCategory) return;
+                      const toUpdateCard = filteredCards.find((card) => card.id === cardId);
+                      if (!toUpdateCard) return;
+                      await updateCard({
+                        ...toUpdateCard,
+                        category: category as ECardCategory,
+                      });
+                      event.stopPropagation();
+                    }}
+                  >
+                    {cardCategoryName[category as ECardCategory]}
+                  </div>
+                ))
+              }
+            </div>
+          )}
+        >
+          <div>
+            编辑分类
+          </div>
+        </Popover>
+      ),
+    }]
+  };
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const observer = new ResizeObserver(handleGapChange);
+    const observer = new ResizeObserver(handleResize);
 
     observer.observe(container);
 
     return () => {
       observer.disconnect();
     }
-
-  }, [handleGapChange]);
+  }, [handleResize]);
 
   useEffect(() => {
     onSearchTags(filteredCards, keywords);
@@ -250,12 +300,7 @@ const CardContainer = () => {
                       showTags
                       showTime
                       maxRows={3}
-                      settings={[{
-                        title: '删除卡片',
-                        onClick: (cardId) => {
-                          onDeleteCard(cardId)
-                        }
-                      }]}
+                      settings={getSettings(card.id)}
                       onClick={(e) => {
                         if (e.ctrlKey) {
                           onCtrlClickCard(card.id)

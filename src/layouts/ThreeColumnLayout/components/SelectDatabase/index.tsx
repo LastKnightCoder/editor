@@ -1,27 +1,18 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Dropdown, MenuProps, Space, Divider, Button, theme, Modal, Input, InputRef, App } from "antd";
 import { produce } from "immer";
 import { DownOutlined } from "@ant-design/icons";
 
 import useSettingStore from "@/stores/useSettingStore";
-import useInitDatabase from "@/hooks/useInitDatabase";
-
-import { connectDatabaseByName } from '@/commands';
 
 const { useToken } = theme;
 
 const SelectDatabase = () => {
   const {
-    inited,
     database
   } = useSettingStore(state => ({
-    inited: state.inited,
     database: state.setting.database,
   }));
-  
-  const {
-    initDatabase,
-  } = useInitDatabase();
 
   const [createDatabaseModalOpen, setCreateDatabaseModalOpen] = useState(false);
   const createRef = useRef<InputRef>(null);
@@ -49,21 +40,6 @@ const SelectDatabase = () => {
       state.setting.database.active = key;
     }));
   }
-
-  useEffect(() => {
-    if (!inited || !active) return;
-    message.open({
-      type: 'loading',
-      content: '正在初始化数据库...',
-      key: 'initDatabase',
-      duration: 0,
-    })
-    connectDatabaseByName(active).then(() => {
-      initDatabase().then(() => {
-        message.destroy('initDatabase');
-      });
-    });
-  }, [inited, active, initDatabase, message]);
 
   const onHandleCreateDatabase = (databaseName: string) => {
     if (!databaseName) return;
