@@ -1,4 +1,4 @@
-import { createContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Descendant, Editor as SlateEditor } from "slate";
 import { useRafInterval, useUnmount } from "ahooks";
 

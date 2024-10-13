@@ -4,7 +4,7 @@ import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 
 import ArticleList from "@/layouts/components/ArticleList";
-import EditArticle from '@/layouts/ThreeColumnLayout/Content/Article';
+import EditArticle from '@/layouts/components/EditArticle';
 
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";

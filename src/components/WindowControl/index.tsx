@@ -5,6 +5,7 @@ import classnames from "classnames";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import If from "@/components/If";
 import FocusMode from '../FocusMode';
+import SelectDatabase from "@/components/SelectDatabase";
 import SVG from 'react-inlinesvg';
 import { Popover, Tooltip } from "antd";
 
@@ -26,10 +27,21 @@ interface IWindowControlProps {
   notShowFullscreen?: boolean;
   initAlwaysOnTop?: boolean;
   showColumns?: boolean;
+  showSelectDatabase?: boolean;
+  showFocusMode?: boolean;
 }
 
 const WindowControl = (props: IWindowControlProps) => {
-  const { className, style, notShowFullscreen = false, initAlwaysOnTop = false, showColumns = false } = props;
+  const {
+    className,
+    style,
+    notShowFullscreen = false,
+    initAlwaysOnTop = false,
+    showColumns = false,
+    showSelectDatabase = false,
+    showFocusMode = false
+  } = props;
+
   const [isMaximizable, setIsMaximizable] = useState<boolean>(false);
   const [alwaysOnTop, setAlwaysOnTop] = useState<boolean>(initAlwaysOnTop);
 
@@ -121,6 +133,11 @@ const WindowControl = (props: IWindowControlProps) => {
   return (
     <div className={classnames(styles.windowControl, className)} style={style}>
       {
+        showSelectDatabase && (
+          <SelectDatabase />
+        )
+      }
+      {
         showColumns && (
           <Popover
             trigger={'hover'}
@@ -174,7 +191,11 @@ const WindowControl = (props: IWindowControlProps) => {
           </Popover>
         )
       }
-      <FocusMode />
+      {
+        showFocusMode && (
+          <FocusMode />
+        )
+      }
       <Tooltip
         title={alwaysOnTop ? '取消置顶' : '置顶'}
       >

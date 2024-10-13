@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, memo, useState } from "react";
 import { Tooltip } from "antd";
 import { useMemoizedFn, useRafInterval, useThrottleFn, useSize } from "ahooks";
 
-import Editor, { EditorRef } from "@/components/Editor";
+import Editor, { EditorRef } from "@editor/index.tsx";
 import AddTag from "@/components/AddTag";
 import EditText from "@/components/EditText";
 import StatusBar from "@/components/StatusBar";
@@ -12,16 +12,16 @@ import { MdFormatIndentDecrease, MdFormatIndentIncrease, MdOutlineCode } from "r
 
 import { CalendarOutlined, EditOutlined, ReadOutlined } from "@ant-design/icons";
 import LocalImage from "@editor/components/LocalImage";
-import EditorOutline from "../../components/EditorOutline";
+import EditorOutline from "../../ThreeColumnLayout/components/EditorOutline";
 import { getInlineElementText } from "@/utils";
-import { formatDate } from "@/utils/time";
+import { formatDate } from "@/utils/time.ts";
 
 import { HeaderElement } from "@editor/types";
 
-import useEditArticle from "@/hooks/useEditArticle";
-import useUploadImage from "@/hooks/useUploadImage";
+import useEditArticle from "@/hooks/useEditArticle.ts";
+import useUploadImage from "@/hooks/useUploadImage.ts";
 import { cardLinkExtension, fileAttachmentExtension } from '@/editor-extensions';
-import useArticleManagementStore from "@/stores/useArticleManagementStore";
+import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
 import styles from './index.module.less';
 

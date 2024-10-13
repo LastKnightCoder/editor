@@ -14,6 +14,11 @@ export enum ESync {
   AliOSS = 'aliOSS',
 }
 
+export enum ELayout {
+  ThreeColumn = 'threeColumn',
+  ShortSidebar = 'shortSidebar',
+}
+
 interface ISetting {
   fontSetting: {
     chineseFont: string;
@@ -94,6 +99,7 @@ interface ISetting {
     }
   }
   darkMode: boolean;
+  layout: ELayout;
 }
 
 interface IState {
@@ -190,7 +196,8 @@ const initialState: IState = {
         enable: true,
         name: '时间记录'
       }
-    }
+    },
+    layout: ELayout.ShortSidebar
   },
   settingModalOpen: false,
 }

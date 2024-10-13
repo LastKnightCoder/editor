@@ -75,7 +75,7 @@ const Titlebar = memo(() => {
       <If condition={!focusMode}>
         <Outlet />
       </If>
-      <WindowControl className={styles.windowControl} showColumns={true} />
+      <WindowControl className={styles.windowControl} showColumns={true} showFocusMode={true} />
     </div>
   )
 });

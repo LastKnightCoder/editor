@@ -4,7 +4,7 @@ import { Modal } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import EditText from "@/components/EditText";
-import Editor from '@/components/Editor';
+import Editor from '@editor/index.tsx';
 
 import styles from './index.module.less';
 

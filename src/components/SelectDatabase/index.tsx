@@ -3,7 +3,7 @@ import { Dropdown, MenuProps, Space, Divider, Button, theme, Modal, Input, Input
 import { produce } from "immer";
 import { DownOutlined } from "@ant-design/icons";
 
-import useSettingStore from "@/stores/useSettingStore";
+import useSettingStore from "@/stores/useSettingStore.ts";
 
 const { useToken } = theme;
 

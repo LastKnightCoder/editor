@@ -34,7 +34,7 @@ const ProjectList = loadable(() => import('./List/ProjectList'));
 const PdfList = loadable(() => import('./List/PdfList'));
 const WhiteBoardList = loadable(() => import('./List/WhiteBoardList'));
 
-const ArticleContent = loadable(() => import('./Content/Article'));
+const ArticleContent = loadable(() => import('../components/EditArticle'));
 const DocumentContent = loadable(() => import('./Content/Document'));
 const DailyNoteContent = loadable(() => import('./Content/DailyNote'));
 const TimeRecordContent = loadable(() => import('./Content/TimeRecord'));
