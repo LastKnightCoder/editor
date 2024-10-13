@@ -115,13 +115,11 @@ const Sidebar = (props: SidebarProps) => {
       </div>
       <div className={styles.setting}>
           <IconText
-            // onlyShowIcon
             icon={darkMode ? sun : moon}
             text={darkMode ? '浅色' : '深色'}
             onClick={() => onDarkModeChange(!darkMode)}
           />
           <IconText
-            // onlyShowIcon
             icon={setting}
             text={'设置'}
             onClick={() => {
