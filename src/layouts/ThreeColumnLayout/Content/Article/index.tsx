@@ -1,28 +1,29 @@
 import { useEffect, useMemo, useRef, memo, useState } from "react";
-import { useMemoizedFn, useRafInterval, useThrottleFn } from "ahooks";
+import { Tooltip } from "antd";
+import { useMemoizedFn, useRafInterval, useThrottleFn, useSize } from "ahooks";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import EditText from "@/components/EditText";
 import StatusBar from "@/components/StatusBar";
+import EditorSourceValue from "@/components/EditorSourceValue";
+import { isValid } from "@/components/WhiteBoard/utils";
+import { MdFormatIndentDecrease, MdFormatIndentIncrease, MdOutlineCode } from "react-icons/md";
+
 import { CalendarOutlined, EditOutlined, ReadOutlined } from "@ant-design/icons";
 import LocalImage from "@editor/components/LocalImage";
 import EditorOutline from "../../components/EditorOutline";
-
-import useUploadImage from "@/hooks/useUploadImage";
 import { getInlineElementText } from "@/utils";
 import { formatDate } from "@/utils/time";
-import { HeaderElement } from "@editor/types";
-import useEditArticle from "@/hooks/useEditArticle";
 
+import { HeaderElement } from "@editor/types";
+
+import useEditArticle from "@/hooks/useEditArticle";
+import useUploadImage from "@/hooks/useUploadImage";
 import { cardLinkExtension, fileAttachmentExtension } from '@/editor-extensions';
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 
 import styles from './index.module.less';
-import { Tooltip } from "antd";
-import { MdFormatIndentDecrease, MdFormatIndentIncrease, MdOutlineCode } from "react-icons/md";
-import EditorSourceValue from "@/components/EditorSourceValue";
-import { isValid } from "@/components/WhiteBoard/utils";
 
 const extensions = [cardLinkExtension, fileAttachmentExtension];
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
@@ -51,7 +52,8 @@ const EditArticle = memo(() => {
   const [showOutline, setShowOutline] = useState(false);
   const [readonly, setReadonly] = useState(true);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
-
+  const size = useSize(containerRef);
+  
   const uploadImage = useUploadImage();
 
   const headers: Array<{
@@ -67,9 +69,6 @@ const EditArticle = memo(() => {
   }, [editingArticle]);
 
   const statusBarConfigs = useMemo(() => {
-    const container = containerRef.current;
-    if (!container) return [];
-    const { width } = container.getBoundingClientRect();
     return [{
       key: 'words-count',
       children: (
@@ -97,7 +96,7 @@ const EditArticle = memo(() => {
       onClick: () => {
         setReadonly(!readonly);
       }
-    }, headers.length > 0 && width > OUTLINE_SHOW_WIDTH_THRESHOLD ? {
+    }, size && size.width > OUTLINE_SHOW_WIDTH_THRESHOLD && headers.length > 0 ? {
       key: 'outline',
       children: (
         <>
@@ -130,7 +129,7 @@ const EditArticle = memo(() => {
         setEditorSourceValueOpen(true);
       }
     }].filter(isValid)
-  }, [headers.length, readonly, showOutline, wordsCount]);
+  }, [headers.length, readonly, showOutline, size, wordsCount]);
 
   const { run: handleContentResize } = useThrottleFn((entries: ResizeObserverEntry[]) => {
     const { width } = entries[0].contentRect;

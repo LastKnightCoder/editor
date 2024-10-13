@@ -1,0 +1,59 @@
+import { FloatButton } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import classnames from "classnames";
+import { useMemoizedFn } from "ahooks";
+
+import ArticleList from "@/layouts/components/ArticleList";
+import EditArticle from '@/layouts/ThreeColumnLayout/Content/Article';
+
+import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
+import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
+
+import styles from './index.module.less';
+
+const ArticleView = () => {
+  const {
+    activeArticleId,
+    createArticle
+  } = useArticleManagementStore(state => ({
+    activeArticleId: state.activeArticleId,
+    createArticle: state.createArticle,
+  }));
+
+  const handleAddNewArticle = useMemoizedFn(async () => {
+    const article = await createArticle({
+      title: '默认文章标题',
+      content: DEFAULT_ARTICLE_CONTENT,
+      bannerBg: '',
+      isTop: false,
+      author: '',
+      links: [],
+      tags: [],
+    });
+    useArticleManagementStore.setState({
+      activeArticleId: article.id,
+    });
+  });
+
+  const isShowEdit = !!activeArticleId;
+
+  return (
+    <div className={classnames(styles.viewContainer, { [styles.showEdit]: isShowEdit })}>
+      <ArticleList className={styles.listContainer} />
+      <div className={styles.editContainer}>
+        {
+          isShowEdit && (
+            <EditArticle />
+          )
+        }
+      </div>
+      <FloatButton
+        icon={<PlusOutlined />}
+        tooltip={'新建文章'}
+        onClick={handleAddNewArticle}
+      />
+    </div>
+  )
+}
+
+export default ArticleView;
