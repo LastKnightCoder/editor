@@ -100,7 +100,7 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
 
   return (
     <Spin spinning={bannerUploading}>
-      <div className={cardClassName} style={style} onClick={onClick}>
+      <div className={cardClassName} style={style}>
         <div className={styles.imageContainer}>
           <LocalImage url={whiteBoard.snapshot || defaultSnapshot}/>
           <div className={classnames(styles.operate)}>
@@ -117,7 +117,8 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
                   <div className={styles.settingItem} onClick={handleDeleteWhiteBoard}>删除白板</div>
                   <div
                     className={styles.settingItem}
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setSettingOpen(false);
                       fileUploadRef.current?.click();
                     }}
@@ -139,7 +140,7 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
           </div>
         </div>
         <div className={styles.content}>
-          <Text className={styles.title} ellipsis={{ tooltip: whiteBoard.title }}>
+          <Text className={styles.title} ellipsis={{ tooltip: whiteBoard.title }} onClick={onClick}>
             {whiteBoard.title}
           </Text>
           <div className={styles.time}>

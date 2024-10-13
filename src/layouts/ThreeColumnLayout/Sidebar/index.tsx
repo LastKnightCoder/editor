@@ -9,7 +9,7 @@ import TagItem from "@/components/TagItem";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import If from "@/components/If";
-import SelectDatabase from '../components/SelectDatabase';
+import SelectDatabase from '../../../components/SelectDatabase';
 import ExpandList from "../components/ExpandList";
 
 import {

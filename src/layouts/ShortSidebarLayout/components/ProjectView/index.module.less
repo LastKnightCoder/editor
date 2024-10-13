@@ -1,0 +1,14 @@
+.viewContainer {
+  width: 100%;
+  height: 100%;
+  --sidebar-width: 300px;
+  display: flex;
+  .sidebar {
+    width: var(--sidebar-width);
+    height: 100%;
+  }
+  .edit {
+    width: calc(100% - var(--sidebar-width));
+    height: 100%;
+  }
+}

@@ -9,7 +9,7 @@
   overflow: hidden;
   flex: none;
   border-radius: 12px;
-  box-shadow: 0 4px 21px -12px rgba(0, 0, 0, 0.66);
+  box-shadow: 0 1.5px 3px 0 rgb(0 0 0 / 15%);
   background-color: var(--card-bg);
   background-image: linear-gradient(var(--gradient-angle), var(--bg-color2), transparent 50%);
   &.green {
@@ -62,9 +62,8 @@
     }
   }
   .content {
-    margin-top: 8px;
     box-sizing: border-box;
-    padding: 20px;
+    padding: 12px 20px;
     width: 100%;
     height: calc(100% - 120px);
     display: flex;
@@ -88,6 +87,20 @@
       gap: 4px;
       color: gray;
       font-size: 14px;
+    }
+  }
+}
+
+.settings {
+  display: flex;
+  gap: 10px;
+  flex-direction: column;
+  .settingItem {
+    padding: 8px 16px;
+    border-radius: 4px;
+    &:hover {
+      background-color: var(--common-hover-bg);
+      cursor: pointer;
     }
   }
 }

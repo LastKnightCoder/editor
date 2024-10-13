@@ -12,7 +12,14 @@ import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 import styles from './index.module.less';
 
-const Titlebar = memo(() => {
+interface TitlebarProps {
+  showColumns?: boolean;
+  showSelectDatabase?: boolean;
+  showFocusMode?: boolean;
+}
+
+const Titlebar = memo((props: TitlebarProps) => {
+  const { showColumns, showSelectDatabase, showFocusMode } = props;
   const {
     focusMode,
   } = useGlobalStateStore(state => ({
@@ -75,7 +82,7 @@ const Titlebar = memo(() => {
       <If condition={!focusMode}>
         <Outlet />
       </If>
-      <WindowControl className={styles.windowControl} showColumns={true} />
+      <WindowControl className={styles.windowControl} showColumns={showColumns} showSelectDatabase={showSelectDatabase} showFocusMode={showFocusMode} />
     </div>
   )
 });

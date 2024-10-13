@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import TitlebarIcon from "@/components/TitlebarIcon";
-import EditProjectInfoModal from "../../components/EditProjectInfoModal";
+import EditProjectInfoModal from "../../../components/EditProjectInfoModal";
 import FocusMode from "../../../../components/FocusMode";
 
 import useProjectsStore from "@/stores/useProjectsStore";

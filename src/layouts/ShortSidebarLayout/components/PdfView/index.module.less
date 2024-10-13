@@ -1,0 +1,28 @@
+.viewContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  --pdf-grid-width: 100%;
+  &.showEdit {
+    --pdf-grid-width: 400px;
+  }
+  .gridContainer {
+    display: flex;
+    flex-wrap: wrap;
+    width: var(--pdf-grid-width);
+    height: 100%;
+    overflow-y: auto;
+    padding: 40px;
+    box-sizing: border-box;
+    align-content: flex-start;
+    transition: width 0.3s;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+  .edit {
+    width: calc(100% - var(--pdf-grid-width));
+    height: 100%;
+    transition: width 0.3s;
+  }
+}
