@@ -61,6 +61,7 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
   if (!Element.isElement(node)) {
     return;
   }
+  ReactEditor.focus(editor);
   const path = ReactEditor.findPath(editor, node);
   const nextPath = Path.next(path);
   Transforms.insertNodes(editor, {
@@ -69,12 +70,6 @@ export const insertParagraphAndFocus = (editor: Editor, node: Node) => {
   }, {
     at: nextPath,
     select: true,
-  });
-
-  ReactEditor.focus(editor);
-  Transforms.select(editor, {
-    anchor: Editor.start(editor, nextPath),
-    focus: Editor.end(editor, nextPath),
   });
 }
 
@@ -86,12 +81,14 @@ export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, 
   if (!curEle) {
     return;
   }
-  Transforms.removeNodes(editor, {
-    at: curEle[1],
-  });
-  Transforms.insertNodes(editor, node, {
-    at: curEle[1],
-    ...options,
+  Editor.withoutNormalizing(editor, () => {
+    Transforms.removeNodes(editor, {
+      at: curEle[1],
+    });
+    Transforms.insertNodes(editor, node, {
+      at: curEle[1],
+      ...options,
+    });
   });
   return curEle[1];
 }

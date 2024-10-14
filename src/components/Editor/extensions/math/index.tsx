@@ -51,7 +51,7 @@ export class BlockMathExtension extends Base{
 
   override toMarkdown(element: Element): string {
     const blockMathElement = element as BlockMathElement;
-    return `$$\n${blockMathElement.tex}\n$$\n`;
+    return `$$\n${blockMathElement.tex}\n$$`;
   }
 
   render(props: RenderElementProps) {

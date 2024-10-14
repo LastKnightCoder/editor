@@ -19,7 +19,7 @@ class GraphvizExtension extends Base implements IExtension {
   override toMarkdown(element: Element,): string {
     const graphvizEle = element as unknown as GraphvizElement;
     const { dot } = graphvizEle;
-    return `\`\`\` graphviz\n${dot}\n\`\`\`\n`;
+    return `\`\`\` graphviz\n${dot}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {

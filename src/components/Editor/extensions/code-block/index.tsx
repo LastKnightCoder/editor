@@ -36,7 +36,7 @@ class CodeBlockExtension extends Base implements IExtension {
   override toMarkdown(element: Element): string {
     const codeBlockEle = element as unknown as CodeBlockElement;
     const { language, code } = codeBlockEle;
-    return `\`\`\`${language}\n${code}\n\`\`\`\n`;
+    return `\`\`\`${language}\n${code}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {

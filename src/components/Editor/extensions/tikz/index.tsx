@@ -20,7 +20,7 @@ class TikzExtension extends Base implements IExtension {
 
   override toMarkdown(element: Element): string {
     const { content } = element as TikzElement;
-    return `\`\`\`tikz\n${content}\n\`\`\`\n`;
+    return `\`\`\`tikz\n${content}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {

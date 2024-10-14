@@ -21,7 +21,7 @@ export class TableExtension extends Base implements IExtension {
   }
 
   override toMarkdown(_element: Element, children: string): string {
-    return `<table>\n<tbody>\n${children}\n</tbody>\n</table>\n`;
+    return `<table>\n<tbody>\n${children}\n</tbody>\n</table>`;
   }
 
   render(props: RenderElementProps) {

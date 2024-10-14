@@ -17,7 +17,7 @@ class ImageGalleryExtension extends Base implements IExtension {
   override toMarkdown(element: Element): string {
     const { images } = element as ImageGalleryElement;
 
-    return images.map(image => `![](${image.url})`).join('\n') + '\n';
+    return images.map(image => `![](${image.url})`).join('\n');
   }
 
   render(props: RenderElementProps) {

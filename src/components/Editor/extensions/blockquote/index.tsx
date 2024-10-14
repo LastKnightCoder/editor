@@ -17,7 +17,7 @@ class BlockquoteExtension extends Base implements IExtension {
 
   override toMarkdown(_element: Element, children: string) {
     // 按照 \n 分割
-    return children.split('\n').map((child) => `> ${child}`).join('\n') + '\n';
+    return children.split('\n').map((child) => `> ${child}`).join('\n');
   }
 
   render(props: RenderElementProps) {
