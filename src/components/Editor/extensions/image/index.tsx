@@ -23,7 +23,7 @@ class ImageExtension extends Base implements IExtension {
   override toMarkdown(element: Element): string {
     const { url, alt } = element as ImageElement;
 
-    return `![${alt || ''}](${url})\n`;
+    return `![${alt || ''}](${url})`;
   }
 
   render(props: RenderElementProps) {

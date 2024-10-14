@@ -23,7 +23,7 @@ class HeaderExtension extends Base implements IExtension {
   override toMarkdown(element: Element, children: string): string {
     const headerEle = element as unknown as HeaderElement;
     const { level } = headerEle;
-    return `${'#'.repeat(level)} ${children}\n`;
+    return `${'#'.repeat(level)} ${children}`;
   }
 
   render(props: RenderElementProps) {

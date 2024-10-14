@@ -24,7 +24,7 @@ class CalloutExtension extends Base implements IExtension {
     const calloutEle = element as unknown as CalloutElement;
     const { type, title } = calloutEle;
 
-    return `::: ${type} ${title}\n${children}\n:::\n`;
+    return `::: ${type} ${title}\n${children}\n:::`;
   }
 
   render(props: RenderElementProps) {

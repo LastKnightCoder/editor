@@ -13,7 +13,7 @@ class ParagraphExtension extends Base implements IExtension {
   override type = 'paragraph';
 
   override toMarkdown(_element: Element, children: string): string {
-    return children + '\n';
+    return children;
   }
 
   override getPlugins() {

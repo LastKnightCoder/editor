@@ -1,6 +1,5 @@
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
-import { useMemo } from "react";
-import { Transforms } from "slate";
+import { Editor, Transforms, Element } from "slate";
 import { produce } from 'immer';
 import { v4 as getUUid } from 'uuid';
 
@@ -37,9 +36,6 @@ const Tabs = (props: ITabsProps) => {
   
   const editor = useSlate();
   const readOnly = useReadOnly();
-  const bottomLineId = useMemo(() => {
-    return ReactEditor.findPath(editor, element).join('-');
-  }, [editor, element]);
 
   const setTabsData = (newActiveKey: string, newTabsContent: ITabsContent[], newChildren: any) => {
     const path = ReactEditor.findPath(editor, element);
@@ -54,7 +50,6 @@ const Tabs = (props: ITabsProps) => {
       children: newChildren,
     }, {
       at: path,
-      select: true,
     });
   }
 
@@ -151,7 +146,13 @@ const Tabs = (props: ITabsProps) => {
       setTabsData(activeKey, newTabsContent, element.children);
       ReactEditor.focus(editor);
       if (selection) {
-        Transforms.select(editor, selection);
+        const focus = selection.focus;
+        const focusPath = focus.path;
+        focusPath.pop();
+        const [element] = Editor.node(editor, focusPath);
+        if (!Editor.isVoid(editor, element as Element)) {
+          Transforms.select(editor, selection);
+        }
       }
     }
   }
@@ -181,7 +182,6 @@ const Tabs = (props: ITabsProps) => {
         <TabsHeader
           tabs={tabsContent}
           activeKey={activeKey}
-          bottomLineId={bottomLineId}
           onClickTab={handleClickTab}
           onDeleteTab={onDeleteTab}
           onAddTab={onAddTab}

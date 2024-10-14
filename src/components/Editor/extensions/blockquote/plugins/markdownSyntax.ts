@@ -11,21 +11,23 @@ export const markdownSyntax = (editor: Editor) => {
       const { text: nodeText } = node as FormattedText;
       const offset = editor.selection!.anchor.offset;
       if (nodeText.slice(0, offset) === '>') {
-        Transforms.delete(editor, {
-          at: {
-            anchor: {
-              path,
-              offset: 0
-            },
-            focus: {
-              path,
-              offset: 1
+        Editor.withoutNormalizing(editor, () => {
+          Transforms.delete(editor, {
+            at: {
+              anchor: {
+                path,
+                offset: 0
+              },
+              focus: {
+                path,
+                offset: 1
+              }
             }
-          }
-        });
-        Transforms.wrapNodes(editor, {
-          type: 'blockquote',
-          children: []
+          });
+          Transforms.wrapNodes(editor, {
+            type: 'blockquote',
+            children: []
+          });
         });
         return;
       }

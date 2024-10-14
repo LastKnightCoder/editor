@@ -20,7 +20,7 @@ class DivideLineExtension extends Base implements IExtension {
   }
 
   override toMarkdown() {
-    return '---\n';
+    return '---';
   }
 
   render(props: RenderElementProps) {

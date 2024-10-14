@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Transforms } from "slate";
+import { Transforms, Editor as SlateEditor } from "slate";
 import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
 import classnames from "classnames";
 import { Editor, EditorChange } from 'codemirror';
@@ -170,17 +170,19 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
             if (editor.getValue() === '') {
               event.preventDefault();
               const path = ReactEditor.findPath(slateEditor, element);
-              Transforms.delete(slateEditor, { at: path });
-              Transforms.insertNodes(slateEditor, {
-                type: 'paragraph',
-                children: [{
-                  type: 'formatted',
-                  text: ''
-                }]
-              }, {
-                at: path,
-                select: true
-              });
+              SlateEditor.withoutNormalizing(slateEditor, () => {
+                Transforms.delete(slateEditor, { at: path });
+                Transforms.insertNodes(slateEditor, {
+                  type: 'paragraph',
+                  children: [{
+                    type: 'formatted',
+                    text: ''
+                  }]
+                }, {
+                  at: path,
+                  select: true
+                });
+              })
               codeBlockMap.delete(uuid);
             }
           }
@@ -204,7 +206,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
                   addParagraphRef.current.addParagraph();
                 }
               }
-              
             }
           }
         }}

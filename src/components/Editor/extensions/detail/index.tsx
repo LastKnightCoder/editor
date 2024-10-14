@@ -23,7 +23,7 @@ class DetailExtension extends Base implements IExtension {
     const detailEle = element as unknown as DetailElement;
     const { title } = detailEle;
 
-    return `::: detail ${title}\n${children}\n:::\n`;
+    return `::: detail ${title}\n${children}\n:::`;
   }
 
   render(props: RenderElementProps) {

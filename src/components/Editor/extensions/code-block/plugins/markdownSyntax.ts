@@ -18,20 +18,22 @@ export const markdownSyntax = (editor: Editor) => {
         if (text.type === 'formatted') {
           const { text: nodeText } = text;
           if (nodeText.startsWith('```')) {
-            Transforms.delete(editor, {
-              at: {
-                anchor: {
-                  path: [...path, 0],
-                  offset: 0
-                },
-                focus: {
-                  path: [...path, 0],
-                  offset: nodeText.length
+            Editor.withoutNormalizing(editor, () => {
+              Transforms.delete(editor, {
+                at: {
+                  anchor: {
+                    path: [...path, 0],
+                    offset: 0
+                  },
+                  focus: {
+                    path: [...path, 0],
+                    offset: nodeText.length
+                  }
                 }
-              }
+              });
+              const language = nodeText.slice(3).trim();
+              insertCodeBlock(editor, language);
             });
-            const language = nodeText.slice(3).trim();
-            insertCodeBlock(editor, language);
             return;
           }
         }

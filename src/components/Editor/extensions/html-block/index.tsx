@@ -20,7 +20,7 @@ class HtmlBlockExtension extends Base implements IExtension {
     const htmlBlockElement = element as HTMLBlockElement;
     const { html } = htmlBlockElement;
 
-    return html + '\n';
+    return html;
   }
 
   render(props: RenderElementProps) {

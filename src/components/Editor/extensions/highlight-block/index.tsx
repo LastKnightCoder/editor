@@ -21,7 +21,7 @@ class HighlightBlockExtension extends Base implements IExtension {
   }
 
   override toMarkdown(_element: Element, children: string): string {
-    return `\`\`\`highlight-block\n${children}\n\`\`\`\n`;
+    return `\`\`\`highlight-block\n${children}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {

@@ -27,7 +27,7 @@ class ListItemExtension extends Base implements IExtension {
         } else {
           return `  ${child}`;
         }
-      }).join('\n') + '\n';
+      }).join('\n');
     } else if (parentElement.type === 'numbered-list') {
       // 找到当前元素在父元素中的索引，第一行加上 1，然后加上 . 和一个空格，其它行加上两个空格
       const index = parentElement.children.findIndex(child => child === element);
@@ -37,9 +37,9 @@ class ListItemExtension extends Base implements IExtension {
         } else {
           return `  ${child}`;
         }
-      }).join('\n') + '\n';
+      }).join('\n');
     } else {
-      return children + '\n';
+      return children;
     }
   }
 

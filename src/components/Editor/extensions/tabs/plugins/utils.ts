@@ -1,5 +1,5 @@
-import {Editor, Path, Transforms} from "slate";
-import {TabsElement} from "@/components/Editor/types";
+import { Editor, Path, Transforms } from "slate";
+import { TabsElement } from "@/components/Editor/types";
 
 export const deleteCurTab = (editor: Editor, tabsEle: TabsElement, tabsPath: Path) => {
   // 删除当前 Tab
@@ -19,7 +19,7 @@ export const deleteCurTab = (editor: Editor, tabsEle: TabsElement, tabsPath: Pat
         }]
       }, {
         at: tabsPath,
-        select: true,
+        select: true
       });
     })
   } else {
@@ -35,7 +35,6 @@ export const deleteCurTab = (editor: Editor, tabsEle: TabsElement, tabsPath: Pat
         children: content as any,
       }, {
         at: tabsPath,
-        select: true,
       });
     })
   }

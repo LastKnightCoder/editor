@@ -11,21 +11,23 @@ export const markdownSyntax = (editor: Editor) => {
       const { text: nodeText } = node as FormattedText;
       const offset = editor.selection!.anchor.offset;
       if (['-', '*', '+'].includes(nodeText.slice(0, offset))) {
-        Transforms.delete(editor, {
-          at: {
-            anchor: {
-              path,
-              offset: 0
+        Editor.withoutNormalizing(editor, () => {
+          Transforms.delete(editor, {
+            at: {
+              anchor: {
+                path,
+                offset: 0
+              },
+              focus: {
+                path,
+                offset: 1
+              }
             },
-            focus: {
-              path,
-              offset: 1
-            }
-          },
-        });
-        Transforms.wrapNodes(editor, {
-          type: 'list-item',
-          children: []
+          });
+          Transforms.wrapNodes(editor, {
+            type: 'list-item',
+            children: []
+          });
         });
         // 如果上一个节点是 bulleted-list，则移进去而不是包装
         const [listMatch] = Editor.nodes(editor, {

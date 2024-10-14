@@ -18,7 +18,7 @@ class MermaidExtension extends Base implements IExtension {
 
   override toMarkdown(element: Element): string {
     const { chart } = element as MermaidElement;
-    return `\`\`\`mermaid\n${chart}\n\`\`\`\n`;
+    return `\`\`\`mermaid\n${chart}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {
