@@ -31,18 +31,18 @@ export class ImageUtil {
 
     if (imagePath) {
       ops.push({
-      type: 'insert_node',
-      path: [board.children.length],
-      node: {
-        id: getUuid(),
-        type: 'image',
-        src: imagePath,
-        x: center.x - imageWidth / 2,
-        y: center.y - imageHeight / 2,
-        width: imageWidth,
-        height: imageHeight,
-        preserveAspectRatio: 'xMidYMid slice',
-      }
+        type: 'insert_node',
+        path: [board.children.length],
+        node: {
+          id: getUuid(),
+          type: 'image',
+          src: imagePath,
+          x: center.x - imageWidth / 2,
+          y: center.y - imageHeight / 2,
+          width: imageWidth,
+          height: imageHeight,
+          preserveAspectRatio: 'xMidYMid slice',
+        }
       })
     }
     

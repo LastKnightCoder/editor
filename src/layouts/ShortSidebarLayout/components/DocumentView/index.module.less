@@ -5,6 +5,9 @@
   display: flex;
   &.hideSidebar {
     --sidebar-width: 0px;
+    .sidebar {
+      overflow: hidden;
+    }
   }
   .sidebar {
     width: var(--sidebar-width);
