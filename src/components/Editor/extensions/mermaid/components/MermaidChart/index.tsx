@@ -2,16 +2,20 @@ import React, { PropsWithChildren } from 'react';
 import { Transforms } from "slate";
 import { RenderElementProps, useSlate , ReactEditor } from 'slate-react';
 import Mermaid from '../Mermaid';
+import { defaultMermaidConfig } from './config';
 
 import { MermaidElement } from "@/components/Editor/types";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
 
 import styles from './index.module.less';
+import mermaid from "mermaid";
 
 interface MermaidProps {
   attributes: RenderElementProps['attributes'];
   element: MermaidElement;
 }
+
+mermaid.initialize(defaultMermaidConfig);
 
 const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
   const { attributes, element, children } = props;

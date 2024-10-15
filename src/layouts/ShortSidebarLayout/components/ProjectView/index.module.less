@@ -3,9 +3,14 @@
   height: 100%;
   --sidebar-width: 300px;
   display: flex;
+  &.hideSidebar {
+    --sidebar-width: 0px;
+  }
   .sidebar {
     width: var(--sidebar-width);
     height: 100%;
+    transition: width 0.3s;
+    overflow: hidden;
   }
   .edit {
     width: calc(100% - var(--sidebar-width));

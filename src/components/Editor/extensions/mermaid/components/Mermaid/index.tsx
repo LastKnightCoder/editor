@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import mermaid from 'mermaid';
-import { useAsyncEffect } from "ahooks";
+// import { useAsyncEffect } from "ahooks";
 
 import { defaultMermaidConfig } from "../MermaidChart/config.ts";
 
@@ -15,22 +15,11 @@ const Mermaid = (props: IMermaidProps) => {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!ref.current) return;
-    mermaid.init(undefined, ref.current);
-  }, [])
-
-  useAsyncEffect(async () => {
-    if (!ref.current) return;
-    try {
-      const { svg } = await mermaid.render('mermaid', chart);
-      ref.current.innerHTML = svg;
-    } catch (e) {
-      ref.current.innerHTML = 'error'
-    }
-  }, [chart])
+    mermaid.contentLoaded();
+  }, []);
 
   return (
-    <div style={{ width: '100%', padding: 20 }} ref={ref}>
+    <div className={'mermaid'} style={{ width: '100%', padding: 20 }} ref={ref}>
       {chart}
     </div>
   )

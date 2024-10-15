@@ -3,6 +3,9 @@
   height: 100%;
   --sidebar-width: 300px;
   display: flex;
+  &.hideSidebar {
+    --sidebar-width: 0px;
+  }
   .sidebar {
     width: var(--sidebar-width);
     height: 100%;
