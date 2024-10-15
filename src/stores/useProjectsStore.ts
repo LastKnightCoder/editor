@@ -20,6 +20,7 @@ interface IState {
   activeProjectItemId: number | null;
   showOutline: boolean;
   readonly: boolean;
+  hideProjectItemList: boolean;
 }
 
 interface IActions {
@@ -44,6 +45,7 @@ const initState: IState = {
   activeProjectItemId: null,
   showOutline: false,
   readonly: false,
+  hideProjectItemList: false,
 }
 
 const useProjectsStore = create<IState & IActions>((set, get) => ({

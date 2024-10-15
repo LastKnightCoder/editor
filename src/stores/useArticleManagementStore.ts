@@ -15,6 +15,7 @@ interface IState {
   articles: IArticle[];
   initLoading: boolean;
   activeArticleId: number | undefined;
+  hideArticleList: boolean;
 }
 
 interface IActions {
@@ -37,6 +38,7 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
   articles: [],
   initLoading: false,
   activeArticleId: undefined,
+  hideArticleList: false,
   init: async () => {
     set({ initLoading: true });
     const articles = await getAllArticles();

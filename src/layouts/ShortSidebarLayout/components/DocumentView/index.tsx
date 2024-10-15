@@ -3,18 +3,26 @@ import DocumentList from '@/layouts/ThreeColumnLayout/List/DocumentList';
 import EditDocument from '@/layouts/ThreeColumnLayout/Content/Document';
 
 import styles from './index.module.less';
+import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import classnames from "classnames";
 
 const DocumentView = () => {
   const params = useParams();
 
-  console.log(params);
-
   const documentId = Number(params.id);
+
+  const {
+    hideDocumentItemsList,
+    activeDocumentItem
+  } = useDocumentsStore(state => ({
+    hideDocumentItemsList: state.hideDocumentItemsList,
+    activeDocumentItem: state.activeDocumentItem
+  }))
 
   if (!documentId) return null;
 
   return (
-    <div className={styles.viewContainer}>
+    <div className={classnames(styles.viewContainer, { [styles.hideSidebar]: hideDocumentItemsList && !! activeDocumentItem })}>
       <div className={styles.sidebar}>
         <DocumentList />
       </div>

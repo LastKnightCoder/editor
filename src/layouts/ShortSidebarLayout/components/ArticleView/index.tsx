@@ -14,10 +14,12 @@ import styles from './index.module.less';
 const ArticleView = () => {
   const {
     activeArticleId,
-    createArticle
+    createArticle,
+    hideArticleList
   } = useArticleManagementStore(state => ({
     activeArticleId: state.activeArticleId,
     createArticle: state.createArticle,
+    hideArticleList: state.hideArticleList
   }));
 
   const handleAddNewArticle = useMemoizedFn(async () => {
@@ -38,7 +40,7 @@ const ArticleView = () => {
   const isShowEdit = !!activeArticleId;
 
   return (
-    <div className={classnames(styles.viewContainer, { [styles.showEdit]: isShowEdit })}>
+    <div className={classnames(styles.viewContainer, { [styles.showEdit]: isShowEdit, [styles.hideArticleList]: hideArticleList })}>
       <ArticleList className={styles.listContainer} />
       <div className={styles.editContainer}>
         {

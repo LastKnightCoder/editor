@@ -13,6 +13,7 @@ interface IState {
   loading: boolean;
   activeDocumentId: number | null;
   activeDocumentItem: IDocumentItem | null;
+  hideDocumentItemsList: boolean;
 }
 
 interface IActions {
@@ -28,6 +29,7 @@ const initState: IState = {
   loading: false,
   activeDocumentId: null,
   activeDocumentItem: null,
+  hideDocumentItemsList: false,
 }
 
 const useDocumentsStore = create<IState & IActions>((set, get) => ({
