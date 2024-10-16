@@ -79,8 +79,8 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
     if (domSelection && domSelection.rangeCount > 0) {
       const domRange = domSelection.getRangeAt(0);
       const rect = domRange.getBoundingClientRect();
-      const top = `${rect.top + window.scrollY - el.offsetHeight - 8}px`;
-      const left = `${rect.left + window.scrollX - el.offsetWidth / 2 + rect.width / 2}px`;
+      const top = `${rect.top - el.offsetHeight - 8}px`;
+      const left = `${rect.left - el.offsetWidth / 2 + rect.width / 2}px`;
       setPosition({
         top: parseInt(top),
         left: parseInt(left),

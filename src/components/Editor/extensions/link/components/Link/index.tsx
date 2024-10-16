@@ -8,7 +8,7 @@ import classnames from 'classnames';
 import unLinkIcon from '@/assets/icons/unlink.svg';
 import copyIcon from '@/assets/icons/copy.svg';
 import editIcon from '@/assets/icons/edit.svg';
-import { open as openUrl } from '@tauri-apps/api/shell';
+// import { open as openUrl } from '@tauri-apps/api/shell';
 
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
 import { LinkElement } from "@editor/types";
@@ -90,10 +90,11 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
     Transforms.unwrapNodes(editor, { at: path });
   }
 
-  const handleClick = () => {
-    openUrl(url).then(() => {
-      setOpen(false);
-    });
+  const handleClick = (e: any) => {
+    // e.preventDefault();
+    // openUrl(url).then(() => {
+    //   setOpen(false);
+    // });
   }
 
   const changeUrl = (url: string) => {
@@ -127,15 +128,17 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
       arrow={false}
       placement={'bottom'}
     >
-      <span
+      <a
         {...attributes}
         className={classnames(styles.link)}
         onClick={handleClick}
+        href={url}
+        target={'_blank'}
       >
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />
-      </span>
+      </a>
     </Popover>
   )
 }

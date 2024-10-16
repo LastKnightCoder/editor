@@ -1,0 +1,800 @@
+export default [
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "个人介绍"
+      }
+    ],
+    "level": 2
+  },
+  {
+    "type": "html-block",
+    "html": "<div style=\"display: flex\">\n  <p style=\"width: 50%; margin: 0 0 10px 0; line-height: 1.4;\">姓名：熊滔</p>\n  <p style=\"width: 50%; margin: 0 0 10px 0; line-height: 1.4;\">出生年月：1999/02</p>\n</div>\n<div style=\"display: flex\">\n  <p style=\"width: 50%; margin: 0 0 10px 0; line-height: 1.4;\">电话：178-5422-9670</p>\n  <p style=\"width: 50%; margin: 0 0 10px 0; line-height: 1.4;\">邮箱：2223106858@qq.com</p>\n</div>",
+    "children": [
+      {
+        "type": "formatted",
+        "text": ""
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "text": "",
+        "type": "formatted"
+      },
+      {
+        "type": "link",
+        "url": "https://lastknightcoder.github.io/blog",
+        "openEdit": false,
+        "children": [
+          {
+            "type": "formatted",
+            "text": "个人博客：https://lastknightcoder.github.io/blog"
+          }
+        ]
+      },
+      {
+        "text": "",
+        "type": "formatted"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "text": "",
+        "type": "formatted"
+      },
+      {
+        "type": "link",
+        "url": "https://github.com/LastKnightCoder/editor",
+        "openEdit": false,
+        "children": [
+          {
+            "type": "formatted",
+            "text": "个人项目：https://github.com/LastKnightCoder/editor"
+          }
+        ]
+      },
+      {
+        "text": "",
+        "type": "formatted"
+      }
+    ]
+  },
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "个人技能"
+      }
+    ],
+    "level": 2
+  },
+  {
+    "type": "numbered-list",
+    "children": [
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "熟悉 HTML/CSS/Less 的使用，能熟练使用 "
+              },
+              {
+                "type": "link",
+                "url": "https://lastknightcoder.github.io/slides-flex/1",
+                "openEdit": false,
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "Flex"
+                  }
+                ]
+              },
+              {
+                "type": "formatted",
+                "text": "、"
+              },
+              {
+                "type": "link",
+                "url": "https://lastknightcoder.github.io/slides-grid/1",
+                "openEdit": false,
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "Grid"
+                  }
+                ]
+              },
+              {
+                "type": "formatted",
+                "text": "、容器查询等现代布局手段进行响应式布局，有移动端开发经验"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "熟悉 ES6+ 语法，熟悉 DOM API"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "熟悉 React 及相关技术栈"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "熟悉 TypeScript"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "熟悉基本的数据结构和算法"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "了解 Vue2 语法，可快速上手学习"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "了解 Node.js，Rust，Python 等后端语言，均有较短的开发经验"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "教育经历"
+      }
+    ],
+    "level": 2
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "2020 - 2022 哈尔滨工业大学 微波工程"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "2016 - 2020 山东大学 通信工程"
+      }
+    ]
+  },
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "项目经历"
+      }
+    ],
+    "level": 2
+  },
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "低代码平台开发"
+      }
+    ],
+    "level": 3
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "参与内部低代码平台开发与维护，包括平台的功能开发与 H5 组件的开发，先后参与了模板中心、主题设置、数据统计等多个功能的开发，并为使用的 H5 物料搭建了一个公共组件库。"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "项目的难点/痛点："
+      }
+    ]
+  },
+  {
+    "type": "numbered-list",
+    "children": [
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "文字垂直居中。在开发 H5 组件时，页面存在大量的文字垂直居中场景，但是使用了各种常规居中手段，包括 flex，line-height，padding 等均无法使在所有的移动端机型上保证文字的垂直居中，每次都需要耗时耗力的进行调整，基于这一痛点，我调研了很多垂直居中的方法，发现 SVG 和 Canvas 实现的垂直居中在任意平台均能保证垂直居中的效果，因此基于此封装了一个垂直居中的组件，并在此基础上实现了文本溢出，懒加载优化等功能，具体可见文章："
+              },
+              {
+                "type": "link",
+                "url": "https://lastknightcoder.github.io/blog/mobile-text-middle",
+                "openEdit": false,
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "移动端文字垂直居中方案"
+                  }
+                ]
+              },
+              {
+                "type": "formatted",
+                "text": "。"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "项目热更新调试。原项目 H5 组件开发调试存在一个痛点，每次修改完代码需要重新构建，然后在 PC 上拖拽组件才能看到修改的效果，进一步要看到在手机上的效果还需要发布页面，使用手机扫码才能看到，开发极为不便，效率低下。基于这一背景，基于 Webpack 已有的热功能能力实现了 H5 组件开发的热更新，极大的提升了开发效率。"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "M 站的开发与维护"
+      }
+    ],
+    "level": 3
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "参与了高德 PC 站(amap.com) 和 M 站(m.amap.com) 的开发与维护，负责开发 M 站的唤端体系改造，路线分享还原，技术栈升级等项目。"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "项目的难点/痛点："
+      }
+    ]
+  },
+  {
+    "type": "numbered-list",
+    "children": [
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "M 站唤端体系升级与改造。原 M 站唤端系统代码混乱，充斥着意义不明的 if-else 语句，问题频发且难以定位和排查。经过对各唤端方案的调研以及在各机型和主流 APP 上的尝试，封装了一套基于配置的唤端方案，极大的提升了唤端成功率及排查速率。"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "M 站技术栈升级与改造。M 站是一个非常老的项目，使用的技术栈是 Glup + Zepot + History + AMD + 自研框架，代码耦合严重，数据流混乱，无热更新，开发调试都十分的困难，开发效率极低，无法应对日益复杂的业务需求，基于此背景我提出了两套升级方案："
+              }
+            ]
+          },
+          {
+            "type": "bulleted-list",
+            "children": [
+              {
+                "type": "list-item",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "children": [
+                      {
+                        "type": "formatted",
+                        "text": "新页面使用新的技术栈开发，独立部署，通过 M 站原有的 Nginx 代理到新页面，实现新页面的无痛升级改造，并逐渐将老页面升级为新页面，渐进式升级"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "list-item",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "children": [
+                      {
+                        "type": "formatted",
+                        "text": "老页面功能开发，通过 Webpack 将 React 组件打包为符合 M 站模块系统，符合 M 站已有路由体系和声明周期的文件，然后在 M 站中引入使用"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "WIA Web 端开发"
+      }
+    ],
+    "level": 3
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "WIA(work in amap) 是高德地图 toB 的一个项目（又称地图小程序），我负责 PC 端功能的开发。用户可在地图上标记点、线、面、区域等资源，并对资源进行管理。我主要负责和图面资源绘制相关的功能，深度参与了海量点资源绘制、高清出图、图面性能优化等多个专项。"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "项目的难点/痛点："
+      }
+    ]
+  },
+  {
+    "type": "numbered-list",
+    "children": [
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "海量点渲染。"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "产品支持一个地图添加十万个资源的能力，但是在地图上绘制如此多的点的情况下进行拖拽和移动会十分的卡顿，为了解决海量点绘制的问题，我们对点进行了抽稀和聚合。通过在不同的层级下划分疏密不等的网格，当添加资源时将资源保存到对应的网格中，当开启抽稀后，仅随机抽取网格中的一个资源；当开启聚合后，仅返回网格内的资源数量，极大的减少了图面上资源的数量，减少了图面卡顿。"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "高清出图。"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "可以以指定层级高清打印用户在地图上的所有资源，根据指定层级和用户的所有资源确定需要打印的尺寸，然后根据屏幕的大小将需要打印的部分划分为多块子画布，通过定时移动画布，然后通过 Canvas 将屏幕指定区域的画布导出，最后将所有导出的图片绘制在一个离屏 Canvas 上，导出为一张高清大图。"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "该项目获取了内部评选的"
+              },
+              {
+                "type": "styled-text",
+                "color": "blue",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "最佳技术创新奖"
+                  }
+                ]
+              },
+              {
+                "type": "formatted",
+                "text": "。"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "地图资源绘制基础库。"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "项目中对于资源的绘制方式不同，且逻辑散落各地，性能也存在一定问题，为解决以上痛点，建立了一个地图资源绘制库，对于各资源的绘制均收于一处，并统一了所有资源的绘制方式，将原来组件的绘制修改为 API 式，每一类资源都有一个资源管理器，在资源发生变化时，可以 diff 数据找到变更的部分进行增量更新，减少了图面的卡顿以及拖拽过程中资源重绘导致的闪烁。"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "性能优化。"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "图面上的点资源由于结构复杂，典型的点资源包含外轮廓、内填充、拓客标识，由于这些都是分开可组合的，无法提前组合为一张图片进行绘制，因此一个点对应于两三个覆盖物，随着业务扩展，点资源的结构会更加复杂，使得图面上可绘制的资源最多只有覆盖物上限的一半，甚至更少，是一个严重的性能问题，另外，由于需要提前准备好覆盖物资源，导致可绘制覆盖物有限，十分的不灵活。"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "针对以上问题，需要解决的是将多个覆盖物合并为一个，在绘制前，通过 SVG 绘制点的外轮廓、内轮廓以及其他部分，然后将 SVG 导出为图片绘制在图面上，这样就将多个覆盖物合并为了一个覆盖物，极大的提升了性能，原先绘制 3000 个点拖拽就有卡顿感，现在 5000 多个点拖拽才有卡顿感，另外由于 SVG 为可编程，可以任意设置颜色和形状，对于新增的外轮廓等可十分高效的实现，满足了业务诉求。"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "其他"
+      }
+    ],
+    "level": 3
+  },
+  {
+    "type": "bulleted-list",
+    "children": [
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "Web 部署平台，结合 Jenkins，实现 Web，微信小程序、支付宝小程序的自动部署"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "高德运动，家人地图，健康小习惯"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "AI，图生代码平台，RAG 平台"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "高德春节拜年活动性能优化，秒开率从 37% -> 72%"
+              }
+            ]
+          },
+          {
+            "type": "bulleted-list",
+            "children": [
+              {
+                "type": "list-item",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "children": [
+                      {
+                        "type": "formatted",
+                        "text": "数据加载时机提前，在加载框架前就发出数据请求，可减少几百毫秒等待数据加载时间"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "list-item",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "children": [
+                      {
+                        "type": "formatted",
+                        "text": "资源预加载，图片、音频、视频等资源预加载"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "list-item",
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "children": [
+                      {
+                        "type": "formatted",
+                        "text": "资源最小化加载，图面上的树资源，只加载终点附近最近的 100 棵（最小堆）"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "header",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "个人项目"
+      }
+    ],
+    "level": 2
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "基于 React + Vite + Tauri + Sqlite 构建的跨端离线笔记软件，代码量 5w+，开源地址："
+      },
+      {
+        "type": "link",
+        "url": "https://github.com/LastKnightCoder/editor",
+        "openEdit": false,
+        "children": [
+          {
+            "type": "formatted",
+            "text": "https://github.com/LastKnightCoder/editor"
+          }
+        ]
+      },
+      {
+        "text": "。",
+        "type": "formatted"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "formatted",
+        "text": "亮点："
+      }
+    ]
+  },
+  {
+    "type": "numbered-list",
+    "children": [
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "基于 slate.js 实现了所见即所得的富文本编辑器，支持 Markdown 语法（编辑体验追齐 Typora），支持块的拖拽和嵌套，支持多种块格式，包括图片、图册、引用、列表、callout、代码块、表格、Tabs、多列容器、自定义 React 组件、Mermaid 图标、数学公式，基于插件开发，所有的块类型均是编辑器的一个插件，可方便的进行对编辑器的功能进行扩展"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "支持白板（未使用第三方库）。基于 SVG 实现了无限白板功能，目前支持几何图形、富文本、图片、卡片和箭头的绘制，白板功能的设计思路借鉴于 slate.js，所有的功能也基于插件添加"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "支持 PDF 的高亮和标注。基于 pdf.js，可对 PDF 进行渲染，并可对 PDF 进行高亮标注和添加笔记"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "list-item",
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "基于 Tauri，可在 Windows、Mac 和 Linux 多个平台上使用"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

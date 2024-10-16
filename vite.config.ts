@@ -26,6 +26,7 @@ export default defineConfig({
     strictPort: true,
   },
   envPrefix: ['VITE_', 'TAURI_'],
+  base: '/editor',
   build: {
     // Tauri uses Chromium on Windows and WebKit on macOS and Linux
     target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
@@ -34,6 +35,10 @@ export default defineConfig({
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
     rollupOptions: {
+      input: {
+        profile: path.resolve(__dirname, 'profile/index.html'),
+        edit: path.resolve(__dirname, 'edit/index.html'),
+      },
       output: {
         manualChunks: {
           'react': ['react'],
@@ -46,5 +51,4 @@ export default defineConfig({
       }
     }
   },
-
 })
