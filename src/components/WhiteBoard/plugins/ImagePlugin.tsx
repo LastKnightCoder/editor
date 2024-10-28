@@ -14,6 +14,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   }
 
    onPaste(event: ClipboardEvent, board: Board) {
+    if (board.isEditing) return;
     // 如果粘贴的是图片
     // 检查剪贴板中是否包含图片
     const items = event.clipboardData?.items;
@@ -29,6 +30,8 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
         }
       }
     }
+
+    if (imageFiles.length === 0) return;
 
     Promise.all(imageFiles.map(file => Promise.all([
       getImageInfo(file),
@@ -63,7 +66,6 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
         }
 
         const imagePath = await uploadImage(file);
-        console.log(info, imagePath);
         if (imagePath) {
          ops.push({
           type: 'insert_node',
@@ -84,9 +86,9 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
       }
       if (ops.length > 0) {
         board.apply(ops);
+        message.success('图片粘贴成功');
       }
       message.destroy('uploading-image');
-      message.success('图片粘贴成功');
     })
   }
 
