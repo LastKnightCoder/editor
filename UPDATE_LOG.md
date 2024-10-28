@@ -379,3 +379,4 @@
 
 - feat: Tabs 组件编辑优化
 - feat: Titlebar 显示优化，侧边支持收起
+- fix: 白板图片粘贴优化

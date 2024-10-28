@@ -105,6 +105,7 @@ const Richtext = memo((props: RichtextProps) => {
   const handleFocus = useMemoizedFn(() => {
     if (readonly) return;
     setFocus(true);
+    board.isEditing = true;
   });
 
   const handleBlur = useMemoizedFn(() => {
@@ -112,6 +113,7 @@ const Richtext = memo((props: RichtextProps) => {
     handleResize.flush();
     setTimeout(() => {
       setFocus(false);
+      board.isEditing = false;
       // 按道理 blur 的时候取消选中，但是这个时候如果想通过工具栏改变样式就没法做到了
       // 暂时不 deselect 了，后续改为右键菜单的时候在改回来
       editorRef.current?.deselect();

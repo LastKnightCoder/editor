@@ -36,6 +36,7 @@ class Board {
   public selection: Selection;
   public undos: Array<Operation[]>;
   public redos: Array<Operation[]>;
+  public isEditing: boolean;
   private snapshot: {
     children: BoardElement[];
     viewPort: ViewPort;
@@ -63,6 +64,7 @@ class Board {
     this.initPlugins(plugins);
     this.subscribe = this.subscribe.bind(this);
     this.getSnapshot = this.getSnapshot.bind(this);
+    this.isEditing = false;
   }
 
   on(event: string, listener: (...args: any[]) => void) {
