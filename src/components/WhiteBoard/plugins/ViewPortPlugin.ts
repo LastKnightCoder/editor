@@ -47,7 +47,7 @@ export class ViewPortPlugin implements IBoardPlugin {
   }
 
   onWheel(e: WheelEvent, board: Board) {
-    if (board.currentCreateType !== ECreateBoardElementType.None) return;
+    if (board.currentCreateType !== ECreateBoardElementType.None || board.isEditingProperties) return;
 
     const now = Date.now();
     if (now - this.lastWheelTime < 100) return;

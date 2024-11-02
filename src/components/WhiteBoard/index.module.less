@@ -1,9 +1,16 @@
 .boardContainer {
   position: relative;
-  .attributeBar {
-    position: absolute;
-    top: 20px;
-    bottom: 20px;
-    right: 20px;
+}
+
+.attributeBar {
+  position: fixed;
+  top: var(--title-bar-height, 60px);
+  bottom: 0;
+  right: 0;
+  width: 240px;
+  background-color: var(--primary-bg-color);
+  padding: 20px;
+  &.hide {
+    display: none;
   }
 }
