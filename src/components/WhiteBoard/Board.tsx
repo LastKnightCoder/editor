@@ -37,6 +37,8 @@ class Board {
   public undos: Array<Operation[]>;
   public redos: Array<Operation[]>;
   public isEditing: boolean;
+  // 是否在编辑属性，在编辑属性时删除时不能把组件删除掉了
+  public isEditingProperties: boolean;
   private snapshot: {
     children: BoardElement[];
     viewPort: ViewPort;
@@ -65,6 +67,7 @@ class Board {
     this.subscribe = this.subscribe.bind(this);
     this.getSnapshot = this.getSnapshot.bind(this);
     this.isEditing = false;
+    this.isEditingProperties = false;
   }
 
   on(event: string, listener: (...args: any[]) => void) {

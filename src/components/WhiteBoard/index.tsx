@@ -20,7 +20,9 @@ import { BOARD_TO_CONTAINER, ARROW_SIZE } from "./constants";
 import { BoardElement, Events, ViewPort, Selection } from "./types";
 import Toolbar from './components/Toolbar';
 import SelectArea from './components/SelectArea';
+import ComponentConfig from "./components/ComponentConfig";
 import styles from './index.module.less';
+import PortalToBody from "@/components/PortalToBody";
 
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
@@ -212,9 +214,11 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 <SelectArea />
               </g>
             </svg>
-            <div className={styles.attributeBar}>
-              
-            </div>
+            <PortalToBody>
+              <div className={classnames(styles.attributeBar, { [styles.hide]: selection.selectedElements.length !== 1 })}>
+                <ComponentConfig/>
+              </div>
+            </PortalToBody>
           </ViewPortContext.Provider>
         </SelectionContext.Provider>
       </BoardContext.Provider>

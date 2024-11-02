@@ -80,7 +80,7 @@ export class SelectPlugin implements IBoardPlugin {
   onKeyDown(e: KeyboardEvent, board: Board) {
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
-    if (isHotkey(['delete', 'backspace'], e)) {
+    if (isHotkey(['delete', 'backspace'], e) && !board.isEditingProperties) {
       for (const element of selectedElements) {
         const path = PathUtil.getPathByElement(board, element);
         if (!path) continue;

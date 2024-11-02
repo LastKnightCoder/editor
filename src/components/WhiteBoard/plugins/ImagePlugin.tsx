@@ -1,10 +1,10 @@
 import { v4 as getUuid } from 'uuid';
+import { message } from 'antd';
 import { uploadImage } from '@/hooks/useUploadImage';
 import { getImageInfo } from "@/utils";
 import CommonPlugin from "./CommonPlugin";
 import { Board, IBoardPlugin, ImageElement, Operation } from "../types";
 import ImageElementComponent from "../components/ImageElement";
-import { message } from 'antd';
 
 export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   name = 'image';
@@ -14,7 +14,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   }
 
    onPaste(event: ClipboardEvent, board: Board) {
-    if (board.isEditing) return;
+    if (board.isEditing || board.isEditingProperties) return;
     // 如果粘贴的是图片
     // 检查剪贴板中是否包含图片
     const items = event.clipboardData?.items;
