@@ -78,7 +78,7 @@ const RichTextConfig = (props: RichTextConfigProps) => {
         label={'边框透明度'}
         value={element.strokeOpacity}
         onChange={v => {
-          onValueChange('strokeOpacity', Math.min(Math.max(v, 0), 1));
+          onValueChange('strokeOpacity', v);
         }}
         onFocus={onFocus}
         onBlur={onBlur}

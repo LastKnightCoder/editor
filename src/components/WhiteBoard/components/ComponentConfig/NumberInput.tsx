@@ -29,7 +29,7 @@ const NumberInput = (props: NumberInputProps) => {
       <InputNumber
         value={value}
         onChange={v => {
-          if (!v) return;
+          if (v === null) return;
           onChange(v);
         }}
         onFocus={onFocus}
