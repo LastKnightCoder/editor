@@ -2,6 +2,7 @@ import React from "react";
 import EventEmitter from 'eventemitter3';
 import { createDraft, finishDraft, isDraft, current } from 'immer';
 import curry from 'lodash/curry';
+import { RefLine, Rect } from 'refline.js'
 
 import {
   Operation,
@@ -28,6 +29,7 @@ class Board {
 
   private plugins: IBoardPlugin[] = [];
   private eventEmitter: EventEmitter;
+  public refLine: RefLine;
 
   public boardFlag: typeof boardFlag;
   public isDestroyed: boolean;
@@ -68,6 +70,9 @@ class Board {
     this.getSnapshot = this.getSnapshot.bind(this);
     this.isEditing = false;
     this.isEditingProperties = false;
+    this.refLine = new RefLine<Rect>({
+      rects: this.getRefRects(),
+    });
   }
 
   on(event: string, listener: (...args: any[]) => void) {
@@ -250,7 +255,18 @@ class Board {
               delete node[key];
             }
           }
-          changedElements.push(current(node));
+          const currentNode = current(node);
+          changedElements.push(currentNode);
+          if (currentNode.type !== 'arrow') {
+            this.refLine.removeRect(currentNode.id);
+            // @ts-ignore
+            this.refLine.addRect({
+              key: currentNode.id,
+              ...currentNode,
+              left: currentNode.x,
+              top: currentNode.y,
+            })
+          }
         } else if (op.type === 'insert_node') {
           if (!isDraft(this.children)) {
             this.children = createDraft(this.children);
@@ -265,11 +281,20 @@ class Board {
           } else {
             console.error('insert_node error: index out of range', { path, index, parent });
           }
+          if (node.type !== 'arrow') {
+            // @ts-ignore
+            this.refLine.addRect({
+              key: node.id,
+              ...node,
+              left: node.x,
+              top: node.y,
+            })
+          }
         } else if (op.type === 'remove_node') {
           if (!isDraft(this.children)) {
             this.children = createDraft(this.children);
           }
-          const { path } = op;
+          const { path, node } = op;
           const parent = PathUtil.getParentByPath(this, path);
           if (!parent) return;
     
@@ -279,6 +304,9 @@ class Board {
             parent.children.splice(index, 1);
           } else {
             console.error('insert_node error: index out of range', { path, index, parent });
+          }
+          if (node.type !== 'arrow') {
+            this.refLine.removeRect(node.id);
           }
         } else if (op.type === 'set_viewport') {
           this.viewPort = createDraft(this.viewPort);
@@ -349,6 +377,12 @@ class Board {
         }
         this.emit('change');
       }
+
+      this.selection.selectedElements.forEach(se => {
+        if (se.type !== 'arrow') {
+          this.refLine.removeRect(se.id);
+        }
+      })
     }
   }
 
@@ -409,6 +443,22 @@ class Board {
     this._currentCreateType = value;
     console.log('set currentCreateType', value);
     this.emit('onCurrentCreateTypeChange');
+  }
+
+  getRefRects() {
+    const rects: Rect[] = [];
+    BoardUtil.dfs(this, element => {
+      if (BoardUtil.isBoard(element) || this.selection.selectedElements.some(ele => ele.id === element.id)) return;
+      if (element.type === 'arrow') return;
+      // @ts-ignore
+      rects.push({
+        ...element,
+        key: element.id,
+        left: element.x!,
+        top: element.y!,
+      })
+    });
+    return rects;
   }
 }
 
