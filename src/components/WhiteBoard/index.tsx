@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useSyncExternalStore } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useCreation } from "ahooks";
 import classnames from 'classnames';
 
 import Board from './Board';
@@ -68,37 +68,37 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const boardRef = useRef<Board>(new Board(initData, initViewPort, initSelection, plugins));
+  const board = useCreation<Board>(() => new Board(initData, initViewPort, initSelection, plugins), []);
   
-  const { children, viewPort, selection } = useSyncExternalStore(boardRef.current.subscribe, boardRef.current.getSnapshot);
+  const { children, viewPort, selection } = useSyncExternalStore(board.subscribe, board.getSnapshot);
   const { minX, minY, width, height } = viewPort;
 
   useEffect(() => {
     const handleChange = () => {
-      onChange?.(boardRef.current.getSnapshot())
+      onChange?.(board.getSnapshot())
     }
-    boardRef.current.on('change', handleChange);
+    board.on('change', handleChange);
 
     return () => {
-      boardRef.current.off('change', handleChange);
+      board.off('change', handleChange);
     }
-  }, [onChange]);
+  }, [board, onChange]);
 
   const eventHandlerGenerator = useMemoizedFn((eventName: Events) => {
     return (event: any) => {
-      boardRef.current[eventName](event);
+      board[eventName](event);
     }
   });
 
   const handleContainerResize = useMemoizedFn(() => {
-    ViewPortTransforms.onContainerResize(boardRef.current);
+    ViewPortTransforms.onContainerResize(board);
   });
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    BOARD_TO_CONTAINER.set(boardRef.current, container);
+    BOARD_TO_CONTAINER.set(board, container);
 
     const handleMouseDown = eventHandlerGenerator('onMouseDown');
     const handleMouseMove = eventHandlerGenerator('onMouseMove');
@@ -176,13 +176,15 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
         
       }
       observer.disconnect();
-      boardRef.current.destroy();
+      board.destroy();
     }
-  }, [eventHandlerGenerator, handleContainerResize]);
+  }, [board, eventHandlerGenerator, handleContainerResize]);
+
+  const lines = board.refLine.getAllRefLines();
 
   return (
     <div ref={containerRef} className={classnames(styles.boardContainer, className)} style={style}>
-      <BoardContext.Provider value={boardRef.current}>
+      <BoardContext.Provider value={board}>
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
             <Toolbar />
@@ -208,10 +210,26 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 </marker>
               </defs>
               <g>
-                {boardRef.current.renderElements(children)}
+                {board.renderElements(children)}
               </g>
               <g>
                 <SelectArea />
+              </g>
+              <g>
+                {
+                  lines.map((line, i) => (
+                    <line
+                      key={i}
+                      x1={line.left}
+                      y1={line.top}
+                      x2={line.type === 'vertical' ? line.left : line.left + line.size}
+                      y2={line.type === 'vertical' ? line.top + line.size : line.top}
+                      stroke={'gray'}
+                      strokeWidth={2}
+                      strokeDasharray={'5,5'}
+                    />
+                  ))
+                }
               </g>
             </svg>
             <PortalToBody>
