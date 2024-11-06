@@ -2,19 +2,14 @@ import { useMemoizedFn } from "ahooks";
 import { RichTextElement } from "@/components/WhiteBoard/plugins";
 import { Flex } from "antd";
 import { produce } from 'immer';
+import { IComponentConfig } from "@/components/WhiteBoard";
 import NumberInput from "../NumberInput.tsx";
 import StringInput from "../StringInput.tsx";
 
-interface RichTextConfigProps {
-  element: RichTextElement;
-  onChange: (element: RichTextElement) => void;
-  onFocus: () => void;
-  onBlur: () => void;
-}
 
 type ElementKey = keyof RichTextElement;
 
-const RichTextConfig = (props: RichTextConfigProps) => {
+const RichTextConfig = (props: IComponentConfig<RichTextElement>) => {
   const { element, onChange, onBlur, onFocus } = props;
 
   const onValueChange = useMemoizedFn((key: ElementKey, value: RichTextElement[ElementKey]) => {

@@ -1,6 +1,7 @@
 import RichTextConfig from "./RichTextConfig";
 import ImageConfig from "./ImageConfig";
 import ArrowConfig from "./ArrowConfig";
+import GeometryConfig from "./GeometryConfig";
 
 export default {
   "richtext": {
@@ -14,5 +15,8 @@ export default {
   },
   "card": {
     component: RichTextConfig
+  },
+  "geometry": {
+    component: GeometryConfig
   }
 }

@@ -1,20 +1,13 @@
-import { ImageElement } from "@/components/WhiteBoard";
+import { IComponentConfig, ImageElement } from "@/components/WhiteBoard";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { Flex } from "antd";
 import StringInput from "@/components/WhiteBoard/components/ComponentConfig/StringInput.tsx";
 import SelectInput from "@/components/WhiteBoard/components/ComponentConfig/SelectInput.tsx";
 
-interface ImageConfigProps {
-  element: ImageElement;
-  onChange: (element: ImageElement) => void;
-  onFocus: () => void;
-  onBlur: () => void;
-}
-
 type ElementKey = keyof ImageElement;
 
-const ImageConfig = (props: ImageConfigProps) => {
+const ImageConfig = (props: IComponentConfig<ImageElement>) => {
   const { element, onChange, onFocus, onBlur } = props;
 
   const onValueChange = useMemoizedFn((key: ElementKey, value: ImageElement[ElementKey]) => {

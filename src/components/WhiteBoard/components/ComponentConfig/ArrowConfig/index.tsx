@@ -1,4 +1,4 @@
-import { ArrowElement, EArrowLineType } from "@/components/WhiteBoard";
+import { ArrowElement, EArrowLineType, IComponentConfig } from "@/components/WhiteBoard";
 import { Flex } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
@@ -6,16 +6,9 @@ import SelectInput from "@/components/WhiteBoard/components/ComponentConfig/Sele
 import StringInput from "@/components/WhiteBoard/components/ComponentConfig/StringInput.tsx";
 import NumberInput from "@/components/WhiteBoard/components/ComponentConfig/NumberInput.tsx";
 
-interface ArrowConfigProps {
-  element: ArrowElement;
-  onChange: (element: ArrowElement) => void;
-  onFocus: () => void;
-  onBlur: () => void;
-}
-
 type ElementKey = keyof ArrowElement;
 
-const ArrowConfig = (props: ArrowConfigProps) => {
+const ArrowConfig = (props: IComponentConfig<ArrowElement>) => {
   const { element, onChange, onFocus, onBlur } = props;
 
   const onValueChange = useMemoizedFn((key: ElementKey, value: ArrowElement[ElementKey]) => {
