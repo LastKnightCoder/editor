@@ -234,7 +234,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
             </svg>
             <PortalToBody>
               <div className={classnames(styles.attributeBar, { [styles.hide]: selection.selectedElements.length !== 1 })}>
-                <ComponentConfig/>
+                <ComponentConfig />
               </div>
             </PortalToBody>
           </ViewPortContext.Provider>

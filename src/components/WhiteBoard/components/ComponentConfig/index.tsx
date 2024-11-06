@@ -1,12 +1,12 @@
-import { useEffect } from "react";
+import React, { useEffect, memo } from "react";
 import { useBoard, useSelection } from "@/components/WhiteBoard/hooks";
-import { BoardElement, Operation } from "@/components/WhiteBoard";
+import { BoardElement, IComponentConfig, Operation } from "@/components/WhiteBoard";
 import { PathUtil } from "@/components/WhiteBoard/utils";
 
 import componentConfig from './config.ts';
 import { useMemoizedFn } from "ahooks";
 
-const ComponentConfig = () => {
+const ComponentConfig = memo(() => {
   const selection = useSelection();
   const board = useBoard();
 
@@ -49,11 +49,13 @@ const ComponentConfig = () => {
   })
 
   const handleOnFocus = useMemoizedFn(() => {
+    console.log('focus');
     board.isEditingProperties = true;
   })
 
   const handleOnBlur = useMemoizedFn(() => {
     board.isEditingProperties = false;
+    console.log('blur', );
   });
 
   if (!selection || selection.selectedElements.length !== 1) return null;
@@ -64,7 +66,7 @@ const ComponentConfig = () => {
   const config = componentConfig[element.type];
 
   if (config && config.component) {
-    const Component = config.component;
+    const Component: React.FC<IComponentConfig<BoardElement>> = config.component;
     return (
       <Component
         onChange={onElementChange}
@@ -76,6 +78,6 @@ const ComponentConfig = () => {
   }
 
   return null;
-}
+});
 
 export default ComponentConfig;

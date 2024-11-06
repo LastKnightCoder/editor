@@ -115,6 +115,7 @@ export class MovePlugin implements IBoardPlugin {
       currentNode,
       delta
     };
+
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint) return {
       movedElements,
@@ -153,18 +154,6 @@ export class MovePlugin implements IBoardPlugin {
       currentNode.top = currentNode.top + delta.top;
     }
 
-    if (!this.isMoved) {
-      const diffL = Math.hypot(offsetX, offsetY);
-      if (diffL > 5) {
-        this.isMoved = true;
-      }
-    }
-    if (!this.isMoved) return {
-      movedElements,
-      currentNode,
-      delta
-    };
-
     this.moveElements.forEach(element => {
       const movedElement = board.moveElement(element, delta.left, delta.top);
       if (movedElement) {
@@ -182,6 +171,20 @@ export class MovePlugin implements IBoardPlugin {
   }
 
   onPointerMove(e: PointerEvent, board: Board) {
+    if (!this.moveElements || !this.startPoint) return;
+    const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    if (!endPoint) return;
+    const offsetX = endPoint.x - this.startPoint.x;
+    const offsetY = endPoint.y - this.startPoint.y;
+
+    if (!this.isMoved) {
+      const diffL = Math.hypot(offsetX, offsetY);
+      if (diffL > 5) {
+        this.isMoved = true;
+      }
+    }
+    if (!this.isMoved) return;
+
     const operations: Operation[] = [];
 
     const {
@@ -190,7 +193,7 @@ export class MovePlugin implements IBoardPlugin {
     } = this.getUpdatedInfo(e, board);
 
     movedElements.forEach(movedElement => {
-      const element = this.moveElements?.find(element => element.id === movedElement.id);
+      const element = this.moveElements!.find(element => element.id === movedElement.id);
       const path = PathUtil.getPathByElement(board, movedElement);
       if (!path || !element) return;
       operations.push({
@@ -214,6 +217,7 @@ export class MovePlugin implements IBoardPlugin {
   onPointerUp(e: PointerEvent, board: Board) {
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint || !this.startPoint || !this.moveElements || !this.isMoved) {
+      board.emit('element:move-end');
       this.moveElements = null;
       this.startPoint = null;
       this.isMoved = false;
@@ -235,8 +239,7 @@ export class MovePlugin implements IBoardPlugin {
         properties: element,
         newProperties: movedElement
       })
-      movedElements.push(movedElement);
-    })
+    });
 
     if (this.isHitSelected) {
       operations.push({
@@ -248,13 +251,13 @@ export class MovePlugin implements IBoardPlugin {
       });
       this.isHitSelected = false;
     }
-    board.emit('element:move-end');
 
     if (operations.length > 0) {
       board.apply(operations);
     }
     board.refLine.setCurrent(null);
 
+    board.emit('element:move-end');
     this.moveElements = null;
     this.startPoint = null;
     this.isMoved = false;
