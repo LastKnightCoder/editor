@@ -11,7 +11,7 @@ import { isValid } from "@/components/WhiteBoard/utils";
 import { MdFormatIndentDecrease, MdFormatIndentIncrease, MdOutlineCode } from "react-icons/md";
 
 import { CalendarOutlined, EditOutlined, ReadOutlined } from "@ant-design/icons";
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 import EditorOutline from "../../ThreeColumnLayout/components/EditorOutline";
 import { getInlineElementText } from "@/utils";
 import { formatDate } from "@/utils/time.ts";

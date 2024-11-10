@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import lightGallery from "lightgallery";
 
 import { ImageGalleryItem } from '@/components/Editor/types';
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 
 import lgThumbnail from 'lightgallery/plugins/thumbnail';
 import lgZoom from 'lightgallery/plugins/zoom';

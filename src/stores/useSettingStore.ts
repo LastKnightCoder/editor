@@ -19,6 +19,14 @@ export enum ELayout {
   ShortSidebar = 'shortSidebar',
 }
 
+interface DoubaoVoiceCopyConfig {
+  accessToken: string;
+  secretKey: string;
+  appid: string;
+  token: string;
+  currentSpeakerId: string;
+}
+
 interface ISetting {
   fontSetting: {
     chineseFont: string;
@@ -100,6 +108,10 @@ interface ISetting {
   }
   darkMode: boolean;
   layout: ELayout;
+  textToSpeech: {
+    currentModel: string;
+    doubao: DoubaoVoiceCopyConfig,
+  }
 }
 
 interface IState {
@@ -197,7 +209,17 @@ const initialState: IState = {
         name: '时间记录'
       }
     },
-    layout: ELayout.ShortSidebar
+    layout: ELayout.ShortSidebar,
+    textToSpeech: {
+      currentModel: "doubao",
+      doubao: {
+        accessToken: '',
+        secretKey: '',
+        appid: '',
+        token: '',
+        currentSpeakerId: '',
+      }
+    }
   },
   settingModalOpen: false,
 }

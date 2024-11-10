@@ -2,7 +2,7 @@ import { SwiperSlide, Swiper } from 'swiper/react'
 
 import { Pagination, Thumbs } from 'swiper/modules';
 import { ImageGalleryItem } from '@/components/Editor/types';
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 
 import 'swiper/css';
 import 'swiper/css/pagination';

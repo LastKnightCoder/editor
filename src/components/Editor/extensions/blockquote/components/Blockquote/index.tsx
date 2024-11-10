@@ -7,8 +7,7 @@ import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import useTheme from "@/hooks/useTheme.ts";
 
 import styles from './index.module.less';
-import {MdDragIndicator} from "react-icons/md";
-
+import { MdDragIndicator } from "react-icons/md";
 
 interface IBlockQuoteProps {
   attributes: RenderElementProps['attributes'];

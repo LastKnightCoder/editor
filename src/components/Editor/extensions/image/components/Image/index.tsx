@@ -10,7 +10,7 @@ import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { useImagesOverviewStore } from "@/components/Editor/stores";
 import { ImageElement } from "@/components/Editor/types";
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 
 import styles from './index.module.less';
 import UploadTab from "../UploadTab";

@@ -24,6 +24,7 @@ export const withOverrideSettings = (editor: Editor) => {
       'custom-block',
       'divide-line',
       'image-gallery',
+      'audio',
     ];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
@@ -40,6 +41,7 @@ export const withOverrideSettings = (editor: Editor) => {
       'custom-block',
       'divide-line',
       'image-gallery',
+      'audio',
     ];
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }

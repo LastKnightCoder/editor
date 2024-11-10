@@ -11,6 +11,7 @@ import ImageBedSetting from "./ImageBedSetting";
 import SyncSetting from "./SyncSetting";
 import ModuleSetting from "./ModuleSetting";
 import LayoutSetting from "./LayoutSetting";
+import TextToSpeechSetting from "./TextToSpeechSetting";
 
 import styles from './index.module.less';
 
@@ -58,6 +59,10 @@ const SettingModal = () => {
     key: 'sync',
     label: '同步',
     children: <SyncSetting />,
+  }, {
+    key: 'textToSpeech',
+    label: '文字转语音',
+    children: <TextToSpeechSetting />,
   }]
 
   return (
