@@ -11,7 +11,7 @@ import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import useUploadImage from "@/hooks/useUploadImage.ts";
 
 import { WhiteBoard } from '@/types';
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 import { formatDate } from "@/utils";
 
 import styles from "./index.module.less";

@@ -22,3 +22,4 @@ export * from './multi-column.ts';
 export * from './highlight-block.ts';
 export * from './tabs.ts';
 export * from './underline.ts';
+export * from './audio.ts';

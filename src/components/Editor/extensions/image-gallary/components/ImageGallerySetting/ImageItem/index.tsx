@@ -3,7 +3,7 @@ import { DeleteOutlined } from '@ant-design/icons';
 
 import classnames from "classnames";
 
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 import { ImageGalleryItem } from "@editor/types";
 
 import useDragAndDrop from "./useDragAndDrop";

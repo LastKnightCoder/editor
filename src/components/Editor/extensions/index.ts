@@ -17,13 +17,14 @@ import DivideLineExtension from "./divide-line";
 import MermaidExtension from "./mermaid";
 import { TableExtension, TableRowExtension, TableCellExtension } from './table';
 import HtmlBlockExtension from "./html-block";
-// import TikzExtension from "./tikz";
+import TikzExtension from "./tikz";
 import CustomBlockExtension from "./custom-block";
 import GraphvizExtension from "./graphviz";
 import { MultiColumnsContainerExtension, MultiColumnItemExtension } from './multi-column-layout';
 import HighlightBlockExtension from "./highlight-block";
 import TabsExtension from "./tabs";
 import StyledTextExtension from "./styled-text";
+import AudioExtension from "./audio";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -48,7 +49,7 @@ export const htmlBlock = new HtmlBlockExtension();
 export const table = new TableExtension();
 export const tableRow = new TableRowExtension();
 export const tableCell = new TableCellExtension();
-// export const tikz = new TikzExtension();
+export const tikz = new TikzExtension();
 
 export const customBlock = new CustomBlockExtension();
 export const graphviz = new GraphvizExtension();
@@ -59,6 +60,7 @@ export const multiColumnItem = new MultiColumnItemExtension();
 export const highlightBlock = new HighlightBlockExtension();
 export const tabs = new TabsExtension();
 export const styledText = new StyledTextExtension();
+export const audio = new AudioExtension();
 
 export const startExtensions = [
   paragraph,
@@ -86,10 +88,11 @@ export const startExtensions = [
   table,
   tableRow,
   tableCell,
-  // tikz,
+  tikz,
   customBlock,
   graphviz,
   multiColumnContainer,
   multiColumnItem,
-  styledText
+  styledText,
+  audio
 ];

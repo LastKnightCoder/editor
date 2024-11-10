@@ -4,7 +4,7 @@ import classnames from "classnames";
 import useUploadImage from '@/hooks/useUploadImage';
 
 // import Tags from "@/components/Tags";
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 
 import { MdMoreVert } from 'react-icons/md';

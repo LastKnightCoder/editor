@@ -11,7 +11,7 @@ import {
   TableRowElement,
   LinkElement,
   MultiColumnItemElement,
-  Color, ITabsContent
+  Color, ITabsContent, AudioElement
 } from "../types";
 import { EGalleryMode, EStyledColor } from '../constants';
 import { codeBlockMap } from "../extensions/code-block";
@@ -94,6 +94,23 @@ interface ImageParams {
 export const insertImage = (editor: Editor, params: ImageParams) => {
   const image: ImageElement = { type: 'image', ...params, children: [{ type: 'formatted', text: '' }] }
   return setOrInsertNode(editor, image);
+}
+
+interface AudioParams {
+  src: string;
+  uploading?: boolean;
+}
+
+export const insertAudio = (editor: Editor, params: AudioParams) => {
+  const audio: AudioElement = {
+    type: 'audio',
+    ...params,
+    children: [{
+      type: 'formatted',
+      text: ''
+    }]
+  }
+  return setOrInsertNode(editor, audio);
 }
 
 export const insertBulletList = (editor: Editor) => {

@@ -6,7 +6,7 @@ import { CalendarOutlined } from '@ant-design/icons';
 import star from '@/assets/article/star.svg';
 import { MdMoreVert } from 'react-icons/md';
 
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 import Editor from "@editor/index.tsx";
 import Tags from "@/components/Tags";
 import If from "@/components/If";

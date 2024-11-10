@@ -7,25 +7,35 @@ mod commands;
 mod plugins;
 
 use window_shadows::set_shadow;
-use tauri::{Manager, State, SystemTray, CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem, AppHandle, Wry};
+use tauri::{AppHandle, CustomMenuItem, Manager, State, SystemTray, SystemTrayMenu, SystemTrayMenuItem, Wry};
 use database::init_database;
 use state::AppState;
-use plugins::{card, article, document, pdf, project, daily_note, time_record, white_board};
+use plugins::{
+    article,
+    card,
+    daily_note,
+    document,
+    pdf,
+    project,
+    time_record,
+    white_board,
+    voice_copy,
+};
 
 use commands::{
-    get_card_history_list,
+    connect_database_by_name,
+    get_ali_oss_buckets,
+    get_all_fonts,
     get_article_history_list,
+    get_card_history_list,
+    get_database_path,
+    get_editor_dir,
     get_operation_list,
     get_operation_records_by_year,
-    write_setting,
     read_setting,
-    get_all_fonts,
-    get_ali_oss_buckets,
-    get_database_path,
     reconnect_database,
-    connect_database_by_name,
     show_in_folder,
-    get_editor_dir
+    write_setting,
 };
 
 fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
@@ -88,6 +98,7 @@ fn main() {
         .plugin(daily_note::init())
         .plugin(time_record::init())
         .plugin(white_board::init())
+        .plugin(voice_copy::init())
         .system_tray(tray)
         .on_system_tray_event(|app, event| {
             match event {
@@ -130,7 +141,7 @@ fn main() {
             reconnect_database,
             connect_database_by_name,
             show_in_folder,
-            get_editor_dir
+            get_editor_dir,
         ])
       .run(tauri::generate_context!())
       .expect("error while running tauri application");

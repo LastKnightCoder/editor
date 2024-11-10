@@ -2,7 +2,7 @@ import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { CloseOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import PortalToBody from "@/components/PortalToBody";
-import LocalImage from "@editor/components/LocalImage";
+import LocalImage from "@/components/LocalImage";
 
 import { useImagesOverviewStore } from "../../stores";
 
