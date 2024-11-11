@@ -4,3 +4,4 @@ export * from './article';
 export * from './setting';
 export * from './document.ts';
 export * from './project.ts';
+export * from './llm.ts';
