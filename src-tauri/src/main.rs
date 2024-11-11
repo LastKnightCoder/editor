@@ -20,6 +20,7 @@ use plugins::{
     time_record,
     white_board,
     voice_copy,
+    llm,
 };
 
 use commands::{
@@ -99,6 +100,7 @@ fn main() {
         .plugin(time_record::init())
         .plugin(white_board::init())
         .plugin(voice_copy::init())
+        .plugin(llm::init())
         .system_tray(tray)
         .on_system_tray_event(|app, event| {
             match event {

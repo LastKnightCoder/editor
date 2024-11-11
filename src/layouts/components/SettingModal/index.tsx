@@ -12,6 +12,7 @@ import SyncSetting from "./SyncSetting";
 import ModuleSetting from "./ModuleSetting";
 import LayoutSetting from "./LayoutSetting";
 import TextToSpeechSetting from "./TextToSpeechSetting";
+import LLMProviderSetting from "./LLMProviderSetting";
 
 import styles from './index.module.less';
 
@@ -39,15 +40,7 @@ const SettingModal = () => {
     key: 'app',
     label: '关于软件',
     children: <AppAbout />,
-  }, {
-    key: 'layout',
-    label: '布局设置',
-    children: <LayoutSetting />,
-  }, {
-    key: 'module',
-    label: '模块功能',
-    children: <ModuleSetting />,
-  }, {
+  },  {
     key: 'font',
     label: '字体',
     children: <FontSetting />,
@@ -60,10 +53,22 @@ const SettingModal = () => {
     label: '同步',
     children: <SyncSetting />,
   }, {
+    key: 'llm',
+    label: '大语言模型',
+    children: <LLMProviderSetting />,
+  }, {
     key: 'textToSpeech',
     label: '文字转语音',
     children: <TextToSpeechSetting />,
-  }]
+  }, {
+    key: 'layout',
+    label: '布局设置',
+    children: <LayoutSetting />,
+  }, {
+    key: 'module',
+    label: '模块功能',
+    children: <ModuleSetting />,
+  },]
 
   return (
     <Modal
@@ -71,7 +76,7 @@ const SettingModal = () => {
       open={open}
       footer={null}
       onCancel={close}
-      width={720}
+      width={820}
       bodyStyle={{
         minHeight: 300,
         maxHeight: 'calc(100vh - 160px)',

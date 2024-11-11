@@ -14,6 +14,11 @@ export enum ESync {
   AliOSS = 'aliOSS',
 }
 
+export enum ELLMProvider {
+  OPENAI = 'openai',
+  DOUBAO = 'doubao',
+}
+
 export enum ELayout {
   ThreeColumn = 'threeColumn',
   ShortSidebar = 'shortSidebar',
@@ -27,7 +32,7 @@ interface DoubaoVoiceCopyConfig {
   currentSpeakerId: string;
 }
 
-interface ISetting {
+export interface ISetting {
   fontSetting: {
     chineseFont: string;
     englishFont: string;
@@ -111,6 +116,37 @@ interface ISetting {
   textToSpeech: {
     currentModel: string;
     doubao: DoubaoVoiceCopyConfig,
+  },
+  llmProviders: {
+    currentProvider: ELLMProvider;
+    [ELLMProvider.OPENAI]: {
+      currentConfigId: string;
+      configs: Array<{
+        id: string;
+        name: string;
+        apiKey: string;
+        baseUrl: string;
+        currentModel: string;
+        models: Array<{
+          name: string;
+          description: string;
+        }>
+      }>
+    },
+    [ELLMProvider.DOUBAO]: {
+      currentConfigId: string;
+      configs: Array<{
+        id: string;
+        name: string;
+        apiKey: string;
+        baseUrl: string;
+        currentModel: string;
+        models: Array<{
+          name: string;
+          description: string;
+        }>
+      }>
+    }
   }
 }
 
@@ -218,6 +254,17 @@ const initialState: IState = {
         appid: '',
         token: '',
         currentSpeakerId: '',
+      }
+    },
+    llmProviders: {
+      currentProvider: ELLMProvider.OPENAI,
+      [ELLMProvider.OPENAI]: {
+        currentConfigId: '',
+        configs: []
+      },
+      [ELLMProvider.DOUBAO]: {
+        currentConfigId: '',
+        configs: []
       }
     }
   },
