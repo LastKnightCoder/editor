@@ -7,11 +7,24 @@ import { getEditorDir } from '@/commands';
 // 先查看是否已经下载过，如果没有则下载
 // 下载记录保存到文件中
 const REMOTE_RESOURCE_CONFIG_NAME = "remote_local_map.json";
-const REMOTR_RESOURCE_PATH = 'remote-resources';
+const REMOTE_RESOURCE_PATH = 'remote-resources';
 const LOCAL_RESOURCE_PATH = 'resources';
 export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!fileName) {
     fileName = await basename(url);
+    if (url.includes('mmbiz.qpic.cn')) {
+      try {
+        const urlObj = new URL(url);
+        const pathname = urlObj.pathname;
+        console.log('pathname', pathname);
+        const [, format, name] = pathname.split('/');
+        console.log('format', format, 'name', name);
+        const [, type] = format.split('_');
+        fileName = `${name}.${type}`;
+      } catch (e) {
+        console.error(e);
+      }
+    }
   }
   const configDirPath = await getEditorDir();
   const configPath = configDirPath + sep + REMOTE_RESOURCE_CONFIG_NAME;
@@ -25,13 +38,17 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (configObj[url]) {
     return configObj[url];
   }
-  const resourceDirPath = configDirPath + sep + REMOTR_RESOURCE_PATH;
+  const resourceDirPath = configDirPath + sep + REMOTE_RESOURCE_PATH;
   if (!await exists(resourceDirPath)) {
     await createDir(resourceDirPath);
   }
   const remoteContent = await fetch(url, {
     method: "GET",
-    responseType: ResponseType.Binary
+    responseType: ResponseType.Binary,
+    headers: url.startsWith('https://mmbiz.qpic.cn') ? {
+      'Origin': 'https://mp.weixin.qq.com',
+      'Referer': 'https://mp.weixin.qq.com/'
+    } : undefined
   }).then(res => res.data) as unknown as ArrayBuffer;
 
   const resourcePath = resourceDirPath + sep + fileName;

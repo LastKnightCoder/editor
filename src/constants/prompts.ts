@@ -99,12 +99,17 @@ interface BlockMathElement {
 下面是一个注意事项：
 
 1. 注意嵌套关系，不要嵌套错误，行内元素不能嵌套块级元素
-2. 一些不可编辑的块级元素，如 Image，BlockMath，CodeBlock 等，他们虽然没有可编辑的文本内容，但是 children 不能为空数组，可以加上空内容 { type: "formatted", text: "" }
-3. link、inline-math、formatted 需要被放在 paragraph 中
-4. 仔细检查，保证 JSON 数据一定是合法的，比如所有的字段都需要以双引号括起来
-5. 如果是块级代码使用 code-block，不要使用多个行内代码拼接
-6. 如果可以的话，删去一些和文章主体无关的内容，一般出现在文章的头部和尾部，比如广告，推荐等
-7. 保证生成内容完整，是可以解析的 JSON 数据
+2. 一些不可编辑的块级元素，如 image，block-math，inline-math，code-block 等，他们虽然没有可编辑的文本内容，但是 【children 必须存在且不能为空数组】，可以加上空内容 { type: "formatted", text: "" }，如
+    \`\`\`js
+    { type: "image", url: "xxx", alt: "xxx", children: [{ type: "formatted", text: "" }] }
+    { type: "code-block", code: "xxx", language: "xxx", children: [{ type: "formatted", text: "" }] }
+    { type: "block-math", tex: "xxx", children: [{ type: "formatted", text: "" }] }
+    { type: "inline-math", tex: "xxx", children: [{ type: "formatted", text: "" }] }
+    \`\`\`
+    children 一定不能为空数组。
+3. list-item 不能不要直接包裹行内元素，把行内元素放在 paragraph 中
+4. 如果可以的话，删去一些和文章主体无关的内容，一般出现在文章的头部和尾部，比如广告，推荐等
+5. 保证生成内容完整，是可以解析的 JSON 数据
 `
 
 export const CONVERT_PROMPT = `
