@@ -29,10 +29,10 @@ pub fn chat(api_key: String, base_url: String, model: String, messages: Vec<Mess
         Ok(rs) => {
             let choice = rs.choices;
             match &choice[0].message.as_ref() {
-                Ok(message) => {
+                Some(message) => {
                     Ok(message.content.clone())
                 }
-                Err(e) => Err(e.to_string())
+                None => Err("no message found".to_string())
             }
         }
         Err(e) => Err(e.to_string())
