@@ -43,6 +43,9 @@ const aliases = {
   md: 'markdown',
   xml: 'html/xml',
   latex: 'stex',
+  cpp: 'C++',
+  sh: 'shell',
+  zsh: 'shell'
 }
 
 const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) => {

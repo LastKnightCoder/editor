@@ -1,4 +1,4 @@
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, useRef } from "react";
 import classnames from 'classnames';
 import { useMemoizedFn } from "ahooks";
 import { App, Dropdown, Input, MenuProps, message, Modal, Tooltip } from 'antd';
@@ -35,6 +35,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const chatLLM = useChatLLM();
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState('');
+  const parserControllerRef = useRef<AbortController>();
+  const [parseLoading, setParseLoading] = useState(false);
   const [projectItem, setProjectItem] = useState<ProjectItem>();
   const [folderOpen, setFolderOpen] = useState(() => {
     return path.length === 1;
@@ -437,15 +439,30 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       <Modal
         open={webClipModalOpen}
         title={'添加网页'}
+        confirmLoading={parseLoading}
+        maskClosable={!parseLoading}
         onOk={async () => {
           if (!projectItem || !activateProjectId) {
+            return;
+          }
+          setParseLoading(true);
+          if (parserControllerRef.current) {
+            parserControllerRef.current.abort();
+          }
+          parserControllerRef.current = new AbortController();
+          parserControllerRef.current.signal.addEventListener('abort', () => {
+            setParseLoading(false);
+          })
+
+          if (parserControllerRef.current.signal.aborted) {
             return;
           }
           message.loading({
             key: 'fetch-html',
             content: '正在请求 HTML 文件，请稍等...',
             duration: 0
-          })
+          });
+
           const res = await fetch(webClip, {
             responseType: ResponseType.Text,
             method: "GET"
@@ -458,12 +475,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           // 移除所有的 scripts
           doc.querySelectorAll('script').forEach(script => script.remove());
           const pageContent = doc.getElementById('page-content');
-          console.log('pageContent:\n', pageContent);
           if (!pageContent) {
             message.error('无法获取网页内容');
             return;
           }
 
+          if (parserControllerRef.current.signal.aborted) {
+            return;
+          }
           message.loading({
             key: 'html-convert',
             content: '正在处理 HTML 文件，请稍后',
@@ -477,9 +496,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             content: pageContent.innerHTML
           }];
           const convertRes = await chatLLM(convertMessages) || '';
-          console.log('convertRes:\n', convertRes);
           message.destroy('html-convert');
 
+          if (parserControllerRef.current.signal.aborted) {
+            return;
+          }
           message.loading({
             key: 'html-split',
             content: '正在分割文本，请稍后',
@@ -493,11 +514,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             content: convertRes
           }];
           const splitRes = await chatLLM(splitMessages) || '[]';
-          console.log('splitRes:\n', splitRes);
           message.destroy('html-split');
 
           try {
             const splitArray: string[] = JSON.parse(splitRes);
+            if (parserControllerRef.current.signal.aborted) {
+              return;
+            }
             message.loading({
               key: 'html-process',
               content: '正在处理文本，请稍后',
@@ -525,7 +548,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             const res2Json = JSON.parse(res2 || '[]');
 
             let jsonContent: Descendant[] = [...res1Json, ...res2Json];
-            console.log('jsonContent:\n', jsonContent);
 
             let title = '新文档';
             if (jsonContent.length > 0) {
@@ -535,6 +557,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               }
             }
 
+            if (parserControllerRef.current.signal.aborted) {
+              return;
+            }
             const createProjectItem: CreateProjectItem = {
               title,
               content: jsonContent,
@@ -558,12 +583,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           } catch (e) {
             console.error(e);
           } finally {
+            parserControllerRef.current = undefined;
             message.destroy('html-process');
           }
         }}
         onCancel={() => {
           setWebClip('');
           setWebClipModalOpen(false);
+          parserControllerRef.current?.abort();
+          parserControllerRef.current = undefined;
+          message.destroy();
         }}
       >
         <Input
