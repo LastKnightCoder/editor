@@ -15,3 +15,4 @@ export * from './pdf.ts';
 export * from './white-board.ts';
 export * from './voice-copy.ts';
 export * from './llm.ts';
+export * from './html-to-markdown.ts';

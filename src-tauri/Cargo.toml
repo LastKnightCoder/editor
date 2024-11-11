@@ -33,6 +33,7 @@ base64 = "0.22.1"
 uuid = { version = "1.7.4", features = ["serde", "v4"] }
 log = "0.4.22"
 openai_api_rust = "0.1.9"
+htmd = "0.1.6"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

@@ -28,8 +28,12 @@ pub fn chat(api_key: String, base_url: String, model: String, messages: Vec<Mess
     match rs {
         Ok(rs) => {
             let choice = rs.choices;
-            let message = &choice[0].message.as_ref().unwrap();
-            Ok(message.content.clone())
+            match &choice[0].message.as_ref() {
+                Ok(message) => {
+                    Ok(message.content.clone())
+                }
+                Err(e) => Err(e.to_string())
+            }
         }
         Err(e) => Err(e.to_string())
     }

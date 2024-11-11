@@ -37,6 +37,7 @@ use commands::{
     reconnect_database,
     show_in_folder,
     write_setting,
+    html_to_markdown,
 };
 
 fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
@@ -144,6 +145,7 @@ fn main() {
             connect_database_by_name,
             show_in_folder,
             get_editor_dir,
+            html_to_markdown,
         ])
       .run(tauri::generate_context!())
       .expect("error while running tauri application");

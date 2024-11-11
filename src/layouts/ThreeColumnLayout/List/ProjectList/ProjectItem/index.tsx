@@ -1,20 +1,25 @@
 import { useState, useEffect, memo } from "react";
 import classnames from 'classnames';
 import { useMemoizedFn } from "ahooks";
-import { App, Dropdown, MenuProps, message, Tooltip } from 'antd';
+import { App, Dropdown, Input, MenuProps, message, Modal, Tooltip } from 'antd';
 import { produce } from "immer";
+import { fetch, ResponseType } from '@tauri-apps/api/http';
 
 import useProjectsStore from "@/stores/useProjectsStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
+import useChatLLM from "@/hooks/useChatLLM.ts";
 import useAddRefCard from "./useAddRefCard";
 
 import { getProjectById, getProjectItemById, updateProjectItem } from '@/commands';
-import { CreateProjectItem, type ProjectItem } from "@/types";
+import { CreateProjectItem, Message, type ProjectItem } from "@/types";
+import { Role, CONVERT_PROMPT, WEB_CLIP_PROMPT, SPLIT_PROMPT } from '@/constants';
 import { FileOutlined, FolderOpenTwoTone, MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import For from "@/components/For";
 
 import styles from './index.module.less';
 import SelectCardModal from "@/components/SelectCardModal";
+import { Descendant } from "slate";
+import { getEditorText } from "@/utils";
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -27,6 +32,9 @@ interface IProjectItemProps {
 const ProjectItem = memo((props: IProjectItemProps) => {
   const { projectItemId, isRoot = false, parentProjectItemId, path, parentChildren } = props;
 
+  const chatLLM = useChatLLM();
+  const [webClipModalOpen, setWebClipModalOpen] = useState(false);
+  const [webClip, setWebClip] = useState('');
   const [projectItem, setProjectItem] = useState<ProjectItem>();
   const [folderOpen, setFolderOpen] = useState(() => {
     return path.length === 1;
@@ -254,6 +262,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   }, {
     key: 'add-card-project-item',
     label: '关联卡片',
+  }, {
+    key: 'add-web-project-item',
+    label: '解析网页',
   }]
 
   const handleAddMenuClick: MenuProps['onClick'] = useMemoizedFn(async ({ key }) => {
@@ -281,6 +292,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       document.dispatchEvent(event);
     } else if (key === 'add-card-project-item') {
       openSelectCardModal();
+    } else if (key === 'add-web-project-item') {
+      setWebClipModalOpen(true);
     }
   });
 
@@ -421,6 +434,144 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         onOk={onOk}
         excludeCardIds={excludeCardIds}
       />
+      <Modal
+        open={webClipModalOpen}
+        title={'添加网页'}
+        onOk={async () => {
+          if (!projectItem || !activateProjectId) {
+            return;
+          }
+          message.loading({
+            key: 'fetch-html',
+            content: '正在请求 HTML 文件，请稍等...',
+            duration: 0
+          })
+          const res = await fetch(webClip, {
+            responseType: ResponseType.Text,
+            method: "GET"
+          });
+          message.destroy('fetch-html');
+
+          const text = res.data as string;
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(text, 'text/html');
+          // 移除所有的 scripts
+          doc.querySelectorAll('script').forEach(script => script.remove());
+          const pageContent = doc.getElementById('page-content');
+          console.log('pageContent:\n', pageContent);
+          if (!pageContent) {
+            message.error('无法获取网页内容');
+            return;
+          }
+
+          message.loading({
+            key: 'html-convert',
+            content: '正在处理 HTML 文件，请稍后',
+            duration: 0
+          });
+          const convertMessages: Message[] = [{
+            role: Role.System,
+            content: CONVERT_PROMPT,
+          }, {
+            role: Role.User,
+            content: pageContent.innerHTML
+          }];
+          const convertRes = await chatLLM(convertMessages) || '';
+          console.log('convertRes:\n', convertRes);
+          message.destroy('html-convert');
+
+          message.loading({
+            key: 'html-split',
+            content: '正在分割文本，请稍后',
+            duration: 0
+          })
+          const splitMessages: Message[] = [{
+            role: Role.System,
+            content: SPLIT_PROMPT,
+          }, {
+            role: Role.User,
+            content: convertRes
+          }];
+          const splitRes = await chatLLM(splitMessages) || '[]';
+          console.log('splitRes:\n', splitRes);
+          message.destroy('html-split');
+
+          try {
+            const splitArray: string[] = JSON.parse(splitRes);
+            message.loading({
+              key: 'html-process',
+              content: '正在处理文本，请稍后',
+              duration: 0
+            })
+            const [res1, res2] = await Promise.all(splitArray.map(async item => {
+              const messages: Message[] = [{
+                role: Role.System,
+                content: WEB_CLIP_PROMPT
+              }, {
+                role: Role.User,
+                content: item
+              }];
+              let aiRes = await chatLLM(messages);
+              if (aiRes) {
+                aiRes = aiRes.trim();
+                if (aiRes.startsWith("```json") && aiRes.endsWith("```")) {
+                  aiRes = aiRes.slice(7, -3);
+                }
+              }
+              return aiRes;
+            }));
+
+            const res1Json = JSON.parse(res1 || '[]');
+            const res2Json = JSON.parse(res2 || '[]');
+
+            let jsonContent: Descendant[] = [...res1Json, ...res2Json];
+            console.log('jsonContent:\n', jsonContent);
+
+            let title = '新文档';
+            if (jsonContent.length > 0) {
+              if (jsonContent[0].type === 'header') {
+                title = getEditorText(jsonContent[0].children);
+                jsonContent = jsonContent.slice(1);
+              }
+            }
+
+            const createProjectItem: CreateProjectItem = {
+              title,
+              content: jsonContent,
+              children: [],
+              parents: [projectItem.id],
+              projects: [activateProjectId],
+              refType: '',
+              refId: 0
+            }
+
+            await createChildProjectItem(projectItem.id, createProjectItem);
+
+            const event = new CustomEvent('refreshProjectItem', {
+              detail: {
+                id: projectItem.id
+              },
+            });
+            document.dispatchEvent(event);
+            setWebClip('');
+            setWebClipModalOpen(false);
+          } catch (e) {
+            console.error(e);
+          } finally {
+            message.destroy('html-process');
+          }
+        }}
+        onCancel={() => {
+          setWebClip('');
+          setWebClipModalOpen(false);
+        }}
+      >
+        <Input
+          value={webClip}
+          onChange={(e) => setWebClip(e.target.value)}
+          placeholder='请输入网址'
+        />
+      </Modal>
     </div>
   )
 });
