@@ -16,7 +16,7 @@ export enum ESync {
 
 export enum ELLMProvider {
   OPENAI = 'openai',
-  DOUBAO = 'doubao',
+  OTHER = 'other',
 }
 
 export enum ELayout {
@@ -133,7 +133,7 @@ export interface ISetting {
         }>
       }>
     },
-    [ELLMProvider.DOUBAO]: {
+    [ELLMProvider.OTHER]: {
       currentConfigId: string;
       configs: Array<{
         id: string;
@@ -262,7 +262,7 @@ const initialState: IState = {
         currentConfigId: '',
         configs: []
       },
-      [ELLMProvider.DOUBAO]: {
+      [ELLMProvider.OTHER]: {
         currentConfigId: '',
         configs: []
       }

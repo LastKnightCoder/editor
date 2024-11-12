@@ -11,6 +11,7 @@ interface ResizeableAndHideableSidebarProps {
   children: React.ReactNode;
   minWidth?: number;
   maxWidth?: number;
+  side?: 'left' | 'right';
 }
 
 const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) => {
@@ -23,6 +24,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
     children,
     minWidth = 200,
     maxWidth = 500,
+    side,
   } = props;
 
   const scope = useDragAndHideSidebar({
@@ -42,6 +44,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
         style={{
           height: '100%'
         }}
+        side={side}
       >
         {children}
       </WidthResizable>

@@ -10,6 +10,7 @@ interface IWidthResizableProps {
   maxWidth?: number;
   onResize?: (width: number) => void;
   className?: string;
+  side?: 'left' | 'right';
   style?: React.CSSProperties;
 }
 
@@ -20,6 +21,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     maxWidth,
     onResize,
     className,
+    side = 'right',
     style = {}
   } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -42,6 +44,9 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
       const container = containerRef.current;
       if (!container) return;
       let newWidth = e.clientX - container.getBoundingClientRect().left;
+      if (side === 'left') {
+        newWidth = container.offsetWidth - newWidth;
+      }
       if (minWidth && newWidth < minWidth) {
         newWidth = minWidth;
       }
@@ -79,7 +84,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     >
       {props.children}
       <div
-        className={styles.resizeBar}
+        className={classnames(styles.resizeBar, { [styles.left]: side === 'left' })}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
       />

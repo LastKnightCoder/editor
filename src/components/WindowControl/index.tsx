@@ -19,7 +19,7 @@ import { type } from '@tauri-apps/api/os'
 import { UnlistenFn } from "@tauri-apps/api/event";
 
 import styles from './index.module.less';
-
+import { FiSidebar } from "react-icons/fi";
 
 interface IWindowControlProps {
   className?: string;
@@ -29,6 +29,7 @@ interface IWindowControlProps {
   showColumns?: boolean;
   showSelectDatabase?: boolean;
   showFocusMode?: boolean;
+  showRightSidebar?: boolean;
 }
 
 const WindowControl = (props: IWindowControlProps) => {
@@ -39,7 +40,8 @@ const WindowControl = (props: IWindowControlProps) => {
     initAlwaysOnTop = false,
     showColumns = false,
     showSelectDatabase = false,
-    showFocusMode = false
+    showFocusMode = false,
+    showRightSidebar = false
   } = props;
 
   const [isMaximizable, setIsMaximizable] = useState<boolean>(false);
@@ -203,6 +205,33 @@ const WindowControl = (props: IWindowControlProps) => {
           <PushpinOutlined className={classnames(styles.pin, { [styles.onTop]: alwaysOnTop })} />
         </div>
       </Tooltip>
+      {
+        showRightSidebar && (
+          <div
+            className={styles.item}
+            onClick={() => {
+              useGlobalStateStore.setState((state) => {
+                return {
+                  rightSidebarOpen: !state.rightSidebarOpen
+                }
+              })
+            }}
+          >
+            <FiSidebar />
+          </div>
+          // <TitlebarIcon
+          //   onClick={() => {
+          //     useGlobalStateStore.setState((state) => {
+          //       return {
+          //         rightSidebarOpen: !state.rightSidebarOpen
+          //       }
+          //     })
+          //   }}
+          // >
+          //   <FiSidebar />
+          // </TitlebarIcon>
+        )
+      }
       <div className={styles.item} onClick={minimize}>
         <MinusOutlined />
       </div>

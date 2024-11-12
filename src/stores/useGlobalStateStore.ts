@@ -6,6 +6,7 @@ interface IState {
   focusMode: boolean;
   listWidth: number;
   listOpen: boolean;
+  rightSidebarOpen: boolean;
 }
 
 const sidebarWidth = Number(localStorage.getItem('sidebarWidth')) || 300;
@@ -17,6 +18,7 @@ export const useGlobalStateStore = create<IState>(() => ({
   listOpen: true,
   listWidth,
   focusMode: false,
+  rightSidebarOpen: true,
 }));
 
 export default useGlobalStateStore;

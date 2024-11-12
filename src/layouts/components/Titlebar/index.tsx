@@ -82,7 +82,13 @@ const Titlebar = memo((props: TitlebarProps) => {
       <If condition={!focusMode}>
         <Outlet />
       </If>
-      <WindowControl className={styles.windowControl} showColumns={showColumns} showSelectDatabase={showSelectDatabase} showFocusMode={showFocusMode} />
+      <WindowControl
+        className={styles.windowControl}
+        showColumns={showColumns}
+        showSelectDatabase={showSelectDatabase}
+        showFocusMode={showFocusMode}
+        showRightSidebar={true}
+      />
     </div>
   )
 });

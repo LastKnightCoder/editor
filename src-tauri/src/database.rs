@@ -11,6 +11,7 @@ pub mod time_record;
 pub mod project;
 pub mod pdf;
 pub mod white_board;
+pub mod chat_message;
 
 use self::card::{init_card_table, upgrade_card_table};
 use self::article::{init_article_table, upgrade_article_table};
@@ -22,6 +23,7 @@ use self::time_record::init_time_record_table;
 use self::project::{init_project_table, init_project_item_table, upgrade_project_table};
 use self::pdf::{init_pdf_table, init_pdf_highlight_table};
 use self::white_board::init_white_board_table;
+use self::chat_message::{init_chat_messages_table, upgrade_chat_messages_table};
 
 pub fn init_database(database_name: &str) -> Result<Connection, rusqlite::Error> {
     let home_dir = home_dir().unwrap();
@@ -57,6 +59,7 @@ fn init_tables(conn: &Connection) -> Result<()> {
     init_pdf_table(conn)?;
     init_pdf_highlight_table(conn)?;
     init_white_board_table(conn)?;
+    init_chat_messages_table(conn)?;
     Ok(())
 }
 
@@ -69,5 +72,6 @@ fn upgrade_database(conn: &Connection, old_version: i64, new_version: i64) -> Re
     upgrade_document_table(conn, old_version, new_version)?;
     upgrade_document_items_table(conn, old_version, new_version)?;
     upgrade_project_table(conn, old_version, new_version)?;
+    upgrade_chat_messages_table(conn, old_version, new_version)?;
     Ok(())
 }
