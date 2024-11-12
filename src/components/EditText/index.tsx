@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 
 interface IEditTextProps {
   className?: string;
@@ -10,11 +10,44 @@ interface IEditTextProps {
   defaultFocus?: boolean;
 }
 
-const EditText = (props: IEditTextProps) => {
+export type EditTextHandle = {
+  clear: () => void;
+  setValue: (value: string) => void;
+  focus: () => void;
+  blur: () => void;
+  getValue: () => string;
+}
+
+const EditText = forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef) => {
   const { className, style, defaultValue, contentEditable = false, onChange, onPressEnter, defaultFocus = false } = props;
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(editTextRef, () => ({
+    clear: () => {
+      const inputEle = ref.current;
+      if (inputEle) {
+        inputEle.innerText = '';
+        inputEle.blur();
+      }
+    },
+    setValue: (value: string) => {
+      const inputEle = ref.current;
+      if (inputEle) {
+        inputEle.innerText = value;
+      }
+    },
+    focus: () => {
+      ref.current?.focus();
+    },
+    blur: () => {
+      ref.current?.blur();
+    },
+    getValue: () => {
+      return ref.current?.innerText || '';
+    }
+  }))
 
   useEffect(() => {
     if (defaultFocus) {
@@ -63,6 +96,6 @@ const EditText = (props: IEditTextProps) => {
       {defaultValue}
     </div>
   )
-}
+});
 
 export default EditText;

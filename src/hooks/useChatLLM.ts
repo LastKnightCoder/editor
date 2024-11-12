@@ -14,9 +14,9 @@ const chatInner = async (llmProviders: ISetting['llmProviders'], messages: Messa
     }
     const { apiKey, baseUrl, currentModel } = currentConfig;
     return await chat(apiKey, baseUrl, currentModel, messages);
-  } else if (llmProviders.currentProvider === ELLMProvider.DOUBAO) {
-    const currentConfigId = llmProviders[ELLMProvider.DOUBAO].currentConfigId;
-    const currentConfig = llmProviders[ELLMProvider.DOUBAO].configs.find(config => config.id === currentConfigId);
+  } else if (llmProviders.currentProvider === ELLMProvider.OTHER) {
+    const currentConfigId = llmProviders[ELLMProvider.OTHER].currentConfigId;
+    const currentConfig = llmProviders[ELLMProvider.OTHER].configs.find(config => config.id === currentConfigId);
     if (!currentConfig) {
       message.error('无法获取到豆包相关配置');
       return null;

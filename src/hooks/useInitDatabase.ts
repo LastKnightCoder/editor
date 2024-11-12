@@ -12,6 +12,7 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore.ts";
+import useChatMessageStore from "@/stores/useChatMessageStore.ts";
 
 const useInitDatabase = () => {
   const { message } = App.useApp();
@@ -74,6 +75,12 @@ const useInitDatabase = () => {
     initWhiteBoards: state.initWhiteBoards
   }));
 
+  const {
+    initChatMessage
+  } = useChatMessageStore(state => ({
+    initChatMessage: state.initChatMessage
+  }));
+
   const initDatabase = useMemoizedFn(async () => {
     await Promise.all([
       initArticles(),
@@ -84,6 +91,7 @@ const useInitDatabase = () => {
       initProjects(),
       initPdfs(),
       initWhiteBoards(),
+      initChatMessage()
     ]);
   });
 

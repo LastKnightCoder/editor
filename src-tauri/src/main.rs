@@ -21,6 +21,7 @@ use plugins::{
     white_board,
     voice_copy,
     llm,
+    chat_message,
 };
 
 use commands::{
@@ -102,6 +103,7 @@ fn main() {
         .plugin(white_board::init())
         .plugin(voice_copy::init())
         .plugin(llm::init())
+        .plugin(chat_message::init())
         .system_tray(tray)
         .on_system_tray_event(|app, event| {
             match event {

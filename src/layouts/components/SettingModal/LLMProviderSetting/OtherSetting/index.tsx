@@ -6,11 +6,11 @@ import { v4 as getUuid } from 'uuid';
 
 const MODAL_ITEM_WIDTH = 100;
 
-const DoubaoSetting = () => {
+const OtherSetting = () => {
   const {
     settings
   } = useSettingStore(state => ({
-    settings: state.setting.llmProviders[ELLMProvider.DOUBAO]
+    settings: state.setting.llmProviders[ELLMProvider.OTHER]
   }));
 
   const {
@@ -44,7 +44,7 @@ const DoubaoSetting = () => {
     if (!action) return;
     if (action === 'create') {
       useSettingStore.setState(produce(draft => {
-        draft.setting.llmProviders[ELLMProvider.DOUBAO].configs.push({
+        draft.setting.llmProviders[ELLMProvider.OTHER].configs.push({
           id: getUuid(),
           name: editName,
           apiKey: editApiKey,
@@ -53,11 +53,11 @@ const DoubaoSetting = () => {
       }))
     } else {
       useSettingStore.setState(produce(draft => {
-        const index = draft.setting.llmProviders[ELLMProvider.DOUBAO].configs.findIndex((item: any) => item.id === editId);
+        const index = draft.setting.llmProviders[ELLMProvider.OTHER].configs.findIndex((item: any) => item.id === editId);
         if (index === -1) {
           return;
         }
-        draft.setting.llmProviders[ELLMProvider.DOUBAO].configs[index] = {
+        draft.setting.llmProviders[ELLMProvider.OTHER].configs[index] = {
           id: editId,
           name: editName,
           apiKey: editApiKey,
@@ -85,11 +85,11 @@ const DoubaoSetting = () => {
       title: '确定删除此模型吗？',
       onOk: () => {
         useSettingStore.setState(produce(draft => {
-          const index = draft.setting.llmProviders[ELLMProvider.DOUBAO].configs.findIndex((item: any) => item.id === id);
+          const index = draft.setting.llmProviders[ELLMProvider.OTHER].configs.findIndex((item: any) => item.id === id);
           if (index === -1) {
             return;
           }
-          draft.setting.llmProviders[ELLMProvider.DOUBAO].configs.splice(index, 1);
+          draft.setting.llmProviders[ELLMProvider.OTHER].configs.splice(index, 1);
         }));
       }
     })
@@ -105,7 +105,7 @@ const DoubaoSetting = () => {
 
   const onActivateConfig = (id: string) => {
     useSettingStore.setState(produce(draft => {
-      draft.setting.llmProviders[ELLMProvider.DOUBAO].currentConfigId = id;
+      draft.setting.llmProviders[ELLMProvider.OTHER].currentConfigId = id;
     }));
   }
 
@@ -161,9 +161,9 @@ const DoubaoSetting = () => {
 
   const onActivateModel = (name: string) => {
     useSettingStore.setState(produce(draft => {
-      const index = draft.setting.llmProviders[ELLMProvider.DOUBAO].configs.findIndex((item: any) => item.id === currentConfigId);
+      const index = draft.setting.llmProviders[ELLMProvider.OTHER].configs.findIndex((item: any) => item.id === currentConfigId);
       if (index !== -1) {
-        draft.setting.llmProviders[ELLMProvider.DOUBAO].configs[index].currentModel = name;
+        draft.setting.llmProviders[ELLMProvider.OTHER].configs[index].currentModel = name;
       }
     }))
   }
@@ -178,7 +178,7 @@ const DoubaoSetting = () => {
       },
       onOk: () => {
         useSettingStore.setState(produce(draft => {
-          const currentConfig = draft.setting.llmProviders[ELLMProvider.DOUBAO].configs.find((item: any) => item.id === currentConfigId);
+          const currentConfig = draft.setting.llmProviders[ELLMProvider.OTHER].configs.find((item: any) => item.id === currentConfigId);
           if (currentConfig) {
             currentConfig.models = currentConfig.models.filter((item: any) => item.name !== name);
           }
@@ -193,7 +193,7 @@ const DoubaoSetting = () => {
       return;
     }
     useSettingStore.setState(produce(draft => {
-      const currentConfig = draft.setting.llmProviders[ELLMProvider.DOUBAO].configs.find((item: any) => item.id === currentConfigId);
+      const currentConfig = draft.setting.llmProviders[ELLMProvider.OTHER].configs.find((item: any) => item.id === currentConfigId);
       console.log(current(currentConfig));
       if (currentConfig) {
         if (currentConfig.models) {
@@ -269,6 +269,9 @@ const DoubaoSetting = () => {
                 columns={modelColumns}
                 dataSource={currentConfig.models}
                 pagination={false}
+                scroll={{
+                  y: 200
+                }}
               />
             </Flex>
           </div>
@@ -334,4 +337,4 @@ const DoubaoSetting = () => {
   )
 }
 
-export default DoubaoSetting;
+export default OtherSetting;

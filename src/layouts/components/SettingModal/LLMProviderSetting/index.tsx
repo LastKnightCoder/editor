@@ -1,7 +1,7 @@
 import { Tabs, TabsProps } from "antd";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import OpenAISetting from "./OpenAISetting";
-import DoubaoSetting from "./DoubaoSetting";
+import OtherSetting from "./OtherSetting";
 import { produce } from "immer";
 
 const LLMProviderSetting = () => {
@@ -16,9 +16,9 @@ const LLMProviderSetting = () => {
     label: 'Open AI',
     children: <OpenAISetting />,
   }, {
-    key: ELLMProvider.DOUBAO,
-    label: '豆包',
-    children: <DoubaoSetting />,
+    key: ELLMProvider.OTHER,
+    label: '其他',
+    children: <OtherSetting />,
   }];
 
   const onCurKeyChange = (key: ELLMProvider) => {
