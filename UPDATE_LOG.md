@@ -398,7 +398,9 @@
 
 - feat: 支持右边栏 AI 对话
 - feat: 自动选择上一次对话
+- feat: 支持流式输出
 - feat: 支持删除对话
 - feat: 使用 GPT 3.5 Turbo 来总结对话标题
 - feat: 对话栏 UI 优化
 - fix: Mermaid 渲染问题修复
+- fix: EditText 组件在输入中文时回车问题

@@ -14,6 +14,7 @@ import useChatMessageStore from "@/stores/useChatMessageStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import useChatLLM, { chatWithGPT35 } from "@/hooks/useChatLLM.ts";
 import useTheme from "@/hooks/useTheme.ts";
+import useScrollToBottom from './useScrollToBottom';
 
 import { ChatMessage, Message } from "@/types";
 import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
@@ -21,7 +22,7 @@ import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 import styles from "./index.module.less";
 
 const RightSidebar = () => {
-  const chatLLM = useChatLLM();
+  const { chatLLMStream } = useChatLLM();
   const { isDark } = useTheme();
   const { message, modal } = App.useApp();
 
@@ -46,6 +47,18 @@ const RightSidebar = () => {
   });
   const [createMessageLoading, setCreateMessageLoading] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
+  const messagesRef = useRef<HTMLDivElement>(null);
+
+  const isScrolledToBottom = messagesRef.current
+    ? Math.abs(
+    messagesRef.current.scrollHeight -
+    (messagesRef.current.scrollTop + messagesRef.current.clientHeight),
+  ) <= 1
+    : false;
+  const {
+    setAutoScroll,
+    scrollDomToBottom
+  } = useScrollToBottom(messagesRef, isScrolledToBottom);
   
   const [rightSidebarWidth, setRightSidebarWidth] = useLocalStorageState('rightSidebarWidth', {
     defaultValue: 320
@@ -56,6 +69,13 @@ const RightSidebar = () => {
   } = useGlobalStateStore(state => ({
     rightSidebarOpen: state.rightSidebarOpen
   }));
+
+  const onChatBodyScroll = (e: HTMLElement) => {
+    const bottomHeight = e.scrollTop + e.clientHeight;
+    const isHitBottom = bottomHeight >= e.scrollHeight - 10;
+
+    setAutoScroll(isHitBottom);
+  };
 
   const onCreateNewMessage = useMemoizedFn(async () => {
     const messages: Message[] = [{
@@ -108,48 +128,77 @@ const RightSidebar = () => {
       return;
     }
     setSendLoading(true);
+    setAutoScroll(true);
+    scrollDomToBottom();
+
     const newMessage: Message = {
       role: Role.User,
       content: userContent
     };
-    const sendMessages = [...currentChat.messages, newMessage];
-    const assistantContent = await chatLLM(sendMessages.slice(-5)).catch(() => {
-      return '';
-    });
-    if (!assistantContent) {
-      message.error('请求失败');
-      setSendLoading(false);
-      return;
+    const responseMessage = {
+      role: Role.Assistant,
+      content: '...'
     }
-    const newCurrentChat = produce(currentChat, draft => {
-      draft.messages.push(newMessage);
-      draft.messages.push({
-        role: Role.Assistant,
-        content: assistantContent
-      });
-    });
-    const updatedChatMessage = await updateChatMessage(newCurrentChat).finally(() => {
-      setSendLoading(false);
+
+    const sendMessages = [...currentChat.messages, newMessage, responseMessage];
+    setCurrentChat({
+      ...currentChat,
+      messages: sendMessages,
     });
     editTextRef.current.clear();
-    editTextRef.current.focus();
-    setCurrentChat(updatedChatMessage);
-    localStorage.setItem('right-sidebar-chat-id', String(updatedChatMessage.id));
-    try {
-      const newTitle = await chatWithGPT35([{
-        role: Role.System,
-        content: SUMMARY_TITLE_PROMPT
-      }, ...updatedChatMessage.messages.slice(1).slice(-5)]);
-      if (newTitle) {
-        const updateChat = produce(updatedChatMessage, draft => {
-          draft.title = newTitle;
+
+    chatLLMStream(sendMessages.slice(-5), {
+      onFinish: async (content) => {
+        setSendLoading(false);
+        const newCurrentChat = produce(currentChat, draft => {
+          draft.messages.push(newMessage);
+          draft.messages.push({
+            role: Role.Assistant,
+            content
+          });
         });
-        await updateChatMessage(updateChat);
-        editTitleRef.current?.setValue(newTitle);
+        const updatedChatMessage = await updateChatMessage(newCurrentChat).finally(() => {
+          setSendLoading(false);
+        });
+        editTextRef.current?.focus();
+        setCurrentChat(updatedChatMessage);
+        localStorage.setItem('right-sidebar-chat-id', String(updatedChatMessage.id));
+        scrollDomToBottom();
+        try {
+          const newTitle = await chatWithGPT35([{
+            role: Role.System,
+            content: SUMMARY_TITLE_PROMPT
+          }, ...updatedChatMessage.messages.slice(1).slice(-5)]);
+          if (newTitle) {
+            const updateChat = produce(updatedChatMessage, draft => {
+              draft.title = newTitle;
+            });
+            await updateChatMessage(updateChat);
+            editTitleRef.current?.setValue(newTitle);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      },
+      onUpdate: (full) => {
+        const newCurrentChat = produce(currentChat, draft => {
+          draft.messages.push(newMessage);
+          draft.messages.push({
+            role: Role.Assistant,
+            content: full
+          });
+        });
+        setCurrentChat(newCurrentChat);
+        scrollDomToBottom();
+      },
+      onError: () => {
+        setCurrentChat(currentChat);
+        setSendLoading(false);
+        editTextRef.current?.setValue(userContent);
+        editTextRef.current?.focus();
+        message.error('请求失败');
       }
-    } catch (e) {
-      console.error(e);
-    }
+    });
   })
 
   return (
@@ -225,7 +274,11 @@ const RightSidebar = () => {
             </div>
 
           </div>
-          <div className={styles.messages}>
+          <div
+            className={styles.messages}
+            ref={messagesRef}
+            onScroll={(e) => onChatBodyScroll(e.currentTarget)}
+          >
             {
               currentChat && (
                 <For

@@ -32,7 +32,7 @@ interface IProjectItemProps {
 const ProjectItem = memo((props: IProjectItemProps) => {
   const { projectItemId, isRoot = false, parentProjectItemId, path, parentChildren } = props;
 
-  const chatLLM = useChatLLM();
+  const { chatLLM } = useChatLLM();
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState('');
   const parserControllerRef = useRef<AbortController>();
