@@ -7,6 +7,7 @@ pub mod fs_help;
 pub mod database;
 pub mod system;
 pub mod html_to_markdown;
+pub mod stream_fetch;
 
 pub use setting::*;
 pub use history::*;
@@ -17,3 +18,4 @@ pub use fs_help::*;
 pub use database::*;
 pub use system::*;
 pub use html_to_markdown::*;
+pub use stream_fetch::*;

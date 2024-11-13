@@ -23,6 +23,7 @@ const EditText = forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef)
 
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const ref = useRef<HTMLDivElement>(null);
+  const isComposing = useRef(false);
 
   useImperativeHandle(editTextRef, () => ({
     clear: () => {
@@ -59,7 +60,7 @@ const EditText = forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef)
   useEffect(() => {
     // 禁止在标题中输入回车
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && isEditing) {
+      if (e.key === 'Enter' && isEditing && !isComposing.current) {
         e.preventDefault();
         e.stopPropagation();
         ref.current?.blur();
@@ -92,6 +93,8 @@ const EditText = forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef)
       suppressContentEditableWarning
       onFocus={handleFocus}
       onBlur={handleBlur}
+      onCompositionStart={() => isComposing.current = true}
+      onCompositionEnd={() => isComposing.current = false}
     >
       {defaultValue}
     </div>
