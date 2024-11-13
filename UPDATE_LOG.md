@@ -393,3 +393,12 @@
 - feat: 接入豆包声音复制模型
 - feat: 支持 AI 对话，可配置 Open AI 和豆包模型
 - feat: 项目支持 AI 剪藏页面
+
+## v0.9.4
+
+- feat: 支持右边栏 AI 对话
+- feat: 自动选择上一次对话
+- feat: 支持删除对话
+- feat: 使用 GPT 3.5 Turbo 来总结对话标题
+- feat: 对话栏 UI 优化
+- fix: Mermaid 渲染问题修复

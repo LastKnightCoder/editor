@@ -46,4 +46,13 @@ export const chatLLM = async (messages: Message[]) => {
   return await chatInner(llmProviders, messages);
 }
 
+export const chatWithGPT35 = async (messages: Message[]) => {
+  const llmProviders = useSettingStore.getState().setting.llmProviders;
+  if (!llmProviders[ELLMProvider.OPENAI].currentConfigId) return null;
+  const currentConfig = llmProviders[ELLMProvider.OPENAI].configs.find(config => config.id === llmProviders[ELLMProvider.OPENAI].currentConfigId);
+  if (!currentConfig) return null;
+  const { apiKey, baseUrl } = currentConfig;
+  return await chat(apiKey, baseUrl, 'gpt-3.5-turbo', messages);
+}
+
 export default useChatLLM;

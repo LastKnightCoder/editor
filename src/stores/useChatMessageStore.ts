@@ -3,7 +3,15 @@ import { ChatMessage } from "@/types";
 import { createChatMessage, deleteChatMessage, updateChatMessage, getAllChatMessages } from '@/commands';
 import { produce } from "immer";
 
+export enum EStatus {
+  UN_INIT,
+  LOADING,
+  SUCCESS,
+  FAIL,
+}
+
 interface IState {
+  status: EStatus;
   chats: ChatMessage[];
 }
 
@@ -16,9 +24,11 @@ interface IAction {
 
 const useChatMessageStore = create<IState & IAction>()((set, get) => ({
   chats: [] as ChatMessage[],
+  status: EStatus.UN_INIT,
   initChatMessage: async () => {
+    set({ status: EStatus.LOADING });
     const chats = await getAllChatMessages();
-    set({ chats });
+    set({ chats, status: EStatus.SUCCESS });
   },
   createChatMessage: async (messages, title) => {
     const { chats } = get();
