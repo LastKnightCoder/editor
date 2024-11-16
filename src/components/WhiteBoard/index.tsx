@@ -6,7 +6,8 @@ import Board from './Board';
 import { 
   ViewPortPlugin, 
   MovePlugin, 
-  HistoryPlugin, 
+  HistoryPlugin,
+  CopyPastePlugin,
   CardPlugin, 
   SelectPlugin, 
   GeometryPlugin, 
@@ -28,6 +29,7 @@ const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
 const movePlugin = new MovePlugin();
 const historyPlugin = new HistoryPlugin();
+const copyPastePlugin = new CopyPastePlugin();
 
 const arrowPlugin = new ArrowPlugin();
 const richTextPlugin = new RichTextPlugin();
@@ -45,6 +47,7 @@ const plugins = [
   selectPlugin,
   movePlugin,
   viewPortPlugin,
+  copyPastePlugin
 ]
 
 interface WhiteBoardProps {
@@ -120,6 +123,8 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     const handleOnGlobalPointerMove = eventHandlerGenerator('onGlobalPointerMove');
     const handleOnGlobalPointerUp = eventHandlerGenerator('onGlobalPointerUp');
     const handleOnPaste = eventHandlerGenerator('onPaste');
+    const handleOnCopy = eventHandlerGenerator('onCopy');
+    const handleOnCut = eventHandlerGenerator('onCut');
 
     container.addEventListener('mousedown', handleMouseDown);
     container.addEventListener('mousemove', handleMouseMove);
@@ -136,6 +141,8 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     container.addEventListener('pointerup', handleOnPointerUp);
 
     document.addEventListener('paste', handleOnPaste);
+    document.addEventListener('copy', handleOnCopy);
+    document.addEventListener('cut', handleOnCut);
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
@@ -161,6 +168,8 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       document.removeEventListener('pointermove', handleOnGlobalPointerMove);
       document.removeEventListener('pointerup', handleOnGlobalPointerUp);
       document.removeEventListener('paste', handleOnPaste);
+      document.removeEventListener('copy', handleOnCopy);
+      document.removeEventListener('cut', handleOnCut);
       if (container) {
         container.removeEventListener('mousedown', handleMouseDown);
         container.removeEventListener('mousemove', handleMouseMove);
