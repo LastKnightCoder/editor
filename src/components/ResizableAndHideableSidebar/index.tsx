@@ -5,7 +5,7 @@ import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
 interface ResizeableAndHideableSidebarProps {
   width: number;
   open: boolean;
-  onWidthChange?: (width: number) => void;
+  onWidthChange?: (width: number, actualWidth?: number) => void;
   className?: string;
   style?: React.CSSProperties;
   children: React.ReactNode;
@@ -30,6 +30,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
   const scope = useDragAndHideSidebar({
     width,
     open,
+    onWidthChange
   });
 
   return (
@@ -39,7 +40,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
         minWidth={minWidth}
         maxWidth={maxWidth}
         onResize={(width) => {
-          onWidthChange?.(width);
+          onWidthChange?.(width, width);
         }}
         style={{
           height: '100%'

@@ -404,9 +404,11 @@
 - feat: 对话栏 UI 优化
 - feat: 接入 AI 搜索
 - fix: Mermaid 渲染问题修复
-- fix: EditText 组件在输入中文时回车问题
+- fix: EditText 组件在输入中文时回车问题，提供更多方法
 
 ## v0.9.5
 
 - feat: 搜索 UI 即输入体验优化
 - feat: 白板支持复制、剪切和粘贴
+- feat: 支持批量删除，撤销时可全部恢复
+- fix: 右侧侧边栏打开时无动画
