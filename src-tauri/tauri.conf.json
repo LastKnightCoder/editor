@@ -7,7 +7,7 @@
   },
   "package": {
     "productName": "editor",
-    "version": "0.9.3"
+    "version": "0.9.4"
   },
   "tauri": {
     "allowlist": {
