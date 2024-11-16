@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { Button } from "antd";
 
@@ -6,8 +6,10 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import Editor, { EditorRef } from "@/components/Editor";
 import WindowControl from "@/components/WindowControl";
 import AddTag from "@/components/AddTag";
+import AISearch from "@/layouts/ShortSidebarLayout/components/AISearch";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import useInitDatabase from "@/hooks/useInitDatabase.ts";
 import useUploadImage from "@/hooks/useUploadImage.ts";
 import { ECardCategory } from "@/types";
 import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
@@ -22,6 +24,12 @@ const initValue: Descendant[] = [{
 }];
 
 const QuickCard = () => {
+  const { initDatabase } = useInitDatabase();
+
+  useEffect(() => {
+    initDatabase();
+  }, [initDatabase])
+
   const {
     createCard,
   } = useCardsManagementStore(state => ({
@@ -87,6 +95,7 @@ const QuickCard = () => {
       <div className={styles.buttons}>
         <Button onClick={onSave} loading={saveLoading}>保存</Button>
       </div>
+      <AISearch />
     </div>
   )
 }

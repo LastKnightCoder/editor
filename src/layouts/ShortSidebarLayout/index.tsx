@@ -42,7 +42,7 @@ const ShortSidebarLayout = () => {
       <div className={styles.content}>
         <div className={styles.titlebar}>
           <Routes>
-            <Route path='/' element={<Titlebar showColumns={false} showSelectDatabase={true} showFocusMode={false} />}>
+            <Route path='/' element={<Titlebar showColumns={false} showSelectDatabase showFocusMode={false} showSearch />}>
               <Route path="cards/*" element={<CardTitlebar />} />
               <Route path="articles/" element={<ArticleTitlebar />} />
               <Route path="white-boards/*" element={<WhiteBoardTitlebar />} />
