@@ -221,6 +221,16 @@ class Board {
     executeSequence(fns, event, this);
   }
 
+  onCopy(event: ClipboardEvent) {
+    const fns = this.plugins.map(bindHandler('onCopy')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
+  onCut(event: ClipboardEvent) {
+    const fns = this.plugins.map(bindHandler('onCut')).filter(isValid);
+    executeSequence(fns, event, this);
+  }
+
   apply(ops: Operation | Operation[], updateHistory = true) {
     if (!Array.isArray(ops)) {
       ops = [ops];

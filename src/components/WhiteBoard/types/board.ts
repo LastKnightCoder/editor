@@ -42,7 +42,9 @@ export type Events =
   | 'onGlobalPointerDown'
   | 'onGlobalPointerUp'
   | 'onGlobalPointerMove'
-  | 'onPaste';
+  | 'onPaste'
+  | 'onCopy'
+  | 'onCut';
 
 export interface IBoardPlugin {
   name: string;
@@ -66,6 +68,8 @@ export interface IBoardPlugin {
   onGlobalPointerUp?: EventHandler;
   onGlobalPointerMove?: EventHandler;
   onPaste?: EventHandler;
+  onCopy?: EventHandler;
+  onCut?: EventHandler;
   getArrowBindPoint?: (board: Board, element: BoardElement & any, connectId: string) => Point | null;
   isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
   moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement | null;
