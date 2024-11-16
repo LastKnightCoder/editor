@@ -405,3 +405,7 @@
 - feat: 接入 AI 搜索
 - fix: Mermaid 渲染问题修复
 - fix: EditText 组件在输入中文时回车问题
+
+## v0.9.5
+
+- feat: 搜索 UI 即输入体验优化

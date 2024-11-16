@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use rusqlite::{Connection, params, Result, Row};
 use serde::{Serialize, Deserialize};
 use super::operation::insert_operation;
+use super::vec_document::delete_vec_documents_by_ref;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Card {
@@ -101,6 +102,7 @@ pub fn find_all(conn: &Connection) -> Result<Vec<Card>> {
 pub fn delete_one(conn: &Connection, id: i64) -> Result<usize> {
     let mut stmt = conn.prepare("DELETE FROM cards WHERE id = ?1")?;
     let res = stmt.execute(params![id])?;
+    delete_vec_documents_by_ref(conn, "card", id);
     Ok(res)
 }
 
