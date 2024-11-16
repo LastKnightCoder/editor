@@ -1,3 +1,5 @@
+import React, { useState } from "react";
+import { useMemoizedFn } from "ahooks";
 import { Outlet, Route, Routes } from 'react-router-dom';
 
 import Titlebar from '../components/Titlebar';
@@ -9,6 +11,7 @@ import WhiteBoardTitlebar from "./components/Titlebar/WhiteBoardTitlebar";
 import DocumentTitlebar from "./components/Titlebar/DocumentTitlebar";
 import ProjectTitlebar from "./components/Titlebar/ProjectTitlebar";
 import RightSidebar from "./components/RightSidebar";
+import AISearch from "./components/AISearch";
 
 import useChatMessageStore, { EStatus } from "@/stores/useChatMessageStore.ts";
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
@@ -17,15 +20,24 @@ import styles from './index.module.less';
 
 const ShortSidebarLayout = () => {
   useInitDatabase();
-
   const {
     status
   } = useChatMessageStore(state => ({
     status: state.status
-  }))
+  }));
+
+  const [containerStyle, setContainerStyle] = useState({
+    '--right-sidebar-width': '0px'
+  } as React.CSSProperties);
+
+  const onRightSidebarWidthChange = useMemoizedFn(width => {
+    setContainerStyle({
+      '--right-sidebar-width': width + 'px'
+    } as React.CSSProperties)
+  });
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={containerStyle}>
       <Sidebar className={styles.sidebar} />
       <div className={styles.content}>
         <div className={styles.titlebar}>
@@ -46,12 +58,13 @@ const ShortSidebarLayout = () => {
           </div>
           {
             status === EStatus.SUCCESS && (
-              <RightSidebar />
+              <RightSidebar onWidthChange={onRightSidebarWidthChange} />
             )
           }
         </div>
       </div>
       <SettingModal />
+      <AISearch />
     </div>
   )
 }

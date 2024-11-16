@@ -9,3 +9,5 @@ pub mod white_board;
 pub mod voice_copy;
 pub mod llm;
 pub mod chat_message;
+pub mod embedding;
+pub mod vec_document;

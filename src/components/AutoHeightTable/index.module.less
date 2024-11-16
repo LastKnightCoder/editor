@@ -1,0 +1,31 @@
+.container {
+  width: 100%;
+  height: 100%;
+  .table {
+    width: 100%;
+    height: 100%;
+  }
+  :global(.ant-spin-nested-loading) {
+    height: 100%;
+    :global(.ant-spin-container) {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    :global(.ant-table-container) {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      .ant-table-body {
+        flex: 1;
+      }
+    }
+    :global(.ant-table) {
+      flex: 1;
+      scrollbar-color: unset;
+    }
+    :global(.ant-pagination) {
+      margin: 24px 0 0;
+    }
+  }
+}

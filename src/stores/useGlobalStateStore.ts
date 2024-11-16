@@ -18,7 +18,7 @@ export const useGlobalStateStore = create<IState>(() => ({
   listOpen: true,
   listWidth,
   focusMode: false,
-  rightSidebarOpen: true,
+  rightSidebarOpen: false,
 }));
 
 export default useGlobalStateStore;

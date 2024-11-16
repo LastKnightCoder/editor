@@ -22,9 +22,10 @@ class CalloutExtension extends Base implements IExtension {
 
   override toMarkdown(element: Element, children: string): string {
     const calloutEle = element as unknown as CalloutElement;
-    const { type, title } = calloutEle;
+    const { calloutType } = calloutEle;
 
-    return `::: ${type} ${title}\n${children}\n:::`;
+    const childrenStr = children.trim().split('\n').map((child) => `> ${child}`).join('\n');
+    return `> [!${calloutType.toUpperCase()}]\n${childrenStr}`;
   }
 
   render(props: RenderElementProps) {

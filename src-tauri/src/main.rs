@@ -6,6 +6,8 @@ mod state;
 mod commands;
 mod plugins;
 
+use rusqlite::{ffi::sqlite3_auto_extension};
+use sqlite_vec::sqlite3_vec_init;
 use window_shadows::set_shadow;
 use tauri::{AppHandle, CustomMenuItem, Manager, State, SystemTray, SystemTrayMenu, SystemTrayMenuItem, Wry};
 use database::init_database;
@@ -21,7 +23,9 @@ use plugins::{
     white_board,
     voice_copy,
     llm,
+    embedding,
     chat_message,
+    vec_document,
 };
 
 use commands::{
@@ -83,6 +87,9 @@ fn create_or_show_quick_window(app: &AppHandle<Wry>, label: &str, url: &str) {
 }
 
 fn main() {
+    unsafe {
+        sqlite3_auto_extension(Some(std::mem::transmute(sqlite3_vec_init as *const ())));
+    }
     let quick_card_note = CustomMenuItem::new("quick_card_note".to_string(), "快捷卡片");
     let quick_time_record = CustomMenuItem::new("quick_time_record".to_string(), "快捷记录");
     let white_board = CustomMenuItem::new("white_board".to_string(), "白板");
@@ -105,6 +112,8 @@ fn main() {
         .plugin(voice_copy::init())
         .plugin(llm::init())
         .plugin(chat_message::init())
+        .plugin(embedding::init())
+        .plugin(vec_document::init())
         .system_tray(tray)
         .on_system_tray_event(|app, event| {
             match event {

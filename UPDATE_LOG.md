@@ -402,5 +402,6 @@
 - feat: 支持删除对话
 - feat: 使用 GPT 3.5 Turbo 来总结对话标题
 - feat: 对话栏 UI 优化
+- feat: 接入 AI 搜索
 - fix: Mermaid 渲染问题修复
 - fix: EditText 组件在输入中文时回车问题

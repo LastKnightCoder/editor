@@ -4,6 +4,7 @@
   display: flex;
   --sidebar-width: 80px;
   --title-bar-height: 60px;
+  --right-sidebar-width: 0px;
   .sidebar {
     width: var(--sidebar-width);
     height: 100vh;
@@ -11,6 +12,7 @@
   .content {
     width: calc(100vw - var(--sidebar-width));
     height: 100vh;
+    transition: width 0.3s;
     .titlebar {
       width: 100%;
       height: var(--title-bar-height);
@@ -23,8 +25,9 @@
       height: calc(100vh - var(--title-bar-height));
       box-sizing: border-box;
       .mainContent {
-        flex: 1;
+        width: calc(100% - var(--right-sidebar-width));
         height: 100%;
+        //transition: width 0.3s;
       }
     }
   }

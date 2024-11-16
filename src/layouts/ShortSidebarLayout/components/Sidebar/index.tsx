@@ -16,6 +16,7 @@ import pdf from '@/assets/icons/pdf.svg';
 import setting from '@/assets/icons/setting.svg';
 import sun from '@/assets/icons/sun.svg';
 import moon from '@/assets/icons/moon.svg';
+import vecDatabase from '@/assets/icons/vec-database.svg';
 
 import styles from './index.module.less';
 
@@ -79,6 +80,13 @@ const Sidebar = (props: SidebarProps) => {
     path: '/pdfs',
     active: useMatch('/pdfs/*') !== null,
     enable: module.pdf.enable,
+  }, {
+    key: 'vec-documents',
+    icon: vecDatabase,
+    desc: '向量数据库',
+    path: '/vec-documents',
+    active: useMatch('/vec-documents/*') !== null,
+    enable: module.vecDocuments.enable,
   }, {
     key: 'daily',
     icon: daily,

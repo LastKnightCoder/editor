@@ -12,6 +12,7 @@ pub mod project;
 pub mod pdf;
 pub mod white_board;
 pub mod chat_message;
+pub mod vec_document;
 
 use self::card::{init_card_table, upgrade_card_table};
 use self::article::{init_article_table, upgrade_article_table};
@@ -24,6 +25,7 @@ use self::project::{init_project_table, init_project_item_table, upgrade_project
 use self::pdf::{init_pdf_table, init_pdf_highlight_table};
 use self::white_board::init_white_board_table;
 use self::chat_message::{init_chat_messages_table, upgrade_chat_messages_table};
+use self::vec_document::init_vec_document_table;
 
 pub fn init_database(database_name: &str) -> Result<Connection, rusqlite::Error> {
     let home_dir = home_dir().unwrap();
@@ -60,6 +62,7 @@ fn init_tables(conn: &Connection) -> Result<()> {
     init_pdf_highlight_table(conn)?;
     init_white_board_table(conn)?;
     init_chat_messages_table(conn)?;
+    init_vec_document_table(conn)?;
     Ok(())
 }
 
