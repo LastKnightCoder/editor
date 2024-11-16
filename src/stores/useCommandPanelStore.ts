@@ -7,8 +7,6 @@ import useSettingStore, { ELLMProvider } from './useSettingStore'
 interface ICommandPanelState {
   open: boolean;
   action?: 'search' | 'setting';
-  input: string;
-  searchResult: Array<[VecDocument, number]>;
 }
 
 interface ICommandPanelActions {
@@ -19,11 +17,9 @@ interface ICommandPanelActions {
 const EMBEDDING_MODEL = 'text-embedding-3-large';
 const TOP_K = 10;
 
-const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>((set) => ({
+const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(() => ({
   open: false,
   action: undefined,
-  input: '',
-  searchResult: [],
   toggleTheme: () => {
     useSettingStore.setState(produce(useSettingStore.getState(), (draft) =>{
       draft.setting.darkMode = !draft.setting.darkMode;
@@ -36,12 +32,7 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>((
     if (!currentConfig) return [];
     const { apiKey, baseUrl } = currentConfig;
     const queryEmbedding = await embeddingOpenAI(apiKey, baseUrl, EMBEDDING_MODEL, input);
-    const searchResult = await searchVecDocuments(queryEmbedding, TOP_K);
-    set({
-      searchResult
-    });
-
-    return searchResult;
+    return await searchVecDocuments(queryEmbedding, TOP_K);
   },
 }));
 

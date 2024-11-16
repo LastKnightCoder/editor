@@ -1,24 +1,31 @@
-import { useEffect, memo, useState } from "react";
+import { useEffect, memo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import CommandPalette from "@tmikeladze/react-cmdk";
 import isHotkey from "is-hotkey";
 import Editor from '@/components/Editor';
 
-import { useDebounceFn } from "ahooks";
+import {  useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import useCardManagement from "@/hooks/useCardManagement.ts";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
-import { Empty, Flex } from "antd";
+import { Empty } from "antd";
 import styles from './index.module.less';
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import { VecDocument } from "@/types";
 import classnames from "classnames";
+import { LoadingOutlined, SearchOutlined } from "@ant-design/icons";
+import EditText, { EditTextHandle } from "@/components/EditText";
+import If from "@/components/If";
+import For from "@/components/For";
 
 const AISearch = memo(() => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
   const [searchLoading, setSearchLoading] = useState(false);
+  const searchRef = useRef<EditTextHandle>(null);
+  const [searchResult, setSearchResult] = useState<Array<[VecDocument, number]>>([]);
+  const lastSearchText = useRef('');
+
 
   const {
     cards
@@ -28,13 +35,9 @@ const AISearch = memo(() => {
 
   const {
     open,
-    input,
-    searchResult,
     onSearch
   } = useCommandPanelStore(state => ({
     open: state.open,
-    input: state.input,
-    searchResult: state.searchResult,
     onSearch: state.onSearch
   }));
 
@@ -42,23 +45,26 @@ const AISearch = memo(() => {
     onCtrlClickCard,
   } = useCardManagement();
 
-  const { run: search } = useDebounceFn((input: string) => {
-    if (searchLoading) return;
-    setSearchLoading(true);
-    onSearch(input).finally(() => {
-      setSearchLoading(false);
-    })
-  }, { wait: 1500 });
+  const onClickMask = useMemoizedFn(() => {
+    useCommandPanelStore.setState({ open: false });
+  });
 
-  useEffect(() => {
-    if (input === '') {
-      useCommandPanelStore.setState({
-        searchResult: []
-      });
+  const onPressEnter = async () => {
+    const searchText = searchRef.current?.getValue();
+    if (!searchText) {
       return;
     }
-    search(input);
-  }, [input, search]);
+    setSearchLoading(true);
+    try {
+      const res = await onSearch(searchText);
+      setSearchResult(res);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSearchLoading(false);
+    }
+    searchRef.current?.focusEnd();
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -68,8 +74,6 @@ const AISearch = memo(() => {
       } else if (isHotkey('esc', e) && open) {
         useCommandPanelStore.setState({
           open: false,
-          input: '',
-          searchResult: []
         });
       }
     }
@@ -83,58 +87,83 @@ const AISearch = memo(() => {
       acc.push(cur);
     }
     return acc;
-  }, [] as Array<[VecDocument, number]>)
+  }, [] as Array<[VecDocument, number]>);
+
+  if (!open) return null;
 
   return (
-    <CommandPalette
-      commandPaletteContentClassName={isDark ? 'dark' : ''}
-      isOpen={open}
-      search={input}
-      onChangeOpen={open => { useCommandPanelStore.setState({ open }) }}
-      onChangeSearch={input => { useCommandPanelStore.setState({ input }) }}
-      placeholder="搜索"
-    >
-      {
-        searchLoading ? (
-          <Flex align={'center'} justify={'center'} style={{ height: 80 }}>
-            <div className={classnames(styles.loader, { [styles.dark]: isDark })}></div>
-          </Flex>
-        ) : (
-          uniqueSearchResult.length > 0 ? (
-            uniqueSearchResult.map((res, index) => (
-              <CommandPalette.ListItem
-                key={res[0].id}
-                index={index}
-                onClick={() => {
-                  useCommandPanelStore.setState({ open: false });
-                  navigate('/cards/list');
-                  onCtrlClickCard(res[0].refId);
+    <div className={styles.commandContainer}>
+      <div className={styles.mask} onClick={onClickMask} />
+      <div className={classnames(styles.panel, { [styles.dark]: isDark })}>
+        <div className={styles.searchHeader}>
+          <div className={styles.searchIcon}>
+            { searchLoading ? <LoadingOutlined /> : <SearchOutlined />}
+          </div>
+          <EditText
+            ref={searchRef}
+            className={styles.search}
+            onPressEnter={onPressEnter}
+            onDeleteEmpty={() => {
+              setSearchResult([]);
+              useCommandPanelStore.setState({ open: false });
+            }}
+            contentEditable
+            defaultFocus
+            defaultValue={lastSearchText.current || ''}
+            onChange={(value) => {
+              lastSearchText.current = value;
+              if (!value) {
+                setSearchResult([]);
+              }
+            }}
+          />
+        </div>
+        <div className={styles.resultContainer}>
+          <If condition={searchLoading}>
+            <div className={styles.loadingContainer}>
+              <div className={classnames(styles.loader, { [styles.dark]: isDark })} />
+            </div>
+          </If>
+          <If condition={!searchLoading}>
+            <If condition={uniqueSearchResult.length === 0}>
+              <Empty
+                style={{
+                  padding: 24
                 }}
-                closeOnSelect
-                showType={false}
-              >
-                <Editor
-                  style={{
-                    padding: 24,
-                    maxHeight: 160,
-                    overflowY: 'auto',
-                  }}
-                  initValue={cards.find(item => item.id === res[0].refId)?.content || []}
+                description={'暂无数据'}
+              />
+            </If>
+            <If condition={uniqueSearchResult.length > 0}>
+              <div className={styles.list}>
+                <For
+                  data={uniqueSearchResult}
+                  renderItem={res => (
+                    <div
+                      className={styles.item}
+                      key={res[0].id}
+                      onClick={() => {
+                        useCommandPanelStore.setState({ open: false });
+                        navigate('/cards/list');
+                        onCtrlClickCard(res[0].refId);
+                      }}
+                    >
+                      <Editor
+                        style={{
+                          maxHeight: 160,
+                          overflowY: 'hidden',
+                        }}
+                        initValue={cards.find(item => item.id === res[0].refId)?.content || []}
+                      />
+                    </div>
+                  )}
                 />
-              </CommandPalette.ListItem>
-            ))
-          ) : (
-            <Empty
-              style={{
-                padding:24
-              }}
-              description={'暂无数据'}
-            />
-          )
-        )
-      }
-    </CommandPalette>
-  )
+              </div>
+            </If>
+          </If>
+        </div>
+      </div>
+    </div>
+  );
 });
 
 export default AISearch;
