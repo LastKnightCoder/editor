@@ -1,5 +1,5 @@
 import { Board, BoardElement, IBoardPlugin, Operation, Point } from "../types";
-import { PathUtil } from "@/components/WhiteBoard/utils";
+import { BoardUtil } from "@/components/WhiteBoard/utils";
 import { SelectTransforms } from "@/components/WhiteBoard/transforms";
 import { v4 as getUuid } from 'uuid';
 
@@ -19,7 +19,7 @@ export class CopyPastePlugin implements IBoardPlugin {
     if (selectedElements.length === 0) return;
 
     // 解决有的对象的属性不可更改
-    const copyiedElements: BoardElement[] = JSON.parse(JSON.stringify(selectedElements));
+    const copiedElements: BoardElement[] = JSON.parse(JSON.stringify(selectedElements));
 
     const { minX, minY, width, height } = board.viewPort;
     const center = {
@@ -29,7 +29,7 @@ export class CopyPastePlugin implements IBoardPlugin {
 
     const data = {
       source: 'editor-white-board',
-      elements: copyiedElements.map(element => {
+      elements: copiedElements.map(element => {
         // 把 x y 相对于当前中心
         if (typeof element.x === 'number' && typeof element.y === 'number') {
           return {
@@ -58,15 +58,8 @@ export class CopyPastePlugin implements IBoardPlugin {
   onCut(e: ClipboardEvent, board: Board) {
     const selectedElements = board.selection.selectedElements;
     if (selectedElements.length === 0) return;
-    for (const element of selectedElements) {
-      const path = PathUtil.getPathByElement(board, element);
-      if (!path) continue;
-      board.apply({
-        type: 'remove_node',
-        path,
-        node: element
-      })
-    }
+    const ops = BoardUtil.getBatchRemoveNodesOps(board, selectedElements);
+    board.apply(ops);
     this.onCopy(e, board);
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,

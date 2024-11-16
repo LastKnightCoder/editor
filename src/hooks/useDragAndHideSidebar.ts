@@ -5,9 +5,10 @@ import { useAnimate } from "framer-motion";
 interface UseDragAndHideSidebarProps {
   width: number;
   open: boolean;
+  onWidthChange?: (width: number, actualWidth?: number) => void;
 }
 
-const useDragAndHideSidebar = ({ open, width }: UseDragAndHideSidebarProps) => {
+const useDragAndHideSidebar = ({ open, width, onWidthChange }: UseDragAndHideSidebarProps) => {
   const firstOpen = useRef(true);
 
   const [scope, animate] = useAnimate();
@@ -17,12 +18,19 @@ const useDragAndHideSidebar = ({ open, width }: UseDragAndHideSidebarProps) => {
     if (open) {
       animate(scope.current, {
         width,
+      }, {
+        onUpdate: (w) => {
+          onWidthChange?.(width, w);
+        }
       });
     } else {
       animate(scope.current, {
         width: 0,
       }, {
         duration: firstOpen.current ? 0 : 0.3,
+        onUpdate: (w) => {
+          onWidthChange?.(width, w);
+        }
       })
     }
     firstOpen.current = false;

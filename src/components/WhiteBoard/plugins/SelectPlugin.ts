@@ -1,5 +1,5 @@
 import { BoardElement, IBoardPlugin, Board, ECreateBoardElementType } from "../types";
-import { BoardUtil, PathUtil, PointUtil } from "../utils";
+import { BoardUtil, PointUtil } from "../utils";
 import { SelectTransforms } from "../transforms";
 import isHotkey from "is-hotkey";
 
@@ -81,15 +81,8 @@ export class SelectPlugin implements IBoardPlugin {
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
     if (isHotkey(['delete', 'backspace'], e) && !board.isEditingProperties) {
-      for (const element of selectedElements) {
-        const path = PathUtil.getPathByElement(board, element);
-        if (!path) continue;
-        board.apply({
-          type: 'remove_node',
-          path,
-          node: element
-        })
-      }
+      const ops = BoardUtil.getBatchRemoveNodesOps(board, selectedElements);
+      board.apply(ops);
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,
         selectedElements: []

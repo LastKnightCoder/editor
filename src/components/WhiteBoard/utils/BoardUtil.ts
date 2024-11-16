@@ -1,4 +1,5 @@
 import { BoardElement, Board, Operation } from '../types';
+import PathUtil from "@/components/WhiteBoard/utils/PathUtil.ts";
 
 export class BoardUtil {
   static isBoard(value: any): value is Board {
@@ -126,6 +127,26 @@ export class BoardUtil {
           throw new Error('unsupport operation');
         }
     }
+  }
+
+  static getBatchRemoveNodesOps(board: Board, nodes: BoardElement[]) {
+    const ops: Operation[] = [];
+    const children = board.children;
+    // 模拟删除节点
+    const newBoard = new Board(children, board.viewPort, board.selection);
+    for (const node of nodes) {
+      const path = PathUtil.getPathByElement(newBoard, node);
+      if (path) {
+        const op: Operation = {
+          type: 'remove_node',
+          path,
+          node
+        }
+        ops.push(op);
+        newBoard.apply(op);
+      }
+    }
+    return ops;
   }
 }
 

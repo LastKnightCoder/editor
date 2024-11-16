@@ -1,6 +1,6 @@
 import { App, Button, Select } from "antd";
 import classnames from "classnames";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { produce } from "immer";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -208,14 +208,6 @@ const RightSidebar = (props: RightSidebarProps) => {
     });
   })
 
-  useEffect(() => {
-    if (!rightSidebarOpen) {
-      onWidthChange(0);
-      return;
-    }
-    onWidthChange(rightSidebarWidth || 0);
-  }, [onWidthChange, rightSidebarOpen, rightSidebarWidth]);
-
   return (
     <ResizableAndHideableSidebar
       className={styles.rightSidebar}
@@ -224,8 +216,12 @@ const RightSidebar = (props: RightSidebarProps) => {
         height: '100%',
       }}
       open={rightSidebarOpen}
-      onWidthChange={(width) => {
+      onWidthChange={(width, actualWidth) => {
         setRightSidebarWidth(width);
+        if (actualWidth !== undefined) {
+          console.log('actualWidth', actualWidth);
+          onWidthChange(actualWidth);
+        }
       }}
       side={'left'}
       minWidth={360}
