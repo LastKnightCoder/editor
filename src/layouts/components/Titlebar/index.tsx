@@ -16,10 +16,11 @@ interface TitlebarProps {
   showColumns?: boolean;
   showSelectDatabase?: boolean;
   showFocusMode?: boolean;
+  showSearch?: boolean;
 }
 
 const Titlebar = memo((props: TitlebarProps) => {
-  const { showColumns, showSelectDatabase, showFocusMode } = props;
+  const { showColumns, showSelectDatabase, showFocusMode, showSearch } = props;
   const {
     focusMode,
   } = useGlobalStateStore(state => ({
@@ -88,6 +89,7 @@ const Titlebar = memo((props: TitlebarProps) => {
         showSelectDatabase={showSelectDatabase}
         showFocusMode={showFocusMode}
         showRightSidebar={true}
+        showSearch={showSearch}
       />
     </div>
   )

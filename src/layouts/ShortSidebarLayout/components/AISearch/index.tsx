@@ -21,17 +21,17 @@ import For from "@/components/For";
 const AISearch = memo(() => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
-  const [searchLoading, setSearchLoading] = useState(false);
-  const searchRef = useRef<EditTextHandle>(null);
-  const [searchResult, setSearchResult] = useState<Array<[VecDocument, number]>>([]);
-  const lastSearchText = useRef('');
 
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResult, setSearchResult] = useState<Array<[VecDocument, number]>>([]);
+  const searchRef = useRef<EditTextHandle>(null);
+  const lastSearchText = useRef('');
 
   const {
     cards
   } = useCardsManagementStore(state => ({
     cards: state.cards
-  }))
+  }));
 
   const {
     open,
@@ -93,7 +93,7 @@ const AISearch = memo(() => {
 
   return (
     <div className={styles.commandContainer}>
-      <div className={styles.mask} onClick={onClickMask} />
+      <div className={classnames(styles.mask, { [styles.dark]: isDark })} onClick={onClickMask} />
       <div className={classnames(styles.panel, { [styles.dark]: isDark })}>
         <div className={styles.searchHeader}>
           <div className={styles.searchIcon}>
@@ -121,7 +121,7 @@ const AISearch = memo(() => {
         <div className={styles.resultContainer}>
           <If condition={searchLoading}>
             <div className={styles.loadingContainer}>
-              <div className={classnames(styles.loader, { [styles.dark]: isDark })} />
+              <LoadingOutlined />
             </div>
           </If>
           <If condition={!searchLoading}>

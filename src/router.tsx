@@ -75,6 +75,12 @@ const shortSidebarRoutes = [{
     path: 'vec-documents/',
     element: <VecDocumentView />
   }]
+}, {
+  path: '/quick-card',
+  element: <QuickCard/>,
+}, {
+  path: '/quick-time-record',
+  element: <QuickTimeRecord/>,
 }]
 
 export const classicRouter = createBrowserRouter(classicRoutes);

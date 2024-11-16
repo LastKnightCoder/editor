@@ -137,7 +137,7 @@ const PdfView = () => {
 
   return (
     <div className={classnames(styles.viewContainer, { [styles.showEdit]: isShowEdit })}>
-      <div className={styles.gridContainer} style={{ gap: GAP }}>
+      <div ref={gridContainerRef} className={styles.gridContainer} style={{ gap: GAP }}>
         <For
           data={pdfs}
           renderItem={pdf => (
