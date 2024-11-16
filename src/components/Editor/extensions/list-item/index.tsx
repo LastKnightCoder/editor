@@ -21,7 +21,7 @@ class ListItemExtension extends Base implements IExtension {
   override toMarkdown(element: Element, children: string, parentElement: Element): string {
     if (parentElement.type === 'bulleted-list') {
       // children 按照 \n 分割，第一行加上 -，其它行加上两个空格
-      return children.split('\n').map((child, index) => {
+      return children.trim().split('\n').map((child, index) => {
         if (index === 0) {
           return `- ${child}`;
         } else {
@@ -31,7 +31,7 @@ class ListItemExtension extends Base implements IExtension {
     } else if (parentElement.type === 'numbered-list') {
       // 找到当前元素在父元素中的索引，第一行加上 1，然后加上 . 和一个空格，其它行加上两个空格
       const index = parentElement.children.findIndex(child => child === element);
-      return children.split('\n').map((child, childIndex) => {
+      return children.trim().split('\n').map((child, childIndex) => {
         if (childIndex === 0) {
           return `${index + 1}. ${child}`;
         } else {

@@ -232,7 +232,6 @@ export function stream(
         }
         const text = msg.data;
         try {
-          console.log("[Stream]", msg);
           const chunk = parseSSE(msg.data);
           if (chunk) {
             remainText += chunk;

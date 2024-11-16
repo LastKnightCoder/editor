@@ -1,18 +1,29 @@
-import { Element, Text } from 'slate';
+import { Editor, Element, Text } from 'slate';
 import IExtension from "@/components/Editor/extensions/types";
 
-export const elementToMarkdown = (element: Element, parentElement: Element, extensions: IExtension[]): string => {
+export const elementToMarkdown = (editor: Editor, element: Element, parentElement: Element, extensions: IExtension[]): string => {
   const { type, children } = element;
-  const childrenStr = children.map(node => {
+  const childrenStr = children.map((node, index) => {
     if (node.type === 'formatted') {
       return leafToMarkdown(node);
     } else {
-      return elementToMarkdown(node, element, extensions);
+      const isLast = index === children.length - 1;
+      // list-item 里面都是块级元素，会自己进行换行
+      const isListItem = node.type === 'list-item';
+      let tail = '';
+      if (editor.isBlock(node)) {
+        if (isLast || isListItem) {
+          tail = '\n';
+        } else {
+          tail = '\n\n';
+        }
+      }
+      return elementToMarkdown(editor, node, element, extensions) + tail;
     }
   }).join('');
 
   const extension = extensions.find(ext => ext.type === type);
-  return extension!.toMarkdown(element, childrenStr, parentElement);
+  return extension?.toMarkdown(element, childrenStr, parentElement) || childrenStr;
 }
 
 export const leafToMarkdown = (leaf: Text): string => {

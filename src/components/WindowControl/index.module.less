@@ -23,6 +23,73 @@
     }
 
   }
+  .search {
+    width: 150px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px 0 12px;
+
+    border-radius: 8px;
+    transition: color 0.2s;
+    --search-bg-color: #f6f6f7;
+    --search-color: rgba(60, 60, 67, .78);
+    --kbd-border-color: #e2e2e3;
+    --search-border-color: transparent;
+    background-color: var(--search-bg-color);
+    color: var(--search-color);
+    border: 1px solid var(--search-border-color);
+    span {
+      display: inline-block;
+      margin-top: 2px;
+      padding: 0 16px 0 0;
+      font-size: 13px;
+    }
+    kbd {
+      font-family: var(--mono-font);
+      display: block;
+      margin: 2px 0 0;
+      border: 1px solid var(--kbd-border-color);
+      border-right: none;
+      border-radius: 4px 0 0 4px;
+      padding-left: 6px;
+      min-width: 0;
+      width: auto;
+      height: 22px;
+      line-height: 22px;
+      svg {
+        display: none;
+      }
+      &:first-child::after {
+        content: "Ctrl";
+      }
+      &:last-child {
+        border-right: 1px solid var(--kbd-border-color);
+        border-left: none;
+        border-radius: 0 4px 4px 0;
+        padding-left: 2px;
+        padding-right: 6px;
+        &::after {
+          content: "K";
+        }
+      }
+    }
+    &:hover {
+      cursor: pointer;
+      --search-border-color: #3451b2;
+      --search-color: rgba(60, 60, 67);
+    }
+    &.dark {
+      --search-bg-color: #161618;
+      --search-color: rgba(235, 235, 245, .6);
+      --kbd-border-color: rgb(46, 46, 50);
+      &:hover {
+        --search-border-color: #a8b1ff;
+        --search-color: rgba(255, 255, 245, .86);
+      }
+    }
+  }
 }
 
 .columns {

@@ -18,3 +18,5 @@ export * from './llm.ts';
 export * from './html-to-markdown.ts';
 export * from './chat-message.ts';
 export * from './stream-fetch.ts';
+export * from './embedding.ts';
+export * from './vec-document.ts';

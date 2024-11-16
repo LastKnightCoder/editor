@@ -1,12 +1,14 @@
 import { App, Button, Select } from "antd";
 import classnames from "classnames";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { produce } from "immer";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import For from "@/components/For";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import If from "@/components/If";
+import katex from "katex";
+import { getCodeString } from "rehype-rewrite";
 
 import MarkdownPreview from "@uiw/react-markdown-preview";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
@@ -21,7 +23,12 @@ import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 
 import styles from "./index.module.less";
 
-const RightSidebar = () => {
+interface RightSidebarProps {
+  onWidthChange: (width: number) => void;
+}
+
+const RightSidebar = (props: RightSidebarProps) => {
+  const { onWidthChange } = props;
   const { chatLLMStream } = useChatLLM();
   const { isDark } = useTheme();
   const { message, modal } = App.useApp();
@@ -201,6 +208,14 @@ const RightSidebar = () => {
     });
   })
 
+  useEffect(() => {
+    if (!rightSidebarOpen) {
+      onWidthChange(0);
+      return;
+    }
+    onWidthChange(rightSidebarWidth || 0);
+  }, [onWidthChange, rightSidebarOpen, rightSidebarWidth]);
+
   return (
     <ResizableAndHideableSidebar
       className={styles.rightSidebar}
@@ -297,6 +312,28 @@ const RightSidebar = () => {
                             "data-color-mode": isDark ? 'dark' : 'light'
                           }}
                           style={{ padding: 16, borderRadius: 12, boxShadow: '0 2px 12px 0 rgba(0, 0, 0, 0.1)' }}
+                          components={{
+                            code: ({ children = [], className, ...props }) => {
+                              if (typeof children === 'string' && /^\$\$(.*)\$\$/.test(children)) {
+                                const html = katex.renderToString(children.replace(/^\$\$(.*)\$\$/, '$1'), {
+                                  throwOnError: false,
+                                });
+                                return <code dangerouslySetInnerHTML={{ __html: html }} style={{ background: 'transparent' }} />;
+                              }
+                              const code = props.node && props.node.children ? getCodeString(props.node.children) : children;
+                              if (
+                                typeof code === 'string' &&
+                                typeof className === 'string' &&
+                                /^language-katex/.test(className.toLocaleLowerCase())
+                              ) {
+                                const html = katex.renderToString(code, {
+                                  throwOnError: false,
+                                });
+                                return <code style={{ fontSize: '150%' }} dangerouslySetInnerHTML={{ __html: html }} />;
+                              }
+                              return <code className={String(className)}>{children}</code>;
+                            },
+                          }}
                         />
                       </div>
                     )

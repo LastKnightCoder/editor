@@ -109,6 +109,10 @@ export interface ISetting {
     timeRecord: {
       enable: boolean;
       name: '时间记录'
+    },
+    vecDocuments: {
+      enable: boolean;
+      name: '向量数据库'
     }
   }
   darkMode: boolean;
@@ -243,6 +247,10 @@ const initialState: IState = {
       timeRecord: {
         enable: true,
         name: '时间记录'
+      },
+      vecDocuments: {
+        enable: true,
+        name: '向量数据库'
       }
     },
     layout: ELayout.ShortSidebar,

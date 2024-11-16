@@ -59,6 +59,7 @@
     "react-inlinesvg": "^4.0.5",
     "react-router-dom": "^6.12.1",
     "refline.js": "^0.11.1",
+    "rehype-rewrite": "^4.0.2",
     "slate": "^0.94.1",
     "slate-history": "^0.93.0",
     "slate-react": "^0.97.0",

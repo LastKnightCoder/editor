@@ -6,7 +6,6 @@ use reqwest::Client;
 use sha2::{Sha256, Digest};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use log::error;
 
 use tauri::{
     plugin::{Builder, TauriPlugin},

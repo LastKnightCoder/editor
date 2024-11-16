@@ -17,6 +17,7 @@ import ProjectView from "@/layouts/ShortSidebarLayout/components/ProjectView";
 import PdfView from "@/layouts/ShortSidebarLayout/components/PdfView";
 import DailyNoteView from "@/layouts/ShortSidebarLayout/components/DailyNoteView";
 import TimeRecordView from "@/layouts/ShortSidebarLayout/components/TimeRecordView";
+import VecDocumentView from "@/layouts/ShortSidebarLayout/components/VecDocumentView";
 
 const Statistic = loadable(() => import('@/pages/Statistic'));
 
@@ -70,6 +71,9 @@ const shortSidebarRoutes = [{
   }, {
     path: 'time-records',
     element: <TimeRecordView />
+  }, {
+    path: 'vec-documents/',
+    element: <VecDocumentView />
   }]
 }]
 

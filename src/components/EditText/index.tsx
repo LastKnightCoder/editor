@@ -60,7 +60,7 @@ const EditText = forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef)
   useEffect(() => {
     // 禁止在标题中输入回车
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && isEditing && !isComposing.current) {
+      if (e.key === 'Enter' && isEditing && !isComposing.current && !e.shiftKey) {
         e.preventDefault();
         e.stopPropagation();
         ref.current?.blur();

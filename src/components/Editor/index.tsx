@@ -130,7 +130,17 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
   const [isInit, setIsInit] = useState(false);
   
   const toMarkdown = useMemoizedFn((content: Descendant[]) => {
-    return content.map((element) => elementToMarkdown(element as Element, editor as Element, finalExtensions)).join('\n');
+    return (
+      content
+        .map((element) => {
+          const isBlock = editor.isBlock(element as Element);
+          const str = elementToMarkdown(editor, element as Element, editor as Element, finalExtensions);
+          return isBlock ? `${str}\n\n` : str;
+        })
+        .join('')
+        .trim()
+        .concat('\n')
+      )
   });
 
   useEffect(() => {

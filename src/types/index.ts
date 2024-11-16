@@ -8,3 +8,4 @@ export * from './white-board';
 export * from './voice-copy';
 export * from './llm';
 export * from './chat-message';
+export * from './vec-document';
