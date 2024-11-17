@@ -9,6 +9,7 @@ export const withOverrideSettings = (editor: Editor) => {
       'callout',
       'bulleted-list',
       'numbered-list',
+      'list-item',
       'code-block',
       'image',
       'detail',

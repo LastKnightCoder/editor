@@ -18,6 +18,7 @@ import useCardManagement from '@/hooks/useCardManagement';
 import useSearchKeywords from '@/hooks/useSearchKeywords';
 import { ECardCategory, ICard } from '@/types';
 import { cardCategoryName } from "@/constants";
+import { getMarkdown } from "@/utils";
 
 import styles from './index.module.less';
 
@@ -142,6 +143,20 @@ const CardContainer = () => {
     return [{
       title: '删除卡片',
       onClick: onDeleteCard,
+    }, {
+      title: '导出 Markdown',
+      onClick: () => {
+        const card = cards.find((card) => card.id === cardId);
+        if (!card) return;
+        const markdown = getMarkdown(card.content);
+        const blob = new Blob([markdown], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${cardId}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
     }, {
       title: (
         <Popover
