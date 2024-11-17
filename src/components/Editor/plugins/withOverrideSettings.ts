@@ -25,6 +25,7 @@ export const withOverrideSettings = (editor: Editor) => {
       'divide-line',
       'image-gallery',
       'audio',
+      'video'
     ];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
@@ -42,6 +43,7 @@ export const withOverrideSettings = (editor: Editor) => {
       'divide-line',
       'image-gallery',
       'audio',
+      'video'
     ];
     return voidTypes.includes(element.type) ? true : isVoid(element);
   }

@@ -275,6 +275,7 @@ const VecDocumentView = () => {
             pageSize: PAGE_SIZE,
             current,
             total: cards.length,
+            showSizeChanger: false
           }}
           dataSource={slicedCards}
           columns={columns}

@@ -451,7 +451,6 @@ class Board {
 
   set currentCreateType(value: ECreateBoardElementType) {
     this._currentCreateType = value;
-    console.log('set currentCreateType', value);
     this.emit('onCurrentCreateTypeChange');
   }
 

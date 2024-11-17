@@ -25,10 +25,17 @@ export const pasteAudio = (editor: Editor) => {
       const src = await uploadImage(file);
       if (!src) {
         message.error('上传失败');
-        Transforms.setNodes(editor, {
-          uploading: false
-        }, {
-          at: insertPath
+        Editor.withoutNormalizing(editor, () => {
+          Transforms.delete(editor, {
+            at: insertPath
+          });
+          Transforms.insertNodes(editor, {
+            type: 'paragraph',
+            children: [{ type: 'formatted', text: '' }],
+          }, {
+            at: insertPath,
+            select: true
+          });
         });
         return;
       }

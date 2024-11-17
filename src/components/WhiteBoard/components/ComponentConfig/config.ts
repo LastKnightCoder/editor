@@ -2,6 +2,7 @@ import RichTextConfig from "./RichTextConfig";
 import ImageConfig from "./ImageConfig";
 import ArrowConfig from "./ArrowConfig";
 import GeometryConfig from "./GeometryConfig";
+import VideoConfig from "./VideoConfig";
 
 export default {
   "richtext": {
@@ -9,6 +10,9 @@ export default {
   },
   "image": {
     component: ImageConfig
+  },
+  "video": {
+    component: VideoConfig
   },
   "arrow": {
     component: ArrowConfig

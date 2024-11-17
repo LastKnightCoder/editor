@@ -13,7 +13,8 @@ import {
   GeometryPlugin, 
   RichTextPlugin, 
   ArrowPlugin, 
-  ImagePlugin 
+  ImagePlugin,
+  VideoPlugin,
 } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import { BoardContext, SelectionContext, ViewPortContext } from './context';
@@ -36,6 +37,7 @@ const richTextPlugin = new RichTextPlugin();
 const geometryPlugin = new GeometryPlugin();
 const cardPlugin = new CardPlugin();
 const imagePlugin = new ImagePlugin();
+const videoPlugin = new VideoPlugin();
 
 const plugins = [
   arrowPlugin,
@@ -43,6 +45,7 @@ const plugins = [
   cardPlugin,
   richTextPlugin,
   imagePlugin,
+  videoPlugin,
   historyPlugin,
   selectPlugin,
   movePlugin,

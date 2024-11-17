@@ -35,11 +35,17 @@ const initState: IState = {
 const useBlockPanelStore = create<IState & IActions>((set, get) => ({
   ...initState,
   filterList: (value: string, allListItem: IBlockPanelListItem[]) => {
+    const searchText = value.slice(1);
+    if (!searchText) {
+      set({ list: allListItem });
+      return;
+    }
+
     const list = allListItem.filter(item => {
       return (
-        item.keywords.some(keyword => keyword.includes(value)) ||
-        item.title.includes(value) ||
-        item.description.includes(value)
+        item.keywords.some(keyword => keyword.includes(searchText)) ||
+        item.title.includes(searchText) ||
+        item.description.includes(searchText)
       );
     });
     set({
@@ -60,7 +66,7 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
   },
   selectItem: (editor: Editor, selectIndex) => {
     const { list, inputValue, reset } = get();
-    const deleteCount = inputValue.length + 1;
+    const deleteCount = inputValue.length;
     for (let i = 0; i < deleteCount; i++) {
       editor.deleteBackward('character');
     }
