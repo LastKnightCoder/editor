@@ -10,3 +10,4 @@ export * from './CardPlugin';
 export * from './CommonPlugin';
 export * from './ArrowPlugin';
 export * from './ImagePlugin';
+export * from './VideoPlugin';

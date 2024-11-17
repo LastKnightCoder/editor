@@ -5,12 +5,13 @@ import SVG from 'react-inlinesvg'
 import Geometry from './Geometry';
 import Arrow from './Arrow';
 import Image from './Image';
+import Video from './Video';
 import Card from './Card';
 
 import textIcon from '@/assets/white-board/text.svg';
 
 import { ECreateBoardElementType } from '../../types';
-import { useCreateElementType, useBoard } from '../../hooks';
+import { useBoard, useCreateElementType } from '../../hooks';
 
 import styles from './index.module.less';
 
@@ -20,8 +21,7 @@ const Toolbar = memo(() => {
   const createBoardElementType = useCreateElementType();
 
   const onClickCreateElement = useMemoizedFn((type: ECreateBoardElementType) => {
-    const createType = type === createBoardElementType ? ECreateBoardElementType.None : type;
-    board.currentCreateType = createType;
+    board.currentCreateType = type === createBoardElementType ? ECreateBoardElementType.None : type;
   });
   
   return (
@@ -47,6 +47,7 @@ const Toolbar = memo(() => {
         <SVG src={textIcon} />
       </div>
       <Image className={styles.toolBarItem} />
+      <Video className={styles.toolBarItem} />
       <Card className={styles.toolBarItem} />
     </div>
   )

@@ -49,13 +49,11 @@ const ComponentConfig = memo(() => {
   })
 
   const handleOnFocus = useMemoizedFn(() => {
-    console.log('focus');
     board.isEditingProperties = true;
   })
 
   const handleOnBlur = useMemoizedFn(() => {
     board.isEditingProperties = false;
-    console.log('blur', );
   });
 
   if (!selection || selection.selectedElements.length !== 1) return null;

@@ -25,6 +25,7 @@ import HighlightBlockExtension from "./highlight-block";
 import TabsExtension from "./tabs";
 import StyledTextExtension from "./styled-text";
 import AudioExtension from "./audio";
+import VideoExtension from "./video";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -61,6 +62,7 @@ export const highlightBlock = new HighlightBlockExtension();
 export const tabs = new TabsExtension();
 export const styledText = new StyledTextExtension();
 export const audio = new AudioExtension();
+export const video = new VideoExtension();
 
 export const startExtensions = [
   paragraph,
@@ -94,5 +96,6 @@ export const startExtensions = [
   multiColumnContainer,
   multiColumnItem,
   styledText,
-  audio
+  audio,
+  video,
 ];

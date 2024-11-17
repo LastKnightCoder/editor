@@ -1,9 +1,9 @@
 import { Editor, Transforms } from "slate";
-import { insertAudio } from "@editor/utils";
+import { insertVideo } from "@editor/utils";
 import { uploadImage } from "@/hooks/useUploadImage.ts";
 import { message } from "antd";
 
-export const pasteAudio = (editor: Editor) => {
+export const pasteVideo = (editor: Editor) => {
   const { insertData } = editor;
 
   editor.insertData = async (data: DataTransfer) => {
@@ -11,11 +11,11 @@ export const pasteAudio = (editor: Editor) => {
     if (files && files.length > 0) {
       const file = files[0];
       const [mime] = file.type.split('/');
-      if (mime !== 'audio') {
+      if (mime !== 'video') {
         insertData(data);
         return;
       }
-      const insertPath = insertAudio(editor, {
+      const insertPath = insertVideo(editor, {
         src: '',
         uploading: true,
       });

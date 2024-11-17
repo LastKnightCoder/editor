@@ -23,6 +23,7 @@ import { HighlightBlockElement } from './element/highlight-block.ts';
 import { TabsElement } from './element/tabs.ts';
 import { UnderlineElement } from './element/underline.ts';
 import { AudioElement } from './element/audio.ts';
+import { VideoElement } from './element/video.ts';
 
 import { FormattedText } from "./text.ts";
 
@@ -58,7 +59,8 @@ export type CustomElement =
   | TabsElement
   | UnderlineElement
   | StyledTextElement
-  | AudioElement;
+  | AudioElement
+  | VideoElement;
 
 export type InlineElement = FormattedText | LinkElement | InlineMathElement | UnderlineElement | StyledTextElement;
 

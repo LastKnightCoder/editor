@@ -25,3 +25,18 @@ export const getImageInfo = async (file: File): Promise<{ width: number, height:
     img.src = URL.createObjectURL(file);
   });
 }
+
+export const getVideoInfo = async (file: File): Promise<{ width: number, height: number } | null> => {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.onloadedmetadata = (e) => {
+      console.log(e);
+      console.log(video.videoWidth, video.videoHeight);
+      resolve({ width: video.videoWidth, height: video.videoHeight });
+    };
+    video.onerror = () => {
+      resolve(null);
+    };
+    video.src = URL.createObjectURL(file);
+  });
+}

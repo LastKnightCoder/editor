@@ -11,7 +11,7 @@ import {
   TableRowElement,
   LinkElement,
   MultiColumnItemElement,
-  Color, ITabsContent, AudioElement
+  Color, ITabsContent, AudioElement, VideoElement
 } from "../types";
 import { EGalleryMode, EStyledColor } from '../constants';
 import { codeBlockMap } from "../extensions/code-block";
@@ -111,6 +111,24 @@ export const insertAudio = (editor: Editor, params: AudioParams) => {
     }]
   }
   return setOrInsertNode(editor, audio);
+}
+
+interface VideoParams {
+  src: string;
+  uploading?: boolean;
+  playbackRate?: number;
+}
+
+export const insertVideo = (editor: Editor, params: VideoParams) => {
+  const video: VideoElement = {
+    type: 'video',
+    ...params,
+    children: [{
+      type: 'formatted',
+      text: ''
+    }]
+  }
+  return setOrInsertNode(editor, video);
 }
 
 export const insertBulletList = (editor: Editor) => {

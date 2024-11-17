@@ -21,6 +21,7 @@ export const withSlashCommands = (editor: Editor) => {
           useBlockPanelStore.setState({
             blockPanelVisible: true,
             position,
+            inputValue: '/',
           });
         }
       }

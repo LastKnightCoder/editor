@@ -1,6 +1,6 @@
 import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
-import { Plugin } from "../utils/plugin.ts";
+import { Plugin } from "../utils";
 import { IBlockPanelListItem, IHotKeyConfig, IConfigItem } from "@/components/Editor/types";
 import React from "react";
 
