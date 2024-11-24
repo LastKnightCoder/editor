@@ -199,6 +199,10 @@ interface InsertListItem {
 interface InsertBreak {
   type: "insert-break";
 }
+
+interface InsertDelete {
+  type: "insert-delete"
+}
 \`\`\`
 
 ## 注意
@@ -220,10 +224,52 @@ interface InsertBreak {
   { "type": "insert-break" }
   { "type": "insert-text", "text": "这是新的段落，已经退出列表的内容了" }
   \`\`\`
+- 如果你需要在一个有序列表或无序列表中插入一个子（有序或无序）列表，应该先 insert-break 插入一个空的列表，然后 delete 这个列表项，然后在插入子列表
+  \`\`\`
+  对于如下嵌套列表
+  - 学科
+    - 语文
+    - 数学
+    - 英语
+  - 其他  
+  对应的指令为
+  { "type": "insert-bulleted-list" }
+  { "type": "insert-text", "text": "学科" }
+  { "type": "insert-break" }
+  { "type": "insert-delete" }
+  { "type": "insert-bulleted-list" }
+  { "type": "insert-text", "text": "语文" }
+  { "type": "insert-break" }
+  { "type": "insert-text", "text": "数学" }
+  { "type": "insert-break" }
+  { "type": "insert-text", "text": "英语" }
+  { "type": "insert-break" }
+  { "type": "insert-break" }
+  { "type": "insert-break" }
+  { "type": "insert-text", "text": "其他" }
+  \`\`\`
+  在【英语】后有三个 insert-break，前两个是为了退出二级列表，第三个是为了新建一个列表项
 - insert-xxx-start 和 insert-xxx-end 一定是闭合的
 - 所有的属性都得用 "" 包括，保证可悲 JSON.parse 解析
+- 你应该在插入标题和标题内容后插入一个 insert-break 来进行换行，否则所有内容都显示在一行，你需要确保这一点
 - 段与段之间使用一个 insert-break 即可
-
+- 有序（无序）列表以 Command 的形式插入，insert-bulleted-list 或 insert-numbered-list
+  \`\`\`
+  // 错误写法
+  { "type": "insert-text", "text": "1. aaa" }
+  { "type": "insert-break" }
+  { "type": "insert-text", "text": "2. bbb" }
+  { "type": "insert-break" }
+  
+  // 正确写法
+  { "type": "insert-numbered-list": "aaa" }
+  { "type": "insert-break" }
+  { "type": "insert-text", "text": "bbb" }
+  { "type": "insert-break" }
+  { "type": "insert-break" }
+  \`\`\`
+- insert-text 的 text 中不要以 “1. ” 这样有序列表写法开头，出现在内容中的 " 需要进行转义，防止 JSON.parse 抛出异常
+  
 ## 输出
 
 示例：

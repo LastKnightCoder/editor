@@ -1,10 +1,11 @@
 import { CodeBlockElement, IBlockPanelListItem } from "@editor/types";
-import { insertAIBlock, insertBulletList, insertCodeBlock, insertHeader } from "@editor/utils";
+import { insertAIBlock, insertBulletList, insertCodeBlock, insertHeader, insertNumberedList } from "@editor/utils";
 import { chatLLMStream } from "@/hooks/useChatLLM.ts";
 import { CommandParser, getMarkdown } from '@/utils';
 import { CONTINUE_WRITE_PROMPT_TEMPLATE, Role } from '@/constants';
 import { Editor, NodeEntry, Path, Transforms } from "slate";
 import { codeBlockMap } from "@editor/extensions/code-block";
+import { ReactEditor } from "slate-react";
 // import { ReactEditor } from "slate-react";
 
 const items: IBlockPanelListItem[] = [{
@@ -52,34 +53,42 @@ const items: IBlockPanelListItem[] = [{
 
     for await(const command of parser) {
       if (!command) continue;
-      console.log('command: ', command);
+      // console.log('command: ', command);
       try {
         if (command.type === 'insert-text') {
           editor.select(Editor.end(editor, path));
           editor.insertText(command.text);
+          // editor.select(Editor.end(editor, path));
         } else if (command.type === 'insert-header') {
           editor.select(Editor.end(editor, path));
           const { level } = command;
           insertHeader(editor, level);
+        } else if (command.type === 'insert-delete') {
+          editor.select(Editor.end(editor, path));
+          editor.deleteBackward("character");
         } else if (command.type === 'insert-bulleted-list') {
           editor.select(Editor.end(editor, path));
           insertBulletList(editor);
+        } else if (command.type === 'insert-numbered-list') {
+          editor.select(Editor.end(editor, path));
+          insertNumberedList(editor);
         } else if (command.type === 'insert-break') {
+          editor.select(Editor.end(editor, path));
           if (preCommandType === 'insert-code-end') {
-            editor.select(Editor.end(editor, path));
             continue;
           }
-          editor.select(Editor.end(editor, path));
           editor.insertBreak();
         } else if (command.type === 'insert-inline-code-start') {
+          editor.select(Editor.end(editor, path));
           editor.addMark('code', true);
         } else if (command.type === 'insert-inline-code') {
           editor.select(Editor.end(editor, path));
           editor.insertText(command.code);
         } else if (command.type === 'insert-inline-code-end') {
+          editor.select(Editor.end(editor, path));
           editor.removeMark('code');
         } else if (command.type === 'insert-code-start') {
-          // editor.select(Editor.end(editor, path));
+          editor.select(Editor.end(editor, path));
           const { language } = command;
           const codePath = insertCodeBlock(editor, language);
           if (codePath) {
@@ -93,6 +102,7 @@ const items: IBlockPanelListItem[] = [{
               };
             }
           }
+          ReactEditor.deselect(editor);
         } else if (command.type === 'insert-code') {
           if (currentCodeBlock) {
             const { element, code: preCode } = currentCodeBlock;
@@ -104,7 +114,7 @@ const items: IBlockPanelListItem[] = [{
               codeEditor.setValue(newCode);
               const doc = codeEditor.getDoc();
               const lastPos = doc.posFromIndex(doc.getValue().length);
-              codeEditor.focus();
+              // codeEditor.focus();
               codeEditor.setCursor(lastPos);
             }
           }

@@ -57,9 +57,8 @@ interface InsertListItemCommand extends BaseCommand {
   type: 'insert-list-item';
 }
 
-interface InsertBlockMathCommand extends BaseCommand {
-  type: 'insert-block-math';
-  math: string;
+interface InsertDeleteCommand extends BaseCommand {
+  type: 'insert-delete';
 }
 
 type CodeCommand =
@@ -77,7 +76,7 @@ export type Command =
   | InsertBulletedListCommand
   | InsertNumberedListCommand
   | InsertListItemCommand
-  | InsertBlockMathCommand
+  | InsertDeleteCommand
   | InsertBreakCommand;
 
 export class CommandParser {

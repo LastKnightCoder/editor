@@ -85,10 +85,17 @@ export const replaceNode = (editor: Editor, node: Node, match: NodeMatch<Node>, 
     Transforms.removeNodes(editor, {
       at: curEle[1],
     });
-    Transforms.insertNodes(editor, node, {
-      at: curEle[1],
-      ...options,
-    });
+    if (node.type === 'code-block') {
+      console.log('replace Node');
+    }
+    try {
+      Transforms.insertNodes(editor, node, {
+        at: curEle[1],
+        ...options,
+      });
+    } catch (e) {
+      console.log('replaceNode error', e);
+    }
   });
   return curEle[1];
 }
