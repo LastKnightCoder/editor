@@ -421,3 +421,8 @@
 
 - feat: 导出 Markdown 脱离编辑器
 - feat: AI 续写
+
+
+## v0.9.7
+
+- fix: workflow build error

@@ -279,6 +279,7 @@ const VecDocumentView = () => {
             showSizeChanger: false
           }}
           dataSource={slicedCards}
+          // @ts-ignore
           columns={columns}
           onChange={(pagination) => {
             setCurrent(pagination.current || 1);
