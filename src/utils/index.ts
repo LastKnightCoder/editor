@@ -8,3 +8,4 @@ export * from './card';
 export * from './time';
 export * from './time_record';
 export * from './embedding';
+export * from './command-parser';

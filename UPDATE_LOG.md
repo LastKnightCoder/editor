@@ -420,3 +420,4 @@
 ## v0.9.6
 
 - feat: 导出 Markdown 脱离编辑器
+- feat: AI 续写

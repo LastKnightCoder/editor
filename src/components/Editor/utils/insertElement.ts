@@ -16,6 +16,7 @@ import {
 import { EGalleryMode, EStyledColor } from '../constants';
 import { codeBlockMap } from "../extensions/code-block";
 import { STYLED_TEXT_SELECT_COLOR_KEY } from "@editor/extensions/styled-text/components/StyledText";
+import { AIElement } from "@editor/types/element/ai.ts";
 
 interface InsertElementOptions {
   select?: boolean;
@@ -34,6 +35,9 @@ export const setOrInsertNode = (editor: Editor, node: BlockElement, options: Ins
     return;
   }
   if (isParagraphAndEmpty(editor)) {
+    if (node.type === 'code-block') {
+      console.log('paragraph is empty');
+    }
     return replaceNode(editor, node, n => n.type === 'paragraph', options);
   } else {
     Transforms.insertNodes(editor, node, options);
@@ -217,11 +221,11 @@ export const insertTable = (editor: Editor, rows: number, cols: number) => {
   return insertPath;
 }
 
-export const insertCodeBlock = (editor: Editor, language = 'javascript') => {
+export const insertCodeBlock = (editor: Editor, language = 'javascript', code = '') => {
   const uuid = getUuid();
   const res = setOrInsertNode(editor, {
     type: 'code-block',
-    code: '',
+    code,
     language: language,
     uuid,
     children: [{ type: 'formatted', text: '' }]
@@ -396,6 +400,21 @@ export const insertTabs = (editor: Editor) => {
   }, {
     select: true
   });
+}
+
+export const insertAIBlock = (editor: Editor) => {
+  const aiElement: AIElement = {
+    type: 'ai',
+    children: [{
+      type: 'paragraph',
+      children: [{
+        type: 'formatted',
+        text: ''
+      }]
+    }]
+  }
+
+  return setOrInsertNode(editor, aiElement, { select: true });
 }
 
 const isLinkActive = (editor: Editor) => {

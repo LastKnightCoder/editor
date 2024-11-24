@@ -124,17 +124,25 @@ export function stream(
     onFinish: (text: string, res: Response) => void;
     onError?: (e: Error) => void;
     onUpdate: (text: string, res: string) => void;
+    notAnimate?: boolean;
   },
 ) {
   let responseText = "";
   let remainText = "";
   let finished = false;
   let responseRes: Response;
+  const notAnimate = !!options.notAnimate;
+
+  const flushRemaintText = () => {
+    responseText += remainText;
+    options?.onUpdate?.(responseText, remainText);
+    remainText = '';
+  };
 
   // animate response to make it looks smooth
   function animateResponseText() {
     if (finished || controller.signal.aborted) {
-      responseText += remainText;
+      flushRemaintText();
       console.log("[Response Animation] finished");
       if (responseText?.length === 0) {
         options.onError?.(new Error("empty response from server"));
@@ -143,6 +151,10 @@ export function stream(
     }
 
     if (remainText.length > 0) {
+      if (notAnimate) {
+        flushRemaintText();
+        return;
+      }
       const fetchCount = Math.max(1, Math.round(remainText.length / 60));
       const fetchText = remainText.slice(0, fetchCount);
       responseText += fetchText;
@@ -160,6 +172,7 @@ export function stream(
     if (!finished) {
       console.debug("[ChatAPI] end");
       finished = true;
+      flushRemaintText();
       options.onFinish(responseText + remainText, responseRes); // 将res传递给onFinish
     }
   };
@@ -189,7 +202,6 @@ export function stream(
       async onopen(res) {
         clearTimeout(requestTimeoutId);
         const contentType = res.headers.get("content-type");
-        console.log("[Request] response content type: ", contentType);
         responseRes = res;
 
         if (contentType?.startsWith("text/plain")) {
