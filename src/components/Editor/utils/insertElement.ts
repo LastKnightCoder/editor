@@ -35,9 +35,6 @@ export const setOrInsertNode = (editor: Editor, node: BlockElement, options: Ins
     return;
   }
   if (isParagraphAndEmpty(editor)) {
-    if (node.type === 'code-block') {
-      console.log('paragraph is empty');
-    }
     return replaceNode(editor, node, n => n.type === 'paragraph', options);
   } else {
     Transforms.insertNodes(editor, node, options);

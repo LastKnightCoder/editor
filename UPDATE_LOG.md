@@ -426,3 +426,7 @@
 ## v0.9.7
 
 - fix: workflow build error
+
+## v0.9.8 
+
+- fix: AI 续写插入代码块崩溃，稳定性提升
