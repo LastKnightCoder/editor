@@ -80,6 +80,7 @@ const VecDocumentView = () => {
     message.success('更新成功');
   });
 
+  // @ts-ignore
   const columns: TableColumnsType<ICard> = [{
     key: 'id',
     dataIndex: 'id',
