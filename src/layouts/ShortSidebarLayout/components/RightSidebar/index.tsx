@@ -147,14 +147,18 @@ const RightSidebar = (props: RightSidebarProps) => {
       content: '...'
     }
 
-    const sendMessages = [...currentChat.messages, newMessage, responseMessage];
+    const sendMessages = [
+      currentChat.messages[0],
+      ...currentChat.messages.slice(1, -1).slice(-10),
+      newMessage
+    ];
     setCurrentChat({
       ...currentChat,
-      messages: sendMessages,
+      messages: [...currentChat.messages, newMessage, responseMessage],
     });
     editTextRef.current.clear();
 
-    chatLLMStream(sendMessages.slice(-5), {
+    chatLLMStream(sendMessages, {
       onFinish: async (content) => {
         setSendLoading(false);
         const newCurrentChat = produce(currentChat, draft => {
@@ -167,7 +171,7 @@ const RightSidebar = (props: RightSidebarProps) => {
         const updatedChatMessage = await updateChatMessage(newCurrentChat).finally(() => {
           setSendLoading(false);
         });
-        editTextRef.current?.focus();
+        editTextRef.current?.focusEnd();
         setCurrentChat(updatedChatMessage);
         localStorage.setItem('right-sidebar-chat-id', String(updatedChatMessage.id));
         scrollDomToBottom();
@@ -175,7 +179,7 @@ const RightSidebar = (props: RightSidebarProps) => {
           const newTitle = await chatWithGPT35([{
             role: Role.System,
             content: SUMMARY_TITLE_PROMPT
-          }, ...updatedChatMessage.messages.slice(1).slice(-5)]);
+          }, ...updatedChatMessage.messages.slice(-7)]);
           if (newTitle) {
             const updateChat = produce(updatedChatMessage, draft => {
               draft.title = newTitle;
@@ -202,7 +206,7 @@ const RightSidebar = (props: RightSidebarProps) => {
         setCurrentChat(currentChat);
         setSendLoading(false);
         editTextRef.current?.setValue(userContent);
-        editTextRef.current?.focus();
+        editTextRef.current?.focusEnd();
         message.error('请求失败');
       }
     });

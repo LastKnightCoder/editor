@@ -9,6 +9,7 @@ interface IChatStreamOptions {
   onUpdate: (responseText: string, fetchText: string) => void;
   onError?: (e: Error) => void;
   onController?: (controller: AbortController) => void;
+  notAnimate?: boolean;
 }
 
 const getCurrentConfig = (llmProviders: ISetting['llmProviders']) => {

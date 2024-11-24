@@ -1,4 +1,4 @@
-import { Descendant, Editor, Element } from "slate";
+import { Descendant, Editor } from "slate";
 import {
   CodeBlockElement,
   FormattedText,

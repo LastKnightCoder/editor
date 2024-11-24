@@ -26,7 +26,8 @@ export const withOverrideSettings = (editor: Editor) => {
       'divide-line',
       'image-gallery',
       'audio',
-      'video'
+      'video',
+      'ai'
     ];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   }
