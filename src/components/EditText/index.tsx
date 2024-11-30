@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useRef, useState, forwardRef, useImperativeHandle, memo } from 'react';
 import { useMemoizedFn, useMutationObserver } from "ahooks";
 
 interface IEditTextProps {
@@ -21,7 +21,7 @@ export type EditTextHandle = {
   getValue: () => string;
 }
 
-const EditText = forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef) => {
+const EditText = memo(forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef) => {
   const {
     className,
     style,
@@ -146,6 +146,6 @@ const EditText = forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef)
       {initValue}
     </div>
   )
-});
+}));
 
 export default EditText;
