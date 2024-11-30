@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Empty } from "antd";
+import { Button, Empty } from "antd";
 
 import useProjectsStore from "@/stores/useProjectsStore";
 
@@ -8,19 +8,47 @@ import If from "@/components/If";
 import For from "@/components/For";
 
 import styles from './index.module.less';
+import { CreateProjectItem } from "@/types";
 
 const Project = () => {
   const {
     projects,
-    activateProjectId,
+    activeProjectId,
+    createRootProjectItem
   } = useProjectsStore(state => ({
     projects: state.projects,
-    activateProjectId: state.activeProjectId
+    activeProjectId: state.activeProjectId,
+    createRootProjectItem: state.createRootProjectItem
   }));
 
   const project = useMemo(() => {
-    return projects.find(p => p.id === activateProjectId);
-  }, [projects, activateProjectId]);
+    return projects.find(p => p.id === activeProjectId);
+  }, [projects, activeProjectId]);
+
+  const onCreateRootProjectItem = async () => {
+    if (!activeProjectId) return;
+    const defaultRootProjectItem: CreateProjectItem = {
+      title: '新文档',
+      content: [{
+        type: 'paragraph',
+        children: [{
+          type: 'formatted',
+          text: '',
+        }]
+      }],
+      children: [],
+      parents: [],
+      projects: [activeProjectId],
+      refType: '',
+      refId: 0
+    }
+    const item = await createRootProjectItem(activeProjectId, defaultRootProjectItem);
+    if (item) {
+      useProjectsStore.setState({
+        activeProjectItemId: item.id,
+      })
+    }
+  };
 
   if (!project) return null;
 
@@ -42,6 +70,7 @@ const Project = () => {
           />
         )}
       />
+      <Button style={{ marginTop: 12 }} onClick={onCreateRootProjectItem}>新建文档</Button>
     </div>
   )
 }

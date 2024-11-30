@@ -103,7 +103,7 @@ const CardContainer = () => {
     const filteredCards = cards.filter((card) => {
       return keywords.every((keyword) => {
         const allTags = card.tags.map(tag => tag.split('/')).flat(Infinity);
-        return allTags.includes(keyword);
+        return allTags.some(tag => tag.includes(keyword));
       });
     });
     setSearchCards(filteredCards);

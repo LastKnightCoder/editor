@@ -50,6 +50,10 @@ const Project = () => {
     editorRef.current?.scrollHeaderIntoView(index);
   });
 
+  const onPressEnter = useMemoizedFn(() => {
+    editorRef.current?.focus();
+  });
+
   if (!projectItem) return null;
 
   return (
@@ -58,9 +62,11 @@ const Project = () => {
         <div className={styles.editorContainer}>
           <div className={styles.title}>
             <EditText
+              key={projectItem.id}
               defaultValue={projectItem.title}
               onChange={onTitleChange}
               contentEditable={!readonly}
+              onPressEnter={onPressEnter}
             />
           </div>
           <div className={styles.time}>
