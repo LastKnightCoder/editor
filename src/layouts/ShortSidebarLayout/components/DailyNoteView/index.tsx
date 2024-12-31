@@ -11,6 +11,11 @@ import { SelectInfo } from "antd/es/calendar/generateCalendar";
 
 import styles from './index.module.less';
 import For from "@/components/For";
+import { dailySummaryExtension } from "@/editor-extensions";
+
+const extensions = [
+  dailySummaryExtension,
+];
 
 const DailyNoteView = () => {
   const {
@@ -74,7 +79,11 @@ const DailyNoteView = () => {
                 readonly: false
               })
             }}>
-              <Editor initValue={dailyNote.content.slice(0, 1)} readonly/>
+              <Editor
+                initValue={dailyNote.content.slice(0, 1)}
+                extensions={extensions}
+                readonly
+              />
               <div className={styles.delete} onClick={(e) => {
                 handleDeleteDailyNote(e, dailyNote.id)
               }}>

@@ -1,0 +1,27 @@
+.dropContainer {
+  position: relative;
+  @import '@/components/Editor/extensions/drop-common.less';
+  @import '@/components/Editor/extensions/drag-common.less';
+
+  .listContainer {
+    padding: 16px;
+    border: 1px solid var(--line-color);
+    border-radius: 12px;
+  }
+
+  .info {
+    margin-bottom: 16px;
+  }
+
+  .cardList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill,minmax(150px, 1fr));
+    gap: 16px;
+  }
+
+  .articleList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill,minmax(300px, 1fr));
+    gap: 16px;
+  }
+}
