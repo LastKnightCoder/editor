@@ -6,29 +6,30 @@ interface UseDragAndHideSidebarProps {
   width: number;
   open: boolean;
   onWidthChange?: (width: number, actualWidth?: number) => void;
+  ref: HTMLElement | null;
 }
 
-const useDragAndHideSidebar = ({ open, width, onWidthChange }: UseDragAndHideSidebarProps) => {
+const useDragAndHideSidebar = ({ open, width, onWidthChange, ref }: UseDragAndHideSidebarProps) => {
   const firstOpen = useRef(true);
-  const scope = useRef<HTMLElement>(null);
+  // const scope = useRef<HTMLElement>(null);
 
   const handleSidebarOpenChange = useMemoizedFn((open: boolean) => {
-    if (!scope.current) return;
+    if (!ref) return;
     if (open) {
       // 使用 gsap 来做动画
-      gsap.to(scope.current, {
+      gsap.to(ref, {
         width,
         duration: 0.3,
         onUpdate: () => {
-          onWidthChange?.(width, scope.current!.offsetWidth);
+          onWidthChange?.(width, ref.offsetWidth);
         }
       })
     } else {
-      gsap.to(scope.current, {
+      gsap.to(ref, {
         width: 0,
         duration: firstOpen.current ? 0 : 0.3,
         onUpdate: () => {
-          onWidthChange?.(width, scope.current!.offsetWidth);
+          onWidthChange?.(width, ref.offsetWidth);
         }
       })
     }
@@ -36,9 +37,9 @@ const useDragAndHideSidebar = ({ open, width, onWidthChange }: UseDragAndHideSid
   });
 
   const handleSidebarWidthChange = useMemoizedFn((width: number) => {
-    if (!scope.current) return;
+    if (!ref) return;
     if(open) {
-      gsap.to(scope.current, {
+      gsap.to(ref, {
         width,
         duration: 0,
       });
@@ -52,8 +53,6 @@ const useDragAndHideSidebar = ({ open, width, onWidthChange }: UseDragAndHideSid
   useEffect(() => {
     handleSidebarWidthChange(width);
   }, [width, handleSidebarWidthChange]);
-
-  return scope;
 }
 
 export default useDragAndHideSidebar;
