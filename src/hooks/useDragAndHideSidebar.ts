@@ -6,30 +6,29 @@ interface UseDragAndHideSidebarProps {
   width: number;
   open: boolean;
   onWidthChange?: (width: number, actualWidth?: number) => void;
-  ref: HTMLElement | null;
 }
 
-const useDragAndHideSidebar = ({ open, width, onWidthChange, ref }: UseDragAndHideSidebarProps) => {
+const useDragAndHideSidebar = <T extends HTMLElement>({ open, width, onWidthChange }: UseDragAndHideSidebarProps) => {
   const firstOpen = useRef(true);
-  // const scope = useRef<HTMLElement>(null);
+  const ref = useRef<T | null>(null);
 
   const handleSidebarOpenChange = useMemoizedFn((open: boolean) => {
-    if (!ref) return;
+    if (!ref.current) return;
     if (open) {
-      // 使用 gsap 来做动画
-      gsap.to(ref, {
+      gsap.to(ref.current, {
         width,
         duration: 0.3,
         onUpdate: () => {
-          onWidthChange?.(width, ref.offsetWidth);
+          onWidthChange?.(width, ref.current!.offsetWidth);
         }
       })
     } else {
-      gsap.to(ref, {
+      console.log('close');
+      gsap.to(ref.current, {
         width: 0,
         duration: firstOpen.current ? 0 : 0.3,
         onUpdate: () => {
-          onWidthChange?.(width, ref.offsetWidth);
+          onWidthChange?.(width, ref.current!.offsetWidth);
         }
       })
     }
@@ -37,9 +36,9 @@ const useDragAndHideSidebar = ({ open, width, onWidthChange, ref }: UseDragAndHi
   });
 
   const handleSidebarWidthChange = useMemoizedFn((width: number) => {
-    if (!ref) return;
+    if (!ref.current) return;
     if(open) {
-      gsap.to(ref, {
+      gsap.to(ref.current, {
         width,
         duration: 0,
       });
@@ -53,6 +52,8 @@ const useDragAndHideSidebar = ({ open, width, onWidthChange, ref }: UseDragAndHi
   useEffect(() => {
     handleSidebarWidthChange(width);
   }, [width, handleSidebarWidthChange]);
+
+  return ref;
 }
 
 export default useDragAndHideSidebar;
