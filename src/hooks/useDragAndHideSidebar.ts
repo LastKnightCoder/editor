@@ -1,6 +1,6 @@
 import { useMemoizedFn } from "ahooks";
 import { useEffect, useRef } from "react";
-import { useAnimate } from "framer-motion";
+import gsap from "gsap";
 
 interface UseDragAndHideSidebarProps {
   width: number;
@@ -10,26 +10,25 @@ interface UseDragAndHideSidebarProps {
 
 const useDragAndHideSidebar = ({ open, width, onWidthChange }: UseDragAndHideSidebarProps) => {
   const firstOpen = useRef(true);
-
-  const [scope, animate] = useAnimate();
+  const scope = useRef<HTMLElement>(null);
 
   const handleSidebarOpenChange = useMemoizedFn((open: boolean) => {
     if (!scope.current) return;
     if (open) {
-      animate(scope.current, {
+      // 使用 gsap 来做动画
+      gsap.to(scope.current, {
         width,
-      }, {
-        onUpdate: (w) => {
-          onWidthChange?.(width, w);
+        duration: 0.3,
+        onUpdate: () => {
+          onWidthChange?.(width, scope.current!.offsetWidth);
         }
-      });
+      })
     } else {
-      animate(scope.current, {
+      gsap.to(scope.current, {
         width: 0,
-      }, {
         duration: firstOpen.current ? 0 : 0.3,
-        onUpdate: (w) => {
-          onWidthChange?.(width, w);
+        onUpdate: () => {
+          onWidthChange?.(width, scope.current!.offsetWidth);
         }
       })
     }
@@ -39,9 +38,8 @@ const useDragAndHideSidebar = ({ open, width, onWidthChange }: UseDragAndHideSid
   const handleSidebarWidthChange = useMemoizedFn((width: number) => {
     if (!scope.current) return;
     if(open) {
-      animate(scope.current, {
+      gsap.to(scope.current, {
         width,
-      }, {
         duration: 0,
       });
     }

@@ -223,7 +223,6 @@ const RightSidebar = (props: RightSidebarProps) => {
       onWidthChange={(width, actualWidth) => {
         setRightSidebarWidth(width);
         if (actualWidth !== undefined) {
-          console.log('actualWidth', actualWidth);
           onWidthChange(actualWidth);
         }
       }}
