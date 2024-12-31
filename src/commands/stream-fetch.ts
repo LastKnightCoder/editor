@@ -165,7 +165,7 @@ export function stream(
     requestAnimationFrame(animateResponseText);
   }
 
-  // start animaion
+  // start animation
   animateResponseText();
 
   const finish = () => {

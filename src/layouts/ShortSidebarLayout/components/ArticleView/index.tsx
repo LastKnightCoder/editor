@@ -45,7 +45,7 @@ const ArticleView = () => {
       <div className={styles.editContainer}>
         {
           isShowEdit && (
-            <EditArticle />
+            <EditArticle key={activeArticleId} />
           )
         }
       </div>

@@ -127,7 +127,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
       >
         {children}
       </div>
-      <div className={styles.windowsControl} />
+      {/*<div className={styles.windowsControl} />*/}
       <div
         style={{
           background: `url(${copyIcon}) no-repeat center center / 60% 60%`,
@@ -144,8 +144,8 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           inputStyle: 'textarea',
           mode: langConfig?.mime || langConfig?.mode || 'text/plain',
           theme: isDark ? 'blackboard' : 'one-light',
-          lineNumbers: true,
-          firstLineNumber: 1,
+          // lineNumbers: true,
+          // firstLineNumber: 1,
           scrollbarStyle: "null",
           viewportMargin: Infinity,
           lineWrapping: false,
