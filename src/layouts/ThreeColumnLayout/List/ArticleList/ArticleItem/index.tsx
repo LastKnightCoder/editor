@@ -17,12 +17,13 @@ import Tags from "@/components/Tags";
 
 interface IArticleItemProps {
   article: IArticle;
+  disableOperation?: boolean;
 }
 
 const { Paragraph } = Typography;
 
 const ArticleItem = memo((props: IArticleItemProps) => {
-  const { article } = props;
+  const { article, disableOperation } = props;
 
   const [bannerUploading, setBannerUploading] = useState(false);
   const [settingOpen, setSettingOpen] = useState(false);
@@ -101,54 +102,58 @@ const ArticleItem = memo((props: IArticleItemProps) => {
       }
       onClick={handleClickArticle}
     >
-      <div className={styles.operate} onClick={e => e.stopPropagation()}>
-        <Popover
-          open={settingOpen}
-          onOpenChange={setSettingOpen}
-          placement={'bottomRight'}
-          trigger={'click'}
-          overlayInnerStyle={{
-            padding: 4,
-          }}
-          content={(
-            <div className={styles.settings}>
-              <div
-                className={styles.settingItem}
-                onClick={() => {
-                  updateArticleIsTop(article.id, !article.isTop);
-                  setSettingOpen(false)
-                }}
-              >
-                {article.isTop ? '取消置顶' : '置顶文章'}
-              </div>
-              <div
-                className={styles.settingItem}
-                onClick={handleDeleteArticle}
-              >
-                删除文章
-              </div>
-              <div
-                className={styles.settingItem}
-                onClick={() => {
-                  setSettingOpen(false);
-                  fileUploadRef.current?.click();
-                }}
-              >
-                换背景图
-              </div>
-              <input
-                ref={fileUploadRef}
-                type={'file'}
-                accept={'image/*'}
-                style={{ display: 'none' }}
-                onChange={handleUploadFileChange}
-              />
-            </div>
-          )}
-        >
-          <MdMoreVert/>
-        </Popover>
-      </div>
+      {
+        !disableOperation && (
+          <div className={styles.operate} onClick={e => e.stopPropagation()}>
+            <Popover
+              open={settingOpen}
+              onOpenChange={setSettingOpen}
+              placement={'bottomRight'}
+              trigger={'click'}
+              overlayInnerStyle={{
+                padding: 4,
+              }}
+              content={(
+                <div className={styles.settings}>
+                  <div
+                    className={styles.settingItem}
+                    onClick={() => {
+                      updateArticleIsTop(article.id, !article.isTop);
+                      setSettingOpen(false)
+                    }}
+                  >
+                    {article.isTop ? '取消置顶' : '置顶文章'}
+                  </div>
+                  <div
+                    className={styles.settingItem}
+                    onClick={handleDeleteArticle}
+                  >
+                    删除文章
+                  </div>
+                  <div
+                    className={styles.settingItem}
+                    onClick={() => {
+                      setSettingOpen(false);
+                      fileUploadRef.current?.click();
+                    }}
+                  >
+                    换背景图
+                  </div>
+                  <input
+                    ref={fileUploadRef}
+                    type={'file'}
+                    accept={'image/*'}
+                    style={{ display: 'none' }}
+                    onChange={handleUploadFileChange}
+                  />
+                </div>
+              )}
+            >
+              <MdMoreVert/>
+            </Popover>
+          </div>
+        )
+      }
       <div className={styles.time}>
         创建于：{formatDate(article.create_time, true)}
       </div>

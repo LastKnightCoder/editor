@@ -20,6 +20,7 @@ import { IArticle } from "@/types";
 
 import styles from './index.module.less';
 import { formatDate } from "@/utils";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const { Text } = Typography;
 
@@ -28,6 +29,7 @@ interface IArticleCardProps {
   className?: string;
   style?: React.CSSProperties;
   imageRight?: boolean;
+  disableOperation?: boolean;
 }
 
 const allThemes = [styles.green, styles.blue, styles.red, styles.yellow, styles.purple];
@@ -38,9 +40,12 @@ const ArticleCard = (props: IArticleCardProps) => {
     className,
     style,
     imageRight,
+    disableOperation
   } = props;
 
   const { isDark } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
@@ -105,6 +110,14 @@ const ArticleCard = (props: IArticleCardProps) => {
   })
 
   const handleClickArticle = useMemoizedFn(() => {
+    if (location.pathname !== '/articles') {
+      navigate('/articles');
+      useArticleManagementStore.setState({
+        activeArticleId: article.id
+      });
+      return;
+    }
+
     if (article.id === activeArticleId) {
       useArticleManagementStore.setState({
         activeArticleId: undefined
@@ -127,49 +140,53 @@ const ArticleCard = (props: IArticleCardProps) => {
             </If>
           </div>
           <div className={styles.content}>
-            <div className={classnames(styles.operate, { [styles.left]: imageRight } )}>
-              <Popover
-                open={settingOpen}
-                onOpenChange={setSettingOpen}
-                placement={'bottomRight'}
-                trigger={'click'}
-                overlayInnerStyle={{
-                  padding: 4,
-                }}
-                content={(
-                  <div className={styles.settings}>
-                    <div
-                      className={styles.settingItem}
-                      onClick={async () => {
-                        await updateArticleIsTop(article.id, !article.isTop);
-                        setSettingOpen(false)
-                      }}
-                    >
-                      { article.isTop ? '取消置顶' : '置顶文章' }
-                    </div>
-                    <div className={styles.settingItem} onClick={handleDeleteArticle}>删除文章</div>
-                    <div
-                      className={styles.settingItem}
-                      onClick={() => {
-                        setSettingOpen(false);
-                        fileUploadRef.current?.click();
-                      }}
-                    >
-                      换背景图
-                    </div>
-                    <input
-                      ref={fileUploadRef}
-                      type={'file'}
-                      accept={'image/*'}
-                      style={{ display: 'none' }}
-                      onChange={handleUploadFileChange}
-                    />
-                  </div>
-                )}
-              >
-                <MdMoreVert />
-              </Popover>
-            </div>
+            {
+              !disableOperation && (
+                <div className={classnames(styles.operate, { [styles.left]: imageRight })}>
+                  <Popover
+                    open={settingOpen}
+                    onOpenChange={setSettingOpen}
+                    placement={'bottomRight'}
+                    trigger={'click'}
+                    overlayInnerStyle={{
+                      padding: 4,
+                    }}
+                    content={(
+                      <div className={styles.settings}>
+                        <div
+                          className={styles.settingItem}
+                          onClick={async () => {
+                            await updateArticleIsTop(article.id, !article.isTop);
+                            setSettingOpen(false)
+                          }}
+                        >
+                          {article.isTop ? '取消置顶' : '置顶文章'}
+                        </div>
+                        <div className={styles.settingItem} onClick={handleDeleteArticle}>删除文章</div>
+                        <div
+                          className={styles.settingItem}
+                          onClick={() => {
+                            setSettingOpen(false);
+                            fileUploadRef.current?.click();
+                          }}
+                        >
+                          换背景图
+                        </div>
+                        <input
+                          ref={fileUploadRef}
+                          type={'file'}
+                          accept={'image/*'}
+                          style={{ display: 'none' }}
+                          onChange={handleUploadFileChange}
+                        />
+                      </div>
+                    )}
+                  >
+                    <MdMoreVert/>
+                  </Popover>
+                </div>
+              )
+            }
             <div onClick={handleClickArticle}>
               <Text className={styles.title} ellipsis={{ tooltip: article.title }}>
                 {article.title}
@@ -177,14 +194,14 @@ const ArticleCard = (props: IArticleCardProps) => {
             </div>
             <div className={styles.timeAndTags}>
               <div className={styles.time}>
-                <CalendarOutlined />
+                <CalendarOutlined/>
                 <span className={styles.date}>
                   发表于：{formatDate(article.create_time, true)}
                 </span>
               </div>
             </div>
             <div>
-              <Tags tags={article.tags} showIcon />
+              <Tags tags={article.tags} showIcon/>
             </div>
             <Editor
               initValue={article.content.slice(0, 1)}

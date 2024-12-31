@@ -5,7 +5,12 @@ import Editor from "@/components/Editor";
 
 import useEditDailyNote from "@/hooks/useEditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
+import { dailySummaryExtension } from "@/editor-extensions";
 import styles from './index.module.less';
+
+const extensions = [
+  dailySummaryExtension,
+];
 
 const DailyNoteContent = () => {
   const {
@@ -49,6 +54,7 @@ const DailyNoteContent = () => {
             onChange={onContentChange}
             readonly={readonly}
             uploadImage={uploadImage}
+            extensions={extensions}
           />
         </div>
       </div>
