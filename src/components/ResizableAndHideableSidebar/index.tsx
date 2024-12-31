@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import WidthResizable from "@/components/WidthResizable";
 import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
 
@@ -27,13 +27,10 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
     side,
   } = props;
 
-  const ref = useRef<HTMLDivElement>(null);
-
-  useDragAndHideSidebar({
+  const ref = useDragAndHideSidebar<HTMLDivElement>({
     width,
     open,
     onWidthChange,
-    ref: ref.current,
   });
 
   return (
