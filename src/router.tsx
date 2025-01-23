@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import {  createHashRouter } from "react-router-dom";
 import loadable from "@loadable/component";
 
 import ThreeColumnLayout from "@/layouts/ThreeColumnLayout";
@@ -83,9 +83,9 @@ const shortSidebarRoutes = [{
   element: <QuickTimeRecord/>,
 }]
 
-export const classicRouter = createBrowserRouter(classicRoutes);
+export const classicRouter = createHashRouter(classicRoutes);
 
-export const shortSidebarRouter = createBrowserRouter(shortSidebarRoutes);
+export const shortSidebarRouter = createHashRouter(shortSidebarRoutes);
 
 
 export default classicRouter;
