@@ -1,0 +1,48 @@
+appId: "com.notes.app"
+productName: "notes"
+copyright: "Copyright © 2025 ${author}"
+asar: true
+directories:
+  output: dist/
+  # buildResources: build
+
+files:
+  - "dist/**/*"
+  - "dist-electron/main/**/*.js"
+  - "dist-electron/preload/**/*.js"
+  - "package.json"
+  - "build/icons/*"  # 图标文件
+  - "src/assets/**/*" # 静态资源
+  - "!**/node_modules/*"
+  - "!src-tauri"      # 排除tauri相关文件
+
+nsis:
+  oneClick: false
+  perMachine: true
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  installerIcon: "build/icon.ico"
+  uninstallerIcon: "build/icon.ico"
+  uninstallDisplayName: "notes"
+  shortcutName: "notes"
+
+win:
+  target: "nsis"
+  icon: "./public/icon.ico"
+  artifactName: "${productName}-v${version}-${platform}.${ext}"
+
+mac:
+  icon: "./public/icon.ico"
+  artifactName: "${productName}-v${version}-${platform}.${ext}"
+
+linux:
+  icon: "./public/icon.ico"
+  artifactName: "${productName}-v${version}-${platform}.${ext}"
+
+publish:
+  provider: "github"
+  repo: "editor"
+  owner: "LastKnightCoder"
+  releaseType: "release"

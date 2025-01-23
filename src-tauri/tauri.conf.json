@@ -6,7 +6,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "editor",
+    "productName": "notes",
     "version": "0.9.9"
   },
   "tauri": {
@@ -139,13 +139,13 @@
         "fullscreen": false,
         "height": 800,
         "resizable": true,
-        "title": "editor",
+        "title": "Notes",
         "hiddenTitle": true,
         "width": 1280,
         "center": true,
-        "decorations": false,
+        "decorations": true,
         "fileDropEnabled": false,
-        "transparent": true
+        "transparent": false
       }
     ],
     "systemTray": {
