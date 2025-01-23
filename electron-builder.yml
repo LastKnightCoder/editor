@@ -3,18 +3,15 @@ productName: "notes"
 copyright: "Copyright © 2025 ${author}"
 asar: true
 directories:
-  output: dist/
+  output: release/
   # buildResources: build
 
 files:
   - "dist/**/*"
-  - "dist-electron/main/**/*.js"
-  - "dist-electron/preload/**/*.js"
+  - "dist-electron/**/*"
   - "package.json"
-  - "build/icons/*"  # 图标文件
-  - "src/assets/**/*" # 静态资源
-  - "!**/node_modules/*"
-  - "!src-tauri"      # 排除tauri相关文件
+  - "build/icons/*"
+  - "node_modules/**/*"
 
 nsis:
   oneClick: false
@@ -29,16 +26,16 @@ nsis:
   shortcutName: "notes"
 
 win:
-  target: "nsis"
-  icon: "./public/icon.ico"
+  target: ["nsis", "msi"]
+  icon: "build/icon.ico"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
 
 mac:
-  icon: "./public/icon.ico"
+  icon: "build/icon.ico"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
 
 linux:
-  icon: "./public/icon.ico"
+  icon: "build/icon.ico"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
 
 publish:
