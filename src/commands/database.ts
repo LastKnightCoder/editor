@@ -1,7 +1,7 @@
-import { invoke } from "@tauri-apps/api";
+import { invoke } from "@/electron";
 
 export const connectDatabaseByName = async (databaseName: string) => {
-  return await invoke('connect_database_by_name', { databaseName });
+  return await invoke('create-or-connect-database', databaseName);
 }
 
 export default connectDatabaseByName;

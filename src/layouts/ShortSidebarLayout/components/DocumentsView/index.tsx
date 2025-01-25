@@ -89,7 +89,8 @@ const DocumentsView = () => {
             authors: [],
             icon: '',
             bannerBg: '',
-            isTop: false
+            isTop: false,
+            isDelete: false,
           };
           const createId = await createDocument(newDocument);
           setCreateOpen(false);

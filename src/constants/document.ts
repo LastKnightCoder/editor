@@ -11,6 +11,7 @@ export const DEFAULT_CREATE_DOCUMENT: ICreateDocument = {
   bannerBg: '',
   icon: '',
   isTop: false,
+  isDelete: false,
 }
 
 export const DEFAULT_CREATE_DOCUMENT_ITEM: ICreateDocumentItem = {
@@ -30,4 +31,5 @@ export const DEFAULT_CREATE_DOCUMENT_ITEM: ICreateDocumentItem = {
   bannerBg: '',
   icon: '',
   parents: [],
+  isDelete: false,
 }

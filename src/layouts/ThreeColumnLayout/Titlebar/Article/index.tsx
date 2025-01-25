@@ -23,6 +23,7 @@ const Article = () => {
       author: '',
       links: [],
       tags: [],
+      isDelete: false,
     });
     useArticleManagementStore.setState({
       activeArticleId: article.id,

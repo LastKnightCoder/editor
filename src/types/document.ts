@@ -19,6 +19,7 @@ export interface IDocument {
 }
 
 export interface IUpdateDocument {
+  id: number;
   title: string;
   desc: string;
   authors: string[];
@@ -29,9 +30,12 @@ export interface IUpdateDocument {
   bannerBg: string;
   icon: string;
   isTop: boolean;
+  isDelete: boolean;
 }
 
-export type ICreateDocument = Omit<IUpdateDocument, 'id'>;
+export interface ICreateDocument extends Omit<IUpdateDocument, 'id'> {
+  isDelete: boolean;
+}
 export type IDeleteDocument = Pick<IDocument, 'id'>;
 
 export interface IDocumentItem {
@@ -67,8 +71,11 @@ export interface ICreateDocumentItem {
   content: Descendant[];
   bannerBg: string;
   icon: string;
+  isDelete: boolean;
   parents: number[];
 }
 
-export type IUpdateDocumentItem = Omit<IDocumentItem, 'id' | 'is_delete'>;
+export interface IUpdateDocumentItem extends Omit<IDocumentItem, 'createTime' | 'updateTime'> {
+  id: number;
+}
 export type IDeleteDocumentItem = Pick<IDocumentItem, 'id'>;

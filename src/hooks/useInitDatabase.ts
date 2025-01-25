@@ -82,7 +82,7 @@ const useInitDatabase = () => {
   }));
 
   const initDatabase = useMemoizedFn(async () => {
-    await Promise.all([
+    await Promise.allSettled([
       initArticles(),
       initCards(),
       initDocuments(),
@@ -102,9 +102,9 @@ const useInitDatabase = () => {
       content: '正在初始化数据库...',
       key: 'initDatabase',
       duration: 0,
-    })
+    });
     connectDatabaseByName(active).then(() => {
-      initDatabase().then(() => {
+      initDatabase().finally(() => {
         message.destroy('initDatabase');
       });
     });

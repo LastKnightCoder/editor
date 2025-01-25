@@ -1,7 +1,10 @@
-import { app, BrowserWindow, Menu  } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import resourceModule from './modules/resource';
+import databaseModule from './modules/database';
+import settingModule from './modules/setting';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -26,7 +29,7 @@ if (os.release().startsWith('6.1')) app.disableHardwareAcceleration()
 if (process.platform === 'win32') app.setAppUserModelId(app.getName())
 
 const createWindow = () => {
-  const win = new BrowserWindow ({
+  const win = new BrowserWindow({
     width: 1200,
     height: 600,
     webPreferences: {
@@ -42,12 +45,24 @@ const createWindow = () => {
   win.webContents.openDevTools();
 };
 
+const initModules = async () => {
+  Promise.all([
+    settingModule.init(),
+    resourceModule.init(),
+    databaseModule.init()
+  ]).catch(e => {
+    console.error(e);
+  });
+}
+
 app.whenReady().then(() => {
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
+  initModules().then(() => {
+    createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+      }
+    })
   })
 });
 
@@ -58,5 +73,3 @@ app.on('window-all-closed', () => {
 });
 
 Menu.setApplicationMenu(null);
-
-
