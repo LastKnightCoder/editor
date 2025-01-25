@@ -311,7 +311,21 @@ export default class DocumentTable {
       item.id
     );
 
-    // 插入操作记录，TODO 更新相应的卡片、白板
+    // TODO 插入操作记录
+
+    if (item.isCard) {
+      const cardStmt = this.db.prepare(
+        `UPDATE cards SET content = ?, update_time = ? WHERE id = ?`
+      );
+      cardStmt.run(JSON.stringify(item.content), now, item.cardId);
+    }
+
+    if (item.isArticle) {
+      const articleStmt = this.db.prepare(
+        `UPDATE articles SET content = ?, update_time = ? WHERE id = ?`
+      );
+      articleStmt.run(JSON.stringify(item.content), now, item.articleId);
+    }
 
     return this.getDocumentItem(item.id);
   }
