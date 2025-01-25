@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { produce } from 'immer';
 
-import { IArticle } from "@/types";
+import { IArticle, ICreateArticle } from "@/types";
 import {
   getAllArticles,
   createArticle,
@@ -20,7 +20,7 @@ interface IState {
 
 interface IActions {
   init: () => Promise<void>;
-  createArticle: (article: Omit<IArticle, 'id' | 'create_time' | 'update_time' | 'isDelete'>) => Promise<IArticle>;
+  createArticle: (article: ICreateArticle) => Promise<IArticle>;
   updateArticle: (article: Omit<IArticle, 'create_time' | 'update_time' | 'isDelete'>) => Promise<IArticle>;
   deleteArticle: (id: number) => Promise<number>;
   updateArticleIsTop: (id: number, isTop: boolean) => Promise<number>;
@@ -42,6 +42,7 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
   init: async () => {
     set({ initLoading: true });
     const articles = await getAllArticles();
+    console.log(`articles`, articles.length)
     const processedArticles = processArticles(articles);
     set({ articles: processedArticles, initLoading: false });
   },

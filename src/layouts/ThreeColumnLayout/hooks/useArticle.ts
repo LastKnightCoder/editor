@@ -47,6 +47,7 @@ const useArticle = () => {
       author: '',
       links: [],
       tags: [],
+      isDelete: false,
     });
     setActiveArticleId(article.id);
   });

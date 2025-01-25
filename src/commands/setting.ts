@@ -1,11 +1,9 @@
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@/electron';
 
 export async function getSetting(): Promise<string> {
-  return await invoke('read_setting');
+  return await invoke('read-setting');
 }
 
 export async function saveSetting(setting: string): Promise<void> {
-  return await invoke('write_setting', {
-    setting
-  });
+  return await invoke('write-setting', setting);
 }

@@ -1,15 +1,22 @@
 import { Descendant } from "slate";
 
-export interface IArticle {
-  id: number;
+export interface ICreateArticle {
   title: string;
   author: string;
-  create_time: number;
-  update_time: number;
   tags: string[];
   links: number[];
   content: Descendant[];
   bannerBg: string;
   isTop: boolean;
   isDelete: boolean;
+}
+
+export interface IUpdateArticle extends Partial<ICreateArticle> {
+  id: number;
+}
+
+export interface IArticle extends ICreateArticle {
+  id: number;
+  create_time: number;
+  update_time: number;
 }

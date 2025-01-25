@@ -1,5 +1,5 @@
 import { rmSync } from 'node:fs'
-import { defineConfig, splitVendorChunkPlugin  } from 'vite';
+import { defineConfig, splitVendorChunkPlugin } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import visualizer from "rollup-plugin-visualizer";
 import electron from 'vite-plugin-electron/simple';
@@ -8,7 +8,7 @@ import pkg from './package.json';
 import * as path from "path";
 
 // https://vitejs.dev/config/
-export default defineConfig(( { command }) => {
+export default defineConfig(({ command }) => {
   rmSync('dist-electron', { recursive: true, force: true });
 
   const isServe = command === 'serve'
@@ -42,6 +42,13 @@ export default defineConfig(( { command }) => {
             }
           },
           vite: {
+            resolve: {
+              alias: {
+                '@': path.resolve(__dirname, 'src'),
+                '@quick-card': path.resolve(__dirname, 'quick-card'),
+                '@editor': path.resolve(__dirname, 'src/components/Editor'),
+              }
+            },
             build: {
               sourcemap,
               minify: isBuild,
@@ -55,6 +62,13 @@ export default defineConfig(( { command }) => {
         preload: {
           input: 'src-electron/preload/index.ts',
           vite: {
+            resolve: {
+              alias: {
+                '@': path.resolve(__dirname, 'src'),
+                '@quick-card': path.resolve(__dirname, 'quick-card'),
+                '@editor': path.resolve(__dirname, 'src/components/Editor'),
+              }
+            },
             build: {
               sourcemap: sourcemap ? 'inline' : undefined,
               minify: isBuild,
@@ -73,8 +87,6 @@ export default defineConfig(( { command }) => {
     },
     envPrefix: ['VITE_', 'TAURI_'],
     build: {
-      // Tauri uses Chromium on Windows and WebKit on macOS and Linux
-      target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
       // don't minify for debug builds
       minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
       // produce sourcemaps for debug builds

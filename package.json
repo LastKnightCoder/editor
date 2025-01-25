@@ -82,6 +82,7 @@
     "@tauri-apps/cli": "^1.5.6",
     "@types/ali-oss": "^6.16.11",
     "@types/babel__standalone": "^7.1.8",
+    "@types/better-sqlite3": "^7.6.12",
     "@types/codemirror": "^5.60.7",
     "@types/is-hotkey": "^0.1.7",
     "@types/katex": "^0.16.2",
