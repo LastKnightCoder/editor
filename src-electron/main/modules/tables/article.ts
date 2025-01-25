@@ -101,6 +101,10 @@ export default class ArticleTable {
     const documentItemStmt = this.db.prepare('UPDATE document_items SET update_time = ?, content = ? WHERE is_article = 1 AND article_id = ?');
     await documentItemStmt.run(now, JSON.stringify(content), id);
 
+    // update project_item
+    const projectItemStmt = this.db.prepare("UPDATE project_item SET update_time = ?, content = ? WHERE ref_type = 'article' AND ref_id = ?");
+    await projectItemStmt.run(now, JSON.stringify(content), id);
+
     return await this.getArticleById(id);
   }
 
@@ -109,6 +113,10 @@ export default class ArticleTable {
     // 设置 document item isArticle 为 0
     const documentItemStmt = this.db.prepare('UPDATE document_items SET isArticle = 0 WHERE isArticle = 1 AND articleId = ?');
     documentItemStmt.run(articleId);
+
+    const projectItemStmt = this.db.prepare('UPDATE project_item SET ref_type = "" WHERE ref_type = "article" AND ref_id = ?');
+    projectItemStmt.run(articleId);
+
     return stmt.run(articleId).changes;
   }
 

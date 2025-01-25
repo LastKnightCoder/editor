@@ -1,126 +1,69 @@
-import { invoke } from "@tauri-apps/api";
-import { Project, ProjectItem, CreateProject, CreateProjectItem } from '@/types';
+import { invoke } from '@/electron';
+import {
+  Project,
+  ProjectItem,
+  CreateProject,
+  UpdateProject,
+  CreateProjectItem,
+  UpdateProjectItem
+} from '@/types/project';
 
-const transformProject = (project: any): Project => {
-  return {
-    ...project,
-    desc: JSON.parse(project.desc),
-    createTime: project.create_time,
-    updateTime: project.update_time,
-  }
+export const createProject = async (project: CreateProject): Promise<Project> => {
+  return await invoke('create-project', project);
 }
 
-const transformProjectItem = (projectItem: any): ProjectItem => {
-  return {
-    ...projectItem,
-    content: JSON.parse(projectItem.content),
-    refType: projectItem.ref_type,
-    refId: projectItem.ref_id,
-    createTime: projectItem.create_time,
-    updateTime: projectItem.update_time,
-  }
-}
-
-export const createProject = async (createProject: CreateProject): Promise<Project> => {
-  const res: any = await invoke('plugin:project|create_project', {
-    ...createProject,
-    desc: JSON.stringify(createProject.desc),
-  });
-  return transformProject(res);
+export const updateProject = async (project: UpdateProject): Promise<Project> => {
+  return await invoke('update-project', project);
 }
 
 export const deleteProject = async (id: number): Promise<number> => {
-  return await invoke('plugin:project|delete_project', {
-    id
-  });
-}
-
-export const updateProject = async (project: Project): Promise<Project> => {
-  const res: any = await invoke('plugin:project|update_project', {
-    ...project,
-    desc: JSON.stringify(project.desc),
-  });
-  return transformProject(res);
-}
-
-export const getProjectList = async (): Promise<Project[]> => {
-  const list: any[] = await invoke('plugin:project|get_project_list');
-  return list.map(transformProject);
+  return await invoke('delete-project', id);
 }
 
 export const getProjectById = async (id: number): Promise<Project> => {
-  const project: any =  await invoke('plugin:project|get_project_by_id', {
-    id
-  });
-
-  return transformProject(project);
+  return await invoke('get-project', id);
 }
 
-export const createProjectItem = async (projectItem: CreateProjectItem): Promise<ProjectItem> => {
-  const res: any = await invoke('plugin:project|create_project_item', {
-    ...projectItem,
-    content: JSON.stringify(projectItem.content),
-  });
-
-  return transformProjectItem(res);
+export const getProjectList = async (): Promise<Project[]> => {
+  return await invoke('get-all-projects');
 }
 
-export const updateProjectItem = async (projectItem: ProjectItem): Promise<ProjectItem> => {
-  const res: any = await invoke('plugin:project|update_project_item', {
-    ...projectItem,
-    content: JSON.stringify(projectItem.content),
-  });
-  return transformProjectItem(res);
+export const createProjectItem = async (item: CreateProjectItem): Promise<ProjectItem> => {
+  return await invoke('create-project-item', item);
+}
+
+export const updateProjectItem = async (item: UpdateProjectItem): Promise<ProjectItem> => {
+  return await invoke('update-project-item', item);
 }
 
 export const deleteProjectItem = async (id: number): Promise<number> => {
-  return await invoke('plugin:project|delete_project_item', {
-    id
-  });
+  return await invoke('delete-project-item', id);
 }
 
 export const getProjectItemById = async (id: number): Promise<ProjectItem> => {
-  const projectItem: any = await invoke('plugin:project|get_project_item_by_id', {
-    id
-  });
-
-  return transformProjectItem(projectItem);
+  return await invoke('get-project-item', id);
 }
 
 export const getProjectItemByRef = async (refType: string, refId: number): Promise<ProjectItem[]> => {
-  const list: any[] = await invoke('plugin:project|get_project_item_by_ref', {
-    refType,
-    refId
-  });
+  return await invoke('get-project-item-by-ref', refType, refId);
+}
 
-  return list.map(transformProjectItem);
+export const getProjectItemCountInProject = async (projectId: number): Promise<number> => {
+  return await invoke('get-project-item-count-in-project', projectId);
 }
 
 export const getAllProjectItemsNotInProject = async (projectId: number): Promise<ProjectItem[]> => {
-  const list: any[] = await invoke('plugin:project|get_all_project_items_not_in_project', {
-    projectId
-  });
-
-  return list.map(transformProjectItem);
-}
-
-export const deleteAllProjectItemsNotInProject = async (projectId: number): Promise<number> => {
-  return await invoke('plugin:project|delete_all_project_items_not_in_project', {
-    projectId
-  });
+  return await invoke('get-all-project-items-not-in-project', projectId);
 }
 
 export const isProjectItemNotInAnyProject = async (id: number): Promise<boolean> => {
-  return await invoke('plugin:project|is_project_item_not_in_any_project', {
-    id
-  });
+  return await invoke('is-project-item-not-in-any-project', id);
 }
 
 export const getProjectItemsNotInAnyProject = async (): Promise<ProjectItem[]> => {
-  const list: any[] = await invoke('plugin:project|get_project_items_not_in_any_project');
-  return list.map(transformProjectItem);
+  return await invoke('get-project-items-not-in-any-project');
 }
 
 export const deleteProjectItemsNotInAnyProject = async (): Promise<number> => {
-  return await invoke('plugin:project|delete_project_items_not_in_any_project');
+  return await invoke('delete-project-items-not-in-any-project');
 }

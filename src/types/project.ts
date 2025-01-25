@@ -11,6 +11,7 @@ export interface Project {
 }
 
 export type CreateProject = Omit<Project, 'id' | 'createTime' | 'updateTime'>
+export type UpdateProject = Omit<Project, 'createTime' | 'updateTime'>
 
 export interface ProjectItem {
   id: number;
@@ -26,3 +27,4 @@ export interface ProjectItem {
 }
 
 export type CreateProjectItem = Omit<ProjectItem, 'id' | 'createTime' | 'updateTime'>;
+export type UpdateProjectItem = Omit<ProjectItem, 'createTime' | 'updateTime'>;
