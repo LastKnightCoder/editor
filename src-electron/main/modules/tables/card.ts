@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { ICreateCard, IUpdateCard, ICard } from '@/types';
+import { updateDocumentItem } from '../../../../src/commands/document';
 
 export default class CardTable {
   // @ts-ignore
@@ -95,11 +96,19 @@ export default class CardTable {
     const stmt = this.db.prepare('UPDATE cards SET update_time = ?, tags = ?, links = ?, content = ?, category = ? WHERE id = ?');
     const now = Date.now();
     stmt.run(now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category, id);
+
+    // 如果有 document-item 是 isCard 并且 cardId 等于 id 的话，更新 document-item 的 content
+    const updateDocumentItemStmt = this.db.prepare('UPDATE document_items SET update_time = ? content = ? WHERE isCard = 1 AND cardId = ?');
+    updateDocumentItemStmt.run(now, JSON.stringify(content), id);
+
     return await this.getCardById(id);
   }
 
   async deleteCardById(cardId: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM cards WHERE id = ?');
+    // 设置 isCard 为 0
+    const documentItemStmt = this.db.prepare('UPDATE document_items SET isCard = 0 WHERE isCard = 1 AND cardId = ?');
+    documentItemStmt.run(cardId);
     return stmt.run(cardId).changes;
   }
 

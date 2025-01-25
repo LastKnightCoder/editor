@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { ICreateArticle, IUpdateArticle, IArticle } from '@/types';
+import document from '@/assets/icons/documents.svg';
 
 export default class ArticleTable {
   // @ts-ignore
@@ -95,11 +96,19 @@ export default class ArticleTable {
     const stmt = this.db.prepare('UPDATE articles SET update_time = ?, tags = ?, title = ?, content = ?, banner_bg = ?, is_top = ?, is_delete = ? WHERE id = ?');
     const now = Date.now();
     stmt.run(now, JSON.stringify(tags), title, JSON.stringify(content), bannerBg, Number(isTop), Number(isDelete), id);
+
+    // 如果有 document item isArticle 为 1，并且 article_id 为当前 articleId 的话，更新 document item 的 content 个 update_time
+    const documentItemStmt = this.db.prepare('UPDATE document_items SET update_time = ?, content = ? WHERE is_article = 1 AND article_id = ?');
+    await documentItemStmt.run(now, JSON.stringify(content), id);
+
     return await this.getArticleById(id);
   }
 
   async deleteArticleById(articleId: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM articles WHERE id = ?');
+    // 设置 document item isArticle 为 0
+    const documentItemStmt = this.db.prepare('UPDATE document_items SET isArticle = 0 WHERE isArticle = 1 AND articleId = ?');
+    documentItemStmt.run(articleId);
     return stmt.run(articleId).changes;
   }
 
