@@ -6,6 +6,7 @@ import { Module } from "../types/module";
 import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import DocumentTable from "./tables/document";
+import WhiteboardTable from './tables/whiteboard';
 
 class DatabaseModule implements Module {
   name: string;
@@ -43,6 +44,7 @@ class DatabaseModule implements Module {
         new CardTable(database);
         new ArticleTable(database);
         new DocumentTable(database);
+        new WhiteboardTable(database);
       }
     });
 
