@@ -1,79 +1,38 @@
-import { invoke } from "@tauri-apps/api";
+import { invoke } from '@/electron';
 import { ITimeRecord, TimeRecordGroup } from "@/types";
 
 export const createTimeRecord = async (timeRecord: Omit<ITimeRecord, 'id'>): Promise<ITimeRecord> => {
-  return invoke('plugin:time_record|create_time_record', {
-    ...timeRecord,
-    content: JSON.stringify(timeRecord.content),
-  });
+  return invoke('create-time-record', timeRecord);
 }
 
 export const updateTimeRecord = async (timeRecord: ITimeRecord): Promise<ITimeRecord> => {
-  return invoke('plugin:time_record|update_time_record', {
-    ...timeRecord,
-    content: JSON.stringify(timeRecord.content),
-  });
+  return invoke('update-time-record', timeRecord);
 }
 
 export const deleteTimeRecord = async (id: number): Promise<number> => {
-  return invoke('plugin:time_record|delete_time_record', {
-    id
-  });
-}
-
-const transformTimeRecord = (item: any): ITimeRecord => {
-  const res =  {
-    ...item,
-    content: JSON.parse(item.content),
-    eventType: item.event_type,
-    timeType: item.time_type,
-  }
-  delete res.event_type;
-  delete res.time_type;
-  return res;
+  return invoke('delete-time-record', id);
 }
 
 export const getAllTimeRecords = async (): Promise<TimeRecordGroup> => {
-  const list: any[] = await invoke('plugin:time_record|get_all_time_records');
-  return list.map((item) => {
-    return {
-      date: item.date,
-      timeRecords: item.time_records.map(transformTimeRecord),
-    };
-  });
+  return invoke('get-all-time-records');
 }
 
 export const getTimeRecordById = async (id: number): Promise<ITimeRecord> => {
-  const item: any = await invoke('plugin:time_record|get_time_record_by_id', {
-    id
-  });
-  return transformTimeRecord(item);
+  return invoke('get-time-record-by-id', id);
 }
 
 export const getTimeRecordsByDate = async (date: string): Promise<ITimeRecord[]> => {
-  const list: any[] = await invoke('plugin:time_record|get_time_records_by_date', {
-    date
-  });
-  return list.map(transformTimeRecord);
+  return invoke('get-time-records-by-date', date);
 }
 
 export const getTimeRecordsByDateRange = async (startDate: string, endDate: string): Promise<TimeRecordGroup> => {
-  const list: any[] = await invoke('plugin:time_record|get_time_records_by_date_range', {
-    startDate,
-    endDate,
-  });
-  return list.map((item) => {
-    return {
-      date: item.date,
-      timeRecords: item.time_records.map(transformTimeRecord),
-    };
-  });
+  return invoke('get-time-records-by-date-range', startDate, endDate);
 }
 
 export const getAllEventTypes = async (): Promise<string[]> => {
-  return invoke('plugin:time_record|get_all_event_types');
+  return invoke('get-all-event-types');
 }
 
 export const getAllTimeTypes = async (): Promise<string[]> => {
-  return invoke('plugin:time_record|get_all_time_types');
+  return invoke('get-all-time-types');
 }
