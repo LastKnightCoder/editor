@@ -8,6 +8,7 @@ import ArticleTable from "./tables/article";
 import DocumentTable from "./tables/document";
 import WhiteboardTable from './tables/whiteboard';
 import ProjectTable from './tables/project';
+import DailyNoteTable from './tables/daily-note';
 
 class DatabaseModule implements Module {
   name: string;
@@ -40,6 +41,8 @@ class DatabaseModule implements Module {
         database = new Database(dbPath);
         this.databases.set(name, database);
 
+        database.pragma('journal_mode = WAL');
+
         // TODO，多窗口的管理
         // 维护一个窗口和 database 的关系，一一对应？
         new CardTable(database);
@@ -47,6 +50,7 @@ class DatabaseModule implements Module {
         new DocumentTable(database);
         new WhiteboardTable(database);
         new ProjectTable(database);
+        new DailyNoteTable(database);
       }
     });
 
