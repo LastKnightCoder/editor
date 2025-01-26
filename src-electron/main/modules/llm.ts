@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import OpenAI from 'openai';
 import { chunk } from 'llm-chunk';
+import { Message } from '@/types';
 import { Module } from '../types/module';
 
 class LLMModule implements Module {
@@ -15,6 +16,10 @@ class LLMModule implements Module {
 
     ipcMain.handle('markdown-split', (_event, text: string) => {
       return this.splitMarkdown(text);
+    });
+
+    ipcMain.handle('chat-openai', (_event, apiKey: string, baseUrl: string, model: string, messages: Message[]) => {
+      return this.chat(apiKey, baseUrl, model, messages);
     });
   }
 
@@ -39,6 +44,24 @@ class LLMModule implements Module {
       overlap: 0,
       splitter: 'paragraph'
     });
+  }
+
+  async chat(apiKey: string, baseUrl: string, model: string, messages: Message[]): Promise<string | null> {
+    const client = new OpenAI({
+      apiKey,
+      baseURL: baseUrl,
+    });
+
+    const res = await client.chat.completions.create({
+      model,
+      messages,
+      temperature: 0,
+      n: 1,
+      top_p: 0,
+      stream: false,
+    });
+
+    return res.choices[0].message.content;
   }
 }
 

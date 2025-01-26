@@ -1,22 +1,22 @@
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@/electron';
 import { Message, ChatMessage } from '@/types';
 
 export const createChatMessage = (messages: Message[], title = '新对话'): Promise<ChatMessage> => {
-  return invoke('plugin:chat_message|create_chat_message', { messages, title });
+  return invoke('create-chat-message', { messages, title });
 };
 
 export const getChatMessageById = (id: number): Promise<ChatMessage> => {
-  return invoke('plugin:chat_message|get_chat_message_by_id', { id });
+  return invoke('get-chat-message-by-id', { id });
 };
 
 export const updateChatMessage = (chatMessage: Omit<ChatMessage, 'updateTime'>): Promise<ChatMessage> => {
-  return invoke('plugin:chat_message|update_chat_message', { ...chatMessage });
+  return invoke('update-chat-message', chatMessage);
 };
 
 export const deleteChatMessage = (id: number): Promise<number> => {
-  return invoke('plugin:chat_message|delete_chat_message', { id });
+  return invoke('delete-chat-message', id);
 };
 
 export const getAllChatMessages = (): Promise<ChatMessage[]> => {
-  return invoke('plugin:chat_message|get_chat_messages');
+  return invoke('get-all-chat-messages');
 };
