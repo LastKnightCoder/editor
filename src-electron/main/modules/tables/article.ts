@@ -1,10 +1,8 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { ICreateArticle, IUpdateArticle, IArticle } from '@/types';
-import document from '@/assets/icons/documents.svg';
 
 export default class ArticleTable {
-  // @ts-ignore
   db: Database.Database;
 
   constructor(db: Database.Database) {

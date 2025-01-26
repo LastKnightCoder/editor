@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import resourceModule from './modules/resource';
 import databaseModule from './modules/database';
 import settingModule from './modules/setting';
+import llmModule from './modules/llm';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,7 +50,8 @@ const initModules = async () => {
   Promise.all([
     settingModule.init(),
     resourceModule.init(),
-    databaseModule.init()
+    databaseModule.init(),
+    llmModule.init(),
   ]).catch(e => {
     console.error(e);
   });

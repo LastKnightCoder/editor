@@ -11,6 +11,9 @@ import ProjectTable from './tables/project';
 import TimeRecordTable from './tables/time-record';
 import PdfTable from './tables/pdf';
 import DailyNoteTable from './tables/daily-note';
+import VecDocumentTable from './tables/vec-document';
+
+import * as sqliteVec from "sqlite-vec";
 
 class DatabaseModule implements Module {
   name: string;
@@ -45,6 +48,8 @@ class DatabaseModule implements Module {
 
         database.pragma('journal_mode = WAL');
 
+        sqliteVec.load(database);
+
         // TODO，多窗口的管理
         // 维护一个窗口和 database 的关系，一一对应？
         new CardTable(database);
@@ -55,6 +60,7 @@ class DatabaseModule implements Module {
         new DailyNoteTable(database);
         new TimeRecordTable(database);
         new PdfTable(database);
+        new VecDocumentTable(database);
       }
     });
 
