@@ -1,10 +1,10 @@
 import { Editor } from "slate";
 import { setOrInsertNode } from "@/components/Editor/utils";
-import { basename } from '@tauri-apps/api/path';
+import { getFileBaseName } from '@/commands';
 import { v4 as getId } from 'uuid';
 
 export const insertFileAttachment = async (editor: Editor, filePath: string) => {
-  const fileName = await basename(filePath);
+  const fileName = await getFileBaseName(filePath);
   const uuid = getId();
 
   return setOrInsertNode(editor, {

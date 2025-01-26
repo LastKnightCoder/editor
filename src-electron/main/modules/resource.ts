@@ -1,5 +1,7 @@
-import { ipcMain, shell } from 'electron';
+import { ipcMain, shell, dialog } from 'electron';
+import { basename } from 'node:path';
 import { exec } from 'node:child_process';
+import { getFonts } from 'font-list';
 import PathUtil from '../utils/PathUtil';
 import { Module } from '../types/module';
 
@@ -18,6 +20,18 @@ class ResourceModule implements Module {
     ipcMain.handle('show-in-folder', async (_, path) => {
       this.showInFolder(path);
     });
+
+    ipcMain.handle('select-file', async () => {
+      return this.selectFile();
+    });
+
+    ipcMain.handle('get-file-basename', async (_, filePath: string) => {
+      return this.getFileBaseName(filePath);
+    });
+
+    ipcMain.handle('get-all-fonts', () => {
+      return this.getAllFonts();
+    })
   }
 
   showInFolder(path: string) {
@@ -29,6 +43,32 @@ class ResourceModule implements Module {
     } else {
       exec(`xdg-open ${path}`);
     }
+  }
+
+  selectFile() {
+    return new Promise((resolve, reject) => {
+      dialog.showOpenDialog({
+        properties: ['openFile'],
+      }).then((result) => {
+        if (result.canceled) {
+          reject(new Error('User canceled file selection'));
+        } else {
+          resolve(result.filePaths[0]);
+        }
+      }).catch((err) => {
+        reject(err);
+      })
+    })
+  }
+
+  getFileBaseName(filePath: string) {
+    return basename(filePath);
+  }
+
+  getAllFonts() {
+    return getFonts({
+      disableQuoting: true
+    });
   }
 }
 
