@@ -8,6 +8,7 @@ import ArticleTable from "./tables/article";
 import DocumentTable from "./tables/document";
 import WhiteboardTable from './tables/whiteboard';
 import ProjectTable from './tables/project';
+import TimeRecordTable from './tables/time-record';
 import DailyNoteTable from './tables/daily-note';
 
 class DatabaseModule implements Module {
@@ -51,6 +52,7 @@ class DatabaseModule implements Module {
         new WhiteboardTable(database);
         new ProjectTable(database);
         new DailyNoteTable(database);
+        new TimeRecordTable(database);
       }
     });
 
