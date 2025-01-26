@@ -3,7 +3,6 @@ import Database from 'better-sqlite3';
 import { ICreateCard, IUpdateCard, ICard } from '@/types';
 
 export default class CardTable {
-  // @ts-ignore
   db: Database.Database;
 
   constructor(db: Database.Database) {
