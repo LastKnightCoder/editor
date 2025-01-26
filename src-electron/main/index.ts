@@ -6,6 +6,7 @@ import resourceModule from './modules/resource';
 import databaseModule from './modules/database';
 import settingModule from './modules/setting';
 import llmModule from './modules/llm';
+import streamFetchModule from './modules/stream-fetch';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -52,6 +53,7 @@ const initModules = async () => {
     resourceModule.init(),
     databaseModule.init(),
     llmModule.init(),
+    streamFetchModule.init(),
   ]).catch(e => {
     console.error(e);
   });

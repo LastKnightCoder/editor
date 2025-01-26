@@ -1,4 +1,4 @@
-import { invoke, event } from '@tauri-apps/api';
+import { invoke, on, off } from '@/electron';
 import { EventStreamContentType, fetchEventSource } from "@fortaine/fetch-event-source";
 
 function prettyObject(msg: any) {
@@ -40,30 +40,16 @@ export const streamFetch = async (url: string, options?: RequestInit): Promise<R
   } = options || {};
 
   // eslint-disable-next-line @typescript-eslint/ban-types
-  let unlisten: Function | undefined;
-  // eslint-disable-next-line @typescript-eslint/ban-types
   let setRequestId: Function | undefined;
   const requestIdPromise = new Promise((resolve) => (setRequestId = resolve));
   const ts = new TransformStream();
   const writer = ts.writable.getWriter();
 
   let closed = false;
-  const close = () => {
-    if (closed) return;
-    closed = true;
-    unlisten && unlisten();
-    writer.ready.then(() => {
-      writer.close().catch((e) => console.error(e));
-    });
-  };
 
-  if (signal) {
-    signal.addEventListener("abort", () => close());
-  }
-  // @ts-ignore 2. listen response multi times, and write to Response.body
-  event.listen("stream-response", (e: ResponseEvent) =>
+  const handleResponse = (_e: ResponseEvent, data: any) =>
     requestIdPromise.then((request_id) => {
-      const { request_id: rid, chunk, status } = e?.payload || {};
+      const { request_id: rid, chunk, status } = data || {};
       if (request_id != rid) {
         return;
       }
@@ -74,10 +60,24 @@ export const streamFetch = async (url: string, options?: RequestInit): Promise<R
       } else if (status === 0) {
         close();
       }
-    }),
-  )
-    // eslint-disable-next-line @typescript-eslint/ban-types
-  .then((u: Function) => (unlisten = u));
+    })
+  const close = () => {
+    if (closed) return;
+    off("stream-response", handleResponse);
+    closed = true;
+    writer.ready.then(() => {
+      writer.close().catch((e) => console.error(e));
+    });
+  };
+
+  if (signal) {
+    signal.addEventListener("abort", () => close());
+  }
+
+
+
+  // 2. listen response multi times, and write to Response.body
+  on("stream-response", handleResponse)
 
   const headers: Record<string, string> = {
     Accept: "application/json, text/plain, */*",
@@ -88,15 +88,13 @@ export const streamFetch = async (url: string, options?: RequestInit): Promise<R
     headers[item[0]] = item[1];
   }
   try {
-    const res: StreamResponse = await invoke("stream_fetch", {
+    const res: StreamResponse = await invoke("stream-fetch", {
       method: method.toUpperCase(),
       url,
       headers,
-      body:
-        typeof body === "string"
-          ? Array.from(new TextEncoder().encode(body))
-          : [],
+      body
     });
+    console.log(res);
     const { request_id, status, status_text: statusText, headers: resHeaders } = res;
     setRequestId?.(request_id);
     const response = new Response(ts.readable, {
@@ -186,9 +184,7 @@ export function stream(
   ) {
     const chatPayload = {
       method: "POST",
-      body: JSON.stringify({
-        ...requestPayload,
-      }),
+      body: requestPayload,
       signal: controller.signal,
       headers,
     };

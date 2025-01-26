@@ -16,9 +16,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
       try {
         const urlObj = new URL(url);
         const pathname = urlObj.pathname;
-        console.log('pathname', pathname);
         const [, format, name] = pathname.split('/');
-        console.log('format', format, 'name', name);
         const [, type] = format.split('_');
         fileName = `${name}.${type}`;
       } catch (e) {
