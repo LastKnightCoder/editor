@@ -7,6 +7,7 @@ import databaseModule from './modules/database';
 import settingModule from './modules/setting';
 import llmModule from './modules/llm';
 import streamFetchModule from './modules/stream-fetch';
+import aliOssModule from './modules/ali-oss';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,6 +56,7 @@ const initModules = async () => {
     databaseModule.init(),
     llmModule.init(),
     streamFetchModule.init(),
+    aliOssModule.init(),
   ]).catch(e => {
     console.error(e);
   });

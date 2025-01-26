@@ -9,10 +9,6 @@ import App from "@/App.tsx";
 
 dayjs.locale('zh-cn');
 
-window.electron.invoke('resource|get_home_dir').then((dir) => {
-  console.log('home_dir', dir);
-});
-
 ReactDOM
   .createRoot(document.getElementById('root')!)
   .render(<App />)
