@@ -142,7 +142,8 @@ const PDFViewer = (props: PDFViewerProps) => {
     if (isLocal) {
       return convertFileSrc(filePath);
     } else {
-      // 先下载到本地，提升加载性能
+      return remoteUrl;
+      // TODO 先下载到本地，提升加载性能
       const remoteToLocal = await remoteResourceToLocal(remoteUrl);
       return convertFileSrc(remoteToLocal);
     }
