@@ -96,7 +96,7 @@ export default class CardTable {
     stmt.run(now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category, id);
 
     // 如果有 document-item 是 isCard 并且 cardId 等于 id 的话，更新 document-item 的 content
-    const updateDocumentItemStmt = this.db.prepare('UPDATE document_items SET update_time = ? content = ? WHERE isCard = 1 AND cardId = ?');
+    const updateDocumentItemStmt = this.db.prepare('UPDATE document_items SET update_time = ?, content = ? WHERE is_card = 1 AND card_id = ?');
     updateDocumentItemStmt.run(now, JSON.stringify(content), id);
 
     // update project_item

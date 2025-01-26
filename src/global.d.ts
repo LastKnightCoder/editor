@@ -6,6 +6,7 @@ interface Window {
   electron: {
     invoke: (command: string, ...args: any[]) => Promise<any>;
     on: (command: string, callback: (...args: any[]) => void) => void;
+    off: (command: string, callback: (...args: any[]) => void) => void;
     send: (command: string, ...args: any[]) => void;
     sendSync: (command: string, ...args: any[]) => any;
   };
