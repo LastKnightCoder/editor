@@ -1,14 +1,14 @@
 import Oss from 'ali-oss'
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@/electron';
 
 export const getBucketList = async (keyId: string, keySecret: string): Promise<Array<{
   bucket: string;
   region: string;
 }>> => {
-  return await invoke('get_ali_oss_buckets', {
+  return await invoke('get-bucket-list',
     keyId,
     keySecret,
-  })
+  )
 }
 
 interface IPutObject {
