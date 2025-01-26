@@ -1,5 +1,5 @@
 import { IBlockPanelListItem } from "@/components/Editor/types";
-import { open } from "@tauri-apps/api/dialog"
+import { selectFile } from '@/commands'
 import { insertFileAttachment } from '../utils.ts';
 
 const items: IBlockPanelListItem[] = [{
@@ -8,7 +8,10 @@ const items: IBlockPanelListItem[] = [{
   keywords: ['文件', '附件', 'file', 'attachment'],
   description: '文件附件',
   onClick: async (editor) => {
-    const filePath = await open();
+    const filePath = await selectFile().catch((err) => {
+      console.error(err);
+      return '';
+    });
     if (!filePath || Array.isArray(filePath)) return;
     return insertFileAttachment(editor, filePath);
   }

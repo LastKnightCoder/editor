@@ -77,6 +77,9 @@ importers:
       eventemitter3:
         specifier: ^5.0.1
         version: 5.0.1
+      font-list:
+        specifier: ^1.5.1
+        version: 1.5.1
       framer-motion:
         specifier: ^10.13.0
         version: 10.18.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -3265,6 +3268,9 @@ packages:
     peerDependenciesMeta:
       debug:
         optional: true
+
+  font-list@1.5.1:
+    resolution: {integrity: sha512-Hr5V0dsSv91wH3FgirXd7qh1PydqA/vMQyWjFFWn+lUPJtC+3i2tzgVqbLRcvQh87TGdbTGbAR3mEo4VlwC1jw==}
 
   for-each@0.3.3:
     resolution: {integrity: sha512-jqYfLp7mo9vIyQf8ykW2v7A+2N4QjeCeI5+Dz9XraiO1ign81wjiH7Fb9vSOWvQfNtmSa4H2RoQTrrXivdUZmw==}
@@ -10094,6 +10100,8 @@ snapshots:
       uglify-js: 2.8.29
 
   follow-redirects@1.15.9: {}
+
+  font-list@1.5.1: {}
 
   for-each@0.3.3:
     dependencies:

@@ -1,5 +1,5 @@
-import { invoke } from "@tauri-apps/api";
+import { invoke } from "@/electron";
 
 export const getAllFonts = async (): Promise<string[]> => {
-  return await invoke('get_all_fonts');
+  return await invoke('get-all-fonts');
 }
