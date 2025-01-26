@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +34,7 @@ const createWindow = () => {
   const win = new BrowserWindow({
     width: 1200,
     height: 600,
+    autoHideMenuBar: true,
     webPreferences: {
       preload,
     },
@@ -75,5 +76,3 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-
-Menu.setApplicationMenu(null);
