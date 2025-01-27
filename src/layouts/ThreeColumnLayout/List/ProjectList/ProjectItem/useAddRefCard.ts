@@ -46,9 +46,9 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
       links: [],
       category: ECardCategory.Permanent,
     }
-    const cardId = await createCard(newCard);
+    const createdCard = await createCard(newCard);
     const newProjectItem = produce(projectItem, draft => {
-      draft.refId = cardId;
+      draft.refId = createdCard.id;
       draft.refType = 'card';
     });
     await updateProjectItem(newProjectItem);

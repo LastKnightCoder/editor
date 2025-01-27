@@ -54,11 +54,11 @@ const useCardManagement = () => {
     }
   });
 
-  const onCloseTab = useMemoizedFn( (id: number) => {
+  const onCloseTab = useMemoizedFn((id: number) => {
     removeCard(id);
   });
 
-  const onCtrlClickCard = useMemoizedFn( (id: number) => {
+  const onCtrlClickCard = useMemoizedFn((id: number) => {
     if (leftCardIds.includes(id) || rightCardIds.includes(id)) {
       onClickTab(id);
     } else {
@@ -80,7 +80,7 @@ const useCardManagement = () => {
   });
 
   const onCreateCard = useMemoizedFn(async () => {
-    const id = await createCard({
+    const createdCard = await createCard({
       content: [{
         type: 'paragraph',
         children: [{
@@ -92,7 +92,7 @@ const useCardManagement = () => {
       links: [],
       category: selectCategory,
     });
-    addCard(id);
+    addCard(createdCard.id);
   });
 
   const onDeleteCard = useMemoizedFn(async (cardId: number) => {
@@ -111,7 +111,7 @@ const useCardManagement = () => {
     });
   });
 
-  const onMoveCard = useMemoizedFn ((cardId: number) => {
+  const onMoveCard = useMemoizedFn((cardId: number) => {
     moveCard(cardId);
   });
 

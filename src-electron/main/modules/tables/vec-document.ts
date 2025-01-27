@@ -140,7 +140,7 @@ export default class VecDocumentTable {
   }
 
   static async getAllVecDocuments(db: Database.Database,): Promise<VecDocument[]> {
-    const stmt = db.prepare('SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents');
+    const stmt = db.prepare('SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents ORDER BY create_time DESC');
     const documents = stmt.all();
     return documents.map(doc => this.parseVecDocument(doc));
   }

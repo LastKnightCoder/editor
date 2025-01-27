@@ -155,13 +155,14 @@ const DocumentItem = (props: IDocumentItemProps) => {
     if (!item) {
       return;
     }
-    const itemId = await createDocumentItem({
+    const createdDocumentItem = await createDocumentItem({
       ...DEFAULT_CREATE_DOCUMENT_ITEM,
       parents: [item.id],
     });
     const newItem = produce(item, draft => {
-      draft.children.push(itemId);
+      draft.children.push(createdDocumentItem.id);
     });
+    console.log('newItem', newItem);
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
     if (item.id === activeDocumentItem?.id) {
@@ -170,10 +171,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
       });
     }
 
-    const toUpdateItem = await getDocumentItem(itemId);
-    if (!toUpdateItem) return;
     useDocumentsStore.setState({
-      activeDocumentItem: toUpdateItem,
+      activeDocumentItem: createdDocumentItem,
     });
   });
 
@@ -307,7 +306,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     if (!item) {
       return;
     }
-    const cardItemId = await createDocumentItem({
+    const createdDocumentItem = await createDocumentItem({
       ...DEFAULT_CREATE_DOCUMENT_ITEM,
       isCard: true,
       cardId: selectedCards[0].id,
@@ -315,7 +314,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
       parents: [item.id],
     });
     const newItem = produce(item, draft => {
-      draft.children.push(cardItemId);
+      draft.children.push(createdDocumentItem.id);
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
@@ -327,7 +326,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     setFolderOpen(true);
     setSelectCardModalOpen(false);
 
-    const cardItem = await getDocumentItem(cardItemId);
+    const cardItem = await getDocumentItem(createdDocumentItem.id);
     if (!cardItem) return;
     useDocumentsStore.setState({
       activeDocumentItem: cardItem,
@@ -342,7 +341,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     if (!item) {
       return;
     }
-    const articleItemId = await createDocumentItem({
+    const createdDocumentItem = await createDocumentItem({
       ...DEFAULT_CREATE_DOCUMENT_ITEM,
       isArticle: true,
       articleId: selectedArticles[0].id,
@@ -351,7 +350,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
       parents: [item.id],
     });
     const newItem = produce(item, draft => {
-      draft.children.push(articleItemId);
+      draft.children.push(createdDocumentItem.id);
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
@@ -363,7 +362,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     setFolderOpen(true);
     setSelectArticleModalOpen(false);
 
-    const articleItem = await getDocumentItem(articleItemId);
+    const articleItem = await getDocumentItem(createdDocumentItem.id);
     if (!articleItem) return;
     useDocumentsStore.setState({
       activeDocumentItem: articleItem,

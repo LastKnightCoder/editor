@@ -31,7 +31,7 @@ const Card = () => {
   const activeId = activeSide === EActiveSide.Left ? leftActiveId : rightActiveId;
 
   const onCreateCard = useMemoizedFn(async () => {
-    const id = await createCard({
+    const createdCard = await createCard({
       content: [{
         type: 'paragraph',
         children: [{
@@ -43,7 +43,7 @@ const Card = () => {
       links: [],
       category: selectCategory,
     });
-    addCard(id);
+    addCard(createdCard.id);
   });
 
   return (

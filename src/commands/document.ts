@@ -10,11 +10,11 @@ import {
   IDocumentItem
 } from '@/types';
 
-export const createDocument = async (document: ICreateDocument): Promise<number> => {
+export const createDocument = async (document: ICreateDocument): Promise<IDocument> => {
   return await invoke('create-document', document);
 }
 
-export const updateDocument = async (document: IUpdateDocument): Promise<number> => {
+export const updateDocument = async (document: IUpdateDocument): Promise<IDocument> => {
   return await invoke('update-document', document);
 }
 
@@ -30,7 +30,7 @@ export const getAllDocuments = async (): Promise<IDocument[]> => {
   return await invoke('get-all-documents');
 }
 
-export const createDocumentItem = async (documentItem: ICreateDocumentItem): Promise<number> => {
+export const createDocumentItem = async (documentItem: ICreateDocumentItem): Promise<IDocumentItem> => {
   return await invoke('create-document-item', documentItem);
 }
 

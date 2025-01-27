@@ -31,8 +31,8 @@ const Document = (props: IDocumentProps) => {
   }));
 
   const addNewDocumentItem = useMemoizedFn(async () => {
-    const itemId = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
-    addDocumentItem(document.id, itemId);
+    const createedItem = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
+    addDocumentItem(document.id, createedItem.id);
   });
   
   const onAddDocumentItemWithPosition = useMemoizedFn(async (id: number, targetId: number, position: EDragPosition) => {

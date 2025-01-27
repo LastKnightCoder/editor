@@ -1,7 +1,7 @@
 import { invoke } from '@/electron';
 import { ICard, ICreateCard, IUpdateCard } from "@/types";
 
-export async function createCard(card: ICreateCard): Promise<number> {
+export async function createCard(card: ICreateCard): Promise<ICard> {
   return invoke('create-card', card);
 }
 
@@ -13,7 +13,7 @@ export async function deleteCard(id: number): Promise<number> {
   return invoke('delete-card', id);
 }
 
-export async function updateCard(card: IUpdateCard): Promise<number> {
+export async function updateCard(card: IUpdateCard): Promise<ICard> {
   return invoke('update-card', card);
 }
 

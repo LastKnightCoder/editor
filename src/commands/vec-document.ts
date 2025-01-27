@@ -1,7 +1,7 @@
 import { invoke } from '@/electron';
 import { VecDocument } from '@/types';
 
-export const createVecDocument = async (createVecDocument: Omit<VecDocument, 'id' | 'createTime' | 'updateTime'>) => {
+export const createVecDocument = async (createVecDocument: Omit<VecDocument, 'id' | 'createTime' | 'updateTime'>): Promise<VecDocument> => {
   return await invoke('create-vec-document', createVecDocument);
 }
 

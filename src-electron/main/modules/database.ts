@@ -74,6 +74,7 @@ class DatabaseModule implements Module {
         console.log(`connect database ${dbPath}`);
         database = new Database(dbPath);
         this.databases.set(name, database);
+        sqliteVec.load(database);
 
         database.pragma('journal_mode = WAL');
 
@@ -81,7 +82,7 @@ class DatabaseModule implements Module {
           table.initTable(database!);
         });
 
-        sqliteVec.load(database);
+
       }
       const sender = event.sender;
       const win = BrowserWindow.fromWebContents(sender);

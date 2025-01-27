@@ -92,13 +92,13 @@ const DocumentsView = () => {
             isTop: false,
             isDelete: false,
           };
-          const createId = await createDocument(newDocument);
+          const createdDocument = await createDocument(newDocument);
           setCreateOpen(false);
           useDocumentsStore.setState({
-            activeDocumentId: createId,
+            activeDocumentId: createdDocument.id,
             activeDocumentItem: null
           })
-          navigate(`/documents/${createId}`);
+          navigate(`/documents/${createdDocument.id}`);
         }}
         defaultTitle={''}
         defaultDesc={''}
