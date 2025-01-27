@@ -48,10 +48,10 @@ const createWindow = () => {
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL);
+    win.webContents.openDevTools();
   } else {
     win.loadFile(indexHtml);
   }
-  win.webContents.openDevTools();
 };
 
 const initModules = async () => {

@@ -1,19 +1,10 @@
-import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { DailyNote } from '@/types/daily_note';
 import Operation from './operation';
 
 export default class DailyNoteTable {
-  db: Database.Database;
-
-  constructor(db: Database.Database) {
-    this.db = db;
-    this.initTables();
-    this.initHandlers();
-  }
-
-  initTables() {
-    this.db.exec(`
+  static initTable(db: Database.Database) {
+    db.exec(`
       CREATE TABLE IF NOT EXISTS daily_notes (
         id INTEGER PRIMARY KEY NOT NULL,
         content TEXT NOT NULL,
@@ -22,41 +13,26 @@ export default class DailyNoteTable {
     `);
   }
 
-  initHandlers() {
-    ipcMain.handle('create-daily-note', async (_event, params: Omit<DailyNote, 'id'>) => {
-      return await this.createDailyNote(params);
-    });
-
-    ipcMain.handle('update-daily-note', async (_event, params: Omit<DailyNote, 'date'>) => {
-      return await this.updateDailyNote(params);
-    });
-
-    ipcMain.handle('delete-daily-note', async (_event, id: number) => {
-      return await this.deleteDailyNote(id);
-    });
-
-    ipcMain.handle('get-daily-note-by-id', async (_event, id: number) => {
-      return await this.getDailyNoteById(id);
-    });
-
-    ipcMain.handle('get-daily-note-by-date', async (_event, date: string) => {
-      return await this.getDailyNoteByDate(date);
-    });
-
-    ipcMain.handle('get-all-daily-notes', async () => {
-      return await this.getAllDailyNotes();
-    });
+  static getListenEvents() {
+    return {
+      'create-daily-note': this.createDailyNote.bind(this),
+      'update-daily-note': this.updateDailyNote.bind(this),
+      'delete-daily-note': this.deleteDailyNote.bind(this),
+      'get-daily-note-by-id': this.getDailyNoteById.bind(this),
+      'get-daily-note-by-date': this.getDailyNoteByDate.bind(this),
+      'get-all-daily-notes': this.getAllDailyNotes.bind(this),
+    }
   }
 
-  parseDailyNote(note: any): DailyNote {
+  static parseDailyNote(note: any): DailyNote {
     return {
       ...note,
       content: JSON.parse(note.content)
     };
   }
 
-  async createDailyNote(note: Omit<DailyNote, 'id'>): Promise<DailyNote> {
-    const stmt = this.db.prepare(`
+  static async createDailyNote(db: Database.Database, note: Omit<DailyNote, 'id'>): Promise<DailyNote> {
+    const stmt = db.prepare(`
       INSERT INTO daily_notes (content, date)
       VALUES (?, ?)
     `);
@@ -65,13 +41,13 @@ export default class DailyNoteTable {
       note.date
     );
 
-    Operation.insertOperation(this.db, 'daily-note', 'insert', res.lastInsertRowid, Date.now());
+    Operation.insertOperation(db, 'daily-note', 'insert', res.lastInsertRowid, Date.now());
 
-    return this.getDailyNoteById(Number(res.lastInsertRowid));
+    return this.getDailyNoteById(db, Number(res.lastInsertRowid));
   }
 
-  async updateDailyNote(note: Omit<DailyNote, 'date'>): Promise<DailyNote> {
-    const stmt = this.db.prepare(`
+  static async updateDailyNote(db: Database.Database, note: Omit<DailyNote, 'date'>): Promise<DailyNote> {
+    const stmt = db.prepare(`
       UPDATE daily_notes SET
         content = ?
       WHERE id = ?
@@ -81,31 +57,31 @@ export default class DailyNoteTable {
       note.id
     );
 
-    Operation.insertOperation(this.db, 'daily-note', 'update', note.id, Date.now());
+    Operation.insertOperation(db, 'daily-note', 'update', note.id, Date.now());
 
-    return this.getDailyNoteById(note.id);
+    return this.getDailyNoteById(db, note.id);
   }
 
-  async deleteDailyNote(id: number): Promise<number> {
-    const stmt = this.db.prepare('DELETE FROM daily_notes WHERE id = ?');
-    Operation.insertOperation(this.db, 'daily-note', 'delete', id, Date.now());
+  static async deleteDailyNote(db: Database.Database, id: number): Promise<number> {
+    const stmt = db.prepare('DELETE FROM daily_notes WHERE id = ?');
+    Operation.insertOperation(db, 'daily-note', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
-  async getDailyNoteById(id: number): Promise<DailyNote> {
-    const stmt = this.db.prepare('SELECT * FROM daily_notes WHERE id = ?');
+  static async getDailyNoteById(db: Database.Database, id: number): Promise<DailyNote> {
+    const stmt = db.prepare('SELECT * FROM daily_notes WHERE id = ?');
     const note = stmt.get(id);
     return this.parseDailyNote(note);
   }
 
-  async getDailyNoteByDate(date: string): Promise<DailyNote> {
-    const stmt = this.db.prepare('SELECT * FROM daily_notes WHERE date = ?');
+  static async getDailyNoteByDate(db: Database.Database, date: string): Promise<DailyNote> {
+    const stmt = db.prepare('SELECT * FROM daily_notes WHERE date = ?');
     const note = stmt.get(date);
     return this.parseDailyNote(note);
   }
 
-  async getAllDailyNotes(): Promise<DailyNote[]> {
-    const stmt = this.db.prepare('SELECT * FROM daily_notes');
+  static async getAllDailyNotes(db: Database.Database): Promise<DailyNote[]> {
+    const stmt = db.prepare('SELECT * FROM daily_notes');
     const notes = stmt.all();
     return notes.map(note => this.parseDailyNote(note));
   }

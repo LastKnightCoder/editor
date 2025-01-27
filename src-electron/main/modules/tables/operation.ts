@@ -1,19 +1,10 @@
 import Database from 'better-sqlite3';
-import { ipcMain } from 'electron';
 import { Operation } from '@/types';
 import dayjs from 'dayjs';
 
 export default class OperationTable {
-  db: Database.Database;
-
-  constructor(db: Database.Database) {
-    this.db = db;
-    this.initTables();
-    this.initHandlers();
-  }
-
-  initTables() {
-    this.db.exec(`
+  static initTable(db: Database.Database) {
+    db.exec(`
       CREATE TABLE IF NOT EXISTS operation (
         id INTEGER PRIMARY KEY,
         operation_time INTEGER NOT NULL,
@@ -24,17 +15,14 @@ export default class OperationTable {
     `);
   }
 
-  initHandlers() {
-    ipcMain.handle('create-operation', async (_, operation) => {
-      return this.createOperation(operation);
-    });
-
-    ipcMain.handle('get-operation-records-by-year', (_, year) => {
-      return this.getOperationRecordsByYear(year);
-    });
+  static getListenEvents() {
+    return {
+      'create-operation': this.createOperation.bind(this),
+      'get-operation-records-by-year': this.getOperationRecordsByYear.bind(this),
+    }
   }
 
-  parseOperation(operation: any) {
+  static parseOperation(operation: any) {
     return {
       ...operation,
       operationTime: operation.operation_time,
@@ -44,9 +32,9 @@ export default class OperationTable {
     };
   }
 
-  async createOperation(operation: Omit<Operation, 'id'>): Promise<Operation> {
+  static async createOperation(db: Database.Database, operation: Omit<Operation, 'id'>): Promise<Operation> {
     const { operation_time, operation_id, operation_content_type, operation_action } = operation;
-    const stmt = this.db.prepare(`
+    const stmt = db.prepare(`
       INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
       VALUES (?, ?, ?, ?)
     `);
@@ -56,20 +44,20 @@ export default class OperationTable {
       operation_content_type,
       operation_action
     );
-    return this.getOperationById(Number(res.lastInsertRowid));
+    return this.getOperationById(db, Number(res.lastInsertRowid));
   }
 
-  async getOperationById(id: number): Promise<Operation> {
-    const stmt = this.db.prepare('SELECT * FROM operation WHERE id = ?');
+  static async getOperationById(db: Database.Database, id: number): Promise<Operation> {
+    const stmt = db.prepare('SELECT * FROM operation WHERE id = ?');
     const operation = stmt.get(id);
     return this.parseOperation(operation);
   }
 
-  async getOperationRecordsByYear(year: number): Promise<Array<{
+  static async getOperationRecordsByYear(db: Database.Database, year: number): Promise<Array<{
     time: string;
     operation_list: Operation[];
   }>> {
-    const stmt = this.db.prepare(`
+    const stmt = db.prepare(`
       SELECT * FROM operation
       WHERE operation_time >= ? AND operation_time < ?
       ORDER BY operation_time DESC 

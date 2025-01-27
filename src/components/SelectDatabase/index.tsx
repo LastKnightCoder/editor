@@ -43,9 +43,6 @@ const SelectDatabase = () => {
 
   const onHandleCreateDatabase = (databaseName: string) => {
     if (!databaseName) return;
-    if (!databaseName.endsWith('.db')) {
-      databaseName += '.db';
-    }
     useSettingStore.setState(produce(state => {
       state.setting.database.databases.push({
         name: databaseName,
