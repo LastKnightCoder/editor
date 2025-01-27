@@ -18,8 +18,8 @@ interface IState {
 
 interface IActions {
   init: () => Promise<void>;
-  createDocument: (document: ICreateDocument) => Promise<number>;
-  updateDocument: (document: IUpdateDocument) => Promise<number>;
+  createDocument: (document: ICreateDocument) => Promise<IDocument>;
+  updateDocument: (document: IUpdateDocument) => Promise<IDocument>;
   deleteDocument: (document: IDeleteDocument) => Promise<number>;
   addDocumentItem: (documentId: number, documentItemId: number) => void;
 }
@@ -65,6 +65,7 @@ const useDocumentsStore = create<IState & IActions>((set, get) => ({
     const { documents, updateDocument } = get();
     const document = documents.find((item) => item.id === documentId);
     if (!document) return;
+    console.log('documentItemId', documentItemId);
     const newDocument = produce(document, (draft) => {
       draft.children.push(documentItemId);
     });

@@ -202,7 +202,7 @@ export default class DocumentTable {
   }
 
   static async getAllDocuments(db: Database.Database): Promise<IDocument[]> {
-    const stmt = db.prepare('SELECT * FROM documents');
+    const stmt = db.prepare('SELECT * FROM documents ORDER BY create_time DESC');
     const documents = stmt.all();
     return documents.map(doc => this.parseDocument(doc));
   }
@@ -247,6 +247,7 @@ export default class DocumentTable {
   }
 
   static async updateDocumentItem(db: Database.Database, item: IUpdateDocumentItem): Promise<IDocumentItem> {
+    console.log('updateDocumentItem', item);
     const stmt = db.prepare(`
       UPDATE document_items SET
         update_time = ?,
@@ -269,7 +270,7 @@ export default class DocumentTable {
     const now = Date.now();
     stmt.run(
       now,
-      document.title,
+      item.title,
       JSON.stringify(item.authors),
       JSON.stringify(item.tags),
       Number(item.isDirectory),

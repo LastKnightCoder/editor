@@ -43,7 +43,7 @@ export default class CardTable {
   }
 
   static async getAllCards(db: Database.Database) {
-    const stmt = db.prepare('SELECT * FROM cards');
+    const stmt = db.prepare('SELECT * FROM cards ORDER BY create_time DESC');
     const cards = stmt.all();
     return cards.map(card => this.parseCard(card));
   }

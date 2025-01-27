@@ -16,8 +16,8 @@ interface IState {
 
 interface IActions {
   init: () => Promise<void>;
-  createCard: (card: ICreateCard) => Promise<number>;
-  updateCard: (card: IUpdateCard) => Promise<number>;
+  createCard: (card: ICreateCard) => Promise<ICard>;
+  updateCard: (card: IUpdateCard) => Promise<ICard>;
   deleteCard: (id: number) => Promise<number>;
 }
 

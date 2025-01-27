@@ -139,7 +139,7 @@ export default class PdfTable {
   }
 
   static async getPdfList(db: Database.Database): Promise<Pdf[]> {
-    const stmt = db.prepare('SELECT * FROM pdfs');
+    const stmt = db.prepare('SELECT * FROM pdfs ORDER BY create_time DESC');
     const pdfs = stmt.all();
     return pdfs.map(pdf => this.parsePdf(pdf));
   }

@@ -20,8 +20,8 @@ const Document = () => {
 
   const createDocument = useMemoizedFn(async () => {
     if (!activeDocumentId) return;
-    const itemId = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
-    addDocumentItem(activeDocumentId, itemId);
+    const createdDocumentItem = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
+    addDocumentItem(activeDocumentId, createdDocumentItem.id);
   });
 
   const quitEditDocument = useMemoizedFn(() => {
