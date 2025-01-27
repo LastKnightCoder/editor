@@ -7,7 +7,7 @@ export const getEditorDir = async () => {
   return await invoke('get-app-dir');
 }
 
-export const selectFile = async (options?: {}) => {
+export const selectFile = async (options?: object) => {
   return await invoke('select-file', options);
 }
 

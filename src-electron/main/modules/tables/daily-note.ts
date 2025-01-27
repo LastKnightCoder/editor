@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { DailyNote } from '@/types/daily_note';
+import Operation from './operation';
 
 export default class DailyNoteTable {
   db: Database.Database;
@@ -63,6 +64,9 @@ export default class DailyNoteTable {
       JSON.stringify(note.content),
       note.date
     );
+
+    Operation.insertOperation(this.db, 'daily-note', 'insert', res.lastInsertRowid, Date.now());
+
     return this.getDailyNoteById(Number(res.lastInsertRowid));
   }
 
@@ -76,11 +80,15 @@ export default class DailyNoteTable {
       JSON.stringify(note.content),
       note.id
     );
+
+    Operation.insertOperation(this.db, 'daily-note', 'update', note.id, Date.now());
+
     return this.getDailyNoteById(note.id);
   }
 
   async deleteDailyNote(id: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM daily_notes WHERE id = ?');
+    Operation.insertOperation(this.db, 'daily-note', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 

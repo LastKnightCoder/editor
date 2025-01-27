@@ -1,5 +1,4 @@
 import { invoke } from '@/electron';
-
 import { Pdf, PdfHighlight } from '@/types';
 
 export const createPdf = async (pdf: Omit<Pdf, 'id' | 'createTime' | 'updateTime'>): Promise<Pdf> => {
@@ -19,7 +18,7 @@ export const getPdfList = async (): Promise<Pdf[]> => {
 }
 
 export const removePdf = async (id: number): Promise<number> => {
-  return await invoke('remove-pdf', id);
+  return await invoke('delete-pdf', id);
 }
 
 export const addPdfHighlight = async (highlight: Omit<PdfHighlight, 'id' | 'createTime' | 'updateTime'>): Promise<PdfHighlight> => {
@@ -39,6 +38,5 @@ export const getPdfHighlights = async (pdfId: number): Promise<PdfHighlight[]> =
 }
 
 export const removePdfHighlight = async (id: number): Promise<number> => {
-  return await invoke('remove-pdf-highlight', id);
+  return await invoke('delete-pdf-highlight', id);
 }
-

@@ -1,18 +1,11 @@
-import { invoke } from '@tauri-apps/api';
-
-interface IOperation {
-  id: number;
-  operation_time: number;
-  operation_id: number;
-  operation_content_type: string;
-  operation_action: string;
-}
+import { invoke } from '@/electron';
+import { Operation } from '@/types';
 
 export interface ICalendarHeatmapDataItem {
   time: string;
-  operation_list: IOperation[];
+  operation_list: Operation[];
 }
 
-export const getCalendarHeatmap = async (year: string): Promise<ICalendarHeatmapDataItem[]> => {
-  return await invoke('get_operation_records_by_year', { year });
+export const getCalendarHeatmap = async (year: number): Promise<ICalendarHeatmapDataItem[]> => {
+  return await invoke('get-operation-records-by-year', year);
 }

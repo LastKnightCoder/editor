@@ -82,7 +82,6 @@ app.whenReady().then(() => {
     })
   });
   protocol.handle('ltoh', (req) => {
-    console.log(req);
     const url = new URL(req.url);
     return net.fetch('file://' + url.pathname);
   });

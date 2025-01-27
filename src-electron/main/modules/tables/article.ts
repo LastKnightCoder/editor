@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { ICreateArticle, IUpdateArticle, IArticle } from '@/types';
+import Operation from './operation';
 
 export default class ArticleTable {
   db: Database.Database;
@@ -86,6 +87,9 @@ export default class ArticleTable {
     const now = Date.now();
     const res = stmt.run(now, now, JSON.stringify(tags), title, JSON.stringify(content), bannerBg, Number(isDelete), Number(isTop));
     const createdArticleId = res.lastInsertRowid;
+
+    Operation.insertOperation(this.db, 'article', 'insert', createdArticleId, now);
+
     return await this.getArticleById(createdArticleId);
   }
 
@@ -97,11 +101,13 @@ export default class ArticleTable {
 
     // 如果有 document item isArticle 为 1，并且 article_id 为当前 articleId 的话，更新 document item 的 content 个 update_time
     const documentItemStmt = this.db.prepare('UPDATE document_items SET update_time = ?, content = ? WHERE is_article = 1 AND article_id = ?');
-    await documentItemStmt.run(now, JSON.stringify(content), id);
+    documentItemStmt.run(now, JSON.stringify(content), id);
 
     // update project_item
     const projectItemStmt = this.db.prepare("UPDATE project_item SET update_time = ?, content = ? WHERE ref_type = 'article' AND ref_id = ?");
-    await projectItemStmt.run(now, JSON.stringify(content), id);
+    projectItemStmt.run(now, JSON.stringify(content), id);
+
+    Operation.insertOperation(this.db, 'article', 'update', id, now);
 
     return await this.getArticleById(id);
   }
@@ -114,6 +120,8 @@ export default class ArticleTable {
 
     const projectItemStmt = this.db.prepare('UPDATE project_item SET ref_type = "" WHERE ref_type = "article" AND ref_id = ?');
     projectItemStmt.run(articleId);
+
+    Operation.insertOperation(this.db, 'article', 'delete', articleId, Date.now());
 
     return stmt.run(articleId).changes;
   }

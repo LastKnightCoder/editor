@@ -8,6 +8,7 @@ import {
   ICreateDocumentItem,
   IUpdateDocumentItem
 } from '@/types';
+import Operation from './operation';
 
 export default class DocumentTable {
   db: Database.Database;
@@ -182,6 +183,8 @@ export default class DocumentTable {
       Number(document.isDelete)
     );
 
+    Operation.insertOperation(this.db, 'document', 'insert', res.lastInsertRowid, now);
+
     return this.getDocument(Number(res.lastInsertRowid));
   }
 
@@ -203,6 +206,8 @@ export default class DocumentTable {
       WHERE id = ?
     )`);
 
+    const now = Date.now();
+
     stmt.run(
       document.title,
       document.desc,
@@ -211,11 +216,19 @@ export default class DocumentTable {
       JSON.stringify(document.tags),
       JSON.stringify(document.links),
       JSON.stringify(document.content),
-      Date.now(),
+      now,
       document.bannerBg,
       document.icon,
       Number(document.isTop),
       Number(document.isDelete),
+    );
+
+    Operation.insertOperation(
+      this.db,
+      'document',
+      'update',
+      document.id,
+      now,
     );
 
     return this.getDocument(document.id);
@@ -223,6 +236,15 @@ export default class DocumentTable {
 
   async deleteDocument(id: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM documents WHERE id = ?');
+
+    Operation.insertOperation(
+      this.db,
+      'document',
+      'delete',
+      id,
+      Date.now(),
+    );
+
     return stmt.run(id).changes;
   }
 
@@ -266,7 +288,13 @@ export default class DocumentTable {
       JSON.stringify(item.parents),
     );
 
-    // TODO 插入操作记录
+    Operation.insertOperation(
+      this.db,
+      'document-item',
+      'insert',
+      Number(res.lastInsertRowid),
+      Date.now(),
+    );
 
     return this.getDocumentItem(Number(res.lastInsertRowid));
   }
@@ -311,7 +339,7 @@ export default class DocumentTable {
       item.id
     );
 
-    // TODO 插入操作记录
+    Operation.insertOperation(this.db, 'document-item', 'update', item.id, now);
 
     if (item.isCard) {
       const cardStmt = this.db.prepare(
@@ -332,6 +360,7 @@ export default class DocumentTable {
 
   async deleteDocumentItem(id: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM document_items WHERE id = ?');
+    Operation.insertOperation(this.db, 'document-item', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
@@ -389,6 +418,7 @@ export default class DocumentTable {
     // 过滤掉已经删除掉的
     documentItems = documentItems.filter((documentItem) => !documentItem.isDelete);
 
+    const now = Date.now();
     // 对于每一个文档项，判断是否有某个文档项的 children 包含该文档项的 id，如果有，则将该文档添加到这个文档的 parents 中
     for (const documentItem of documentItems) {
       const parents = [];
@@ -397,9 +427,11 @@ export default class DocumentTable {
           parents.push(documentItem2.id);
         }
       }
-      const stmt = this.db.prepare(`UPDATE document_items SET parents = ? WHERE id = ?`);
-      stmt.run(JSON.stringify(parents), documentItem.id);
+      const stmt = this.db.prepare(`UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`);
+      stmt.run(now, JSON.stringify(parents), documentItem.id);
+      Operation.insertOperation(this.db, 'document-item', 'init-parents', documentItem.id, now)
     }
+
   }
 
   async initDocumentItemParentsByIds(ids: number[]): Promise<void> {
@@ -407,6 +439,7 @@ export default class DocumentTable {
     // 过滤掉已经删除掉的
     documentItems = documentItems.filter((documentItem) => !documentItem.isDelete);
 
+    const now = Date.now();
     for (const id of ids) {
       const parents = [];
       for (const documentItem of documentItems) {
@@ -414,8 +447,9 @@ export default class DocumentTable {
           parents.push(documentItem.id);
         }
       }
-      const stmt = this.db.prepare(`UPDATE document_item SET parents = ? WHERE id = ?`);
-      stmt.run(JSON.stringify(parents), id);
+      const stmt = this.db.prepare(`UPDATE document_item SET update_time = ?, parents = ? WHERE id = ?`);
+      stmt.run(now, JSON.stringify(parents), id);
+      Operation.insertOperation(this.db, 'document-item', 'init-parents', id, now);
     }
   }
 

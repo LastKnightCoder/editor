@@ -57,8 +57,6 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     } : undefined
   }) as unknown as ArrayBuffer;
 
-  console.log('node-fetch', remoteContent);
-
   const resourcePath = resourceDirPath + sep + fileName;
   await writeBinaryFile(resourcePath, new Uint8Array(remoteContent));
   configObj[url] = resourcePath;
