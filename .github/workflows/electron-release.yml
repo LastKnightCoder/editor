@@ -7,39 +7,7 @@ on: push
 #       - v*
 
 jobs:
-  create-release:
-    permissions:
-      contents: write
-    runs-on: ubuntu-20.04
-    outputs:
-      release_id: ${{ steps.create-release.outputs.result }}
-    
-    steps:
-      - name: Install Node.js, NPM and Yarn
-        uses: actions/checkout@v3
-      - name: setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 22
-      - name: get version
-        run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
-      - name: create release
-        id: create-release
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { data } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: `app-v${process.env.PACKAGE_VERSION}`,
-              name: `Card Editor v${process.env.PACKAGE_VERSION}`,
-              body: '可见即所得编辑器',
-              draft: true,
-              prerelease: false
-            })
-            return data.id
   release:
-    needs: create-release
     permissions:
       contents: write
     strategy:
