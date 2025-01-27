@@ -2,7 +2,7 @@ import { invoke } from '@/electron';
 import { Message, ChatMessage } from '@/types';
 
 export const createChatMessage = (messages: Message[], title = '新对话'): Promise<ChatMessage> => {
-  return invoke('create-chat-message', { messages, title });
+  return invoke('create-chat-message', messages, title);
 };
 
 export const getChatMessageById = (id: number): Promise<ChatMessage> => {

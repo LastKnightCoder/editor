@@ -28,6 +28,8 @@ export default class ArticleTable {
       'delete-article': this.deleteArticleById.bind(this),
       'get-all-articles': this.getAllArticles.bind(this),
       'get-article-by-id': this.getArticleById.bind(this),
+      'update-article-is-top': this.updateArticleIsTop.bind(this),
+      'update-article-banner-bg': this.updateArticleBannerBg.bind(this),
     }
   }
 
