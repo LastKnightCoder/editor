@@ -63,6 +63,15 @@ class DatabaseModule implements Module {
     return newDatabaseName;
   }
 
+  addDbExtention(databaseName: string) {
+    let newDatabaseName = databaseName;
+    // 如果没有 .db 结尾，则加上
+    if (!databaseName.endsWith('.db')) {
+      newDatabaseName = `${databaseName}.db`;
+    }
+    return newDatabaseName;
+  }
+
   async init() {
     ipcMain.handle('create-or-connect-database', async (event, name) => {
       const appDir = PathUtil.getAppDir();
@@ -128,7 +137,7 @@ class DatabaseModule implements Module {
 
     ipcMain.handle('get-database-path', (_, name) => {
       const appDir = PathUtil.getAppDir();
-      return join(appDir, this.formatDatabaseName(name));
+      return join(appDir, this.addDbExtention(name));
     })
   }
 }
