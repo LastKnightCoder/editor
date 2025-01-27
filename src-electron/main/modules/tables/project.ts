@@ -8,6 +8,7 @@ import {
   CreateProjectItem,
   UpdateProjectItem
 } from '@/types/project';
+import Operation from './operation';
 
 export default class ProjectTable {
   db: Database.Database;
@@ -153,6 +154,8 @@ export default class ProjectTable {
       Number(project.archived || false)
     );
 
+    Operation.insertOperation(this.db, 'project', 'insert', res.lastInsertRowid, now);
+
     return this.getProject(Number(res.lastInsertRowid));
   }
 
@@ -176,11 +179,14 @@ export default class ProjectTable {
       project.id
     );
 
+    Operation.insertOperation(this.db, 'project', 'update', project.id, now);
+
     return this.getProject(project.id);
   }
 
   async deleteProject(id: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM project WHERE id = ?');
+    Operation.insertOperation(this.db, 'project', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
@@ -214,6 +220,8 @@ export default class ProjectTable {
       item.refType,
       item.refId
     );
+
+    Operation.insertOperation(this.db, 'project_item', 'insert', res.lastInsertRowid, now);
 
     return this.getProjectItem(Number(res.lastInsertRowid));
   }
@@ -255,6 +263,8 @@ export default class ProjectTable {
       articleStmt.run(now, JSON.stringify(item.content || []), item.title, item.refId);
     }
 
+    Operation.insertOperation(this.db, 'project_item', 'update', item.id, now);
+
     // project_item 可能通过 card 和 article 有饮用关系，更新 project_item
     // TODO 可以优化
     if (item.refType !== '' && item.refId) {
@@ -275,6 +285,7 @@ export default class ProjectTable {
   async deleteProjectItem(id: number): Promise<number> {
     // TODO，一个 projectItem 可能在多个 project 中，删除  projectItem 需谨慎
     const stmt = this.db.prepare('DELETE FROM project_item WHERE id = ?');
+    Operation.insertOperation(this.db, 'project_item', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 

@@ -9,3 +9,4 @@ export * from './voice-copy';
 export * from './llm';
 export * from './chat-message';
 export * from './vec-document';
+export * from './operation';

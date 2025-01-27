@@ -13,6 +13,7 @@ import PdfTable from './tables/pdf';
 import DailyNoteTable from './tables/daily-note';
 import VecDocumentTable from './tables/vec-document';
 import ChatMessageTable from './tables/chat-message';
+import OperationTable from './tables/operation';
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -63,6 +64,7 @@ class DatabaseModule implements Module {
         new PdfTable(database);
         new VecDocumentTable(database);
         new ChatMessageTable(database);
+        new OperationTable(database);
       }
     });
 

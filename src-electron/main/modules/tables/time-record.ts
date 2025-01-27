@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { ITimeRecord, TimeRecordGroup } from '@/types';
+import Operation from './operation';
 
 export default class TimeRecordTable {
   db: Database.Database;
@@ -83,6 +84,9 @@ export default class TimeRecordTable {
       record.eventType,
       record.timeType
     );
+
+    Operation.insertOperation(this.db, 'time-record', 'insert', res.lastInsertRowid, Date.now());
+
     return this.getTimeRecordById(Number(res.lastInsertRowid));
   }
 
@@ -104,11 +108,15 @@ export default class TimeRecordTable {
       record.timeType,
       record.id
     );
+
+    Operation.insertOperation(this.db, 'time_record', 'update', record.id, Date.now())
+
     return this.getTimeRecordById(record.id);
   }
 
   async deleteTimeRecord(id: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM time_records WHERE id = ?');
+    Operation.insertOperation(this.db, 'time_record', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 

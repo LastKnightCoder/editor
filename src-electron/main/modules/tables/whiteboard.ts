@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { WhiteBoard } from '@/types';
+import Operation from './operation';
 
 export default class WhiteboardTable {
   db: Database.Database;
@@ -74,6 +75,8 @@ export default class WhiteboardTable {
       Number(whiteboard.snapshot)
     );
 
+    Operation.insertOperation(this.db, 'whiteboard', 'insert', res.lastInsertRowid, now);
+
     return this.getWhiteboard(Number(res.lastInsertRowid));
   }
 
@@ -99,11 +102,16 @@ export default class WhiteboardTable {
       whiteboard.id
     );
 
+    Operation.insertOperation(this.db, 'whiteboard', 'update', whiteboard.id, now);
+
     return this.getWhiteboard(whiteboard.id);
   }
 
   async deleteWhiteboard(id: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM white_boards WHERE id = ?');
+
+    Operation.insertOperation(this.db, 'whiteboard', 'delete', id, Date.now());
+
     return stmt.run(id).changes;
   }
 

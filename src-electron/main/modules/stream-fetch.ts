@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import axios, { AxiosRequestConfig } from 'axios';
-import { ipcMain } from 'electron';
+import { ipcMain, WebContents } from 'electron';
 
 interface StreamResponse {
   requestId: number;
@@ -23,7 +23,7 @@ export default class StreamFetch extends EventEmitter {
   private static requestCounter = 0;
   private static instance: StreamFetch;
   private static requestLock = Promise.resolve();
-  private static senders = new Map<number, any>();
+  private static senders = new Map<number, WebContents>();
 
   private constructor() {
     super();

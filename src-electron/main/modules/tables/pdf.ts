@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { Pdf, PdfHighlight } from '@/types';
+import Operation from './operation';
 
 export default class PdfTable {
   db: Database.Database;
@@ -63,7 +64,7 @@ export default class PdfTable {
       return await this.getPdfList();
     });
 
-    ipcMain.handle('remove-pdf', async (_event, id: number) => {
+    ipcMain.handle('delete-pdf', async (_event, id: number) => {
       return await this.removePdf(id);
     });
 
@@ -83,7 +84,7 @@ export default class PdfTable {
       return await this.getPdfHighlights(pdfId);
     });
 
-    ipcMain.handle('remove-pdf-highlight', async (_event, id: number) => {
+    ipcMain.handle('delete-pdf-highlight', async (_event, id: number) => {
       return await this.removePdfHighlight(id);
     });
   }
@@ -134,6 +135,8 @@ export default class PdfTable {
       now
     );
 
+    Operation.insertOperation(this.db, 'pdf', 'insert', res.lastInsertRowid, now);
+
     return this.getPdfById(Number(res.lastInsertRowid));
   }
 
@@ -160,6 +163,8 @@ export default class PdfTable {
       pdf.id
     );
 
+    Operation.insertOperation(this.db, 'pdf', 'update', pdf.id, Date.now());
+
     return this.getPdfById(pdf.id);
   }
 
@@ -177,6 +182,7 @@ export default class PdfTable {
 
   async removePdf(id: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM pdfs WHERE id = ?');
+    Operation.insertOperation(this.db, 'pdf', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
@@ -203,6 +209,8 @@ export default class PdfTable {
       now
     );
 
+    Operation.insertOperation(this.db, 'highlight', 'insert', res.lastInsertRowid, now)
+
     return this.getPdfHighlightById(Number(res.lastInsertRowid));
   }
 
@@ -222,6 +230,7 @@ export default class PdfTable {
         update_time = ?
       WHERE id = ?
     `);
+    const now = Date.now();
     stmt.run(
       highlight.pdfId,
       highlight.color,
@@ -233,9 +242,11 @@ export default class PdfTable {
       highlight.content,
       highlight.image,
       JSON.stringify(highlight.notes),
-      Date.now(),
+      now,
       highlight.id
     );
+
+    Operation.insertOperation(this.db, 'highlight', 'update', highlight.id, now)
 
     return this.getPdfHighlightById(highlight.id);
   }
@@ -254,6 +265,7 @@ export default class PdfTable {
 
   async removePdfHighlight(id: number): Promise<number> {
     const stmt = this.db.prepare('DELETE FROM pdf_highlights WHERE id = ?');
+    Operation.insertOperation(this.db, 'highlight', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 }

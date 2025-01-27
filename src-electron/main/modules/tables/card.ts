@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { ICreateCard, IUpdateCard, ICard } from '@/types';
+import Operation from './operation';
 
 export default class CardTable {
   db: Database.Database;
@@ -86,6 +87,7 @@ export default class CardTable {
     const now = Date.now();
     const res = stmt.run(now, now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category);
     const createdCardId = res.lastInsertRowid;
+    Operation.insertOperation(this.db, 'card', 'insert', createdCardId, now);
     return await this.getCardById(createdCardId);
   }
 
@@ -103,6 +105,8 @@ export default class CardTable {
     const updateProjectItemStmt = this.db.prepare("UPDATE project_item SET update_time = ?, content = ? WHERE ref_type = 'card' AND ref_id = ?");
     updateProjectItemStmt.run(now, JSON.stringify(content), id);
 
+    Operation.insertOperation(this.db, 'card', 'update', card.id, now);
+
     return await this.getCardById(id);
   }
 
@@ -115,6 +119,8 @@ export default class CardTable {
     // 设置 project_item ref_type 为 空字符串
     const projectItemStmt = this.db.prepare('UPDATE project_item SET ref_type = "" WHERE ref_type = "card" AND ref_id = ?');
     projectItemStmt.run(cardId);
+
+    Operation.insertOperation(this.db, 'card', 'delete', cardId, Date.now());
 
     return stmt.run(cardId).changes;
   }
