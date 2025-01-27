@@ -40,6 +40,7 @@ const createWindow = () => {
     width: 1200,
     height: 600,
     autoHideMenuBar: true,
+    icon: path.join(__dirname, '../../build/icon.png'),
     webPreferences: {
       preload,
     },

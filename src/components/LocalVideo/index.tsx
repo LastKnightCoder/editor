@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAsyncEffect } from "ahooks";
-import { remoteResourceToLocal } from "@/utils";
 import { convertFileSrc } from "@/commands";
 
 interface LocalVideoProps {

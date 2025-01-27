@@ -1,16 +1,20 @@
 appId: "com.notes.app"
 productName: "notes"
 copyright: "Copyright © 2025 ${author}"
-asar: true
+# 使用 asar 打包，会导致某些原生模块（如 .dylib 文件）无法正确加载
+# AI 建议把这些 dylib 文件打包到 app.asar.unpacked 文件夹下
+# 后续优化在做，现在设置为不使用 asar 打包
+asar: false
 directories:
   output: release/
-  # buildResources: build
+  buildResources: build
+
 
 files:
   - "dist/**/*"
   - "dist-electron/**/*"
   - "package.json"
-  - "build/icons/*"
+  - "build/**/*"
   - "node_modules/**/*"
 
 nsis:
@@ -25,17 +29,18 @@ nsis:
   uninstallDisplayName: "notes"
   shortcutName: "notes"
 
+
 win:
   target: ["nsis", "msi"]
   icon: "build/icon.ico"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
 
 mac:
-  icon: "build/icon.ico"
+  icon: "build/icon.icns"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
 
 linux:
-  icon: "build/icon.ico"
+  icon: "build/icon.png"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
 
 publish:
