@@ -1,6 +1,7 @@
 import { app, BrowserWindow, protocol, net, ipcMain } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
+import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import resourceModule from './modules/resource';
 import databaseModule from './modules/database';
@@ -10,6 +11,7 @@ import streamFetchModule from './modules/stream-fetch';
 import aliOssModule from './modules/ali-oss';
 import fileModule from './modules/file';
 import extraModule from './modules/extra';
+import voiceCopyModule from './modules/voice-copy';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -61,6 +63,7 @@ const initModules = async () => {
     aliOssModule.init(),
     fileModule.init(),
     extraModule.init(),
+    voiceCopyModule.init(),
   ]).catch(e => {
     console.error(e);
   });
@@ -81,9 +84,44 @@ app.whenReady().then(() => {
       }
     })
   });
-  protocol.handle('ltoh', (req) => {
+  protocol.handle('ltoh', async (req) => {
     const url = new URL(req.url);
-    return net.fetch('file://' + url.pathname);
+    const res = await net.fetch('file://' + url.pathname);
+
+    // 如果是视频或者音频
+    if (['video', 'audio'].includes((res.headers.get('content-type') || '').split('/')[0])) {
+      // 读取 range，可能没有 end
+      const range = req.headers.get('range');
+      if (range) {
+        // 获取文件大小
+        const size = (await fs.stat(url.pathname)).size;
+        const [, start, end] = range.match(/bytes=(\d+)-(\d+)?/)!;
+        const startNum = parseInt(start);
+        const endNum = end ? parseInt(end) : size - 1;
+        const chunkSize = endNum - startNum + 1;
+        console.log(`Range: ${startNum}-${endNum}`);
+        const file = await fs.open(url.pathname, 'r');
+        // 读取 start 到 end 的内容
+        const buffer = Buffer.alloc(chunkSize);
+        await file.read(buffer, 0, chunkSize, startNum);
+        // 构建 HTTP Response
+        const newRes = new Response(buffer, {
+          status: 206,
+          headers: {
+            'Content-Range': `bytes ${startNum}-${endNum}/${size}`,
+            'Content-Length': `${chunkSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Type': 'audio/mpeg',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          },
+        });
+
+        return newRes;
+      }
+    }
+
+    return res;
   });
 });
 

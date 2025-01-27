@@ -250,7 +250,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   }
 
   return (
-    <div ref={drop} className={styles.container} contentEditable={'false'}>
+    <div ref={drop} className={styles.container} suppressContentEditableWarning contentEditable={'false'}>
       <Spin spinning={uploading}>
         <If condition={!!src}>
           <LocalAudio
@@ -271,7 +271,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       <div {...attributes}>
         {children}
       </div>
-      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
+      <div suppressContentEditableWarning contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
         <MdDragIndicator className={styles.icon}/>
       </div>
       <input ref={uploadRef} type={'file'} accept={'audio/*'} hidden onChange={handleUploadFileChange}/>
