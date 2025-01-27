@@ -110,7 +110,7 @@ export default class ProjectTable {
       UPDATE project SET
         update_time = ?,
         title = ?,
-        description = ?,
+        desc = ?,
         children = ?,
         archived = ?
       WHERE id = ?
@@ -177,7 +177,7 @@ export default class ProjectTable {
       UPDATE project_item SET
         update_time = ?,
         title = ?,
-        content = ?,
+        "content" = ?,
         children = ?,
         parents = ?,
         projects = ?,
@@ -200,7 +200,7 @@ export default class ProjectTable {
 
     // update card and article update_time and content, article also set title
     if (item.refType === 'card' && item.refId) {
-      const cardStmt = db.prepare('UPDATE cards SET update_time = ? content = ? WHERE id = ?');
+      const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ? WHERE id = ?');
       cardStmt.run(now, JSON.stringify(item.content || []), item.refId);
     }
 
@@ -218,7 +218,7 @@ export default class ProjectTable {
       for (const projectItem of projectItems) {
         if (projectItem.id !== item.id) {
           const projectItemStmt = db.prepare(
-            `UPDATE project_items SET update_time = ?, content = ?, title = ? WHERE id = ?`
+            `UPDATE project_item SET update_time = ?, content = ?, title = ? WHERE id = ?`
           );
           projectItemStmt.run(now, JSON.stringify(item.content || []), item.title, projectItem.id);
         }
