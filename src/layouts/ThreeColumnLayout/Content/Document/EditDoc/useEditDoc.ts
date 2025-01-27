@@ -64,7 +64,7 @@ const useEditDoc = () => {
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[], editor?: Editor) => {
-    if(!activeDocumentItem) return;
+    if (!activeDocumentItem) return;
     const newDocument = produce(activeDocumentItem, draft => {
       draft.content = content;
     })
