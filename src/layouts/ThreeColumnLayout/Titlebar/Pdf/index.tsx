@@ -5,8 +5,10 @@ import FocusMode from "../../../../components/FocusMode";
 
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import { PlusOutlined } from "@ant-design/icons";
-import { open } from "@tauri-apps/api/dialog";
-import { basename } from "@tauri-apps/api/path";
+import {
+  selectFile,
+  getFileBaseName,
+} from '@/commands';
 
 import styles from './index.module.less';
 
@@ -31,16 +33,15 @@ const PdfTitlebar = () => {
   }
 
   const onSelectFile = async () => {
-    const filePath = await open({
-      multiple: false,
-      directory: false,
+    const filePath = await selectFile({
+      properties: ['openFile'],
       filters: [{
         name: 'PDF',
         extensions: ['pdf'],
       }],
     });
     if (!filePath || Array.isArray(filePath)) return;
-    const fileName = await basename(filePath);
+    const fileName = await getFileBaseName(filePath);
     await createPdf({
       fileName,
       filePath,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAsyncEffect } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { convertFileSrc } from "@/commands";
 
 interface ILocalImageProps {
   url: string;

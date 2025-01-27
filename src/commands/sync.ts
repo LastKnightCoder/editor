@@ -2,10 +2,19 @@ import { message } from "antd";
 import { produce } from "immer";
 import dayjs from "dayjs";
 
-import { invoke } from "@tauri-apps/api";
-import { readBinaryFile, writeBinaryFile, createDir, exists } from '@tauri-apps/api/fs';
-import { sep } from '@tauri-apps/api/path';
-import { getObject, isObjectExist, createObject, updateObject, connectDatabaseByName } from "@/commands";
+import { invoke } from "@/electron";
+import {
+  getObject,
+  isObjectExist,
+  createObject,
+  updateObject,
+  connectDatabaseByName,
+  readBinaryFile,
+  writeBinaryFile,
+  createDir,
+  pathExists,
+  getSep
+} from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
@@ -18,9 +27,7 @@ import usePdfsStore from "@/stores/usePdfsStore.ts";
 
 export const getDatabasePath = async (databaseName: string): Promise<string> => {
   try {
-    return await invoke('get_database_path', {
-      databaseName,
-    });
+    return await invoke('get-database-path', databaseName);
   } catch (e) {
     return '';
   }
@@ -96,7 +103,7 @@ export const upload = async () => {
     // 将 Uint8Array 转换为 Blob
     const blob = new Blob([contents], { type: 'application/octet-stream' });
     const dataObjectName = `${path}/${databaseName}`;
-    const isSuccessful =  await createOrUpdateFile(ossOptions, dataObjectName, blob);
+    const isSuccessful = await createOrUpdateFile(ossOptions, dataObjectName, blob);
     if (!isSuccessful) {
       message.error('上传数据库文件失败');
       return false;
@@ -163,10 +170,11 @@ export const download = async () => {
     });
     const blob = new Blob([dataObject.content]);
     const contents = new Uint8Array(await blob.arrayBuffer());
+    const sep = await getSep();
     // 在覆盖本地文件之前，先备份一下，加上时间
     const backupDir = databasePath.split(sep).slice(0, -1).concat("backup").join(sep);
-    if (!await exists(backupDir)) {
-      await createDir(backupDir, { recursive: true });
+    if (!await pathExists(backupDir)) {
+      await createDir(backupDir);
     }
     const backupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}`;
     const originContents = await readBinaryFile(databasePath);

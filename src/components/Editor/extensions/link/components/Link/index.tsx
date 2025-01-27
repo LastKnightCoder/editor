@@ -8,7 +8,7 @@ import classnames from 'classnames';
 import unLinkIcon from '@/assets/icons/unlink.svg';
 import copyIcon from '@/assets/icons/copy.svg';
 import editIcon from '@/assets/icons/edit.svg';
-import { open as openUrl } from '@tauri-apps/api/shell';
+import { openExternal as openUrl } from '@/commands';
 
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
 import { LinkElement } from "@editor/types";

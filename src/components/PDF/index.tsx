@@ -22,7 +22,7 @@ import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { Flex, message, Spin, Result, Button } from "antd";
 import { ZoomInOutlined, ZoomOutOutlined } from "@ant-design/icons";
 import If from "@/components/If";
-import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { convertFileSrc } from "@/commands";
 
 interface PDFViewerProps {
   pdf: Pdf;
@@ -142,8 +142,7 @@ const PDFViewer = (props: PDFViewerProps) => {
     if (isLocal) {
       return convertFileSrc(filePath);
     } else {
-      return remoteUrl;
-      // TODO 先下载到本地，提升加载性能
+      // return remoteUrl;
       const remoteToLocal = await remoteResourceToLocal(remoteUrl);
       return convertFileSrc(remoteToLocal);
     }

@@ -8,8 +8,10 @@ import { useMemoizedFn } from "ahooks";
 import { useEffect, useRef, useState } from "react";
 import { Button, Flex, Input, message, Modal, Tabs, FloatButton } from "antd";
 import { PlusOutlined } from '@ant-design/icons';
-import { open } from "@tauri-apps/api/dialog";
-import { basename } from "@tauri-apps/api/path";
+import {
+  selectFile,
+  getFileBaseName,
+} from '@/commands';
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 400;
@@ -38,16 +40,15 @@ const PdfView = () => {
   }
 
   const onSelectFile = async () => {
-    const filePath = await open({
-      multiple: false,
-      directory: false,
+    const filePath = await selectFile({
+      properties: ['openFile'],
       filters: [{
         name: 'PDF',
         extensions: ['pdf'],
       }],
     });
     if (!filePath || Array.isArray(filePath)) return;
-    const fileName = await basename(filePath);
+    const fileName = await getFileBaseName(filePath);
     await createPdf({
       fileName,
       filePath,

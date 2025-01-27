@@ -15,6 +15,6 @@ contextBridge.exposeInMainWorld('electron', {
   },
   sendSync: (channel: string, ...args: any[]) => {
     ipcRenderer.sendSync(channel, ...args);
-  }
+  },
 });
 
