@@ -15,11 +15,7 @@ const LocalVideo = (props: LocalVideoProps) => {
 
   useAsyncEffect(async () => {
     try {
-      if (src.startsWith('http')) {
-        const localUrl = await remoteResourceToLocal(src);
-        const filePath = convertFileSrc(localUrl);
-        setPreviewUrl(filePath);
-      } else {
+      if (!src.startsWith('http')) {
         const filePath = convertFileSrc(src);
         setPreviewUrl(filePath);
       }
