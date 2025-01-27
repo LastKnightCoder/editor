@@ -1,19 +1,11 @@
-import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { WhiteBoard } from '@/types';
 import Operation from './operation';
 
 export default class WhiteboardTable {
-  db: Database.Database;
 
-  constructor(db: Database.Database) {
-    this.db = db;
-    this.initTables();
-    this.initHandlers();
-  }
-
-  initTables() {
-    this.db.exec(`
+  static initTable(db: Database.Database) {
+    db.exec(`
       CREATE TABLE IF NOT EXISTS white_boards (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
@@ -27,29 +19,17 @@ export default class WhiteboardTable {
     `);
   }
 
-  initHandlers() {
-    ipcMain.handle('create-white-board', async (_event, whiteBoard: Omit<WhiteBoard, 'id' | 'createTime' | 'updateTime'>) => {
-      return await this.createWhiteboard(whiteBoard);
-    });
-
-    ipcMain.handle('update-white-board', async (_event, whiteBoard: Omit<WhiteBoard, 'createTime' | 'updateTime'>) => {
-      return await this.updateWhiteboard(whiteBoard);
-    });
-
-    ipcMain.handle('delete-white-board', async (_event, id: number) => {
-      return await this.deleteWhiteboard(id);
-    });
-
-    ipcMain.handle('get-white-board-by-id', async (_event, id: number) => {
-      return await this.getWhiteboard(id);
-    });
-
-    ipcMain.handle('get-all-white-boards', async () => {
-      return await this.getAllWhiteboards();
-    });
+  static getListenEvents() {
+    return {
+      'create-white-board': this.createWhiteboard.bind(this),
+      'delete-white-board': this.deleteWhiteboard.bind(this),
+      'get-white-board-by-id': this.getWhiteboard.bind(this),
+      'get-all-white-boards': this.getAllWhiteboards.bind(this),
+      'update-white-board': this.updateWhiteboard.bind(this),
+    }
   }
 
-  parseWhiteboard(whiteboard: any): WhiteBoard {
+  static parseWhiteboard(whiteboard: any): WhiteBoard {
     return {
       ...whiteboard,
       data: JSON.parse(whiteboard.data),
@@ -59,8 +39,8 @@ export default class WhiteboardTable {
     };
   }
 
-  async createWhiteboard(whiteboard: Omit<WhiteBoard, 'id' | 'createTime' | 'updateTime'>): Promise<WhiteBoard> {
-    const stmt = this.db.prepare(`
+  static async createWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'id' | 'createTime' | 'updateTime'>): Promise<WhiteBoard> {
+    const stmt = db.prepare(`
       INSERT INTO white_boards
       (title, description, data, create_time, update_time, snapshot)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -75,13 +55,13 @@ export default class WhiteboardTable {
       Number(whiteboard.snapshot)
     );
 
-    Operation.insertOperation(this.db, 'whiteboard', 'insert', res.lastInsertRowid, now);
+    Operation.insertOperation(db, 'whiteboard', 'insert', res.lastInsertRowid, now);
 
-    return this.getWhiteboard(Number(res.lastInsertRowid));
+    return this.getWhiteboard(db, Number(res.lastInsertRowid));
   }
 
-  async updateWhiteboard(whiteboard: Omit<WhiteBoard, 'createTime' | 'updateTime'>): Promise<WhiteBoard> {
-    const stmt = this.db.prepare(`
+  static async updateWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'createTime' | 'updateTime'>): Promise<WhiteBoard> {
+    const stmt = db.prepare(`
       UPDATE white_boards SET
         title = ?,
         description = ?,
@@ -102,27 +82,27 @@ export default class WhiteboardTable {
       whiteboard.id
     );
 
-    Operation.insertOperation(this.db, 'whiteboard', 'update', whiteboard.id, now);
+    Operation.insertOperation(db, 'whiteboard', 'update', whiteboard.id, now);
 
-    return this.getWhiteboard(whiteboard.id);
+    return this.getWhiteboard(db, whiteboard.id);
   }
 
-  async deleteWhiteboard(id: number): Promise<number> {
-    const stmt = this.db.prepare('DELETE FROM white_boards WHERE id = ?');
+  static async deleteWhiteboard(db: Database.Database, id: number): Promise<number> {
+    const stmt = db.prepare('DELETE FROM white_boards WHERE id = ?');
 
-    Operation.insertOperation(this.db, 'whiteboard', 'delete', id, Date.now());
+    Operation.insertOperation(db, 'whiteboard', 'delete', id, Date.now());
 
     return stmt.run(id).changes;
   }
 
-  async getWhiteboard(id: number): Promise<WhiteBoard> {
-    const stmt = this.db.prepare('SELECT * FROM white_boards WHERE id = ?');
+  static async getWhiteboard(db: Database.Database, id: number): Promise<WhiteBoard> {
+    const stmt = db.prepare('SELECT * FROM white_boards WHERE id = ?');
     const whiteboard = stmt.get(id);
     return this.parseWhiteboard(whiteboard);
   }
 
-  async getAllWhiteboards(): Promise<WhiteBoard[]> {
-    const stmt = this.db.prepare('SELECT * FROM white_boards');
+  static async getAllWhiteboards(db: Database.Database,): Promise<WhiteBoard[]> {
+    const stmt = db.prepare('SELECT * FROM white_boards');
     const whiteboards = stmt.all();
     return whiteboards.map(wb => this.parseWhiteboard(wb));
   }

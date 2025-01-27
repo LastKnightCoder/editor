@@ -1,39 +1,8 @@
-import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { Message, ChatMessage } from '@/types';
 
 export default class ChatMessageTable {
-  db: Database.Database;
-
-  constructor(db: Database.Database) {
-    this.db = db;
-
-    this.initTable();
-
-    console.log('init chat message table');
-
-    ipcMain.handle('create-chat-message', async (_event, params) => {
-      return await this.createChatMessage(params.messages, params.title);
-    });
-
-    ipcMain.handle('get-chat-message-by-id', async (_event, id) => {
-      return await this.getChatMessageById(id);
-    });
-
-    ipcMain.handle('update-chat-message', async (_event, params) => {
-      return await this.updateChatMessage(params);
-    });
-
-    ipcMain.handle('delete-chat-message', async (_event, id) => {
-      return await this.deleteChatMessage(id);
-    });
-
-    ipcMain.handle('get-all-chat-messages', async () => {
-      return await this.getAllChatMessages();
-    });
-  }
-
-  initTable() {
+  static initTable(db: Database.Database) {
     const createTableSql = `
       CREATE TABLE IF NOT EXISTS chat_message (
         id INTEGER PRIMARY KEY,
@@ -43,10 +12,20 @@ export default class ChatMessageTable {
         title TEXT
       )
     `;
-    this.db.exec(createTableSql);
+    db.exec(createTableSql);
   }
 
-  parseChatMessage(chatMessage: any): ChatMessage {
+  static getListenEvents() {
+    return {
+      'create-chat-message': this.createChatMessage.bind(this),
+      'update-chat-message': this.updateChatMessage.bind(this),
+      'delete-chat-message': this.deleteChatMessage.bind(this),
+      'get-chat-message-by-id': this.getChatMessageById.bind(this),
+      'get-all-chat-messages': this.getAllChatMessages.bind(this),
+    }
+  }
+
+  static parseChatMessage(chatMessage: any): ChatMessage {
     return {
       id: Number(chatMessage.id),
       createTime: chatMessage.create_time,
@@ -56,38 +35,38 @@ export default class ChatMessageTable {
     };
   }
 
-  async createChatMessage(messages: Message[], title: string): Promise<ChatMessage> {
-    const stmt = this.db.prepare(
+  static async createChatMessage(db: Database.Database, messages: Message[], title: string): Promise<ChatMessage> {
+    const stmt = db.prepare(
       'INSERT INTO chat_message (create_time, update_time, title, messages) VALUES (?, ?, ?, ?)'
     );
     const now = Date.now();
     const res = stmt.run(now, now, title, JSON.stringify(messages));
     const createdId = res.lastInsertRowid;
-    return await this.getChatMessageById(createdId);
+    return await this.getChatMessageById(db, createdId);
   }
 
-  async getChatMessageById(id: number | bigint): Promise<ChatMessage> {
-    const stmt = this.db.prepare('SELECT * FROM chat_message WHERE id = ?');
+  static async getChatMessageById(db: Database.Database, id: number | bigint): Promise<ChatMessage> {
+    const stmt = db.prepare('SELECT * FROM chat_message WHERE id = ?');
     return this.parseChatMessage(stmt.get(id));
   }
 
-  async updateChatMessage(chatMessage: Omit<ChatMessage, 'updateTime'>): Promise<ChatMessage> {
+  static async updateChatMessage(db: Database.Database, chatMessage: Omit<ChatMessage, 'updateTime'>): Promise<ChatMessage> {
     const { id, title, messages } = chatMessage;
-    const stmt = this.db.prepare(
+    const stmt = db.prepare(
       'UPDATE chat_message SET update_time = ?, title = ?, messages = ? WHERE id = ?'
     );
     const now = Date.now();
     stmt.run(now, title, JSON.stringify(messages), id);
-    return await this.getChatMessageById(id);
+    return await this.getChatMessageById(db, id);
   }
 
-  async deleteChatMessage(id: number): Promise<number> {
-    const stmt = this.db.prepare('DELETE FROM chat_message WHERE id = ?');
+  static async deleteChatMessage(db: Database.Database, id: number): Promise<number> {
+    const stmt = db.prepare('DELETE FROM chat_message WHERE id = ?');
     return stmt.run(id).changes;
   }
 
-  async getAllChatMessages(): Promise<ChatMessage[]> {
-    const stmt = this.db.prepare('SELECT * FROM chat_message');
+  static async getAllChatMessages(db: Database.Database): Promise<ChatMessage[]> {
+    const stmt = db.prepare('SELECT * FROM chat_message');
     const chatMessages = stmt.all();
     return chatMessages.map(chatMessage => this.parseChatMessage(chatMessage));
   }

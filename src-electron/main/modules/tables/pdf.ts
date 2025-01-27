@@ -1,19 +1,10 @@
-import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import { Pdf, PdfHighlight } from '@/types';
 import Operation from './operation';
 
 export default class PdfTable {
-  db: Database.Database;
-
-  constructor(db: Database.Database) {
-    this.db = db;
-    this.initTables();
-    this.initHandlers();
-  }
-
-  initTables() {
-    this.db.exec(`
+  static initTable(db: Database.Database) {
+    db.exec(`
       CREATE TABLE IF NOT EXISTS pdfs (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
@@ -27,7 +18,7 @@ export default class PdfTable {
       )
     `);
 
-    this.db.exec(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS pdf_highlights (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
@@ -47,49 +38,22 @@ export default class PdfTable {
     `);
   }
 
-  initHandlers() {
-    ipcMain.handle('create-pdf', async (_event, pdf: Omit<Pdf, 'id' | 'createTime' | 'updateTime'>) => {
-      return await this.createPdf(pdf);
-    });
-
-    ipcMain.handle('update-pdf', async (_event, pdf: Pdf) => {
-      return await this.updatePdf(pdf);
-    });
-
-    ipcMain.handle('get-pdf-by-id', async (_event, id: number) => {
-      return await this.getPdfById(id);
-    });
-
-    ipcMain.handle('get-pdf-list', async () => {
-      return await this.getPdfList();
-    });
-
-    ipcMain.handle('delete-pdf', async (_event, id: number) => {
-      return await this.removePdf(id);
-    });
-
-    ipcMain.handle('add-pdf-highlight', async (_event, highlight: Omit<PdfHighlight, 'id' | 'createTime' | 'updateTime'>) => {
-      return await this.addPdfHighlight(highlight);
-    });
-
-    ipcMain.handle('update-pdf-highlight', async (_event, highlight: PdfHighlight) => {
-      return await this.updatePdfHighlight(highlight);
-    });
-
-    ipcMain.handle('get-pdf-highlight-by-id', async (_event, id: number) => {
-      return await this.getPdfHighlightById(id);
-    });
-
-    ipcMain.handle('get-pdf-highlights', async (_event, pdfId: number) => {
-      return await this.getPdfHighlights(pdfId);
-    });
-
-    ipcMain.handle('delete-pdf-highlight', async (_event, id: number) => {
-      return await this.removePdfHighlight(id);
-    });
+  static getListenEvents() {
+    return {
+      'create-pdf': this.createPdf.bind(this),
+      'get-pdf-by-id': this.getPdfById.bind(this),
+      'get-pdf-list': this.getPdfList.bind(this),
+      'update-pdf': this.updatePdf.bind(this),
+      'delete-pdf': this.removePdf.bind(this),
+      'add-pdf-highlight': this.addPdfHighlight.bind(this),
+      'update-pdf-highlight': this.updatePdfHighlight.bind(this),
+      'get-pdf-highlight-by-id': this.getPdfHighlightById.bind(this),
+      'get-pdf-highlights': this.getPdfHighlights.bind(this),
+      'delete-pdf-highlight': this.removePdfHighlight.bind(this),
+    }
   }
 
-  parsePdf(pdf: any): Pdf {
+  static parsePdf(pdf: any): Pdf {
     return {
       ...pdf,
       tags: JSON.parse(pdf.tags || '[]'),
@@ -102,7 +66,7 @@ export default class PdfTable {
     };
   }
 
-  parsePdfHighlight(highlight: any): PdfHighlight {
+  static parsePdfHighlight(highlight: any): PdfHighlight {
     return {
       ...highlight,
       rects: JSON.parse(highlight.rects),
@@ -117,8 +81,8 @@ export default class PdfTable {
     };
   }
 
-  async createPdf(pdf: Omit<Pdf, 'id' | 'createTime' | 'updateTime'>): Promise<Pdf> {
-    const stmt = this.db.prepare(`
+  static async createPdf(db: Database.Database, pdf: Omit<Pdf, 'id' | 'createTime' | 'updateTime'>): Promise<Pdf> {
+    const stmt = db.prepare(`
       INSERT INTO pdfs 
       (tags, is_local, category, file_name, file_path, remote_url, create_time, update_time)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -135,13 +99,13 @@ export default class PdfTable {
       now
     );
 
-    Operation.insertOperation(this.db, 'pdf', 'insert', res.lastInsertRowid, now);
+    Operation.insertOperation(db, 'pdf', 'insert', res.lastInsertRowid, now);
 
-    return this.getPdfById(Number(res.lastInsertRowid));
+    return this.getPdfById(db, Number(res.lastInsertRowid));
   }
 
-  async updatePdf(pdf: Pdf): Promise<Pdf> {
-    const stmt = this.db.prepare(`
+  static async updatePdf(db: Database.Database, pdf: Pdf): Promise<Pdf> {
+    const stmt = db.prepare(`
       UPDATE pdfs SET
         tags = ?,
         is_local = ?,
@@ -163,31 +127,31 @@ export default class PdfTable {
       pdf.id
     );
 
-    Operation.insertOperation(this.db, 'pdf', 'update', pdf.id, Date.now());
+    Operation.insertOperation(db, 'pdf', 'update', pdf.id, Date.now());
 
-    return this.getPdfById(pdf.id);
+    return this.getPdfById(db, pdf.id);
   }
 
-  async getPdfById(id: number): Promise<Pdf> {
-    const stmt = this.db.prepare('SELECT * FROM pdfs WHERE id = ?');
+  static async getPdfById(db: Database.Database, id: number): Promise<Pdf> {
+    const stmt = db.prepare('SELECT * FROM pdfs WHERE id = ?');
     const pdf = stmt.get(id);
     return this.parsePdf(pdf);
   }
 
-  async getPdfList(): Promise<Pdf[]> {
-    const stmt = this.db.prepare('SELECT * FROM pdfs');
+  static async getPdfList(db: Database.Database): Promise<Pdf[]> {
+    const stmt = db.prepare('SELECT * FROM pdfs');
     const pdfs = stmt.all();
     return pdfs.map(pdf => this.parsePdf(pdf));
   }
 
-  async removePdf(id: number): Promise<number> {
-    const stmt = this.db.prepare('DELETE FROM pdfs WHERE id = ?');
-    Operation.insertOperation(this.db, 'pdf', 'delete', id, Date.now());
+  static async removePdf(db: Database.Database, id: number): Promise<number> {
+    const stmt = db.prepare('DELETE FROM pdfs WHERE id = ?');
+    Operation.insertOperation(db, 'pdf', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
-  async addPdfHighlight(highlight: Omit<PdfHighlight, 'id' | 'createTime' | 'updateTime'>): Promise<PdfHighlight> {
-    const stmt = this.db.prepare(`
+  static async addPdfHighlight(db: Database.Database, highlight: Omit<PdfHighlight, 'id' | 'createTime' | 'updateTime'>): Promise<PdfHighlight> {
+    const stmt = db.prepare(`
       INSERT INTO pdf_highlights
       (pdf_id, color, highlight_type, rects, bounding_client_rect, 
        highlight_text_style, page_num, content, image, notes, create_time, update_time)
@@ -209,13 +173,13 @@ export default class PdfTable {
       now
     );
 
-    Operation.insertOperation(this.db, 'highlight', 'insert', res.lastInsertRowid, now)
+    Operation.insertOperation(db, 'highlight', 'insert', res.lastInsertRowid, now)
 
-    return this.getPdfHighlightById(Number(res.lastInsertRowid));
+    return this.getPdfHighlightById(db, Number(res.lastInsertRowid));
   }
 
-  async updatePdfHighlight(highlight: PdfHighlight): Promise<PdfHighlight> {
-    const stmt = this.db.prepare(`
+  static async updatePdfHighlight(db: Database.Database, highlight: PdfHighlight): Promise<PdfHighlight> {
+    const stmt = db.prepare(`
       UPDATE pdf_highlights SET
         pdf_id = ?,
         color = ?,
@@ -246,26 +210,26 @@ export default class PdfTable {
       highlight.id
     );
 
-    Operation.insertOperation(this.db, 'highlight', 'update', highlight.id, now)
+    Operation.insertOperation(db, 'highlight', 'update', highlight.id, now)
 
-    return this.getPdfHighlightById(highlight.id);
+    return this.getPdfHighlightById(db, highlight.id);
   }
 
-  async getPdfHighlightById(id: number): Promise<PdfHighlight> {
-    const stmt = this.db.prepare('SELECT * FROM pdf_highlights WHERE id = ?');
+  static async getPdfHighlightById(db: Database.Database, id: number): Promise<PdfHighlight> {
+    const stmt = db.prepare('SELECT * FROM pdf_highlights WHERE id = ?');
     const highlight = stmt.get(id);
     return this.parsePdfHighlight(highlight);
   }
 
-  async getPdfHighlights(pdfId: number): Promise<PdfHighlight[]> {
-    const stmt = this.db.prepare('SELECT * FROM pdf_highlights WHERE pdf_id = ?');
+  static async getPdfHighlights(db: Database.Database, pdfId: number): Promise<PdfHighlight[]> {
+    const stmt = db.prepare('SELECT * FROM pdf_highlights WHERE pdf_id = ?');
     const highlights = stmt.all(pdfId);
     return highlights.map(highlight => this.parsePdfHighlight(highlight));
   }
 
-  async removePdfHighlight(id: number): Promise<number> {
-    const stmt = this.db.prepare('DELETE FROM pdf_highlights WHERE id = ?');
-    Operation.insertOperation(this.db, 'highlight', 'delete', id, Date.now());
+  static async removePdfHighlight(db: Database.Database, id: number): Promise<number> {
+    const stmt = db.prepare('DELETE FROM pdf_highlights WHERE id = ?');
+    Operation.insertOperation(db, 'highlight', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 }

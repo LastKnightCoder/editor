@@ -1,4 +1,3 @@
-import { ipcMain } from 'electron';
 import Database from 'better-sqlite3';
 import {
   IDocument,
@@ -11,16 +10,8 @@ import {
 import Operation from './operation';
 
 export default class DocumentTable {
-  db: Database.Database;
-
-  constructor(db: Database.Database) {
-    this.db = db;
-    this.initTables();
-    this.initHandlers();
-  }
-
-  initTables() {
-    this.db.exec(`
+  static initTable(db: Database.Database) {
+    db.exec(`
       CREATE TABLE IF NOT EXISTS documents (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
@@ -39,7 +30,7 @@ export default class DocumentTable {
       )
     `);
 
-    this.db.exec(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS document_items (
         id INTEGER PRIMARY KEY NOT NULL,
         create_time INTEGER NOT NULL,
@@ -62,71 +53,27 @@ export default class DocumentTable {
     `);
   }
 
-  initHandlers() {
-    ipcMain.handle('create-document', async (_event, params: ICreateDocument) => {
-      return await this.createDocument(params);
-    });
-
-    ipcMain.handle('update-document', async (_event, params: IUpdateDocument) => {
-      return await this.updateDocument(params);
-    });
-
-    ipcMain.handle('delete-document', async (_event, id: number) => {
-      return await this.deleteDocument(id);
-    });
-
-    ipcMain.handle('get-document', async (_event, id: number) => {
-      return await this.getDocument(id);
-    });
-
-    ipcMain.handle('get-all-documents', async () => {
-      return await this.getAllDocuments();
-    });
-
-    // Document item handlers
-    ipcMain.handle('create-document-item', async (_event, params: ICreateDocumentItem) => {
-      return await this.createDocumentItem(params);
-    });
-
-    ipcMain.handle('update-document-item', async (_event, params: IUpdateDocumentItem) => {
-      return await this.updateDocumentItem(params);
-    });
-
-    ipcMain.handle('delete-document-item', async (_event, id: number) => {
-      return await this.deleteDocumentItem(id);
-    });
-
-    ipcMain.handle('get-document-item', async (_event, id: number) => {
-      return await this.getDocumentItem(id);
-    });
-
-    ipcMain.handle('get-document-items-by-ids', async (_event, ids: number[]) => {
-      return await this.getDocumentItemsByIds(ids);
-    });
-
-    ipcMain.handle('get-all-document-items', async () => {
-      return await this.getAllDocumentItems();
-    });
-
-    // Relationship handlers
-    ipcMain.handle('is-document-item-child-of', async (_event, id: number, parentId: number) => {
-      return await this.isDocumentItemChildOf(id, parentId);
-    });
-
-    ipcMain.handle('init-document-item-parents', async () => {
-      return await this.initAllDocumentItemParents();
-    });
-
-    ipcMain.handle('init-document-item-parents-by-ids', async (_event, ids: number[]) => {
-      return await this.initDocumentItemParentsByIds(ids);
-    })
-
-    ipcMain.handle('get-document-item-all-parents', async (_event, id: number) => {
-      return await this.getDocumentItemAllParents(id);
-    });
+  static getListenEvents() {
+    return {
+      'create-document': this.createDocument.bind(this),
+      'update-document': this.updateDocument.bind(this),
+      'delete-document': this.deleteDocument.bind(this),
+      'get-document': this.getDocument.bind(this),
+      'get-all-documents': this.getAllDocuments.bind(this),
+      'create-document-item': this.createDocumentItem.bind(this),
+      'update-document-item': this.updateDocumentItem.bind(this),
+      'delete-document-item': this.deleteDocumentItem.bind(this),
+      'get-document-item': this.getDocumentItem.bind(this),
+      'get-document-items-by-ids': this.getDocumentItemsByIds.bind(this),
+      'get-all-document-items': this.getAllDocumentItems.bind(this),
+      'is-document-item-child-of': this.isDocumentItemChildOf.bind(this),
+      'init-document-item-parents': this.initAllDocumentItemParents.bind(this),
+      'init-document-item-parents-by-ids': this.initDocumentItemParentsByIds.bind(this),
+      'get-document-item-all-parents': this.getDocumentItemAllParents.bind(this),
+    }
   }
 
-  parseDocument(document: any): IDocument {
+  static parseDocument(document: any): IDocument {
     return {
       ...document,
       authors: JSON.parse(document.authors || '[]'),
@@ -142,7 +89,7 @@ export default class DocumentTable {
     };
   }
 
-  parseDocumentItem(item: any): IDocumentItem {
+  static parseDocumentItem(item: any): IDocumentItem {
     return {
       ...item,
       content: JSON.parse(item.content),
@@ -160,8 +107,8 @@ export default class DocumentTable {
     };
   }
 
-  async createDocument(document: ICreateDocument): Promise<IDocument> {
-    const stmt = this.db.prepare(`
+  static async createDocument(db: Database.Database, document: ICreateDocument): Promise<IDocument> {
+    const stmt = db.prepare(`
       INSERT INTO documents
       (title, desc, authors, children, tags, links, content, create_time, update_time, banner_bg, icon, is_top, is_delete)
       VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -183,13 +130,13 @@ export default class DocumentTable {
       Number(document.isDelete)
     );
 
-    Operation.insertOperation(this.db, 'document', 'insert', res.lastInsertRowid, now);
+    Operation.insertOperation(db, 'document', 'insert', res.lastInsertRowid, now);
 
-    return this.getDocument(Number(res.lastInsertRowid));
+    return this.getDocument(db, Number(res.lastInsertRowid));
   }
 
-  async updateDocument(document: IUpdateDocument): Promise<IDocument> {
-    const stmt = this.db.prepare(`
+  static async updateDocument(db: Database.Database, document: IUpdateDocument): Promise<IDocument> {
+    const stmt = db.prepare(`
       UPDATE documents SET
         title = ?,
         desc = ?,
@@ -224,21 +171,21 @@ export default class DocumentTable {
     );
 
     Operation.insertOperation(
-      this.db,
+      db,
       'document',
       'update',
       document.id,
       now,
     );
 
-    return this.getDocument(document.id);
+    return this.getDocument(db, document.id);
   }
 
-  async deleteDocument(id: number): Promise<number> {
-    const stmt = this.db.prepare('DELETE FROM documents WHERE id = ?');
+  static async deleteDocument(db: Database.Database, id: number): Promise<number> {
+    const stmt = db.prepare('DELETE FROM documents WHERE id = ?');
 
     Operation.insertOperation(
-      this.db,
+      db,
       'document',
       'delete',
       id,
@@ -248,20 +195,20 @@ export default class DocumentTable {
     return stmt.run(id).changes;
   }
 
-  async getDocument(id: number): Promise<IDocument> {
-    const stmt = this.db.prepare('SELECT * FROM documents WHERE id = ?');
+  static async getDocument(db: Database.Database, id: number): Promise<IDocument> {
+    const stmt = db.prepare('SELECT * FROM documents WHERE id = ?');
     const document = stmt.get(id);
     return this.parseDocument(document);
   }
 
-  async getAllDocuments(): Promise<IDocument[]> {
-    const stmt = this.db.prepare('SELECT * FROM documents');
+  static async getAllDocuments(db: Database.Database): Promise<IDocument[]> {
+    const stmt = db.prepare('SELECT * FROM documents');
     const documents = stmt.all();
     return documents.map(doc => this.parseDocument(doc));
   }
 
-  async createDocumentItem(item: ICreateDocumentItem): Promise<IDocumentItem> {
-    const stmt = this.db.prepare(`
+  static async createDocumentItem(db: Database.Database, item: ICreateDocumentItem): Promise<IDocumentItem> {
+    const stmt = db.prepare(`
       INSERT INTO document_items
       (create_time, update_time, title, authors, tags, is_directory, 
       children, is_article, article_id, is_card, card_id, 
@@ -289,18 +236,18 @@ export default class DocumentTable {
     );
 
     Operation.insertOperation(
-      this.db,
+      db,
       'document-item',
       'insert',
       Number(res.lastInsertRowid),
       Date.now(),
     );
 
-    return this.getDocumentItem(Number(res.lastInsertRowid));
+    return this.getDocumentItem(db, Number(res.lastInsertRowid));
   }
 
-  async updateDocumentItem(item: IUpdateDocumentItem): Promise<IDocumentItem> {
-    const stmt = this.db.prepare(`
+  static async updateDocumentItem(db: Database.Database, item: IUpdateDocumentItem): Promise<IDocumentItem> {
+    const stmt = db.prepare(`
       UPDATE document_items SET
         update_time = ?,
         title = ?,
@@ -339,47 +286,47 @@ export default class DocumentTable {
       item.id
     );
 
-    Operation.insertOperation(this.db, 'document-item', 'update', item.id, now);
+    Operation.insertOperation(db, 'document-item', 'update', item.id, now);
 
     if (item.isCard) {
-      const cardStmt = this.db.prepare(
+      const cardStmt = db.prepare(
         `UPDATE cards SET content = ?, update_time = ? WHERE id = ?`
       );
       cardStmt.run(JSON.stringify(item.content), now, item.cardId);
     }
 
     if (item.isArticle) {
-      const articleStmt = this.db.prepare(
+      const articleStmt = db.prepare(
         `UPDATE articles SET content = ?, update_time = ? WHERE id = ?`
       );
       articleStmt.run(JSON.stringify(item.content), now, item.articleId);
     }
 
-    return this.getDocumentItem(item.id);
+    return this.getDocumentItem(db, item.id);
   }
 
-  async deleteDocumentItem(id: number): Promise<number> {
-    const stmt = this.db.prepare('DELETE FROM document_items WHERE id = ?');
-    Operation.insertOperation(this.db, 'document-item', 'delete', id, Date.now());
+  static async deleteDocumentItem(db: Database.Database, id: number): Promise<number> {
+    const stmt = db.prepare('DELETE FROM document_items WHERE id = ?');
+    Operation.insertOperation(db, 'document-item', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
-  async getDocumentItem(id: number): Promise<IDocumentItem> {
-    const stmt = this.db.prepare('SELECT * FROM document_items WHERE id = ?');
+  static async getDocumentItem(db: Database.Database, id: number): Promise<IDocumentItem> {
+    const stmt = db.prepare('SELECT * FROM document_items WHERE id = ?');
     const item = stmt.get(id);
     return this.parseDocumentItem(item);
   }
 
-  async getDocumentItemsByIds(ids: number[]): Promise<IDocumentItem[]> {
+  static async getDocumentItemsByIds(db: Database.Database, ids: number[]): Promise<IDocumentItem[]> {
     const res: IDocumentItem[] = [];
     for (const id of ids) {
-      res.push(await this.getDocumentItem(id));
+      res.push(await this.getDocumentItem(db, id));
     }
     return res;
   }
 
-  async getAllDocumentItems(): Promise<IDocumentItem[]> {
-    const stmt = this.db.prepare('SELECT * FROM document_items');
+  static async getAllDocumentItems(db: Database.Database): Promise<IDocumentItem[]> {
+    const stmt = db.prepare('SELECT * FROM document_items');
     const items = stmt.all();
     return items.map(item => this.parseDocumentItem(item));
   }
@@ -389,8 +336,8 @@ export default class DocumentTable {
   // 思路：先判断 root_id 是否是 child_id 的父节点，如果是，则返回 true，
   // 如果不是，则继续查询 root_id 的 children 是不是 child_id 的父节点，如果是，则返回 true，
   // 如果不是，则继续查询 root_id 的 children 的 children 是不是 child_id 的父节点，以此类推
-  async isDocumentItemChildOf(id: number, parentId: number): Promise<boolean> {
-    const parentDocumentItem = await this.getDocumentItem(parentId);
+  static async isDocumentItemChildOf(db: Database.Database, id: number, parentId: number): Promise<boolean> {
+    const parentDocumentItem = await this.getDocumentItem(db, parentId);
     if (parentDocumentItem.children.includes(id)) {
       return true;
     }
@@ -399,7 +346,7 @@ export default class DocumentTable {
     while (children.length > 0 && count < 10) {
       const newChildren = [];
       for (const childId of children) {
-        const childDocumentItem = await this.getDocumentItem(childId);
+        const childDocumentItem = await this.getDocumentItem(db, childId);
         if (childDocumentItem.children.includes(id)) {
           return true;
         }
@@ -413,8 +360,8 @@ export default class DocumentTable {
 
   // 首先获取所有的文档项，对于每一个文档项，判断是否有某个文档项的 children 包含该文档项的 id，
   // 如果有，则将该文档添加到这个文档的 parents 中
-  async initAllDocumentItemParents(): Promise<void> {
-    let documentItems = await this.getAllDocumentItems();
+  static async initAllDocumentItemParents(db: Database.Database): Promise<void> {
+    let documentItems = await this.getAllDocumentItems(db);
     // 过滤掉已经删除掉的
     documentItems = documentItems.filter((documentItem) => !documentItem.isDelete);
 
@@ -427,15 +374,15 @@ export default class DocumentTable {
           parents.push(documentItem2.id);
         }
       }
-      const stmt = this.db.prepare(`UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`);
+      const stmt = db.prepare(`UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`);
       stmt.run(now, JSON.stringify(parents), documentItem.id);
-      Operation.insertOperation(this.db, 'document-item', 'init-parents', documentItem.id, now)
+      Operation.insertOperation(db, 'document-item', 'init-parents', documentItem.id, now)
     }
 
   }
 
-  async initDocumentItemParentsByIds(ids: number[]): Promise<void> {
-    let documentItems = await this.getAllDocumentItems();
+  static async initDocumentItemParentsByIds(db: Database.Database, ids: number[]): Promise<void> {
+    let documentItems = await this.getAllDocumentItems(db);
     // 过滤掉已经删除掉的
     documentItems = documentItems.filter((documentItem) => !documentItem.isDelete);
 
@@ -447,19 +394,19 @@ export default class DocumentTable {
           parents.push(documentItem.id);
         }
       }
-      const stmt = this.db.prepare(`UPDATE document_item SET update_time = ?, parents = ? WHERE id = ?`);
+      const stmt = db.prepare(`UPDATE document_item SET update_time = ?, parents = ? WHERE id = ?`);
       stmt.run(now, JSON.stringify(parents), id);
-      Operation.insertOperation(this.db, 'document-item', 'init-parents', id, now);
+      Operation.insertOperation(db, 'document-item', 'init-parents', id, now);
     }
   }
 
-  async getDocumentItemAllParents(id: number): Promise<number[]> {
-    const documentItem = await this.getDocumentItem(id);
+  static async getDocumentItemAllParents(db: Database.Database, id: number): Promise<number[]> {
+    const documentItem = await this.getDocumentItem(db, id);
     const parents = documentItem.parents;
     const parentsSet = new Set(parents);
     if (parents.length > 0) {
       for (const parent of parents) {
-        const parentParents = await this.getDocumentItemAllParents(parent);
+        const parentParents = await this.getDocumentItemAllParents(db, parent);
         for (const parentParent of parentParents) {
           parentsSet.add(parentParent);
         }

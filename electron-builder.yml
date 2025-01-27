@@ -1,5 +1,5 @@
 appId: "com.notes.app"
-productName: "notes"
+productName: "Notes"
 copyright: "Copyright © 2025 ${author}"
 # 使用 asar 打包，会导致某些原生模块（如 .dylib 文件）无法正确加载
 # AI 建议把这些 dylib 文件打包到 app.asar.unpacked 文件夹下
@@ -27,7 +27,7 @@ nsis:
   installerIcon: "build/icon.ico"
   uninstallerIcon: "build/icon.ico"
   uninstallDisplayName: "notes"
-  shortcutName: "notes"
+  shortcutName: "Notes"
 
 
 win:
