@@ -92,6 +92,8 @@ export default class DocumentTable {
   static parseDocumentItem(item: any): IDocumentItem {
     return {
       ...item,
+      authors: JSON.parse('[]'),
+      tags: JSON.parse('[]'),
       content: JSON.parse(item.content),
       children: JSON.parse(item.children || '[]'),
       parents: JSON.parse(item.parents || '[]'),
