@@ -18,7 +18,7 @@ import {
   ARROW_CONNECT_POINT_RADIUS,
 } from '../../constants';
 import { remoteResourceToLocal } from '@/utils';
-import { convertFileSrc } from '@tauri-apps/api/tauri';
+import { convertFileSrc } from '@/commands';
 
 interface ImageElementProps {
   element: ImageElement;

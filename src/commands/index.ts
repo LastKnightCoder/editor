@@ -19,3 +19,5 @@ export * from './chat-message.ts';
 export * from './stream-fetch.ts';
 export * from './embedding.ts';
 export * from './vec-document.ts';
+export * from './extra.ts';
+export * from './window.ts';

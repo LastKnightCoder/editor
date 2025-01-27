@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, protocol, net, ipcMain } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,8 @@ import settingModule from './modules/setting';
 import llmModule from './modules/llm';
 import streamFetchModule from './modules/stream-fetch';
 import aliOssModule from './modules/ali-oss';
+import fileModule from './modules/file';
+import extraModule from './modules/extra';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,12 +59,20 @@ const initModules = async () => {
     llmModule.init(),
     streamFetchModule.init(),
     aliOssModule.init(),
+    fileModule.init(),
+    extraModule.init(),
   ]).catch(e => {
     console.error(e);
   });
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle('set-always-on-top', (event, flag) => {
+    const sender = event.sender;
+    const window = BrowserWindow.fromWebContents(sender);
+    window?.setAlwaysOnTop(flag);
+  });
+
   initModules().then(() => {
     createWindow();
     app.on('activate', () => {
@@ -70,7 +80,12 @@ app.whenReady().then(() => {
         createWindow();
       }
     })
-  })
+  });
+  protocol.handle('ltoh', (req) => {
+    console.log(req);
+    const url = new URL(req.url);
+    return net.fetch('file://' + url.pathname);
+  });
 });
 
 app.on('window-all-closed', () => {

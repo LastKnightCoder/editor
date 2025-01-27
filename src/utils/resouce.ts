@@ -1,7 +1,14 @@
-import { fetch, ResponseType } from '@tauri-apps/api/http';
-import { basename, sep } from "@tauri-apps/api/path";
-import { createDir, exists, readTextFile, writeBinaryFile, writeTextFile } from '@tauri-apps/api/fs';
-import { getEditorDir } from '@/commands';
+import {
+  getEditorDir,
+  createDir,
+  pathExists,
+  writeBinaryFile,
+  writeTextFile,
+  readTextFile,
+  getFileBaseName,
+  getSep,
+  nodeFetch
+} from '@/commands';
 
 // 将远程资源下载到本地
 // 先查看是否已经下载过，如果没有则下载
@@ -11,7 +18,7 @@ const REMOTE_RESOURCE_PATH = 'remote-resources';
 const LOCAL_RESOURCE_PATH = 'resources';
 export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!fileName) {
-    fileName = await basename(url);
+    fileName = await getFileBaseName(url);
     if (url.includes('mmbiz.qpic.cn')) {
       try {
         const urlObj = new URL(url);
@@ -24,9 +31,10 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
       }
     }
   }
+  const sep = await getSep();
   const configDirPath = await getEditorDir();
   const configPath = configDirPath + sep + REMOTE_RESOURCE_CONFIG_NAME;
-  const isExist = await exists(configPath);
+  const isExist = await pathExists(configPath);
   if (!isExist) {
     // 創建文件
     await writeTextFile(configPath, JSON.stringify({}));
@@ -37,17 +45,19 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     return configObj[url];
   }
   const resourceDirPath = configDirPath + sep + REMOTE_RESOURCE_PATH;
-  if (!await exists(resourceDirPath)) {
+  if (!await pathExists(resourceDirPath)) {
     await createDir(resourceDirPath);
   }
-  const remoteContent = await fetch(url, {
+  const remoteContent = await nodeFetch(url, {
     method: "GET",
-    responseType: ResponseType.Binary,
+    responseType: 'arraybuffer',
     headers: url.startsWith('https://mmbiz.qpic.cn') ? {
       'Origin': 'https://mp.weixin.qq.com',
       'Referer': 'https://mp.weixin.qq.com/'
     } : undefined
-  }).then(res => res.data) as unknown as ArrayBuffer;
+  }) as unknown as ArrayBuffer;
+
+  console.log('node-fetch', remoteContent);
 
   const resourcePath = resourceDirPath + sep + fileName;
   await writeBinaryFile(resourcePath, new Uint8Array(remoteContent));
@@ -58,8 +68,9 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
 
 export const copyFileToLocal = async (file: File, fileName = file.name) => {
   const editorPath = await getEditorDir();
+  const sep = await getSep();
   const resourceDirPath = editorPath + sep + LOCAL_RESOURCE_PATH
-  if (!await exists(resourceDirPath)) {
+  if (!await pathExists(resourceDirPath)) {
     await createDir(resourceDirPath);
   }
   const resourcePath = resourceDirPath + sep + fileName;

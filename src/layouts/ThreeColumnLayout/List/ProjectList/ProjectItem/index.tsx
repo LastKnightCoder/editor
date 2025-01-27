@@ -3,7 +3,7 @@ import classnames from 'classnames';
 import { useMemoizedFn } from "ahooks";
 import { App, Dropdown, Input, MenuProps, message, Modal, Tooltip } from 'antd';
 import { produce } from "immer";
-import { fetch, ResponseType } from '@tauri-apps/api/http';
+import { nodeFetch } from '@/commands';
 
 import useProjectsStore from "@/stores/useProjectsStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
@@ -463,8 +463,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             duration: 0
           });
 
-          const res = await fetch(webClip, {
-            responseType: ResponseType.Text,
+          const res = await nodeFetch(webClip, {
             method: "GET"
           });
           message.destroy('fetch-html');

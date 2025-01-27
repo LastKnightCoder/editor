@@ -1,27 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { useAsyncEffect, useMemoizedFn } from "ahooks";
+import React, { useState } from 'react';
 import classnames from "classnames";
 
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
-import If from "@/components/If";
 import FocusMode from '../FocusMode';
 import SelectDatabase from "@/components/SelectDatabase";
-import SVG from 'react-inlinesvg';
 import { Flex, Popover, Tooltip } from "antd";
 
-import { MinusOutlined, CloseOutlined, PushpinOutlined } from '@ant-design/icons';
+import { PushpinOutlined } from '@ant-design/icons';
 import { TbColumns3, TbColumns2, TbColumns1 } from "react-icons/tb";
-import maxMax from '@/assets/window-control/max-max.svg';
-import maxMin from '@/assets/window-control/max-min.svg';
-
-import { appWindow } from '@tauri-apps/api/window'
-import { type } from '@tauri-apps/api/os'
-import { UnlistenFn } from "@tauri-apps/api/event";
 
 import styles from './index.module.less';
 import { FiSidebar } from "react-icons/fi";
 import useTheme from "@/hooks/useTheme.ts";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
+import { setAlwaysOnTop as setTop } from '@/commands';
 
 interface IWindowControlProps {
   className?: string;
@@ -39,7 +31,6 @@ const WindowControl = (props: IWindowControlProps) => {
   const {
     className,
     style,
-    notShowFullscreen = false,
     initAlwaysOnTop = false,
     showColumns = false,
     showSelectDatabase = false,
@@ -50,7 +41,6 @@ const WindowControl = (props: IWindowControlProps) => {
 
   const { isDark } = useTheme();
 
-  const [isMaximizable, setIsMaximizable] = useState<boolean>(false);
   const [alwaysOnTop, setAlwaysOnTop] = useState<boolean>(initAlwaysOnTop);
 
   const { listOpen, sidebarOpen } = useGlobalStateStore(state => ({
@@ -77,65 +67,9 @@ const WindowControl = (props: IWindowControlProps) => {
     }
   }
 
-  useAsyncEffect(async () => {
-    const osType = await type();
-    const isMac = osType === 'Darwin';
-    if (isMac) {
-      const root = document.getElementById('root');
-      if (!root) return;
-      root.classList.add('mac');
-    }
-  }, []);
-
-  const updateIsWindowMaximized = useMemoizedFn(async () => {
-    const isWindowMaximized = await appWindow.isMaximized();
-    const root = document.getElementById('root');
-    if (!root) return;
-    if (isWindowMaximized) {
-      root.classList.add('maximized');
-      setIsMaximizable(true);
-    } else {
-      root.classList.remove('maximized');
-      setIsMaximizable(false);
-    }
-  });
-
-  useEffect( () => {
-    let unlisten: UnlistenFn | undefined;
-
-    type().then((osType) => {
-      if (osType !== 'Windows_NT') return;
-      appWindow.onResized(() => {
-        updateIsWindowMaximized().then();
-      }).then((unlistenFn) => {
-        unlisten = unlistenFn;
-      });
-    });
-
-    return () => unlisten && unlisten();
-  }, [updateIsWindowMaximized]);
-
-  const minimize = async () => {
-    await appWindow.minimize();
-  }
-
-  const toggleMaximizable = async () => {
-    const isMaximized = await appWindow.isMaximized();
-    if (isMaximized) {
-      await appWindow.unmaximize();
-    } else {
-      await appWindow.maximize();
-    }
-    setIsMaximizable(!isMaximized);
-  }
-
   const toggleAlwaysOnTop = async () => {
     setAlwaysOnTop(!alwaysOnTop);
-    await appWindow.setAlwaysOnTop(!alwaysOnTop);
-  }
-
-  const close = async () => {
-    await appWindow.close();
+    await setTop(!alwaysOnTop);
   }
 
   return (
@@ -265,19 +199,6 @@ const WindowControl = (props: IWindowControlProps) => {
           </div>
         )
       }
-      <div className={styles.item} onClick={minimize}>
-        <MinusOutlined/>
-      </div>
-      <If condition={!notShowFullscreen}>
-        <div className={styles.item} onClick={toggleMaximizable}>
-          {
-            isMaximizable ? <SVG src={maxMin} style={{ width: '1.6em', height: '1.6em' }}/> : <SVG src={maxMax}/>
-          }
-        </div>
-      </If>
-      <div className={styles.item} onClick={close}>
-        <CloseOutlined/>
-      </div>
     </div>
   )
 }

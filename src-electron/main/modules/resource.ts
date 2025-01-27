@@ -21,8 +21,8 @@ class ResourceModule implements Module {
       this.showInFolder(path);
     });
 
-    ipcMain.handle('select-file', async () => {
-      return this.selectFile();
+    ipcMain.handle('select-file', async (_, options) => {
+      return this.selectFile(options);
     });
 
     ipcMain.handle('get-file-basename', async (_, filePath: string) => {
@@ -45,11 +45,10 @@ class ResourceModule implements Module {
     }
   }
 
-  selectFile() {
+  selectFile(options = { properties: ['openFile'] }) {
     return new Promise((resolve, reject) => {
-      dialog.showOpenDialog({
-        properties: ['openFile'],
-      }).then((result) => {
+      // @ts-ignore
+      dialog.showOpenDialog(options).then((result) => {
         if (result.canceled) {
           reject(new Error('User canceled file selection'));
         } else {

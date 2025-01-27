@@ -79,6 +79,11 @@ class DatabaseModule implements Module {
         database.close();
         this.databases.delete(name);
       }
+    });
+
+    ipcMain.handle('get-database-path', (_, name) => {
+      const appDir = PathUtil.getAppDir();
+      return join(appDir, this.formatDatabaseName(name));
     })
   }
 }

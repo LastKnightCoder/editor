@@ -1,7 +1,6 @@
 import { EventEmitter } from 'node:events';
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
-import { event } from '@tauri-apps/api';
 
 interface StreamResponse {
   requestId: number;
