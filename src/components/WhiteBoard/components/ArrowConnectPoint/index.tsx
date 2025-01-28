@@ -164,7 +164,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
       if (!boardContainer) return;
       boardContainer.removeEventListener('pointermove', handlePointerMove);
     }
-  }, [handlePointerMove]);
+  }, [board, handlePointerMove]);
 
   return (
     <circle

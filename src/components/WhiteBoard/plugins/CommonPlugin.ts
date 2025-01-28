@@ -46,6 +46,12 @@ export abstract class CommonPlugin implements IBoardPlugin {
         x: x + width,
         y: y + 0.5 * height
       }
+    }, {
+      connectId: 'center',
+      point: {
+        x: x + 0.5 * width,
+        y: y + 0.5 * height
+      }
     }]
   }
 
@@ -78,6 +84,12 @@ export abstract class CommonPlugin implements IBoardPlugin {
         x: x + width + extend,
         y: y + 0.5 * height
       }
+    }, {
+      connectId: 'center',
+      point: {
+        x: x + 0.5 * width,
+        y: y + 0.5 * height
+      }
     }]
   }
 
@@ -103,6 +115,11 @@ export abstract class CommonPlugin implements IBoardPlugin {
       return {
         x: x + 0.5 * width,
         y: y + height
+      }
+    } else if (connectId === 'center') {
+      return {
+        x: x + 0.5 * width,
+        y: y + 0.5 * height
       }
     }
 
