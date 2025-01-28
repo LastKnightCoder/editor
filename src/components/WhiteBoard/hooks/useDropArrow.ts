@@ -28,10 +28,10 @@ export const useDropArrow = (element: CommonElement & any) => {
       height: height + 2 * extend
     }
 
-    const isInBox = 
-      currentPoint.x >= extendBox.x && 
-      currentPoint.x <= extendBox.x + extendBox.width && 
-      currentPoint.y >= extendBox.y && 
+    const isInBox =
+      currentPoint.x >= extendBox.x &&
+      currentPoint.x <= extendBox.x + extendBox.width &&
+      currentPoint.y >= extendBox.y &&
       currentPoint.y <= extendBox.y + extendBox.height;
     setIsMoveArrowClosing(isInBox);
     if (isInBox) {
@@ -57,7 +57,7 @@ export const useDropArrow = (element: CommonElement & any) => {
     if (!isMoveArrowClosing || id !== elementId) {
       setActiveConnectId('');
       return;
-    };
+    }
     setActiveConnectId(connectId);
   })
 

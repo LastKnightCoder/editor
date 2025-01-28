@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useSyncExternalStore } from "react";
+import { memo, useMemo, useEffect, useRef, useSyncExternalStore } from "react";
 import { useMemoizedFn, useCreation } from "ahooks";
 import classnames from 'classnames';
 
@@ -78,6 +78,19 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   
   const { children, viewPort, selection } = useSyncExternalStore(board.subscribe, board.getSnapshot);
   const { minX, minY, width, height } = viewPort;
+
+  const [centerConnectArrows, noneCenterConnectArrows] = useMemo(() => {
+    const isCenterConnectAndNotSelected = (element: BoardElement) => {
+      const isCenterConnectArrow = element.type === 'arrow' && (element.source?.connectId === 'center' || element.target?.connectId === 'center');
+      const isSelected = selection.selectedElements.some((selectedElement) => selectedElement.id === element.id);
+      return isCenterConnectArrow && !isSelected;
+    }
+
+    const centerConnectArrows = children.filter(isCenterConnectAndNotSelected);
+    const noneCenterConnectArrows = children.filter((element) => !isCenterConnectAndNotSelected(element));
+
+    return [centerConnectArrows, noneCenterConnectArrows];
+  }, [children, selection]);
 
   useEffect(() => {
     const handleChange = () => {
@@ -222,7 +235,10 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 </marker>
               </defs>
               <g>
-                {board.renderElements(children)}
+                {board.renderElements(centerConnectArrows)}
+              </g>
+              <g>
+                {board.renderElements(noneCenterConnectArrows)}
               </g>
               <g>
                 <SelectArea />
