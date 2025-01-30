@@ -41,7 +41,6 @@ const useDocumentsStore = create<IState & IActions>((set, get) => ({
     });
     const documents = await getAllDocuments();
     set({ documents, loading: false });
-    console.log('documents', documents);
   },
   createDocument: async (document) => {
     const res = await createDocument(document);

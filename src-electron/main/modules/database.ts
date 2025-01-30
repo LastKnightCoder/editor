@@ -90,8 +90,6 @@ class DatabaseModule implements Module {
         this.tables.forEach((table) => {
           table.initTable(database!);
         });
-
-
       }
       const sender = event.sender;
       const win = BrowserWindow.fromWebContents(sender);

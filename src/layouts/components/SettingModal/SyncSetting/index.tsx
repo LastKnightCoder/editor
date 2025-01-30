@@ -38,7 +38,7 @@ const SyncSetting = () => {
     if (!originDatabaseInfo) return;
     const { databaseInfo = {} } = originDatabaseInfo;
     // @ts-ignore
-    const originVersion = Number(databaseInfo.version);
+    const originVersion = Number(databaseInfo.version) || 0;
     setRemoteVersion(originVersion);
   }, [accessKeyId, accessKeySecret, bucket, region])
 
@@ -46,9 +46,11 @@ const SyncSetting = () => {
     if (isSyncing) return;
     setIsSyncing(true);
     try {
-      await upload();
-      setRemoteVersion(currentVersion + 1);
-      message.success('同步成功');
+      const res = await upload();
+      if (res) {
+        setRemoteVersion(currentVersion + 1);
+        message.success('同步成功');
+      }
     } catch (error) {
       message.error('同步失败' + error);
     } finally {

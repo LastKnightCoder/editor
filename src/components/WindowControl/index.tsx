@@ -179,7 +179,7 @@ const WindowControl = (props: IWindowControlProps) => {
       <Tooltip
         title={alwaysOnTop ? '取消置顶' : '置顶'}
       >
-      <div className={classnames(styles.item)} onClick={toggleAlwaysOnTop}>
+        <div className={classnames(styles.item)} onClick={toggleAlwaysOnTop}>
           <PushpinOutlined className={classnames(styles.pin, { [styles.onTop]: alwaysOnTop })}/>
         </div>
       </Tooltip>

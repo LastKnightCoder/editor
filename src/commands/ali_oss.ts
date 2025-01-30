@@ -1,4 +1,3 @@
-import Oss from 'ali-oss'
 import { invoke } from '@/electron';
 
 export const getBucketList = async (keyId: string, keySecret: string): Promise<Array<{
@@ -21,15 +20,7 @@ interface IPutObject {
 }
 
 export const putObject = async (putObj: IPutObject): Promise<string> => {
-  const { accessKeyId, accessKeySecret, bucket, region, objectName, file } = putObj;
-  const oss = new Oss({
-    accessKeyId,
-    accessKeySecret,
-    bucket,
-    region,
-  });
-  const result = await oss.put(objectName, file);
-  return result.url;
+  return invoke('put-object', putObj);
 }
 
 interface IGetObject {
@@ -41,60 +32,17 @@ interface IGetObject {
 }
 
 export const getObject = async (objInfo: IGetObject) => {
-  const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
-  const oss = new Oss({
-    accessKeyId,
-    accessKeySecret,
-    bucket,
-    region,
-  });
-  return await oss.get(objectName);
+  return invoke('get-object', objInfo);
 }
 
 export const isObjectExist = async (objInfo: IGetObject) => {
-  const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
-  const oss = new Oss({
-    accessKeyId,
-    accessKeySecret,
-    bucket,
-    region,
-  });
-  try {
-    await oss.head(objectName);
-    return true;
-  } catch (e) {
-    return false;
-  }
+  return invoke('is-object-exist', objInfo);
 }
 
-export const updateObject = async (objInfo: IGetObject, content: Blob) => {
-  const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
-  const oss = new Oss({
-    accessKeyId,
-    accessKeySecret,
-    bucket,
-    region,
-  });
-  const headers = {
-    'x-oss-storage-class': 'Standard',
-    'x-oss-object-acl': 'private',
-    'x-oss-forbid-overwrite': 'false',
-  }
-  return await oss.put(objectName, content, { headers });
+export const updateObject = async (objInfo: IGetObject, content: Uint8Array) => {
+  return invoke('update-object', objInfo, content);
 }
 
-export const createObject = async (objInfo: IGetObject, content: Blob) => {
-  const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
-  const oss = new Oss({
-    accessKeyId,
-    accessKeySecret,
-    bucket,
-    region,
-  });
-  const headers = {
-    'x-oss-storage-class': 'Standard',
-    'x-oss-object-acl': 'private',
-    'x-oss-forbid-overwrite': 'true',
-  }
-  return await oss.put(objectName, content, { headers });
+export const createObject = async (objInfo: IGetObject, content: Uint8Array) => {
+  return invoke('create-object', objInfo, content);
 }

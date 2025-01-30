@@ -8,7 +8,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import useCardManagement from "@/hooks/useCardManagement.ts";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
-import { Empty } from "antd";
+import { Empty, Tag } from "antd";
 import styles from './index.module.less';
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import { VecDocument } from "@/types";
@@ -17,6 +17,7 @@ import { LoadingOutlined, SearchOutlined } from "@ant-design/icons";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import If from "@/components/If";
 import For from "@/components/For";
+import useArticleManagementStore from "@/stores/useArticleManagementStore";
 
 const AISearch = memo(() => {
   const { isDark } = useTheme();
@@ -31,6 +32,11 @@ const AISearch = memo(() => {
     cards
   } = useCardsManagementStore(state => ({
     cards: state.cards
+  }));
+  const {
+    articles
+  } = useArticleManagementStore(state => ({
+    articles: state.articles
   }));
 
   const {
@@ -83,7 +89,7 @@ const AISearch = memo(() => {
   }, [open]);
 
   const uniqueSearchResult = searchResult.reduce((acc, cur) => {
-    if (!acc.find(item => item[0].refId === cur[0].refId)) {
+    if (!acc.find(item => item[0].refId === cur[0].refId && item[0].refType === cur[0].refType)) {
       acc.push(cur);
     }
     return acc;
@@ -137,25 +143,42 @@ const AISearch = memo(() => {
               <div className={styles.list}>
                 <For
                   data={uniqueSearchResult}
-                  renderItem={res => (
-                    <div
-                      className={styles.item}
-                      key={res[0].id}
-                      onClick={() => {
-                        useCommandPanelStore.setState({ open: false });
-                        navigate('/cards/list');
-                        onCtrlClickCard(res[0].refId);
-                      }}
-                    >
-                      <Editor
-                        style={{
-                          maxHeight: 160,
-                          overflowY: 'hidden',
+                  renderItem={res => {
+                    const initValue = (() => {
+                      if (res[0].refType === 'card') {
+                        return cards.find(item => item.id === res[0].refId)?.content || [];
+                      } else if (res[0].refType === 'article') {
+                        return articles.find(item => item.id === res[0].refId)?.content || [];
+                      }
+                    })()
+                    return (
+                      <div
+                        className={styles.item}
+                        key={res[0].id}
+                        onClick={() => {
+                          useCommandPanelStore.setState({ open: false });
+                          if (res[0].refType === 'card') {
+                            navigate('/cards/list');
+                            onCtrlClickCard(res[0].refId);
+                          } else if (res[0].refType === 'article') {
+                            navigate('/articles');
+                            useArticleManagementStore.setState({
+                              activeArticleId: res[0].refId,
+                            });
+                          }
                         }}
-                        initValue={cards.find(item => item.id === res[0].refId)?.content || []}
-                      />
-                    </div>
-                  )}
+                      >
+                        <Tag color="pink" style={{ marginBottom: 12 }}>{ res[0].refType }</Tag>
+                        <Editor
+                          style={{
+                            maxHeight: 160,
+                            overflowY: 'hidden',
+                          }}
+                          initValue={initValue}
+                        />
+                      </div>
+                    )
+                  }}
                 />
               </div>
             </If>

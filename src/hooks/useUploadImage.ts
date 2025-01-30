@@ -36,7 +36,7 @@ const uploadImageInner = async (imageBed: any, file: File) => {
       return await putObject({
         ...aliOSSInfo,
         objectName,
-        file,
+        file: new Uint8Array(await file.arrayBuffer()),
       });
     } catch (e) {
       console.error(e);

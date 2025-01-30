@@ -7,7 +7,7 @@ export default class CardTable {
     return {
       'create-card': this.createCard.bind(this),
       'update-card': this.updateCard.bind(this),
-      'delete-card-by-id': this.deleteCardById.bind(this),
+      'delete-card': this.deleteCard.bind(this),
       'get-tags-by-card-id': this.getTagsByCardId.bind(this),
       'get-cards-group-by-tag': this.getCardsGroupByTag.bind(this),
       'get-all-cards': this.getAllCards.bind(this),
@@ -83,14 +83,14 @@ export default class CardTable {
     return await this.getCardById(db, id);
   }
 
-  static async deleteCardById(db: Database.Database, cardId: number): Promise<number> {
+  static async deleteCard(db: Database.Database, cardId: number): Promise<number> {
     const stmt = db.prepare('DELETE FROM cards WHERE id = ?');
     // 设置 isCard 为 0
-    const documentItemStmt = db.prepare('UPDATE document_items SET isCard = 0 WHERE isCard = 1 AND cardId = ?');
+    const documentItemStmt = db.prepare('UPDATE document_items SET is_card = 0 WHERE is_card = 1 AND card_id = ?');
     documentItemStmt.run(cardId);
 
     // 设置 project_item ref_type 为 空字符串
-    const projectItemStmt = db.prepare('UPDATE project_item SET ref_type = "" WHERE ref_type = "card" AND ref_id = ?');
+    const projectItemStmt = db.prepare(`UPDATE project_item SET ref_type = '' WHERE ref_type = 'card' AND ref_id = ?`);
     projectItemStmt.run(cardId);
 
     Operation.insertOperation(db, 'card', 'delete', cardId, Date.now());
