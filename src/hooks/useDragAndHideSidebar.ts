@@ -23,7 +23,6 @@ const useDragAndHideSidebar = <T extends HTMLElement>({ open, width, onWidthChan
         }
       })
     } else {
-      console.log('close');
       gsap.to(ref.current, {
         width: 0,
         duration: firstOpen.current ? 0 : 0.3,
@@ -37,7 +36,7 @@ const useDragAndHideSidebar = <T extends HTMLElement>({ open, width, onWidthChan
 
   const handleSidebarWidthChange = useMemoizedFn((width: number) => {
     if (!ref.current) return;
-    if(open) {
+    if (open) {
       gsap.to(ref.current, {
         width,
         duration: 0,

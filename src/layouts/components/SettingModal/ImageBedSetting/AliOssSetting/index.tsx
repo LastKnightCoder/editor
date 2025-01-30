@@ -26,7 +26,7 @@ const AliOssSetting = () => {
     const { region } = bucketInfo;
     useSettingStore.setState(produce((state) => {
       state.setting.imageBed.aliOSS.bucket = bucket;
-      state.setting.imageBed.aliOSS.region = 'oss-' + region;
+      state.setting.imageBed.aliOSS.region = region;
     }));
   }
 

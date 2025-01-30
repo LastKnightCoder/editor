@@ -42,7 +42,6 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
   init: async () => {
     set({ initLoading: true });
     const articles = await getAllArticles();
-    console.log(`articles`, articles.length)
     const processedArticles = processArticles(articles);
     set({ articles: processedArticles, initLoading: false });
   },

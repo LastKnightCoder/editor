@@ -25,7 +25,7 @@ const AliOssSetting = () => {
     const { region } = bucketInfo;
     useSettingStore.setState(produce((state) => {
       state.setting.sync.aliOSS.bucket = bucket;
-      state.setting.sync.aliOSS.region = 'oss-' + region;
+      state.setting.sync.aliOSS.region = region;
     }));
   }
 

@@ -81,8 +81,10 @@ export const upload = async () => {
     version: currentVersion + 1,
   }
 
+  const textEncoder = new TextEncoder();
+
   try {
-    const isSuccess = await createOrUpdateFile(ossOptions, databaseInfoObjectName, new Blob([JSON.stringify(newDatabaseInfo)]));
+    const isSuccess = await createOrUpdateFile(ossOptions, databaseInfoObjectName, textEncoder.encode(JSON.stringify(newDatabaseInfo)));
     if (!isSuccess) {
       message.error('上传数据库信息失败');
       return false;
@@ -101,9 +103,8 @@ export const upload = async () => {
     // 读取本地数据库文件并上传
     const contents = await readBinaryFile(databasePath);
     // 将 Uint8Array 转换为 Blob
-    const blob = new Blob([contents], { type: 'application/octet-stream' });
     const dataObjectName = `${path}/${databaseName}`;
-    const isSuccessful = await createOrUpdateFile(ossOptions, dataObjectName, blob);
+    const isSuccessful = await createOrUpdateFile(ossOptions, dataObjectName, contents);
     if (!isSuccessful) {
       message.error('上传数据库文件失败');
       return false;
@@ -112,7 +113,7 @@ export const upload = async () => {
     return true;
   } catch (e) {
     // 恢复数据库信息
-    const isSuccess = await createOrUpdateFile(ossOptions, databaseInfoObjectName, new Blob([JSON.stringify(databaseInfo)]));
+    const isSuccess = await createOrUpdateFile(ossOptions, databaseInfoObjectName, textEncoder.encode(JSON.stringify(databaseInfo)));
     if (!isSuccess) {
       message.error('上传数据库文件失败后恢复数据库信息失败');
     }
@@ -236,7 +237,8 @@ export const getOriginDatabaseInfo = async () => {
         ...ossOptions,
         objectName: databaseInfoObjectName,
       });
-      databaseInfo = JSON.parse(databaseInfoResult.content.toString());
+      const textDecoder = new TextDecoder();
+      databaseInfo = JSON.parse(textDecoder.decode(databaseInfoResult.content));
     } catch (e) {
       message.error('获取远程数据库信息失败');
     }
@@ -249,7 +251,7 @@ export const getOriginDatabaseInfo = async () => {
   }
 }
 
-const createOrUpdateFile = async (ossOptions: any, objectName: string, content: Blob) => {
+const createOrUpdateFile = async (ossOptions: any, objectName: string, content: Uint8Array) => {
   try {
     const isExist = await isObjectExist({
       ...ossOptions,
