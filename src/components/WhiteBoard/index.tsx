@@ -22,6 +22,7 @@ import { BOARD_TO_CONTAINER, ARROW_SIZE } from "./constants";
 import { BoardElement, Events, ViewPort, Selection } from "./types";
 import Toolbar from './components/Toolbar';
 import SelectArea from './components/SelectArea';
+import GradientLine from "./components/GradientLine";
 import ComponentConfig from "./components/ComponentConfig";
 import styles from './index.module.less';
 import PortalToBody from "@/components/PortalToBody";
@@ -77,7 +78,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const board = useCreation<Board>(() => new Board(initData, initViewPort, initSelection, plugins), []);
   
   const { children, viewPort, selection } = useSyncExternalStore(board.subscribe, board.getSnapshot);
-  const { minX, minY, width, height } = viewPort;
+  const { minX, minY, width, height, zoom } = viewPort;
 
   const [centerConnectArrows, noneCenterConnectArrows] = useMemo(() => {
     const isCenterConnectAndNotSelected = (element: BoardElement) => {
@@ -205,8 +206,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     }
   }, [board, eventHandlerGenerator, handleContainerResize]);
 
-  const lines = board.refLine.getAllRefLines();
-
+  const lines = board.refLine.matchRefLines(15 / zoom);
   return (
     <div ref={containerRef} className={classnames(styles.boardContainer, className)} style={style}>
       <BoardContext.Provider value={board}>
@@ -245,16 +245,18 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
               </g>
               <g>
                 {
-                  lines.map((line, i) => (
-                    <line
-                      key={i}
-                      x1={line.left}
-                      y1={line.top}
-                      x2={line.type === 'vertical' ? line.left : line.left + line.size}
-                      y2={line.type === 'vertical' ? line.top + line.size : line.top}
-                      stroke={'gray'}
-                      strokeWidth={2}
-                      strokeDasharray={'5,5'}
+                  lines.map((line) => (
+                    <GradientLine
+                      key={line.key}
+                      gradientId={line.key}
+                      x1={line.x1}
+                      y1={line.y1}
+                      x2={line.x2}
+                      y2={line.y2}
+                      startColor="#43CBFF"
+                      stopColor="#9708CC"
+                      strokeWidth={2 / zoom}
+                      strokeDasharray={`${5 / zoom}, ${5 / zoom}`}
                     />
                   ))
                 }

@@ -1,6 +1,5 @@
 import { Board, BoardElement, ECreateBoardElementType, IBoardPlugin, Operation } from "../types";
-import { BoardUtil, PointUtil, PathUtil, isValid } from "../utils";
-import { Rect } from "refline.js";
+import { BoardUtil, PointUtil, PathUtil, isValid, Rect } from "../utils";
 
 export class MovePlugin implements IBoardPlugin {
   name = 'move-plugin';
@@ -14,7 +13,7 @@ export class MovePlugin implements IBoardPlugin {
     if (board.currentCreateType !== ECreateBoardElementType.None) {
       return;
     }
-    
+
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 
@@ -43,119 +42,35 @@ export class MovePlugin implements IBoardPlugin {
     }
   }
 
-  private getCurrentNode(board: Board) {
-    if (!this.moveElements) return null;
+  getUpdatedInfo(e: PointerEvent, board: Board) {
+    let movedElements: BoardElement[] = [];
 
-    const movedElements = this.moveElements.filter(element => !!board.moveElement(element, 0, 0));
-    const rects = movedElements.map(element => {
-      if (element.type === 'arrow') return;
-
+    if (!this.moveElements || !this.startPoint) {
+      board.refLine.setCurrent({
+        rects: [],
+        lines: [],
+      });
       return {
-        ...element,
-        key: element.id,
-        left: element.x,
-        top: element.y,
-        width: element.width,
-        height: element.height
-      }
-    }).filter(isValid);
-
-    let minLeft: number | undefined;
-    let maxRight: number | undefined;
-    let minTop: number | undefined;
-    let maxBottom: number | undefined;
-
-    rects.forEach(rect => {
-      if (minLeft === undefined) {
-        minLeft = rect.left;
-      } else {
-        minLeft = Math.min(minLeft, rect.left);
-      }
-
-      if (maxRight === undefined) {
-        maxRight = rect.left + rect.width;
-      } else {
-        maxRight = Math.max(maxRight, rect.left + rect.width);
-      }
-
-      if (minTop === undefined) {
-        minTop = rect.top;
-      } else {
-        minTop = Math.min(minTop, rect.top);
-      }
-
-      if (maxBottom === undefined) {
-        maxBottom = rect.top + rect.height;
-      } else {
-        maxBottom = Math.max(maxBottom, rect.top + rect.height);
-      }
-    });
-
-    if (minLeft !== undefined && maxRight !== undefined && minTop !== undefined && maxBottom !== undefined) {
-      const current: Rect = {
-        key: 'current',
-        left: minLeft,
-        top: minTop,
-        width: maxRight - minLeft,
-        height: maxBottom - minTop,
-      }
-      return current;
+        movedElements,
+      };
     }
 
-    return null;
-  }
-
-  getUpdatedInfo(e: PointerEvent, board: Board) {
-    const movedElements: BoardElement[] = [];
-    const delta = { left: 0, top: 0 };
-    let currentNode: Rect | null = null;
-
-    if (!this.moveElements || !this.startPoint) return {
-      movedElements,
-      currentNode,
-      delta
-    };
-
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!endPoint) return {
-      movedElements,
-      currentNode,
-      delta
-    };
+    if (!endPoint) {
+      board.refLine.setCurrent({
+        rects: [],
+        lines: [],
+      });
+      return {
+        movedElements,
+      };
+    }
 
     const offsetX = endPoint.x - this.startPoint.x;
     const offsetY = endPoint.y - this.startPoint.y;
 
-    currentNode = this.getCurrentNode(board);
-
-    const updater = board.refLine.adsorbCreator({
-      current: currentNode,
-      pageX: this.startPoint.x,
-      pageY: this.startPoint.y,
-      distance: 50,
-      scale: board.viewPort.zoom,
-    });
-
-    const { delta: { left, top } } = updater({
-      pageX: endPoint.x,
-      pageY: endPoint.y,
-    });
-    delta.left = left;
-    delta.top = top;
-
-    // 不开启吸附
-    if (e.altKey) {
-      delta.left = offsetX;
-      delta.top = offsetY;
-    }
-
-    if (currentNode) {
-      currentNode.left = currentNode.left + delta.left;
-      currentNode.top = currentNode.top + delta.top;
-    }
-
     this.moveElements.forEach(element => {
-      const movedElement = board.moveElement(element, delta.left, delta.top);
+      const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
         const path = PathUtil.getPathByElement(board, movedElement);
         if (!path) return;
@@ -163,10 +78,35 @@ export class MovePlugin implements IBoardPlugin {
       }
     });
 
+    const currentMoved: Rect[] = movedElements.map(me => {
+      if (me.type === 'arrow') return;
+      return {
+        key: me.id,
+        x: me.x,
+        y: me.y,
+        width: me.width,
+        height: me.height,
+      }
+    }).filter(isValid);
+    board.refLine.setCurrentRects(currentMoved);
+
+    const newCurrent = board.refLine.getUpdateCurrent(!e.altKey, 5 / board.viewPort.zoom);
+    if (!e.altKey) {
+      // 根据 newCurrent 更新 movedElements
+      movedElements = newCurrent.rects.map(rect => {
+        const ele = movedElements.find(me => me.id === rect.key);
+        if (!ele) return;
+        return {
+          ...ele,
+          x: rect.x,
+          y: rect.y,
+        }
+      }).filter(isValid);
+    }
+    board.refLine.setCurrent(newCurrent);
+
     return {
       movedElements,
-      currentNode,
-      delta
     };
   }
 
@@ -189,7 +129,6 @@ export class MovePlugin implements IBoardPlugin {
 
     const {
       movedElements,
-      currentNode,
     } = this.getUpdatedInfo(e, board);
 
     movedElements.forEach(movedElement => {
@@ -208,9 +147,8 @@ export class MovePlugin implements IBoardPlugin {
       board.apply(operations, false);
     }
     movedElements.forEach(me => {
-      board.refLine.removeRect(me.id);
+      board.refLine.removeRefRect(me.id);
     });
-    board.refLine.setCurrent(currentNode);
     board.emit('element:move', movedElements);
   }
 
@@ -252,10 +190,13 @@ export class MovePlugin implements IBoardPlugin {
       this.isHitSelected = false;
     }
 
+    board.refLine.setCurrent({
+      rects: [],
+      lines: [],
+    });
     if (operations.length > 0) {
       board.apply(operations);
     }
-    board.refLine.setCurrent(null);
 
     board.emit('element:move-end');
     this.moveElements = null;

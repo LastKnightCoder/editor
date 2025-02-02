@@ -2,7 +2,7 @@ import React from "react";
 import EventEmitter from 'eventemitter3';
 import { createDraft, finishDraft, isDraft, current } from 'immer';
 import curry from 'lodash/curry';
-import { RefLine, Rect } from 'refline.js'
+import RefLineUtil, { Rect } from './utils/RefLineUtil';
 
 import {
   Operation,
@@ -29,7 +29,7 @@ class Board {
 
   private plugins: IBoardPlugin[] = [];
   private eventEmitter: EventEmitter;
-  public refLine: RefLine;
+  public refLine: RefLineUtil;
 
   public boardFlag: typeof boardFlag;
   public isDestroyed: boolean;
@@ -48,6 +48,8 @@ class Board {
   }
 
   private _currentCreateType: ECreateBoardElementType = ECreateBoardElementType.None;
+
+  // 要创建哪种几何图形，放在这里是不是不太合理？放在插件里更合理
   public createOptions: any = null;
 
   constructor(children: BoardElement[], viewPort: ViewPort, selection: Selection, plugins: IBoardPlugin[] = []) {
@@ -70,8 +72,8 @@ class Board {
     this.getSnapshot = this.getSnapshot.bind(this);
     this.isEditing = false;
     this.isEditingProperties = false;
-    this.refLine = new RefLine<Rect>({
-      rects: this.getRefRects(),
+    this.refLine = new RefLineUtil({
+      refRects: this.getRefRects(),
     });
   }
 
@@ -137,50 +139,62 @@ class Board {
     const fns = this.plugins.map(bindHandler('onMouseDown')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onGlobalMouseDown(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onGlobalMouseDown')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onMouseMove(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onMouseMove')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onMouseUp(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onMouseUp')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onGlobalMouseUp(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onGlobalMouseUp')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onMouseLeave(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onMouseLeave')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onMouseEnter(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onMouseEnter')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onClick(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onClick')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onDblClick(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onDblClick')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onContextMenu(event: MouseEvent) {
     const fns = this.plugins.map(bindHandler('onContextMenu')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onWheel(event: WheelEvent) {
     const fns = this.plugins.map(bindHandler('onWheel')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onKeyDown(event: KeyboardEvent) {
     const fns = this.plugins.map(bindHandler('onKeyDown')).filter(isValid);
     executeSequence(fns, event, this);
   }
+
   onKeyUp(event: KeyboardEvent) {
     const fns = this.plugins.map(bindHandler('onKeyUp')).filter(isValid);
     executeSequence(fns, event, this);
@@ -268,13 +282,12 @@ class Board {
           const currentNode = current(node);
           changedElements.push(currentNode);
           if (currentNode.type !== 'arrow') {
-            this.refLine.removeRect(currentNode.id);
-            // @ts-ignore
-            this.refLine.addRect({
+            this.refLine.addRefRect({
               key: currentNode.id,
-              ...currentNode,
-              left: currentNode.x,
-              top: currentNode.y,
+              x: currentNode.x,
+              y: currentNode.y,
+              width: currentNode.width,
+              height: currentNode.height,
             })
           }
         } else if (op.type === 'insert_node') {
@@ -292,12 +305,12 @@ class Board {
             console.error('insert_node error: index out of range', { path, index, parent });
           }
           if (node.type !== 'arrow') {
-            // @ts-ignore
-            this.refLine.addRect({
+            this.refLine.addRefRect({
               key: node.id,
-              ...node,
-              left: node.x,
-              top: node.y,
+              x: node.x,
+              y: node.y,
+              width: node.width,
+              height: node.height,
             })
           }
         } else if (op.type === 'remove_node') {
@@ -316,7 +329,7 @@ class Board {
             console.error('insert_node error: index out of range', { path, index, parent });
           }
           if (node.type !== 'arrow') {
-            this.refLine.removeRect(node.id);
+            this.refLine.removeRefRect(node.id);
           }
         } else if (op.type === 'set_viewport') {
           this.viewPort = createDraft(this.viewPort);
@@ -388,11 +401,11 @@ class Board {
         this.emit('change');
       }
 
-      this.selection.selectedElements.forEach(se => {
-        if (se.type !== 'arrow') {
-          this.refLine.removeRect(se.id);
-        }
-      })
+      // this.selection.selectedElements.forEach(se => {
+      //   if (se.type !== 'arrow') {
+      //     this.refLine.removeRefRect(se.id);
+      //   }
+      // })
     }
   }
 
@@ -420,7 +433,8 @@ class Board {
 
   undo() {
     if (this.undos.length === 0) return;
-    const undo = this.undos.pop()!;
+    const undo = this.undos.pop();
+    if (!undo) return;
     const inverseOps = undo.map(item => BoardUtil.inverseOperation(item)).reverse();
     this.apply(inverseOps, false);
     this.redos.push(undo);
@@ -428,7 +442,8 @@ class Board {
 
   redo() {
     if (this.redos.length === 0) return;
-    const redo = this.redos.pop()!;
+    const redo = this.redos.pop();
+    if (!redo) return;
     this.apply(redo, false);
     this.undos.push(redo);
   }
@@ -459,12 +474,12 @@ class Board {
     BoardUtil.dfs(this, element => {
       if (BoardUtil.isBoard(element) || this.selection.selectedElements.some(ele => ele.id === element.id)) return;
       if (element.type === 'arrow') return;
-      // @ts-ignore
       rects.push({
-        ...element,
         key: element.id,
-        left: element.x!,
-        top: element.y!,
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
       })
     });
     return rects;

@@ -150,7 +150,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
     this.originResizeElement = element;
   }
 
-  protected onResize(board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio = false) {
+  protected onResize(board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio = false, isAdsorb = false) {
     if (!this.originResizeElement) return;
     const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint, isPreserveRatio);
     const newElement = {
@@ -160,6 +160,16 @@ export abstract class CommonPlugin implements IBoardPlugin {
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
+    board.refLine.setCurrentRects([{
+      key: newElement.id,
+      ...newBBox
+    }]);
+    const updateElement = board.refLine.getUpdateCurrent(isAdsorb, 5 / board.viewPort.zoom, true);
+    board.refLine.setCurrent(updateElement);
+    newElement.x = updateElement.rects[0].x;
+    newElement.y = updateElement.rects[0].y;
+    newElement.width = updateElement.rects[0].width;
+    newElement.height = updateElement.rects[0].height;
     board.apply({
       type: 'set_node',
       path,
@@ -173,8 +183,12 @@ export abstract class CommonPlugin implements IBoardPlugin {
     });
   }
 
-  protected onResizeEnd() {
+  protected onResizeEnd(board: Board) {
     this.originResizeElement = null;
+    board.refLine.setCurrent({
+      rects: [],
+      lines: []
+    });
   }
 }
 
