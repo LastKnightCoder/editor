@@ -15,6 +15,15 @@ export default class ChatMessageTable {
     db.exec(createTableSql);
   }
 
+  static upgradeTable(db: Database.Database) {
+    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chat_message'");
+    const tableInfo = (stmt.get() as { sql: string }).sql;
+    if (!tableInfo.includes('title')) {
+      const alertStmt = db.prepare("ALTER TABLE chat_message ADD COLUMN title TEXT'");
+      alertStmt.run();
+    }
+  }
+
   static getListenEvents() {
     return {
       'create-chat-message': this.createChatMessage.bind(this),

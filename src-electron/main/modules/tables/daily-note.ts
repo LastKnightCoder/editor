@@ -13,6 +13,10 @@ export default class DailyNoteTable {
     `);
   }
 
+  static upgradeTable(db: Database.Database) {
+    // 暂时无升级
+  }
+
   static getListenEvents() {
     return {
       'create-daily-note': this.createDailyNote.bind(this),

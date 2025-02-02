@@ -19,6 +19,10 @@ export default class WhiteboardTable {
     `);
   }
 
+  static upgradeTable(db: Database.Database) {
+    // 暂无升级
+  }
+
   static getListenEvents() {
     return {
       'create-white-board': this.createWhiteboard.bind(this),

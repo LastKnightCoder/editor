@@ -30,6 +30,15 @@ export default class CardTable {
     db.exec(createTableSql);
   }
 
+  static upgradeTable(db: Database.Database) {
+    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cards'");
+    const tableInfo = (stmt.get() as { sql: string }).sql;
+    if (!tableInfo.includes('category')) {
+      const alertStmt = db.prepare("ALTER TABLE cards ADD COLUMN category TEXT DEFAULT 'permanent'");
+      alertStmt.run();
+    }
+  }
+
   static parseCard(card: any): ICard {
     return {
       id: card.id,
