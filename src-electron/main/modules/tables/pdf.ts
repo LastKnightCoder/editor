@@ -38,6 +38,10 @@ export default class PdfTable {
     `);
   }
 
+  static upgradeTable(db: Database.Database) {
+    // TODO 暂无升级
+  }
+
   static getListenEvents() {
     return {
       'create-pdf': this.createPdf.bind(this),

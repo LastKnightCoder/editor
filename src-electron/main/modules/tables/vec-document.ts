@@ -18,6 +18,10 @@ export default class VecDocumentTable {
     `);
   }
 
+  static upgradeTable(db: Database.Database) {
+    // TODO 暂无升级
+  }
+
   static getListenEvents() {
     return {
       'create-vec-document': this.createVecDocument.bind(this),

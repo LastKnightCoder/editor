@@ -21,6 +21,27 @@ export default class ArticleTable {
     db.exec(createTableSql);
   }
 
+  static upgradeTable(db: Database.Database) {
+    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'articles'");
+    const tableInfo = (stmt.get() as { sql: string }).sql;
+    if (!tableInfo.includes("links")) {
+      const alertStmt = db.prepare("ALTER TABLE articles ADD COLUMN links TEXT");
+      alertStmt.run();
+    }
+    if (!tableInfo.includes("banner_bg")) {
+      const alertStmt = db.prepare("ALTER TABLE articles ADD COLUMN banner_bg TEXT DEFAULT ''");
+      alertStmt.run();
+    }
+    if (!tableInfo.includes("is_top")) {
+      const alertStmt = db.prepare("ALTER TABLE articles ADD COLUMN is_top INTEGER DEFAULT 0");
+      alertStmt.run();
+    }
+    if (!tableInfo.includes("is_delete")) {
+      const alertStmt = db.prepare("ALTER TABLE articles ADD COLUMN is_delete INTEGER DEFAULT 0");
+      alertStmt.run();
+    }
+  }
+
   static getListenEvents() {
     return {
       'create-article': this.createArticle.bind(this),

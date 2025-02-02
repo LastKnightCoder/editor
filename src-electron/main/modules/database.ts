@@ -89,6 +89,7 @@ class DatabaseModule implements Module {
 
         this.tables.forEach((table) => {
           table.initTable(database!);
+          table.upgradeTable(database!);
         });
       }
       const sender = event.sender;

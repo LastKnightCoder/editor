@@ -16,6 +16,10 @@ export default class TimeRecordTable {
     `);
   }
 
+  static upgradeTable(db: Database.Database) {
+    // 暂无升级
+  }
+
   static getListenEvents() {
     return {
       'create-time-record': this.createTimeRecord.bind(this),

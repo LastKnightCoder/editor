@@ -53,6 +53,15 @@ export default class DocumentTable {
     `);
   }
 
+  static upgradeTable(db: Database.Database) {
+    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'document_items'");
+    const tableInfo = (stmt.get() as { sql: string }).sql;
+    if (!tableInfo.includes('parents')) {
+      const alertStmt = db.prepare("ALTER TABLE document_items ADD COLUMN parents TEXT DEFAULT '[]'");
+      alertStmt.run();
+    }
+  }
+
   static getListenEvents() {
     return {
       'create-document': this.createDocument.bind(this),

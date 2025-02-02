@@ -39,6 +39,15 @@ export default class ProjectTable {
     `);
   }
 
+  static upgradeTable(db: Database.Database) {
+    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'project'");
+    const tableInfo = (stmt.get() as { sql: string }).sql;
+    if (!tableInfo.includes('archived')) {
+      const alertStmt = db.prepare("ALTER TABLE project ADD COLUMN archived INTEGER DEFAULT 0");
+      alertStmt.run();
+    }
+  }
+
   static getListenEvents() {
     return {
       'create-project': this.createProject.bind(this),
