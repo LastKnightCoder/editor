@@ -16,6 +16,7 @@ const useCreateGeometry = () => {
   const currentPoint = useRef<Point | null>(null);
   const createdGeometry = useRef<GeometryElement | null>(null);
   const createdGeometryPath = useRef<number[] | null>(null);
+  const geometryCreateId = useRef<string | null>(null);
 
   const { zoom } = useViewPort();
 
@@ -75,8 +76,11 @@ const useCreateGeometry = () => {
 
     const geometryStyle = GeometryUtil.getPrevGeometryStyle();
 
+    if (!geometryCreateId.current) {
+      geometryCreateId.current = getUuid();
+    }
     const geometryElement: GeometryElement = {
-      id: getUuid(),
+      id: geometryCreateId.current,
       type: 'geometry',
       paths: createOptions.paths,
       text: {
@@ -138,6 +142,7 @@ const useCreateGeometry = () => {
     isMoved.current = false;
     createdGeometry.current = null;
     createdGeometryPath.current = null;
+    geometryCreateId.current = null;
 
     document.removeEventListener('pointerup', handlePointerUp);
     const boardContainer = BOARD_TO_CONTAINER.get(board);

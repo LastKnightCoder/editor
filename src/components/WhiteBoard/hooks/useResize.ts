@@ -8,7 +8,7 @@ import { BOARD_TO_CONTAINER } from "../constants";
 interface IUseResize {
   ref: React.RefObject<SVGElement>;
   onResizeStart?: (startPoint: Point) => void;
-  onResize: (startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => void;
+  onResize: (startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => void;
   onResizeEnd?: (startPoint: Point, endPoint: Point) => void;
 }
 
@@ -18,8 +18,8 @@ export const useResize = (props: IUseResize) => {
   const startPoint = useRef<Point | null>(null);
   const endPoint = useRef<Point | null>(null);
 
-  const handleResize = useMemoizedFn((startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => {
-    onResize(startPoint, endPoint, isPreserveRatio);
+  const handleResize = useMemoizedFn((startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => {
+    onResize(startPoint, endPoint, isPreserveRatio, isAdsorb);
   });
 
   const handleResizeStart = useMemoizedFn((startPoint: Point) => {
@@ -39,7 +39,7 @@ export const useResize = (props: IUseResize) => {
       e.stopPropagation();
       startPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
       if (!startPoint.current) return;
-      
+
       const boardContainer = BOARD_TO_CONTAINER.get(board);
       if (!boardContainer) return;
 
@@ -55,7 +55,7 @@ export const useResize = (props: IUseResize) => {
       endPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
       if (!endPoint.current) return;
 
-      handleResize(startPoint.current, endPoint.current, e.shiftKey);
+      handleResize(startPoint.current, endPoint.current, e.shiftKey, !e.altKey);
     }
 
     const handlePointerUp = (e: PointerEvent) => {

@@ -149,9 +149,6 @@ importers:
       react-router-dom:
         specifier: ^6.12.1
         version: 6.28.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      refline.js:
-        specifier: ^0.11.1
-        version: 0.11.1
       rehype-rewrite:
         specifier: ^4.0.2
         version: 4.0.2
@@ -5268,9 +5265,6 @@ packages:
   reflect.getprototypeof@1.0.10:
     resolution: {integrity: sha512-00o4I+DVrefhv+nX0ulyi3biSHCPDe+yLv5o/p6d/UVlirijB8E16FtfwSAi4g3tcqrQ4lRAqQSoFEZJehYEcw==}
     engines: {node: '>= 0.4'}
-
-  refline.js@0.11.1:
-    resolution: {integrity: sha512-1ou2ZDEAylWF7gnKCXoYLz7EbTwqTlWLCqlhbUS58S40aDQN+zVwdNUb+GemWCq0kxLkxDYPZ4oKkr2nCi6gTg==}
 
   refractor@4.8.1:
     resolution: {integrity: sha512-/fk5sI0iTgFYlmVGYVew90AoYnNMP6pooClx/XKqyeeCQXrL0Kvgn8V0VEht5ccdljbzzF1i3Q213gcntkRExg==}
@@ -12603,8 +12597,6 @@ snapshots:
       get-intrinsic: 1.2.7
       get-proto: 1.0.1
       which-builtin-type: 1.2.1
-
-  refline.js@0.11.1: {}
 
   refractor@4.8.1:
     dependencies:

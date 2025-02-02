@@ -23,7 +23,7 @@ import { convertFileSrc } from '@/commands';
 interface ImageElementProps {
   element: ImageElement;
   onResizeStart?: (element: ImageElement, startPoint: Point) => void;
-  onResize: (board: Board, element: ImageElement, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => void;
+  onResize: (board: Board, element: ImageElement, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => void;
   onResizeEnd?: (board: Board, element: ImageElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
@@ -74,8 +74,8 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     onResizeStart?.(element, startPoint);
   });
 
-  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean) => {
-    onResize(board, element, position, startPoint, endPoint, isPreserveRatio);
+  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => {
+    onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
   });
 
   const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
