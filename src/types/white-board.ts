@@ -13,4 +13,5 @@ export interface WhiteBoard {
   title: string;
   description: string;
   snapshot: string;
+  isProjectItem: boolean;
 }

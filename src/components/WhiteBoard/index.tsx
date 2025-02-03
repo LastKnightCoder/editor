@@ -203,6 +203,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       }
       observer.disconnect();
       board.destroy();
+      console.log('board destroyed');
     }
   }, [board, eventHandlerGenerator, handleContainerResize]);
 

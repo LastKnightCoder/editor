@@ -37,23 +37,23 @@ export class ViewPortTransforms {
   }
 
   private static getNewViewport(originViewPort: ViewPort, container: HTMLDivElement, newZoom: number, point?: [number, number]): ViewPort {
-      const width = container.clientWidth;
-      const height = container.clientHeight;
+    const width = container.clientWidth;
+    const height = container.clientHeight;
 
-      point = point || [width / 2, height / 2];
+    point = point || [width / 2, height / 2];
 
-      const {
-        zoom,
-        minX,
-        minY
-      } = originViewPort;
+    const {
+      zoom,
+      minX,
+      minY
+    } = originViewPort;
 
-      return {
-        zoom: newZoom,
-        width: width / newZoom,
-        height: height / newZoom,
-        minX: point[0] * (1 / zoom - 1 / newZoom) + minX,
-        minY: point[1] * (1 / zoom - 1 / newZoom) + minY
-      }
+    return {
+      zoom: newZoom,
+      width: width / newZoom,
+      height: height / newZoom,
+      minX: point[0] * (1 / zoom - 1 / newZoom) + minX,
+      minY: point[1] * (1 / zoom - 1 / newZoom) + minY
+    }
   }
 }

@@ -1,9 +1,9 @@
 import ProjectList from '@/layouts/ThreeColumnLayout/List/ProjectList/Project';
-import EditProject from '@/layouts/ThreeColumnLayout/Content/Project';
-
-import styles from './index.module.less';
 import classnames from "classnames";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
+
+import EditProjectView from './EditProjectView';
+import styles from './index.module.less';
 
 const ProjectView = () => {
   const {
@@ -12,7 +12,7 @@ const ProjectView = () => {
   } = useProjectsStore(state => ({
     activeProjectItemId: state.activeProjectItemId,
     hideProjectItemList: state.hideProjectItemList
-  }))
+  }));
 
   return (
     <div className={classnames(styles.viewContainer, { [styles.hideSidebar]: activeProjectItemId && hideProjectItemList })}>
@@ -20,7 +20,7 @@ const ProjectView = () => {
         <ProjectList />
       </div>
       <div className={styles.edit}>
-        <EditProject />
+        <EditProjectView />
       </div>
     </div>
   )

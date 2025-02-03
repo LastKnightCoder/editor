@@ -1,25 +1,29 @@
 import { useState, useEffect, memo, useRef } from "react";
+import { Descendant } from "slate";
 import classnames from 'classnames';
 import { useMemoizedFn } from "ahooks";
 import { App, Dropdown, Input, MenuProps, message, Modal, Tooltip } from 'antd';
 import { produce } from "immer";
 import { nodeFetch } from '@/commands';
 
+import SelectCardModal from "@/components/SelectCardModal";
 import useProjectsStore from "@/stores/useProjectsStore";
+import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import useChatLLM from "@/hooks/useChatLLM.ts";
 import useAddRefCard from "./useAddRefCard";
 
+import SVG from 'react-inlinesvg';
+import For from "@/components/For";
 import { getProjectById, getProjectItemById, updateProjectItem } from '@/commands';
-import { CreateProjectItem, Message, type ProjectItem } from "@/types";
+import { CreateProjectItem, EProjectItemType, Message, type ProjectItem } from "@/types";
 import { Role, CONVERT_PROMPT, WEB_CLIP_PROMPT, SPLIT_PROMPT } from '@/constants';
 import { FileOutlined, FolderOpenTwoTone, MoreOutlined, PlusOutlined } from "@ant-design/icons";
-import For from "@/components/For";
+import { getEditorText } from "@/utils";
+import whiteBoardIcon from '@/assets/icons/white-board.svg';
 
 import styles from './index.module.less';
-import SelectCardModal from "@/components/SelectCardModal";
-import { Descendant } from "slate";
-import { getEditorText } from "@/utils";
+import { isValid } from "@/components/WhiteBoard/utils";
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -81,6 +85,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     createChildProjectItem: state.createChildProjectItem,
   }));
 
+  const {
+    createWhiteBoard
+  } = useWhiteBoardStore(state => ({
+    createWhiteBoard: state.createWhiteBoard,
+  }))
+
   const onRemoveProjectItem = useMemoizedFn(async () => {
     modal.confirm({
       title: '删除项目文档',
@@ -119,9 +129,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     if (!projectItem || !activateProjectId) return;
     // 先删掉原来的位置，在新的位置插入
     const { itemId: dragId, parentId: dragParentId, isRoot: dragIsRoot } = dragItem;
-    
+
     const needRefreshId = [dragId];
-    
+
     try {
       useProjectsStore.setState({
         dragging: true,
@@ -240,19 +250,58 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
   });
 
-  const moreMenuItems: MenuProps['items'] = [{
-    key: 'to-card',
-    label: '建立卡片',
-  }, {
-    key: 'remove',
-    label: '删除文档',
-  }];
+  const moreMenuItems: MenuProps['items'] = projectItem?.projectItemType === EProjectItemType.Document
+    ? [projectItem?.refType !== 'card' ? {
+      key: 'to-card',
+      label: '建立卡片',
+    } : undefined, {
+      key: 'remove',
+      label: '删除文档',
+    }].filter(isValid) : [projectItem?.refType !== 'white-board' ? {
+      key: 'to-white-board',
+      label: '建立白板',
+    } : undefined, {
+      key: 'remove',
+      label: '删除白板'
+    }].filter(isValid);
 
   const handleMoreMenuClick: MenuProps['onClick'] = useMemoizedFn(async ({ key }) => {
     if (key === 'to-card') {
       if (!projectItem) return;
       await buildCardFromProjectItem(projectItem);
       message.success('成功建立卡片');
+    } else if (key === 'to-white-board') {
+      if (!projectItem) return;
+      if (projectItem.projectItemType !== EProjectItemType.WhiteBoard || !projectItem.whiteBoardData) return;
+      // 已经关联了白板，不能关联新的白板
+      if (projectItem.refType === 'white-board') return;
+      const createWhiteBoardData = {
+        title: projectItem.title,
+        description: projectItem.title,
+        tags: [],
+        data: projectItem.whiteBoardData,
+        snapshot: '',
+        isProjectItem: true
+      }
+      try {
+        const createdWhiteBoard = await createWhiteBoard(createWhiteBoardData);
+        // 更新 ProjectItem 的 refType
+        const newProjectItem = produce(projectItem, draft => {
+          draft.refId = createdWhiteBoard.id;
+          draft.refType = 'white-board';
+        });
+        await updateProjectItem(newProjectItem);
+        const event = new CustomEvent('refreshProjectItem', {
+          detail: {
+            id: projectItem.id
+          },
+        })
+        document.dispatchEvent(event);
+        message.success('成功创建白板');
+      } catch (e) {
+        console.error(e);
+        message.error('创建白板失败');
+      }
     } else if (key === 'remove') {
       await onRemoveProjectItem();
     }
@@ -262,8 +311,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     key: 'add-project-item',
     label: '添加文档',
   }, {
-    key: 'add-card-project-item',
+    key: 'add-white-board-project-item',
+    label: '添加白板',
+  }, {
+    key: 'link-card-project-item',
     label: '关联卡片',
+  }, {
+    key: 'link-white-board-project-item',
+    label: '关联白板',
   }, {
     key: 'add-web-project-item',
     label: '解析网页',
@@ -283,6 +338,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         projects: [],
         refType: '',
         refId: 0,
+        projectItemType: EProjectItemType.Document,
       }
       await createChildProjectItem(projectItemId, createProjectItem);
 
@@ -292,8 +348,44 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         },
       });
       document.dispatchEvent(event);
-    } else if (key === 'add-card-project-item') {
+    } else if (key === 'add-white-board-project-item') {
+      if (!projectItemId) return;
+      const createProjectItem: CreateProjectItem = {
+        title: '新白板',
+        content: [],
+        whiteBoardData: {
+          children: [],
+          viewPort: {
+            zoom: 1,
+            minX: 0,
+            minY: 0,
+            width: 0,
+            height: 0
+          },
+          selection: {
+            selectArea: null,
+            selectedElements: [],
+          },
+        },
+        children: [],
+        parents: [projectItemId],
+        projects: [],
+        refType: '',
+        refId: 0,
+        projectItemType: EProjectItemType.WhiteBoard,
+      }
+      await createChildProjectItem(projectItemId, createProjectItem);
+
+      const event = new CustomEvent('refreshProjectItem', {
+        detail: {
+          id: projectItemId
+        },
+      });
+      document.dispatchEvent(event);
+    } else if (key === 'link-card-project-item') {
       openSelectCardModal();
+    } else if (key === 'link-white-board-project-item') {
+      // TODO 打开白板选择弹窗
     } else if (key === 'add-web-project-item') {
       setWebClipModalOpen(true);
     }
@@ -315,7 +407,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       document.removeEventListener('projectTitleChange', handleProjectTitleChange);
     }
   }, [projectItem]);
-  
+
   useEffect(() => {
     const handleRefreshProjectItem = (e: any) => {
       const { id } = (e as CustomEvent<{ id: number }>).detail;
@@ -352,7 +444,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         onClick={async () => {
           const activeProjectItem = await getProjectItemById(projectItem.id);
           if (!activeProjectItem) return;
-          const headers =  activeProjectItem.content.filter(node => node.type === 'header');
+          const headers = activeProjectItem.content.filter(node => node.type === 'header');
           useProjectsStore.setState({
             activeProjectItemId: projectItem.id,
             showOutline: headers.length > 0,
@@ -373,7 +465,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               }}
             >
               {
-                projectItem.children.length > 0 ? <FolderOpenTwoTone /> : <FileOutlined />
+                projectItem.children.length > 0 
+                  ? <FolderOpenTwoTone /> 
+                  : projectItem.projectItemType === EProjectItemType.WhiteBoard 
+                    ? <SVG src={whiteBoardIcon} /> 
+                    : <FileOutlined />
               }
             </div>
           </Tooltip>
@@ -414,14 +510,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           <For
             data={projectItem.children}
             renderItem={(projectItemId, index) => (
-             <ProjectItem
-               key={projectItemId}
-               projectItemId={projectItemId}
-               parentProjectItemId={projectItem.id}
-               isRoot={false}
-               path={[...path, index]}
-               parentChildren={projectItem.children}
-             />
+              <ProjectItem
+                key={projectItemId}
+                projectItemId={projectItemId}
+                parentProjectItemId={projectItem.id}
+                isRoot={false}
+                path={[...path, index]}
+                parentChildren={projectItem.children}
+              />
             )}
           />
         </div>
@@ -566,7 +662,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               parents: [projectItem.id],
               projects: [activateProjectId],
               refType: '',
-              refId: 0
+              refId: 0,
+              projectItemType: EProjectItemType.Document,
             }
 
             await createChildProjectItem(projectItem.id, createProjectItem);

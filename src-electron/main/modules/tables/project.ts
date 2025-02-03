@@ -5,7 +5,8 @@ import {
   CreateProject,
   UpdateProject,
   CreateProjectItem,
-  UpdateProjectItem
+  UpdateProjectItem,
+  EProjectItemType
 } from '@/types/project';
 import Operation from './operation';
 
@@ -34,7 +35,9 @@ export default class ProjectTable {
         parents TEXT,
         projects TEXT,
         ref_type TEXT,
-        ref_id INTEGER
+        ref_id INTEGER,
+        white_board_data TEXT,
+        project_item_type TEXT DEFAULT 'document'
       )
     `);
   }
@@ -44,6 +47,18 @@ export default class ProjectTable {
     const tableInfo = (stmt.get() as { sql: string }).sql;
     if (!tableInfo.includes('archived')) {
       const alertStmt = db.prepare("ALTER TABLE project ADD COLUMN archived INTEGER DEFAULT 0");
+      alertStmt.run();
+    }
+
+    const projectItemStmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'project_item'");
+    const projectItemTableInfo = (projectItemStmt.get() as { sql: string }).sql;
+
+    if (!projectItemTableInfo.includes('white_board_data')) {
+      const alertStmt = db.prepare("ALTER TABLE project_item ADD COLUMN white_board_data TEXT");
+      alertStmt.run();
+    }
+    if (!projectItemTableInfo.includes('project_item_type')) {
+      const alertStmt = db.prepare("ALTER TABLE project_item ADD COLUMN project_item_type TEXT DEFAULT 'document'");
       alertStmt.run();
     }
   }
@@ -69,7 +84,7 @@ export default class ProjectTable {
   }
 
   static parseProject(project: any): Project {
-    return {
+    const parsed = {
       ...project,
       children: JSON.parse(project.children || '[]'),
       archived: Boolean(project.archived),
@@ -77,10 +92,15 @@ export default class ProjectTable {
       updateTime: project.update_time,
       desc: JSON.parse(project.desc),
     };
+
+    delete parsed.create_time;
+    delete parsed.update_time;
+
+    return parsed;
   }
 
   static parseProjectItem(item: any): ProjectItem {
-    return {
+    const parsed = {
       ...item,
       content: JSON.parse(item.content),
       children: JSON.parse(item.children || '[]'),
@@ -88,9 +108,20 @@ export default class ProjectTable {
       projects: JSON.parse(item.projects || '[]'),
       createTime: item.create_time,
       updateTime: item.update_time,
+      whiteBoardData: JSON.parse(item.white_board_data || '{}') || {},
+      projectItemType: item.project_item_type as EProjectItemType || EProjectItemType.Document,
       refType: item.ref_type,
       refId: item.ref_id
     };
+
+    delete parsed.create_time;
+    delete parsed.update_time;
+    delete parsed.white_board_data;
+    delete parsed.ref_type;
+    delete parsed.ref_id;
+    delete parsed.project_item_type;
+
+    return parsed;
   }
 
   static async createProject(db: Database.Database, project: CreateProject): Promise<Project> {
@@ -160,8 +191,8 @@ export default class ProjectTable {
   static async createProjectItem(db: Database.Database, item: CreateProjectItem): Promise<ProjectItem> {
     const stmt = db.prepare(`
       INSERT INTO project_item
-      (create_time, update_time, title, content, children, parents, projects, ref_type, ref_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, title, content, children, parents, projects, ref_type, ref_id, white_board_data, project_item_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
@@ -173,7 +204,9 @@ export default class ProjectTable {
       JSON.stringify(item.parents || []),
       JSON.stringify(item.projects || []),
       item.refType,
-      item.refId
+      item.refId,
+      JSON.stringify(item.whiteBoardData || {}),
+      item.projectItemType
     );
 
     Operation.insertOperation(db, 'project_item', 'insert', res.lastInsertRowid, now);
@@ -186,12 +219,14 @@ export default class ProjectTable {
       UPDATE project_item SET
         update_time = ?,
         title = ?,
-        "content" = ?,
+        content = ?,
         children = ?,
         parents = ?,
         projects = ?,
         ref_type = ?,
-        ref_id = ?
+        ref_id = ?,
+        white_board_data = ?,
+        project_item_type = ?
       WHERE id = ?
     `);
     const now = Date.now();
@@ -204,32 +239,38 @@ export default class ProjectTable {
       JSON.stringify(item.projects || []),
       item.refType,
       item.refId,
-      item.id
+      JSON.stringify(item.whiteBoardData || {}),
+      item.projectItemType,
+      item.id,
     );
 
-    // update card and article update_time and content, article also set title
-    if (item.refType === 'card' && item.refId) {
+    if (item.refType === 'card' && item.refId && item.content) {
       const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ? WHERE id = ?');
       cardStmt.run(now, JSON.stringify(item.content || []), item.refId);
     }
 
     if (item.refType === 'article' && item.refId) {
       const articleStmt = db.prepare('UPDATE articles SET update_time = ?, content = ?, title = ? WHERE id = ?');
-      articleStmt.run(now, JSON.stringify(item.content || []), item.title, item.refId);
+      articleStmt.run(now, JSON.stringify(item.content), item.title, item.refId);
+    }
+
+    if (item.refType === 'white-board' && item.refId && item.whiteBoardData) {
+      const whiteBoardStmt = db.prepare('UPDATE white_boards SET update_time = ?, data = ?, title = ?, is_project_item = ? WHERE id = ?');
+      whiteBoardStmt.run(now, JSON.stringify(item.whiteBoardData), item.title, 1, item.refId);
     }
 
     Operation.insertOperation(db, 'project_item', 'update', item.id, now);
 
-    // project_item 可能通过 card 和 article 有饮用关系，更新 project_item
+    // project_item 可能通过 card 和 article 有引用关系，更新 project_item
     // TODO 可以优化
     if (item.refType !== '' && item.refId) {
       const projectItems = await this.getProjectItemByRef(db, item.refType, item.refId);
       for (const projectItem of projectItems) {
         if (projectItem.id !== item.id) {
           const projectItemStmt = db.prepare(
-            `UPDATE project_item SET update_time = ?, content = ?, title = ? WHERE id = ?`
+            `UPDATE project_item SET update_time = ?, content = ?, white_board_data = ?, title = ? WHERE id = ?`
           );
-          projectItemStmt.run(now, JSON.stringify(item.content || []), item.title, projectItem.id);
+          projectItemStmt.run(now, JSON.stringify(item.content || []), JSON.stringify(item.whiteBoardData || {}), item.title, projectItem.id);
         }
       }
     }
@@ -240,6 +281,7 @@ export default class ProjectTable {
   static async deleteProjectItem(db: Database.Database, id: number): Promise<number> {
     // TODO，一个 projectItem 可能在多个 project 中，删除  projectItem 需谨慎
     const stmt = db.prepare('DELETE FROM project_item WHERE id = ?');
+
     Operation.insertOperation(db, 'project_item', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
@@ -302,5 +344,22 @@ export default class ProjectTable {
       await this.deleteProjectItem(db, deleteItem.id);
     }
     return toDeleteItems.length;
+  }
+
+  static async deleteProjectItemByRef(db: Database.Database, refType: string, refId: number): Promise<void> {
+    const stmt = db.prepare(`
+      DELETE FROM project_item
+      WHERE ref_type = ? AND ref_id = ?
+    `);
+    stmt.run(refType, refId);
+  }
+
+  static resetProjectItemRef(db: Database.Database, refType: string, refId: number) {
+    const stmt = db.prepare(`
+      UPDATE project_item
+      SET ref_type = '', ref_id = 0 
+      WHERE ref_type = ? AND ref_id = ?
+    `);
+    stmt.run(refType, refId);
   }
 }

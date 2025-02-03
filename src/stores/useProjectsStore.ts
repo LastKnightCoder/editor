@@ -97,7 +97,7 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     return res;
   },
   createChildProjectItem: async (parentProjectItemId, projectItem) => {
-    const { activeProjectId }  = get();
+    const { activeProjectId } = get();
     if (!activeProjectId) return;
     const parentProjectItem = await getProjectItemById(parentProjectItemId);
     if (!parentProjectItem) return;

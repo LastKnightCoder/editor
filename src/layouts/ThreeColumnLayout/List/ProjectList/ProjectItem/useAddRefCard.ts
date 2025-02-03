@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CreateProjectItem, ECardCategory, ICard, ICreateCard, ProjectItem } from "@/types";
+import { CreateProjectItem, ECardCategory, EProjectItemType, ICard, ICreateCard, ProjectItem } from "@/types";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import { useMemoizedFn } from "ahooks";
@@ -80,6 +80,7 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
       projects: [activeProjectId],
       refType: 'card',
       refId: selectCard.id,
+      projectItemType: EProjectItemType.Document,
     }
 
     await createChildProjectItem(projectItem.id, createProjectItem);

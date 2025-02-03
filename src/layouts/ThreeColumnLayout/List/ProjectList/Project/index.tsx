@@ -8,7 +8,7 @@ import If from "@/components/If";
 import For from "@/components/For";
 
 import styles from './index.module.less';
-import { CreateProjectItem } from "@/types";
+import { CreateProjectItem, EProjectItemType } from "@/types";
 
 const Project = () => {
   const {
@@ -40,7 +40,8 @@ const Project = () => {
       parents: [],
       projects: [activeProjectId],
       refType: '',
-      refId: 0
+      refId: 0,
+      projectItemType: EProjectItemType.Document,
     }
     const item = await createRootProjectItem(activeProjectId, defaultRootProjectItem);
     if (item) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAsyncEffect } from "ahooks";
+import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
 import { convertFileSrc } from "@/commands";
 
@@ -32,8 +32,20 @@ const LocalImage = (props: ILocalImageProps) => {
     }
   }, [url]);
 
+  const onError = useMemoizedFn(() => {
+    setPreviewUrl(url);
+  });
+
   return (
-    <img src={previewUrl} alt={alt} className={className} style={style} onClick={onClick} {...restProps} />
+    <img
+        src={previewUrl}
+        alt={alt}
+        className={className}
+        style={style}
+        onClick={onClick}
+        onError={onError}
+        {...restProps}
+    />
   )
 }
 

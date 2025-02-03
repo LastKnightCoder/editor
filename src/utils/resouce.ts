@@ -40,7 +40,12 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     await writeTextFile(configPath, JSON.stringify({}));
   }
   const config = await readTextFile(configPath);
-  const configObj = JSON.parse(config);
+  let configObj: Record<string, string> = {};
+  try {
+    configObj = JSON.parse(config);
+  } catch (e) {
+    console.error(e);
+  }
   if (configObj[url]) {
     return configObj[url];
   }
