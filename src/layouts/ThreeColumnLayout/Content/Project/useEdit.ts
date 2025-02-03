@@ -45,7 +45,7 @@ const useEdit = () => {
     if (!projectItem || !prevProjectItem.current) return;
     contentChanged.current = JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
   }, [projectItem]);
-  
+
   useEffect(() => {
     const handleRefreshProjectItem = (e: any) => {
       if (!projectItem) return;

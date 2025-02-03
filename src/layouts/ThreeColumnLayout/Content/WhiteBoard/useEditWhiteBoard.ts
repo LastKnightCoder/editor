@@ -4,24 +4,23 @@ import { WhiteBoard } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { BoardElement, ViewPort, Selection } from "@/components/WhiteBoard";
-
+import { getWhiteBoardById } from '@/commands';
 const useEditWhiteBoard = (whiteBoardId: number) => {
   const [whiteBoard, setWhiteBoard] = useState<WhiteBoard | null>(null);
   const [loading, setLoading] = useState(false);
   const changed = useRef(false);
-  const { whiteBoards, updateWhiteBoard } = useWhiteBoardStore(state => ({
-    whiteBoards: state.whiteBoards,
+  const { updateWhiteBoard } = useWhiteBoardStore(state => ({
     updateWhiteBoard: state.updateWhiteBoard,
   }));
 
   useEffect(() => {
     setLoading(true);
-    const whiteBoard = whiteBoards.find(wb => wb.id === whiteBoardId);
-    if (whiteBoard) {
-      setWhiteBoard(whiteBoard);
-    }
-    setLoading(false);
-  }, [whiteBoardId, whiteBoards]);
+    getWhiteBoardById(whiteBoardId).then(wb => {
+      setWhiteBoard(wb);
+    }).finally(() => {
+      setLoading(false);
+    });
+  }, [whiteBoardId]);
 
   const onChange = useMemoizedFn((data: { children: BoardElement[], viewPort: ViewPort, selection: Selection }) => {
     if (!whiteBoard) return;

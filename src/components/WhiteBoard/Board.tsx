@@ -255,7 +255,6 @@ class Board {
 
     const changedElements = [];
     const removedElements = [];
-
     try {
       for (const op of ops) {
         if (op.type === 'set_node') {
@@ -400,12 +399,6 @@ class Board {
         }
         this.emit('change');
       }
-
-      // this.selection.selectedElements.forEach(se => {
-      //   if (se.type !== 'arrow') {
-      //     this.refLine.removeRefRect(se.id);
-      //   }
-      // })
     }
   }
 

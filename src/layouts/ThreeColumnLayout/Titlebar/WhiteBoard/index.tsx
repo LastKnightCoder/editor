@@ -58,6 +58,7 @@ const WhiteBoard = () => {
               },
             },
             snapshot: '',
+            isProjectItem: false,
           }
           const whiteBoard = await createWhiteBoard(createWhiteBoardData);
           setCreateWhiteBoardModalOpen(false);

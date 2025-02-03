@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { WhiteBoard } from '@/types';
 import Operation from './operation';
+import Project from './project';
 
 export default class WhiteboardTable {
 
@@ -14,13 +15,18 @@ export default class WhiteboardTable {
         data TEXT,
         title TEXT,
         description TEXT,
-        snapshot TEXT
+        snapshot TEXT,
+        is_project_item INTEGER DEFAULT 0
       )
     `);
   }
 
   static upgradeTable(db: Database.Database) {
-    // 暂无升级
+    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'white_boards'");
+    const tableInfo = (stmt.get() as { sql: string }).sql;
+    if (!tableInfo.includes('is_project_item')) {
+      db.exec(`ALTER TABLE white_boards ADD COLUMN is_project_item INTEGER DEFAULT 0`);
+    }
   }
 
   static getListenEvents() {
@@ -39,15 +45,16 @@ export default class WhiteboardTable {
       data: JSON.parse(whiteboard.data),
       tags: JSON.parse(whiteboard.tags),
       createTime: whiteboard.create_time,
-      updateTime: whiteboard.update_time
+      updateTime: whiteboard.update_time,
+      isProjectItem: Boolean(whiteboard.is_project_item),
     };
   }
 
   static async createWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'id' | 'createTime' | 'updateTime'>): Promise<WhiteBoard> {
     const stmt = db.prepare(`
       INSERT INTO white_boards
-      (title, description, data, create_time, update_time, snapshot)
-      VALUES (?, ?, ?, ?, ?, ?)
+      (title, description, data, create_time, update_time, snapshot, is_project_item)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
@@ -56,7 +63,8 @@ export default class WhiteboardTable {
       JSON.stringify(whiteboard.data),
       now,
       now,
-      Number(whiteboard.snapshot)
+      whiteboard.snapshot,
+      Number(whiteboard.isProjectItem || false)
     );
 
     Operation.insertOperation(db, 'whiteboard', 'insert', res.lastInsertRowid, now);
@@ -72,7 +80,8 @@ export default class WhiteboardTable {
         tags = ?,
         data = ?,
         update_time = ?,
-        snapshot = ?
+        snapshot = ?,
+        is_project_item = ?
       WHERE id = ?
     `);
     const now = Date.now();
@@ -83,8 +92,14 @@ export default class WhiteboardTable {
       JSON.stringify(whiteboard.data),
       now,
       Number(whiteboard.snapshot),
-      whiteboard.id
+      Number(whiteboard.isProjectItem || false),
+      whiteboard.id,
     );
+
+    if (whiteboard.isProjectItem) {
+      const stmt = db.prepare(`UPDATE project_item SET update_time = ?, white_board_data = ?, title = ? WHERE ref_type = 'white-board' AND ref_id = ?`);
+      stmt.run(now, JSON.stringify(whiteboard.data), whiteboard.title, whiteboard.id);
+    }
 
     Operation.insertOperation(db, 'whiteboard', 'update', whiteboard.id, now);
 
@@ -96,6 +111,8 @@ export default class WhiteboardTable {
 
     Operation.insertOperation(db, 'whiteboard', 'delete', id, Date.now());
 
+    Project.resetProjectItemRef(db, 'white-board', id);
+
     return stmt.run(id).changes;
   }
 
@@ -105,7 +122,7 @@ export default class WhiteboardTable {
     return this.parseWhiteboard(whiteboard);
   }
 
-  static async getAllWhiteboards(db: Database.Database,): Promise<WhiteBoard[]> {
+  static async getAllWhiteboards(db: Database.Database): Promise<WhiteBoard[]> {
     const stmt = db.prepare('SELECT * FROM white_boards');
     const whiteboards = stmt.all();
     return whiteboards.map(wb => this.parseWhiteboard(wb));
