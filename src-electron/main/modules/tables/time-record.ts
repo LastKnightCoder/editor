@@ -16,7 +16,7 @@ export default class TimeRecordTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static upgradeTable(_db: Database.Database) {
     // 暂无升级
   }
 

@@ -7,9 +7,9 @@ import FocusMode from "../../../../components/FocusMode";
 import useProjectsStore from "@/stores/useProjectsStore";
 import { useMemoizedFn } from "ahooks";
 
-import { CreateProject, CreateProjectItem } from "@/types";
+import { CreateProject, CreateProjectItem, EProjectItemType } from "@/types";
 
-import { MdExitToApp, MdFormatIndentIncrease, MdFormatIndentDecrease } from "react-icons/md";
+import { MdExitToApp, MdFormatIndentDecrease, MdFormatIndentIncrease } from "react-icons/md";
 import { EditOutlined, PlusOutlined, ReadOutlined } from "@ant-design/icons";
 import { Descendant } from "slate";
 import { message } from "antd";
@@ -76,7 +76,8 @@ const Project = () => {
         parents: [],
         projects: [activeProjectId],
         refType: '',
-        refId: 0
+        refId: 0,
+        projectItemType: EProjectItemType.Document
       }
       const createdProjectItem = await createRootProjectItem(activeProjectId, defaultRootProjectItem);
       if (createdProjectItem && !activeProjectItemId) {
