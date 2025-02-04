@@ -18,7 +18,7 @@ export default class VecDocumentTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static upgradeTable(_db: Database.Database) {
     // TODO 暂无升级
   }
 

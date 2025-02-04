@@ -13,7 +13,7 @@ export default class DailyNoteTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static upgradeTable(_db: Database.Database) {
     // 暂时无升级
   }
 

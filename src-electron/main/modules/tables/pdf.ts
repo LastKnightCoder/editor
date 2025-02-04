@@ -20,7 +20,7 @@ export default class PdfTable {
 
     db.exec(`
       CREATE TABLE IF NOT EXISTS pdf_highlights (
-        id INTEGER PRIMARY KEY NOT NULL,
+        id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         pdf_id INTEGER NOT NULL,
@@ -30,15 +30,14 @@ export default class PdfTable {
         bounding_client_rect TEXT NOT NULL,
         highlight_text_style TEXT NOT NULL,
         page_num INTEGER NOT NULL,
-        content TEXT,
-        image TEXT,
-        notes TEXT NOT NULL,
-        FOREIGN KEY(pdf_id) REFERENCES pdfs(id)
+        content TEXT NOT NULL,
+        image TEXT NOT NULL,
+        notes TEXT NOT NULL
       )
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static upgradeTable(_db: Database.Database) {
     // TODO 暂无升级
   }
 
