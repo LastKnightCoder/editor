@@ -24,6 +24,7 @@ import whiteBoardIcon from '@/assets/icons/white-board.svg';
 
 import styles from './index.module.less';
 import { isValid } from "@/components/WhiteBoard/utils";
+import EditText, { EditTextHandle } from "@/components/EditText";
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -39,6 +40,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { chatLLM } = useChatLLM();
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState('');
+  const [titleEditable, setTitleEditable] = useState(false);
+  const titleRef = useRef<EditTextHandle>(null);
   const parserControllerRef = useRef<AbortController>();
   const [parseLoading, setParseLoading] = useState(false);
   const [projectItem, setProjectItem] = useState<ProjectItem>();
@@ -263,7 +266,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     } : undefined, {
       key: 'remove',
       label: '删除白板'
-    }].filter(isValid);
+    }, {
+      key: 'edit-title',
+      label: '编辑标题',
+    }].filter(isValid)
 
   const handleMoreMenuClick: MenuProps['onClick'] = useMemoizedFn(async ({ key }) => {
     if (key === 'to-card') {
@@ -304,6 +310,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
     } else if (key === 'remove') {
       await onRemoveProjectItem();
+    } else if (key === 'edit-title') {
+      setTitleEditable(true);
+      titleRef.current?.setContentEditable(true);
+      titleRef.current?.focusEnd();
     }
   });
 
@@ -398,6 +408,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       const changedItem = e.detail;
       if (changedItem.id === projectItem.id) {
         setProjectItem(changedItem);
+        titleRef.current?.setValue(changedItem.title);
       }
     }
 
@@ -473,7 +484,34 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               }
             </div>
           </Tooltip>
-          <div className={styles.title}>{projectItem.title}</div>
+          <EditText
+            key={projectItem.id}
+            ref={titleRef}
+            defaultValue={projectItem.title}
+            contentEditable={titleEditable}
+            onPressEnter={() => {
+              const textContent = titleRef.current?.getValue() || projectItem?.title;
+              setTitleEditable(false);
+              if (textContent !== projectItem.title) {
+                // 更新标题
+                updateProjectItem({
+                  ...projectItem,
+                  title: textContent,
+                }).then((newProjectItem) => {
+                  setProjectItem(newProjectItem);
+                  // 不触发下面事件是因为白板不会显示也不更新标题，所以没必要
+                  // 而文档不会在这里修改标题
+                  // TODO 把事件通信尽可能去掉
+                  // document.dispatchEvent(new CustomEvent('projectTitleChange', {
+                  //   detail: newProjectItem,
+                  // }));
+                  setTitleEditable(false);
+                  titleRef.current?.setContentEditable(false);
+                })
+              }
+            }}
+          />
+          {/*<div className={styles.title}>{projectItem.title}</div>*/}
         </div>
         <div
           onClick={e => {

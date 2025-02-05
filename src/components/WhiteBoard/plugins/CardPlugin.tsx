@@ -15,9 +15,8 @@ export interface CardElement extends CommonElement {
   readonly?: boolean;
   fill?: string;
   fillOpacity?: number;
-  stroke?: string;
-  strokeOpacity?: number;
-  strokeWidth?: number;
+  topColor?: string;
+  color?: string;
 }
 
 export class CardPlugin extends CommonPlugin implements IBoardPlugin {

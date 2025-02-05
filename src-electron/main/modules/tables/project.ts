@@ -9,6 +9,8 @@ import {
   EProjectItemType
 } from '@/types/project';
 import Operation from './operation';
+import { WhiteBoard } from "@/types";
+import { Descendant } from "slate";
 
 export default class ProjectTable {
   static initTable(db: Database.Database) {
@@ -72,6 +74,8 @@ export default class ProjectTable {
       'get-all-projects': this.getAllProjects.bind(this),
       'create-project-item': this.createProjectItem.bind(this),
       'update-project-item': this.updateProjectItem.bind(this),
+      'update-project-item-whiteboard-data': this.updateProjectItemWhiteBoardData.bind(this),
+      'update-project-item-content': this.updateProjectItemContent.bind(this),
       'delete-project-item': this.deleteProjectItem.bind(this),
       'get-project-item': this.getProjectItem.bind(this),
       'get-project-item-by-ref': this.getProjectItemByRef.bind(this),
@@ -276,6 +280,87 @@ export default class ProjectTable {
     }
 
     return this.getProjectItem(db, item.id);
+  }
+  
+  static async updateProjectItemWhiteBoardData(db: Database.Database, id: number, whiteBoardData: WhiteBoard['data']): Promise<ProjectItem> {
+    const stmt = db.prepare(`
+      UPDATE project_item SET
+        update_time = ?,
+        white_board_data = ?
+      WHERE id = ?
+    `);
+    const now = Date.now();
+    stmt.run(
+      now,
+      JSON.stringify(whiteBoardData || {}),
+      id,
+    );
+
+    Operation.insertOperation(db, 'project_item', 'update', id, now);
+    
+    const item = await this.getProjectItem(db, id);
+    
+    if (item.refType === 'white-board' && item.refId && item.whiteBoardData) {
+      const whiteBoardStmt = db.prepare('UPDATE white_boards SET update_time = ?, data = ? WHERE id = ?');
+      whiteBoardStmt.run(now, JSON.stringify(item.whiteBoardData), item.refId);
+    }
+    
+    if (item.refType !== '' && item.refId) {
+      const projectItems = await this.getProjectItemByRef(db, item.refType, item.refId);
+      for (const projectItem of projectItems) {
+        if (projectItem.id !== item.id) {
+          const projectItemStmt = db.prepare(
+            `UPDATE project_item SET update_time = ?, white_board_data = ? WHERE id = ?`
+          );
+          projectItemStmt.run(now, JSON.stringify(item.whiteBoardData || {}), projectItem.id);
+        }
+      }
+    }
+    
+    return item;
+  }
+  
+  static async updateProjectItemContent(db: Database.Database, id: number, content: Descendant[]): Promise<ProjectItem> {
+    const stmt = db.prepare(`
+      UPDATE project_item SET
+        update_time = ?,
+        content = ?
+      WHERE id = ?
+    `);
+    const now = Date.now();
+    stmt.run(
+      now,
+      JSON.stringify(content || []),
+      id,
+    );
+    
+    Operation.insertOperation(db,'project_item', 'update', id, now);
+
+    const item = await this.getProjectItem(db, id);
+    
+    if (item.refType === 'card' && item.refId && item.content) {
+      const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ? WHERE id = ?');
+      cardStmt.run(now, JSON.stringify(item.content || []), item.refId);
+    }
+    
+    if (item.refType === 'article' && item.refId) {
+      const articleStmt = db.prepare('UPDATE articles SET update_time = ?, content = ? WHERE id = ?');
+      articleStmt.run(now, JSON.stringify(item.content), item.refId);
+    }
+    
+    if (item.refType !== '' && item.refId) {
+      const projectItems = await this.getProjectItemByRef(db, item.refType, item.refId);
+      for (const projectItem of projectItems) {
+        if (projectItem.id !== item.id) {
+          const projectItemStmt = db.prepare(
+            `UPDATE project_item SET update_time = ?, content = ? WHERE id = ?`
+          );
+          projectItemStmt.run(now, JSON.stringify(item.content || []), projectItem.id);
+        }
+      }
+    }
+    
+    return item;
   }
 
   static async deleteProjectItem(db: Database.Database, id: number): Promise<number> {

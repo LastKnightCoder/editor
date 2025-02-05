@@ -23,9 +23,8 @@ import { BoardElement, Events, ViewPort, Selection } from "./types";
 import Toolbar from './components/Toolbar';
 import SelectArea from './components/SelectArea';
 import GradientLine from "./components/GradientLine";
-import ComponentConfig from "./components/ComponentConfig";
 import styles from './index.module.less';
-import PortalToBody from "@/components/PortalToBody";
+import AttributeSetter from "./components/AttributeSetter";
 
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
@@ -113,49 +112,36 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const handleContainerResize = useMemoizedFn(() => {
     ViewPortTransforms.onContainerResize(board);
   });
+  
+  const handleMouseDown = eventHandlerGenerator('onMouseDown');
+  const handleMouseMove = eventHandlerGenerator('onMouseMove');
+  const handleMouseUp = eventHandlerGenerator('onMouseUp');
+  const handleMouseEnter = eventHandlerGenerator('onMouseEnter');
+  const handleMouseLeave = eventHandlerGenerator('onMouseLeave');
+  const handleContextMenu = eventHandlerGenerator('onContextMenu');
+  const handleClick = eventHandlerGenerator('onClick');
+  const handleDblClick = eventHandlerGenerator('onDblClick');
+  const handleOnPointerDown = eventHandlerGenerator('onPointerDown');
+  const handleOnPointerMove = eventHandlerGenerator('onPointerMove');
+  const handleOnPointerUp = eventHandlerGenerator('onPointerUp');
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     BOARD_TO_CONTAINER.set(board, container);
-
-    const handleMouseDown = eventHandlerGenerator('onMouseDown');
-    const handleMouseMove = eventHandlerGenerator('onMouseMove');
-    const handleMouseUp = eventHandlerGenerator('onMouseUp');
-    const handleMouseEnter = eventHandlerGenerator('onMouseEnter');
-    const handleMouseLeave = eventHandlerGenerator('onMouseLeave');
-    const handleContextMenu = eventHandlerGenerator('onContextMenu');
-    const handleClick = eventHandlerGenerator('onClick');
-    const handleDblClick = eventHandlerGenerator('onDblClick');
+    
     const handleKeyDown = eventHandlerGenerator('onKeyDown');
     const handleKeyUp = eventHandlerGenerator('onKeyUp');
     const handleGlobalMouseDown = eventHandlerGenerator('onGlobalMouseDown');
     const handleGlobalMouseUp = eventHandlerGenerator('onGlobalMouseUp');
     const handleOnWheel = eventHandlerGenerator('onWheel');
-    const handleOnPointerDown = eventHandlerGenerator('onPointerDown');
-    const handleOnPointerMove = eventHandlerGenerator('onPointerMove');
-    const handleOnPointerUp = eventHandlerGenerator('onPointerUp');
     const handleOnGlobalPointerDown = eventHandlerGenerator('onGlobalPointerDown');
     const handleOnGlobalPointerMove = eventHandlerGenerator('onGlobalPointerMove');
     const handleOnGlobalPointerUp = eventHandlerGenerator('onGlobalPointerUp');
     const handleOnPaste = eventHandlerGenerator('onPaste');
     const handleOnCopy = eventHandlerGenerator('onCopy');
     const handleOnCut = eventHandlerGenerator('onCut');
-
-    container.addEventListener('mousedown', handleMouseDown);
-    container.addEventListener('mousemove', handleMouseMove);
-    container.addEventListener('mouseup', handleMouseUp);
-    container.addEventListener('mouseenter', handleMouseEnter);
-    container.addEventListener('mouseleave', handleMouseLeave);
-
-    container.addEventListener('contextmenu', handleContextMenu);
-    container.addEventListener('click', handleClick);
-    container.addEventListener('dblclick', handleDblClick);
-
-    container.addEventListener('pointerdown', handleOnPointerDown);
-    container.addEventListener('pointermove', handleOnPointerMove);
-    container.addEventListener('pointerup', handleOnPointerUp);
 
     document.addEventListener('paste', handleOnPaste);
     document.addEventListener('copy', handleOnCopy);
@@ -187,29 +173,29 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       document.removeEventListener('paste', handleOnPaste);
       document.removeEventListener('copy', handleOnCopy);
       document.removeEventListener('cut', handleOnCut);
-      if (container) {
-        container.removeEventListener('mousedown', handleMouseDown);
-        container.removeEventListener('mousemove', handleMouseMove);
-        container.removeEventListener('mouseup', handleGlobalMouseUp);
-        container.removeEventListener('mouseenter', handleMouseEnter);
-        container.removeEventListener('mouseleave', handleMouseLeave);
-        container.removeEventListener('contextmenu', handleContextMenu);
-        container.removeEventListener('click', handleClick);
-        container.removeEventListener('dblclick', handleDblClick);
-        container.removeEventListener('pointerdown', handleOnPointerDown);
-        container.removeEventListener('pointermove', handleOnPointerMove);
-        container.removeEventListener('pointerup', handleOnPointerUp);
-        
-      }
       observer.disconnect();
       board.destroy();
-      console.log('board destroyed');
     }
   }, [board, eventHandlerGenerator, handleContainerResize]);
 
   const lines = board.refLine.matchRefLines(15 / zoom);
   return (
-    <div ref={containerRef} className={classnames(styles.boardContainer, className)} style={style}>
+    <div
+      ref={containerRef}
+      className={classnames(styles.boardContainer, className)}
+      style={style}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onContextMenu={handleContextMenu}
+      onClick={handleClick}
+      onDoubleClick={handleDblClick}
+      onPointerDown={handleOnPointerDown}
+      onPointerMove={handleOnPointerMove}
+      onPointerUp={handleOnPointerUp}
+    >
       <BoardContext.Provider value={board}>
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
@@ -263,11 +249,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 }
               </g>
             </svg>
-            <PortalToBody>
-              <div className={classnames(styles.attributeBar, { [styles.hide]: selection.selectedElements.length !== 1 })}>
-                <ComponentConfig />
-              </div>
-            </PortalToBody>
+            <div className={styles.verticalBar}>
+              <AttributeSetter />
+            </div>
           </ViewPortContext.Provider>
         </SelectionContext.Provider>
       </BoardContext.Provider>

@@ -14,7 +14,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
   }
 
    onPaste(event: ClipboardEvent, board: Board) {
-    if (board.isEditing || board.isEditingProperties) return;
+    if (board.isEditing) return;
     const items = event.clipboardData?.items;
     if (!items) return;
 

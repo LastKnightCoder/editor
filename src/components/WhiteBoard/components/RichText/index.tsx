@@ -34,7 +34,7 @@ const customExtensions = [
 
 type RichTextNoType = Omit<RichTextElement, 'type'> & any;
 
-interface RichtextProps {
+interface RichTextProps {
   element: RichTextNoType;
   onContentChange: (board: Board, element: RichTextNoType, value: Descendant[]) => void;
   onEditorSizeChange: (board: Board, element: RichTextNoType, width: number, height: number) => void;
@@ -45,9 +45,9 @@ interface RichtextProps {
 }
 
 const PADDING_WIDTH = 16;
-const PADDING_HEIGHT = 12;
+const PADDING_HEIGHT = 16;
 
-const Richtext = memo((props: RichtextProps) => {
+const Richtext = memo((props: RichTextProps) => {
   const {
     element,
     onResizeStart,
@@ -72,11 +72,9 @@ const Richtext = memo((props: RichtextProps) => {
     autoFocus,
     paddingWidth = PADDING_WIDTH, 
     paddingHeight = PADDING_HEIGHT,
-    fill,
-    fillOpacity,
-    stroke,
-    strokeOpacity,
-    strokeWidth
+    topColor,
+    background,
+    color
   } = element;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -116,7 +114,7 @@ const Richtext = memo((props: RichtextProps) => {
       board.isEditing = false;
       // 按道理 blur 的时候取消选中，但是这个时候如果想通过工具栏改变样式就没法做到了
       // 暂时不 deselect 了，后续改为右键菜单的时候在改回来
-      editorRef.current?.deselect();
+      // editorRef.current?.deselect();
     }, 100)
   });
 
@@ -149,8 +147,10 @@ const Richtext = memo((props: RichtextProps) => {
     return {
       pointerEvents: isMoving ||isSelecting || isSelected ? 'none' : 'auto',
       userSelect: isMoving || isSelecting || isSelected ? 'none' : 'auto',
+      background: 'transparent',
+      color,
     } as React.CSSProperties;
-  }, [isMoving, isSelecting, isSelected]);
+  }, [isMoving, isSelecting, isSelected, color]);
 
   const handleAutoFocus = useMemoizedFn(() => {
     if (autoFocus) {
@@ -198,7 +198,7 @@ const Richtext = memo((props: RichtextProps) => {
       board.off('element:move', onMovingChange);
       board.off('element:move-end', onMovingEnd);
     }
-  }, [elementId]);
+  }, [board, elementId]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -209,7 +209,16 @@ const Richtext = memo((props: RichtextProps) => {
     if (!editor) return;
 
     const stopWheelPropagation = (e: WheelEvent) => {
-      e.stopPropagation();
+      // 怎么判断是否滚动到底部
+      const clientHeight = editor.clientHeight;
+      const scrollTop = editor.scrollTop;
+      const scrollHeight = editor.scrollHeight;
+      const isScrollToBottom = scrollTop + clientHeight >= scrollHeight;
+      // 获取滚动方向
+      const isUp = e.deltaY < 0;
+      if ((isUp && scrollTop !== 0) || (!isUp && !isScrollToBottom)) {
+        e.stopPropagation();
+      }
     }
 
     // @ts-expect-error
@@ -223,20 +232,6 @@ const Richtext = memo((props: RichtextProps) => {
 
   return (
     <>
-      {/* 使用 rect 作为边框而不是 border，是因为放大时拖动内容边框会产生残痕遗留，而 rect 不会 */}
-      <rect
-        x={x} 
-        y={y} 
-        width={width} 
-        height={height} 
-        stroke={stroke} 
-        strokeWidth={strokeWidth} 
-        fill={fill}
-        fillOpacity={fillOpacity}
-        strokeOpacity={strokeOpacity}
-        rx={4} 
-        ry={4} 
-      />
       <foreignObject
         x={x}
         y={y}
@@ -244,13 +239,34 @@ const Richtext = memo((props: RichtextProps) => {
         height={focus && !resized ? maxHeight : height}
       >
         <div
+          id={`rich-text-container-${elementId}`}
           className={styles.richTextContainer}
           ref={containerRef}
           style={containerStyle}
         >
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width,
+              height,
+              background: background || 'transparent',
+              borderRadius: 4,
+              zIndex: -1
+            }}
+          >
+          
+          </div>
+          {
+            topColor && (
+                <div className={styles.borderTop} style={{ background: topColor }}></div>
+              )
+          }
           <Editor
             ref={editorRef}
             style={editorStyle}
+            className={styles.editor}
             initValue={initValue}
             onChange={handleOnContentChange}
             readonly={readonly}
