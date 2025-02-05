@@ -91,7 +91,7 @@ export default class WhiteboardTable {
       JSON.stringify(whiteboard.tags),
       JSON.stringify(whiteboard.data),
       now,
-      Number(whiteboard.snapshot),
+      whiteboard.snapshot,
       Number(whiteboard.isProjectItem || false),
       whiteboard.id,
     );

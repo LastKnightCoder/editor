@@ -17,11 +17,12 @@ export interface RichTextElement extends CommonElement {
   paddingWidth?: number;
   paddingHeight?: number;
   autoFocus?: boolean;
-  fill?: string;
-  fillOpacity?: number;
   stroke?: string;
   strokeOpacity?: number;
   strokeWidth?: number;
+  background?: string;
+  topColor?: string;
+  color?: string;
 }
 
 export class RichTextPlugin extends CommonPlugin {

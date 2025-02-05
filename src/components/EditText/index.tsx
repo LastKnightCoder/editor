@@ -19,6 +19,7 @@ export type EditTextHandle = {
   focusEnd: () => void;
   blur: () => void;
   getValue: () => string;
+  setContentEditable: (editable: boolean) => void;
 }
 
 const EditText = memo(forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef) => {
@@ -62,6 +63,15 @@ const EditText = memo(forwardRef<EditTextHandle, IEditTextProps>((props, editTex
     },
     getValue: () => {
       return ref.current?.innerText || '';
+    },
+    setContentEditable: (editable: boolean) => {
+      if (ref.current) {
+        if(editable) {
+          ref.current.setAttribute('contenteditable', 'plaintext-only');
+        } else {
+          ref.current.removeAttribute('contenteditable');
+        }
+      }
     }
   }));
   

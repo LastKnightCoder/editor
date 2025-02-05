@@ -41,7 +41,6 @@ export class ImageUtil {
           y: center.y - imageHeight / 2,
           width: imageWidth,
           height: imageHeight,
-          preserveAspectRatio: 'xMidYMid slice',
         }
       })
     }

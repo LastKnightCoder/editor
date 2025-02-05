@@ -30,7 +30,7 @@ interface ImageElementProps {
 const ImageElementComponent = memo((props: ImageElementProps) => {
   const { element, onResize, onResizeStart, onResizeEnd } = props;
 
-  const { id, x, y, width, height, src, preserveAspectRatio } = element;
+  const { id, x, y, width, height, src } = element;
 
   const [isConverting, setIsConverting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(src);
@@ -39,7 +39,6 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     setIsConverting(true);
     try{ 
       if (src.startsWith('http')) {
-        
           const localUrl = await remoteResourceToLocal(src);
           const filePath = convertFileSrc(localUrl);
           setPreviewUrl(filePath);
@@ -53,6 +52,10 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
       setIsConverting(false);
     }
   }, [src]);
+  
+  const onLoadImageError = () => {
+    setPreviewUrl(src);
+  }
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
@@ -88,7 +91,31 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
 
   return (
     <>
-      <image href={previewUrl} x={x} y={y} width={width} height={height} preserveAspectRatio={preserveAspectRatio} />
+      <foreignObject
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        style={{
+          userSelect: 'none'
+        }}
+      >
+        <img
+          src={previewUrl}
+          onError={onLoadImageError}
+          width={width}
+          height={height}
+          alt={''}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+          }}
+          style={{
+            objectFit: 'contain',
+            objectPosition: 'center',
+            userSelect: 'none'
+          }}
+        />
+      </foreignObject>
       <If condition={isSelected}>
         <g>
           <rect

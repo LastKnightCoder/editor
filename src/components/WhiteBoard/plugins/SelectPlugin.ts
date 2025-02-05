@@ -80,7 +80,7 @@ export class SelectPlugin implements IBoardPlugin {
   onKeyDown(e: KeyboardEvent, board: Board) {
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
-    if (isHotkey(['delete', 'backspace'], e) && !board.isEditingProperties) {
+    if (isHotkey(['delete', 'backspace'], e)) {
       const ops = BoardUtil.getBatchRemoveNodesOps(board, selectedElements);
       board.apply(ops);
       SelectTransforms.updateSelectArea(board, {

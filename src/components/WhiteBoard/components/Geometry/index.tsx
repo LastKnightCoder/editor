@@ -47,7 +47,8 @@ const Geometry = memo((props: GeometryProps) => {
     stroke, 
     strokeWidth,
     strokeOpacity,
-    text
+    text,
+    color
   } = element;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -181,7 +182,10 @@ const Geometry = memo((props: GeometryProps) => {
         }
       </svg>
       <foreignObject x={x} y={y} width={width} height={height}>
-        <div className={classnames(styles.textContainer, styles[text.align], { [styles.readonly]: !isEditing })}>
+        <div
+          className={classnames(styles.textContainer, styles[text.align], { [styles.readonly]: !isEditing })}
+          style={{ color }}
+        >
           <Editor
             ref={textRef}
             initValue={textContent}
