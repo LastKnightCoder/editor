@@ -129,7 +129,7 @@ export const SPLIT_PROMPT = `
 `
 
 export const SUMMARY_TITLE_PROMPT = `
-你将会收到一段对话内容，请你总结以上对话内容并给出标题，注意你给出的回答仅给出标题即可，不需要把总结给出，标题限制在 20 字以内。
+你将会收到一段对话内容，请你总结以下对话内容并给出标题，注意你给出的回答仅给出标题即可，你需要进行任何的回答，标题限制在 20 字以内。
 `
 
 export const CONTINUE_WRITE_PROMPT_TEMPLATE = `

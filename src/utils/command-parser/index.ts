@@ -110,10 +110,7 @@ export class CommandParser {
   }
 
   finish(): void {
-    console.log('%c finish', 'color: #f00', this.currentCommand);
-    // console.log('%cfinish', 'color: #f00');
     this.parseCommands();
-    console.log('%c finish', 'color: #f00', [...this.commandsQueue]);
     this.isFinished = true;
   }
 
@@ -125,8 +122,6 @@ export class CommandParser {
 
   private parseCommands(): void {
     if (!this.currentCommand) return;
-
-    // console.log('parseCommands: ', this.currentCommand)
 
     let startIndex = this.currentCommand.indexOf('{');
     while (startIndex !== -1) {

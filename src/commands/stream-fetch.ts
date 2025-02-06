@@ -131,7 +131,7 @@ export function stream(
   let responseRes: Response;
   const notAnimate = !!options.notAnimate;
 
-  const flushRemaintText = () => {
+  const flushRemainText = () => {
     responseText += remainText;
     options?.onUpdate?.(responseText, remainText);
     remainText = '';
@@ -140,7 +140,7 @@ export function stream(
   // animate response to make it looks smooth
   function animateResponseText() {
     if (finished || controller.signal.aborted) {
-      flushRemaintText();
+      flushRemainText();
       console.log("[Response Animation] finished");
       if (responseText?.length === 0) {
         options.onError?.(new Error("empty response from server"));
@@ -150,7 +150,7 @@ export function stream(
 
     if (remainText.length > 0) {
       if (notAnimate) {
-        flushRemaintText();
+        flushRemainText();
         return;
       }
       const fetchCount = Math.max(1, Math.round(remainText.length / 60));
@@ -170,7 +170,7 @@ export function stream(
     if (!finished) {
       console.debug("[ChatAPI] end");
       finished = true;
-      flushRemaintText();
+      flushRemainText();
       options.onFinish(responseText + remainText, responseRes); // 将res传递给onFinish
     }
   };
