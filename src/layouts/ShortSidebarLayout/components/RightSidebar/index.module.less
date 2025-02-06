@@ -46,7 +46,13 @@
         box-sizing: border-box;
         .message {
           background: #f5f6f9;
-          border-radius: 24px;
+          border-radius: 12px;
+          &.dark {
+            background: #323233;
+          }
+          p:last-child {
+            margin-bottom: 0;
+          }
         }
       }
       .input {
@@ -68,5 +74,23 @@
         }
       }
     }
+  }
+}
+
+.markdown {
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  font-family: var(--font);
+  font-size: var(--font-size);
+  code {
+    font-family: var(--mono-font) !important;
+    font-size: .8em !important;
+    :global(.token) {
+      font-style: normal !important;
+    }
+  }
+  :not(pre) code {
+    color: var(--code-normal);
   }
 }

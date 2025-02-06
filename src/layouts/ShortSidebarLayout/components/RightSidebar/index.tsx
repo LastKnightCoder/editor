@@ -2,15 +2,21 @@ import { App, Button, Select } from "antd";
 import classnames from "classnames";
 import { useRef, useState } from "react";
 import { produce } from "immer";
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import rehypeKatex from 'rehype-katex';
+import remarkMath from 'remark-math';
+import 'katex/dist/katex.min.css';
+
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import For from "@/components/For";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import If from "@/components/If";
-import katex from "katex";
-import { getCodeString } from "rehype-rewrite";
 
-import MarkdownPreview from "@uiw/react-markdown-preview";
+import 'katex/dist/katex.css';
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import useChatMessageStore from "@/stores/useChatMessageStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
@@ -87,7 +93,7 @@ const RightSidebar = (props: RightSidebarProps) => {
   const onCreateNewMessage = useMemoizedFn(async () => {
     const messages: Message[] = [{
       role: Role.System,
-      content: "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。"
+      content: "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。使用 Markdown 语法回答，行内数学公式使用 $ 包裹，行间数学公式使用 $$ 包裹。"
     }];
     setCreateMessageLoading(true);
     const createdMessage = await createChatMessage(messages).finally(() => {
@@ -148,8 +154,8 @@ const RightSidebar = (props: RightSidebarProps) => {
     }
 
     const sendMessages = [
-      currentChat.messages[0],
-      ...currentChat.messages.slice(1, -1).slice(-10),
+      currentChat.messages[0], // System Prompt
+      ...currentChat.messages.slice(1).slice(-10), // 近十条回答
       newMessage
     ];
     setCurrentChat({
@@ -179,10 +185,10 @@ const RightSidebar = (props: RightSidebarProps) => {
           const newTitle = await chatWithGPT35([{
             role: Role.System,
             content: SUMMARY_TITLE_PROMPT
-          }, ...updatedChatMessage.messages.slice(-7)]);
+          }, ...updatedChatMessage.messages.slice(1).slice(-10)]);
           if (newTitle) {
             const updateChat = produce(updatedChatMessage, draft => {
-              draft.title = newTitle;
+              draft.title = newTitle.slice(0, 20);
             });
             await updateChatMessage(updateChat);
             editTitleRef.current?.setValue(newTitle);
@@ -302,38 +308,36 @@ const RightSidebar = (props: RightSidebarProps) => {
                     return (
                       <div
                         key={index}
-                        className={styles.message}
+                        className={classnames(styles.message, { [styles.dark]: isDark })}
                         style={{ maxWidth: '90%', alignSelf: role === Role.User ? 'flex-start' : 'flex-end' }}
                       >
-                        <MarkdownPreview
-                          source={content}
-                          wrapperElement={{
-                            "data-color-mode": isDark ? 'dark' : 'light'
-                          }}
-                          style={{ padding: 16, borderRadius: 12, boxShadow: '0 2px 12px 0 rgba(0, 0, 0, 0.1)' }}
+                        <Markdown
+                          className={styles.markdown}
+                          rehypePlugins={[rehypeKatex]}
+                          remarkPlugins={[remarkMath, remarkGfm]}
                           components={{
-                            code: ({ children = [], className, ...props }) => {
-                              if (typeof children === 'string' && /^\$\$(.*)\$\$/.test(children)) {
-                                const html = katex.renderToString(children.replace(/^\$\$(.*)\$\$/, '$1'), {
-                                  throwOnError: false,
-                                });
-                                return <code dangerouslySetInnerHTML={{ __html: html }} style={{ background: 'transparent' }} />;
-                              }
-                              const code = props.node && props.node.children ? getCodeString(props.node.children) : children;
-                              if (
-                                typeof code === 'string' &&
-                                typeof className === 'string' &&
-                                /^language-katex/.test(className.toLocaleLowerCase())
-                              ) {
-                                const html = katex.renderToString(code, {
-                                  throwOnError: false,
-                                });
-                                return <code style={{ fontSize: '150%' }} dangerouslySetInnerHTML={{ __html: html }} />;
-                              }
-                              return <code className={String(className)}>{children}</code>;
-                            },
+                            code(props) {
+                              const { children, className, node, ...rest } = props
+                              const match = /language-(\w+)/.exec(className || '')
+                              return match ? (
+                                // @ts-ignore
+                                <SyntaxHighlighter
+                                  {...rest}
+                                  PreTag="div"
+                                  children={String(children).replace(/\n$/, '')}
+                                  language={match[1]}
+                                  style={isDark ? oneDark : oneLight}
+                                />
+                              ) : (
+                                <code {...rest} className={className}>
+                                  {children}
+                                </code>
+                              )
+                            }
                           }}
-                        />
+                        >
+                          {content}
+                        </Markdown>
                       </div>
                     )
                   }}
