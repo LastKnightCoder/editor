@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import TitlebarIcon from "@/components/TitlebarIcon";
-import { HomeOutlined } from '@ant-design/icons';
-import { FiSidebar } from "react-icons/fi";
+import { HomeOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
@@ -11,15 +10,17 @@ const ArticleTitlebar = () => {
   const navigate = useNavigate();
 
   const {
-    activeArticleId
+    activeArticleId,
+    hideArticleList
   } = useArticleManagementStore(state => ({
-    activeArticleId: state.activeArticleId
+    activeArticleId: state.activeArticleId,
+    hideArticleList: state.hideArticleList
   }))
 
   return (
     <div className={styles.iconList}>
       {
-        activeArticleId && (
+        activeArticleId && hideArticleList && (
           <>
             <TitlebarIcon
               tip={'主页'}
@@ -34,13 +35,12 @@ const ArticleTitlebar = () => {
             </TitlebarIcon>
             <TitlebarIcon
               onClick={() => {
-                const hideArticleList = useArticleManagementStore.getState().hideArticleList
                 useArticleManagementStore.setState({
-                  hideArticleList: !hideArticleList
+                  hideArticleList: false
                 })
               }}
             >
-              <FiSidebar />
+              <MenuUnfoldOutlined />
             </TitlebarIcon>
           </>
         )

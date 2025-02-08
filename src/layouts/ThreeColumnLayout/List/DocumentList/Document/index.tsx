@@ -1,8 +1,7 @@
 import { useMemoizedFn } from "ahooks";
-import { Button, Empty, message } from "antd";
+import { Button, Dropdown, Empty, MenuProps, message } from "antd";
 import { produce } from "immer";
-import { motion } from "framer-motion";
-
+import { useNavigate } from 'react-router-dom';
 import DocumentItem from "../DocumentItem";
 import If from "@/components/If";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
@@ -13,6 +12,7 @@ import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { EDragPosition } from "@/hooks/useDragAndDrop.ts";
 
 import styles from './index.module.less';
+import { HomeOutlined, MenuFoldOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface IDocumentProps {
   document: IDocument;
@@ -21,18 +21,23 @@ interface IDocumentProps {
 const Document = (props: IDocumentProps) => {
   const { document } = props;
   const { children } = document;
+  
+  const navigate = useNavigate();
 
   const {
     addDocumentItem,
     updateDocument,
+    activeDocumentItem
   } = useDocumentsStore(state => ({
     addDocumentItem: state.addDocumentItem,
     updateDocument: state.updateDocument,
+    activeDocumentItem: state.activeDocumentItem
   }));
-
+  
   const addNewDocumentItem = useMemoizedFn(async () => {
-    const createedItem = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
-    addDocumentItem(document.id, createedItem.id);
+    const createdItem = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
+    addDocumentItem(document.id, createdItem.id);
+    return createdItem;
   });
   
   const onAddDocumentItemWithPosition = useMemoizedFn(async (id: number, targetId: number, position: EDragPosition) => {
@@ -46,6 +51,20 @@ const Document = (props: IDocumentProps) => {
       draft.children.splice(spliceIndex, 0, id);
     });
     await updateDocument(newDocument);
+  })
+  
+  const addMenuItems: MenuProps['items'] = [{
+    key: 'add-document-item',
+    label: '添加文档',
+  }];
+  
+  const handleAddMenuClick = useMemoizedFn(async ({ key }: { key: string }) => {
+    if (key === 'add-document-item') {
+      const item = await addNewDocumentItem();
+      useDocumentsStore.setState({
+        activeDocumentItem: item,
+      });
+    }
   })
   
   const onMoveDocumentItem = useMemoizedFn(async (sourceId: number, targetId: number, position: EDragPosition) => {
@@ -75,9 +94,50 @@ const Document = (props: IDocumentProps) => {
     });
     await updateDocument(newDocument);
   });
+  
+  const onFoldSidebar = useMemoizedFn(() => {
+    useDocumentsStore.setState({
+      hideDocumentItemsList: true
+    });
+  })
 
   return (
     <div className={styles.documentContainer}>
+      <div className={styles.header}>
+        <div className={styles.title}>
+          <HomeOutlined
+            onClick={() => {
+              useDocumentsStore.setState({
+                activeDocumentId: null,
+                activeDocumentItem: null,
+                hideDocumentItemsList: false
+              });
+              navigate(`/documents`)
+            }}
+          />
+          {document.title}
+        </div>
+        <div className={styles.icons}>
+          {
+            activeDocumentItem && (
+              <div className={styles.icon} onClick={onFoldSidebar}>
+                <MenuFoldOutlined />
+              </div>
+            )
+          }
+          <Dropdown
+            menu={{
+              items: addMenuItems,
+              onClick: handleAddMenuClick
+            }}
+          >
+            <div className={styles.icon}>
+              <PlusOutlined />
+            </div>
+          </Dropdown>
+        </div>
+      </div>
+      <div className={styles.divider}></div>
       <If condition={children.length === 0}>
         <div className={styles.empty}>
           <Empty description="该文档下没有内容" />
@@ -85,7 +145,7 @@ const Document = (props: IDocumentProps) => {
         </div>
       </If>
       <If condition={children.length > 0}>
-        <motion.div className={styles.document}>
+        <div className={styles.document}>
           {
             children.map((itemId, index) => (
               <DocumentItem
@@ -101,7 +161,7 @@ const Document = (props: IDocumentProps) => {
               />
             ))
           }
-        </motion.div>
+        </div>
       </If>
     </div>
   )

@@ -2,12 +2,14 @@
   width: 100vw;
   height: 100vh;
   display: flex;
-  --sidebar-width: 80px;
-  --title-bar-height: 60px;
+  --sidebar-width: 200px;
+  --title-bar-height: 50px;
   --right-sidebar-width: 0px;
   .sidebar {
     width: var(--sidebar-width);
     height: 100vh;
+    background: var(--sidebar-background);
+    overflow: hidden;
   }
   .content {
     width: calc(100vw - var(--sidebar-width));
@@ -17,7 +19,7 @@
       width: 100%;
       height: var(--title-bar-height);
       box-sizing: border-box;
-      border-bottom: 1px solid var(--line-color);
+      -webkit-app-region: drag;
     }
     .main {
       display: flex;
@@ -26,9 +28,14 @@
       box-sizing: border-box;
       overflow: hidden;
       .mainContent {
-        width: calc(100% - var(--right-sidebar-width));
-        height: 100%;
+        width: calc(100% - var(--right-sidebar-width) - 24px);
+        height: calc(100% - 24px);
         overflow: hidden;
+        background: var(--main-bg-color);
+        margin: 8px;
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        box-sizing: border-box;
       }
     }
   }

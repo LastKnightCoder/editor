@@ -2,28 +2,98 @@
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding: 24px 0;
-  border-right: 1px solid var(--line-color);
   display: flex;
   flex-direction: column;
+  .header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding: 0 12px;
+    height: 26px;
+    .icon {
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      &:hover {
+        cursor: pointer;
+        background: var(--common-hover-bg);
+        border-radius: 4px;
+      }
+    }
+    &.indent {
+      margin-left: 72px;
+    }
+  }
   .list {
+    padding: 12px;
     flex: auto;
-    // height: calc(100% - 80px);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    align-items: center;
+    gap: 4px;
     &::-webkit-scrollbar {
       display: none;
     }
+    .search {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px 0 12px;
+      margin-bottom: 8px;
+      border-radius: 8px;
+      transition: color 0.2s;
+      --search-bg-color: #dddedf;
+      --search-color: rgba(60, 60, 67, .78);
+      --kbd-border-color: #e2e2e3;
+      --search-border-color: transparent;
+      background-color: var(--search-bg-color);
+      color: var(--search-color);
+      border: 1px solid var(--search-border-color);
+      span {
+        display: inline-block;
+        margin-top: 2px;
+        padding: 0 16px 0 0;
+        font-size: 13px;
+      }
+      kbd {
+        font-size: 15px;
+        font-family: var(--mono-font);
+        display: block;
+        border: 1px solid var(--kbd-border-color);
+        border-radius: 4px;
+        padding: 0 6px;
+        width: auto;
+        height: 22px;
+        line-height: 22px;
+      }
+      &:hover {
+        cursor: pointer;
+        --search-border-color: #3451b2;
+        --search-color: rgba(60, 60, 67);
+      }
+      &.dark {
+        --search-bg-color: #161618;
+        --search-color: rgba(235, 235, 245, .6);
+        --kbd-border-color: rgb(46, 46, 50);
+        &:hover {
+          --search-border-color: #a8b1ff;
+          --search-color: rgba(255, 255, 245, .86);
+        }
+      }
+    }
   }
   .setting {
+    padding: 12px;
     margin-top: auto;
     flex: none;
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: flex-end;
+    gap: 8px;
   }
 }

@@ -1,8 +1,10 @@
 import React from 'react';
 import { useNavigate, useMatch } from 'react-router-dom';
 import classnames from 'classnames';
-import IconText from '@/components/IconText';
 import For from '@/components/For';
+import { FiSidebar } from "react-icons/fi";
+import SidebarItem from "./SidebarItem";
+import { platform } from '@/electron.ts';
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 
@@ -18,15 +20,23 @@ import sun from '@/assets/icons/sun.svg';
 import moon from '@/assets/icons/moon.svg';
 import vecDatabase from '@/assets/icons/vec-database.svg';
 
+import SelectDatabase from "@/components/SelectDatabase";
 import styles from './index.module.less';
+import SVG from "react-inlinesvg";
+import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
+import { Flex } from "antd";
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
+import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import useFullScreen from "@/hooks/useFullScreen.ts";
 
 interface SidebarProps {
   className?: string;
   style?: React.CSSProperties;
+  onWidthChange: (width: number) => void;
 }
 
 const Sidebar = (props: SidebarProps) => {
-  const { className, style } = props;
+  const { className, style, onWidthChange } = props;
 
   const {
     darkMode,
@@ -37,7 +47,16 @@ const Sidebar = (props: SidebarProps) => {
     onDarkModeChange: state.onDarkModeChange,
     module: state.setting.module,
   }));
-
+  
+  const {
+    sidebarOpen,
+  } = useGlobalStateStore(state => ({
+    sidebarOpen: state.sidebarOpen,
+  }));
+  
+  const isFullscreen = useFullScreen();
+  const isMac = platform === 'darwin';
+  
   const configs = [{
     key: 'whiteBoard',
     icon: whiteBoard,
@@ -104,41 +123,94 @@ const Sidebar = (props: SidebarProps) => {
   }].filter(item => item.enable)
 
   const navigate = useNavigate();
+  
+  const handleHideSidebar = () => {
+    useGlobalStateStore.setState({
+      sidebarOpen: false,
+    })
+  }
 
   return (
-    <div className={classnames(styles.sidebar, className)} style={style}>
-      <div className={styles.list}>
-        <For 
-          data={configs} 
-          renderItem={item => (
-            <IconText
-              key={item.key}
-              icon={item.icon}
-              text={item.desc}
-              active={item.active}
-              onClick={() => navigate(item.path)}
-            />
-          )}
-        />
-      </div>
-      <div className={styles.setting}>
-          <IconText
-            icon={darkMode ? sun : moon}
-            text={darkMode ? '浅色' : '深色'}
-            onClick={() => onDarkModeChange(!darkMode)}
-          />
-          <IconText
-            icon={setting}
-            text={'设置'}
+    <ResizableAndHideableSidebar
+      style={{
+        height: '100%',
+        boxSizing: "border-box",
+        ...style,
+      }}
+      className={className}
+      width={200}
+      open={sidebarOpen}
+      onWidthChange={(_width, actualWidth) => {
+        if (actualWidth) {
+          onWidthChange(actualWidth);
+        }
+      }}
+      disableResize={true}
+    >
+      <div className={classnames(styles.sidebar)}>
+        <div className={classnames(styles.header, { [styles.indent]: isMac && !isFullscreen })}>
+          <SelectDatabase />
+          <div className={styles.icon} onClick={handleHideSidebar}>
+            <FiSidebar />
+          </div>
+        </div>
+        <div className={styles.list}>
+          <div
+            className={classnames(styles.search, { [styles.dark]: darkMode })}
             onClick={() => {
-              useSettingStore.setState({ settingModalOpen: true })
+              useCommandPanelStore.setState({
+                open: true
+              })
             }}
-            style={{
-              marginTop: 12
-            }}
+          >
+            <Flex gap={8} align={'center'}>
+              <svg width="20" height="20" viewBox="0 0 20 20" style={{ width: 14, height: 14, fontWeight: 700 }}>
+                <path
+                  d="M14.386 14.386l4.0877 4.0877-4.0877-4.0877c-2.9418 2.9419-7.7115 2.9419-10.6533 0-2.9419-2.9418-2.9419-7.7115 0-10.6533 2.9418-2.9419 7.7115-2.9419 10.6533 0 2.9419 2.9418 2.9419 7.7115 0 10.6533z"
+                  stroke="currentColor" fill="none" fillRule="evenodd" strokeLinecap="round"
+                  strokeLinejoin="round"></path>
+              </svg>
+              <span>搜索</span>
+            </Flex>
+            <Flex align={'center'}>
+              <kbd>
+                {isMac ? 'Cmd' : 'Ctrl'} + K
+              </kbd>
+            </Flex>
+          </div>
+          <For
+            data={configs}
+            renderItem={item => (
+              <SidebarItem
+                key={item.key}
+                icon={<SVG src={item.icon} />}
+                label={item.desc}
+                active={item.active}
+                onClick={() => navigate(item.path)}
+              />
+            )}
           />
+        </div>
+        <div className={styles.setting}>
+          <SidebarItem
+            onClick={() => onDarkModeChange(!darkMode)}
+            label={darkMode ? '浅色' : '深色'}
+            icon={<SVG src={darkMode ? sun : moon} />}
+            active={false}
+          />
+          <SidebarItem
+            onClick={() => {
+              useSettingStore.setState({
+                settingModalOpen: true
+              })
+            }}
+            label={'设置'}
+            icon={<SVG src={setting} />}
+            active={false}
+          />
+        </div>
       </div>
-    </div>
+    </ResizableAndHideableSidebar>
   )
 }
 

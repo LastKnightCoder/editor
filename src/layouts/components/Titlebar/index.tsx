@@ -7,6 +7,7 @@ import WindowControl from "@/components/WindowControl";
 import PortalToBody from "@/components/PortalToBody";
 import If from "@/components/If";
 import { CloseOutlined } from "@ant-design/icons";
+import { FiSidebar } from "react-icons/fi";
 
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
@@ -22,8 +23,10 @@ interface TitlebarProps {
 const Titlebar = memo((props: TitlebarProps) => {
   const { showColumns, showSelectDatabase, showFocusMode, showSearch } = props;
   const {
+    sidebarOpen,
     focusMode,
   } = useGlobalStateStore(state => ({
+    sidebarOpen: state.sidebarOpen,
     focusMode: state.focusMode,
   }));
 
@@ -58,15 +61,27 @@ const Titlebar = memo((props: TitlebarProps) => {
     if (timer) {
       clearTimeout(timer.current);
     }
-  })
+  });
+  
+  const handleOpenSidebar = useMemoizedFn(() => {
+    useGlobalStateStore.setState({
+      sidebarOpen: true,
+    });
+  });
 
   return (
     <div
-      data-tauri-drag-region
-      className={styles.titleBar}
+      className={classnames(styles.titleBar, { [styles.sidebarHide]: !sidebarOpen })}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
+      {
+        !sidebarOpen && (
+          <div className={styles.item} onClick={handleOpenSidebar}>
+            <FiSidebar />
+          </div>
+        )
+      }
       <If condition={focusMode}>
         <PortalToBody>
           <div className={classnames(styles.quitFocus, {

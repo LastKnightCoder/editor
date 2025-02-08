@@ -1,29 +1,55 @@
 .documentContainer {
   .header {
-    height: 45px;
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--line-color);
-    .icon {
-      width: 30px;
-      height: 30px;
+    height: 40px;
+    padding: 0 12px;
+    .title {
       display: flex;
       align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      cursor: pointer;
-      &:hover {
-        background-color: var(--common-hover-bg);
+      gap: 12px;
+    }
+    .icons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      .icon {
+        cursor: pointer;
       }
     }
-    .title {
-      font-weight: bold;
-      line-height: 30px;
-      flex: auto;
-    }
   }
+  .divider {
+    height: 1px;
+    background: var(--line-color);
+    padding: 0 12px;
+    margin: 12px 0;
+  }
+  //.header {
+  //  height: 45px;
+  //  display: flex;
+  //  align-items: center;
+  //  gap: 10px;
+  //  margin-bottom: 10px;
+  //  border-bottom: 1px solid var(--line-color);
+  //  .icon {
+  //    width: 30px;
+  //    height: 30px;
+  //    display: flex;
+  //    align-items: center;
+  //    justify-content: center;
+  //    border-radius: 50%;
+  //    cursor: pointer;
+  //    &:hover {
+  //      background-color: var(--common-hover-bg);
+  //    }
+  //  }
+  //  .title {
+  //    font-weight: bold;
+  //    line-height: 30px;
+  //    flex: auto;
+  //  }
+  //}
 
   .empty {
     height: 100%;

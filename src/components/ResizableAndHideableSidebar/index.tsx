@@ -12,6 +12,7 @@ interface ResizeableAndHideableSidebarProps {
   minWidth?: number;
   maxWidth?: number;
   side?: 'left' | 'right';
+  disableResize?: boolean;
 }
 
 const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) => {
@@ -25,6 +26,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
     minWidth = 200,
     maxWidth = 500,
     side,
+    disableResize = false
   } = props;
 
   const ref = useDragAndHideSidebar<HTMLDivElement>({
@@ -46,6 +48,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
           height: '100%'
         }}
         side={side}
+        disableResize={disableResize}
       >
         {children}
       </WidthResizable>

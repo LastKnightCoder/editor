@@ -8,6 +8,32 @@
   display: flex;
   gap: 4px;
   flex-direction: column;
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 40px;
+    padding: 0 12px;
+    .title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .icons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      .icon {
+        cursor: pointer;
+      }
+    }
+  }
+  .divider {
+    height: 1px;
+    background: var(--line-color);
+    padding: 0 12px;
+    margin: 12px 0;
+  }
   &::-webkit-scrollbar {
     display: none;
   }

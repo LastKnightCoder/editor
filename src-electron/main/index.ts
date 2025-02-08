@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol, net, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, net, protocol } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs/promises';
@@ -38,12 +38,22 @@ if (process.platform === 'win32') app.setAppUserModelId(app.getName())
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1200,
-    height: 600,
+    height: 800,
     autoHideMenuBar: true,
     icon: path.join(__dirname, '../../build/icon.png'),
     webPreferences: {
       preload,
     },
+    trafficLightPosition: { x: 12, y: 18 },
+    // Mac 专属配置
+    ...(process.platform === 'darwin' && {
+      titleBarStyle: 'hidden', // 隐藏标题栏但保留交通灯按钮
+      frame: false // 隐藏默认窗口框架
+    }),
+    // Windows 配置（保持默认标题栏）
+    ...(process.platform === 'win32' && {
+      frame: true // 显式保留默认框架
+    })
   });
 
   if (VITE_DEV_SERVER_URL) {
@@ -52,6 +62,14 @@ const createWindow = () => {
   } else {
     win.loadFile(indexHtml);
   }
+  
+  // 监听最大化事件
+  win.on('enter-full-screen', () => {
+    win.webContents.send('full-screen-change');
+  });
+  win.on('leave-full-screen', () => {
+    win.webContents.send('full-screen-change');
+  });
 };
 
 const initModules = async () => {
@@ -76,6 +94,12 @@ app.whenReady().then(() => {
     const window = BrowserWindow.fromWebContents(sender);
     window?.setAlwaysOnTop(flag);
   });
+  
+  ipcMain.on('get-full-screen-status', (event) => {
+    const sender = event.sender;
+    const win = BrowserWindow.fromWebContents(sender);
+    event.returnValue = win?.fullScreen || false;
+  })
 
   initModules().then(() => {
     createWindow();

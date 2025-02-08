@@ -1,6 +1,6 @@
 import TitlebarIcon from "@/components/TitlebarIcon";
-import { PlusOutlined, FileMarkdownOutlined } from "@ant-design/icons";
-import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";
+import { PlusOutlined } from "@ant-design/icons";
+import useCardPanelStore from "@/stores/useCardPanelStore";
 import FocusMode from "../../../../components/FocusMode";
 
 import styles from './index.module.less';
@@ -9,14 +9,8 @@ import { useMemoizedFn } from "ahooks";
 
 const Card = () => {
   const {
-    leftActiveId,
-    rightActiveId,
-    activeSide,
     addCard,
   } = useCardPanelStore(state => ({
-    leftActiveId: state.leftActiveCardId,
-    rightActiveId: state.rightActiveCardId,
-    activeSide: state.activeSide,
     addCard: state.addCard,
   }));
 
@@ -27,9 +21,7 @@ const Card = () => {
     createCard: state.createCard,
     selectCategory: state.selectCategory,
   }));
-
-  const activeId = activeSide === EActiveSide.Left ? leftActiveId : rightActiveId;
-
+  
   const onCreateCard = useMemoizedFn(async () => {
     const createdCard = await createCard({
       content: [{
@@ -52,15 +44,6 @@ const Card = () => {
         <PlusOutlined />
       </TitlebarIcon>
       <FocusMode />
-      <TitlebarIcon tip={'导出 Markdown'} onClick={() => {
-        if (!activeId) return;
-        const event = new CustomEvent('export-card-to-markdown', {
-          detail: activeId,
-        });
-        document.dispatchEvent(event);
-      }}>
-        <FileMarkdownOutlined />
-      </TitlebarIcon>
     </div>
   )
 }

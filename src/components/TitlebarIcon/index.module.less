@@ -1,7 +1,7 @@
 .icon {
-  width: 40px;
-  height: 40px;
-  //border: 1px solid var(--line-color);
+  -webkit-app-region: no-drag;
+  width: 26px;
+  height: 26px;
   border-radius: 8px;
   box-sizing: border-box;
   display: flex;
@@ -9,11 +9,10 @@
   justify-content: center;
   cursor: pointer;
   font-size: 14px;
-  &:hover {
+  &:not(.active):hover {
     background-color: var(--common-hover-bg);
   }
   &.active {
-    //border: 1px solid var(--active-text-color);
-    background-color: var(--active-bg-color);
+    background-color: var(--common-hover-bg);
   }
 }

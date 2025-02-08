@@ -21,14 +21,17 @@ import { ITimeRecord } from "@/types";
 import styles from './index.module.less';
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import dayjs from "dayjs";
+import classnames from "classnames";
 
 interface ITimeRecordProps {
   onClickEdit?: (timeRecord: ITimeRecord) => void;
+  className?: string;
 }
 
 const TimeRecord = memo((props: ITimeRecordProps) => {
   const {
     onClickEdit,
+    className
   } = props;
 
   const {
@@ -120,7 +123,7 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
   });
 
   return (
-    <div className={styles.timeRecordContainer}>
+    <div className={classnames(styles.timeRecordContainer, className)}>
       <SelectTime
         filterType={filterType}
         onSelectFilterTypeChange={onSelectFilterTypeChange}

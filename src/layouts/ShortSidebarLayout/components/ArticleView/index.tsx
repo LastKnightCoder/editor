@@ -4,11 +4,12 @@ import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 
 import ArticleList from "@/layouts/components/ArticleList";
+import SimpleArticleList from "./SimpleArticleList";
+
 import EditArticle from '@/layouts/components/EditArticle';
-
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
-import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
+import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import styles from './index.module.less';
 
 const ArticleView = () => {
@@ -42,7 +43,16 @@ const ArticleView = () => {
 
   return (
     <div className={classnames(styles.viewContainer, { [styles.showEdit]: isShowEdit, [styles.hideArticleList]: hideArticleList })}>
-      <ArticleList className={styles.listContainer} />
+      {
+        !activeArticleId && (
+          <ArticleList className={styles.listContainer} />
+        )
+      }
+      {
+        activeArticleId && (
+          <SimpleArticleList className={styles.simpleListContainer} />
+        )
+      }
       <div className={styles.editContainer}>
         {
           isShowEdit && (
