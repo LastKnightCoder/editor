@@ -9,6 +9,6 @@ interface Window {
     off: (command: string, callback: (...args: any[]) => void) => void;
     send: (command: string, ...args: any[]) => void;
     sendSync: (command: string, ...args: any[]) => any;
-    sep: string;
+    platform: string;
   };
 }

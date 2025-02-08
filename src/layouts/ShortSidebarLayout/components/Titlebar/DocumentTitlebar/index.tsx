@@ -10,11 +10,9 @@ const WhiteBoardTitlebar = () => {
   const navigate = useNavigate();
 
   const {
-    activeDocumentId,
     activeDocumentItem,
     hideDocumentItemsList
   } = useDocumentsStore(state => ({
-    activeDocumentId: state.activeDocumentId,
     activeDocumentItem: state.activeDocumentItem,
     hideDocumentItemsList: state.hideDocumentItemsList,
   }))
@@ -22,7 +20,7 @@ const WhiteBoardTitlebar = () => {
   return (
     <div className={styles.iconList}>
       {
-        activeDocumentId && (
+        activeDocumentItem && hideDocumentItemsList && (
           <>
             <TitlebarIcon
               tip={'主页'}
@@ -38,7 +36,7 @@ const WhiteBoardTitlebar = () => {
               <HomeOutlined />
             </TitlebarIcon>
             {
-              activeDocumentItem && (
+              activeDocumentItem && hideDocumentItemsList && (
                 <TitlebarIcon
                   onClick={() => {
                     useDocumentsStore.setState({

@@ -36,8 +36,8 @@ const HighlightNode = (props: HighlightProps) => {
     setTipsOpen(false);
   });
 
-  const highlightTipLeft = `calc(${transformPercent(boundingClientRect.left) + transformPercent(boundingClientRect.width)}% + 20px)`;
-  const highlightTipTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height) / 2}%)`;
+  const highlightTipLeft = `calc(${transformPercent(boundingClientRect.left)}% + 20px)`;
+  const highlightTipTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height)}% + 100px)`;
 
   return (
     <>

@@ -16,9 +16,11 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
   const {
     activeProjectId,
     createChildProjectItem,
+    createRootProjectItem,
   } = useProjectsStore((state) => ({
     activeProjectId: state.activeProjectId,
     createChildProjectItem: state.createChildProjectItem,
+    createRootProjectItem: state.createRootProjectItem,
   }))
 
   const {
@@ -68,7 +70,7 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
 
     const selectCard = selectedCards[0];
 
-    if (!projectItem || !activeProjectId) {
+    if (!activeProjectId) {
       return;
     }
 
@@ -76,23 +78,35 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
       title: '新文档',
       content: selectCard.content,
       children: [],
-      parents: [projectItem.id],
+      parents: projectItem ? [projectItem.id] : [],
       projects: [activeProjectId],
       refType: 'card',
       refId: selectCard.id,
       projectItemType: EProjectItemType.Document,
     }
-
-    await createChildProjectItem(projectItem.id, createProjectItem);
-
-    const event = new CustomEvent('refreshProjectItem', {
-      detail: {
-        id: projectItem.id
-      },
-    });
-    document.dispatchEvent(event);
+    
+    let item: ProjectItem | undefined;
+    if (projectItem) {
+      item = await createChildProjectItem(projectItem.id, createProjectItem);
+    } else {
+      item = await createRootProjectItem(activeProjectId, createProjectItem);
+    }
+    
+    if (projectItem) {
+      const event = new CustomEvent('refreshProjectItem', {
+        detail: {
+          id: projectItem.id
+        },
+      });
+      document.dispatchEvent(event);
+    }
 
     setSelectCardModalOpen(false);
+    if (item) {
+      useProjectsStore.setState({
+        activeProjectItemId: item.id,
+      })
+    }
   });
 
   const onCancel = useMemoizedFn(() => {

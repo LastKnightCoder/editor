@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import TitlebarIcon from "@/components/TitlebarIcon";
-import { HomeOutlined } from '@ant-design/icons';
-import { FiSidebar } from "react-icons/fi";
+import { HomeOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 
 import styles from './index.module.less';
@@ -22,7 +21,7 @@ const ProjectTitlebar = () => {
   return (
     <div className={styles.iconList}>
       {
-        activeProjectId && (
+        activeProjectId && hideProjectItemList && (
           <TitlebarIcon
             tip={'主页'}
             onClick={() => {
@@ -39,15 +38,15 @@ const ProjectTitlebar = () => {
         )
       }
       {
-        activeProjectItemId && (
+        activeProjectItemId && hideProjectItemList && (
           <TitlebarIcon
             onClick={() => {
               useProjectsStore.setState({
-                hideProjectItemList: !hideProjectItemList
+                hideProjectItemList: false
               })
             }}
           >
-            <FiSidebar />
+            <MenuUnfoldOutlined />
           </TitlebarIcon>
         )
       }

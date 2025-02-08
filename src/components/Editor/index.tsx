@@ -2,7 +2,7 @@ import { useState, useEffect, forwardRef, useImperativeHandle, useCallback, useM
 import { createEditor, Descendant, Editor, Transforms, Element } from 'slate';
 import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory } from 'slate-history';
-import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 
@@ -150,11 +150,11 @@ const Index = memo(forwardRef<EditorRef, IEditorProps>((props, ref) => {
     }
   });
 
-  useWhyDidYouUpdate('Editor', {
-    ...props,
-    finalExtensions,
-    finalHoveringBarConfigs
-  })
+  // useWhyDidYouUpdate('Editor', {
+  //   ...props,
+  //   finalExtensions,
+  //   finalHoveringBarConfigs
+  // })
 
   useImperativeHandle(ref, () => ({
     focus: () => {

@@ -122,7 +122,7 @@ export default class DocumentTable {
     const stmt = db.prepare(`
       INSERT INTO documents
       (title, desc, authors, children, tags, links, content, create_time, update_time, banner_bg, icon, is_top, is_delete)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
@@ -162,7 +162,7 @@ export default class DocumentTable {
         is_top = ?,
         is_delete = ?
       WHERE id = ?
-    )`);
+    `);
 
     const now = Date.now();
 
@@ -179,6 +179,7 @@ export default class DocumentTable {
       document.icon,
       Number(document.isTop),
       Number(document.isDelete),
+      document.id
     );
 
     Operation.insertOperation(

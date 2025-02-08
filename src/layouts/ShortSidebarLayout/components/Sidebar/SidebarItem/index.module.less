@@ -1,0 +1,23 @@
+.itemContainer {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  border-radius: 8px;
+  gap: 8px;
+  cursor: pointer;
+  padding: 0 8px;
+  &.active {
+    background: var(--sidebar-active-bg);
+  }
+  &:not(.active):hover {
+    background: var(--common-hover-bg);
+  }
+  .icon {
+    display: flex;
+    align-items: center;
+    fill: currentColor;
+  }
+  .label {
+
+  }
+}

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
-import { Dropdown, MenuProps, Space, Divider, Button, theme, Modal, Input, InputRef, App } from "antd";
+import { Dropdown, MenuProps, Space, Divider, Button, theme, Modal, Input, InputRef, App, Flex } from "antd";
 import { produce } from "immer";
-import { DownOutlined } from "@ant-design/icons";
+import { IoCaretDownOutline } from "react-icons/io5";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 
@@ -52,9 +52,10 @@ const SelectDatabase = () => {
     }));
     setCreateDatabaseModalOpen(false);
   }
-
+  
   return (
-    <div style={{ cursor: 'pointer' }}>
+    // @ts-ignore
+    <div style={{ cursor: 'pointer', '-webkit-app-region': 'no-drag' }}>
       <Dropdown
         trigger={['click']}
         menu={{
@@ -71,10 +72,10 @@ const SelectDatabase = () => {
           </div>
         )}
       >
-        <Space>
+        <Flex gap={4} align={'center'}>
           {active.replace('.db', '')}
-          <DownOutlined />
-        </Space>
+          <IoCaretDownOutline />
+        </Flex>
       </Dropdown>
       <Modal
         width={400}

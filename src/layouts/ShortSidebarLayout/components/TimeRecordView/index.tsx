@@ -77,7 +77,7 @@ const TimeRecordView = () => {
 
   return (
     <div className={styles.viewContainer}>
-      <TimeRecord onClickEdit={onEditTimeRecord} />
+      <TimeRecord className={styles.sidebar} onClickEdit={onEditTimeRecord} />
       <EditRecordModal
         key={editingTimeRecord?.id}
         title={'编辑记录'}

@@ -5,10 +5,13 @@
   --article-list-width: 100%;
 
   &.showEdit {
-    --article-list-width: 400px;
+    --article-list-width: 300px;
     &.hideArticleList {
       --article-list-width: 0px;
       padding: 0;
+      .simpleListContainer {
+        padding: 0;
+      }
     }
   }
 
@@ -27,9 +30,25 @@
       display: none;
     }
   }
+  .simpleListContainer {
+    height: 100%;
+    width: var(--article-list-width);
+    overflow: hidden;
+  }
   .editContainer {
     width: calc(100% - var(--article-list-width));
     height: 100%;
     transition: width 0.3s;
+  }
+  .pagination {
+    position: absolute;
+    bottom: 20px;
+    //left: 50%;
+    //transform: translateX(-50%);
+    width: 100%;
+    display: flex;
+    align-items: center;
+    height: 60px;
+    justify-content: center;
   }
 }

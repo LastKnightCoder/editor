@@ -12,6 +12,7 @@ interface IWidthResizableProps {
   className?: string;
   side?: 'left' | 'right';
   style?: React.CSSProperties;
+  disableResize?: boolean;
 }
 
 const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props) => {
@@ -22,7 +23,8 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     onResize,
     className,
     side = 'right',
-    style = {}
+    style = {},
+    disableResize = false
   } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -34,12 +36,14 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
   const [isResizing, setIsResizing] = useState<boolean>(false);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    if (disableResize) return;
     setIsResizing(true);
     e.stopPropagation();
     e.preventDefault();
   }
 
   const handleMouseMove = useMemoizedFn((e: MouseEvent) => {
+    if (disableResize) return;
     if (isResizing) {
       const container = containerRef.current;
       if (!container) return;
@@ -63,13 +67,14 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
   }
 
   useEffect(() => {
+    if (disableResize) return;
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     }
-  }, [handleMouseMove]);
+  }, [handleMouseMove, disableResize]);
 
   return (
     <div
@@ -83,11 +88,15 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
       ref={containerRef}
     >
       {props.children}
-      <div
-        className={classnames(styles.resizeBar, { [styles.left]: side === 'left' })}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-      />
+      {
+        !disableResize && (
+          <div
+            className={classnames(styles.resizeBar, { [styles.left]: side === 'left' })}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+          />
+        )
+      }
     </div>
   )
 }
