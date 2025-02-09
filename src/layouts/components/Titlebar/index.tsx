@@ -12,6 +12,7 @@ import { FiSidebar } from "react-icons/fi";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 import styles from './index.module.less';
+import { platform } from "@/electron.ts";
 
 interface TitlebarProps {
   showColumns?: boolean;
@@ -69,9 +70,11 @@ const Titlebar = memo((props: TitlebarProps) => {
     });
   });
 
+  const isMac = platform === 'darwin';
+
   return (
     <div
-      className={classnames(styles.titleBar, { [styles.sidebarHide]: !sidebarOpen })}
+      className={classnames(styles.titleBar, { [styles.sidebarHide]: isMac && !sidebarOpen })}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
