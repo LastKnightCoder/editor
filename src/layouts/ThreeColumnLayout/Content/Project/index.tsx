@@ -35,7 +35,7 @@ const Project = () => {
   useRafInterval(() => {
     if (readonly) return;
     saveProjectItem();
-  }, 1000);
+  }, 3000);
 
   useEffect(() => {
     return () => {

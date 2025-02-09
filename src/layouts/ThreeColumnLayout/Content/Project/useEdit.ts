@@ -22,12 +22,6 @@ const useEdit = () => {
     activeProjectItemId: state.activeProjectItemId
   }));
 
-  const {
-    updateCard,
-  } = useCardsManagementStore((state) => ({
-    updateCard: state.updateCard,
-  }))
-
   useEffect(() => {
     if (!activeProjectItemId) {
       setProjectItem(null);
@@ -69,7 +63,17 @@ const useEdit = () => {
       prevProjectItem.current = updatedProject;
       contentChanged.current = false;
       if (updatedProject.refType === 'card' && updatedProject.refId) {
-        getCardById(updatedProject.refId).then(updateCard);
+        getCardById(updatedProject.refId).then(updateCard => {
+          console.log('updateCard', updateCard);
+          const cards = useCardsManagementStore.getState().cards;
+          const newCards = produce(cards, draft => {
+            const index = draft.findIndex(card => card.id === updatedProject.refId);
+            if (index !== -1) {
+              draft[index] = updateCard;
+            }
+          });
+          useCardsManagementStore.setState({ cards: newCards });
+        });
       }
     });
   });

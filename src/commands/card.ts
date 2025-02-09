@@ -18,7 +18,7 @@ export async function updateCard(card: IUpdateCard): Promise<ICard> {
 }
 
 export async function getCardById(id: number): Promise<ICard> {
-  return invoke('get_card-by-id', id);
+  return invoke('get-card-by-id', id);
 }
 
 export async function getTagsById(id: number): Promise<string[]> {
