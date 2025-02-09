@@ -1,8 +1,8 @@
 import classnames from 'classnames';
 import { ECardCategory, ICard } from "@/types";
-import Editor from "@editor/index.tsx";
+import Editor, { EditorRef } from "@editor/index.tsx";
 import styles from './index.module.less';
-import React, { MouseEvent } from "react";
+import React, { MouseEvent, useEffect, useRef } from "react";
 import Tags from "@/components/Tags";
 import { formatDate, getMarkdown } from "@/utils";
 import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
@@ -24,6 +24,12 @@ const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 const CardItem = (props: CardItemProps) => {
   const { card, className, style } = props;
+
+  const editorRef = useRef<EditorRef>(null);
+
+  useEffect(() => {
+    editorRef.current?.setEditorValue(card.content);
+  }, [card.content]);
   
   const {
     onClickCard,
@@ -76,7 +82,7 @@ const CardItem = (props: CardItemProps) => {
     } else {
       onClickCard(card.id)
     }
-  })
+  });
   
   const handleMoreClick: MenuProps['onClick'] = useMemoizedFn(async ({ key }) => {
     if (key === 'delete-card') {
@@ -125,6 +131,7 @@ const CardItem = (props: CardItemProps) => {
         </span>
       </div>
       <Editor
+        ref={editorRef}
         className={styles.content}
         readonly={true}
         initValue={content}

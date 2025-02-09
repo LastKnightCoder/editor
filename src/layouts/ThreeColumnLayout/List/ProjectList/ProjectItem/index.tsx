@@ -485,6 +485,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             </div>
           </Tooltip>
           <EditText
+            className={styles.title}
             key={projectItem.id}
             ref={titleRef}
             defaultValue={projectItem.title}
@@ -499,12 +500,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   title: textContent,
                 }).then((newProjectItem) => {
                   setProjectItem(newProjectItem);
-                  // 不触发下面事件是因为白板不会显示也不更新标题，所以没必要
-                  // 而文档不会在这里修改标题
-                  // TODO 把事件通信尽可能去掉
-                  // document.dispatchEvent(new CustomEvent('projectTitleChange', {
-                  //   detail: newProjectItem,
-                  // }));
                   setTitleEditable(false);
                   titleRef.current?.setContentEditable(false);
                 })

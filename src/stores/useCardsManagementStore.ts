@@ -6,6 +6,7 @@ import {
   deleteCard,
 } from '@/commands';
 import { ECardCategory, ICard, ICreateCard, IUpdateCard } from "@/types";
+import { produce } from "immer";
 
 interface IState {
   cards: ICard[];
@@ -39,15 +40,26 @@ const useCardsManagementStore = create<IState & IActions>((set, get) => ({
     set({ cards, initLoading: false });
   },
   createCard: async (card) => {
+    const { cards } = get();
     const res = await createCard(card);
-    const cards = await getAllCards();
-    set({ cards });
+    const newCards = produce(cards, (draft) => {
+      if (!draft.find(c => c.id === res.id)) {
+        draft.push(res);
+      }
+    })
+    set({ cards: newCards });
     return res;
   },
   updateCard: async (card) => {
+    const { cards } = get();
     const res = await updateCard(card);
-    const cards = await getAllCards();
-    set({ cards });
+    const newCards = produce(cards, (draft) => {
+      const index = draft.findIndex(c => c.id === res.id);
+      if (index !== -1) {
+        draft[index] = res;
+      }
+    })
+    set({ cards: newCards });
     return res;
   },
   deleteCard: async (id) => {
@@ -58,12 +70,11 @@ const useCardsManagementStore = create<IState & IActions>((set, get) => ({
     if (deletedCard) {
       const links = deletedCard.links;
       const linkedCards = cards.filter(c => links.includes(c.id));
-      linkedCards.forEach(linkCard => {
-        updateCard({
-          ...linkCard,
-          links: linkCard.links.filter(l => l !== id),
-        })
-      });
+      const updatePromises = linkedCards.map(linkCard => updateCard({
+        ...linkCard,
+        links: linkCard.links.filter(l => l !== id),
+      }));
+      await Promise.all(updatePromises);
     }
     const newCards = await getAllCards();
     set({ cards: newCards });
