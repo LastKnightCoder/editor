@@ -31,7 +31,7 @@ const Card = memo(() => {
           onCloseTab={onCloseTab}
           onMoveCard={onMoveCard}
           onCloseOtherTabs={onCloseOtherTabs}
-          showCardTabs={leftCardIds.length > 0}
+          showCardTabs={leftCardIds.length > 0 }
         />
       </If>
       <If condition={rightCardIds.length > 0}>

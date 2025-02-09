@@ -60,11 +60,18 @@ const ArticleView = () => {
           )
         }
       </div>
-      <FloatButton
-        icon={<PlusOutlined />}
-        tooltip={'新建文章'}
-        onClick={handleAddNewArticle}
-      />
+      {
+        !activeArticleId && (
+          <FloatButton
+            style={{
+              right: 60,
+            }}
+            icon={<PlusOutlined />}
+            tooltip={'新建文章'}
+            onClick={handleAddNewArticle}
+          />
+        )
+      }
     </div>
   )
 }
