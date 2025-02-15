@@ -125,6 +125,7 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
   return (
     <div className={classnames(styles.timeRecordContainer, className)}>
       <SelectTime
+        className={styles.selectTime}
         filterType={filterType}
         onSelectFilterTypeChange={onSelectFilterTypeChange}
         onFilterValueChange={onFilterValueChange}

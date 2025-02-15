@@ -26,17 +26,16 @@ import SVG from "react-inlinesvg";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
 import { Flex } from "antd";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
-import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import useFullScreen from "@/hooks/useFullScreen.ts";
+import If from "@/components/If";
 
 interface SidebarProps {
   className?: string;
   style?: React.CSSProperties;
-  onWidthChange: (width: number) => void;
 }
 
 const Sidebar = (props: SidebarProps) => {
-  const { className, style, onWidthChange } = props;
+  const { className, style } = props;
 
   const {
     darkMode,
@@ -131,62 +130,58 @@ const Sidebar = (props: SidebarProps) => {
   }
 
   return (
-    <ResizableAndHideableSidebar
+    <div
       style={{
+        width: sidebarOpen ? 200 : 60,
         height: '100%',
         boxSizing: "border-box",
         ...style,
       }}
       className={className}
-      width={200}
-      open={sidebarOpen}
-      onWidthChange={(_width, actualWidth) => {
-        if (actualWidth) {
-          onWidthChange(actualWidth);
-        }
-      }}
-      disableResize={true}
     >
-      <div className={classnames(styles.sidebar)}>
+      <div className={classnames(styles.sidebar, { [styles.isShort]: !sidebarOpen })}>
         <div className={classnames(styles.header, { [styles.indent]: isMac && !isFullscreen })}>
-          <SelectDatabase />
+          <SelectDatabase/>
           <div className={styles.icon} onClick={handleHideSidebar}>
-            <FiSidebar />
+            <FiSidebar/>
           </div>
         </div>
-        <div className={styles.list}>
-          <div
-            className={classnames(styles.search, { [styles.dark]: darkMode })}
-            onClick={() => {
-              useCommandPanelStore.setState({
-                open: true
-              })
-            }}
-          >
-            <Flex gap={8} align={'center'}>
-              <svg width="20" height="20" viewBox="0 0 20 20" style={{ width: 14, height: 14, fontWeight: 700 }}>
-                <path
-                  d="M14.386 14.386l4.0877 4.0877-4.0877-4.0877c-2.9418 2.9419-7.7115 2.9419-10.6533 0-2.9419-2.9418-2.9419-7.7115 0-10.6533 2.9418-2.9419 7.7115-2.9419 10.6533 0 2.9419 2.9418 2.9419 7.7115 0 10.6533z"
-                  stroke="currentColor" fill="none" fillRule="evenodd" strokeLinecap="round"
-                  strokeLinejoin="round"></path>
-              </svg>
-              <span>搜索</span>
-            </Flex>
-            <Flex align={'center'}>
-              <kbd>
-                {isMac ? 'Cmd' : 'Ctrl'} + K
-              </kbd>
-            </Flex>
-          </div>
+        <div className={classnames(styles.list, { [styles.isMac]: isMac && !isFullscreen })}>
+          <If condition={sidebarOpen}>
+            <div
+              className={classnames(styles.search, { [styles.dark]: darkMode })}
+              onClick={() => {
+                useCommandPanelStore.setState({
+                  open: true
+                })
+              }}
+            >
+              <Flex gap={8} align={'center'}>
+                <svg width="20" height="20" viewBox="0 0 20 20" style={{ width: 14, height: 14, fontWeight: 700 }}>
+                  <path
+                    d="M14.386 14.386l4.0877 4.0877-4.0877-4.0877c-2.9418 2.9419-7.7115 2.9419-10.6533 0-2.9419-2.9418-2.9419-7.7115 0-10.6533 2.9418-2.9419 7.7115-2.9419 10.6533 0 2.9419 2.9418 2.9419 7.7115 0 10.6533z"
+                    stroke="currentColor" fill="none" fillRule="evenodd" strokeLinecap="round"
+                    strokeLinejoin="round"></path>
+                </svg>
+                <span>搜索</span>
+              </Flex>
+              <Flex align={'center'}>
+                <kbd>
+                  {isMac ? 'Cmd' : 'Ctrl'} + K
+                </kbd>
+              </Flex>
+            </div>
+          </If>
           <For
             data={configs}
             renderItem={item => (
               <SidebarItem
                 key={item.key}
-                icon={<SVG src={item.icon} />}
+                icon={<SVG src={item.icon}/>}
                 label={item.desc}
                 active={item.active}
                 onClick={() => navigate(item.path)}
+                isShortWidth={!sidebarOpen}
               />
             )}
           />
@@ -195,8 +190,9 @@ const Sidebar = (props: SidebarProps) => {
           <SidebarItem
             onClick={() => onDarkModeChange(!darkMode)}
             label={darkMode ? '浅色' : '深色'}
-            icon={<SVG src={darkMode ? sun : moon} />}
+            icon={<SVG src={darkMode ? sun : moon}/>}
             active={false}
+            isShortWidth={!sidebarOpen}
           />
           <SidebarItem
             onClick={() => {
@@ -205,12 +201,13 @@ const Sidebar = (props: SidebarProps) => {
               })
             }}
             label={'设置'}
-            icon={<SVG src={setting} />}
+            icon={<SVG src={setting}/>}
             active={false}
+            isShortWidth={!sidebarOpen}
           />
         </div>
       </div>
-    </ResizableAndHideableSidebar>
+    </div>
   )
 }
 

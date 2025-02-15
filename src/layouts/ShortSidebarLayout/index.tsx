@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Outlet, Route, Routes } from 'react-router-dom';
 
@@ -45,18 +45,22 @@ const ShortSidebarLayout = () => {
     } as React.CSSProperties)
   });
   
-  const onSidebarWidthChange = useMemoizedFn(width => {
+  const handleSidebarOpenChange = useMemoizedFn((sidebarOpen: boolean) => {
     setContainerStyle({
       ...containerStyle,
-      '--sidebar-width': width + 'px'
+      '--sidebar-width': (sidebarOpen ? 200 : 60) + 'px'
     } as React.CSSProperties)
   })
 
+  useEffect(() => {
+    handleSidebarOpenChange(sidebarOpen);
+  }, [handleSidebarOpenChange, sidebarOpen]);
+
   return (
     <div className={styles.container} style={containerStyle}>
-      <Sidebar style={{
-        pointerEvents: sidebarOpen ? 'auto' : 'none'
-      }} className={styles.sidebar} onWidthChange={onSidebarWidthChange} />
+      <Sidebar
+        className={styles.sidebar} 
+      />
       <div className={styles.content}>
         <div className={styles.titlebar}>
           <Routes>

@@ -4,20 +4,36 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  &.isShort {
+    .header {
+      opacity: 0;
+      position: absolute;
+      pointer-events: none;
+    }
+    .list {
+      &.isMac {
+        margin-top: 12px;
+      }
+    }
+  }
   .header {
+    white-space: nowrap;
+    transition: opacity 0.2s;
+    opacity: 1;
     flex: none;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: 12px;
+    font-size: 12px;
     padding: 0 12px;
-    height: 26px;
+    height: 32px;
     .icon {
-      width: 26px;
-      height: 26px;
+      width: 24px;
+      height: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 12px;
       &:hover {
         cursor: pointer;
         background: var(--common-hover-bg);
@@ -34,7 +50,7 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
     &::-webkit-scrollbar {
       display: none;
     }

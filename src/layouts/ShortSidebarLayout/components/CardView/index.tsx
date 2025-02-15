@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import classnames from 'classnames';
-import { Select } from 'antd';
+import { Empty, Select } from 'antd';
 import { useMemoizedFn } from 'ahooks';
 
 import For from '@/components/For';
@@ -19,6 +19,7 @@ import CreateCard from './CreateCard';
 
 import styles from './index.module.less';
 import { Descendant } from "slate";
+import If from "@/components/If";
 
 const CardContainer = () => {
   const { cardTree } = useCardTree();
@@ -160,20 +161,25 @@ const CardContainer = () => {
                   )
                 }
                 <div className={styles.list} ref={listRef}>
-                  <LoadMoreComponent
-                    onLoadMore={loadMore}
-                    showLoader={cardsCount < filteredCards.length}
-                  >
-                    <For
-                      data={sliceCards}
-                      renderItem={card => (
-                        <CardItem
-                          key={card.id}
-                          card={card}
-                        />
-                      )}
-                    />
-                  </LoadMoreComponent>
+                  <If condition={filteredCards.length === 0}>
+                    <Empty description={'暂无卡片'} />
+                  </If>
+                  <If condition={filteredCards.length > 0}>
+                    <LoadMoreComponent
+                      onLoadMore={loadMore}
+                      showLoader={cardsCount < filteredCards.length}
+                    >
+                      <For
+                        data={sliceCards}
+                        renderItem={card => (
+                          <CardItem
+                            key={card.id}
+                            card={card}
+                          />
+                        )}
+                      />
+                    </LoadMoreComponent>
+                  </If>
                 </div>
               </div>
             </div>

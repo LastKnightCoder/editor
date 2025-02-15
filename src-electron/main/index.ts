@@ -44,7 +44,7 @@ const createWindow = () => {
     webPreferences: {
       preload,
     },
-    trafficLightPosition: { x: 12, y: 18 },
+    trafficLightPosition: { x: 12, y: 9 },
     // Mac 专属配置
     ...(process.platform === 'darwin' && {
       titleBarStyle: 'hidden', // 隐藏标题栏但保留交通灯按钮
@@ -70,6 +70,11 @@ const createWindow = () => {
   win.on('leave-full-screen', () => {
     win.webContents.send('full-screen-change');
   });
+
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.setZoomFactor(1);
+    win.webContents.setVisualZoomLevelLimits(1, 1);
+  })
 };
 
 const initModules = async () => {

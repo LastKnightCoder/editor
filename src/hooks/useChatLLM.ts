@@ -5,11 +5,11 @@ import { message } from "antd";
 import { chat, stream } from "@/commands";
 
 interface IChatStreamOptions {
-  onFinish: (text: string, res: Response) => void;
-  onUpdate: (responseText: string, fetchText: string) => void;
+  onFinish: (content: string, reasoning_content: string, res: Response) => void;
+  onUpdate: (responseText: string, fetchText: string, reasoningText?: string) => void;
+  onReasoning?: (responseText: string, fetchText: string) => void;
   onError?: (e: Error) => void;
   onController?: (controller: AbortController) => void;
-  notAnimate?: boolean;
 }
 
 const getCurrentConfig = (llmProviders: ISetting['llmProviders']) => {
@@ -71,9 +71,10 @@ export const chatStreamInner = (llmProviders: ISetting['llmProviders'], messages
     const choices = json.choices as Array<{
       delta: {
         content: string;
+        reasoning_content: string;
       };
     }>;
-    return choices[0]?.delta?.content;
+    return choices[0]?.delta;
   }, options);
 }
 

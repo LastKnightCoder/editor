@@ -1,6 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 import styles from './index.module.less';
+import { Tooltip } from "antd";
 
 interface SidebarItemProps {
   onClick: () => void;
@@ -9,22 +10,25 @@ interface SidebarItemProps {
   label: string;
   icon: React.ReactNode;
   active: boolean;
+  isShortWidth?: boolean;
 }
 
 const SidebarItem = (props: SidebarItemProps) => {
-  const { onClick, style, className, label, icon, active } = props;
-  
+  const { onClick, style, className, label, icon, active, isShortWidth } = props;
+
   return (
     <div
-      className={classnames(styles.itemContainer, className, { [styles.active]: active })}
+      className={classnames(styles.itemContainer, className, { [styles.active]: active, [styles.isShort]: isShortWidth })}
       style={style}
       onClick={onClick}
     >
-      <div className={styles.icon}>
-        { icon }
-      </div>
+      <Tooltip title={isShortWidth ? label : ''} trigger={'hover'}>
+        <div className={styles.icon}>
+          {icon}
+        </div>
+      </Tooltip>
       <div className={styles.label}>
-        { label }
+        {label}
       </div>
     </div>
   )

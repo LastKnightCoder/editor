@@ -85,7 +85,7 @@ export default class ArticleTable {
   static async createArticle(db: Database.Database, article: ICreateArticle): Promise<IArticle> {
     const { tags, title, content, bannerBg, isDelete, isTop } = article;
 
-    const stmt = db.prepare('INSERT INTO articles (create_time, update_time, tags, title, content, banner_bg, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const stmt = db.prepare('INSERT INTO articles (create_time, update_time, tags, title, content, banner_bg, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     const now = Date.now();
     const res = stmt.run(now, now, JSON.stringify(tags), title, JSON.stringify(content), bannerBg, Number(isDelete), Number(isTop));
     const createdArticleId = res.lastInsertRowid;
