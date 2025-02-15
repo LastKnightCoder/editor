@@ -23,6 +23,7 @@ export default class OperationTable {
     return {
       'create-operation': this.createOperation.bind(this),
       'get-operation-records-by-year': this.getOperationRecordsByYear.bind(this),
+      'delete-invalid-operations': this.deleteInValidOperations.bind(this),
     }
   }
 
@@ -90,5 +91,64 @@ export default class OperationTable {
   static insertOperation(db: Database.Database, operationContentType: string, operationAction: string, operationId: number | bigint, operationTime: number) {
     const stmt = db.prepare(`INSERT INTO operation (operation_content_type, operation_action, operation_id, operation_time) VALUES (?, ?, ?, ?)`);
     stmt.run(operationContentType, operationAction, operationId, operationTime);
+  }
+
+  static deleteOperation(db: Database.Database, operationId: number) {
+    const stmt = db.prepare(`DELETE FROM operation WHERE id = ?`);
+    stmt.run(operationId);
+  }
+
+  static deleteInValidOperations(db: Database.Database) {
+    const operations = db.prepare(`SELECT * FROM operation WHERE operation_id = 0`).all() as Operation[];
+    const operationMap = new Map<string, Operation[]>;
+    // 按照时间分组，在一天的为一组
+    for (const operation of operations) {
+      const date = dayjs(operation.operation_time).format('YYYY-MM-DD');
+      if (operationMap.has(date)) {
+        operationMap.get(date)?.push(operation);
+      } else {
+        operationMap.set(date, [operation]);
+      }
+    }
+
+    for (const operations of operationMap.values()) {
+      const deleteIds = this.uniqueContinuousOperations(operations);
+      for (const id of deleteIds) {
+        this.deleteOperation(db, id);
+      }
+    }
+  }
+
+  // unique operation
+  static uniqueContinuousOperations(operations: Operation[]): number[] {
+    // 如果连续的两个 operation_type, operation_action, operation_id 操作时间间隔小于10秒，则合并
+    const operationsGroup: Array<Operation[]> = [];
+    // 首先将连续 operation_type, operation_action, operation_id 操作时间间隔小于10秒的操作分到一个组中
+    for (let i = 0; i < operations.length; i++) {
+      const operation = operations[i];
+      if (i === 0) {
+        operationsGroup.push([operation]);
+      } else {
+        const lastOperation = operations[i - 1];
+        if (
+          lastOperation.operation_content_type === operation.operation_content_type &&
+          lastOperation.operation_action === operation.operation_action &&
+          lastOperation.operation_id === operation.operation_id &&
+          operation.operation_time - lastOperation.operation_time < 10000
+        ) {
+          operationsGroup[operationsGroup.length - 1].push(operation);
+        } else {
+          operationsGroup.push([operation]);
+        }
+      }
+    }
+
+    const deleteIds: number[] = [];
+    for (const ops of operationsGroup) {
+      // 只保留第一个和最后一个 op，其他的合并
+      deleteIds.concat(ops.slice(1, -1).map(op => op.id))
+    }
+
+    return deleteIds;
   }
 }

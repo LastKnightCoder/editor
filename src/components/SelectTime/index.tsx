@@ -5,20 +5,22 @@ import If from "@/components/If";
 import { EFilterType } from "@/types/time";
 
 import styles from './index.module.less';
+import classnames from "classnames";
 
 interface ISelectTimeProps {
   filterType: EFilterType;
   onSelectFilterTypeChange: (type: EFilterType) => void;
   onFilterValueChange: (value: string | string[]) => void;
+  className?: string;
 }
 
 const { RangePicker } = DatePicker;
 
 const SelectTime = memo((props: ISelectTimeProps) => {
-  const { filterType, onSelectFilterTypeChange, onFilterValueChange } = props;
+  const { filterType, onSelectFilterTypeChange, onFilterValueChange, className } = props;
 
   return (
-    <div className={styles.selectTime}>
+    <div className={classnames(styles.selectTime, className)}>
       <Select
         className={styles.select}
         value={filterType}

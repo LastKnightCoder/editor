@@ -25,6 +25,44 @@ class DatabaseModule implements Module {
   windowToDatabase: Map<number, string>;
   tables: Table[];
   eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => Promise<any>>;
+  databasePendingPromiseQueue: Map<string, any[]>;
+  databaseLocks: Map<string, boolean>;
+
+  async getDatabase(name: string): Promise<Database.Database | undefined> {
+    return new Promise((resolve) => {
+      if (this.databaseLocks.has(name)) {
+        console.log(`database ${name} is locked, waiting...`)
+        const queue = this.databasePendingPromiseQueue.get(name) || [];
+        queue.push(resolve);
+        this.databasePendingPromiseQueue.set(name, queue);
+      } else {
+        console.log(`database ${name} is not locked`)
+        const database = this.databases.get(name);
+        this.databaseLocks.set(name, true);
+        resolve(database);
+      }
+    });
+  }
+
+  returnDatabase(name: string) {
+    console.log(`database ${name} is unlocked`)
+    if (this.databaseLocks.has(name)) {
+      const queue = this.databasePendingPromiseQueue.get(name);
+      if (queue) {
+        const resolve = queue.shift();
+        if (resolve) {
+          console.log('正在从队列中取出 resolve 函数');
+          resolve(this.databases.get(name));
+        }
+        if (queue.length === 0) {
+          this.databasePendingPromiseQueue.delete(name);
+          this.databaseLocks.delete(name);
+        }
+      } else {
+        this.databaseLocks.delete(name);
+      }
+    }
+  }
 
   constructor() {
     this.name = 'database';
@@ -43,6 +81,8 @@ class DatabaseModule implements Module {
       ChatMessageTable,
       OperationTable,
     ] as unknown as Table[];
+    this.databasePendingPromiseQueue = new Map();
+    this.databaseLocks = new Map();
 
     this.eventAndHandlers = this.tables.reduce((acc, table) => {
       const events = table.getListenEvents();
@@ -63,7 +103,7 @@ class DatabaseModule implements Module {
     return newDatabaseName;
   }
 
-  addDbExtention(databaseName: string) {
+  addDbExtension(databaseName: string) {
     let newDatabaseName = databaseName;
     // 如果没有 .db 结尾，则加上
     if (!databaseName.endsWith('.db')) {
@@ -92,6 +132,7 @@ class DatabaseModule implements Module {
           table.upgradeTable(database!);
         });
       }
+
       const sender = event.sender;
       const win = BrowserWindow.fromWebContents(sender);
       if (win) {
@@ -106,9 +147,12 @@ class DatabaseModule implements Module {
         if (!win) throw new Error('No window found');
         const dbName = this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error('No database name found');
-        const db = this.databases.get(dbName);
+        const db = await this.getDatabase(dbName);
         if (!db) throw new Error('No database found');
-        return await this.eventAndHandlers[eventName](db, ...args);
+        console.log(`database ${dbName} event ${eventName}`);
+        const res = await this.eventAndHandlers[eventName](db, ...args);
+        this.returnDatabase(dbName);
+        return res;
       });
     })
 
@@ -136,7 +180,7 @@ class DatabaseModule implements Module {
 
     ipcMain.handle('get-database-path', (_, name) => {
       const appDir = PathUtil.getAppDir();
-      return join(appDir, this.addDbExtention(name));
+      return join(appDir, this.addDbExtension(name));
     })
   }
 }

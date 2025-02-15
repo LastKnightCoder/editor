@@ -3,17 +3,18 @@
   height: 100vh;
   display: flex;
   --sidebar-width: 200px;
-  --title-bar-height: 50px;
+  --title-bar-height: 32px;
   --right-sidebar-width: 0px;
   .sidebar {
     width: var(--sidebar-width);
-    height: 100vh;
+    height: 100%;
     background: var(--sidebar-background);
     overflow: hidden;
+    transition: width 0.3s;
   }
   .content {
     width: calc(100vw - var(--sidebar-width));
-    height: 100vh;
+    height: 100%;
     transition: width 0.3s;
     .titlebar {
       width: 100%;
@@ -24,15 +25,16 @@
     .main {
       display: flex;
       width: 100%;
-      height: calc(100vh - var(--title-bar-height));
+      height: calc(100% - var(--title-bar-height));
       box-sizing: border-box;
       overflow: hidden;
+      border-radius: 8px;
       .mainContent {
-        width: calc(100% - var(--right-sidebar-width) - 24px);
-        height: calc(100% - 24px);
+        width: calc(100% - var(--right-sidebar-width) - 16px);
+        height: calc(100% - 8px);
         overflow: hidden;
         background: var(--main-bg-color);
-        margin: 8px;
+        margin: 0 8px 8px 0;
         border-radius: 8px;
         box-shadow: var(--shadow);
         box-sizing: border-box;

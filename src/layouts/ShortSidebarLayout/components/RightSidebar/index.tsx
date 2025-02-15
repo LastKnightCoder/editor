@@ -93,7 +93,7 @@ const RightSidebar = (props: RightSidebarProps) => {
   const onCreateNewMessage = useMemoizedFn(async () => {
     const messages: Message[] = [{
       role: Role.System,
-      content: "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。使用 Markdown 语法回答，行内数学公式使用 $ 包裹，行间数学公式使用 $$ 包裹。"
+      content: "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。使用 Markdown 语法回答，如果存在数学公式的话，行内数学公式使用 $ 包裹，行间数学公式使用 $$ 包裹。"
     }];
     setCreateMessageLoading(true);
     const createdMessage = await createChatMessage(messages).finally(() => {
@@ -155,9 +155,14 @@ const RightSidebar = (props: RightSidebarProps) => {
 
     const sendMessages = [
       currentChat.messages[0], // System Prompt
-      ...currentChat.messages.slice(1).slice(-10), // 近十条回答
+      // 最近十条对话，去掉 reason_content
+      ...currentChat.messages.slice(1).slice(-10).map(message => ({
+        content: message.content,
+        role: message.role
+      })),
       newMessage
     ];
+    console.log('sendMessages', sendMessages);
     setCurrentChat({
       ...currentChat,
       messages: [...currentChat.messages, newMessage, responseMessage],
@@ -165,13 +170,14 @@ const RightSidebar = (props: RightSidebarProps) => {
     editTextRef.current.clear();
 
     chatLLMStream(sendMessages, {
-      onFinish: async (content) => {
+      onFinish: async (content, reasoning_content) => {
         setSendLoading(false);
         const newCurrentChat = produce(currentChat, draft => {
           draft.messages.push(newMessage);
           draft.messages.push({
             role: Role.Assistant,
-            content
+            content,
+            reasoning_content
           });
         });
         const updatedChatMessage = await updateChatMessage(newCurrentChat).finally(() => {
@@ -185,7 +191,11 @@ const RightSidebar = (props: RightSidebarProps) => {
           const newTitle = await chatWithGPT35([{
             role: Role.System,
             content: SUMMARY_TITLE_PROMPT
-          }, ...updatedChatMessage.messages.slice(1).slice(-10)]);
+          }, ...updatedChatMessage.messages.slice(1).slice(-10).map(message => ({
+            content: message.content,
+            role: message.role
+          }))]);
+
           if (newTitle) {
             const updateChat = produce(updatedChatMessage, draft => {
               draft.title = newTitle.slice(0, 20);
@@ -197,12 +207,25 @@ const RightSidebar = (props: RightSidebarProps) => {
           console.error(e);
         }
       },
-      onUpdate: (full) => {
+      onUpdate: (full, _inc, reasoningText?: string) => {
         const newCurrentChat = produce(currentChat, draft => {
           draft.messages.push(newMessage);
           draft.messages.push({
             role: Role.Assistant,
+            reasoning_content: reasoningText,
             content: full
+          });
+        });
+        setCurrentChat(newCurrentChat);
+        scrollDomToBottom();
+      },
+      onReasoning: (full) => {
+        const newCurrentChat = produce(currentChat, draft => {
+          draft.messages.push(newMessage);
+          draft.messages.push({
+            role: Role.Assistant,
+            content: '',
+            reasoning_content: full
           });
         });
         setCurrentChat(newCurrentChat);
@@ -235,6 +258,7 @@ const RightSidebar = (props: RightSidebarProps) => {
       side={'left'}
       minWidth={360}
       maxWidth={920}
+      disableResize={!rightSidebarOpen}
     >
       <div className={styles.wrapContainer}>
         <div className={classnames(styles.innerContainer, { [styles.dark]: isDark })}>
@@ -304,13 +328,45 @@ const RightSidebar = (props: RightSidebarProps) => {
                 <For
                   data={currentChat.messages.filter(message => message.role !== Role.System)}
                   renderItem={(message, index) => {
-                    const { role, content } = message;
+                    const { role, content, reasoning_content } = message;
                     return (
                       <div
                         key={index}
                         className={classnames(styles.message, { [styles.dark]: isDark })}
-                        style={{ maxWidth: '90%', alignSelf: role === Role.User ? 'flex-start' : 'flex-end' }}
+                        style={{ maxWidth: '80%', alignSelf: role === Role.User ? 'flex-start' : 'flex-end' }}
                       >
+                        {
+                          role === Role.Assistant && reasoning_content && (
+                            <blockquote className={styles.reasoningContent}>
+                              <Markdown
+                                rehypePlugins={[rehypeKatex]}
+                                remarkPlugins={[remarkMath, remarkGfm]}
+                                components={{
+                                  code(props) {
+                                    const { children, className, node, ...rest } = props
+                                    const match = /language-(\w+)/.exec(className || '')
+                                    return match ? (
+                                      // @ts-ignore
+                                      <SyntaxHighlighter
+                                        {...rest}
+                                        PreTag="div"
+                                        children={String(children).replace(/\n$/, '')}
+                                        language={match[1]}
+                                        style={isDark ? oneDark : oneLight}
+                                      />
+                                    ) : (
+                                      <code {...rest} className={className}>
+                                        {children}
+                                      </code>
+                                    )
+                                  }
+                                }}
+                              >
+                                {reasoning_content}
+                              </Markdown>
+                            </blockquote>
+                          )
+                        }
                         <Markdown
                           className={styles.markdown}
                           rehypePlugins={[rehypeKatex]}

@@ -452,4 +452,5 @@
 - feat: 项目支持白板
 - feat: 白板属性设置器重构，更加美观和易用
 - feat: UI 改版
-- fix: 白板若干 bug 修复
+- feat: 支持 DeepSeek R1
+- fix: 若干 bug 修复
