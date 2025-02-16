@@ -1,5 +1,4 @@
 import {  createHashRouter } from "react-router-dom";
-import loadable from "@loadable/component";
 
 import ThreeColumnLayout from "@/layouts/ThreeColumnLayout";
 import QuickCard from "@/pages/QuickCard";
@@ -20,17 +19,12 @@ import DailyNoteView from "@/layouts/ShortSidebarLayout/components/DailyNoteView
 import TimeRecordView from "@/layouts/ShortSidebarLayout/components/TimeRecordView";
 import VecDocumentView from "@/layouts/ShortSidebarLayout/components/VecDocumentView";
 
-const Statistic = loadable(() => import('@/pages/Statistic'));
-
 const classicRoutes = [{
   path: '/quick-card',
   element: <QuickCard/>,
 }, {
   path: '/quick-time-record',
   element: <QuickTimeRecord/>,
-}, {
-  path: '/statistic',
-  element: <Statistic/>,
 }, {
   path: '/*',
   element: <ThreeColumnLayout />,
