@@ -8,7 +8,7 @@ import { formatDate } from "@/utils/time";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import EditText from "@/components/EditText";
-import EditorOutline from "../../components/EditorOutline";
+import EditorOutline from "@/components/EditorOutline";
 
 import styles from './index.module.less';
 

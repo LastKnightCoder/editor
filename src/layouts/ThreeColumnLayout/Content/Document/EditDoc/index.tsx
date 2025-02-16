@@ -17,7 +17,7 @@ import { formatDate } from "@/utils/time.ts";
 import { cardLinkExtension, documentCardListExtension, fileAttachmentExtension } from "@/editor-extensions";
 
 import styles from './index.module.less';
-import EditorOutline from "../../../components/EditorOutline";
+import EditorOutline from "@/components/EditorOutline";
 
 const extensions = [
   cardLinkExtension,

@@ -70,8 +70,10 @@ const DocumentCard = (props: DocumentCardProps) => {
           onOpenChange={setSettingOpen}
           placement={'bottomRight'}
           trigger={'click'}
-          overlayInnerStyle={{
-            padding: 4,
+          styles={{
+            body: {
+              padding: 4
+            }
           }}
           content={(
             <div className={styles.settings}>

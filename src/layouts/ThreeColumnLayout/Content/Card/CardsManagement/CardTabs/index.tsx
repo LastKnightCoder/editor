@@ -148,8 +148,10 @@ const CardTabs = (props: ICardTabsProps) => {
                     </div>
                   )}
                   placement={'right'}
-                  overlayInnerStyle={{
-                    padding: 0
+                  styles={{
+                    body: {
+                      padding: 0
+                    }
                   }}
                 >
                   <div

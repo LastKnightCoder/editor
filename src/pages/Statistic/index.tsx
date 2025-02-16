@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Skeleton } from "antd";
 import { useAsyncEffect } from "ahooks";
-import CalendarHeatmap, { IItem } from './CalendarHeatmap';
+import CalendarHeatmap, { IItem } from '@/components/CalendarHeatmap';
 import { getCalendarHeatmap } from "@/commands";
 
 const Statistic = () => {
@@ -30,7 +30,7 @@ const Statistic = () => {
     } }>
       <CalendarHeatmap
         data={ data }
-        year={ '2024' }
+        year={ '2025' }
         renderTooltip={ (date, value) => {
           if (value && value.operation_list) {
             const operationList = value.operation_list;

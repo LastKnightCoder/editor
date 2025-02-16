@@ -59,8 +59,10 @@ const CardLink = (props: ICardLinkProps) => {
     <Popover
       trigger={'hover'}
       content={<CardContent card={linkCard} />}
-      overlayInnerStyle={{
-        padding: 0,
+      styles={{
+        body: {
+          padding: 0
+        }
       }}
       style={{
         top: 20,

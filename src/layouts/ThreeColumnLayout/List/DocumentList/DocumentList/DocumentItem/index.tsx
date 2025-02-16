@@ -43,8 +43,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
             }}>删除文档</div>
           </div>
         )}
-        overlayInnerStyle={{
-          padding: 4,
+        styles={{
+          body: {
+            padding: 4
+          }
         }}
         arrow={false}
         placement={'bottomLeft'}

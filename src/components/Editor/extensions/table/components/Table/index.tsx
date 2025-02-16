@@ -157,8 +157,10 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
             trigger={'click'}
             placement={'bottomLeft'}
             content={<Actions items={items} />}
-            overlayInnerStyle={{
-              padding: 0,
+            styles={{
+              body: {
+                padding: 4
+              }
             }}
             arrow={false}
           >

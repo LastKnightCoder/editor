@@ -496,7 +496,11 @@ const DocumentItem = (props: IDocumentItemProps) => {
             )}
             placement={'bottomLeft'}
             arrow={false}
-            overlayInnerStyle={{ padding: 0 }}
+            styles={{
+              body: {
+                padding: 0
+              }
+            }}
           >
             <div className={styles.icon} onClick={(e) => {
               e.preventDefault();
@@ -566,7 +570,11 @@ const DocumentItem = (props: IDocumentItemProps) => {
             )}
             placement={'bottomLeft'}
             arrow={false}
-            overlayInnerStyle={{ padding: 0 }}
+            styles={{
+              body: {
+                padding: 0
+              }
+            }}
           >
             <div className={styles.icon} onClick={(e) => {
               e.preventDefault();

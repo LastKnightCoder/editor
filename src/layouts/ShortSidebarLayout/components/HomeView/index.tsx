@@ -9,7 +9,7 @@ import {
   getLatestOperations,
   getRootDocumentsByDocumentItemId
 } from '@/commands';
-import { IArticle, ICard, IDocumentItem, ProjectItem } from "@/types";
+import { IArticle, ICard, IDocumentItem, Operation, ProjectItem } from "@/types";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import For from "@/components/For";
@@ -19,9 +19,14 @@ import { useNavigate } from 'react-router-dom';
 import useCardManagement from "@/hooks/useCardManagement.ts";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import CalendarHeatmap, { IItem } from '@/components/CalendarHeatmap';
+import { getCalendarHeatmap } from "@/commands";
+import dayjs from "dayjs";
 
 const HomeView = () => {
   const navigate = useNavigate();
+
+  const [operationData, setOperationData] = useState<IItem[]>([]);
 
   const [documentItems, setDocumentItems] = useState<IDocumentItem[]>([]);
   const [documentItemWordCounts, setDocumentItemWordCounts] = useState(0);
@@ -94,14 +99,56 @@ const HomeView = () => {
     });
 
     getLatestOperations(5).then(operations => {
-      console.log('operations', operations);
+      // console.log('operations', operations);
       setLatestOperations(operations);
+    });
+
+    getCalendarHeatmap(dayjs().year()).then(data => {
+      setOperationData(data.map((item) => ({
+        date: item.time,
+        count: item.operation_list.length,
+        operationList: item.operation_list,
+      })));
     });
   }, [databaseStatus, active]);
 
   return (
     <div className={styles.container}>
       <h2>数据统计</h2>
+      <CalendarHeatmap
+        className={styles.calendar}
+        data={operationData}
+        year={dayjs().format('YYYY')}
+        renderTooltip={ (date, value) => {
+          if (value && value.operationList.length > 0) {
+            const operationList = value.operationList;
+            // 按照 operation_content_type 统计
+            const operationTypeMap = new Map<string, number>();
+            operationList.filter(operation => operation.operation_action === 'update').forEach((item: Operation) => {
+              const key = item.operation_content_type;
+              if (operationTypeMap.has(key)) {
+                operationTypeMap.set(key, operationTypeMap.get(key)! + 1);
+              } else {
+                operationTypeMap.set(key, 1);
+              }
+            })
+            return (
+              <div style={{ padding: 12 }}>
+                <div>{ date }</div>
+                <ul style={{ padding: '0px 24px' }}>
+                  {
+                    Array.from(operationTypeMap).map(([key, value]) => (
+                      <li key={ key }>{ key }: { value }</li>
+                    ))
+                  }
+                </ul>
+              </div>
+            )
+          } else {
+            return `${ date }: 操作次数0`
+          }
+        } }
+      />
       <Row gutter={[16, 16]}>
         <Col md={24} lg={12} xxl={6}>
           <Card title={'卡片'} >

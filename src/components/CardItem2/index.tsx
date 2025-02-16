@@ -85,8 +85,10 @@ const CardItem2 = memo((props: ICardItem2Props) => {
           trigger="click"
           content={<SettingPanel closePanel={() => { setSettingPanelOpen(false) }} settings={settings} cardId={card.id} />}
           arrow={false}
-          overlayInnerStyle={{
-            padding: 4,
+          styles={{
+            body: {
+              padding: 4
+            }
           }}
         >
           <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
