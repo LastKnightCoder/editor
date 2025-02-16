@@ -273,7 +273,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const handleMoreMenuClick: MenuProps['onClick'] = useMemoizedFn(async ({ key }) => {
     if (key === 'to-card') {
-      if (!projectItem) return;
+      const projectItem = await getProjectItemById(projectItemId);
       await buildCardFromProjectItem(projectItem);
       message.success('成功建立卡片');
     } else if (key === 'to-white-board') {
