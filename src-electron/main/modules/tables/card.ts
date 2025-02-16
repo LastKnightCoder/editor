@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { getContentLength } from '@/utils/helper.ts';
 import { ICreateCard, IUpdateCard, ICard } from '@/types';
 import Operation from './operation';
 
@@ -24,18 +25,30 @@ export default class CardTable {
         tags TEXT,
         links TEXT,
         content TEXT,
-        category TEXT DEFAULT 'permanent'
+        category TEXT DEFAULT 'permanent',
+        count INTEGER DEFAULT 0
       )
     `;
     db.exec(createTableSql);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static async upgradeTable(db: Database.Database) {
     const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cards'");
     const tableInfo = (stmt.get() as { sql: string }).sql;
     if (!tableInfo.includes('category')) {
       const alertStmt = db.prepare("ALTER TABLE cards ADD COLUMN category TEXT DEFAULT 'permanent'");
       alertStmt.run();
+    }
+    if (!tableInfo.includes('count')) {
+      const alertStmt = db.prepare("ALTER TABLE cards ADD COLUMN count INTEGER DEFAULT 0");
+      alertStmt.run();
+      // 更新所有卡片的 count
+      const cards = await this.getAllCards(db);
+      for (const card of cards) {
+        const contentLength = getContentLength(card.content);
+        const stmt = db.prepare('UPDATE cards SET count = ? WHERE id = ?');
+        stmt.run(contentLength, card.id);
+      }
     }
   }
 
@@ -48,6 +61,7 @@ export default class CardTable {
       links: JSON.parse(card.links),
       content: JSON.parse(card.content),
       category: card.category,
+      count: card.count
     };
   }
 
@@ -62,30 +76,37 @@ export default class CardTable {
     return this.parseCard(stmt.get(cardId));
   }
 
-  static async createCard(db: Database.Database, card: ICreateCard): Promise<ICard> {
-    const { tags, links, content, category } = card;
+  static async getCardByIds(db: Database.Database, cardIds: number[]): Promise<ICard[]> {
+    const placeholders = cardIds.map(() => '?').join(',');
+    const stmt = db.prepare(`SELECT * FROM cards WHERE id IN (${placeholders})`);
+    const cards = stmt.all(cardIds);
+    return cards.map(card => this.parseCard(card));
+  }
 
-    const stmt = db.prepare('INSERT INTO cards (create_time, update_time, tags, links, content, category) VALUES (?, ?, ?, ?, ?, ?)');
+  static async createCard(db: Database.Database, card: ICreateCard): Promise<ICard> {
+    const { tags, links, content, category, count } = card;
+
+    const stmt = db.prepare('INSERT INTO cards (create_time, update_time, tags, links, content, category, count) VALUES (?, ?, ?, ?, ?, ?, ?)');
     const now = Date.now();
-    const res = stmt.run(now, now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category);
+    const res = stmt.run(now, now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category, count);
     const createdCardId = res.lastInsertRowid;
     Operation.insertOperation(db, 'card', 'insert', createdCardId, now);
     return await this.getCardById(db, createdCardId);
   }
 
   static async updateCard(db: Database.Database, card: IUpdateCard): Promise<ICard> {
-    const { tags, links, content, category, id } = card;
-    const stmt = db.prepare('UPDATE cards SET update_time = ?, tags = ?, links = ?, content = ?, category = ? WHERE id = ?');
+    const { tags, links, content, category, id, count } = card;
+    const stmt = db.prepare('UPDATE cards SET update_time = ?, tags = ?, links = ?, content = ?, category = ? count = ? WHERE id = ?');
     const now = Date.now();
-    stmt.run(now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category, id);
+    stmt.run(now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category, count, id);
 
     // 如果有 document-item 是 isCard 并且 cardId 等于 id 的话，更新 document-item 的 content
-    const updateDocumentItemStmt = db.prepare('UPDATE document_items SET update_time = ?, content = ? WHERE is_card = 1 AND card_id = ?');
-    updateDocumentItemStmt.run(now, JSON.stringify(content), id);
+    const updateDocumentItemStmt = db.prepare('UPDATE document_items SET update_time = ?, content = ?, count = ? WHERE is_card = 1 AND card_id = ?');
+    updateDocumentItemStmt.run(now, JSON.stringify(content), count, id);
 
     // update project_item
-    const updateProjectItemStmt = db.prepare("UPDATE project_item SET update_time = ?, content = ? WHERE ref_type = 'card' AND ref_id = ?");
-    updateProjectItemStmt.run(now, JSON.stringify(content), id);
+    const updateProjectItemStmt = db.prepare("UPDATE project_item SET update_time = ?, content = ?, count = ? WHERE ref_type = 'card' AND ref_id = ?");
+    updateProjectItemStmt.run(now, JSON.stringify(content), count, id);
 
     Operation.insertOperation(db, 'card', 'update', card.id, now);
 

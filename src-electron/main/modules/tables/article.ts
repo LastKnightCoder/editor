@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { ICreateArticle, IUpdateArticle, IArticle } from '@/types';
 import Operation from './operation';
+import { getContentLength } from "@/utils/helper.ts";
 
 export default class ArticleTable {
   static initTable(db: Database.Database) {
@@ -16,12 +17,13 @@ export default class ArticleTable {
         content TEXT,
         banner_bg TEXT,
         is_top INTEGER DEFAULT 0,
-        is_delete INTEGER DEFAULT 0
+        is_delete INTEGER DEFAULT 0,
+        count INTEGER DEFAULT 0
       )`;
     db.exec(createTableSql);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static async upgradeTable(db: Database.Database) {
     const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'articles'");
     const tableInfo = (stmt.get() as { sql: string }).sql;
     if (!tableInfo.includes("links")) {
@@ -39,6 +41,16 @@ export default class ArticleTable {
     if (!tableInfo.includes("is_delete")) {
       const alertStmt = db.prepare("ALTER TABLE articles ADD COLUMN is_delete INTEGER DEFAULT 0");
       alertStmt.run();
+    }
+    if (!tableInfo.includes("count")) {
+      const alertStmt = db.prepare("ALTER TABLE articles ADD COLUMN count INTEGER DEFAULT 0");
+      alertStmt.run();
+      const articles = await this.getAllArticles(db);
+      for (const article of articles) {
+        const contentLength = getContentLength(article.content);
+        const stmt = db.prepare('UPDATE articles SET count = ? WHERE id = ?');
+        stmt.run(contentLength, article.id);
+      }
     }
   }
 
@@ -66,7 +78,8 @@ export default class ArticleTable {
       links: JSON.parse(article.links || '[]'),
       bannerBg: article.banner_bg || '',
       isTop: article.is_top || false,
-      isDelete: article.is_delete || false
+      isDelete: article.is_delete || false,
+      count: article.count || 0,
     };
   }
 
@@ -82,12 +95,19 @@ export default class ArticleTable {
     return this.parseArticle(stmt.get(articleId));
   }
 
-  static async createArticle(db: Database.Database, article: ICreateArticle): Promise<IArticle> {
-    const { tags, title, content, bannerBg, isDelete, isTop } = article;
+  static async getArticleByIds(db: Database.Database, articleIds: number[]): Promise<IArticle[]> {
+    const placeholders = articleIds.map(() => '?').join(',');
+    const stmt = db.prepare(`SELECT * FROM articles WHERE id IN (${placeholders})`);
+    const articles = stmt.all(articleIds);
+    return articles.map(article => this.parseArticle(article));
+  }
 
-    const stmt = db.prepare('INSERT INTO articles (create_time, update_time, tags, title, content, banner_bg, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  static async createArticle(db: Database.Database, article: ICreateArticle): Promise<IArticle> {
+    const { tags, title, content, bannerBg, isDelete, isTop, count } = article;
+
+    const stmt = db.prepare('INSERT INTO articles (create_time, update_time, tags, title, content, banner_bg, is_delete, is_top, count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
     const now = Date.now();
-    const res = stmt.run(now, now, JSON.stringify(tags), title, JSON.stringify(content), bannerBg, Number(isDelete), Number(isTop));
+    const res = stmt.run(now, now, JSON.stringify(tags), title, JSON.stringify(content), bannerBg, Number(isDelete), Number(isTop), count);
     const createdArticleId = res.lastInsertRowid;
 
     Operation.insertOperation(db, 'article', 'insert', createdArticleId, now);
@@ -96,18 +116,18 @@ export default class ArticleTable {
   }
 
   static async updateArticle(db: Database.Database, article: IUpdateArticle): Promise<IArticle> {
-    const { tags, title, content, id, bannerBg, isTop, isDelete } = article;
-    const stmt = db.prepare('UPDATE articles SET update_time = ?, tags = ?, title = ?, content = ?, banner_bg = ?, is_top = ?, is_delete = ? WHERE id = ?');
+    const { tags, title, content, id, bannerBg, isTop, isDelete, count } = article;
+    const stmt = db.prepare('UPDATE articles SET update_time = ?, tags = ?, title = ?, content = ?, banner_bg = ?, is_top = ?, is_delete = ?, count = ? WHERE id = ?');
     const now = Date.now();
-    stmt.run(now, JSON.stringify(tags), title, JSON.stringify(content), bannerBg, Number(isTop), Number(isDelete), id);
+    stmt.run(now, JSON.stringify(tags), title, JSON.stringify(content), bannerBg, Number(isTop), Number(isDelete), count, id);
 
     // 如果有 document item isArticle 为 1，并且 article_id 为当前 articleId 的话，更新 document item 的 content 个 update_time
-    const documentItemStmt = db.prepare('UPDATE document_items SET update_time = ?, content = ? WHERE is_article = 1 AND article_id = ?');
-    documentItemStmt.run(now, JSON.stringify(content), id);
+    const documentItemStmt = db.prepare('UPDATE document_items SET update_time = ?, content = ?, count = ? WHERE is_article = 1 AND article_id = ?');
+    documentItemStmt.run(now, JSON.stringify(content), count, id);
 
     // update project_item
-    const projectItemStmt = db.prepare("UPDATE project_item SET update_time = ?, content = ? WHERE ref_type = 'article' AND ref_id = ?");
-    projectItemStmt.run(now, JSON.stringify(content), id);
+    const projectItemStmt = db.prepare("UPDATE project_item SET update_time = ?, content = ?, count = ? WHERE ref_type = 'article' AND ref_id = ?");
+    projectItemStmt.run(now, JSON.stringify(content), count, id);
 
     Operation.insertOperation(db, 'article', 'update', id, now);
 

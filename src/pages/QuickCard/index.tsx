@@ -15,6 +15,7 @@ import { ECardCategory } from "@/types";
 import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
 
 import styles from './index.module.less';
+import { getContentLength } from "@/utils";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -62,6 +63,7 @@ const QuickCard = () => {
       tags,
       links: [] as number[],
       category: ECardCategory.Temporary,
+      count: getContentLength(content)
     });
     setSaveLoading(false);
     editorRef.current?.setEditorValue(initValue);

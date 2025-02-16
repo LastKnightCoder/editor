@@ -73,6 +73,7 @@ const Project = () => {
         refType: '',
         refId: 0,
         projectItemType: EProjectItemType.Document,
+        count: 0,
       }
       const item = await createRootProjectItem(project.id, createProjectItem);
       if (item) {
@@ -104,6 +105,7 @@ const Project = () => {
         refType: '',
         refId: 0,
         projectItemType: EProjectItemType.WhiteBoard,
+        count: 0,
       }
       const item = await createRootProjectItem(project.id, createProjectItem);
       if (item) {

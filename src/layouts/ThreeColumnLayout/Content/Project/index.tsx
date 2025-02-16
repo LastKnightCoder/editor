@@ -20,7 +20,6 @@ const Project = () => {
     onInit,
     onTitleChange,
     onContentChange,
-    wordsCount,
     saveProjectItem
   } = useEdit();
 
@@ -96,7 +95,7 @@ const Project = () => {
           fontSize: 14,
           opacity: .8
         }}>
-          <div>字数：{wordsCount}</div>
+          <div>字数：{projectItem.count}</div>
         </div>
       </div>
     </div>

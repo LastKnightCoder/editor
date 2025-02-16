@@ -77,7 +77,8 @@ const Project = () => {
         projects: [activeProjectId],
         refType: '',
         refId: 0,
-        projectItemType: EProjectItemType.Document
+        projectItemType: EProjectItemType.Document,
+        count: 0
       }
       const createdProjectItem = await createRootProjectItem(activeProjectId, defaultRootProjectItem);
       if (createdProjectItem && !activeProjectItemId) {

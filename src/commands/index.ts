@@ -21,3 +21,4 @@ export * from './embedding.ts';
 export * from './vec-document.ts';
 export * from './extra.ts';
 export * from './window.ts';
+export * from './operation.ts';

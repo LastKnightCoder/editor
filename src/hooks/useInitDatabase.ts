@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { App } from 'antd';
 import { useMemoizedFn } from "ahooks";
+import { produce } from "immer";
 
 import { connectDatabaseByName } from "@/commands";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
@@ -13,9 +14,16 @@ import usePdfsStore from "@/stores/usePdfsStore.ts";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import useChatMessageStore from "@/stores/useChatMessageStore.ts";
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 const useInitDatabase = () => {
   const { message } = App.useApp();
+
+  const {
+    databaseStatus
+  } = useGlobalStateStore(state => ({
+    databaseStatus: state.databaseStatus
+  }))
 
   const {
     inited,
@@ -95,6 +103,15 @@ const useInitDatabase = () => {
     ]);
   });
 
+  const handleDatabaseStatus = useMemoizedFn((databaseName: string) => {
+    const newDatabaseStatus = produce(databaseStatus, draft => {
+      draft[databaseName] = true;
+    });
+    useGlobalStateStore.setState({
+      databaseStatus: newDatabaseStatus
+    })
+  });
+
   useEffect(() => {
     if (!inited || !active) return;
     message.open({
@@ -106,12 +123,14 @@ const useInitDatabase = () => {
     connectDatabaseByName(active).then(() => {
       initDatabase().finally(() => {
         message.destroy('initDatabase');
+        handleDatabaseStatus(active);
       });
     });
-  }, [inited, active, initDatabase, message]);
+  }, [inited, active, initDatabase, message, handleDatabaseStatus]);
 
   return {
     initDatabase,
+    databaseStatus
   }
 }
 

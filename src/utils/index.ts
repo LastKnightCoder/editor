@@ -9,3 +9,4 @@ export * from './time';
 export * from './time_record';
 export * from './embedding';
 export * from './command-parser';
+export * from './helper.ts';

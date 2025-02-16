@@ -38,7 +38,6 @@ const EditArticle = memo(() => {
   const { 
     initValue,
     editingArticle,
-    wordsCount,
     onContentChange,
     onInit,
     onDeleteTag,
@@ -73,7 +72,7 @@ const EditArticle = memo(() => {
       key: 'words-count',
       children: (
         <>
-          字数：{wordsCount}
+          字数：{editingArticle?.count}
         </>
       )
     },{
@@ -129,7 +128,7 @@ const EditArticle = memo(() => {
         setEditorSourceValueOpen(true);
       }
     }].filter(isValid)
-  }, [headers.length, readonly, showOutline, size, wordsCount]);
+  }, [headers.length, readonly, showOutline, size, editingArticle?.count]);
 
   const { run: handleContentResize } = useThrottleFn((entries: ResizeObserverEntry[]) => {
     const { width } = entries[0].contentRect;

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useMatch } from 'react-router-dom';
+import { HomeOutlined } from '@ant-design/icons';
 import classnames from 'classnames';
 import For from '@/components/For';
 import { FiSidebar } from "react-icons/fi";
@@ -57,64 +58,71 @@ const Sidebar = (props: SidebarProps) => {
   const isMac = platform === 'darwin';
   
   const configs = [{
+    key: 'home',
+    icon: <HomeOutlined />,
+    desc: '首页',
+    path: '/',
+    active: useMatch('/') !== null,
+    enable: true,
+  } ,{
     key: 'whiteBoard',
-    icon: whiteBoard,
+    icon: <SVG src={whiteBoard} /> ,
     desc: '白板',
     path: '/white-boards',
     active: useMatch('/white-boards') !== null,
     enable: module.whiteBoard.enable,
   }, {
     key: 'project',
-    icon: document,
+    icon: <SVG src={document} /> ,
     desc: '项目',
     path: '/projects/list',
     active: useMatch('/projects/*') !== null,
     enable: module.project.enable,
   }, {
     key: 'card',
-    icon: card,
+    icon: <SVG src={card} /> ,
     desc: '卡片',
     path: '/cards/list',
     active: useMatch('/cards/*') !== null,
     enable: module.card.enable,
   }, {
     key: 'article',
-    icon: article,
+    icon: <SVG src={article} /> ,
     desc: '文章',
     path: '/articles',
     active: useMatch('/articles/*') !== null,
     enable: module.article.enable,
   }, {
     key: 'document',
-    icon: document,
+    icon: <SVG src={document} />  ,
     desc: '知识库',
     path: '/documents',
     active: useMatch('/documents/*') !== null,
     enable: module.document.enable,
   }, {
     key: 'pdf',
-    icon: pdf,
+    icon: <SVG src={pdf} /> ,
     desc: 'PDF',
     path: '/pdfs',
     active: useMatch('/pdfs/*') !== null,
     enable: module.pdf.enable,
   }, {
     key: 'vec-documents',
-    icon: vecDatabase,
+    icon: <SVG src={vecDatabase} /> ,
     desc: '向量数据库',
     path: '/vec-documents',
     active: useMatch('/vec-documents/*') !== null,
     enable: module.vecDocuments.enable,
   }, {
     key: 'daily',
-    icon: daily,
+    icon: <SVG src={daily}/>,
     desc:'日记',
     path: '/dailies',
     active: useMatch('/dailies/*') !== null,
     enable: module.dailyNote.enable,
     }, {
     key: 'timeRecord',
-    icon: timeRecord,
+    icon: <SVG src={timeRecord} /> ,
     desc: '时间统计',
     path: '/time-records',
     active: useMatch('/time-records/*') !== null,
@@ -177,7 +185,7 @@ const Sidebar = (props: SidebarProps) => {
             renderItem={item => (
               <SidebarItem
                 key={item.key}
-                icon={<SVG src={item.icon}/>}
+                icon={item.icon}
                 label={item.desc}
                 active={item.active}
                 onClick={() => navigate(item.path)}

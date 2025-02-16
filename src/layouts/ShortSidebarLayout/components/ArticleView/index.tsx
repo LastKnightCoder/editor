@@ -33,6 +33,7 @@ const ArticleView = () => {
       links: [],
       tags: [],
       isDelete: false,
+      count: 0,
     });
     useArticleManagementStore.setState({
       activeArticleId: article.id,

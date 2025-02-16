@@ -453,4 +453,5 @@
 - feat: 白板属性设置器重构，更加美观和易用
 - feat: UI 改版
 - feat: 支持 DeepSeek R1
+- feat: 首页添加数据统计，数量和字数，最近编辑
 - fix: 若干 bug 修复

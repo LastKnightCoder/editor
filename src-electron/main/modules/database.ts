@@ -36,7 +36,7 @@ class DatabaseModule implements Module {
         queue.push(resolve);
         this.databasePendingPromiseQueue.set(name, queue);
       } else {
-        console.log(`database ${name} is not locked`)
+        // console.log(`database ${name} is not locked`)
         const database = this.databases.get(name);
         this.databaseLocks.set(name, true);
         resolve(database);
@@ -113,7 +113,7 @@ class DatabaseModule implements Module {
   }
 
   async init() {
-    ipcMain.handle('create-or-connect-database', async (event, name) => {
+    ipcMain.handle('create-or-connect-database',  (event, name) => {
       const appDir = PathUtil.getAppDir();
       const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
       let database: Database.Database | undefined;
@@ -127,10 +127,18 @@ class DatabaseModule implements Module {
 
         database.pragma('journal_mode = WAL');
 
-        this.tables.forEach((table) => {
+        for (const table of this.tables) {
           table.initTable(database!);
           table.upgradeTable(database!);
-        });
+        }
+
+        try {
+          database.exec('VACUUM');
+        } catch (e) {
+          console.error(e);
+        }
+
+        this.databases.set(name, database);
       }
 
       const sender = event.sender;
@@ -150,9 +158,11 @@ class DatabaseModule implements Module {
         const db = await this.getDatabase(dbName);
         if (!db) throw new Error('No database found');
         console.log(`database ${dbName} event ${eventName}`);
-        const res = await this.eventAndHandlers[eventName](db, ...args);
-        this.returnDatabase(dbName);
-        return res;
+        try {
+          return await this.eventAndHandlers[eventName](db, ...args);
+        } finally {
+          this.returnDatabase(dbName);
+        }
       });
     })
 

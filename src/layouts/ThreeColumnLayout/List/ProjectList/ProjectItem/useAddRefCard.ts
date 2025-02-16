@@ -6,6 +6,7 @@ import { useMemoizedFn } from "ahooks";
 import { App } from "antd";
 import { produce } from "immer";
 import { updateProjectItem } from "@/commands";
+import { getContentLength } from "@/utils";
 
 const useAddRefCard = (projectItem?: ProjectItem) => {
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
@@ -47,6 +48,7 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
       tags: [],
       links: [],
       category: ECardCategory.Permanent,
+      count: getContentLength(content)
     }
     const createdCard = await createCard(newCard);
     const newProjectItem = produce(projectItem, draft => {
@@ -83,6 +85,7 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
       refType: 'card',
       refId: selectCard.id,
       projectItemType: EProjectItemType.Document,
+      count: 0,
     }
     
     let item: ProjectItem | undefined;
