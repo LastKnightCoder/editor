@@ -112,32 +112,41 @@ class DatabaseModule implements Module {
     return newDatabaseName;
   }
 
+  async createDatabase(name: string) {
+    const appDir = PathUtil.getAppDir();
+    const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+    const database = new Database(dbPath);
+    sqliteVec.load(database);
+
+    database.pragma('journal_mode = WAL');
+
+    for (const table of this.tables) {
+      await table.initTable(database!);
+      await table.upgradeTable(database!);
+    }
+
+    try {
+      database.exec('VACUUM');
+    } catch (e) {
+      console.error(e);
+    }
+
+    return database;
+  }
+
   async init() {
-    ipcMain.handle('create-or-connect-database',  (event, name) => {
+    ipcMain.handle('create-or-connect-database',  async (event, name, force?: boolean) => {
       const appDir = PathUtil.getAppDir();
       const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
       let database: Database.Database | undefined;
-      if (this.databases.has(name)) {
+      if (this.databases.has(name) && !force) {
         database = this.databases.get(name);
       } else {
         console.log(`connect database ${dbPath}`);
-        database = new Database(dbPath);
-        this.databases.set(name, database);
-        sqliteVec.load(database);
-
-        database.pragma('journal_mode = WAL');
-
-        for (const table of this.tables) {
-          table.initTable(database!);
-          table.upgradeTable(database!);
+        if (this.databases.has(name)) {
+          this.databases.get(name)!.close();
         }
-
-        try {
-          database.exec('VACUUM');
-        } catch (e) {
-          console.error(e);
-        }
-
+        database = await this.createDatabase(name);
         this.databases.set(name, database);
       }
 
@@ -159,7 +168,13 @@ class DatabaseModule implements Module {
         if (!db) throw new Error('No database found');
         console.log(`database ${dbName} event ${eventName}`);
         try {
-          return await this.eventAndHandlers[eventName](db, ...args);
+          db.exec('BEGIN');
+          const res = await this.eventAndHandlers[eventName](db, ...args);
+          db.exec('COMMIT');
+          return res;
+        } catch (e) {
+          console.error(e);
+          db.exec('ROLLBACK');
         } finally {
           this.returnDatabase(dbName);
         }
