@@ -125,7 +125,12 @@ const useInitDatabase = () => {
         message.destroy('initDatabase');
         handleDatabaseStatus(active);
       });
-    });
+    }).catch((e) => {
+      message.error({
+        key: 'initDatabase',
+        content: e.message,
+      });
+    })
   }, [inited, active, initDatabase, message, handleDatabaseStatus]);
 
   return {
