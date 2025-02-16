@@ -96,7 +96,7 @@ export default class CardTable {
 
   static async updateCard(db: Database.Database, card: IUpdateCard): Promise<ICard> {
     const { tags, links, content, category, id, count } = card;
-    const stmt = db.prepare('UPDATE cards SET update_time = ?, tags = ?, links = ?, content = ?, category = ? count = ? WHERE id = ?');
+    const stmt = db.prepare('UPDATE cards SET update_time = ?, tags = ?, links = ?, content = ?, category = ?, count = ? WHERE id = ?');
     const now = Date.now();
     stmt.run(now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category, count, id);
 

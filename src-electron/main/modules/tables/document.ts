@@ -309,7 +309,7 @@ export default class DocumentTable {
         icon = ?,
         is_delete = ?,
         parents = ?,
-        count = ?,
+        count = ?
       WHERE id = ?
     `);
     const now = Date.now();
