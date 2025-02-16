@@ -66,8 +66,10 @@ const Geometry = memo((props: GeometryProps) => {
           </div>
         </div>
       )}
-      overlayInnerStyle={{
-        padding: 8
+      styles={{
+        body: {
+          padding: 8
+        }
       }}
     >
       <div

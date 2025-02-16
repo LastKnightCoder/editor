@@ -87,7 +87,9 @@ export default class OperationTable {
           operation_list: [item]
         });
       } else {
-        returnValue[index].operation_list.push(item);
+        if (returnValue[index].operation_list.every(op => op.operation_id !== item.operation_id)) {
+          returnValue[index].operation_list.push(item);
+        }
       }
     }
 

@@ -1,5 +1,5 @@
 import { Descendant } from "slate";
-import { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import classnames from "classnames";
 

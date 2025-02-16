@@ -71,8 +71,10 @@ const WindowControl = (props: IWindowControlProps) => {
         showColumns && (
           <Popover
             trigger={'hover'}
-            overlayInnerStyle={{
-              padding: 4
+            styles={{
+              body: {
+                padding: 4
+              }
             }}
             content={(
               <div className={styles.columns}>

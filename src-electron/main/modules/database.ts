@@ -45,7 +45,7 @@ class DatabaseModule implements Module {
   }
 
   returnDatabase(name: string) {
-    console.log(`database ${name} is unlocked`)
+    // console.log(`database ${name} is unlocked`)
     if (this.databaseLocks.has(name)) {
       const queue = this.databasePendingPromiseQueue.get(name);
       if (queue) {

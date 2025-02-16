@@ -77,8 +77,10 @@ const CardList = memo(() => {
         <Popover
           placement="right"
           trigger="hover"
-          overlayInnerStyle={{
-            padding: 4
+          styles={{
+            body: {
+              padding: 4
+            }
           }}
           content={(
             <div className={styles.categories}>

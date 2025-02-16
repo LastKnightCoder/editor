@@ -112,8 +112,10 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
         setOpen(visible);
         setEditable(false);
       }}
-      overlayInnerStyle={{
-        padding: 0,
+      styles={{
+        body: {
+          padding: 0
+        }
       }}
       content={(
         <EditLink

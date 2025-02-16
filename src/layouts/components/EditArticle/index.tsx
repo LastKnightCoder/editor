@@ -12,7 +12,7 @@ import { MdFormatIndentDecrease, MdFormatIndentIncrease, MdOutlineCode } from "r
 
 import { CalendarOutlined, EditOutlined, ReadOutlined } from "@ant-design/icons";
 import LocalImage from "@/components/LocalImage";
-import EditorOutline from "../../ThreeColumnLayout/components/EditorOutline";
+import EditorOutline from "@/components/EditorOutline";
 import { getInlineElementText } from "@/utils";
 import { formatDate } from "@/utils/time.ts";
 
