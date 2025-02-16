@@ -110,6 +110,8 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
         activeProjectItemId: item.id,
       })
     }
+
+    useCardsManagementStore.getState().init();
   });
 
   const onCancel = useMemoizedFn(() => {
