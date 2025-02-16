@@ -245,7 +245,7 @@ export default class ProjectTable {
         ref_id = ?,
         white_board_data = ?,
         project_item_type = ?,
-        count = ?,
+        count = ?
       WHERE id = ?
     `);
     const now = Date.now();
