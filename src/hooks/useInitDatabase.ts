@@ -120,7 +120,7 @@ const useInitDatabase = () => {
       key: 'initDatabase',
       duration: 0,
     });
-    connectDatabaseByName(active, true).then(() => {
+    connectDatabaseByName(active).then(() => {
       initDatabase().finally(() => {
         message.destroy('initDatabase');
         handleDatabaseStatus(active);
