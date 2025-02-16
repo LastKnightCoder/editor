@@ -6,6 +6,7 @@ import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
 import ShortSidebarLayout from "./layouts/ShortSidebarLayout";
 
+import HomeView from "@/layouts/ShortSidebarLayout/components/HomeView";
 import CardView from "@/layouts/ShortSidebarLayout/components/CardView";
 import ArticleView from '@/layouts/ShortSidebarLayout/components/ArticleView';
 import CardLinkGraph from "@/layouts/ShortSidebarLayout/components/CardLinkGraph";
@@ -39,6 +40,9 @@ const shortSidebarRoutes = [{
   path: '/',
   element: <ShortSidebarLayout />,
   children: [{
+    path: '/',
+    element: <HomeView />
+  }, {
     path: 'cards/list',
     element: <CardView />
   }, {

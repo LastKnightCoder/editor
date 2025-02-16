@@ -76,3 +76,7 @@ export const getProjectItemsNotInAnyProject = async (): Promise<ProjectItem[]> =
 export const deleteProjectItemsNotInAnyProject = async (): Promise<number> => {
   return await invoke('delete-project-items-not-in-any-project');
 }
+
+export const getAllProjectItems = async (): Promise<ProjectItem[]> => {
+  return await invoke('get-all-project-items');
+}

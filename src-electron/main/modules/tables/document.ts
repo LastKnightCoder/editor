@@ -8,6 +8,7 @@ import {
   IUpdateDocumentItem
 } from '@/types';
 import Operation from './operation';
+import { getContentLength } from "@/utils/helper";
 
 export default class DocumentTable {
   static initTable(db: Database.Database) {
@@ -48,17 +49,27 @@ export default class DocumentTable {
         banner_bg TEXT,
         icon TEXT,
         is_delete INTEGER DEFAULT 0,
-        parents TEXT DEFAULT '[]'
+        parents TEXT DEFAULT '[]',
+        count INTEGER DEFAULT 0
       )
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static async upgradeTable(db: Database.Database) {
     const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'document_items'");
     const tableInfo = (stmt.get() as { sql: string }).sql;
     if (!tableInfo.includes('parents')) {
       const alertStmt = db.prepare("ALTER TABLE document_items ADD COLUMN parents TEXT DEFAULT '[]'");
       alertStmt.run();
+    }
+    if (!tableInfo.includes('count')) {
+      const alertStmt = db.prepare("ALTER TABLE document_items ADD COLUMN count INTEGER DEFAULT 0");
+      alertStmt.run();
+      for (const item of await this.getAllDocumentItems(db)) {
+        const contentLength = getContentLength(item.content);
+        const stmt = db.prepare('UPDATE document_items SET count = ? WHERE id = ?');
+        stmt.run(contentLength, item.id);
+      }
     }
   }
 
@@ -79,11 +90,12 @@ export default class DocumentTable {
       'init-document-item-parents': this.initAllDocumentItemParents.bind(this),
       'init-document-item-parents-by-ids': this.initDocumentItemParentsByIds.bind(this),
       'get-document-item-all-parents': this.getDocumentItemAllParents.bind(this),
+      'get-root-documents-by-document-item-id': this.getRootDocumentsByDocumentItemId.bind(this),
     }
   }
 
   static parseDocument(document: any): IDocument {
-    return {
+    const res = {
       ...document,
       authors: JSON.parse(document.authors || '[]'),
       content: JSON.parse(document.content),
@@ -96,10 +108,17 @@ export default class DocumentTable {
       bannerBg: document.banner_bg,
       isTop: document.is_top
     };
+
+    delete res.is_delete;
+    delete res.is_top;
+    delete res.create_time;
+    delete res.update_time;
+
+    return res;
   }
 
   static parseDocumentItem(item: any): IDocumentItem {
-    return {
+    const res = {
       ...item,
       authors: JSON.parse('[]'),
       tags: JSON.parse('[]'),
@@ -116,6 +135,18 @@ export default class DocumentTable {
       articleId: item.article_id,
       cardId: item.card_id
     };
+
+    delete res.create_time;
+    delete res.update_time;
+    delete res.banner_bg;
+    delete res.is_delete;
+    delete res.is_directory;
+    delete res.is_article;
+    delete res.is_card;
+    delete res.article_id;
+    delete res.card_id;
+
+    return res;
   }
 
   static async createDocument(db: Database.Database, document: ICreateDocument): Promise<IDocument> {
@@ -224,8 +255,8 @@ export default class DocumentTable {
       INSERT INTO document_items
       (create_time, update_time, title, authors, tags, is_directory, 
       children, is_article, article_id, is_card, card_id, 
-      content, banner_bg, icon, is_delete, parents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      content, banner_bg, icon, is_delete, parents, count)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
@@ -245,6 +276,7 @@ export default class DocumentTable {
       item.icon,
       Number(item.isDelete),
       JSON.stringify(item.parents),
+      item.count,
     );
 
     Operation.insertOperation(
@@ -276,7 +308,8 @@ export default class DocumentTable {
         banner_bg = ?,
         icon = ?,
         is_delete = ?,
-        parents = ?
+        parents = ?,
+        count = ?,
       WHERE id = ?
     `);
     const now = Date.now();
@@ -296,6 +329,7 @@ export default class DocumentTable {
       item.icon,
       Number(item.isDelete),
       JSON.stringify(item.parents),
+      item.count,
       item.id
     );
 
@@ -303,16 +337,16 @@ export default class DocumentTable {
 
     if (item.isCard) {
       const cardStmt = db.prepare(
-        `UPDATE cards SET content = ?, update_time = ? WHERE id = ?`
+        `UPDATE cards SET content = ?, update_time = ?, count = ? WHERE id = ?`
       );
-      cardStmt.run(JSON.stringify(item.content), now, item.cardId);
+      cardStmt.run(JSON.stringify(item.content), now, item.count, item.cardId);
     }
 
     if (item.isArticle) {
       const articleStmt = db.prepare(
-        `UPDATE articles SET content = ?, update_time = ? WHERE id = ?`
+        `UPDATE articles SET content = ?, update_time = ?, count = ? WHERE id = ?`
       );
-      articleStmt.run(JSON.stringify(item.content), now, item.articleId);
+      articleStmt.run(JSON.stringify(item.content), now, item.count, item.articleId);
     }
 
     return this.getDocumentItem(db, item.id);
@@ -427,5 +461,15 @@ export default class DocumentTable {
     }
 
     return Array.from(parentsSet);
+  }
+
+  static async getRootDocumentsByDocumentItemId(db: Database.Database, id: number): Promise<IDocument[]> {
+    const parents = await this.getDocumentItemAllParents(db, id);
+    // 获取所有的 documents
+    const documents = await this.getAllDocuments(db);
+    // 判断 document.children 中是否存在 parents
+    return documents.filter((document) => {
+      return document.children.some((childId) => parents.includes(childId));
+    })
   }
 }

@@ -68,7 +68,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
     onDeleteTag,
     onAddLink,
     onRemoveLink,
-    wordsCount,
+    // wordsCount,
   } = useEditCard(activeCardId);
 
   const getCardLinks = useMemoizedFn((card: ICard) => {
@@ -125,7 +125,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
       <If condition={!!activeCardId}>
         <div className={styles.statusBar}>
           <div>
-            <div>字数：{wordsCount}</div>
+            <div>字数：{editingCard?.count}</div>
           </div>
           <div>
             <Tooltip title={'关联图谱'}>

@@ -11,6 +11,7 @@ import {
 import Operation from './operation';
 import { WhiteBoard } from "@/types";
 import { Descendant } from "slate";
+import { getContentLength } from "@/utils/helper";
 
 export default class ProjectTable {
   static initTable(db: Database.Database) {
@@ -39,12 +40,13 @@ export default class ProjectTable {
         ref_type TEXT,
         ref_id INTEGER,
         white_board_data TEXT,
-        project_item_type TEXT DEFAULT 'document'
+        project_item_type TEXT DEFAULT 'document',
+        count INTEGER DEFAULT 0
       )
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static async upgradeTable(db: Database.Database) {
     const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'project'");
     const tableInfo = (stmt.get() as { sql: string }).sql;
     if (!tableInfo.includes('archived')) {
@@ -62,6 +64,16 @@ export default class ProjectTable {
     if (!projectItemTableInfo.includes('project_item_type')) {
       const alertStmt = db.prepare("ALTER TABLE project_item ADD COLUMN project_item_type TEXT DEFAULT 'document'");
       alertStmt.run();
+    }
+    if (!projectItemTableInfo.includes('count')) {
+      const alertStmt = db.prepare("ALTER TABLE project_item ADD COLUMN count INTEGER DEFAULT 0");
+      alertStmt.run();
+      const projectItems = await this.getAllProjectItems(db);
+      for (const projectItem of projectItems) {
+        const contentLength = getContentLength(projectItem.content);
+        const stmt = db.prepare('UPDATE project_item SET count = ? WHERE id = ?');
+        stmt.run(contentLength, projectItem.id);
+      }
     }
   }
 
@@ -84,6 +96,7 @@ export default class ProjectTable {
       'is-project-item-not-in-any-project': this.isProjectItemNotInAnyProject.bind(this),
       'get-project-items-not-in-any-project': this.getProjectItemsNotInAnyProject.bind(this),
       'delete-project-items-not-in-any-project': this.deleteProjectItemsNotInAnyProject.bind(this),
+      'get-all-project-items': this.getAllProjectItems.bind(this)
     }
   }
 
@@ -195,8 +208,8 @@ export default class ProjectTable {
   static async createProjectItem(db: Database.Database, item: CreateProjectItem): Promise<ProjectItem> {
     const stmt = db.prepare(`
       INSERT INTO project_item
-      (create_time, update_time, title, content, children, parents, projects, ref_type, ref_id, white_board_data, project_item_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, title, content, children, parents, projects, ref_type, ref_id, white_board_data, project_item_type, count)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
@@ -210,7 +223,8 @@ export default class ProjectTable {
       item.refType,
       item.refId,
       JSON.stringify(item.whiteBoardData || {}),
-      item.projectItemType
+      item.projectItemType,
+      item.count || 0,
     );
 
     Operation.insertOperation(db, 'project_item', 'insert', res.lastInsertRowid, now);
@@ -230,7 +244,8 @@ export default class ProjectTable {
         ref_type = ?,
         ref_id = ?,
         white_board_data = ?,
-        project_item_type = ?
+        project_item_type = ?,
+        count = ?,
       WHERE id = ?
     `);
     const now = Date.now();
@@ -245,17 +260,18 @@ export default class ProjectTable {
       item.refId,
       JSON.stringify(item.whiteBoardData || {}),
       item.projectItemType,
+      item.count || 0,
       item.id,
     );
 
     if (item.refType === 'card' && item.refId && item.content) {
-      const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ? WHERE id = ?');
-      cardStmt.run(now, JSON.stringify(item.content || []), item.refId);
+      const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ?, count = ? WHERE id = ?');
+      cardStmt.run(now, JSON.stringify(item.content || []), item.count || 0, item.refId);
     }
 
     if (item.refType === 'article' && item.refId) {
-      const articleStmt = db.prepare('UPDATE articles SET update_time = ?, content = ?, title = ? WHERE id = ?');
-      articleStmt.run(now, JSON.stringify(item.content), item.title, item.refId);
+      const articleStmt = db.prepare('UPDATE articles SET update_time = ?, content = ?, title = ?, count = ? WHERE id = ?');
+      articleStmt.run(now, JSON.stringify(item.content), item.title, item.count || 0, item.refId);
     }
 
     if (item.refType === 'white-board' && item.refId && item.whiteBoardData) {
@@ -272,9 +288,9 @@ export default class ProjectTable {
       for (const projectItem of projectItems) {
         if (projectItem.id !== item.id) {
           const projectItemStmt = db.prepare(
-            `UPDATE project_item SET update_time = ?, content = ?, white_board_data = ?, title = ? WHERE id = ?`
+            `UPDATE project_item SET update_time = ?, content = ?, white_board_data = ?, title = ?, count = ?, WHERE id = ?`
           );
-          projectItemStmt.run(now, JSON.stringify(item.content || []), JSON.stringify(item.whiteBoardData || {}), item.title, projectItem.id);
+          projectItemStmt.run(now, JSON.stringify(item.content || []), JSON.stringify(item.whiteBoardData || {}), item.title, projectItem.count, projectItem.id);
         }
       }
     }
@@ -321,16 +337,19 @@ export default class ProjectTable {
   }
   
   static async updateProjectItemContent(db: Database.Database, id: number, content: Descendant[]): Promise<ProjectItem> {
+    const count = getContentLength(content);
     const stmt = db.prepare(`
       UPDATE project_item SET
         update_time = ?,
-        content = ?
+        content = ?,
+        count = ?,
       WHERE id = ?
     `);
     const now = Date.now();
     stmt.run(
       now,
       JSON.stringify(content || []),
+      count,
       id,
     );
     
@@ -339,13 +358,13 @@ export default class ProjectTable {
     const item = await this.getProjectItem(db, id);
     
     if (item.refType === 'card' && item.refId && item.content) {
-      const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ? WHERE id = ?');
-      cardStmt.run(now, JSON.stringify(item.content || []), item.refId);
+      const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ?, count = ? WHERE id = ?');
+      cardStmt.run(now, JSON.stringify(item.content || []), item.count || 0, item.refId);
     }
     
     if (item.refType === 'article' && item.refId) {
-      const articleStmt = db.prepare('UPDATE articles SET update_time = ?, content = ? WHERE id = ?');
-      articleStmt.run(now, JSON.stringify(item.content), item.refId);
+      const articleStmt = db.prepare('UPDATE articles SET update_time = ?, content = ?, count = ? WHERE id = ?');
+      articleStmt.run(now, JSON.stringify(item.content), item.count || 0, item.refId);
     }
     
     if (item.refType !== '' && item.refId) {
@@ -353,9 +372,9 @@ export default class ProjectTable {
       for (const projectItem of projectItems) {
         if (projectItem.id !== item.id) {
           const projectItemStmt = db.prepare(
-            `UPDATE project_item SET update_time = ?, content = ? WHERE id = ?`
+            `UPDATE project_item SET update_time = ?, content = ?, count = ? WHERE id = ?`
           );
-          projectItemStmt.run(now, JSON.stringify(item.content || []), projectItem.id);
+          projectItemStmt.run(now, JSON.stringify(item.content || []), projectItem.count || 0, projectItem.id);
         }
       }
     }
@@ -375,6 +394,13 @@ export default class ProjectTable {
     const stmt = db.prepare('SELECT * FROM project_item WHERE id = ?');
     const item = stmt.get(id);
     return this.parseProjectItem(item);
+  }
+
+  static async getProjectItemsByIds(db: Database.Database, ids: number[]): Promise<ProjectItem[]> {
+    const placeholders = ids.map(() => '?').join(',');
+    const stmt = db.prepare(`SELECT * FROM project_item WHERE id IN (${placeholders})`);
+    const items = stmt.all(ids);
+    return items.map(item => this.parseProjectItem(item));
   }
 
   static async getProjectItemByRef(db: Database.Database, refType: string, refId: number): Promise<ProjectItem[]> {
@@ -446,5 +472,11 @@ export default class ProjectTable {
       WHERE ref_type = ? AND ref_id = ?
     `);
     stmt.run(refType, refId);
+  }
+
+  static async getAllProjectItems(db: Database.Database): Promise<ProjectItem[]> {
+    const stmt = db.prepare('SELECT * FROM project_item');
+    const items = stmt.all();
+    return items.map(item => this.parseProjectItem(item));
   }
 }

@@ -74,6 +74,7 @@ const CardContainer = () => {
       tags,
       links: [],
       category: selectCategory,
+      count: 0,
     }
     await createCard(card);
     setIsCreatingCard(false);

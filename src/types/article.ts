@@ -9,6 +9,7 @@ export interface ICreateArticle {
   bannerBg: string;
   isTop: boolean;
   isDelete: boolean;
+  count: number;
 }
 
 export interface IUpdateArticle extends Partial<ICreateArticle> {

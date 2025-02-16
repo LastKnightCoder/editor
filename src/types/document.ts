@@ -56,6 +56,7 @@ export interface IDocumentItem {
   icon: string;
   isDelete: boolean;
   parents: number[];
+  count: number;
 }
 
 export interface ICreateDocumentItem {
@@ -73,6 +74,7 @@ export interface ICreateDocumentItem {
   icon: string;
   isDelete: boolean;
   parents: number[];
+  count: number;
 }
 
 export interface IUpdateDocumentItem extends Omit<IDocumentItem, 'createTime' | 'updateTime'> {

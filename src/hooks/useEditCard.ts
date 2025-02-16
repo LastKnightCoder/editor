@@ -5,14 +5,13 @@ import { produce } from 'immer';
 
 import useCardsManagementStore from '@/stores/useCardsManagementStore.ts';
 import { ICard } from "@/types";
-import { getEditorTextLength } from "@/utils";
+import { getContentLength } from "@/utils";
 
 const useEditCard = (cardId: number | undefined) => {
   const [loading, setLoading] = useState(false);
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
   const prevCard = useRef<ICard | null>(null);
   const cardChanged = useRef(false);
-  const [wordsCount, setWordsCount] = useState(0);
 
   const { cards, updateCard } = useCardsManagementStore((state) => ({
     cards: state.cards,
@@ -56,19 +55,23 @@ const useEditCard = (cardId: number | undefined) => {
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
     if (!editor) return;
-    const wordsCount = getEditorTextLength(editor, content);
-    setWordsCount(wordsCount);
+    const wordsCount = getContentLength(content);
+    const newEditingCard = produce(editingCard, (draft) => {
+      if (!draft) return;
+      draft.count = wordsCount;
+    });
+    setEditingCard(newEditingCard);
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[], editor?: Editor) => {
+    if (!editor) return;
+    const wordsCount = getContentLength(content);
     const newEditingCard = produce(editingCard, (draft) => {
       if (!draft) return;
       draft.content = content;
+      draft.count = wordsCount;
     });
     setEditingCard(newEditingCard);
-    if (!editor) return;
-    const wordsCount = getEditorTextLength(editor, content);
-    setWordsCount(wordsCount);
   })
 
   const onAddTag = useMemoizedFn((tag: string) => {
@@ -128,7 +131,6 @@ const useEditCard = (cardId: number | undefined) => {
     onDeleteTag,
     onAddLink,
     onRemoveLink,
-    wordsCount,
   }
 }
 

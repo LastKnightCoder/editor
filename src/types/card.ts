@@ -14,6 +14,7 @@ export interface ICard {
   links: number[];
   content: Descendant[];
   category: ECardCategory;
+  count: number;
 }
 
 export type ICreateCard = Omit<ICard, "id" | "create_time" | "update_time">;

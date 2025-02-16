@@ -4,7 +4,7 @@ import { Descendant, Editor } from "slate";
 import { produce } from "immer";
 
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
-import { getEditorTextLength } from "@/utils";
+import { getContentLength } from "@/utils";
 import { IArticle } from "@/types";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 
@@ -13,7 +13,6 @@ const useEditArticle = (articleId?: number) => {
   const [initLoading, setInitLoading] = useState(false);
   const [initValue, setInitValue] = useState<Descendant[]>(DEFAULT_ARTICLE_CONTENT);
   const [editingArticle, setEditingArticle] = useState<IArticle | undefined>(undefined);
-  const [wordsCount, setWordsCount] = useState(0);
 
   const changed = useRef(false);
   const prevArticle = useRef<IArticle | undefined>(undefined);
@@ -55,20 +54,22 @@ const useEditArticle = (articleId?: number) => {
   }, [editingArticle]);
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
-    if (!editor) return;
-    const wordsCount = getEditorTextLength(editor, content);
-    setWordsCount(wordsCount);
+    if (!editor || !editingArticle) return;
+    const wordsCount = getContentLength(content);
+    const newEditingArticle = produce(editingArticle, (draft) => {
+      draft.count = wordsCount;
+    });
+    setEditingArticle(newEditingArticle);
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[], editor: Editor) => {
-    if (!editingArticle) return;
+    if (!editingArticle || !editor) return;
+    const wordsCount = getContentLength(content);
     const newEditingArticle = produce(editingArticle, (draft) => {
       draft.content = content;
+      draft.count = wordsCount;
     });
     setEditingArticle(newEditingArticle);
-    if (!editor) return;
-    const wordsCount = getEditorTextLength(editor, content);
-    setWordsCount(wordsCount);
   });
 
   const onTitleChange = useMemoizedFn((title: string) => {
@@ -126,7 +127,6 @@ const useEditArticle = (articleId?: number) => {
     initValue,
     initLoading,
     editingArticle,
-    wordsCount,
     onInit,
     onContentChange,
     onTitleChange,

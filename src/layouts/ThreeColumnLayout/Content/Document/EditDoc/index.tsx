@@ -41,7 +41,6 @@ const EditDoc = memo(() => {
     onContentChange,
     onTitleChange,
     initValue,
-    wordsCount,
   } = useEditDoc();
 
   const uploadImage = useUploadImage();
@@ -145,7 +144,7 @@ const EditDoc = memo(() => {
           fontSize: 14,
           opacity: .8
         }}>
-          <div>字数：{wordsCount}</div>
+          <div>字数：{activeDocumentItem.count}</div>
         </div>
         <div className={styles.item}>
           {

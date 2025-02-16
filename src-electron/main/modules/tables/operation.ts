@@ -1,6 +1,10 @@
 import Database from 'better-sqlite3';
-import { Operation } from '@/types';
+import { IArticle, ICard, IDocumentItem, Operation, ProjectItem } from '@/types';
 import dayjs from 'dayjs';
+import CardTable from "./card.ts";
+import ArticleTable from "./article.ts";
+import ProjectTable from './project.ts';
+import DocumentTable from "./document.ts";
 
 export default class OperationTable {
   static initTable(db: Database.Database) {
@@ -13,6 +17,7 @@ export default class OperationTable {
         operation_action TEXT
       )
     `);
+    this.deleteInValidOperations(db);
   }
 
   static upgradeTable(_db: Database.Database) {
@@ -24,6 +29,7 @@ export default class OperationTable {
       'create-operation': this.createOperation.bind(this),
       'get-operation-records-by-year': this.getOperationRecordsByYear.bind(this),
       'delete-invalid-operations': this.deleteInValidOperations.bind(this),
+      'get-latest-operations': this.getLatestOperations.bind(this),
     }
   }
 
@@ -99,7 +105,7 @@ export default class OperationTable {
   }
 
   static deleteInValidOperations(db: Database.Database) {
-    const operations = db.prepare(`SELECT * FROM operation WHERE operation_id = 0`).all() as Operation[];
+    const operations = db.prepare(`SELECT * FROM operation`).all() as Operation[];
     const operationMap = new Map<string, Operation[]>;
     // 按照时间分组，在一天的为一组
     for (const operation of operations) {
@@ -121,9 +127,9 @@ export default class OperationTable {
 
   // unique operation
   static uniqueContinuousOperations(operations: Operation[]): number[] {
-    // 如果连续的两个 operation_type, operation_action, operation_id 操作时间间隔小于10秒，则合并
+    // 如果连续的两个 operation_type, operation_action, operation_id 操作时间间隔小于三分钟，则合并
     const operationsGroup: Array<Operation[]> = [];
-    // 首先将连续 operation_type, operation_action, operation_id 操作时间间隔小于10秒的操作分到一个组中
+    // 首先将连续 operation_type, operation_action, operation_id 操作时间间隔小于三分钟的操作分到一个组中
     for (let i = 0; i < operations.length; i++) {
       const operation = operations[i];
       if (i === 0) {
@@ -134,7 +140,8 @@ export default class OperationTable {
           lastOperation.operation_content_type === operation.operation_content_type &&
           lastOperation.operation_action === operation.operation_action &&
           lastOperation.operation_id === operation.operation_id &&
-          operation.operation_time - lastOperation.operation_time < 10000
+          // 三分钟以内认为是连续编辑
+          operation.operation_time - lastOperation.operation_time < 3 * 60 * 1000
         ) {
           operationsGroup[operationsGroup.length - 1].push(operation);
         } else {
@@ -146,9 +153,52 @@ export default class OperationTable {
     const deleteIds: number[] = [];
     for (const ops of operationsGroup) {
       // 只保留第一个和最后一个 op，其他的合并
-      deleteIds.concat(ops.slice(1, -1).map(op => op.id))
+      deleteIds.push(...ops.slice(1, -1).map(op => op.id))
     }
 
     return deleteIds;
+  }
+
+  static getLatestOperationByContentType(db: Database.Database, contentType: string, number: number): number[] {
+    const deleteOperationIds = db.prepare(`
+      SELECT DISTINCT operation_id FROM operation
+      WHERE operation_action = 'delete' AND operation_content_type = ?
+    `).all(contentType).map((item: any) => item.operation_id) as number[];
+
+    const placeholders = deleteOperationIds.map(() => '?').join(',');
+
+    const stmt = db.prepare(`
+      SELECT DISTINCT operation_id FROM operation
+      WHERE operation_content_type = ? AND operation_id NOT IN (${placeholders})
+      ORDER BY operation_time DESC
+      LIMIT ?
+    `);
+    return stmt.all(contentType, deleteOperationIds, number).map((item: any) => item.operation_id);
+  }
+
+  static async getLatestOperations(db: Database.Database, number: number): Promise<{
+    cards: ICard[],
+    articles: IArticle[],
+    projectItems: ProjectItem[],
+    documentItems: IDocumentItem[]
+  }> {
+    const cardIds = this.getLatestOperationByContentType(db, 'card', number);
+    const cards = await CardTable.getCardByIds(db, cardIds);
+
+    const articleIds = this.getLatestOperationByContentType(db, 'article', number);
+    const articles = await ArticleTable.getArticleByIds(db, articleIds);
+
+    const projectItemIds = this.getLatestOperationByContentType(db, 'project_item', number);
+    const projectItems = await ProjectTable.getProjectItemsByIds(db, projectItemIds);
+
+    const documentItemIds = this.getLatestOperationByContentType(db, 'document-item', number);
+    const documentItems = await DocumentTable.getDocumentItemsByIds(db, documentItemIds);
+
+    return {
+      cards,
+      articles,
+      projectItems,
+      documentItems
+    }
   }
 }

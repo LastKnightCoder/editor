@@ -69,3 +69,7 @@ export const initDocumentItemParentsByIds = async (ids: number[]): Promise<void>
 export const getDocumentItemAllParents = async (id: number): Promise<number[]> => {
   return await invoke('get-document-item-all-parents', id);
 }
+
+export const getRootDocumentsByDocumentItemId = async (id: number): Promise<IDocument[]> => {
+  return await invoke('get-root-documents-by-document-item-id', id);
+}

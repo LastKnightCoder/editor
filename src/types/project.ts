@@ -32,6 +32,7 @@ export interface ProjectItem {
   refId: number;
   whiteBoardData?: WhiteBoard['data'];
   projectItemType: EProjectItemType;
+  count: number;
 }
 
 export type CreateProjectItem = Omit<ProjectItem, 'id' | 'createTime' | 'updateTime'>;

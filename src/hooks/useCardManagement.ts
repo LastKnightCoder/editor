@@ -91,6 +91,7 @@ const useCardManagement = () => {
       tags: [],
       links: [],
       category: selectCategory,
+      count: 0,
     });
     addCard(createdCard.id);
   });

@@ -32,4 +32,5 @@ export const DEFAULT_CREATE_DOCUMENT_ITEM: ICreateDocumentItem = {
   icon: '',
   parents: [],
   isDelete: false,
+  count: 0
 }

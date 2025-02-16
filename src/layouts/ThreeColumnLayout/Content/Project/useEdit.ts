@@ -2,7 +2,7 @@ import { ProjectItem } from "@/types";
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { getProjectItemById, updateProjectItem, getCardById } from '@/commands';
-import { getEditorTextLength } from "@/utils";
+import { getContentLength } from "@/utils";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
 import useProjectsStore from "@/stores/useProjectsStore";
@@ -11,7 +11,7 @@ import useCardsManagementStore from "@/stores/useCardsManagementStore";
 const useEdit = () => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const prevProjectItem = useRef<ProjectItem | null>(null);
-  const [wordsCount, setWordsCount] = useState(0);
+  // const [wordsCount, setWordsCount] = useState(0);
   const contentChanged = useRef(false);
 
   const {
@@ -79,20 +79,22 @@ const useEdit = () => {
   });
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
-    if (!editor) return;
-    const wordsCount = getEditorTextLength(editor, content);
-    setWordsCount(wordsCount);
-  });
-
-  const onContentChange = useMemoizedFn((content: Descendant[], editor: Editor) => {
-    if (!projectItem) return;
+    if (!editor || !projectItem) return;
+    const wordsCount = getContentLength(content);
     const newProjectItem = produce(projectItem, draft => {
-      draft.content = content;
+      draft.count = wordsCount;
     });
     setProjectItem(newProjectItem);
-    if (editor) {
-      setWordsCount(getEditorTextLength(editor, content));
-    }
+  });
+
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!projectItem) return;
+    const wordsCount = getContentLength(content)
+    const newProjectItem = produce(projectItem, draft => {
+      draft.content = content;
+      draft.count = wordsCount;
+    });
+    setProjectItem(newProjectItem);
   });
 
   const onTitleChange = useMemoizedFn((title: string) => {
@@ -109,7 +111,6 @@ const useEdit = () => {
 
   return {
     projectItem,
-    wordsCount,
     saveProjectItem,
     onInit,
     onContentChange,

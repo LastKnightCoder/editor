@@ -26,7 +26,6 @@ const useArticle = () => {
     readonly,
     initValue,
     editingArticle,
-    wordsCount,
     onContentChange,
     onInit,
     onDeleteTag,
@@ -48,6 +47,7 @@ const useArticle = () => {
       links: [],
       tags: [],
       isDelete: false,
+      count: 0,
     });
     setActiveArticleId(article.id);
   });
@@ -88,7 +88,6 @@ const useArticle = () => {
     readonly,
     initValue,
     editingArticle,
-    wordsCount,
     onContentChange,
     onInit,
     onDeleteTag,

@@ -349,6 +349,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refType: '',
         refId: 0,
         projectItemType: EProjectItemType.Document,
+        count: 0,
       }
       await createChildProjectItem(projectItemId, createProjectItem);
 
@@ -383,6 +384,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         refType: '',
         refId: 0,
         projectItemType: EProjectItemType.WhiteBoard,
+        count: 0,
       }
       await createChildProjectItem(projectItemId, createProjectItem);
 
@@ -697,6 +699,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               refType: '',
               refId: 0,
               projectItemType: EProjectItemType.Document,
+              count: 0,
             }
 
             await createChildProjectItem(projectItem.id, createProjectItem);

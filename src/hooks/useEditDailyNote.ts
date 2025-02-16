@@ -6,7 +6,7 @@ import { Descendant, Editor } from "slate";
 
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 
-import { getEditorTextLength } from "@/utils";
+import { getContentLength } from "@/utils";
 import { DailyNote } from "@/types/daily_note";
 
 
@@ -56,7 +56,7 @@ const useEditDailyNote = (id?: number) => {
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
     if (!editor) return;
-    const wordsCount = getEditorTextLength(editor, content);
+    const wordsCount = getContentLength(content);
     setWordsCount(wordsCount);
   });
 
@@ -67,7 +67,7 @@ const useEditDailyNote = (id?: number) => {
     });
     setEditingDailyNote(newEditingDailyNote);
     if (!editor) return;
-    const wordsCount = getEditorTextLength(editor, content);
+    const wordsCount = getContentLength(content);
     setWordsCount(wordsCount);
   })
 
