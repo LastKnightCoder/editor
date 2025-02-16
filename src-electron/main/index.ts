@@ -43,6 +43,7 @@ const createWindow = () => {
     icon: path.join(__dirname, '../../build/icon.png'),
     webPreferences: {
       preload,
+      spellcheck: false,
     },
     trafficLightPosition: { x: 12, y: 9 },
     // Mac 专属配置
