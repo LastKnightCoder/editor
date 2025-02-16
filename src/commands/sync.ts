@@ -24,6 +24,8 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
+import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
+import useChatMessageStore from "@/stores/useChatMessageStore.ts";
 
 export const getDatabasePath = async (databaseName: string): Promise<string> => {
   try {
@@ -186,7 +188,7 @@ export const download = async () => {
       const index = databases.findIndex((item) => item.name === databaseName);
       databases[index].version = originVersion;
     }));
-    await connectDatabaseByName(databaseName);
+    await connectDatabaseByName(databaseName, true);
     await Promise.all([
       useCardsManagementStore.getState().init(),
       useArticleManagementStore.getState().init(),
@@ -195,6 +197,8 @@ export const download = async () => {
       useDailyNoteStore.getState().init(),
       useTimeRecordStore.getState().init(),
       usePdfsStore.getState().initPdfs(),
+      useWhiteBoardStore.getState().initWhiteBoards(),
+      useChatMessageStore.getState().initChatMessage(),
     ]);
 
     return true;
