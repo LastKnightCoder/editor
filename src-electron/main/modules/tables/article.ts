@@ -134,18 +134,20 @@ export default class ArticleTable {
     return this.getArticleById(db, id);
   }
 
-  static deleteArticleById(db: Database.Database, articleId: number): number {
-    const stmt = db.prepare('DELETE FROM articles WHERE id = ?');
+  static async deleteArticleById(db: Database.Database, articleId: number): Promise<number> {
+    const stmt = db.prepare('UPDATE articles SET is_delete = 1 WHERE id = ?');
+    const res = stmt.run(articleId);
+
     // 设置 document item isArticle 为 0
-    const documentItemStmt = db.prepare('UPDATE document_items SET isArticle = 0 WHERE isArticle = 1 AND articleId = ?');
+    const documentItemStmt = db.prepare('UPDATE document_items SET is_article = 0 WHERE is_article = 1 AND article_id = ?');
     documentItemStmt.run(articleId);
 
-    const projectItemStmt = db.prepare('UPDATE project_item SET ref_type = "" WHERE ref_type = "article" AND ref_id = ?');
+    const projectItemStmt = db.prepare("UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?");
     projectItemStmt.run(articleId);
 
     Operation.insertOperation(db, 'article', 'delete', articleId, Date.now());
 
-    return stmt.run(articleId).changes;
+    return res.changes;
   }
 
   static updateArticleIsTop(db: Database.Database, id: number, isTop: boolean): IArticle {
