@@ -20,11 +20,19 @@ import useCardManagement from "@/hooks/useCardManagement.ts";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import CalendarHeatmap, { IItem } from '@/components/CalendarHeatmap';
-import { getCalendarHeatmap } from "@/commands";
+import { getCalendarHeatmap, getAllStatistic } from "@/commands";
 import dayjs from "dayjs";
+import { Line } from "@ant-design/charts";
 
 const HomeView = () => {
   const navigate = useNavigate();
+
+  const [notesLineData, setNotesLineData] = useState<{
+    date: string;
+    type: string;
+    count: number;
+    wordsCount: number;
+  }[]>([]);
 
   const [operationData, setOperationData] = useState<IItem[]>([]);
 
@@ -110,6 +118,16 @@ const HomeView = () => {
         operationList: item.operation_list,
       })));
     });
+
+    getAllStatistic().then(data => {
+      const notesLineData = data.map(item => ({
+        date: item.date,
+        type: item.statisticType,
+        count: item.content.count,
+        wordsCount: item.content.wordsCount
+      }));
+      setNotesLineData(notesLineData);
+    });
   }, [databaseStatus, active]);
 
   return (
@@ -119,35 +137,9 @@ const HomeView = () => {
         className={styles.calendar}
         data={operationData}
         year={dayjs().format('YYYY')}
-        // renderTooltip={ (date, value) => {
-        //   if (value && value.operationList.length > 0) {
-        //     const operationList = value.operationList;
-        //     // 按照 operation_content_type 统计
-        //     const operationTypeMap = new Map<string, number>();
-        //     operationList.filter(operation => operation.operation_action === 'update').forEach((item: Operation) => {
-        //       const key = item.operation_content_type;
-        //       if (operationTypeMap.has(key)) {
-        //         operationTypeMap.set(key, operationTypeMap.get(key)! + 1);
-        //       } else {
-        //         operationTypeMap.set(key, 1);
-        //       }
-        //     })
-        //     return (
-        //       <div style={{ padding: 12 }}>
-        //         <div>{ date }</div>
-        //         <ul style={{ padding: '0px 24px' }}>
-        //           {
-        //             Array.from(operationTypeMap).map(([key, value]) => (
-        //               <li key={ key }>{ key }: { value }</li>
-        //             ))
-        //           }
-        //         </ul>
-        //       </div>
-        //     )
-        //   } else {
-        //     return `${ date }: 操作次数0`
-        //   }
-        // } }
+        renderTooltip={ (date, _value) => {
+          return date;
+        }}
       />
       <Row gutter={[16, 16]}>
         <Col md={24} lg={12} xxl={6}>
@@ -199,6 +191,55 @@ const HomeView = () => {
           </Card>
         </Col>
       </Row>
+      {
+        notesLineData.length > 4 && (
+          <>
+            <h2>数据趋势</h2>
+            <Row gutter={[16, 16]}>
+              <Col md={24} lg={12} xxl={12}>
+                <Card title={'笔记数量'}>
+                  <Line
+                    xField={'date'}
+                    yField={'count'}
+                    data={notesLineData}
+                    colorField={'type'}
+                    shapeField={'smooth'}
+                    seriesField={'type'}
+                    axis={{
+                      x: {
+                        title: '日期'
+                      },
+                      y: {
+                        title: '数量'
+                      }
+                    }}
+                  />
+                </Card>
+              </Col>
+              <Col md={24} lg={12} xxl={12}>
+                <Card title={'字数统计'}>
+                  <Line
+                    xField={'date'}
+                    yField={'wordsCount'}
+                    data={notesLineData}
+                    colorField={'type'}
+                    shapeField={'smooth'}
+                    seriesField={'type'}
+                    axis={{
+                      x: {
+                        title: '日期'
+                      },
+                      y: {
+                        title: '字数'
+                      }
+                    }}
+                  />
+                </Card>
+              </Col>
+            </Row>
+          </>
+        )
+      }
       <h2>最近编辑</h2>
       <Row gutter={[16, 16]} align={'stretch'}>
         <Col md={24} lg={12} xxl={6}>

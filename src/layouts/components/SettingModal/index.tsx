@@ -10,7 +10,6 @@ import FontSetting from "./FontSetting";
 import ImageBedSetting from "./ImageBedSetting";
 import SyncSetting from "./SyncSetting";
 import ModuleSetting from "./ModuleSetting";
-import LayoutSetting from "./LayoutSetting";
 import TextToSpeechSetting from "./TextToSpeechSetting";
 import LLMProviderSetting from "./LLMProviderSetting";
 
@@ -61,10 +60,6 @@ const SettingModal = () => {
     label: '文字转语音',
     children: <TextToSpeechSetting />,
   }, {
-    key: 'layout',
-    label: '布局设置',
-    children: <LayoutSetting />,
-  }, {
     key: 'module',
     label: '模块功能',
     children: <ModuleSetting />,
@@ -77,9 +72,12 @@ const SettingModal = () => {
       footer={null}
       onCancel={close}
       width={820}
-      bodyStyle={{
-        minHeight: 300,
-        maxHeight: 'calc(100vh - 160px)',
+      styles={{
+        body: {
+          minHeight: 300,
+          maxHeight: 'calc(100vh - 160px)',
+          overflow: 'auto',
+        }
       }}
     >
       <Tabs

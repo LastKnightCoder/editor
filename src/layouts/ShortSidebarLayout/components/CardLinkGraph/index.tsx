@@ -1,6 +1,6 @@
 import classnames from 'classnames';
 import CardGraph from "@/layouts/components/CardGraph";
-import Card from "@/layouts/ThreeColumnLayout/Content/Card";
+import Card from "@/layouts/components/EditCards";
 import useCardPanelStore from "@/stores/useCardPanelStore";
 import useCardManagement from '@/hooks/useCardManagement';
 

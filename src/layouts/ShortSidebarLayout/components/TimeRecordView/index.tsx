@@ -1,4 +1,5 @@
-import TimeRecord from '@/layouts/ThreeColumnLayout/List/TimeRecord';
+import TimeRecordList from './TimeRecordList';
+import TimeRecordChart from './TimeRecord';
 import styles from './index.module.less';
 import EditRecordModal from "@/components/EditRecordModal";
 import { useState } from "react";
@@ -77,7 +78,8 @@ const TimeRecordView = () => {
 
   return (
     <div className={styles.viewContainer}>
-      <TimeRecord className={styles.sidebar} onClickEdit={onEditTimeRecord} />
+      <TimeRecordList className={styles.sidebar} onClickEdit={onEditTimeRecord} />
+      <TimeRecordChart className={styles.chart} />
       <EditRecordModal
         key={editingTimeRecord?.id}
         title={'编辑记录'}

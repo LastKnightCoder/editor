@@ -474,7 +474,7 @@ export default class ProjectTable {
     stmt.run(refType, refId);
   }
 
-  static async getAllProjectItems(db: Database.Database): Promise<ProjectItem[]> {
+  static getAllProjectItems(db: Database.Database): ProjectItem[] {
     const stmt = db.prepare('SELECT * FROM project_item');
     const items = stmt.all();
     return items.map(item => this.parseProjectItem(item));

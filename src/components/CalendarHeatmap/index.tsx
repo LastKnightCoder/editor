@@ -45,6 +45,10 @@ const CalendarHeatmap = (props: ICalendarHeatmapProps) => {
       current = current.add(1, 'day');
     }
 
+    if (week.length > 0) {
+      weeks.push(week);
+    }
+
     return weeks;
   }, [year]);
 

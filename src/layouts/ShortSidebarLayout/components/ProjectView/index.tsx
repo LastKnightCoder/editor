@@ -1,4 +1,4 @@
-import ProjectList from '@/layouts/ThreeColumnLayout/List/ProjectList/Project';
+import ProjectList from './ProjectList';
 import classnames from "classnames";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 

@@ -372,7 +372,7 @@ export default class DocumentTable {
     return res;
   }
 
-  static async getAllDocumentItems(db: Database.Database): Promise<IDocumentItem[]> {
+  static getAllDocumentItems(db: Database.Database): IDocumentItem[] {
     const stmt = db.prepare('SELECT * FROM document_items');
     const items = stmt.all();
     return items.map(item => this.parseDocumentItem(item));

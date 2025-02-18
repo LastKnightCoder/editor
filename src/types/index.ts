@@ -10,3 +10,4 @@ export * from './llm';
 export * from './chat-message';
 export * from './vec-document';
 export * from './operation';
+export * from './statistic';

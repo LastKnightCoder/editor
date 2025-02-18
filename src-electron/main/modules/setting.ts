@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import fs from 'node:fs/promises';
+import fsExtra from "fs-extra/esm";
 import { join } from 'node:path';
 import PathUtil from '../utils/PathUtil';
 import { Module } from "../types/module";
@@ -21,7 +22,11 @@ class SettingModule implements Module {
 
   async readSetting() {
     const appDir = PathUtil.getAppDir();
-    return await fs.readFile(join(appDir, 'setting.json'), 'utf-8');
+    const settingPath = join(appDir, 'setting.json');
+    if (!await fsExtra.pathExists(settingPath)) {
+      await this.writeSetting('{}');
+    }
+    return await fs.readFile(settingPath, 'utf-8');
   }
 
   writeSetting(setting: string) {
