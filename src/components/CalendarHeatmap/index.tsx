@@ -82,7 +82,7 @@ const CalendarHeatmap = (props: ICalendarHeatmapProps) => {
       <div ref={ref} className={styles.calendar} style={{ gap }}>
         {weeks.map((week, index) => {
           return (
-            <div key={index} className={styles.week} style={{ gap }}>
+            <div key={index} className={classnames(styles.week, { [styles.last]: index === weeks.length - 1 })} style={{ gap }}>
               {week.map((day) => {
                 const dataItem = data.find((item) => item.date === day);
                 return (

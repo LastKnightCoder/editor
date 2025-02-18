@@ -132,7 +132,7 @@ const HomeView = () => {
 
   return (
     <div className={styles.container}>
-      <h2>数据统计</h2>
+      <h2>数据总览</h2>
       <CalendarHeatmap
         className={styles.calendar}
         data={operationData}
@@ -142,7 +142,7 @@ const HomeView = () => {
         }}
       />
       <Row gutter={[16, 16]}>
-        <Col md={24} lg={12} xxl={6}>
+        <Col sm={24} md={24} lg={12} xxl={6}>
           <Card title={'卡片'} >
             <Row>
               <Col span={12}>
@@ -154,7 +154,7 @@ const HomeView = () => {
             </Row>
           </Card>
         </Col>
-        <Col md={24} lg={12} xxl={6}>
+        <Col sm={24} md={24} lg={12} xxl={6}>
           <Card title={'文章'}>
             <Row>
               <Col span={12}>
@@ -166,7 +166,7 @@ const HomeView = () => {
             </Row>
           </Card>
         </Col>
-        <Col md={24} lg={12} xxl={6}>
+        <Col sm={24} md={24} lg={12} xxl={6}>
           <Card title={'项目'}>
             <Row>
               <Col span={12}>
@@ -178,7 +178,7 @@ const HomeView = () => {
             </Row>
           </Card>
         </Col>
-        <Col md={24} lg={12} xxl={6}>
+        <Col sm={24} md={24} lg={12} xxl={6}>
           <Card title={'知识库'}>
             <Row>
               <Col span={12}>
@@ -242,7 +242,7 @@ const HomeView = () => {
       }
       <h2>最近编辑</h2>
       <Row gutter={[16, 16]} align={'stretch'}>
-        <Col md={24} lg={12} xxl={6}>
+        <Col sm={24} md={24} lg={12} xxl={6}>
           <Card title={'卡片'} style={{ height: '100%' }}>
             <div className={styles.list}>
               <For
@@ -256,8 +256,8 @@ const HomeView = () => {
                         readonly
                         initValue={card.content}
                         style={{
-                          maxWidth: 400,
-                          maxHeight: 400,
+                          maxWidth: 300,
+                          maxHeight: 200,
                           overflow: 'auto',
                           padding: 12
                         }}
@@ -280,7 +280,7 @@ const HomeView = () => {
             </div>
           </Card>
         </Col>
-        <Col md={24} lg={12} xxl={6}>
+        <Col sm={24} md={24} lg={12} xxl={6}>
           <Card title={'文章'} style={{ height: '100%' }}>
             <div className={styles.list}>
               <For
@@ -294,8 +294,8 @@ const HomeView = () => {
                         readonly
                         initValue={article.content}
                         style={{
-                          maxWidth: 400,
-                          maxHeight: 400,
+                          maxWidth: 300,
+                          maxHeight: 200,
                           overflow: 'auto',
                           padding: 12
                         }}
@@ -320,7 +320,7 @@ const HomeView = () => {
             </div>
           </Card>
         </Col>
-        <Col md={24} lg={12} xxl={6}>
+        <Col sm={24} md={24} lg={12} xxl={6}>
           <Card title={'项目'} style={{ height: '100%' }}>
             <div className={styles.list}>
               <For
@@ -334,8 +334,8 @@ const HomeView = () => {
                         readonly
                         initValue={projectItem.content}
                         style={{
-                          maxWidth: 400,
-                          maxHeight: 400,
+                          maxWidth: 300,
+                          maxHeight: 200,
                           overflow: 'auto',
                           padding: 12
                         }}
@@ -362,7 +362,7 @@ const HomeView = () => {
             </div>
           </Card>
         </Col>
-        <Col md={24} lg={12} xxl={6}>
+        <Col sm={24} md={24} lg={12} xxl={6}>
           <Card title={'知识库'} style={{ height: '100%' }}>
             <div className={styles.list}>
               <For
@@ -376,8 +376,8 @@ const HomeView = () => {
                         readonly
                         initValue={documentItem.content}
                         style={{
-                          maxWidth: 400,
-                          maxHeight: 400,
+                          maxWidth: 300,
+                          maxHeight: 200,
                           overflow: 'auto',
                           padding: 12
                         }}
