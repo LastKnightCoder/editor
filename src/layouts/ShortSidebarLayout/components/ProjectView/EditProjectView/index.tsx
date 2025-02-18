@@ -5,6 +5,8 @@ import WhiteBoardProjectView from '../WhiteBoardProjectItemView';
 import { getProjectItemById } from '@/commands';
 import { EProjectItemType, ProjectItem } from '@/types';
 import useProjectsStore from '@/stores/useProjectsStore';
+
+
 const EditProjectView = () => {
   const {
     activeProjectItemId,

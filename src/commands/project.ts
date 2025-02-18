@@ -53,6 +53,10 @@ export const getProjectItemById = async (id: number): Promise<ProjectItem> => {
   return await invoke('get-project-item', id);
 }
 
+export const getProjectItemsByIds = async (ids: number[]): Promise<ProjectItem[]> => {
+  return await invoke('get-project-items-by-ids', ids);
+}
+
 export const getProjectItemByRef = async (refType: string, refId: number): Promise<ProjectItem[]> => {
   return await invoke('get-project-item-by-ref', refType, refId);
 }

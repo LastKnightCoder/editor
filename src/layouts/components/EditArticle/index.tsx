@@ -24,6 +24,7 @@ import { cardLinkExtension, fileAttachmentExtension } from '@/editor-extensions'
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
 import styles from './index.module.less';
+import { EditCardContext } from "@/context.ts";
 
 const extensions = [cardLinkExtension, fileAttachmentExtension];
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
@@ -199,16 +200,22 @@ const EditArticle = memo(() => {
       </div>
       <div className={styles.content}>
         <div className={styles.editor}>
-          <Editor
-            key={editingArticle.id}
-            ref={editorRef}
-            initValue={initValue}
-            onInit={onInit}
-            extensions={extensions}
-            onChange={onContentChange}
-            uploadImage={uploadImage}
-            readonly={readonly}
-          />
+          <EditCardContext.Provider
+            value={{
+              cardId: -1
+            }}
+          >
+            <Editor
+              key={editingArticle.id}
+              ref={editorRef}
+              initValue={initValue}
+              onInit={onInit}
+              extensions={extensions}
+              onChange={onContentChange}
+              uploadImage={uploadImage}
+              readonly={readonly}
+            />
+          </EditCardContext.Provider>
           <AddTag style={{ marginTop: 20 }} readonly={readonly} tags={editingArticle.tags} addTag={onAddTag} removeTag={onDeleteTag}/>
         </div>
         <EditorOutline

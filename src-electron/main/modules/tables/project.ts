@@ -90,6 +90,7 @@ export default class ProjectTable {
       'update-project-item-content': this.updateProjectItemContent.bind(this),
       'delete-project-item': this.deleteProjectItem.bind(this),
       'get-project-item': this.getProjectItem.bind(this),
+      'get-project-items-by-ids': this.getProjectItemsByIds.bind(this),
       'get-project-item-by-ref': this.getProjectItemByRef.bind(this),
       'get-project-item-count-in-project': this.getProjectItemCountInProject.bind(this),
       'get-all-project-items-not-in-project': this.getAllProjectItemsNotInProject.bind(this),

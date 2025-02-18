@@ -1,4 +1,4 @@
-import { ipcMain, shell, dialog } from 'electron';
+import { ipcMain, dialog } from 'electron';
 import { basename } from 'node:path';
 import { exec } from 'node:child_process';
 import { getFonts } from 'font-list';
@@ -35,7 +35,7 @@ class ResourceModule implements Module {
   }
 
   showInFolder(path: string) {
-    shell.openPath(path);
+    // shell.openPath(path);
     if (process.platform === 'darwin') {
       exec(`open -R ${path}`);
     } else if (process.platform === 'win32') {

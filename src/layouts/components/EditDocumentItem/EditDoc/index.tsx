@@ -18,6 +18,7 @@ import { cardLinkExtension, documentCardListExtension, fileAttachmentExtension }
 
 import styles from './index.module.less';
 import EditorOutline from "@/components/EditorOutline";
+import { EditCardContext } from "@/context.ts";
 
 const extensions = [
   cardLinkExtension,
@@ -120,16 +121,22 @@ const EditDoc = memo(() => {
             <div>创建于 {formatDate(activeDocumentItem.createTime, true)}</div>
             <div>最后修改于 {formatDate(activeDocumentItem.updateTime, true)}</div>
           </div>
-          <Editor
-            key={activeDocumentItem.id}
-            ref={editorRef}
-            initValue={initValue}
-            onChange={onContentChange}
-            readonly={readonly}
-            uploadImage={uploadImage}
-            extensions={extensions}
-            onInit={onInit}
-          />
+          <EditCardContext.Provider
+            value={{
+              cardId: -1
+            }}
+          >
+            <Editor
+              key={activeDocumentItem.id}
+              ref={editorRef}
+              initValue={initValue}
+              onChange={onContentChange}
+              readonly={readonly}
+              uploadImage={uploadImage}
+              extensions={extensions}
+              onInit={onInit}
+            />
+          </EditCardContext.Provider>
         </div>
         <EditorOutline
           className={classnames(styles.outline, { [styles.hide]: !outlineOpen })}

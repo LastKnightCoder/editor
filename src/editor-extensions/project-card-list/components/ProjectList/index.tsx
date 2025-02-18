@@ -3,29 +3,29 @@ import { Empty, message } from "antd";
 import { useAsyncEffect } from "ahooks";
 import ItemCard from '@/editor-extensions/components/ItemCard';
 
-import { getDocumentItemsByIds, getDocumentItem } from "@/commands";
-import { IDocumentItem } from "@/types";
+import { getProjectItemsByIds, getProjectItemById } from "@/commands";
+import { ProjectItem } from "@/types";
 
 import styles from './index.module.less';
 
 interface IProps {
-  documentItemId: number;
-  onClick: (item: IDocumentItem, index: number) => void;
+  projectItemId: number;
+  onClick: (item: ProjectItem, index: number) => void;
 }
 
 const DocumentList = (props: IProps) => {
-  const { documentItemId, onClick } = props;
+  const { projectItemId, onClick } = props;
 
-  const [items, setItems] = useState<IDocumentItem[]>([]);
+  const [items, setItems] = useState<ProjectItem[]>([]);
 
   useAsyncEffect(async () => {
-    if (!documentItemId) return;
-    const documentItem = await getDocumentItem(documentItemId);
-    if (!documentItem) return;
-    const { children } = documentItem;
+    if (!projectItemId) return;
+    const projectItem = await getProjectItemById(projectItemId);
+    if (!projectItem) return;
+    const { children } = projectItem;
 
     try {
-      const items = await getDocumentItemsByIds(children);
+      const items = await getProjectItemsByIds(children);
       // 根据 children 的顺序重排序
       items.sort((a, b) => {
         const indexA = children.indexOf(a.id);
@@ -35,9 +35,9 @@ const DocumentList = (props: IProps) => {
       setItems(items);
     } catch (e) {
       console.error(e);
-      message.error('DocumentItems 拉取失败' + e);
+      message.error('ProjectItems 拉取失败' + e);
     }
-  }, [documentItemId]);
+  }, [projectItemId]);
 
   if (items.length === 0) {
     return (
