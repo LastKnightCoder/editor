@@ -8,7 +8,7 @@ import LoadMoreComponent from '@/components/LoadMoreComponent';
 import TagItem from '@/components/TagItem';
 import { PlusOutlined } from '@ant-design/icons';
 import CardItem from './CardItem';
-import Card from '../../../ThreeColumnLayout/Content/Card';
+import Card from '../../../components/EditCards';
 
 import useCardsManagementStore from '@/stores/useCardsManagementStore';
 import useCardPanelStore from '@/stores/useCardPanelStore';

@@ -8,7 +8,7 @@ import useCardPanelStore from "@/stores/useCardPanelStore";
 
 import { ICard } from "@/types";
 
-import { getInlineLinks } from "../../ThreeColumnLayout/Content/Card/CardsManagement/utils";
+import { getInlineLinks } from "../EditCards/CardsManagement/utils";
 
 interface CardGraphProps {
   className?: string;

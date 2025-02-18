@@ -1,7 +1,16 @@
 .viewContainer {
-  width: 400px;
+  width: 100%;
   height: 100%;
+  display: flex;
   .sidebar {
+    flex: none;
+    width: 400px;
+    height: 100%;
     background: var(--second-sidevar-background);
+  }
+  .chart {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
   }
 }

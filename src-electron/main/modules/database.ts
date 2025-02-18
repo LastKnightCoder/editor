@@ -15,6 +15,7 @@ import DailyNoteTable from './tables/daily-note';
 import VecDocumentTable from './tables/vec-document';
 import ChatMessageTable from './tables/chat-message';
 import OperationTable from './tables/operation';
+import StatisticTable from './tables/statistic';
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -80,6 +81,7 @@ class DatabaseModule implements Module {
       VecDocumentTable,
       ChatMessageTable,
       OperationTable,
+      StatisticTable,
     ] as unknown as Table[];
     this.databasePendingPromiseQueue = new Map();
     this.databaseLocks = new Map();

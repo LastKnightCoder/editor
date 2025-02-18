@@ -6,7 +6,7 @@ import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 
 import For from "@/components/For";
 import WhiteBoardCard from "./WhiteBoardCard";
-import WhiteBoard from '@/layouts/ThreeColumnLayout/Content/WhiteBoard';
+import WhiteBoard from '@/layouts/components/EditWhiteBoard';
 
 import { PlusOutlined } from '@ant-design/icons';
 

@@ -19,11 +19,6 @@ export enum ELLMProvider {
   OTHER = 'other',
 }
 
-export enum ELayout {
-  ThreeColumn = 'threeColumn',
-  ShortSidebar = 'shortSidebar',
-}
-
 interface DoubaoVoiceCopyConfig {
   accessToken: string;
   secretKey: string;
@@ -116,7 +111,6 @@ export interface ISetting {
     }
   }
   darkMode: boolean;
-  layout: ELayout;
   textToSpeech: {
     currentModel: string;
     doubao: DoubaoVoiceCopyConfig,
@@ -253,7 +247,6 @@ const initialState: IState = {
         name: '向量数据库'
       }
     },
-    layout: ELayout.ShortSidebar,
     textToSpeech: {
       currentModel: "doubao",
       doubao: {

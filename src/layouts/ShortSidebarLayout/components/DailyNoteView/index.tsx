@@ -4,7 +4,7 @@ import classnames from "classnames";
 
 import { Dayjs } from "dayjs";
 import Editor from "@editor/index.tsx";
-import DailyNote from '@/layouts/ThreeColumnLayout/Content/DailyNote';
+import DailyNote from '@/layouts/components/EditDailyNote';
 import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
 import { DeleteOutlined } from "@ant-design/icons";
 import { SelectInfo } from "antd/es/calendar/generateCalendar";

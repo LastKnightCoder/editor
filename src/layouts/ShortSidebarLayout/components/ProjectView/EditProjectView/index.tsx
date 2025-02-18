@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { App } from 'antd';
-import EditProject from '@/layouts/ThreeColumnLayout/Content/Project';
+import EditProject from '@/layouts/components/EditProjectItem';
 import WhiteBoardProjectView from '../WhiteBoardProjectItemView';
 import { getProjectItemById } from '@/commands';
 import { EProjectItemType, ProjectItem } from '@/types';

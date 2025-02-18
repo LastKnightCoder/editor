@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
-import DocumentList from '@/layouts/ThreeColumnLayout/List/DocumentList';
-import EditDocument from '@/layouts/ThreeColumnLayout/Content/Document';
+import DocumentList from './DocumentList';
+import EditDocument from '@/layouts/components/EditDocumentItem';
 
 import styles from './index.module.less';
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";

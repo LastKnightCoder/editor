@@ -1,6 +1,6 @@
 import classnames from "classnames";
 import For from "@/components/For";
-import EditPdf from '@/layouts/ThreeColumnLayout/Content/Pdf'
+import EditPdf from '@/layouts/components/EditPdf'
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import PdfCard from "./PdfCard";
 import styles from './index.module.less';

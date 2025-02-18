@@ -23,7 +23,7 @@ export default class ArticleTable {
     db.exec(createTableSql);
   }
 
-  static async upgradeTable(db: Database.Database) {
+  static upgradeTable(db: Database.Database) {
     const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'articles'");
     const tableInfo = (stmt.get() as { sql: string }).sql;
     if (!tableInfo.includes("links")) {
@@ -45,7 +45,7 @@ export default class ArticleTable {
     if (!tableInfo.includes("count")) {
       const alertStmt = db.prepare("ALTER TABLE articles ADD COLUMN count INTEGER DEFAULT 0");
       alertStmt.run();
-      const articles = await this.getAllArticles(db);
+      const articles = this.getAllArticles(db);
       for (const article of articles) {
         const contentLength = getContentLength(article.content);
         const stmt = db.prepare('UPDATE articles SET count = ? WHERE id = ?');
@@ -83,26 +83,26 @@ export default class ArticleTable {
     };
   }
 
-  static async getAllArticles(db: Database.Database) {
+  static getAllArticles(db: Database.Database) {
     // 按照创建时间倒序
-    const stmt = db.prepare('SELECT * FROM articles ORDER BY create_time DESC');
+    const stmt = db.prepare('SELECT * FROM articles WHERE is_delete = 0 ORDER BY create_time DESC');
     const articles = stmt.all();
     return articles.map(article => this.parseArticle(article));
   }
 
-  static async getArticleById(db: Database.Database, articleId: number | bigint): Promise<IArticle> {
+  static getArticleById(db: Database.Database, articleId: number | bigint): IArticle {
     const stmt = db.prepare('SELECT * FROM articles WHERE id = ?');
     return this.parseArticle(stmt.get(articleId));
   }
 
-  static async getArticleByIds(db: Database.Database, articleIds: number[]): Promise<IArticle[]> {
+  static getArticleByIds(db: Database.Database, articleIds: number[]): IArticle[] {
     const placeholders = articleIds.map(() => '?').join(',');
     const stmt = db.prepare(`SELECT * FROM articles WHERE id IN (${placeholders})`);
     const articles = stmt.all(articleIds);
     return articles.map(article => this.parseArticle(article));
   }
 
-  static async createArticle(db: Database.Database, article: ICreateArticle): Promise<IArticle> {
+  static createArticle(db: Database.Database, article: ICreateArticle): IArticle {
     const { tags, title, content, bannerBg, isDelete, isTop, count } = article;
 
     const stmt = db.prepare('INSERT INTO articles (create_time, update_time, tags, title, content, banner_bg, is_delete, is_top, count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
@@ -112,10 +112,10 @@ export default class ArticleTable {
 
     Operation.insertOperation(db, 'article', 'insert', createdArticleId, now);
 
-    return await this.getArticleById(db, createdArticleId);
+    return this.getArticleById(db, createdArticleId);
   }
 
-  static async updateArticle(db: Database.Database, article: IUpdateArticle): Promise<IArticle> {
+  static updateArticle(db: Database.Database, article: IUpdateArticle): IArticle {
     const { tags, title, content, id, bannerBg, isTop, isDelete, count } = article;
     const stmt = db.prepare('UPDATE articles SET update_time = ?, tags = ?, title = ?, content = ?, banner_bg = ?, is_top = ?, is_delete = ?, count = ? WHERE id = ?');
     const now = Date.now();
@@ -131,10 +131,10 @@ export default class ArticleTable {
 
     Operation.insertOperation(db, 'article', 'update', id, now);
 
-    return await this.getArticleById(db, id);
+    return this.getArticleById(db, id);
   }
 
-  static async deleteArticleById(db: Database.Database, articleId: number): Promise<number> {
+  static deleteArticleById(db: Database.Database, articleId: number): number {
     const stmt = db.prepare('DELETE FROM articles WHERE id = ?');
     // 设置 document item isArticle 为 0
     const documentItemStmt = db.prepare('UPDATE document_items SET isArticle = 0 WHERE isArticle = 1 AND articleId = ?');
@@ -148,13 +148,13 @@ export default class ArticleTable {
     return stmt.run(articleId).changes;
   }
 
-  static async updateArticleIsTop(db: Database.Database, id: number, isTop: boolean): Promise<IArticle> {
+  static updateArticleIsTop(db: Database.Database, id: number, isTop: boolean): IArticle {
     const stmt = db.prepare('UPDATE articles SET is_top = ? WHERE id = ?');
     stmt.run(Number(isTop), id);
     return this.getArticleById(db, id);
   }
 
-  static async updateArticleBannerBg(db: Database.Database, id: number, bannerBg: string): Promise<IArticle> {
+  static updateArticleBannerBg(db: Database.Database, id: number, bannerBg: string): IArticle {
     const stmt = db.prepare('UPDATE articles SET banner_bg = ? WHERE id = ?');
     stmt.run(bannerBg, id);
     return this.getArticleById(db, id);

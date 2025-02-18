@@ -1,10 +1,9 @@
 import {  createHashRouter } from "react-router-dom";
 
-import ThreeColumnLayout from "@/layouts/ThreeColumnLayout";
 import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
-import ShortSidebarLayout from "./layouts/ShortSidebarLayout";
 
+import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
 import HomeView from "@/layouts/ShortSidebarLayout/components/HomeView";
 import CardView from "@/layouts/ShortSidebarLayout/components/CardView";
 import ArticleView from '@/layouts/ShortSidebarLayout/components/ArticleView';
@@ -19,18 +18,7 @@ import DailyNoteView from "@/layouts/ShortSidebarLayout/components/DailyNoteView
 import TimeRecordView from "@/layouts/ShortSidebarLayout/components/TimeRecordView";
 import VecDocumentView from "@/layouts/ShortSidebarLayout/components/VecDocumentView";
 
-const classicRoutes = [{
-  path: '/quick-card',
-  element: <QuickCard/>,
-}, {
-  path: '/quick-time-record',
-  element: <QuickTimeRecord/>,
-}, {
-  path: '/*',
-  element: <ThreeColumnLayout />,
-}];
-
-const shortSidebarRoutes = [{
+const routes = [{
   path: '/',
   element: <ShortSidebarLayout />,
   children: [{
@@ -81,9 +69,6 @@ const shortSidebarRoutes = [{
   element: <QuickTimeRecord/>,
 }]
 
-export const classicRouter = createHashRouter(classicRoutes);
 
-export const shortSidebarRouter = createHashRouter(shortSidebarRoutes);
-
-
-export default classicRouter;
+export const router = createHashRouter(routes);
+export default routes;
