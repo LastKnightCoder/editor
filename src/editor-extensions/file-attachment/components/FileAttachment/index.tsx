@@ -9,6 +9,8 @@ import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 
 import styles from './index.module.less';
 import classnames from "classnames";
+import { remoteResourceToLocal } from "@/utils";
+import { App } from "antd";
 
 interface IFileAttachmentProps {
   element: FileAttachmentElement;
@@ -19,7 +21,8 @@ interface IFileAttachmentProps {
 const FileAttachment = (props: IFileAttachmentProps) => {
   const { element, attributes, children } = props;
 
-  const { fileName, filePath } = element;
+  const { fileName, filePath, isLocal, localFilePath = filePath } = element;
+  const { message } = App.useApp();
 
   const {
     drag,
@@ -34,8 +37,32 @@ const FileAttachment = (props: IFileAttachmentProps) => {
     element,
   });
 
-  const handleClickCard = () => {
-    showInFolder(filePath);
+  const handleClickCard = async () => {
+    if (isLocal) {
+      try {
+        await showInFolder(localFilePath);
+      } catch (e) {
+        message.error('文件不存在');
+        console.error(e);
+      }
+    } else {
+      try {
+        message.loading({
+          key: 'file-attachment-downloading',
+          content: '正在下载文件',
+          duration: 0,
+        })
+        const localPath = await remoteResourceToLocal(filePath);
+        await showInFolder(localPath);
+      } catch (e) {
+        message.error({
+          key: 'file-attachment-downloading',
+          content: '下载失败',
+        });
+      } finally {
+        message.destroy('file-attachment-downloading');
+      }
+    }
   }
 
   return (

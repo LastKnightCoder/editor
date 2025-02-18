@@ -63,9 +63,11 @@ const EditCard = (props: IEditCardProps) => {
   });
 
   return (
-    <EditCardContext.Provider value={{
-      cardId: editingCard.id,
-    }}>
+    <EditCardContext.Provider
+      value={{
+        cardId: editingCard.id,
+      }}
+    >
       <div className={styles.editCardContainer}>
         <div className={styles.time}>
           <div><span>创建于 {formatDate(editingCard.create_time, true)}</span></div>

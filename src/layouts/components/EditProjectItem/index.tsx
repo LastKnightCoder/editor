@@ -5,12 +5,19 @@ import useEdit from './useEdit';
 import useProjectsStore from "@/stores/useProjectsStore";
 
 import { formatDate } from "@/utils/time";
-
 import Editor, { EditorRef } from "@/components/Editor";
 import EditText from "@/components/EditText";
 import EditorOutline from "@/components/EditorOutline";
+import { EditCardContext } from "@/context.ts";
+import { cardLinkExtension, fileAttachmentExtension, projectCardListExtension } from "@/editor-extensions";
 
 import styles from './index.module.less';
+
+const extensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  projectCardListExtension
+];
 
 const Project = () => {
   const editorRef = useRef<EditorRef>(null);
@@ -72,15 +79,22 @@ const Project = () => {
             <div>创建于 {formatDate(projectItem.createTime, true)}</div>
             <div>最后修改于 {formatDate(projectItem.updateTime, true)}</div>
           </div>
-          <Editor
-            key={projectItem.id}
-            ref={editorRef}
-            initValue={projectItem.content}
-            onInit={onInit}
-            onChange={onContentChange}
-            uploadImage={uploadImage}
-            readonly={readonly}
-          />
+          <EditCardContext.Provider
+            value={{
+              cardId: -1
+            }}
+          >
+            <Editor
+              key={projectItem.id}
+              ref={editorRef}
+              initValue={projectItem.content}
+              onInit={onInit}
+              onChange={onContentChange}
+              uploadImage={uploadImage}
+              readonly={readonly}
+              extensions={extensions}
+            />
+          </EditCardContext.Provider>
         </div>
         <EditorOutline
           className={styles.outline}

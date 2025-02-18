@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Empty, message } from "antd";
-import { useAsyncEffect, useWhyDidYouUpdate } from "ahooks";
-import DocumentCard from '../DocumentCard';
+import { useAsyncEffect } from "ahooks";
+import ItemCard from '@/editor-extensions/components/ItemCard';
 
 import { getDocumentItemsByIds, getDocumentItem } from "@/commands";
 import { IDocumentItem } from "@/types";
@@ -16,15 +16,7 @@ interface IProps {
 const DocumentList = (props: IProps) => {
   const { documentItemId, onClick } = props;
 
-  const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<IDocumentItem[]>([]);
-
-  useWhyDidYouUpdate('DocumentList', {
-    documentItemId,
-    items,
-    loading,
-    onClick
-  })
 
   useAsyncEffect(async () => {
     if (!documentItemId) return;
@@ -32,15 +24,18 @@ const DocumentList = (props: IProps) => {
     if (!documentItem) return;
     const { children } = documentItem;
 
-    setLoading(true);
     try {
       const items = await getDocumentItemsByIds(children);
+      // 根据 children 的顺序重排序
+      items.sort((a, b) => {
+        const indexA = children.indexOf(a.id);
+        const indexB = children.indexOf(b.id);
+        return indexA - indexB;
+      });
       setItems(items);
     } catch (e) {
       console.error(e);
       message.error('DocumentItems 拉取失败' + e);
-    } finally {
-      setLoading(false);
     }
   }, [documentItemId]);
 
@@ -56,7 +51,7 @@ const DocumentList = (props: IProps) => {
     <div className={styles.list}>
       {
         items.map((item, i) => (
-          <DocumentCard
+          <ItemCard
             key={item.id}
             item={item}
             onClick={() => onClick(item, i)}

@@ -3,8 +3,10 @@ import { setOrInsertNode } from "@/components/Editor/utils";
 import { getFileBaseName } from '@/commands';
 import { v4 as getId } from 'uuid';
 
-export const insertFileAttachment = async (editor: Editor, filePath: string) => {
-  const fileName = await getFileBaseName(filePath);
+export const insertFileAttachment = async (editor: Editor, filePath: string, isLocal: boolean, fileName?: string) => {
+  if (!fileName) {
+    fileName = await getFileBaseName(filePath);
+  }
   const uuid = getId();
 
   return setOrInsertNode(editor, {
@@ -13,7 +15,7 @@ export const insertFileAttachment = async (editor: Editor, filePath: string) => 
     uuid,
     filePath,
     fileName,
-    isLocal: true,
+    isLocal,
     children: [{
       type: 'formatted',
       text: ''
