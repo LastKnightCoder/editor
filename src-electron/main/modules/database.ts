@@ -146,16 +146,17 @@ class DatabaseModule implements Module {
       });
     })
 
-    ipcMain.handle('close-database', async (event, name) => {
+    ipcMain.handle('close-database', async (_event, name) => {
       if (this.databases.has(name)) {
         const database = this.databases.get(name);
         if (!database) throw new Error('No database found');
+
         database.close();
         this.databases.delete(name);
-        const sender = event.sender;
-        const win = BrowserWindow.fromWebContents(sender);
-        if (win) {
-          this.windowToDatabase.delete(win.id);
+        for (const [id, dbName] of this.windowToDatabase) {
+          if (dbName === name) {
+            this.windowToDatabase.delete(id);
+          }
         }
       }
     });

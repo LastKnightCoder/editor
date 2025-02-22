@@ -30,7 +30,7 @@ const ColumnStatistic = (props: BarStatisticProps) => {
         title: '事件类型'
       },
       y: {
-        title: '花费事件(分钟)'
+        title: '花费时间(分钟)'
       }
     },
     colorField: 'eventType',

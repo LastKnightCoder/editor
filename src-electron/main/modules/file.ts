@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { readFile, writeFile } from 'node:fs/promises';
-import { ensureDir, pathExists } from 'fs-extra/esm';
+import { ensureDir, pathExists, remove } from 'fs-extra/esm';
 import { sep } from 'node:path';
 import { Module } from '../types/module';
 
@@ -31,7 +31,10 @@ class File implements Module {
     });
     ipcMain.handle('get-sep', () => {
       return this.getSep();
-    })
+    });
+    ipcMain.handle('remove-file', async (_event, path) => {
+      return remove(path);
+    });
   }
 
   async readBinaryFile(filePath: string): Promise<Uint8Array> {

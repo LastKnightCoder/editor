@@ -43,6 +43,10 @@ export const getSep = async (): Promise<string> => {
   return await invoke('get-sep');
 }
 
+export const removeFile = async (filePath: string): Promise<void> => {
+  return await invoke('remove-file', filePath);
+}
+
 export const convertFileSrc = (filePath: string): string => {
   return `ltoh://${filePath}`;
 }
