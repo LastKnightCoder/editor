@@ -4,4 +4,8 @@ export const connectDatabaseByName = async (databaseName: string, force?: boolea
   return await invoke('create-or-connect-database', databaseName, force);
 }
 
+export const closeDatabase = async (databaseName: string) => {
+  return await invoke('close-database', databaseName);
+}
+
 export default connectDatabaseByName;

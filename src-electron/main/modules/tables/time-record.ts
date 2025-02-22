@@ -156,4 +156,37 @@ export default class TimeRecordTable {
     const types = stmt.all() as { time_type: string }[];
     return types.map(t => t.time_type);
   }
+
+  static getTimeRecordsByEventType(db: Database.Database, eventType: string): ITimeRecord[] {
+    const stmt = db.prepare(`
+      SELECT * FROM time_records 
+      WHERE event_type = ?
+      ORDER BY date
+    `);
+    const records = stmt.all(eventType);
+
+    return records.map(this.parseTimeRecord);
+  }
+
+  static getTimeRecordsByTimeType(db: Database.Database, timeType: string): ITimeRecord[] {
+    const stmt = db.prepare(`
+      SELECT * FROM time_records 
+      WHERE time_type = ?
+      ORDER BY date
+    `);
+    const records = stmt.all(timeType);
+
+    return records.map(this.parseTimeRecord);
+  }
+
+  static getTimeRecordsByEventTypeAndTimeType(db: Database.Database, eventType: string, timeType: string): ITimeRecord[] {
+    const stmt = db.prepare(`
+      SELECT * FROM time_records 
+      WHERE event_type = ? AND time_type = ?
+      ORDER BY date
+    `);
+    const records = stmt.all(eventType, timeType);
+
+    return records.map(this.parseTimeRecord);
+  }
 }
