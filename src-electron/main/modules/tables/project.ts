@@ -12,6 +12,28 @@ import Operation from './operation';
 import { WhiteBoard } from "@/types";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
+import { snakeCase } from 'lodash';
+
+const projectItemAttributes = [
+  'title',
+  'content',
+  'children',
+  'parents',
+  'projects',
+  'ref_type',
+  'ref_id',
+  'white_board_data',
+  'project_item_type',
+  'count'
+]
+
+const projectItemNeedStringifyAttributes = [
+  'content',
+  'children',
+  'parents',
+  'projects',
+  'white_board_data'
+]
 
 export default class ProjectTable {
   static initTable(db: Database.Database) {
@@ -97,7 +119,8 @@ export default class ProjectTable {
       'is-project-item-not-in-any-project': this.isProjectItemNotInAnyProject.bind(this),
       'get-project-items-not-in-any-project': this.getProjectItemsNotInAnyProject.bind(this),
       'delete-project-items-not-in-any-project': this.deleteProjectItemsNotInAnyProject.bind(this),
-      'get-all-project-items': this.getAllProjectItems.bind(this)
+      'get-all-project-items': this.getAllProjectItems.bind(this),
+      'partial-update-project-item': this.partialUpdateProjectItem.bind(this)
     }
   }
 
@@ -231,6 +254,71 @@ export default class ProjectTable {
     Operation.insertOperation(db, 'project_item', 'insert', res.lastInsertRowid, now);
 
     return this.getProjectItem(db, Number(res.lastInsertRowid));
+  }
+
+  static partialUpdateProjectItem(db: Database.Database, item: Partial<UpdateProjectItem> & { id: number}): ProjectItem {
+    const availableFields = Object.keys(item).map(key => {
+      if (projectItemAttributes.includes(snakeCase(key))) {
+        return key;
+      }
+    }).filter(Boolean) as string[];
+
+    const updateSql = availableFields.map(field => `${snakeCase(field)} = ?`).join(', ');
+    const stmt = db.prepare(`
+      UPDATE project_item SET
+        ${updateSql},
+        update_time = ?
+      WHERE id = ?
+    `);
+    const now = Date.now();
+    stmt.run(
+      ...availableFields.map(field => {
+        if (projectItemNeedStringifyAttributes.includes(snakeCase(field))) {
+          // @ts-ignore
+          return JSON.stringify(item[field]);
+        } else {
+          // @ts-ignore
+          return item[field];
+        }
+      }),
+      now,
+      item.id,
+    );
+
+    const updatedItem = this.getProjectItem(db, item.id);
+
+    if (item.refType === 'card' && item.refId && item.content) {
+      const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ?, count = ? WHERE id = ?');
+      cardStmt.run(now, JSON.stringify(updatedItem.content || []), updatedItem.count || 0, updatedItem.refId);
+    }
+
+    if (item.refType === 'article' && item.refId && item.content) {
+      const articleStmt = db.prepare('UPDATE articles SET update_time = ?, content = ?, title = ?, count = ? WHERE id = ?');
+      articleStmt.run(now, JSON.stringify(updatedItem.content || []), updatedItem.title, updatedItem.count || 0, updatedItem.refId);
+    }
+
+    if (item.refType === 'white-board' && item.refId && item.whiteBoardData) {
+      const whiteBoardStmt = db.prepare('UPDATE white_boards SET update_time = ?, data = ?, title = ?, is_project_item = ? WHERE id = ?');
+      whiteBoardStmt.run(now, JSON.stringify(updatedItem.whiteBoardData), updatedItem.title, 1, updatedItem.refId);
+    }
+
+    Operation.insertOperation(db, 'project_item', 'update', item.id, now);
+
+    // project_item 可能通过 card 和 article 有引用关系，更新 project_item
+    // TODO 可以优化
+    if (item.refType !== '' && item.refId) {
+      const projectItems = this.getProjectItemByRef(db, updatedItem.refType, updatedItem.refId);
+      for (const projectItem of projectItems) {
+        if (projectItem.id !== item.id) {
+          const projectItemStmt = db.prepare(
+            `UPDATE project_item SET update_time = ?, content = ?, white_board_data = ?, title = ?, count = ?, WHERE id = ?`
+          );
+          projectItemStmt.run(now, JSON.stringify(updatedItem.content || []), JSON.stringify(updatedItem.whiteBoardData || {}), updatedItem.title, updatedItem.count, projectItem.id);
+        }
+      }
+    }
+
+    return updatedItem;
   }
 
   static updateProjectItem(db: Database.Database, item: UpdateProjectItem): ProjectItem {

@@ -62,7 +62,6 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
       },
     })
     document.dispatchEvent(event);
-    useCardsManagementStore.getState().init();
   });
 
   const onOk = useMemoizedFn(async (selectedCards: ICard[]) => {
