@@ -101,6 +101,22 @@ class DatabaseModule implements Module {
     return database;
   }
 
+  forceCheckpoint(name: string) {
+    const db = this.getDatabase(name);
+    if (!db) return false;
+
+    try {
+      const { busy, log } = db.prepare('PRAGMA wal_checkpoint(FULL)').get() as any;
+      if (busy !== 0) throw new Error('存在未释放的数据库锁');
+      if (log !== 0) throw new Error('WAL 文件未完全合并');
+      return true;
+    } catch (err) {
+      // @ts-ignore
+      console.error('检查点执行失败:', err.message);
+      return false;
+    }
+  }
+
   async init() {
     ipcMain.handle('create-or-connect-database',  async (event, name, force?: boolean) => {
       const appDir = PathUtil.getAppDir();
@@ -112,6 +128,8 @@ class DatabaseModule implements Module {
         }
         const database = this.createDatabase(name);
         this.databases.set(name, database);
+
+        this.forceCheckpoint(name);
       }
 
       const sender = event.sender;
@@ -120,6 +138,10 @@ class DatabaseModule implements Module {
         this.windowToDatabase.set(win.id, name);
       }
     });
+
+    ipcMain.handle('force-checkpoint', async (_event, name) => {
+      this.forceCheckpoint(name);
+    })
 
     Object.keys(this.eventAndHandlers).forEach((eventName) => {
       ipcMain.handle(eventName, async (event, ...args) => {
@@ -150,6 +172,8 @@ class DatabaseModule implements Module {
       if (this.databases.has(name)) {
         const database = this.databases.get(name);
         if (!database) throw new Error('No database found');
+
+        this.forceCheckpoint(name);
 
         database.close();
         this.databases.delete(name);

@@ -13,7 +13,7 @@ import {
   writeBinaryFile,
   createDir,
   pathExists,
-  getSep, closeDatabase
+  getSep, closeDatabase, forceCheckpoint
 } from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
@@ -58,6 +58,12 @@ export const upload = async () => {
   if (!databasePath) {
     message.error('请先设置数据库目录');
     return false;
+  }
+
+  const res = await forceCheckpoint(databaseName);
+  if (!res) {
+    message.error('强制检查点失败');
+    // return false;
   }
 
   const ossOptions = {
@@ -151,6 +157,7 @@ export const download = async () => {
   const { version: currentVersion } = database;
 
   const databasePath = await getDatabasePath(databaseName);
+
   const walFilePath = `${databasePath}-wal`;
   const shmFilePath = `${databasePath}-shm`;
   if (!databasePath) {
@@ -211,13 +218,17 @@ export const download = async () => {
     const walBackupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}-wal`;
     const shmBackupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}-shm`;
 
-    const originContents = await readBinaryFile(databasePath);
-    const walOriginContents = await readBinaryFile(walFilePath);
-    const shmOriginContents = await readBinaryFile(shmFilePath);
+    try {
+      const originContents = await readBinaryFile(databasePath);
+      const walOriginContents = await readBinaryFile(walFilePath);
+      const shmOriginContents = await readBinaryFile(shmFilePath);
 
-    await writeBinaryFile(backupPath, originContents);
-    await writeBinaryFile(walBackupPath, walOriginContents);
-    await writeBinaryFile(shmBackupPath, shmOriginContents);
+      await writeBinaryFile(backupPath, originContents);
+      await writeBinaryFile(walBackupPath, walOriginContents);
+      await writeBinaryFile(shmBackupPath, shmOriginContents);
+    } catch (e) {
+      message.error('备份数据库文件失败');
+    }
 
     await writeBinaryFile(databasePath, contents);
     await writeBinaryFile(walFilePath, walContents);
