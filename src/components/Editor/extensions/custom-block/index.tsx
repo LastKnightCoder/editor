@@ -27,7 +27,7 @@ class CustomBlockExtension extends Base implements IExtension {
     const customBlockEle = element as unknown as CustomBlockElement;
     const { content } = customBlockEle;
 
-    return `\`\`\` custom-block \n${content}\n\`\`\``;
+    return `\`\`\`custom-block\n${content}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {

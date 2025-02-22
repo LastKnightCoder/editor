@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import classnames from 'classnames';
-import { Empty, Select } from 'antd';
+import { Empty, Select, Dropdown, MenuProps } from 'antd';
 import { useMemoizedFn } from 'ahooks';
 
 import For from '@/components/For';
@@ -20,6 +20,8 @@ import CreateCard from './CreateCard';
 import styles from './index.module.less';
 import { Descendant } from "slate";
 import If from "@/components/If";
+import { readTextFile, selectFile } from "@/commands";
+import { getContentLength, importFromMarkdown } from "@/utils";
 
 const CardContainer = () => {
   const { cardTree } = useCardTree();
@@ -67,6 +69,45 @@ const CardContainer = () => {
   const isShowEdit = useMemo(() => {
     return leftCardIds.length > 0 || rightCardIds.length > 0;
   }, [leftCardIds, rightCardIds]);
+
+  const menuItems: MenuProps['items'] = [{
+    label: '创建卡片',
+    key: 'create-card'
+  }, {
+    label: '导入Markdown',
+    key: 'import-markdown'
+  }];
+
+  const handleClickCreate = useMemoizedFn(async ({ key }: { key: string }) => {
+    if (key === 'create-card') {
+      if (!isCreatingCard) {
+        setIsCreatingCard(true);
+      }
+    } else if (key === 'import-markdown') {
+      const filePath = await selectFile({
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+          {
+            name: 'Markdown',
+            extensions: ['md'],
+          },
+        ],
+      });
+      if (!filePath) return;
+      for (const path of filePath) {
+        const markdown = await readTextFile(path);
+        const content = importFromMarkdown(markdown);
+        // console.log('from markdown content', content);
+        await createCard({
+          content,
+          tags: [],
+          links: [],
+          category: selectCategory,
+          count: getContentLength(content),
+        });
+      }
+    }
+  });
   
   const onSaveCard = useMemoizedFn(async (content: Descendant[], tags: string[]) => {
     const card: ICreateCard = {
@@ -141,14 +182,16 @@ const CardContainer = () => {
                       onChange={onSelectCategoryChange}
                     />
                   </div>
-                  <div
-                    className={styles.addCard}
-                    onClick={() => {
-                      setIsCreatingCard(true);
+                  <Dropdown
+                    menu={{
+                      items: menuItems,
+                      onClick: handleClickCreate
                     }}
                   >
-                    <PlusOutlined />
-                  </div>
+                    <div className={styles.addCard}>
+                      <PlusOutlined/>
+                    </div>
+                  </Dropdown>
                 </div>
                 {
                   isCreatingCard && (

@@ -44,7 +44,7 @@ const useCardsManagementStore = create<IState & IActions>((set, get) => ({
     const res = await createCard(card);
     const newCards = produce(cards, (draft) => {
       if (!draft.find(c => c.id === res.id)) {
-        draft.push(res);
+        draft.unshift(res);
       }
     })
     set({ cards: newCards });

@@ -47,11 +47,11 @@ const PdfView = () => {
         extensions: ['pdf'],
       }],
     });
-    if (!filePath || Array.isArray(filePath)) return;
-    const fileName = await getFileBaseName(filePath);
+    if (!filePath || filePath.length > 1) return;
+    const fileName = await getFileBaseName(filePath[0]);
     await createPdf({
       fileName,
-      filePath,
+      filePath: filePath[0],
       isLocal: true,
       remoteUrl: '',
       tags: [],

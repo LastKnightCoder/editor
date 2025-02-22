@@ -1,25 +1,22 @@
 import { useState, useEffect, memo, useRef } from "react";
-import { Descendant } from "slate";
 import classnames from 'classnames';
 import { useMemoizedFn } from "ahooks";
 import { App, Dropdown, Input, MenuProps, message, Modal, Tooltip } from 'antd';
 import { produce } from "immer";
-import { nodeFetch } from '@/commands';
+import { getFileBaseName, readTextFile, selectFile } from '@/commands';
 
 import SelectCardModal from "@/components/SelectCardModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
-import useChatLLM from "@/hooks/useChatLLM.ts";
 import useAddRefCard from "./useAddRefCard";
 
 import SVG from 'react-inlinesvg';
 import For from "@/components/For";
 import { getProjectById, getProjectItemById, updateProjectItem } from '@/commands';
-import { CreateProjectItem, EProjectItemType, Message, type ProjectItem } from "@/types";
-import { Role, CONVERT_PROMPT, WEB_CLIP_PROMPT, SPLIT_PROMPT } from '@/constants';
+import { CreateProjectItem, EProjectItemType, type ProjectItem } from "@/types";
 import { FileOutlined, FolderOpenTwoTone, MoreOutlined, PlusOutlined } from "@ant-design/icons";
-import { getEditorText } from "@/utils";
+import { getContentLength, getEditorText, importFromMarkdown, webClipFromUrl } from "@/utils";
 import whiteBoardIcon from '@/assets/icons/white-board.svg';
 
 import styles from './index.module.less';
@@ -37,7 +34,6 @@ interface IProjectItemProps {
 const ProjectItem = memo((props: IProjectItemProps) => {
   const { projectItemId, isRoot = false, parentProjectItemId, path, parentChildren } = props;
 
-  const { chatLLM } = useChatLLM();
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState('');
   const [titleEditable, setTitleEditable] = useState(false);
@@ -330,6 +326,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     key: 'link-white-board-project-item',
     label: '关联白板',
   }, {
+    key: 'import-markdown',
+    label: '导入Markdown',
+  }, {
     key: 'add-web-project-item',
     label: '解析网页',
   }]
@@ -400,6 +399,43 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       // TODO 打开白板选择弹窗
     } else if (key === 'add-web-project-item') {
       setWebClipModalOpen(true);
+    } else if (key === 'import-markdown') {
+      if (!projectItem) return;
+      const filePath = await selectFile({
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+          {
+            name: 'Markdown',
+            extensions: ['md'],
+          },
+        ],
+      }).catch(e => {
+        console.error(e);
+        return null;
+      })
+      if (!filePath) return;
+      for (const path of filePath) {
+        const markdown = await readTextFile(path);
+        const content = importFromMarkdown(markdown);
+        const fileName = await getFileBaseName(path, true);
+        await createChildProjectItem(projectItem.id, {
+          title: fileName,
+          content,
+          children: [],
+          parents: [projectItem.id],
+          projects: [],
+          refType: '',
+          refId: 0,
+          projectItemType: EProjectItemType.Document,
+          count: getContentLength(content),
+        });
+      }
+      const event = new CustomEvent('refreshProjectItem', {
+        detail: {
+          id: projectItemId
+        },
+      });
+      document.dispatchEvent(event);
     }
   });
 
@@ -588,111 +624,40 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           if (parserControllerRef.current.signal.aborted) {
             return;
           }
+
           message.loading({
-            key: 'fetch-html',
-            content: '正在请求 HTML 文件，请稍等...',
+            key: 'web-clip',
+            content: '正在处理...',
             duration: 0
           });
 
-          const res = await nodeFetch(webClip, {
-            method: "GET"
-          });
-          message.destroy('fetch-html');
-
-          const text = res.data as string;
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(text, 'text/html');
-          // 移除所有的 scripts
-          doc.querySelectorAll('script').forEach(script => script.remove());
-          const pageContent = doc.getElementById('page-content');
-          if (!pageContent) {
-            message.error('无法获取网页内容');
-            return;
-          }
-
-          if (parserControllerRef.current.signal.aborted) {
-            return;
-          }
-          message.loading({
-            key: 'html-convert',
-            content: '正在处理 HTML 文件，请稍后',
-            duration: 0
-          });
-          const convertMessages: Message[] = [{
-            role: Role.System,
-            content: CONVERT_PROMPT,
-          }, {
-            role: Role.User,
-            content: pageContent.innerHTML
-          }];
-          const convertRes = await chatLLM(convertMessages) || '';
-          message.destroy('html-convert');
-
-          if (parserControllerRef.current.signal.aborted) {
-            return;
-          }
-          message.loading({
-            key: 'html-split',
-            content: '正在分割文本，请稍后',
-            duration: 0
-          })
-          const splitMessages: Message[] = [{
-            role: Role.System,
-            content: SPLIT_PROMPT,
-          }, {
-            role: Role.User,
-            content: convertRes
-          }];
-          const splitRes = await chatLLM(splitMessages) || '[]';
-          message.destroy('html-split');
-
-          try {
-            const splitArray: string[] = JSON.parse(splitRes);
-            if (parserControllerRef.current.signal.aborted) {
-              return;
+          const res = await webClipFromUrl(webClip, {
+            split: true,
+            controller: parserControllerRef.current,
+          }).catch(() => {
+            return {
+              result: false,
+              error: '未知错误',
+              value: []
             }
-            message.loading({
-              key: 'html-process',
-              content: '正在处理文本，请稍后',
-              duration: 0
-            })
-            const [res1, res2] = await Promise.all(splitArray.map(async item => {
-              const messages: Message[] = [{
-                role: Role.System,
-                content: WEB_CLIP_PROMPT
-              }, {
-                role: Role.User,
-                content: item
-              }];
-              let aiRes = await chatLLM(messages);
-              if (aiRes) {
-                aiRes = aiRes.trim();
-                if (aiRes.startsWith("```json") && aiRes.endsWith("```")) {
-                  aiRes = aiRes.slice(7, -3);
-                }
-              }
-              return aiRes;
-            }));
+          });
 
-            const res1Json = JSON.parse(res1 || '[]');
-            const res2Json = JSON.parse(res2 || '[]');
-
-            let jsonContent: Descendant[] = [...res1Json, ...res2Json];
-
+          if (res.result && res.value) {
             let title = '新文档';
-            if (jsonContent.length > 0) {
-              if (jsonContent[0].type === 'header') {
-                title = getEditorText(jsonContent[0].children);
-                jsonContent = jsonContent.slice(1);
+            if (res.value.length > 0) {
+              if (res.value[0].type === 'header') {
+                title = getEditorText(res.value[0].children);
+                res.value = res.value.slice(1);
               }
             }
 
             if (parserControllerRef.current.signal.aborted) {
               return;
             }
+
             const createProjectItem: CreateProjectItem = {
               title,
-              content: jsonContent,
+              content: res.value,
               children: [],
               parents: [projectItem.id],
               projects: [activateProjectId],
@@ -712,12 +677,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             document.dispatchEvent(event);
             setWebClip('');
             setWebClipModalOpen(false);
-          } catch (e) {
-            console.error(e);
-          } finally {
-            parserControllerRef.current = undefined;
-            message.destroy('html-process');
+            setParseLoading(false);
+            message.success({
+              key: 'web-clip',
+              content: '添加成功',
+            });
+          } else {
+            message.error({
+              key: 'web-clip',
+              content: res.error || '未知错误',
+            });
+            console.error(res);
+            setParseLoading(false);
           }
+
+          parserControllerRef.current = undefined;
         }}
         onCancel={() => {
           setWebClip('');

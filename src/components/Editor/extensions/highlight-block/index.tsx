@@ -20,8 +20,8 @@ class HighlightBlockExtension extends Base implements IExtension {
     return [quit, withNormalize];
   }
 
-  override toMarkdown(_element: Element, children: string): string {
-    return `\`\`\`highlight-block\n${children}\`\`\``;
+  override toMarkdown(element: Element, children: string): string {
+    return `:::highlight-block{color=${(element as HighlightBlockElement).color}${(element as HighlightBlockElement).color}\n${children}\n:::`;
   }
 
   render(props: RenderElementProps) {

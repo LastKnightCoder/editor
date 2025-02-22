@@ -4,6 +4,7 @@ import { CalloutElement } from "@/components/Editor/types";
 
 import blockPanelItems from "./blockPanelItems";
 import Callout from "./components/Callout";
+import { DEFAULT_TITLE } from "./constants.ts";
 import { deleteFirstLineCallout, quit, withNormalize } from './plugins';
 
 import Base from '../base.ts';
@@ -24,8 +25,7 @@ class CalloutExtension extends Base implements IExtension {
     const calloutEle = element as unknown as CalloutElement;
     const { calloutType } = calloutEle;
 
-    const childrenStr = children.trim().split('\n').map((child) => `> ${child}`).join('\n');
-    return `> [!${calloutType.toUpperCase()}]\n${childrenStr}`;
+    return `:::${calloutType}{title=${calloutEle.title || DEFAULT_TITLE[calloutType]}}\n${children}:::`;
   }
 
   render(props: RenderElementProps) {

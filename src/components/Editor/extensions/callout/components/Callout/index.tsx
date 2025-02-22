@@ -15,28 +15,12 @@ interface ICalloutProps {
   element: CalloutElement;
 }
 
-const configs = {
-  tip: {
-    title: '技巧',
-  },
-  info: {
-    title: '信息',
-  },
-  warning: {
-    title: '警告',
-  },
-  danger: {
-    title: '危险',
-  },
-  note: {
-    title: '注意',
-  }
-}
+import { DEFAULT_TITLE } from "../../constants.ts";
 
 const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const { attributes, element, children } = props;
   const { calloutType, title } = element;
-  const { title: defaultTitle } = configs[calloutType];
+  const defaultTitle = DEFAULT_TITLE[calloutType];
   const editor = useSlate();
   const readOnly = useReadOnly();
   const [realTitle, setRealTitle] = useState<string>(title || defaultTitle);

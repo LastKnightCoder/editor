@@ -7,12 +7,12 @@ export const getEditorDir = async () => {
   return await invoke('get-app-dir');
 }
 
-export const selectFile = async (options?: object) => {
+export const selectFile = async (options?: object): Promise<string[] | null> => {
   return await invoke('select-file', options);
 }
 
-export const getFileBaseName = async (filePath: string) => {
-  return await invoke('get-file-basename', filePath);
+export const getFileBaseName = async (filePath: string, noExtension?: boolean) => {
+  return await invoke('get-file-basename', filePath, noExtension);
 }
 
 export const readBinaryFile = async (filePath: string): Promise<Uint8Array> => {
