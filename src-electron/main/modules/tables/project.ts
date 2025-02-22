@@ -46,7 +46,7 @@ export default class ProjectTable {
     `);
   }
 
-  static async upgradeTable(db: Database.Database) {
+  static upgradeTable(db: Database.Database) {
     const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'project'");
     const tableInfo = (stmt.get() as { sql: string }).sql;
     if (!tableInfo.includes('archived')) {
@@ -68,7 +68,7 @@ export default class ProjectTable {
     if (!projectItemTableInfo.includes('count')) {
       const alertStmt = db.prepare("ALTER TABLE project_item ADD COLUMN count INTEGER DEFAULT 0");
       alertStmt.run();
-      const projectItems = await this.getAllProjectItems(db);
+      const projectItems = this.getAllProjectItems(db);
       for (const projectItem of projectItems) {
         const contentLength = getContentLength(projectItem.content);
         const stmt = db.prepare('UPDATE project_item SET count = ? WHERE id = ?');
@@ -142,7 +142,7 @@ export default class ProjectTable {
     return parsed;
   }
 
-  static async createProject(db: Database.Database, project: CreateProject): Promise<Project> {
+  static createProject(db: Database.Database, project: CreateProject): Project {
     const stmt = db.prepare(`
       INSERT INTO project
       (create_time, update_time, title, desc, children, archived)
@@ -163,7 +163,7 @@ export default class ProjectTable {
     return this.getProject(db, Number(res.lastInsertRowid));
   }
 
-  static async updateProject(db: Database.Database, project: UpdateProject): Promise<Project> {
+  static updateProject(db: Database.Database, project: UpdateProject): Project {
     const stmt = db.prepare(`
       UPDATE project SET
         update_time = ?,
@@ -188,25 +188,25 @@ export default class ProjectTable {
     return this.getProject(db, project.id);
   }
 
-  static async deleteProject(db: Database.Database, id: number): Promise<number> {
+  static deleteProject(db: Database.Database, id: number): number {
     const stmt = db.prepare('DELETE FROM project WHERE id = ?');
     Operation.insertOperation(db, 'project', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
-  static async getProject(db: Database.Database, id: number): Promise<Project> {
+  static getProject(db: Database.Database, id: number): Project {
     const stmt = db.prepare('SELECT * FROM project WHERE id = ?');
     const project = stmt.get(id);
     return this.parseProject(project);
   }
 
-  static async getAllProjects(db: Database.Database,): Promise<Project[]> {
+  static getAllProjects(db: Database.Database,): Project[] {
     const stmt = db.prepare('SELECT * FROM project ORDER BY create_time DESC');
     const projects = stmt.all();
     return projects.map(p => this.parseProject(p));
   }
 
-  static async createProjectItem(db: Database.Database, item: CreateProjectItem): Promise<ProjectItem> {
+  static createProjectItem(db: Database.Database, item: CreateProjectItem): ProjectItem {
     const stmt = db.prepare(`
       INSERT INTO project_item
       (create_time, update_time, title, content, children, parents, projects, ref_type, ref_id, white_board_data, project_item_type, count)
@@ -233,7 +233,7 @@ export default class ProjectTable {
     return this.getProjectItem(db, Number(res.lastInsertRowid));
   }
 
-  static async updateProjectItem(db: Database.Database, item: UpdateProjectItem): Promise<ProjectItem> {
+  static updateProjectItem(db: Database.Database, item: UpdateProjectItem): ProjectItem {
     const stmt = db.prepare(`
       UPDATE project_item SET
         update_time = ?,
@@ -285,7 +285,7 @@ export default class ProjectTable {
     // project_item 可能通过 card 和 article 有引用关系，更新 project_item
     // TODO 可以优化
     if (item.refType !== '' && item.refId) {
-      const projectItems = await this.getProjectItemByRef(db, item.refType, item.refId);
+      const projectItems = this.getProjectItemByRef(db, item.refType, item.refId);
       for (const projectItem of projectItems) {
         if (projectItem.id !== item.id) {
           const projectItemStmt = db.prepare(
@@ -299,7 +299,7 @@ export default class ProjectTable {
     return this.getProjectItem(db, item.id);
   }
   
-  static async updateProjectItemWhiteBoardData(db: Database.Database, id: number, whiteBoardData: WhiteBoard['data']): Promise<ProjectItem> {
+  static updateProjectItemWhiteBoardData(db: Database.Database, id: number, whiteBoardData: WhiteBoard['data']): ProjectItem {
     const stmt = db.prepare(`
       UPDATE project_item SET
         update_time = ?,
@@ -315,7 +315,7 @@ export default class ProjectTable {
 
     Operation.insertOperation(db, 'project_item', 'update', id, now);
     
-    const item = await this.getProjectItem(db, id);
+    const item = this.getProjectItem(db, id);
     
     if (item.refType === 'white-board' && item.refId && item.whiteBoardData) {
       const whiteBoardStmt = db.prepare('UPDATE white_boards SET update_time = ?, data = ? WHERE id = ?');
@@ -323,7 +323,7 @@ export default class ProjectTable {
     }
     
     if (item.refType !== '' && item.refId) {
-      const projectItems = await this.getProjectItemByRef(db, item.refType, item.refId);
+      const projectItems = this.getProjectItemByRef(db, item.refType, item.refId);
       for (const projectItem of projectItems) {
         if (projectItem.id !== item.id) {
           const projectItemStmt = db.prepare(
@@ -337,7 +337,7 @@ export default class ProjectTable {
     return item;
   }
   
-  static async updateProjectItemContent(db: Database.Database, id: number, content: Descendant[]): Promise<ProjectItem> {
+  static updateProjectItemContent(db: Database.Database, id: number, content: Descendant[]): ProjectItem {
     const count = getContentLength(content);
     const stmt = db.prepare(`
       UPDATE project_item SET
@@ -356,7 +356,7 @@ export default class ProjectTable {
     
     Operation.insertOperation(db,'project_item', 'update', id, now);
 
-    const item = await this.getProjectItem(db, id);
+    const item = this.getProjectItem(db, id);
     
     if (item.refType === 'card' && item.refId && item.content) {
       const cardStmt = db.prepare('UPDATE cards SET update_time = ?, content = ?, count = ? WHERE id = ?');
@@ -369,7 +369,7 @@ export default class ProjectTable {
     }
     
     if (item.refType !== '' && item.refId) {
-      const projectItems = await this.getProjectItemByRef(db, item.refType, item.refId);
+      const projectItems = this.getProjectItemByRef(db, item.refType, item.refId);
       for (const projectItem of projectItems) {
         if (projectItem.id !== item.id) {
           const projectItemStmt = db.prepare(
@@ -383,7 +383,7 @@ export default class ProjectTable {
     return item;
   }
 
-  static async deleteProjectItem(db: Database.Database, id: number): Promise<number> {
+  static deleteProjectItem(db: Database.Database, id: number): number {
     // TODO，一个 projectItem 可能在多个 project 中，删除  projectItem 需谨慎
     const stmt = db.prepare('DELETE FROM project_item WHERE id = ?');
 
@@ -391,26 +391,26 @@ export default class ProjectTable {
     return stmt.run(id).changes;
   }
 
-  static async getProjectItem(db: Database.Database, id: number): Promise<ProjectItem> {
+  static getProjectItem(db: Database.Database, id: number): ProjectItem {
     const stmt = db.prepare('SELECT * FROM project_item WHERE id = ?');
     const item = stmt.get(id);
     return this.parseProjectItem(item);
   }
 
-  static async getProjectItemsByIds(db: Database.Database, ids: number[]): Promise<ProjectItem[]> {
+  static getProjectItemsByIds(db: Database.Database, ids: number[]): ProjectItem[] {
     const placeholders = ids.map(() => '?').join(',');
     const stmt = db.prepare(`SELECT * FROM project_item WHERE id IN (${placeholders})`);
     const items = stmt.all(ids);
     return items.map(item => this.parseProjectItem(item));
   }
 
-  static async getProjectItemByRef(db: Database.Database, refType: string, refId: number): Promise<ProjectItem[]> {
+  static getProjectItemByRef(db: Database.Database, refType: string, refId: number): ProjectItem[] {
     const stmt = db.prepare('SELECT * FROM project_item WHERE ref_type = ? AND ref_id = ?');
     const items = stmt.all(refType, refId);
     return items.map(item => this.parseProjectItem(item));
   }
 
-  static async getProjectItemCountInProject(db: Database.Database, projectId: number): Promise<number> {
+  static getProjectItemCountInProject(db: Database.Database, projectId: number): number {
     const stmt = db.prepare(`
       SELECT COUNT(*) FROM project_item
       WHERE EXISTS (
@@ -422,7 +422,7 @@ export default class ProjectTable {
     return result['COUNT(*)'];
   }
 
-  static async getAllProjectItemsNotInProject(db: Database.Database, projectId: number): Promise<ProjectItem[]> {
+  static getAllProjectItemsNotInProject(db: Database.Database, projectId: number): ProjectItem[] {
     const stmt = db.prepare(`
       SELECT * FROM project_item
       WHERE json_array_length(projects) = 0
@@ -435,7 +435,7 @@ export default class ProjectTable {
     return items.map(item => this.parseProjectItem(item));
   }
 
-  static async getProjectItemsNotInAnyProject(db: Database.Database): Promise<ProjectItem[]> {
+  static getProjectItemsNotInAnyProject(db: Database.Database): ProjectItem[] {
     const stmt = db.prepare(`
       SELECT * FROM project_item 
       WHERE json_array_length(projects) = 0
@@ -444,16 +444,16 @@ export default class ProjectTable {
     return items.map(item => this.parseProjectItem(item));
   }
 
-  static async isProjectItemNotInAnyProject(db: Database.Database, id: number): Promise<boolean> {
+  static isProjectItemNotInAnyProject(db: Database.Database, id: number): boolean {
     const stmt = db.prepare('SELECT projects FROM project_item WHERE id = ?');
     const result = stmt.get(id) as { projects: string };
     return result.projects === '[]';
   }
 
-  static async deleteProjectItemsNotInAnyProject(db: Database.Database,): Promise<number> {
-    const toDeleteItems = await this.getProjectItemsNotInAnyProject(db);
+  static deleteProjectItemsNotInAnyProject(db: Database.Database,): number {
+    const toDeleteItems = this.getProjectItemsNotInAnyProject(db);
     for (const deleteItem of toDeleteItems) {
-      await this.deleteProjectItem(db, deleteItem.id);
+      this.deleteProjectItem(db, deleteItem.id);
     }
     return toDeleteItems.length;
   }

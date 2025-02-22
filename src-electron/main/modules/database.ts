@@ -25,7 +25,7 @@ class DatabaseModule implements Module {
   databases: Map<string, Database.Database>;
   windowToDatabase: Map<number, string>;
   tables: Table[];
-  eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => Promise<any>>;
+  eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => any>;
   databasePendingPromiseQueue: Map<string, any[]>;
   databaseLocks: Map<string, boolean>;
 
@@ -118,13 +118,14 @@ class DatabaseModule implements Module {
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
     const database = new Database(dbPath);
+    if (!database) throw new Error('No database found');
     sqliteVec.load(database);
 
     database.pragma('journal_mode = WAL');
 
     for (const table of this.tables) {
-      await table.initTable(database!);
-      await table.upgradeTable(database!);
+      table.initTable(database);
+      table.upgradeTable(database);
     }
 
     try {
@@ -164,14 +165,17 @@ class DatabaseModule implements Module {
         const sender = event.sender;
         const win = BrowserWindow.fromWebContents(sender);
         if (!win) throw new Error('No window found');
+
         const dbName = this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error('No database name found');
+
         const db = await this.getDatabase(dbName);
         if (!db) throw new Error('No database found');
+
         console.log(`database ${dbName} event ${eventName}`);
         try {
           db.exec('BEGIN');
-          const res = await this.eventAndHandlers[eventName](db, ...args);
+          const res = this.eventAndHandlers[eventName](db, ...args);
           db.exec('COMMIT');
           return res;
         } catch (e) {

@@ -110,14 +110,14 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                   }}
                 >
                   <Tooltip title={type.label}>
-                    <svg width={24} height={24} viewBox={`0 0 24 24`}>
+                    <svg width={24} height={24} viewBox={`0 0 1024 1024`}>
                       <Arrow
                         sourceMarker={EMarkerType.None}
                         targetMarker={EMarkerType.None}
                         lineType={type.type}
                         lineColor={'black'}
-                        lineWidth={1}
-                        points={[{ x: 2, y: 18 }, { x: 22, y: 6 } ]}
+                        lineWidth={50}
+                        points={[{ x: 50, y: 800 }, { x: 974, y: 224 } ]}
                       />
                     </svg>
                   </Tooltip>

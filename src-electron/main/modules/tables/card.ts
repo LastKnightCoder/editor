@@ -32,7 +32,7 @@ export default class CardTable {
     db.exec(createTableSql);
   }
 
-  static async upgradeTable(db: Database.Database) {
+  static upgradeTable(db: Database.Database) {
     const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cards'");
     const tableInfo = (stmt.get() as { sql: string }).sql;
     if (!tableInfo.includes('category')) {
@@ -43,7 +43,7 @@ export default class CardTable {
       const alertStmt = db.prepare("ALTER TABLE cards ADD COLUMN count INTEGER DEFAULT 0");
       alertStmt.run();
       // 更新所有卡片的 count
-      const cards = await this.getAllCards(db);
+      const cards = this.getAllCards(db);
       for (const card of cards) {
         const contentLength = getContentLength(card.content);
         const stmt = db.prepare('UPDATE cards SET count = ? WHERE id = ?');
@@ -71,19 +71,19 @@ export default class CardTable {
     return cards.map(card => this.parseCard(card));
   }
 
-  static async getCardById(db: Database.Database, cardId: number | bigint): Promise<ICard> {
+  static getCardById(db: Database.Database, cardId: number | bigint): ICard {
     const stmt = db.prepare('SELECT * FROM cards WHERE id = ?');
     return this.parseCard(stmt.get(cardId));
   }
 
-  static async getCardByIds(db: Database.Database, cardIds: number[]): Promise<ICard[]> {
+  static getCardByIds(db: Database.Database, cardIds: number[]): ICard[] {
     const placeholders = cardIds.map(() => '?').join(',');
     const stmt = db.prepare(`SELECT * FROM cards WHERE id IN (${placeholders})`);
     const cards = stmt.all(cardIds);
     return cards.map(card => this.parseCard(card));
   }
 
-  static async createCard(db: Database.Database, card: ICreateCard): Promise<ICard> {
+  static createCard(db: Database.Database, card: ICreateCard): ICard {
     const { tags, links, content, category, count } = card;
 
     const stmt = db.prepare('INSERT INTO cards (create_time, update_time, tags, links, content, category, count) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -91,10 +91,10 @@ export default class CardTable {
     const res = stmt.run(now, now, JSON.stringify(tags), JSON.stringify(links), JSON.stringify(content), category, count);
     const createdCardId = res.lastInsertRowid;
     Operation.insertOperation(db, 'card', 'insert', createdCardId, now);
-    return await this.getCardById(db, createdCardId);
+    return this.getCardById(db, createdCardId);
   }
 
-  static async updateCard(db: Database.Database, card: IUpdateCard): Promise<ICard> {
+  static updateCard(db: Database.Database, card: IUpdateCard): ICard {
     const { tags, links, content, category, id, count } = card;
     const stmt = db.prepare('UPDATE cards SET update_time = ?, tags = ?, links = ?, content = ?, category = ?, count = ? WHERE id = ?');
     const now = Date.now();
@@ -110,10 +110,10 @@ export default class CardTable {
 
     Operation.insertOperation(db, 'card', 'update', card.id, now);
 
-    return await this.getCardById(db, id);
+    return this.getCardById(db, id);
   }
 
-  static async deleteCard(db: Database.Database, cardId: number): Promise<number> {
+  static deleteCard(db: Database.Database, cardId: number): number {
     const stmt = db.prepare('DELETE FROM cards WHERE id = ?');
     // 设置 isCard 为 0
     const documentItemStmt = db.prepare('UPDATE document_items SET is_card = 0 WHERE is_card = 1 AND card_id = ?');
@@ -128,7 +128,7 @@ export default class CardTable {
     return stmt.run(cardId).changes;
   }
 
-  static async getTagsByCardId(db: Database.Database, cardId: number): Promise<string[]> {
+  static getTagsByCardId(db: Database.Database, cardId: number): string[] {
     const stmt = db.prepare('SELECT tags FROM cards WHERE id = ?');
     const result = stmt.get(cardId) as { tags: string };
     let tags = [];
@@ -142,9 +142,9 @@ export default class CardTable {
 
   // 根据 tag 中的每个 tag 对卡片进行分组，忽略大小写，返回一个 对象，tag 为 key，对应的卡片数组为 value
   // 要查询所有的卡片才能获得 tags
-  static async getCardsGroupByTag(db: Database.Database) {
+  static getCardsGroupByTag(db: Database.Database) {
     const tagsGroupByTag: Record<string, ICard[]> = {};
-    const cards = await this.getAllCards(db);
+    const cards = this.getAllCards(db);
     for (const card of cards) {
       for (const tag of card.tags) {
         const lowerCaseTag = tag.toLowerCase();
@@ -154,5 +154,7 @@ export default class CardTable {
         tagsGroupByTag[lowerCaseTag].push(card);
       }
     }
+
+    return tagsGroupByTag;
   }
 }

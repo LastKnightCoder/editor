@@ -43,7 +43,7 @@ export default class OperationTable {
     };
   }
 
-  static async createOperation(db: Database.Database, operation: Omit<Operation, 'id'>): Promise<Operation> {
+  static createOperation(db: Database.Database, operation: Omit<Operation, 'id'>): Operation {
     const { operation_time, operation_id, operation_content_type, operation_action } = operation;
     const stmt = db.prepare(`
       INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
@@ -58,16 +58,16 @@ export default class OperationTable {
     return this.getOperationById(db, Number(res.lastInsertRowid));
   }
 
-  static async getOperationById(db: Database.Database, id: number): Promise<Operation> {
+  static getOperationById(db: Database.Database, id: number): Operation {
     const stmt = db.prepare('SELECT * FROM operation WHERE id = ?');
     const operation = stmt.get(id);
     return this.parseOperation(operation);
   }
 
-  static async getOperationRecordsByYear(db: Database.Database, year: number): Promise<Array<{
+  static getOperationRecordsByYear(db: Database.Database, year: number): Array<{
     time: string;
     operation_list: Operation[];
-  }>> {
+  }> {
     const stmt = db.prepare(`
       SELECT * FROM operation
       WHERE operation_time >= ? AND operation_time < ?
@@ -178,23 +178,23 @@ export default class OperationTable {
     return stmt.all(contentType, deleteOperationIds, number).map((item: any) => item.operation_id);
   }
 
-  static async getLatestOperations(db: Database.Database, number: number): Promise<{
+  static getLatestOperations(db: Database.Database, number: number): {
     cards: ICard[],
     articles: IArticle[],
     projectItems: ProjectItem[],
     documentItems: IDocumentItem[]
-  }> {
+  } {
     const cardIds = this.getLatestOperationByContentType(db, 'card', number);
-    const cards = await CardTable.getCardByIds(db, cardIds);
+    const cards = CardTable.getCardByIds(db, cardIds);
 
     const articleIds = this.getLatestOperationByContentType(db, 'article', number);
-    const articles = await ArticleTable.getArticleByIds(db, articleIds);
+    const articles = ArticleTable.getArticleByIds(db, articleIds);
 
     const projectItemIds = this.getLatestOperationByContentType(db, 'project_item', number);
-    const projectItems = await ProjectTable.getProjectItemsByIds(db, projectItemIds);
+    const projectItems = ProjectTable.getProjectItemsByIds(db, projectItemIds);
 
     const documentItemIds = this.getLatestOperationByContentType(db, 'document-item', number);
-    const documentItems = await DocumentTable.getDocumentItemsByIds(db, documentItemIds);
+    const documentItems = DocumentTable.getDocumentItemsByIds(db, documentItemIds);
 
     return {
       cards,

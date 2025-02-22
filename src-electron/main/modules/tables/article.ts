@@ -134,7 +134,7 @@ export default class ArticleTable {
     return this.getArticleById(db, id);
   }
 
-  static async deleteArticleById(db: Database.Database, articleId: number): Promise<number> {
+  static deleteArticleById(db: Database.Database, articleId: number): number {
     const stmt = db.prepare('UPDATE articles SET is_delete = 1 WHERE id = ?');
     const res = stmt.run(articleId);
 

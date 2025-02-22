@@ -6,6 +6,15 @@ export class CanvasUtil {
     if (!ctx) return false;
     return ctx.isPointInPath(path, x, y);
   }
+
+  static isPointInStroke(path: Path2D, lineWidth: number, x: number, y: number) {
+    if (!ctx) return false;
+    ctx.save();
+    ctx.lineWidth = lineWidth;
+    const result = ctx.isPointInStroke(path, x, y);
+    ctx.restore();
+    return result;
+  }
 }
 
 export default CanvasUtil;

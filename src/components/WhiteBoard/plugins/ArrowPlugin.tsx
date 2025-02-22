@@ -1,7 +1,7 @@
 import intersect from 'path-intersection';
-import { IBoardPlugin, ArrowElement, Board, Point, EArrowLineType, SelectArea } from "../types";
+import { IBoardPlugin, ArrowElement, Board, Point, SelectArea } from "../types";
 import ArrowElementComponent from '../components/ArrowElementComponent';
-import { CanvasUtil, selectAreaToRect } from "../utils";
+import { ArrowUtil, CanvasUtil, selectAreaToRect } from "../utils";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = 'arrow';
@@ -50,23 +50,20 @@ export class ArrowPlugin implements IBoardPlugin {
   }
 
   isHit(_board: Board, element: ArrowElement, x: number, y: number) {
-    const { points, lineType } = element;
-    const padding = 10;
-    if (lineType === EArrowLineType.STRAIGHT) {
-      // TODO 扩展算法优化
+    const { points, lineType, lineWidth, source: { marker: sourceMarker }, target: { marker: targetMarker } } = element;
 
-      const {
-        upperPoints,
-        lowerPoints,
-        leftPoints,
-        rightPoints
-      } = this.getArrowPaddingPath(points, padding);
-      
-      const yPath = new Path2D(this.generateSvgPathFromPoints(upperPoints.concat(lowerPoints), true))
-      const xPath = new Path2D(this.generateSvgPathFromPoints(leftPoints.concat(rightPoints), true))
-      
-      return CanvasUtil.isPointInPath(yPath, x, y) || CanvasUtil.isPointInPath(xPath, x, y)
+    const path = ArrowUtil.getArrowPath({
+      points,
+      lineType,
+      sourceMarker,
+      targetMarker
+    });
+
+    if (path) {
+      // 创建路径，判断 isPointInStroke
+      return CanvasUtil.isPointInStroke(new Path2D(path), Math.max(lineWidth, 10), x, y);
     }
+
     return false;
   }
 
@@ -97,10 +94,10 @@ export class ArrowPlugin implements IBoardPlugin {
     const yPath = this.generateSvgPathFromPoints(upperPoints.concat(lowerPoints), true);
     const xPath = this.generateSvgPathFromPoints(leftPoints.concat(rightPoints), true);
     const selectPath = this.generateSvgPathFromPoints([
-      {x, y},
-      {x: x + width, y},
-      {x: x + width, y: y + height},
-      {x, y: y + height}
+      { x, y },
+      { x: x + width, y },
+      { x: x + width, y: y + height },
+      { x, y: y + height }
     ], true)
 
     return (

@@ -35,7 +35,7 @@ export default class DailyNoteTable {
     };
   }
 
-  static async createDailyNote(db: Database.Database, note: Omit<DailyNote, 'id'>): Promise<DailyNote> {
+  static createDailyNote(db: Database.Database, note: Omit<DailyNote, 'id'>): DailyNote {
     const stmt = db.prepare(`
       INSERT INTO daily_notes (content, date)
       VALUES (?, ?)
@@ -50,7 +50,7 @@ export default class DailyNoteTable {
     return this.getDailyNoteById(db, Number(res.lastInsertRowid));
   }
 
-  static async updateDailyNote(db: Database.Database, note: Omit<DailyNote, 'date'>): Promise<DailyNote> {
+  static updateDailyNote(db: Database.Database, note: Omit<DailyNote, 'date'>): DailyNote {
     const stmt = db.prepare(`
       UPDATE daily_notes SET
         content = ?
@@ -66,25 +66,25 @@ export default class DailyNoteTable {
     return this.getDailyNoteById(db, note.id);
   }
 
-  static async deleteDailyNote(db: Database.Database, id: number): Promise<number> {
+  static deleteDailyNote(db: Database.Database, id: number): number {
     const stmt = db.prepare('DELETE FROM daily_notes WHERE id = ?');
     Operation.insertOperation(db, 'daily-note', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
-  static async getDailyNoteById(db: Database.Database, id: number): Promise<DailyNote> {
+  static getDailyNoteById(db: Database.Database, id: number): DailyNote {
     const stmt = db.prepare('SELECT * FROM daily_notes WHERE id = ?');
     const note = stmt.get(id);
     return this.parseDailyNote(note);
   }
 
-  static async getDailyNoteByDate(db: Database.Database, date: string): Promise<DailyNote> {
+  static getDailyNoteByDate(db: Database.Database, date: string): DailyNote {
     const stmt = db.prepare('SELECT * FROM daily_notes WHERE date = ?');
     const note = stmt.get(date);
     return this.parseDailyNote(note);
   }
 
-  static async getAllDailyNotes(db: Database.Database): Promise<DailyNote[]> {
+  static getAllDailyNotes(db: Database.Database): DailyNote[] {
     const stmt = db.prepare('SELECT * FROM daily_notes');
     const notes = stmt.all();
     return notes.map(note => this.parseDailyNote(note));

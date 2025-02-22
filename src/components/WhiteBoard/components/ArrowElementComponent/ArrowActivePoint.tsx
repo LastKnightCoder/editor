@@ -3,7 +3,7 @@ import { ArrowElement, Point } from "../../types";
 import { PathUtil, PointUtil } from '../../utils';
 import { useBoard, useMoveArrow } from '../../hooks';
 import { BOARD_TO_CONTAINER } from '../../constants';
-import { useMemoizedFn } from 'ahooks';
+import { useMemoizedFn, useThrottleFn } from 'ahooks';
 
 interface ArrowActivePointProps {
   arrowElement: ArrowElement;
@@ -17,6 +17,7 @@ interface ArrowActivePointProps {
 
 const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
   const { point, innerSize = 3, innerFill = '#FFFFFF', outerSize = 5, outerFill, index, arrowElement } = props;
+
   // 防止监听 element 变化无限更新
   const lastArrowElement = useRef<ArrowElement>(arrowElement);
   const originalArrowElement = useRef<ArrowElement>(arrowElement);
@@ -36,14 +37,17 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
     currentPoint
   })
 
-  const handlePointerMove = useMemoizedFn((e: PointerEvent) => {
+  const { run: handlePointerMove } = useThrottleFn((e: PointerEvent) => {
     if (!startPoint.current) return;
+
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint) return;
+
     currentPoint.current = endPoint;
     if (!isMoved.current) {
       isMoved.current = true;
     }
+
     const updateArrowElement = getUpdateArrowElement(lastArrowElement.current, currentPoint.current, index);
     if (!pathRef.current) {
       pathRef.current = PathUtil.getPathByElement(board, lastArrowElement.current);
@@ -53,7 +57,7 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
       board.apply([{
         type: 'set_node',
         path: pathRef.current,
-        properties: originalArrowElement.current,
+        properties: lastArrowElement.current,
         newProperties: updateArrowElement
       }, {
         type: 'set_selection',
@@ -63,14 +67,16 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
           selectedElements: [updateArrowElement]
         }
       }], false);
+
       board.emit('arrow:update', {
         arrow: lastArrowElement.current,
         path: pathRef.current,
         currentPoint: currentPoint.current,
       });
+
       lastArrowElement.current = updateArrowElement;
     }
-  })
+  }, { wait: 25 })
 
   const handlePointerUp = useMemoizedFn(() => {
     if (startPoint.current && isMoved.current && currentPoint.current) {
@@ -116,6 +122,12 @@ const ArrowActivePoint = memo((props: ArrowActivePointProps) => {
 
       const boardContainer = BOARD_TO_CONTAINER.get(board);
       if (!boardContainer) return;
+
+      const path = PathUtil.getPathByElement(board, lastArrowElement.current);
+      if (!path) return;
+      // 这里的 lastArrowElement 可能不是最新的，因为可能拖动了另一端的箭头，所以需要重新获取一次
+      // TODO 优化，是否可以不每次都查找，可能有性能问题，比如如果有对箭头操作就记录，查找有改动才读取
+      lastArrowElement.current = PathUtil.getElementByPath(board, path) as ArrowElement;
 
       boardContainer.addEventListener('pointermove', handlePointerMove);
       document.addEventListener('pointerup', handlePointerUp);
