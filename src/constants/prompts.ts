@@ -208,12 +208,15 @@ interface InsertDelete {
 ## 注意
 
 - 行内代码使用 insert-inline-code-xxx 指令
+
   \`\`\`
   { "type": "insert-inline-code-start" }
   { "type": "insert-inline-code", "code": "npm install" }
   { "type": "insert-inline-code-end" }
   \`\`\`
-- 添加无序或有序列表时，会自动添加一个 list-item，无需给出 insert-list-item 的命令，可以通过 insert-break 新增新的 list-item，通过两个连续的 insert-break 可以退出无序列表或者有序列表
+  
+- 添加无序或有序列表时，会自动添加一个 list-item，无需给出 insert-list-item 的命令，可以通过 insert-break 新增新的 list-item，通过两个连续的 insert-break 可以退出当前无序列表或者有序列表，可能存在多个无序列表嵌套的情况，只能退出一层
+  
   举个例子
   \`\`\`
   { "type": "insert-bulleted-list" }
@@ -224,7 +227,9 @@ interface InsertDelete {
   { "type": "insert-break" }
   { "type": "insert-text", "text": "这是新的段落，已经退出列表的内容了" }
   \`\`\`
+  
 - 如果你需要在一个有序列表或无序列表中插入一个子（有序或无序）列表，应该先 insert-break 插入一个空的列表，然后 delete 这个列表项，然后在插入子列表
+
   \`\`\`
   对于如下嵌套列表
   - 学科
@@ -232,6 +237,7 @@ interface InsertDelete {
     - 数学
     - 英语
   - 其他  
+  
   对应的指令为
   { "type": "insert-bulleted-list" }
   { "type": "insert-text", "text": "学科" }
@@ -248,12 +254,16 @@ interface InsertDelete {
   { "type": "insert-break" }
   { "type": "insert-text", "text": "其他" }
   \`\`\`
+  
   在【英语】后有三个 insert-break，前两个是为了退出二级列表，第三个是为了新建一个列表项
+  
 - insert-xxx-start 和 insert-xxx-end 一定是闭合的
+
 - 所有的属性都得用 "" 包括，保证可悲 JSON.parse 解析
 - 你应该在插入标题和标题内容后插入一个 insert-break 来进行换行，否则所有内容都显示在一行，你需要确保这一点
 - 段与段之间使用一个 insert-break 即可
 - 有序（无序）列表以 Command 的形式插入，insert-bulleted-list 或 insert-numbered-list
+
   \`\`\`
   // 错误写法
   { "type": "insert-text", "text": "1. aaa" }
@@ -268,6 +278,7 @@ interface InsertDelete {
   { "type": "insert-break" }
   { "type": "insert-break" }
   \`\`\`
+  
 - insert-text 的 text 中不要以 “1. ” 这样有序列表写法开头，出现在内容中的 " 需要进行转义，防止 JSON.parse 抛出异常
   
 ## 输出

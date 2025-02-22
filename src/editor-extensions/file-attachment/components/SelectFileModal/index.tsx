@@ -23,29 +23,18 @@ const SelectFileModal = (props: SelectFileModalProps) => {
     defaultValue: false
   });
 
-  // const inputRef = useRef<HTMLInputElement>(null);
-
   const handleClick = async () => {
-    // inputRef.current?.click();
     setFile(undefined);
     const filePath = await selectFile();
     if (!filePath) return;
-    if (Array.isArray(filePath)) return;
-    const fileData = await readBinaryFile(filePath);
-    const fileName = await getFileBaseName(filePath);
+    if (Array.isArray(filePath) && filePath.length > 1) return;
+    const fileData = await readBinaryFile(filePath[0]);
+    const fileName = await getFileBaseName(filePath[0]);
     const file = new File([fileData], fileName);
-    setFilePath(filePath);
+    setFilePath(filePath[0]);
     setFileName(fileName);
     setFile(file);
   }
-
-  // const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const files = e.target.files;
-  //   if (files && files.length > 0) {
-  //     setFile(files[0]);
-  //   }
-  //   e.target.value = '';
-  // }
 
   const handleClickOk = async () => {
     if (!file || !filePath || !fileName) {

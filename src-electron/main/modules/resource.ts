@@ -1,5 +1,5 @@
 import { ipcMain, dialog } from 'electron';
-import { basename } from 'node:path';
+import { basename, parse } from 'node:path';
 import { exec } from 'node:child_process';
 import { getFonts } from 'font-list';
 import PathUtil from '../utils/PathUtil';
@@ -25,8 +25,8 @@ class ResourceModule implements Module {
       return this.selectFile(options);
     });
 
-    ipcMain.handle('get-file-basename', async (_, filePath: string) => {
-      return this.getFileBaseName(filePath);
+    ipcMain.handle('get-file-basename', async (_, filePath: string, noExtension?: boolean) => {
+      return this.getFileBaseName(filePath, noExtension);
     });
 
     ipcMain.handle('get-all-fonts', () => {
@@ -45,14 +45,14 @@ class ResourceModule implements Module {
     }
   }
 
-  selectFile(options = { properties: ['openFile'] }) {
+  selectFile(options = { properties: ['openFile'] }): Promise<string[] | null> {
     return new Promise((resolve, reject) => {
       // @ts-ignore
       dialog.showOpenDialog(options).then((result) => {
         if (result.canceled) {
           reject(new Error('User canceled file selection'));
         } else {
-          resolve(result.filePaths[0]);
+          resolve(result.filePaths);
         }
       }).catch((err) => {
         reject(err);
@@ -60,8 +60,12 @@ class ResourceModule implements Module {
     })
   }
 
-  getFileBaseName(filePath: string) {
-    return basename(filePath);
+  getFileBaseName(filePath: string, noExtension?: boolean) {
+    if (noExtension) {
+      return parse(filePath).name;
+    } else {
+      return basename(filePath);
+    }
   }
 
   getAllFonts() {

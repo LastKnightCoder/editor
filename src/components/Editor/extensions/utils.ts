@@ -1,4 +1,4 @@
-import {Editor, Element as SlateElement, Node as SlateNode, NodeEntry, Path, Range, Transforms} from "slate";
+import { Editor, Element as SlateElement, Node as SlateNode, NodeEntry, Path, Range, Transforms } from "slate";
 import { ParagraphElement } from "@/components/Editor/types";
 
 // 是否在段落的开头按下的空格

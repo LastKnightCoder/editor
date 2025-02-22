@@ -8,10 +8,11 @@ import { formatDate, getMarkdown } from "@/utils";
 import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
 import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
-import { Dropdown, MenuProps, message } from "antd";
+import { Dropdown, MenuProps } from "antd";
 import useCardManagement from "@/hooks/useCardManagement.ts";
 import { useMemoizedFn } from "ahooks";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 interface CardItemProps {
   card: ICard;
@@ -20,7 +21,6 @@ interface CardItemProps {
 }
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
-
 
 const CardItem = (props: CardItemProps) => {
   const { card, className, style } = props;
@@ -98,21 +98,18 @@ const CardItem = (props: CardItemProps) => {
       URL.revokeObjectURL(url);
     } else if (key === 'category-temporary') {
       if (card.category === ECardCategory.Temporary) return;
-      message.info(card.category)
       await updateCard({
         ...card,
         category: ECardCategory.Temporary
       })
     }  else if (key === 'category-permanent') {
       if (card.category === ECardCategory.Permanent) return;
-      message.info(key)
       await updateCard({
         ...card,
         category: ECardCategory.Permanent
       })
     } else if (key === 'category-theme') {
       if (card.category === ECardCategory.Theme) return;
-      message.info(card.category)
       await updateCard({
         ...card,
         category: ECardCategory.Theme
@@ -130,13 +127,15 @@ const CardItem = (props: CardItemProps) => {
           更新于：{formatDate(card.update_time, true)}
         </span>
       </div>
-      <Editor
-        ref={editorRef}
-        className={styles.content}
-        readonly={true}
-        initValue={content}
-        extensions={customExtensions}
-      />
+      <ErrorBoundary>
+        <Editor
+          ref={editorRef}
+          className={styles.content}
+          readonly={true}
+          initValue={content}
+          extensions={customExtensions}
+        />
+      </ErrorBoundary>
       {
         tags.length > 0 && (
           <Tags

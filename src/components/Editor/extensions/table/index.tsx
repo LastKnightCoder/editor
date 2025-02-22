@@ -1,5 +1,7 @@
 import { Element } from 'slate';
 import { RenderElementProps } from "slate-react";
+import { trim } from "lodash";
+import { markdownTable } from "markdown-table";
 
 import { TableElement, TableRowElement, TableCellElement } from "@/components/Editor/types";
 
@@ -13,6 +15,7 @@ import blockPanelItems from './block-panel-items';
 import Base from '../base';
 import IExtension from "../types.ts";
 
+
 export class TableExtension extends Base implements IExtension {
   type = 'table';
 
@@ -21,7 +24,9 @@ export class TableExtension extends Base implements IExtension {
   }
 
   override toMarkdown(_element: Element, children: string): string {
-    return `<table>\n<tbody>\n${children}\n</tbody>\n</table>`;
+    const rows = children.split('\n');
+    const data = rows.filter(trim).map(row => row.split('|').filter(trim));
+    return markdownTable(data);
   }
 
   render(props: RenderElementProps) {
@@ -38,7 +43,7 @@ export class TableRowExtension extends Base implements IExtension {
   type = 'table-row';
 
   override toMarkdown(_element: Element, children: string): string {
-    return `<tr>\n${children}\n</tr>\n`
+    return `| ${children.split('\n').join('')}`.trim();
   }
 
   render(props: RenderElementProps) {
@@ -63,7 +68,7 @@ export class TableCellExtension extends Base implements IExtension {
   }
 
   override toMarkdown(_element: Element, children: string): string {
-    return `<td>${children}</td>\n`;
+    return `${children} | `;
   }
 
   render(props: RenderElementProps) {

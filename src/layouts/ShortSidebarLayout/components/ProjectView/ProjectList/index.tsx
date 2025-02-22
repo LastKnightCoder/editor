@@ -13,6 +13,8 @@ import { CreateProjectItem, EProjectItemType } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import SelectCardModal from "@/components/SelectCardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
+import { getFileBaseName, readTextFile, selectFile } from "@/commands";
+import { getContentLength, importFromMarkdown } from "@/utils";
 
 const Project = () => {
   const {
@@ -56,6 +58,9 @@ const Project = () => {
   }, {
     key: 'link-white-board-project-item',
     label: '关联白板',
+  }, {
+    key: 'import-markdown',
+    label: '导入Markdown',
   }];
   
   const handleAddMenuClick: MenuProps['onClick'] = useMemoizedFn(async ({ key }) => {
@@ -117,6 +122,36 @@ const Project = () => {
       openSelectCardModal();
     } else if (key === 'link-white-board-project-item') {
       // TODO 打开白板选择弹窗
+    } else if (key === 'import-markdown') {
+      const filePath = await selectFile({
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+          {
+            name: 'Markdown',
+            extensions: ['md'],
+          },
+        ],
+      }).catch(e => {
+        console.error(e);
+        return null;
+      })
+      if (!filePath) return;
+      for (const path of filePath) {
+        const markdown = await readTextFile(path);
+        const content = importFromMarkdown(markdown);
+        const fileName = await getFileBaseName(path, true);
+        await createRootProjectItem(project.id, {
+          title: fileName,
+          content,
+          children: [],
+          parents: [],
+          projects: [project.id],
+          refType: '',
+          refId: 0,
+          projectItemType: EProjectItemType.Document,
+          count: getContentLength(content),
+        });
+      }
     }
   });
   

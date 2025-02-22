@@ -6,11 +6,10 @@ import { CONTINUE_WRITE_PROMPT_TEMPLATE, Role } from '@/constants';
 import { Editor, NodeEntry, Path, Transforms } from "slate";
 import { codeBlockMap } from "@editor/extensions/code-block";
 import { ReactEditor } from "slate-react";
-// import { ReactEditor } from "slate-react";
 
 const items: IBlockPanelListItem[] = [{
   icon: 'ai',
-  title: 'AI续写(Beta)',
+  title: 'AI续写',
   keywords: ['ai', 'AI续写'],
   description: 'AI续写',
   onClick: async (editor) => {

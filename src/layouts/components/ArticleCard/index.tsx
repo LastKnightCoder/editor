@@ -105,6 +105,9 @@ const ArticleCard = (props: IArticleCardProps) => {
       },
       okText: '确定',
       cancelText: '取消',
+      okButtonProps: {
+        danger: true
+      }
     });
     setSettingOpen(false);
   })
