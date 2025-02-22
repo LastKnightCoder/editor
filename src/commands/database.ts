@@ -8,4 +8,8 @@ export const closeDatabase = async (databaseName: string) => {
   return await invoke('close-database', databaseName);
 }
 
+export const forceCheckpoint = async (databaseName: string) => {
+  return await invoke('force-checkpoint', databaseName);
+}
+
 export default connectDatabaseByName;

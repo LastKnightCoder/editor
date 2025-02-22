@@ -138,9 +138,9 @@ const HomeView = () => {
   }, [databaseStatus, active, initData]);
 
   useEffect(() => {
-    document.addEventListener('database-sync-finis', initData);
+    document.addEventListener('database-sync-finish', initData);
     return () => {
-      document.removeEventListener('database-sync-finis', initData);
+      document.removeEventListener('database-sync-finish', initData);
     }
   }, [initData]);
 
