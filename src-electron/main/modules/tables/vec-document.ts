@@ -48,13 +48,13 @@ export default class VecDocumentTable {
     };
   }
 
-  static async createVecDocument(db: Database.Database, params: {
+  static createVecDocument(db: Database.Database, params: {
     refType: string,
     refId: number,
     refUpdateTime: number,
     contents: string,
     contentsEmbedding: number[]
-  }): Promise<VecDocument> {
+  }): VecDocument {
     const stmt = db.prepare(`
       INSERT INTO vec_documents
       (create_time, update_time, ref_type, ref_id, ref_update_time, contents, contents_embedding)
@@ -74,14 +74,14 @@ export default class VecDocumentTable {
     return this.getVecDocument(db, Number(res.lastInsertRowid));
   }
 
-  static async updateVecDocument(db: Database.Database, params: {
+  static updateVecDocument(db: Database.Database, params: {
     id: number,
     refType: string,
     refId: number,
     refUpdateTime: number,
     contents: string,
     contentsEmbedding: number[]
-  }): Promise<VecDocument> {
+  }): VecDocument {
     const stmt = db.prepare(`
       UPDATE vec_documents SET
         update_time = ?,
@@ -106,18 +106,18 @@ export default class VecDocumentTable {
     return this.getVecDocument(db, params.id);
   }
 
-  static async deleteVecDocument(db: Database.Database, id: number): Promise<number> {
+  static deleteVecDocument(db: Database.Database, id: number): number {
     const stmt = db.prepare('DELETE FROM vec_documents WHERE id = ?');
     return stmt.run(id).changes;
   }
 
-  static async getVecDocument(db: Database.Database, id: number): Promise<VecDocument> {
+  static getVecDocument(db: Database.Database, id: number): VecDocument {
     const stmt = db.prepare('SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents WHERE id = ?');
     const document = stmt.get(id);
     return this.parseVecDocument(document);
   }
 
-  static async getVecDocumentsByRef(db: Database.Database, refId: number, refType: string): Promise<VecDocument[]> {
+  static getVecDocumentsByRef(db: Database.Database, refId: number, refType: string): VecDocument[] {
     const stmt = db.prepare(`
       SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents 
       WHERE ref_type = ? AND ref_id = ?
@@ -126,7 +126,7 @@ export default class VecDocumentTable {
     return documents.map(doc => this.parseVecDocument(doc));
   }
 
-  static async deleteVecDocumentsByRef(db: Database.Database, refId: number, refType: string): Promise<void> {
+  static deleteVecDocumentsByRef(db: Database.Database, refId: number, refType: string): void {
     const stmt = db.prepare(`
       DELETE FROM vec_documents 
       WHERE ref_type = ? AND ref_id = ?
@@ -134,7 +134,7 @@ export default class VecDocumentTable {
     stmt.run(refType, refId);
   }
 
-  static async getVecDocumentsByRefType(db: Database.Database, refType: string): Promise<VecDocument[]> {
+  static getVecDocumentsByRefType(db: Database.Database, refType: string): VecDocument[] {
     const stmt = db.prepare(`
       SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents 
       WHERE ref_type = ?
@@ -143,18 +143,18 @@ export default class VecDocumentTable {
     return documents.map(doc => this.parseVecDocument(doc));
   }
 
-  static async getAllVecDocuments(db: Database.Database,): Promise<VecDocument[]> {
+  static getAllVecDocuments(db: Database.Database,): VecDocument[] {
     const stmt = db.prepare('SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents ORDER BY create_time DESC');
     const documents = stmt.all();
     return documents.map(doc => this.parseVecDocument(doc));
   }
 
-  static async searchVecDocuments(db: Database.Database, queryEmbedding: number[], topK: number): Promise<Array<[document: VecDocument, distance: number]>> {
+  static searchVecDocuments(db: Database.Database, queryEmbedding: number[], topK: number): Array<[document: VecDocument, distance: number]> {
     const searchStmt = db.prepare("SELECT id, vec_distance_cosine(?, contents_embedding) AS distance FROM vec_documents WHERE distance < 0.6 ORDER BY distance LIMIT ?");
     const searchRes = searchStmt.all(JSON.stringify(queryEmbedding), topK) as Array<{ id: number, distance: number }>;
     const res: Array<[document: VecDocument, distance: number]> = [];
     for (const row of searchRes) {
-      const doc = await this.getVecDocument(db, row.id);
+      const doc = this.getVecDocument(db, row.id);
       res.push([doc, row.distance]);
     }
     return res;

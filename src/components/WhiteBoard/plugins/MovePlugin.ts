@@ -93,11 +93,12 @@ export class MovePlugin implements IBoardPlugin {
     const newCurrent = board.refLine.getUpdateCurrent(!e.altKey, 5 / board.viewPort.zoom);
     if (!e.altKey) {
       // 根据 newCurrent 更新 movedElements
-      movedElements = newCurrent.rects.map(rect => {
-        const ele = movedElements.find(me => me.id === rect.key);
-        if (!ele) return;
+      movedElements = movedElements.map(me => {
+        if (me.type === 'arrow') return me;
+        const rect = newCurrent.rects.find(rect => rect.key === me.id);
+        if (!rect) return;
         return {
-          ...ele,
+          ...me,
           x: rect.x,
           y: rect.y,
         }

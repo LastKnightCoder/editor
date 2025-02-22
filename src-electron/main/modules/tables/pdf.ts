@@ -84,7 +84,7 @@ export default class PdfTable {
     };
   }
 
-  static async createPdf(db: Database.Database, pdf: Omit<Pdf, 'id' | 'createTime' | 'updateTime'>): Promise<Pdf> {
+  static createPdf(db: Database.Database, pdf: Omit<Pdf, 'id' | 'createTime' | 'updateTime'>): Pdf {
     const stmt = db.prepare(`
       INSERT INTO pdfs 
       (tags, is_local, category, file_name, file_path, remote_url, create_time, update_time)
@@ -107,7 +107,7 @@ export default class PdfTable {
     return this.getPdfById(db, Number(res.lastInsertRowid));
   }
 
-  static async updatePdf(db: Database.Database, pdf: Pdf): Promise<Pdf> {
+  static updatePdf(db: Database.Database, pdf: Pdf): Pdf {
     const stmt = db.prepare(`
       UPDATE pdfs SET
         tags = ?,
@@ -135,25 +135,25 @@ export default class PdfTable {
     return this.getPdfById(db, pdf.id);
   }
 
-  static async getPdfById(db: Database.Database, id: number): Promise<Pdf> {
+  static getPdfById(db: Database.Database, id: number): Pdf {
     const stmt = db.prepare('SELECT * FROM pdfs WHERE id = ?');
     const pdf = stmt.get(id);
     return this.parsePdf(pdf);
   }
 
-  static async getPdfList(db: Database.Database): Promise<Pdf[]> {
+  static getPdfList(db: Database.Database): Pdf[] {
     const stmt = db.prepare('SELECT * FROM pdfs ORDER BY create_time DESC');
     const pdfs = stmt.all();
     return pdfs.map(pdf => this.parsePdf(pdf));
   }
 
-  static async removePdf(db: Database.Database, id: number): Promise<number> {
+  static removePdf(db: Database.Database, id: number): number {
     const stmt = db.prepare('DELETE FROM pdfs WHERE id = ?');
     Operation.insertOperation(db, 'pdf', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
-  static async addPdfHighlight(db: Database.Database, highlight: Omit<PdfHighlight, 'id' | 'createTime' | 'updateTime'>): Promise<PdfHighlight> {
+  static addPdfHighlight(db: Database.Database, highlight: Omit<PdfHighlight, 'id' | 'createTime' | 'updateTime'>): PdfHighlight {
     const stmt = db.prepare(`
       INSERT INTO pdf_highlights
       (pdf_id, color, highlight_type, rects, bounding_client_rect, 
@@ -181,7 +181,7 @@ export default class PdfTable {
     return this.getPdfHighlightById(db, Number(res.lastInsertRowid));
   }
 
-  static async updatePdfHighlight(db: Database.Database, highlight: PdfHighlight): Promise<PdfHighlight> {
+  static updatePdfHighlight(db: Database.Database, highlight: PdfHighlight): PdfHighlight {
     const stmt = db.prepare(`
       UPDATE pdf_highlights SET
         pdf_id = ?,
@@ -218,19 +218,19 @@ export default class PdfTable {
     return this.getPdfHighlightById(db, highlight.id);
   }
 
-  static async getPdfHighlightById(db: Database.Database, id: number): Promise<PdfHighlight> {
+  static getPdfHighlightById(db: Database.Database, id: number): PdfHighlight {
     const stmt = db.prepare('SELECT * FROM pdf_highlights WHERE id = ?');
     const highlight = stmt.get(id);
     return this.parsePdfHighlight(highlight);
   }
 
-  static async getPdfHighlights(db: Database.Database, pdfId: number): Promise<PdfHighlight[]> {
+  static getPdfHighlights(db: Database.Database, pdfId: number): PdfHighlight[] {
     const stmt = db.prepare('SELECT * FROM pdf_highlights WHERE pdf_id = ?');
     const highlights = stmt.all(pdfId);
     return highlights.map(highlight => this.parsePdfHighlight(highlight));
   }
 
-  static async removePdfHighlight(db: Database.Database, id: number): Promise<number> {
+  static removePdfHighlight(db: Database.Database, id: number): number {
     const stmt = db.prepare('DELETE FROM pdf_highlights WHERE id = ?');
     Operation.insertOperation(db, 'highlight', 'delete', id, Date.now());
     return stmt.run(id).changes;

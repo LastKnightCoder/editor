@@ -50,7 +50,7 @@ export default class WhiteboardTable {
     };
   }
 
-  static async createWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'id' | 'createTime' | 'updateTime'>): Promise<WhiteBoard> {
+  static createWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'id' | 'createTime' | 'updateTime'>): WhiteBoard {
     const stmt = db.prepare(`
       INSERT INTO white_boards
       (title, description, data, create_time, update_time, snapshot, is_project_item)
@@ -72,7 +72,7 @@ export default class WhiteboardTable {
     return this.getWhiteboard(db, Number(res.lastInsertRowid));
   }
 
-  static async updateWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'createTime' | 'updateTime'>): Promise<WhiteBoard> {
+  static updateWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'createTime' | 'updateTime'>): WhiteboardTable {
     const stmt = db.prepare(`
       UPDATE white_boards SET
         title = ?,
@@ -106,7 +106,7 @@ export default class WhiteboardTable {
     return this.getWhiteboard(db, whiteboard.id);
   }
 
-  static async deleteWhiteboard(db: Database.Database, id: number): Promise<number> {
+  static deleteWhiteboard(db: Database.Database, id: number): number {
     const stmt = db.prepare('DELETE FROM white_boards WHERE id = ?');
 
     Operation.insertOperation(db, 'whiteboard', 'delete', id, Date.now());
@@ -116,13 +116,13 @@ export default class WhiteboardTable {
     return stmt.run(id).changes;
   }
 
-  static async getWhiteboard(db: Database.Database, id: number): Promise<WhiteBoard> {
+  static getWhiteboard(db: Database.Database, id: number): WhiteBoard {
     const stmt = db.prepare('SELECT * FROM white_boards WHERE id = ?');
     const whiteboard = stmt.get(id);
     return this.parseWhiteboard(whiteboard);
   }
 
-  static async getAllWhiteboards(db: Database.Database): Promise<WhiteBoard[]> {
+  static getAllWhiteboards(db: Database.Database): WhiteBoard[] {
     const stmt = db.prepare('SELECT * FROM white_boards');
     const whiteboards = stmt.all();
     return whiteboards.map(wb => this.parseWhiteboard(wb));

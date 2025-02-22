@@ -43,7 +43,7 @@ export default class TimeRecordTable {
     };
   }
 
-  static async createTimeRecord(db: Database.Database, record: Omit<ITimeRecord, 'id'>): Promise<ITimeRecord> {
+  static createTimeRecord(db: Database.Database, record: Omit<ITimeRecord, 'id'>): ITimeRecord {
     const stmt = db.prepare(`
       INSERT INTO time_records (date, cost, content, event_type, time_type)
       VALUES (?, ?, ?, ?, ?)
@@ -61,7 +61,7 @@ export default class TimeRecordTable {
     return this.getTimeRecordById(db, Number(res.lastInsertRowid));
   }
 
-  static async updateTimeRecord(db: Database.Database, record: ITimeRecord): Promise<ITimeRecord> {
+  static updateTimeRecord(db: Database.Database, record: ITimeRecord): ITimeRecord {
     const stmt = db.prepare(`
       UPDATE time_records SET
         date = ?,
@@ -85,25 +85,25 @@ export default class TimeRecordTable {
     return this.getTimeRecordById(db, record.id);
   }
 
-  static async deleteTimeRecord(db: Database.Database, id: number): Promise<number> {
+  static deleteTimeRecord(db: Database.Database, id: number): number {
     const stmt = db.prepare('DELETE FROM time_records WHERE id = ?');
     Operation.insertOperation(db, 'time_record', 'delete', id, Date.now());
     return stmt.run(id).changes;
   }
 
-  static async getTimeRecordById(db: Database.Database, id: number): Promise<ITimeRecord> {
+  static getTimeRecordById(db: Database.Database, id: number): ITimeRecord {
     const stmt = db.prepare('SELECT * FROM time_records WHERE id = ?');
     const record = stmt.get(id);
     return this.parseTimeRecord(record);
   }
 
-  static async getTimeRecordsByDate(db: Database.Database, date: string): Promise<ITimeRecord[]> {
+  static getTimeRecordsByDate(db: Database.Database, date: string): ITimeRecord[] {
     const stmt = db.prepare('SELECT * FROM time_records WHERE date = ?');
     const records = stmt.all(date);
     return records.map(this.parseTimeRecord);
   }
 
-  static async getTimeRecordsByDateRange(db: Database.Database, startDate: string, endDate: string): Promise<TimeRecordGroup> {
+  static getTimeRecordsByDateRange(db: Database.Database, startDate: string, endDate: string): TimeRecordGroup {
     const stmt = db.prepare(`
       SELECT * FROM time_records 
       WHERE date BETWEEN ? AND ?
@@ -126,7 +126,7 @@ export default class TimeRecordTable {
     }));
   }
 
-  static async getAllTimeRecords(db: Database.Database): Promise<TimeRecordGroup> {
+  static getAllTimeRecords(db: Database.Database): TimeRecordGroup {
     const stmt = db.prepare('SELECT * FROM time_records ORDER BY date');
     const records = stmt.all();
 
@@ -145,13 +145,13 @@ export default class TimeRecordTable {
     }));
   }
 
-  static async getAllEventTypes(db: Database.Database): Promise<string[]> {
+  static getAllEventTypes(db: Database.Database): string[] {
     const stmt = db.prepare('SELECT DISTINCT event_type FROM time_records');
     const types = stmt.all() as { event_type: string }[];
     return types.map(t => t.event_type);
   }
 
-  static async getAllTimeTypes(db: Database.Database): Promise<string[]> {
+  static getAllTimeTypes(db: Database.Database): string[] {
     const stmt = db.prepare('SELECT DISTINCT time_type FROM time_records');
     const types = stmt.all() as { time_type: string }[];
     return types.map(t => t.time_type);

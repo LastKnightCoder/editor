@@ -23,9 +23,12 @@ import CalendarHeatmap, { IItem } from '@/components/CalendarHeatmap';
 import { getCalendarHeatmap, getAllStatistic } from "@/commands";
 import dayjs from "dayjs";
 import { Line } from "@ant-design/charts";
+import useTheme from "@/hooks/useTheme.ts";
 
 const HomeView = () => {
   const navigate = useNavigate();
+
+  const { isDark } = useTheme();
 
   const [notesLineData, setNotesLineData] = useState<{
     date: string;
@@ -213,6 +216,7 @@ const HomeView = () => {
                         title: '数量'
                       }
                     }}
+                    theme={isDark ? 'classicDark' : 'classic'}
                   />
                 </Card>
               </Col>
@@ -233,6 +237,7 @@ const HomeView = () => {
                         title: '字数'
                       }
                     }}
+                    theme={isDark ? 'classicDark' : 'classic'}
                   />
                 </Card>
               </Col>
