@@ -24,6 +24,7 @@ import { getCalendarHeatmap, getAllStatistic } from "@/commands";
 import dayjs from "dayjs";
 import { Line } from "@ant-design/charts";
 import useTheme from "@/hooks/useTheme.ts";
+import { useMemoizedFn } from "ahooks";
 
 const HomeView = () => {
   const navigate = useNavigate();
@@ -92,9 +93,7 @@ const HomeView = () => {
     }, 0);
   }, [articles]);
 
-  useEffect(() => {
-    if (!databaseStatus[active]) return;
-
+  const initData = useMemoizedFn(() => {
     getAllDocumentItems().then(items => {
       setDocumentItems(items);
       setDocumentItemWordCounts(items.reduce((acc, item) => {
@@ -131,7 +130,19 @@ const HomeView = () => {
       }));
       setNotesLineData(notesLineData);
     });
-  }, [databaseStatus, active]);
+  })
+
+  useEffect(() => {
+    if (!databaseStatus[active]) return;
+    initData();
+  }, [databaseStatus, active, initData]);
+
+  useEffect(() => {
+    document.addEventListener('database-sync-finis', initData);
+    return () => {
+      document.removeEventListener('database-sync-finis', initData);
+    }
+  }, [initData]);
 
   return (
     <div className={styles.container}>

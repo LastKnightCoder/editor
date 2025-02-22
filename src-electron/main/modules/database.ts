@@ -26,43 +26,9 @@ class DatabaseModule implements Module {
   windowToDatabase: Map<number, string>;
   tables: Table[];
   eventAndHandlers: Record<string, (db: Database.Database, ...args: any) => any>;
-  databasePendingPromiseQueue: Map<string, any[]>;
-  databaseLocks: Map<string, boolean>;
 
-  async getDatabase(name: string): Promise<Database.Database | undefined> {
-    return new Promise((resolve) => {
-      if (this.databaseLocks.has(name)) {
-        console.log(`database ${name} is locked, waiting...`)
-        const queue = this.databasePendingPromiseQueue.get(name) || [];
-        queue.push(resolve);
-        this.databasePendingPromiseQueue.set(name, queue);
-      } else {
-        // console.log(`database ${name} is not locked`)
-        const database = this.databases.get(name);
-        this.databaseLocks.set(name, true);
-        resolve(database);
-      }
-    });
-  }
-
-  returnDatabase(name: string) {
-    // console.log(`database ${name} is unlocked`)
-    if (this.databaseLocks.has(name)) {
-      const queue = this.databasePendingPromiseQueue.get(name);
-      if (queue) {
-        const resolve = queue.shift();
-        if (resolve) {
-          console.log('正在从队列中取出 resolve 函数');
-          resolve(this.databases.get(name));
-        }
-        if (queue.length === 0) {
-          this.databasePendingPromiseQueue.delete(name);
-          this.databaseLocks.delete(name);
-        }
-      } else {
-        this.databaseLocks.delete(name);
-      }
-    }
+  getDatabase(name: string): Database.Database | undefined {
+    return this.databases.get(name);
   }
 
   constructor() {
@@ -83,8 +49,6 @@ class DatabaseModule implements Module {
       OperationTable,
       StatisticTable,
     ] as unknown as Table[];
-    this.databasePendingPromiseQueue = new Map();
-    this.databaseLocks = new Map();
 
     this.eventAndHandlers = this.tables.reduce((acc, table) => {
       const events = table.getListenEvents();
@@ -114,7 +78,7 @@ class DatabaseModule implements Module {
     return newDatabaseName;
   }
 
-  async createDatabase(name: string) {
+  createDatabase(name: string) {
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
     const database = new Database(dbPath);
@@ -141,15 +105,12 @@ class DatabaseModule implements Module {
     ipcMain.handle('create-or-connect-database',  async (event, name, force?: boolean) => {
       const appDir = PathUtil.getAppDir();
       const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
-      let database: Database.Database | undefined;
-      if (this.databases.has(name) && !force) {
-        database = this.databases.get(name);
-      } else {
+      if (!this.databases.has(name) || force) {
         console.log(`connect database ${dbPath}`);
         if (this.databases.has(name)) {
           this.databases.get(name)!.close();
         }
-        database = await this.createDatabase(name);
+        const database = this.createDatabase(name);
         this.databases.set(name, database);
       }
 
@@ -169,7 +130,7 @@ class DatabaseModule implements Module {
         const dbName = this.windowToDatabase.get(win.id);
         if (!dbName) throw new Error('No database name found');
 
-        const db = await this.getDatabase(dbName);
+        const db = this.getDatabase(dbName);
         if (!db) throw new Error('No database found');
 
         console.log(`database ${dbName} event ${eventName}`);
@@ -181,8 +142,6 @@ class DatabaseModule implements Module {
         } catch (e) {
           console.error(e);
           db.exec('ROLLBACK');
-        } finally {
-          this.returnDatabase(dbName);
         }
       });
     })

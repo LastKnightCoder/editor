@@ -13,7 +13,7 @@ import {
   writeBinaryFile,
   createDir,
   pathExists,
-  getSep
+  getSep, closeDatabase
 } from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
@@ -53,6 +53,8 @@ export const upload = async () => {
   const { version: currentVersion } = database;
 
   const databasePath = await getDatabasePath(databaseName);
+  const walFilePath = `${databasePath}-wal`;
+  const shmFilePath = `${databasePath}-shm`;
   if (!databasePath) {
     message.error('请先设置数据库目录');
     return false;
@@ -104,9 +106,15 @@ export const upload = async () => {
   try {
     // 读取本地数据库文件并上传
     const contents = await readBinaryFile(databasePath);
+    const walContents = await readBinaryFile(walFilePath);
+    const shmContents = await readBinaryFile(shmFilePath);
     // 将 Uint8Array 转换为 Blob
     const dataObjectName = `${path}/${databaseName}`;
-    const isSuccessful = await createOrUpdateFile(ossOptions, dataObjectName, contents);
+    const walObjectName = `${path}/${databaseName}-wal`;
+    const shmObjectName = `${path}/${databaseName}-shm`;
+    const isSuccessful = await createOrUpdateFile(ossOptions, dataObjectName, contents) &&
+      await createOrUpdateFile(ossOptions, walObjectName, walContents) &&
+      await createOrUpdateFile(ossOptions, shmObjectName, shmContents);
     if (!isSuccessful) {
       message.error('上传数据库文件失败');
       return false;
@@ -143,6 +151,8 @@ export const download = async () => {
   const { version: currentVersion } = database;
 
   const databasePath = await getDatabasePath(databaseName);
+  const walFilePath = `${databasePath}-wal`;
+  const shmFilePath = `${databasePath}-shm`;
   if (!databasePath) {
     message.error('请先设置数据库目录');
     return false;
@@ -166,13 +176,31 @@ export const download = async () => {
 
   // 下载数据库文件
   const dataObjectName = `${path}/${databaseName}`;
+  const walObjectName = `${path}/${databaseName}-wal`;
+  const shmObjectName = `${path}/${databaseName}-shm`;
   try {
+    await closeDatabase(databaseName);
+
     const dataObject = await getObject({
       ...ossOptions,
       objectName: dataObjectName,
     });
+    const walObject = await getObject({
+      ...ossOptions,
+      objectName: walObjectName,
+    });
+    const shmObject = await getObject({
+      ...ossOptions,
+      objectName: shmObjectName,
+    });
     const blob = new Blob([dataObject.content]);
+    const walBlob = new Blob([walObject.content]);
+    const shmBlob = new Blob([shmObject.content]);
+
     const contents = new Uint8Array(await blob.arrayBuffer());
+    const walContents = new Uint8Array(await walBlob.arrayBuffer());
+    const shmContents = new Uint8Array(await shmBlob.arrayBuffer());
+
     const sep = await getSep();
     // 在覆盖本地文件之前，先备份一下，加上时间
     const backupDir = databasePath.split(sep).slice(0, -1).concat("backup").join(sep);
@@ -180,14 +208,32 @@ export const download = async () => {
       await createDir(backupDir);
     }
     const backupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}`;
+    const walBackupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}-wal`;
+    const shmBackupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}-shm`;
+
     const originContents = await readBinaryFile(databasePath);
+    const walOriginContents = await readBinaryFile(walFilePath);
+    const shmOriginContents = await readBinaryFile(shmFilePath);
+
     await writeBinaryFile(backupPath, originContents);
+    await writeBinaryFile(walBackupPath, walOriginContents);
+    await writeBinaryFile(shmBackupPath, shmOriginContents);
+
     await writeBinaryFile(databasePath, contents);
+    await writeBinaryFile(walFilePath, walContents);
+    await writeBinaryFile(shmFilePath, shmContents);
+
     useSettingStore.setState(produce(useSettingStore.getState(), (draft) => {
       const databases = draft.setting.database.databases;
       const index = databases.findIndex((item) => item.name === databaseName);
       databases[index].version = originVersion;
     }));
+
+    return true;
+  } catch (e) {
+    message.error('下载数据库文件失败，error: ' + e);
+    return false;
+  } finally {
     await connectDatabaseByName(databaseName, true);
     await Promise.all([
       useCardsManagementStore.getState().init(),
@@ -200,11 +246,8 @@ export const download = async () => {
       useWhiteBoardStore.getState().initWhiteBoards(),
       useChatMessageStore.getState().initChatMessage(),
     ]);
-
-    return true;
-  } catch (e) {
-    message.error('下载数据库文件失败，error: ' + e);
-    return false;
+    const event = new CustomEvent('database-sync-finish');
+    document.dispatchEvent(event);
   }
 }
 
