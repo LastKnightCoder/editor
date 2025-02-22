@@ -1,11 +1,12 @@
-import React, { useState, useRef } from "react";
-import { Dropdown, MenuProps, Space, Divider, Button, theme, Modal, Input, InputRef, App, Flex } from "antd";
+import { useState, useRef } from "react";
+import { Divider, Button, Modal, Input, InputRef, App, Flex, Popover } from "antd";
 import { produce } from "immer";
 import { IoCaretDownOutline } from "react-icons/io5";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
-
-const { useToken } = theme;
+import For from "@/components/For";
+import DatabaseItem from "@/components/SelectDatabase/DatabaseItem";
+import { closeDatabase, getDatabasePath, removeFile } from "@/commands";
 
 const SelectDatabase = () => {
   const {
@@ -15,31 +16,13 @@ const SelectDatabase = () => {
   }));
 
   const [createDatabaseModalOpen, setCreateDatabaseModalOpen] = useState(false);
+  const [databaseSelectPopoverOpen, setDatabaseSelectPopoverOpen] = useState(false);
+
   const createRef = useRef<InputRef>(null);
 
-  const { token } = useToken();
-  const { message } = App.useApp();
-
-  const contentStyle: React.CSSProperties = {
-    width: 150,
-    backgroundColor: token.colorBgElevated,
-    borderRadius: token.borderRadiusLG,
-    boxShadow: token.boxShadowSecondary,
-  };
+  const { message, modal } = App.useApp();
 
   const { active, databases } = database;
-
-  const menu: MenuProps['items'] = databases.map(item => ({
-    key: item.name,
-    label: item.name.replace('.db', ''),
-    disabled: active === item.name,
-  }));
-
-  const handleClickMenu: MenuProps['onClick'] = async ({ key }) => {
-    useSettingStore.setState(produce(state => {
-      state.setting.database.active = key;
-    }));
-  }
 
   const onHandleCreateDatabase = (databaseName: string) => {
     if (!databaseName) return;
@@ -56,27 +39,73 @@ const SelectDatabase = () => {
   return (
     // @ts-ignore
     <div style={{ cursor: 'pointer', '-webkit-app-region': 'no-drag' }}>
-      <Dropdown
-        trigger={['click']}
-        menu={{
-          items: menu,
-          onClick: handleClickMenu,
+      <Popover
+        open={databaseSelectPopoverOpen}
+        onOpenChange={setDatabaseSelectPopoverOpen}
+        trigger={'click'}
+        styles={{
+          body: {
+            padding: 4,
+            marginLeft: 12
+          }
         }}
-        dropdownRender={(menu) => (
-          <div style={contentStyle}>
-            {React.cloneElement(menu as React.ReactElement)}
-            <Divider style={{ margin: 0 }} />
-            <Space style={{ padding: 8 }}>
-              <Button onClick={() => { setCreateDatabaseModalOpen(true) }}>创建新的数据库</Button>
-            </Space>
-          </div>
+        arrow={false}
+        content={(
+          <Flex vertical gap={4} style={{ width: 150 }}>
+            <For
+              data={databases}
+              renderItem={(database) => (
+                <DatabaseItem
+                  key={database.name}
+                  name={database.name}
+                  disable={active === database.name}
+                  onClick={() => {
+                    useSettingStore.setState(produce(state => {
+                      state.setting.database.active = database.name;
+                    }));
+                    setDatabaseSelectPopoverOpen(false);
+                  }}
+                  onClickDelete={async () => {
+                    if (database.name === active) return;
+                    modal.confirm({
+                      title: '确定要删除此数据库吗？',
+                      content: '删除后，数据库文件将被删除，数据无法恢复！',
+                      onOk: async () => {
+                        useSettingStore.setState(produce(state => {
+                          state.setting.database.databases = state.setting.database.databases.filter((item: { name: string }) => item.name !== database.name);
+                        }));
+                        await closeDatabase(database.name);
+                        const databasePath = await getDatabasePath(database.name);
+                        await removeFile(databasePath);
+                      },
+                      okButtonProps: {
+                        danger: true
+                      }
+                    })
+                  }}
+                />
+              )}
+            />
+            <Divider style={{ margin: '12px 0' }} />
+            <Button
+              onClick={() => {
+                setCreateDatabaseModalOpen(true);
+                setDatabaseSelectPopoverOpen(false);
+              }}
+              style={{
+                margin: '0 6px 12px'
+              }}
+            >
+              创建新的数据库
+            </Button>
+          </Flex>
         )}
       >
         <Flex gap={4} align={'center'}>
           {active.replace('.db', '')}
           <IoCaretDownOutline />
         </Flex>
-      </Dropdown>
+      </Popover>
       <Modal
         width={400}
         title="创建新的数据库"

@@ -149,7 +149,7 @@ const Sidebar = (props: SidebarProps) => {
     >
       <div className={classnames(styles.sidebar, { [styles.isShort]: !sidebarOpen })}>
         <div className={classnames(styles.header, { [styles.indent]: isMac && !isFullscreen })}>
-          <SelectDatabase/>
+          <SelectDatabase />
           <div className={styles.icon} onClick={handleHideSidebar}>
             <FiSidebar/>
           </div>

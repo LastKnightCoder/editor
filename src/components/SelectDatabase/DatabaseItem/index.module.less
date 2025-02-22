@@ -1,0 +1,33 @@
+.item {
+  display: flex;
+  height: 32px;
+  padding: 5px 12px;
+  font-size: .9em;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 4px;
+  box-sizing: border-box;
+
+  align-items: center;
+  &.disabled {
+    cursor: not-allowed;
+    opacity: .5;
+  }
+  &:not(.disabled):hover {
+    background-color: var(--item-common-hover-bg);
+  }
+  .name {
+    flex: auto;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .delete {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+}

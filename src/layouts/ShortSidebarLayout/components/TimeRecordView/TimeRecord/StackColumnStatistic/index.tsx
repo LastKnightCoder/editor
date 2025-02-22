@@ -59,7 +59,7 @@ const StackColumnStatistic = (props: StackColumnStatisticProps) => {
         title: category === 'timeType' ? '时间类型' : '日期',
       },
       y: {
-        title: '花费事件(分钟)'
+        title: '花费时间(分钟)'
       }
     },
     color: ['#5B8FF9', '#5AD8A6', '#5D7092', '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#F6903D', '#BE0030', '#667CF3'],
