@@ -1,7 +1,7 @@
 import { ProjectItem } from "@/types";
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { getProjectItemById, updateProjectItem, getCardById } from '@/commands';
+import { getProjectItemById, partialUpdateProjectItem } from '@/commands';
 import { getContentLength } from "@/utils";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
@@ -11,7 +11,6 @@ import useCardsManagementStore from "@/stores/useCardsManagementStore";
 const useEdit = () => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const prevProjectItem = useRef<ProjectItem | null>(null);
-  // const [wordsCount, setWordsCount] = useState(0);
   const contentChanged = useRef(false);
 
   const {
@@ -29,10 +28,12 @@ const useEdit = () => {
       contentChanged.current = false;
       return;
     }
+
     getProjectItemById(activeProjectItemId).then((projectItem) => {
       setProjectItem(projectItem);
       prevProjectItem.current = projectItem;
     });
+
   }, [activeProjectItemId]);
 
   useEffect(() => {
@@ -40,40 +41,19 @@ const useEdit = () => {
     contentChanged.current = JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
   }, [projectItem]);
 
-  useEffect(() => {
-    const handleRefreshProjectItem = (e: any) => {
-      if (!projectItem) return;
-      const updatedProjectItem = e.detail;
-      if (updatedProjectItem.id === projectItem.id) {
-        getProjectItemById(projectItem.id).then((projectItem) => {
-          setProjectItem(projectItem);
-        });
-      }
-    }
-    document.addEventListener('refreshProjectItem', handleRefreshProjectItem);
-    return () => {
-      document.removeEventListener('refreshProjectItem', handleRefreshProjectItem);
-    }
-  }, [projectItem]);
-
   const saveProjectItem = useMemoizedFn((saveAnyway = false) => {
     if (!projectItem || !(contentChanged.current || saveAnyway) || dragging) return;
-    updateProjectItem(projectItem).then((updatedProject) => {
+    partialUpdateProjectItem({
+      id: projectItem.id,
+      title: projectItem.title,
+      content: projectItem.content,
+      count: projectItem.count,
+    }).then((updatedProject) => {
       setProjectItem(updatedProject);
       prevProjectItem.current = updatedProject;
       contentChanged.current = false;
       if (updatedProject.refType === 'card' && updatedProject.refId) {
-        getCardById(updatedProject.refId).then(updateCard => {
-          console.log('updateCard', updateCard);
-          const cards = useCardsManagementStore.getState().cards;
-          const newCards = produce(cards, draft => {
-            const index = draft.findIndex(card => card.id === updatedProject.refId);
-            if (index !== -1) {
-              draft[index] = updateCard;
-            }
-          });
-          useCardsManagementStore.setState({ cards: newCards });
-        });
+        useCardsManagementStore.getState().init().then();
       }
     });
   });
