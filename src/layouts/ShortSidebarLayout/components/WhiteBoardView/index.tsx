@@ -82,13 +82,17 @@ const WhiteBoardView = () => {
       <div className={styles.edit}>
         <WhiteBoard />
       </div>
-      <FloatButton
-        icon={<PlusOutlined />}
-        tooltip={'新建白板'}
-        onClick={() => {
-          setCreateWhiteBoardModalOpen(true);
-        }}
-      />
+      {
+        !activeWhiteBoardId && (
+          <FloatButton
+            icon={<PlusOutlined />}
+            tooltip={'新建白板'}
+            onClick={() => {
+              setCreateWhiteBoardModalOpen(true);
+            }}
+          />
+        )
+      }
       <Modal
         closeIcon={null}
         open={createWhiteBoardModalOpen}

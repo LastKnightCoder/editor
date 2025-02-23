@@ -88,6 +88,9 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
       },
       okText: '确定',
       cancelText: '取消',
+      okButtonProps: {
+        danger: true
+      }
     });
     setSettingOpen(false);
   }
