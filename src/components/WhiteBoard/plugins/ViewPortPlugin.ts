@@ -74,8 +74,11 @@ export class ViewPortPlugin implements IBoardPlugin {
       }
       e.preventDefault();
     } else {
-      const newX = board.viewPort.minX + 3 * e.deltaX;
-      const newY = board.viewPort.minY + 2 * e.deltaY;
+      // 使用触摸板的 deltaX 和 deltaY 都比较小，鼠标一般都会在 40 以上
+      const isTouch = Math.abs(e.deltaX) < 10 && Math.abs(e.deltaY) < 10;
+
+      const newX = board.viewPort.minX + (isTouch ? 10 : 3) * e.deltaX;
+      const newY = board.viewPort.minY + (isTouch ? 10 : 2) * e.deltaY;
       
       ViewPortTransforms.moveViewPort(board, newX, newY);
     }

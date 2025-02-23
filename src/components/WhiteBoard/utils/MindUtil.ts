@@ -135,13 +135,13 @@ export class MindUtil {
       this.dfs(draft, {
         before: (current) => {
           if (node.id !== current.id) return;
-          const lastChild = current.children[current.children.length - 1];
 
           const child: MindNodeElement = newChild || {
             id: uuid(),
             type: 'mind-node',
-            x: current.x + current.width + MARGIN_X,
-            y: lastChild ? lastChild.y + lastChild.actualHeight + (MARGIN_Y[current.level + 1] || 8) : current.y + current.height / 2 - 24,
+            // x 和 y 不重要，因为 layout 会算出来
+            x: 0,
+            y: 0,
             width: 24,
             height: 48,
             actualHeight: 48,
@@ -182,10 +182,65 @@ export class MindUtil {
     return this.layout(newRoot);
   }
 
+  static addChildBefore(root: MindNodeElement, node: MindNodeElement, beforeNode?: MindNodeElement, newChild?: MindNodeElement) {
+    const newRoot = produce(root, draft => {
+      this.dfs(draft, {
+        before: (current) => {
+          if (node.id !== current.id) return;
+          const child: MindNodeElement = newChild || {
+            id: uuid(),
+            type: 'mind-node',
+            // x 和 y 不重要，因为 layout 会算出来
+            x: 0,
+            y: 0,
+            width: 24,
+            height: 48,
+            actualHeight: 48,
+            level: current.level + 1,
+            childrenHeight: 0,
+            direction: 'right',
+            text: [
+              {
+                type: 'paragraph',
+                children: [
+                  {
+                    type: 'formatted',
+                    text: '',
+                  }
+                ]
+              }
+            ],
+            ...(MIND_COLORS[current.level] || MIND_COLORS[MIND_LINE_COLORS.length - 1]),
+            border: 'transparent',
+            children: [],
+            defaultFocus: true,
+          }
+          if (beforeNode) {
+            const index = current.children.findIndex(child => child.id === beforeNode.id);
+            if (index !== -1) {
+              current.children.splice(index, 0, child);
+            } else {
+              current.children.push(child);
+            }
+          } else {
+            current.children.unshift(child);
+          }
+        }
+      })
+    });
+    return this.layout(newRoot);
+  }
+
   static addSibling(root: MindNodeElement, node: MindNodeElement, newSibling?: MindNodeElement) {
     const parent = this.getParent(root, node);
     if (!parent) return;
     return this.addChild(root, parent, node, newSibling);
+  }
+
+  static addSiblingBefore(root: MindNodeElement, node: MindNodeElement, newSibling?: MindNodeElement) {
+    const parent = this.getParent(root, node);
+    if (!parent) return;
+    return this.addChildBefore(root, parent, node, newSibling);
   }
 
   static deleteNode(root: MindNodeElement, node: MindNodeElement) {
