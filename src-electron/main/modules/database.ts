@@ -140,7 +140,7 @@ class DatabaseModule implements Module {
     });
 
     ipcMain.handle('force-checkpoint', async (_event, name) => {
-      this.forceCheckpoint(name);
+      return this.forceCheckpoint(name);
     })
 
     Object.keys(this.eventAndHandlers).forEach((eventName) => {
