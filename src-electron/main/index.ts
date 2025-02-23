@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, net, protocol } from 'electron';
-import path from 'node:path';
+import { app, BrowserWindow, ipcMain, protocol } from 'electron';
+import path, { extname } from 'node:path';
 import os from 'node:os';
-import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { createReadStream, existsSync, statSync } from 'node:fs';
 import resourceModule from './modules/resource';
 import databaseModule from './modules/database';
 import settingModule from './modules/setting';
@@ -78,6 +78,32 @@ const createWindow = () => {
   })
 };
 
+function getMimeType(ext: string): string {
+  const mimeTypes: Record<string, string> = {
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.ogg': 'video/ogg',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+  }
+  return mimeTypes[ext.toLowerCase()] || 'application/octet-stream'
+}
+
+function streamResponse(
+  path: string,
+  options: { status: number; headers: Record<string, string> },
+  streamOptions?: { start?: number; end?: number }
+) {
+  const stream = createReadStream(path, streamOptions);
+  return new Response(stream as unknown as ReadableStream, options);
+}
+
 const initModules = async () => {
   Promise.all([
     settingModule.init(),
@@ -115,44 +141,56 @@ app.whenReady().then(() => {
       }
     })
   });
-  protocol.handle('ltoh', async (req) => {
-    const url = new URL(req.url);
-    const res = await net.fetch('file://' + url.pathname);
 
-    // 如果是视频或者音频
-    if (['video', 'audio'].includes((res.headers.get('content-type') || '').split('/')[0])) {
-      // 读取 range，可能没有 end
-      const range = req.headers.get('range');
-      if (range) {
-        // 获取文件大小
-        const size = (await fs.stat(url.pathname)).size;
-        const [, start, end] = range.match(/bytes=(\d+)-(\d+)?/)!;
-        const startNum = parseInt(start);
-        const endNum = end ? parseInt(end) : size - 1;
-        const chunkSize = endNum - startNum + 1;
-        console.log(`Range: ${startNum}-${endNum}`);
-        const file = await fs.open(url.pathname, 'r');
-        // 读取 start 到 end 的内容
-        const buffer = Buffer.alloc(chunkSize);
-        await file.read(buffer, 0, chunkSize, startNum);
-        // 构建 HTTP Response
-        const newRes = new Response(buffer, {
+  protocol.handle('ltoh', async (request) => {
+    const startTime = Date.now()
+    try {
+      // 转换URL为文件路径
+      const parsedUrl = new URL(request.url);
+      const filePath = parsedUrl.pathname.slice(process.platform === 'win32' ? 1 : 0);
+
+      // 验证文件存在
+      if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+        return new Response('Not Found', { status: 404 });
+      }
+
+      // 获取文件信息
+      const stats = statSync(filePath);
+      const fileSize = stats.size;
+      const rangeHeader = request.headers.get('range') || '';
+      const mimeType = getMimeType(extname(filePath));
+
+      // 处理范围请求
+      if (rangeHeader && mimeType.startsWith('video/') || mimeType.startsWith('audio/')) {
+        const ranges = rangeHeader.replace(/bytes=/, '').split('-');
+        const start = parseInt(ranges[0], 10);
+        const end = ranges[1] ? parseInt(ranges[1], 10) : fileSize - 1;
+        return streamResponse(filePath, {
           status: 206,
           headers: {
-            'Content-Range': `bytes ${startNum}-${endNum}/${size}`,
-            'Content-Length': `${chunkSize}`,
+            'Content-Type': mimeType,
+            'Content-Length': (end - start + 1).toString(),
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
             'Accept-Ranges': 'bytes',
-            'Content-Type': 'audio/mpeg',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          },
-        });
-
-        return newRes;
+            'Cache-Control': 'public, max-age=31536000'
+          }
+        }, { start, end });
       }
-    }
 
-    return res;
+      // 完整文件请求
+      return streamResponse(filePath, {
+        status: 200,
+        headers: {
+          'Content-Type': mimeType,
+          'Content-Length': fileSize.toString(),
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'max-age=604800' // 7天缓存
+        }
+      });
+    } catch (error) {
+      console.error(`❌ 请求失败 [${Date.now() - startTime}ms]:`, error)
+      return new Response('Internal Error', { status: 500 });
+    }
   });
 });
 

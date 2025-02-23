@@ -15,6 +15,10 @@ export const getFileBaseName = async (filePath: string, noExtension?: boolean) =
   return await invoke('get-file-basename', filePath, noExtension);
 }
 
+export const getFileExtension = async (filePath: string): Promise<string> => {
+  return await invoke('get-file-extension', filePath);
+}
+
 export const readBinaryFile = async (filePath: string): Promise<Uint8Array> => {
   return await invoke('read-binary-file', filePath);
 }
@@ -48,5 +52,6 @@ export const removeFile = async (filePath: string): Promise<void> => {
 }
 
 export const convertFileSrc = (filePath: string): string => {
-  return `ltoh://${filePath}`;
+  return `ltoh:///${filePath}`;
 }
+

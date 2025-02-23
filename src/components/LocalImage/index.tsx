@@ -16,9 +16,16 @@ const LocalImage = (props: ILocalImageProps) => {
   const { url, alt, className, style, onClick, ...restProps } = props;
 
   const [previewUrl, setPreviewUrl] = useState(url);
+  const [isConverting, setIsConverting] = useState(false);
 
   useAsyncEffect(async () => {
+    setIsConverting(true);
     try {
+      // 如果是 base64 或 blob url，直接使用
+      if (url.startsWith('data:') || url.startsWith('blob:')) {
+        return;
+      }
+
       if (url.startsWith('http')) {
         const localUrl = await remoteResourceToLocal(url);
         const filePath = convertFileSrc(localUrl);
@@ -29,12 +36,16 @@ const LocalImage = (props: ILocalImageProps) => {
       }
     } catch(e) {
       console.error(e);
+    } finally {
+      setIsConverting(false);
     }
   }, [url]);
 
   const onError = useMemoizedFn(() => {
     setPreviewUrl(url);
   });
+
+  if (isConverting) return null;
 
   return (
     <img
