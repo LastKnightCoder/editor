@@ -1,5 +1,5 @@
 import styles from './index.module.less';
-import { ArrowElement, EArrowLineType, EMarkerType } from "@/components/WhiteBoard";
+import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
 import { Popover, Tooltip } from "antd";
 import { produce } from 'immer';
 import Arrow from '../../Arrow';

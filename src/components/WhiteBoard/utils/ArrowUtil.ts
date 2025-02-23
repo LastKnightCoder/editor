@@ -1,5 +1,5 @@
-import { EArrowLineType, EMarkerType, Point } from "@/components/WhiteBoard";
-import { ARROW_SIZE } from "@/components/WhiteBoard/constants";
+import { EArrowLineType, EMarkerType, Point } from "../types";
+import { ARROW_SIZE } from "../constants";
 
 interface GetArrowPathParams {
   lineType: EArrowLineType;
@@ -9,11 +9,11 @@ interface GetArrowPathParams {
 }
 
 export class ArrowUtil {
-  static getMiddlePoint = (startPoint: Point, endPoint: Point, hasStartMarker = false, hasEndMarker = false) => {
+  static getMiddlePoint = (startPoint: Point, endPoint: Point, forceVertical = false, hasStartMarker = false, hasEndMarker = false) => {
     // 如果宽度大于高度，取 (startX + 1/4 * w, startY) 和 (startX + 3/4 * w, endY)
     const w = endPoint.x - startPoint.x;
     const h = endPoint.y - startPoint.y;
-    if (Math.abs(w) >= Math.abs(h)) {
+    if (Math.abs(w) >= Math.abs(h) || forceVertical) {
       return [{
         x: startPoint.x + (hasStartMarker ? Math.sign(w) * ARROW_SIZE : 0),
         y: startPoint.y
@@ -44,7 +44,7 @@ export class ArrowUtil {
     }
   }
 
-  static getArrowPath(arrow: GetArrowPathParams): string {
+  static getArrowPath(arrow: GetArrowPathParams, forceVertical = false): string {
     const { lineType, points, sourceMarker, targetMarker } = arrow;
     if (lineType === EArrowLineType.STRAIGHT) {
       return points.reduce((path, point, index) => {
@@ -60,7 +60,7 @@ export class ArrowUtil {
           return acc + `M ${point.x} ${point.y} `
         }
         // 三阶贝塞尔曲线
-        const middlePoint = this.getMiddlePoint(points[index - 1], point, index === 1 && sourceMarker !== EMarkerType.None, index === points.length - 1 && targetMarker !== EMarkerType.None);
+        const middlePoint = this.getMiddlePoint(points[index - 1], point, forceVertical,index === 1 && sourceMarker !== EMarkerType.None, index === points.length - 1 && targetMarker !== EMarkerType.None);
         // 如果 point 是最后一个点，并且 targetMarker 不是 none，线
         return acc + `L ${middlePoint[0].x} ${middlePoint[0].y} C ${middlePoint[1].x} ${middlePoint[1].y} ${middlePoint[2].x} ${middlePoint[2].y} ${middlePoint[3].x} ${middlePoint[3].y} L ${point.x} ${point.y} `
       }, '');

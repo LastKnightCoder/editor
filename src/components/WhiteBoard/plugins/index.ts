@@ -11,3 +11,4 @@ export * from './CommonPlugin';
 export * from './ArrowPlugin';
 export * from './ImagePlugin';
 export * from './VideoPlugin';
+export * from './MindPlugin';

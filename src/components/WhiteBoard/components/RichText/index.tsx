@@ -255,9 +255,7 @@ const Richtext = memo((props: RichTextProps) => {
               borderRadius: 4,
               zIndex: -1
             }}
-          >
-          
-          </div>
+          />
           {
             topColor && (
                 <div className={styles.borderTop} style={{ background: topColor }}></div>

@@ -46,7 +46,7 @@ export type SetThemeOperation = {
   newProperties: Partial<BoardTheme>;
 };
 
-export type SetMoveingOperation = {
+export type SetMovingOperation = {
   type: 'set_moving';
   properties: BoardElement[];
   newProperties: BoardElement[];
@@ -59,5 +59,5 @@ export type Operation =
   | SetNodeOperation
   | SetViewportOperation
   | SetSelectionOperation
-  | SetMoveingOperation
+  | SetMovingOperation
   | SetThemeOperation;

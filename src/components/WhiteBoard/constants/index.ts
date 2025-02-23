@@ -5,3 +5,5 @@ export * from './resize';
 export * from './geometry';
 export * from './card';
 export * from './richtext';
+export * from './mind';
+

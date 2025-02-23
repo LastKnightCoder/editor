@@ -10,3 +10,4 @@ export * from './RichTextUtil';
 export * from './common';
 export * from './RefLineUtil';
 export * from './ArrowUtil.ts';
+export * from './MindUtil.ts';

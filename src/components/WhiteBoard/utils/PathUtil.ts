@@ -1,6 +1,5 @@
 import { BoardElement, Board } from '../types';
 import BoardUtil from "./BoardUtil.ts";
-import get from "lodash/get";
 
 export type Path = number[];
 
@@ -35,12 +34,22 @@ export class PathUtil {
     const { children } = board;
     // 根据 path 从数组中找到对应的节点，如果不存在抛出异常
     // value 是一个数组
-    const node: BoardElement | undefined = get(children, path);
+    const node = this.getElement(children, path);
     if (!node) {
       throw new Error(`node not found by path: ${path}`);
     } else {
       return node;
     }
+  }
+
+  static getElement(children: BoardElement[], path: Path): BoardElement | null {
+    const element = children[path[0]];
+    if (path.length === 1) {
+      return element;
+    }
+    if (!element.children) return null;
+
+    return this.getElement(element.children, path.slice(1));
   }
 
   static getParentByPath(board: Board, path: Path): Board | BoardElement | null {

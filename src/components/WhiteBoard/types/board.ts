@@ -11,6 +11,7 @@ export enum ECreateBoardElementType {
   Text = 'text',
   Image = 'image',
   Card = 'card',
+  MindMap = 'mindMap',
 }
 
 export interface BoardElement {
