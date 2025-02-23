@@ -1,5 +1,5 @@
 import { ipcMain, dialog } from 'electron';
-import { basename, parse } from 'node:path';
+import { basename, parse, extname } from 'node:path';
 import { exec } from 'node:child_process';
 import { getFonts } from 'font-list';
 import PathUtil from '../utils/PathUtil';
@@ -28,6 +28,10 @@ class ResourceModule implements Module {
     ipcMain.handle('get-file-basename', async (_, filePath: string, noExtension?: boolean) => {
       return this.getFileBaseName(filePath, noExtension);
     });
+
+    ipcMain.handle('get-file-extension', async (_, filePath: string) => {
+      return extname(filePath);
+    })
 
     ipcMain.handle('get-all-fonts', () => {
       return this.getAllFonts();

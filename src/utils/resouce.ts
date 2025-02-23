@@ -7,7 +7,7 @@ import {
   readTextFile,
   getFileBaseName,
   getSep,
-  nodeFetch
+  nodeFetch,
 } from '@/commands';
 
 // 将远程资源下载到本地
@@ -16,6 +16,7 @@ import {
 const REMOTE_RESOURCE_CONFIG_NAME = "remote_local_map.json";
 const REMOTE_RESOURCE_PATH = 'remote-resources';
 const LOCAL_RESOURCE_PATH = 'resources';
+
 export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!fileName) {
     fileName = await getFileBaseName(url);
@@ -31,6 +32,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
       }
     }
   }
+
   const sep = await getSep();
   const configDirPath = await getEditorDir();
   const configPath = configDirPath + sep + REMOTE_RESOURCE_CONFIG_NAME;
@@ -39,6 +41,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     // 創建文件
     await writeTextFile(configPath, JSON.stringify({}));
   }
+
   const config = await readTextFile(configPath);
   let configObj: Record<string, string> = {};
   try {
@@ -47,12 +50,18 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     console.error(e);
   }
   if (configObj[url]) {
-    return configObj[url];
+    if (!await pathExists(configObj[url])) {
+      delete configObj[url];
+    } else {
+      return configObj[url];
+    }
   }
+
   const resourceDirPath = configDirPath + sep + REMOTE_RESOURCE_PATH;
   if (!await pathExists(resourceDirPath)) {
     await createDir(resourceDirPath);
   }
+
   const remoteContent = await nodeFetch(url, {
     method: "GET",
     responseType: 'arraybuffer',

@@ -17,12 +17,15 @@ const LocalAudio = (props: LocalAudioProps) => {
   useAsyncEffect(async () => {
     setLoading(true);
     try {
+      // 如果是 base64 或 blob url，直接使用
+      if (src.startsWith('data:') || src.startsWith('blob:')) {
+        return;
+      }
+
       if (src.startsWith('http')) {
-        console.log('src', src);
         const localUrl = await remoteResourceToLocal(src);
         const filePath = convertFileSrc(localUrl);
         setPreviewUrl(filePath);
-        console.log('filePath', filePath);
       } else {
         const filePath = convertFileSrc(src);
         setPreviewUrl(filePath);
