@@ -1,20 +1,34 @@
 import classnames from 'classnames';
-import { Select } from "antd";
+import { Flex, Popover } from "antd";
 
 import styles from './index.module.less';
+import For from "@/components/For";
+import React, { useState } from "react";
 
 interface SelectLanguageProps {
   value: string;
   onChange: (value: string) => void;
   style?: React.CSSProperties;
   className?: string;
+  readonly?: boolean;
+}
+
+const aliases: Record<string, string> = {
+  js: 'JavaScript',
+  ts: 'TypeScript',
+  rs: 'Rust',
+  py: 'Python',
+  md: 'Markdown',
+  xml: 'HTML',
+  latex: 'LaTex',
+  cpp: 'C++',
+  sh: 'Shell',
+  zsh: 'Shell'
 }
 
 const languages = [
   { label: 'JavaScript', value: 'JavaScript' },
-  { label: 'js', value: 'js' },
   { label: 'TypeScript', value: 'TypeScript' },
-  { label: 'ts', value: 'ts' },
   { label: 'JSX', value: 'JSX' },
   { label: 'TSX', value: 'TSX' },
   { label: 'HTML', value: 'HTML' },
@@ -25,10 +39,8 @@ const languages = [
   { label: 'C#', value: 'C#' },
   { label: 'Java', value: 'Java' },
   { label: 'Rust', value: 'Rust' },
-  { label: 'rs', value: 'rs' },
   { label: 'Go', value: 'Go' },
   { label: 'Python', value: 'Python' },
-  { label: 'py', value: 'py' },
   { label: 'Objective C', value: 'Objective C' },
   { label: 'Scale', value: 'Scale' },
   { label: 'JSON', value: 'JSON' },
@@ -42,26 +54,66 @@ const languages = [
   { label: 'SQL', value: 'sql' },
   { label: 'Latex', value: 'stex' },
   { label: 'Markdown', value: 'markdown' },
-  { label: 'md', value: 'md' },
 ]
 
 const SelectLanguage = (props: SelectLanguageProps) => {
-  const { value, onChange, className, style = {} } = props;
+  const {
+    value,
+    onChange,
+    className,
+    style = {},
+    readonly,
+  } = props;
+
+  const [open, setOpen] = useState(false);
 
   return (
-    <Select
-      showSearch
-      value={value}
-      onChange={onChange}
-      placeholder="选择语言"
-      optionFilterProp="children"
-      options={languages}
-      filterOption={(input, option) =>
-        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-      }
-      className={classnames(className, styles.selectLanguage)}
-      style={style}
-    />
+    <Popover
+      placement={'bottom'}
+      open={!readonly && open}
+      onOpenChange={(open) => {
+        if (readonly) {
+          setOpen(false);
+          return;
+        }
+        setOpen(open);
+      }}
+      trigger={'click'}
+      styles={{
+        body: {
+          padding: 4
+        }
+      }}
+      arrow={false}
+      content={(
+        <Flex vertical gap={4} style={{ height: 400, overflow: 'auto' }}>
+          <For
+            data={languages}
+            renderItem={(item) => {
+              return (
+                <div
+                  key={item.value}
+                  className={classnames(styles.languageItem, {
+                    [styles.active]: value === item.value
+                  })}
+                  onClick={() => {
+                    if (readonly) return;
+                    onChange(item.value);
+                    setOpen(false);
+                  }}
+                >
+                  {item.label}
+                </div>
+              )
+            }}
+          />
+        </Flex>
+      )}
+    >
+      <div style={style} className={classnames(styles.selectLanguage, className, { [styles.disable]: readonly })}>
+        {aliases[value] || value}
+      </div>
+    </Popover>
   )
 }
 
