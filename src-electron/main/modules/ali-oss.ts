@@ -59,6 +59,10 @@ class AliOss implements Module {
     ipcMain.handle('create-object', async (_event, objInfo: IGetObject, content: Uint8Array) => {
       return await this.createObject(objInfo, content);
     });
+
+    ipcMain.handle('delete-object', async (_event, objInfo: IGetObject) => {
+      return await this.deleteObject(objInfo);
+    });
   }
 
   async putObject(putObj: IPutObject): Promise<string> {
@@ -131,6 +135,17 @@ class AliOss implements Module {
       'x-oss-forbid-overwrite': 'true',
     }
     return await oss.put(objectName, Buffer.from(content), { headers });
+  }
+
+  async deleteObject(objInfo: IGetObject) {
+    const { accessKeyId, accessKeySecret, bucket, region, objectName } = objInfo;
+    const oss = new OSS({
+      accessKeyId,
+      accessKeySecret,
+      bucket,
+      region,
+    });
+    return await oss.delete(objectName);
   }
 }
 

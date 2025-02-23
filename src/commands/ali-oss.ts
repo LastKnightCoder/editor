@@ -46,3 +46,7 @@ export const updateObject = async (objInfo: IGetObject, content: Uint8Array) => 
 export const createObject = async (objInfo: IGetObject, content: Uint8Array) => {
   return invoke('create-object', objInfo, content);
 }
+
+export const deleteObject = async (objInfo: IGetObject) => {
+  return invoke('delete-object', objInfo);
+}
