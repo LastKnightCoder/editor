@@ -143,21 +143,7 @@ export class RefLineUtil {
         return refLine.x1 - currentLine.x1;
       }
     } else {
-      // 不同类型的线，求交点的最小距离
-      if (currentLine.type === 'horizontal') {
-        // 看水平线哪边离参考垂直线近
-        if (Math.abs(refLine.x1 - currentLine.x1) < Math.abs(refLine.x2 - currentLine.x1)) {
-          return refLine.x1 - currentLine.x1;
-        } else {
-          return refLine.x1 - currentLine.x2;
-        }
-      } else {
-        if (Math.abs(refLine.y1 - currentLine.y1) < Math.abs(refLine.y2 - currentLine.y1)) {
-          return refLine.y1 - currentLine.y1;
-        } else {
-          return refLine.y1 - currentLine.y2;
-        }
-      }
+      return Infinity;
     }
   }
 
@@ -259,28 +245,6 @@ export class RefLineUtil {
                 y1: Math.min(currentLine.y1, currentLine.y2, refLine.y1, refLine.y2),
                 x2: refLine.x2,
                 y2: Math.max(currentLine.y1, currentLine.y2, refLine.y1, refLine.y2),
-                distance: dist
-              })
-            }
-          } else {
-            if (currentLine.type === 'horizontal') {
-              matchedLines.push({
-                key: refLine.key,
-                type: refLine.type,
-                x1: refLine.x1,
-                y1: Math.min(currentLine.y1, currentLine.y2, refLine.y1, refLine.y2),
-                x2: refLine.x2,
-                y2: Math.max(currentLine.y1, currentLine.y2, refLine.y1, refLine.y2),
-                distance: dist
-              })
-            } else {
-              matchedLines.push({
-                key: refLine.key,
-                type: refLine.type,
-                x1: Math.min(currentLine.x1, currentLine.x2, refLine.x1, refLine.x2),
-                y1: refLine.y1,
-                x2: Math.max(currentLine.x1, currentLine.x2, refLine.x1, refLine.x2),
-                y2: refLine.y2,
                 distance: dist
               })
             }
