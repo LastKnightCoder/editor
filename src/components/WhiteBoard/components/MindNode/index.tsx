@@ -249,6 +249,31 @@ const MindNode = (props: MindNodeProps) => {
             selectedElements: []
           }
         }]);
+      } else if (isHotkey('shift+enter', e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const oldRoot = MindUtil.getRoot(board, element);
+        if (!oldRoot) return;
+
+        const newRoot = MindUtil.addSiblingBefore(oldRoot, element);
+        if (!newRoot) return;
+
+        const rootPath = PathUtil.getPathByElement(board, oldRoot);
+        if (!rootPath) return;
+
+        board.apply([{
+          type: 'set_node',
+          path: rootPath,
+          properties: oldRoot,
+          newProperties: newRoot
+        }, {
+          type: 'set_selection',
+          properties: board.selection,
+          newProperties: {
+            selectArea: null,
+            selectedElements: []
+          }
+        }]);
       } else if (isHotkey('backspace', e)) {
         e.stopPropagation();
         e.preventDefault();
