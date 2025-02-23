@@ -1,8 +1,10 @@
 .codeBlockContainer {
   position: relative;
-  --code-block-bg-color: #f6f8fa;
+  --code-block-bg-color: rgba(246, 248, 250, .6);
+  --code-block-shadow: 0 1px 2px 0 #0000001a;
   &.dark {
-    --code-block-bg-color: #161b22;
+    --code-block-bg-color: rgba(40, 42, 52);
+    --code-block-shadow:  0 1px 2px 0 #0000001a;
   }
   &.readOnly {
     :global(.CodeMirror-cursors) {
@@ -39,18 +41,11 @@
   .languageSelect {
     position: absolute;
     top: 10px;
-    left: 16px;
+    left: 24px;
     z-index: 1;
-    transition: opacity 0.3s;
-    [class*="ant-"] {
-      font-family: var(--mono-font) !important;
-    }
-    :global(.ant-select-selector) {
-      background-color: transparent;
-      border: none;
-    }
   }
   .CodeMirrorContainer :global(.CodeMirror) {
+    box-shadow: var(--code-block-shadow);
     background-color: var(--code-block-bg-color);
     height: auto;
     padding: 48px 12px 18px;

@@ -135,7 +135,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
         className={styles.copyButton}
         onClick={handleCopyCode}
       />
-      { !readOnly && <SelectLanguage className={styles.languageSelect} value={language} onChange={handleOnLanguageChange} />}
+      <SelectLanguage readonly={readOnly} className={styles.languageSelect} value={language} onChange={handleOnLanguageChange} />
       <CodeEditor
         value={code || ''}
         autoCursor
@@ -144,8 +144,8 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (props) =>
           inputStyle: 'textarea',
           mode: langConfig?.mime || langConfig?.mode || 'text/plain',
           theme: isDark ? 'blackboard' : 'one-light',
-          // lineNumbers: true,
-          // firstLineNumber: 1,
+          lineNumbers: true,
+          firstLineNumber: 1,
           scrollbarStyle: "null",
           viewportMargin: Infinity,
           lineWrapping: false,
