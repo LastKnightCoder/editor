@@ -1,5 +1,5 @@
-import { Board, BoardElement, ECreateBoardElementType, IBoardPlugin, Operation } from "../types";
-import { BoardUtil, PointUtil, PathUtil, isValid, Rect } from "../utils";
+import { Board, BoardElement, ECreateBoardElementType, IBoardPlugin, MindNodeElement, Operation } from "../types";
+import { BoardUtil, PointUtil, PathUtil, isValid, Rect, MindUtil } from "../utils";
 
 export class MovePlugin implements IBoardPlugin {
   name = 'move-plugin';
@@ -75,6 +75,15 @@ export class MovePlugin implements IBoardPlugin {
         const path = PathUtil.getPathByElement(board, movedElement);
         if (!path) return;
         movedElements.push(movedElement);
+        if (movedElement.type === 'mind-node' && MindUtil.isRoot(movedElement as MindNodeElement)) {
+          // 把所有的子节点都移动的元素中
+          MindUtil.dfs(movedElement as MindNodeElement, {
+            before: (node: MindNodeElement) => {
+              if (MindUtil.isRoot(node)) return;
+              movedElements.push(node);
+            }
+          })
+        }
       }
     });
 
@@ -94,7 +103,7 @@ export class MovePlugin implements IBoardPlugin {
     if (!e.altKey) {
       // 根据 newCurrent 更新 movedElements
       movedElements = movedElements.map(me => {
-        if (me.type === 'arrow') return me;
+        if (me.type === 'arrow' || me.type === 'mind-node') return me;
         const rect = newCurrent.rects.find(rect => rect.key === me.id);
         if (!rect) return;
         return {

@@ -8,4 +8,4 @@ export * from './path.ts';
 export * from './arrow.ts';
 export * from './image.ts';
 export * from './video.ts';
-export * from './component-config.ts';
+export * from './mind.ts';

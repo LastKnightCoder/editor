@@ -15,6 +15,7 @@ import {
   ArrowPlugin, 
   ImagePlugin,
   VideoPlugin,
+  MindPlugin,
 } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import { BoardContext, SelectionContext, ViewPortContext } from './context';
@@ -38,6 +39,7 @@ const geometryPlugin = new GeometryPlugin();
 const cardPlugin = new CardPlugin();
 const imagePlugin = new ImagePlugin();
 const videoPlugin = new VideoPlugin();
+const mindPlugin = new MindPlugin();
 
 const plugins = [
   arrowPlugin,
@@ -46,6 +48,7 @@ const plugins = [
   richTextPlugin,
   imagePlugin,
   videoPlugin,
+  mindPlugin,
   historyPlugin,
   selectPlugin,
   movePlugin,
@@ -66,7 +69,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const { 
     className,
     style,
-    initData, 
+    initData,
     initViewPort = { minX: 0, minY: 0, width: 0, height: 0, zoom: 1 }, 
     initSelection = { selectArea: null, selectedElements: [] as BoardElement[] },
     onChange
@@ -152,7 +155,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
     document.addEventListener('mousedown', handleGlobalMouseDown);
     document.addEventListener('mouseup', handleGlobalMouseUp);
-    document.addEventListener('wheel', handleOnWheel);
+    document.addEventListener('wheel', handleOnWheel, {
+      passive: false
+    });
 
     document.addEventListener('pointerdown', handleOnGlobalPointerDown);
     document.addEventListener('pointermove', handleOnGlobalPointerMove);

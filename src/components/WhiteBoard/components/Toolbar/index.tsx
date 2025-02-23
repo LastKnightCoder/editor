@@ -7,6 +7,7 @@ import Arrow from './Arrow';
 import Image from './Image';
 import Video from './Video';
 import Card from './Card';
+import MindMap from "./MindMap";
 
 import textIcon from '@/assets/white-board/text.svg';
 
@@ -14,6 +15,7 @@ import { ECreateBoardElementType } from '../../types';
 import { useBoard, useCreateElementType } from '../../hooks';
 
 import styles from './index.module.less';
+
 
 const Toolbar = memo(() => {
   const board = useBoard();
@@ -25,7 +27,7 @@ const Toolbar = memo(() => {
   });
   
   return (
-    <div className={styles.toolBar}>
+    <div className={styles.toolBar} onClick={e => e.stopPropagation()}>
       <Geometry 
         className={classnames(styles.toolBarItem, {
           [styles.active]: createBoardElementType === ECreateBoardElementType.Geometry,
@@ -46,6 +48,11 @@ const Toolbar = memo(() => {
       >
         <SVG src={textIcon} />
       </div>
+      <MindMap
+        className={classnames(styles.toolBarItem, {
+          [styles.active]: createBoardElementType === ECreateBoardElementType.MindMap,
+        })}
+      />
       <Image className={styles.toolBarItem} />
       <Video className={styles.toolBarItem} />
       <Card className={styles.toolBarItem} />

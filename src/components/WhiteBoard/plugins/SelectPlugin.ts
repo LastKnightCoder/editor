@@ -1,5 +1,5 @@
-import { BoardElement, IBoardPlugin, Board, ECreateBoardElementType } from "../types";
-import { BoardUtil, PointUtil } from "../utils";
+import { BoardElement, IBoardPlugin, Board, ECreateBoardElementType, MindNodeElement, Operation } from "../types";
+import { BoardUtil, isValid, MindUtil, PathUtil, PointUtil } from "../utils";
 import { SelectTransforms } from "../transforms";
 import isHotkey from "is-hotkey";
 
@@ -81,8 +81,57 @@ export class SelectPlugin implements IBoardPlugin {
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
     if (isHotkey(['delete', 'backspace'], e)) {
-      const ops = BoardUtil.getBatchRemoveNodesOps(board, selectedElements);
-      board.apply(ops);
+      // 思维导图节点还需要特殊处理，删除后需要布局
+      const mindNodes = selectedElements.filter(element => element.type === 'mind-node') as MindNodeElement[];
+      // 找到所有的根节点
+      const roots = mindNodes.map(node => {
+        const root = MindUtil.getRoot(board, node);
+        if (!root) return;
+        return {
+          root,
+          node
+        }
+      }).filter(isValid);
+
+      // 按照根节点聚合
+      const rootsMap = new Map<MindNodeElement, MindNodeElement[]>();
+      roots.forEach(root => {
+        const rootNode = root.root;
+        if (!rootsMap.has(rootNode)) {
+          rootsMap.set(rootNode, []);
+        }
+        rootsMap.get(rootNode)?.push(root.node);
+      });
+
+      // 分为两种，一种是 root 在 selectedElements 中，一种是 root 不在 selectedElements 中
+      // 根节点删除就整个被删除了
+      const mindOps: Operation[] = [];
+      rootsMap.forEach((nodes, root) => {
+        const rootPath = PathUtil.getPathByElement(board, root);
+        if (!rootPath) return;
+        if (selectedElements.map(node => node.id).includes(root.id)) {
+          mindOps.push({
+            type: 'remove_node',
+            path: rootPath,
+            node: root
+          })
+        } else {
+          const newRoot = MindUtil.deleteNodes(root, nodes);
+          mindOps.push({
+            type: 'set_node',
+            path: rootPath,
+            properties: root,
+            newProperties: newRoot
+          })
+        }
+      });
+
+      const otherElements = selectedElements.filter(element => element.type !== 'mind-node');
+      const ops = BoardUtil.getBatchRemoveNodesOps(board, otherElements);
+
+      const finalOps = [...mindOps, ...ops];
+
+      board.apply(finalOps);
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,
         selectedElements: []

@@ -1,3 +1,5 @@
+import { EHandlerPosition } from "../types";
+
 export interface Rect {
   key: string;
   x: number;
@@ -105,6 +107,15 @@ export class RefLineUtil {
     this.current.rects = rects;
   }
 
+  addCurrentRects(rects: Rect[]) {
+    const uniqueRects = this.current.rects.filter(rect => {
+      return !rects.some(otherRect => {
+        return rect.key === otherRect.key;
+      });
+    });
+    this.current.rects = uniqueRects.concat(rects);
+  }
+
   setCurrentLines(lines: Line[]) {
     this.current.lines = lines;
   }
@@ -150,7 +161,7 @@ export class RefLineUtil {
     }
   }
 
-  getUpdateCurrent(adsorb = false, adsorbDistance: number, isResize = false) {
+  getUpdateCurrent(adsorb = false, adsorbDistance: number, isResize = false, position?: EHandlerPosition) {
     // 如果不吸附，直接返回
     if (!adsorb || !adsorbDistance) {
       return {
@@ -172,16 +183,24 @@ export class RefLineUtil {
       rects: this.current.rects.map(rect => {
         if (verticalLines.length > 0) {
           const verticalLine = verticalLines[0];
-          if (isResize) {
-            rect.width = rect.width + verticalLine.distance;
+          if (isResize && position) {
+            if ([EHandlerPosition.TopLeft, EHandlerPosition.BottomLeft, EHandlerPosition.Left].includes(position)) {
+              rect.x = rect.x + verticalLine.distance;
+            } else {
+              rect.width = rect.width + verticalLine.distance;
+            }
           } else {
             rect.x = rect.x + verticalLine.distance;
           }
         }
         if (horizontalLines.length > 0) {
           const horizontalLine = horizontalLines[0];
-          if (isResize) {
-            rect.height = rect.height + horizontalLine.distance;
+          if (isResize && position) {
+            if ([EHandlerPosition.TopLeft, EHandlerPosition.TopRight, EHandlerPosition.Top].includes(position)) {
+              rect.y = rect.y + horizontalLine.distance;
+            } else {
+              rect.height = rect.height + horizontalLine.distance;
+            }
           } else {
             rect.y = rect.y + horizontalLine.distance
           }
@@ -209,9 +228,9 @@ export class RefLineUtil {
   // 矩形和线全部拆开为线进行匹配，只要距离小于 distance 就认为是匹配到了
   matchRefLines(distance: number, excludeRefKeys: string[] = []): Array<Line & { distance: number }> {
     const excludeKeys = [...this.current.rects.map(rect => rect.key), ...this.current.lines.map(line => line.key)];
-    const mergedExlucdeKeys = [...new Set([...excludeKeys, ...excludeRefKeys])];
+    const mergedExcludeKeys = [...new Set([...excludeKeys, ...excludeRefKeys])];
     const currentLines = this.current.rects.flatMap(this.extractLinesFromRect).concat(this.current.lines);
-    const refLines = this.refRects.filter(rect => !mergedExlucdeKeys.includes(rect.key)).flatMap(this.extractLinesFromRect).concat(this.refLines.filter(line => !mergedExlucdeKeys.includes(line.key)));
+    const refLines = this.refRects.filter(rect => !mergedExcludeKeys.includes(rect.key)).flatMap(this.extractLinesFromRect).concat(this.refLines.filter(line => !mergedExcludeKeys.includes(line.key)));
 
     const matchedLines: Array<Line & { distance: number }> = [];
 

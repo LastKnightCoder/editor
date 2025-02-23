@@ -45,7 +45,7 @@ export class CardPlugin extends CommonPlugin implements IBoardPlugin {
       key: newElement.id,
       ...newBBox
     }]);
-    const updateElement = board.refLine.getUpdateCurrent(isAdsorb, 5 / board.viewPort.zoom, true);
+    const updateElement = board.refLine.getUpdateCurrent(isAdsorb, 5 / board.viewPort.zoom, true, position);
     board.refLine.setCurrent(updateElement);
     newElement.x = updateElement.rects[0].x;
     newElement.y = updateElement.rects[0].y;
