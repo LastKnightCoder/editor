@@ -6,7 +6,6 @@ import AddTag from "@/components/AddTag";
 import { memo, useEffect, useRef } from 'react';
 import classnames from "classnames";
 import { Button } from "antd";
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 
 const DEFAULT_CONTENT = [{
   type: 'paragraph',
@@ -49,7 +48,6 @@ const CreateCard = memo((props: CreateCardProps) => {
     setContent(DEFAULT_CONTENT);
     setTags([]);
     editorRef.current?.setEditorValue(DEFAULT_CONTENT);
-    await useCardsManagementStore.getState().init();
   });
   
   const onCancelSaveCard = () => {

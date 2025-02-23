@@ -97,7 +97,6 @@ const CardContainer = () => {
       for (const path of filePath) {
         const markdown = await readTextFile(path);
         const content = importFromMarkdown(markdown);
-        // console.log('from markdown content', content);
         await createCard({
           content,
           tags: [],
