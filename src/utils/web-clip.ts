@@ -15,7 +15,7 @@ interface WebClipResult {
   value?: Descendant[];
 }
 
-export const webClipFromUrl = async (url: string, options: WebClipOptions): Promise<WebClipResult> => {
+export const webClipFromUrl = async (url: string, options: WebClipOptions = {}): Promise<WebClipResult> => {
   const { directFromHTML } = options;
 
   const res = await nodeFetch(url, {

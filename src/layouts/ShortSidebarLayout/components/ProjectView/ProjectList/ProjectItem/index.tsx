@@ -631,10 +631,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             duration: 0
           });
 
-          const res = await webClipFromUrl(webClip, {
-            split: true,
-            controller: parserControllerRef.current,
-          }).catch(() => {
+          const res = await webClipFromUrl(webClip).catch(() => {
             return {
               result: false,
               error: '未知错误',
