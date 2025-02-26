@@ -109,6 +109,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           onDoubleClick={(e) => {
             e.stopPropagation();
           }}
+          draggable={false}
           style={{
             objectFit: 'contain',
             objectPosition: 'center',

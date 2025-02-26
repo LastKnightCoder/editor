@@ -1,5 +1,5 @@
 import { IBoardPlugin, ViewPort, Board, ECreateBoardElementType } from '../types';
-import { BOARD_TO_CONTAINER } from "../constants";
+import { BOARD_TO_CONTAINER, MIN_ZOOM, MAX_ZOOM } from "../constants";
 import { ViewPortTransforms } from "../transforms";
 import isHotkey from 'is-hotkey';
 
@@ -65,11 +65,11 @@ export class ViewPortPlugin implements IBoardPlugin {
       // 判断滚轮方向以及是否在board中
       if (e.deltaY < 0 && boardX > 0 && boardY > 0 && boardX < containerRect.width && boardY < containerRect.height) {
         // 放大
-        const newZoom = Math.min(board.viewPort.zoom * 1.1, 10);
+        const newZoom = Math.min(board.viewPort.zoom * 1.1, MAX_ZOOM);
         ViewPortTransforms.updateZoom(board, newZoom, [boardX, boardY]);
       } else if (e.deltaY > 0 && boardX > 0 && boardY > 0 && boardX < containerRect.width && boardY < containerRect.height) {
         // 缩小
-        const newZoom = Math.max(board.viewPort.zoom / 1.1, 0.1);
+        const newZoom = Math.max(board.viewPort.zoom / 1.1, MIN_ZOOM);
         ViewPortTransforms.updateZoom(board, newZoom, [boardX, boardY]);
       }
       e.preventDefault();
