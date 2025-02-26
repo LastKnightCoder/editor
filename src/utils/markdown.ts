@@ -226,7 +226,6 @@ const markdownToDescendant = (node: any, parent: any): Descendant | Descendant[]
       }]
     }
   } else if (node.type === 'image') {
-    if (parent.type === 'link' || parent.type === 'paragraph') return null;
     return {
       type: 'image',
       url: node.url,
@@ -282,7 +281,15 @@ const markdownToDescendant = (node: any, parent: any): Descendant | Descendant[]
         ...attributes
       }
     }).filter(Boolean).flat() as Descendant[];
-  }  else {
+  } else if (node.type === 'break' || node.type === 'thematicBreak') {
+    return {
+      type: "divide-line",
+      children: [{
+        type: 'formatted',
+        text: ""
+      }]
+    }
+  } else {
     console.log('unknown node', node);
     if (parent && parent.type === 'paragraph' || parent.type === 'link' || parent.type === 'heading') {
       return {
@@ -333,6 +340,8 @@ export const importFromMarkdown = (markdown: string): Descendant[] => {
     }
   }
 
+  console.log('parseResult', parseResult);
+
   dfs(parseResult.children, editor);
 
   let beforeNormalize = editor;
@@ -347,14 +356,24 @@ export const importFromMarkdown = (markdown: string): Descendant[] => {
 }
 
 const normalizeEditorContent = (editor: Descendant[], result: Descendant[] = [], parent: Descendant | null = null): Descendant[] => {
-  for (const element of editor) {
+  for (let i = 0; i < editor.length; i++) {
+    const element = editor[i];
     if (element.type !== 'formatted' && element.children.length === 0) {
       continue;
     } else if (element.type === 'link' && element.children.some(child => child.type !== 'formatted')) {
       while (element.children.some(child => child.type !== 'formatted')) {
         element.children.splice(element.children.findIndex(child => child.type !== 'formatted'), 1);
       }
-    } else if (element.type === 'image' && parent && parent.type === 'paragraph') {
+    } else if (element.type === 'paragraph') {
+      // 找到所有的 image，提出来
+      const imageElements: Descendant[] = element.children.filter(child => (child as any).type === 'image');
+      result.push(...imageElements);
+      element.children = element.children.filter(child => (child as any).type !== 'image');
+      if (element.children.length === 0) {
+        continue;
+      }
+    // @ts-ignore
+    } else if (parent && element.type === 'divide-line' && parent.children[i + 1]?.type === 'divide-line') {
       continue;
     }
     if (element.type !== 'formatted' && element.children) {

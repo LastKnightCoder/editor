@@ -32,7 +32,6 @@ export class MindUtil {
           if (node.children.length > 0) {
             node.childrenHeight = node.children.reduce((pre, cur) => {
               return pre + cur.actualHeight;
-              // @ts-ignore
             }, 0) + (node.children.length - 1) * (MARGIN_Y[node.level + 1] || 8);
             node.actualHeight = Math.max(node.childrenHeight, node.height);
           } else {
@@ -49,7 +48,6 @@ export class MindUtil {
           const beforeSiblings = index > 0 ? parent.children.slice(0, index) : [];
           const siblingsHeight = beforeSiblings.reduce((pre, cur) => {
             return pre + cur.actualHeight;
-            // @ts-ignore
           }, 0) + beforeSiblings.length * (MARGIN_Y[node.level] || 8);
           const baseY = parent.y + parent.height / 2 - parent.childrenHeight / 2;
           const childrenTop = baseY + siblingsHeight;

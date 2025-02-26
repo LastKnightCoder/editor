@@ -15,7 +15,6 @@ import {
   pathExists,
   getSep,
   closeDatabase,
-  forceCheckpoint,
   deleteObject, removeFile,
 } from "@/commands";
 
@@ -56,8 +55,6 @@ export const upload = async () => {
   const { version: currentVersion } = database;
 
   const databasePath = await getDatabasePath(databaseName);
-  const walFilePath = `${databasePath}-wal`;
-  const shmFilePath = `${databasePath}-shm`;
 
   if (!databasePath) {
     message.error('请先设置数据库目录');
@@ -65,11 +62,6 @@ export const upload = async () => {
   }
 
   await closeDatabase(databaseName);
-
-  const res = await forceCheckpoint(databaseName);
-  if (!res) {
-    message.error('强制检查点失败');
-  }
 
   const ossOptions = {
     accessKeyId,
@@ -117,34 +109,7 @@ export const upload = async () => {
   try {
     const contents = await readBinaryFile(databasePath);
     const dataObjectName = `${path}/${databaseName}`;
-
-    let walUploadSuccess = true;
-    if (await pathExists(walFilePath)) {
-      try {
-        const walContents = await readBinaryFile(walFilePath);
-        const walObjectName = `${path}/${databaseName}-wal`;
-        await createOrUpdateFile(ossOptions, walObjectName, walContents);
-      } catch (e) {
-        walUploadSuccess = false;
-      }
-    } else {
-      await deleteFile(ossOptions, walFilePath);
-    }
-
-    let shmUploadSuccess = true;
-    if (await pathExists(shmFilePath)) {
-      try {
-        const shmContents = await readBinaryFile(shmFilePath);
-        const shmObjectName = `${path}/${databaseName}-shm`;
-        await createOrUpdateFile(ossOptions, shmObjectName, shmContents);
-      } catch (e) {
-        shmUploadSuccess = false;
-      }
-    } else {
-      await deleteFile(ossOptions, shmFilePath);
-    }
-
-    const isSuccessful = await createOrUpdateFile(ossOptions, dataObjectName, contents) && walUploadSuccess && shmUploadSuccess;
+    const isSuccessful = await createOrUpdateFile(ossOptions, dataObjectName, contents);
     if (!isSuccessful) {
       message.error('上传数据库文件失败');
       return false;
@@ -209,8 +174,6 @@ export const download = async () => {
 
   // 下载数据库文件
   const dataObjectName = `${path}/${databaseName}`;
-  const walObjectName = `${path}/${databaseName}-wal`;
-  const shmObjectName = `${path}/${databaseName}-shm`;
   try {
     await closeDatabase(databaseName);
 
@@ -222,84 +185,30 @@ export const download = async () => {
     }
 
     const backupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}`;
-    const walBackupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}-wal`;
-    const shmBackupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format('YYYY-MM-DD-hh-mm-ss')}-${databaseName}-shm`;
 
     try {
       const originContents = await readBinaryFile(databasePath);
       await writeBinaryFile(backupPath, originContents);
-
-      if (await pathExists(walFilePath)) {
-        const walOriginContents = await readBinaryFile(walFilePath);
-        await writeBinaryFile(walBackupPath, walOriginContents);
-      }
-
-      if (await pathExists(shmFilePath)) {
-        const shmOriginContents = await readBinaryFile(shmFilePath);
-        await writeBinaryFile(shmBackupPath, shmOriginContents);
-      }
     } catch (e) {
       message.warning('备份数据库文件失败，停止下载');
       console.error(e);
       return false;
     }
 
-    let walDownloadSuccess = true;
-    if (await isObjectExist({
-      ...ossOptions,
-      objectName: walObjectName,
-    })) {
-      try {
-        const walObject = await getObject({
-          ...ossOptions,
-          objectName: walObjectName,
-        });
-        const walBlob = new Blob([walObject.content]);
-
-        const walContents = new Uint8Array(await walBlob.arrayBuffer());
-        await writeBinaryFile(walFilePath, walContents);
-      } catch (e) {
-        console.error(e);
-        walDownloadSuccess = false;
+    try {
+      if (await pathExists(walFilePath)) {
+        await removeFile(walFilePath);
       }
-    } else {
-      try {
-        if (await pathExists(walFilePath)) {
-          await removeFile(walFilePath);
-        }
-      } catch (e) {
-        console.error(e);
-        walDownloadSuccess = false;
-      }
+    } catch (e) {
+      console.error(e);
     }
 
-    let shmDownloadSuccess = true;
-    if (await isObjectExist({
-      ...ossOptions,
-      objectName: shmObjectName,
-    })) {
-      try {
-        const shmObject = await getObject({
-          ...ossOptions,
-          objectName: shmObjectName,
-        });
-        const shmBlob = new Blob([shmObject.content]);
-
-        const shmContents = new Uint8Array(await shmBlob.arrayBuffer());
-        await writeBinaryFile(shmFilePath, shmContents);
-      } catch (e) {
-        console.error(e);
-        shmDownloadSuccess = false;
+    try {
+      if (await pathExists(shmFilePath)) {
+        await removeFile(shmFilePath);
       }
-    } else {
-      try {
-        if (await pathExists(shmFilePath)) {
-          await removeFile(shmFilePath);
-        }
-      } catch (e) {
-        console.error(e);
-        shmDownloadSuccess = false;
-      }
+    } catch (e) {
+      console.error(e);
     }
 
     let databaseDownloadSuccess = true;
@@ -316,7 +225,7 @@ export const download = async () => {
       databaseDownloadSuccess = false;
     }
 
-    const isSuccessful = databaseDownloadSuccess && walDownloadSuccess && shmDownloadSuccess;
+    const isSuccessful = databaseDownloadSuccess;
 
     if (isSuccessful) {
       useSettingStore.setState(produce(useSettingStore.getState(), (draft) => {
@@ -329,24 +238,6 @@ export const download = async () => {
       try {
         const dataContent = await readBinaryFile(backupPath);
         await writeBinaryFile(databasePath, dataContent);
-
-        if (await pathExists(walBackupPath)) {
-          const walContent = await readBinaryFile(walBackupPath);
-          await writeBinaryFile(walFilePath, walContent);
-        } else {
-          if (await pathExists(walFilePath)) {
-            await removeFile(walFilePath);
-          }
-        }
-
-        if (await pathExists(shmBackupPath)) {
-          const shmContent = await readBinaryFile(shmBackupPath);
-          await writeBinaryFile(shmFilePath, shmContent);
-        } else {
-          if (await pathExists(shmFilePath)) {
-            await removeFile(shmFilePath);
-          }
-        }
       } catch (e) {
         message.error('恢复数据库文件失败，当前数据库文件可能存在损坏，可从备份文件夹手动备份');
       }
@@ -444,7 +335,7 @@ const createOrUpdateFile = async (ossOptions: any, objectName: string, content: 
   }
 }
 
-const deleteFile = async (ossOptions: any, objectName: string) => {
+export const deleteOssFile = async (ossOptions: any, objectName: string) => {
   try {
     await deleteObject({
       ...ossOptions,
