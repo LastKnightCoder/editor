@@ -1,4 +1,4 @@
-import { memo, useMemo, useEffect, useRef, useSyncExternalStore } from "react";
+import React, { memo, useMemo, useEffect, useRef, useSyncExternalStore } from "react";
 import { useMemoizedFn, useCreation } from "ahooks";
 import classnames from 'classnames';
 
@@ -19,13 +19,16 @@ import {
 } from './plugins';
 import { ViewPortTransforms } from "./transforms";
 import { BoardContext, SelectionContext, ViewPortContext } from './context';
-import { BOARD_TO_CONTAINER, ARROW_SIZE } from "./constants";
+import { BOARD_TO_CONTAINER, ARROW_SIZE, ZOOMS, MIN_ZOOM, MAX_ZOOM } from "./constants";
 import { BoardElement, Events, ViewPort, Selection } from "./types";
 import Toolbar from './components/Toolbar';
 import SelectArea from './components/SelectArea';
 import GradientLine from "./components/GradientLine";
 import styles from './index.module.less';
 import AttributeSetter from "./components/AttributeSetter";
+import { MinusOutlined, PlusOutlined } from "@ant-design/icons";
+import { Flex, Popover } from "antd";
+import For from "@/components/For";
 
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
@@ -115,6 +118,14 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const handleContainerResize = useMemoizedFn(() => {
     ViewPortTransforms.onContainerResize(board);
   });
+
+  const handleZoomIn = useMemoizedFn(() => {
+    ViewPortTransforms.updateZoom(board, Math.max(zoom / 1.1, MIN_ZOOM));
+  });
+
+  const handleZoomOut = useMemoizedFn(() => {
+    ViewPortTransforms.updateZoom(board, Math.min(zoom * 1.1, MAX_ZOOM));
+  })
   
   const handleMouseDown = eventHandlerGenerator('onMouseDown');
   const handleMouseMove = eventHandlerGenerator('onMouseMove');
@@ -257,6 +268,47 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
             <div className={styles.verticalBar}>
               <AttributeSetter />
             </div>
+            <Flex
+              className={styles.statusBar}
+              gap={12}
+              align={'center'}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <MinusOutlined onClick={handleZoomIn} />
+              <Popover
+                trigger={'click'}
+                arrow={false}
+                content={(
+                  <Flex vertical gap={4}>
+                    <For
+                      data={ZOOMS}
+                      renderItem={zoomValue => (
+                        <div
+                          key={zoomValue}
+                          className={styles.zoomItem}
+                          onClick={() => {
+                            ViewPortTransforms.updateZoom(board, zoomValue);
+                          }}
+                        >
+                          {Math.round(zoomValue * 100)}%
+                        </div>
+                      )}
+                    />
+                  </Flex>
+                )}
+                styles={{
+                  body: {
+                    padding: 4,
+                    marginBottom: 12
+                  }
+                }}
+              >
+                { Math.round(zoom * 100) }%
+              </Popover>
+              <PlusOutlined onClick={handleZoomOut} />
+            </Flex>
           </ViewPortContext.Provider>
         </SelectionContext.Provider>
       </BoardContext.Provider>
