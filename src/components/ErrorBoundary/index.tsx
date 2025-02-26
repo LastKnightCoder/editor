@@ -17,20 +17,18 @@ class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBoundaryS
 
   componentDidCatch(error: Error) {
     this.setState({ error: `${error.name}: ${error.message}` });
-    // message.error(error.message);
     console.error(`${error.name}: ${error.message}`);
   }
 
   render() {
-    // const { error } = this.state;
-    // if (error) {
-    //   return (
-    //     <div>{error}</div>
-    //   );
-    // } else {
-    //   return <>{this.props.children}</>;
-    // }
-    return <>{this.props.children}</>;
+    const { error } = this.state;
+    if (error) {
+      return (
+        <div>{error}</div>
+      );
+    } else {
+      return <>{this.props.children}</>;
+    }
   }
 }
 
