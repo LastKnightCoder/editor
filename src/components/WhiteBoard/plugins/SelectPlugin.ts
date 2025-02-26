@@ -106,15 +106,12 @@ export class SelectPlugin implements IBoardPlugin {
       // 分为两种，一种是 root 在 selectedElements 中，一种是 root 不在 selectedElements 中
       // 根节点删除就整个被删除了
       const mindOps: Operation[] = [];
+      const toDeleteRoots: MindNodeElement[] = [];
       rootsMap.forEach((nodes, root) => {
         const rootPath = PathUtil.getPathByElement(board, root);
         if (!rootPath) return;
         if (selectedElements.map(node => node.id).includes(root.id)) {
-          mindOps.push({
-            type: 'remove_node',
-            path: rootPath,
-            node: root
-          })
+          toDeleteRoots.push(root);
         } else {
           const newRoot = MindUtil.deleteNodes(root, nodes);
           mindOps.push({
@@ -127,7 +124,7 @@ export class SelectPlugin implements IBoardPlugin {
       });
 
       const otherElements = selectedElements.filter(element => element.type !== 'mind-node');
-      const ops = BoardUtil.getBatchRemoveNodesOps(board, otherElements);
+      const ops = BoardUtil.getBatchRemoveNodesOps(board, [...otherElements, ...toDeleteRoots]);
 
       const finalOps = [...mindOps, ...ops];
 
