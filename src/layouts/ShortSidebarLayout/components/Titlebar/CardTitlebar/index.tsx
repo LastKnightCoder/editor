@@ -2,11 +2,11 @@ import { useMatch, useNavigate } from 'react-router-dom';
 import classnames from 'classnames';
 import For from '@/components/For';
 import { FaListUl } from "react-icons/fa6";
-import { PiGraphThin } from "react-icons/pi";
-
+import TitlebarIcon from "@/components/TitlebarIcon";
+import graphIcon from '@/assets/icons/graph.svg';
+import SVG from 'react-inlinesvg';
 
 import styles from './index.module.less';
-import TitlebarIcon from "@/components/TitlebarIcon";
 
 const CardTitlebar = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ const CardTitlebar = () => {
   }, {
     label: '关系图谱',
     to: '/cards/link-graph',
-    icon: <PiGraphThin />,
+    icon: <SVG src={graphIcon} /> ,
     active: useMatch('/cards/link-graph') !== null
   }];
 

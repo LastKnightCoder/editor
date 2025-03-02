@@ -1,12 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 import classnames from 'classnames';
-import { Empty, Select, Dropdown, MenuProps } from 'antd';
+import { Empty, Select, Dropdown, MenuProps, FloatButton } from 'antd';
 import { useMemoizedFn } from 'ahooks';
 
 import For from '@/components/For';
 import LoadMoreComponent from '@/components/LoadMoreComponent';
 import TagItem from '@/components/TagItem';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, UpOutlined } from '@ant-design/icons';
 import CardItem from './CardItem';
 import Card from '../../../components/EditCards';
 
@@ -26,6 +26,7 @@ import { getContentLength, importFromMarkdown } from "@/utils";
 const CardContainer = () => {
   const { cardTree } = useCardTree();
   const [isCreatingCard, setIsCreatingCard] = useState(false);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const { 
@@ -203,7 +204,17 @@ const CardContainer = () => {
                     />
                   )
                 }
-                <div className={styles.list} ref={listRef}>
+                <div
+                  className={styles.list}
+                  ref={listRef}
+                  onScroll={(e) => {
+                    if (e.currentTarget.scrollTop > 100) {
+                      setShowScrollToTop(true);
+                    } else {
+                      setShowScrollToTop(false);
+                    }
+                  }}
+                >
                   <If condition={filteredCards.length === 0}>
                     <Empty description={'暂无卡片'} />
                   </If>
@@ -232,6 +243,25 @@ const CardContainer = () => {
           <Card />
         </div>
       </div>
+      {
+        !isShowEdit && showScrollToTop && (
+          <FloatButton
+            style={{
+              position: 'absolute',
+              // right: 0,
+              // bottom: 0,
+            }}
+            icon={<UpOutlined />}
+            tooltip={'回到顶部'}
+            onClick={() => {
+              listRef.current?.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+              });
+            }}
+          />
+        )
+      }
     </div>
   )
 }

@@ -3,7 +3,6 @@ import { useNavigate, useMatch } from 'react-router-dom';
 import { HomeOutlined } from '@ant-design/icons';
 import classnames from 'classnames';
 import For from '@/components/For';
-import { FiSidebar } from "react-icons/fi";
 import SidebarItem from "./SidebarItem";
 import { platform } from '@/electron.ts';
 
@@ -20,6 +19,7 @@ import setting from '@/assets/icons/setting.svg';
 import sun from '@/assets/icons/sun.svg';
 import moon from '@/assets/icons/moon.svg';
 import vecDatabase from '@/assets/icons/vec-database.svg';
+import sidebarLeft from '@/assets/icons/sidebar-left.svg';
 
 import SelectDatabase from "@/components/SelectDatabase";
 import styles from './index.module.less';
@@ -29,6 +29,7 @@ import { Flex } from "antd";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import useFullScreen from "@/hooks/useFullScreen.ts";
 import If from "@/components/If";
+import TitlebarIcon from "@/components/TitlebarIcon";
 
 interface SidebarProps {
   className?: string;
@@ -150,9 +151,9 @@ const Sidebar = (props: SidebarProps) => {
       <div className={classnames(styles.sidebar, { [styles.isShort]: !sidebarOpen })}>
         <div className={classnames(styles.header, { [styles.indent]: isMac && !isFullscreen })}>
           <SelectDatabase />
-          <div className={styles.icon} onClick={handleHideSidebar}>
-            <FiSidebar/>
-          </div>
+          <TitlebarIcon onClick={handleHideSidebar}>
+            <SVG src={sidebarLeft } />
+          </TitlebarIcon>
         </div>
         <div className={classnames(styles.list, { [styles.isMac]: isMac && !isFullscreen })}>
           <If condition={sidebarOpen}>

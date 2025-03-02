@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import classnames from "classnames";
 
-import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import FocusMode from '../FocusMode';
-import { Popover, Tooltip } from "antd";
-
+import SVG from "react-inlinesvg";
+import { Popover } from "antd";
 import { PushpinOutlined } from '@ant-design/icons';
 import { TbColumns3, TbColumns2, TbColumns1 } from "react-icons/tb";
+import TitlebarIcon from "@/components/TitlebarIcon";
+
+import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
+
+import { setAlwaysOnTop as setTop } from '@/commands';
+import sidebarRightIcon from '@/assets/icons/sidebar-right.svg';
 
 import styles from './index.module.less';
-import { FiSidebar } from "react-icons/fi";
-import { setAlwaysOnTop as setTop } from '@/commands';
 
 interface IWindowControlProps {
   className?: string;
@@ -128,27 +131,20 @@ const WindowControl = (props: IWindowControlProps) => {
           <FocusMode />
         )
       }
-      <Tooltip
-        title={alwaysOnTop ? '取消置顶' : '置顶'}
-      >
-        <div className={classnames(styles.item)} onClick={toggleAlwaysOnTop}>
-          <PushpinOutlined className={classnames(styles.pin, { [styles.onTop]: alwaysOnTop })}/>
-        </div>
-      </Tooltip>
+      <TitlebarIcon tip={alwaysOnTop ? '取消置顶' : '置顶'} onClick={toggleAlwaysOnTop}>
+        <PushpinOutlined className={classnames(styles.pin, { [styles.onTop]: alwaysOnTop })}/>
+      </TitlebarIcon>
       {
         showRightSidebar && (
-          <div
-            className={styles.item}
-            onClick={() => {
-              useGlobalStateStore.setState((state) => {
-                return {
-                  rightSidebarOpen: !state.rightSidebarOpen
-                }
-              })
-            }}
-          >
-            <FiSidebar/>
-          </div>
+          <TitlebarIcon onClick={() => {
+            useGlobalStateStore.setState((state) => {
+              return {
+                rightSidebarOpen: !state.rightSidebarOpen
+              }
+            })
+          }}>
+            <SVG src={sidebarRightIcon} />
+          </TitlebarIcon>
         )
       }
     </div>
