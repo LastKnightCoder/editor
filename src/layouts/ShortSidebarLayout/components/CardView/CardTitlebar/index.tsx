@@ -3,12 +3,20 @@ import classnames from 'classnames';
 import For from '@/components/For';
 import { FaListUl } from "react-icons/fa6";
 import { PiGraphThin } from "react-icons/pi";
-
-
-import styles from './index.module.less';
+import TitlebarV2 from "@/layouts/components/TitlebarV2";
 import TitlebarIcon from "@/components/TitlebarIcon";
 
-const CardTitlebar = () => {
+import styles from './index.module.less';
+import React from "react";
+
+interface CardTitlebarProps {
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+const CardTitlebar = (props: CardTitlebarProps) => {
+  const { className, style } = props;
+
   const navigate = useNavigate();
 
   const tabsConfig = [{
@@ -24,26 +32,24 @@ const CardTitlebar = () => {
   }];
 
   return (
-    <div className={styles.nav}>
-      <For
-        data={tabsConfig}
-        renderItem={item => (
-          <div
-            key={item.label}
-            className={classnames(styles.item)}
-            onClick={() => navigate(item.to)}
-          >
+    <TitlebarV2 className={className} style={style}>
+      <div className={styles.nav}>
+        <For
+          data={tabsConfig}
+          renderItem={item => (
             <TitlebarIcon
+              key={item.label}
+              className={classnames(styles.item)}
               tip={item.label}
               onClick={() => navigate(item.to)}
               active={item.active}
             >
               {item.icon}
             </TitlebarIcon>
-          </div>
-        )}
-      />
-    </div>
+          )}
+        />
+      </div>
+    </TitlebarV2>
   )
 }
 

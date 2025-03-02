@@ -2,26 +2,26 @@ import { useMemo, useRef, useState } from 'react';
 import classnames from 'classnames';
 import { Empty, Select, Dropdown, MenuProps } from 'antd';
 import { useMemoizedFn } from 'ahooks';
+import { Descendant } from "slate";
 
 import For from '@/components/For';
 import LoadMoreComponent from '@/components/LoadMoreComponent';
 import TagItem from '@/components/TagItem';
 import { PlusOutlined } from '@ant-design/icons';
 import CardItem from './CardItem';
+import CardTitlebar from "./CardTitlebar";
 import Card from '../../../components/EditCards';
-
 import useCardsManagementStore from '@/stores/useCardsManagementStore';
 import useCardPanelStore from '@/stores/useCardPanelStore';
 import useCardTree from '@/hooks/useCardTree';
 import { ECardCategory, ICreateCard } from '@/types';
 import { cardCategoryName } from "@/constants";
-import CreateCard from './CreateCard';
 
-import styles from './index.module.less';
-import { Descendant } from "slate";
+import CreateCard from './CreateCard';
 import If from "@/components/If";
 import { readTextFile, selectFile } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
+import styles from './index.module.less';
 
 const CardContainer = () => {
   const { cardTree } = useCardTree();
@@ -142,32 +142,26 @@ const CardContainer = () => {
   });
 
   return (
-    <div className={styles.queryContainer}>
-      <div
-        className={
-          classnames(
-            styles.container,
-            {
-              [styles.showEdit]: isShowEdit,
-            }
-          )
-        }>
-        <div className={styles.list}>
-          <div className={styles.cards}>
-            <div className={styles.cardTree}>
-              <For
-                data={cardTree}
-                renderItem={card => (
-                  <TagItem
-                    key={card.tag}
-                    item={card}
-                    onClickTag={onClickTag}
-                    activeTag={activeCardTag}
-                  />
-                )}
-              />
-            </div>
-            <div className={styles.cardContainer}>
+    <div className={classnames(styles.container)}>
+      <div className={styles.viewContainer}>
+
+        <div className={styles.content}>
+          <div className={styles.cardTree}>
+            <For
+              data={cardTree}
+              renderItem={card => (
+                <TagItem
+                  key={card.tag}
+                  item={card}
+                  onClickTag={onClickTag}
+                  activeTag={activeCardTag}
+                />
+              )}
+            />
+          </div>
+          <div className={styles.cardContainer}>
+            <CardTitlebar className={classnames(styles.titlebar, { [styles.isEdit]: isShowEdit })} />
+            <If condition={!isShowEdit}>
               <div className={styles.cardList}>
                 <div className={styles.header}>
                   <div className={styles.left}>
@@ -204,32 +198,36 @@ const CardContainer = () => {
                   )
                 }
                 <div className={styles.list} ref={listRef}>
-                  <If condition={filteredCards.length === 0}>
-                    <Empty description={'暂无卡片'} />
-                  </If>
-                  <If condition={filteredCards.length > 0}>
-                    <LoadMoreComponent
-                      onLoadMore={loadMore}
-                      showLoader={cardsCount < filteredCards.length}
-                    >
-                      <For
-                        data={sliceCards}
-                        renderItem={card => (
-                          <CardItem
-                            key={card.id}
-                            card={card}
-                          />
-                        )}
-                      />
-                    </LoadMoreComponent>
+                  <If condition={!isShowEdit}>
+                    <If condition={filteredCards.length === 0}>
+                      <Empty description={'暂无卡片'}/>
+                    </If>
+                    <If condition={filteredCards.length > 0}>
+                      <LoadMoreComponent
+                        onLoadMore={loadMore}
+                        showLoader={cardsCount < filteredCards.length}
+                      >
+                        <For
+                          data={sliceCards}
+                          renderItem={card => (
+                            <CardItem
+                              key={card.id}
+                              card={card}
+                            />
+                          )}
+                        />
+                      </LoadMoreComponent>
+                    </If>
                   </If>
                 </div>
               </div>
-            </div>
+            </If>
+            <If condition={isShowEdit}>
+              <div className={styles.edit}>
+                <Card />
+              </div>
+            </If>
           </div>
-        </div>
-        <div className={styles.edit}>
-          <Card />
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@
   height: 100vh;
   display: flex;
   --sidebar-width: 200px;
-  --title-bar-height: 32px;
+  --title-bar-height: 44px;
   --right-sidebar-width: 0px;
   .sidebar {
     width: var(--sidebar-width);
@@ -13,32 +13,23 @@
     transition: width 0.3s;
   }
   .content {
-    width: calc(100vw - var(--sidebar-width));
+    width: calc(100vw - var(--sidebar-width) - var(--right-sidebar-width));
     height: 100%;
     transition: width 0.3s;
-    .titlebar {
-      width: 100%;
-      height: var(--title-bar-height);
-      box-sizing: border-box;
-      -webkit-app-region: drag;
-    }
+    background: var(--main-bg-color);
     .main {
       display: flex;
       width: 100%;
-      height: calc(100% - var(--title-bar-height));
+      height: 100%;
       box-sizing: border-box;
       overflow: hidden;
-      border-radius: 8px;
-      .mainContent {
-        width: calc(100% - var(--right-sidebar-width));
-        height: calc(100% - 8px);
-        overflow: hidden;
-        background: var(--main-bg-color);
-        margin: 0 8px 8px 0;
-        border-radius: 8px;
-        box-shadow: var(--shadow);
-        box-sizing: border-box;
-      }
     }
+  }
+  .rightSidebar {
+    width: var(--right-sidebar-width);
+    height: 100%;
+    background: var(--sidebar-background);
+    overflow: hidden;
+    box-sizing: border-box;
   }
 }
