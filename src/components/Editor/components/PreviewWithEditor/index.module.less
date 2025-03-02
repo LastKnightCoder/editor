@@ -1,9 +1,11 @@
 .dropContainer {
   position: relative;
   .container {
-    --editing-bg-color: #fafafa;
+    --code-block-bg-color: rgba(246, 248, 250, .6);
+    --code-block-shadow: 0 1px 2px 0 #0000001a;
     &.dark {
-      --editing-bg-color: rgb(12, 16, 33);
+      --code-block-bg-color: rgba(40, 42, 52);
+      --code-block-shadow:  0 1px 2px 0 #0000001a;
     }
     position: relative;
 
@@ -16,6 +18,8 @@
         border-radius: 0;
         font-size: calc(var(--font-size) * 0.75);;
         font-family: var(--mono-font, "'Monaco', '楷体'");
+        box-shadow: var(--code-block-shadow);
+        background-color: var(--code-block-bg-color);
       }
 
       :global(.CodeMirror pre.CodeMirror-line),
@@ -44,7 +48,7 @@
     }
 
     &.editing {
-      background-color: var(--editing-bg-color);
+      background-color: var(--code-block-bg-color);
       padding: 0 0 16px;
     }
 

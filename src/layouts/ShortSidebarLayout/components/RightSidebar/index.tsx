@@ -245,9 +245,6 @@ const RightSidebar = (props: RightSidebarProps) => {
     <ResizableAndHideableSidebar
       className={styles.rightSidebar}
       width={rightSidebarWidth || 400}
-      style={{
-        height: '100%',
-      }}
       open={rightSidebarOpen}
       onWidthChange={(width, actualWidth) => {
         setRightSidebarWidth(width);
@@ -256,7 +253,7 @@ const RightSidebar = (props: RightSidebarProps) => {
         }
       }}
       side={'left'}
-      minWidth={360}
+      minWidth={320}
       maxWidth={920}
       disableResize={!rightSidebarOpen}
     >

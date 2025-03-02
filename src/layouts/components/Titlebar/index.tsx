@@ -7,12 +7,16 @@ import WindowControl from "@/components/WindowControl";
 import PortalToBody from "@/components/PortalToBody";
 import If from "@/components/If";
 import { CloseOutlined } from "@ant-design/icons";
-import { FiSidebar } from "react-icons/fi";
+import SVG from "react-inlinesvg";
 
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
-import styles from './index.module.less';
+import TitlebarIcon from "@/components/TitlebarIcon";
 import { platform } from "@/electron.ts";
+import sidebarLeftIcon from '@/assets/icons/sidebar-left.svg';
+
+import styles from './index.module.less';
+
 
 interface TitlebarProps {
   showColumns?: boolean;
@@ -80,9 +84,9 @@ const Titlebar = memo((props: TitlebarProps) => {
     >
       {
         !sidebarOpen && (
-          <div className={styles.item} onClick={handleOpenSidebar}>
-            <FiSidebar />
-          </div>
+          <TitlebarIcon onClick={handleOpenSidebar}>
+            <SVG src={sidebarLeftIcon} />
+          </TitlebarIcon>
         )
       }
       <If condition={focusMode}>

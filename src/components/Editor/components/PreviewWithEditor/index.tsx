@@ -74,12 +74,12 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
     }
   }, [element]);
 
-  // const onClick = useMemoizedFn(() => {
-  //   if (readOnly) {
-  //     return;
-  //   }
-  //   setEditing(true);
-  // });
+  const onClick = useMemoizedFn(() => {
+    if (readOnly || editorRef.current?.getValue()) {
+      return;
+    }
+    setEditing(true);
+  });
 
   const onCodeEditorKeyDown = useMemoizedFn((editor, event) => {
     if (!isHotkey('down', event)) return;
@@ -196,6 +196,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> = 
         <div
           ref={drop}
           className={classnames(styles.preview, { [styles.center]: center, [styles.extend]: extend })}
+          onClick={onClick}
         >
           <ErrorBoundary>
             {children}
