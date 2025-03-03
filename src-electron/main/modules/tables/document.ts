@@ -291,7 +291,6 @@ export default class DocumentTable {
   }
 
   static updateDocumentItem(db: Database.Database, item: IUpdateDocumentItem): IDocumentItem {
-    console.log('updateDocumentItem', item);
     const stmt = db.prepare(`
       UPDATE document_items SET
         update_time = ?,

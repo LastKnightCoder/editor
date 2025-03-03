@@ -3,26 +3,23 @@ import * as pdfjs from 'pdfjs-dist';
 import * as pdfjsViewer from 'pdfjs-dist/web/pdf_viewer.mjs';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import 'pdfjs-dist/build/pdf.worker.min.mjs';
-import { addPdfHighlight, getPdfHighlights  } from '@/commands';
+import { addPdfHighlight, getPdfHighlights, readBinaryFile } from '@/commands';
 import HighlightManager from "./HighlightManager.tsx";
 import AreaSelect from "./AreaSelect";
 import useMouseSelection from './useMouseSelection.ts';
-import { optimizeClientRects, transformToRelativeRect, transformToPercentRect, transformToRelativePercentRect } from './utils';
-import './index.css';
 import {
-  EHighlightColor,
-  EHighlightTextStyle,
-  EHighlightType,
-  Rect,
-  Pdf,
-  RectPercentWithPageNumber
-} from "@/types";
+  optimizeClientRects,
+  transformToPercentRect,
+  transformToRelativePercentRect,
+  transformToRelativeRect
+} from './utils';
+import './index.css';
+import { EHighlightColor, EHighlightTextStyle, EHighlightType, Pdf, Rect, RectPercentWithPageNumber } from "@/types";
 import { remoteResourceToLocal } from '@/utils';
-import { useMemoizedFn, useLocalStorageState } from "ahooks";
-import { Flex, message, Spin, Result, Button } from "antd";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import { Button, Flex, message, Result, Spin } from "antd";
 import { ZoomInOutlined, ZoomOutOutlined } from "@ant-design/icons";
 import If from "@/components/If";
-import { convertFileSrc } from "@/commands";
 
 interface PDFViewerProps {
   pdf: Pdf;
@@ -140,11 +137,10 @@ const PDFViewer = (props: PDFViewerProps) => {
   
   const getLoadUrl = useMemoizedFn(async (isLocal: boolean, filePath: string, remoteUrl) => {
     if (isLocal) {
-      return convertFileSrc(filePath);
+      return readBinaryFile(filePath);
     } else {
-      // return remoteUrl;
       const remoteToLocal = await remoteResourceToLocal(remoteUrl);
-      return convertFileSrc(remoteToLocal);
+      return readBinaryFile(remoteToLocal);
     }
   });
   
@@ -190,7 +186,6 @@ const PDFViewer = (props: PDFViewerProps) => {
         viewer.eventBus.on('pagerendered', handlePageRendered)
 
         viewer.eventBus.on('pagechanging', ({ pageNumber }: { pageNumber: number }) => {
-          console.log('pagechanging', pageNumber);
           setCurrentPageNum(pageNumber);
         })
 
