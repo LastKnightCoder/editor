@@ -88,7 +88,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       isDragging: monitor.isDragging(),
       canDrag: monitor.canDrag(),
     }),
-  }, [readOnly]);
+  }, [readOnly, element]);
 
   const [{ canDrop, isOverCurrent }, drop] = useDrop<IDragItem, void, {
     isOverCurrent: boolean;
@@ -153,7 +153,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         console.error(e);
       }
     },
-  }, [readOnly, isBefore]);
+  }, [readOnly, isBefore, element]);
 
   return {
     drag,
