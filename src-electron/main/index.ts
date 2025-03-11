@@ -45,7 +45,7 @@ const createWindow = () => {
       preload,
       spellcheck: false,
     },
-    trafficLightPosition: { x: 12, y: 9 },
+    trafficLightPosition: { x: 12, y: 17 },
     // Mac 专属配置
     ...(process.platform === 'darwin' && {
       titleBarStyle: 'hidden', // 隐藏标题栏但保留交通灯按钮
