@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import isHotkey from "is-hotkey";
 import Editor from "@/components/Editor";
 
-import { useMemoizedFn } from "ahooks";
+import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import useCardManagement from "@/hooks/useCardManagement.ts";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
@@ -11,13 +11,22 @@ import "@tmikeladze/react-cmdk/dist/cmdk.css";
 import { Empty, Tag } from "antd";
 import styles from "./index.module.less";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-import { VecDocument } from "@/types";
+import { IDocumentItem, VecDocument, ProjectItem } from "@/types";
 import classnames from "classnames";
 import { LoadingOutlined, SearchOutlined } from "@ant-design/icons";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import If from "@/components/If";
 import For from "@/components/For";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
+import useProjectsStore from "@/stores/useProjectsStore";
+import useDocumentsStore from "@/stores/useDocumentsStore";
+import {
+  getDocumentItem,
+  getProjectItemById,
+  getRootDocumentsByDocumentItemId,
+  getAllProjectItems,
+  getAllDocumentItems,
+} from "@/commands";
 
 const AISearch = memo(() => {
   const { isDark } = useTheme();
@@ -29,6 +38,8 @@ const AISearch = memo(() => {
   >([]);
   const searchRef = useRef<EditTextHandle>(null);
   const lastSearchText = useRef("");
+  const [projectItems, setProjectItems] = useState<ProjectItem[]>([]);
+  const [documentItems, setDocumentItems] = useState<IDocumentItem[]>([]);
 
   const { cards } = useCardsManagementStore((state) => ({
     cards: state.cards,
@@ -41,6 +52,13 @@ const AISearch = memo(() => {
     open: state.open,
     onSearch: state.onSearch,
   }));
+
+  useAsyncEffect(async () => {
+    const projectItems = await getAllProjectItems();
+    setProjectItems(projectItems);
+    const documentItems = await getAllDocumentItems();
+    setDocumentItems(documentItems);
+  }, []);
 
   const { onCtrlClickCard } = useCardManagement();
 
@@ -97,6 +115,81 @@ const AISearch = memo(() => {
     [] as Array<[VecDocument, number]>,
   );
 
+  // 处理搜索结果点击
+  const handleResultClick = async (res: [VecDocument, number]) => {
+    useCommandPanelStore.setState({ open: false });
+
+    if (res[0].refType === "card") {
+      navigate("/cards/list");
+      onCtrlClickCard(res[0].refId);
+    } else if (res[0].refType === "article") {
+      navigate("/articles");
+      useArticleManagementStore.setState({
+        activeArticleId: res[0].refId,
+      });
+    } else if (res[0].refType === "project") {
+      const projectItem = await getProjectItemById(res[0].refId);
+      if (!projectItem) return;
+      const projectId = projectItem.projects[0];
+      if (!projectId) return;
+
+      // 跳转到项目项
+      navigate(`/projects/${projectId}`);
+      useProjectsStore.setState({
+        activeProjectId: projectId,
+        activeProjectItemId: projectItem.id,
+        hideProjectItemList: false,
+      });
+    } else if (res[0].refType === "document") {
+      const documentItem = await getDocumentItem(res[0].refId);
+      if (!documentItem) return;
+      const documents = await getRootDocumentsByDocumentItemId(documentItem.id);
+      if (!documents) return;
+      const document = documents[0];
+      if (!document) return;
+
+      // 跳转到知识库项
+      navigate(`/documents/${document.id}`);
+      useDocumentsStore.setState({
+        activeDocumentId: document.id,
+        activeDocumentItem: documentItem,
+        hideDocumentItemsList: false,
+      });
+    }
+  };
+
+  // 获取引用类型的标签文本
+  const getRefTypeLabel = (refType: string) => {
+    switch (refType) {
+      case "card":
+        return "卡片";
+      case "article":
+        return "文章";
+      case "project":
+        return "项目";
+      case "document":
+        return "知识库";
+      default:
+        return refType;
+    }
+  };
+
+  // 获取标签颜色
+  const getTagColor = (refType: string) => {
+    switch (refType) {
+      case "card":
+        return "pink";
+      case "article":
+        return "blue";
+      case "project":
+        return "green";
+      case "document":
+        return "orange";
+      default:
+        return "default";
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -129,6 +222,7 @@ const AISearch = memo(() => {
             }}
           />
         </div>
+
         <div className={styles.resultContainer}>
           <If condition={searchLoading}>
             <div className={styles.loadingContainer}>
@@ -160,27 +254,32 @@ const AISearch = memo(() => {
                           articles.find((item) => item.id === res[0].refId)
                             ?.content || []
                         );
+                      } else if (res[0].refType === "project") {
+                        const projectItem = projectItems.find(
+                          (item) => item.id === res[0].refId,
+                        );
+                        if (!projectItem) return [];
+                        return projectItem.content || [];
+                      } else if (res[0].refType === "document") {
+                        const documentItem = documentItems.find(
+                          (item) => item.id === res[0].refId,
+                        );
+                        if (!documentItem) return [];
+                        return documentItem.content || [];
                       }
+                      return [];
                     })();
                     return (
                       <div
                         className={styles.item}
                         key={res[0].id}
-                        onClick={() => {
-                          useCommandPanelStore.setState({ open: false });
-                          if (res[0].refType === "card") {
-                            navigate("/cards/list");
-                            onCtrlClickCard(res[0].refId);
-                          } else if (res[0].refType === "article") {
-                            navigate("/articles");
-                            useArticleManagementStore.setState({
-                              activeArticleId: res[0].refId,
-                            });
-                          }
-                        }}
+                        onClick={() => handleResultClick(res)}
                       >
-                        <Tag color="pink" style={{ marginBottom: 12 }}>
-                          {res[0].refType}
+                        <Tag
+                          color={getTagColor(res[0].refType)}
+                          style={{ marginBottom: 12 }}
+                        >
+                          {getRefTypeLabel(res[0].refType)}
                         </Tag>
                         <Editor
                           style={{
@@ -188,6 +287,7 @@ const AISearch = memo(() => {
                             overflowY: "hidden",
                           }}
                           initValue={initValue}
+                          readonly={true}
                         />
                       </div>
                     );
