@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { App } from 'antd';
+import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 
@@ -19,74 +19,51 @@ import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 const useInitDatabase = () => {
   const { message } = App.useApp();
 
-  const {
-    databaseStatus
-  } = useGlobalStateStore(state => ({
-    databaseStatus: state.databaseStatus
-  }))
+  const { databaseStatus } = useGlobalStateStore((state) => ({
+    databaseStatus: state.databaseStatus,
+  }));
 
-  const {
-    inited,
-    database
-  } = useSettingStore(state => ({
+  const { inited, database } = useSettingStore((state) => ({
     inited: state.inited,
     database: state.setting.database,
   }));
 
   const { active } = database;
 
-  const {
-    initArticles
-  } = useArticleManagementStore(state => ({
-    initArticles: state.init
+  const { initArticles } = useArticleManagementStore((state) => ({
+    initArticles: state.init,
   }));
 
-  const {
-    initCards,
-  } = useCardsManagementStore((state) => ({
+  const { initCards } = useCardsManagementStore((state) => ({
     initCards: state.init,
   }));
 
-  const {
-    initDocuments,
-  } = useDocumentsStore(state => ({
+  const { initDocuments } = useDocumentsStore((state) => ({
     initDocuments: state.init,
   }));
 
-  const {
-    initDailyNotes,
-  } = useDailyNoteStore(state => ({
-    initDailyNotes: state.init
+  const { initDailyNotes } = useDailyNoteStore((state) => ({
+    initDailyNotes: state.init,
   }));
 
-  const {
-    initTimeRecords,
-  } = useTimeRecordStore(state => ({
-    initTimeRecords: state.init
+  const { initTimeRecords } = useTimeRecordStore((state) => ({
+    initTimeRecords: state.init,
   }));
 
-  const {
-    initProjects,
-  } = useProjectsStore(state => ({
-    initProjects: state.init
+  const { initProjects } = useProjectsStore((state) => ({
+    initProjects: state.init,
   }));
 
-  const {
-    initPdfs
-  } = usePdfsStore(state => ({
-    initPdfs: state.initPdfs
+  const { initPdfs } = usePdfsStore((state) => ({
+    initPdfs: state.initPdfs,
   }));
 
-  const {
-    initWhiteBoards,
-  } = useWhiteBoardStore(state => ({
-    initWhiteBoards: state.initWhiteBoards
+  const { initWhiteBoards } = useWhiteBoardStore((state) => ({
+    initWhiteBoards: state.initWhiteBoards,
   }));
 
-  const {
-    initChatMessage
-  } = useChatMessageStore(state => ({
-    initChatMessage: state.initChatMessage
+  const { initChatMessage } = useChatMessageStore((state) => ({
+    initChatMessage: state.initChatMessage,
   }));
 
   const initDatabase = useMemoizedFn(async () => {
@@ -99,44 +76,46 @@ const useInitDatabase = () => {
       initProjects(),
       initPdfs(),
       initWhiteBoards(),
-      initChatMessage()
+      initChatMessage(),
     ]);
   });
 
   const handleDatabaseStatus = useMemoizedFn((databaseName: string) => {
-    const newDatabaseStatus = produce(databaseStatus, draft => {
+    const newDatabaseStatus = produce(databaseStatus, (draft) => {
       draft[databaseName] = true;
     });
     useGlobalStateStore.setState({
-      databaseStatus: newDatabaseStatus
-    })
+      databaseStatus: newDatabaseStatus,
+    });
   });
 
   useEffect(() => {
     if (!inited || !active) return;
     message.open({
-      type: 'loading',
-      content: '正在初始化数据库...',
-      key: 'initDatabase',
+      type: "loading",
+      content: "正在初始化数据库...",
+      key: "initDatabase",
       duration: 0,
     });
-    connectDatabaseByName(active).then(() => {
-      initDatabase().finally(() => {
-        message.destroy('initDatabase');
-        handleDatabaseStatus(active);
+    connectDatabaseByName(active)
+      .then(() => {
+        initDatabase().finally(() => {
+          message.destroy("initDatabase");
+          handleDatabaseStatus(active);
+        });
+      })
+      .catch((e) => {
+        message.error({
+          key: "initDatabase",
+          content: e.message,
+        });
       });
-    }).catch((e) => {
-      message.error({
-        key: 'initDatabase',
-        content: e.message,
-      });
-    })
   }, [inited, active, initDatabase, message, handleDatabaseStatus]);
 
   return {
     initDatabase,
-    databaseStatus
-  }
-}
+    databaseStatus,
+  };
+};
 
 export default useInitDatabase;

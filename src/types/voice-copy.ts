@@ -18,7 +18,7 @@ export interface SpeakerListResult {
     Service: string;
     Action: string;
     Region: string;
-  }
+  };
 }
 
 export interface TrainSpeakerResult {

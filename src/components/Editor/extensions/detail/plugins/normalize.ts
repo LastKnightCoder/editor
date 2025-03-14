@@ -5,12 +5,11 @@ export const withNormalize = (editor: Editor) => {
   const { normalizeNode } = editor;
 
   editor.normalizeNode = ([node, path]) => {
-    if (hitEmptyOrInlineChild(editor, [node, path], 'detail')) {
+    if (hitEmptyOrInlineChild(editor, [node, path], "detail")) {
       return;
     }
     return normalizeNode([node, path]);
   };
 
   return editor;
-}
-
+};

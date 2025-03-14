@@ -1,7 +1,7 @@
 import { Descendant } from "slate";
 
 export interface MermaidElement {
-  type: 'mermaid';
+  type: "mermaid";
   chart: string;
   children: Descendant[];
 }

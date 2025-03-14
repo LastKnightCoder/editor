@@ -1,14 +1,14 @@
-import { produce } from 'immer';
+import { produce } from "immer";
 import React from "react";
-import Tips from './Tips';
+import Tips from "./Tips";
 
-import { Modal } from 'antd';
-import { useMemoizedFn } from 'ahooks';
-import { PdfHighlight, EHighlightColor, EHighlightTextStyle } from '@/types';
+import { Modal } from "antd";
+import { useMemoizedFn } from "ahooks";
+import { PdfHighlight, EHighlightColor, EHighlightTextStyle } from "@/types";
 
 interface HighlightProps {
   open: boolean;
-  arrowDirection?: 'left' | 'right' | 'top' | 'bottom';
+  arrowDirection?: "left" | "right" | "top" | "bottom";
   highlight: PdfHighlight;
   onHighlightChange?: (highlight: PdfHighlight) => void;
   removeHighlight?: () => void;
@@ -26,10 +26,10 @@ const HighlightTips = (props: HighlightProps) => {
     onClose,
     removeHighlight,
     className,
-    style
+    style,
   } = props;
 
-  const onNotesChange = useMemoizedFn((notes: PdfHighlight['notes']) => {
+  const onNotesChange = useMemoizedFn((notes: PdfHighlight["notes"]) => {
     const newHighlight = produce(highlight, (draft) => {
       draft.notes = notes;
     });
@@ -43,26 +43,28 @@ const HighlightTips = (props: HighlightProps) => {
     onHighlightChange?.(newHighlight);
   });
 
-  const onSelectTextStyle = useMemoizedFn((highlightTextStyle: EHighlightTextStyle) => {
-    const newHighlight = produce(highlight, (draft) => {
-      draft.highlightTextStyle = highlightTextStyle;
-    });
-    onHighlightChange?.(newHighlight);
-  });
+  const onSelectTextStyle = useMemoizedFn(
+    (highlightTextStyle: EHighlightTextStyle) => {
+      const newHighlight = produce(highlight, (draft) => {
+        draft.highlightTextStyle = highlightTextStyle;
+      });
+      onHighlightChange?.(newHighlight);
+    },
+  );
 
   const onRemove = () => {
     Modal.confirm({
-      title: '确定删除此高亮吗？',
+      title: "确定删除此高亮吗？",
       onOk: () => {
         removeHighlight?.();
       },
-      okText: '确定',
-      cancelText: '取消',
+      okText: "确定",
+      cancelText: "取消",
       okButtonProps: {
         danger: true,
-      }
-    })
-  }
+      },
+    });
+  };
 
   if (!open) return null;
 
@@ -80,7 +82,7 @@ const HighlightTips = (props: HighlightProps) => {
       className={className}
       style={style}
     />
-  )
-}
+  );
+};
 
 export default HighlightTips;

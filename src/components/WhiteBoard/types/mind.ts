@@ -13,7 +13,7 @@ export interface MindNodeElement {
   level: number;
   children: MindNodeElement[];
   childrenHeight: number;
-  direction: 'left' | 'right';
+  direction: "left" | "right";
   text: Descendant[];
   background: string;
   border: string;

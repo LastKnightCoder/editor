@@ -1,4 +1,4 @@
-import { Command } from '../index';
+import { Command } from "../index";
 
 export default abstract class CommandSplitterBase<T extends Command> {
   command: T;

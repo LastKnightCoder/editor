@@ -1,19 +1,31 @@
-import React, { useEffect, useMemo, useRef, useState, memo, ReactNode } from "react";
-import { createPortal } from 'react-dom';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  memo,
+  ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 
-import { Editor, Range } from 'slate';
-import { useSlate, useSlateSelection, useReadOnly, ReactEditor } from "slate-react";
+import { Editor, Range } from "slate";
+import {
+  useSlate,
+  useSlateSelection,
+  useReadOnly,
+  ReactEditor,
+} from "slate-react";
 import { useLocalStorageState } from "ahooks";
 import classnames from "classnames";
-import { sortBy } from 'lodash'
+import { sortBy } from "lodash";
 
 import { IConfigItem } from "@/components/Editor/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const Portal = ({ children }: { children: ReactNode }) => {
-  return createPortal(children, document.body)
-}
+  return createPortal(children, document.body);
+};
 
 interface IHoveringToolbarProps {
   configs: IConfigItem[];
@@ -25,7 +37,7 @@ interface IHoveringBarContext {
 
 export const HoveringBarContext = React.createContext<IHoveringBarContext>({
   isHoveringBarShow: false,
-})
+});
 
 const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
   const { configs } = props;
@@ -42,32 +54,37 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
   const selection = useSlateSelection();
   const readOnly = useReadOnly();
 
-  const [localStoragePosition, setLocalStoragePosition] = useLocalStorageState<{ top: number, left: number }>('hoveringBarPosition', {
+  const [localStoragePosition, setLocalStoragePosition] = useLocalStorageState<{
+    top: number;
+    left: number;
+  }>("hoveringBarPosition", {
     defaultValue: {
       top: 0,
       left: 0,
-    }
+    },
   });
 
-  const [position, setPosition] = useState<{left: number, top: number}>(() => {
-    if (localStoragePosition) {
-      return localStoragePosition;
-    }
-    return {
-      left: 0,
-      top: 0,
-    }
-  });
+  const [position, setPosition] = useState<{ left: number; top: number }>(
+    () => {
+      if (localStoragePosition) {
+        return localStoragePosition;
+      }
+      return {
+        left: 0,
+        top: 0,
+      };
+    },
+  );
 
   useEffect(() => {
     const el = ref.current;
 
     if (!el || readOnly) {
-      return
+      return;
     }
 
     const isCollapsed = selection && Range.isCollapsed(selection);
-    const isEmpty = selection && Editor.string(editor, selection) === '';
+    const isEmpty = selection && Editor.string(editor, selection) === "";
     const close = !selection || isCollapsed || isEmpty;
 
     if (close) {
@@ -88,7 +105,7 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
       setLocalStoragePosition({
         top: parseInt(top),
         left: parseInt(left),
-      })
+      });
       setIsHoveringBarShow(true);
     }
   }, [editor, selection, readOnly, setLocalStoragePosition]);
@@ -106,11 +123,11 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
         return;
       }
       setIsHoveringBarShow(false);
-    }
-    document.addEventListener('click', fn);
+    };
+    document.addEventListener("click", fn);
     return () => {
-      document.removeEventListener('click', fn);
-    }
+      document.removeEventListener("click", fn);
+    };
   }, [editor, readOnly, isHoveringBarShow]);
 
   return (
@@ -118,24 +135,22 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
       <HoveringBarContext.Provider value={{ isHoveringBarShow }}>
         <div
           ref={ref}
-          className={classnames(styles.hoveringToolbar, { [styles.show]: isHoveringBarShow && !readOnly })}
+          className={classnames(styles.hoveringToolbar, {
+            [styles.show]: isHoveringBarShow && !readOnly,
+          })}
           style={{
             left: position.left,
             top: position.top,
           }}
         >
-          {
-            sortedConfigs.map((config) => {
-              const { element: Element, id } = config;
-              return (
-                <Element key={id} />
-              )
-            })
-          }
+          {sortedConfigs.map((config) => {
+            const { element: Element, id } = config;
+            return <Element key={id} />;
+          })}
         </div>
       </HoveringBarContext.Provider>
     </Portal>
-  )
+  );
 });
 
 export default HoveringToolbar;

@@ -1,16 +1,19 @@
 import { Editor, NodeEntry, Transforms } from "slate";
-import { MultiColumnContainerElement, MultiColumnItemElement } from "@/components/Editor/types";
+import {
+  MultiColumnContainerElement,
+  MultiColumnItemElement,
+} from "@/components/Editor/types";
 
 export const getCurrentColumnIndex = (editor: Editor) => {
   const [match] = Editor.nodes(editor, {
-    match: n => n.type === 'multi-column-item',
-    mode: 'lowest'
-  })
+    match: (n) => n.type === "multi-column-item",
+    mode: "lowest",
+  });
   if (!match) {
     return {
       isColumnLayout: false,
       index: 0,
-    }
+    };
   }
 
   const [, path] = match as NodeEntry<MultiColumnItemElement>;
@@ -18,13 +21,13 @@ export const getCurrentColumnIndex = (editor: Editor) => {
     isColumnLayout: true,
     index: path[path.length - 1],
   };
-}
+};
 
 export const insertColumnAt = (editor: Editor, index: number) => {
   if (index < 0) return;
   const [match] = Editor.nodes(editor, {
-    match: n => n.type === 'multi-column-container',
-    mode: 'lowest'
+    match: (n) => n.type === "multi-column-container",
+    mode: "lowest",
   });
   if (!match) return;
   const [ele, containerPath] = match as NodeEntry<MultiColumnContainerElement>;
@@ -32,38 +35,46 @@ export const insertColumnAt = (editor: Editor, index: number) => {
 
   const insertPath = [...containerPath, index];
 
-  Transforms.insertNodes(editor, {
-    type: 'multi-column-item',
-    children: [{
-      type: 'paragraph',
-      children: [{
-        type: 'formatted',
-        text: ''
-      }]
-    }]
-  }, {
-    at: insertPath,
-    select: true
-  });
-}
+  Transforms.insertNodes(
+    editor,
+    {
+      type: "multi-column-item",
+      children: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      at: insertPath,
+      select: true,
+    },
+  );
+};
 
 export const insertColumnLeft = (editor: Editor) => {
   const { isColumnLayout, index } = getCurrentColumnIndex(editor);
   if (!isColumnLayout) return;
   insertColumnAt(editor, index);
-}
+};
 
 export const insertColumnRight = (editor: Editor) => {
   const { isColumnLayout, index } = getCurrentColumnIndex(editor);
   if (!isColumnLayout) return;
   insertColumnAt(editor, index + 1);
-}
+};
 
 export const deleteColumnAt = (editor: Editor, index: number) => {
   if (index < 0) return;
   const [match] = Editor.nodes(editor, {
-    match: n => n.type === 'multi-column-container',
-    mode: 'lowest'
+    match: (n) => n.type === "multi-column-container",
+    mode: "lowest",
   });
   if (!match) return;
   const [ele, containerPath] = match as NodeEntry<MultiColumnContainerElement>;
@@ -71,24 +82,24 @@ export const deleteColumnAt = (editor: Editor, index: number) => {
 
   const deletePath = [...containerPath, index];
   Transforms.delete(editor, {
-    at: deletePath
-  })
-}
+    at: deletePath,
+  });
+};
 
 export const deleteColumnLeft = (editor: Editor) => {
   const { isColumnLayout, index } = getCurrentColumnIndex(editor);
   if (!isColumnLayout) return;
   if (index <= 0) return;
   deleteColumnAt(editor, index - 1);
-}
+};
 
 export const deleteColumnRight = (editor: Editor) => {
   const { isColumnLayout, index } = getCurrentColumnIndex(editor);
   if (!isColumnLayout) return;
 
   const [match] = Editor.nodes(editor, {
-    match: n => n.type === 'multi-column-container',
-    mode: 'lowest'
+    match: (n) => n.type === "multi-column-container",
+    mode: "lowest",
   });
   if (!match) return;
 
@@ -96,4 +107,4 @@ export const deleteColumnRight = (editor: Editor) => {
   if (index >= ele.children.length - 1) return;
 
   deleteColumnAt(editor, index + 1);
-}
+};

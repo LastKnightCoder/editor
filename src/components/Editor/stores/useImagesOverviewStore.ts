@@ -22,25 +22,30 @@ const initialState: IState = {
   hasNextImage: false,
   hasPrevImage: false,
   currentImageIndex: -1,
-}
+};
 
 const getAllImageElements = (children: Descendant[]) => {
   const imagesElement: ImageElement[] = [];
   for (const node of children) {
-    if (node.type === 'image') {
+    if (node.type === "image") {
       // 如果 url 未空，说明还未上传图片
       if (node.url) {
         imagesElement.push(node);
       }
       continue;
     }
-    if ((node as { children: Descendant[] }).children && Array.isArray((node as { children: Descendant[] }).children)) {
-      imagesElement.push(...getAllImageElements((node as { children: Descendant[] }).children))
+    if (
+      (node as { children: Descendant[] }).children &&
+      Array.isArray((node as { children: Descendant[] }).children)
+    ) {
+      imagesElement.push(
+        ...getAllImageElements((node as { children: Descendant[] }).children),
+      );
     }
   }
 
   return imagesElement;
-}
+};
 
 export const useImagesOverviewStore = create<IState & IActions>((set, get) => ({
   ...initialState,
@@ -48,38 +53,41 @@ export const useImagesOverviewStore = create<IState & IActions>((set, get) => ({
     const children = editor.children;
     // 找到所有的 image element
     const imageElements: ImageElement[] = getAllImageElements(children);
-    const index = imageElements.findIndex(imageElement => imageElement === element);
+    const index = imageElements.findIndex(
+      (imageElement) => imageElement === element,
+    );
     set({
       imageElements,
       currentImageIndex: index,
       isShowImagesOverview: true,
       hasNextImage: index !== imageElements.length - 1,
-      hasPrevImage: index !== 0
+      hasPrevImage: index !== 0,
     });
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
   },
   closeImagesOverview: () => {
     set({ ...initialState });
-    document.body.style.overflow = 'auto';
+    document.body.style.overflow = "auto";
   },
   switchImage: (next) => {
-    const { hasPrevImage, hasNextImage, currentImageIndex, imageElements } = get();
+    const { hasPrevImage, hasNextImage, currentImageIndex, imageElements } =
+      get();
     if (next) {
       if (hasNextImage) {
         set({
           currentImageIndex: currentImageIndex + 1,
-          hasNextImage: (currentImageIndex + 1) !== imageElements.length - 1,
-          hasPrevImage: true
-        })
+          hasNextImage: currentImageIndex + 1 !== imageElements.length - 1,
+          hasPrevImage: true,
+        });
       }
     } else {
       if (hasPrevImage) {
         set({
           currentImageIndex: currentImageIndex - 1,
-          hasPrevImage: (currentImageIndex - 1) !== 0,
-          hasNextImage: true
-        })
+          hasPrevImage: currentImageIndex - 1 !== 0,
+          hasNextImage: true,
+        });
       }
     }
-  }
+  },
 }));

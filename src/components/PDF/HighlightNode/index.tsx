@@ -6,10 +6,10 @@ import For from "@/components/For";
 import If from "@/components/If";
 import HighlightTips from "../HighlightTips";
 
-import {  HIGHLIGHT_COLOR_CLASS_NAMES } from '../constants';
-import { EHighlightType, PdfHighlight } from '@/types'
+import { HIGHLIGHT_COLOR_CLASS_NAMES } from "../constants";
+import { EHighlightType, PdfHighlight } from "@/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface HighlightProps {
   highlight: PdfHighlight;
@@ -18,8 +18,8 @@ interface HighlightProps {
 }
 
 const transformPercent = (value: string) => {
-  return Number(value.split('%')[0]);
-}
+  return Number(value.split("%")[0]);
+};
 
 const HighlightNode = (props: HighlightProps) => {
   const { highlight, onRemoveHighlight, onHighlightChange } = props;
@@ -47,12 +47,16 @@ const HighlightNode = (props: HighlightProps) => {
           renderItem={(rect, index) => (
             <div
               key={index}
-              className={classnames(styles[HIGHLIGHT_COLOR_CLASS_NAMES[color]], styles.highlightRect, styles[highlight.highlightTextStyle])}
+              className={classnames(
+                styles[HIGHLIGHT_COLOR_CLASS_NAMES[color]],
+                styles.highlightRect,
+                styles[highlight.highlightTextStyle],
+              )}
               style={{
-                position: 'absolute',
+                position: "absolute",
                 ...rect,
-                cursor: 'pointer',
-                pointerEvents: 'auto'
+                cursor: "pointer",
+                pointerEvents: "auto",
               }}
               onClick={onClickHighlight}
             />
@@ -61,26 +65,30 @@ const HighlightNode = (props: HighlightProps) => {
       </If>
       <If condition={highlight.highlightType === EHighlightType.Area}>
         <div
-          className={classnames(styles[HIGHLIGHT_COLOR_CLASS_NAMES[color]], styles.highlightRect, styles.area)}
+          className={classnames(
+            styles[HIGHLIGHT_COLOR_CLASS_NAMES[color]],
+            styles.highlightRect,
+            styles.area,
+          )}
           style={{
-            position: 'absolute',
+            position: "absolute",
             ...boundingClientRect,
-            cursor: 'pointer',
-            pointerEvents: 'auto'
+            cursor: "pointer",
+            pointerEvents: "auto",
           }}
           onClick={onClickHighlight}
         />
       </If>
       <HighlightTips
         style={{
-          position: 'absolute',
+          position: "absolute",
           left: highlightTipLeft,
           top: highlightTipTop,
-          pointerEvents: 'auto',
-          transform: 'translate(0%, -50%)',
-          zIndex: 1
+          pointerEvents: "auto",
+          transform: "translate(0%, -50%)",
+          zIndex: 1,
         }}
-        arrowDirection={'left'}
+        arrowDirection={"left"}
         open={tipsOpen}
         highlight={highlight}
         onHighlightChange={onHighlightChange}
@@ -88,7 +96,7 @@ const HighlightNode = (props: HighlightProps) => {
         onClose={onCloseTip}
       />
     </>
-  )
-}
+  );
+};
 
 export default HighlightNode;

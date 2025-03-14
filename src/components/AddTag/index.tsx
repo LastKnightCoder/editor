@@ -1,4 +1,10 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import isHotKey from "is-hotkey";
 
 import { PlusOutlined } from "@ant-design/icons";
@@ -19,45 +25,51 @@ const AddTag = (props: AddTagProps) => {
   const [addTagVisible, setAddTagVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const handleAddTag = useCallback((tag: string) => {
-    if (tag) {
-      addTag(tag);
-    }
-    setAddTagVisible(false);
-  }, [addTag]);
+  const handleAddTag = useCallback(
+    (tag: string) => {
+      if (tag) {
+        addTag(tag);
+      }
+      setAddTagVisible(false);
+    },
+    [addTag],
+  );
 
   const handleBlur = useCallback(() => {
     const tag = ref.current;
     if (!tag) return;
     const { textContent } = tag;
-    handleAddTag(textContent || '');
+    handleAddTag(textContent || "");
   }, [handleAddTag]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isHotKey('enter', e) && addTagVisible) {
+      if (isHotKey("enter", e) && addTagVisible) {
         const tag = e.target as HTMLDivElement;
         const { textContent } = tag;
-        handleAddTag(textContent || '');
+        handleAddTag(textContent || "");
       }
-    }
-    document.addEventListener('keydown', handleKeyDown);
+    };
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    }
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [addTagVisible, handleAddTag]);
 
-  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (addTagVisible) return;
-    e.stopPropagation();
-    setAddTagVisible(true);
-    setTimeout(() => {
-      ref.current?.focus();
-    });
-  }, [addTagVisible]);
+  const handleClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (addTagVisible) return;
+      e.stopPropagation();
+      setAddTagVisible(true);
+      setTimeout(() => {
+        ref.current?.focus();
+      });
+    },
+    [addTagVisible],
+  );
 
   const tag = useMemo(() => {
-    return addTagVisible ?
+    return addTagVisible ? (
       <div
         style={{ paddingLeft: 4 }}
         ref={ref}
@@ -65,7 +77,9 @@ const AddTag = (props: AddTagProps) => {
         suppressContentEditableWarning
         onBlur={handleBlur}
       />
-      : '添加标签';
+    ) : (
+      "添加标签"
+    );
   }, [addTagVisible, handleBlur]);
 
   const renderAddTagBtn = () => {
@@ -78,8 +92,8 @@ const AddTag = (props: AddTagProps) => {
         icon={<PlusOutlined />}
         tag={tag}
       />
-    )
-  }
+    );
+  };
 
   return (
     <Tags
@@ -93,7 +107,7 @@ const AddTag = (props: AddTagProps) => {
       noWrap
       showIcon
     />
-  )
-}
+  );
+};
 
 export default AddTag;

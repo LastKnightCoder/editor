@@ -3,20 +3,17 @@ import { ListItemElement } from "@/components/Editor/types";
 import { Editor, Transforms } from "slate";
 import classnames from "classnames";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface IListItemProps {
-  attributes: RenderElementProps['attributes'];
+  attributes: RenderElementProps["attributes"];
   element: ListItemElement;
   children: React.ReactNode;
 }
 
 const ListItem = (props: IListItemProps) => {
   const { attributes, children, element } = props;
-  const {
-    isFold = false,
-    allContent = element.children,
-  } = element;
+  const { isFold = false, allContent = element.children } = element;
 
   const editor = useSlate();
 
@@ -28,16 +25,20 @@ const ListItem = (props: IListItemProps) => {
       Transforms.delete(editor, {
         at: path,
       });
-      Transforms.insertNodes(editor, {
-        type: 'list-item',
-        isFold: true,
-        allContent: element.children,
-        children: [element.children[0]],
-      }, {
-        at: path,
-      });
-    })
-  }
+      Transforms.insertNodes(
+        editor,
+        {
+          type: "list-item",
+          isFold: true,
+          allContent: element.children,
+          children: [element.children[0]],
+        },
+        {
+          at: path,
+        },
+      );
+    });
+  };
 
   const handleUnfold = () => {
     // 设置 foldContent 为 children
@@ -47,18 +48,22 @@ const ListItem = (props: IListItemProps) => {
     Editor.withoutNormalizing(editor, () => {
       Transforms.delete(editor, {
         at: path,
-      })
-      Transforms.insertNodes(editor, {
-        type: 'list-item',
-        allContent: element.allContent,
-        isFold: false,
-        // 折叠时可能对内容有修改，所以第一部分使用 children
-        children: [...element.children, ...allContent.slice(1)],
-      }, {
-        at: path,
       });
-    })
-  }
+      Transforms.insertNodes(
+        editor,
+        {
+          type: "list-item",
+          allContent: element.allContent,
+          isFold: false,
+          // 折叠时可能对内容有修改，所以第一部分使用 children
+          children: [...element.children, ...allContent.slice(1)],
+        },
+        {
+          at: path,
+        },
+      );
+    });
+  };
 
   const handleOnClick = () => {
     if (isFold) {
@@ -66,15 +71,21 @@ const ListItem = (props: IListItemProps) => {
     } else {
       handleFold();
     }
-  }
+  };
 
   const foldAble = element.children.length > 1;
 
   return (
-    <li data-fold={isFold ? 'fold' : 'unfold'} className={styles.listItem} {...attributes}>
-      <div className={classnames(styles.arrowContainer, {
-        [styles.show]: isFold || foldAble,
-      })}>
+    <li
+      data-fold={isFold ? "fold" : "unfold"}
+      className={styles.listItem}
+      {...attributes}
+    >
+      <div
+        className={classnames(styles.arrowContainer, {
+          [styles.show]: isFold || foldAble,
+        })}
+      >
         <div
           contentEditable={false}
           className={classnames(styles.arrow, {
@@ -85,7 +96,7 @@ const ListItem = (props: IListItemProps) => {
       </div>
       {children}
     </li>
-  )
-}
+  );
+};
 
 export default ListItem;

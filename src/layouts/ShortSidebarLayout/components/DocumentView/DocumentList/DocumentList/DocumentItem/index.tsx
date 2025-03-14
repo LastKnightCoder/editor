@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { IDocument } from "@/types";
-import { MdMoreVert } from 'react-icons/md';
+import { MdMoreVert } from "react-icons/md";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { Popover } from "antd";
 
 interface IDocumentItemProps {
@@ -18,48 +18,64 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [settingPanelOpen, setSettingPanelOpen] = useState(false);
 
   return (
-    <div className={styles.itemContainer} onClick={() => {
-      onClick(document);
-    }}>
-      <div className={styles.title}>{document.title || '无标题'}</div>
-      <div className={styles.desc}>{document.desc || '无内容'}</div>
+    <div
+      className={styles.itemContainer}
+      onClick={() => {
+        onClick(document);
+      }}
+    >
+      <div className={styles.title}>{document.title || "无标题"}</div>
+      <div className={styles.desc}>{document.desc || "无内容"}</div>
       <Popover
         open={settingPanelOpen}
         onOpenChange={setSettingPanelOpen}
-        trigger={'click'}
-        content={(
+        trigger={"click"}
+        content={
           <div className={styles.settings}>
-            <div className={styles.item} onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              onEdit(document);
-              setSettingPanelOpen(false);
-            }}>编辑文档</div>
-            <div className={styles.item} onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              onDelete(document);
-              setSettingPanelOpen(false);
-            }}>删除文档</div>
+            <div
+              className={styles.item}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onEdit(document);
+                setSettingPanelOpen(false);
+              }}
+            >
+              编辑文档
+            </div>
+            <div
+              className={styles.item}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onDelete(document);
+                setSettingPanelOpen(false);
+              }}
+            >
+              删除文档
+            </div>
           </div>
-        )}
+        }
         styles={{
           body: {
-            padding: 4
-          }
+            padding: 4,
+          },
         }}
         arrow={false}
-        placement={'bottomLeft'}
+        placement={"bottomLeft"}
       >
-        <div className={styles.moreIcon} onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        }}>
+        <div
+          className={styles.moreIcon}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
           <MdMoreVert />
         </div>
       </Popover>
     </div>
-  )
-}
+  );
+};
 
 export default DocumentItem;

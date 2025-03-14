@@ -1,15 +1,23 @@
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
-import { CloseOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { CloseOutlined, LeftOutlined, RightOutlined } from "@ant-design/icons";
 import PortalToBody from "@/components/PortalToBody";
 import LocalImage from "@/components/LocalImage";
 
 import { useImagesOverviewStore } from "../../stores";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const ImagesOverview = () => {
-  const { isShowImagesOverview, imageElements, hasNextImage, hasPrevImage, currentImageIndex, switchImage, closeImagesOverview } = useImagesOverviewStore(state => ({
+  const {
+    isShowImagesOverview,
+    imageElements,
+    hasNextImage,
+    hasPrevImage,
+    currentImageIndex,
+    switchImage,
+    closeImagesOverview,
+  } = useImagesOverviewStore((state) => ({
     isShowImagesOverview: state.isShowImagesOverview,
     imageElements: state.imageElements,
     hasNextImage: state.hasNextImage,
@@ -35,21 +43,35 @@ const ImagesOverview = () => {
         <div className={styles.container}>
           <div className={styles.mask} onClick={closeImagesOverview}></div>
           <div className={styles.imageContainer} onClick={closeImagesOverview}>
-            <LocalImage url={imageElements[currentImageIndex].url} alt={imageElements[currentImageIndex].alt} className={styles.image} />
+            <LocalImage
+              url={imageElements[currentImageIndex].url}
+              alt={imageElements[currentImageIndex].alt}
+              className={styles.image}
+            />
           </div>
           <div className={styles.close} onClick={closeImagesOverview}>
             <CloseOutlined />
           </div>
-          <div className={classnames(styles.prev, { [styles.none]: !hasPrevImage })} onClick={switchPrev}>
+          <div
+            className={classnames(styles.prev, {
+              [styles.none]: !hasPrevImage,
+            })}
+            onClick={switchPrev}
+          >
             <LeftOutlined />
           </div>
-          <div className={classnames(styles.next, { [styles.none]: !hasNextImage })} onClick={switchNext}>
+          <div
+            className={classnames(styles.next, {
+              [styles.none]: !hasNextImage,
+            })}
+            onClick={switchNext}
+          >
             <RightOutlined />
           </div>
         </div>
       </PortalToBody>
     </div>
-  )
-}
+  );
+};
 
 export default ImagesOverview;

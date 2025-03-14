@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
@@ -21,7 +21,7 @@ const LinkHoveringItem = () => {
       return false;
     }
     const [link] = Editor.nodes(editor, {
-      match: n => !Editor.isEditor(n) && n.type === 'link',
+      match: (n) => !Editor.isEditor(n) && n.type === "link",
     });
     return !!link;
   }, [editor, selection]);
@@ -32,27 +32,29 @@ const LinkHoveringItem = () => {
         unwrapLink(editor);
         return;
       }
-      wrapLink(editor, '', true);
+      wrapLink(editor, "", true);
     } finally {
       event.preventDefault();
       ReactEditor.focus(editor);
-      Transforms.collapse(editor, { edge: 'end' });
+      Transforms.collapse(editor, { edge: "end" });
     }
-  })
+  });
 
   return (
-    <Tooltip
-      title={'链接'}
-      trigger={'hover'}
-    >
+    <Tooltip title={"链接"} trigger={"hover"}>
       <div
-        className={classnames(styles.markTextContainer, { [styles.active]: isActive })}
+        className={classnames(styles.markTextContainer, {
+          [styles.active]: isActive,
+        })}
         onClick={handleClick}
       >
-        <SVG src={link} style={{ fill: 'currentcolor', width: 16, height: 16 }} />
+        <SVG
+          src={link}
+          style={{ fill: "currentcolor", width: 16, height: 16 }}
+        />
       </div>
     </Tooltip>
-  )
-}
+  );
+};
 
 export default LinkHoveringItem;

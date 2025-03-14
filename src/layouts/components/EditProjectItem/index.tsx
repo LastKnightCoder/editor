@@ -1,7 +1,7 @@
-import  { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import useUploadImage from "@/hooks/useUploadImage.ts";
 import { useMemoizedFn, useRafInterval } from "ahooks";
-import useEdit from './useEdit';
+import useEdit from "./useEdit";
 import useProjectsStore from "@/stores/useProjectsStore";
 
 import { formatDate } from "@/utils/time";
@@ -9,14 +9,18 @@ import Editor, { EditorRef } from "@/components/Editor";
 import EditText from "@/components/EditText";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
-import { cardLinkExtension, fileAttachmentExtension, projectCardListExtension } from "@/editor-extensions";
+import {
+  cardLinkExtension,
+  fileAttachmentExtension,
+  projectCardListExtension,
+} from "@/editor-extensions";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const extensions = [
   cardLinkExtension,
   fileAttachmentExtension,
-  projectCardListExtension
+  projectCardListExtension,
 ];
 
 const Project = () => {
@@ -27,13 +31,10 @@ const Project = () => {
     onInit,
     onTitleChange,
     onContentChange,
-    saveProjectItem
+    saveProjectItem,
   } = useEdit();
 
-  const {
-    showOutline,
-    readonly,
-  } = useProjectsStore(state => ({
+  const { showOutline, readonly } = useProjectsStore((state) => ({
     showOutline: state.showOutline,
     readonly: state.readonly,
   }));
@@ -47,7 +48,7 @@ const Project = () => {
     return () => {
       if (readonly) return;
       saveProjectItem();
-    }
+    };
   }, [readonly, saveProjectItem]);
 
   const uploadImage = useUploadImage();
@@ -81,7 +82,7 @@ const Project = () => {
           </div>
           <EditCardContext.Provider
             value={{
-              cardId: -1
+              cardId: -1,
             }}
           >
             <Editor
@@ -104,16 +105,18 @@ const Project = () => {
         />
       </div>
       <div className={styles.statusBar}>
-        <div style={{
-          lineHeight: '20px',
-          fontSize: 14,
-          opacity: .8
-        }}>
+        <div
+          style={{
+            lineHeight: "20px",
+            fontSize: 14,
+            opacity: 0.8,
+          }}
+        >
           <div>字数：{projectItem.count}</div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default Project;

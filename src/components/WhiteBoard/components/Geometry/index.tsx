@@ -1,18 +1,18 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { useMemoizedFn } from 'ahooks';
-import { Descendant } from 'slate';
-import classnames from 'classnames';
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useMemoizedFn } from "ahooks";
+import { Descendant } from "slate";
+import classnames from "classnames";
 
-import If from '@/components/If';
-import Editor, { EditorRef } from '@/components/Editor';
-import ResizeCircle from '../ResizeCircle';
-import ArrowConnectPoint from '../ArrowConnectPoint';
-import ArrowDropConnectPoint from '../ArrowDropConnectPoint';
+import If from "@/components/If";
+import Editor, { EditorRef } from "@/components/Editor";
+import ResizeCircle from "../ResizeCircle";
+import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
-import { Board, EHandlerPosition, Point } from '../../types';
-import { PathUtil, PointUtil, transformPath } from '../../utils';
-import { useBoard, useSelectState, useDropArrow } from '../../hooks';
-import { GeometryElement } from '../../plugins';
+import { Board, EHandlerPosition, Point } from "../../types";
+import { PathUtil, PointUtil, transformPath } from "../../utils";
+import { useBoard, useSelectState, useDropArrow } from "../../hooks";
+import { GeometryElement } from "../../plugins";
 import {
   SELECT_RECT_STROKE,
   SELECT_RECT_STROKE_WIDTH,
@@ -21,34 +21,48 @@ import {
   RESIZE_CIRCLE_RADIUS,
   ARROW_CONNECT_POINT_FILL,
   ARROW_CONNECT_POINT_RADIUS,
-} from '../../constants';
+} from "../../constants";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface GeometryProps {
   element: GeometryElement;
   onResizeStart?: (element: GeometryElement, startPoint: Point) => void;
-  onResize: (board: Board, element: GeometryElement, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => void;
-  onResizeEnd?: (board: Board, element: GeometryElement, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
+  onResize: (
+    board: Board,
+    element: GeometryElement,
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+    isPreserveRatio?: boolean,
+    isAdsorb?: boolean,
+  ) => void;
+  onResizeEnd?: (
+    board: Board,
+    element: GeometryElement,
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+  ) => void;
 }
 
 const Geometry = memo((props: GeometryProps) => {
   const { element, onResize, onResizeStart, onResizeEnd } = props;
 
-  const { 
-    id, 
-    x, 
-    y, 
-    width, 
-    height, 
-    paths, 
-    fillOpacity, 
-    fill, 
-    stroke, 
+  const {
+    id,
+    x,
+    y,
+    width,
+    height,
+    paths,
+    fillOpacity,
+    fill,
+    stroke,
     strokeWidth,
     strokeOpacity,
     text,
-    color
+    color,
   } = element;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -59,14 +73,19 @@ const Geometry = memo((props: GeometryProps) => {
   const textRef = useRef<EditorRef>(null);
   const [textContent] = useState(text.content);
 
-  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } = useDropArrow(element);
+  const {
+    isMoveArrowClosing,
+    activeConnectId,
+    arrowConnectPoints,
+    arrowConnectExtendPoints,
+  } = useDropArrow(element);
 
   const [resizePoints] = useMemo(() => {
     const resizePoints = PointUtil.getResizePointFromRect({
       x,
       y,
       width,
-      height
+      height,
     });
 
     return [resizePoints];
@@ -76,40 +95,63 @@ const Geometry = memo((props: GeometryProps) => {
     onResizeStart?.(element, startPoint);
   });
 
-  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => {
-    onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
-  });
+  const handleOnResize = useMemoizedFn(
+    (
+      position: EHandlerPosition,
+      startPoint: Point,
+      endPoint: Point,
+      isPreserveRatio?: boolean,
+      isAdsorb?: boolean,
+    ) => {
+      onResize(
+        board,
+        element,
+        position,
+        startPoint,
+        endPoint,
+        isPreserveRatio,
+        isAdsorb,
+      );
+    },
+  );
 
-  const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
-    onResizeEnd?.(board, element, position, startPoint, endPoint);
-  });
+  const handleOnResizeEnd = useMemoizedFn(
+    (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
+      onResizeEnd?.(board, element, position, startPoint, endPoint);
+    },
+  );
 
   const handleOnFocus = useMemoizedFn(() => {
     setIsEditing(true);
-  })
+  });
 
   const handleOnBlur = useMemoizedFn(() => {
     // 延迟设为 readonly
     setTimeout(() => {
       setIsEditing(false);
       textRef.current?.deselect();
-    }, 100)
-  })
+    }, 100);
+  });
 
   const handleDbClick = useMemoizedFn((e: MouseEvent) => {
     e.stopPropagation();
     setIsEditing(true);
     setTimeout(() => {
       textRef.current?.focus();
-    })
-    board.apply([{
-      type: 'set_selection',
-      properties: board.selection,
-      newProperties: {
-        selectArea: null,
-        selectedElements: []
-      }
-    }], false);
+    });
+    board.apply(
+      [
+        {
+          type: "set_selection",
+          properties: board.selection,
+          newProperties: {
+            selectArea: null,
+            selectedElements: [],
+          },
+        },
+      ],
+      false,
+    );
   });
 
   const handlePointerDown = useMemoizedFn((e: MouseEvent) => {
@@ -124,66 +166,71 @@ const Geometry = memo((props: GeometryProps) => {
       ...element,
       text: {
         ...text,
-        content
-      }
-    }
+        content,
+      },
+    };
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
-    board.apply([{
-      type: 'set_node',
-      path,
-      properties: element,
-      newProperties: newElement
-    }], false);
-  })
+    board.apply(
+      [
+        {
+          type: "set_node",
+          path,
+          properties: element,
+          newProperties: newElement,
+        },
+      ],
+      false,
+    );
+  });
 
   useEffect(() => {
     const container = geometryRef.current;
     if (!container) return;
 
-    container.addEventListener('dblclick', handleDbClick);
-    container.addEventListener('pointerdown', handlePointerDown);
+    container.addEventListener("dblclick", handleDbClick);
+    container.addEventListener("pointerdown", handlePointerDown);
 
     return () => {
       if (container) {
-        container.removeEventListener('dblclick', handleDbClick);
-        container.removeEventListener('pointerdown', handlePointerDown);
+        container.removeEventListener("dblclick", handleDbClick);
+        container.removeEventListener("pointerdown", handlePointerDown);
       }
-    }
+    };
   }, [handleDbClick, handlePointerDown]);
 
   return (
     <g ref={geometryRef}>
-      <svg 
-        style={{ overflow: "visible" }} 
-        key={id} 
-        x={x} 
-        y={y} 
-        width={width} 
-        height={height} 
+      <svg
+        style={{ overflow: "visible" }}
+        key={id}
+        x={x}
+        y={y}
+        width={width}
+        height={height}
         viewBox={`0 0 ${width} ${height}`}
       >
-        {
-          paths.map((path) => {
-            // 提取 path 中的所有坐标，分别乘以 width 和 height
-            const pathString = transformPath(path, width, height);
-            return (
-              <path
-                key={path}
-                d={pathString}
-                fill={fill}
-                fillOpacity={fillOpacity}
-                stroke={stroke}
-                strokeWidth={strokeWidth}
-                strokeOpacity={strokeOpacity}
-              />
-            )
-          })
-        }
+        {paths.map((path) => {
+          // 提取 path 中的所有坐标，分别乘以 width 和 height
+          const pathString = transformPath(path, width, height);
+          return (
+            <path
+              key={path}
+              d={pathString}
+              fill={fill}
+              fillOpacity={fillOpacity}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
+              strokeOpacity={strokeOpacity}
+            />
+          );
+        })}
       </svg>
       <foreignObject x={x} y={y} width={width} height={height}>
         <div
-          className={classnames(styles.textContainer, styles[text.align], { [styles.readonly]: !isEditing })}
+          className={classnames(styles.textContainer, styles[text.align], {
+            [styles.readonly]: !isEditing,
+          })}
           style={{ color }}
         >
           <Editor
@@ -206,49 +253,43 @@ const Geometry = memo((props: GeometryProps) => {
             fillOpacity={SELECT_RECT_FILL_OPACITY}
             stroke={SELECT_RECT_STROKE}
             strokeWidth={SELECT_RECT_STROKE_WIDTH}
-            style={{ pointerEvents: 'none' }}
+            style={{ pointerEvents: "none" }}
           />
-          {
-            Object.entries(resizePoints).map(([position, point]) => (
-              <ResizeCircle
-                key={position}
-                cx={point.x}
-                cy={point.y}
-                r={RESIZE_CIRCLE_RADIUS}
-                fill={RESIZE_CIRCLE_FILL}
-                position={position as EHandlerPosition}
-                onResizeStart={handleOnResizeStart}
-                onResize={handleOnResize}
-                onResizeEnd={handleOnResizeEnd}
-              />
-            ))
-          }
-          {
-            arrowConnectExtendPoints.map((point) => (
-              <ArrowConnectPoint
-                key={point.connectId}
-                element={element}
-                connectId={point.connectId}
-                x={point.point.x}
-                y={point.point.y}
-                r={ARROW_CONNECT_POINT_RADIUS}
-                fill={ARROW_CONNECT_POINT_FILL}
-              />
-            ))
-          }
+          {Object.entries(resizePoints).map(([position, point]) => (
+            <ResizeCircle
+              key={position}
+              cx={point.x}
+              cy={point.y}
+              r={RESIZE_CIRCLE_RADIUS}
+              fill={RESIZE_CIRCLE_FILL}
+              position={position as EHandlerPosition}
+              onResizeStart={handleOnResizeStart}
+              onResize={handleOnResize}
+              onResizeEnd={handleOnResizeEnd}
+            />
+          ))}
+          {arrowConnectExtendPoints.map((point) => (
+            <ArrowConnectPoint
+              key={point.connectId}
+              element={element}
+              connectId={point.connectId}
+              x={point.point.x}
+              y={point.point.y}
+              r={ARROW_CONNECT_POINT_RADIUS}
+              fill={ARROW_CONNECT_POINT_FILL}
+            />
+          ))}
         </g>
       </If>
       <If condition={isMoveArrowClosing}>
-        {
-          arrowConnectPoints.map((point) => (
-            <ArrowDropConnectPoint
-              key={point.connectId}
-              cx={point.point.x}
-              cy={point.point.y}
-              isActive={activeConnectId === point.connectId}
-            />
-          ))
-        }
+        {arrowConnectPoints.map((point) => (
+          <ArrowDropConnectPoint
+            key={point.connectId}
+            cx={point.point.x}
+            cy={point.point.y}
+            isActive={activeConnectId === point.connectId}
+          />
+        ))}
       </If>
     </g>
   );

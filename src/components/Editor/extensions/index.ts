@@ -10,17 +10,20 @@ import ListItemExtension from "./list-item";
 import CodeBlockExtension from "./code-block";
 import CalloutExtension from "./callout";
 import DetailExtension from "./detail";
-import { InlineMathExtension, BlockMathExtension } from './math';
+import { InlineMathExtension, BlockMathExtension } from "./math";
 import BlockquoteExtension from "./blockquote";
-import LinkExtension from './link';
+import LinkExtension from "./link";
 import DivideLineExtension from "./divide-line";
 import MermaidExtension from "./mermaid";
-import { TableExtension, TableRowExtension, TableCellExtension } from './table';
+import { TableExtension, TableRowExtension, TableCellExtension } from "./table";
 import HtmlBlockExtension from "./html-block";
 import TikzExtension from "./tikz";
 import CustomBlockExtension from "./custom-block";
 // import GraphvizExtension from "./graphviz";
-import { MultiColumnsContainerExtension, MultiColumnItemExtension } from './multi-column-layout';
+import {
+  MultiColumnsContainerExtension,
+  MultiColumnItemExtension,
+} from "./multi-column-layout";
 import HighlightBlockExtension from "./highlight-block";
 import TabsExtension from "./tabs";
 import StyledTextExtension from "./styled-text";

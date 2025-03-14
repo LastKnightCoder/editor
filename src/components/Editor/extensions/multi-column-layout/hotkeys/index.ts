@@ -1,7 +1,4 @@
-import insert from './insert';
-import deleteColumn from './delete';
+import insert from "./insert";
+import deleteColumn from "./delete";
 
-export default [
-  ...insert,
-  ...deleteColumn
-]
+export default [...insert, ...deleteColumn];

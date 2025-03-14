@@ -1,2 +1,2 @@
-export * from './inlineCode.ts';
-export * from './normalize.ts';
+export * from "./inlineCode.ts";
+export * from "./normalize.ts";

@@ -1,11 +1,18 @@
-import { BoardElement, IBoardPlugin, Board, ECreateBoardElementType, MindNodeElement, Operation } from "../types";
+import {
+  BoardElement,
+  IBoardPlugin,
+  Board,
+  ECreateBoardElementType,
+  MindNodeElement,
+  Operation,
+} from "../types";
 import { BoardUtil, isValid, MindUtil, PathUtil, PointUtil } from "../utils";
 import { SelectTransforms } from "../transforms";
 import isHotkey from "is-hotkey";
 
 export class SelectPlugin implements IBoardPlugin {
   name = "select";
-  startPoint: { x: number, y: number } | null = null;
+  startPoint: { x: number; y: number } | null = null;
   hitElements: BoardElement[] | null = null;
   moved = false;
 
@@ -13,7 +20,7 @@ export class SelectPlugin implements IBoardPlugin {
     if (board.currentCreateType !== ECreateBoardElementType.None) {
       return;
     }
-    
+
     // 如果按下的是右键
     if (e.button === 2) {
       return;
@@ -22,12 +29,19 @@ export class SelectPlugin implements IBoardPlugin {
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 
-    this.hitElements = BoardUtil.getHitElements(board, startPoint.x, startPoint.y);
+    this.hitElements = BoardUtil.getHitElements(
+      board,
+      startPoint.x,
+      startPoint.y,
+    );
 
     this.startPoint = startPoint;
 
     SelectTransforms.updateSelectArea(board, {
-      selectedElements: this.hitElements && this.hitElements.length > 0 ? board.selection.selectedElements : []
+      selectedElements:
+        this.hitElements && this.hitElements.length > 0
+          ? board.selection.selectedElements
+          : [],
     });
   }
   onPointerMove(e: PointerEvent, board: Board) {
@@ -37,7 +51,11 @@ export class SelectPlugin implements IBoardPlugin {
         return;
       }
 
-      if (!this.moved && (Math.abs(endPoint.x - this.startPoint.x) > 3 ||Math.abs(endPoint.y - this.startPoint.y) > 3)) {
+      if (
+        !this.moved &&
+        (Math.abs(endPoint.x - this.startPoint.x) > 3 ||
+          Math.abs(endPoint.y - this.startPoint.y) > 3)
+      ) {
         this.moved = true;
       }
 
@@ -46,7 +64,7 @@ export class SelectPlugin implements IBoardPlugin {
 
       const selectArea = {
         anchor: this.startPoint,
-        focus: endPoint
+        focus: endPoint,
       };
 
       const selectedElements: BoardElement[] = [];
@@ -58,7 +76,7 @@ export class SelectPlugin implements IBoardPlugin {
 
       SelectTransforms.updateSelectArea(board, {
         selectArea,
-        selectedElements
+        selectedElements,
       });
     }
   }
@@ -70,7 +88,7 @@ export class SelectPlugin implements IBoardPlugin {
       }
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,
-        selectedElements
+        selectedElements,
       });
       this.startPoint = null;
       this.moved = false;
@@ -80,22 +98,26 @@ export class SelectPlugin implements IBoardPlugin {
   onKeyDown(e: KeyboardEvent, board: Board) {
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
-    if (isHotkey(['delete', 'backspace'], e)) {
+    if (isHotkey(["delete", "backspace"], e)) {
       // 思维导图节点还需要特殊处理，删除后需要布局
-      const mindNodes = selectedElements.filter(element => element.type === 'mind-node') as MindNodeElement[];
+      const mindNodes = selectedElements.filter(
+        (element) => element.type === "mind-node",
+      ) as MindNodeElement[];
       // 找到所有的根节点
-      const roots = mindNodes.map(node => {
-        const root = MindUtil.getRoot(board, node);
-        if (!root) return;
-        return {
-          root,
-          node
-        }
-      }).filter(isValid);
+      const roots = mindNodes
+        .map((node) => {
+          const root = MindUtil.getRoot(board, node);
+          if (!root) return;
+          return {
+            root,
+            node,
+          };
+        })
+        .filter(isValid);
 
       // 按照根节点聚合
       const rootsMap = new Map<MindNodeElement, MindNodeElement[]>();
-      roots.forEach(root => {
+      roots.forEach((root) => {
         const rootNode = root.root;
         if (!rootsMap.has(rootNode)) {
           rootsMap.set(rootNode, []);
@@ -110,28 +132,33 @@ export class SelectPlugin implements IBoardPlugin {
       rootsMap.forEach((nodes, root) => {
         const rootPath = PathUtil.getPathByElement(board, root);
         if (!rootPath) return;
-        if (selectedElements.map(node => node.id).includes(root.id)) {
+        if (selectedElements.map((node) => node.id).includes(root.id)) {
           toDeleteRoots.push(root);
         } else {
           const newRoot = MindUtil.deleteNodes(root, nodes);
           mindOps.push({
-            type: 'set_node',
+            type: "set_node",
             path: rootPath,
             properties: root,
-            newProperties: newRoot
-          })
+            newProperties: newRoot,
+          });
         }
       });
 
-      const otherElements = selectedElements.filter(element => element.type !== 'mind-node');
-      const ops = BoardUtil.getBatchRemoveNodesOps(board, [...otherElements, ...toDeleteRoots]);
+      const otherElements = selectedElements.filter(
+        (element) => element.type !== "mind-node",
+      );
+      const ops = BoardUtil.getBatchRemoveNodesOps(board, [
+        ...otherElements,
+        ...toDeleteRoots,
+      ]);
 
       const finalOps = [...mindOps, ...ops];
 
       board.apply(finalOps);
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,
-        selectedElements: []
+        selectedElements: [],
       });
     }
   }

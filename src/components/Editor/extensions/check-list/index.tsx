@@ -1,19 +1,21 @@
 import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 
-import { CheckListElement, CheckListItemElement } from "@/components/Editor/types";
+import {
+  CheckListElement,
+  CheckListItemElement,
+} from "@/components/Editor/types";
 
-
-import CheckList from './components/CheckList';
-import CheckListItem from './components/CheckListItem';
-import { insertBreak, deleteBackward } from './plugins';
+import CheckList from "./components/CheckList";
+import CheckListItem from "./components/CheckListItem";
+import { insertBreak, deleteBackward } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 
-import Base from '../base';
+import Base from "../base";
 import IExtension from "../types.ts";
 
 export class CheckListExtension extends Base implements IExtension {
-  type = 'check-list';
+  type = "check-list";
 
   override getBlockPanelItems() {
     return blockPanelItems;
@@ -29,15 +31,15 @@ export class CheckListExtension extends Base implements IExtension {
       <CheckList element={element as CheckListElement} attributes={attributes}>
         {children}
       </CheckList>
-    )
+    );
   }
 }
 
 export class CheckListItemExtension extends Base implements IExtension {
-  type = 'check-list-item';
+  type = "check-list-item";
 
   override getPlugins() {
-    return [insertBreak, deleteBackward]
+    return [insertBreak, deleteBackward];
   }
 
   override toMarkdown(element: Element, children: string): string {
@@ -45,24 +47,29 @@ export class CheckListItemExtension extends Base implements IExtension {
     // 后面添加两个空格
     const checkListItemEle = element as unknown as CheckListItemElement;
     const { checked } = checkListItemEle;
-    const check = checked ? 'x' : ' ';
-    return children
-            .split('\n')
-            .map((child, index) => {
-              if (index === 0) {
-                return `- [${check}] ${child}`;
-              }
-              return `  ${child}`;
-            })
-            .join('\n') + '\n';
+    const check = checked ? "x" : " ";
+    return (
+      children
+        .split("\n")
+        .map((child, index) => {
+          if (index === 0) {
+            return `- [${check}] ${child}`;
+          }
+          return `  ${child}`;
+        })
+        .join("\n") + "\n"
+    );
   }
 
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
-      <CheckListItem element={element as CheckListItemElement} attributes={attributes}>
+      <CheckListItem
+        element={element as CheckListItemElement}
+        attributes={attributes}
+      >
         {children}
       </CheckListItem>
-    )
+    );
   }
 }

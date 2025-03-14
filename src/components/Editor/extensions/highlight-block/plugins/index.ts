@@ -1,2 +1,2 @@
-export * from './quit.ts';
-export * from './normalize.ts';
+export * from "./quit.ts";
+export * from "./normalize.ts";

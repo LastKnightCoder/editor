@@ -3,21 +3,21 @@ import Base from "@/components/Editor/extensions/base.ts";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
 import DocumentListSlate from "./components/DocumentListSlate";
-import { overwrite } from './plugins';
+import { overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import { RenderElementProps } from "slate-react";
 
 export interface DocumentCardListElement {
-  type: 'document-card-list';
+  type: "document-card-list";
   documentItemId: number;
   children: Descendant[];
 }
 
 class DocumentCardListExtension extends Base implements IExtension {
-  type = 'document-card-list';
+  type = "document-card-list";
 
   override getPlugins() {
-    return [overwrite]
+    return [overwrite];
   }
 
   override getBlockPanelItems() {
@@ -28,10 +28,13 @@ class DocumentCardListExtension extends Base implements IExtension {
     const { element, attributes, children } = props;
 
     return (
-      <DocumentListSlate element={element as any as DocumentCardListElement} attributes={attributes}>
+      <DocumentListSlate
+        element={element as any as DocumentCardListElement}
+        attributes={attributes}
+      >
         {children}
       </DocumentListSlate>
-    )
+    );
   }
 }
 

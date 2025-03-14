@@ -5,12 +5,13 @@
   &.drop {
     --tab-active-color: var(--common-hover-bg);
   }
-  &.active, &.drop {
+  &.active,
+  &.drop {
     background-color: var(--tab-active-color);
     position: relative;
     border-radius: 12px 12px 0 0;
     &::before {
-      content: '';
+      content: "";
       position: absolute;
       bottom: 0;
       left: -24px;
@@ -20,7 +21,7 @@
       background-color: var(--tab-active-color);
     }
     &::after {
-      content: '';
+      content: "";
       position: absolute;
       bottom: 0;
       right: -24px;

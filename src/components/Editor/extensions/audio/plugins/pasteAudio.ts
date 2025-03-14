@@ -10,13 +10,13 @@ export const pasteAudio = (editor: Editor) => {
     const { files } = data;
     if (files && files.length > 0) {
       const file = files[0];
-      const [mime] = file.type.split('/');
-      if (mime !== 'audio') {
+      const [mime] = file.type.split("/");
+      if (mime !== "audio") {
         insertData(data);
         return;
       }
       const insertPath = insertAudio(editor, {
-        src: '',
+        src: "",
         uploading: true,
       });
       if (!insertPath) {
@@ -24,31 +24,39 @@ export const pasteAudio = (editor: Editor) => {
       }
       const src = await uploadImage(file);
       if (!src) {
-        message.error('上传失败');
+        message.error("上传失败");
         Editor.withoutNormalizing(editor, () => {
           Transforms.delete(editor, {
-            at: insertPath
-          });
-          Transforms.insertNodes(editor, {
-            type: 'paragraph',
-            children: [{ type: 'formatted', text: '' }],
-          }, {
             at: insertPath,
-            select: true
           });
+          Transforms.insertNodes(
+            editor,
+            {
+              type: "paragraph",
+              children: [{ type: "formatted", text: "" }],
+            },
+            {
+              at: insertPath,
+              select: true,
+            },
+          );
         });
         return;
       }
-      Transforms.setNodes(editor, {
-        src,
-        uploading: false
-      }, {
-        at: insertPath
-      });
+      Transforms.setNodes(
+        editor,
+        {
+          src,
+          uploading: false,
+        },
+        {
+          at: insertPath,
+        },
+      );
       return;
     }
     insertData(data);
-  }
+  };
 
   return editor;
-}
+};

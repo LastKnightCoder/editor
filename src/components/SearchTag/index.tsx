@@ -24,23 +24,29 @@ const SearchTag = forwardRef<InputRef, SearchTagProps>((props, ref) => {
     allowClear = false,
     onFocus,
     onBlur,
-    style
+    style,
   } = props;
 
   return (
     <Input
       ref={ref}
       value={searchValue}
-      prefix={tags.length > 0 ? <Tags closable tags={tags} onClose={onDeleteTag} /> : undefined}
-      onChange={(e) => { onSearchValueChange(e.target.value) }}
+      prefix={
+        tags.length > 0 ? (
+          <Tags closable tags={tags} onClose={onDeleteTag} />
+        ) : undefined
+      }
+      onChange={(e) => {
+        onSearchValueChange(e.target.value);
+      }}
       onPressEnter={onSearch}
-      placeholder={'请输入标签进行筛选'}
+      placeholder={"请输入标签进行筛选"}
       allowClear={allowClear}
       onFocus={onFocus}
       onBlur={onBlur}
       style={style}
     />
-  )
-})
+  );
+});
 
 export default SearchTag;

@@ -1,10 +1,14 @@
-import { Element } from 'slate';
+import { Element } from "slate";
 import IExtension from "./types.ts";
 import { Plugin } from "../utils/plugin.ts";
-import { IBlockPanelListItem, IConfigItem, IHotKeyConfig } from "@/components/Editor/types";
+import {
+  IBlockPanelListItem,
+  IConfigItem,
+  IHotKeyConfig,
+} from "@/components/Editor/types";
 
-export default class Base implements Omit<IExtension, 'render'> {
-  type = 'base';
+export default class Base implements Omit<IExtension, "render"> {
+  type = "base";
   getPlugins() {
     return [] as Plugin[];
   }

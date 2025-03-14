@@ -1,7 +1,7 @@
-import { useRef, useEffect } from 'react';
-import katex from 'katex';
+import { useRef, useEffect } from "react";
+import katex from "katex";
 
-import 'katex/dist/katex.min.css';
+import "katex/dist/katex.min.css";
 
 interface IKatexProps {
   tex: string;
@@ -17,11 +17,11 @@ const Katex = (props: IKatexProps) => {
     katex.render(tex, ref.current, {
       throwOnError: false,
       displayMode: !inline,
-      errorColor: '#c00',
+      errorColor: "#c00",
     });
   }, [tex, inline]);
 
-  return <span ref={ref} />
-}
+  return <span ref={ref} />;
+};
 
 export default Katex;

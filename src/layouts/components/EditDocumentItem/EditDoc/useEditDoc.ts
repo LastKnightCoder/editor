@@ -10,21 +10,20 @@ import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 
 const useEditDoc = () => {
-  const {
-    activeDocumentItem,
-  } = useDocumentsStore((state) => ({
+  const { activeDocumentItem } = useDocumentsStore((state) => ({
     activeDocumentItem: state.activeDocumentItem,
   }));
-  const {
-    initCards,
-  } = useCardsManagementStore((state) => ({
+  const { initCards } = useCardsManagementStore((state) => ({
     initCards: state.init,
   }));
   const [initValue] = useState<Descendant[]>(() => {
-    if (!activeDocumentItem) return [{
-      type: 'paragraph',
-      children: [{ type: 'formatted', text: '' }],
-    }];
+    if (!activeDocumentItem)
+      return [
+        {
+          type: "paragraph",
+          children: [{ type: "formatted", text: "" }],
+        },
+      ];
     return activeDocumentItem.content;
   });
   const prevDocument = useRef<IDocumentItem | null>(activeDocumentItem);
@@ -32,7 +31,9 @@ const useEditDoc = () => {
 
   useEffect(() => {
     if (!activeDocumentItem || !prevDocument.current) return;
-    documentChanged.current = JSON.stringify(activeDocumentItem) !== JSON.stringify(prevDocument.current);
+    documentChanged.current =
+      JSON.stringify(activeDocumentItem) !==
+      JSON.stringify(prevDocument.current);
   }, [activeDocumentItem]);
 
   const saveDocument = useMemoizedFn((saveAnyway = false) => {
@@ -51,15 +52,15 @@ const useEditDoc = () => {
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
     if (!editor || !activeDocumentItem) return;
     const wordsCount = getContentLength(content);
-    const newDocumentItem = produce(activeDocumentItem, draft => {
+    const newDocumentItem = produce(activeDocumentItem, (draft) => {
       draft.count = wordsCount;
     });
     useDocumentsStore.setState({ activeDocumentItem: newDocumentItem });
-  })
+  });
 
   const onTitleChange = useMemoizedFn((title: string) => {
     if (!activeDocumentItem) return;
-    const newDocument = produce(activeDocumentItem, draft => {
+    const newDocument = produce(activeDocumentItem, (draft) => {
       draft.title = title;
     });
     useDocumentsStore.setState({ activeDocumentItem: newDocument });
@@ -68,10 +69,10 @@ const useEditDoc = () => {
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!activeDocumentItem) return;
     const wordsCount = getContentLength(content);
-    const newDocument = produce(activeDocumentItem, draft => {
+    const newDocument = produce(activeDocumentItem, (draft) => {
       draft.content = content;
       draft.count = wordsCount;
-    })
+    });
     useDocumentsStore.setState({ activeDocumentItem: newDocument });
   });
 
@@ -82,7 +83,7 @@ const useEditDoc = () => {
     activeDocumentItem,
     initValue,
     onInit,
-  }
-}
+  };
+};
 
 export default useEditDoc;

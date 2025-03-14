@@ -45,7 +45,9 @@ const extendWidth = (A: RectWithPageNumber, B: RectWithPageNumber) => {
   A.width = Math.max(B.width - A.left + B.left, A.width);
 };
 
-export const optimizeClientRects = (clientRects: Array<RectWithPageNumber>): Array<RectWithPageNumber> => {
+export const optimizeClientRects = (
+  clientRects: Array<RectWithPageNumber>,
+): Array<RectWithPageNumber> => {
   const rects = sort(clientRects);
 
   const toRemove = new Set();
@@ -88,4 +90,3 @@ export const optimizeClientRects = (clientRects: Array<RectWithPageNumber>): Arr
 
   return firstPass.filter((rect) => !toRemove.has(rect));
 };
-

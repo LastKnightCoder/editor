@@ -1,22 +1,22 @@
 import { create } from "zustand";
 import { produce } from "immer";
-import { merge, cloneDeep } from 'lodash';
+import { merge, cloneDeep } from "lodash";
 
-import { getSetting } from '@/commands';
+import { getSetting } from "@/commands";
 
 export enum EImageBed {
-  Local = 'local',
-  Github = 'github',
-  AliOSS = 'aliOSS',
+  Local = "local",
+  Github = "github",
+  AliOSS = "aliOSS",
 }
 
 export enum ESync {
-  AliOSS = 'aliOSS',
+  AliOSS = "aliOSS",
 }
 
 export enum ELLMProvider {
-  OPENAI = 'openai',
-  OTHER = 'other',
+  OPENAI = "openai",
+  OTHER = "other",
 }
 
 interface DoubaoVoiceCopyConfig {
@@ -32,7 +32,7 @@ export interface ISetting {
     chineseFont: string;
     englishFont: string;
     fontSize: number;
-  },
+  };
   imageBed: {
     active: EImageBed;
     github: {
@@ -42,18 +42,18 @@ export interface ISetting {
       user: {
         name: string;
         email: string;
-      }
-    },
+      };
+    };
     aliOSS: {
       accessKeyId: string;
       accessKeySecret: string;
       bucket: string;
       region: string;
-    },
+    };
     local: {
       path: string;
-    }
-  },
+    };
+  };
   sync: {
     active: ESync;
     version: number;
@@ -63,58 +63,58 @@ export interface ISetting {
       bucket: string;
       region: string;
       path: string;
-    }
-  },
+    };
+  };
   database: {
     active: string;
     databases: Array<{
       name: string;
       version: number;
     }>;
-  }
+  };
   module: {
     card: {
       enable: boolean;
-      name: '卡片'
-    },
+      name: "卡片";
+    };
     article: {
       enable: boolean;
-      name: '文章'
-    },
+      name: "文章";
+    };
     whiteBoard: {
       enable: boolean;
-      name: '白板'
-    },
+      name: "白板";
+    };
     project: {
       enable: boolean;
-      name: '项目'
-    },
+      name: "项目";
+    };
     document: {
       enable: boolean;
-      name: '知识库'
-    },
+      name: "知识库";
+    };
     dailyNote: {
       enable: boolean;
-      name: '日记'
-    },
+      name: "日记";
+    };
     pdf: {
       enable: boolean;
-      name: 'PDF'
-    },
+      name: "PDF";
+    };
     timeRecord: {
       enable: boolean;
-      name: '时间记录'
-    },
+      name: "时间记录";
+    };
     vecDocuments: {
       enable: boolean;
-      name: '向量数据库'
-    }
-  }
+      name: "向量数据库";
+    };
+  };
   darkMode: boolean;
   textToSpeech: {
     currentModel: string;
-    doubao: DoubaoVoiceCopyConfig,
-  },
+    doubao: DoubaoVoiceCopyConfig;
+  };
   llmProviders: {
     currentProvider: ELLMProvider;
     [ELLMProvider.OPENAI]: {
@@ -128,9 +128,9 @@ export interface ISetting {
         models: Array<{
           name: string;
           description: string;
-        }>
-      }>
-    },
+        }>;
+      }>;
+    };
     [ELLMProvider.OTHER]: {
       currentConfigId: string;
       configs: Array<{
@@ -142,10 +142,10 @@ export interface ISetting {
         models: Array<{
           name: string;
           description: string;
-        }>
-      }>
-    }
-  }
+        }>;
+      }>;
+    };
+  };
 }
 
 interface IState {
@@ -157,7 +157,7 @@ interface IState {
 interface IActions {
   initSetting: () => void;
   setSettingModalOpen: (open: boolean) => void;
-  onFontSettingChange: (fontSetting: ISetting['fontSetting']) => void;
+  onFontSettingChange: (fontSetting: ISetting["fontSetting"]) => void;
   onDarkModeChange: (darkMode: boolean) => void;
 }
 
@@ -166,111 +166,113 @@ const initialState: IState = {
   setting: {
     darkMode: false,
     fontSetting: {
-      chineseFont: '华文楷体',
-      englishFont: 'American TypeWriter',
+      chineseFont: "华文楷体",
+      englishFont: "American TypeWriter",
       fontSize: 16,
     },
     imageBed: {
       active: EImageBed.Github,
       github: {
-        token: '',
-        repo: '',
-        branch: '',
+        token: "",
+        repo: "",
+        branch: "",
         user: {
-          name: '',
-          email: '',
-        }
+          name: "",
+          email: "",
+        },
       },
       aliOSS: {
-        accessKeyId: '',
-        accessKeySecret: '',
-        bucket: '',
-        region: '',
+        accessKeyId: "",
+        accessKeySecret: "",
+        bucket: "",
+        region: "",
       },
       local: {
-        path: 'resources',
-      }
+        path: "resources",
+      },
     },
     sync: {
       active: ESync.AliOSS,
       version: 1,
       aliOSS: {
-        accessKeyId: '',
-        accessKeySecret: '',
-        bucket: '',
-        region: '',
-        path: '/',
-      }
+        accessKeyId: "",
+        accessKeySecret: "",
+        bucket: "",
+        region: "",
+        path: "/",
+      },
     },
     database: {
-      active: 'data.db',
-      databases: [{
-        name: 'data.db',
-        version: 1,
-      }],
+      active: "data.db",
+      databases: [
+        {
+          name: "data.db",
+          version: 1,
+        },
+      ],
     },
     module: {
       card: {
         enable: true,
-        name: '卡片'
+        name: "卡片",
       },
       article: {
         enable: true,
-        name: '文章'
+        name: "文章",
       },
       whiteBoard: {
         enable: true,
-        name: '白板'
+        name: "白板",
       },
       project: {
         enable: true,
-        name: '项目'
+        name: "项目",
       },
       document: {
         enable: true,
-        name: '知识库'
+        name: "知识库",
       },
       dailyNote: {
         enable: true,
-        name: '日记'
+        name: "日记",
       },
       pdf: {
         enable: true,
-        name: 'PDF'
+        name: "PDF",
       },
       timeRecord: {
         enable: true,
-        name: '时间记录'
+        name: "时间记录",
       },
       vecDocuments: {
         enable: true,
-        name: '向量数据库'
-      }
+        name: "向量数据库",
+      },
     },
     textToSpeech: {
       currentModel: "doubao",
       doubao: {
-        accessToken: '',
-        secretKey: '',
-        appid: '',
-        token: '',
-        currentSpeakerId: '',
-      }
+        accessToken: "",
+        secretKey: "",
+        appid: "",
+        token: "",
+        currentSpeakerId: "",
+      },
     },
     llmProviders: {
       currentProvider: ELLMProvider.OPENAI,
       [ELLMProvider.OPENAI]: {
-        currentConfigId: '',
-        configs: []
+        currentConfigId: "",
+        configs: [],
       },
       [ELLMProvider.OTHER]: {
-        currentConfigId: '',
-        configs: []
-      }
-    }
+        currentConfigId: "",
+        configs: [],
+      },
+    },
   },
   settingModalOpen: false,
-}
+};
 
 const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
@@ -282,7 +284,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       merge(newSetting, parsedSetting);
       set({
         setting: newSetting,
-      })
+      });
     } finally {
       set({
         inited: true,
@@ -299,7 +301,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.fontSetting = fontSetting;
-      })
+      }),
     });
   },
   onDarkModeChange: (darkMode) => {
@@ -307,9 +309,9 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.darkMode = darkMode;
-      })
+      }),
     });
-  }
+  },
 }));
 
 export default useSettingStore;

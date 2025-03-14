@@ -12,9 +12,9 @@ const ColorItem = (props: IColorItemProps) => {
     <div
       style={{
         padding: 2,
-        border: active ? `2px solid #1a66ff` : '2px solid transparent',
+        border: active ? `2px solid #1a66ff` : "2px solid transparent",
         borderRadius: 8,
-        cursor: 'pointer'
+        cursor: "pointer",
       }}
     >
       <div
@@ -23,12 +23,12 @@ const ColorItem = (props: IColorItemProps) => {
           border: `2px solid ${borderColor}`,
           borderRadius: 8,
           width: 20,
-          height: 20
+          height: 20,
         }}
         onClick={onClick}
       />
     </div>
-  )
-}
+  );
+};
 
 export default ColorItem;

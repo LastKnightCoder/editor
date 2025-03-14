@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useState } from "react";
 import { Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useReadOnly, useSlate } from "slate-react";
-import { Modal } from 'antd';
-import classnames from 'classnames';
-import { SettingOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  ReactEditor,
+  RenderElementProps,
+  useReadOnly,
+  useSlate,
+} from "slate-react";
+import { Modal } from "antd";
+import classnames from "classnames";
+import { SettingOutlined, PlusOutlined } from "@ant-design/icons";
 
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import ImageGallerySetting, { ISetting } from "../ImageGallerySetting";
@@ -14,38 +19,37 @@ import HorizontalImageGallery from "../HorizontalImageGallery";
 import VerticalImageGallery from "../VerticalImageGallery";
 
 import { ImageGalleryElement } from "@editor/types";
-import { EGalleryMode } from '@editor/constants';
+import { EGalleryMode } from "@editor/constants";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
 
 interface IImageGalleryProps {
-  attributes: RenderElementProps['attributes'];
+  attributes: RenderElementProps["attributes"];
   element: ImageGalleryElement;
-  children: RenderElementProps['children'];
+  children: RenderElementProps["children"];
 }
 
 const ImageGallery = (props: IImageGalleryProps) => {
   const { attributes, element, children } = props;
-  const { images, height = 200, mode, wider = false, columnCount = 3 } = element;
-
   const {
-    drag,
-    drop,
-    isDragging,
-    canDrag,
-    canDrop,
-    isBefore,
-    isOverCurrent,
-  } = useDragAndDrop({
-    element,
-  })
+    images,
+    height = 200,
+    mode,
+    wider = false,
+    columnCount = 3,
+  } = element;
+
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
+    useDragAndDrop({
+      element,
+    });
 
   const [settingModalOpen, setSettingModalOpen] = useState(false);
   const [setting, setSetting] = useState<ISetting>({
     mode,
     height,
-    images
+    images,
   });
 
   const editor = useSlate();
@@ -57,20 +61,24 @@ const ImageGallery = (props: IImageGalleryProps) => {
       height,
       images,
       wider,
-      columnCount
+      columnCount,
     });
     setSettingModalOpen(false);
-  }
+  };
 
   const onOk = () => {
     setSettingModalOpen(false);
     const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(editor, {
-      ...setting,
-    }, {
-      at: path
-    });
-  }
+    Transforms.setNodes(
+      editor,
+      {
+        ...setting,
+      },
+      {
+        at: path,
+      },
+    );
+  };
 
   return (
     <div
@@ -86,57 +94,65 @@ const ImageGallery = (props: IImageGalleryProps) => {
       <If condition={images.length > 0}>
         <div contentEditable={false}>
           <If condition={mode === EGalleryMode.Horizontal}>
-            <HorizontalImageGallery items={images} height={height}/>
+            <HorizontalImageGallery items={images} height={height} />
           </If>
           <If condition={mode === EGalleryMode.Vertical}>
-            <VerticalImageGallery items={images} columnCount={columnCount}/>
+            <VerticalImageGallery items={images} columnCount={columnCount} />
           </If>
           <If condition={mode === EGalleryMode.Inline}>
-            <SwipeImageGallery items={images}/>
+            <SwipeImageGallery items={images} />
           </If>
         </div>
       </If>
       <If condition={images.length === 0}>
-        <div contentEditable={false} className={styles.emptySetting} onClick={() => {
-          setSettingModalOpen(true)
-        }}>
+        <div
+          contentEditable={false}
+          className={styles.emptySetting}
+          onClick={() => {
+            setSettingModalOpen(true);
+          }}
+        >
           <div className={styles.uploadTips}>
-            <PlusOutlined className={styles.icon}/>
+            <PlusOutlined className={styles.icon} />
             <div>上传图片</div>
           </div>
         </div>
       </If>
       <If condition={!readOnly}>
         <div contentEditable={false} className={styles.actions}>
-          <div className={styles.item} onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setSettingModalOpen(true);
-          }}>
-            <SettingOutlined/>
+          <div
+            className={styles.item}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setSettingModalOpen(true);
+            }}
+          >
+            <SettingOutlined />
           </div>
         </div>
       </If>
-      <AddParagraph element={element}/>
+      <AddParagraph element={element} />
       <Modal
         width={720}
         open={settingModalOpen}
         onCancel={onCancel}
         onOk={onOk}
       >
-        <ImageGallerySetting
-          setting={setting}
-          onSettingChange={setSetting}
-        />
+        <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
       </Modal>
-      <div {...attributes}>
-        {children}
-      </div>
-      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
-        <MdDragIndicator className={styles.icon}/>
+      <div {...attributes}>{children}</div>
+      <div
+        contentEditable={false}
+        ref={drag}
+        className={classnames(styles.dragHandler, {
+          [styles.canDrag]: canDrag,
+        })}
+      >
+        <MdDragIndicator className={styles.icon} />
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default ImageGallery;

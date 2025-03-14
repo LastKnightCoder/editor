@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useContext } from 'react';
+import { useMemo, useState, useRef, useContext } from "react";
 import { BaseSelection, Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
@@ -23,8 +23,8 @@ const LinkHoveringItem = () => {
   const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
   const { cardId } = useContext(EditCardContext) || {};
 
-  const { cards } = useCardsManagementStore(state => ({
-    cards: state.cards
+  const { cards } = useCardsManagementStore((state) => ({
+    cards: state.cards,
   }));
 
   const editor = useSlate();
@@ -36,7 +36,7 @@ const LinkHoveringItem = () => {
     }
     const [cardLink] = Editor.nodes(editor, {
       // @ts-ignore 外部扩展，没有定义 card-link
-      match: n => !Editor.isEditor(n) && n.type === 'card-link',
+      match: (n) => !Editor.isEditor(n) && n.type === "card-link",
     });
     return !!cardLink;
   }, [editor, selection]);
@@ -51,11 +51,11 @@ const LinkHoveringItem = () => {
       const { selection } = editor;
       selectionRef.current = selection;
     } finally {
-      Transforms.collapse(editor, { edge: 'end' });
+      Transforms.collapse(editor, { edge: "end" });
       event.preventDefault();
       event.stopPropagation();
     }
-  })
+  });
 
   const onCancelSelect = () => {
     setOpenSelectModal(false);
@@ -63,11 +63,11 @@ const LinkHoveringItem = () => {
     ReactEditor.focus(editor);
     selectionRef.current && Transforms.select(editor, selectionRef.current);
     selectionRef.current = null;
-  }
+  };
 
   const onSelectOk = async (selectedCards: ICard[]) => {
     if (selectedCards.length === 0) {
-      message.warning('请选择卡片');
+      message.warning("请选择卡片");
       return;
     }
     selectionRef.current && Transforms.select(editor, selectionRef.current);
@@ -76,24 +76,26 @@ const LinkHoveringItem = () => {
     setOpenSelectModal(false);
     setSelectedCards([]);
     ReactEditor.focus(editor);
-    Transforms.collapse(editor, { edge: 'end' });
-  }
+    Transforms.collapse(editor, { edge: "end" });
+  };
 
   return (
     <div>
-      <Tooltip
-        title={'关联卡片'}
-        trigger={'hover'}
-      >
+      <Tooltip title={"关联卡片"} trigger={"hover"}>
         <div
-          className={classnames(styles.markTextContainer, { [styles.active]: isActive })}
+          className={classnames(styles.markTextContainer, {
+            [styles.active]: isActive,
+          })}
           onClick={handleClick}
         >
-          <SVG src={card} style={{ fill: 'currentcolor', width: 16, height: 16 }} />
+          <SVG
+            src={card}
+            style={{ fill: "currentcolor", width: 16, height: 16 }}
+          />
         </div>
       </Tooltip>
       <SelectCardModal
-        title={'选择关联卡片'}
+        title={"选择关联卡片"}
         selectedCards={selectedCards}
         onChange={setSelectedCards}
         open={openSelectModal}
@@ -103,7 +105,7 @@ const LinkHoveringItem = () => {
         excludeCardIds={[cardId || -1]}
       />
     </div>
-  )
-}
+  );
+};
 
 export default LinkHoveringItem;

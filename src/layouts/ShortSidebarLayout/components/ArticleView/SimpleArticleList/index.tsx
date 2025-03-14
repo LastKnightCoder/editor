@@ -1,8 +1,8 @@
 import React from "react";
-import classnames from 'classnames';
+import classnames from "classnames";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import For from "@/components/For";
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { IArticle } from "@/types";
 import { MenuFoldOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
@@ -14,40 +14,42 @@ interface SimpleArticleListProps {
 
 const SimpleArticleList = (props: SimpleArticleListProps) => {
   const { className, style } = props;
-  
-  const { articles, activeArticleId } = useArticleManagementStore(state => ({
+
+  const { articles, activeArticleId } = useArticleManagementStore((state) => ({
     articles: state.articles,
     activeArticleId: state.activeArticleId,
   }));
-  
+
   const onClick = (article: IArticle) => {
     if (activeArticleId === article.id) {
       useArticleManagementStore.setState({
-        activeArticleId: undefined
+        activeArticleId: undefined,
       });
       return;
     }
     useArticleManagementStore.setState({
       activeArticleId: article.id,
     });
-  }
-  
+  };
+
   const onFoldArticleList = useMemoizedFn(() => {
     useArticleManagementStore.setState({
-      hideArticleList: true
-    })
+      hideArticleList: true,
+    });
   });
-  
+
   const onClickTitle = useMemoizedFn(() => {
     useArticleManagementStore.setState({
-      activeArticleId: undefined
-    })
-  })
-  
+      activeArticleId: undefined,
+    });
+  });
+
   return (
     <div className={classnames(styles.container, className)} style={style}>
       <div className={styles.header}>
-        <div className={styles.title} onClick={onClickTitle}>文章列表({articles.length})</div>
+        <div className={styles.title} onClick={onClickTitle}>
+          文章列表({articles.length})
+        </div>
         <div className={styles.icon} onClick={onFoldArticleList}>
           <MenuFoldOutlined />
         </div>
@@ -58,7 +60,9 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
           data={articles}
           renderItem={(article) => (
             <div
-              className={classnames(styles.item, { [styles.active]: article.id === activeArticleId })}
+              className={classnames(styles.item, {
+                [styles.active]: article.id === activeArticleId,
+              })}
               onClick={() => onClick(article)}
             >
               {article.title}
@@ -67,7 +71,7 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
         />
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default SimpleArticleList;

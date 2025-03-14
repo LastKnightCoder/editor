@@ -7,12 +7,12 @@ export const deleteBackward = (editor: Editor) => {
 
   editor.deleteBackward = (unit) => {
     const [match] = Editor.nodes(editor, {
-      match: n => n.type === 'multi-column-item',
-      mode: 'lowest'
+      match: (n) => n.type === "multi-column-item",
+      mode: "lowest",
     });
     if (!match) {
       deleteBackward(unit);
-      return
+      return;
     }
 
     // 当只有一个空段落的时候，将当前的列删除
@@ -23,20 +23,20 @@ export const deleteBackward = (editor: Editor) => {
     }
 
     const child = ele.children[0];
-    if (child.type !== 'paragraph') {
+    if (child.type !== "paragraph") {
       deleteBackward(unit);
       return;
     }
 
     if (isParagraphAndEmpty(editor)) {
       Transforms.delete(editor, {
-        at: path
+        at: path,
       });
       return;
     }
 
     deleteBackward(unit);
-  }
+  };
 
   return editor;
-}
+};

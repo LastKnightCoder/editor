@@ -1,10 +1,10 @@
 import { Board, BoardElement, IBoardPlugin, Operation, Point } from "../types";
 import { BoardUtil } from "@/components/WhiteBoard/utils";
 import { SelectTransforms } from "@/components/WhiteBoard/transforms";
-import { v4 as getUuid } from 'uuid';
+import { v4 as getUuid } from "uuid";
 
 export class CopyPastePlugin implements IBoardPlugin {
-  name = 'copy-paste';
+  name = "copy-paste";
 
   constructor() {
     this.onCopy = this.onCopy.bind(this);
@@ -15,42 +15,44 @@ export class CopyPastePlugin implements IBoardPlugin {
   onCopy(e: ClipboardEvent, board: Board) {
     // 读取当前所有选择的元素
     const selectedElements = board.selection.selectedElements;
-    console.log('selectedElements', selectedElements);
+    console.log("selectedElements", selectedElements);
     if (selectedElements.length === 0) return;
 
     // 解决有的对象的属性不可更改
-    const copiedElements: BoardElement[] = JSON.parse(JSON.stringify(selectedElements));
+    const copiedElements: BoardElement[] = JSON.parse(
+      JSON.stringify(selectedElements),
+    );
 
     const { minX, minY, width, height } = board.viewPort;
     const center = {
       x: minX + width / 2,
       y: minY + height / 2,
-    }
+    };
 
     const data = {
-      source: 'editor-white-board',
-      elements: copiedElements.map(element => {
+      source: "editor-white-board",
+      elements: copiedElements.map((element) => {
         // 把 x y 相对于当前中心
-        if (typeof element.x === 'number' && typeof element.y === 'number') {
+        if (typeof element.x === "number" && typeof element.y === "number") {
           return {
             ...element,
             x: element.x - center.x,
             y: element.y - center.y,
-          }
-        } else if (element.type === 'arrow') {
+          };
+        } else if (element.type === "arrow") {
           element.points = element.points.map((point: Point) => {
             return {
               x: point.x - center.x,
               y: point.y - center.y,
-            }
+            };
           });
           return element;
         } else {
           return element;
         }
-      })
+      }),
     };
-    e.clipboardData?.setData('application/json', JSON.stringify(data));
+    e.clipboardData?.setData("application/json", JSON.stringify(data));
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -63,17 +65,17 @@ export class CopyPastePlugin implements IBoardPlugin {
     this.onCopy(e, board);
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
-      selectedElements: []
+      selectedElements: [],
     });
   }
 
   onPaste(e: ClipboardEvent, board: Board) {
     // 读取剪切板数据
-    const data = e.clipboardData?.getData('application/json');
+    const data = e.clipboardData?.getData("application/json");
     if (!data) return;
     try {
       const dataObj = JSON.parse(data);
-      if (dataObj.source !== 'editor-white-board') return;
+      if (dataObj.source !== "editor-white-board") return;
       // 获取粘贴板的元素
       const elements: BoardElement[] = dataObj.elements;
       // 获取当前鼠标的位置
@@ -81,24 +83,24 @@ export class CopyPastePlugin implements IBoardPlugin {
       const center = {
         x: minX + width / 2,
         y: minY + height / 2,
-      }
+      };
       const idMaps = new Map<string, string>();
-      const pastedElements = elements.map(element => {
+      const pastedElements = elements.map((element) => {
         const newId = getUuid();
         idMaps.set(element.id, newId);
         element.id = newId;
-        if (typeof element.x === 'number' && typeof element.y === 'number') {
+        if (typeof element.x === "number" && typeof element.y === "number") {
           return {
             ...element,
             x: element.x + center.x,
             y: element.y + center.y,
-          }
-        } else if (element.type === 'arrow') {
+          };
+        } else if (element.type === "arrow") {
           element.points = element.points.map((point: Point) => {
             return {
               x: point.x + center.x,
               y: point.y + center.y,
-            }
+            };
           });
           return element;
         } else {
@@ -110,7 +112,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       const ops: Operation[] = [];
       for (const element of pastedElements) {
         const path = [childrenLength + index++];
-        if (element.type === 'arrow') {
+        if (element.type === "arrow") {
           // 重新绑定 bindId
           if (element.source.bindId) {
             element.source.bindId = idMaps.get(element.source.bindId);
@@ -120,10 +122,10 @@ export class CopyPastePlugin implements IBoardPlugin {
           }
         }
         ops.push({
-          type: 'insert_node',
+          type: "insert_node",
           path,
-          node: element
-        })
+          node: element,
+        });
       }
       board.apply(ops);
       e.preventDefault();

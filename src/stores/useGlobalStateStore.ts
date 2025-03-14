@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface IState {
   sidebarOpen: boolean;
@@ -10,8 +10,8 @@ interface IState {
   databaseStatus: Record<string, boolean>;
 }
 
-const sidebarWidth = Number(localStorage.getItem('sidebarWidth')) || 300;
-const listWidth = Number(localStorage.getItem('listWidth')) || 300;
+const sidebarWidth = Number(localStorage.getItem("sidebarWidth")) || 300;
+const listWidth = Number(localStorage.getItem("listWidth")) || 300;
 
 export const useGlobalStateStore = create<IState>(() => ({
   sidebarOpen: true,

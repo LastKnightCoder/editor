@@ -1,10 +1,10 @@
 import { Board } from "../types";
 import Geometry from "../components/Geometry";
-import { CommonPlugin, CommonElement } from './CommonPlugin';
+import { CommonPlugin, CommonElement } from "./CommonPlugin";
 import { Descendant } from "slate";
 
 export interface GeometryElement extends CommonElement {
-  type: "geometry",
+  type: "geometry";
   color?: string;
   fill?: string;
   fillOpacity?: number;
@@ -13,9 +13,9 @@ export interface GeometryElement extends CommonElement {
   strokeOpacity?: number;
   paths: string[];
   text: {
-    align: 'left' | 'center' | 'right';
+    align: "left" | "center" | "right";
     content: Descendant[];
-  }
+  };
 }
 
 export class GeometryPlugin extends CommonPlugin {
@@ -34,7 +34,7 @@ export class GeometryPlugin extends CommonPlugin {
         onResize={this.onResize.bind(this)}
         onResizeEnd={this.onResizeEnd.bind(this)}
       />
-    )
+    );
   }
 }
 

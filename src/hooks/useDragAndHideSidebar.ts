@@ -8,7 +8,11 @@ interface UseDragAndHideSidebarProps {
   onWidthChange?: (width: number, actualWidth?: number) => void;
 }
 
-const useDragAndHideSidebar = <T extends HTMLElement>({ open, width, onWidthChange }: UseDragAndHideSidebarProps) => {
+const useDragAndHideSidebar = <T extends HTMLElement>({
+  open,
+  width,
+  onWidthChange,
+}: UseDragAndHideSidebarProps) => {
   const firstOpen = useRef(true);
   const ref = useRef<T | null>(null);
 
@@ -20,16 +24,16 @@ const useDragAndHideSidebar = <T extends HTMLElement>({ open, width, onWidthChan
         duration: 0.3,
         onUpdate: () => {
           onWidthChange?.(width, ref.current!.offsetWidth);
-        }
-      })
+        },
+      });
     } else {
       gsap.to(ref.current, {
         width: 0,
         duration: firstOpen.current ? 0 : 0.3,
         onUpdate: () => {
           onWidthChange?.(width, ref.current!.offsetWidth);
-        }
-      })
+        },
+      });
     }
     firstOpen.current = false;
   });
@@ -53,6 +57,6 @@ const useDragAndHideSidebar = <T extends HTMLElement>({ open, width, onWidthChan
   }, [width, handleSidebarWidthChange]);
 
   return ref;
-}
+};
 
 export default useDragAndHideSidebar;

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useMemoizedFn } from 'ahooks';
+import { useEffect, useRef, useState } from "react";
+import { useMemoizedFn } from "ahooks";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
 
@@ -11,16 +11,17 @@ import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 const useEditArticle = (articleId?: number) => {
   const [readonly, setReadonly] = useState(false);
   const [initLoading, setInitLoading] = useState(false);
-  const [initValue, setInitValue] = useState<Descendant[]>(DEFAULT_ARTICLE_CONTENT);
-  const [editingArticle, setEditingArticle] = useState<IArticle | undefined>(undefined);
+  const [initValue, setInitValue] = useState<Descendant[]>(
+    DEFAULT_ARTICLE_CONTENT,
+  );
+  const [editingArticle, setEditingArticle] = useState<IArticle | undefined>(
+    undefined,
+  );
 
   const changed = useRef(false);
   const prevArticle = useRef<IArticle | undefined>(undefined);
 
-  const {
-    articles,
-    updateArticle,
-  } = useArticleManagementStore((state) => ({
+  const { articles, updateArticle } = useArticleManagementStore((state) => ({
     articles: state.articles,
     updateArticle: state.updateArticle,
   }));
@@ -45,12 +46,13 @@ const useEditArticle = (articleId?: number) => {
       setInitValue(DEFAULT_ARTICLE_CONTENT);
       setEditingArticle(undefined);
       prevArticle.current = undefined;
-    }
+    };
   }, [articleId, articles]);
 
   useEffect(() => {
     if (!editingArticle || !prevArticle.current) return;
-    changed.current = JSON.stringify(editingArticle) !== JSON.stringify(prevArticle.current);
+    changed.current =
+      JSON.stringify(editingArticle) !== JSON.stringify(prevArticle.current);
   }, [editingArticle]);
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
@@ -62,15 +64,17 @@ const useEditArticle = (articleId?: number) => {
     setEditingArticle(newEditingArticle);
   });
 
-  const onContentChange = useMemoizedFn((content: Descendant[], editor: Editor) => {
-    if (!editingArticle || !editor) return;
-    const wordsCount = getContentLength(content);
-    const newEditingArticle = produce(editingArticle, (draft) => {
-      draft.content = content;
-      draft.count = wordsCount;
-    });
-    setEditingArticle(newEditingArticle);
-  });
+  const onContentChange = useMemoizedFn(
+    (content: Descendant[], editor: Editor) => {
+      if (!editingArticle || !editor) return;
+      const wordsCount = getContentLength(content);
+      const newEditingArticle = produce(editingArticle, (draft) => {
+        draft.content = content;
+        draft.count = wordsCount;
+      });
+      setEditingArticle(newEditingArticle);
+    },
+  );
 
   const onTitleChange = useMemoizedFn((title: string) => {
     if (!editingArticle) return;
@@ -91,7 +95,7 @@ const useEditArticle = (articleId?: number) => {
   const onDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingArticle) return;
     const newEditingArticle = produce(editingArticle, (draft) => {
-      draft.tags = draft.tags.filter(t => t !== tag);
+      draft.tags = draft.tags.filter((t) => t !== tag);
     });
     setEditingArticle(newEditingArticle);
   });
@@ -136,7 +140,7 @@ const useEditArticle = (articleId?: number) => {
     toggleIsTop,
     toggleReadOnly,
     clear,
-  }
-}
+  };
+};
 
 export default useEditArticle;

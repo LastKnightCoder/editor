@@ -1,16 +1,16 @@
-import { Element } from 'slate';
-import { RenderElementProps } from 'slate-react';
+import { Element } from "slate";
+import { RenderElementProps } from "slate-react";
 
-import Underline from './components/Underline';
-import { UnderlineElement } from '@/components/Editor/types';
+import Underline from "./components/Underline";
+import { UnderlineElement } from "@/components/Editor/types";
 
-import Base from '../base.ts';
+import Base from "../base.ts";
 import IExtension from "../types.ts";
 
 import hoveringBarConfigs from "./hovering-bar-configs";
 
 class UnderlineExtension extends Base implements IExtension {
-  type = 'underline';
+  type = "underline";
 
   override getHoveringBarElements() {
     return hoveringBarConfigs;
@@ -30,7 +30,7 @@ class UnderlineExtension extends Base implements IExtension {
       >
         {children}
       </Underline>
-    )
+    );
   }
 }
 

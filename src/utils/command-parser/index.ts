@@ -1,64 +1,64 @@
-import { getCommandSplitter } from './splitter';
+import { getCommandSplitter } from "./splitter";
 
 interface BaseCommand {
   type: string;
 }
 
 export interface InsertHeaderCommand extends BaseCommand {
-  type: 'insert-header';
+  type: "insert-header";
   level: 1 | 2 | 3 | 4 | 5 | 6;
 }
 
 export interface InsertTextCommand extends BaseCommand {
-  type: 'insert-text';
+  type: "insert-text";
   text: string;
 }
 
 interface InsertBreakCommand extends BaseCommand {
-  type: 'insert-break';
+  type: "insert-break";
 }
 
 interface InsertCodeStartCommand extends BaseCommand {
-  type: 'insert-code-start';
+  type: "insert-code-start";
   language: string;
 }
 
 export interface InsertCodeCommand extends BaseCommand {
-  type: 'insert-code';
+  type: "insert-code";
   code: string;
 }
 
 interface InsertCodeEndCommand extends BaseCommand {
-  type: 'insert-code-end';
+  type: "insert-code-end";
 }
 
 interface InsertInlineCodeStartCommand extends BaseCommand {
-  type: 'insert-inline-code-start';
+  type: "insert-inline-code-start";
 }
 
 export interface InsertInlineCodeCommand extends BaseCommand {
-  type: 'insert-inline-code';
+  type: "insert-inline-code";
   code: string;
 }
 
 export interface InsertInlineCodeEndCommand extends BaseCommand {
-  type: 'insert-inline-code-end';
+  type: "insert-inline-code-end";
 }
 
 interface InsertBulletedListCommand extends BaseCommand {
-  type: 'insert-bulleted-list';
+  type: "insert-bulleted-list";
 }
 
 interface InsertNumberedListCommand extends BaseCommand {
-  type: 'insert-numbered-list';
+  type: "insert-numbered-list";
 }
 
 interface InsertListItemCommand extends BaseCommand {
-  type: 'insert-list-item';
+  type: "insert-list-item";
 }
 
 interface InsertDeleteCommand extends BaseCommand {
-  type: 'insert-delete';
+  type: "insert-delete";
 }
 
 type CodeCommand =
@@ -82,7 +82,7 @@ export type Command =
 export class CommandParser {
   private commands: Command[] = [];
   private readonly commandsQueue: Command[] = [];
-  private currentCommand = '';
+  private currentCommand = "";
   private isFinished = false;
 
   constructor() {
@@ -116,14 +116,14 @@ export class CommandParser {
 
   error(): void {
     this.commands = [];
-    this.currentCommand = '';
+    this.currentCommand = "";
     this.isFinished = true;
   }
 
   private parseCommands(): void {
     if (!this.currentCommand) return;
 
-    let startIndex = this.currentCommand.indexOf('{');
+    let startIndex = this.currentCommand.indexOf("{");
     while (startIndex !== -1) {
       try {
         // 找到可能的命令结束位置
@@ -142,16 +142,16 @@ export class CommandParser {
               this.commandsQueue.push(command);
             }
           } else {
-            this.commandsQueue.push(command)
+            this.commandsQueue.push(command);
           }
 
           // 移除已解析的命令
           this.currentCommand = this.currentCommand.slice(endIndex + 1);
           // 查找下一个命令的开始位置
-          startIndex = this.currentCommand.indexOf('{');
+          startIndex = this.currentCommand.indexOf("{");
         } else {
           // 如果命令格式无效，跳过这个命令
-          startIndex = this.currentCommand.indexOf('{', startIndex + 1);
+          startIndex = this.currentCommand.indexOf("{", startIndex + 1);
         }
       } catch (error) {
         console.error(this.currentCommand);
@@ -162,8 +162,8 @@ export class CommandParser {
     }
 
     // 如果当前缓冲区已经为空或只包含空白字符，重置它
-    if (this.currentCommand && this.currentCommand.trim() === '') {
-      this.currentCommand = '';
+    if (this.currentCommand && this.currentCommand.trim() === "") {
+      this.currentCommand = "";
     }
   }
 
@@ -180,7 +180,7 @@ export class CommandParser {
         continue;
       }
 
-      if (char === '\\') {
+      if (char === "\\") {
         escapeNext = true;
         continue;
       }
@@ -191,9 +191,9 @@ export class CommandParser {
       }
 
       if (!inString) {
-        if (char === '{') {
+        if (char === "{") {
           braceCount++;
-        } else if (char === '}') {
+        } else if (char === "}") {
           braceCount--;
           if (braceCount === 0) {
             return i;
@@ -206,15 +206,19 @@ export class CommandParser {
   }
 
   private isValidCommand(command: any): command is Command {
-    if (!command || typeof command.type !== 'string') return false;
+    if (!command || typeof command.type !== "string") return false;
 
     return !!command.type;
   }
 
   *[Symbol.iterator](): Iterator<Promise<Command | null>> {
-    while (!this.isFinished || this.commandsQueue.length > 0 || this.commands.length > 0) {
+    while (
+      !this.isFinished ||
+      this.commandsQueue.length > 0 ||
+      this.commands.length > 0
+    ) {
       if (this.commands.length === 0) {
-        yield new Promise<Command>(resolve => {
+        yield new Promise<Command>((resolve) => {
           const interval = setInterval(() => {
             if (this.commands.length > 0) {
               clearInterval(interval);
@@ -224,8 +228,8 @@ export class CommandParser {
               // @ts-ignore
               resolve(null);
             }
-          }, 50)
-        })
+          }, 50);
+        });
       } else {
         yield Promise.resolve(this.commands.shift()!);
       }

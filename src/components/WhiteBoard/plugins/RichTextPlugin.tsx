@@ -1,14 +1,19 @@
-import { Descendant } from 'slate';
-import { v4 as getUuid } from 'uuid';
+import { Descendant } from "slate";
+import { v4 as getUuid } from "uuid";
 
-import { Board, ECreateBoardElementType, EHandlerPosition, Point } from '../types';
-import { PathUtil, PointUtil, RichTextUtil, getResizedBBox } from '../utils';
-import RichText from '../components/RichText';
-import { CommonPlugin, CommonElement } from './CommonPlugin';
-import { SelectTransforms } from '../transforms';
+import {
+  Board,
+  ECreateBoardElementType,
+  EHandlerPosition,
+  Point,
+} from "../types";
+import { PathUtil, PointUtil, RichTextUtil, getResizedBBox } from "../utils";
+import RichText from "../components/RichText";
+import { CommonPlugin, CommonElement } from "./CommonPlugin";
+import { SelectTransforms } from "../transforms";
 
 export interface RichTextElement extends CommonElement {
-  type: 'richtext';
+  type: "richtext";
   content: Descendant[];
   readonly?: boolean;
   maxWidth: number;
@@ -23,10 +28,11 @@ export interface RichTextElement extends CommonElement {
   background?: string;
   topColor?: string;
   color?: string;
+  theme?: "light" | "dark";
 }
 
 export class RichTextPlugin extends CommonPlugin {
-  name = 'richtext';
+  name = "richtext";
 
   constructor() {
     super();
@@ -38,13 +44,17 @@ export class RichTextPlugin extends CommonPlugin {
   }
 
   onDblClick(event: MouseEvent, board: Board) {
-    const currentPoint = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
+    const currentPoint = PointUtil.screenToViewPort(
+      board,
+      event.clientX,
+      event.clientY,
+    );
     if (!currentPoint) return;
 
     const { x, y } = currentPoint;
     const element: RichTextElement = {
       id: getUuid(),
-      type: 'richtext',
+      type: "richtext",
       x,
       y,
       width: 32,
@@ -53,21 +63,25 @@ export class RichTextPlugin extends CommonPlugin {
       maxHeight: 1000,
       readonly: false,
       resized: false,
-      content: [{
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: '',
-        }]
-      }],
+      content: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+      ],
       paddingWidth: 16,
       paddingHeight: 8,
       autoFocus: true,
       ...RichTextUtil.getPrevRichtextStyle(),
-    }
+    };
 
     board.apply({
-      type: 'insert_node',
+      type: "insert_node",
       path: [board.children.length],
       node: element,
     });
@@ -78,13 +92,17 @@ export class RichTextPlugin extends CommonPlugin {
       return;
     }
 
-    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    const currentPoint = PointUtil.screenToViewPort(
+      board,
+      e.clientX,
+      e.clientY,
+    );
     if (!currentPoint) return;
 
     const { x, y } = currentPoint;
     const element: RichTextElement = {
       id: getUuid(),
-      type: 'richtext',
+      type: "richtext",
       x,
       y,
       width: 32,
@@ -92,85 +110,117 @@ export class RichTextPlugin extends CommonPlugin {
       maxWidth: 300,
       maxHeight: 1000,
       readonly: false,
-      content: [{
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: '',
-        }]
-      }],
+      content: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+      ],
       paddingWidth: 16,
       paddingHeight: 8,
       autoFocus: true,
       resized: false,
       ...RichTextUtil.getPrevRichtextStyle(),
-    }
+    };
     board.apply({
-      type: 'insert_node',
+      type: "insert_node",
       path: [board.children.length],
       node: element,
     });
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
-      selectedElements: []
+      selectedElements: [],
     });
 
     board.currentCreateType = ECreateBoardElementType.None;
   }
 
-  onResize(board: Board, element: RichTextElement, position: EHandlerPosition, startPoint: Point, endPoint: Point, _isPreserveRatio = false, isAdsorb = false) {
+  onResize(
+    board: Board,
+    element: RichTextElement,
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+    _isPreserveRatio = false,
+    isAdsorb = false,
+  ) {
     if (!this.originResizeElement) return;
-    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint);
+    const newBBox = getResizedBBox(
+      this.originResizeElement,
+      position,
+      startPoint,
+      endPoint,
+    );
     const newElement = {
       ...element,
       ...newBBox,
       resized: true,
       maxWidth: newBBox.width,
       maxHeight: newBBox.height,
-    }
+    };
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
-    board.refLine.setCurrentRects([{
-      key: newElement.id,
-      ...newBBox
-    }]);
-    const updateElement = board.refLine.getUpdateCurrent(isAdsorb, 5 / board.viewPort.zoom, true, position);
+    board.refLine.setCurrentRects([
+      {
+        key: newElement.id,
+        ...newBBox,
+      },
+    ]);
+    const updateElement = board.refLine.getUpdateCurrent(
+      isAdsorb,
+      5 / board.viewPort.zoom,
+      true,
+      position,
+    );
     board.refLine.setCurrent(updateElement);
     newElement.x = updateElement.rects[0].x;
     newElement.y = updateElement.rects[0].y;
     newElement.width = updateElement.rects[0].width;
     newElement.height = updateElement.rects[0].height;
-    board.apply({
-      type: 'set_node',
-      path,
-      properties: element,
-      newProperties: newElement
-    }, false);
+    board.apply(
+      {
+        type: "set_node",
+        path,
+        properties: element,
+        newProperties: newElement,
+      },
+      false,
+    );
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
-      selectedElements: [newElement]
+      selectedElements: [newElement],
     });
   }
 
-  private removeAutoFocus = (board: Board, element: RichTextElement) => { 
+  private removeAutoFocus = (board: Board, element: RichTextElement) => {
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
     const newElement = {
       ...element,
       autoFocus: false,
-    }
+    };
     board.apply({
-      type: 'set_node',
+      type: "set_node",
       path,
       properties: element,
       newProperties: newElement,
     });
-  }
+  };
 
-  private onEditorSizeChange = (board: Board, element: RichTextElement, width: number, height: number) => {
+  private onEditorSizeChange = (
+    board: Board,
+    element: RichTextElement,
+    width: number,
+    height: number,
+  ) => {
     const { width: w, height: h } = element;
     if (w === width && h === height) return;
 
@@ -181,29 +231,33 @@ export class RichTextPlugin extends CommonPlugin {
       ...element,
       width: parseFloat(width.toFixed(2)),
       height: parseFloat(height.toFixed(2)),
-    }
+    };
     board.apply({
-      type: 'set_node',
+      type: "set_node",
       path,
       properties: element,
       newProperties: newElement,
     });
-  }
+  };
 
-  private onContentChange = (board: Board, element: RichTextElement, value: Descendant[]) => {
+  private onContentChange = (
+    board: Board,
+    element: RichTextElement,
+    value: Descendant[],
+  ) => {
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
     const newElement = {
       ...element,
       content: value,
-    }
+    };
     board.apply({
-      type: 'set_node',
+      type: "set_node",
       path,
       properties: element,
       newProperties: newElement,
     });
-  }
+  };
 
   render(_board: Board, { element }: { element: RichTextElement }) {
     const { id } = element;

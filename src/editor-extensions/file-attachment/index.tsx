@@ -2,12 +2,12 @@ import { RenderElementProps } from "slate-react";
 import Base from "@/components/Editor/extensions/base.ts";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
-import FileAttachment from './components/FileAttachment';
-import { overwrite } from './plugins';
+import FileAttachment from "./components/FileAttachment";
+import { overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 
 export interface FileAttachmentElement {
-  type: 'file-attachment';
+  type: "file-attachment";
   fileName: string;
   filePath: string;
   localFilePath?: string;
@@ -16,7 +16,7 @@ export interface FileAttachmentElement {
 }
 
 class FileAttachmentExtension extends Base implements IExtension {
-  type = 'file-attachment';
+  type = "file-attachment";
 
   override getBlockPanelItems() {
     return blockPanelItems;
@@ -36,7 +36,7 @@ class FileAttachmentExtension extends Base implements IExtension {
       >
         {children}
       </FileAttachment>
-    )
+    );
   }
 }
 

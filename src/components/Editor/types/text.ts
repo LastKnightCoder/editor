@@ -1,7 +1,7 @@
-export type HighlightColor = 'blue' | 'yellow' | 'green' | 'red' | 'purple';
+export type HighlightColor = "blue" | "yellow" | "green" | "red" | "purple";
 
 export interface FormattedText {
-  type: 'formatted';
+  type: "formatted";
   text: string;
   bold?: boolean;
   italic?: boolean;

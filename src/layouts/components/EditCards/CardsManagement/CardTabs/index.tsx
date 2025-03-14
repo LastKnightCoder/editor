@@ -2,19 +2,19 @@ import { useMemo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Popover } from "antd";
 import { motion } from "framer-motion";
-import { useClickAway, useMemoizedFn } from 'ahooks';
+import { useClickAway, useMemoizedFn } from "ahooks";
 import { useDrop } from "react-dnd";
-import { DownOutlined } from '@ant-design/icons';
+import { DownOutlined } from "@ant-design/icons";
 
 import { getEditorText } from "@/utils";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore.ts";
 
-import TabItem from './TabItem';
+import TabItem from "./TabItem";
 
 import { ICard } from "@/types";
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import Editor from "@/components/Editor";
 import If from "@/components/If";
 
@@ -30,17 +30,13 @@ interface ICardTabsProps {
 
 const Portal = ({ children }: { children: React.ReactNode }) => {
   return createPortal(children, document.body);
-}
+};
 
 const CardTabs = (props: ICardTabsProps) => {
-  const {
-    cards,
-  } = useCardsManagementStore((state) => ({
+  const { cards } = useCardsManagementStore((state) => ({
     cards: state.cards,
   }));
-  const {
-    dragCardToTabContainer,
-  } = useCardPanelStore((state) => ({
+  const { dragCardToTabContainer } = useCardPanelStore((state) => ({
     dragCardToTabContainer: state.dragCardToTabContainer,
   }));
   const {
@@ -50,23 +46,32 @@ const CardTabs = (props: ICardTabsProps) => {
     onClickTab,
     onCloseTab,
     onMoveCard,
-    onCloseOtherTabs
+    onCloseOtherTabs,
   } = props;
 
   const tabCards = useMemo(() => {
-    const tabCards =  cardIds.map(id => cards.find(card => card.id === id)).filter(card => !!card) as ICard[];
-    return tabCards.reduce((acc, card) => {
-      acc[card.id] = card as ICard;
-      return acc;
-    }, {} as Record<number, ICard>)
+    const tabCards = cardIds
+      .map((id) => cards.find((card) => card.id === id))
+      .filter((card) => !!card) as ICard[];
+    return tabCards.reduce(
+      (acc, card) => {
+        acc[card.id] = card as ICard;
+        return acc;
+      },
+      {} as Record<number, ICard>,
+    );
   }, [cardIds, cards]);
   const tabContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const [{ isOver, canDrop }, drop] = useDrop<{cardId: number}, void, {
-    isOver: boolean;
-    canDrop: boolean;
-  }>({
-    accept: 'card-tab',
+  const [{ isOver, canDrop }, drop] = useDrop<
+    { cardId: number },
+    void,
+    {
+      isOver: boolean;
+      canDrop: boolean;
+    }
+  >({
+    accept: "card-tab",
     drop: (item, monitor) => {
       if (monitor.didDrop()) {
         return;
@@ -81,7 +86,10 @@ const CardTabs = (props: ICardTabsProps) => {
         return;
       }
 
-      if (monitorClientOffset.x - tabContainerRect.x > 0 && monitorClientOffset.x - tabContainerRect.x < 60) {
+      if (
+        monitorClientOffset.x - tabContainerRect.x > 0 &&
+        monitorClientOffset.x - tabContainerRect.x < 60
+      ) {
         dragCardToTabContainer(item.cardId, EActiveSide.Left, false);
       } else {
         dragCardToTabContainer(item.cardId, side);
@@ -93,13 +101,16 @@ const CardTabs = (props: ICardTabsProps) => {
     collect: (monitor) => ({
       isOver: monitor.isOver(),
       canDrop: monitor.canDrop(),
-    })
-  })
+    }),
+  });
 
   const [morePopoverOpen, setMorePopoverOpen] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [rightClickCardId, setRightClickCardId] = useState<number>();
-  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [contextMenuPosition, setContextMenuPosition] = useState({
+    x: 0,
+    y: 0,
+  });
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
   useClickAway(() => {
@@ -115,60 +126,59 @@ const CardTabs = (props: ICardTabsProps) => {
       y: e.clientY + 10,
     });
     setRightClickCardId(cardId);
-  })
+  });
 
   return (
     <motion.div
-      ref={node => {
+      ref={(node) => {
         drop(node);
         tabContainerRef.current = node;
       }}
-      className={styles.tabsContainer} style={{
+      className={styles.tabsContainer}
+      style={{
         opacity: isOver && canDrop ? 0.5 : 1,
       }}
     >
       <Popover
         open={morePopoverOpen}
         onOpenChange={setMorePopoverOpen}
-        trigger={'click'}
-        placement={'rightBottom'}
-        content={(
+        trigger={"click"}
+        placement={"rightBottom"}
+        content={
           <div className={styles.moreList}>
-            {
-              cardIds.map(cardId => (
-                <Popover
+            {cardIds.map((cardId) => (
+              <Popover
+                key={cardId}
+                trigger={"hover"}
+                content={
+                  <div className={styles.popover}>
+                    <Editor
+                      initValue={tabCards[cardId]?.content || []}
+                      readonly
+                    />
+                  </div>
+                }
+                placement={"right"}
+                styles={{
+                  body: {
+                    padding: 0,
+                  },
+                }}
+              >
+                <div
                   key={cardId}
-                  trigger={'hover'}
-                  content={(
-                    <div className={styles.popover}>
-                      <Editor
-                        initValue={tabCards[cardId]?.content || []}
-                        readonly
-                      />
-                    </div>
-                  )}
-                  placement={'right'}
-                  styles={{
-                    body: {
-                      padding: 0
-                    }
+                  className={styles.item}
+                  onClick={() => {
+                    onClickTab(cardId);
+                    setMorePopoverOpen(false);
                   }}
                 >
-                  <div
-                    key={cardId}
-                    className={styles.item}
-                    onClick={() => {
-                      onClickTab(cardId);
-                      setMorePopoverOpen(false);
-                    }}
-                  >
-                    {getEditorText(tabCards[cardId]?.content || [])}
-                  </div>
-                </Popover>
-              ))
-            }
+                  {getEditorText(tabCards[cardId]?.content || [])}
+                </div>
+              </Popover>
+            ))}
           </div>
-        )}
+        }
       >
         <div className={styles.more}>
           <div className={styles.icon}>
@@ -176,31 +186,33 @@ const CardTabs = (props: ICardTabsProps) => {
           </div>
         </div>
       </Popover>
-      {
-        cardIds.map((cardId) => (
-          <TabItem
-            key={cardId}
-            cardId={cardId}
-            title={getEditorText(tabCards[cardId]?.content || [])}
-            active={cardId === activeCardId}
-            onClick={() => {
-              onClickTab(cardId);
-            }}
-            onClose={() => {
-              onCloseTab(cardId);
-            }}
-            onContextMenu={(e) => {
-              onContextMenu(e, cardId);
-            }}
-          />
-        ))
-      }
+      {cardIds.map((cardId) => (
+        <TabItem
+          key={cardId}
+          cardId={cardId}
+          title={getEditorText(tabCards[cardId]?.content || [])}
+          active={cardId === activeCardId}
+          onClick={() => {
+            onClickTab(cardId);
+          }}
+          onClose={() => {
+            onCloseTab(cardId);
+          }}
+          onContextMenu={(e) => {
+            onContextMenu(e, cardId);
+          }}
+        />
+      ))}
       <If condition={showContextMenu}>
         <Portal>
-          <div ref={contextMenuRef} className={styles.contextMenu} style={{
-            left: contextMenuPosition.x,
-            top: contextMenuPosition.y,
-          }}>
+          <div
+            ref={contextMenuRef}
+            className={styles.contextMenu}
+            style={{
+              left: contextMenuPosition.x,
+              top: contextMenuPosition.y,
+            }}
+          >
             <div
               className={styles.item}
               onClick={() => {
@@ -227,7 +239,7 @@ const CardTabs = (props: ICardTabsProps) => {
         </Portal>
       </If>
     </motion.div>
-  )
-}
+  );
+};
 
 export default CardTabs;

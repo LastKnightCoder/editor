@@ -1,4 +1,4 @@
-import { Editor } from 'slate';
+import { Editor } from "slate";
 import { newLineInListItem } from "../utils.ts";
 
 export const insertBreak = (editor: Editor) => {
@@ -10,7 +10,7 @@ export const insertBreak = (editor: Editor) => {
       return;
     }
     insertBreak();
-  }
+  };
 
   return editor;
-}
+};

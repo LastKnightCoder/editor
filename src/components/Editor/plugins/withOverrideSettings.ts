@@ -4,61 +4,61 @@ export const withOverrideSettings = (editor: Editor) => {
   const { isBlock, isVoid, isInline, normalizeNode } = editor;
   editor.isBlock = (element) => {
     const blockTypes: string[] = [
-      'paragraph',
-      'header',
-      'callout',
-      'bulleted-list',
-      'numbered-list',
-      'list-item',
-      'code-block',
-      'image',
-      'detail',
-      'blockquote',
-      'table',
-      'table-row',
-      'table-cell',
-      'block-math',
-      'mermaid',
-      'tikz',
-      'html-block',
-      'graphviz',
-      'custom-block',
-      'divide-line',
-      'image-gallery',
-      'audio',
-      'video',
-      'ai'
+      "paragraph",
+      "header",
+      "callout",
+      "bulleted-list",
+      "numbered-list",
+      "list-item",
+      "code-block",
+      "image",
+      "detail",
+      "blockquote",
+      "table",
+      "table-row",
+      "table-cell",
+      "block-math",
+      "mermaid",
+      "tikz",
+      "html-block",
+      "graphviz",
+      "custom-block",
+      "divide-line",
+      "image-gallery",
+      "audio",
+      "video",
+      "ai",
     ];
     return blockTypes.includes(element.type) ? true : isBlock(element);
-  }
+  };
   editor.isVoid = (element) => {
     const voidTypes = [
-      'code-block',
-      'image',
-      'inline-math',
-      'block-math',
-      'mermaid',
-      'tikz',
-      'html-block',
-      'graphviz',
-      'custom-block',
-      'divide-line',
-      'image-gallery',
-      'audio',
-      'video'
+      "code-block",
+      "image",
+      "inline-math",
+      "block-math",
+      "mermaid",
+      "tikz",
+      "html-block",
+      "graphviz",
+      "custom-block",
+      "divide-line",
+      "image-gallery",
+      "audio",
+      "video",
     ];
     return voidTypes.includes(element.type) ? true : isVoid(element);
-  }
+  };
   editor.isInline = (element) => {
-    const inlineTypes = ['link', 'inline-math', 'underline', 'styled-text'];
+    const inlineTypes = ["link", "inline-math", "underline", "styled-text"];
     return inlineTypes.includes(element.type) ? true : isInline(element);
-  }
+  };
 
   editor.normalizeNode = (entry) => {
     const zeroWidthChar = "\uFEFF";
     const [node, path] = entry;
 
-    if (node.type === 'inline-math') {
+    if (node.type === "inline-math") {
       const parentNode = Node.parent(editor, path);
       const isFirstChild = !Path.hasPrevious(path);
       const isLastChild =
@@ -77,17 +77,21 @@ export const withOverrideSettings = (editor: Editor) => {
       if (isLastChild) {
         Transforms.insertNodes(
           editor,
-          { type: 'formatted', text: zeroWidthChar },
-          { at: nextPath }
+          { type: "formatted", text: zeroWidthChar },
+          { at: nextPath },
         );
       }
       if (isFirstChild || hasPreviousAdjacentInlineVoid) {
-        Transforms.insertNodes(editor, { type: 'formatted', text: zeroWidthChar }, { at: path });
+        Transforms.insertNodes(
+          editor,
+          { type: "formatted", text: zeroWidthChar },
+          { at: path },
+        );
       }
     }
 
-    if (Text.isText(node) && node.type !== 'formatted') {
-      Transforms.setNodes(editor, { type: 'formatted' }, { at: path });
+    if (Text.isText(node) && node.type !== "formatted") {
+      Transforms.setNodes(editor, { type: "formatted" }, { at: path });
       return;
     }
 
@@ -95,4 +99,4 @@ export const withOverrideSettings = (editor: Editor) => {
   };
 
   return editor;
-}
+};

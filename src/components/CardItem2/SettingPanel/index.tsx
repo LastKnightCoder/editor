@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
-import For from '@/components/For';
+import For from "@/components/For";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 export interface ISettingItem {
   title: ReactNode;
@@ -24,17 +24,21 @@ const SettingPanel = (props: ISettingPanelProps) => {
       <For
         data={settings}
         renderItem={(setting, index) => (
-          <div key={index} className={styles.settingItem} onClick={(e) => {
-            setting?.onClick?.(cardId);
-            closePanel?.();
-            e.stopPropagation();
-          }}>
+          <div
+            key={index}
+            className={styles.settingItem}
+            onClick={(e) => {
+              setting?.onClick?.(cardId);
+              closePanel?.();
+              e.stopPropagation();
+            }}
+          >
             {setting.title}
           </div>
         )}
       />
     </div>
-  )
-}
+  );
+};
 
 export default SettingPanel;

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { DeleteOutlined } from '@ant-design/icons';
+import { DeleteOutlined } from "@ant-design/icons";
 
 import classnames from "classnames";
 
@@ -7,25 +7,23 @@ import LocalImage from "@/components/LocalImage";
 import { ImageGalleryItem } from "@editor/types";
 
 import useDragAndDrop from "./useDragAndDrop";
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface IImageItemProps {
   imageItem: ImageGalleryItem;
   onDelete: (item: ImageGalleryItem) => void;
-  onDrop: (dragImageItem: ImageGalleryItem, dropImageItem: ImageGalleryItem) => void;
+  onDrop: (
+    dragImageItem: ImageGalleryItem,
+    dropImageItem: ImageGalleryItem,
+  ) => void;
 }
 
 const ImageItem = (props: IImageItemProps) => {
   const { imageItem, onDelete, onDrop } = props;
 
-  const {
-    ref,
-    isDragging,
-    isOver,
-    canDrop,
-  } = useDragAndDrop({
+  const { ref, isDragging, isOver, canDrop } = useDragAndDrop({
     imageItem,
-    onDrop
+    onDrop,
   });
 
   return (
@@ -37,12 +35,21 @@ const ImageItem = (props: IImageItemProps) => {
         [styles.dragging]: isDragging,
       })}
     >
-      <LocalImage url={imageItem.url} alt={imageItem.desc || ''} className={styles.img} />
-      <div className={styles.delete} onClick={() => { onDelete(imageItem) }}>
+      <LocalImage
+        url={imageItem.url}
+        alt={imageItem.desc || ""}
+        className={styles.img}
+      />
+      <div
+        className={styles.delete}
+        onClick={() => {
+          onDelete(imageItem);
+        }}
+      >
         <DeleteOutlined />
       </div>
     </motion.div>
-  )
-}
+  );
+};
 
 export default ImageItem;

@@ -1,16 +1,16 @@
-import { memo, useState } from 'react';
-import { Typography, Popover } from 'antd';
+import { memo, useState } from "react";
+import { Typography, Popover } from "antd";
 import { MdMoreHoriz } from "react-icons/md";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
 import SettingPanel, { ISettingItem } from "./SettingPanel";
 
 import classnames from "classnames";
-import { getEditorText } from '@/utils';
+import { getEditorText } from "@/utils";
 import { formatDate } from "@/utils/time";
 import { ICard } from "@/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const { Paragraph } = Typography;
 
@@ -43,21 +43,20 @@ const CardItem2 = memo((props: ICardItem2Props) => {
 
   const { content, tags } = card;
 
-  const showedTags = tags.length === 0 ? ['未分类'] : tags;
+  const showedTags = tags.length === 0 ? ["未分类"] : tags;
 
   const [settingPanelOpen, setSettingPanelOpen] = useState(false);
-  
+
   return (
-    <div 
-      className={
-        classnames(
-          styles.itemContainer, 
-          { 
-            [styles.active]: active, 
-            [styles.showLine]: showLine 
-          }, 
-          className
-      )} 
+    <div
+      className={classnames(
+        styles.itemContainer,
+        {
+          [styles.active]: active,
+          [styles.showLine]: showLine,
+        },
+        className,
+      )}
       onClick={onClick}
       style={style}
     >
@@ -66,7 +65,7 @@ const CardItem2 = memo((props: ICardItem2Props) => {
           tags={showedTags}
           showIcon
           className={styles.tags}
-          tagStyle={active ? { backgroundColor: 'var(--active-icon-bg)' } : {}}
+          tagStyle={active ? { backgroundColor: "var(--active-icon-bg)" } : {}}
         />
       </If>
       <If condition={showTime}>
@@ -74,8 +73,13 @@ const CardItem2 = memo((props: ICardItem2Props) => {
           更新于：{formatDate(card.update_time, true)}
         </div>
       </If>
-      <Paragraph className={classnames(styles.textContainer, { [styles.noTag]: !showTags || tags.length < 1 })} ellipsis={{ rows: maxRows }}>
-        {getEditorText(content, 40) || '未知内容'}
+      <Paragraph
+        className={classnames(styles.textContainer, {
+          [styles.noTag]: !showTags || tags.length < 1,
+        })}
+        ellipsis={{ rows: maxRows }}
+      >
+        {getEditorText(content, 40) || "未知内容"}
       </Paragraph>
       <If condition={settings.length > 0}>
         <Popover
@@ -83,21 +87,29 @@ const CardItem2 = memo((props: ICardItem2Props) => {
           onOpenChange={setSettingPanelOpen}
           placement="bottomRight"
           trigger="click"
-          content={<SettingPanel closePanel={() => { setSettingPanelOpen(false) }} settings={settings} cardId={card.id} />}
+          content={
+            <SettingPanel
+              closePanel={() => {
+                setSettingPanelOpen(false);
+              }}
+              settings={settings}
+              cardId={card.id}
+            />
+          }
           arrow={false}
           styles={{
             body: {
-              padding: 4
-            }
+              padding: 4,
+            },
           }}
         >
-          <div className={styles.moreIcon} onClick={e => e.stopPropagation()}>
+          <div className={styles.moreIcon} onClick={(e) => e.stopPropagation()}>
             <MdMoreHoriz />
           </div>
         </Popover>
       </If>
     </div>
-  )
+  );
 });
 
 export default CardItem2;

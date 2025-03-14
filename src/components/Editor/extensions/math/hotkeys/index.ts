@@ -1,2 +1,2 @@
-export * from './inlineShortcut';
-export * from './blockShortcut';
+export * from "./inlineShortcut";
+export * from "./blockShortcut";

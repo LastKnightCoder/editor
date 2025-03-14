@@ -8,7 +8,7 @@ export interface ImageGalleryItem {
 }
 
 export interface ImageGalleryElement {
-  type: 'image-gallery';
+  type: "image-gallery";
   mode: EGalleryMode;
   height?: number;
   images: ImageGalleryItem[];

@@ -1,5 +1,8 @@
-import { invoke, on, off } from '@/electron';
-import { EventStreamContentType, fetchEventSource } from "@fortaine/fetch-event-source";
+import { invoke, on, off } from "@/electron";
+import {
+  EventStreamContentType,
+  fetchEventSource,
+} from "@fortaine/fetch-event-source";
 
 function prettyObject(msg: any) {
   const obj = msg;
@@ -31,12 +34,15 @@ type StreamResponse = {
   headers: Record<string, string>;
 };
 
-export const streamFetch = async (url: string, options?: RequestInit): Promise<Response> => {
+export const streamFetch = async (
+  url: string,
+  options?: RequestInit,
+): Promise<Response> => {
   const {
     signal,
     method = "GET",
     headers: _headers = {},
-    body = '',
+    body = "",
   } = options || {};
 
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -60,7 +66,7 @@ export const streamFetch = async (url: string, options?: RequestInit): Promise<R
       } else if (status === 0) {
         close();
       }
-    })
+    });
   const close = () => {
     if (closed) return;
     off("stream-response", handleResponse);
@@ -75,7 +81,7 @@ export const streamFetch = async (url: string, options?: RequestInit): Promise<R
   }
 
   // 2. listen response multi times, and write to Response.body
-  on("stream-response", handleResponse)
+  on("stream-response", handleResponse);
 
   const headers: Record<string, string> = {
     Accept: "application/json, text/plain, */*",
@@ -90,10 +96,15 @@ export const streamFetch = async (url: string, options?: RequestInit): Promise<R
       method: method.toUpperCase(),
       url,
       headers,
-      body
+      body,
     });
     console.log(res);
-    const { request_id, status, status_text: statusText, headers: resHeaders } = res;
+    const {
+      request_id,
+      status,
+      status_text: statusText,
+      headers: resHeaders,
+    } = res;
     setRequestId?.(request_id);
     const response = new Response(ts.readable, {
       status,
@@ -108,16 +119,22 @@ export const streamFetch = async (url: string, options?: RequestInit): Promise<R
     console.error("stream error", e);
     return new Response("", { status: 599 });
   }
-}
+};
 
 export function stream(
   chatPath: string,
   requestPayload: object,
   headers: Record<string, string>,
   controller: AbortController,
-  parseSSE: (text: string) => { content: string; reasoning_content: string } | undefined,
+  parseSSE: (
+    text: string,
+  ) => { content: string; reasoning_content: string } | undefined,
   options: {
-    onFinish: (content: string, reasoning_content: string, res: Response) => void;
+    onFinish: (
+      content: string,
+      reasoning_content: string,
+      res: Response,
+    ) => void;
     onError?: (e: Error) => void;
     onUpdate: (full: string, inc: string, reasoningText?: string) => void;
     onReasoning?: (full: string, inc: string) => void;
@@ -125,21 +142,21 @@ export function stream(
 ) {
   let responseText = "";
   let remainText = "";
-  let reasoningText = '';
-  let reasoningRemainText = '';
+  let reasoningText = "";
+  let reasoningRemainText = "";
   let finished = false;
   let responseRes: Response;
 
   const flushRemainText = () => {
     responseText += remainText;
     options?.onUpdate?.(responseText, remainText, reasoningText);
-    remainText = '';
+    remainText = "";
   };
 
   const flushReasoningText = () => {
     reasoningText += reasoningRemainText;
     options?.onReasoning?.(reasoningText, reasoningRemainText);
-    reasoningRemainText = '';
+    reasoningRemainText = "";
   };
 
   // animate response to make it looks smooth
@@ -155,7 +172,10 @@ export function stream(
     }
 
     if (reasoningRemainText.length > 0) {
-      const fetchCount = Math.max(1, Math.round(reasoningRemainText.length / 60));
+      const fetchCount = Math.max(
+        1,
+        Math.round(reasoningRemainText.length / 60),
+      );
       const fetchText = reasoningRemainText.slice(0, fetchCount);
       reasoningText += fetchText;
       reasoningRemainText = reasoningRemainText.slice(fetchCount);
@@ -180,7 +200,11 @@ export function stream(
       finished = true;
       flushReasoningText();
       flushRemainText();
-      options.onFinish(responseText + remainText, reasoningText + reasoningRemainText, responseRes); // 将res传递给onFinish
+      options.onFinish(
+        responseText + remainText,
+        reasoningText + reasoningRemainText,
+        responseRes,
+      ); // 将res传递给onFinish
     }
   };
 
@@ -197,10 +221,7 @@ export function stream(
       signal: controller.signal,
       headers,
     };
-    const requestTimeoutId = setTimeout(
-      () => controller.abort(),
-      60 * 1000,
-    );
+    const requestTimeoutId = setTimeout(() => controller.abort(), 60 * 1000);
     fetchEventSource(chatPath, {
       fetch: streamFetch as any,
       ...chatPayload,
@@ -231,7 +252,7 @@ export function stream(
           }
 
           if (res.status === 401) {
-            responseTexts.push('无权限');
+            responseTexts.push("无权限");
           }
 
           if (extraInfo) {
@@ -252,7 +273,7 @@ export function stream(
           const chunk = parseSSE(msg.data);
           if (chunk) {
             const { content, reasoning_content } = chunk;
-            if(content) {
+            if (content) {
               remainText += content;
             }
             if (reasoning_content) {

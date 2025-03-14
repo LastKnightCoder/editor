@@ -1,19 +1,13 @@
 import useSettingStore from "@/stores/useSettingStore";
 
 const LocalSetting = () => {
-  const {
-    local
-  } = useSettingStore(state => ({
+  const { local } = useSettingStore((state) => ({
     local: state.setting.imageBed.local,
   }));
 
-  const {
-    path
-  } = local;
+  const { path } = local;
 
-  return (
-    <div>{path}</div>
-  )
-}
+  return <div>{path}</div>;
+};
 
 export default LocalSetting;

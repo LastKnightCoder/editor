@@ -1,16 +1,16 @@
-import React, { PropsWithChildren, useMemo } from 'react';
+import React, { PropsWithChildren, useMemo } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
 
 import { TikzElement } from "@/components/Editor/types";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
 
-import './tikzjax.js';
-import styles from './index.module.less';
-import './tikz.css';
+import "./tikzjax.js";
+import styles from "./index.module.less";
+import "./tikz.css";
 
 interface TikzProps {
-  attributes: RenderElementProps['attributes'];
+  attributes: RenderElementProps["attributes"];
   element: TikzElement;
 }
 
@@ -22,18 +22,16 @@ const TikzRenderer = (props: { text: string }) => {
     tikzSource = tikzSource.replaceAll(remove, "");
 
     let lines = tikzSource.split("\n");
-    lines = lines.map(line => line.trim());
-    lines = lines.filter(line => line);
+    lines = lines.map((line) => line.trim());
+    lines = lines.filter((line) => line);
 
     return lines.join("\n");
   }, [text]);
 
-  const script = `<script type="text/tikz" data-show-console="true">${tiny}</script>`
+  const script = `<script type="text/tikz" data-show-console="true">${tiny}</script>`;
 
-  return (
-    <div dangerouslySetInnerHTML={{ __html: script }} />
-  )
-}
+  return <div dangerouslySetInnerHTML={{ __html: script }} />;
+};
 
 const Tikz: React.FC<PropsWithChildren<TikzProps>> = (props) => {
   const { attributes, element, children } = props;
@@ -43,18 +41,28 @@ const Tikz: React.FC<PropsWithChildren<TikzProps>> = (props) => {
 
   const renderEmpty = () => {
     return (
-      <div contentEditable={false} style={{ userSelect: 'none' }} className={styles.empty}>点击编辑Tikz</div>
-    )
-  }
+      <div
+        contentEditable={false}
+        style={{ userSelect: "none" }}
+        className={styles.empty}
+      >
+        点击编辑Tikz
+      </div>
+    );
+  };
 
   const handleChange = (code: string) => {
-    Transforms.setNodes(editor, { content: code }, { at: ReactEditor.findPath(editor, element) });
-  }
+    Transforms.setNodes(
+      editor,
+      { content: code },
+      { at: ReactEditor.findPath(editor, element) },
+    );
+  };
 
   return (
     <div {...attributes} className={styles.tikz}>
       <PreviewWithEditor
-        mode={'stex'}
+        mode={"stex"}
         initValue={content}
         onChange={handleChange}
         element={element}
@@ -64,8 +72,7 @@ const Tikz: React.FC<PropsWithChildren<TikzProps>> = (props) => {
       </PreviewWithEditor>
       {children}
     </div>
-  )
-
-}
+  );
+};
 
 export default Tikz;

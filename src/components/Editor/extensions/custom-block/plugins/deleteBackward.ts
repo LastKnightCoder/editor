@@ -1,5 +1,8 @@
 import { Editor, Element as SlateElement, Range, Transforms } from "slate";
-import { isAtParagraphStart, isParagraphAndEmpty } from "@/components/Editor/utils";
+import {
+  isAtParagraphStart,
+  isParagraphAndEmpty,
+} from "@/components/Editor/utils";
 
 export const deleteBackward = (editor: Editor) => {
   const { deleteBackward } = editor;
@@ -8,7 +11,7 @@ export const deleteBackward = (editor: Editor) => {
     const { selection } = editor;
     if (selection && Range.isCollapsed(selection)) {
       const [match] = Editor.nodes(editor, {
-        match: n => SlateElement.isElement(n) && editor.isBlock(n),
+        match: (n) => SlateElement.isElement(n) && editor.isBlock(n),
       });
       if (match) {
         const [, path] = match;
@@ -18,7 +21,8 @@ export const deleteBackward = (editor: Editor) => {
           if (prevPath) {
             const [prevMatch] = Editor.nodes(editor, {
               at: prevPath,
-              match: n => SlateElement.isElement(n) && n.type === 'custom-block',
+              match: (n) =>
+                SlateElement.isElement(n) && n.type === "custom-block",
             });
             if (prevMatch) {
               if (isParagraphAndEmpty(editor)) {
@@ -26,7 +30,7 @@ export const deleteBackward = (editor: Editor) => {
               }
 
               const [element] = prevMatch;
-              const focusEvent = new CustomEvent('preview-editor-focus', {
+              const focusEvent = new CustomEvent("preview-editor-focus", {
                 detail: element,
               });
               document.dispatchEvent(focusEvent);
@@ -38,7 +42,7 @@ export const deleteBackward = (editor: Editor) => {
       }
     }
     return deleteBackward(unit);
-  }
+  };
 
   return editor;
-}
+};

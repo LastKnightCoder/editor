@@ -1,13 +1,13 @@
-import Base from '../base.ts';
+import Base from "../base.ts";
 import IExtension from "../types.ts";
 import { AudioElement, CustomElement } from "@/components/Editor/types";
 import { RenderElementProps } from "slate-react";
-import Audio from './components/Audio';
+import Audio from "./components/Audio";
 import { pasteAudio } from "./plugins";
-import blockPanelItems from './block-panel-items';
+import blockPanelItems from "./block-panel-items";
 
 class AudioExtension extends Base implements IExtension {
-  type = 'audio';
+  type = "audio";
 
   override getPlugins() {
     return [pasteAudio];
@@ -19,14 +19,17 @@ class AudioExtension extends Base implements IExtension {
 
   override toMarkdown(element: CustomElement): string {
     const { src } = element as AudioElement;
-    return `<audio src="${src}" controls></audio>`
+    return `<audio src="${src}" controls></audio>`;
   }
 
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
-    return <Audio element={element as AudioElement} attributes={attributes}>{children}</Audio>;
+    return (
+      <Audio element={element as AudioElement} attributes={attributes}>
+        {children}
+      </Audio>
+    );
   }
 }
 
 export default AudioExtension;
-

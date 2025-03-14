@@ -11,12 +11,12 @@ export interface Project {
   archived: boolean;
 }
 
-export type CreateProject = Omit<Project, 'id' | 'createTime' | 'updateTime'>
-export type UpdateProject = Omit<Project, 'createTime' | 'updateTime'>
+export type CreateProject = Omit<Project, "id" | "createTime" | "updateTime">;
+export type UpdateProject = Omit<Project, "createTime" | "updateTime">;
 
 export enum EProjectItemType {
-  Document = 'document',
-  WhiteBoard = 'white-board',
+  Document = "document",
+  WhiteBoard = "white-board",
 }
 
 export interface ProjectItem {
@@ -30,10 +30,13 @@ export interface ProjectItem {
   projects: number[];
   refType: string;
   refId: number;
-  whiteBoardData?: WhiteBoard['data'];
+  whiteBoardData?: WhiteBoard["data"];
   projectItemType: EProjectItemType;
   count: number;
 }
 
-export type CreateProjectItem = Omit<ProjectItem, 'id' | 'createTime' | 'updateTime'>;
-export type UpdateProjectItem = Omit<ProjectItem, 'createTime' | 'updateTime'>;
+export type CreateProjectItem = Omit<
+  ProjectItem,
+  "id" | "createTime" | "updateTime"
+>;
+export type UpdateProjectItem = Omit<ProjectItem, "createTime" | "updateTime">;

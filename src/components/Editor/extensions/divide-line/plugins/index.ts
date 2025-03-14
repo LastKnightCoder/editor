@@ -1,1 +1,1 @@
-export * from './markdownSyntax.ts';
+export * from "./markdownSyntax.ts";

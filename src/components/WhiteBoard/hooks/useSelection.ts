@@ -5,4 +5,4 @@ export const useSelection = () => {
   const selection = useContext(SelectionContext);
 
   return selection;
-}
+};

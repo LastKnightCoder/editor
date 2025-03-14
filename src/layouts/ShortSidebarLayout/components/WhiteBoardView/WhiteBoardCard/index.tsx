@@ -10,21 +10,28 @@ import useTheme from "@/hooks/useTheme.ts";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import useUploadImage from "@/hooks/useUploadImage.ts";
 
-import { WhiteBoard } from '@/types';
+import { WhiteBoard } from "@/types";
 import LocalImage from "@/components/LocalImage";
 import { formatDate } from "@/utils";
 
 import styles from "./index.module.less";
 
 interface WhiteBoardCardProps {
-  whiteBoard: WhiteBoard
+  whiteBoard: WhiteBoard;
   className?: string;
   style?: React.CSSProperties;
 }
 
 const { Text, Paragraph } = Typography;
-const allThemes = [styles.green, styles.blue, styles.red, styles.yellow, styles.purple];
-const defaultSnapshot = 'https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png';
+const allThemes = [
+  styles.green,
+  styles.blue,
+  styles.red,
+  styles.yellow,
+  styles.purple,
+];
+const defaultSnapshot =
+  "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
 
 const WhiteBoardCard = (props: WhiteBoardCardProps) => {
   const { whiteBoard, className, style } = props;
@@ -34,15 +41,12 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
   const [bannerUploading, setBannerUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
-  const {
-    activeWhiteBoardId,
-    updateWhiteBoard,
-    deleteWhiteBoard
-  } = useWhiteBoardStore(state => ({
-    activeWhiteBoardId: state.activeWhiteBoardId,
-    updateWhiteBoard: state.updateWhiteBoard,
-    deleteWhiteBoard: state.deleteWhiteBoard
-  }));
+  const { activeWhiteBoardId, updateWhiteBoard, deleteWhiteBoard } =
+    useWhiteBoardStore((state) => ({
+      activeWhiteBoardId: state.activeWhiteBoardId,
+      updateWhiteBoard: state.updateWhiteBoard,
+      deleteWhiteBoard: state.deleteWhiteBoard,
+    }));
 
   const uploadImage = useUploadImage();
 
@@ -53,73 +57,81 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
     {
       [styles.dark]: isDark,
     },
-    className
-  )
+    className,
+  );
 
-  const handleUploadFileChange = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) {
-      return;
-    }
-    const file = files[0];
-    if (file.size > 1024 * 1024 * 5) {
-      message.error('文件大小超过5M');
-      return;
-    }
-    setBannerUploading(true);
-    const url = await uploadImage(file);
-    if (!url) {
+  const handleUploadFileChange = useMemoizedFn(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files) {
+        return;
+      }
+      const file = files[0];
+      if (file.size > 1024 * 1024 * 5) {
+        message.error("文件大小超过5M");
+        return;
+      }
+      setBannerUploading(true);
+      const url = await uploadImage(file);
+      if (!url) {
+        setBannerUploading(false);
+        message.error("上传失败");
+        return;
+      }
+      const newWhiteBoard = produce(whiteBoard, (draft) => {
+        draft.snapshot = url;
+      });
+      await updateWhiteBoard(newWhiteBoard);
       setBannerUploading(false);
-      message.error('上传失败');
-      return;
-    }
-    const newWhiteBoard = produce(whiteBoard, draft => {
-      draft.snapshot = url;
-    });
-    await updateWhiteBoard(newWhiteBoard);
-    setBannerUploading(false);
-  });
+    },
+  );
 
   const handleDeleteWhiteBoard = () => {
     Modal.confirm({
-      title: '确定删除该白板？',
+      title: "确定删除该白板？",
       onOk: async () => {
         await deleteWhiteBoard(whiteBoard.id);
       },
-      okText: '确定',
-      cancelText: '取消',
+      okText: "确定",
+      cancelText: "取消",
       okButtonProps: {
-        danger: true
-      }
+        danger: true,
+      },
     });
     setSettingOpen(false);
-  }
+  };
 
   const onClick = () => {
     useWhiteBoardStore.setState({
-      activeWhiteBoardId: whiteBoard.id === activeWhiteBoardId ? null : whiteBoard.id
-    })
-  }
+      activeWhiteBoardId:
+        whiteBoard.id === activeWhiteBoardId ? null : whiteBoard.id,
+    });
+  };
 
   return (
     <Spin spinning={bannerUploading}>
       <div className={cardClassName} style={style}>
         <div className={styles.imageContainer}>
-          <LocalImage url={whiteBoard.snapshot || defaultSnapshot}/>
+          <LocalImage url={whiteBoard.snapshot || defaultSnapshot} />
           <div className={classnames(styles.operate)}>
             <Popover
               open={settingOpen}
               onOpenChange={setSettingOpen}
-              placement={'bottomRight'}
-              trigger={'click'}
+              placement={"bottomRight"}
+              trigger={"click"}
               styles={{
                 body: {
-                  padding: 4
-                }
+                  padding: 4,
+                },
               }}
-              content={(
+              content={
                 <div className={styles.settings}>
-                  <div className={styles.settingItem} onClick={handleDeleteWhiteBoard}>删除白板</div>
+                  <div
+                    className={styles.settingItem}
+                    onClick={handleDeleteWhiteBoard}
+                  >
+                    删除白板
+                  </div>
                   <div
                     className={styles.settingItem}
                     onClick={(e) => {
@@ -132,28 +144,32 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
                   </div>
                   <input
                     ref={fileUploadRef}
-                    type={'file'}
-                    accept={'image/*'}
+                    type={"file"}
+                    accept={"image/*"}
                     hidden
                     onChange={handleUploadFileChange}
                   />
                 </div>
-              )}
+              }
             >
-              <MdMoreVert/>
+              <MdMoreVert />
             </Popover>
           </div>
         </div>
         <div className={styles.content}>
-          <Text className={styles.title} ellipsis={{ tooltip: whiteBoard.title }} onClick={onClick}>
+          <Text
+            className={styles.title}
+            ellipsis={{ tooltip: whiteBoard.title }}
+            onClick={onClick}
+          >
             {whiteBoard.title}
           </Text>
           <div className={styles.time}>
             <div className={styles.time}>
-              <CalendarOutlined/>
+              <CalendarOutlined />
               <span className={styles.date}>
-              发表于：{formatDate(whiteBoard.createTime, true)}
-            </span>
+                发表于：{formatDate(whiteBoard.createTime, true)}
+              </span>
             </div>
           </div>
           <Paragraph style={{ marginTop: 10 }} ellipsis={{ rows: 2 }}>
@@ -162,7 +178,7 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
         </div>
       </div>
     </Spin>
-  )
-}
+  );
+};
 
 export default WhiteBoardCard;

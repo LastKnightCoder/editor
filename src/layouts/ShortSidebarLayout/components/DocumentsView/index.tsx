@@ -2,12 +2,12 @@ import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import For from "@/components/For";
 import DocumentCard from "./DocumentCard";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from 'react-router-dom';
-import { FloatButton } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { useNavigate } from "react-router-dom";
+import { FloatButton } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import EditDocumentModal from "./EditDocumentModal";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 import { ICreateDocument } from "@/types";
 
@@ -22,9 +22,9 @@ const DocumentsView = () => {
 
   const navigate = useNavigate();
 
-  const { documents, createDocument } = useDocumentsStore(state => ({
+  const { documents, createDocument } = useDocumentsStore((state) => ({
     documents: state.documents,
-    createDocument: state.createDocument
+    createDocument: state.createDocument,
   }));
 
   const handleResize = useMemoizedFn((entries: ResizeObserverEntry[]) => {
@@ -50,14 +50,18 @@ const DocumentsView = () => {
 
     return () => {
       observer.disconnect();
-    }
+    };
   }, [handleResize]);
 
   return (
-    <div className={styles.container} ref={gridContainerRef} style={{ gap: GAP }}>
+    <div
+      className={styles.container}
+      ref={gridContainerRef}
+      style={{ gap: GAP }}
+    >
       <For
         data={documents}
-        renderItem={document => (
+        renderItem={(document) => (
           <DocumentCard
             style={{ width: itemWidth, height: 160 }}
             key={document.id}
@@ -67,14 +71,14 @@ const DocumentsView = () => {
       />
       <FloatButton
         icon={<PlusOutlined />}
-        tooltip={'新建知识库'}
+        tooltip={"新建知识库"}
         onClick={() => {
           setCreateOpen(true);
         }}
       />
       <EditDocumentModal
         open={createOpen}
-        title={'创建知识库'}
+        title={"创建知识库"}
         onCancel={() => {
           setCreateOpen(false);
         }}
@@ -87,8 +91,8 @@ const DocumentsView = () => {
             links: [],
             children: [],
             authors: [],
-            icon: '',
-            bannerBg: '',
+            icon: "",
+            bannerBg: "",
             isTop: false,
             isDelete: false,
           };
@@ -96,15 +100,15 @@ const DocumentsView = () => {
           setCreateOpen(false);
           useDocumentsStore.setState({
             activeDocumentId: createdDocument.id,
-            activeDocumentItem: null
-          })
+            activeDocumentItem: null,
+          });
           navigate(`/documents/${createdDocument.id}`);
         }}
-        defaultTitle={''}
-        defaultDesc={''}
+        defaultTitle={""}
+        defaultDesc={""}
       />
     </div>
-  )
-}
+  );
+};
 
 export default DocumentsView;

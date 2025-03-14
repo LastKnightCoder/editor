@@ -10,13 +10,13 @@ export const pasteImage = (editor: Editor) => {
     const { files } = data;
     if (files && files.length > 0) {
       const file = files[0];
-      const [mime] = file.type.split('/');
-      if (mime !== 'image') {
+      const [mime] = file.type.split("/");
+      if (mime !== "image") {
         insertData(data);
         return;
       }
       const insertPath = insertImage(editor, {
-        url: '',
+        url: "",
         pasteUploading: true,
       });
       if (!insertPath) {
@@ -24,24 +24,32 @@ export const pasteImage = (editor: Editor) => {
       }
       const url = await uploadImage(file);
       if (!url) {
-        message.error('上传失败');
-        Transforms.setNodes(editor, {
-          pasteUploading: false
-        }, {
-          at: insertPath
-        });
+        message.error("上传失败");
+        Transforms.setNodes(
+          editor,
+          {
+            pasteUploading: false,
+          },
+          {
+            at: insertPath,
+          },
+        );
         return;
       }
-      Transforms.setNodes(editor, {
-        url,
-        pasteUploading: false
-      }, {
-        at: insertPath
-      });
+      Transforms.setNodes(
+        editor,
+        {
+          url,
+          pasteUploading: false,
+        },
+        {
+          at: insertPath,
+        },
+      );
       return;
     }
     insertData(data);
-  }
+  };
 
   return editor;
-}
+};

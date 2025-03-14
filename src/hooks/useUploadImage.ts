@@ -1,7 +1,11 @@
 import { useMemoizedFn } from "ahooks";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore.ts";
-import { putObject } from '@/commands';
-import { copyFileToLocal, transformGithubUrlToCDNUrl, uploadFileFromFile } from "@/utils";
+import { putObject } from "@/commands";
+import {
+  copyFileToLocal,
+  transformGithubUrlToCDNUrl,
+  uploadFileFromFile,
+} from "@/utils";
 import { v4 as uuid } from "uuid";
 // import TinyPng, { CompressResult } from 'tinypng-lib';
 
@@ -19,7 +23,9 @@ const uploadImageInner = async (imageBed: any, file: File) => {
     try {
       const res = await uploadFileFromFile(file, githubInfo);
       if (res) {
-        const { content: { download_url } } = res;
+        const {
+          content: { download_url },
+        } = res;
         return transformGithubUrlToCDNUrl(download_url, githubInfo.branch);
       }
       return null;
@@ -28,10 +34,10 @@ const uploadImageInner = async (imageBed: any, file: File) => {
     }
   } else if (imageBed.active === EImageBed.AliOSS) {
     const fileName = file.name;
-    const all = fileName.split('.');
+    const all = fileName.split(".");
     const other = all.slice(0, all.length - 1);
     const extension = all[all.length - 1];
-    const objectName = other.join('.') + '_' + uuid() + '.' + extension;
+    const objectName = other.join(".") + "_" + uuid() + "." + extension;
     try {
       return await putObject({
         ...aliOSSInfo,
@@ -45,33 +51,29 @@ const uploadImageInner = async (imageBed: any, file: File) => {
   } else {
     // 移动到本地目录
     const fileName = file.name;
-    const all = fileName.split('.');
+    const all = fileName.split(".");
     const other = all.slice(0, all.length - 1);
     const extension = all[all.length - 1];
-    const objectName = other.join('.') + '_' + uuid() + '.' + extension;
+    const objectName = other.join(".") + "_" + uuid() + "." + extension;
     // 复制文件到本地文件夹
     return await copyFileToLocal(file, objectName);
   }
-}
+};
 
 const useUploadImage = () => {
-  const {
-    imageBed
-  } = useSettingStore(state => ({
+  const { imageBed } = useSettingStore((state) => ({
     imageBed: state.setting.imageBed,
   }));
 
   return useMemoizedFn(async (file: File) => {
     return await uploadImageInner(imageBed, file);
   });
-}
+};
 
 export default useUploadImage;
 
 export const uploadImage = async (file: File) => {
-  const {
-    imageBed
-  } = useSettingStore.getState().setting;
+  const { imageBed } = useSettingStore.getState().setting;
 
   return await uploadImageInner(imageBed, file);
-}
+};

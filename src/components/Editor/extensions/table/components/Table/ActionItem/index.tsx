@@ -1,7 +1,6 @@
-import React from 'react';
+import React from "react";
 
-import styles from './index.module.less';
-
+import styles from "./index.module.less";
 
 interface IActionItemProps {
   icon: React.ReactNode;
@@ -15,7 +14,7 @@ const ActionItem = (props: IActionItemProps) => {
       {icon}
       <span>{text}</span>
     </div>
-  )
-}
+  );
+};
 
 export default ActionItem;

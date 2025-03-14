@@ -1,11 +1,9 @@
-import { memo } from 'react';
+import { memo } from "react";
 import EditDoc from "./EditDoc";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 
 const Document = memo(() => {
-  const {
-    activeDocumentItem
-  } = useDocumentsStore(state => ({
+  const { activeDocumentItem } = useDocumentsStore((state) => ({
     activeDocumentItem: state.activeDocumentItem,
   }));
 

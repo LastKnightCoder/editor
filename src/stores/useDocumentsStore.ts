@@ -1,11 +1,17 @@
-import { create } from 'zustand';
-import { IDocument, ICreateDocument, IUpdateDocument, IDeleteDocument, IDocumentItem } from "@/types";
+import { create } from "zustand";
+import {
+  IDocument,
+  ICreateDocument,
+  IUpdateDocument,
+  IDeleteDocument,
+  IDocumentItem,
+} from "@/types";
 import {
   getAllDocuments,
   createDocument,
   updateDocument,
   deleteDocument,
-} from '@/commands';
+} from "@/commands";
 import { produce } from "immer";
 
 interface IState {
@@ -30,14 +36,14 @@ const initState: IState = {
   activeDocumentId: null,
   activeDocumentItem: null,
   hideDocumentItemsList: false,
-}
+};
 
 const useDocumentsStore = create<IState & IActions>((set, get) => ({
   ...initState,
   init: async () => {
     set({
       ...initState,
-      loading: true
+      loading: true,
     });
     const documents = await getAllDocuments();
     set({ documents, loading: false });
@@ -64,12 +70,12 @@ const useDocumentsStore = create<IState & IActions>((set, get) => ({
     const { documents, updateDocument } = get();
     const document = documents.find((item) => item.id === documentId);
     if (!document) return;
-    console.log('documentItemId', documentItemId);
+    console.log("documentItemId", documentItemId);
     const newDocument = produce(document, (draft) => {
       draft.children.push(documentItemId);
     });
     await updateDocument(newDocument);
-  }
+  },
 }));
 
 export default useDocumentsStore;

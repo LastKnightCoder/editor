@@ -1,4 +1,4 @@
-import { Editor } from 'slate';
+import { Editor } from "slate";
 import { deleteListItem } from "../utils.ts";
 
 export const deleteBackward = (editor: Editor) => {
@@ -10,7 +10,7 @@ export const deleteBackward = (editor: Editor) => {
       return;
     }
     deleteBackward(unit);
-  }
+  };
 
   return editor;
-}
+};

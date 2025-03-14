@@ -1,6 +1,9 @@
-import { memo, useRef, useEffect } from 'react';
-import gsap from 'gsap';
-import { ARROW_CONNECT_POINT_FILL, ARROW_CONNECT_POINT_RADIUS } from '../../constants';
+import { memo, useRef, useEffect } from "react";
+import gsap from "gsap";
+import {
+  ARROW_CONNECT_POINT_FILL,
+  ARROW_CONNECT_POINT_RADIUS,
+} from "../../constants";
 
 interface ArrowDropConnectPointProps {
   cx: number;
@@ -16,25 +19,25 @@ const ArrowDropConnectPoint = memo((props: ArrowDropConnectPointProps) => {
   useEffect(() => {
     const circle = ref.current;
     if (!circle) return;
-    
+
     if (isActive) {
       gsap.to(circle, {
         attr: {
-          r: 0
+          r: 0,
         },
         duration: 0.2,
-        ease: 'power1.inOut'
+        ease: "power1.inOut",
       });
     } else {
       gsap.to(circle, {
         attr: {
-          r: ARROW_CONNECT_POINT_RADIUS
+          r: ARROW_CONNECT_POINT_RADIUS,
         },
         duration: 0.2,
-        ease: 'power1.inOut'
+        ease: "power1.inOut",
       });
     }
-  }, [isActive])
+  }, [isActive]);
 
   return (
     <>
@@ -49,11 +52,10 @@ const ArrowDropConnectPoint = memo((props: ArrowDropConnectPointProps) => {
         cx={cx}
         cy={cy}
         r={ARROW_CONNECT_POINT_RADIUS}
-        fill={'white'}
+        fill={"white"}
       />
     </>
-  )
+  );
 });
 
 export default ArrowDropConnectPoint;
-

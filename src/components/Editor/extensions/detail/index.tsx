@@ -1,16 +1,16 @@
-import { Element } from 'slate';
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { DetailElement } from "@/components/Editor/types";
 
-import Detail from './components/Detail';
-import { deleteBackward, quit, withNormalize } from './plugins';
-import blockPanelItems from './block-panel-items';
+import Detail from "./components/Detail";
+import { deleteBackward, quit, withNormalize } from "./plugins";
+import blockPanelItems from "./block-panel-items";
 
-import Base from '../base.ts';
+import Base from "../base.ts";
 import IExtension from "../types.ts";
 
 class DetailExtension extends Base implements IExtension {
-  type = 'detail';
+  type = "detail";
   override getPlugins() {
     return [deleteBackward, quit, withNormalize];
   }
@@ -28,7 +28,11 @@ class DetailExtension extends Base implements IExtension {
 
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
-    return <Detail element={element as DetailElement} attributes={attributes}>{children}</Detail>;
+    return (
+      <Detail element={element as DetailElement} attributes={attributes}>
+        {children}
+      </Detail>
+    );
   }
 }
 

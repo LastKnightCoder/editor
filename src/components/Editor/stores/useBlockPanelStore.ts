@@ -8,7 +8,7 @@ interface IState {
   position: {
     x: number;
     y: number;
-  },
+  };
   activeIndex: number;
   inputValue: string;
   list: IBlockPanelListItem[];
@@ -28,9 +28,9 @@ const initState: IState = {
     y: 0,
   },
   activeIndex: 0,
-  inputValue: '',
-  list: []
-}
+  inputValue: "",
+  list: [],
+};
 
 const useBlockPanelStore = create<IState & IActions>((set, get) => ({
   ...initState,
@@ -41,9 +41,9 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
       return;
     }
 
-    const list = allListItem.filter(item => {
+    const list = allListItem.filter((item) => {
       return (
-        item.keywords.some(keyword => keyword.includes(searchText)) ||
+        item.keywords.some((keyword) => keyword.includes(searchText)) ||
         item.title.includes(searchText) ||
         item.description.includes(searchText)
       );
@@ -57,18 +57,18 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
     if (next) {
       set({
         activeIndex: (activeIndex + 1) % list.length,
-      })
+      });
     } else {
       set({
         activeIndex: (activeIndex + list.length - 1) % list.length,
-      })
+      });
     }
   },
   selectItem: (editor: Editor, selectIndex) => {
     const { list, inputValue, reset } = get();
     const deleteCount = inputValue.length;
     for (let i = 0; i < deleteCount; i++) {
-      editor.deleteBackward('character');
+      editor.deleteBackward("character");
     }
     const item = list[selectIndex];
     item.onClick(editor);
@@ -78,7 +78,7 @@ const useBlockPanelStore = create<IState & IActions>((set, get) => ({
     set({
       ...initState,
     });
-  }
+  },
 }));
 
 export default useBlockPanelStore;

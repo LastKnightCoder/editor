@@ -1,7 +1,7 @@
-import React, { useEffect, useState, PropsWithChildren } from 'react';
+import React, { useEffect, useState, PropsWithChildren } from "react";
 import classnames from "classnames";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 
 interface IWidthResizableProps {
@@ -10,21 +10,23 @@ interface IWidthResizableProps {
   maxWidth?: number;
   onResize?: (width: number) => void;
   className?: string;
-  side?: 'left' | 'right';
+  side?: "left" | "right";
   style?: React.CSSProperties;
   disableResize?: boolean;
 }
 
-const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props) => {
+const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
+  props,
+) => {
   const {
     defaultWidth,
     minWidth,
     maxWidth,
     onResize,
     className,
-    side = 'right',
+    side = "right",
     style = {},
-    disableResize = false
+    disableResize = false,
   } = props;
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -40,7 +42,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
     setIsResizing(true);
     e.stopPropagation();
     e.preventDefault();
-  }
+  };
 
   const handleMouseMove = useMemoizedFn((e: MouseEvent) => {
     if (disableResize) return;
@@ -48,7 +50,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
       const container = containerRef.current;
       if (!container) return;
       let newWidth = e.clientX - container.getBoundingClientRect().left;
-      if (side === 'left') {
+      if (side === "left") {
         newWidth = container.offsetWidth - newWidth;
       }
       if (minWidth && newWidth < minWidth) {
@@ -60,20 +62,20 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
       setWidth(newWidth);
       if (onResize) onResize(newWidth);
     }
-  })
+  });
 
   const handleMouseUp = () => {
     setIsResizing(false);
-  }
+  };
 
   useEffect(() => {
     if (disableResize) return;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    }
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
   }, [handleMouseMove, disableResize]);
 
   return (
@@ -83,22 +85,22 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (props
         ...style,
         width,
         minWidth,
-        maxWidth
-    }}
+        maxWidth,
+      }}
       ref={containerRef}
     >
       {props.children}
-      {
-        !disableResize && (
-          <div
-            className={classnames(styles.resizeBar, { [styles.left]: side === 'left' })}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-          />
-        )
-      }
+      {!disableResize && (
+        <div
+          className={classnames(styles.resizeBar, {
+            [styles.left]: side === "left",
+          })}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+        />
+      )}
     </div>
-  )
-}
+  );
+};
 
 export default WidthResizable;

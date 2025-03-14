@@ -30,6 +30,6 @@ export const useScrollToBottom = (
     setAutoScroll,
     scrollDomToBottom,
   };
-}
+};
 
 export default useScrollToBottom;

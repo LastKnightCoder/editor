@@ -3,7 +3,7 @@ import { ICard } from "@/types";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import { produce } from "immer";
-import useCardsManagementStore from '@/stores/useCardsManagementStore.ts';
+import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 
 const useEditCard = (cardId: number) => {
   const [loading, setLoading] = useState(false);
@@ -13,13 +13,13 @@ const useEditCard = (cardId: number) => {
 
   const { cards, updateCard } = useCardsManagementStore((state) => ({
     cards: state.cards,
-    updateCard: state.updateCard
-  }))
+    updateCard: state.updateCard,
+  }));
 
   useAsyncEffect(async () => {
     setLoading(true);
 
-    const card = cards.find(c => c.id === cardId);
+    const card = cards.find((c) => c.id === cardId);
     if (!card) {
       setLoading(false);
       return;
@@ -56,14 +56,14 @@ const useEditCard = (cardId: number) => {
       draft.content = content;
     });
     setEditingCard(newEditingCard);
-  })
+  });
 
   return {
     loading,
     editingCard,
     onContentChange,
-    saveCard
-  }
-}
+    saveCard,
+  };
+};
 
 export default useEditCard;

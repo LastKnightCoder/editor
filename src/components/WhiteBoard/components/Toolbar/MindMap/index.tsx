@@ -21,18 +21,17 @@ const MindMap = (props: MindMapProps) => {
   const createElementType = useCreateElementType();
 
   const onClickCreateElement = useMemoizedFn(() => {
-    board.currentCreateType = ECreateBoardElementType.MindMap === createElementType ? ECreateBoardElementType.None : ECreateBoardElementType.MindMap;
+    board.currentCreateType =
+      ECreateBoardElementType.MindMap === createElementType
+        ? ECreateBoardElementType.None
+        : ECreateBoardElementType.MindMap;
   });
 
   return (
-    <div
-      className={className}
-      style={style}
-      onClick={onClickCreateElement}
-    >
+    <div className={className} style={style} onClick={onClickCreateElement}>
       <RiMindMap />
     </div>
-  )
-}
+  );
+};
 
 export default MindMap;

@@ -1,23 +1,23 @@
-import { useMemo, useRef, useState } from 'react';
-import classnames from 'classnames';
-import { Empty, Select, Dropdown, MenuProps, FloatButton } from 'antd';
-import { useMemoizedFn } from 'ahooks';
+import { useMemo, useRef, useState } from "react";
+import classnames from "classnames";
+import { Empty, Select, Dropdown, MenuProps, FloatButton } from "antd";
+import { useMemoizedFn } from "ahooks";
 
-import For from '@/components/For';
-import LoadMoreComponent from '@/components/LoadMoreComponent';
-import TagItem from '@/components/TagItem';
-import { PlusOutlined, UpOutlined } from '@ant-design/icons';
-import CardItem from './CardItem';
-import Card from '../../../components/EditCards';
+import For from "@/components/For";
+import LoadMoreComponent from "@/components/LoadMoreComponent";
+import TagItem from "@/components/TagItem";
+import { PlusOutlined, UpOutlined } from "@ant-design/icons";
+import CardItem from "./CardItem";
+import Card from "../../../components/EditCards";
 
-import useCardsManagementStore from '@/stores/useCardsManagementStore';
-import useCardPanelStore from '@/stores/useCardPanelStore';
-import useCardTree from '@/hooks/useCardTree';
-import { ECardCategory, ICreateCard } from '@/types';
+import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import useCardPanelStore from "@/stores/useCardPanelStore";
+import useCardTree from "@/hooks/useCardTree";
+import { ECardCategory, ICreateCard } from "@/types";
 import { cardCategoryName } from "@/constants";
-import CreateCard from './CreateCard';
+import CreateCard from "./CreateCard";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { Descendant } from "slate";
 import If from "@/components/If";
 import { readTextFile, selectFile } from "@/commands";
@@ -29,17 +29,13 @@ const CardContainer = () => {
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { 
-    cards, 
-    selectCategory, 
-    activeCardTag,
-    createCard,
-  } = useCardsManagementStore(state => ({
-    cards: state.cards,
-    selectCategory: state.selectCategory,
-    activeCardTag: state.activeCardTag,
-    createCard: state.createCard,
-  }));
+  const { cards, selectCategory, activeCardTag, createCard } =
+    useCardsManagementStore((state) => ({
+      cards: state.cards,
+      selectCategory: state.selectCategory,
+      activeCardTag: state.activeCardTag,
+      createCard: state.createCard,
+    }));
 
   const filteredCards = useMemo(() => {
     const cardWithCategory = cards.filter((card) => {
@@ -47,22 +43,24 @@ const CardContainer = () => {
     });
 
     if (!activeCardTag) return cardWithCategory;
-    return cardWithCategory.filter((card) => card.tags.some(tag => {
-      const activeCardTags = activeCardTag.split('/');
-      const tags = tag.split('/');
-      if (tags.length < activeCardTags.length) return false;
-      for (let i = 0; i < activeCardTags.length; i++) {
-        if (activeCardTags[i] !== tags[i]) return false;
-      }
-      return true;
-    }));
+    return cardWithCategory.filter((card) =>
+      card.tags.some((tag) => {
+        const activeCardTags = activeCardTag.split("/");
+        const tags = tag.split("/");
+        if (tags.length < activeCardTags.length) return false;
+        for (let i = 0; i < activeCardTags.length; i++) {
+          if (activeCardTags[i] !== tags[i]) return false;
+        }
+        return true;
+      }),
+    );
   }, [activeCardTag, cards, selectCategory]);
 
   const [cardsCount, setCardsCount] = useState<number>(5);
 
   const sliceCards = filteredCards.slice(0, cardsCount);
 
-  const { leftCardIds, rightCardIds } = useCardPanelStore(state => ({
+  const { leftCardIds, rightCardIds } = useCardPanelStore((state) => ({
     leftCardIds: state.leftCardIds,
     rightCardIds: state.rightCardIds,
   }));
@@ -71,26 +69,29 @@ const CardContainer = () => {
     return leftCardIds.length > 0 || rightCardIds.length > 0;
   }, [leftCardIds, rightCardIds]);
 
-  const menuItems: MenuProps['items'] = [{
-    label: '创建卡片',
-    key: 'create-card'
-  }, {
-    label: '导入Markdown',
-    key: 'import-markdown'
-  }];
+  const menuItems: MenuProps["items"] = [
+    {
+      label: "创建卡片",
+      key: "create-card",
+    },
+    {
+      label: "导入Markdown",
+      key: "import-markdown",
+    },
+  ];
 
   const handleClickCreate = useMemoizedFn(async ({ key }: { key: string }) => {
-    if (key === 'create-card') {
+    if (key === "create-card") {
       if (!isCreatingCard) {
         setIsCreatingCard(true);
       }
-    } else if (key === 'import-markdown') {
+    } else if (key === "import-markdown") {
       const filePath = await selectFile({
-        properties: ['openFile', 'multiSelections'],
+        properties: ["openFile", "multiSelections"],
         filters: [
           {
-            name: 'Markdown',
-            extensions: ['md'],
+            name: "Markdown",
+            extensions: ["md"],
           },
         ],
       });
@@ -108,18 +109,20 @@ const CardContainer = () => {
       }
     }
   });
-  
-  const onSaveCard = useMemoizedFn(async (content: Descendant[], tags: string[]) => {
-    const card: ICreateCard = {
-      content,
-      tags,
-      links: [],
-      category: selectCategory,
-      count: 0,
-    }
-    await createCard(card);
-    setIsCreatingCard(false);
-  });
+
+  const onSaveCard = useMemoizedFn(
+    async (content: Descendant[], tags: string[]) => {
+      const card: ICreateCard = {
+        content,
+        tags,
+        links: [],
+        category: selectCategory,
+        count: 0,
+      };
+      await createCard(card);
+      setIsCreatingCard(false);
+    },
+  );
 
   const loadMore = useMemoizedFn(async () => {
     setCardsCount(Math.min(cardsCount + 5, filteredCards.length));
@@ -128,37 +131,33 @@ const CardContainer = () => {
   const onSelectCategoryChange = useMemoizedFn((category: ECardCategory) => {
     useCardsManagementStore.setState({
       selectCategory: category,
-    })
+    });
   });
 
   const onClickTag = useMemoizedFn((tag: string) => {
     useCardsManagementStore.setState({
-      activeCardTag: tag === activeCardTag ? '' : tag
+      activeCardTag: tag === activeCardTag ? "" : tag,
     });
     listRef.current?.scrollTo({
       top: 0,
-      behavior: 'smooth',
+      behavior: "smooth",
     });
-    setCardsCount(5)
+    setCardsCount(5);
   });
 
   return (
     <div className={styles.queryContainer}>
       <div
-        className={
-          classnames(
-            styles.container,
-            {
-              [styles.showEdit]: isShowEdit,
-            }
-          )
-        }>
+        className={classnames(styles.container, {
+          [styles.showEdit]: isShowEdit,
+        })}
+      >
         <div className={styles.list}>
           <div className={styles.cards}>
             <div className={styles.cardTree}>
               <For
                 data={cardTree}
-                renderItem={card => (
+                renderItem={(card) => (
                   <TagItem
                     key={card.tag}
                     item={card}
@@ -185,25 +184,23 @@ const CardContainer = () => {
                   <Dropdown
                     menu={{
                       items: menuItems,
-                      onClick: handleClickCreate
+                      onClick: handleClickCreate,
                     }}
                   >
                     <div className={styles.addCard}>
-                      <PlusOutlined/>
+                      <PlusOutlined />
                     </div>
                   </Dropdown>
                 </div>
-                {
-                  isCreatingCard && (
-                    <CreateCard
-                      className={styles.createCard}
-                      onSave={onSaveCard}
-                      onCancel={() => {
-                        setIsCreatingCard(false);
-                      }}
-                    />
-                  )
-                }
+                {isCreatingCard && (
+                  <CreateCard
+                    className={styles.createCard}
+                    onSave={onSaveCard}
+                    onCancel={() => {
+                      setIsCreatingCard(false);
+                    }}
+                  />
+                )}
                 <div
                   className={styles.list}
                   ref={listRef}
@@ -216,7 +213,7 @@ const CardContainer = () => {
                   }}
                 >
                   <If condition={filteredCards.length === 0}>
-                    <Empty description={'暂无卡片'} />
+                    <Empty description={"暂无卡片"} />
                   </If>
                   <If condition={filteredCards.length > 0}>
                     <LoadMoreComponent
@@ -225,11 +222,8 @@ const CardContainer = () => {
                     >
                       <For
                         data={sliceCards}
-                        renderItem={card => (
-                          <CardItem
-                            key={card.id}
-                            card={card}
-                          />
+                        renderItem={(card) => (
+                          <CardItem key={card.id} card={card} />
                         )}
                       />
                     </LoadMoreComponent>
@@ -243,27 +237,25 @@ const CardContainer = () => {
           <Card />
         </div>
       </div>
-      {
-        !isShowEdit && showScrollToTop && (
-          <FloatButton
-            style={{
-              position: 'absolute',
-              // right: 0,
-              // bottom: 0,
-            }}
-            icon={<UpOutlined />}
-            tooltip={'回到顶部'}
-            onClick={() => {
-              listRef.current?.scrollTo({
-                top: 0,
-                behavior: 'smooth',
-              });
-            }}
-          />
-        )
-      }
+      {!isShowEdit && showScrollToTop && (
+        <FloatButton
+          style={{
+            position: "absolute",
+            // right: 0,
+            // bottom: 0,
+          }}
+          icon={<UpOutlined />}
+          tooltip={"回到顶部"}
+          onClick={() => {
+            listRef.current?.scrollTo({
+              top: 0,
+              behavior: "smooth",
+            });
+          }}
+        />
+      )}
     </div>
-  )
-}
+  );
+};
 
 export default CardContainer;

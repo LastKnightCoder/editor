@@ -13,8 +13,8 @@ export class PointUtil {
 
     return {
       x: offsetX / zoom + minX,
-      y: offsetY / zoom + minY
-    }
+      y: offsetY / zoom + minY,
+    };
   }
 
   static getResizePointFromRect(rect: BBox) {
@@ -28,11 +28,16 @@ export class PointUtil {
       [EHandlerPosition.Right]: { x: x + rect.width, y: y + rect.height / 2 },
       [EHandlerPosition.BottomLeft]: { x, y: y + rect.height },
       [EHandlerPosition.Bottom]: { x: x + rect.width / 2, y: y + rect.height },
-      [EHandlerPosition.BottomRight]: { x: x + rect.width, y: y + rect.height }
-    }
+      [EHandlerPosition.BottomRight]: { x: x + rect.width, y: y + rect.height },
+    };
   }
 
-  static getResizedBBox(bbox: BBox, position: EHandlerPosition, anchor: Point, focus: Point): BBox {
+  static getResizedBBox(
+    bbox: BBox,
+    position: EHandlerPosition,
+    anchor: Point,
+    focus: Point,
+  ): BBox {
     const { x: left, y: top, width, height } = bbox;
     const moveX = focus.x - anchor.x;
     const moveY = focus.y - anchor.y;
@@ -41,7 +46,13 @@ export class PointUtil {
     let newWidth = width;
     let newHeight = height;
     // 还需要考虑拖拽超出了另一边，比如拖拽左边，超出了右边，那么 x, y 和 width, height 的值需要调整
-    if ([EHandlerPosition.Left, EHandlerPosition.BottomLeft, EHandlerPosition.TopLeft].includes(position)) {
+    if (
+      [
+        EHandlerPosition.Left,
+        EHandlerPosition.BottomLeft,
+        EHandlerPosition.TopLeft,
+      ].includes(position)
+    ) {
       newX = left + moveX;
       newWidth = width - moveX;
       if (newWidth < 0) {
@@ -49,14 +60,26 @@ export class PointUtil {
         newWidth = moveX - width;
       }
     }
-    if ([EHandlerPosition.Right, EHandlerPosition.BottomRight, EHandlerPosition.TopRight].includes(position)) {
+    if (
+      [
+        EHandlerPosition.Right,
+        EHandlerPosition.BottomRight,
+        EHandlerPosition.TopRight,
+      ].includes(position)
+    ) {
       newWidth = width + moveX;
       if (newWidth < 0) {
         newWidth = Math.abs(width + moveX);
         newX = left + width + moveX;
       }
     }
-    if ([EHandlerPosition.Top, EHandlerPosition.TopLeft, EHandlerPosition.TopRight].includes(position)) {
+    if (
+      [
+        EHandlerPosition.Top,
+        EHandlerPosition.TopLeft,
+        EHandlerPosition.TopRight,
+      ].includes(position)
+    ) {
       newY = top + moveY;
       newHeight = height - moveY;
       if (newHeight < 0) {
@@ -64,7 +87,13 @@ export class PointUtil {
         newHeight = moveY - height;
       }
     }
-    if ([EHandlerPosition.Bottom, EHandlerPosition.BottomLeft, EHandlerPosition.BottomRight].includes(position)) {
+    if (
+      [
+        EHandlerPosition.Bottom,
+        EHandlerPosition.BottomLeft,
+        EHandlerPosition.BottomRight,
+      ].includes(position)
+    ) {
       newHeight = height + moveY;
       if (newHeight < 0) {
         newHeight = Math.abs(moveY + height);
@@ -76,30 +105,30 @@ export class PointUtil {
       x: newX,
       y: newY,
       width: newWidth,
-      height: newHeight
-    }
+      height: newHeight,
+    };
   }
 
   static getResizeCursor(position: EHandlerPosition) {
     switch (position) {
       case EHandlerPosition.Left:
-        return 'w-resize'
+        return "w-resize";
       case EHandlerPosition.Right:
-        return 'e-resize'
+        return "e-resize";
       case EHandlerPosition.Top:
-        return 'n-resize'
+        return "n-resize";
       case EHandlerPosition.Bottom:
-        return 's-resize'
+        return "s-resize";
       case EHandlerPosition.TopLeft:
-        return 'nw-resize'
+        return "nw-resize";
       case EHandlerPosition.TopRight:
-        return 'ne-resize'
+        return "ne-resize";
       case EHandlerPosition.BottomLeft:
-        return 'sw-resize'
+        return "sw-resize";
       case EHandlerPosition.BottomRight:
-        return 'se-resize'
+        return "se-resize";
       default:
-        return 'move'
+        return "move";
     }
   }
 }

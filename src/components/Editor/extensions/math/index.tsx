@@ -1,18 +1,18 @@
-import { Element } from 'slate';
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { InlineMathElement, BlockMathElement } from "@/components/Editor/types";
-import InlineMath from './components/InlineMath';
-import BlockMath from './components/BlockMath';
+import InlineMath from "./components/InlineMath";
+import BlockMath from "./components/BlockMath";
 
-import Base from '../base';
+import Base from "../base";
 import IExtension from "../types.ts";
 
-import { inlineShortcut, blockShortcut } from './hotkeys';
-import blockPanelItems from './block-panel-items';
-import hoveringBarConfigs from './hovering-bar-configs';
+import { inlineShortcut, blockShortcut } from "./hotkeys";
+import blockPanelItems from "./block-panel-items";
+import hoveringBarConfigs from "./hovering-bar-configs";
 
 export class InlineMathExtension extends Base implements IExtension {
-  type = 'inline-math';
+  type = "inline-math";
 
   override getHotkeyConfigs() {
     return [...inlineShortcut];
@@ -36,15 +36,18 @@ export class InlineMathExtension extends Base implements IExtension {
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
-      <InlineMath attributes={attributes} element={element as InlineMathElement}>
+      <InlineMath
+        attributes={attributes}
+        element={element as InlineMathElement}
+      >
         {children}
       </InlineMath>
-    )
+    );
   }
 }
 
-export class BlockMathExtension extends Base{
-  type = 'block-math';
+export class BlockMathExtension extends Base {
+  type = "block-math";
   override getHotkeyConfigs() {
     return [...blockShortcut];
   }
@@ -60,6 +63,6 @@ export class BlockMathExtension extends Base{
       <BlockMath attributes={attributes} element={element as BlockMathElement}>
         {children}
       </BlockMath>
-    )
+    );
   }
 }

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import useCardPanelStore from "@/stores/useCardPanelStore.ts";
 
@@ -6,15 +6,13 @@ interface IUseDragAndDropParams {
   cardId: number;
 }
 
-export const CARD_TAB_TYPE = 'card-tab';
+export const CARD_TAB_TYPE = "card-tab";
 
 const useDragAndDrop = (params: IUseDragAndDropParams) => {
   const { cardId } = params;
   const ref = useRef(null);
 
-  const {
-    dragCard,
-  } = useCardPanelStore((state) => ({
+  const { dragCard } = useCardPanelStore((state) => ({
     dragCard: state.dragCard,
   }));
 
@@ -28,10 +26,14 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     }),
   });
 
-  const [{ isOver, canDrop }, drop] = useDrop<{ cardId: number }, void, {
-    isOver: boolean;
-    canDrop: boolean;
-  }>({
+  const [{ isOver, canDrop }, drop] = useDrop<
+    { cardId: number },
+    void,
+    {
+      isOver: boolean;
+      canDrop: boolean;
+    }
+  >({
     accept: CARD_TAB_TYPE,
     canDrop: (item) => {
       return item.cardId !== cardId;
@@ -48,7 +50,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return;
       }
       dragCard(item.cardId, cardId);
-    }
+    },
   });
 
   drag(drop(ref));
@@ -58,7 +60,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     isDragging,
     canDrop,
     isOver,
-  }
-}
+  };
+};
 
 export default useDragAndDrop;

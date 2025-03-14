@@ -1,4 +1,6 @@
-export const getImageInfo = async (file: File): Promise<{ width: number, height: number } | null> => {
+export const getImageInfo = async (
+  file: File,
+): Promise<{ width: number; height: number } | null> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -9,11 +11,13 @@ export const getImageInfo = async (file: File): Promise<{ width: number, height:
     };
     img.src = URL.createObjectURL(file);
   });
-}
+};
 
-export const getVideoInfo = async (file: File): Promise<{ width: number, height: number } | null> => {
+export const getVideoInfo = async (
+  file: File,
+): Promise<{ width: number; height: number } | null> => {
   return new Promise((resolve) => {
-    const video = document.createElement('video');
+    const video = document.createElement("video");
     video.onloadedmetadata = (e) => {
       console.log(e);
       console.log(video.videoWidth, video.videoHeight);
@@ -24,4 +28,4 @@ export const getVideoInfo = async (file: File): Promise<{ width: number, height:
     };
     video.src = URL.createObjectURL(file);
   });
-}
+};

@@ -6,27 +6,18 @@ import Editor from "@/components/Editor";
 import useEditDailyNote from "@/hooks/useEditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import { dailySummaryExtension } from "@/editor-extensions";
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
-const extensions = [
-  dailySummaryExtension,
-];
+const extensions = [dailySummaryExtension];
 
 const DailyNoteContent = () => {
-  const {
-    activeDailyId,
-    readonly,
-  } = useDailyNoteStore(state => ({
+  const { activeDailyId, readonly } = useDailyNoteStore((state) => ({
     activeDailyId: state.activeDailyId,
     readonly: state.readonly,
   }));
 
-  const {
-    editingDailyNote,
-    onInit,
-    onContentChange,
-    saveDailyNote,
-  } = useEditDailyNote(activeDailyId);
+  const { editingDailyNote, onInit, onContentChange, saveDailyNote } =
+    useEditDailyNote(activeDailyId);
 
   useRafInterval(() => {
     saveDailyNote?.();
@@ -42,9 +33,7 @@ const DailyNoteContent = () => {
 
   return (
     <div className={styles.editingDailyContainer}>
-      <div className={styles.title}>
-        {editingDailyNote.date}
-      </div>
+      <div className={styles.title}>{editingDailyNote.date}</div>
       <div className={styles.content}>
         <div className={styles.editor}>
           <Editor
@@ -59,7 +48,7 @@ const DailyNoteContent = () => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default DailyNoteContent;

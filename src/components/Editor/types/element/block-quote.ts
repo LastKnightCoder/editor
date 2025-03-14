@@ -1,6 +1,6 @@
-import { BlockElement } from '../custom-element.ts';
+import { BlockElement } from "../custom-element.ts";
 
 export interface BlockquoteElement {
-  type: 'blockquote';
+  type: "blockquote";
   children: BlockElement[];
 }

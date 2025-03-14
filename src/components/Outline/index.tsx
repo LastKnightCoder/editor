@@ -3,7 +3,7 @@ import classnames from "classnames";
 
 import For from "@/components/For";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface IHeaderItem {
   title: string;
@@ -21,21 +21,27 @@ const Outline = (props: IOutlineProps) => {
   const { headers, className, style, onClick } = props;
 
   return (
-    <div className={classnames(styles.outlineContainer, className)} style={style}>
-      <For data={headers} renderItem={(header, index) => (
-        <div
-          key={index}
-          className={styles.header}
-          data-level={header.level}
-          onClick={() => {
-            onClick?.(index);
-          }}
-        >
-          {header.title}
-        </div>
-      )} />
+    <div
+      className={classnames(styles.outlineContainer, className)}
+      style={style}
+    >
+      <For
+        data={headers}
+        renderItem={(header, index) => (
+          <div
+            key={index}
+            className={styles.header}
+            data-level={header.level}
+            onClick={() => {
+              onClick?.(index);
+            }}
+          >
+            {header.title}
+          </div>
+        )}
+      />
     </div>
-  )
-}
+  );
+};
 
 export default Outline;

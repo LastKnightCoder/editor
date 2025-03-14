@@ -9,34 +9,37 @@ interface UploadTabProps {
 const UploadTab = memo((props: UploadTabProps) => {
   const { uploadImage, setLink } = props;
 
-  const [linkValue, setLinkValue] = useState('');
+  const [linkValue, setLinkValue] = useState("");
 
-  const items: TabsProps['items'] = [{
-    key: 'upload',
-    label: '本地上传',
-    children: <Button onClick={uploadImage}>本地上传</Button>
-  }, {
-    key: 'link',
-    label: '网络图片',
-    children: (
-      <div style={{ display: 'flex' }}>
-        <Input
-          value={linkValue}
-          onChange={e => setLinkValue(e.target.value)}
-          placeholder="请输入网络图片地址"
-        />
-        <Button
-          style={{ marginLeft: 16 }}
-          onClick={() => {
-            setLink(linkValue)
-            setLinkValue('');
-          }}
-        >
-          确定
-        </Button>
-      </div>
-    )
-  }];
+  const items: TabsProps["items"] = [
+    {
+      key: "upload",
+      label: "本地上传",
+      children: <Button onClick={uploadImage}>本地上传</Button>,
+    },
+    {
+      key: "link",
+      label: "网络图片",
+      children: (
+        <div style={{ display: "flex" }}>
+          <Input
+            value={linkValue}
+            onChange={(e) => setLinkValue(e.target.value)}
+            placeholder="请输入网络图片地址"
+          />
+          <Button
+            style={{ marginLeft: 16 }}
+            onClick={() => {
+              setLink(linkValue);
+              setLinkValue("");
+            }}
+          >
+            确定
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <Tabs
@@ -46,7 +49,7 @@ const UploadTab = memo((props: UploadTabProps) => {
       defaultActiveKey="upload"
       items={items}
     />
-  )
+  );
 });
 
 export default UploadTab;

@@ -5,20 +5,20 @@ import IExtension from "@/components/Editor/extensions/types.ts";
 import { InlineElement } from "@/components/Editor/types";
 import CardLink from "./components/CardLink";
 
-import { withSetting, normalize } from './plugins';
-import hoveringBarConfigs from './hovering-bar-configs';
+import { withSetting, normalize } from "./plugins";
+import hoveringBarConfigs from "./hovering-bar-configs";
 
 export interface CardLinkElement {
-  type: 'card-link';
+  type: "card-link";
   cardId: number;
   children: InlineElement[];
 }
 
 class CardLinkExtension extends Base implements IExtension {
-  type = 'card-link';
+  type = "card-link";
 
   override getPlugins() {
-    return [withSetting, normalize]
+    return [withSetting, normalize];
   }
 
   override getHoveringBarElements() {
@@ -29,10 +29,13 @@ class CardLinkExtension extends Base implements IExtension {
     const { attributes, children, element } = props;
 
     return (
-      <CardLink attributes={attributes} element={element as unknown as CardLinkElement}>
+      <CardLink
+        attributes={attributes}
+        element={element as unknown as CardLinkElement}
+      >
         {children}
       </CardLink>
-    )
+    );
   }
 }
 

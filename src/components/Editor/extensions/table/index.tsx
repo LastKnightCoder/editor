@@ -1,31 +1,34 @@
-import { Element } from 'slate';
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { trim } from "lodash";
 import { markdownTable } from "markdown-table";
 
-import { TableElement, TableRowElement, TableCellElement } from "@/components/Editor/types";
+import {
+  TableElement,
+  TableRowElement,
+  TableCellElement,
+} from "@/components/Editor/types";
 
-import Table from './components/Table';
-import TableRow from './components/TableRow';
-import TableCell from './components/TableCell';
-import { insertBreak, deleteBackward } from './plugins';
-import hotkeys from './hotkeys';
-import blockPanelItems from './block-panel-items';
+import Table from "./components/Table";
+import TableRow from "./components/TableRow";
+import TableCell from "./components/TableCell";
+import { insertBreak, deleteBackward } from "./plugins";
+import hotkeys from "./hotkeys";
+import blockPanelItems from "./block-panel-items";
 
-import Base from '../base';
+import Base from "../base";
 import IExtension from "../types.ts";
 
-
 export class TableExtension extends Base implements IExtension {
-  type = 'table';
+  type = "table";
 
   override getBlockPanelItems() {
     return blockPanelItems;
   }
 
   override toMarkdown(_element: Element, children: string): string {
-    const rows = children.split('\n');
-    const data = rows.filter(trim).map(row => row.split('|').filter(trim));
+    const rows = children.split("\n");
+    const data = rows.filter(trim).map((row) => row.split("|").filter(trim));
     return markdownTable(data);
   }
 
@@ -35,15 +38,15 @@ export class TableExtension extends Base implements IExtension {
       <Table element={element as TableElement} attributes={attributes}>
         {children}
       </Table>
-    )
+    );
   }
 }
 
 export class TableRowExtension extends Base implements IExtension {
-  type = 'table-row';
+  type = "table-row";
 
   override toMarkdown(_element: Element, children: string): string {
-    return `| ${children.split('\n').join('')}`.trim();
+    return `| ${children.split("\n").join("")}`.trim();
   }
 
   render(props: RenderElementProps) {
@@ -52,15 +55,15 @@ export class TableRowExtension extends Base implements IExtension {
       <TableRow element={element as TableRowElement} attributes={attributes}>
         {children}
       </TableRow>
-    )
+    );
   }
 }
 
 export class TableCellExtension extends Base implements IExtension {
-  type = 'table-cell';
+  type = "table-cell";
 
   override getPlugins() {
-    return [insertBreak, deleteBackward]
+    return [insertBreak, deleteBackward];
   }
 
   override getHotkeyConfigs() {
@@ -77,6 +80,6 @@ export class TableCellExtension extends Base implements IExtension {
       <TableCell element={element as TableCellElement} attributes={attributes}>
         {children}
       </TableCell>
-    )
+    );
   }
 }

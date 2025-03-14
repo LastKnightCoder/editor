@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { produce } from 'immer';
+import { produce } from "immer";
 
 import { IArticle, ICreateArticle } from "@/types";
 import {
@@ -9,7 +9,7 @@ import {
   deleteArticle,
   updateArticleIsTop,
   updateArticleBannerBg,
-} from '@/commands';
+} from "@/commands";
 
 interface IState {
   articles: IArticle[];
@@ -21,7 +21,9 @@ interface IState {
 interface IActions {
   init: () => Promise<void>;
   createArticle: (article: ICreateArticle) => Promise<IArticle>;
-  updateArticle: (article: Omit<IArticle, 'create_time' | 'update_time' | 'isDelete'>) => Promise<IArticle>;
+  updateArticle: (
+    article: Omit<IArticle, "create_time" | "update_time" | "isDelete">,
+  ) => Promise<IArticle>;
   deleteArticle: (id: number) => Promise<number>;
   updateArticleIsTop: (id: number, isTop: boolean) => Promise<number>;
   updateArticleBannerBg: (id: number, bannerBg: string) => Promise<number>;
@@ -32,7 +34,7 @@ const processArticles = (articles: IArticle[]) => {
   const topArticles = articles.filter((article) => article.isTop);
   const notTopArticles = articles.filter((article) => !article.isTop);
   return [...topArticles, ...notTopArticles];
-}
+};
 
 const useArticleManagementStore = create<IState & IActions>((set, get) => ({
   articles: [],
@@ -59,7 +61,7 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
     const { articles } = get();
     const updatedArticle = await updateArticle(article);
     const newArticles = produce(articles, (draft) => {
-      const index = draft.findIndex(a => a.id === updatedArticle.id);
+      const index = draft.findIndex((a) => a.id === updatedArticle.id);
       if (index !== -1) {
         draft[index] = updatedArticle;
       }
@@ -72,7 +74,7 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
     const { articles } = get();
     const res = await deleteArticle(id);
     const newArticles = produce(articles, (draft) => {
-      const index = draft.findIndex(a => a.id === id);
+      const index = draft.findIndex((a) => a.id === id);
       if (index !== -1) {
         draft.splice(index, 1);
       }
@@ -85,7 +87,7 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
     const { articles } = get();
     const updatedArticle = await updateArticleIsTop(id, isTop);
     const newArticles = produce(articles, (draft) => {
-      const index = draft.findIndex(a => a.id === id);
+      const index = draft.findIndex((a) => a.id === id);
       if (index !== -1) {
         draft[index].isTop = isTop;
       }
@@ -98,7 +100,7 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
     const { articles } = get();
     const updatedArticle = await updateArticleBannerBg(id, bannerBg);
     const newArticles = produce(articles, (draft) => {
-      const index = draft.findIndex(a => a.id === id);
+      const index = draft.findIndex((a) => a.id === id);
       if (index !== -1) {
         draft[index].bannerBg = bannerBg;
       }
@@ -106,7 +108,7 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
     const processedArticles = processArticles(newArticles);
     set({ articles: processedArticles });
     return updatedArticle;
-  }
+  },
 }));
 
 export default useArticleManagementStore;

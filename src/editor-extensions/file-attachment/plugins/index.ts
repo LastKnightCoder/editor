@@ -1,1 +1,1 @@
-export * from './overrite.ts';
+export * from "./overrite.ts";

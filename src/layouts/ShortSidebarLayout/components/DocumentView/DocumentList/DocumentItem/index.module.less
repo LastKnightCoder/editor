@@ -1,6 +1,6 @@
 .item {
   &.dragging {
-    opacity: .5;
+    opacity: 0.5;
   }
   .header {
     position: relative;
@@ -18,7 +18,7 @@
     }
     &.top {
       &::before {
-        content: '';
+        content: "";
         position: absolute;
         top: -2px;
         left: 2px;
@@ -27,7 +27,7 @@
         background-color: var(--active-text-color);
       }
       &::after {
-        content: '';
+        content: "";
         position: absolute;
         top: -5px;
         left: 0;
@@ -37,7 +37,7 @@
     }
     &.bottom {
       &::before {
-        content: '';
+        content: "";
         position: absolute;
         bottom: -2px;
         left: 2px;
@@ -46,7 +46,7 @@
         background-color: var(--active-text-color);
       }
       &::after {
-        content: '';
+        content: "";
         position: absolute;
         bottom: -5px;
         left: 0;
@@ -105,7 +105,7 @@
   .gridContainer {
     display: grid;
     grid-template-rows: 1fr;
-    transition: grid-template-rows .3s ease;
+    transition: grid-template-rows 0.3s ease;
     overflow: hidden;
     margin: 8px 0;
     &.hide {

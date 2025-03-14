@@ -1,6 +1,6 @@
 import React from "react";
-import classnames from 'classnames';
-import styles from './index.module.less';
+import classnames from "classnames";
+import styles from "./index.module.less";
 
 interface IStatusBarProps {
   className?: string;
@@ -9,7 +9,7 @@ interface IStatusBarProps {
     key: string;
     children: React.ReactNode;
     onClick?: () => void;
-  }>
+  }>;
 }
 
 const StatusBar = (props: IStatusBarProps) => {
@@ -17,15 +17,13 @@ const StatusBar = (props: IStatusBarProps) => {
 
   return (
     <div className={classnames(styles.statusBar, className)} style={style}>
-      {
-        configs.map((config) => (
-          <div key={config.key} onClick={config.onClick} className={styles.item}>
-            {config.children}
-          </div>
-        ))
-      }
+      {configs.map((config) => (
+        <div key={config.key} onClick={config.onClick} className={styles.item}>
+          {config.children}
+        </div>
+      ))}
     </div>
-  )
-}
+  );
+};
 
 export default StatusBar;

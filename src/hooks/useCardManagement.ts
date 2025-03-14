@@ -1,19 +1,17 @@
-import { useMemoizedFn } from 'ahooks';
+import { useMemoizedFn } from "ahooks";
 import { App } from "antd";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore.ts";
 
 const useCardManagement = () => {
-  const {
-    createCard,
-    deleteCard,
-    selectCategory,
-  } = useCardsManagementStore((state) => ({
-    deleteCard: state.deleteCard,
-    createCard: state.createCard,
-    selectCategory: state.selectCategory,
-  }));
+  const { createCard, deleteCard, selectCategory } = useCardsManagementStore(
+    (state) => ({
+      deleteCard: state.deleteCard,
+      createCard: state.createCard,
+      selectCategory: state.selectCategory,
+    }),
+  );
 
   const {
     leftCardIds,
@@ -67,7 +65,8 @@ const useCardManagement = () => {
   });
 
   const onClickCard = useMemoizedFn((id: number) => {
-    const activeCardId = activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId;
+    const activeCardId =
+      activeSide === EActiveSide.Left ? leftActiveCardId : rightActiveCardId;
     if (activeCardId === id) {
       removeCard(id);
     }
@@ -81,13 +80,17 @@ const useCardManagement = () => {
 
   const onCreateCard = useMemoizedFn(async () => {
     const createdCard = await createCard({
-      content: [{
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: ''
-        }]
-      }],
+      content: [
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+      ],
       tags: [],
       links: [],
       category: selectCategory,
@@ -98,17 +101,17 @@ const useCardManagement = () => {
 
   const onDeleteCard = useMemoizedFn(async (cardId: number) => {
     modal.confirm({
-      title: '确认删除？',
-      content: '删除后无法恢复',
+      title: "确认删除？",
+      content: "删除后无法恢复",
       onOk: async () => {
         await deleteCard(cardId);
         removeCard(cardId);
       },
-      okText: '确认',
-      cancelText: '取消',
+      okText: "确认",
+      cancelText: "取消",
       okButtonProps: {
-        danger: true
-      }
+        danger: true,
+      },
     });
   });
 
@@ -134,7 +137,7 @@ const useCardManagement = () => {
     onMoveCard,
     activeSide,
     onCloseOtherTabs,
-  }
-}
+  };
+};
 
 export default useCardManagement;

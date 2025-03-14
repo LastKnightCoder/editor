@@ -1,5 +1,5 @@
-import React from 'react';
-import { Input, Space } from 'antd';
+import React from "react";
+import { Input, Space } from "antd";
 
 interface IInputItemProps {
   label: string;
@@ -16,7 +16,7 @@ const InputItem = (props: IInputItemProps) => {
       <div>{label}</div>
       <Input value={value} onChange={(e) => onChange(e.target.value)} />
     </Space>
-  )
-}
+  );
+};
 
 export default InputItem;

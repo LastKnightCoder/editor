@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from 'antd';
+import { App } from "antd";
 
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useEditArticle from "@/hooks/useEditArticle";
@@ -9,18 +9,18 @@ import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { IArticle } from "@/types";
 
 const useArticle = () => {
-  const [activeArticleId, setActiveArticleId] = useState<number | undefined>(undefined);
+  const [activeArticleId, setActiveArticleId] = useState<number | undefined>(
+    undefined,
+  );
   const { modal } = App.useApp();
 
-  const {
-    articles,
-    createArticle,
-    deleteArticle,
-  } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-    createArticle: state.createArticle,
-    deleteArticle: state.deleteArticle,
-  }));
+  const { articles, createArticle, deleteArticle } = useArticleManagementStore(
+    (state) => ({
+      articles: state.articles,
+      createArticle: state.createArticle,
+      deleteArticle: state.deleteArticle,
+    }),
+  );
 
   const {
     readonly,
@@ -39,11 +39,11 @@ const useArticle = () => {
 
   const handleAddNewArticle = useMemoizedFn(async () => {
     const article = await createArticle({
-      title: '默认文章标题',
+      title: "默认文章标题",
       content: DEFAULT_ARTICLE_CONTENT,
-      bannerBg: '',
+      bannerBg: "",
       isTop: false,
-      author: '',
+      author: "",
       links: [],
       tags: [],
       isDelete: false,
@@ -58,7 +58,7 @@ const useArticle = () => {
       return;
     }
     setActiveArticleId(article.id);
-  })
+  });
 
   const quitEditArticle = useMemoizedFn(() => {
     clear();
@@ -68,18 +68,18 @@ const useArticle = () => {
   const handleDeleteArticle = useMemoizedFn(async () => {
     if (!activeArticleId) return;
     modal.confirm({
-      title: '删除文章',
-      content: '确定删除这篇文章吗？',
+      title: "删除文章",
+      content: "确定删除这篇文章吗？",
       onOk: async () => {
         await deleteArticle(activeArticleId);
         setActiveArticleId(undefined);
       },
-      okText: '确定',
-      cancelText: '取消',
+      okText: "确定",
+      cancelText: "取消",
       okButtonProps: {
         danger: true,
-      }
-    })
+      },
+    });
   });
 
   return {
@@ -100,7 +100,7 @@ const useArticle = () => {
     handleClickArticle,
     quitEditArticle,
     handleDeleteArticle,
-  }
-}
+  };
+};
 
 export default useArticle;

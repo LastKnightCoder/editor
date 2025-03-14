@@ -9,14 +9,14 @@ interface SearchProps<T extends IItem> {
 
 const useSearch = <T extends IItem>(props: SearchProps<T>) => {
   const { allItems, excludeIds } = props;
-  const [searchValue, setSearchValue] = useState<string>('');
+  const [searchValue, setSearchValue] = useState<string>("");
 
   const searchedItems = useMemo(() => {
-    if (searchValue === '') return allItems;
+    if (searchValue === "") return allItems;
 
     return allItems
-      .filter(item => item.title.includes(searchValue))
-      .filter(item => !excludeIds.includes(item.id));
+      .filter((item) => item.title.includes(searchValue))
+      .filter((item) => !excludeIds.includes(item.id));
   }, [allItems, excludeIds, searchValue]);
 
   const onSearchValueChange = useMemoizedFn((value: string) => {
@@ -27,7 +27,7 @@ const useSearch = <T extends IItem>(props: SearchProps<T>) => {
     searchValue,
     onSearchValueChange,
     searchedItems,
-  }
-}
+  };
+};
 
 export default useSearch;

@@ -1,10 +1,10 @@
 .codeBlockContainer {
   position: relative;
-  --code-block-bg-color: rgba(246, 248, 250, .6);
+  --code-block-bg-color: rgba(246, 248, 250, 0.6);
   --code-block-shadow: 0 1px 2px 0 #0000001a;
   &.dark {
     --code-block-bg-color: rgba(40, 42, 52);
-    --code-block-shadow:  0 1px 2px 0 #0000001a;
+    --code-block-shadow: 0 1px 2px 0 #0000001a;
   }
   &.readOnly {
     :global(.CodeMirror-cursors) {
@@ -35,8 +35,10 @@
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background-color: #E0443E;
-    box-shadow: 24px 0 #dea123, 48px 0 #1aab29;
+    background-color: #e0443e;
+    box-shadow:
+      24px 0 #dea123,
+      48px 0 #1aab29;
   }
   .languageSelect {
     position: absolute;
@@ -72,6 +74,6 @@
   :global(.CodeMirror-linenumber) {
     cursor: pointer;
   }
-  @import '@/components/Editor/extensions/drag-common.less';
-  @import '@/components/Editor/extensions/drop-common.less';
+  @import "@/components/Editor/extensions/drag-common.less";
+  @import "@/components/Editor/extensions/drop-common.less";
 }

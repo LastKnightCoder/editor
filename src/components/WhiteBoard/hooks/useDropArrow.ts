@@ -8,13 +8,14 @@ export const useDropArrow = (element: CommonElement & any) => {
   const { x, y, width, height, id } = element;
 
   const [isMoveArrowClosing, setIsMoveArrowClosing] = useState(false);
-  const [activeConnectId, setActiveConnectId] = useState('');
+  const [activeConnectId, setActiveConnectId] = useState("");
   const board = useBoard();
   const { zoom } = useViewPort();
 
   const [arrowConnectPoints, arrowConnectExtendPoints] = useMemo(() => {
-    const arrowConnectPoints = CommonPlugin.getArrowConnectPoints(element)
-    const arrowConnectExtendPoints = CommonPlugin.getArrowConnectExtendPoints(element);
+    const arrowConnectPoints = CommonPlugin.getArrowConnectPoints(element);
+    const arrowConnectExtendPoints =
+      CommonPlugin.getArrowConnectExtendPoints(element);
     return [arrowConnectPoints, arrowConnectExtendPoints, zoom];
   }, [element]);
 
@@ -25,8 +26,8 @@ export const useDropArrow = (element: CommonElement & any) => {
       x: x - extend,
       y: y - extend,
       width: width + 2 * extend,
-      height: height + 2 * extend
-    }
+      height: height + 2 * extend,
+    };
 
     const isInBox =
       currentPoint.x >= extendBox.x &&
@@ -35,48 +36,50 @@ export const useDropArrow = (element: CommonElement & any) => {
       currentPoint.y <= extendBox.y + extendBox.height;
     setIsMoveArrowClosing(isInBox);
     if (isInBox) {
-      board.emit('arrow:add-closing-elements', {
+      board.emit("arrow:add-closing-elements", {
         element,
-        connectPoints: arrowConnectPoints
+        connectPoints: arrowConnectPoints,
       });
     } else {
-      board.emit('arrow:remove-closing-elements', {
+      board.emit("arrow:remove-closing-elements", {
         element,
-        connectPoints: arrowConnectPoints
+        connectPoints: arrowConnectPoints,
       });
-      setActiveConnectId('');
+      setActiveConnectId("");
     }
-  })
+  });
 
   const handleArrowMoveEnd = useMemoizedFn(() => {
     setIsMoveArrowClosing(false);
-    setActiveConnectId('');
-  })
+    setActiveConnectId("");
+  });
 
-  const handleArrowDroped = useMemoizedFn(({ elementId, connectId }: { elementId: string, connectId: string }) => {
-    if (!isMoveArrowClosing || id !== elementId) {
-      setActiveConnectId('');
-      return;
-    }
-    setActiveConnectId(connectId);
-  })
+  const handleArrowDroped = useMemoizedFn(
+    ({ elementId, connectId }: { elementId: string; connectId: string }) => {
+      if (!isMoveArrowClosing || id !== elementId) {
+        setActiveConnectId("");
+        return;
+      }
+      setActiveConnectId(connectId);
+    },
+  );
 
   useEffect(() => {
-    board.on('arrow:update', handleArrowMove);
-    board.on('arrow:move-end', handleArrowMoveEnd);
-    board.on('arrow:drop', handleArrowDroped);
+    board.on("arrow:update", handleArrowMove);
+    board.on("arrow:move-end", handleArrowMoveEnd);
+    board.on("arrow:drop", handleArrowDroped);
 
     return () => {
-      board.off('arrow:update', handleArrowMove);
-      board.off('arrow:move-end', handleArrowMoveEnd);
-      board.off('arrow:drop', handleArrowDroped);
-    }
+      board.off("arrow:update", handleArrowMove);
+      board.off("arrow:move-end", handleArrowMoveEnd);
+      board.off("arrow:drop", handleArrowDroped);
+    };
   }, [handleArrowMove, handleArrowMoveEnd, handleArrowDroped]);
 
   return {
     isMoveArrowClosing,
     activeConnectId,
     arrowConnectPoints,
-    arrowConnectExtendPoints
-  }
-}
+    arrowConnectExtendPoints,
+  };
+};

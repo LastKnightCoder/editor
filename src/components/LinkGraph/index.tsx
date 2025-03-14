@@ -1,4 +1,4 @@
-import { Graph, IG6GraphEvent } from '@antv/g6';
+import { Graph, IG6GraphEvent } from "@antv/g6";
 import { useEffect, useMemo, useRef, useState, memo } from "react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
@@ -6,9 +6,12 @@ import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import { ICard } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
-import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
+import {
+  cardLinkExtension,
+  fileAttachmentExtension,
+} from "@/editor-extensions";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -36,7 +39,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     currentCardIds,
     getCardLinks = (card) => card.links,
     fitView = true,
-    onClickCard
+    onClickCard,
   } = props;
 
   const [isAfterLayout, setIsAfterLayout] = useState(false);
@@ -44,11 +47,17 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   const resizeObserverRef = useRef<ResizeObserver>();
   const graph = useRef<Graph>();
   const editorRef = useRef<EditorRef>(null);
-  const prevSize = useRef<{ width: number, height: number }>({ width: 0, height: 0 });
+  const prevSize = useRef<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
   const mouseEnterId = useRef<string>();
 
   const [show, setShow] = useState<boolean>(false);
-  const [position, setPosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+  const [position, setPosition] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const [activeId, setActiveId] = useState<number>(-1);
   const { isDark } = useTheme();
 
@@ -66,10 +75,10 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     mouseEnterId.current = id;
     setTimeout(() => {
       if (!ref.current || mouseEnterId.current !== id) return;
-      graph.current?.setItemState(item, 'selected', true);
+      graph.current?.setItemState(item, "selected", true);
       graph.current?.getNodes().forEach((node) => {
         if (node !== item) {
-          graph.current?.clearItemStates(node, 'selected');
+          graph.current?.clearItemStates(node, "selected");
         }
       });
       // 获取位置
@@ -80,7 +89,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       setShow(true);
       setPosition({ x: x - left + 10, y: y - top + 10 });
       setActiveId(Number(id));
-    }, 500)
+    }, 500);
   });
 
   const handleNodeMouseLeave = useMemoizedFn(() => {
@@ -98,7 +107,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     if (activeId === Number(id)) {
       setActiveId(-1);
       setShow(false);
-      graph.current.clearItemStates(item, 'selected');
+      graph.current.clearItemStates(item, "selected");
     }
   });
 
@@ -106,11 +115,11 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     if (!graph.current || !isAfterLayout) return;
     graph.current.getNodes().forEach((node) => {
       if (!graph.current) return;
-      graph.current.clearItemStates(node, 'selected');
+      graph.current.clearItemStates(node, "selected");
       setShow(false);
       setActiveId(-1);
     });
-  })
+  });
 
   useEffect(() => {
     if (!editorRef.current || !content) {
@@ -135,51 +144,61 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       animate: true,
       defaultNode: {
         style: {
-          fill: isDark ? 'hsl(168, 50%, 20%)' : 'hsl(168, 50%, 70%)',
-          stroke: isDark ? 'hsl(168, 50%, 40%)' : 'hsl(168, 50%, 50%)',
+          fill: isDark ? "hsl(168, 50%, 20%)" : "hsl(168, 50%, 70%)",
+          stroke: isDark ? "hsl(168, 50%, 40%)" : "hsl(168, 50%, 50%)",
           lineWidth: 6,
         },
-        type: 'circle',
+        type: "circle",
       },
       defaultEdge: {
         style: {
-          stroke: isDark ? 'hsla(168, 40%, 20%, 50%)' : 'hsl(168, 40%, 80%)',
+          stroke: isDark ? "hsla(168, 40%, 20%, 50%)" : "hsl(168, 40%, 80%)",
           lineWidth: 8,
-        }
+        },
       },
       layout: {
-        type: 'force2',
+        type: "force2",
         maxSpeed: 100,
         linkDistance: 100,
         preventOverlap: true,
         workerEnabled: true,
-        nodeSize: 50
+        nodeSize: 50,
       },
       modes: {
-        default: ['drag-canvas', 'zoom-canvas']
+        default: ["drag-canvas", "zoom-canvas"],
       },
       nodeStateStyles: {
         selected: {
-          fill: '#91d5ff',
-          stroke: '#40a9ff',
+          fill: "#91d5ff",
+          stroke: "#40a9ff",
           lineWidth: 8,
         },
         current: {
-          fill: 'rgba(251,185,87,0.58)',
-          stroke: '#fbb957',
+          fill: "rgba(251,185,87,0.58)",
+          stroke: "#fbb957",
           lineWidth: 8,
-        }
-      }
+        },
+      },
     });
-    const nodes = cards.map((card) => ({
-      id: String(card.id),
-      size: Math.min(getCardLinks(card).length * 10 + 30, 80),
-    }) as const);
+    const nodes = cards.map(
+      (card) =>
+        ({
+          id: String(card.id),
+          size: Math.min(getCardLinks(card).length * 10 + 30, 80),
+        }) as const,
+    );
 
-    const edges = cards.map((card) => getCardLinks(card).map((link) => ({
-      source: String(card.id),
-      target: String(link),
-    }) as const)).flat();
+    const edges = cards
+      .map((card) =>
+        getCardLinks(card).map(
+          (link) =>
+            ({
+              source: String(card.id),
+              target: String(link),
+            }) as const,
+        ),
+      )
+      .flat();
 
     graph.current.data({
       nodes,
@@ -188,32 +207,34 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
 
     graph.current.render();
 
-    graph.current.once('afterlayout', () => {
-      console.log('afterlayout');
+    graph.current.once("afterlayout", () => {
+      console.log("afterlayout");
       setIsAfterLayout(true);
     });
 
-    graph.current.on('node:mouseenter', handleNodeMouseEnter);
-    graph.current.on('node:mouseleave', handleNodeMouseLeave);
+    graph.current.on("node:mouseenter", handleNodeMouseEnter);
+    graph.current.on("node:mouseleave", handleNodeMouseLeave);
 
-    graph.current.on('node:click', handleNodeClick);
-    graph.current.on('canvas:click', handleCanvasClick);
+    graph.current.on("node:click", handleNodeClick);
+    graph.current.on("canvas:click", handleCanvasClick);
   });
 
-  const handleCurrentCardIdsChange = useMemoizedFn((currentCardIds: number[] | undefined, isAfterLayout?: boolean) => {
-    if (!graph.current || !isAfterLayout) return;
-    const currentNodes = graph.current.findAllByState('node', 'current');
-    currentNodes.forEach(cn => {
-      if (!graph.current) return;
-      graph.current.setItemState(cn, 'current', false);
-    });
-    currentCardIds?.forEach(id => {
-      if (!graph.current) return;
-      const node = graph.current.findById(String(id));
-      if (!node) return;
-      graph.current.setItemState(node, 'current', true);
-    });
-  });
+  const handleCurrentCardIdsChange = useMemoizedFn(
+    (currentCardIds: number[] | undefined, isAfterLayout?: boolean) => {
+      if (!graph.current || !isAfterLayout) return;
+      const currentNodes = graph.current.findAllByState("node", "current");
+      currentNodes.forEach((cn) => {
+        if (!graph.current) return;
+        graph.current.setItemState(cn, "current", false);
+      });
+      currentCardIds?.forEach((id) => {
+        if (!graph.current) return;
+        const node = graph.current.findById(String(id));
+        if (!node) return;
+        graph.current.setItemState(node, "current", true);
+      });
+    },
+  );
 
   useEffect(() => {
     handleInitialize(isDark);
@@ -221,15 +242,16 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     return () => {
       if (graph.current) graph.current.destroy();
       graph.current = undefined;
-    }
+    };
   }, [handleInitialize, isDark]);
 
   useEffect(() => {
     handleCurrentCardIdsChange(currentCardIds, isAfterLayout);
-  }, [currentCardIds, handleCurrentCardIdsChange, isAfterLayout])
+  }, [currentCardIds, handleCurrentCardIdsChange, isAfterLayout]);
 
   useEffect(() => {
-    if (!graph.current || !ref.current || activeId === -1 || !isAfterLayout) return;
+    if (!graph.current || !ref.current || activeId === -1 || !isAfterLayout)
+      return;
 
     const handleGraphZoomAndMove = () => {
       if (!graph.current || !ref.current) return;
@@ -247,25 +269,28 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       const actualWidth = width * ratio;
       const actualHeight = height * ratio;
       const { x: cx, y: cy } = graph.current.getClientByPoint(x, y);
-      setPosition({ x: cx - left + actualWidth / 2, y: cy - top + actualHeight / 2 });
-    }
+      setPosition({
+        x: cx - left + actualWidth / 2,
+        y: cy - top + actualHeight / 2,
+      });
+    };
 
     // 图面缩放和移动时重新设置位置
-    graph.current.on('canvas:drag', handleGraphZoomAndMove);
-    graph.current.on('wheel', handleGraphZoomAndMove);
+    graph.current.on("canvas:drag", handleGraphZoomAndMove);
+    graph.current.on("wheel", handleGraphZoomAndMove);
 
     return () => {
       if (!graph.current) return;
-      graph.current.off('canvas:drag', handleGraphZoomAndMove);
-      graph.current.off('wheel', handleGraphZoomAndMove);
-    }
+      graph.current.off("canvas:drag", handleGraphZoomAndMove);
+      graph.current.off("wheel", handleGraphZoomAndMove);
+    };
   }, [activeId, isAfterLayout]);
 
   return (
     <div
       className={classnames(styles.container, className)}
       style={style}
-      ref={node => {
+      ref={(node) => {
         if (node) {
           ref.current = node;
           if (resizeObserverRef.current) {
@@ -275,7 +300,10 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             if (graph.current) {
               const width = node.clientWidth;
               const height = node.clientHeight;
-              if (prevSize.current.width === width && prevSize.current.height === height) {
+              if (
+                prevSize.current.width === width &&
+                prevSize.current.height === height
+              ) {
                 return;
               }
               graph.current.changeSize(width, height);
@@ -287,35 +315,31 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         }
       }}
     >
-      {
-        !isAfterLayout && (
-          <div className={styles.loadingContainer}>
-            <div className={styles.loading} />
-          </div>
-        )
-      }
-      {
-        show && (
-          <div
-            className={styles.editor}
-            style={{
-              left: position.x,
-              top: position.y,
-              width: cardWidth,
-              maxHeight: cardMaxHeight,
-              fontSize: cardFontSize,
-            }}
-          >
-            <Editor
-              ref={editorRef}
-              readonly={true}
-              extensions={customExtensions}
-            />
-          </div>
-        )
-      }
+      {!isAfterLayout && (
+        <div className={styles.loadingContainer}>
+          <div className={styles.loading} />
+        </div>
+      )}
+      {show && (
+        <div
+          className={styles.editor}
+          style={{
+            left: position.x,
+            top: position.y,
+            width: cardWidth,
+            maxHeight: cardMaxHeight,
+            fontSize: cardFontSize,
+          }}
+        >
+          <Editor
+            ref={editorRef}
+            readonly={true}
+            extensions={customExtensions}
+          />
+        </div>
+      )}
     </div>
-  )
-})
+  );
+});
 
 export default LinkGraph;

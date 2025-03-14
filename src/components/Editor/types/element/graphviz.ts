@@ -1,7 +1,7 @@
 import { Descendant } from "slate";
 
 export interface GraphvizElement {
-  type: 'graphviz',
+  type: "graphviz";
   dot: string;
   children: Descendant[];
 }

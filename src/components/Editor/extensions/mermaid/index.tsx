@@ -1,16 +1,16 @@
 import loadable from "@loadable/component";
 import { MermaidElement } from "@/components/Editor/types";
 
-import Base from '../base';
+import Base from "../base";
 import IExtension from "../types.ts";
-import { Element } from 'slate';
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 
-import blockPanelItems from './block-panel-items';
+import blockPanelItems from "./block-panel-items";
 const MermaidChart = loadable(() => import("./components/MermaidChart"));
 
 class MermaidExtension extends Base implements IExtension {
-  type = 'mermaid';
+  type = "mermaid";
 
   override getBlockPanelItems() {
     return blockPanelItems;
@@ -27,7 +27,7 @@ class MermaidExtension extends Base implements IExtension {
       <MermaidChart element={element as MermaidElement} attributes={attributes}>
         {children}
       </MermaidChart>
-    )
+    );
   }
 }
 

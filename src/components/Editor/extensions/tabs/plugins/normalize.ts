@@ -1,9 +1,9 @@
 import { Editor, NodeEntry, Transforms } from "slate";
-import { deleteCurTab } from './utils.ts';
+import { deleteCurTab } from "./utils.ts";
 import { TabsElement } from "@/components/Editor/types";
 
 const hitEmpty = (editor: Editor, [node, path]: NodeEntry) => {
-  if (node.type !== 'tabs') {
+  if (node.type !== "tabs") {
     return false;
   }
 
@@ -19,24 +19,28 @@ const hitEmpty = (editor: Editor, [node, path]: NodeEntry) => {
   }
 
   // @ts-ignore
-  if (node.children.length === 1 && node.children[0].type === 'formatted') {
+  if (node.children.length === 1 && node.children[0].type === "formatted") {
     // @ts-ignore
-    if (node.children[0].text === '') {
+    if (node.children[0].text === "") {
       deleteCurTab(editor, node as TabsElement, path);
       return true;
     } else {
-      Transforms.wrapNodes(editor, {
-        type: 'paragraph',
-        children: [],
-      }, {
-        at: [...path, 0],
-      });
+      Transforms.wrapNodes(
+        editor,
+        {
+          type: "paragraph",
+          children: [],
+        },
+        {
+          at: [...path, 0],
+        },
+      );
     }
     return true;
   }
 
   return false;
-}
+};
 
 export const withNormalize = (editor: Editor) => {
   const { normalizeNode } = editor;
@@ -50,4 +54,4 @@ export const withNormalize = (editor: Editor) => {
   };
 
   return editor;
-}
+};

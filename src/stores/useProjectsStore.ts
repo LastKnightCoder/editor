@@ -1,6 +1,11 @@
-import { create } from 'zustand';
-import { produce } from 'immer';
-import { CreateProject, CreateProjectItem, Project, ProjectItem } from "@/types";
+import { create } from "zustand";
+import { produce } from "immer";
+import {
+  CreateProject,
+  CreateProjectItem,
+  Project,
+  ProjectItem,
+} from "@/types";
 
 import {
   getProjectList,
@@ -10,7 +15,7 @@ import {
   createProjectItem,
   updateProjectItem,
   getProjectItemById,
-} from '@/commands';
+} from "@/commands";
 
 interface IState {
   projects: Project[];
@@ -28,11 +33,26 @@ interface IActions {
   createProject: (project: CreateProject) => Promise<Project>;
   updateProject: (project: Project) => Promise<Project>;
   deleteProject: (id: number) => Promise<number>;
-  createRootProjectItem: (projectId: number, createProjectItem: CreateProjectItem) => Promise<ProjectItem | undefined>;
-  createChildProjectItem: (parentProjectItemId: number, createProjectItem: CreateProjectItem) => Promise<ProjectItem | undefined>;
-  removeRootProjectItem: (projectId: number, projectItemId: number) => Promise<void>;
-  removeChildProjectItem: (parentProjectItemId: number, projectItemId: number) => Promise<void>;
-  tryRemoveFromProject: (projectItemId: number, projectId: number) => Promise<void>;
+  createRootProjectItem: (
+    projectId: number,
+    createProjectItem: CreateProjectItem,
+  ) => Promise<ProjectItem | undefined>;
+  createChildProjectItem: (
+    parentProjectItemId: number,
+    createProjectItem: CreateProjectItem,
+  ) => Promise<ProjectItem | undefined>;
+  removeRootProjectItem: (
+    projectId: number,
+    projectItemId: number,
+  ) => Promise<void>;
+  removeChildProjectItem: (
+    parentProjectItemId: number,
+    projectItemId: number,
+  ) => Promise<void>;
+  tryRemoveFromProject: (
+    projectItemId: number,
+    projectId: number,
+  ) => Promise<void>;
   archiveProject: (projectId: number) => Promise<Project | undefined>;
 }
 
@@ -46,14 +66,14 @@ const initState: IState = {
   showOutline: false,
   readonly: false,
   hideProjectItemList: false,
-}
+};
 
 const useProjectsStore = create<IState & IActions>((set, get) => ({
   ...initState,
   init: async () => {
     set({
       ...initState,
-      loading: true
+      loading: true,
     });
     const projects = await getProjectList();
     set({ projects, loading: false });

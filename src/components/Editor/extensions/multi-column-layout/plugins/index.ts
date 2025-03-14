@@ -1,3 +1,3 @@
-export * from './normalize.ts';
-export * from './deleteBackward.ts';
-export * from './normalizeItem.ts';
+export * from "./normalize.ts";
+export * from "./deleteBackward.ts";
+export * from "./normalizeItem.ts";

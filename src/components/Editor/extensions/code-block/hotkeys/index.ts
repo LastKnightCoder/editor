@@ -1,5 +1,3 @@
-import { insert } from './insert.ts';
+import { insert } from "./insert.ts";
 
-export default [
-  ...insert,
-]
+export default [...insert];

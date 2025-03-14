@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
 import { convertFileSrc } from "@/commands";
@@ -22,11 +22,11 @@ const LocalImage = (props: ILocalImageProps) => {
     setIsConverting(true);
     try {
       // 如果是 base64 或 blob url，直接使用
-      if (url.startsWith('data:') || url.startsWith('blob:')) {
+      if (url.startsWith("data:") || url.startsWith("blob:")) {
         return;
       }
 
-      if (url.startsWith('http')) {
+      if (url.startsWith("http")) {
         const localUrl = await remoteResourceToLocal(url);
         const filePath = convertFileSrc(localUrl);
         setPreviewUrl(filePath);
@@ -34,7 +34,7 @@ const LocalImage = (props: ILocalImageProps) => {
         const filePath = convertFileSrc(url);
         setPreviewUrl(filePath);
       }
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     } finally {
       setIsConverting(false);
@@ -49,15 +49,15 @@ const LocalImage = (props: ILocalImageProps) => {
 
   return (
     <img
-        src={previewUrl}
-        alt={alt}
-        className={className}
-        style={style}
-        onClick={onClick}
-        onError={onError}
-        {...restProps}
+      src={previewUrl}
+      alt={alt}
+      className={className}
+      style={style}
+      onClick={onClick}
+      onError={onError}
+      {...restProps}
     />
-  )
-}
+  );
+};
 
 export default LocalImage;

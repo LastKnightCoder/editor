@@ -1,5 +1,17 @@
-import { Board, IBoardPlugin, BoardElement, Selection, EHandlerPosition, Point } from "../types";
-import { isRectIntersect, selectAreaToRect, getResizedBBox, PathUtil } from "../utils";
+import {
+  Board,
+  IBoardPlugin,
+  BoardElement,
+  Selection,
+  EHandlerPosition,
+  Point,
+} from "../types";
+import {
+  isRectIntersect,
+  selectAreaToRect,
+  getResizedBBox,
+  PathUtil,
+} from "../utils";
 import { SelectTransforms } from "../transforms";
 
 export type CommonElement = BoardElement & {
@@ -7,7 +19,7 @@ export type CommonElement = BoardElement & {
   y: number;
   width: number;
   height: number;
-}
+};
 
 export abstract class CommonPlugin implements IBoardPlugin {
   abstract name: string;
@@ -22,37 +34,43 @@ export abstract class CommonPlugin implements IBoardPlugin {
 
   static getArrowConnectPoints(element: CommonElement) {
     const { x, y, width, height } = element;
-    return [{
-      connectId: 'top',
-      point: {
-        x: x + 0.5 * width,
-        y
-      }
-    }, {
-      connectId: 'bottom',
-      point: {
-        x: x + 0.5 * width,
-        y: y + height
-      }
-    }, {
-      connectId: 'left',
-      point: {
-        x,
-        y: y + 0.5 * height
-      }
-    }, {
-      connectId: 'right',
-      point: {
-        x: x + width,
-        y: y + 0.5 * height
-      }
-    }, {
-      connectId: 'center',
-      point: {
-        x: x + 0.5 * width,
-        y: y + 0.5 * height
-      }
-    }]
+    return [
+      {
+        connectId: "top",
+        point: {
+          x: x + 0.5 * width,
+          y,
+        },
+      },
+      {
+        connectId: "bottom",
+        point: {
+          x: x + 0.5 * width,
+          y: y + height,
+        },
+      },
+      {
+        connectId: "left",
+        point: {
+          x,
+          y: y + 0.5 * height,
+        },
+      },
+      {
+        connectId: "right",
+        point: {
+          x: x + width,
+          y: y + 0.5 * height,
+        },
+      },
+      {
+        connectId: "center",
+        point: {
+          x: x + 0.5 * width,
+          y: y + 0.5 * height,
+        },
+      },
+    ];
   }
 
   /**
@@ -60,67 +78,73 @@ export abstract class CommonPlugin implements IBoardPlugin {
    */
   static getArrowConnectExtendPoints(element: CommonElement, extend = 20) {
     const { x, y, width, height } = element;
-    return [{
-      connectId: 'top',
-      point: {
-        x: x + 0.5 * width,
-        y: y - extend
-      }
-    }, {
-      connectId: 'bottom',
-      point: {
-        x: x + 0.5 * width,
-        y: y + height + extend
-      }
-    }, {
-      connectId: 'left',
-      point: {
-        x: x - extend,
-        y: y + 0.5 * height
-      }
-    }, {
-      connectId: 'right',
-      point: {
-        x: x + width + extend,
-        y: y + 0.5 * height
-      }
-    }, {
-      connectId: 'center',
-      point: {
-        x: x + 0.5 * width,
-        y: y + 0.5 * height
-      }
-    }]
+    return [
+      {
+        connectId: "top",
+        point: {
+          x: x + 0.5 * width,
+          y: y - extend,
+        },
+      },
+      {
+        connectId: "bottom",
+        point: {
+          x: x + 0.5 * width,
+          y: y + height + extend,
+        },
+      },
+      {
+        connectId: "left",
+        point: {
+          x: x - extend,
+          y: y + 0.5 * height,
+        },
+      },
+      {
+        connectId: "right",
+        point: {
+          x: x + width + extend,
+          y: y + 0.5 * height,
+        },
+      },
+      {
+        connectId: "center",
+        point: {
+          x: x + 0.5 * width,
+          y: y + 0.5 * height,
+        },
+      },
+    ];
   }
 
   getArrowBindPoint(_board: Board, element: CommonElement, connectId: string) {
     const { x, y, width, height } = element;
 
-    if (connectId === 'left') {
+    if (connectId === "left") {
       return {
         x: x,
-        y: y + 0.5 * height
-      }
-    } else if (connectId === 'right') {
+        y: y + 0.5 * height,
+      };
+    } else if (connectId === "right") {
       return {
         x: x + width,
-        y: y + 0.5 * height
-      }
-    } else if (connectId === 'top') {
+        y: y + 0.5 * height,
+      };
+    } else if (connectId === "top") {
       return {
         x: x + 0.5 * width,
-        y: y
-      }
-    } else if (connectId === 'bottom') {
+        y: y,
+      };
+    } else if (connectId === "bottom") {
       return {
         x: x + 0.5 * width,
-        y: y + height
-      }
-    } else if (connectId === 'center') {
+        y: y + height,
+      };
+    } else if (connectId === "center") {
       return {
         x: x + 0.5 * width,
-        y: y + 0.5 * height
-      }
+        y: y + 0.5 * height,
+      };
     }
 
     return null;
@@ -132,15 +156,24 @@ export abstract class CommonPlugin implements IBoardPlugin {
     return x >= left && x <= left + width && y >= top && y <= top + height;
   }
 
-  moveElement(_board: Board, element: CommonElement & any, dx: number, dy: number) {
+  moveElement(
+    _board: Board,
+    element: CommonElement & any,
+    dx: number,
+    dy: number,
+  ) {
     return {
       ...element,
       x: element.x + dx,
-      y: element.y + dy
-    }
+      y: element.y + dy,
+    };
   }
 
-  isElementSelected(board: Board, element: CommonElement & any, selectArea: Selection['selectArea'] = board.selection.selectArea) {
+  isElementSelected(
+    board: Board,
+    element: CommonElement & any,
+    selectArea: Selection["selectArea"] = board.selection.selectArea,
+  ) {
     if (!selectArea) return false;
     const selectRect = selectAreaToRect(selectArea);
     return isRectIntersect(element, selectRect);
@@ -150,36 +183,60 @@ export abstract class CommonPlugin implements IBoardPlugin {
     this.originResizeElement = element;
   }
 
-  protected onResize(board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio = false, isAdsorb = false) {
+  protected onResize(
+    board: Board,
+    element: CommonElement & any,
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+    isPreserveRatio = false,
+    isAdsorb = false,
+  ) {
     if (!this.originResizeElement) return;
-    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint, isPreserveRatio);
+    const newBBox = getResizedBBox(
+      this.originResizeElement,
+      position,
+      startPoint,
+      endPoint,
+      isPreserveRatio,
+    );
     const newElement = {
       ...element,
-      ...newBBox
-    }
+      ...newBBox,
+    };
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
-    board.refLine.setCurrentRects([{
-      key: newElement.id,
-      ...newBBox
-    }]);
-    const updateElement = board.refLine.getUpdateCurrent(isAdsorb, 5 / board.viewPort.zoom, true, position);
+    board.refLine.setCurrentRects([
+      {
+        key: newElement.id,
+        ...newBBox,
+      },
+    ]);
+    const updateElement = board.refLine.getUpdateCurrent(
+      isAdsorb,
+      5 / board.viewPort.zoom,
+      true,
+      position,
+    );
     board.refLine.setCurrent(updateElement);
     newElement.x = updateElement.rects[0].x;
     newElement.y = updateElement.rects[0].y;
     newElement.width = updateElement.rects[0].width;
     newElement.height = updateElement.rects[0].height;
-    board.apply({
-      type: 'set_node',
-      path,
-      properties: element,
-      newProperties: newElement
-    }, false);
+    board.apply(
+      {
+        type: "set_node",
+        path,
+        properties: element,
+        newProperties: newElement,
+      },
+      false,
+    );
 
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
-      selectedElements: [newElement]
+      selectedElements: [newElement],
     });
   }
 
@@ -187,7 +244,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
     this.originResizeElement = null;
     board.refLine.setCurrent({
       rects: [],
-      lines: []
+      lines: [],
     });
   }
 }

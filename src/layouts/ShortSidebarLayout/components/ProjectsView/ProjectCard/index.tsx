@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from "react-router-dom";
 import { Descendant } from "slate";
 import { Modal, Popover } from "antd";
 import classnames from "classnames";
@@ -13,7 +13,6 @@ import useProjectsStore from "@/stores/useProjectsStore.ts";
 import EditProjectInfoModal from "@/layouts/components/EditProjectInfoModal";
 
 import styles from "./index.module.less";
-
 
 interface ProjectCardProps {
   project: Project;
@@ -29,72 +28,74 @@ const ProjectCard = (props: ProjectCardProps) => {
   const [editOpen, setEditOpen] = useState(false);
   const navigate = useNavigate();
 
-  const {
-    deleteProject,
-    updateProject
-  } = useProjectsStore(state => ({
+  const { deleteProject, updateProject } = useProjectsStore((state) => ({
     deleteProject: state.deleteProject,
-    updateProject: state.updateProject
+    updateProject: state.updateProject,
   }));
 
   const onClick = () => {
     useProjectsStore.setState({
-      activeProjectId: project.id
+      activeProjectId: project.id,
     });
     navigate(`/projects/${project.id}`);
-  }
+  };
 
   const handleDeleteProject = () => {
     Modal.confirm({
-      title: '确定删除该项目？',
+      title: "确定删除该项目？",
       onOk: async () => {
         await deleteProject(project.id);
       },
-      okText: '确定',
-      cancelText: '取消',
+      okText: "确定",
+      cancelText: "取消",
       okButtonProps: {
-        danger: true
-      }
+        danger: true,
+      },
     });
     setSettingOpen(false);
-  }
+  };
 
   const handleEditProject = async (title: string, desc: Descendant[]) => {
-    const newProject = produce(project, draft => {
+    const newProject = produce(project, (draft) => {
       draft.title = title;
       draft.desc = desc;
     });
     await updateProject(newProject);
     setEditOpen(false);
-    navigate(`/projects/${project.id}`)
-  }
+    navigate(`/projects/${project.id}`);
+  };
 
   return (
-    <div className={classnames(styles.cardContainer, { [styles.dark]: isDark }, className)} style={style}>
+    <div
+      className={classnames(
+        styles.cardContainer,
+        { [styles.dark]: isDark },
+        className,
+      )}
+      style={style}
+    >
       <div className={styles.title} onClick={onClick}>
         {project.title}
       </div>
       <div className={styles.desc}>
-        <Editor
-          readonly
-          className={styles.editor}
-          initValue={project.desc}
-        />
+        <Editor readonly className={styles.editor} initValue={project.desc} />
       </div>
       <div className={classnames(styles.operate)}>
         <Popover
           open={settingOpen}
           onOpenChange={setSettingOpen}
-          placement={'bottomRight'}
-          trigger={'click'}
+          placement={"bottomRight"}
+          trigger={"click"}
           styles={{
             body: {
-              padding: 4
-            }
+              padding: 4,
+            },
           }}
-          content={(
+          content={
             <div className={styles.settings}>
-              <div className={styles.settingItem} onClick={handleDeleteProject}>删除项目</div>
+              <div className={styles.settingItem} onClick={handleDeleteProject}>
+                删除项目
+              </div>
               <div
                 className={styles.settingItem}
                 onClick={() => {
@@ -105,9 +106,9 @@ const ProjectCard = (props: ProjectCardProps) => {
                 编辑项目
               </div>
             </div>
-          )}
+          }
         >
-          <MdMoreVert/>
+          <MdMoreVert />
         </Popover>
       </div>
       <EditProjectInfoModal
@@ -118,7 +119,7 @@ const ProjectCard = (props: ProjectCardProps) => {
         onOk={handleEditProject}
       />
     </div>
-  )
-}
+  );
+};
 
 export default ProjectCard;

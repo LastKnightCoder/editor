@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo } from "react";
 
 import { EMarkerType, Point, EArrowLineType } from "../../types";
 import { ArrowUtil } from "@/components/WhiteBoard/utils";
@@ -19,11 +19,15 @@ const Arrow = memo((props: ArrowProps) => {
       d={ArrowUtil.getArrowPath(props)}
       stroke={lineColor}
       strokeWidth={lineWidth}
-      fill={'none'}
-      markerEnd={targetMarker !== EMarkerType.None ? `url(#whiteboard-arrow)` : 'none'}
-      markerStart={sourceMarker !== EMarkerType.None ? `url(#whiteboard-arrow)` : 'none'}
+      fill={"none"}
+      markerEnd={
+        targetMarker !== EMarkerType.None ? `url(#whiteboard-arrow)` : "none"
+      }
+      markerStart={
+        sourceMarker !== EMarkerType.None ? `url(#whiteboard-arrow)` : "none"
+      }
     />
-  )
+  );
 });
 
 export default Arrow;

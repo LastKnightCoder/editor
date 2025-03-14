@@ -1,1 +1,1 @@
-export * from './pasteImage.ts';
+export * from "./pasteImage.ts";

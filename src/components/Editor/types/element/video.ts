@@ -1,7 +1,7 @@
 import { Descendant } from "slate";
 
 export interface VideoElement {
-  type: 'video';
+  type: "video";
   src: string;
   playbackRate?: number;
   uploading?: boolean;

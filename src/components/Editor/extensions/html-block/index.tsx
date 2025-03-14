@@ -1,16 +1,16 @@
-import { Element } from 'slate';
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
-import HTMLBlock from './components/HTMLBlock';
+import HTMLBlock from "./components/HTMLBlock";
 
 import { HTMLBlockElement } from "@/components/Editor/types";
 
-import Base from '../base.ts';
+import Base from "../base.ts";
 import IExtension from "../types.ts";
 
-import blockPanelItems from './block-panel-items';
+import blockPanelItems from "./block-panel-items";
 
 class HtmlBlockExtension extends Base implements IExtension {
-  type = 'html-block';
+  type = "html-block";
 
   override getBlockPanelItems() {
     return blockPanelItems;
@@ -25,7 +25,11 @@ class HtmlBlockExtension extends Base implements IExtension {
 
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
-    return <HTMLBlock element={element as HTMLBlockElement} attributes={attributes}>{children}</HTMLBlock>;
+    return (
+      <HTMLBlock element={element as HTMLBlockElement} attributes={attributes}>
+        {children}
+      </HTMLBlock>
+    );
   }
 }
 
