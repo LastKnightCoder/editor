@@ -117,6 +117,43 @@ export class ViewPortPlugin implements IBoardPlugin {
     } else if (isHotkey("mod+-", e)) {
       const newZoom = Math.max(board.viewPort.zoom / 1.1, 0.1);
       ViewPortTransforms.updateZoom(board, newZoom);
+    } else if (isHotkey("mod+o", e)) {
+      // 添加mod+o快捷键支持，用于全览
+      e.preventDefault();
+
+      // 获取当前选中的元素并创建副本
+      const selectedElements = [...board.selection.selectedElements];
+      const FIT_VIEW_PADDING = 50; // 固定内边距值
+
+      if (selectedElements.length > 0) {
+        // 如果有选中的元素，则全览选中的元素
+        ViewPortTransforms.fitAllElements(
+          board,
+          FIT_VIEW_PADDING,
+          true,
+          selectedElements,
+        );
+
+        // 在下一个事件循环中恢复选中状态，避免被全局事件处理器清除
+        setTimeout(() => {
+          if (selectedElements.length > 0) {
+            board.apply(
+              {
+                type: "set_selection",
+                properties: board.selection,
+                newProperties: {
+                  selectArea: null,
+                  selectedElements: selectedElements,
+                },
+              },
+              false,
+            );
+          }
+        }, 0);
+      } else {
+        // 否则全览所有元素
+        ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
+      }
     }
   }
 }

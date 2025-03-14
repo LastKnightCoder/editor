@@ -42,8 +42,12 @@ import GradientLine from "./components/GradientLine";
 import Grid from "./components/Grid";
 import GridSettings from "./components/GridSettings";
 import AttributeSetter from "./components/AttributeSetter";
-import { Flex, Popover, Divider } from "antd";
-import { MinusOutlined, PlusOutlined } from "@ant-design/icons";
+import { Flex, Popover, Divider, Tooltip } from "antd";
+import {
+  MinusOutlined,
+  PlusOutlined,
+  FullscreenOutlined,
+} from "@ant-design/icons";
 import For from "@/components/For";
 import styles from "./index.module.less";
 
@@ -104,9 +108,14 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const [gridVisible, setGridVisible] = useState<boolean>(DEFAULT_GRID_VISIBLE);
   const [gridSize, setGridSize] = useState<number>(DEFAULT_GRID_SIZE);
+  // 固定内边距值，不需要用户设置
+  const FIT_VIEW_PADDING = 50;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const statusBarRef = useRef<HTMLDivElement>(null);
+  const fitViewButtonRef = useRef<HTMLDivElement>(null);
+
   const board = useCreation<Board>(
     () => new Board(initData, initViewPort, initSelection, plugins),
     [],
@@ -165,6 +174,36 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const handleZoomOut = useMemoizedFn(() => {
     ViewPortTransforms.updateZoom(board, Math.min(zoom * 1.1, MAX_ZOOM));
+  });
+
+  // 添加一个新方法，用于处理选中元素或所有元素的全览
+  const handleFitElements = useMemoizedFn((e: any) => {
+    // 阻止事件冒泡和默认行为
+    e.stopPropagation();
+    e.preventDefault();
+
+    // 获取当前选中的元素
+    const selectedElements = selection.selectedElements;
+
+    console.log(
+      "全览按钮被点击，选中元素数量:",
+      selectedElements.length,
+      "选中元素:",
+      selectedElements,
+    );
+
+    // 确保我们使用的是当前的选中元素
+    if (selectedElements && selectedElements.length > 0) {
+      // 如果有选中的元素，则全览选中的元素
+      console.log("全览选中的元素");
+      ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, [
+        ...selectedElements,
+      ]);
+    } else {
+      // 否则全览所有元素
+      console.log("全览所有元素");
+      ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
+    }
   });
 
   const handleMouseDown = eventHandlerGenerator("onMouseDown");
@@ -232,6 +271,20 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     const observer = new ResizeObserver(handleContainerResize);
     observer.observe(container);
 
+    // 为状态栏和全览按钮添加原生事件监听器
+    const statusBar = statusBarRef.current;
+
+    // 定义事件处理函数
+    const stopPropagation = (e: Event) => {
+      e.stopPropagation();
+    };
+
+    if (statusBar) {
+      statusBar.addEventListener("pointerdown", stopPropagation);
+      statusBar.addEventListener("pointerup", stopPropagation);
+      statusBar.addEventListener("mouseup", stopPropagation);
+    }
+
     return () => {
       document.removeEventListener("mousedown", handleGlobalMouseDown);
       document.removeEventListener("mouseup", handleGlobalMouseUp);
@@ -244,6 +297,13 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       document.removeEventListener("paste", handleOnPaste);
       document.removeEventListener("copy", handleOnCopy);
       document.removeEventListener("cut", handleOnCut);
+
+      if (statusBar) {
+        statusBar.removeEventListener("pointerdown", stopPropagation, true);
+        statusBar.removeEventListener("pointerup", stopPropagation, true);
+        statusBar.removeEventListener("mouseup", stopPropagation, true);
+      }
+
       observer.disconnect();
       board.destroy();
     };
@@ -324,10 +384,14 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
               <AttributeSetter />
             </div>
             <Flex
+              ref={statusBarRef}
               className={styles.statusBar}
               gap={12}
               align={"center"}
               onDoubleClick={(e) => {
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
                 e.stopPropagation();
               }}
             >
@@ -335,6 +399,24 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 onVisibleChange={handleGridVisibleChange}
                 onSizeChange={handleGridSizeChange}
               />
+              <Divider
+                type="vertical"
+                style={{ margin: "0 4px", height: "16px" }}
+              />
+              <Tooltip title="全览">
+                <div
+                  ref={fitViewButtonRef}
+                  onClick={handleFitElements}
+                  style={{
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <FullscreenOutlined />
+                </div>
+              </Tooltip>
               <Divider
                 type="vertical"
                 style={{ margin: "0 4px", height: "16px" }}
