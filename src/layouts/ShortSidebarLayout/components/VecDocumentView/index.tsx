@@ -8,6 +8,7 @@ import { useState } from "react";
 const VecDocumentView = () => {
   const [embeddingType, setEmbeddingType] = useState("card");
   const tableConfig = useTableConfig(embeddingType);
+
   if (!tableConfig) return null;
 
   const {
@@ -17,6 +18,7 @@ const VecDocumentView = () => {
     onChange,
     rowSelection,
     rightExtraNode,
+    leftExtraNode,
   } = tableConfig;
 
   return (
@@ -27,10 +29,15 @@ const VecDocumentView = () => {
         style={{ width: "100%", height: "100%", maxWidth: "100%" }}
       >
         <Flex gap={12} justify="space-between">
-          <Select value={embeddingType} onChange={setEmbeddingType}>
-            <Select.Option value="card">卡片</Select.Option>
-            <Select.Option value="article">文章</Select.Option>
-          </Select>
+          <Flex gap={12} align="center">
+            <Select value={embeddingType} onChange={setEmbeddingType}>
+              <Select.Option value="card">卡片</Select.Option>
+              <Select.Option value="article">文章</Select.Option>
+              <Select.Option value="project">项目</Select.Option>
+              <Select.Option value="document">知识库</Select.Option>
+            </Select>
+            {leftExtraNode}
+          </Flex>
           {rightExtraNode}
         </Flex>
         <AutoHeightTable
@@ -43,10 +50,8 @@ const VecDocumentView = () => {
           rowKey={"id"}
           pagination={pagination}
           dataSource={dataSource}
-          // @ts-ignore
           columns={columns}
           onChange={onChange}
-          // @ts-ignore
           rowSelection={rowSelection}
         />
       </Flex>
