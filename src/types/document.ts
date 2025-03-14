@@ -33,10 +33,10 @@ export interface IUpdateDocument {
   isDelete: boolean;
 }
 
-export interface ICreateDocument extends Omit<IUpdateDocument, 'id'> {
+export interface ICreateDocument extends Omit<IUpdateDocument, "id"> {
   isDelete: boolean;
 }
-export type IDeleteDocument = Pick<IDocument, 'id'>;
+export type IDeleteDocument = Pick<IDocument, "id">;
 
 export interface IDocumentItem {
   id: number;
@@ -77,7 +77,8 @@ export interface ICreateDocumentItem {
   count: number;
 }
 
-export interface IUpdateDocumentItem extends Omit<IDocumentItem, 'createTime' | 'updateTime'> {
+export interface IUpdateDocumentItem
+  extends Omit<IDocumentItem, "createTime" | "updateTime"> {
   id: number;
 }
-export type IDeleteDocumentItem = Pick<IDocumentItem, 'id'>;
+export type IDeleteDocumentItem = Pick<IDocumentItem, "id">;

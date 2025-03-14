@@ -1,13 +1,14 @@
 @import "./themes/dark.less";
 @import "./themes/light.less";
 
-html, body {
+html,
+body {
   overscroll-behavior: none;
 }
 
 body {
-  --font: 'Merriweather', '新宋体', '宋体', '楷体-简';
-  --mono-font: 'JetBrains Mono', '楷体', '楷体-简';
+  --font: "Merriweather", "新宋体", "宋体", "楷体-简";
+  --mono-font: "JetBrains Mono", "楷体", "楷体-简";
   --font-size: 16px;
   --block-distance: 20px;
   --sidebar-bg: var(--primary-bg-color);
@@ -28,7 +29,8 @@ body {
   background: var(--selection-color);
 }
 
-pre, code {
+pre,
+code {
   font-family: var(--mono-font);
 }
 
@@ -130,9 +132,13 @@ p {
 }
 
 .clay {
-  background: var(--clay-background, rgba(0, 0, 0, .005));
+  background: var(--clay-background, rgba(0, 0, 0, 0.005));
   border-radius: var(--clay-border-radius, 32px);
-  box-shadow: var(--clay-shadow-outset, 8px 8px 16px 0 rgba(0, 0, 0, .25)), inset var(--clay-shadow-inset-primary,-8px -8px 16px 0 rgba(0, 0, 0, .25)), inset var(--clay-shadow-inset-secondary, 8px 8px 16px 0 hsla(0, 0%, 100%, .2))
+  box-shadow:
+    var(--clay-shadow-outset, 8px 8px 16px 0 rgba(0, 0, 0, 0.25)),
+    inset var(--clay-shadow-inset-primary, -8px -8px 16px 0 rgba(0, 0, 0, 0.25)),
+    inset
+      var(--clay-shadow-inset-secondary, 8px 8px 16px 0 hsla(0, 0%, 100%, 0.2));
 }
 
 #root {

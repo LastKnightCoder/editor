@@ -4,7 +4,7 @@ export interface ITimeRecord {
   id: number;
   date: string;
   cost: number;
-  content: Descendant[],
+  content: Descendant[];
   eventType: string;
   timeType: string;
 }
@@ -12,4 +12,4 @@ export interface ITimeRecord {
 export type TimeRecordGroup = Array<{
   date: string;
   timeRecords: ITimeRecord[];
-}>
+}>;

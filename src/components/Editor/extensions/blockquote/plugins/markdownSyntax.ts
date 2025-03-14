@@ -10,29 +10,29 @@ export const markdownSyntax = (editor: Editor) => {
       const [node, path] = isAtFirst(editor, text)! as NodeEntry;
       const { text: nodeText } = node as FormattedText;
       const offset = editor.selection!.anchor.offset;
-      if (nodeText.slice(0, offset) === '>') {
+      if (nodeText.slice(0, offset) === ">") {
         Editor.withoutNormalizing(editor, () => {
           Transforms.delete(editor, {
             at: {
               anchor: {
                 path,
-                offset: 0
+                offset: 0,
               },
               focus: {
                 path,
-                offset: 1
-              }
-            }
+                offset: 1,
+              },
+            },
           });
           Transforms.wrapNodes(editor, {
-            type: 'blockquote',
-            children: []
+            type: "blockquote",
+            children: [],
           });
         });
         return;
       }
     }
     insertText(text);
-  }
+  };
   return editor;
-}
+};

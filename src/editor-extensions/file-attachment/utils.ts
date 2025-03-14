@@ -1,9 +1,14 @@
 import { Editor } from "slate";
 import { setOrInsertNode } from "@/components/Editor/utils";
-import { getFileBaseName } from '@/commands';
-import { v4 as getId } from 'uuid';
+import { getFileBaseName } from "@/commands";
+import { v4 as getId } from "uuid";
 
-export const insertFileAttachment = async (editor: Editor, filePath: string, isLocal: boolean, fileName?: string) => {
+export const insertFileAttachment = async (
+  editor: Editor,
+  filePath: string,
+  isLocal: boolean,
+  fileName?: string,
+) => {
   if (!fileName) {
     fileName = await getFileBaseName(filePath);
   }
@@ -11,14 +16,16 @@ export const insertFileAttachment = async (editor: Editor, filePath: string, isL
 
   return setOrInsertNode(editor, {
     // @ts-ignore
-    type: 'file-attachment',
+    type: "file-attachment",
     uuid,
     filePath,
     fileName,
     isLocal,
-    children: [{
-      type: 'formatted',
-      text: ''
-    }]
+    children: [
+      {
+        type: "formatted",
+        text: "",
+      },
+    ],
   });
-}
+};

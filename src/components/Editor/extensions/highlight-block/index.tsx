@@ -1,4 +1,4 @@
-import { Element } from 'slate';
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 
 import HighlightBlock from "./components/HighlightBlock";
@@ -6,11 +6,11 @@ import Base from "@/components/Editor/extensions/base.ts";
 import IExtension from "@/components/Editor/extensions/types.ts";
 import { HighlightBlockElement } from "@/components/Editor/types";
 
-import blockPanelItems from './block-panel-items';
-import { quit, withNormalize } from './plugins';
+import blockPanelItems from "./block-panel-items";
+import { quit, withNormalize } from "./plugins";
 
 class HighlightBlockExtension extends Base implements IExtension {
-  type = 'highlight-block';
+  type = "highlight-block";
 
   override getBlockPanelItems() {
     return blockPanelItems;
@@ -28,10 +28,13 @@ class HighlightBlockExtension extends Base implements IExtension {
     const { attributes, element, children } = props;
 
     return (
-      <HighlightBlock attributes={attributes} element={element as HighlightBlockElement}>
+      <HighlightBlock
+        attributes={attributes}
+        element={element as HighlightBlockElement}
+      >
         {children}
       </HighlightBlock>
-    )
+    );
   }
 }
 

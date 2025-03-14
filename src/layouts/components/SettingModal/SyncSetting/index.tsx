@@ -9,25 +9,23 @@ import useSettingStore, { ESync } from "@/stores/useSettingStore.ts";
 
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const SyncSetting = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [remoteVersion, setRemoteVersion] = useState(0);
 
-  const {
-    activeKey,
-    sync,
-    activeDatabaseName,
-    activeDatabases,
-  } = useSettingStore(state => ({
-    sync: state.setting.sync,
-    activeKey: state.setting.sync.active,
-    activeDatabaseName: state.setting.database.active,
-    activeDatabases: state.setting.database.databases,
-  }));
+  const { activeKey, sync, activeDatabaseName, activeDatabases } =
+    useSettingStore((state) => ({
+      sync: state.setting.sync,
+      activeKey: state.setting.sync.active,
+      activeDatabaseName: state.setting.database.active,
+      activeDatabases: state.setting.database.databases,
+    }));
 
-  const activeDatabase = activeDatabases.find(item => item.name === activeDatabaseName);
+  const activeDatabase = activeDatabases.find(
+    (item) => item.name === activeDatabaseName,
+  );
   const currentVersion = activeDatabase?.version || 0;
 
   const { accessKeyId, accessKeySecret, bucket, region } = sync.aliOSS;
@@ -40,7 +38,7 @@ const SyncSetting = () => {
     // @ts-ignore
     const originVersion = Number(databaseInfo.version) || 0;
     setRemoteVersion(originVersion);
-  }, [accessKeyId, accessKeySecret, bucket, region])
+  }, [accessKeyId, accessKeySecret, bucket, region]);
 
   const onSync = useMemoizedFn(async () => {
     if (isSyncing) return;
@@ -49,14 +47,14 @@ const SyncSetting = () => {
       const res = await upload();
       if (res) {
         setRemoteVersion(currentVersion + 1);
-        message.success('同步成功');
+        message.success("同步成功");
       }
     } catch (error) {
-      message.error('同步失败' + error);
+      message.error("同步失败" + error);
     } finally {
       setIsSyncing(false);
     }
-  })
+  });
 
   const checkDownload = useMemoizedFn(async () => {
     if (!accessKeyId || !accessKeySecret || !bucket || !region) return;
@@ -68,28 +66,31 @@ const SyncSetting = () => {
     setRemoteVersion(originVersion);
     if (currentVersion < originVersion) {
       Modal.confirm({
-        title: '同步远程数据库',
-        content: '检测到有新的数据库版本，是否下载？',
+        title: "同步远程数据库",
+        content: "检测到有新的数据库版本，是否下载？",
         onOk: async () => {
           const isSuccess = await download();
           if (!isSuccess) {
-            message.error('下载失败');
+            message.error("下载失败");
           } else {
-            message.success('下载成功，已为你刷新数据库，原文件已备份至 backup 文件夹！');
+            message.success(
+              "下载成功，已为你刷新数据库，原文件已备份至 backup 文件夹！",
+            );
           }
-        }
-      })
+        },
+      });
     } else {
-      message.success('当前已是最新版本');
+      message.success("当前已是最新版本");
     }
   });
 
-
-  const items: TabsProps['items'] = [{
-    key: ESync.AliOSS,
-    label: '阿里云 OSS',
-    children: <AliOssSetting />,
-  }]
+  const items: TabsProps["items"] = [
+    {
+      key: ESync.AliOSS,
+      label: "阿里云 OSS",
+      children: <AliOssSetting />,
+    },
+  ];
 
   return (
     <div className={styles.syncSetting}>
@@ -100,25 +101,31 @@ const SyncSetting = () => {
       </div>
       <div className={styles.upload}>
         <div>同步数据至云端</div>
-        <Button size={'small'} loading={isSyncing} onClick={onSync}>同步</Button>
+        <Button size={"small"} loading={isSyncing} onClick={onSync}>
+          同步
+        </Button>
       </div>
       <div className={styles.download}>
         <div>检查数据同步状态</div>
-        <Button size={'small'} onClick={checkDownload}>检查</Button>
+        <Button size={"small"} onClick={checkDownload}>
+          检查
+        </Button>
       </div>
       <h2>数据同步设置</h2>
       <Tabs
         className={styles.settings}
         activeKey={activeKey}
         onChange={(key) => {
-          useSettingStore.setState(produce((draft) => {
-            draft.setting.imageBed.active = key;
-          }))
+          useSettingStore.setState(
+            produce((draft) => {
+              draft.setting.imageBed.active = key;
+            }),
+          );
         }}
         items={items}
       />
     </div>
-  )
-}
+  );
+};
 
 export default SyncSetting;

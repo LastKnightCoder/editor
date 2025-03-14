@@ -1,47 +1,70 @@
-import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
-import { Descendant } from 'slate';
-import { useMemoizedFn } from 'ahooks';
+import React, { useState, useRef, useEffect, useMemo, memo } from "react";
+import { Descendant } from "slate";
+import { useMemoizedFn } from "ahooks";
 import useUploadImage from "@/hooks/useUploadImage.ts";
-import { cardLinkExtension, fileAttachmentExtension } from "@/editor-extensions";
-import Editor, { EditorRef } from '@/components/Editor';
-import If from '@/components/If';
-import ResizeCircle from '../ResizeCircle';
-
-import useHandleResize from './hooks/useHandleResize';
-import useHandlePointer from './hooks/useHandlePointer';
-import { 
-  SELECT_RECT_STROKE, 
-  SELECT_RECT_STROKE_WIDTH, 
-  SELECT_RECT_FILL_OPACITY, 
-  RESIZE_CIRCLE_FILL, 
-  RESIZE_CIRCLE_RADIUS, 
-  ARROW_CONNECT_POINT_RADIUS, 
-  ARROW_CONNECT_POINT_FILL 
-} from '../../constants';
-import { Board, BoardElement, EHandlerPosition, Point } from '../../types';
-import { RichTextElement, CommonElement } from '../../plugins';
-import { PointUtil } from '../../utils';
-import { useBoard, useSelectState, useDropArrow } from '../../hooks';
-
-import styles from './index.module.less';
-import ArrowConnectPoint from '../ArrowConnectPoint';
-import ArrowDropConnectPoint from '../ArrowDropConnectPoint';
-
-const customExtensions = [
+import {
   cardLinkExtension,
-  fileAttachmentExtension
-];
+  fileAttachmentExtension,
+} from "@/editor-extensions";
+import Editor, { EditorRef } from "@/components/Editor";
+import If from "@/components/If";
+import ResizeCircle from "../ResizeCircle";
 
-type RichTextNoType = Omit<RichTextElement, 'type'> & any;
+import useHandleResize from "./hooks/useHandleResize";
+import useHandlePointer from "./hooks/useHandlePointer";
+import {
+  SELECT_RECT_STROKE,
+  SELECT_RECT_STROKE_WIDTH,
+  SELECT_RECT_FILL_OPACITY,
+  RESIZE_CIRCLE_FILL,
+  RESIZE_CIRCLE_RADIUS,
+  ARROW_CONNECT_POINT_RADIUS,
+  ARROW_CONNECT_POINT_FILL,
+} from "../../constants";
+import { Board, BoardElement, EHandlerPosition, Point } from "../../types";
+import { RichTextElement, CommonElement } from "../../plugins";
+import { PointUtil } from "../../utils";
+import { useBoard, useSelectState, useDropArrow } from "../../hooks";
+
+import styles from "./index.module.less";
+import ArrowConnectPoint from "../ArrowConnectPoint";
+import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+
+const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+
+type RichTextNodeType = Omit<RichTextElement, "type"> & any;
 
 interface RichTextProps {
-  element: RichTextNoType;
-  onContentChange: (board: Board, element: RichTextNoType, value: Descendant[]) => void;
-  onEditorSizeChange: (board: Board, element: RichTextNoType, width: number, height: number) => void;
-  removeAutoFocus?: (board: Board, element: RichTextNoType) => void;
+  element: RichTextNodeType;
+  onContentChange: (
+    board: Board,
+    element: RichTextNodeType,
+    value: Descendant[],
+  ) => void;
+  onEditorSizeChange: (
+    board: Board,
+    element: RichTextNodeType,
+    width: number,
+    height: number,
+  ) => void;
+  removeAutoFocus?: (board: Board, element: RichTextNodeType) => void;
   onResizeStart?: (element: CommonElement & any, startPoint: Point) => void;
-  onResizeEnd?: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
-  onResize: (board: Board, element: CommonElement & any, position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => void;
+  onResizeEnd?: (
+    board: Board,
+    element: CommonElement & any,
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+  ) => void;
+  onResize: (
+    board: Board,
+    element: CommonElement & any,
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+    isPreserveRatio?: boolean,
+    isAdsorb?: boolean,
+  ) => void;
 }
 
 const PADDING_WIDTH = 16;
@@ -55,26 +78,27 @@ const Richtext = memo((props: RichTextProps) => {
     onResize,
     onContentChange,
     onEditorSizeChange,
-    removeAutoFocus
+    removeAutoFocus,
   } = props;
 
-  const { 
-    x, 
-    y, 
-    width, 
-    height, 
-    id: elementId, 
-    content, 
-    maxWidth, 
-    maxHeight, 
+  const {
+    x,
+    y,
+    width,
+    height,
+    id: elementId,
+    content,
+    maxWidth,
+    maxHeight,
     resized,
     readonly,
     autoFocus,
-    paddingWidth = PADDING_WIDTH, 
+    paddingWidth = PADDING_WIDTH,
     paddingHeight = PADDING_HEIGHT,
     topColor,
     background,
-    color
+    color,
+    theme,
   } = element;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -83,18 +107,20 @@ const Richtext = memo((props: RichTextProps) => {
   const [focus, setFocus] = useState(false);
   const board = useBoard();
   const [isMoving, setIsMoving] = useState(false);
-  const { isMoveArrowClosing, activeConnectId, arrowConnectPoints, arrowConnectExtendPoints } = useDropArrow(element);
   const {
-    isSelected,
-    isSelecting,
-  } = useSelectState(elementId);
+    isMoveArrowClosing,
+    activeConnectId,
+    arrowConnectPoints,
+    arrowConnectExtendPoints,
+  } = useDropArrow(element);
+  const { isSelected, isSelecting } = useSelectState(elementId);
 
   const [resizePoints] = useMemo(() => {
     const resizePoints = PointUtil.getResizePointFromRect({
       x,
       y,
       width,
-      height
+      height,
     });
 
     return [resizePoints];
@@ -115,16 +141,18 @@ const Richtext = memo((props: RichTextProps) => {
       // 按道理 blur 的时候取消选中，但是这个时候如果想通过工具栏改变样式就没法做到了
       // 暂时不 deselect 了，后续改为右键菜单的时候在改回来
       // editorRef.current?.deselect();
-    }, 100)
+    }, 100);
   });
 
   const handleOnContentChange = useMemoizedFn((value: Descendant[]) => {
     onContentChange(board, element, value);
   });
 
-  const handleOnEditorSizeChange = useMemoizedFn((width: number, height: number) => {
-    onEditorSizeChange(board, element, width, height);
-  });
+  const handleOnEditorSizeChange = useMemoizedFn(
+    (width: number, height: number) => {
+      onEditorSizeChange(board, element, width, height);
+    },
+  );
 
   const handleRemoveAutoFocus = useMemoizedFn(() => {
     removeAutoFocus?.(board, element);
@@ -134,20 +162,37 @@ const Richtext = memo((props: RichTextProps) => {
     onResizeStart?.(element, startPoint);
   });
 
-  const handleOnResize = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => {
-    onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb);
-  });
+  const handleOnResize = useMemoizedFn(
+    (
+      position: EHandlerPosition,
+      startPoint: Point,
+      endPoint: Point,
+      isPreserveRatio?: boolean,
+      isAdsorb?: boolean,
+    ) => {
+      onResize(
+        board,
+        element,
+        position,
+        startPoint,
+        endPoint,
+        isPreserveRatio,
+        isAdsorb,
+      );
+    },
+  );
 
-  const handleOnResizeEnd = useMemoizedFn((position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
-    onResizeEnd?.(board, element, position, startPoint, endPoint);
-  });
-
+  const handleOnResizeEnd = useMemoizedFn(
+    (position: EHandlerPosition, startPoint: Point, endPoint: Point) => {
+      onResizeEnd?.(board, element, position, startPoint, endPoint);
+    },
+  );
 
   const containerStyle = useMemo(() => {
     return {
-      pointerEvents: isMoving ||isSelecting || isSelected ? 'none' : 'auto',
-      userSelect: isMoving || isSelecting || isSelected ? 'none' : 'auto',
-      background: 'transparent',
+      pointerEvents: isMoving || isSelecting || isSelected ? "none" : "auto",
+      userSelect: isMoving || isSelecting || isSelected ? "none" : "auto",
+      background: "transparent",
       color,
     } as React.CSSProperties;
   }, [isMoving, isSelecting, isSelected, color]);
@@ -160,7 +205,7 @@ const Richtext = memo((props: RichTextProps) => {
   });
 
   useEffect(() => {
-    handleAutoFocus()
+    handleAutoFocus();
   }, [handleAutoFocus]);
 
   const uploadImage = useUploadImage();
@@ -173,7 +218,7 @@ const Richtext = memo((props: RichTextProps) => {
     resized,
     paddingWidth,
     paddingHeight,
-    focus
+    focus,
   });
   useHandlePointer({
     container: containerRef.current,
@@ -181,23 +226,23 @@ const Richtext = memo((props: RichTextProps) => {
     paddingHeight,
     isSelected,
     width,
-    height
+    height,
   });
 
   useEffect(() => {
     const onMovingChange = (movingElements: BoardElement[]) => {
-      setIsMoving(movingElements.some(element => element.id === elementId));
-    }
+      setIsMoving(movingElements.some((element) => element.id === elementId));
+    };
     const onMovingEnd = () => {
       setIsMoving(false);
-    }
-    board.on('element:move', onMovingChange);
-    board.on('element:move-end', onMovingEnd);
+    };
+    board.on("element:move", onMovingChange);
+    board.on("element:move-end", onMovingEnd);
 
     return () => {
-      board.off('element:move', onMovingChange);
-      board.off('element:move-end', onMovingEnd);
-    }
+      board.off("element:move", onMovingChange);
+      board.off("element:move-end", onMovingEnd);
+    };
   }, [board, elementId]);
 
   useEffect(() => {
@@ -205,7 +250,7 @@ const Richtext = memo((props: RichTextProps) => {
 
     if (!container) return;
 
-    const editor = container.querySelector(':scope > [data-slate-editor]');
+    const editor = container.querySelector(":scope > [data-slate-editor]");
     if (!editor) return;
 
     const stopWheelPropagation = (e: WheelEvent) => {
@@ -219,16 +264,16 @@ const Richtext = memo((props: RichTextProps) => {
       if ((isUp && scrollTop !== 0) || (!isUp && !isScrollToBottom)) {
         e.stopPropagation();
       }
-    }
+    };
 
     // @ts-expect-error
-    editor.addEventListener('wheel', stopWheelPropagation);
+    editor.addEventListener("wheel", stopWheelPropagation);
 
     return () => {
       // @ts-expect-error
-      editor.removeEventListener('wheel', stopWheelPropagation);
-    }
-  }, [])
+      editor.removeEventListener("wheel", stopWheelPropagation);
+    };
+  }, []);
 
   return (
     <>
@@ -246,21 +291,22 @@ const Richtext = memo((props: RichTextProps) => {
         >
           <div
             style={{
-              position: 'absolute',
+              position: "absolute",
               left: 0,
               top: 0,
               width,
               height,
-              background: background || 'transparent',
+              background: background || "transparent",
               borderRadius: 4,
-              zIndex: -1
+              zIndex: -1,
             }}
           />
-          {
-            topColor && (
-                <div className={styles.borderTop} style={{ background: topColor }}></div>
-              )
-          }
+          {topColor && (
+            <div
+              className={styles.borderTop}
+              style={{ background: topColor }}
+            ></div>
+          )}
           <Editor
             ref={editorRef}
             style={editorStyle}
@@ -272,6 +318,7 @@ const Richtext = memo((props: RichTextProps) => {
             onBlur={handleBlur}
             uploadImage={uploadImage}
             extensions={customExtensions}
+            theme={theme}
           />
         </div>
       </foreignObject>
@@ -288,50 +335,44 @@ const Richtext = memo((props: RichTextProps) => {
             stroke={SELECT_RECT_STROKE}
             strokeWidth={SELECT_RECT_STROKE_WIDTH}
           />
-          {
-            Object.entries(resizePoints).map(([position, point]) => (
-              <ResizeCircle
-                key={position}
-                cx={point.x}
-                cy={point.y}
-                r={RESIZE_CIRCLE_RADIUS}
-                fill={RESIZE_CIRCLE_FILL}
-                position={position as EHandlerPosition}
-                onResizeStart={handleOnResizeStart}
-                onResize={handleOnResize}
-                onResizeEnd={handleOnResizeEnd}
-              />
-            ))
-          }
-          {
-            arrowConnectExtendPoints.map((point) => (
-              <ArrowConnectPoint
-                key={point.connectId}
-                element={element}
-                connectId={point.connectId}
-                x={point.point.x}
-                y={point.point.y}
-                r={ARROW_CONNECT_POINT_RADIUS} 
-                fill={ARROW_CONNECT_POINT_FILL}
-              />
-            ))
-          }
+          {Object.entries(resizePoints).map(([position, point]) => (
+            <ResizeCircle
+              key={position}
+              cx={point.x}
+              cy={point.y}
+              r={RESIZE_CIRCLE_RADIUS}
+              fill={RESIZE_CIRCLE_FILL}
+              position={position as EHandlerPosition}
+              onResizeStart={handleOnResizeStart}
+              onResize={handleOnResize}
+              onResizeEnd={handleOnResizeEnd}
+            />
+          ))}
+          {arrowConnectExtendPoints.map((point) => (
+            <ArrowConnectPoint
+              key={point.connectId}
+              element={element}
+              connectId={point.connectId}
+              x={point.point.x}
+              y={point.point.y}
+              r={ARROW_CONNECT_POINT_RADIUS}
+              fill={ARROW_CONNECT_POINT_FILL}
+            />
+          ))}
         </g>
       </If>
       <If condition={isMoveArrowClosing}>
-        {
-          arrowConnectPoints.map((point) => (
-            <ArrowDropConnectPoint
-              key={point.connectId}
-              cx={point.point.x}
-              cy={point.point.y}
-              isActive={activeConnectId === point.connectId}
-            />
-          ))
-        }
+        {arrowConnectPoints.map((point) => (
+          <ArrowDropConnectPoint
+            key={point.connectId}
+            cx={point.point.x}
+            cy={point.point.y}
+            isActive={activeConnectId === point.connectId}
+          />
+        ))}
       </If>
     </>
-  )
-})
+  );
+});
 
 export default Richtext;

@@ -1,7 +1,7 @@
 import React from "react";
 import classnames from "classnames";
 
-import For from '@/components/For';
+import For from "@/components/For";
 import If from "@/components/If";
 
 import styles from "./index.module.less";
@@ -36,7 +36,7 @@ const Actions = (props: IActionsProps) => {
         )}
       />
     </div>
-  )
-}
+  );
+};
 
 export default Actions;

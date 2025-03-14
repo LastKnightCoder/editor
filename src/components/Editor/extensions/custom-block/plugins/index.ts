@@ -1,1 +1,1 @@
-export * from './deleteBackward';
+export * from "./deleteBackward";

@@ -10,10 +10,10 @@ import { EditCardContext } from "@/context";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface ICardLinkProps {
-  attributes: RenderElementProps['attributes'];
+  attributes: RenderElementProps["attributes"];
   element: CardLinkElement;
   children: React.ReactNode;
 }
@@ -24,21 +24,17 @@ const CardLink = (props: ICardLinkProps) => {
 
   const { cardId: editingCardId } = useContext(EditCardContext) || {};
 
-  const {
-    cards,
-  } = useCardsManagementStore(state => ({
+  const { cards } = useCardsManagementStore((state) => ({
     cards: state.cards,
   }));
 
-  const {
-    addCardToSide,
-    leftCardIds,
-    rightCardIds,
-  } = useCardPanelStore(state => ({
-    addCardToSide: state.addCardToSide,
-    leftCardIds: state.leftCardIds,
-    rightCardIds: state.rightCardIds,
-  }));
+  const { addCardToSide, leftCardIds, rightCardIds } = useCardPanelStore(
+    (state) => ({
+      addCardToSide: state.addCardToSide,
+      leftCardIds: state.leftCardIds,
+      rightCardIds: state.rightCardIds,
+    }),
+  );
 
   const linkCard = useMemo(() => {
     return cards.find((card) => card.id === cardId);
@@ -57,31 +53,33 @@ const CardLink = (props: ICardLinkProps) => {
 
   return (
     <Popover
-      trigger={'hover'}
+      trigger={"hover"}
       content={<CardContent card={linkCard} />}
       styles={{
         body: {
-          padding: 0
-        }
+          padding: 0,
+        },
       }}
       style={{
         top: 20,
       }}
       arrow={false}
-      placement={'bottom'}
+      placement={"bottom"}
       mouseEnterDelay={0.5}
     >
       <span
-        onClick={() => { addCardToSide(cardId, side) }}
+        onClick={() => {
+          addCardToSide(cardId, side);
+        }}
         className={styles.cardLinkContainer}
         {...attributes}
       >
         <InlineChromiumBugfix />
-          {children}
+        {children}
         <InlineChromiumBugfix />
       </span>
     </Popover>
-  )
-}
+  );
+};
 
 export default CardLink;

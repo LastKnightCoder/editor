@@ -16,10 +16,10 @@ const EditDocumentModal = (props: EditDocumentModalProps) => {
   const [desc, setDesc] = useState(defaultDesc);
   const onTitleChange = (title: string) => {
     setDocumentTitle(title);
-  }
+  };
   const onDescriptionChange = (desc: string) => {
     setDesc(desc);
-  }
+  };
   return (
     <Modal
       title={title}
@@ -32,23 +32,23 @@ const EditDocumentModal = (props: EditDocumentModalProps) => {
     >
       <div>
         <Form>
-          <Form.Item label={'标题'}>
+          <Form.Item label={"标题"}>
             <Input
               value={documentTitle}
-              onChange={e => onTitleChange(e.target.value)}
+              onChange={(e) => onTitleChange(e.target.value)}
             />
           </Form.Item>
-          <Form.Item label={'描述'}>
+          <Form.Item label={"描述"}>
             <Input.TextArea
               value={desc}
-              onChange={e => onDescriptionChange(e.target.value)}
+              onChange={(e) => onDescriptionChange(e.target.value)}
               autoSize={{ minRows: 5 }}
             />
           </Form.Item>
         </Form>
       </div>
     </Modal>
-  )
-}
+  );
+};
 
 export default EditDocumentModal;

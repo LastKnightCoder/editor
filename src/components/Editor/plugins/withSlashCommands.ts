@@ -7,7 +7,7 @@ export const withSlashCommands = (editor: Editor) => {
   editor.insertText = (text) => {
     const state = useBlockPanelStore.getState();
     const { blockPanelVisible, inputValue, reset } = state;
-    if (text === '/') {
+    if (text === "/") {
       if (!blockPanelVisible) {
         // 获取当前鼠标的位置
         const selection = window.getSelection();
@@ -17,17 +17,17 @@ export const withSlashCommands = (editor: Editor) => {
           const position = {
             x: rect.left,
             y: rect.top + rect.height,
-          }
+          };
           useBlockPanelStore.setState({
             blockPanelVisible: true,
             position,
-            inputValue: '/',
+            inputValue: "/",
           });
         }
       }
     }
     if (blockPanelVisible) {
-      if (text === ' ') {
+      if (text === " ") {
         reset();
       } else {
         const selection = window.getSelection();
@@ -37,7 +37,7 @@ export const withSlashCommands = (editor: Editor) => {
           const position = {
             x: rect.left,
             y: rect.top + rect.height,
-          }
+          };
           useBlockPanelStore.setState({
             inputValue: inputValue + text,
             position,
@@ -46,7 +46,7 @@ export const withSlashCommands = (editor: Editor) => {
       }
     }
     insertText(text);
-  }
+  };
 
   return editor;
-}
+};

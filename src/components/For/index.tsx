@@ -3,14 +3,10 @@ interface IForProps<T> {
   renderItem: (item: T, index: number, data: T[]) => React.ReactNode;
 }
 
-const For = <T, >(props: IForProps<T>) => {
+const For = <T,>(props: IForProps<T>) => {
   const { data, renderItem } = props;
 
-  return (
-    <>
-      {data.map(renderItem)}
-    </>
-  )
+  return <>{data.map(renderItem)}</>;
 };
 
 export default For;

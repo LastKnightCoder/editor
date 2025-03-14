@@ -16,6 +16,6 @@ const groupByEventType = (timeRecords: ITimeRecord[]) => {
     eventType,
     cost: timeRecords.reduce((acc, cur) => acc + cur.cost, 0),
   }));
-}
+};
 
 export default groupByEventType;

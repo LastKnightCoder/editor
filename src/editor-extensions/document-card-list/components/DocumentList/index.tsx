@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState } from "react";
 import { Empty, message } from "antd";
 import { useAsyncEffect } from "ahooks";
-import ItemCard from '@/editor-extensions/components/ItemCard';
+import ItemCard from "@/editor-extensions/components/ItemCard";
 
 import { getDocumentItemsByIds, getDocumentItem } from "@/commands";
 import { IDocumentItem } from "@/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface IProps {
   documentItemId: number;
@@ -35,31 +35,25 @@ const DocumentList = (props: IProps) => {
       setItems(items);
     } catch (e) {
       console.error(e);
-      message.error('DocumentItems 拉取失败' + e);
+      message.error("DocumentItems 拉取失败" + e);
     }
   }, [documentItemId]);
 
   if (items.length === 0) {
     return (
-      <div contentEditable={false} style={{ userSelect: 'none' }}>
-        <Empty description={'暂无子文档'} />
+      <div contentEditable={false} style={{ userSelect: "none" }}>
+        <Empty description={"暂无子文档"} />
       </div>
-    )
+    );
   }
 
   return (
     <div className={styles.list}>
-      {
-        items.map((item, i) => (
-          <ItemCard
-            key={item.id}
-            item={item}
-            onClick={() => onClick(item, i)}
-          />
-        ))
-      }
+      {items.map((item, i) => (
+        <ItemCard key={item.id} item={item} onClick={() => onClick(item, i)} />
+      ))}
     </div>
-  )
-}
+  );
+};
 
 export default DocumentList;

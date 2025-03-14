@@ -1,12 +1,12 @@
 import { PDFDocumentProxy } from "pdfjs-dist";
-import { PDFViewer } from 'pdfjs-dist/web/pdf_viewer.mjs';
+import { PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import ReactDOM from "react-dom/client";
-import { HighlightLayer } from './types.ts';
+import { HighlightLayer } from "./types.ts";
 
 import HighlightNode from "./HighlightNode";
 import For from "@/components/For";
 import { PdfHighlight } from "@/types";
-import { updatePdfHighlight, removePdfHighlight } from '@/commands';
+import { updatePdfHighlight, removePdfHighlight } from "@/commands";
 
 class HighlightManager {
   pdfDocument: PDFDocumentProxy;
@@ -16,7 +16,11 @@ class HighlightManager {
   handleTextLayerRendered: (event: any) => void;
   handlePageChanging: (event: any) => void;
 
-  constructor(pdfDocument: PDFDocumentProxy, viewer: PDFViewer, highlights: PdfHighlight[]) {
+  constructor(
+    pdfDocument: PDFDocumentProxy,
+    viewer: PDFViewer,
+    highlights: PdfHighlight[],
+  ) {
     this.pdfDocument = pdfDocument;
     this.viewer = viewer;
     const numPages = this.pdfDocument.numPages;
@@ -34,13 +38,13 @@ class HighlightManager {
   }
 
   private mount() {
-    this.viewer.eventBus.on('textlayerrendered', this.handleTextLayerRendered);
-    this.viewer.eventBus.on('pagechanging', this.handlePageChanging);
+    this.viewer.eventBus.on("textlayerrendered", this.handleTextLayerRendered);
+    this.viewer.eventBus.on("pagechanging", this.handlePageChanging);
   }
 
   unmount() {
-    this.viewer.eventBus.off('textlayerrendered', this.handleTextLayerRendered);
-    this.viewer.eventBus.off('pagechanging', this.handlePageChanging);
+    this.viewer.eventBus.off("textlayerrendered", this.handleTextLayerRendered);
+    this.viewer.eventBus.off("pagechanging", this.handlePageChanging);
   }
 
   getPageRect(pageNumber: number): DOMRect | null {
@@ -50,7 +54,9 @@ class HighlightManager {
     if (!textLayer) return null;
     const { div: textLayerEle } = textLayer;
     if (!textLayerEle) return null;
-    const pageEle = (textLayerEle as HTMLElement).closest('.page') as HTMLElement | null;
+    const pageEle = (textLayerEle as HTMLElement).closest(
+      ".page",
+    ) as HTMLElement | null;
     if (!pageEle) return null;
     return pageEle.getBoundingClientRect();
   }
@@ -58,9 +64,11 @@ class HighlightManager {
   getOrCreateHighlightLayer(pageNumber: number): HighlightLayer | undefined {
     const highlightLayer = this.highlightLayers.get(pageNumber);
     if (!highlightLayer || !highlightLayer.container.isConnected) {
-      const highlightLayerContainer = document.createElement('div');
-      highlightLayerContainer.className = 'pdf-highlight-layer';
-      const pageElement = document.querySelector(`.pdfViewer .page[data-page-number="${pageNumber}"]`);
+      const highlightLayerContainer = document.createElement("div");
+      highlightLayerContainer.className = "pdf-highlight-layer";
+      const pageElement = document.querySelector(
+        `.pdfViewer .page[data-page-number="${pageNumber}"]`,
+      );
       if (!pageElement) {
         console.error(`Page ${pageNumber} not found`);
         return;
@@ -112,7 +120,9 @@ class HighlightManager {
   removeHighlight(pageNumber: number, highlightId: number) {
     const highlights = this.highlights.get(pageNumber);
     if (highlights) {
-      const index = highlights.findIndex((highlight) => highlight.id === highlightId);
+      const index = highlights.findIndex(
+        (highlight) => highlight.id === highlightId,
+      );
       if (index !== -1) {
         highlights.splice(index, 1);
         removePdfHighlight(highlightId).then();
@@ -120,10 +130,16 @@ class HighlightManager {
     }
   }
 
-  updateHighlight(pageNumber: number, highlightId: number, highlight: PdfHighlight) {
+  updateHighlight(
+    pageNumber: number,
+    highlightId: number,
+    highlight: PdfHighlight,
+  ) {
     const highlights = this.highlights.get(pageNumber);
     if (highlights) {
-      const index = highlights.findIndex((highlight) => highlight.id === highlightId);
+      const index = highlights.findIndex(
+        (highlight) => highlight.id === highlightId,
+      );
       if (index !== -1) {
         highlights[index] = highlight;
         updatePdfHighlight(highlight).then();
@@ -132,14 +148,17 @@ class HighlightManager {
   }
 
   setTextLayerSelectable(selectable: boolean) {
-    this.viewer.viewer?.classList.toggle('disable-selection', !selectable);
+    this.viewer.viewer?.classList.toggle("disable-selection", !selectable);
   }
 
   getHighlights(pageNumber: number): Array<PdfHighlight> {
     return this.highlights.get(pageNumber) || [];
   }
 
-  getHighLightById(pageNumber: number, highlightId: number): PdfHighlight | undefined {
+  getHighLightById(
+    pageNumber: number,
+    highlightId: number,
+  ): PdfHighlight | undefined {
     const highlights = this.highlights.get(pageNumber);
     if (highlights) {
       return highlights.find((highlight) => highlight.id === highlightId);
@@ -153,10 +172,10 @@ class HighlightManager {
     const highlightLayer = this.highlightLayers.get(pageNumber);
     if (!highlightLayer) return;
     const { root } = highlightLayer;
-    root.render((
+    root.render(
       <For
         data={highlights}
-        renderItem={highlight => (
+        renderItem={(highlight) => (
           <HighlightNode
             highlight={highlight}
             key={highlight.id}
@@ -170,8 +189,8 @@ class HighlightManager {
             }}
           />
         )}
-      />
-    ))
+      />,
+    );
   }
 }
 

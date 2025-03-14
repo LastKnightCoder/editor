@@ -1,7 +1,7 @@
 import { ProjectItem } from "@/types";
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { getProjectItemById, partialUpdateProjectItem } from '@/commands';
+import { getProjectItemById, partialUpdateProjectItem } from "@/commands";
 import { getContentLength } from "@/utils";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
@@ -13,12 +13,9 @@ const useEdit = () => {
   const prevProjectItem = useRef<ProjectItem | null>(null);
   const contentChanged = useRef(false);
 
-  const {
-    activeProjectItemId,
-    dragging,
-  } = useProjectsStore((state) => ({
+  const { activeProjectItemId, dragging } = useProjectsStore((state) => ({
     dragging: state.dragging,
-    activeProjectItemId: state.activeProjectItemId
+    activeProjectItemId: state.activeProjectItemId,
   }));
 
   useEffect(() => {
@@ -33,16 +30,17 @@ const useEdit = () => {
       setProjectItem(projectItem);
       prevProjectItem.current = projectItem;
     });
-
   }, [activeProjectItemId]);
 
   useEffect(() => {
     if (!projectItem || !prevProjectItem.current) return;
-    contentChanged.current = JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
+    contentChanged.current =
+      JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
   }, [projectItem]);
 
   const saveProjectItem = useMemoizedFn((saveAnyway = false) => {
-    if (!projectItem || !(contentChanged.current || saveAnyway) || dragging) return;
+    if (!projectItem || !(contentChanged.current || saveAnyway) || dragging)
+      return;
     partialUpdateProjectItem({
       id: projectItem.id,
       title: projectItem.title,
@@ -52,7 +50,7 @@ const useEdit = () => {
       setProjectItem(updatedProject);
       prevProjectItem.current = updatedProject;
       contentChanged.current = false;
-      if (updatedProject.refType === 'card' && updatedProject.refId) {
+      if (updatedProject.refType === "card" && updatedProject.refId) {
         useCardsManagementStore.getState().init().then();
       }
     });
@@ -61,7 +59,7 @@ const useEdit = () => {
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
     if (!editor || !projectItem) return;
     const wordsCount = getContentLength(content);
-    const newProjectItem = produce(projectItem, draft => {
+    const newProjectItem = produce(projectItem, (draft) => {
       draft.count = wordsCount;
     });
     setProjectItem(newProjectItem);
@@ -69,8 +67,8 @@ const useEdit = () => {
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!projectItem) return;
-    const wordsCount = getContentLength(content)
-    const newProjectItem = produce(projectItem, draft => {
+    const wordsCount = getContentLength(content);
+    const newProjectItem = produce(projectItem, (draft) => {
       draft.content = content;
       draft.count = wordsCount;
     });
@@ -79,12 +77,12 @@ const useEdit = () => {
 
   const onTitleChange = useMemoizedFn((title: string) => {
     if (!projectItem) return;
-    const newProjectItem = produce(projectItem, draft => {
+    const newProjectItem = produce(projectItem, (draft) => {
       draft.title = title;
     });
     setProjectItem(newProjectItem);
-    const event = new CustomEvent('projectTitleChange', {
-      detail: newProjectItem
+    const event = new CustomEvent("projectTitleChange", {
+      detail: newProjectItem,
     });
     document.dispatchEvent(event);
   });
@@ -94,8 +92,8 @@ const useEdit = () => {
     saveProjectItem,
     onInit,
     onContentChange,
-    onTitleChange
-  }
-}
+    onTitleChange,
+  };
+};
 
 export default useEdit;

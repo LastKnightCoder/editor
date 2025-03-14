@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo } from "react";
-import List from './List';
+import List from "./List";
 import IExtension from "@/components/Editor/extensions/types.ts";
 import PortalToBody from "@/components/PortalToBody";
 
@@ -13,22 +13,17 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
   const { extensions } = props;
 
   const blockPanelList = useMemo(() => {
-    return extensions.map(extension => extension.getBlockPanelItems()).flat();
+    return extensions.map((extension) => extension.getBlockPanelItems()).flat();
   }, [extensions]);
 
-  const {
-    blockPanelVisible,
-    position,
-    inputValue,
-    list,
-    filterList,
-  } = useBlockPanelStore(state => ({
-    blockPanelVisible: state.blockPanelVisible,
-    position: state.position,
-    list: state.list,
-    inputValue: state.inputValue,
-    filterList: state.filterList,
-  }));
+  const { blockPanelVisible, position, inputValue, list, filterList } =
+    useBlockPanelStore((state) => ({
+      blockPanelVisible: state.blockPanelVisible,
+      position: state.position,
+      list: state.list,
+      inputValue: state.inputValue,
+      filterList: state.filterList,
+    }));
 
   useEffect(() => {
     filterList(inputValue, blockPanelList);
@@ -51,11 +46,11 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
 
   return (
     <PortalToBody>
-      <div style={{ position: 'fixed', left, top, zIndex: 10 }}>
+      <div style={{ position: "fixed", left, top, zIndex: 10 }}>
         <List />
       </div>
     </PortalToBody>
-  )
+  );
 });
 
 export default BlockPanel;

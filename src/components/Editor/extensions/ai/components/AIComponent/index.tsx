@@ -14,34 +14,34 @@ const AIComponent = (props: IExtensionBaseProps<AIElement>) => {
   const apply = () => {
     // 将结果 unwrap
     Transforms.unwrapNodes(editor, {
-      match: n =>
-        !Editor.isEditor(n) && Element.isElement(n) && n.type === 'ai',
-    })
-  }
+      match: (n) =>
+        !Editor.isEditor(n) && Element.isElement(n) && n.type === "ai",
+    });
+  };
 
   const deleteBlock = () => {
     const path = ReactEditor.findPath(editor, element);
     if (!path) return;
     Transforms.delete(editor, {
-      at: path
-    })
-  }
+      at: path,
+    });
+  };
 
   return (
     <Popover
       open={!!isFinished}
-      content={(
+      content={
         <Flex gap={12}>
           <Button onClick={apply}>应用</Button>
           <Button onClick={deleteBlock}>删除</Button>
         </Flex>
-      )}
+      }
     >
-      <div style={{ color: 'red' }} {...attributes}>
+      <div style={{ color: "red" }} {...attributes}>
         {children}
       </div>
     </Popover>
-  )
-}
+  );
+};
 
 export default AIComponent;

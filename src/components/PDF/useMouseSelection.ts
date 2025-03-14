@@ -13,7 +13,7 @@ const useMouseSelection = (options: IUseMouseSelection) => {
   const canSelect = useRef(false);
 
   const handleMouseUp = useMemoizedFn((e: any) => {
-    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener("mouseup", handleMouseUp);
     if (canSelect.current) {
       const end = e.target.getBoundingClientRect();
       setEnd(end);
@@ -22,30 +22,30 @@ const useMouseSelection = (options: IUseMouseSelection) => {
         onSelectEnd(start, end);
       }
     }
-  })
+  });
 
   const handleMouseDown = useMemoizedFn((e: any) => {
     // 是否在 textLayer 上按下鼠标
-    if (e.target.closest('.page')) {
+    if (e.target.closest(".page")) {
       canSelect.current = true;
       setStart(e.target.getBoundingClientRect());
     }
 
-    document.addEventListener('mouseup', handleMouseUp)
-  })
+    document.addEventListener("mouseup", handleMouseUp);
+  });
 
   useEffect(() => {
-    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener("mousedown", handleMouseDown);
 
     return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-    }
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
   }, [handleMouseDown]);
 
   return {
     start,
-    end
-  }
-}
+    end,
+  };
+};
 
 export default useMouseSelection;

@@ -1,10 +1,13 @@
-import { BoardElement, Board } from '../types';
+import { BoardElement, Board } from "../types";
 import BoardUtil from "./BoardUtil.ts";
 
 export type Path = number[];
 
 export class PathUtil {
-  static getPathByElement(board: Board, element: BoardElement & any): Path | null {
+  static getPathByElement(
+    board: Board,
+    element: BoardElement & any,
+  ): Path | null {
     const path: Path = [];
     const dfs = (node: Board | BoardElement, index?: number) => {
       if (!BoardUtil.isBoard(node)) {
@@ -23,13 +26,13 @@ export class PathUtil {
           path.pop();
         }
       }
-    }
+    };
     return dfs(board) && path.length > 0 ? path : null;
   }
 
   static getElementByPath(board: Board, path: number[]): BoardElement {
     if (path.length === 0) {
-      throw new Error('path is empty');
+      throw new Error("path is empty");
     }
     const { children } = board;
     // 根据 path 从数组中找到对应的节点，如果不存在抛出异常
@@ -52,7 +55,10 @@ export class PathUtil {
     return this.getElement(element.children, path.slice(1));
   }
 
-  static getParentByPath(board: Board, path: Path): Board | BoardElement | null {
+  static getParentByPath(
+    board: Board,
+    path: Path,
+  ): Board | BoardElement | null {
     if (path.length === 0) return null;
     if (path.length === 1) return board;
     const parentPath = path.slice(0, -1);

@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import classnames from 'classnames';
+import classnames from "classnames";
 import For from "@/components/For";
 
 import ArticleCard from "../ArticleCard";
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { Pagination } from "antd";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
@@ -14,15 +14,13 @@ interface ArticleListProps {
 
 const ArticleList = (props: ArticleListProps) => {
   const { className, style } = props;
-  
-  const {
-    articles
-  } = useArticleManagementStore(state => ({
-    articles: state.articles
-  }))
-  
+
+  const { articles } = useArticleManagementStore((state) => ({
+    articles: state.articles,
+  }));
+
   const [pageNum, setPageNum] = useState(1);
-  
+
   const showArticles = articles.slice((pageNum - 1) * 10, pageNum * 10);
 
   return (
@@ -42,7 +40,7 @@ const ArticleList = (props: ArticleListProps) => {
       </div>
       <div className={styles.pagination}>
         <Pagination
-          align={'start'}
+          align={"start"}
           pageSize={10}
           current={pageNum}
           onChange={setPageNum}
@@ -52,7 +50,7 @@ const ArticleList = (props: ArticleListProps) => {
         />
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default ArticleList;

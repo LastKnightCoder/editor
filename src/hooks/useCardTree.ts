@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 const useCardTree = (defaultCount = 10) => {
   const [cardTreeCount, setCardTreeCount] = useState(defaultCount);
-  const { cards } = useCardsManagementStore(state => ({
+  const { cards } = useCardsManagementStore((state) => ({
     cards: state.cards,
   }));
 
@@ -27,8 +27,8 @@ const useCardTree = (defaultCount = 10) => {
     cardTree,
     cardTreeCount,
     slicedCardTree,
-    loadMoreCardTree
-  }
-}
+    loadMoreCardTree,
+  };
+};
 
 export default useCardTree;

@@ -1,4 +1,4 @@
-import {  createHashRouter } from "react-router-dom";
+import { createHashRouter } from "react-router-dom";
 
 import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
@@ -6,7 +6,7 @@ import QuickTimeRecord from "@/pages/QuickTimeRecord";
 import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
 import HomeView from "@/layouts/ShortSidebarLayout/components/HomeView";
 import CardView from "@/layouts/ShortSidebarLayout/components/CardView";
-import ArticleView from '@/layouts/ShortSidebarLayout/components/ArticleView';
+import ArticleView from "@/layouts/ShortSidebarLayout/components/ArticleView";
 import CardLinkGraph from "@/layouts/ShortSidebarLayout/components/CardLinkGraph";
 import WhiteBoardView from "@/layouts/ShortSidebarLayout/components/WhiteBoardView";
 import DocumentsView from "@/layouts/ShortSidebarLayout/components/DocumentsView";
@@ -18,57 +18,74 @@ import DailyNoteView from "@/layouts/ShortSidebarLayout/components/DailyNoteView
 import TimeRecordView from "@/layouts/ShortSidebarLayout/components/TimeRecordView";
 import VecDocumentView from "@/layouts/ShortSidebarLayout/components/VecDocumentView";
 
-const routes = [{
-  path: '/',
-  element: <ShortSidebarLayout />,
-  children: [{
-    path: '/',
-    element: <HomeView />
-  }, {
-    path: 'cards/list',
-    element: <CardView />
-  }, {
-    path: 'cards/link-graph',
-    element: <CardLinkGraph />,
-  }, {
-    path: 'articles/',
-    element: <ArticleView />
-  }, {
-    path: 'white-boards/',
-    element: <WhiteBoardView />
-  }, {
-    path: 'documents/',
-    element: <DocumentsView />
-  }, {
-    path: 'documents/:id',
-    element: <DocumentView />
-  }, {
-    path: 'projects/list',
-    element: <ProjectsView />
-  }, {
-    path: 'projects/:id',
-    element: <ProjectView />
-  }, {
-    path: 'pdfs/',
-    element: <PdfView />
-  }, {
-    path: 'dailies/',
-    element: <DailyNoteView />
-  }, {
-    path: 'time-records',
-    element: <TimeRecordView />
-  }, {
-    path: 'vec-documents/',
-    element: <VecDocumentView />
-  }]
-}, {
-  path: '/quick-card',
-  element: <QuickCard/>,
-}, {
-  path: '/quick-time-record',
-  element: <QuickTimeRecord/>,
-}]
-
+const routes = [
+  {
+    path: "/",
+    element: <ShortSidebarLayout />,
+    children: [
+      {
+        path: "/",
+        element: <HomeView />,
+      },
+      {
+        path: "cards/list",
+        element: <CardView />,
+      },
+      {
+        path: "cards/link-graph",
+        element: <CardLinkGraph />,
+      },
+      {
+        path: "articles/",
+        element: <ArticleView />,
+      },
+      {
+        path: "white-boards/",
+        element: <WhiteBoardView />,
+      },
+      {
+        path: "documents/",
+        element: <DocumentsView />,
+      },
+      {
+        path: "documents/:id",
+        element: <DocumentView />,
+      },
+      {
+        path: "projects/list",
+        element: <ProjectsView />,
+      },
+      {
+        path: "projects/:id",
+        element: <ProjectView />,
+      },
+      {
+        path: "pdfs/",
+        element: <PdfView />,
+      },
+      {
+        path: "dailies/",
+        element: <DailyNoteView />,
+      },
+      {
+        path: "time-records",
+        element: <TimeRecordView />,
+      },
+      {
+        path: "vec-documents/",
+        element: <VecDocumentView />,
+      },
+    ],
+  },
+  {
+    path: "/quick-card",
+    element: <QuickCard />,
+  },
+  {
+    path: "/quick-time-record",
+    element: <QuickTimeRecord />,
+  },
+];
 
 export const router = createHashRouter(routes);
 export default routes;

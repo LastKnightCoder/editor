@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
-import useCardConfig from './useCardConfig'
+import useCardConfig from "./useCardConfig";
 import useArticleConig from "./useArticleConfig";
 
 const useTableConfig = (key: string) => {
@@ -8,17 +8,16 @@ const useTableConfig = (key: string) => {
   const articleConfig = useArticleConig();
 
   const tableConfig = useMemo(() => {
-    if (key === 'card') {
+    if (key === "card") {
       return cardConfig;
-    } else if (key === 'article') {
+    } else if (key === "article") {
       return articleConfig;
     } else {
       return null;
     }
   }, [cardConfig, articleConfig, key]);
 
-
   return tableConfig;
-}
+};
 
 export default useTableConfig;

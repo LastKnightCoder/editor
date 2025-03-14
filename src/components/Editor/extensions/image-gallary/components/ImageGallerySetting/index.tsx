@@ -1,18 +1,27 @@
-import React, { useRef, useState, useContext } from 'react';
+import React, { useRef, useState, useContext } from "react";
 import { motion } from "framer-motion";
-import { produce } from 'immer';
-import { InputNumber, message, Popover, Select, Space, Spin, Switch, Tag } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { v4 as getUuid } from 'uuid';
+import { produce } from "immer";
+import {
+  InputNumber,
+  message,
+  Popover,
+  Select,
+  Space,
+  Spin,
+  Switch,
+  Tag,
+} from "antd";
+import { PlusOutlined } from "@ant-design/icons";
+import { v4 as getUuid } from "uuid";
 
 import { ImageGalleryItem } from "@editor/types";
-import { EGalleryMode } from '@editor/constants';
+import { EGalleryMode } from "@editor/constants";
 import If from "@/components/If";
-import { EditorContext } from '@/components/Editor';
-import UploadTab from '../../../image/components/UploadTab';
+import { EditorContext } from "@/components/Editor";
+import UploadTab from "../../../image/components/UploadTab";
 import ImageItem from "./ImageItem";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 export interface ISetting {
   mode: EGalleryMode;
@@ -27,7 +36,8 @@ interface IImageGallerySettingProps {
   onSettingChange: (setting: ISetting) => void;
 }
 
-const timeoutPromise = (ms: number): Promise<never> => new Promise((_resolve, reject) => setTimeout(reject, ms));
+const timeoutPromise = (ms: number): Promise<never> =>
+  new Promise((_resolve, reject) => setTimeout(reject, ms));
 
 const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   const { setting, onSettingChange } = props;
@@ -41,50 +51,69 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   const { uploadImage } = useContext(EditorContext) || {};
 
   const onHeightChange = (value: number) => {
-    onSettingChange(produce(setting, draft => {
-      draft.height = value;
-    }))
-  }
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.height = value;
+      }),
+    );
+  };
 
   const onModeChange = (value: EGalleryMode) => {
-    onSettingChange(produce(setting, draft => {
-      draft.mode = value;
-    }))
-  }
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.mode = value;
+      }),
+    );
+  };
 
   const onWiderChange = (value: boolean) => {
-    onSettingChange(produce(setting, draft => {
-      draft.wider = value;
-    }))
-  }
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.wider = value;
+      }),
+    );
+  };
 
   const onColumnCountChange = (value: number) => {
-    onSettingChange(produce(setting, draft => {
-      draft.columnCount = value;
-    }))
-  }
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.columnCount = value;
+      }),
+    );
+  };
 
   const onAddImage = (values: ImageGalleryItem[]) => {
-    onSettingChange(produce(setting, draft => {
-      draft.images = draft.images.concat(values);
-    }))
-  }
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.images = draft.images.concat(values);
+      }),
+    );
+  };
 
-  const onDropImage = (dragImageItem: ImageGalleryItem, dropImageItem: ImageGalleryItem) => {
-    onSettingChange(produce(setting, draft => {
-      const dragIndex = draft.images.findIndex(item => item.id === dragImageItem.id);
-      const dropIndex = draft.images.findIndex(item => item.id === dropImageItem.id);
-      if (dragIndex === -1 || dropIndex === -1) {
-        return;
-      }
-      draft.images.splice(dragIndex, 1);
-      draft.images.splice(dropIndex, 0, dragImageItem);
-    }));
-  }
+  const onDropImage = (
+    dragImageItem: ImageGalleryItem,
+    dropImageItem: ImageGalleryItem,
+  ) => {
+    onSettingChange(
+      produce(setting, (draft) => {
+        const dragIndex = draft.images.findIndex(
+          (item) => item.id === dragImageItem.id,
+        );
+        const dropIndex = draft.images.findIndex(
+          (item) => item.id === dropImageItem.id,
+        );
+        if (dragIndex === -1 || dropIndex === -1) {
+          return;
+        }
+        draft.images.splice(dragIndex, 1);
+        draft.images.splice(dropIndex, 0, dragImageItem);
+      }),
+    );
+  };
 
   const uploadFile = async (file: File) => {
     if (!uploadImage) {
-      message.warning('尚未配置任何图床，无法上传图片');
+      message.warning("尚未配置任何图床，无法上传图片");
       return null;
     }
     try {
@@ -92,9 +121,11 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     } catch (e) {
       return null;
     }
-  }
+  };
 
-  const handleUploadFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const files = event.target.files;
     if (!files) {
       return;
@@ -111,42 +142,49 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
     }
     const successUrls: string[] = [];
     for (const promise of promises) {
-      promise.then(url => {
-        if (url) {
-          successUrls.push(url);
-          setSuccessCount((successCount) => {
-            return successCount + 1;
-          });
-        } else {
+      promise
+        .then((url) => {
+          if (url) {
+            successUrls.push(url);
+            setSuccessCount((successCount) => {
+              return successCount + 1;
+            });
+          } else {
+            setErrorCount((errorCount) => {
+              return errorCount + 1;
+            });
+          }
+        })
+        .catch(() => {
           setErrorCount((errorCount) => {
             return errorCount + 1;
           });
-        }
-      }).catch(() => {
-        setErrorCount((errorCount) => {
-          return errorCount + 1;
-        });
-      }).finally(() => {
-        if (successCount + errorCount === totalCount) {
-          if (errorCount > 0) {
-            message.error('有部分图片上传失败');
+        })
+        .finally(() => {
+          if (successCount + errorCount === totalCount) {
+            if (errorCount > 0) {
+              message.error("有部分图片上传失败");
+            }
+            onAddImage(
+              successUrls.map((url) => ({
+                id: getUuid(),
+                url,
+              })),
+            );
+            setUploading(false);
           }
-          onAddImage(successUrls.map(url => ({
-            id: getUuid(),
-            url,
-          })))
-          setUploading(false);
-        }
-        event.target.value = '';
-      })
+          event.target.value = "";
+        });
     }
-  }
+  };
 
   const onDeleteImage = (item: ImageGalleryItem) => {
-    onSettingChange(produce(setting, draft => {
-      draft.images = draft.images.filter(i => i.id !== item.id);
-    }))
-  }
+    onSettingChange(
+      produce(setting, (draft) => {
+        draft.images = draft.images.filter((i) => i.id !== item.id);
+      }),
+    );
+  };
 
   return (
     <div className={styles.settingContainer}>
@@ -154,10 +192,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
         <div className={styles.title}>选择模式</div>
         <Space>
           <div>图片模式：</div>
-          <Select
-            value={setting.mode}
-            onChange={onModeChange}
-          >
+          <Select value={setting.mode} onChange={onModeChange}>
             <Select.Option value={EGalleryMode.Horizontal}>横向</Select.Option>
             <Select.Option value={EGalleryMode.Vertical}>纵向</Select.Option>
             <Select.Option value={EGalleryMode.Inline}>轮播</Select.Option>
@@ -174,7 +209,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
                 min={100}
                 max={400}
                 value={setting.height || 200}
-                onChange={value => {
+                onChange={(value) => {
                   if (value) {
                     onHeightChange(value);
                   }
@@ -191,8 +226,8 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
                 min={2}
                 max={5}
                 value={setting.columnCount || 3}
-                onChange={value => {
-                  if(value) {
+                onChange={(value) => {
+                  if (value) {
                     onColumnCountChange(value);
                   }
                 }}
@@ -208,15 +243,22 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
         </div>
       </div>
       <div>
-        <input ref={uploadRef} type={'file'} multiple accept={'image/*'} style={{ display: 'none' }} onChange={handleUploadFileChange} />
+        <input
+          ref={uploadRef}
+          type={"file"}
+          multiple
+          accept={"image/*"}
+          style={{ display: "none" }}
+          onChange={handleUploadFileChange}
+        />
         <div className={styles.title}>
           图片设置：
           {uploading && (
             <>
-              <Tag color={'cyan'}>上传中</Tag>
-              <Tag color={'success'}>成功：{successCount}</Tag>
-              <Tag color={'error'}>失败：{errorCount}</Tag>
-              <Tag color={'default'}>总数：{totalCount}</Tag>
+              <Tag color={"cyan"}>上传中</Tag>
+              <Tag color={"success"}>成功：{successCount}</Tag>
+              <Tag color={"error"}>失败：{errorCount}</Tag>
+              <Tag color={"default"}>总数：{totalCount}</Tag>
             </>
           )}
         </div>
@@ -224,48 +266,51 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
           <Popover
             open={showUploadTab}
             onOpenChange={setShowUploadTab}
-            trigger={'click'}
-            content={(
+            trigger={"click"}
+            content={
               <UploadTab
                 uploadImage={() => {
                   if (uploadRef.current) {
                     uploadRef.current.click();
                   }
                 }}
-                setLink={url => {
-                  onAddImage([{
-                    id: getUuid(),
-                    url,
-                  }]);
+                setLink={(url) => {
+                  onAddImage([
+                    {
+                      id: getUuid(),
+                      url,
+                    },
+                  ]);
                   setShowUploadTab(false);
                 }}
               />
-            )}
+            }
           >
-            <div className={styles.uploadImage} onClick={() => setShowUploadTab(true)}>
+            <div
+              className={styles.uploadImage}
+              onClick={() => setShowUploadTab(true)}
+            >
               <Spin spinning={uploading}>
                 <div className={styles.content}>
-                  <PlusOutlined/>
+                  <PlusOutlined />
                 </div>
               </Spin>
             </div>
           </Popover>
           <motion.div className={styles.imageList}>
-            {
-              setting.images.map(item => (
-                <ImageItem
-                  imageItem={item}
-                  onDelete={onDeleteImage}
-                  key={item.id}
-                  onDrop={onDropImage}
-                />
-              ))
-            }
+            {setting.images.map((item) => (
+              <ImageItem
+                imageItem={item}
+                onDelete={onDeleteImage}
+                key={item.id}
+                onDrop={onDropImage}
+              />
+            ))}
           </motion.div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default ImageGallerySetting;

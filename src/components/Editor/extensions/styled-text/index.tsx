@@ -29,7 +29,7 @@ class StyledTextExtension extends Base implements IExtension {
       >
         {children}
       </StyledText>
-    )
+    );
   }
 }
 

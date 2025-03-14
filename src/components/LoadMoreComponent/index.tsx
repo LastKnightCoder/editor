@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import useLoadMore from "@/hooks/useLoadMore";
 import If from "@/components/If";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface ILoadMoreComponentProps {
   onLoadMore: () => Promise<void>;
@@ -23,7 +23,7 @@ const LoadMoreComponent = (props: ILoadMoreComponentProps) => {
         <div ref={loaderRef} className={styles.loader} />
       </If>
     </>
-  )
-}
+  );
+};
 
 export default LoadMoreComponent;

@@ -5,7 +5,7 @@ import classnames from "classnames";
 import If from "@/components/If";
 import { ITabsContent } from "@/components/Editor/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { useReadOnly } from "slate-react";
 
 interface TabTitleProps {
@@ -37,7 +37,9 @@ const TabTitle = (props: TabTitleProps) => {
   return (
     <div
       key={tab.key}
-      className={classnames(styles.tabHeaderItem, { [styles.active]: tab.key === activeKey })}
+      className={classnames(styles.tabHeaderItem, {
+        [styles.active]: tab.key === activeKey,
+      })}
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -48,7 +50,7 @@ const TabTitle = (props: TabTitleProps) => {
         if (editable || !titleRef.current) return;
         e.stopPropagation();
         setEditable(true);
-        titleRef.current.setAttribute('contenteditable', 'plaintext-only');
+        titleRef.current.setAttribute("contenteditable", "plaintext-only");
         // titleRef.current.focus();
         moveCursorToEnd(titleRef.current);
       }}
@@ -58,7 +60,7 @@ const TabTitle = (props: TabTitleProps) => {
           ref={titleRef}
           data-slate-editor
           // @ts-ignore
-          contentEditable={readOnly || !editable ? false : 'plaintext-only'}
+          contentEditable={readOnly || !editable ? false : "plaintext-only"}
           suppressContentEditableWarning
           onBlur={(e) => {
             e.stopPropagation();
@@ -66,10 +68,10 @@ const TabTitle = (props: TabTitleProps) => {
             onTitleChange(tab.key, e.currentTarget.innerText);
           }}
           style={{
-            cursor: readOnly || !editable ? 'pointer' : 'text',
+            cursor: readOnly || !editable ? "pointer" : "text",
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === "Enter") {
               e.preventDefault();
               e.stopPropagation();
               setEditable(false);
@@ -88,15 +90,15 @@ const TabTitle = (props: TabTitleProps) => {
               onDeleteTab(tab.key);
             }}
           >
-            <MdOutlineClear/>
+            <MdOutlineClear />
           </div>
         </If>
       </div>
       <If condition={tab.key === activeKey}>
-        <div className={styles.bottomLine}/>
+        <div className={styles.bottomLine} />
       </If>
     </div>
-  )
-}
+  );
+};
 
 export default TabTitle;

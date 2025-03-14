@@ -1,5 +1,5 @@
 import { BoardElement } from "./board";
-import { Point } from './point';
+import { Point } from "./point";
 
 export interface SelectArea {
   anchor: Point;

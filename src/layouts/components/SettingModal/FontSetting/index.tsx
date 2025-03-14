@@ -3,16 +3,13 @@ import { useMemo, useState } from "react";
 import { useAsyncEffect } from "ahooks";
 import { produce } from "immer";
 
-import { getAllFonts } from '@/commands';
+import { getAllFonts } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
 import styles from "./index.module.less";
 
 const FontSetting = () => {
-  const {
-    setting,
-    onFontSettingChange,
-  } = useSettingStore(state => ({
+  const { setting, onFontSettingChange } = useSettingStore((state) => ({
     setOpen: state.setSettingModalOpen,
     setting: state.setting,
     onFontSettingChange: state.onFontSettingChange,
@@ -25,39 +22,43 @@ const FontSetting = () => {
   }, [setting]);
 
   const onChineseFontChange = (font: string) => {
-    onFontSettingChange(produce(fontSetting, draft => {
-      draft.chineseFont = font;
-    }));
-  }
+    onFontSettingChange(
+      produce(fontSetting, (draft) => {
+        draft.chineseFont = font;
+      }),
+    );
+  };
 
   const onEnglishFontChange = (font: string) => {
-    onFontSettingChange(produce(fontSetting, draft => {
-      draft.englishFont = font;
-    }));
-  }
+    onFontSettingChange(
+      produce(fontSetting, (draft) => {
+        draft.englishFont = font;
+      }),
+    );
+  };
 
   const onFontSizeChange = (size: number) => {
-    onFontSettingChange(produce(fontSetting, draft => {
-      draft.fontSize = size;
-    }));
-  }
+    onFontSettingChange(
+      produce(fontSetting, (draft) => {
+        draft.fontSize = size;
+      }),
+    );
+  };
 
   useAsyncEffect(async () => {
     const fonts = await getAllFonts();
-    const filterFonts =
-      fonts
-        .filter(font => !(
-          font.toLowerCase().includes('light') ||
-          font.toLowerCase().includes('bold') ||
-          font.toLowerCase().includes('semi')) ||
-          font.toLowerCase().includes('thin') ||
-          font.toLowerCase().includes('medium')
-        )
-        .map(font =>
-          font
-            .replace(/[R|r]egular/g, '')
-            .trim()
-        );
+    const filterFonts = fonts
+      .filter(
+        (font) =>
+          !(
+            font.toLowerCase().includes("light") ||
+            font.toLowerCase().includes("bold") ||
+            font.toLowerCase().includes("semi")
+          ) ||
+          font.toLowerCase().includes("thin") ||
+          font.toLowerCase().includes("medium"),
+      )
+      .map((font) => font.replace(/[R|r]egular/g, "").trim());
     setFonts(filterFonts);
   }, []);
 
@@ -73,7 +74,7 @@ const FontSetting = () => {
           onChange={(font) => {
             onChineseFontChange(font as string);
           }}
-          options={fonts.map(font => ({ label: font, value: font }))}
+          options={fonts.map((font) => ({ label: font, value: font }))}
         />
       </Space>
       <Space>
@@ -86,7 +87,7 @@ const FontSetting = () => {
           onChange={(font) => {
             onEnglishFontChange(font as string);
           }}
-          options={fonts.map(font => ({ label: font, value: font }))}
+          options={fonts.map((font) => ({ label: font, value: font }))}
         />
       </Space>
       <Space>
@@ -95,14 +96,14 @@ const FontSetting = () => {
           min={12}
           controls={false}
           value={fontSetting.fontSize}
-          type={'number'}
+          type={"number"}
           onChange={(size) => {
             onFontSizeChange(size as number);
           }}
         />
       </Space>
     </div>
-  )
-}
+  );
+};
 
 export default FontSetting;

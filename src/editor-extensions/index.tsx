@@ -1,4 +1,4 @@
-import CardLinkExtension from './card-link';
+import CardLinkExtension from "./card-link";
 import DocumentCardListExtension from "./document-card-list";
 import FileAttachmentExtension from "./file-attachment";
 import DailySummaryExtension from "./daily-summary";

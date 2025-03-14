@@ -13,31 +13,24 @@ import useProjectsStore from "@/stores/useProjectsStore.ts";
 
 interface IProjectCardExtensionProps {
   element: ProjectCardListElement;
-  attributes: RenderElementProps['attributes'];
+  attributes: RenderElementProps["attributes"];
   children: React.ReactNode;
 }
 
 const DocumentListSlate = (props: IProjectCardExtensionProps) => {
   const { attributes, children, element } = props;
 
-  const {
-    drag,
-    drop,
-    isDragging,
-    canDrag,
-    canDrop,
-    isBefore,
-    isOverCurrent,
-  } = useDragAndDrop({
-    // @ts-ignore
-    element,
-  })
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
+    useDragAndDrop({
+      // @ts-ignore
+      element,
+    });
 
   const onClickItem = (item: ProjectItem) => {
     useProjectsStore.setState({
       activeProjectItemId: item.id,
-    })
-  }
+    });
+  };
 
   const { projectItemId } = element;
 
@@ -52,15 +45,19 @@ const DocumentListSlate = (props: IProjectCardExtensionProps) => {
       })}
     >
       <ProjectList projectItemId={projectItemId} onClick={onClickItem} />
-      <div {...attributes}>
-        {children}
-      </div>
+      <div {...attributes}>{children}</div>
       <AddParagraph element={element as any} />
-      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
-        <MdDragIndicator className={styles.icon}/>
+      <div
+        contentEditable={false}
+        ref={drag}
+        className={classnames(styles.dragHandler, {
+          [styles.canDrag]: canDrag,
+        })}
+      >
+        <MdDragIndicator className={styles.icon} />
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default DocumentListSlate;

@@ -8,8 +8,8 @@ interface GradientLineProps {
   stopColor: string;
   strokeDasharray?: string;
   strokeWidth?: number;
-  lineCap?: 'butt' | 'round' | 'square';
-  lineJoin?: 'bevel' | 'miter' | 'round';
+  lineCap?: "butt" | "round" | "square";
+  lineJoin?: "bevel" | "miter" | "round";
 }
 
 const GradientLine = (props: GradientLineProps) => {
@@ -28,7 +28,14 @@ const GradientLine = (props: GradientLineProps) => {
   return (
     <g>
       <defs>
-        <linearGradient id={gradientId} x1={x1} y1={y1} x2={x2} y2={y2} gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id={gradientId}
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor={startColor} />
           <stop offset="100%" stopColor={stopColor} />
         </linearGradient>
@@ -43,7 +50,7 @@ const GradientLine = (props: GradientLineProps) => {
         strokeDasharray={strokeDasharray}
       />
     </g>
-  )
-}
+  );
+};
 
 export default GradientLine;

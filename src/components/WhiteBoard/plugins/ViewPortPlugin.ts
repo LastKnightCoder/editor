@@ -1,10 +1,15 @@
-import { IBoardPlugin, ViewPort, Board, ECreateBoardElementType } from '../types';
+import {
+  IBoardPlugin,
+  ViewPort,
+  Board,
+  ECreateBoardElementType,
+} from "../types";
 import { BOARD_TO_CONTAINER, MIN_ZOOM, MAX_ZOOM } from "../constants";
 import { ViewPortTransforms } from "../transforms";
-import isHotkey from 'is-hotkey';
+import isHotkey from "is-hotkey";
 
 export class ViewPortPlugin implements IBoardPlugin {
-  name = 'viewport-plugin';
+  name = "viewport-plugin";
 
   isMouseDown = false;
   boardOriginViewPort: ViewPort | null = null;
@@ -22,18 +27,27 @@ export class ViewPortPlugin implements IBoardPlugin {
   }
 
   onPointerMove(e: PointerEvent, board: Board) {
-    if (!this.isMouseDown || !this.boardOriginOffset || !this.boardOriginViewPort) return;
+    if (
+      !this.isMouseDown ||
+      !this.boardOriginOffset ||
+      !this.boardOriginViewPort
+    )
+      return;
 
     const now = Date.now();
     if (now - this.lastMoveTime < 30) return;
     this.lastMoveTime = now;
 
-    const { x, y } = { x: e.clientX, y: e.clientY }
+    const { x, y } = { x: e.clientX, y: e.clientY };
     const { x: originX, y: originY } = this.boardOriginOffset;
     const { zoom, minX, minY } = this.boardOriginViewPort;
     const deltaX = originX - x;
     const deltaY = originY - y;
-    ViewPortTransforms.moveViewPort(board, minX + deltaX / zoom, minY + deltaY / zoom);
+    ViewPortTransforms.moveViewPort(
+      board,
+      minX + deltaX / zoom,
+      minY + deltaY / zoom,
+    );
   }
 
   onGlobalPointerUp() {
@@ -63,11 +77,23 @@ export class ViewPortPlugin implements IBoardPlugin {
       const boardX = x - containerRect.left;
       const boardY = y - containerRect.top;
       // 判断滚轮方向以及是否在board中
-      if (e.deltaY < 0 && boardX > 0 && boardY > 0 && boardX < containerRect.width && boardY < containerRect.height) {
+      if (
+        e.deltaY < 0 &&
+        boardX > 0 &&
+        boardY > 0 &&
+        boardX < containerRect.width &&
+        boardY < containerRect.height
+      ) {
         // 放大
         const newZoom = Math.min(board.viewPort.zoom * 1.1, MAX_ZOOM);
         ViewPortTransforms.updateZoom(board, newZoom, [boardX, boardY]);
-      } else if (e.deltaY > 0 && boardX > 0 && boardY > 0 && boardX < containerRect.width && boardY < containerRect.height) {
+      } else if (
+        e.deltaY > 0 &&
+        boardX > 0 &&
+        boardY > 0 &&
+        boardX < containerRect.width &&
+        boardY < containerRect.height
+      ) {
         // 缩小
         const newZoom = Math.max(board.viewPort.zoom / 1.1, MIN_ZOOM);
         ViewPortTransforms.updateZoom(board, newZoom, [boardX, boardY]);
@@ -79,16 +105,16 @@ export class ViewPortPlugin implements IBoardPlugin {
 
       const newX = board.viewPort.minX + (isTouch ? 10 : 3) * e.deltaX;
       const newY = board.viewPort.minY + (isTouch ? 10 : 2) * e.deltaY;
-      
+
       ViewPortTransforms.moveViewPort(board, newX, newY);
     }
   }
 
   onKeyDown(e: KeyboardEvent, board: Board) {
-    if (isHotkey('mod+=', e)) {
+    if (isHotkey("mod+=", e)) {
       const newZoom = Math.min(board.viewPort.zoom * 1.1, 10);
       ViewPortTransforms.updateZoom(board, newZoom);
-    } else if (isHotkey('mod+-', e)) {
+    } else if (isHotkey("mod+-", e)) {
       const newZoom = Math.max(board.viewPort.zoom / 1.1, 0.1);
       ViewPortTransforms.updateZoom(board, newZoom);
     }

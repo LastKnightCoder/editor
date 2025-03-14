@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import PortalToBody from "@/components/PortalToBody";
-import { Rect } from '@/types';
+import { Rect } from "@/types";
 
 interface Point {
   x: number;
@@ -28,15 +28,15 @@ const AreaSelect = (props: AreaSelectProps) => {
     }
     const target = e.target as HTMLElement;
     if (!target) return;
-    const pageEle = target.closest('.page') as (HTMLElement | null);
+    const pageEle = target.closest(".page") as HTMLElement | null;
     if (!pageEle) return;
     const pageNumber = Number(pageEle.dataset.pageNumber);
     pageNumberRef.current = pageNumber;
     setStart({ x: e.pageX, y: e.pageY });
     onSelectStart(pageNumber);
     setIsAreaSelect(true);
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
   });
 
   const handleMouseMove = useMemoizedFn((e: MouseEvent) => {
@@ -47,47 +47,51 @@ const AreaSelect = (props: AreaSelectProps) => {
 
   const handleMouseUp = useMemoizedFn(() => {
     if (!start || !isAreaSelect || !end) return;
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
 
-
-    onSelectFinish({
-      left: Math.min(start.x, end.x),
-      top: Math.min(start.y, end.y),
-      width: Math.abs(start.x - end.x),
-      height: Math.abs(start.y - end.y),
-    }, pageNumberRef.current!);
+    onSelectFinish(
+      {
+        left: Math.min(start.x, end.x),
+        top: Math.min(start.y, end.y),
+        width: Math.abs(start.x - end.x),
+        height: Math.abs(start.y - end.y),
+      },
+      pageNumberRef.current!,
+    );
 
     setIsAreaSelect(false);
     setStart(null);
     setEnd(null);
     pageNumberRef.current = null;
-  })
+  });
 
   useEffect(() => {
-    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener("mousedown", handleMouseDown);
 
     return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-    }
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
   }, [handleMouseDown]);
 
   if (!isAreaSelect || !start || !end) return null;
 
   return (
     <PortalToBody>
-      <div style={{
-        position: 'fixed',
-        left: start.x,
-        top: start.y,
-        width: end.x - start.x,
-        height: end.y - start.y,
-        backgroundColor: 'rgba(255, 0, 0, 0.3)',
-        border: '2px solid rgba(255, 0, 0, 0.6)',
-        zIndex: 9999,
-      }} />
+      <div
+        style={{
+          position: "fixed",
+          left: start.x,
+          top: start.y,
+          width: end.x - start.x,
+          height: end.y - start.y,
+          backgroundColor: "rgba(255, 0, 0, 0.3)",
+          border: "2px solid rgba(255, 0, 0, 0.6)",
+          zIndex: 9999,
+        }}
+      />
     </PortalToBody>
-  )
-}
+  );
+};
 
 export default AreaSelect;

@@ -1,12 +1,15 @@
-import {useRef} from "react";
+import { useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
 
 import { ImageGalleryItem } from "@/components/Editor/types";
 
-const IMAGE_DRAG_TYPE = 'image-gallery-setting-image-item';
+const IMAGE_DRAG_TYPE = "image-gallery-setting-image-item";
 
 interface IUseDragAndDropParams {
-  onDrop: (dragImageItem: ImageGalleryItem, dropImageItem: ImageGalleryItem) => void;
+  onDrop: (
+    dragImageItem: ImageGalleryItem,
+    dropImageItem: ImageGalleryItem,
+  ) => void;
   imageItem: ImageGalleryItem;
 }
 
@@ -19,13 +22,17 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     item: imageItem,
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
-    })
+    }),
   });
 
-  const [{ isOver, canDrop }, drop] = useDrop<ImageGalleryItem, void, {
-    isOver: boolean;
-    canDrop: boolean;
-  }>({
+  const [{ isOver, canDrop }, drop] = useDrop<
+    ImageGalleryItem,
+    void,
+    {
+      isOver: boolean;
+      canDrop: boolean;
+    }
+  >({
     accept: IMAGE_DRAG_TYPE,
     canDrop: (item) => {
       return item.id !== imageItem.id;
@@ -39,7 +46,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         return;
       }
       onDrop(item, imageItem);
-    }
+    },
   });
 
   drag(drop(ref));
@@ -49,7 +56,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     isDragging,
     isOver,
     canDrop,
-  }
+  };
 };
 
 export default useDragAndDrop;

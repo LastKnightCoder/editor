@@ -7,14 +7,14 @@ export const insertBreak = (editor: Editor) => {
     const { selection } = editor;
     if (selection && Range.isCollapsed(selection)) {
       const [match] = Editor.nodes(editor, {
-        match: n => n.type === 'table-cell',
+        match: (n) => n.type === "table-cell",
       });
       if (match) {
         return;
       }
     }
     insertBreak();
-  }
+  };
 
   return editor;
-}
+};

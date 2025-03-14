@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { Tooltip } from "antd";
 import { Mark } from "@/components/Editor/types";
@@ -8,9 +8,8 @@ import { useMemoizedFn } from "ahooks";
 import { isMarkActive } from "../../hovering-bar-configs/utils.ts";
 import classnames from "classnames";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { Editor, Range, Transforms } from "slate";
-
 
 interface IMarkTextProps {
   mark: Mark;
@@ -37,23 +36,22 @@ const MarkText = (props: IMarkTextProps) => {
     event.stopPropagation();
     if (selection && !Range.isCollapsed(selection)) {
       ReactEditor.focus(editor);
-      Transforms.collapse(editor, { edge: 'end' });
+      Transforms.collapse(editor, { edge: "end" });
     }
   });
 
   return (
-    <Tooltip
-      title={tooltip}
-      trigger={'hover'}
-    >
+    <Tooltip title={tooltip} trigger={"hover"}>
       <div
-        className={classnames(styles.markTextContainer, { [styles.active]: isActive })}
+        className={classnames(styles.markTextContainer, {
+          [styles.active]: isActive,
+        })}
         onClick={handleClick}
       >
         {icon}
       </div>
     </Tooltip>
-  )
-}
+  );
+};
 
 export default MarkText;

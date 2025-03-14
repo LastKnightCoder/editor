@@ -7,7 +7,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import { Pdf } from "@/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface PdfCardProps {
   pdf: Pdf;
@@ -22,18 +22,15 @@ const PdfCard = (props: PdfCardProps) => {
   const { isDark } = useTheme();
   const [settingOpen, setSettingOpen] = useState(false);
 
-  const {
-    removePdf,
-    activePdf
-  } = usePdfsStore(state => ({
+  const { removePdf, activePdf } = usePdfsStore((state) => ({
     removePdf: state.removePdf,
     activePdf: state.activePdf,
   }));
 
   const onRemovePdf = () => {
     modal.confirm({
-      title: '删除PDF',
-      content: '确定删除该PDF吗？',
+      title: "删除PDF",
+      content: "确定删除该PDF吗？",
       onOk: async () => {
         await removePdf(pdf.id);
         if (activePdf?.id === pdf.id) {
@@ -42,55 +39,61 @@ const PdfCard = (props: PdfCardProps) => {
           });
         }
       },
-      cancelText: '取消',
-      okText: '确定',
+      cancelText: "取消",
+      okText: "确定",
       okButtonProps: {
         danger: true,
       },
-    })
-  }
+    });
+  };
 
   const onClick = () => {
     usePdfsStore.setState({
       activePdf: pdf.id === activePdf?.id ? null : pdf,
     });
-  }
+  };
 
   return (
-    <div className={classnames(styles.cardContainer, { [styles.dark]: isDark }, className)} style={style}>
+    <div
+      className={classnames(
+        styles.cardContainer,
+        { [styles.dark]: isDark },
+        className,
+      )}
+      style={style}
+    >
       <div className={styles.title} onClick={onClick}>
         {pdf.fileName}
       </div>
       <div className={styles.tag}>
-        <Tag color={pdf.isLocal ? 'blue' : 'red'}>{pdf.isLocal ? '本地' : '远程'}</Tag>
+        <Tag color={pdf.isLocal ? "blue" : "red"}>
+          {pdf.isLocal ? "本地" : "远程"}
+        </Tag>
       </div>
       <div className={classnames(styles.operate)}>
         <Popover
           open={settingOpen}
           onOpenChange={setSettingOpen}
-          placement={'bottomRight'}
-          trigger={'click'}
+          placement={"bottomRight"}
+          trigger={"click"}
           styles={{
             body: {
-              padding: 4
-            }
+              padding: 4,
+            },
           }}
-          content={(
+          content={
             <div className={styles.settings}>
-              <div
-                className={styles.settingItem}
-                onClick={onRemovePdf}
-              >
+              <div className={styles.settingItem} onClick={onRemovePdf}>
                 删除Pdf
               </div>
             </div>
-          )}
+          }
         >
-          <MdMoreVert/>
+          <MdMoreVert />
         </Popover>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default PdfCard;

@@ -3,21 +3,21 @@ import Base from "@/components/Editor/extensions/base.ts";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
 import ProjectListSlate from "./components/ProjectListSlate";
-import { overwrite } from './plugins';
+import { overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import { RenderElementProps } from "slate-react";
 
 export interface ProjectCardListElement {
-  type: 'project-card-list';
+  type: "project-card-list";
   projectItemId: number;
   children: Descendant[];
 }
 
 class ProjectCardListExtension extends Base implements IExtension {
-  type = 'project-card-list';
+  type = "project-card-list";
 
   override getPlugins() {
-    return [overwrite]
+    return [overwrite];
   }
 
   override getBlockPanelItems() {
@@ -28,10 +28,13 @@ class ProjectCardListExtension extends Base implements IExtension {
     const { element, attributes, children } = props;
 
     return (
-      <ProjectListSlate element={element as any as ProjectCardListElement} attributes={attributes}>
+      <ProjectListSlate
+        element={element as any as ProjectCardListElement}
+        attributes={attributes}
+      >
         {children}
       </ProjectListSlate>
-    )
+    );
   }
 }
 

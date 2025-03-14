@@ -1,1 +1,1 @@
-export * from './pasteVideo';
+export * from "./pasteVideo";

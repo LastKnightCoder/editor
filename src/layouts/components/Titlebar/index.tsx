@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useRef, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
@@ -13,10 +13,9 @@ import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 import TitlebarIcon from "@/components/TitlebarIcon";
 import { platform } from "@/electron.ts";
-import sidebarLeftIcon from '@/assets/icons/sidebar-left.svg';
+import sidebarLeftIcon from "@/assets/icons/sidebar-left.svg";
 
-import styles from './index.module.less';
-
+import styles from "./index.module.less";
 
 interface TitlebarProps {
   showColumns?: boolean;
@@ -27,10 +26,7 @@ interface TitlebarProps {
 
 const Titlebar = memo((props: TitlebarProps) => {
   const { showColumns, showSelectDatabase, showFocusMode, showSearch } = props;
-  const {
-    sidebarOpen,
-    focusMode,
-  } = useGlobalStateStore(state => ({
+  const { sidebarOpen, focusMode } = useGlobalStateStore((state) => ({
     sidebarOpen: state.sidebarOpen,
     focusMode: state.focusMode,
   }));
@@ -56,7 +52,7 @@ const Titlebar = memo((props: TitlebarProps) => {
       clearTimeout(timer.current);
     }
     setShowQuitFocus(false);
-  })
+  });
 
   const handleQuitFocus = useMemoizedFn(() => {
     useGlobalStateStore.setState({
@@ -67,37 +63,41 @@ const Titlebar = memo((props: TitlebarProps) => {
       clearTimeout(timer.current);
     }
   });
-  
+
   const handleOpenSidebar = useMemoizedFn(() => {
     useGlobalStateStore.setState({
       sidebarOpen: true,
     });
   });
 
-  const isMac = platform === 'darwin';
+  const isMac = platform === "darwin";
 
   return (
     <div
-      className={classnames(styles.titleBar, { [styles.sidebarHide]: isMac && !sidebarOpen })}
+      className={classnames(styles.titleBar, {
+        [styles.sidebarHide]: isMac && !sidebarOpen,
+      })}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {
-        !sidebarOpen && (
-          <TitlebarIcon onClick={handleOpenSidebar}>
-            <SVG src={sidebarLeftIcon} />
-          </TitlebarIcon>
-        )
-      }
+      {!sidebarOpen && (
+        <TitlebarIcon onClick={handleOpenSidebar}>
+          <SVG src={sidebarLeftIcon} />
+        </TitlebarIcon>
+      )}
       <If condition={focusMode}>
         <PortalToBody>
-          <div className={classnames(styles.quitFocus, {
-            [styles.show]: showQuitFocus
-          })}>
+          <div
+            className={classnames(styles.quitFocus, {
+              [styles.show]: showQuitFocus,
+            })}
+          >
             <div className={styles.quitIcon} onClick={handleQuitFocus}>
-              <CloseOutlined style={{
-                fontSize: 20,
-              }} />
+              <CloseOutlined
+                style={{
+                  fontSize: 20,
+                }}
+              />
             </div>
           </div>
         </PortalToBody>
@@ -114,7 +114,7 @@ const Titlebar = memo((props: TitlebarProps) => {
         showSearch={showSearch}
       />
     </div>
-  )
+  );
 });
 
 export default Titlebar;

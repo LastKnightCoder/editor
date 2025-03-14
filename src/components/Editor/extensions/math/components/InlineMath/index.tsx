@@ -7,10 +7,10 @@ import Katex from "@/components/Katex";
 import { InlineMathElement } from "@/components/Editor/types";
 import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface InlineMathProps {
-  attributes: RenderElementProps['attributes'];
+  attributes: RenderElementProps["attributes"];
   element: InlineMathElement;
 }
 
@@ -22,25 +22,36 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value);
-    Transforms.setNodes(editor, { tex: e.target.value }, { at: ReactEditor.findPath(editor, element) });
-  }
+    Transforms.setNodes(
+      editor,
+      { tex: e.target.value },
+      { at: ReactEditor.findPath(editor, element) },
+    );
+  };
 
   return (
     <span {...attributes} className={styles.inlineMath}>
       <Popover
-        trigger={'click'}
+        trigger={"click"}
         arrow={false}
         style={{ maxWidth: 500, marginTop: 10 }}
-        placement={'bottom'}
-        content={<Input size={'large'} style={{ width: 500 }} value={value} onChange={handleInputChange} />}
+        placement={"bottom"}
+        content={
+          <Input
+            size={"large"}
+            style={{ width: 500 }}
+            value={value}
+            onChange={handleInputChange}
+          />
+        }
       >
-        { tex ? <Katex tex={tex} inline/> : null }
+        {tex ? <Katex tex={tex} inline /> : null}
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />
       </Popover>
     </span>
-  )
-}
+  );
+};
 
 export default InlineMath;

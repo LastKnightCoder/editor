@@ -6,29 +6,35 @@ export const normalizeColumnLayout = (editor: Editor) => {
 
   editor.normalizeNode = (entry) => {
     const [ele, path] = entry;
-    if (!Element.isElement(ele) || ele.type !== 'multi-column-container') {
+    if (!Element.isElement(ele) || ele.type !== "multi-column-container") {
       normalizeNode(entry);
       return;
     }
 
     if (ele.children.length === 0) {
       Transforms.delete(editor, {
-        at: path
+        at: path,
       });
-      Transforms.insertNodes(editor, {
-        type: 'paragraph',
-        children: [{
-          type: 'formatted',
-          text: ''
-        }]
-      }, {
-        select: true
-      })
+      Transforms.insertNodes(
+        editor,
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+        {
+          select: true,
+        },
+      );
       return;
     }
 
     normalizeNode(entry);
-  }
+  };
 
   return editor;
-}
+};

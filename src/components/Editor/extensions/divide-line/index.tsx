@@ -2,17 +2,17 @@ import { RenderElementProps } from "slate-react";
 import { DivideLineElement } from "@/components/Editor/types";
 
 import DivideLine from "./components/DivideLine";
-import { markdownSyntax } from './plugins';
-import blockPanelItems from './block-panel-items';
+import { markdownSyntax } from "./plugins";
+import blockPanelItems from "./block-panel-items";
 
-import Base from '../base.ts';
-import IExtension from '../types.ts';
+import Base from "../base.ts";
+import IExtension from "../types.ts";
 
 class DivideLineExtension extends Base implements IExtension {
-  type = 'divide-line';
+  type = "divide-line";
 
   override getPlugins() {
-    return [markdownSyntax]
+    return [markdownSyntax];
   }
 
   override getBlockPanelItems() {
@@ -20,16 +20,19 @@ class DivideLineExtension extends Base implements IExtension {
   }
 
   override toMarkdown() {
-    return '---';
+    return "---";
   }
 
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
-      <DivideLine attributes={attributes} element={element as DivideLineElement}>
+      <DivideLine
+        attributes={attributes}
+        element={element as DivideLineElement}
+      >
         {children}
       </DivideLine>
-    )
+    );
   }
 }
 

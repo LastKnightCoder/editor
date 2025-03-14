@@ -20,7 +20,7 @@ const initialState: KeyPressedState = {
   isOptionKey: false,
   isCtrlKey: false,
   isReset: false,
-}
+};
 
 export const usePressedKeyStore = create<KeyPressedState & Actions>((set) => ({
   ...initialState,
@@ -40,5 +40,5 @@ export const usePressedKeyStore = create<KeyPressedState & Actions>((set) => ({
   },
   resetPressedKey: () => {
     set((state) => ({ ...state, ...initialState, isReset: true }));
-  }
+  },
 }));

@@ -7,7 +7,7 @@ export const transformToRelativeRect = (rect: Rect, pageRect: Rect) => {
     width: rect.width,
     height: rect.height,
   };
-}
+};
 
 export const transformToAbsoluteRect = (rect: Rect, pageRect: Rect) => {
   return {
@@ -16,17 +16,26 @@ export const transformToAbsoluteRect = (rect: Rect, pageRect: Rect) => {
     width: rect.width,
     height: rect.height,
   };
-}
+};
 
-export const transformToPercentRect = (rect: Rect, pageRect: Rect): RectPercent => {
+export const transformToPercentRect = (
+  rect: Rect,
+  pageRect: Rect,
+): RectPercent => {
   return {
-    left: `${rect.left / pageRect.width * 100}%`,
-    top: `${rect.top / pageRect.height * 100}%`,
-    width: `${rect.width / pageRect.width * 100}%`,
-    height: `${rect.height / pageRect.height * 100}%`,
+    left: `${(rect.left / pageRect.width) * 100}%`,
+    top: `${(rect.top / pageRect.height) * 100}%`,
+    width: `${(rect.width / pageRect.width) * 100}%`,
+    height: `${(rect.height / pageRect.height) * 100}%`,
   };
-}
+};
 
-export const transformToRelativePercentRect = (rect: Rect, pageRect: Rect): RectPercent => {
-  return transformToPercentRect(transformToRelativeRect(rect, pageRect), pageRect);
-}
+export const transformToRelativePercentRect = (
+  rect: Rect,
+  pageRect: Rect,
+): RectPercent => {
+  return transformToPercentRect(
+    transformToRelativeRect(rect, pageRect),
+    pageRect,
+  );
+};

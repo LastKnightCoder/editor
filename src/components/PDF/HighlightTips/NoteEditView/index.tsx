@@ -4,9 +4,9 @@ import { useMemoizedFn } from "ahooks";
 import Editor from "@/components/Editor";
 import { Descendant } from "slate";
 
-import { Note } from '@/types';
+import { Note } from "@/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface NoteEditViewProps {
   note: Note;
@@ -33,10 +33,14 @@ const NoteEditView = (props: NoteEditViewProps) => {
       />
       <div className={styles.buttons}>
         <Button onClick={onCancel}>取消</Button>
-        <Button onClick={() => onFinish({ id: note.id, note: content.current })}>保存</Button>
+        <Button
+          onClick={() => onFinish({ id: note.id, note: content.current })}
+        >
+          保存
+        </Button>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default NoteEditView;

@@ -4,14 +4,14 @@ import { Modal } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import EditText from "@/components/EditText";
-import Editor from '@editor/index.tsx';
+import Editor from "@editor/index.tsx";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface EditProjectInfoModalProps {
   open: boolean;
   title: string;
-  desc: Descendant[],
+  desc: Descendant[];
   onOk?: (title: string, desc: Descendant[]) => Promise<void>;
   onCancel?: () => void;
 }
@@ -26,12 +26,7 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
   });
 
   return (
-    <Modal
-      open={open}
-      onOk={handleOk}
-      onCancel={onCancel}
-      destroyOnClose
-    >
+    <Modal open={open} onOk={handleOk} onCancel={onCancel} destroyOnClose>
       <div className={styles.container}>
         <div className={styles.item}>
           <div>标题：</div>
@@ -46,7 +41,7 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
         <div className={styles.item}>
           <div>描述：</div>
           <Editor
-            style={{ flex: 'auto' }}
+            style={{ flex: "auto" }}
             initValue={descValue}
             onChange={setDescValue}
             readonly={false}
@@ -54,7 +49,7 @@ const EditProjectInfoModal = (props: EditProjectInfoModalProps) => {
         </div>
       </div>
     </Modal>
-  )
-}
+  );
+};
 
 export default EditProjectInfoModal;

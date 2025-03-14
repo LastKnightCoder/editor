@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useRef, useState } from "react";
 import classnames from "classnames";
 import { Tag } from "antd";
 
 import Editor from "@/components/Editor";
-import { MdOutlinePlayCircle, MdOutlinePauseCircle  } from "react-icons/md";
+import { MdOutlinePlayCircle, MdOutlinePauseCircle } from "react-icons/md";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { ITimeRecord } from "@/types";
 
@@ -46,39 +46,24 @@ const TimeRecordItem = (props: TimeRecordItemProps) => {
         recordTime.current += 1;
       }, 1000);
     }
-  }
+  };
 
   return (
-    <div
-      className={classnames(styles.item, { [styles.line]: showLine })}
-    >
+    <div className={classnames(styles.item, { [styles.line]: showLine })}>
       <div>
-        <Tag
-          color={color}
-          bordered={false}
-        >
+        <Tag color={color} bordered={false}>
           {timeRecord.cost} min
         </Tag>
-        {
-          timeRecord.timeType && (
-            <Tag
-              color={nextColor}
-              bordered={false}
-            >
-              {timeRecord.timeType}
-            </Tag>
-          )
-        }
-        {
-          timeRecord.eventType && (
-            <Tag
-              color={nextColor}
-              bordered={false}
-            >
-              {timeRecord.eventType}
-            </Tag>
-          )
-        }
+        {timeRecord.timeType && (
+          <Tag color={nextColor} bordered={false}>
+            {timeRecord.timeType}
+          </Tag>
+        )}
+        {timeRecord.eventType && (
+          <Tag color={nextColor} bordered={false}>
+            {timeRecord.eventType}
+          </Tag>
+        )}
       </div>
       <Editor
         key={JSON.stringify(timeRecord.content) + timeRecord.id}
@@ -87,25 +72,28 @@ const TimeRecordItem = (props: TimeRecordItemProps) => {
         readonly
       />
       <div className={styles.actions}>
+        <div className={styles.icon} onClick={onClickRecord}>
+          {isRecording ? <MdOutlinePauseCircle /> : <MdOutlinePlayCircle />}
+        </div>
         <div
           className={styles.icon}
-          onClick={onClickRecord}
+          onClick={() => {
+            onClickEdit?.(timeRecord);
+          }}
         >
-          { isRecording ? <MdOutlinePauseCircle/> : <MdOutlinePlayCircle/> }
+          <EditOutlined />
         </div>
-        <div className={styles.icon} onClick={() => {
-          onClickEdit?.(timeRecord);
-        }}>
-          <EditOutlined/>
-        </div>
-        <div className={styles.icon} onClick={() => {
-          onClickDelete?.(timeRecord.id);
-        }}>
-          <DeleteOutlined/>
+        <div
+          className={styles.icon}
+          onClick={() => {
+            onClickDelete?.(timeRecord.id);
+          }}
+        >
+          <DeleteOutlined />
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default TimeRecordItem;

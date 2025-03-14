@@ -1,15 +1,15 @@
-import { Element } from 'slate';
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { BlockquoteElement } from "@/components/Editor/types";
 
 import Blockquote from "./components/Blockquote";
-import { markdownSyntax, quit, withNormalizeBlockquote } from './plugins';
+import { markdownSyntax, quit, withNormalizeBlockquote } from "./plugins";
 
-import Base from '../base';
+import Base from "../base";
 import IExtension from "../types.ts";
 
 class BlockquoteExtension extends Base implements IExtension {
-  type = 'blockquote';
+  type = "blockquote";
 
   override getPlugins() {
     return [markdownSyntax, quit, withNormalizeBlockquote];
@@ -17,16 +17,22 @@ class BlockquoteExtension extends Base implements IExtension {
 
   override toMarkdown(_element: Element, children: string) {
     // 按照 \n 分割
-    return children.split('\n').map((child) => `> ${child}`).join('\n');
+    return children
+      .split("\n")
+      .map((child) => `> ${child}`)
+      .join("\n");
   }
 
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
-      <Blockquote attributes={attributes} element={element as BlockquoteElement}>
+      <Blockquote
+        attributes={attributes}
+        element={element as BlockquoteElement}
+      >
         {children}
       </Blockquote>
-    )
+    );
   }
 }
 

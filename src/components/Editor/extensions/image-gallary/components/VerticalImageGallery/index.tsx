@@ -1,16 +1,16 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect } from "react";
 import lightGallery from "lightgallery";
 
-import { ImageGalleryItem } from '@/components/Editor/types';
+import { ImageGalleryItem } from "@/components/Editor/types";
 import LocalImage from "@/components/LocalImage";
 
-import lgThumbnail from 'lightgallery/plugins/thumbnail';
-import lgZoom from 'lightgallery/plugins/zoom';
-import 'lightgallery/css/lightgallery.css';
-import 'lightgallery/css/lg-zoom.css';
-import 'lightgallery/css/lg-thumbnail.css';
+import lgThumbnail from "lightgallery/plugins/thumbnail";
+import lgZoom from "lightgallery/plugins/zoom";
+import "lightgallery/css/lightgallery.css";
+import "lightgallery/css/lg-zoom.css";
+import "lightgallery/css/lg-thumbnail.css";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface IVerticalImageGalleryProps {
   items: ImageGalleryItem[];
@@ -31,7 +31,7 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
 
     return () => {
       galleryInstance.destroy();
-    }
+    };
   }, [items]);
 
   return (
@@ -39,18 +39,16 @@ const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
       ref={ref}
       className={styles.gridContainer}
       style={{
-        columnCount
+        columnCount,
       }}
     >
-      {
-        items.map((item) => (
-          <div data-src={item.url} key={item.id} className={styles.gridItem}>
-            <LocalImage url={item.url} alt={item.desc || ''} />
-          </div>
-        ))
-      }
+      {items.map((item) => (
+        <div data-src={item.url} key={item.id} className={styles.gridItem}>
+          <LocalImage url={item.url} alt={item.desc || ""} />
+        </div>
+      ))}
     </div>
-  )
-}
+  );
+};
 
 export default VerticalImageGallery;

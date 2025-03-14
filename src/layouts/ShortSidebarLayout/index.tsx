@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Outlet, Route, Routes } from 'react-router-dom';
+import { Outlet, Route, Routes } from "react-router-dom";
 
-import Titlebar from '../components/Titlebar';
+import Titlebar from "../components/Titlebar";
 import SettingModal from "../components/SettingModal";
-import Sidebar from './components/Sidebar';
+import Sidebar from "./components/Sidebar";
 import CardTitlebar from "./components/Titlebar/CardTitlebar";
 import ArticleTitlebar from "./components/Titlebar/ArticleTitlebar";
 import WhiteBoardTitlebar from "./components/Titlebar/WhiteBoardTitlebar";
@@ -16,41 +16,37 @@ import AISearch from "./components/AISearch";
 import useChatMessageStore, { EStatus } from "@/stores/useChatMessageStore.ts";
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 const ShortSidebarLayout = () => {
   useInitDatabase();
-  const {
-    status
-  } = useChatMessageStore(state => ({
-    status: state.status
+  const { status } = useChatMessageStore((state) => ({
+    status: state.status,
   }));
-  
-  const {
-    sidebarOpen
-  } = useGlobalStateStore(state => ({
+
+  const { sidebarOpen } = useGlobalStateStore((state) => ({
     sidebarOpen: state.sidebarOpen,
-  }))
+  }));
 
   const [containerStyle, setContainerStyle] = useState({
-    '--right-sidebar-width': '0px',
-    '--sidebar-width': '200px'
+    "--right-sidebar-width": "0px",
+    "--sidebar-width": "200px",
   } as React.CSSProperties);
 
-  const onRightSidebarWidthChange = useMemoizedFn(width => {
+  const onRightSidebarWidthChange = useMemoizedFn((width) => {
     setContainerStyle({
       ...containerStyle,
-      '--right-sidebar-width': width + 'px'
-    } as React.CSSProperties)
+      "--right-sidebar-width": width + "px",
+    } as React.CSSProperties);
   });
-  
+
   const handleSidebarOpenChange = useMemoizedFn((sidebarOpen: boolean) => {
     setContainerStyle({
       ...containerStyle,
-      '--sidebar-width': (sidebarOpen ? 200 : 60) + 'px'
-    } as React.CSSProperties)
-  })
+      "--sidebar-width": (sidebarOpen ? 200 : 60) + "px",
+    } as React.CSSProperties);
+  });
 
   useEffect(() => {
     handleSidebarOpenChange(sidebarOpen);
@@ -58,13 +54,21 @@ const ShortSidebarLayout = () => {
 
   return (
     <div className={styles.container} style={containerStyle}>
-      <Sidebar
-        className={styles.sidebar} 
-      />
+      <Sidebar className={styles.sidebar} />
       <div className={styles.content}>
         <div className={styles.titlebar}>
           <Routes>
-            <Route path='/' element={<Titlebar showColumns={false} showSelectDatabase showFocusMode={false} showSearch />}>
+            <Route
+              path="/"
+              element={
+                <Titlebar
+                  showColumns={false}
+                  showSelectDatabase
+                  showFocusMode={false}
+                  showSearch
+                />
+              }
+            >
               <Route path={"cards/*"} element={<CardTitlebar />} />
               <Route path="articles/" element={<ArticleTitlebar />} />
               <Route path="white-boards/*" element={<WhiteBoardTitlebar />} />
@@ -78,17 +82,15 @@ const ShortSidebarLayout = () => {
           <div className={styles.mainContent}>
             <Outlet />
           </div>
-          {
-            status === EStatus.SUCCESS && (
-              <RightSidebar onWidthChange={onRightSidebarWidthChange} />
-            )
-          }
+          {status === EStatus.SUCCESS && (
+            <RightSidebar onWidthChange={onRightSidebarWidthChange} />
+          )}
         </div>
       </div>
       <SettingModal />
       <AISearch />
     </div>
-  )
-}
+  );
+};
 
 export default ShortSidebarLayout;

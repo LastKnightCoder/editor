@@ -1,23 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 import { AutoComplete, Button, InputNumber } from "antd";
 import { Descendant } from "slate";
 import Editor, { EditorRef } from "@/components/Editor";
 import { getAllEventTypes, createTimeRecord } from "@/commands";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import useUploadImage from "@/hooks/useUploadImage";
 import WindowControl from "@/components/WindowControl";
 import dayjs from "dayjs";
 
-const initValue: Descendant[] = [{
-  type: 'paragraph',
-  children: [{ type: 'formatted', text: '' }],
-}];
+const initValue: Descendant[] = [
+  {
+    type: "paragraph",
+    children: [{ type: "formatted", text: "" }],
+  },
+];
 
 const QuickTimeRecord = () => {
   const [content, setContent] = useState(initValue);
 
-  const [eventType, setEventType] = useState<string>('');
+  const [eventType, setEventType] = useState<string>("");
   const [allEventTypes, setAllEventTypes] = useState<string[]>([]);
   const [cost, setCost] = useState<number>(0);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -27,7 +29,7 @@ const QuickTimeRecord = () => {
   useEffect(() => {
     getAllEventTypes().then((res) => {
       setAllEventTypes(res);
-    })
+    });
   }, []);
 
   const eventTypeOptions = allEventTypes.map((eventType) => ({
@@ -40,27 +42,28 @@ const QuickTimeRecord = () => {
       content,
       eventType,
       cost,
-      timeType: '',
-      date: dayjs().format('YYYY-MM-DD'),
+      timeType: "",
+      date: dayjs().format("YYYY-MM-DD"),
     });
     setSaveLoading(false);
     editorRef.current?.setEditorValue(initValue);
     setContent(initValue);
     setCost(0);
-    setEventType('');
+    setEventType("");
     getAllEventTypes().then((res) => {
       setAllEventTypes(res);
-    })
-  }
+    });
+  };
 
   return (
     <div className={styles.quickTimeRecordContainer}>
-      <div
-        data-tauri-drag-region
-        className={styles.titleBar}
-      >
+      <div data-tauri-drag-region className={styles.titleBar}>
         <div className={styles.title}>快捷时间记录</div>
-        <WindowControl className={styles.windowControl} notShowFullscreen initAlwaysOnTop />
+        <WindowControl
+          className={styles.windowControl}
+          notShowFullscreen
+          initAlwaysOnTop
+        />
       </div>
       <div className={styles.form}>
         <div className={styles.content}>
@@ -72,7 +75,7 @@ const QuickTimeRecord = () => {
             readonly={false}
             uploadImage={uploadImage}
             style={{
-              flex: 'auto',
+              flex: "auto",
             }}
           />
         </div>
@@ -93,7 +96,7 @@ const QuickTimeRecord = () => {
           <InputNumber
             value={cost}
             onChange={(value) => {
-              if (typeof value === 'number') {
+              if (typeof value === "number") {
                 setCost(value);
               }
             }}
@@ -102,10 +105,12 @@ const QuickTimeRecord = () => {
         </div>
       </div>
       <div className={styles.buttons}>
-        <Button loading={saveLoading} onClick={onSave}>保存</Button>
+        <Button loading={saveLoading} onClick={onSave}>
+          保存
+        </Button>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default QuickTimeRecord;

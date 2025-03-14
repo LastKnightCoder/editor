@@ -3,19 +3,19 @@ import Base from "@/components/Editor/extensions/base.ts";
 import IExtension from "@/components/Editor/extensions/types.ts";
 import { TabsElement } from "@/components/Editor/types";
 
-import Tabs from './components/Tabs';
-import blockPanelItems from './block-panel-items';
-import { deleteEmptyTab, quit, withNormalize } from './plugins';
+import Tabs from "./components/Tabs";
+import blockPanelItems from "./block-panel-items";
+import { deleteEmptyTab, quit, withNormalize } from "./plugins";
 
 class TabsExtension extends Base implements IExtension {
-  type = 'tabs';
+  type = "tabs";
 
   override getBlockPanelItems() {
     return blockPanelItems;
   }
 
   override getPlugins() {
-    return [deleteEmptyTab, quit, withNormalize]
+    return [deleteEmptyTab, quit, withNormalize];
   }
 
   render(props: RenderElementProps) {
@@ -25,7 +25,7 @@ class TabsExtension extends Base implements IExtension {
       <Tabs element={element as TabsElement} attributes={attributes}>
         {children}
       </Tabs>
-    )
+    );
   }
 }
 

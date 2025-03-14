@@ -6,7 +6,7 @@ import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { unwrapUnderline, wrapUnderline } from "@/components/Editor/utils";
 import SVG from "react-inlinesvg";
 import classnames from "classnames";
-import underline from '@/assets/hovering_bar/underline.svg';
+import underline from "@/assets/hovering_bar/underline.svg";
 
 import styles from "./index.module.less";
 
@@ -19,7 +19,7 @@ const HoveringItem = () => {
       return false;
     }
     const [link] = Editor.nodes(editor, {
-      match: n => !Editor.isEditor(n) && n.type === 'underline',
+      match: (n) => !Editor.isEditor(n) && n.type === "underline",
     });
     return !!link;
   }, [editor, selection]);
@@ -34,25 +34,25 @@ const HoveringItem = () => {
     } finally {
       event.preventDefault();
       ReactEditor.focus(editor);
-      Transforms.collapse(editor, { edge: 'end' });
+      Transforms.collapse(editor, { edge: "end" });
     }
   });
 
   return (
-    <Tooltip
-      title={'下划线'}
-      trigger={'hover'}
-    >
+    <Tooltip title={"下划线"} trigger={"hover"}>
       <div
         className={classnames(styles.item, {
           [styles.active]: isActive,
         })}
         onClick={handleClick}
       >
-        <SVG src={underline} style={{ fill: 'currentcolor', width: 18, height: 18 }} />
+        <SVG
+          src={underline}
+          style={{ fill: "currentcolor", width: 18, height: 18 }}
+        />
       </div>
     </Tooltip>
-  )
-}
+  );
+};
 
 export default HoveringItem;

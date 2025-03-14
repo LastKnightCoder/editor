@@ -1,6 +1,10 @@
 import { useEffect } from "react";
 
-const useLoadMore = (loaderRef: any, loadMore: () => void, showLoader = true) => {
+const useLoadMore = (
+  loaderRef: any,
+  loadMore: () => void,
+  showLoader = true,
+) => {
   useEffect(() => {
     if (!showLoader) return;
     const observer = new IntersectionObserver((entries) => {
@@ -16,8 +20,8 @@ const useLoadMore = (loaderRef: any, loadMore: () => void, showLoader = true) =>
       if (loader) {
         observer.unobserve(loader);
       }
-    }
+    };
   }, [loadMore, loaderRef, showLoader]);
-}
+};
 
 export default useLoadMore;

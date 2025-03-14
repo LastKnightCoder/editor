@@ -18,11 +18,11 @@ const LocalAudio = (props: LocalAudioProps) => {
     setLoading(true);
     try {
       // 如果是 base64 或 blob url，直接使用
-      if (src.startsWith('data:') || src.startsWith('blob:')) {
+      if (src.startsWith("data:") || src.startsWith("blob:")) {
         return;
       }
 
-      if (src.startsWith('http')) {
+      if (src.startsWith("http")) {
         const localUrl = await remoteResourceToLocal(src);
         const filePath = convertFileSrc(localUrl);
         setPreviewUrl(filePath);
@@ -30,7 +30,7 @@ const LocalAudio = (props: LocalAudioProps) => {
         const filePath = convertFileSrc(src);
         setPreviewUrl(filePath);
       }
-    } catch(e) {
+    } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
@@ -39,13 +39,7 @@ const LocalAudio = (props: LocalAudioProps) => {
 
   if (loading) return null;
 
-  return (
-    <audio
-      src={previewUrl}
-      crossOrigin={"anonymous"}
-      {...rest}
-    />
-  )
-}
+  return <audio src={previewUrl} crossOrigin={"anonymous"} {...rest} />;
+};
 
 export default LocalAudio;

@@ -110,7 +110,7 @@ interface BlockMathElement {
 3. list-item 不能不要直接包裹行内元素，把行内元素放在 paragraph 中
 4. 如果可以的话，删去一些和文章主体无关的内容，一般出现在文章的头部和尾部，比如广告，推荐等
 5. 保证生成内容完整，是可以解析的 JSON 数据
-`
+`;
 
 export const CONVERT_PROMPT = `
 你将接收一段 HTML 代码，请你把它解析为 Markdown，**不要进行任何的总结**，提取出所有内容即可，你需要保证图片、代码、数学公式，引用，链接等重要内容不要丢失。
@@ -122,7 +122,7 @@ export const CONVERT_PROMPT = `
 
 export const SUMMARY_TITLE_PROMPT = `
 你将会收到一段对话内容，请你总结以下对话内容并给出标题，注意你给出的回答仅给出标题即可，你需要进行任何的回答，标题限制在 20 字以内。
-`
+`;
 
 export const CONTINUE_WRITE_PROMPT_TEMPLATE = `
 ## 角色设定
@@ -298,4 +298,4 @@ interface InsertDelete {
 { "type": "insert-code-end" }
 
 直接输出命令，不需要有任何的解释。
-`
+`;

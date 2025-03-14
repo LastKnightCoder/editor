@@ -20,43 +20,47 @@ const EditDocumentModal = (props: IEditDocumentModalProps) => {
   const { title, desc } = editDocument;
 
   const onTitleChange = useMemoizedFn((title: string) => {
-    setEditDocument(produce(draft => {
-      draft.title = title;
-    }))
+    setEditDocument(
+      produce((draft) => {
+        draft.title = title;
+      }),
+    );
   });
 
   const onDescriptionChange = useMemoizedFn((description: string) => {
-    setEditDocument(produce(draft => {
-      draft.desc = description;
-    }))
+    setEditDocument(
+      produce((draft) => {
+        draft.desc = description;
+      }),
+    );
   });
 
   return (
     <Modal
-      title={'编辑文档信息'}
+      title={"编辑文档信息"}
       open={open}
       onOk={() => onOk(editDocument)}
       onCancel={onCancel}
     >
       <div>
         <Form>
-          <Form.Item label={'标题'}>
+          <Form.Item label={"标题"}>
             <Input
               value={title}
-              onChange={e => onTitleChange(e.target.value)}
+              onChange={(e) => onTitleChange(e.target.value)}
             />
           </Form.Item>
-          <Form.Item label={'描述'}>
+          <Form.Item label={"描述"}>
             <Input.TextArea
               value={desc}
-              onChange={e => onDescriptionChange(e.target.value)}
+              onChange={(e) => onDescriptionChange(e.target.value)}
               autoSize={{ minRows: 5 }}
             />
           </Form.Item>
         </Form>
       </div>
     </Modal>
-  )
-}
+  );
+};
 
 export default EditDocumentModal;

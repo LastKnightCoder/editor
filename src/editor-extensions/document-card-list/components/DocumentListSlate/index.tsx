@@ -13,31 +13,24 @@ import React from "react";
 
 interface IDocumentCardExtensionProps {
   element: DocumentCardListElement;
-  attributes: RenderElementProps['attributes'];
+  attributes: RenderElementProps["attributes"];
   children: React.ReactNode;
 }
 
 const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
   const { attributes, children, element } = props;
 
-  const {
-    drag,
-    drop,
-    isDragging,
-    canDrag,
-    canDrop,
-    isBefore,
-    isOverCurrent,
-  } = useDragAndDrop({
-    // @ts-ignore
-    element,
-  })
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
+    useDragAndDrop({
+      // @ts-ignore
+      element,
+    });
 
   const onClickItem = (item: IDocumentItem) => {
     useDocumentsStore.setState({
       activeDocumentItem: item,
     });
-  }
+  };
 
   const { documentItemId } = element;
 
@@ -51,16 +44,20 @@ const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
         [styles.after]: !isBefore,
       })}
     >
-      <DocumentList documentItemId={documentItemId} onClick={onClickItem}/>
-      <div {...attributes}>
-        {children}
-      </div>
+      <DocumentList documentItemId={documentItemId} onClick={onClickItem} />
+      <div {...attributes}>{children}</div>
       <AddParagraph element={element as any} />
-      <div contentEditable={false} ref={drag} className={classnames(styles.dragHandler, { [styles.canDrag]: canDrag })}>
-        <MdDragIndicator className={styles.icon}/>
+      <div
+        contentEditable={false}
+        ref={drag}
+        className={classnames(styles.dragHandler, {
+          [styles.canDrag]: canDrag,
+        })}
+      >
+        <MdDragIndicator className={styles.icon} />
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default DocumentListSlate;

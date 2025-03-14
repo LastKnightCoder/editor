@@ -1,7 +1,7 @@
 import classnames from "classnames";
 import { ReactNode } from "react";
 
-import Tag from './Tag';
+import Tag from "./Tag";
 import styles from "./index.module.less";
 
 interface TagsProps {
@@ -44,33 +44,29 @@ const Tags = (props: TagsProps) => {
     {
       [styles.noWrap]: noWrap,
     },
-    className
+    className,
   );
 
   return (
     <div className={tagsClassName} style={style}>
-      {
-        tags
-          .filter(tag => !!tag)
-          .map((tag) => (
-              <Tag
-                tag={tag}
-                key={tag}
-                closable={closable}
-                onClose={() => onClose && onClose(tag)}
-                onClick={() => onClick && onClick(tag)}
-                showIcon={showIcon}
-                showSharp={showSharp}
-                hoverAble={hoverAble}
-                style={tagStyle}
-              />
-          ))
-      }
-      {
-        lastChild
-      }
+      {tags
+        .filter((tag) => !!tag)
+        .map((tag) => (
+          <Tag
+            tag={tag}
+            key={tag}
+            closable={closable}
+            onClose={() => onClose && onClose(tag)}
+            onClick={() => onClick && onClick(tag)}
+            showIcon={showIcon}
+            showSharp={showSharp}
+            hoverAble={hoverAble}
+            style={tagStyle}
+          />
+        ))}
+      {lastChild}
     </div>
-  )
-}
+  );
+};
 
 export default Tags;

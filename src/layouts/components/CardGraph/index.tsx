@@ -19,14 +19,11 @@ interface CardGraphProps {
 const CardGraph = memo((props: CardGraphProps) => {
   const { className, style, onClickCard } = props;
 
-  const { cards } = useCardsManagementStore(state => ({
+  const { cards } = useCardsManagementStore((state) => ({
     cards: state.cards,
   }));
 
-  const {
-    leftCardIds, 
-    rightCardIds,
-  } = useCardPanelStore(state => ({
+  const { leftCardIds, rightCardIds } = useCardPanelStore((state) => ({
     leftCardIds: state.leftCardIds,
     rightCardIds: state.rightCardIds,
   }));
@@ -49,7 +46,7 @@ const CardGraph = memo((props: CardGraphProps) => {
       onClickCard={onClickCard}
       currentCardIds={activeIds}
     />
-  )
-})
+  );
+});
 
 export default CardGraph;

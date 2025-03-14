@@ -2,7 +2,7 @@ import { Table, TableProps } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useSize } from "ahooks";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const AutoHeightTable = (props: TableProps) => {
   const target = useRef<HTMLDivElement>(null);
@@ -11,9 +11,16 @@ const AutoHeightTable = (props: TableProps) => {
 
   useEffect(() => {
     if (size?.height) {
-      const headerHeight = target.current?.firstElementChild?.getElementsByClassName('ant-table-header')[0]?.clientHeight || 39;
-      const paginationHeight = target.current?.firstElementChild?.getElementsByClassName('ant-table-pagination')[0]?.clientHeight || 0;
-      const newHeight = size.height - headerHeight - ((paginationHeight || - 24) + 24);
+      const headerHeight =
+        target.current?.firstElementChild?.getElementsByClassName(
+          "ant-table-header",
+        )[0]?.clientHeight || 39;
+      const paginationHeight =
+        target.current?.firstElementChild?.getElementsByClassName(
+          "ant-table-pagination",
+        )[0]?.clientHeight || 0;
+      const newHeight =
+        size.height - headerHeight - ((paginationHeight || -24) + 24);
       setTableHeight(Math.round(newHeight));
     }
   }, [size?.height]);
@@ -25,11 +32,11 @@ const AutoHeightTable = (props: TableProps) => {
         className={styles.table}
         scroll={{
           ...props.scroll,
-          y: tableHeight
+          y: tableHeight,
         }}
       />
     </div>
-  )
-}
+  );
+};
 
 export default AutoHeightTable;

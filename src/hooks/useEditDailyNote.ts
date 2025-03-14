@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
-import { App } from 'antd';
+import { App } from "antd";
 import { Descendant, Editor } from "slate";
 
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 
 import { getContentLength } from "@/utils";
 import { DailyNote } from "@/types/daily_note";
-
 
 const useEditDailyNote = (id?: number) => {
   const [loading, setLoading] = useState(false);
@@ -20,17 +19,13 @@ const useEditDailyNote = (id?: number) => {
 
   const { modal } = App.useApp();
 
-  const {
-    dailyNotes,
-    createDailyNote,
-    updateDailyNote,
-    deleteDailyNote,
-  } = useDailyNoteStore((state) => ({
-    dailyNotes: state.dailyNotes,
-    createDailyNote: state.onCreateDailyNote,
-    updateDailyNote: state.onUpdateDailyNote,
-    deleteDailyNote: state.deleteDailyNote,
-  }));
+  const { dailyNotes, createDailyNote, updateDailyNote, deleteDailyNote } =
+    useDailyNoteStore((state) => ({
+      dailyNotes: state.dailyNotes,
+      createDailyNote: state.onCreateDailyNote,
+      updateDailyNote: state.onUpdateDailyNote,
+      deleteDailyNote: state.deleteDailyNote,
+    }));
 
   useAsyncEffect(async () => {
     if (!id) {
@@ -51,7 +46,9 @@ const useEditDailyNote = (id?: number) => {
   }, [id]);
 
   useEffect(() => {
-    contentChanged.current = JSON.stringify(editingDailyNote?.content) !== JSON.stringify(prevDailyNote.current?.content);
+    contentChanged.current =
+      JSON.stringify(editingDailyNote?.content) !==
+      JSON.stringify(prevDailyNote.current?.content);
   }, [editingDailyNote]);
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
@@ -60,16 +57,18 @@ const useEditDailyNote = (id?: number) => {
     setWordsCount(wordsCount);
   });
 
-  const onContentChange = useMemoizedFn((content: Descendant[], editor: Editor) => {
-    if (!editingDailyNote) return;
-    const newEditingDailyNote = produce(editingDailyNote, (draft) => {
-      draft.content = content;
-    });
-    setEditingDailyNote(newEditingDailyNote);
-    if (!editor) return;
-    const wordsCount = getContentLength(content);
-    setWordsCount(wordsCount);
-  })
+  const onContentChange = useMemoizedFn(
+    (content: Descendant[], editor: Editor) => {
+      if (!editingDailyNote) return;
+      const newEditingDailyNote = produce(editingDailyNote, (draft) => {
+        draft.content = content;
+      });
+      setEditingDailyNote(newEditingDailyNote);
+      if (!editor) return;
+      const wordsCount = getContentLength(content);
+      setWordsCount(wordsCount);
+    },
+  );
 
   const createNewDailyNote = useMemoizedFn(async (date: string) => {
     const createdDailyNote = await createDailyNote(date);
@@ -96,8 +95,8 @@ const useEditDailyNote = (id?: number) => {
   const handleDeleteDailyNote = useMemoizedFn(async () => {
     if (!editingDailyNote) return;
     modal.confirm({
-      title: '删除日记',
-      content: '确定要删除这篇日记吗？',
+      title: "删除日记",
+      content: "确定要删除这篇日记吗？",
       onOk: async () => {
         await deleteDailyNote(editingDailyNote.id);
         useDailyNoteStore.setState({
@@ -107,12 +106,12 @@ const useEditDailyNote = (id?: number) => {
         prevDailyNote.current = null;
         contentChanged.current = false;
       },
-      okText: '确定',
-      cancelText: '取消',
+      okText: "确定",
+      cancelText: "取消",
       okButtonProps: {
         danger: true,
-      }
-    })
+      },
+    });
   });
 
   return {
@@ -125,7 +124,7 @@ const useEditDailyNote = (id?: number) => {
     onContentChange,
     quitEditDailyNote,
     handleDeleteDailyNote,
-  }
-}
+  };
+};
 
 export default useEditDailyNote;

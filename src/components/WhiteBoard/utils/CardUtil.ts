@@ -1,4 +1,4 @@
-import { 
+import {
   DEFAULT_CARD_BACKGROUND,
   DEFAULT_CARD_TOP_COLOR,
   DEFAULT_CARD_COLOR,
@@ -7,7 +7,7 @@ import {
   DEFAULT_CARD_STROKE_OPACITY,
 } from "../constants";
 
-const LOCAL_STORAGE_KEY = 'whiteboard-card'
+const LOCAL_STORAGE_KEY = "whiteboard-card";
 
 export class CardUtil {
   static setLocalStorage(key: string, value: string) {
@@ -21,12 +21,17 @@ export class CardUtil {
   }
 
   static getPrevCardStyle() {
-    const background = (this.getLocalStorage('background') || DEFAULT_CARD_BACKGROUND) as string;
-    const topColor = (this.getLocalStorage('topColor') || DEFAULT_CARD_TOP_COLOR) as string;
-    const color =(this.getLocalStorage('color') || DEFAULT_CARD_COLOR)
-    const stroke = (this.getLocalStorage('stroke') || DEFAULT_CARD_STROKE) as string;
-    const strokeWidth = (this.getLocalStorage('strokeWidth') || DEFAULT_CARD_STROKE_WIDTH) as number;
-    const strokeOpacity = (this.getLocalStorage('strokeOpacity') || DEFAULT_CARD_STROKE_OPACITY) as number;
+    const background = (this.getLocalStorage("background") ||
+      DEFAULT_CARD_BACKGROUND) as string;
+    const topColor = (this.getLocalStorage("topColor") ||
+      DEFAULT_CARD_TOP_COLOR) as string;
+    const color = this.getLocalStorage("color") || DEFAULT_CARD_COLOR;
+    const stroke = (this.getLocalStorage("stroke") ||
+      DEFAULT_CARD_STROKE) as string;
+    const strokeWidth = (this.getLocalStorage("strokeWidth") ||
+      DEFAULT_CARD_STROKE_WIDTH) as number;
+    const strokeOpacity = (this.getLocalStorage("strokeOpacity") ||
+      DEFAULT_CARD_STROKE_OPACITY) as number;
 
     return {
       background,
@@ -38,4 +43,3 @@ export class CardUtil {
     } as const;
   }
 }
-

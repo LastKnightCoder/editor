@@ -6,45 +6,58 @@ import { Input, message, Select, Space } from "antd";
 import If from "@/components/If";
 
 const AliOssSetting = () => {
-  const {
-    setting,
-  } = useSettingStore(state => ({
+  const { setting } = useSettingStore((state) => ({
     setting: state.setting.sync.aliOSS,
   }));
 
-
-  const { accessKeyId = '', accessKeySecret = '', bucket = '', region= '', path = '/' } = setting;
-  const [bucketsInfo, setBucketsInfo] = useState<Array<{
-    bucket: string;
-    region: string;
-  }>>([]);
+  const {
+    accessKeyId = "",
+    accessKeySecret = "",
+    bucket = "",
+    region = "",
+    path = "/",
+  } = setting;
+  const [bucketsInfo, setBucketsInfo] = useState<
+    Array<{
+      bucket: string;
+      region: string;
+    }>
+  >([]);
 
   const onSelectBucket = (bucket: string) => {
-    const bucketInfo = bucketsInfo.find(bucketInfo => bucketInfo.bucket === bucket);
+    const bucketInfo = bucketsInfo.find(
+      (bucketInfo) => bucketInfo.bucket === bucket,
+    );
     if (!bucketInfo) return;
     const { region } = bucketInfo;
-    useSettingStore.setState(produce((state) => {
-      state.setting.sync.aliOSS.bucket = bucket;
-      state.setting.sync.aliOSS.region = region;
-    }));
-  }
+    useSettingStore.setState(
+      produce((state) => {
+        state.setting.sync.aliOSS.bucket = bucket;
+        state.setting.sync.aliOSS.region = region;
+      }),
+    );
+  };
 
   useEffect(() => {
     if (!accessKeySecret || !accessKeyId) return;
-    getBucketList(accessKeyId, accessKeySecret).then((bucketsInfo) => {
-      setBucketsInfo(bucketsInfo);
-    }).catch(() => {
-      message.error('校验失败')
-      setBucketsInfo([]);
-      useSettingStore.setState(produce((draft) => {
-        draft.setting.sync.aliOSS.bucket = '';
-        draft.setting.sync.aliOSS.region = '';
-      }));
-    });
+    getBucketList(accessKeyId, accessKeySecret)
+      .then((bucketsInfo) => {
+        setBucketsInfo(bucketsInfo);
+      })
+      .catch(() => {
+        message.error("校验失败");
+        setBucketsInfo([]);
+        useSettingStore.setState(
+          produce((draft) => {
+            draft.setting.sync.aliOSS.bucket = "";
+            draft.setting.sync.aliOSS.region = "";
+          }),
+        );
+      });
   }, [accessKeySecret, accessKeyId]);
 
   return (
-    <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
+    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
       <Space>
         <div>accessKeyId：</div>
         <Space>
@@ -52,9 +65,11 @@ const AliOssSetting = () => {
             width={500}
             value={accessKeyId}
             onChange={(e) => {
-              useSettingStore.setState(produce((state) => {
-                state.setting.sync.aliOSS.accessKeyId = e.target.value;
-              }));
+              useSettingStore.setState(
+                produce((state) => {
+                  state.setting.sync.aliOSS.accessKeyId = e.target.value;
+                }),
+              );
             }}
             allowClear
           />
@@ -67,9 +82,11 @@ const AliOssSetting = () => {
             width={600}
             value={accessKeySecret}
             onChange={(e) => {
-              useSettingStore.setState(produce((state) => {
-                state.setting.sync.aliOSS.accessKeySecret = e.target.value;
-              }));
+              useSettingStore.setState(
+                produce((state) => {
+                  state.setting.sync.aliOSS.accessKeySecret = e.target.value;
+                }),
+              );
             }}
             allowClear
           />
@@ -81,7 +98,10 @@ const AliOssSetting = () => {
           <Space>
             <Select
               style={{ width: 400 }}
-              options={bucketsInfo.map(bucketInfo => ({ label: bucketInfo.bucket, value: bucketInfo.bucket }))}
+              options={bucketsInfo.map((bucketInfo) => ({
+                label: bucketInfo.bucket,
+                value: bucketInfo.bucket,
+              }))}
               onChange={onSelectBucket}
               value={bucket}
             />
@@ -94,9 +114,11 @@ const AliOssSetting = () => {
               width={600}
               value={path}
               onChange={(e) => {
-                useSettingStore.setState(produce((state) => {
-                  state.setting.sync.aliOSS.path = e.target.value;
-                }));
+                useSettingStore.setState(
+                  produce((state) => {
+                    state.setting.sync.aliOSS.path = e.target.value;
+                  }),
+                );
               }}
               allowClear
             />
@@ -104,7 +126,7 @@ const AliOssSetting = () => {
         </Space>
       </If>
     </Space>
-  )
-}
+  );
+};
 
 export default AliOssSetting;

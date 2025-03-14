@@ -1,11 +1,11 @@
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import WhiteBoardContent from "./WhiteBoardContent";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const WhiteBoard = () => {
-  const { activeWhiteBoardId } = useWhiteBoardStore(state => ({
-    activeWhiteBoardId: state.activeWhiteBoardId
+  const { activeWhiteBoardId } = useWhiteBoardStore((state) => ({
+    activeWhiteBoardId: state.activeWhiteBoardId,
   }));
 
   if (!activeWhiteBoardId) {
@@ -14,9 +14,12 @@ const WhiteBoard = () => {
 
   return (
     <div className={styles.contentContainer}>
-      <WhiteBoardContent key={activeWhiteBoardId} whiteBoardId={activeWhiteBoardId} />
+      <WhiteBoardContent
+        key={activeWhiteBoardId}
+        whiteBoardId={activeWhiteBoardId}
+      />
     </div>
-  )
-}
+  );
+};
 
 export default WhiteBoard;

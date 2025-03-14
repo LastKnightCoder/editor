@@ -1,23 +1,23 @@
 import { Descendant } from "slate";
 
 export enum EHighlightType {
-  Text = 'text',
-  Area = 'area',
+  Text = "text",
+  Area = "area",
 }
 
 export enum EHighlightTextStyle {
-  Highlight = 'highlight',
-  Underline = 'underline',
-  Wave = 'wave',
+  Highlight = "highlight",
+  Underline = "underline",
+  Wave = "wave",
 }
 
 export enum EHighlightColor {
-  Red = 'red',
-  Blue = 'blue',
-  Green = 'green',
-  Yellow = 'yellow',
-  Purple = 'purple',
-  Pink = 'pink',
+  Red = "red",
+  Blue = "blue",
+  Green = "green",
+  Yellow = "yellow",
+  Purple = "purple",
+  Pink = "pink",
 }
 
 export interface Rect {
@@ -27,7 +27,7 @@ export interface Rect {
   height: number;
 }
 
-export interface RectWithPageNumber extends Rect{
+export interface RectWithPageNumber extends Rect {
   pageNumber: number;
 }
 

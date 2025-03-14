@@ -5,27 +5,32 @@ import OtherSetting from "./OtherSetting";
 import { produce } from "immer";
 
 const LLMProviderSetting = () => {
-  const { llmProviders } = useSettingStore(state => ({
-    llmProviders: state.setting.llmProviders
+  const { llmProviders } = useSettingStore((state) => ({
+    llmProviders: state.setting.llmProviders,
   }));
 
   const { currentProvider } = llmProviders;
 
-  const items: TabsProps['items'] = [{
-    key: ELLMProvider.OPENAI,
-    label: 'Open AI',
-    children: <OpenAISetting />,
-  }, {
-    key: ELLMProvider.OTHER,
-    label: '其他',
-    children: <OtherSetting />,
-  }];
+  const items: TabsProps["items"] = [
+    {
+      key: ELLMProvider.OPENAI,
+      label: "Open AI",
+      children: <OpenAISetting />,
+    },
+    {
+      key: ELLMProvider.OTHER,
+      label: "其他",
+      children: <OtherSetting />,
+    },
+  ];
 
   const onCurKeyChange = (key: ELLMProvider) => {
-    useSettingStore.setState(produce(draft => {
-      draft.setting.llmProviders.currentProvider = key;
-    }))
-  }
+    useSettingStore.setState(
+      produce((draft) => {
+        draft.setting.llmProviders.currentProvider = key;
+      }),
+    );
+  };
 
   return (
     <Tabs
@@ -33,7 +38,7 @@ const LLMProviderSetting = () => {
       items={items}
       onChange={(key) => onCurKeyChange(key as ELLMProvider)}
     />
-  )
-}
+  );
+};
 
 export default LLMProviderSetting;

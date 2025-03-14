@@ -1,3 +1,3 @@
-export * from './optimizeClientRects';
-export * from './dom.ts';
-export * from './rect.ts';
+export * from "./optimizeClientRects";
+export * from "./dom.ts";
+export * from "./rect.ts";

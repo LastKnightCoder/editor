@@ -1,35 +1,46 @@
 import Editor from "@/components/Editor";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
-import { formatDate, getEditorText, embeddingContent, getMarkdown } from "@/utils";
+import {
+  formatDate,
+  getEditorText,
+  embeddingContent,
+  getMarkdown,
+} from "@/utils";
 import { getVecDocumentsByRefType, deleteVecDocumentsByRef } from "@/commands";
 import { IArticle, VecDocument } from "@/types";
 import { useState, useEffect, useMemo } from "react";
-import { Tag, App, Button, Popover, Flex, Typography, Popconfirm, TableProps, TableColumnType } from 'antd';
+import {
+  Tag,
+  App,
+  Button,
+  Popover,
+  Flex,
+  Typography,
+  Popconfirm,
+  TableProps,
+  TableColumnType,
+} from "antd";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
 
-const EMBEDDING_MODEL = 'text-embedding-3-large';
+const EMBEDDING_MODEL = "text-embedding-3-large";
 const PAGE_SIZE = 20;
 
-type OnChange = NonNullable<TableProps<IArticle>['onChange']>;
+type OnChange = NonNullable<TableProps<IArticle>["onChange"]>;
 type Filters = Parameters<OnChange>[1];
 
 const useArticleConfig = () => {
   const { message } = App.useApp();
 
-  const {
-    articles
-  } = useArticleManagementStore(state => ({
-    articles: state.articles
+  const { articles } = useArticleManagementStore((state) => ({
+    articles: state.articles,
   }));
 
-  const {
-    provider
-  } = useSettingStore(state => ({
-    provider: state.setting.llmProviders[ELLMProvider.OPENAI]
+  const { provider } = useSettingStore((state) => ({
+    provider: state.setting.llmProviders[ELLMProvider.OPENAI],
   }));
 
   const [selectedRows, setSelectedRows] = useState<IArticle[]>([]);
@@ -38,41 +49,48 @@ const useArticleConfig = () => {
   };
 
   const rowSelection: TableRowSelection<IArticle> = {
-    selectedRowKeys: selectedRows.map(row => row.id),
+    selectedRowKeys: selectedRows.map((row) => row.id),
     onChange: onSelectChange,
   };
 
   const { configs, currentConfigId } = provider;
-  const currentConfig = configs.find(item => item.id === currentConfigId);
+  const currentConfig = configs.find((item) => item.id === currentConfigId);
 
   const [vecDocuments, setVecDocuments] = useState<VecDocument[]>([]);
   const [current, setCurrent] = useState(1);
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const filteredArticles = useMemo(() => {
-      const embeddingStatusFilterArray = filteredInfo.embedding_status || [];
-      const filteredArticles = articles.filter(article => {
-        const matchedVecDocuments = vecDocuments.filter(vecDocument => vecDocument.refId === article.id);
-        let status;
-        if (matchedVecDocuments.length === 0) {
-          status = '未嵌入';
+    const embeddingStatusFilterArray = filteredInfo.embedding_status || [];
+    const filteredArticles = articles.filter((article) => {
+      const matchedVecDocuments = vecDocuments.filter(
+        (vecDocument) => vecDocument.refId === article.id,
+      );
+      let status;
+      if (matchedVecDocuments.length === 0) {
+        status = "未嵌入";
+      } else {
+        const embeddingTime = matchedVecDocuments[0].refUpdateTime;
+        const cardUpdateTime = article.update_time;
+        if (cardUpdateTime > embeddingTime) {
+          status = "待更新";
         } else {
-          const embeddingTime = matchedVecDocuments[0].refUpdateTime;
-          const cardUpdateTime = article.update_time;
-          if (cardUpdateTime > embeddingTime) {
-            status = '待更新';
-          } else {
-            status = '已嵌入';
-          }
+          status = "已嵌入";
         }
-        const isHitEmbeddingStatus = embeddingStatusFilterArray.length === 0 || embeddingStatusFilterArray.includes(status);
-        return isHitEmbeddingStatus;
-      });
-  
-      return filteredArticles;
-    }, [vecDocuments, articles, filteredInfo]);
-  const slicedArticles = filteredArticles.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+      }
+      const isHitEmbeddingStatus =
+        embeddingStatusFilterArray.length === 0 ||
+        embeddingStatusFilterArray.includes(status);
+      return isHitEmbeddingStatus;
+    });
+
+    return filteredArticles;
+  }, [vecDocuments, articles, filteredInfo]);
+  const slicedArticles = filteredArticles.slice(
+    (current - 1) * PAGE_SIZE,
+    current * PAGE_SIZE,
+  );
   const initVecDocuments = useMemoizedFn(async () => {
-    const vecDocuments = await getVecDocumentsByRefType('article');
+    const vecDocuments = await getVecDocumentsByRefType("article");
     setVecDocuments(vecDocuments);
   });
 
@@ -94,35 +112,33 @@ const useArticleConfig = () => {
   } = useBatchOperation<IArticle>({
     selectedRows,
     setSelectedRows,
-    type: 'article',
+    type: "article",
     vecDocuments: vecDocuments,
     initVecDocuments: initVecDocuments,
-  })
+  });
 
   const rightExtraNode = (
-    <Flex gap={12} justify='right'>
-      {
-        batchCreateOrUpdateTotal > 0 && (
-          <>
-            <Flex vertical gap={12}>
-              <Flex gap={12} justify='right'>
-                <Tag color='green'>成功：{batchCreateOrUpdateSuccess}</Tag>
-                <Tag color='red'>失败：{batchCreateOrUpdateError}</Tag>
-                <Tag color='purple'>总数：{batchCreateOrUpdateTotal}</Tag>
-              </Flex>
+    <Flex gap={12} justify="right">
+      {batchCreateOrUpdateTotal > 0 && (
+        <>
+          <Flex vertical gap={12}>
+            <Flex gap={12} justify="right">
+              <Tag color="green">成功：{batchCreateOrUpdateSuccess}</Tag>
+              <Tag color="red">失败：{batchCreateOrUpdateError}</Tag>
+              <Tag color="purple">总数：{batchCreateOrUpdateTotal}</Tag>
             </Flex>
-          </>
-        )
-      }
-      <Button 
-        disabled={createEmbeddings.length + updateEmbeddings.length === 0} 
-        onClick={handleBatchEmbedding} 
+          </Flex>
+        </>
+      )}
+      <Button
+        disabled={createEmbeddings.length + updateEmbeddings.length === 0}
+        onClick={handleBatchEmbedding}
         loading={batchCreateOrUpdateLoading}
       >
         批量嵌入
       </Button>
-      <Button 
-        danger 
+      <Button
+        danger
         disabled={deleteEmbeddings.length === 0}
         onClick={handleBatchDelete}
         loading={batchDeleteLoading}
@@ -130,288 +146,292 @@ const useArticleConfig = () => {
         批量删除
       </Button>
     </Flex>
-  )
+  );
 
-  const onCreateEmbedding = useMemoizedFn(async (markdown: string, record: IArticle) => {
-    if (!currentConfig) {
-      return;
-    }
-    const { apiKey, baseUrl } = currentConfig;
-    await embeddingContent(
-      apiKey,
-      baseUrl,
-      EMBEDDING_MODEL,
-      markdown, 
-      record.id,
-      "article",
-      record.update_time
-    );
-    await initVecDocuments();
-  });
+  const onCreateEmbedding = useMemoizedFn(
+    async (markdown: string, record: IArticle) => {
+      if (!currentConfig) {
+        return;
+      }
+      const { apiKey, baseUrl } = currentConfig;
+      await embeddingContent(
+        apiKey,
+        baseUrl,
+        EMBEDDING_MODEL,
+        markdown,
+        record.id,
+        "article",
+        record.update_time,
+      );
+      await initVecDocuments();
+    },
+  );
 
   const onRemoveEmbedding = useMemoizedFn(async (record: IArticle) => {
-    await deleteVecDocumentsByRef(record.id, 'article');
+    await deleteVecDocumentsByRef(record.id, "article");
     await initVecDocuments();
   });
 
-  const onUpdateEmbedding = useMemoizedFn(async (markdown: string, record: IArticle) => {
-    if (!currentConfig) {
-      return;
-    }
-    const { apiKey, baseUrl } = currentConfig;
-    await deleteVecDocumentsByRef(record.id, 'article');
-    await embeddingContent(
-      apiKey, 
-      baseUrl, 
-      EMBEDDING_MODEL, 
-      markdown, 
-      record.id,
-      "article",
-      record.update_time
-    ); 
-    await initVecDocuments();
-  });
-
-  const columns: TableColumnType<IArticle>[] = [{
-    key: 'id',
-    dataIndex: 'id',
-    title: 'ID',
-    width: 80,
-  }, {
-    key: 'create_time',
-    dataIndex: 'create_time',
-    title: '创建时间',
-    width: 160,
-    render: (createTime: number) => {
-      return (
-        <div>{formatDate(createTime, true)} </div>
-      )
-    }
-  }, {
-    key: 'update_time',
-    dataIndex: 'update_time',
-    title: '更新时间',
-    width: 160,
-    render: (updateTime: number) => {
-      return (
-        <div>{formatDate(updateTime, true)} </div>
-      )
-    }
-  }, {
-    key: 'title',
-    dataIndex: 'title',
-    title: '标题',
-    render: (title: string) => {
-      return (
-        <div>{title} </div>
-      )
-    }
-  }, {
-    key: 'content',
-    dataIndex: 'content',
-    title: '文章内容',
-    render: (content: Descendant[]) => {
-      return (
-        <Flex vertical gap={12} align={'flex-start'} >
-          <Typography.Paragraph
-            ellipsis={{ rows: 1 }}
-            style={{ maxWidth: 400 }
-            }
-          >
-            {getEditorText(content, 20)}
-          </Typography.Paragraph>
-          < Popover
-            trigger={'hover'}
-            placement={'bottom'}
-            content={(
-              <Editor
-                style={{
-                  maxWidth: 400,
-                  maxHeight: 300,
-                  overflow: 'auto'
-                }}
-                readonly
-                initValue={content}
-              />
-            )}
-          >
-            <Button
-              style={{ padding: 0 }}
-              type={'link'}
-            >
-              查看更多
-            </Button>
-          </Popover>
-        </Flex>
-      )
-    }
-  }, {
-    key: 'embedding_status',
-    title: '嵌入状态',
-    filters: [
-      {
-        text: '已嵌入',
-        value: '已嵌入',
-      },
-      {
-        text: '待更新',
-        value: '待更新',
-      },
-      {
-        text: '未嵌入',
-        value: '未嵌入',
-      },
-    ],
-    width: 120,
-    render: (_, record) => {
-      const vecEmbeddedDocuments = vecDocuments.filter(vecDocument => vecDocument.refId === record.id);
-      if (vecEmbeddedDocuments.length === 0) {
-        return (
-          <Tag color="red" > 未嵌入 </Tag>
-        )
-      } else {
-        const embeddingTime = vecEmbeddedDocuments[0].refUpdateTime;
-        const cardUpdateTime = record.update_time;
-        if (cardUpdateTime > embeddingTime) {
-          return (
-            <Tag color={'orange'} > 已嵌入（待更新）</Tag>
-          )
-        } else {
-          return (
-            <Tag color={'green'} > 已嵌入 </Tag>
-          )
-        }
+  const onUpdateEmbedding = useMemoizedFn(
+    async (markdown: string, record: IArticle) => {
+      if (!currentConfig) {
+        return;
       }
-    }
-  }, {
-    key: 'operations',
-    title: '操作',
-    fixed: 'right',
-    render: (_, record) => {
-      const vecEmbeddedDocuments = vecDocuments.filter(vecDocument => vecDocument.refId === record.id);
-      if (vecEmbeddedDocuments.length === 0) {
+      const { apiKey, baseUrl } = currentConfig;
+      await deleteVecDocumentsByRef(record.id, "article");
+      await embeddingContent(
+        apiKey,
+        baseUrl,
+        EMBEDDING_MODEL,
+        markdown,
+        record.id,
+        "article",
+        record.update_time,
+      );
+      await initVecDocuments();
+    },
+  );
+
+  const columns: TableColumnType<IArticle>[] = [
+    {
+      key: "id",
+      dataIndex: "id",
+      title: "ID",
+      width: 80,
+    },
+    {
+      key: "create_time",
+      dataIndex: "create_time",
+      title: "创建时间",
+      width: 160,
+      render: (createTime: number) => {
+        return <div>{formatDate(createTime, true)} </div>;
+      },
+    },
+    {
+      key: "update_time",
+      dataIndex: "update_time",
+      title: "更新时间",
+      width: 160,
+      render: (updateTime: number) => {
+        return <div>{formatDate(updateTime, true)} </div>;
+      },
+    },
+    {
+      key: "title",
+      dataIndex: "title",
+      title: "标题",
+      render: (title: string) => {
+        return <div>{title} </div>;
+      },
+    },
+    {
+      key: "content",
+      dataIndex: "content",
+      title: "文章内容",
+      render: (content: Descendant[]) => {
         return (
-          <Button
-            type="link"
-            onClick={async () => {
-              if (!currentConfig) {
-                message.error('未配置 OpenAI');
-                return;
+          <Flex vertical gap={12} align={"flex-start"}>
+            <Typography.Paragraph
+              ellipsis={{ rows: 1 }}
+              style={{ maxWidth: 400 }}
+            >
+              {getEditorText(content, 20)}
+            </Typography.Paragraph>
+            <Popover
+              trigger={"hover"}
+              placement={"bottom"}
+              content={
+                <Editor
+                  style={{
+                    maxWidth: 400,
+                    maxHeight: 300,
+                    overflow: "auto",
+                  }}
+                  readonly
+                  initValue={content}
+                />
               }
-              const markdown = getMarkdown(record.content);
-              message.loading({
-                key: 'createEmbedding',
-                content: '正在创建嵌入，请稍后...',
-                duration: 0,
-              });
-              await onCreateEmbedding(markdown, record);
-              message.success({
-                key: 'createEmbedding',
-                content: '创建嵌入成功',
-                duration: 2,
-              });
-            }
-            }
-          >
-            创建嵌入
-          </Button>
-        )
-      } else {
-        const embeddingTime = vecEmbeddedDocuments[0].refUpdateTime;
-        const cardUpdateTime = record.update_time;
-        if (cardUpdateTime > embeddingTime) {
-          return (
-            <>
-              <Button
-                type="link"
-                onClick={async () => {
-                  if (!currentConfig) {
-                    message.error('未配置 OpenAI');
-                    return;
-                  }
-                  const markdown = getMarkdown(record.content);
-                  message.loading({
-                    key: 'updateEmbedding',
-                    content: '正在更新嵌入，请稍后...',
-                    duration: 0,
-                  });
-                  await onUpdateEmbedding(markdown, record);
-                  message.success({
-                    key: 'updateEmbedding',
-                    content: '更新嵌入成功',
-                    duration: 2,
-                  });
-                }
-                }
-              >
-                更新嵌入
+            >
+              <Button style={{ padding: 0 }} type={"link"}>
+                查看更多
               </Button>
-              < Popconfirm
+            </Popover>
+          </Flex>
+        );
+      },
+    },
+    {
+      key: "embedding_status",
+      title: "嵌入状态",
+      filters: [
+        {
+          text: "已嵌入",
+          value: "已嵌入",
+        },
+        {
+          text: "待更新",
+          value: "待更新",
+        },
+        {
+          text: "未嵌入",
+          value: "未嵌入",
+        },
+      ],
+      width: 120,
+      render: (_, record) => {
+        const vecEmbeddedDocuments = vecDocuments.filter(
+          (vecDocument) => vecDocument.refId === record.id,
+        );
+        if (vecEmbeddedDocuments.length === 0) {
+          return <Tag color="red"> 未嵌入 </Tag>;
+        } else {
+          const embeddingTime = vecEmbeddedDocuments[0].refUpdateTime;
+          const cardUpdateTime = record.update_time;
+          if (cardUpdateTime > embeddingTime) {
+            return <Tag color={"orange"}> 已嵌入（待更新）</Tag>;
+          } else {
+            return <Tag color={"green"}> 已嵌入 </Tag>;
+          }
+        }
+      },
+    },
+    {
+      key: "operations",
+      title: "操作",
+      fixed: "right",
+      render: (_, record) => {
+        const vecEmbeddedDocuments = vecDocuments.filter(
+          (vecDocument) => vecDocument.refId === record.id,
+        );
+        if (vecEmbeddedDocuments.length === 0) {
+          return (
+            <Button
+              type="link"
+              onClick={async () => {
+                if (!currentConfig) {
+                  message.error("未配置 OpenAI");
+                  return;
+                }
+                const markdown = getMarkdown(record.content);
+                message.loading({
+                  key: "createEmbedding",
+                  content: "正在创建嵌入，请稍后...",
+                  duration: 0,
+                });
+                await onCreateEmbedding(markdown, record);
+                message.success({
+                  key: "createEmbedding",
+                  content: "创建嵌入成功",
+                  duration: 2,
+                });
+              }}
+            >
+              创建嵌入
+            </Button>
+          );
+        } else {
+          const embeddingTime = vecEmbeddedDocuments[0].refUpdateTime;
+          const cardUpdateTime = record.update_time;
+          if (cardUpdateTime > embeddingTime) {
+            return (
+              <>
+                <Button
+                  type="link"
+                  onClick={async () => {
+                    if (!currentConfig) {
+                      message.error("未配置 OpenAI");
+                      return;
+                    }
+                    const markdown = getMarkdown(record.content);
+                    message.loading({
+                      key: "updateEmbedding",
+                      content: "正在更新嵌入，请稍后...",
+                      duration: 0,
+                    });
+                    await onUpdateEmbedding(markdown, record);
+                    message.success({
+                      key: "updateEmbedding",
+                      content: "更新嵌入成功",
+                      duration: 2,
+                    });
+                  }}
+                >
+                  更新嵌入
+                </Button>
+                <Popconfirm
+                  title="确定要删除嵌入吗？"
+                  onConfirm={async () => {
+                    message.loading({
+                      key: "removeEmbedding",
+                      content: "正在删除嵌入，请稍后...",
+                      duration: 0,
+                    });
+                    await onRemoveEmbedding(record);
+                    message.success({
+                      key: "removeEmbedding",
+                      content: "删除嵌入成功",
+                      duration: 2,
+                    });
+                  }}
+                  okText="确定"
+                  cancelText="取消"
+                >
+                  <Button color="danger" variant="link">
+                    {" "}
+                    删除嵌入{" "}
+                  </Button>
+                </Popconfirm>
+              </>
+            );
+          } else {
+            return (
+              <Popconfirm
                 title="确定要删除嵌入吗？"
                 onConfirm={async () => {
                   message.loading({
-                    key: 'removeEmbedding',
-                    content: '正在删除嵌入，请稍后...',
+                    key: "removeEmbedding",
+                    content: "正在删除嵌入，请稍后...",
                     duration: 0,
                   });
                   await onRemoveEmbedding(record);
                   message.success({
-                    key: 'removeEmbedding',
-                    content: '删除嵌入成功',
+                    key: "removeEmbedding",
+                    content: "删除嵌入成功",
                     duration: 2,
                   });
-                }
-                }
+                }}
                 okText="确定"
                 cancelText="取消"
               >
-                <Button color="danger" variant="link" > 删除嵌入 </Button>
+                <Button color="danger" variant="link">
+                  {" "}
+                  删除嵌入{" "}
+                </Button>
               </Popconfirm>
-            </>
-          )
-        } else {
-          return (
-            <Popconfirm
-              title="确定要删除嵌入吗？"
-              onConfirm={async () => {
-                message.loading({
-                  key: 'removeEmbedding',
-                  content: '正在删除嵌入，请稍后...',
-                  duration: 0,
-                });
-                await onRemoveEmbedding(record);
-                message.success({
-                  key: 'removeEmbedding',
-                  content: '删除嵌入成功',
-                  duration: 2,
-                });
-              }
-              }
-              okText="确定"
-              cancelText="取消"
-            >
-              <Button color="danger" variant="link" > 删除嵌入 </Button>
-            </Popconfirm>
-          )
+            );
+          }
         }
-      }
-    }
-  }];
+      },
+    },
+  ];
 
   const pagination = {
     pageSize: PAGE_SIZE,
     current,
     total: articles.length,
-    showSizeChanger: false
-  }
+    showSizeChanger: false,
+  };
 
-  const onChange: TableProps['onChange'] = useMemoizedFn((pagination, filteredInfo) => {
-    if (pagination.current !== current) {
-      setCurrent(pagination.current || 1);
-      setSelectedRows([]);
-    }
-    setFilteredInfo(filteredInfo);
-  });
+  const onChange: TableProps["onChange"] = useMemoizedFn(
+    (pagination, filteredInfo) => {
+      if (pagination.current !== current) {
+        setCurrent(pagination.current || 1);
+        setSelectedRows([]);
+      }
+      setFilteredInfo(filteredInfo);
+    },
+  );
 
   return {
     dataSource: slicedArticles,
@@ -420,7 +440,7 @@ const useArticleConfig = () => {
     onChange,
     rowSelection,
     rightExtraNode,
-  }
-}
+  };
+};
 
 export default useArticleConfig;

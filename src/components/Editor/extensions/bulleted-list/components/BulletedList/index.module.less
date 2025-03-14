@@ -1,22 +1,22 @@
 .list {
   padding-inline-start: 40px;
   margin: 0;
-  li:last-child *:last-of-type([data-slate-node='element']) {
+  li:last-child *:last-of-type([data-slate-node="element"]) {
     margin: 0;
   }
-  &>li {
+  & > li {
     position: relative;
     list-style-type: none;
     &::before {
       position: absolute;
-      content: '';
-      width: .35em;
-      height: .35em;
+      content: "";
+      width: 0.35em;
+      height: 0.35em;
       border-radius: 50%;
       background: var(--bullet-list-item-bg);
       left: -1em;
-      top: .7em;
-      transition: transform .3s ease-in-out;
+      top: 0.7em;
+      transition: transform 0.3s ease-in-out;
       &:hover {
         transform-origin: center;
         transform: scale(1.2);

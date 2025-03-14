@@ -1,5 +1,5 @@
-export const DEFAULT_GEOMETRY_FILL = 'none';
+export const DEFAULT_GEOMETRY_FILL = "none";
 export const DEFAULT_GEOMETRY_FILL_OPACITY = 0;
-export const DEFAULT_GEOMETRY_STROKE = 'currentColor';
+export const DEFAULT_GEOMETRY_STROKE = "currentColor";
 export const DEFAULT_GEOMETRY_STROKE_WIDTH = 1;
 export const DEFAULT_GEOMETRY_STROKE_OPACITY = 1;

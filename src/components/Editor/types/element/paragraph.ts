@@ -1,6 +1,6 @@
 import { InlineElement } from "../custom-element.ts";
 
 export interface ParagraphElement {
-  type: 'paragraph';
+  type: "paragraph";
   children: InlineElement[];
 }

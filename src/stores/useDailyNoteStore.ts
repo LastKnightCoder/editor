@@ -1,6 +1,11 @@
 import { create } from "zustand";
 import { DailyNote } from "@/types/daily_note.ts";
-import { getAllDailyNotes, createDailyNote, updateDailyNote, deleteDailyNote } from '@/commands';
+import {
+  getAllDailyNotes,
+  createDailyNote,
+  updateDailyNote,
+  deleteDailyNote,
+} from "@/commands";
 import { produce } from "immer";
 
 interface IState {
@@ -21,15 +26,15 @@ const initialState: IState = {
   dailyNotes: [],
   initLoading: false,
   activeDailyId: undefined,
-  readonly: false
-}
+  readonly: false,
+};
 
 const useDailyNoteStore = create<IState & IActions>((set, get) => ({
   ...initialState,
   init: async () => {
     set({
       ...initialState,
-      initLoading: true
+      initLoading: true,
     });
     const dailyNotes = await getAllDailyNotes();
     set({ dailyNotes, initLoading: false });
@@ -38,10 +43,12 @@ const useDailyNoteStore = create<IState & IActions>((set, get) => ({
     const { dailyNotes } = get();
     const res = await createDailyNote({
       date,
-      content: [{
-        type: 'paragraph',
-        children: [{ type: 'formatted', text: '' }],
-      }]
+      content: [
+        {
+          type: "paragraph",
+          children: [{ type: "formatted", text: "" }],
+        },
+      ],
     });
     const newDailyNotes = produce(dailyNotes, (draft) => {
       draft.push(res);
@@ -79,7 +86,7 @@ const useDailyNoteStore = create<IState & IActions>((set, get) => ({
       dailyNotes: newDailyNotes,
     });
     return res;
-  }
-}))
+  },
+}));
 
 export default useDailyNoteStore;

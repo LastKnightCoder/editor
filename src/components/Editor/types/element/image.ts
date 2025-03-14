@@ -1,7 +1,7 @@
 import { Descendant } from "slate";
 
 export interface ImageElement {
-  type: 'image';
+  type: "image";
   url: string;
   alt?: string;
   pasteUploading?: boolean;

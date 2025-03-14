@@ -19,7 +19,11 @@
   border-radius: 12px;
   box-shadow: 0 4px 21px -12px rgba(0, 0, 0, 0.66);
   background-color: var(--card-bg);
-  background-image: linear-gradient(var(--gradient-angle), var(--bg-color2), transparent 50%);
+  background-image: linear-gradient(
+    var(--gradient-angle),
+    var(--bg-color2),
+    transparent 50%
+  );
   &.right {
     --gradient-angle: 80deg;
   }
@@ -71,8 +75,8 @@
         left: 10px;
       }
       &:hover {
-          cursor: pointer;
-          background-color: rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        background-color: rgba(255, 255, 255, 0.2);
       }
     }
     .title {
@@ -172,7 +176,6 @@
       }
     }
   }
-
 }
 
 .settings {

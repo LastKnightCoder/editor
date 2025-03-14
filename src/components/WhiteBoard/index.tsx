@@ -1,30 +1,42 @@
-import React, { memo, useMemo, useEffect, useRef, useSyncExternalStore } from "react";
+import React, {
+  memo,
+  useMemo,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import { useMemoizedFn, useCreation } from "ahooks";
-import classnames from 'classnames';
+import classnames from "classnames";
 
-import Board from './Board';
-import { 
-  ViewPortPlugin, 
-  MovePlugin, 
+import Board from "./Board";
+import {
+  ViewPortPlugin,
+  MovePlugin,
   HistoryPlugin,
   CopyPastePlugin,
-  CardPlugin, 
-  SelectPlugin, 
-  GeometryPlugin, 
-  RichTextPlugin, 
-  ArrowPlugin, 
+  CardPlugin,
+  SelectPlugin,
+  GeometryPlugin,
+  RichTextPlugin,
+  ArrowPlugin,
   ImagePlugin,
   VideoPlugin,
   MindPlugin,
-} from './plugins';
+} from "./plugins";
 import { ViewPortTransforms } from "./transforms";
-import { BoardContext, SelectionContext, ViewPortContext } from './context';
-import { BOARD_TO_CONTAINER, ARROW_SIZE, ZOOMS, MIN_ZOOM, MAX_ZOOM } from "./constants";
+import { BoardContext, SelectionContext, ViewPortContext } from "./context";
+import {
+  BOARD_TO_CONTAINER,
+  ARROW_SIZE,
+  ZOOMS,
+  MIN_ZOOM,
+  MAX_ZOOM,
+} from "./constants";
 import { BoardElement, Events, ViewPort, Selection } from "./types";
-import Toolbar from './components/Toolbar';
-import SelectArea from './components/SelectArea';
+import Toolbar from "./components/Toolbar";
+import SelectArea from "./components/SelectArea";
 import GradientLine from "./components/GradientLine";
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import AttributeSetter from "./components/AttributeSetter";
 import { MinusOutlined, PlusOutlined } from "@ant-design/icons";
 import { Flex, Popover } from "antd";
@@ -56,8 +68,8 @@ const plugins = [
   selectPlugin,
   movePlugin,
   viewPortPlugin,
-  copyPastePlugin
-]
+  copyPastePlugin,
+];
 
 interface WhiteBoardProps {
   className?: string;
@@ -65,54 +77,74 @@ interface WhiteBoardProps {
   initData: BoardElement[];
   initViewPort?: ViewPort;
   initSelection?: Selection;
-  onChange?: (data: { children: BoardElement[], viewPort: ViewPort, selection: Selection }) => void;
+  onChange?: (data: {
+    children: BoardElement[];
+    viewPort: ViewPort;
+    selection: Selection;
+  }) => void;
 }
 
 const WhiteBoard = memo((props: WhiteBoardProps) => {
-  const { 
+  const {
     className,
     style,
     initData,
-    initViewPort = { minX: 0, minY: 0, width: 0, height: 0, zoom: 1 }, 
-    initSelection = { selectArea: null, selectedElements: [] as BoardElement[] },
-    onChange
+    initViewPort = { minX: 0, minY: 0, width: 0, height: 0, zoom: 1 },
+    initSelection = {
+      selectArea: null,
+      selectedElements: [] as BoardElement[],
+    },
+    onChange,
   } = props;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const board = useCreation<Board>(() => new Board(initData, initViewPort, initSelection, plugins), []);
-  
-  const { children, viewPort, selection } = useSyncExternalStore(board.subscribe, board.getSnapshot);
+  const board = useCreation<Board>(
+    () => new Board(initData, initViewPort, initSelection, plugins),
+    [],
+  );
+
+  const { children, viewPort, selection } = useSyncExternalStore(
+    board.subscribe,
+    board.getSnapshot,
+  );
   const { minX, minY, width, height, zoom } = viewPort;
 
   const [centerConnectArrows, noneCenterConnectArrows] = useMemo(() => {
     const isCenterConnectAndNotSelected = (element: BoardElement) => {
-      const isCenterConnectArrow = element.type === 'arrow' && (element.source?.connectId === 'center' || element.target?.connectId === 'center');
-      const isSelected = selection.selectedElements.some((selectedElement) => selectedElement.id === element.id);
+      const isCenterConnectArrow =
+        element.type === "arrow" &&
+        (element.source?.connectId === "center" ||
+          element.target?.connectId === "center");
+      const isSelected = selection.selectedElements.some(
+        (selectedElement) => selectedElement.id === element.id,
+      );
       return isCenterConnectArrow && !isSelected;
-    }
+    };
 
     const centerConnectArrows = children.filter(isCenterConnectAndNotSelected);
-    const noneCenterConnectArrows = children.filter((element) => !isCenterConnectAndNotSelected(element));
+    const noneCenterConnectArrows = children.filter(
+      (element) => !isCenterConnectAndNotSelected(element),
+    );
 
     return [centerConnectArrows, noneCenterConnectArrows];
   }, [children, selection]);
 
   useEffect(() => {
     const handleChange = () => {
-      onChange?.(board.getSnapshot())
-    }
-    board.on('change', handleChange);
+      onChange?.(board.getSnapshot());
+    };
+    board.on("change", handleChange);
 
     return () => {
-      board.off('change', handleChange);
-    }
+      board.off("change", handleChange);
+    };
   }, [board, onChange]);
 
   const eventHandlerGenerator = useMemoizedFn((eventName: Events) => {
     return (event: any) => {
       board[eventName](event);
-    }
+    };
   });
 
   const handleContainerResize = useMemoizedFn(() => {
@@ -125,73 +157,77 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const handleZoomOut = useMemoizedFn(() => {
     ViewPortTransforms.updateZoom(board, Math.min(zoom * 1.1, MAX_ZOOM));
-  })
-  
-  const handleMouseDown = eventHandlerGenerator('onMouseDown');
-  const handleMouseMove = eventHandlerGenerator('onMouseMove');
-  const handleMouseUp = eventHandlerGenerator('onMouseUp');
-  const handleMouseEnter = eventHandlerGenerator('onMouseEnter');
-  const handleMouseLeave = eventHandlerGenerator('onMouseLeave');
-  const handleContextMenu = eventHandlerGenerator('onContextMenu');
-  const handleClick = eventHandlerGenerator('onClick');
-  const handleDblClick = eventHandlerGenerator('onDblClick');
-  const handleOnPointerDown = eventHandlerGenerator('onPointerDown');
-  const handleOnPointerMove = eventHandlerGenerator('onPointerMove');
-  const handleOnPointerUp = eventHandlerGenerator('onPointerUp');
+  });
+
+  const handleMouseDown = eventHandlerGenerator("onMouseDown");
+  const handleMouseMove = eventHandlerGenerator("onMouseMove");
+  const handleMouseUp = eventHandlerGenerator("onMouseUp");
+  const handleMouseEnter = eventHandlerGenerator("onMouseEnter");
+  const handleMouseLeave = eventHandlerGenerator("onMouseLeave");
+  const handleContextMenu = eventHandlerGenerator("onContextMenu");
+  const handleClick = eventHandlerGenerator("onClick");
+  const handleDblClick = eventHandlerGenerator("onDblClick");
+  const handleOnPointerDown = eventHandlerGenerator("onPointerDown");
+  const handleOnPointerMove = eventHandlerGenerator("onPointerMove");
+  const handleOnPointerUp = eventHandlerGenerator("onPointerUp");
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     BOARD_TO_CONTAINER.set(board, container);
-    
-    const handleKeyDown = eventHandlerGenerator('onKeyDown');
-    const handleKeyUp = eventHandlerGenerator('onKeyUp');
-    const handleGlobalMouseDown = eventHandlerGenerator('onGlobalMouseDown');
-    const handleGlobalMouseUp = eventHandlerGenerator('onGlobalMouseUp');
-    const handleOnWheel = eventHandlerGenerator('onWheel');
-    const handleOnGlobalPointerDown = eventHandlerGenerator('onGlobalPointerDown');
-    const handleOnGlobalPointerMove = eventHandlerGenerator('onGlobalPointerMove');
-    const handleOnGlobalPointerUp = eventHandlerGenerator('onGlobalPointerUp');
-    const handleOnPaste = eventHandlerGenerator('onPaste');
-    const handleOnCopy = eventHandlerGenerator('onCopy');
-    const handleOnCut = eventHandlerGenerator('onCut');
 
-    document.addEventListener('paste', handleOnPaste);
-    document.addEventListener('copy', handleOnCopy);
-    document.addEventListener('cut', handleOnCut);
+    const handleKeyDown = eventHandlerGenerator("onKeyDown");
+    const handleKeyUp = eventHandlerGenerator("onKeyUp");
+    const handleGlobalMouseDown = eventHandlerGenerator("onGlobalMouseDown");
+    const handleGlobalMouseUp = eventHandlerGenerator("onGlobalMouseUp");
+    const handleOnWheel = eventHandlerGenerator("onWheel");
+    const handleOnGlobalPointerDown = eventHandlerGenerator(
+      "onGlobalPointerDown",
+    );
+    const handleOnGlobalPointerMove = eventHandlerGenerator(
+      "onGlobalPointerMove",
+    );
+    const handleOnGlobalPointerUp = eventHandlerGenerator("onGlobalPointerUp");
+    const handleOnPaste = eventHandlerGenerator("onPaste");
+    const handleOnCopy = eventHandlerGenerator("onCopy");
+    const handleOnCut = eventHandlerGenerator("onCut");
 
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('keyup', handleKeyUp);
+    document.addEventListener("paste", handleOnPaste);
+    document.addEventListener("copy", handleOnCopy);
+    document.addEventListener("cut", handleOnCut);
 
-    document.addEventListener('mousedown', handleGlobalMouseDown);
-    document.addEventListener('mouseup', handleGlobalMouseUp);
-    document.addEventListener('wheel', handleOnWheel, {
-      passive: false
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+
+    document.addEventListener("mousedown", handleGlobalMouseDown);
+    document.addEventListener("mouseup", handleGlobalMouseUp);
+    document.addEventListener("wheel", handleOnWheel, {
+      passive: false,
     });
 
-    document.addEventListener('pointerdown', handleOnGlobalPointerDown);
-    document.addEventListener('pointermove', handleOnGlobalPointerMove);
-    document.addEventListener('pointerup', handleOnGlobalPointerUp);
+    document.addEventListener("pointerdown", handleOnGlobalPointerDown);
+    document.addEventListener("pointermove", handleOnGlobalPointerMove);
+    document.addEventListener("pointerup", handleOnGlobalPointerUp);
 
     const observer = new ResizeObserver(handleContainerResize);
     observer.observe(container);
 
     return () => {
-      document.removeEventListener('mousedown', handleGlobalMouseDown);
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('keyup', handleKeyUp);
-      document.removeEventListener('wheel', handleOnWheel);
-      document.removeEventListener('pointerdown', handleOnGlobalPointerDown);
-      document.removeEventListener('pointermove', handleOnGlobalPointerMove);
-      document.removeEventListener('pointerup', handleOnGlobalPointerUp);
-      document.removeEventListener('paste', handleOnPaste);
-      document.removeEventListener('copy', handleOnCopy);
-      document.removeEventListener('cut', handleOnCut);
+      document.removeEventListener("mousedown", handleGlobalMouseDown);
+      document.removeEventListener("mouseup", handleGlobalMouseUp);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+      document.removeEventListener("wheel", handleOnWheel);
+      document.removeEventListener("pointerdown", handleOnGlobalPointerDown);
+      document.removeEventListener("pointermove", handleOnGlobalPointerMove);
+      document.removeEventListener("pointerup", handleOnGlobalPointerUp);
+      document.removeEventListener("paste", handleOnPaste);
+      document.removeEventListener("copy", handleOnCopy);
+      document.removeEventListener("cut", handleOnCut);
       observer.disconnect();
       board.destroy();
-    }
+    };
   }, [board, eventHandlerGenerator, handleContainerResize]);
 
   const lines = board.refLine.matchRefLines(15 / zoom);
@@ -216,7 +252,12 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
             <Toolbar />
-            <svg ref={svgRef} width={'100%'} height={'100%'} viewBox={`${minX} ${minY} ${width} ${height}`}>
+            <svg
+              ref={svgRef}
+              width={"100%"}
+              height={"100%"}
+              viewBox={`${minX} ${minY} ${width} ${height}`}
+            >
               <defs>
                 <marker
                   id={`whiteboard-arrow`}
@@ -230,39 +271,33 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 >
                   <path
                     d={`M0,0 L2,${ARROW_SIZE / 2} L0,${ARROW_SIZE} L${ARROW_SIZE},${ARROW_SIZE / 2} Z`}
-                    fill={'context-stroke'}
+                    fill={"context-stroke"}
                     strokeLinejoin="round"
                     strokeWidth={1}
-                    stroke={'context-stroke'}
+                    stroke={"context-stroke"}
                   />
                 </marker>
               </defs>
-              <g>
-                {board.renderElements(centerConnectArrows)}
-              </g>
-              <g>
-                {board.renderElements(noneCenterConnectArrows)}
-              </g>
+              <g>{board.renderElements(centerConnectArrows)}</g>
+              <g>{board.renderElements(noneCenterConnectArrows)}</g>
               <g>
                 <SelectArea />
               </g>
               <g>
-                {
-                  lines.map((line) => (
-                    <GradientLine
-                      key={line.key}
-                      gradientId={line.key}
-                      x1={line.x1}
-                      y1={line.y1}
-                      x2={line.x2}
-                      y2={line.y2}
-                      startColor="#43CBFF"
-                      stopColor="#9708CC"
-                      strokeWidth={2 / zoom}
-                      strokeDasharray={`${5 / zoom}, ${5 / zoom}`}
-                    />
-                  ))
-                }
+                {lines.map((line) => (
+                  <GradientLine
+                    key={line.key}
+                    gradientId={line.key}
+                    x1={line.x1}
+                    y1={line.y1}
+                    x2={line.x2}
+                    y2={line.y2}
+                    startColor="#43CBFF"
+                    stopColor="#9708CC"
+                    strokeWidth={2 / zoom}
+                    strokeDasharray={`${5 / zoom}, ${5 / zoom}`}
+                  />
+                ))}
               </g>
             </svg>
             <div className={styles.verticalBar}>
@@ -271,20 +306,20 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
             <Flex
               className={styles.statusBar}
               gap={12}
-              align={'center'}
+              align={"center"}
               onDoubleClick={(e) => {
                 e.stopPropagation();
               }}
             >
               <MinusOutlined onClick={handleZoomIn} />
               <Popover
-                trigger={'click'}
+                trigger={"click"}
                 arrow={false}
-                content={(
+                content={
                   <Flex vertical gap={4}>
                     <For
                       data={ZOOMS}
-                      renderItem={zoomValue => (
+                      renderItem={(zoomValue) => (
                         <div
                           key={zoomValue}
                           className={styles.zoomItem}
@@ -297,15 +332,15 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                       )}
                     />
                   </Flex>
-                )}
+                }
                 styles={{
                   body: {
                     padding: 4,
-                    marginBottom: 12
-                  }
+                    marginBottom: 12,
+                  },
                 }}
               >
-                { Math.round(zoom * 100) }%
+                {Math.round(zoom * 100)}%
               </Popover>
               <PlusOutlined onClick={handleZoomOut} />
             </Flex>
@@ -313,9 +348,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
         </SelectionContext.Provider>
       </BoardContext.Provider>
     </div>
-  )
-})
+  );
+});
 
 export default WhiteBoard;
 
-export * from './types';
+export * from "./types";

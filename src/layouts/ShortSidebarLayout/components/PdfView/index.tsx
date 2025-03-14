@@ -1,17 +1,14 @@
 import classnames from "classnames";
 import For from "@/components/For";
-import EditPdf from '@/layouts/components/EditPdf'
+import EditPdf from "@/layouts/components/EditPdf";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import PdfCard from "./PdfCard";
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 import { useEffect, useRef, useState } from "react";
 import { Button, Flex, Input, message, Modal, Tabs, FloatButton } from "antd";
-import { PlusOutlined } from '@ant-design/icons';
-import {
-  selectFile,
-  getFileBaseName,
-} from '@/commands';
+import { PlusOutlined } from "@ant-design/icons";
+import { selectFile, getFileBaseName } from "@/commands";
 
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 400;
@@ -21,31 +18,33 @@ const PdfView = () => {
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [itemWidth, setItemWidth] = useState(MIN_WIDTH);
 
-  const { pdfs, activePdf, createPdf } = usePdfsStore(state => ({
+  const { pdfs, activePdf, createPdf } = usePdfsStore((state) => ({
     pdfs: state.pdfs,
     activePdf: state.activePdf,
-    createPdf: state.createPdf
+    createPdf: state.createPdf,
   }));
 
   const [addPdfOpen, setAddPdfOpen] = useState(false);
-  const [remoteUrl, setRemoteUrl] = useState('');
-  const [remoteFileName, setRemoteFileName] = useState('');
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [remoteFileName, setRemoteFileName] = useState("");
 
   const onClickAddPdf = async () => {
     setAddPdfOpen(true);
-  }
+  };
 
   const onCancelAddPdf = () => {
     setAddPdfOpen(false);
-  }
+  };
 
   const onSelectFile = async () => {
     const filePath = await selectFile({
-      properties: ['openFile'],
-      filters: [{
-        name: 'PDF',
-        extensions: ['pdf'],
-      }],
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "PDF",
+          extensions: ["pdf"],
+        },
+      ],
     });
     if (!filePath || filePath.length > 1) return;
     const fileName = await getFileBaseName(filePath[0]);
@@ -53,60 +52,66 @@ const PdfView = () => {
       fileName,
       filePath: filePath[0],
       isLocal: true,
-      remoteUrl: '',
+      remoteUrl: "",
       tags: [],
-      category: '',
+      category: "",
     });
     setAddPdfOpen(false);
-  }
+  };
 
   const onAddRemotePdf = async () => {
     if (!remoteUrl || !remoteFileName) {
-      message.error('请填写完整信息');
+      message.error("请填写完整信息");
       return;
     }
     await createPdf({
       fileName: remoteFileName,
-      filePath: '',
+      filePath: "",
       isLocal: false,
       remoteUrl,
       tags: [],
-      category: '',
+      category: "",
     });
-    setRemoteUrl('');
-    setRemoteFileName('');
+    setRemoteUrl("");
+    setRemoteFileName("");
     setAddPdfOpen(false);
-  }
+  };
 
-  const items = [{
-    key: 'local',
-    label: '本地',
-    children: (
-      <Button onClick={onSelectFile}>选择文件</Button>
-    ),
-  }, {
-    key: 'remote',
-    label: '远程',
-    children: (
-      <Flex gap={"middle"} vertical>
-        <Flex gap={"middle"} align={"center"}>
-          <p style={{ flex: 'none' }}>远程地址：</p>
-          <Input
-            value={remoteUrl}
-            onChange={(e) => setRemoteUrl(e.target.value)}
-          />
+  const items = [
+    {
+      key: "local",
+      label: "本地",
+      children: <Button onClick={onSelectFile}>选择文件</Button>,
+    },
+    {
+      key: "remote",
+      label: "远程",
+      children: (
+        <Flex gap={"middle"} vertical>
+          <Flex gap={"middle"} align={"center"}>
+            <p style={{ flex: "none" }}>远程地址：</p>
+            <Input
+              value={remoteUrl}
+              onChange={(e) => setRemoteUrl(e.target.value)}
+            />
+          </Flex>
+          <Flex gap={"middle"} align={"center"}>
+            <p style={{ flex: "none" }}>文件名：</p>
+            <Input
+              value={remoteFileName}
+              onChange={(e) => setRemoteFileName(e.target.value)}
+            />
+          </Flex>
+          <Button
+            onClick={onAddRemotePdf}
+            style={{ width: "fit-content", marginLeft: "auto" }}
+          >
+            添加
+          </Button>
         </Flex>
-        <Flex gap={"middle"} align={"center"}>
-          <p style={{ flex: 'none' }}>文件名：</p>
-          <Input
-            value={remoteFileName}
-            onChange={(e) => setRemoteFileName(e.target.value)}
-          />
-        </Flex>
-        <Button onClick={onAddRemotePdf} style={{ width: 'fit-content', marginLeft: 'auto' }}>添加</Button>
-      </Flex>
-    ),
-  }]
+      ),
+    },
+  ];
 
   const isShowEdit = activePdf !== null;
 
@@ -133,40 +138,42 @@ const PdfView = () => {
 
     return () => {
       observer.disconnect();
-    }
+    };
   }, [handleResize]);
 
   return (
-    <div className={classnames(styles.viewContainer, { [styles.showEdit]: isShowEdit })}>
-      <div ref={gridContainerRef} className={styles.gridContainer} style={{ gap: GAP }}>
+    <div
+      className={classnames(styles.viewContainer, {
+        [styles.showEdit]: isShowEdit,
+      })}
+    >
+      <div
+        ref={gridContainerRef}
+        className={styles.gridContainer}
+        style={{ gap: GAP }}
+      >
         <For
           data={pdfs}
-          renderItem={pdf => (
-            <PdfCard pdf={pdf} key={pdf.id} style={{ width: itemWidth, height: 200 }} />
+          renderItem={(pdf) => (
+            <PdfCard
+              pdf={pdf}
+              key={pdf.id}
+              style={{ width: itemWidth, height: 200 }}
+            />
           )}
         />
       </div>
-      <div className={styles.edit}>
-        {
-          isShowEdit && (
-            <EditPdf />
-          )
-        }
-      </div>
-      <Modal
-        open={addPdfOpen}
-        onCancel={onCancelAddPdf}
-        footer={null}
-      >
+      <div className={styles.edit}>{isShowEdit && <EditPdf />}</div>
+      <Modal open={addPdfOpen} onCancel={onCancelAddPdf} footer={null}>
         <Tabs items={items} />
       </Modal>
       <FloatButton
         icon={<PlusOutlined />}
-        tooltip={'新建Pdf'}
+        tooltip={"新建Pdf"}
         onClick={onClickAddPdf}
       />
     </div>
-  )
-}
+  );
+};
 
 export default PdfView;

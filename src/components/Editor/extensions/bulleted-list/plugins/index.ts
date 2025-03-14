@@ -1,2 +1,2 @@
-export * from './markdownSyntax.ts';
-export * from './normalize.ts';
+export * from "./markdownSyntax.ts";
+export * from "./normalize.ts";

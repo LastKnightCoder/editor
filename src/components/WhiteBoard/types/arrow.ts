@@ -2,13 +2,13 @@ import { BoardElement } from "./board";
 import { Point } from "./point";
 
 export enum EArrowLineType {
-  STRAIGHT = 'straight',
-  CURVE = 'curve',
+  STRAIGHT = "straight",
+  CURVE = "curve",
 }
 
 export enum EMarkerType {
-  None = 'none',
-  Arrow = 'arrow',
+  None = "none",
+  Arrow = "arrow",
 }
 
 export interface ArrowBound {
@@ -18,7 +18,7 @@ export interface ArrowBound {
 }
 
 export interface ArrowElement extends BoardElement {
-  type: 'arrow';
+  type: "arrow";
   lineType: EArrowLineType;
   source: ArrowBound;
   target: ArrowBound;

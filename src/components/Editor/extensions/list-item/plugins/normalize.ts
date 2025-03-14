@@ -5,7 +5,7 @@ export const withNormalize = (editor: Editor) => {
   const { normalizeNode } = editor;
 
   editor.normalizeNode = ([node, path]) => {
-    if (hitEmptyOrInlineChild(editor, [node, path], 'list-item')) {
+    if (hitEmptyOrInlineChild(editor, [node, path], "list-item")) {
       return;
     }
 
@@ -13,5 +13,4 @@ export const withNormalize = (editor: Editor) => {
   };
 
   return editor;
-}
-
+};

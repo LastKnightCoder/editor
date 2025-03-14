@@ -1,31 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import { Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useReadOnly, useSlate } from "slate-react";
+import {
+  ReactEditor,
+  RenderElementProps,
+  useReadOnly,
+  useSlate,
+} from "slate-react";
 import { Popover, Button, Input, App } from "antd";
-import SVG from 'react-inlinesvg';
-import classnames from 'classnames';
+import SVG from "react-inlinesvg";
+import classnames from "classnames";
 
-import unLinkIcon from '@/assets/icons/unlink.svg';
-import copyIcon from '@/assets/icons/copy.svg';
-import editIcon from '@/assets/icons/edit.svg';
-import { openExternal as openUrl } from '@/commands';
+import unLinkIcon from "@/assets/icons/unlink.svg";
+import copyIcon from "@/assets/icons/copy.svg";
+import editIcon from "@/assets/icons/edit.svg";
+import { openExternal as openUrl } from "@/commands";
 
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
 import { LinkElement } from "@editor/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface LinkProps {
-  attributes: RenderElementProps['attributes'];
-  element: LinkElement
+  attributes: RenderElementProps["attributes"];
+  element: LinkElement;
 }
 
 const EditLink: React.FC<{
-  editable: boolean,
-  url: string,
-  onSubmit: (url: string) => void,
-  onEditableChange: (editable: boolean) => void,
-  unwrapLink: () => void
+  editable: boolean;
+  url: string;
+  onSubmit: (url: string) => void;
+  onEditableChange: (editable: boolean) => void;
+  unwrapLink: () => void;
 }> = (props) => {
   const { url, onSubmit, editable, onEditableChange, unwrapLink } = props;
   const [inputValue, setInputValue] = useState(url);
@@ -34,28 +39,39 @@ const EditLink: React.FC<{
   const { message } = App.useApp();
 
   const onCopyUrl = () => {
-    navigator.clipboard.writeText(url).then(() => {
-      message.success('已复制到剪切板');
-    }).catch(() => {
-      message.error('复制失败');
-    })
-  }
+    navigator.clipboard
+      .writeText(url)
+      .then(() => {
+        message.success("已复制到剪切板");
+      })
+      .catch(() => {
+        message.error("复制失败");
+      });
+  };
 
   if (!editable) {
     return (
       <div className={styles.unEditable}>
         <div className={styles.text}>{url}</div>
         <SVG className={styles.icon} src={copyIcon} onClick={onCopyUrl} />
-        {
-          !readOnly && (
-            <>
-              <SVG className={styles.icon} src={editIcon} onClick={() => { onEditableChange(true) }} />
-              <SVG className={styles.icon} src={unLinkIcon} onClick={unwrapLink} />
-            </>
-          )
-        }
+        {!readOnly && (
+          <>
+            <SVG
+              className={styles.icon}
+              src={editIcon}
+              onClick={() => {
+                onEditableChange(true);
+              }}
+            />
+            <SVG
+              className={styles.icon}
+              src={unLinkIcon}
+              onClick={unwrapLink}
+            />
+          </>
+        )}
       </div>
-    )
+    );
   }
 
   return (
@@ -66,16 +82,31 @@ const EditLink: React.FC<{
           className={styles.input}
           value={inputValue}
           placeholder="请输入链接地址"
-          onChange={(e) => { setInputValue(e.target.value) }}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+          }}
         />
       </div>
       <div className={styles.btnGroups}>
-        <Button onClick={() => { onEditableChange(false) }}>取消编辑</Button>
-        <Button type="primary" onClick={() => { onSubmit(inputValue) }}>确定</Button>
+        <Button
+          onClick={() => {
+            onEditableChange(false);
+          }}
+        >
+          取消编辑
+        </Button>
+        <Button
+          type="primary"
+          onClick={() => {
+            onSubmit(inputValue);
+          }}
+        >
+          确定
+        </Button>
       </div>
     </div>
-  )
-}
+  );
+};
 
 const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const { attributes, children, element } = props;
@@ -88,23 +119,23 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const unwrapLink = () => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.unwrapNodes(editor, { at: path });
-  }
+  };
 
   const handleClick = () => {
     openUrl(url).then(() => {
       setOpen(false);
     });
-  }
+  };
 
   const changeUrl = (url: string) => {
     setEditable(false);
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(editor, { openEdit: false, url }, { at: path });
-  }
+  };
 
   return (
     <Popover
-      trigger={'hover'}
+      trigger={"hover"}
       open={open}
       mouseEnterDelay={0.3}
       mouseLeaveDelay={0.3}
@@ -114,10 +145,10 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
       }}
       styles={{
         body: {
-          padding: 0
-        }
+          padding: 0,
+        },
       }}
-      content={(
+      content={
         <EditLink
           url={url}
           onSubmit={changeUrl}
@@ -125,9 +156,9 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
           onEditableChange={setEditable}
           unwrapLink={unwrapLink}
         />
-      )}
+      }
       arrow={false}
-      placement={'bottom'}
+      placement={"bottom"}
     >
       <span
         {...attributes}
@@ -139,7 +170,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
         <InlineChromiumBugfix />
       </span>
     </Popover>
-  )
-}
+  );
+};
 
 export default Link;

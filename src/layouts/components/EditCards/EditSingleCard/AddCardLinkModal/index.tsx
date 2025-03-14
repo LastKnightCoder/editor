@@ -16,33 +16,35 @@ interface IAddCardLinkModalProps {
 const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
   const { open, editingCard, onOk, onClose } = props;
 
-  const {
-    cards
-  } = useCardsManagementStore(state => ({
-    cards: state.cards
+  const { cards } = useCardsManagementStore((state) => ({
+    cards: state.cards,
   }));
 
   const excludeCardIds = useMemo(() => {
     if (!editingCard) return [];
-    return [editingCard.id, ...editingCard.links].filter(id => !!id) as number[];
+    return [editingCard.id, ...editingCard.links].filter(
+      (id) => !!id,
+    ) as number[];
   }, [editingCard]);
 
   const [selectedCards, setSelectedCards] = useState<ICard[]>(() => {
     if (!editingCard) return [];
-    return editingCard.links.map(id => cards.find(card => card.id === id)).filter(card => !!card) as ICard[];
+    return editingCard.links
+      .map((id) => cards.find((card) => card.id === id))
+      .filter((card) => !!card) as ICard[];
   });
 
   const onCloseModal = () => {
     onClose();
-  }
+  };
 
   if (!open) {
     return null;
   }
-  
+
   return (
     <SelectCardModal
-      title={'添加相关卡片'}
+      title={"添加相关卡片"}
       selectedCards={selectedCards}
       onChange={setSelectedCards}
       open={open}
@@ -52,7 +54,7 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
       allCards={cards}
       excludeCardIds={excludeCardIds}
     />
-  )
-}
+  );
+};
 
 export default AddCardLinkModal;

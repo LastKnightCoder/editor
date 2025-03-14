@@ -1,4 +1,4 @@
-import { BlockElement } from '../custom-element.ts';
+import { BlockElement } from "../custom-element.ts";
 
 export interface ITabsContent {
   key: string;
@@ -7,7 +7,7 @@ export interface ITabsContent {
 }
 
 export interface TabsElement {
-  type: 'tabs';
+  type: "tabs";
   activeKey: string;
   tabsContent: ITabsContent[];
   children: BlockElement[];

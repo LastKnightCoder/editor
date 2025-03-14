@@ -1,17 +1,25 @@
-import { Editor, Element as SlateElement, Node as SlateNode, NodeEntry, Path, Range, Transforms } from "slate";
+import {
+  Editor,
+  Element as SlateElement,
+  Node as SlateNode,
+  NodeEntry,
+  Path,
+  Range,
+  Transforms,
+} from "slate";
 import { ParagraphElement } from "@/components/Editor/types";
 
 // 是否在段落的开头按下的空格
 export const isAtFirst = (editor: Editor, text: string) => {
   const { selection } = editor;
-  if (text.endsWith(' ') && selection && Range.isCollapsed(selection)) {
+  if (text.endsWith(" ") && selection && Range.isCollapsed(selection)) {
     const [match] = Editor.nodes(editor, {
-      match: n => SlateElement.isElement(n) && n.type === 'paragraph',
+      match: (n) => SlateElement.isElement(n) && n.type === "paragraph",
     });
     if (match) {
       const [parentElement] = match;
       const [nodeMatch] = Editor.nodes(editor, {
-        match: n => SlateNode.isNode(n) && n.type === 'formatted',
+        match: (n) => SlateNode.isNode(n) && n.type === "formatted",
       });
       if (!nodeMatch) {
         return;
@@ -20,29 +28,30 @@ export const isAtFirst = (editor: Editor, text: string) => {
       // node 是否是 paragraph 的第一个子节点
       const isFirst = (parentElement as ParagraphElement).children[0] === node;
       if (isFirst) {
-        return [node, path]
+        return [node, path];
       }
     }
   }
   return;
-}
+};
 
 export const hitDoubleQuit = (editor: Editor, parentType: string) => {
   const [parentMatch] = Editor.nodes(editor, {
-    match: n => n.type === parentType,
-    mode: 'lowest',
+    match: (n) => n.type === parentType,
+    mode: "lowest",
   });
 
   const [paraMatch] = Editor.nodes(editor, {
-    match: n => n.type === 'paragraph',
-    mode: 'lowest',
+    match: (n) => n.type === "paragraph",
+    mode: "lowest",
   });
 
   if (
     !parentMatch ||
     !paraMatch ||
     paraMatch[1].length !== parentMatch[1].length + 1 ||
-    paraMatch[1][paraMatch[1].length - 1] !== (parentMatch[0] as any).children.length - 1 ||
+    paraMatch[1][paraMatch[1].length - 1] !==
+      (parentMatch[0] as any).children.length - 1 ||
     !Editor.isEmpty(editor, paraMatch[0] as any)
   ) {
     return false;
@@ -60,21 +69,31 @@ export const hitDoubleQuit = (editor: Editor, parentType: string) => {
     at: paraMatch[1],
   });
   // 在 blockMath 下方添加一个新段落
-  Transforms.insertNodes(editor, {
-    type: 'paragraph',
-    children: [{
-      type: 'formatted',
-      text: '',
-    }],
-  }, {
-    at: Path.next(parentMatch[1]),
-    select: true,
-  });
+  Transforms.insertNodes(
+    editor,
+    {
+      type: "paragraph",
+      children: [
+        {
+          type: "formatted",
+          text: "",
+        },
+      ],
+    },
+    {
+      at: Path.next(parentMatch[1]),
+      select: true,
+    },
+  );
 
   return true;
-}
+};
 
-export const hitEmptyOrInlineChild = (editor: Editor, [node, path]: NodeEntry, parentType: string) => {
+export const hitEmptyOrInlineChild = (
+  editor: Editor,
+  [node, path]: NodeEntry,
+  parentType: string,
+) => {
   if (node.type !== parentType) {
     return false;
   }
@@ -93,23 +112,27 @@ export const hitEmptyOrInlineChild = (editor: Editor, [node, path]: NodeEntry, p
   }
 
   // @ts-ignore
-  if (node.children.length === 1 && node.children[0].type === 'formatted') {
+  if (node.children.length === 1 && node.children[0].type === "formatted") {
     // @ts-ignore
-    if (node.children[0].text === '') {
+    if (node.children[0].text === "") {
       Transforms.removeNodes(editor, {
         at: path,
       });
       return true;
     } else {
-      Transforms.wrapNodes(editor, {
-        type: 'paragraph',
-        children: [],
-      }, {
-        at: [...path, 0],
-      });
+      Transforms.wrapNodes(
+        editor,
+        {
+          type: "paragraph",
+          children: [],
+        },
+        {
+          at: [...path, 0],
+        },
+      );
     }
     return true;
   }
 
   return false;
-}
+};

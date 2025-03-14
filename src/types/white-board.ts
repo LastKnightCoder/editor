@@ -5,8 +5,8 @@ export interface WhiteBoard {
   tags: string[];
   data: {
     children: BoardElement[];
-    viewPort: ViewPort,
-    selection: Selection
+    viewPort: ViewPort;
+    selection: Selection;
   };
   createTime: number;
   updateTime: number;

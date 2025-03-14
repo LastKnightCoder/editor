@@ -6,7 +6,6 @@ import { CloseOutlined, TagOutlined } from "@ant-design/icons";
 
 import styles from "./index.module.less";
 
-
 interface ITagProps {
   tag: ReactNode;
   showSharp?: boolean;
@@ -40,26 +39,25 @@ const Tag = (props: ITagProps) => {
     styles.tagContainer,
     {
       [styles.dark]: isDark,
-      [styles.hoverAble]: hoverAble
+      [styles.hoverAble]: hoverAble,
     },
-    className
-  )
+    className,
+  );
 
   return (
     <div className={tagClassName} style={style} onClick={onClick}>
-      {
-        showIcon && (icon || <TagOutlined />)
-      }
-      <div className={styles.tag}>{ showSharp ? '#' : '' }{tag}</div>
-      {
-        closable && (
-          <div className={styles.close} onClick={onClose}>
-            <CloseOutlined />
-          </div>
-        )
-      }
+      {showIcon && (icon || <TagOutlined />)}
+      <div className={styles.tag}>
+        {showSharp ? "#" : ""}
+        {tag}
+      </div>
+      {closable && (
+        <div className={styles.close} onClick={onClose}>
+          <CloseOutlined />
+        </div>
+      )}
     </div>
-  )
-}
+  );
+};
 
 export default Tag;

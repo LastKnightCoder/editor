@@ -1,18 +1,18 @@
-import { useState } from 'react';
-import useTheme from "@/hooks/useTheme.ts";
+import { useState } from "react";
 import { ReactEditor, useReadOnly, useSlate } from "slate-react";
 import { Popover } from "antd";
 import { Transforms } from "slate";
 
-import { StyledTextColorStyle, EStyledColor } from '@editor/constants';
+import { StyledTextColorStyle, EStyledColor } from "@editor/constants";
 import { StyledTextElement } from "@editor/types";
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
 import ColorSelect from "@editor/components/ColorSelect";
 
-import { IExtensionBaseProps } from '../../../types';
-import styles from './index.module.less';
+import useTheme from "../../../../hooks/useTheme";
+import { IExtensionBaseProps } from "../../../types";
+import styles from "./index.module.less";
 
-export const STYLED_TEXT_SELECT_COLOR_KEY = 'styled-text-last-select-color'
+export const STYLED_TEXT_SELECT_COLOR_KEY = "styled-text-last-select-color";
 
 const StyledText = (props: IExtensionBaseProps<StyledTextElement>) => {
   const { attributes, element, children } = props;
@@ -22,7 +22,8 @@ const StyledText = (props: IExtensionBaseProps<StyledTextElement>) => {
   const { isDark } = useTheme();
   const readonly = useReadOnly();
 
-  const { color: textColor, backgroundColor } = StyledTextColorStyle[isDark ? 'dark' : 'light'][color] || {};
+  const { color: textColor, backgroundColor } =
+    StyledTextColorStyle[isDark ? "dark" : "light"][color] || {};
 
   const [colorSelectOpen, setColorSelectOpen] = useState(false);
 
@@ -31,26 +32,28 @@ const StyledText = (props: IExtensionBaseProps<StyledTextElement>) => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(editor, { color }, { at: path });
     localStorage.setItem(STYLED_TEXT_SELECT_COLOR_KEY, color);
-  }
+  };
 
   const onOpenChange = (open: boolean) => {
     if (readonly) return;
     setColorSelectOpen(open);
-  }
+  };
 
   return (
     <Popover
-      trigger={'click'}
+      trigger={"click"}
       open={!readonly && colorSelectOpen}
       onOpenChange={onOpenChange}
-      content={(
+      content={
         <ColorSelect<EStyledColor>
-          colors={Object.values(StyledTextColorStyle[isDark ? 'dark' : 'light']).map(item => ({ ...item, color: item.backgroundColor }))}
+          colors={Object.values(
+            StyledTextColorStyle[isDark ? "dark" : "light"],
+          ).map((item) => ({ ...item, color: item.backgroundColor }))}
           onSelectColor={onSelectColor}
           selectColor={color}
         />
-      )}
-      placement={'bottom'}
+      }
+      placement={"bottom"}
     >
       <span
         className={styles.styledText}
@@ -60,12 +63,12 @@ const StyledText = (props: IExtensionBaseProps<StyledTextElement>) => {
         }}
         {...attributes}
       >
-        <InlineChromiumBugfix/>
-          {children}
-        <InlineChromiumBugfix/>
+        <InlineChromiumBugfix />
+        {children}
+        <InlineChromiumBugfix />
       </span>
     </Popover>
-  )
-}
+  );
+};
 
 export default StyledText;

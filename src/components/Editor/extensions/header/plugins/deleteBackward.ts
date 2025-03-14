@@ -1,4 +1,4 @@
-import { Editor, Element as SlateElement, Range, Transforms } from 'slate';
+import { Editor, Element as SlateElement, Range, Transforms } from "slate";
 
 // 删除标题时，将标题转换为 paragraph，而不是移到上一个块中
 export const deleteBackward = (editor: Editor) => {
@@ -8,7 +8,7 @@ export const deleteBackward = (editor: Editor) => {
     const { selection } = editor;
     if (selection && Range.isCollapsed(selection)) {
       const [match] = Editor.nodes(editor, {
-        match: n => SlateElement.isElement(n) && n.type === 'header',
+        match: (n) => SlateElement.isElement(n) && n.type === "header",
       });
       if (match) {
         const [, path] = match;
@@ -16,15 +16,15 @@ export const deleteBackward = (editor: Editor) => {
         if (isStart) {
           // 将标题转换为 paragraph，而不是将标题移到上一个块中
           Transforms.setNodes(editor, {
-            type: 'paragraph'
+            type: "paragraph",
           });
-          Transforms.unsetNodes(editor, 'level');
+          Transforms.unsetNodes(editor, "level");
           return;
         }
       }
     }
     deleteBackward(unit);
-  }
+  };
 
   return editor;
-}
+};

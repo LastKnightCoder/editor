@@ -7,14 +7,19 @@ interface IUseDragAndDropParams {
   element: Element;
 }
 
-const EDITOR_DRAG_TYPE = 'editor-item';
+const EDITOR_DRAG_TYPE = "editor-item";
 
 interface IDragItem {
   element: Element;
   editor: Editor;
 }
 
-const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: boolean) => {
+const moveNode = (
+  editor: Editor,
+  dragPath: Path,
+  dropPath: Path,
+  isBefore: boolean,
+) => {
   // 如果 dropPath 是 dragPath 的子节点，不允许移动
   if (Path.isAncestor(dragPath, dropPath)) {
     return;
@@ -65,8 +70,7 @@ const moveNode = (editor: Editor, dragPath: Path, dropPath: Path, isBefore: bool
       });
     }
   }
-}
-
+};
 
 const useDragAndDrop = (params: IUseDragAndDropParams) => {
   const editor = useSlate();
@@ -75,85 +79,96 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
 
   const [isBefore, setIsBefore] = useState(false);
 
-  const [{ isDragging, canDrag }, drag] = useDrag({
-    type: EDITOR_DRAG_TYPE,
-    item: {
-      element,
-      editor,
+  const [{ isDragging, canDrag }, drag] = useDrag(
+    {
+      type: EDITOR_DRAG_TYPE,
+      item: {
+        element,
+        editor,
+      },
+      canDrag: () => {
+        return Editor.isBlock(editor, element) && !readOnly;
+      },
+      collect: (monitor) => ({
+        isDragging: monitor.isDragging(),
+        canDrag: monitor.canDrag(),
+      }),
     },
-    canDrag: () => {
-      return Editor.isBlock(editor, element) && !readOnly;
-    },
-    collect: (monitor) => ({
-      isDragging: monitor.isDragging(),
-      canDrag: monitor.canDrag(),
-    }),
-  }, [readOnly, element]);
+    [readOnly, element],
+  );
 
-  const [{ canDrop, isOverCurrent }, drop] = useDrop<IDragItem, void, {
-    isOverCurrent: boolean;
-    canDrop: boolean;
-  }>({
-    accept: EDITOR_DRAG_TYPE,
-    canDrop: (item) => {
-      if (readOnly) {
-        return false;
-      }
-      const dragPath = ReactEditor.findPath(editor, item.element);
-      const dropPath = ReactEditor.findPath(editor, element);
-      const dragEditor = item.editor;
-      if (editor.isBlock(item.element) && editor.isBlock(element)) {
-        return editor !== dragEditor || !Path.equals(dragPath, dropPath);
-      } else {
-        return false;
-      }
-    },
-    collect: (monitor) => {
-      return {
-        isOverCurrent: monitor.isOver({ shallow: true }),
-        canDrop: monitor.canDrop(),
-      }
-    },
-    hover: (_item, monitor) => {
-      if (!monitor.canDrop()) {
-        return;
-      }
-      const monitorClientOffset = monitor.getClientOffset();
-      if (!monitorClientOffset) {
-        return;
-      }
-      const dropDOMNode = ReactEditor.toDOMNode(editor, element);
-      const dropRect = dropDOMNode.getBoundingClientRect();
-      const isBefore = monitorClientOffset.y - dropRect.top < dropRect.height / 2;
-      setIsBefore(isBefore);
-    },
-    drop: (item, monitor) => {
-      const didDrop = monitor.didDrop();
-      if (didDrop) {
-        return;
-      }
-      try {
-        const dragEditor = item.editor;
-        const dragElement = item.element;
-        const dragPath = ReactEditor.findPath(dragEditor, dragElement);
+  const [{ canDrop, isOverCurrent }, drop] = useDrop<
+    IDragItem,
+    void,
+    {
+      isOverCurrent: boolean;
+      canDrop: boolean;
+    }
+  >(
+    {
+      accept: EDITOR_DRAG_TYPE,
+      canDrop: (item) => {
+        if (readOnly) {
+          return false;
+        }
+        const dragPath = ReactEditor.findPath(editor, item.element);
         const dropPath = ReactEditor.findPath(editor, element);
-
-        if (editor !== dragEditor) {
-          Transforms.removeNodes(dragEditor, {
-            at: dragPath,
-          });
-          Transforms.insertNodes(editor, dragElement, {
-            at: isBefore ? dropPath : Path.next(dropPath),
-          });
+        const dragEditor = item.editor;
+        if (editor.isBlock(item.element) && editor.isBlock(element)) {
+          return editor !== dragEditor || !Path.equals(dragPath, dropPath);
+        } else {
+          return false;
+        }
+      },
+      collect: (monitor) => {
+        return {
+          isOverCurrent: monitor.isOver({ shallow: true }),
+          canDrop: monitor.canDrop(),
+        };
+      },
+      hover: (_item, monitor) => {
+        if (!monitor.canDrop()) {
           return;
         }
+        const monitorClientOffset = monitor.getClientOffset();
+        if (!monitorClientOffset) {
+          return;
+        }
+        const dropDOMNode = ReactEditor.toDOMNode(editor, element);
+        const dropRect = dropDOMNode.getBoundingClientRect();
+        const isBefore =
+          monitorClientOffset.y - dropRect.top < dropRect.height / 2;
+        setIsBefore(isBefore);
+      },
+      drop: (item, monitor) => {
+        const didDrop = monitor.didDrop();
+        if (didDrop) {
+          return;
+        }
+        try {
+          const dragEditor = item.editor;
+          const dragElement = item.element;
+          const dragPath = ReactEditor.findPath(dragEditor, dragElement);
+          const dropPath = ReactEditor.findPath(editor, element);
 
-        moveNode(editor, dragPath, dropPath, isBefore);
-      } catch (e) {
-        console.error(e);
-      }
+          if (editor !== dragEditor) {
+            Transforms.removeNodes(dragEditor, {
+              at: dragPath,
+            });
+            Transforms.insertNodes(editor, dragElement, {
+              at: isBefore ? dropPath : Path.next(dropPath),
+            });
+            return;
+          }
+
+          moveNode(editor, dragPath, dropPath, isBefore);
+        } catch (e) {
+          console.error(e);
+        }
+      },
     },
-  }, [readOnly, isBefore, element]);
+    [readOnly, isBefore, element],
+  );
 
   return {
     drag,
@@ -163,7 +178,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
     isOverCurrent,
     canDrop,
     canDrag,
-  }
-}
+  };
+};
 
 export default useDragAndDrop;

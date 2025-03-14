@@ -5,9 +5,11 @@ import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
 
 export const insertDailySummary = (editor: Editor) => {
   const activeDailyId = useDailyNoteStore.getState().activeDailyId;
-  const activeDailyNote = useDailyNoteStore.getState().dailyNotes.find(item => item.id === activeDailyId);
+  const activeDailyNote = useDailyNoteStore
+    .getState()
+    .dailyNotes.find((item) => item.id === activeDailyId);
   if (!activeDailyNote) {
-    message.error('当前不在日记环境中');
+    message.error("当前不在日记环境中");
     return;
   }
 
@@ -15,11 +17,13 @@ export const insertDailySummary = (editor: Editor) => {
 
   return setOrInsertNode(editor, {
     // @ts-ignore
-    type: 'daily-summary',
+    type: "daily-summary",
     date,
-    children: [{
-      type: 'formatted',
-      text: ''
-    }]
+    children: [
+      {
+        type: "formatted",
+        text: "",
+      },
+    ],
   });
-}
+};

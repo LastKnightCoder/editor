@@ -1,23 +1,23 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Tooltip } from "antd";
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import { Operation } from "@/types";
 
 export interface IItem {
   date: string;
   count: number;
-  operationList: Operation[]
+  operationList: Operation[];
   [key: string]: any;
 }
 
 export interface ICalendarHeatmapProps {
   className?: string;
   style?: React.CSSProperties;
-  data: Array<IItem>,
+  data: Array<IItem>;
   year: string;
   gap?: number;
   renderTooltip?: (date: string, value?: IItem) => React.ReactNode;
@@ -29,20 +29,20 @@ const CalendarHeatmap = (props: ICalendarHeatmapProps) => {
   const ref = useRef<HTMLDivElement | null>(null);
 
   const weeks = useMemo(() => {
-    const start = dayjs(year).startOf('year');
-    const end = dayjs(year).endOf('year');
-    const days = end.diff(start, 'day') + 1;
+    const start = dayjs(year).startOf("year");
+    const end = dayjs(year).endOf("year");
+    const days = end.diff(start, "day") + 1;
     let current = start;
 
     const weeks: Array<string[]> = [];
     let week: string[] = [];
     for (let i = 0; i < days; i++) {
-      week.push(current.format('YYYY-MM-DD'));
+      week.push(current.format("YYYY-MM-DD"));
       if (current.day() === 0) {
         weeks.push(week);
         week = [];
       }
-      current = current.add(1, 'day');
+      current = current.add(1, "day");
     }
 
     if (week.length > 0) {
@@ -55,9 +55,10 @@ const CalendarHeatmap = (props: ICalendarHeatmapProps) => {
   const calcWidth = useMemoizedFn(() => {
     if (!ref.current) return [10, 10];
     const containerWidth = ref.current.clientWidth;
-    const itemWidth = (containerWidth - gap * (weeks.length - 1)) / weeks.length;
+    const itemWidth =
+      (containerWidth - gap * (weeks.length - 1)) / weeks.length;
     return [itemWidth, itemWidth];
-  })
+  });
 
   useEffect(() => {
     const [width, height] = calcWidth();
@@ -65,16 +66,16 @@ const CalendarHeatmap = (props: ICalendarHeatmapProps) => {
   }, [calcWidth]);
 
   useEffect(() => {
-    if (!ref.current) return ;
+    if (!ref.current) return;
     const onResize = () => {
       const [width, height] = calcWidth();
       setWidth([width, height]);
-    }
+    };
     const observer = new ResizeObserver(onResize);
     observer.observe(ref.current);
     return () => {
       observer.disconnect();
-    }
+    };
   }, [calcWidth]);
 
   return (
@@ -82,13 +83,21 @@ const CalendarHeatmap = (props: ICalendarHeatmapProps) => {
       <div ref={ref} className={styles.calendar} style={{ gap }}>
         {weeks.map((week, index) => {
           return (
-            <div key={index} className={classnames(styles.week, { [styles.last]: index === weeks.length - 1 })} style={{ gap }}>
+            <div
+              key={index}
+              className={classnames(styles.week, {
+                [styles.last]: index === weeks.length - 1,
+              })}
+              style={{ gap }}
+            >
               {week.map((day) => {
                 const dataItem = data.find((item) => item.date === day);
                 return (
                   <Tooltip
                     key={day}
-                    title={renderTooltip ? renderTooltip(day, dataItem) : undefined}
+                    title={
+                      renderTooltip ? renderTooltip(day, dataItem) : undefined
+                    }
                   >
                     <div
                       style={{
@@ -98,23 +107,32 @@ const CalendarHeatmap = (props: ICalendarHeatmapProps) => {
                       key={day}
                       className={classnames(styles.day)}
                     >
-                      <div className={classnames(styles.dayItem, {
-                        [styles.empty]: !dataItem,
-                        [styles.colorScale1]: dataItem && dataItem.count < 5,
-                        [styles.colorScale2]: dataItem && dataItem.count >= 5 && dataItem.count < 10,
-                        [styles.colorScale3]: dataItem && dataItem.count >= 10 && dataItem.count < 20,
-                        [styles.colorScale4]: dataItem && dataItem.count >= 20,
-                      })}></div>
+                      <div
+                        className={classnames(styles.dayItem, {
+                          [styles.empty]: !dataItem,
+                          [styles.colorScale1]: dataItem && dataItem.count < 5,
+                          [styles.colorScale2]:
+                            dataItem &&
+                            dataItem.count >= 5 &&
+                            dataItem.count < 10,
+                          [styles.colorScale3]:
+                            dataItem &&
+                            dataItem.count >= 10 &&
+                            dataItem.count < 20,
+                          [styles.colorScale4]:
+                            dataItem && dataItem.count >= 20,
+                        })}
+                      ></div>
                     </div>
                   </Tooltip>
-                )
+                );
               })}
             </div>
-          )
+          );
         })}
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default CalendarHeatmap;

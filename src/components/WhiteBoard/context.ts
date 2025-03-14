@@ -8,5 +8,5 @@ export const ViewPortContext = createContext<ViewPort>({
   minY: 0,
   width: 0,
   height: 0,
-  zoom: 1
+  zoom: 1,
 });

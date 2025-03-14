@@ -1,17 +1,17 @@
 import { Selection } from "./selection.ts";
-import Board from '../Board.tsx';
+import Board from "../Board.tsx";
 import { Point } from "./point.ts";
 
-export { default as Board } from '../Board.tsx';
+export { default as Board } from "../Board.tsx";
 
 export enum ECreateBoardElementType {
-  None = 'none',
-  Geometry = 'geometry',
-  StraightArrow = 'straightArrow',
-  Text = 'text',
-  Image = 'image',
-  Card = 'card',
-  MindMap = 'mindMap',
+  None = "none",
+  Geometry = "geometry",
+  StraightArrow = "straightArrow",
+  Text = "text",
+  Image = "image",
+  Card = "card",
+  MindMap = "mindMap",
 }
 
 export interface BoardElement {
@@ -24,28 +24,28 @@ export interface BoardElement {
 
 export type EventHandler = (event: Event & any, board: Board) => void | boolean;
 export type Events =
-  | 'onMouseDown'
-  | 'onMouseMove'
-  | 'onMouseUp'
-  | 'onMouseEnter'
-  | 'onMouseLeave'
-  | 'onContextMenu'
-  | 'onClick'
-  | 'onDblClick'
-  | 'onGlobalMouseDown'
-  | 'onGlobalMouseUp'
-  | 'onKeyDown'
-  | 'onKeyUp'
-  | 'onWheel'
-  | 'onPointerDown'
-  | 'onPointerUp'
-  | 'onPointerMove'
-  | 'onGlobalPointerDown'
-  | 'onGlobalPointerUp'
-  | 'onGlobalPointerMove'
-  | 'onPaste'
-  | 'onCopy'
-  | 'onCut';
+  | "onMouseDown"
+  | "onMouseMove"
+  | "onMouseUp"
+  | "onMouseEnter"
+  | "onMouseLeave"
+  | "onContextMenu"
+  | "onClick"
+  | "onDblClick"
+  | "onGlobalMouseDown"
+  | "onGlobalMouseUp"
+  | "onKeyDown"
+  | "onKeyUp"
+  | "onWheel"
+  | "onPointerDown"
+  | "onPointerUp"
+  | "onPointerMove"
+  | "onGlobalPointerDown"
+  | "onGlobalPointerUp"
+  | "onGlobalPointerMove"
+  | "onPaste"
+  | "onCopy"
+  | "onCut";
 
 export interface IBoardPlugin {
   name: string;
@@ -71,11 +71,32 @@ export interface IBoardPlugin {
   onPaste?: EventHandler;
   onCopy?: EventHandler;
   onCut?: EventHandler;
-  getArrowBindPoint?: (board: Board, element: BoardElement & any, connectId: string) => Point | null;
-  isElementSelected?: (board: Board, element: BoardElement & any, selectArea?: Selection['selectArea']) => boolean;
-  moveElement?: (board: Board, element: BoardElement & any, offsetX: number, offsetY: number) => BoardElement | null;
-  isHit? (board: Board, element: BoardElement & any, x: number, y: number): boolean;
-  render?: (board: Board, value: { element: BoardElement & any, children?: React.ReactElement[] }) => React.ReactElement;
+  getArrowBindPoint?: (
+    board: Board,
+    element: BoardElement & any,
+    connectId: string,
+  ) => Point | null;
+  isElementSelected?: (
+    board: Board,
+    element: BoardElement & any,
+    selectArea?: Selection["selectArea"],
+  ) => boolean;
+  moveElement?: (
+    board: Board,
+    element: BoardElement & any,
+    offsetX: number,
+    offsetY: number,
+  ) => BoardElement | null;
+  isHit?(
+    board: Board,
+    element: BoardElement & any,
+    x: number,
+    y: number,
+  ): boolean;
+  render?: (
+    board: Board,
+    value: { element: BoardElement & any; children?: React.ReactElement[] },
+  ) => React.ReactElement;
 }
 
 export interface BoardTheme {

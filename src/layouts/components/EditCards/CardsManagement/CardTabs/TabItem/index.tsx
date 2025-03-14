@@ -1,11 +1,11 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { CloseOutlined } from '@ant-design/icons';
+import { CloseOutlined } from "@ant-design/icons";
 import classnames from "classnames";
 
 import useDragAndDrop from "./useDragAndDrop";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface ITabItemProps {
   cardId: number;
@@ -17,15 +17,17 @@ interface ITabItemProps {
 }
 
 const TabItem = (props: ITabItemProps) => {
-  const { cardId, title, active = false, onClick, onClose, onContextMenu } = props;
-
   const {
-    ref,
-    isDragging,
-    isOver,
-    canDrop,
-  } = useDragAndDrop({
-    cardId
+    cardId,
+    title,
+    active = false,
+    onClick,
+    onClose,
+    onContextMenu,
+  } = props;
+
+  const { ref, isDragging, isOver, canDrop } = useDragAndDrop({
+    cardId,
   });
 
   return (
@@ -44,16 +46,19 @@ const TabItem = (props: ITabItemProps) => {
     >
       <div className={styles.textContainer}>
         <div className={styles.text}>{title}</div>
-        <div className={styles.closeIcon} onClick={e => {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose?.();
-        }}>
+        <div
+          className={styles.closeIcon}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose?.();
+          }}
+        >
           <CloseOutlined />
         </div>
       </div>
     </motion.div>
-  )
-}
+  );
+};
 
 export default TabItem;

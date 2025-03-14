@@ -12,12 +12,23 @@ interface UseHandlePointerProps {
   height: number;
 }
 
-const useHandlePointer = ({ container, paddingWidth, paddingHeight, isSelected, width, height }: UseHandlePointerProps) => {
+const useHandlePointer = ({
+  container,
+  paddingWidth,
+  paddingHeight,
+  isSelected,
+  width,
+  height,
+}: UseHandlePointerProps) => {
   const board = useBoard();
-  
+
   const handlePointerDown = useMemoizedFn((e: React.PointerEvent) => {
     if (!container) return;
-    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    const currentPoint = PointUtil.screenToViewPort(
+      board,
+      e.clientX,
+      e.clientY,
+    );
     const { x, y } = container.getBoundingClientRect();
     const containerPoint = PointUtil.screenToViewPort(board, x, y);
     if (!currentPoint || !containerPoint) return;
@@ -26,7 +37,11 @@ const useHandlePointer = ({ container, paddingWidth, paddingHeight, isSelected, 
     const hitWidth = paddingWidth - 2;
     const hitHeight = paddingHeight - 2;
     // offsetX 和 offsetY 在 padding 中
-    const isHitPadding = offsetX < hitWidth || offsetX > width - hitWidth || offsetY < hitHeight || offsetY > height - hitHeight;
+    const isHitPadding =
+      offsetX < hitWidth ||
+      offsetX > width - hitWidth ||
+      offsetY < hitHeight ||
+      offsetY > height - hitHeight;
     if (!isSelected && !isHitPadding) {
       e.stopPropagation();
     }
@@ -35,7 +50,11 @@ const useHandlePointer = ({ container, paddingWidth, paddingHeight, isSelected, 
   // 鼠标样式
   const handleOnPointerMove = useMemoizedFn((e: React.PointerEvent) => {
     if (!container) return;
-    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    const currentPoint = PointUtil.screenToViewPort(
+      board,
+      e.clientX,
+      e.clientY,
+    );
     const { x, y } = container.getBoundingClientRect();
     const containerPoint = PointUtil.screenToViewPort(board, x, y);
     if (!currentPoint || !containerPoint) return;
@@ -44,12 +63,16 @@ const useHandlePointer = ({ container, paddingWidth, paddingHeight, isSelected, 
     // 没有内容的时候方便编辑
     const hitWidth = paddingWidth - 2;
     const hitHeight = paddingHeight - 2;
-    const isHitPadding = offsetX < hitWidth || offsetX > width - hitWidth || offsetY < hitHeight || offsetY > height - hitHeight;
+    const isHitPadding =
+      offsetX < hitWidth ||
+      offsetX > width - hitWidth ||
+      offsetY < hitHeight ||
+      offsetY > height - hitHeight;
     if (isHitPadding || isSelected) {
-      container.style.cursor = 'move';
+      container.style.cursor = "move";
     } else {
       // 可编辑的样式
-      container.style.cursor = 'auto';
+      container.style.cursor = "auto";
     }
   });
 
@@ -57,17 +80,17 @@ const useHandlePointer = ({ container, paddingWidth, paddingHeight, isSelected, 
     if (!container) return;
 
     // @ts-expect-error
-    container.addEventListener('pointerdown', handlePointerDown);
+    container.addEventListener("pointerdown", handlePointerDown);
     // @ts-expect-error
-    container.addEventListener('pointermove', handleOnPointerMove);
+    container.addEventListener("pointermove", handleOnPointerMove);
 
     return () => {
       // @ts-expect-error
-      container.removeEventListener('pointerdown', handlePointerDown);
+      container.removeEventListener("pointerdown", handlePointerDown);
       // @ts-expect-error
-      container.removeEventListener('pointermove', handleOnPointerMove);
-    }
+      container.removeEventListener("pointermove", handleOnPointerMove);
+    };
   }, [handlePointerDown, handleOnPointerMove, container]);
-}
+};
 
 export default useHandlePointer;

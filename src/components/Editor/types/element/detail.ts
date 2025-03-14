@@ -1,7 +1,7 @@
-import { BlockElement } from '../custom-element.ts';
+import { BlockElement } from "../custom-element.ts";
 
 export interface DetailElement {
-  type: 'detail';
+  type: "detail";
   title: string;
   open?: boolean;
   children: BlockElement[];

@@ -1,1 +1,1 @@
-export * from './pasteAudio.ts';
+export * from "./pasteAudio.ts";

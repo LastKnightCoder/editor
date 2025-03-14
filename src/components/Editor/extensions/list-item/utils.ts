@@ -7,7 +7,7 @@ import {
   getParentNodeByNode,
   getPrevPath,
   isParagraphElement,
-  isParagraphAndEmpty
+  isParagraphAndEmpty,
 } from "@/components/Editor/utils";
 import { ListItemElement } from "@/components/Editor/types";
 
@@ -26,29 +26,33 @@ export const deleteListItem = (editor: Editor): boolean => {
       const onlyOneChild = curListWrapper.children.length === 1;
       Editor.withoutNormalizing(editor, () => {
         Transforms.unwrapNodes(editor, {
-          match: n => SlateElement.isElement(n) && isListItemElement(n),
+          match: (n) => SlateElement.isElement(n) && isListItemElement(n),
         });
         if (onlyOneChild) {
           Transforms.unwrapNodes(editor, {
-            match: n => SlateElement.isElement(n) && n.type === curListWrapper.type,
-          })
+            match: (n) =>
+              SlateElement.isElement(n) && n.type === curListWrapper.type,
+          });
         } else {
           // 移动到上一个 list-item 中
           const prevListItemPath = getPrevPath(curList[1]);
           if (prevListItemPath) {
-            const prevListElement = Editor.node(editor, prevListItemPath)[0] as ListItemElement;
+            const prevListElement = Editor.node(
+              editor,
+              prevListItemPath,
+            )[0] as ListItemElement;
             Transforms.moveNodes(editor, {
               to: [...prevListItemPath, prevListElement.children.length],
-              match: n => SlateElement.isElement(n) && isParagraphElement(n),
-            })
+              match: (n) => SlateElement.isElement(n) && isParagraphElement(n),
+            });
           } else {
             // 没有上一个说明是第一个 list-item，这个时候把段落放到最外面就行
             const curListPath = curList[1];
             const wrapListPath = Path.parent(curListPath);
             Transforms.moveNodes(editor, {
               to: wrapListPath,
-              match: n => SlateElement.isElement(n) && isParagraphElement(n),
-            })
+              match: (n) => SlateElement.isElement(n) && isParagraphElement(n),
+            });
           }
         }
       });
@@ -56,19 +60,22 @@ export const deleteListItem = (editor: Editor): boolean => {
     }
   }
   return false;
-}
+};
 
-export const newLineInListItem = (editor: Editor, insertBreak: () => void): boolean => {
+export const newLineInListItem = (
+  editor: Editor,
+  insertBreak: () => void,
+): boolean => {
   const [listMatch] = Editor.nodes(editor, {
-    match: n => SlateElement.isElement(n)  && n.type === 'list-item',
-    mode: 'lowest',
+    match: (n) => SlateElement.isElement(n) && n.type === "list-item",
+    mode: "lowest",
   });
   if (!listMatch) {
     return false;
   }
   const [para] = Editor.nodes(editor, {
-    match: n => SlateElement.isElement(n) && isParagraphElement(n),
-    mode: 'lowest',
+    match: (n) => SlateElement.isElement(n) && isParagraphElement(n),
+    mode: "lowest",
   });
 
   // 段落
@@ -81,22 +88,25 @@ export const newLineInListItem = (editor: Editor, insertBreak: () => void): bool
     if ((listMatch[0] as ListItemElement).children.length === 1) {
       Editor.withoutNormalizing(editor, () => {
         Transforms.unwrapNodes(editor, {
-          match: n => SlateElement.isElement(n) && isListItemElement(n),
+          match: (n) => SlateElement.isElement(n) && isListItemElement(n),
         });
         Transforms.liftNodes(editor, {
-          match: n => SlateElement.isElement(n) && isParagraphElement(n),
+          match: (n) => SlateElement.isElement(n) && isParagraphElement(n),
         });
       });
       return true;
     }
     // 如果是最后一个段落，则将 paragraph 转换为 list-item
-    if (para[1][para[1].length - 1] + 1 === (listMatch[0] as ListItemElement).children.length) {
+    if (
+      para[1][para[1].length - 1] + 1 ===
+      (listMatch[0] as ListItemElement).children.length
+    ) {
       Editor.withoutNormalizing(editor, () => {
-        Transforms.wrapNodes(editor, { type: 'list-item', children: [] });
+        Transforms.wrapNodes(editor, { type: "list-item", children: [] });
         Transforms.liftNodes(editor, {
-          match: n => SlateElement.isElement(n) && n.type === 'list-item',
+          match: (n) => SlateElement.isElement(n) && n.type === "list-item",
         });
-      })
+      });
       return true;
     }
   }
@@ -104,12 +114,12 @@ export const newLineInListItem = (editor: Editor, insertBreak: () => void): bool
   if (para && para[1][para[1].length - 1] === 0) {
     Editor.withoutNormalizing(editor, () => {
       insertBreak();
-      Transforms.wrapNodes(editor, { type: 'list-item', children: [] });
+      Transforms.wrapNodes(editor, { type: "list-item", children: [] });
       Transforms.liftNodes(editor, {
-        match: n => SlateElement.isElement(n) && n.type === 'list-item',
+        match: (n) => SlateElement.isElement(n) && n.type === "list-item",
       });
     });
     return true;
   }
   return false;
-}
+};

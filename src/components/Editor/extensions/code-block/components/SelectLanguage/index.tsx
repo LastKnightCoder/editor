@@ -1,7 +1,7 @@
-import classnames from 'classnames';
+import classnames from "classnames";
 import { Flex, Popover } from "antd";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import For from "@/components/For";
 import React, { useState } from "react";
 
@@ -14,62 +14,56 @@ interface SelectLanguageProps {
 }
 
 const aliases: Record<string, string> = {
-  js: 'JavaScript',
-  ts: 'TypeScript',
-  rs: 'Rust',
-  py: 'Python',
-  md: 'Markdown',
-  xml: 'HTML',
-  latex: 'LaTex',
-  cpp: 'C++',
-  sh: 'Shell',
-  zsh: 'Shell'
-}
+  js: "JavaScript",
+  ts: "TypeScript",
+  rs: "Rust",
+  py: "Python",
+  md: "Markdown",
+  xml: "HTML",
+  latex: "LaTex",
+  cpp: "C++",
+  sh: "Shell",
+  zsh: "Shell",
+};
 
 const languages = [
-  { label: 'JavaScript', value: 'JavaScript' },
-  { label: 'TypeScript', value: 'TypeScript' },
-  { label: 'JSX', value: 'JSX' },
-  { label: 'TSX', value: 'TSX' },
-  { label: 'HTML', value: 'HTML' },
-  { label: 'CSS', value: 'CSS' },
-  { label: 'Vue', value: 'Vue' },
-  { label: 'C', value: 'C' },
-  { label: 'C++', value: 'C++' },
-  { label: 'C#', value: 'C#' },
-  { label: 'Java', value: 'Java' },
-  { label: 'Rust', value: 'Rust' },
-  { label: 'Go', value: 'Go' },
-  { label: 'Python', value: 'Python' },
-  { label: 'Objective C', value: 'Objective C' },
-  { label: 'Scale', value: 'Scale' },
-  { label: 'JSON', value: 'JSON' },
-  { label: 'XML', value: 'HTML/XML' },
-  { label: 'YAML', value: 'YAML' },
-  { label: 'HTTP', value: 'HTTP' },
-  { label: 'Diff', value: 'Diff' },
-  { label: 'Bash', value: 'Bash' },
-  { label: 'Shell', value: 'Shell' },
-  { label: 'MySQL', value: 'MySQL' },
-  { label: 'SQL', value: 'sql' },
-  { label: 'Latex', value: 'stex' },
-  { label: 'Markdown', value: 'markdown' },
-]
+  { label: "JavaScript", value: "JavaScript" },
+  { label: "TypeScript", value: "TypeScript" },
+  { label: "JSX", value: "JSX" },
+  { label: "TSX", value: "TSX" },
+  { label: "HTML", value: "HTML" },
+  { label: "CSS", value: "CSS" },
+  { label: "Vue", value: "Vue" },
+  { label: "C", value: "C" },
+  { label: "C++", value: "C++" },
+  { label: "C#", value: "C#" },
+  { label: "Java", value: "Java" },
+  { label: "Rust", value: "Rust" },
+  { label: "Go", value: "Go" },
+  { label: "Python", value: "Python" },
+  { label: "Objective C", value: "Objective C" },
+  { label: "Scale", value: "Scale" },
+  { label: "JSON", value: "JSON" },
+  { label: "XML", value: "HTML/XML" },
+  { label: "YAML", value: "YAML" },
+  { label: "HTTP", value: "HTTP" },
+  { label: "Diff", value: "Diff" },
+  { label: "Bash", value: "Bash" },
+  { label: "Shell", value: "Shell" },
+  { label: "MySQL", value: "MySQL" },
+  { label: "SQL", value: "sql" },
+  { label: "Latex", value: "stex" },
+  { label: "Markdown", value: "markdown" },
+];
 
 const SelectLanguage = (props: SelectLanguageProps) => {
-  const {
-    value,
-    onChange,
-    className,
-    style = {},
-    readonly,
-  } = props;
+  const { value, onChange, className, style = {}, readonly } = props;
 
   const [open, setOpen] = useState(false);
 
   return (
     <Popover
-      placement={'bottom'}
+      placement={"bottom"}
       open={!readonly && open}
       onOpenChange={(open) => {
         if (readonly) {
@@ -78,15 +72,15 @@ const SelectLanguage = (props: SelectLanguageProps) => {
         }
         setOpen(open);
       }}
-      trigger={'click'}
+      trigger={"click"}
       styles={{
         body: {
-          padding: 4
-        }
+          padding: 4,
+        },
       }}
       arrow={false}
-      content={(
-        <Flex vertical gap={4} style={{ height: 400, overflow: 'auto' }}>
+      content={
+        <Flex vertical gap={4} style={{ height: 400, overflow: "auto" }}>
           <For
             data={languages}
             renderItem={(item) => {
@@ -94,7 +88,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
                 <div
                   key={item.value}
                   className={classnames(styles.languageItem, {
-                    [styles.active]: value === item.value
+                    [styles.active]: value === item.value,
                   })}
                   onClick={() => {
                     if (readonly) return;
@@ -104,17 +98,22 @@ const SelectLanguage = (props: SelectLanguageProps) => {
                 >
                   {item.label}
                 </div>
-              )
+              );
             }}
           />
         </Flex>
-      )}
+      }
     >
-      <div style={style} className={classnames(styles.selectLanguage, className, { [styles.disable]: readonly })}>
+      <div
+        style={style}
+        className={classnames(styles.selectLanguage, className, {
+          [styles.disable]: readonly,
+        })}
+      >
         {aliases[value] || value}
       </div>
     </Popover>
-  )
-}
+  );
+};
 
 export default SelectLanguage;

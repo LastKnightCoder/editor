@@ -1,10 +1,10 @@
-import { memo } from 'react';
+import { memo } from "react";
 
 import CardsManagement from "./CardsManagement";
 import If from "@/components/If";
 
 import { EActiveSide } from "@/stores/useCardPanelStore";
-import useCard from '@/hooks/useCard';
+import useCard from "@/hooks/useCard";
 
 const Card = memo(() => {
   const {
@@ -48,7 +48,7 @@ const Card = memo(() => {
         />
       </If>
     </If>
-  )
+  );
 });
 
 export default Card;

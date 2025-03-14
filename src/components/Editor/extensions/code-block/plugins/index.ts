@@ -1,2 +1,2 @@
-export * from './deleteBackward.ts';
-export * from './markdownSyntax.ts';
+export * from "./deleteBackward.ts";
+export * from "./markdownSyntax.ts";

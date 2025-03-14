@@ -8,7 +8,7 @@ import { TagOutlined } from "@ant-design/icons";
 
 import { ICardTree } from "@/types";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface ITagItemProps {
   item: ICardTree;
@@ -22,11 +22,11 @@ const TagItem = memo((props: ITagItemProps) => {
 
   const { children, tag, cardIds } = item;
 
-  const active = tag === activeTag.split('/')[0];
+  const active = tag === activeTag.split("/")[0];
 
   const toggleOpen = () => {
     setOpen(!open);
-  }
+  };
 
   return (
     <div className={styles.tagItem}>
@@ -39,9 +39,7 @@ const TagItem = memo((props: ITagItemProps) => {
         <div className={styles.tagIcon}>
           <TagOutlined />
         </div>
-        <div className={styles.tagName}>
-          {tag}
-        </div>
+        <div className={styles.tagName}>{tag}</div>
         <div
           className={styles.tagCount}
           onClick={(e) => {
@@ -58,21 +56,21 @@ const TagItem = memo((props: ITagItemProps) => {
         <div className={styles.children}>
           <For
             data={children}
-            renderItem={cardTree => (
+            renderItem={(cardTree) => (
               <TagItem
                 key={cardTree.tag}
                 item={cardTree}
                 onClickTag={(childTag) => {
-                  onClickTag?.(tag + '/' + childTag);
+                  onClickTag?.(tag + "/" + childTag);
                 }}
-                activeTag={activeTag.split('/').slice(1).join('/')}
+                activeTag={activeTag.split("/").slice(1).join("/")}
               />
             )}
           />
         </div>
       </HideChildrenWithAnimation>
     </div>
-  )
+  );
 });
 
 export default TagItem;

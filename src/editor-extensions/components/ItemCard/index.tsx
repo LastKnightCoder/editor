@@ -3,7 +3,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import classnames from "classnames";
 import { Descendant } from "slate";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface ItemCardProps {
   item: {
@@ -27,11 +27,9 @@ const DocumentCard = (props: ItemCardProps) => {
       onClick={onClick}
     >
       <div className={styles.title}>📄️{item.title}</div>
-      <div className={styles.desc}>
-        {getEditorText(item.content, 40)}
-      </div>
+      <div className={styles.desc}>{getEditorText(item.content, 40)}</div>
     </div>
-  )
-}
+  );
+};
 
 export default DocumentCard;

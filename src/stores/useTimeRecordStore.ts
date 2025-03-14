@@ -1,5 +1,10 @@
-import { create } from 'zustand';
-import { createTimeRecord, updateTimeRecord, deleteTimeRecord, getAllTimeRecords } from '@/commands';
+import { create } from "zustand";
+import {
+  createTimeRecord,
+  updateTimeRecord,
+  deleteTimeRecord,
+  getAllTimeRecords,
+} from "@/commands";
 
 import { ITimeRecord, TimeRecordGroup } from "@/types";
 import { EFilterType } from "@/types/time";
@@ -13,7 +18,9 @@ interface IState {
 
 interface IActions {
   init: () => Promise<void>;
-  createTimeRecord: (timeRecord: Omit<ITimeRecord, 'id'>) => Promise<ITimeRecord>;
+  createTimeRecord: (
+    timeRecord: Omit<ITimeRecord, "id">,
+  ) => Promise<ITimeRecord>;
   updateTimeRecord: (timeRecord: ITimeRecord) => Promise<ITimeRecord>;
   deleteTimeRecord: (id: number) => Promise<number>;
 }
@@ -22,15 +29,15 @@ const initState: IState = {
   loading: false,
   timeRecords: [],
   filterType: EFilterType.ALL,
-  filterValue: ''
-}
+  filterValue: "",
+};
 
 const useTimeRecordStore = create<IState & IActions>((set) => ({
   ...initState,
   init: async () => {
     set({
       ...initState,
-      loading: true
+      loading: true,
     });
     try {
       const timeRecords = await getAllTimeRecords();
@@ -58,7 +65,7 @@ const useTimeRecordStore = create<IState & IActions>((set) => ({
     const timeRecords = await getAllTimeRecords();
     set({ timeRecords });
     return res;
-  }
+  },
 }));
 
 export default useTimeRecordStore;

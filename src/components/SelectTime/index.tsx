@@ -1,10 +1,10 @@
-import { memo } from 'react';
+import { memo } from "react";
 import { DatePicker, Select } from "antd";
 import If from "@/components/If";
 
 import { EFilterType } from "@/types/time";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 import classnames from "classnames";
 
 interface ISelectTimeProps {
@@ -17,7 +17,12 @@ interface ISelectTimeProps {
 const { RangePicker } = DatePicker;
 
 const SelectTime = memo((props: ISelectTimeProps) => {
-  const { filterType, onSelectFilterTypeChange, onFilterValueChange, className } = props;
+  const {
+    filterType,
+    onSelectFilterTypeChange,
+    onFilterValueChange,
+    className,
+  } = props;
 
   return (
     <div className={classnames(styles.selectTime, className)}>
@@ -42,7 +47,11 @@ const SelectTime = memo((props: ISelectTimeProps) => {
           }}
         />
       </If>
-      <If condition={filterType !== EFilterType.RANGE && filterType !== EFilterType.ALL}>
+      <If
+        condition={
+          filterType !== EFilterType.RANGE && filterType !== EFilterType.ALL
+        }
+      >
         <DatePicker
           className={styles.picker}
           picker={filterType as any}
@@ -52,7 +61,7 @@ const SelectTime = memo((props: ISelectTimeProps) => {
         />
       </If>
     </div>
-  )
-})
+  );
+});
 
 export default SelectTime;

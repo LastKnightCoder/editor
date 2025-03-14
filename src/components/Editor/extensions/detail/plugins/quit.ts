@@ -6,12 +6,12 @@ export const quit = (editor: Editor) => {
 
   // 当在最后一个空段落按下回车是删除当前段落，并来到下一个空段落
   editor.insertBreak = () => {
-    if (hitDoubleQuit(editor, 'detail')) {
+    if (hitDoubleQuit(editor, "detail")) {
       return;
     }
 
     return insertBreak();
-  }
+  };
 
   return editor;
-}
+};

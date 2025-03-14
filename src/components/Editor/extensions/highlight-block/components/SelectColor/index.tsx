@@ -1,12 +1,12 @@
-import useTheme from '@/hooks/useTheme.ts';
-import { Color } from '@/components/Editor/types';
+import useTheme from "../../../../hooks/useTheme";
+import { Color } from "@/components/Editor/types";
 
 import For from "@/components/For";
-import ColorItem from './ColorItem';
+import ColorItem from "./ColorItem";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
-import { colors as colorsConfig } from '../../configs.ts';
+import { colors as colorsConfig } from "../../configs.ts";
 
 interface ISelectColorProps {
   activeColor: Color;
@@ -24,7 +24,9 @@ const SelectColor = (props: ISelectColorProps) => {
         data={Object.keys(colorsConfig) as Color[]}
         renderItem={(color) => {
           const themeColor = colorsConfig[color];
-          const { backgroundColor, borderColor } = isDark ? themeColor.dark : themeColor.light;
+          const { backgroundColor, borderColor } = isDark
+            ? themeColor.dark
+            : themeColor.light;
           return (
             <ColorItem
               key={color}
@@ -37,11 +39,11 @@ const SelectColor = (props: ISelectColorProps) => {
               }}
               active={color === activeColor}
             />
-          )
+          );
         }}
       />
     </div>
-  )
-}
+  );
+};
 
 export default SelectColor;

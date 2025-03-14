@@ -1,21 +1,21 @@
 import { ICreateDocument, ICreateDocumentItem } from "@/types";
 
 export const DEFAULT_CREATE_DOCUMENT: ICreateDocument = {
-  title: '',
-  desc: '',
+  title: "",
+  desc: "",
   authors: [],
   children: [],
   tags: [],
   links: [],
   content: [],
-  bannerBg: '',
-  icon: '',
+  bannerBg: "",
+  icon: "",
   isTop: false,
   isDelete: false,
-}
+};
 
 export const DEFAULT_CREATE_DOCUMENT_ITEM: ICreateDocumentItem = {
-  title: '无标题文档',
+  title: "无标题文档",
   authors: [],
   tags: [],
   isDirectory: false,
@@ -24,13 +24,15 @@ export const DEFAULT_CREATE_DOCUMENT_ITEM: ICreateDocumentItem = {
   articleId: 0,
   isCard: false,
   cardId: 0,
-  content: [{
-    type: 'paragraph',
-    children: [{ type: 'formatted', text: '' }],
-  }],
-  bannerBg: '',
-  icon: '',
+  content: [
+    {
+      type: "paragraph",
+      children: [{ type: "formatted", text: "" }],
+    },
+  ],
+  bannerBg: "",
+  icon: "",
   parents: [],
   isDelete: false,
-  count: 0
-}
+  count: 0,
+};

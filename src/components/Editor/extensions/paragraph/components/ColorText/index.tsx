@@ -1,21 +1,21 @@
-import { useState, useContext, useEffect, useMemo, useRef } from 'react';
+import { useState, useContext, useEffect, useMemo, useRef } from "react";
 import { Editor, Range, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
-import { useMemoizedFn, useClickAway } from 'ahooks';
+import { useMemoizedFn, useClickAway } from "ahooks";
 import { Tooltip } from "antd";
-import useTheme from "@/hooks/useTheme";
+import useTheme from "../../../../hooks/useTheme";
 
-import SVG from 'react-inlinesvg';
-import { BiChevronDown } from 'react-icons/bi';
+import SVG from "react-inlinesvg";
+import { BiChevronDown } from "react-icons/bi";
 import ColorSelect from "../ColorSelect";
 import { HoveringBarContext } from "@/components/Editor/components/HoveringToolbar";
 
 import classnames from "classnames";
 import { isMarkActive } from "../../hovering-bar-configs/utils.ts";
 
-import color from '@/assets/hovering_bar/color.svg';
+import color from "@/assets/hovering_bar/color.svg";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 const ColorText = () => {
   const editor = useSlate();
@@ -25,16 +25,16 @@ const ColorText = () => {
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<boolean>(false);
   const active = useMemo(() => {
-    return isMarkActive('color', editor, selection);
+    return isMarkActive("color", editor, selection);
   }, [editor, selection]);
   const activeColor = useMemo(() => {
-    if (!active) return 'currentColor';
+    if (!active) return "currentColor";
     const marks = Editor.marks(editor);
     if (!marks) {
-      return 'currentColor';
+      return "currentColor";
     }
     const color = isDark ? marks?.darkColor : marks?.color;
-    return color || 'currentColor';
+    return color || "currentColor";
   }, [editor, isDark, active]);
 
   const { isHoveringBarShow } = useContext(HoveringBarContext);
@@ -49,16 +49,18 @@ const ColorText = () => {
     setOpen(false);
   }, ref);
 
-  const handleSelectColor = useMemoizedFn((event: React.MouseEvent, color?: string, darkColor?: string) => {
-    event.preventDefault();
-    event.stopPropagation();
-    Editor.addMark(editor, 'color', color);
-    Editor.addMark(editor, 'darkColor', darkColor);
-    if (selection && !Range.isCollapsed(selection)) {
-      ReactEditor.focus(editor);
-      Transforms.collapse(editor, { edge: 'end' });
-    }
-  });
+  const handleSelectColor = useMemoizedFn(
+    (event: React.MouseEvent, color?: string, darkColor?: string) => {
+      event.preventDefault();
+      event.stopPropagation();
+      Editor.addMark(editor, "color", color);
+      Editor.addMark(editor, "darkColor", darkColor);
+      if (selection && !Range.isCollapsed(selection)) {
+        ReactEditor.focus(editor);
+        Transforms.collapse(editor, { edge: "end" });
+      }
+    },
+  );
 
   return (
     <div
@@ -70,21 +72,18 @@ const ColorText = () => {
         setOpen(!open);
       }}
     >
-      <Tooltip
-        title={'颜色'}
-        trigger={'hover'}
-      >
+      <Tooltip title={"颜色"} trigger={"hover"}>
         <div className={styles.text}>
-          <SVG src={color} style={{ fill: activeColor, width: 16, height: 16 }} />
+          <SVG
+            src={color}
+            style={{ fill: activeColor, width: 16, height: 16 }}
+          />
           <BiChevronDown />
         </div>
       </Tooltip>
-      <ColorSelect
-        open={open}
-        onClick={handleSelectColor}
-      />
+      <ColorSelect open={open} onClick={handleSelectColor} />
     </div>
-  )
-}
+  );
+};
 
 export default ColorText;

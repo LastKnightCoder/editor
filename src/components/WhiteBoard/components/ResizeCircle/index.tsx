@@ -3,7 +3,7 @@ import { useMemoizedFn, useThrottleFn } from "ahooks";
 
 import { EHandlerPosition, Point } from "../../types";
 import { PointUtil } from "../../utils";
-import { useResize } from '../../hooks';
+import { useResize } from "../../hooks";
 
 interface ResizeCircleProps {
   position: EHandlerPosition;
@@ -14,69 +14,74 @@ interface ResizeCircleProps {
   innerRadius?: number;
   innerFill?: string;
   onResizeStart?: (startPoint: Point) => void;
-  onResize: (position: EHandlerPosition, startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => void;
-  onResizeEnd?: (position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
+  onResize: (
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+    isPreserveRatio?: boolean,
+    isAdsorb?: boolean,
+  ) => void;
+  onResizeEnd?: (
+    position: EHandlerPosition,
+    startPoint: Point,
+    endPoint: Point,
+  ) => void;
 }
 
 const ResizeCircle = memo((props: ResizeCircleProps) => {
-  const { 
+  const {
     position,
     cx,
-    cy, 
+    cy,
     r,
-    innerRadius = r - 2, 
-    fill, 
-    innerFill = 'white',
-    onResizeStart, 
-    onResize, 
-    onResizeEnd, 
+    innerRadius = r - 2,
+    fill,
+    innerFill = "white",
+    onResizeStart,
+    onResize,
+    onResizeEnd,
   } = props;
 
   const ref = useRef<SVGGElement>(null);
 
-  const { run: handleOnResize } = useThrottleFn((startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => {
-    onResize(position, startPoint, endPoint, isPreserveRatio, isAdsorb);
-  }, { wait: 25 });
+  const { run: handleOnResize } = useThrottleFn(
+    (
+      startPoint: Point,
+      endPoint: Point,
+      isPreserveRatio?: boolean,
+      isAdsorb?: boolean,
+    ) => {
+      onResize(position, startPoint, endPoint, isPreserveRatio, isAdsorb);
+    },
+    { wait: 25 },
+  );
 
-  const handleOnResizeEnd = useMemoizedFn((startPoint: Point, endPoint: Point) => {
-    onResizeEnd?.(position, startPoint, endPoint);
-  });
+  const handleOnResizeEnd = useMemoizedFn(
+    (startPoint: Point, endPoint: Point) => {
+      onResizeEnd?.(position, startPoint, endPoint);
+    },
+  );
 
   useResize({
     ref,
     onResizeStart,
     onResize: handleOnResize,
-    onResizeEnd: handleOnResizeEnd
-  })
+    onResizeEnd: handleOnResizeEnd,
+  });
 
   return (
-    <g 
+    <g
       ref={ref}
       style={{
-        cursor: PointUtil.getResizeCursor(position as EHandlerPosition)
+        cursor: PointUtil.getResizeCursor(position as EHandlerPosition),
       }}
     >
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r}
-        fill={fill}
-      />
-      <circle
-        cx={cx}
-        cy={cy}
-        r={innerRadius}
-        fill={innerFill}
-      />
+      <circle cx={cx} cy={cy} r={r} fill={fill} />
+      <circle cx={cx} cy={cy} r={innerRadius} fill={innerFill} />
       {/* 扩展选择范围 */}
-      <circle
-        cx={cx}
-        cy={cy}
-        r={r + 2}
-        fill={'none'}
-      />
+      <circle cx={cx} cy={cy} r={r + 2} fill={"none"} />
     </g>
-  )
-})
+  );
+});
 
 export default ResizeCircle;

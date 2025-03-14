@@ -8,7 +8,7 @@ import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import DocumentItem from "./DocumentItem";
 import EditDocumentModal from "../EditDocumentModal";
 
-import styles from './index.module.less';
+import styles from "./index.module.less";
 
 interface IDocumentListProps {
   documents: IDocument[];
@@ -17,18 +17,18 @@ interface IDocumentListProps {
 const DocumentList = (props: IDocumentListProps) => {
   const { documents } = props;
 
-  const {
-    createDocument,
-    updateDocument,
-    deleteDocument,
-  } = useDocumentsStore(state => ({
-    createDocument: state.createDocument,
-    updateDocument: state.updateDocument,
-    deleteDocument: state.deleteDocument,
-  }));
+  const { createDocument, updateDocument, deleteDocument } = useDocumentsStore(
+    (state) => ({
+      createDocument: state.createDocument,
+      updateDocument: state.updateDocument,
+      deleteDocument: state.deleteDocument,
+    }),
+  );
 
-  const [editDocumentModalOpen, setEditDocumentModalOpen] = useState<boolean>(false);
-  const [editingDocument, setEditingDocument] = useState<ICreateDocument | null>(null);
+  const [editDocumentModalOpen, setEditDocumentModalOpen] =
+    useState<boolean>(false);
+  const [editingDocument, setEditingDocument] =
+    useState<ICreateDocument | null>(null);
 
   const { modal } = App.useApp();
 
@@ -40,72 +40,71 @@ const DocumentList = (props: IDocumentListProps) => {
     }
 
     setEditDocumentModalOpen(false);
-  }
+  };
 
   return (
     <div>
       <div className={styles.header}>
         <div className={styles.title}>文档</div>
-        <div className={styles.icon} onClick={() => {
-          setEditDocumentModalOpen(true);
-          setEditingDocument(DEFAULT_CREATE_DOCUMENT);
-        }}>
+        <div
+          className={styles.icon}
+          onClick={() => {
+            setEditDocumentModalOpen(true);
+            setEditingDocument(DEFAULT_CREATE_DOCUMENT);
+          }}
+        >
           <PlusOutlined />
         </div>
       </div>
       <div className={styles.listContainer}>
-        {
-          documents.map(document => (
-            <DocumentItem
-              key={document.id}
-              document={document}
-              onClick={document => {
-                useDocumentsStore.setState({
-                  activeDocumentId: document.id,
-                });
-              }}
-              onEdit={() => {
-                setEditingDocument(document);
-                setEditDocumentModalOpen(true);
-              }}
-              onDelete={async () => {
-                modal.confirm({
-                  title: '确认删除该文档吗？',
-                  onOk: async () => {
-                    await deleteDocument(document);
-                    setEditDocumentModalOpen(false);
-                    setEditingDocument(null);
-                  },
-                  onCancel: () => {
-                    setEditDocumentModalOpen(false);
-                  },
-                  okText: '确认',
-                  cancelText: '取消',
-                  okButtonProps: {
-                    danger: true,
-                  }
-                })
-              }}
-            />
-          ))
-        }
-        {
-          editingDocument && (
-            <EditDocumentModal
-              // @ts-ignore
-              key={editingDocument?.id}
-              open={editDocumentModalOpen}
-              onOk={onEditFinish}
-              onCancel={() => {
-                setEditDocumentModalOpen(false);
-              }}
-              document={editingDocument}
-            />
-          )
-        }
+        {documents.map((document) => (
+          <DocumentItem
+            key={document.id}
+            document={document}
+            onClick={(document) => {
+              useDocumentsStore.setState({
+                activeDocumentId: document.id,
+              });
+            }}
+            onEdit={() => {
+              setEditingDocument(document);
+              setEditDocumentModalOpen(true);
+            }}
+            onDelete={async () => {
+              modal.confirm({
+                title: "确认删除该文档吗？",
+                onOk: async () => {
+                  await deleteDocument(document);
+                  setEditDocumentModalOpen(false);
+                  setEditingDocument(null);
+                },
+                onCancel: () => {
+                  setEditDocumentModalOpen(false);
+                },
+                okText: "确认",
+                cancelText: "取消",
+                okButtonProps: {
+                  danger: true,
+                },
+              });
+            }}
+          />
+        ))}
+        {editingDocument && (
+          <EditDocumentModal
+            // @ts-ignore
+            key={editingDocument?.id}
+            open={editDocumentModalOpen}
+            onOk={onEditFinish}
+            onCancel={() => {
+              setEditDocumentModalOpen(false);
+            }}
+            document={editingDocument}
+          />
+        )}
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default DocumentList;

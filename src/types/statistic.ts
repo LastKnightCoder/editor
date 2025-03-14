@@ -5,5 +5,5 @@ export interface StatisticData {
   content: {
     count: number;
     wordsCount: number;
-  }
+  };
 }

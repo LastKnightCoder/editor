@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import WidthResizable from "@/components/WidthResizable";
 import useDragAndHideSidebar from "@/hooks/useDragAndHideSidebar.ts";
 
@@ -11,11 +11,13 @@ interface ResizeableAndHideableSidebarProps {
   children: React.ReactNode;
   minWidth?: number;
   maxWidth?: number;
-  side?: 'left' | 'right';
+  side?: "left" | "right";
   disableResize?: boolean;
 }
 
-const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) => {
+const ResizeableAndHideableSidebar = (
+  props: ResizeableAndHideableSidebarProps,
+) => {
   const {
     width,
     open,
@@ -26,7 +28,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
     minWidth = 200,
     maxWidth = 500,
     side,
-    disableResize = false
+    disableResize = false,
   } = props;
 
   const ref = useDragAndHideSidebar<HTMLDivElement>({
@@ -45,7 +47,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
           onWidthChange?.(width, width);
         }}
         style={{
-          height: '100%'
+          height: "100%",
         }}
         side={side}
         disableResize={disableResize}
@@ -53,7 +55,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
         {children}
       </WidthResizable>
     </div>
-  )
-}
+  );
+};
 
 export default ResizeableAndHideableSidebar;

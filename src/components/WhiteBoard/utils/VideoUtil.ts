@@ -1,6 +1,6 @@
 import { getVideoInfo } from "@/utils";
 import { uploadImage } from "@/hooks/useUploadImage";
-import { v4 as getUuid } from 'uuid';
+import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
 
 export class VideoUtil {
@@ -10,7 +10,7 @@ export class VideoUtil {
     const center = {
       x: minX + width / 2,
       y: minY + height / 2,
-    }
+    };
 
     const ops: Operation[] = [];
 
@@ -32,18 +32,18 @@ export class VideoUtil {
 
     if (videoPath) {
       ops.push({
-        type: 'insert_node',
+        type: "insert_node",
         path: [board.children.length],
         node: {
           id: getUuid(),
-          type: 'video',
+          type: "video",
           src: videoPath,
           x: center.x - videoWidth / 2,
           y: center.y - videoHeight / 2,
           width: videoWidth,
-          height: videoHeight
-        }
-      })
+          height: videoHeight,
+        },
+      });
     }
 
     if (ops.length > 0) {
@@ -51,4 +51,3 @@ export class VideoUtil {
     }
   }
 }
-

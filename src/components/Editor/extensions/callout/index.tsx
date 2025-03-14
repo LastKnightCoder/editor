@@ -1,17 +1,17 @@
-import { Element } from 'slate';
+import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { CalloutElement } from "@/components/Editor/types";
 
 import blockPanelItems from "./blockPanelItems";
 import Callout from "./components/Callout";
 import { DEFAULT_TITLE } from "./constants.ts";
-import { deleteFirstLineCallout, quit, withNormalize } from './plugins';
+import { deleteFirstLineCallout, quit, withNormalize } from "./plugins";
 
-import Base from '../base.ts';
+import Base from "../base.ts";
 import IExtension from "../types.ts";
 
 class CalloutExtension extends Base implements IExtension {
-  type = 'callout';
+  type = "callout";
 
   override getPlugins() {
     return [deleteFirstLineCallout, quit, withNormalize];
@@ -30,7 +30,11 @@ class CalloutExtension extends Base implements IExtension {
 
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
-    return <Callout element={element as CalloutElement} attributes={attributes}>{children}</Callout>;
+    return (
+      <Callout element={element as CalloutElement} attributes={attributes}>
+        {children}
+      </Callout>
+    );
   }
 }
 

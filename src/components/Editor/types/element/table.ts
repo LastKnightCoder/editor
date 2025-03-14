@@ -1,16 +1,16 @@
-import { InlineElement } from '../custom-element.ts';
+import { InlineElement } from "../custom-element.ts";
 
 export interface TableCellElement {
-  type: 'table-cell';
+  type: "table-cell";
   children: InlineElement[];
 }
 
 export interface TableRowElement {
-  type: 'table-row';
+  type: "table-row";
   children: TableCellElement[];
 }
 
 export interface TableElement {
-  type: 'table';
+  type: "table";
   children: TableRowElement[];
 }
