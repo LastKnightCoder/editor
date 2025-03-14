@@ -16,7 +16,9 @@ import styles from "./index.module.less";
 import { CreateProjectItem, EProjectItemType } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import SelectCardModal from "@/components/SelectCardModal";
+import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
+import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
 import { getFileBaseName, readTextFile, selectFile } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 
@@ -41,14 +43,26 @@ const Project = () => {
 
   const {
     selectedCards,
-    onChange,
-    onOk,
-    onCancel,
+    onChange: onCardChange,
+    onOk: onCardOk,
+    onCancel: onCardCancel,
     selectCardModalOpen,
     openSelectCardModal,
     cards,
     excludeCardIds,
   } = useAddRefCard();
+
+  const {
+    selectedWhiteBoards,
+    onChange: onWhiteBoardChange,
+    onOk: onWhiteBoardOk,
+    onCancel: onWhiteBoardCancel,
+    selectWhiteBoardModalOpen,
+    openSelectWhiteBoardModal,
+    whiteBoards,
+    excludeWhiteBoardIds,
+    multiple,
+  } = useAddRefWhiteBoard();
 
   const addMenuItems: MenuProps["items"] = [
     {
@@ -134,7 +148,7 @@ const Project = () => {
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
-        // TODO 打开白板选择弹窗
+        openSelectWhiteBoardModal();
       } else if (key === "import-markdown") {
         const filePath = await selectFile({
           properties: ["openFile", "multiSelections"],
@@ -233,12 +247,23 @@ const Project = () => {
       <SelectCardModal
         title={"选择关联卡片"}
         selectedCards={selectedCards}
-        onChange={onChange}
+        onChange={onCardChange}
         open={selectCardModalOpen}
         allCards={cards}
-        onCancel={onCancel}
-        onOk={onOk}
+        onCancel={onCardCancel}
+        onOk={onCardOk}
         excludeCardIds={excludeCardIds}
+      />
+      <SelectWhiteBoardModal
+        title={"选择关联白板"}
+        selectedWhiteBoards={selectedWhiteBoards}
+        onChange={onWhiteBoardChange}
+        open={selectWhiteBoardModalOpen}
+        allWhiteBoards={whiteBoards}
+        onCancel={onWhiteBoardCancel}
+        onOk={onWhiteBoardOk}
+        excludeWhiteBoardIds={excludeWhiteBoardIds}
+        multiple={multiple}
       />
     </div>
   );
