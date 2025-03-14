@@ -1,6 +1,6 @@
 import { RichTextElement } from "@/components/WhiteBoard/plugins";
 import { MdOutlineColorLens } from "react-icons/md";
-import { IoResize } from "react-icons/io5";
+import { CgArrowsShrinkH, CgArrowsShrinkV } from "react-icons/cg";
 import { produce } from "immer";
 
 import styles from "./index.module.less";
@@ -124,14 +124,40 @@ const RichTextSetter = (props: RichTextSetterProps) => {
     if (!richTextContainer) return;
     const editor = richTextContainer.querySelector(
       ":scope > [data-slate-editor]",
-    );
+    ) as HTMLDivElement;
     if (!editor) return;
+
+    editor.style.height = "auto";
+
     // 获取滚动高度
     const scrollHeight = editor.scrollHeight;
     const newElement = produce(element, (draft) => {
       draft.height = scrollHeight;
       draft.maxHeight = Math.max(scrollHeight, 3000);
-      draft.resized = false;
+      // 如果宽度大于300，则不进行调整
+      draft.resized =
+        Math.round(element.width) !== richTextContainer.scrollWidth;
+    });
+    onChange(newElement);
+  });
+
+  const handleFitWidth = useMemoizedFn(() => {
+    const richTextContainer = document.getElementById(
+      `rich-text-container-${element.id}`,
+    );
+    if (!richTextContainer) return;
+    const editor = richTextContainer.querySelector(
+      ":scope > [data-slate-editor]",
+    ) as HTMLDivElement;
+    if (!editor) return;
+
+    editor.style.width = "fit-content";
+
+    const newElement = produce(element, (draft) => {
+      draft.width = editor.scrollWidth;
+      draft.maxWidth = Math.max(editor.scrollWidth, 300);
+      draft.resized =
+        Math.round(element.height) !== richTextContainer.scrollHeight;
     });
     onChange(newElement);
   });
@@ -184,7 +210,12 @@ const RichTextSetter = (props: RichTextSetterProps) => {
       </Popover>
       <Tooltip title={"适应高度"} placement={"left"}>
         <div className={styles.item} onClick={handleFitHeight}>
-          <IoResize />
+          <CgArrowsShrinkV />
+        </div>
+      </Tooltip>
+      <Tooltip title={"适应宽度"} placement={"left"}>
+        <div className={styles.item} onClick={handleFitWidth}>
+          <CgArrowsShrinkH />
         </div>
       </Tooltip>
     </div>
