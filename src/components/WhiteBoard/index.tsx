@@ -6,7 +6,7 @@ import React, {
   useSyncExternalStore,
   useState,
 } from "react";
-import { useMemoizedFn, useCreation } from "ahooks";
+import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
 import classnames from "classnames";
 
 import Board from "./Board";
@@ -176,7 +176,10 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const handleClick = eventHandlerGenerator("onClick");
   const handleDblClick = eventHandlerGenerator("onDblClick");
   const handleOnPointerDown = eventHandlerGenerator("onPointerDown");
-  const handleOnPointerMove = eventHandlerGenerator("onPointerMove");
+  const { run: handleOnPointerMove } = useThrottleFn(
+    eventHandlerGenerator("onPointerMove"),
+    { wait: 25 },
+  );
   const handleOnPointerUp = eventHandlerGenerator("onPointerUp");
 
   const handleGridVisibleChange = useMemoizedFn((visible: boolean) => {

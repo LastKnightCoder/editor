@@ -51,8 +51,10 @@ export class MovePlugin implements IBoardPlugin {
     }
 
     this.isHitSelected = isHitSelected;
+    const isMultiSelect = e.ctrlKey || e.metaKey;
 
-    if (this.moveElements) {
+    // 多选情况下交给 SelectPlugin 处理
+    if (this.moveElements && !isMultiSelect) {
       this.startPoint = startPoint;
       board.apply(
         {
