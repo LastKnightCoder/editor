@@ -201,22 +201,24 @@ const Project = () => {
         </div>
       </div>
       <div className={styles.divider}></div>
-      <If condition={project.children.length === 0}>
-        <Empty description={'项目下暂无文档'} />
-      </If>
-      <For
-        data={project.children}
-        renderItem={(projectItemId, index) => (
-          <ProjectItem
-            projectItemId={projectItemId}
-            isRoot
-            key={projectItemId}
-            path={[index]}
-            parentProjectItemId={project.id}
-            parentChildren={project.children}
-          />
-        )}
-      />
+      <div className={styles.contentArea}>
+        <If condition={project.children.length === 0}>
+          <Empty description={'项目下暂无文档'} />
+        </If>
+        <For
+          data={project.children}
+          renderItem={(projectItemId, index) => (
+            <ProjectItem
+              projectItemId={projectItemId}
+              isRoot
+              key={projectItemId}
+              path={[index]}
+              parentProjectItemId={project.id}
+              parentChildren={project.children}
+            />
+          )}
+        />
+      </div>
       <SelectCardModal
         title={'选择关联卡片'}
         selectedCards={selectedCards}
