@@ -80,12 +80,39 @@ export class SelectPlugin implements IBoardPlugin {
       });
     }
   }
-  onGlobalPointerUp(_e: PointerEvent, board: Board) {
+  onGlobalPointerUp(e: PointerEvent, board: Board) {
     if (this.startPoint) {
       let selectedElements: BoardElement[] = board.selection.selectedElements;
+
+      const isMultiSelect = e.ctrlKey || e.metaKey;
+
       if (!this.moved && this.hitElements && this.hitElements.length > 0) {
-        selectedElements = [this.hitElements[this.hitElements.length - 1]];
+        const clickedElement = this.hitElements[this.hitElements.length - 1];
+
+        console.log(isMultiSelect, selectedElements, clickedElement);
+
+        if (isMultiSelect) {
+          // 多选模式下，如果点击的元素已经在选中列表中，则移除它；否则添加它
+          const existingIndex = selectedElements.findIndex(
+            (el) => el.id === clickedElement.id,
+          );
+
+          if (existingIndex >= 0) {
+            // 元素已存在，移除它
+            selectedElements = [
+              ...selectedElements.slice(0, existingIndex),
+              ...selectedElements.slice(existingIndex + 1),
+            ];
+          } else {
+            // 元素不存在，添加它
+            selectedElements = [...selectedElements, clickedElement];
+          }
+        } else {
+          // 非多选模式，只选中当前点击的元素
+          selectedElements = [clickedElement];
+        }
       }
+
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,
         selectedElements,
