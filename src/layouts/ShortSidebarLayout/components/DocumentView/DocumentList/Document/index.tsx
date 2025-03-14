@@ -139,30 +139,30 @@ const Document = (props: IDocumentProps) => {
       </div>
       <div className={styles.divider}></div>
       <If condition={children.length === 0}>
-        <div className={styles.empty}>
-          <Empty description="该文档下没有内容" />
-          <Button type="primary" onClick={addNewDocumentItem}>添加文档</Button>
-        </div>
-      </If>
-      <If condition={children.length > 0}>
-        <div className={styles.document}>
-          {
-            children.map((itemId, index) => (
-              <DocumentItem
-                key={itemId}
-                path={[index]}
-                parentChildren={children}
-                onParentDeleteChild={onRemoveDocumentItem}
-                onParentAddChild={onAddDocumentItemWithPosition}
-                onParentMoveChild={onMoveDocumentItem}
-                itemId={itemId}
-                parentId={document.id}
-                isRoot
-              />
-            ))
-          }
-        </div>
-      </If>
+          <div className={styles.empty}>
+            <Empty description="该文档下没有内容" />
+            <Button type="primary" onClick={addNewDocumentItem}>添加文档</Button>
+          </div>
+        </If>
+        <If condition={children.length > 0}>
+          <div className={styles.document}>
+            {
+              children.map((itemId, index) => (
+                <DocumentItem
+                  key={itemId}
+                  path={[index]}
+                  parentChildren={children}
+                  onParentDeleteChild={onRemoveDocumentItem}
+                  onParentAddChild={onAddDocumentItemWithPosition}
+                  onParentMoveChild={onMoveDocumentItem}
+                  itemId={itemId}
+                  parentId={document.id}
+                  isRoot
+                />
+              ))
+            }
+          </div>
+        </If>
     </div>
   )
 }
