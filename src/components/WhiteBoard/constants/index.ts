@@ -7,3 +7,4 @@ export * from "./card";
 export * from "./richtext";
 export * from "./mind";
 export * from "./viewport";
+export * from "./grid";
