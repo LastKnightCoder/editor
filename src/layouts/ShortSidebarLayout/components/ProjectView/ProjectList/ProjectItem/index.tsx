@@ -6,6 +6,7 @@ import { produce } from "immer";
 import { getFileBaseName, readTextFile, selectFile } from "@/commands";
 
 import SelectCardModal from "@/components/SelectCardModal";
+import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useDragAndDrop, {
@@ -13,6 +14,7 @@ import useDragAndDrop, {
   IDragItem,
 } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
+import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
 
 import SVG from "react-inlinesvg";
 import For from "@/components/For";
@@ -73,11 +75,22 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     openSelectCardModal,
     selectedCards,
     excludeCardIds,
-    onOk,
-    onCancel,
-    onChange,
+    onOk: onCardOk,
+    onCancel: onCardCancel,
+    onChange: onCardChange,
     buildCardFromProjectItem,
   } = useAddRefCard(projectItem);
+  const {
+    whiteBoards,
+    selectWhiteBoardModalOpen,
+    openSelectWhiteBoardModal,
+    selectedWhiteBoards,
+    excludeWhiteBoardIds,
+    onOk: onWhiteBoardOk,
+    onCancel: onWhiteBoardCancel,
+    onChange: onWhiteBoardChange,
+    multiple,
+  } = useAddRefWhiteBoard(projectItem);
   const { modal } = App.useApp();
 
   const refresh = useMemoizedFn((projectItemId) => {
@@ -466,9 +479,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
-        // TODO 打开白板选择弹窗
-      } else if (key === "add-web-project-item") {
-        setWebClipModalOpen(true);
+        openSelectWhiteBoardModal();
       } else if (key === "import-markdown") {
         if (!projectItem) return;
         const filePath = await selectFile({
@@ -506,6 +517,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           },
         });
         document.dispatchEvent(event);
+      } else if (key === "add-web-project-item") {
+        setWebClipModalOpen(true);
       }
     },
   );
@@ -691,12 +704,23 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       <SelectCardModal
         title={"选择关联卡片"}
         selectedCards={selectedCards}
-        onChange={onChange}
+        onChange={onCardChange}
         open={selectCardModalOpen}
         allCards={cards}
-        onCancel={onCancel}
-        onOk={onOk}
+        onCancel={onCardCancel}
+        onOk={onCardOk}
         excludeCardIds={excludeCardIds}
+      />
+      <SelectWhiteBoardModal
+        title={"选择关联白板"}
+        selectedWhiteBoards={selectedWhiteBoards}
+        onChange={onWhiteBoardChange}
+        open={selectWhiteBoardModalOpen}
+        allWhiteBoards={whiteBoards}
+        onCancel={onWhiteBoardCancel}
+        onOk={onWhiteBoardOk}
+        excludeWhiteBoardIds={excludeWhiteBoardIds}
+        multiple={multiple}
       />
       <Modal
         open={webClipModalOpen}
