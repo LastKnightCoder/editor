@@ -16,7 +16,10 @@
     "updater": "node scripts/updater.mjs",
     "release": "node scripts/release.mjs",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "postinstall": "npm run rebuild"
+    "postinstall": "npm run rebuild",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,less,scss}\"",
+    "lint:staged": "lint-staged",
+    "prepare": "husky"
   },
   "dependencies": {
     "@electron/rebuild": "^3.7.1",
@@ -37,6 +40,8 @@
     "@antv/g6": "^4.8.20",
     "@babel/plugin-syntax-unicode-sets-regex": "^7.18.6",
     "@babel/standalone": "^7.22.2",
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
     "@fortaine/fetch-event-source": "^3.0.6",
     "@loadable/component": "^5.15.3",
     "@tmikeladze/react-cmdk": "1.3.14",
@@ -71,16 +76,20 @@
     "electron-builder": "^25.1.8",
     "electron-devtools-installer": "^4.0.0",
     "eslint": "^8.39.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.3",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.3.5",
     "framer-motion": "^10.13.0",
     "graphviz-react": "^1.2.5",
     "gsap": "^3.12.5",
+    "husky": "^9.1.7",
     "immer": "^10.0.2",
     "is-hotkey": "^0.2.0",
     "katex": "^0.16.8",
     "less": "^4.1.3",
     "lightgallery": "^2.7.2",
+    "lint-staged": "^15.5.0",
     "lodash": "^4.17.21",
     "lucide-react": "^0.399.0",
     "markdown-table": "^3.0.4",
@@ -89,6 +98,7 @@
     "path-intersection": "^3.1.0",
     "pdfjs-dist": "^4.5.136",
     "postcss": "^8.4.38",
+    "prettier": "^3.5.3",
     "react": "^18.2.0",
     "react-cmdk": "^1.3.9",
     "react-codemirror2": "^7.2.1",
@@ -122,5 +132,10 @@
     "vite-plugin-electron": "^0.29.0",
     "words-count": "^2.0.2",
     "zustand": "^4.3.8"
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
   }
 }
