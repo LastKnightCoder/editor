@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useRef,
   useSyncExternalStore,
+  useState,
 } from "react";
 import { useMemoizedFn, useCreation } from "ahooks";
 import classnames from "classnames";
@@ -31,16 +32,20 @@ import {
   ZOOMS,
   MIN_ZOOM,
   MAX_ZOOM,
+  DEFAULT_GRID_SIZE,
+  DEFAULT_GRID_VISIBLE,
 } from "./constants";
 import { BoardElement, Events, ViewPort, Selection } from "./types";
 import Toolbar from "./components/Toolbar";
 import SelectArea from "./components/SelectArea";
 import GradientLine from "./components/GradientLine";
-import styles from "./index.module.less";
+import Grid from "./components/Grid";
+import GridSettings from "./components/GridSettings";
 import AttributeSetter from "./components/AttributeSetter";
+import { Flex, Popover, Divider } from "antd";
 import { MinusOutlined, PlusOutlined } from "@ant-design/icons";
-import { Flex, Popover } from "antd";
 import For from "@/components/For";
+import styles from "./index.module.less";
 
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
@@ -96,6 +101,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     },
     onChange,
   } = props;
+
+  const [gridVisible, setGridVisible] = useState<boolean>(DEFAULT_GRID_VISIBLE);
+  const [gridSize, setGridSize] = useState<number>(DEFAULT_GRID_SIZE);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -170,6 +178,14 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const handleOnPointerDown = eventHandlerGenerator("onPointerDown");
   const handleOnPointerMove = eventHandlerGenerator("onPointerMove");
   const handleOnPointerUp = eventHandlerGenerator("onPointerUp");
+
+  const handleGridVisibleChange = useMemoizedFn((visible: boolean) => {
+    setGridVisible(visible);
+  });
+
+  const handleGridSizeChange = useMemoizedFn((size: number) => {
+    setGridSize(size);
+  });
 
   useEffect(() => {
     const container = containerRef.current;
@@ -278,6 +294,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                   />
                 </marker>
               </defs>
+              <Grid visible={gridVisible} gridSize={gridSize} />
               <g>{board.renderElements(centerConnectArrows)}</g>
               <g>{board.renderElements(noneCenterConnectArrows)}</g>
               <g>
@@ -311,6 +328,14 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 e.stopPropagation();
               }}
             >
+              <GridSettings
+                onVisibleChange={handleGridVisibleChange}
+                onSizeChange={handleGridSizeChange}
+              />
+              <Divider
+                type="vertical"
+                style={{ margin: "0 4px", height: "16px" }}
+              />
               <MinusOutlined onClick={handleZoomIn} />
               <Popover
                 trigger={"click"}
