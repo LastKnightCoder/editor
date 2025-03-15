@@ -1,6 +1,7 @@
 import RichTextSetter from "./RichTextSetter";
 import GeometrySetter from "./GeometrySetter";
 import ArrowSetter from "./ArrowSetter";
+import ImageSetter from "./ImageSetter";
 
 export default {
   richtext: {
@@ -14,5 +15,8 @@ export default {
   },
   arrow: {
     component: ArrowSetter,
+  },
+  image: {
+    component: ImageSetter,
   },
 };

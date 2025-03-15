@@ -17,6 +17,7 @@ interface IEditTextProps {
   onPressEnter?: () => void;
   onDeleteEmpty?: () => void;
   defaultFocus?: boolean;
+  onBlur?: () => void;
 }
 
 export type EditTextHandle = {
@@ -40,6 +41,7 @@ const EditText = memo(
       onPressEnter,
       defaultFocus = false,
       onDeleteEmpty,
+      onBlur,
     } = props;
 
     const [initValue] = useState(defaultValue);
@@ -157,10 +159,17 @@ const EditText = memo(
       setIsEditing(true);
     };
 
-    const handleBlur = () => {
+    const handleBlur = useMemoizedFn(() => {
       setIsEditing(false);
       onChange?.(ref.current?.innerText || "");
-    };
+      onBlur?.();
+    });
+
+    useEffect(() => {
+      return () => {
+        handleBlur();
+      };
+    }, [handleBlur]);
 
     return (
       <div
