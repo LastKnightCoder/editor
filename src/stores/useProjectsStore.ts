@@ -26,6 +26,7 @@ interface IState {
   showOutline: boolean;
   readonly: boolean;
   hideProjectItemList: boolean;
+  showArchived: boolean;
 }
 
 interface IActions {
@@ -54,6 +55,9 @@ interface IActions {
     projectId: number,
   ) => Promise<void>;
   archiveProject: (projectId: number) => Promise<Project | undefined>;
+  unarchiveProject: (projectId: number) => Promise<Project | undefined>;
+  pinProject: (projectId: number) => Promise<Project | undefined>;
+  unpinProject: (projectId: number) => Promise<Project | undefined>;
 }
 
 const initState: IState = {
@@ -66,6 +70,7 @@ const initState: IState = {
   showOutline: false,
   readonly: false,
   hideProjectItemList: false,
+  showArchived: false,
 };
 
 const useProjectsStore = create<IState & IActions>((set, get) => ({
@@ -208,6 +213,33 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     if (!project) return;
     const newProject = produce(project, (draft) => {
       draft.archived = true;
+    });
+    return updateProject(newProject);
+  },
+  unarchiveProject: async (projectId: number) => {
+    const { projects, updateProject } = get();
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    const newProject = produce(project, (draft) => {
+      draft.archived = false;
+    });
+    return updateProject(newProject);
+  },
+  pinProject: async (projectId: number) => {
+    const { projects, updateProject } = get();
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    const newProject = produce(project, (draft) => {
+      draft.pinned = true;
+    });
+    return updateProject(newProject);
+  },
+  unpinProject: async (projectId: number) => {
+    const { projects, updateProject } = get();
+    const project = projects.find((item) => item.id === projectId);
+    if (!project) return;
+    const newProject = produce(project, (draft) => {
+      draft.pinned = false;
     });
     return updateProject(newProject);
   },
