@@ -1,36 +1,26 @@
 import Editor from "@/components/Editor";
-import {
-  formatDate,
-  getEditorText,
-  embeddingContent,
-  getMarkdown,
-} from "@/utils";
-import {
-  getVecDocumentsByRefType,
-  deleteVecDocumentsByRef,
-  getAllDocuments,
-  getAllDocumentItems,
-} from "@/commands";
-import { IDocument, IDocumentItem, VecDocument } from "@/types";
+import { formatDate, getEditorText, getMarkdown } from "@/utils";
+import { getAllDocuments, getAllDocumentItems } from "@/commands";
+import { IDocument, IDocumentItem, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import {
-  App,
   Button,
   Popover,
   Typography,
-  Popconfirm,
   TableProps,
   TableColumnType,
   Select,
   Space,
   Tag,
   Flex,
+  App,
 } from "antd";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
+import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 
 const EMBEDDING_MODEL = "text-embedding-3-large";
 const PAGE_SIZE = 20;
@@ -84,17 +74,22 @@ const findItemById = (
 
 const useDocumentConfig = () => {
   const { message } = App.useApp();
-
   const [documents, setDocuments] = useState<IDocument[]>([]);
   const [documentItems, setDocumentItems] = useState<IDocumentItem[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(
     null,
   );
-  const [vecDocuments, setVecDocuments] = useState<VecDocument[]>([]);
+  const [indexResults, setIndexResults] = useState<
+    [SearchResult[], SearchResult[]]
+  >([[], []]);
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ExtendedDocumentItem[]>([]);
   const [current, setCurrent] = useState(1);
   const [allTreeData, setAllTreeData] = useState<ExtendedDocumentItem[]>([]);
+  const [loadingIds, setLoadingIds] = useState<number[]>([]);
+
+  // 解构索引结果
+  const [ftsResults, vecResults] = indexResults;
 
   const { provider } = useSettingStore((state) => ({
     provider: state.setting.llmProviders[ELLMProvider.OPENAI],
@@ -129,18 +124,15 @@ const useDocumentConfig = () => {
     fetchDocumentItems();
   }, []);
 
-  // 获取向量文档
+  // 获取索引结果
+  const initIndexResults = useMemoizedFn(async () => {
+    const results = await getAllIndexResults("document-item");
+    setIndexResults(results);
+  });
+
   useEffect(() => {
-    const fetchVecDocuments = async () => {
-      try {
-        const docs = await getVecDocumentsByRefType("document");
-        setVecDocuments(docs);
-      } catch (error) {
-        console.error("获取向量文档失败", error);
-      }
-    };
-    fetchVecDocuments();
-  }, []);
+    initIndexResults().then();
+  }, [initIndexResults]);
 
   // 构建知识库项的树形结构
   const filteredDocumentItems = useMemo(() => {
@@ -195,26 +187,38 @@ const useDocumentConfig = () => {
   const filteredData = useMemo(() => {
     let result = [...filteredDocumentItems];
 
-    // 应用嵌入状态过滤条件
+    // 应用索引状态过滤条件
     if (
-      filteredInfo.embeddingStatus &&
-      Array.isArray(filteredInfo.embeddingStatus) &&
-      filteredInfo.embeddingStatus.length > 0
+      filteredInfo.index_status &&
+      Array.isArray(filteredInfo.index_status) &&
+      filteredInfo.index_status.length > 0
     ) {
       // 递归过滤函数
       const filterItems = (
         items: ExtendedDocumentItem[],
       ): ExtendedDocumentItem[] => {
         return items.filter((item) => {
-          const hasEmbedding = vecDocuments.some(
-            (doc) => doc.refId === item.id && doc.refType === "document",
+          // 查找索引状态
+          const hasFTSIndex = ftsResults.some(
+            (result) =>
+              result.id === item.id && result.type === "document-item",
           );
 
-          const matchesFilter = filteredInfo.embeddingStatus?.some(
-            (status) =>
-              (status === "已嵌入" && hasEmbedding) ||
-              (status === "未嵌入" && !hasEmbedding),
+          const vecResult = vecResults.find(
+            (result) =>
+              result.id === item.id && result.type === "document-item",
           );
+
+          let status;
+          if (!hasFTSIndex && !vecResult) {
+            status = "未索引";
+          } else if (vecResult && item.updateTime > vecResult.updateTime) {
+            status = "待更新";
+          } else {
+            status = "已索引";
+          }
+
+          const matchesFilter = filteredInfo.index_status?.includes(status);
 
           // 如果有子项，递归过滤
           if (item.children && item.children.length > 0) {
@@ -232,7 +236,7 @@ const useDocumentConfig = () => {
     }
 
     return result;
-  }, [filteredDocumentItems, filteredInfo, vecDocuments]);
+  }, [filteredDocumentItems, filteredInfo, ftsResults, vecResults]);
 
   // 分页处理
   const slicedDocumentItems = useMemo(() => {
@@ -240,16 +244,6 @@ const useDocumentConfig = () => {
     const end = start + PAGE_SIZE;
     return filteredData.slice(start, end);
   }, [filteredData, current]);
-
-  // 批量操作
-  const initVecDocuments = async () => {
-    try {
-      const docs = await getVecDocumentsByRefType("document");
-      setVecDocuments(docs);
-    } catch (error) {
-      console.error("获取向量文档失败", error);
-    }
-  };
 
   // 适配useBatchOperation所需的数据结构
   const adaptedSelectedRows = selectedRows.map((item) => ({
@@ -260,7 +254,7 @@ const useDocumentConfig = () => {
 
   const {
     handleBatchEmbedding,
-    handleBatchDelete: handleBatchRemoveEmbedding,
+    handleBatchDelete,
     batchCreateOrUpdateLoading,
     batchDeleteLoading,
     createEmbeddings,
@@ -290,9 +284,9 @@ const useDocumentConfig = () => {
 
       setSelectedRows(originalRows);
     },
-    type: "document",
-    vecDocuments,
-    initVecDocuments,
+    type: "document-item",
+    indexResults,
+    initIndexResults,
   });
 
   // 行选择配置
@@ -347,121 +341,125 @@ const useDocumentConfig = () => {
     },
   };
 
-  // 嵌入单个知识库项
-  const onEmbedding = async (record: ExtendedDocumentItem) => {
-    try {
-      // 添加空值检查，避免 getEditorText 的 undefined 错误
-      const content = record.content
-        ? getEditorText((record.content as Descendant[]) || [])
-        : "";
-      const markdown = record.content
-        ? getMarkdown(record.content as Descendant[])
-        : "";
-
-      if (!content) {
-        message.error("内容为空，无法嵌入");
+  // 创建索引
+  const onCreateEmbedding = useMemoizedFn(
+    async (markdown: string, record: ExtendedDocumentItem) => {
+      if (!provider.currentConfigId) {
+        message.error("未配置OpenAI API密钥");
         return false;
       }
 
-      // 获取API密钥和baseUrl
-      const config = provider.configs.find(
+      const currentConfig = provider.configs.find(
         (config) => config.id === provider.currentConfigId,
       );
 
-      if (!config) {
-        message.error("未找到API配置");
+      if (!currentConfig) {
+        message.error("未找到有效的API配置");
         return false;
       }
 
-      const { apiKey, baseUrl } = config;
+      setLoadingIds((prev) => [...prev, record.id]);
+      const messageKey = `create-index-${record.id}`;
+      message.loading({ content: "正在创建索引...", key: messageKey });
 
-      // 调用嵌入API
-      await embeddingContent(
-        apiKey,
-        baseUrl,
-        EMBEDDING_MODEL,
-        markdown,
-        record.id,
-        "document",
-        record.updateTime,
-      );
+      try {
+        const { apiKey, baseUrl } = currentConfig;
 
-      // 刷新向量文档列表
-      await initVecDocuments();
+        await indexContent({
+          id: record.id,
+          content: markdown,
+          type: "document-item",
+          updateTime: record.updateTime,
+          modelInfo: {
+            key: apiKey,
+            baseUrl,
+            model: EMBEDDING_MODEL,
+          },
+        });
 
-      return true;
-    } catch (error) {
-      console.error("嵌入失败", error);
-      return false;
-    }
-  };
+        await initIndexResults();
+        message.success({ content: "索引创建成功", key: messageKey });
+        return true;
+      } catch (error) {
+        console.error("创建索引失败", error);
+        message.error({ content: "索引创建失败", key: messageKey });
+        return false;
+      } finally {
+        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      }
+    },
+  );
 
-  // 更新单个知识库项的嵌入
-  const onUpdateEmbedding = async (record: ExtendedDocumentItem) => {
-    try {
-      // 添加空值检查，避免 getEditorText 的 undefined 错误
-      const content = record.content
-        ? getEditorText((record.content as Descendant[]) || [])
-        : "";
-      const markdown = record.content
-        ? getMarkdown(record.content as Descendant[])
-        : "";
-
-      if (!content) {
-        message.error("内容为空，无法更新嵌入");
+  // 更新索引
+  const onUpdateEmbedding = useMemoizedFn(
+    async (markdown: string, record: ExtendedDocumentItem) => {
+      if (!provider.currentConfigId) {
+        message.error("未配置OpenAI API密钥");
         return false;
       }
 
-      // 获取API密钥和baseUrl
-      const config = provider.configs.find(
+      const currentConfig = provider.configs.find(
         (config) => config.id === provider.currentConfigId,
       );
 
-      if (!config) {
-        message.error("未找到API配置");
+      if (!currentConfig) {
+        message.error("未找到有效的API配置");
         return false;
       }
 
-      const { apiKey, baseUrl } = config;
+      setLoadingIds((prev) => [...prev, record.id]);
+      const messageKey = `update-index-${record.id}`;
+      message.loading({ content: "正在更新索引...", key: messageKey });
 
-      // 先删除旧的嵌入
-      await deleteVecDocumentsByRef(record.id, "document");
+      try {
+        const { apiKey, baseUrl } = currentConfig;
 
-      // 创建新的嵌入
-      await embeddingContent(
-        apiKey,
-        baseUrl,
-        EMBEDDING_MODEL,
-        markdown,
-        record.id,
-        "document",
-        record.updateTime,
-      );
+        await indexContent({
+          id: record.id,
+          content: markdown,
+          type: "document-item",
+          updateTime: record.updateTime,
+          modelInfo: {
+            key: apiKey,
+            baseUrl,
+            model: EMBEDDING_MODEL,
+          },
+        });
 
-      // 刷新向量文档列表
-      await initVecDocuments();
+        await initIndexResults();
+        message.success({ content: "索引更新成功", key: messageKey });
+        return true;
+      } catch (error) {
+        console.error("更新索引失败", error);
+        message.error({ content: "索引更新失败", key: messageKey });
+        return false;
+      } finally {
+        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      }
+    },
+  );
 
-      return true;
-    } catch (error) {
-      console.error("更新嵌入失败", error);
-      return false;
-    }
-  };
+  // 删除索引
+  const onRemoveEmbedding = useMemoizedFn(
+    async (record: ExtendedDocumentItem) => {
+      setLoadingIds((prev) => [...prev, record.id]);
+      const messageKey = `remove-index-${record.id}`;
+      message.loading({ content: "正在删除索引...", key: messageKey });
 
-  // 删除单个知识库项的嵌入
-  const onRemoveEmbedding = async (record: ExtendedDocumentItem) => {
-    try {
-      await deleteVecDocumentsByRef(record.id, "document");
-
-      // 刷新向量文档列表
-      await initVecDocuments();
-
-      return true;
-    } catch (error) {
-      console.error("删除嵌入失败", error);
-      return false;
-    }
-  };
+      try {
+        await removeIndex(record.id, "document-item");
+        await initIndexResults();
+        message.success({ content: "索引删除成功", key: messageKey });
+        return true;
+      } catch (error) {
+        console.error("删除索引失败", error);
+        message.error({ content: "索引删除失败", key: messageKey });
+        return false;
+      } finally {
+        setLoadingIds((prev) => prev.filter((id) => id !== record.id));
+      }
+    },
+  );
 
   // 表格列配置
   const columns: TableColumnType<ExtendedDocumentItem>[] = [
@@ -515,172 +513,136 @@ const useDocumentConfig = () => {
       render: (time: number) => formatDate(time, true),
     },
     {
-      title: "嵌入状态",
-      key: "embeddingStatus",
+      title: "索引状态",
+      key: "index_status",
+      dataIndex: "index_status",
       filters: [
-        { text: "已嵌入", value: "已嵌入" },
+        { text: "未索引", value: "未索引" },
+        { text: "已索引", value: "已索引" },
         { text: "待更新", value: "待更新" },
-        { text: "未嵌入", value: "未嵌入" },
       ],
-      filteredValue: filteredInfo.embeddingStatus || null,
+      filteredValue: filteredInfo.index_status || null,
       render: (_, record) => {
-        const vecEmbeddedDocuments = vecDocuments.filter(
-          (doc) => doc.refId === record.id && doc.refType === "document",
+        // 查找索引状态
+        const hasFTSIndex = ftsResults.some(
+          (result) =>
+            result.id === record.id && result.type === "document-item",
         );
 
-        if (vecEmbeddedDocuments.length === 0) {
-          return <Tag color="red">未嵌入</Tag>;
-        } else {
-          const embeddingTime = vecEmbeddedDocuments[0].refUpdateTime;
-          const itemUpdateTime = record.updateTime;
+        const vecResult = vecResults.find(
+          (result) =>
+            result.id === record.id && result.type === "document-item",
+        );
 
-          if (itemUpdateTime > embeddingTime) {
-            return <Tag color="orange">已嵌入（待更新）</Tag>;
-          } else {
-            return <Tag color="green">已嵌入</Tag>;
-          }
+        // 显示FTS和向量索引状态
+        const renderIndexStatus = () => {
+          return (
+            <Flex gap={4}>
+              <Tag color={hasFTSIndex ? "green" : "red"}>
+                FTS: {hasFTSIndex ? "已索引" : "未索引"}
+              </Tag>
+              {vecResult ? (
+                <Tag
+                  color={
+                    record.updateTime > vecResult.updateTime
+                      ? "orange"
+                      : "green"
+                  }
+                >
+                  向量:{" "}
+                  {record.updateTime > vecResult.updateTime
+                    ? "待更新"
+                    : "已索引"}
+                </Tag>
+              ) : (
+                <Tag color="red">向量: 未索引</Tag>
+              )}
+            </Flex>
+          );
+        };
+
+        let status = "已索引";
+        if (!hasFTSIndex && !vecResult) {
+          status = "未索引";
+        } else if (
+          (hasFTSIndex && !vecResult) ||
+          (!hasFTSIndex && vecResult) ||
+          (vecResult && record.updateTime > vecResult.updateTime)
+        ) {
+          status = "待更新";
         }
+
+        return renderIndexStatus();
       },
     },
     {
       title: "操作",
-      key: "action",
+      key: "operations",
+      width: 120,
       render: (_, record) => {
-        const vecEmbeddedDocuments = vecDocuments.filter(
-          (doc) => doc.refId === record.id && doc.refType === "document",
+        const isLoading = loadingIds.includes(record.id);
+
+        // 查找索引状态
+        const hasFTSIndex = ftsResults.some(
+          (result) =>
+            result.id === record.id && result.type === "document-item",
         );
 
-        if (vecEmbeddedDocuments.length === 0) {
-          // 未嵌入状态
+        const vecResult = vecResults.find(
+          (result) =>
+            result.id === record.id && result.type === "document-item",
+        );
+
+        if (!hasFTSIndex && !vecResult) {
           return (
             <Button
               type="link"
+              size="small"
+              loading={isLoading}
+              disabled={isLoading}
               onClick={async () => {
-                message.loading({
-                  key: "embedding",
-                  content: "正在嵌入，请稍后...",
-                  duration: 0,
-                });
-                const success = await onEmbedding(record);
-                if (success) {
-                  message.success({
-                    key: "embedding",
-                    content: "嵌入成功",
-                    duration: 2,
-                  });
-                } else {
-                  message.error({
-                    key: "embedding",
-                    content: "嵌入失败",
-                    duration: 2,
-                  });
-                }
+                const markdown = getMarkdown(record.content);
+                await onCreateEmbedding(markdown, record);
               }}
             >
-              创建嵌入
+              创建索引
+            </Button>
+          );
+        } else if (
+          (hasFTSIndex && !vecResult) ||
+          (!hasFTSIndex && vecResult) ||
+          (vecResult && record.updateTime > vecResult.updateTime)
+        ) {
+          return (
+            <Button
+              type="link"
+              size="small"
+              style={{ color: "#faad14" }}
+              loading={isLoading}
+              disabled={isLoading}
+              onClick={async () => {
+                const markdown = getMarkdown(record.content);
+                await onUpdateEmbedding(markdown, record);
+              }}
+            >
+              更新索引
             </Button>
           );
         } else {
-          const embeddingTime = vecEmbeddedDocuments[0].refUpdateTime;
-          const itemUpdateTime = record.updateTime;
-
-          if (itemUpdateTime > embeddingTime) {
-            // 需要更新的状态
-            return (
-              <>
-                <Button
-                  type="link"
-                  onClick={async () => {
-                    message.loading({
-                      key: "updateEmbedding",
-                      content: "正在更新嵌入，请稍后...",
-                      duration: 0,
-                    });
-                    const success = await onUpdateEmbedding(record);
-                    if (success) {
-                      message.success({
-                        key: "updateEmbedding",
-                        content: "更新嵌入成功",
-                        duration: 2,
-                      });
-                    } else {
-                      message.error({
-                        key: "updateEmbedding",
-                        content: "更新嵌入失败",
-                        duration: 2,
-                      });
-                    }
-                  }}
-                >
-                  更新嵌入
-                </Button>
-                <Popconfirm
-                  title="确定要删除嵌入吗？"
-                  onConfirm={async () => {
-                    message.loading({
-                      key: "removeEmbedding",
-                      content: "正在删除嵌入，请稍后...",
-                      duration: 0,
-                    });
-                    const success = await onRemoveEmbedding(record);
-                    if (success) {
-                      message.success({
-                        key: "removeEmbedding",
-                        content: "删除嵌入成功",
-                        duration: 2,
-                      });
-                    } else {
-                      message.error({
-                        key: "removeEmbedding",
-                        content: "删除嵌入失败",
-                        duration: 2,
-                      });
-                    }
-                  }}
-                  okText="确定"
-                  cancelText="取消"
-                >
-                  <Button type="link" danger>
-                    删除嵌入
-                  </Button>
-                </Popconfirm>
-              </>
-            );
-          } else {
-            // 已嵌入状态
-            return (
-              <Popconfirm
-                title="确定要删除嵌入吗？"
-                onConfirm={async () => {
-                  message.loading({
-                    key: "removeEmbedding",
-                    content: "正在删除嵌入，请稍后...",
-                    duration: 0,
-                  });
-                  const success = await onRemoveEmbedding(record);
-                  if (success) {
-                    message.success({
-                      key: "removeEmbedding",
-                      content: "删除嵌入成功",
-                      duration: 2,
-                    });
-                  } else {
-                    message.error({
-                      key: "removeEmbedding",
-                      content: "删除嵌入失败",
-                      duration: 2,
-                    });
-                  }
-                }}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Button type="link" danger>
-                  删除嵌入
-                </Button>
-              </Popconfirm>
-            );
-          }
+          return (
+            <Button
+              type="link"
+              size="small"
+              danger
+              loading={isLoading}
+              disabled={isLoading}
+              onClick={async () => {
+                await onRemoveEmbedding(record);
+              }}
+            >
+              删除索引
+            </Button>
+          );
         }
       },
     },
@@ -728,15 +690,15 @@ const useDocumentConfig = () => {
         loading={batchCreateOrUpdateLoading}
         onClick={handleBatchEmbedding}
       >
-        批量嵌入
+        批量索引
       </Button>
       <Button
         danger
         disabled={selectedRows.length === 0 || deleteEmbeddings.length === 0}
         loading={batchDeleteLoading}
-        onClick={handleBatchRemoveEmbedding}
+        onClick={handleBatchDelete}
       >
-        批量删除
+        批量删除索引
       </Button>
     </Space>
   );

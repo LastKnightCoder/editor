@@ -4,10 +4,11 @@ import AutoHeightTable from "@/components/AutoHeightTable";
 import useTableConfig from "./useTableConfig";
 import styles from "./index.module.less";
 import { useState } from "react";
+import { IndexType } from "@/types";
 
 const VecDocumentView = () => {
-  const [embeddingType, setEmbeddingType] = useState("card");
-  const tableConfig = useTableConfig(embeddingType);
+  const [indexType, setIndexType] = useState<IndexType>("card");
+  const tableConfig = useTableConfig(indexType);
 
   if (!tableConfig) return null;
 
@@ -30,11 +31,11 @@ const VecDocumentView = () => {
       >
         <Flex gap={12} justify="space-between">
           <Flex gap={12} align="center">
-            <Select value={embeddingType} onChange={setEmbeddingType}>
+            <Select value={indexType} onChange={setIndexType}>
               <Select.Option value="card">卡片</Select.Option>
               <Select.Option value="article">文章</Select.Option>
-              <Select.Option value="project">项目</Select.Option>
-              <Select.Option value="document">知识库</Select.Option>
+              <Select.Option value="project-item">项目</Select.Option>
+              <Select.Option value="document-item">知识库</Select.Option>
             </Select>
             {leftExtraNode}
           </Flex>

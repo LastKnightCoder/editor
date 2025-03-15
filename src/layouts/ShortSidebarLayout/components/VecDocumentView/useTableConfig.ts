@@ -4,6 +4,7 @@ import useCardConfig from "./useCardConfig";
 import useArticleConig from "./useArticleConfig";
 import useProjectConfig from "./useProjectConfig";
 import useDocumentConfig from "./useDocumentConfig";
+import { IndexType } from "@/types";
 
 // 定义通用的表格配置接口，包含 leftExtraNode
 interface TableConfig {
@@ -16,7 +17,7 @@ interface TableConfig {
   leftExtraNode?: React.ReactNode;
 }
 
-const useTableConfig = (key: string): TableConfig | null => {
+const useTableConfig = (key: IndexType): TableConfig | null => {
   const cardConfig = useCardConfig();
   const articleConfig = useArticleConig();
   const projectConfig = useProjectConfig();
@@ -27,9 +28,9 @@ const useTableConfig = (key: string): TableConfig | null => {
       return cardConfig;
     } else if (key === "article") {
       return articleConfig;
-    } else if (key === "project") {
+    } else if (key === "project-item") {
       return projectConfig;
-    } else if (key === "document") {
+    } else if (key === "document-item") {
       return documentConfig;
     } else {
       return null;
