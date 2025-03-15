@@ -49,7 +49,6 @@ import {
   FullscreenOutlined,
 } from "@ant-design/icons";
 import For from "@/components/For";
-import "./init";
 import styles from "./index.module.less";
 
 const viewPortPlugin = new ViewPortPlugin();

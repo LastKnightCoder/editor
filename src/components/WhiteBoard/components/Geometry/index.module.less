@@ -7,20 +7,28 @@
   justify-content: center;
   text-align: center;
   box-sizing: border-box;
+
   &.left {
     text-align: left;
     justify-content: flex-start;
   }
+
   &.right {
     text-align: right;
     justify-content: flex-end;
   }
+
   &.center {
     text-align: center;
     justify-content: center;
   }
+
   &.readonly {
     user-select: none;
     pointer-events: none;
   }
+}
+
+.svgContainer {
+  overflow: visible;
 }
