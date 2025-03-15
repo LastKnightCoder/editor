@@ -54,8 +54,8 @@ class ResourceModule implements Module {
 
   selectFile(options = { properties: ["openFile"] }): Promise<string[] | null> {
     return new Promise((resolve, reject) => {
-      // @ts-ignore
       dialog
+        // @ts-ignore
         .showOpenDialog(options)
         .then((result) => {
           if (result.canceled) {
