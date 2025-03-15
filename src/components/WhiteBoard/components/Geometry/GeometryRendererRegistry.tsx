@@ -82,7 +82,6 @@ class GeometryRendererRegistry {
 
     // 首先尝试使用通用渲染器（可能包含草图风格等特殊渲染器）
     const universalRenderers = this.renderers.get("*");
-    console.log("universalRenderers", universalRenderers);
     if (universalRenderers) {
       for (const renderer of universalRenderers) {
         const result = renderer(props);
@@ -97,7 +96,6 @@ class GeometryRendererRegistry {
     const specificRenderer = this.getSpecificRenderer(element.geometryType);
     if (specificRenderer) {
       const result = specificRenderer(props);
-      console.log("specificRenderer", specificRenderer.name, result);
       if (result) {
         return result;
       }

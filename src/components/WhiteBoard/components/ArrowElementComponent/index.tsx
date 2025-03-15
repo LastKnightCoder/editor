@@ -13,7 +13,16 @@ interface ArrowElementProps {
 
 const ArrowElementComponent = memo((props: ArrowElementProps) => {
   const { element } = props;
-  const { points, lineColor, lineWidth, lineType, source, target } = element;
+  const {
+    points,
+    lineColor,
+    lineWidth,
+    lineType,
+    source,
+    target,
+    sketchEnabled,
+    roughness,
+  } = element;
 
   const board = useBoard();
   const { isSelected } = useSelectState(element.id);
@@ -152,6 +161,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         targetMarker={target.marker}
         sourceConnectId={source.connectId}
         targetConnectId={target.connectId}
+        sketchEnabled={sketchEnabled}
+        roughness={roughness}
       />
       <If condition={isSelected}>
         {points.map((point, index) => (

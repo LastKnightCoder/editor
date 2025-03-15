@@ -1,11 +1,12 @@
 import styles from "./index.module.less";
 import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
-import { Popover, Tooltip } from "antd";
+import { Popover, Tooltip, Switch, Slider } from "antd";
 import { produce } from "immer";
 import Arrow from "../../Arrow";
 import { ColorResult, BlockPicker } from "react-color";
 import { BiSolidColorFill } from "react-icons/bi";
 import { BsBorderWidth } from "react-icons/bs";
+import { PiPencilLineDuotone } from "react-icons/pi";
 
 interface ArrowSetterProps {
   element: ArrowElement;
@@ -131,6 +132,20 @@ const ArrowSetter = (props: ArrowSetterProps) => {
   const onLineWidthChange = (lineWidth: number) => {
     const newElement = produce(element, (draft) => {
       draft.lineWidth = lineWidth;
+    });
+    onChange(newElement);
+  };
+
+  const onSketchEnabledChange = (checked: boolean) => {
+    const newElement = produce(element, (draft) => {
+      draft.sketchEnabled = checked;
+    });
+    onChange(newElement);
+  };
+
+  const onRoughnessChange = (value: number) => {
+    const newElement = produce(element, (draft) => {
+      draft.roughness = value;
     });
     onChange(newElement);
   };
@@ -392,6 +407,58 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         <Tooltip title={"粗细"}>
           <div className={styles.item}>
             <BsBorderWidth />
+          </div>
+        </Tooltip>
+      </Popover>
+
+      {/* 草图风格设置器 */}
+      <Popover
+        arrow={false}
+        trigger={"click"}
+        placement={"right"}
+        styles={{
+          body: {
+            padding: 12,
+            marginLeft: 24,
+            width: 200,
+          },
+        }}
+        content={
+          <div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span>草图风格</span>
+              <Switch
+                checked={element.sketchEnabled || false}
+                onChange={onSketchEnabledChange}
+                size="small"
+              />
+            </div>
+            {element.sketchEnabled && (
+              <div>
+                <span>粗糙度</span>
+                <Slider
+                  min={0.1}
+                  max={3}
+                  step={0.1}
+                  value={element.roughness || 1}
+                  onChange={onRoughnessChange}
+                  tooltip={{ formatter: (value) => `${value}` }}
+                />
+              </div>
+            )}
+          </div>
+        }
+      >
+        <Tooltip title={"草图风格"}>
+          <div className={styles.item}>
+            <PiPencilLineDuotone />
           </div>
         </Tooltip>
       </Popover>

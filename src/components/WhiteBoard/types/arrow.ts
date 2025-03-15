@@ -30,6 +30,8 @@ export interface ArrowElement extends BoardElement {
   points: Point[];
   lineColor: string;
   lineWidth: number;
+  sketchEnabled?: boolean;
+  roughness?: number;
 }
 
 export interface GetArrowPathParams {
