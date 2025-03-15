@@ -39,6 +39,7 @@ import { UnderlineElement } from "./element/underline.ts";
 import { AudioElement } from "./element/audio.ts";
 import { VideoElement } from "./element/video.ts";
 import { AIElement } from "./element/ai.ts";
+import { WhiteboardElement } from "./element/whiteboard.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -76,7 +77,8 @@ export type CustomElement =
   | StyledTextElement
   | AudioElement
   | VideoElement
-  | AIElement;
+  | AIElement
+  | WhiteboardElement;
 
 export type InlineElement =
   | FormattedText

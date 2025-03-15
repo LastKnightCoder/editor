@@ -58,6 +58,7 @@ class Board {
     viewPort: ViewPort,
     selection: Selection,
     plugins: IBoardPlugin[] = [],
+    public readonly: boolean = false,
   ) {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
@@ -142,11 +143,13 @@ class Board {
   }
 
   onMouseDown(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onMouseDown")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onGlobalMouseDown(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalMouseDown"))
       .filter(isValid);
@@ -154,16 +157,19 @@ class Board {
   }
 
   onMouseMove(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onMouseMove")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onMouseUp(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onMouseUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onGlobalMouseUp(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalMouseUp"))
       .filter(isValid);
@@ -171,61 +177,73 @@ class Board {
   }
 
   onMouseLeave(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onMouseLeave")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onMouseEnter(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onMouseEnter")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onClick(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onClick")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onDblClick(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onDblClick")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onContextMenu(event: MouseEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onContextMenu")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onWheel(event: WheelEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onWheel")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onKeyDown(event: KeyboardEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onKeyDown")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onKeyUp(event: KeyboardEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onKeyUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerDown(event: PointerEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onPointerDown")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerUp(event: PointerEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onPointerUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerMove(event: PointerEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onPointerMove")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onGlobalPointerDown(event: PointerEvent) {
+    if (this.readonly) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerDown"))
       .filter(isValid);
@@ -233,6 +251,7 @@ class Board {
   }
 
   onGlobalPointerUp(event: PointerEvent) {
+    if (this.readonly) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerUp"))
       .filter(isValid);
@@ -240,6 +259,7 @@ class Board {
   }
 
   onGlobalPointerMove(event: PointerEvent) {
+    if (this.readonly) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerMove"))
       .filter(isValid);
@@ -247,21 +267,25 @@ class Board {
   }
 
   onPaste(event: ClipboardEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onPaste")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onCopy(event: ClipboardEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onCopy")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onCut(event: ClipboardEvent) {
+    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onCut")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   apply(ops: Operation | Operation[], updateHistory = true) {
+    if (this.readonly) return;
     if (!Array.isArray(ops)) {
       ops = [ops];
     }
@@ -455,6 +479,7 @@ class Board {
   }
 
   undo() {
+    if (this.readonly) return;
     if (this.undos.length === 0) return;
     const undo = this.undos.pop();
     if (!undo) return;
@@ -466,6 +491,7 @@ class Board {
   }
 
   redo() {
+    if (this.readonly) return;
     if (this.redos.length === 0) return;
     const redo = this.redos.pop();
     if (!redo) return;

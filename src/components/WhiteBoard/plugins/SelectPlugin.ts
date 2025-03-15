@@ -113,10 +113,13 @@ export class SelectPlugin implements IBoardPlugin {
         }
       }
 
+      // 确保选择区域被清除
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,
         selectedElements,
       });
+
+      // 重置状态
       this.startPoint = null;
       this.moved = false;
       this.hitElements = null;
