@@ -123,6 +123,8 @@ const Index = memo(
     } = props;
 
     const { theme: systemTheme } = useTheme();
+    const [isCodeBlockFocused, setIsCodeBlockFocused] = useState(false);
+    const [isToolbarAction, setIsToolbarAction] = useState(false);
 
     const finalExtensions = useMemo(() => {
       if (!extensions) return startExtensions;
@@ -212,18 +214,40 @@ const Index = memo(
       }
     });
 
-    // useWhyDidYouUpdate('Editor', {
-    //   ...props,
-    //   finalExtensions,
-    //   finalHoveringBarConfigs
-    // })
+    useEffect(() => {
+      const handleCodeBlockFocus = () => {
+        setIsCodeBlockFocused(true);
+      };
+
+      const handleCodeBlockBlur = () => {
+        setTimeout(() => {
+          setIsCodeBlockFocused(false);
+        }, 10);
+      };
+
+      const handleToolbarAction = () => {
+        setIsToolbarAction(true);
+        setTimeout(() => {
+          setIsToolbarAction(false);
+        }, 100);
+      };
+
+      document.addEventListener("code-block-focus", handleCodeBlockFocus);
+      document.addEventListener("code-block-blur", handleCodeBlockBlur);
+      document.addEventListener("toolbar-action", handleToolbarAction);
+
+      return () => {
+        document.removeEventListener("code-block-focus", handleCodeBlockFocus);
+        document.removeEventListener("code-block-blur", handleCodeBlockBlur);
+        document.removeEventListener("toolbar-action", handleToolbarAction);
+      };
+    }, []);
 
     useImperativeHandle(
       ref,
       () => ({
         focus: () => {
           ReactEditor.focus(editor);
-          // 移动到末尾
           Transforms.select(editor, Editor.end(editor, []));
         },
         deselect: () => {
@@ -301,17 +325,9 @@ const Index = memo(
               e.preventDefault();
             }}
             onSelect={() => {
-              /**
-               * Chrome doesn't scroll at bottom of the page. This fixes that.
-               */
               if (!(window as any).chrome) return;
               if (editor.selection == null) return;
               try {
-                /**
-                 * Need a try/catch because sometimes you get an error like:
-                 *
-                 * Error: Cannot resolve a DOM node from Slate node: {"type":"p","children":[{"text":"","by":-1,"at":-1}]}
-                 */
                 const domPoint = ReactEditor.toDOMPoint(
                   editor,
                   editor.selection.focus,
@@ -329,7 +345,20 @@ const Index = memo(
               }
             }}
             onFocus={onFocus}
-            onBlur={onBlur}
+            onBlur={(e) => {
+              const activeElement = document.activeElement;
+              const isEditingCodeBlock =
+                activeElement &&
+                (activeElement.classList.contains("cm-editor") ||
+                  activeElement.closest(".cm-editor") !== null);
+
+              if (isEditingCodeBlock || isCodeBlockFocused || isToolbarAction) {
+                e.preventDefault();
+                return;
+              }
+
+              onBlur && onBlur();
+            }}
           />
           <ImagesOverview />
           {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}

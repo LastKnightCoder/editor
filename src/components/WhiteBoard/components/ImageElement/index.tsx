@@ -382,6 +382,9 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
                   styles[descriptionAlignment],
                 )}
                 style={descriptionTextStyle}
+                onBlur={() => {
+                  setIsEditingDescription(false);
+                }}
               />
             ) : (
               <div
