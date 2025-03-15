@@ -9,6 +9,7 @@ export interface Project {
   children: number[];
   desc: Descendant[];
   archived: boolean;
+  pinned: boolean;
 }
 
 export type CreateProject = Omit<Project, "id" | "createTime" | "updateTime">;

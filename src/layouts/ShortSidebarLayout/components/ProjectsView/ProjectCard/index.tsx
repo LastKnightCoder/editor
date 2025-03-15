@@ -6,6 +6,8 @@ import classnames from "classnames";
 import { produce } from "immer";
 
 import { MdMoreVert } from "react-icons/md";
+import { FaArchive } from "react-icons/fa";
+import { AiFillPushpin } from "react-icons/ai";
 import useTheme from "@/hooks/useTheme.ts";
 import { Project } from "@/types";
 import Editor from "@editor/index.tsx";
@@ -28,9 +30,20 @@ const ProjectCard = (props: ProjectCardProps) => {
   const [editOpen, setEditOpen] = useState(false);
   const navigate = useNavigate();
 
-  const { deleteProject, updateProject } = useProjectsStore((state) => ({
+  const {
+    deleteProject,
+    updateProject,
+    archiveProject,
+    unarchiveProject,
+    pinProject,
+    unpinProject,
+  } = useProjectsStore((state) => ({
     deleteProject: state.deleteProject,
     updateProject: state.updateProject,
+    archiveProject: state.archiveProject,
+    unarchiveProject: state.unarchiveProject,
+    pinProject: state.pinProject,
+    unpinProject: state.unpinProject,
   }));
 
   const onClick = () => {
@@ -65,48 +78,106 @@ const ProjectCard = (props: ProjectCardProps) => {
     navigate(`/projects/${project.id}`);
   };
 
+  const handleArchiveProject = async () => {
+    await archiveProject(project.id);
+    setSettingOpen(false);
+  };
+
+  const handleUnarchiveProject = async () => {
+    await unarchiveProject(project.id);
+    setSettingOpen(false);
+  };
+
+  const handlePinProject = async () => {
+    await pinProject(project.id);
+    setSettingOpen(false);
+  };
+
+  const handleUnpinProject = async () => {
+    await unpinProject(project.id);
+    setSettingOpen(false);
+  };
+
   return (
     <div
       className={classnames(
         styles.cardContainer,
         { [styles.dark]: isDark },
+        { [styles.archived]: project.archived },
+        { [styles.pinned]: project.pinned },
         className,
       )}
       style={style}
+      onClick={onClick}
     >
-      <div className={styles.title} onClick={onClick}>
-        {project.title}
-      </div>
+      {project.pinned && (
+        <div className={styles.pinnedFlag}>
+          <AiFillPushpin />
+        </div>
+      )}
+      {project.archived && !project.pinned && (
+        <div className={styles.archiveFlag}>
+          <FaArchive />
+        </div>
+      )}
+      <div className={styles.title}>{project.title}</div>
       <div className={styles.desc}>
         <Editor readonly className={styles.editor} initValue={project.desc} />
       </div>
-      <div className={classnames(styles.operate)}>
+      <div
+        className={styles.operate}
+        onClick={(e) => {
+          e.stopPropagation();
+          setSettingOpen(true);
+        }}
+      >
         <Popover
           open={settingOpen}
           onOpenChange={setSettingOpen}
-          placement={"bottomRight"}
-          trigger={"click"}
-          styles={{
-            body: {
-              padding: 4,
-            },
-          }}
+          placement="bottomRight"
           content={
             <div className={styles.settings}>
-              <div className={styles.settingItem} onClick={handleDeleteProject}>
-                删除项目
+              <div
+                className={styles.settingItem}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditOpen(true);
+                }}
+              >
+                编辑
               </div>
               <div
                 className={styles.settingItem}
-                onClick={() => {
-                  setEditOpen(true);
-                  setSettingOpen(false);
+                onClick={(e) => {
+                  e.stopPropagation();
+                  project.pinned ? handleUnpinProject() : handlePinProject();
                 }}
               >
-                编辑项目
+                {project.pinned ? "取消置顶" : "置顶"}
+              </div>
+              <div
+                className={styles.settingItem}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  project.archived
+                    ? handleUnarchiveProject()
+                    : handleArchiveProject();
+                }}
+              >
+                {project.archived ? "取消归档" : "归档"}
+              </div>
+              <div
+                className={styles.settingItem}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteProject();
+                }}
+              >
+                删除
               </div>
             </div>
           }
+          trigger="click"
         >
           <MdMoreVert />
         </Popover>
