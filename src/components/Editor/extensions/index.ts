@@ -30,6 +30,7 @@ import StyledTextExtension from "./styled-text";
 import AudioExtension from "./audio";
 import VideoExtension from "./video";
 import AIExtension from "./ai";
+import WhiteboardExtension from "./whiteboard";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -68,6 +69,7 @@ export const styledText = new StyledTextExtension();
 export const audio = new AudioExtension();
 export const video = new VideoExtension();
 export const ai = new AIExtension();
+export const whiteboard = new WhiteboardExtension();
 
 export const startExtensions = [
   ai,
@@ -104,4 +106,5 @@ export const startExtensions = [
   styledText,
   audio,
   video,
+  whiteboard,
 ];

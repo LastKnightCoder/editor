@@ -86,6 +86,7 @@ interface WhiteBoardProps {
   initData: BoardElement[];
   initViewPort?: ViewPort;
   initSelection?: Selection;
+  readonly?: boolean;
   onChange?: (data: {
     children: BoardElement[];
     viewPort: ViewPort;
@@ -103,6 +104,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       selectArea: null,
       selectedElements: [] as BoardElement[],
     },
+    readonly,
     onChange,
   } = props;
 
@@ -117,7 +119,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const fitViewButtonRef = useRef<HTMLDivElement>(null);
 
   const board = useCreation<Board>(
-    () => new Board(initData, initViewPort, initSelection, plugins),
+    () => new Board(initData, initViewPort, initSelection, plugins, readonly),
     [],
   );
 
@@ -330,7 +332,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       <BoardContext.Provider value={board}>
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
-            <Toolbar />
+            {!readonly && <Toolbar />}
             <svg
               ref={svgRef}
               width={"100%"}
@@ -453,7 +455,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
               </g>
             </svg>
             <div className={styles.verticalBar}>
-              <AttributeSetter />
+              {!readonly && <AttributeSetter />}
             </div>
             <Flex
               ref={statusBarRef}
