@@ -1,8 +1,7 @@
-import Database from 'better-sqlite3';
-import { VecDocument } from '@/types';
+import Database from "better-sqlite3";
+import { VecDocument } from "@/types";
 
 export default class VecDocumentTable {
-
   static initTable(db: Database.Database) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS vec_documents (
@@ -24,16 +23,16 @@ export default class VecDocumentTable {
 
   static getListenEvents() {
     return {
-      'create-vec-document': this.createVecDocument.bind(this),
-      'update-vec-document': this.updateVecDocument.bind(this),
-      'delete-vec-document': this.deleteVecDocument.bind(this),
-      'delete-vec-documents-by-ref': this.deleteVecDocumentsByRef.bind(this),
-      'get-vec-document': this.getVecDocument.bind(this),
-      'get-vec-documents-by-ref': this.getVecDocumentsByRef.bind(this),
-      'get-vec-documents-by-ref-type': this.getVecDocumentsByRefType.bind(this),
-      'get-all-vec-documents': this.getAllVecDocuments.bind(this),
-      'search-vec-documents': this.searchVecDocuments.bind(this),
-    }
+      "create-vec-document": this.createVecDocument.bind(this),
+      "update-vec-document": this.updateVecDocument.bind(this),
+      "delete-vec-document": this.deleteVecDocument.bind(this),
+      "delete-vec-documents-by-ref": this.deleteVecDocumentsByRef.bind(this),
+      "get-vec-document": this.getVecDocument.bind(this),
+      "get-vec-documents-by-ref": this.getVecDocumentsByRef.bind(this),
+      "get-vec-documents-by-ref-type": this.getVecDocumentsByRefType.bind(this),
+      "get-all-vec-documents": this.getAllVecDocuments.bind(this),
+      "search-vec-documents": this.searchVecDocuments.bind(this),
+    };
   }
 
   static parseVecDocument(document: any): VecDocument {
@@ -44,17 +43,20 @@ export default class VecDocumentTable {
       updateTime: document.update_time,
       refType: document.ref_type,
       refId: document.ref_id,
-      refUpdateTime: document.ref_update_time
+      refUpdateTime: document.ref_update_time,
     };
   }
 
-  static createVecDocument(db: Database.Database, params: {
-    refType: string,
-    refId: number,
-    refUpdateTime: number,
-    contents: string,
-    contentsEmbedding: number[]
-  }): VecDocument {
+  static createVecDocument(
+    db: Database.Database,
+    params: {
+      refType: string;
+      refId: number;
+      refUpdateTime: number;
+      contents: string;
+      contentsEmbedding: number[];
+    },
+  ): VecDocument {
     const stmt = db.prepare(`
       INSERT INTO vec_documents
       (create_time, update_time, ref_type, ref_id, ref_update_time, contents, contents_embedding)
@@ -68,20 +70,23 @@ export default class VecDocumentTable {
       params.refId,
       params.refUpdateTime,
       params.contents,
-      JSON.stringify(params.contentsEmbedding)
+      JSON.stringify(params.contentsEmbedding),
     );
 
     return this.getVecDocument(db, Number(res.lastInsertRowid));
   }
 
-  static updateVecDocument(db: Database.Database, params: {
-    id: number,
-    refType: string,
-    refId: number,
-    refUpdateTime: number,
-    contents: string,
-    contentsEmbedding: number[]
-  }): VecDocument {
+  static updateVecDocument(
+    db: Database.Database,
+    params: {
+      id: number;
+      refType: string;
+      refId: number;
+      refUpdateTime: number;
+      contents: string;
+      contentsEmbedding: number[];
+    },
+  ): VecDocument {
     const stmt = db.prepare(`
       UPDATE vec_documents SET
         update_time = ?,
@@ -100,33 +105,43 @@ export default class VecDocumentTable {
       params.refUpdateTime,
       params.contents,
       JSON.stringify(params.contentsEmbedding),
-      params.id
+      params.id,
     );
 
     return this.getVecDocument(db, params.id);
   }
 
   static deleteVecDocument(db: Database.Database, id: number): number {
-    const stmt = db.prepare('DELETE FROM vec_documents WHERE id = ?');
+    const stmt = db.prepare("DELETE FROM vec_documents WHERE id = ?");
     return stmt.run(id).changes;
   }
 
   static getVecDocument(db: Database.Database, id: number): VecDocument {
-    const stmt = db.prepare('SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents WHERE id = ?');
+    const stmt = db.prepare(
+      "SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents WHERE id = ?",
+    );
     const document = stmt.get(id);
     return this.parseVecDocument(document);
   }
 
-  static getVecDocumentsByRef(db: Database.Database, refId: number, refType: string): VecDocument[] {
+  static getVecDocumentsByRef(
+    db: Database.Database,
+    refId: number,
+    refType: string,
+  ): VecDocument[] {
     const stmt = db.prepare(`
       SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents 
       WHERE ref_type = ? AND ref_id = ?
     `);
     const documents = stmt.all(refType, refId);
-    return documents.map(doc => this.parseVecDocument(doc));
+    return documents.map((doc) => this.parseVecDocument(doc));
   }
 
-  static deleteVecDocumentsByRef(db: Database.Database, refId: number, refType: string): void {
+  static deleteVecDocumentsByRef(
+    db: Database.Database,
+    refId: number,
+    refType: string,
+  ): void {
     const stmt = db.prepare(`
       DELETE FROM vec_documents 
       WHERE ref_type = ? AND ref_id = ?
@@ -134,24 +149,38 @@ export default class VecDocumentTable {
     stmt.run(refType, refId);
   }
 
-  static getVecDocumentsByRefType(db: Database.Database, refType: string): VecDocument[] {
+  static getVecDocumentsByRefType(
+    db: Database.Database,
+    refType: string,
+  ): VecDocument[] {
     const stmt = db.prepare(`
       SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents 
       WHERE ref_type = ?
     `);
     const documents = stmt.all(refType);
-    return documents.map(doc => this.parseVecDocument(doc));
+    return documents.map((doc) => this.parseVecDocument(doc));
   }
 
-  static getAllVecDocuments(db: Database.Database,): VecDocument[] {
-    const stmt = db.prepare('SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents ORDER BY create_time DESC');
+  static getAllVecDocuments(db: Database.Database): VecDocument[] {
+    const stmt = db.prepare(
+      "SELECT *, vec_to_json(contents_embedding) as contents_embedding_json FROM vec_documents ORDER BY create_time DESC",
+    );
     const documents = stmt.all();
-    return documents.map(doc => this.parseVecDocument(doc));
+    return documents.map((doc) => this.parseVecDocument(doc));
   }
 
-  static searchVecDocuments(db: Database.Database, queryEmbedding: number[], topK: number): Array<[document: VecDocument, distance: number]> {
-    const searchStmt = db.prepare("SELECT id, vec_distance_cosine(?, contents_embedding) AS distance FROM vec_documents WHERE distance < 0.6 ORDER BY distance LIMIT ?");
-    const searchRes = searchStmt.all(JSON.stringify(queryEmbedding), topK) as Array<{ id: number, distance: number }>;
+  static searchVecDocuments(
+    db: Database.Database,
+    queryEmbedding: number[],
+    topK: number,
+  ): Array<[document: VecDocument, distance: number]> {
+    const searchStmt = db.prepare(
+      "SELECT id, vec_distance_cosine(?, contents_embedding) AS distance FROM vec_documents WHERE distance < 0.6 ORDER BY distance LIMIT ?",
+    );
+    const searchRes = searchStmt.all(
+      JSON.stringify(queryEmbedding),
+      topK,
+    ) as Array<{ id: number; distance: number }>;
     const res: Array<[document: VecDocument, distance: number]> = [];
     for (const row of searchRes) {
       const doc = this.getVecDocument(db, row.id);

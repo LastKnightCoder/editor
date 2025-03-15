@@ -1,10 +1,9 @@
-import Database from 'better-sqlite3';
-import { WhiteBoard } from '@/types';
-import Operation from './operation';
-import Project from './project';
+import Database from "better-sqlite3";
+import { WhiteBoard } from "@/types";
+import Operation from "./operation";
+import Project from "./project";
 
 export default class WhiteboardTable {
-
   static initTable(db: Database.Database) {
     db.exec(`
       CREATE TABLE IF NOT EXISTS white_boards (
@@ -22,21 +21,25 @@ export default class WhiteboardTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'white_boards'");
+    const stmt = db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'white_boards'",
+    );
     const tableInfo = (stmt.get() as { sql: string }).sql;
-    if (!tableInfo.includes('is_project_item')) {
-      db.exec(`ALTER TABLE white_boards ADD COLUMN is_project_item INTEGER DEFAULT 0`);
+    if (!tableInfo.includes("is_project_item")) {
+      db.exec(
+        `ALTER TABLE white_boards ADD COLUMN is_project_item INTEGER DEFAULT 0`,
+      );
     }
   }
 
   static getListenEvents() {
     return {
-      'create-white-board': this.createWhiteboard.bind(this),
-      'delete-white-board': this.deleteWhiteboard.bind(this),
-      'get-white-board-by-id': this.getWhiteboard.bind(this),
-      'get-all-white-boards': this.getAllWhiteboards.bind(this),
-      'update-white-board': this.updateWhiteboard.bind(this),
-    }
+      "create-white-board": this.createWhiteboard.bind(this),
+      "delete-white-board": this.deleteWhiteboard.bind(this),
+      "get-white-board-by-id": this.getWhiteboard.bind(this),
+      "get-all-white-boards": this.getAllWhiteboards.bind(this),
+      "update-white-board": this.updateWhiteboard.bind(this),
+    };
   }
 
   static parseWhiteboard(whiteboard: any): WhiteBoard {
@@ -50,7 +53,10 @@ export default class WhiteboardTable {
     };
   }
 
-  static createWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'id' | 'createTime' | 'updateTime'>): WhiteBoard {
+  static createWhiteboard(
+    db: Database.Database,
+    whiteboard: Omit<WhiteBoard, "id" | "createTime" | "updateTime">,
+  ): WhiteBoard {
     const stmt = db.prepare(`
       INSERT INTO white_boards
       (title, description, data, create_time, update_time, snapshot, is_project_item)
@@ -64,15 +70,24 @@ export default class WhiteboardTable {
       now,
       now,
       whiteboard.snapshot,
-      Number(whiteboard.isProjectItem || false)
+      Number(whiteboard.isProjectItem || false),
     );
 
-    Operation.insertOperation(db, 'whiteboard', 'insert', res.lastInsertRowid, now);
+    Operation.insertOperation(
+      db,
+      "whiteboard",
+      "insert",
+      res.lastInsertRowid,
+      now,
+    );
 
     return this.getWhiteboard(db, Number(res.lastInsertRowid));
   }
 
-  static updateWhiteboard(db: Database.Database, whiteboard: Omit<WhiteBoard, 'createTime' | 'updateTime'>): WhiteboardTable {
+  static updateWhiteboard(
+    db: Database.Database,
+    whiteboard: Omit<WhiteBoard, "createTime" | "updateTime">,
+  ): WhiteboardTable {
     const stmt = db.prepare(`
       UPDATE white_boards SET
         title = ?,
@@ -97,34 +112,41 @@ export default class WhiteboardTable {
     );
 
     if (whiteboard.isProjectItem) {
-      const stmt = db.prepare(`UPDATE project_item SET update_time = ?, white_board_data = ?, title = ? WHERE ref_type = 'white-board' AND ref_id = ?`);
-      stmt.run(now, JSON.stringify(whiteboard.data), whiteboard.title, whiteboard.id);
+      const stmt = db.prepare(
+        `UPDATE project_item SET update_time = ?, white_board_data = ?, title = ? WHERE ref_type = 'white-board' AND ref_id = ?`,
+      );
+      stmt.run(
+        now,
+        JSON.stringify(whiteboard.data),
+        whiteboard.title,
+        whiteboard.id,
+      );
     }
 
-    Operation.insertOperation(db, 'whiteboard', 'update', whiteboard.id, now);
+    Operation.insertOperation(db, "whiteboard", "update", whiteboard.id, now);
 
     return this.getWhiteboard(db, whiteboard.id);
   }
 
   static deleteWhiteboard(db: Database.Database, id: number): number {
-    const stmt = db.prepare('DELETE FROM white_boards WHERE id = ?');
+    const stmt = db.prepare("DELETE FROM white_boards WHERE id = ?");
 
-    Operation.insertOperation(db, 'whiteboard', 'delete', id, Date.now());
+    Operation.insertOperation(db, "whiteboard", "delete", id, Date.now());
 
-    Project.resetProjectItemRef(db, 'white-board', id);
+    Project.resetProjectItemRef(db, "white-board", id);
 
     return stmt.run(id).changes;
   }
 
   static getWhiteboard(db: Database.Database, id: number): WhiteBoard {
-    const stmt = db.prepare('SELECT * FROM white_boards WHERE id = ?');
+    const stmt = db.prepare("SELECT * FROM white_boards WHERE id = ?");
     const whiteboard = stmt.get(id);
     return this.parseWhiteboard(whiteboard);
   }
 
   static getAllWhiteboards(db: Database.Database): WhiteBoard[] {
-    const stmt = db.prepare('SELECT * FROM white_boards');
+    const stmt = db.prepare("SELECT * FROM white_boards");
     const whiteboards = stmt.all();
-    return whiteboards.map(wb => this.parseWhiteboard(wb));
+    return whiteboards.map((wb) => this.parseWhiteboard(wb));
   }
 }

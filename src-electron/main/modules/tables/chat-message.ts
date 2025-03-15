@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3';
-import { Message, ChatMessage } from '@/types';
+import Database from "better-sqlite3";
+import { Message, ChatMessage } from "@/types";
 
 export default class ChatMessageTable {
   static initTable(db: Database.Database) {
@@ -16,22 +16,26 @@ export default class ChatMessageTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chat_message'");
+    const stmt = db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chat_message'",
+    );
     const tableInfo = (stmt.get() as { sql: string }).sql;
-    if (!tableInfo.includes('title')) {
-      const alertStmt = db.prepare("ALTER TABLE chat_message ADD COLUMN title TEXT'");
+    if (!tableInfo.includes("title")) {
+      const alertStmt = db.prepare(
+        "ALTER TABLE chat_message ADD COLUMN title TEXT'",
+      );
       alertStmt.run();
     }
   }
 
   static getListenEvents() {
     return {
-      'create-chat-message': this.createChatMessage.bind(this),
-      'update-chat-message': this.updateChatMessage.bind(this),
-      'delete-chat-message': this.deleteChatMessage.bind(this),
-      'get-chat-message-by-id': this.getChatMessageById.bind(this),
-      'get-all-chat-messages': this.getAllChatMessages.bind(this),
-    }
+      "create-chat-message": this.createChatMessage.bind(this),
+      "update-chat-message": this.updateChatMessage.bind(this),
+      "delete-chat-message": this.deleteChatMessage.bind(this),
+      "get-chat-message-by-id": this.getChatMessageById.bind(this),
+      "get-all-chat-messages": this.getAllChatMessages.bind(this),
+    };
   }
 
   static parseChatMessage(chatMessage: any): ChatMessage {
@@ -40,13 +44,17 @@ export default class ChatMessageTable {
       createTime: chatMessage.create_time,
       updateTime: chatMessage.update_time,
       title: chatMessage.title,
-      messages: JSON.parse(chatMessage.messages)
+      messages: JSON.parse(chatMessage.messages),
     };
   }
 
-  static createChatMessage(db: Database.Database, messages: Message[], title: string): ChatMessage {
+  static createChatMessage(
+    db: Database.Database,
+    messages: Message[],
+    title: string,
+  ): ChatMessage {
     const stmt = db.prepare(
-      'INSERT INTO chat_message (create_time, update_time, title, messages) VALUES (?, ?, ?, ?)'
+      "INSERT INTO chat_message (create_time, update_time, title, messages) VALUES (?, ?, ?, ?)",
     );
     const now = Date.now();
     const res = stmt.run(now, now, title, JSON.stringify(messages));
@@ -54,15 +62,21 @@ export default class ChatMessageTable {
     return this.getChatMessageById(db, createdId);
   }
 
-  static getChatMessageById(db: Database.Database, id: number | bigint): ChatMessage {
-    const stmt = db.prepare('SELECT * FROM chat_message WHERE id = ?');
+  static getChatMessageById(
+    db: Database.Database,
+    id: number | bigint,
+  ): ChatMessage {
+    const stmt = db.prepare("SELECT * FROM chat_message WHERE id = ?");
     return this.parseChatMessage(stmt.get(id));
   }
 
-  static updateChatMessage(db: Database.Database, chatMessage: Omit<ChatMessage, 'updateTime'>): ChatMessage {
+  static updateChatMessage(
+    db: Database.Database,
+    chatMessage: Omit<ChatMessage, "updateTime">,
+  ): ChatMessage {
     const { id, title, messages } = chatMessage;
     const stmt = db.prepare(
-      'UPDATE chat_message SET update_time = ?, title = ?, messages = ? WHERE id = ?'
+      "UPDATE chat_message SET update_time = ?, title = ?, messages = ? WHERE id = ?",
     );
     const now = Date.now();
     stmt.run(now, title, JSON.stringify(messages), id);
@@ -70,13 +84,15 @@ export default class ChatMessageTable {
   }
 
   static deleteChatMessage(db: Database.Database, id: number): number {
-    const stmt = db.prepare('DELETE FROM chat_message WHERE id = ?');
+    const stmt = db.prepare("DELETE FROM chat_message WHERE id = ?");
     return stmt.run(id).changes;
   }
 
   static getAllChatMessages(db: Database.Database): ChatMessage[] {
-    const stmt = db.prepare('SELECT * FROM chat_message');
+    const stmt = db.prepare("SELECT * FROM chat_message");
     const chatMessages = stmt.all();
-    return chatMessages.map(chatMessage => this.parseChatMessage(chatMessage));
+    return chatMessages.map((chatMessage) =>
+      this.parseChatMessage(chatMessage),
+    );
   }
 }

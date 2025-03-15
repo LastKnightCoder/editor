@@ -1,13 +1,13 @@
-import Database from 'better-sqlite3';
+import Database from "better-sqlite3";
 import {
   IDocument,
   ICreateDocument,
   IUpdateDocument,
   IDocumentItem,
   ICreateDocumentItem,
-  IUpdateDocumentItem
-} from '@/types';
-import Operation from './operation';
+  IUpdateDocumentItem,
+} from "@/types";
+import Operation from "./operation";
 import { getContentLength } from "@/utils/helper";
 
 export default class DocumentTable {
@@ -56,18 +56,26 @@ export default class DocumentTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    const stmt = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'document_items'");
+    const stmt = db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'document_items'",
+    );
     const tableInfo = (stmt.get() as { sql: string }).sql;
-    if (!tableInfo.includes('parents')) {
-      const alertStmt = db.prepare("ALTER TABLE document_items ADD COLUMN parents TEXT DEFAULT '[]'");
+    if (!tableInfo.includes("parents")) {
+      const alertStmt = db.prepare(
+        "ALTER TABLE document_items ADD COLUMN parents TEXT DEFAULT '[]'",
+      );
       alertStmt.run();
     }
-    if (!tableInfo.includes('count')) {
-      const alertStmt = db.prepare("ALTER TABLE document_items ADD COLUMN count INTEGER DEFAULT 0");
+    if (!tableInfo.includes("count")) {
+      const alertStmt = db.prepare(
+        "ALTER TABLE document_items ADD COLUMN count INTEGER DEFAULT 0",
+      );
       alertStmt.run();
       for (const item of this.getAllDocumentItems(db)) {
         const contentLength = getContentLength(item.content);
-        const stmt = db.prepare('UPDATE document_items SET count = ? WHERE id = ?');
+        const stmt = db.prepare(
+          "UPDATE document_items SET count = ? WHERE id = ?",
+        );
         stmt.run(contentLength, item.id);
       }
     }
@@ -75,38 +83,41 @@ export default class DocumentTable {
 
   static getListenEvents() {
     return {
-      'create-document': this.createDocument.bind(this),
-      'update-document': this.updateDocument.bind(this),
-      'delete-document': this.deleteDocument.bind(this),
-      'get-document': this.getDocument.bind(this),
-      'get-all-documents': this.getAllDocuments.bind(this),
-      'create-document-item': this.createDocumentItem.bind(this),
-      'update-document-item': this.updateDocumentItem.bind(this),
-      'delete-document-item': this.deleteDocumentItem.bind(this),
-      'get-document-item': this.getDocumentItem.bind(this),
-      'get-document-items-by-ids': this.getDocumentItemsByIds.bind(this),
-      'get-all-document-items': this.getAllDocumentItems.bind(this),
-      'is-document-item-child-of': this.isDocumentItemChildOf.bind(this),
-      'init-document-item-parents': this.initAllDocumentItemParents.bind(this),
-      'init-document-item-parents-by-ids': this.initDocumentItemParentsByIds.bind(this),
-      'get-document-item-all-parents': this.getDocumentItemAllParents.bind(this),
-      'get-root-documents-by-document-item-id': this.getRootDocumentsByDocumentItemId.bind(this),
-    }
+      "create-document": this.createDocument.bind(this),
+      "update-document": this.updateDocument.bind(this),
+      "delete-document": this.deleteDocument.bind(this),
+      "get-document": this.getDocument.bind(this),
+      "get-all-documents": this.getAllDocuments.bind(this),
+      "create-document-item": this.createDocumentItem.bind(this),
+      "update-document-item": this.updateDocumentItem.bind(this),
+      "delete-document-item": this.deleteDocumentItem.bind(this),
+      "get-document-item": this.getDocumentItem.bind(this),
+      "get-document-items-by-ids": this.getDocumentItemsByIds.bind(this),
+      "get-all-document-items": this.getAllDocumentItems.bind(this),
+      "is-document-item-child-of": this.isDocumentItemChildOf.bind(this),
+      "init-document-item-parents": this.initAllDocumentItemParents.bind(this),
+      "init-document-item-parents-by-ids":
+        this.initDocumentItemParentsByIds.bind(this),
+      "get-document-item-all-parents":
+        this.getDocumentItemAllParents.bind(this),
+      "get-root-documents-by-document-item-id":
+        this.getRootDocumentsByDocumentItemId.bind(this),
+    };
   }
 
   static parseDocument(document: any): IDocument {
     const res = {
       ...document,
-      authors: JSON.parse(document.authors || '[]'),
+      authors: JSON.parse(document.authors || "[]"),
       content: JSON.parse(document.content),
-      children: JSON.parse(document.children || '[]'),
-      tags: JSON.parse(document.tags || '[]'),
-      links: JSON.parse(document.links || '[]'),
+      children: JSON.parse(document.children || "[]"),
+      tags: JSON.parse(document.tags || "[]"),
+      links: JSON.parse(document.links || "[]"),
       isDelete: document.is_delete,
       createTime: document.create_time,
       updateTime: document.update_time,
       bannerBg: document.banner_bg,
-      isTop: document.is_top
+      isTop: document.is_top,
     };
 
     delete res.is_delete;
@@ -120,11 +131,11 @@ export default class DocumentTable {
   static parseDocumentItem(item: any): IDocumentItem {
     const res = {
       ...item,
-      authors: JSON.parse('[]'),
-      tags: JSON.parse('[]'),
+      authors: JSON.parse("[]"),
+      tags: JSON.parse("[]"),
       content: JSON.parse(item.content),
-      children: JSON.parse(item.children || '[]'),
-      parents: JSON.parse(item.parents || '[]'),
+      children: JSON.parse(item.children || "[]"),
+      parents: JSON.parse(item.parents || "[]"),
       isDelete: item.is_delete,
       createTime: item.create_time,
       updateTime: item.update_time,
@@ -133,7 +144,7 @@ export default class DocumentTable {
       isArticle: item.is_article,
       isCard: item.is_card,
       articleId: item.article_id,
-      cardId: item.card_id
+      cardId: item.card_id,
     };
 
     delete res.create_time;
@@ -149,7 +160,10 @@ export default class DocumentTable {
     return res;
   }
 
-  static createDocument(db: Database.Database, document: ICreateDocument): IDocument {
+  static createDocument(
+    db: Database.Database,
+    document: ICreateDocument,
+  ): IDocument {
     const stmt = db.prepare(`
       INSERT INTO documents
       (title, desc, authors, children, tags, links, content, create_time, update_time, banner_bg, icon, is_top, is_delete)
@@ -169,15 +183,24 @@ export default class DocumentTable {
       document.bannerBg,
       document.icon,
       Number(document.isTop),
-      Number(document.isDelete)
+      Number(document.isDelete),
     );
 
-    Operation.insertOperation(db, 'document', 'insert', res.lastInsertRowid, now);
+    Operation.insertOperation(
+      db,
+      "document",
+      "insert",
+      res.lastInsertRowid,
+      now,
+    );
 
     return this.getDocument(db, Number(res.lastInsertRowid));
   }
 
-  static updateDocument(db: Database.Database, document: IUpdateDocument): IDocument {
+  static updateDocument(
+    db: Database.Database,
+    document: IUpdateDocument,
+  ): IDocument {
     const stmt = db.prepare(`
       UPDATE documents SET
         title = ?,
@@ -210,47 +233,40 @@ export default class DocumentTable {
       document.icon,
       Number(document.isTop),
       Number(document.isDelete),
-      document.id
+      document.id,
     );
 
-    Operation.insertOperation(
-      db,
-      'document',
-      'update',
-      document.id,
-      now,
-    );
+    Operation.insertOperation(db, "document", "update", document.id, now);
 
     return this.getDocument(db, document.id);
   }
 
   static deleteDocument(db: Database.Database, id: number): number {
-    const stmt = db.prepare('DELETE FROM documents WHERE id = ?');
+    const stmt = db.prepare("DELETE FROM documents WHERE id = ?");
 
-    Operation.insertOperation(
-      db,
-      'document',
-      'delete',
-      id,
-      Date.now(),
-    );
+    Operation.insertOperation(db, "document", "delete", id, Date.now());
 
     return stmt.run(id).changes;
   }
 
   static getDocument(db: Database.Database, id: number): IDocument {
-    const stmt = db.prepare('SELECT * FROM documents WHERE id = ?');
+    const stmt = db.prepare("SELECT * FROM documents WHERE id = ?");
     const document = stmt.get(id);
     return this.parseDocument(document);
   }
 
   static getAllDocuments(db: Database.Database): IDocument[] {
-    const stmt = db.prepare('SELECT * FROM documents ORDER BY create_time DESC');
+    const stmt = db.prepare(
+      "SELECT * FROM documents ORDER BY create_time DESC",
+    );
     const documents = stmt.all();
-    return documents.map(doc => this.parseDocument(doc));
+    return documents.map((doc) => this.parseDocument(doc));
   }
 
-  static createDocumentItem(db: Database.Database, item: ICreateDocumentItem): IDocumentItem {
+  static createDocumentItem(
+    db: Database.Database,
+    item: ICreateDocumentItem,
+  ): IDocumentItem {
     const stmt = db.prepare(`
       INSERT INTO document_items
       (create_time, update_time, title, authors, tags, is_directory, 
@@ -281,8 +297,8 @@ export default class DocumentTable {
 
     Operation.insertOperation(
       db,
-      'document-item',
-      'insert',
+      "document-item",
+      "insert",
       Number(res.lastInsertRowid),
       Date.now(),
     );
@@ -290,7 +306,10 @@ export default class DocumentTable {
     return this.getDocumentItem(db, Number(res.lastInsertRowid));
   }
 
-  static updateDocumentItem(db: Database.Database, item: IUpdateDocumentItem): IDocumentItem {
+  static updateDocumentItem(
+    db: Database.Database,
+    item: IUpdateDocumentItem,
+  ): IDocumentItem {
     const stmt = db.prepare(`
       UPDATE document_items SET
         update_time = ?,
@@ -329,41 +348,49 @@ export default class DocumentTable {
       Number(item.isDelete),
       JSON.stringify(item.parents),
       item.count,
-      item.id
+      item.id,
     );
 
-    Operation.insertOperation(db, 'document-item', 'update', item.id, now);
+    Operation.insertOperation(db, "document-item", "update", item.id, now);
 
     if (item.isCard) {
       const cardStmt = db.prepare(
-        `UPDATE cards SET content = ?, update_time = ?, count = ? WHERE id = ?`
+        `UPDATE cards SET content = ?, update_time = ?, count = ? WHERE id = ?`,
       );
       cardStmt.run(JSON.stringify(item.content), now, item.count, item.cardId);
     }
 
     if (item.isArticle) {
       const articleStmt = db.prepare(
-        `UPDATE articles SET content = ?, update_time = ?, count = ? WHERE id = ?`
+        `UPDATE articles SET content = ?, update_time = ?, count = ? WHERE id = ?`,
       );
-      articleStmt.run(JSON.stringify(item.content), now, item.count, item.articleId);
+      articleStmt.run(
+        JSON.stringify(item.content),
+        now,
+        item.count,
+        item.articleId,
+      );
     }
 
     return this.getDocumentItem(db, item.id);
   }
 
   static deleteDocumentItem(db: Database.Database, id: number): number {
-    const stmt = db.prepare('DELETE FROM document_items WHERE id = ?');
-    Operation.insertOperation(db, 'document-item', 'delete', id, Date.now());
+    const stmt = db.prepare("DELETE FROM document_items WHERE id = ?");
+    Operation.insertOperation(db, "document-item", "delete", id, Date.now());
     return stmt.run(id).changes;
   }
 
   static getDocumentItem(db: Database.Database, id: number): IDocumentItem {
-    const stmt = db.prepare('SELECT * FROM document_items WHERE id = ?');
+    const stmt = db.prepare("SELECT * FROM document_items WHERE id = ?");
     const item = stmt.get(id);
     return this.parseDocumentItem(item);
   }
 
-  static getDocumentItemsByIds(db: Database.Database, ids: number[]): IDocumentItem[] {
+  static getDocumentItemsByIds(
+    db: Database.Database,
+    ids: number[],
+  ): IDocumentItem[] {
     const res: IDocumentItem[] = [];
     for (const id of ids) {
       res.push(this.getDocumentItem(db, id));
@@ -372,9 +399,9 @@ export default class DocumentTable {
   }
 
   static getAllDocumentItems(db: Database.Database): IDocumentItem[] {
-    const stmt = db.prepare('SELECT * FROM document_items');
+    const stmt = db.prepare("SELECT * FROM document_items");
     const items = stmt.all();
-    return items.map(item => this.parseDocumentItem(item));
+    return items.map((item) => this.parseDocumentItem(item));
   }
 
   // root_id 是否是 child_id 的父节点，可能存在多级父节点，这里查询所有父节点，如果 root_id 是 child_id 的父节点，则返回 true
@@ -382,7 +409,11 @@ export default class DocumentTable {
   // 思路：先判断 root_id 是否是 child_id 的父节点，如果是，则返回 true，
   // 如果不是，则继续查询 root_id 的 children 是不是 child_id 的父节点，如果是，则返回 true，
   // 如果不是，则继续查询 root_id 的 children 的 children 是不是 child_id 的父节点，以此类推
-  static isDocumentItemChildOf(db: Database.Database, id: number, parentId: number): boolean {
+  static isDocumentItemChildOf(
+    db: Database.Database,
+    id: number,
+    parentId: number,
+  ): boolean {
     const parentDocumentItem = this.getDocumentItem(db, parentId);
     if (parentDocumentItem.children.includes(id)) {
       return true;
@@ -409,7 +440,9 @@ export default class DocumentTable {
   static initAllDocumentItemParents(db: Database.Database): void {
     let documentItems = this.getAllDocumentItems(db);
     // 过滤掉已经删除掉的
-    documentItems = documentItems.filter((documentItem) => !documentItem.isDelete);
+    documentItems = documentItems.filter(
+      (documentItem) => !documentItem.isDelete,
+    );
 
     const now = Date.now();
     // 对于每一个文档项，判断是否有某个文档项的 children 包含该文档项的 id，如果有，则将该文档添加到这个文档的 parents 中
@@ -420,17 +453,29 @@ export default class DocumentTable {
           parents.push(documentItem2.id);
         }
       }
-      const stmt = db.prepare(`UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`);
+      const stmt = db.prepare(
+        `UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`,
+      );
       stmt.run(now, JSON.stringify(parents), documentItem.id);
-      Operation.insertOperation(db, 'document-item', 'init-parents', documentItem.id, now)
+      Operation.insertOperation(
+        db,
+        "document-item",
+        "init-parents",
+        documentItem.id,
+        now,
+      );
     }
-
   }
 
-  static initDocumentItemParentsByIds(db: Database.Database, ids: number[]): void {
+  static initDocumentItemParentsByIds(
+    db: Database.Database,
+    ids: number[],
+  ): void {
     let documentItems = this.getAllDocumentItems(db);
     // 过滤掉已经删除掉的
-    documentItems = documentItems.filter((documentItem) => !documentItem.isDelete);
+    documentItems = documentItems.filter(
+      (documentItem) => !documentItem.isDelete,
+    );
 
     const now = Date.now();
     for (const id of ids) {
@@ -440,13 +485,18 @@ export default class DocumentTable {
           parents.push(documentItem.id);
         }
       }
-      const stmt = db.prepare(`UPDATE document_item SET update_time = ?, parents = ? WHERE id = ?`);
+      const stmt = db.prepare(
+        `UPDATE document_item SET update_time = ?, parents = ? WHERE id = ?`,
+      );
       stmt.run(now, JSON.stringify(parents), id);
-      Operation.insertOperation(db, 'document-item', 'init-parents', id, now);
+      Operation.insertOperation(db, "document-item", "init-parents", id, now);
     }
   }
 
-  static getDocumentItemAllParents(db: Database.Database, id: number): number[] {
+  static getDocumentItemAllParents(
+    db: Database.Database,
+    id: number,
+  ): number[] {
     const documentItem = this.getDocumentItem(db, id);
     const parents = documentItem.parents;
     const parentsSet = new Set(parents);
@@ -462,13 +512,16 @@ export default class DocumentTable {
     return Array.from(parentsSet);
   }
 
-  static getRootDocumentsByDocumentItemId(db: Database.Database, id: number): IDocument[] {
+  static getRootDocumentsByDocumentItemId(
+    db: Database.Database,
+    id: number,
+  ): IDocument[] {
     const parents = this.getDocumentItemAllParents(db, id);
     // 获取所有的 documents
     const documents = this.getAllDocuments(db);
     // 判断 document.children 中是否存在 parents
     return documents.filter((document) => {
       return document.children.some((childId) => parents.includes(childId));
-    })
+    });
   }
 }

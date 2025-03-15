@@ -1,29 +1,52 @@
-import { ipcMain } from 'electron';
-import OpenAI from 'openai';
-import { chunk } from 'llm-chunk';
-import { Message } from '@/types';
-import { Module } from '../types/module';
+import { ipcMain } from "electron";
+import OpenAI from "openai";
+import { chunk } from "llm-chunk";
+import { Message } from "@/types";
+import { Module } from "../types/module";
 
 class LLMModule implements Module {
   name: string;
   constructor() {
-    this.name = 'llm';
+    this.name = "llm";
   }
   async init() {
-    ipcMain.handle('embedding-openai', (_event, apiKey: string, baseUrl: string, model: string, input: string) => {
-      return this.embedding(apiKey, baseUrl, model, input);
-    });
+    ipcMain.handle(
+      "embedding-openai",
+      (
+        _event,
+        apiKey: string,
+        baseUrl: string,
+        model: string,
+        input: string,
+      ) => {
+        return this.embedding(apiKey, baseUrl, model, input);
+      },
+    );
 
-    ipcMain.handle('markdown-split', (_event, text: string) => {
+    ipcMain.handle("markdown-split", (_event, text: string) => {
       return this.splitMarkdown(text);
     });
 
-    ipcMain.handle('chat-openai', (_event, apiKey: string, baseUrl: string, model: string, messages: Message[]) => {
-      return this.chat(apiKey, baseUrl, model, messages);
-    });
+    ipcMain.handle(
+      "chat-openai",
+      (
+        _event,
+        apiKey: string,
+        baseUrl: string,
+        model: string,
+        messages: Message[],
+      ) => {
+        return this.chat(apiKey, baseUrl, model, messages);
+      },
+    );
   }
 
-  async embedding(apiKey: string, baseUrl: string, model: string, input: string): Promise<number[]> {
+  async embedding(
+    apiKey: string,
+    baseUrl: string,
+    model: string,
+    input: string,
+  ): Promise<number[]> {
     const client = new OpenAI({
       apiKey,
       baseURL: baseUrl,
@@ -42,11 +65,16 @@ class LLMModule implements Module {
       minLength: 500,
       maxLength: 2000,
       overlap: 0,
-      splitter: 'paragraph'
+      splitter: "paragraph",
     });
   }
 
-  async chat(apiKey: string, baseUrl: string, model: string, messages: Message[]): Promise<string | null> {
+  async chat(
+    apiKey: string,
+    baseUrl: string,
+    model: string,
+    messages: Message[],
+  ): Promise<string | null> {
     const client = new OpenAI({
       apiKey,
       baseURL: baseUrl,
