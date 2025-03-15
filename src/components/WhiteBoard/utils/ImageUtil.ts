@@ -2,6 +2,12 @@ import { getImageInfo } from "@/utils";
 import { uploadImage } from "@/hooks/useUploadImage";
 import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_DESCRIPTION_POSITION,
+  DEFAULT_DESCRIPTION_ALIGNMENT,
+  DEFAULT_DESCRIPTION_FONT_SIZE,
+} from "../constants/image";
 
 export class ImageUtil {
   static async insertImage(file: File, board: Board) {
@@ -41,6 +47,12 @@ export class ImageUtil {
           y: center.y - imageHeight / 2,
           width: imageWidth,
           height: imageHeight,
+          description: DEFAULT_DESCRIPTION,
+          descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
+          descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,
+          descriptionStyle: {
+            fontSize: DEFAULT_DESCRIPTION_FONT_SIZE,
+          },
         },
       });
     }

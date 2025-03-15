@@ -5,6 +5,12 @@ import { getImageInfo } from "@/utils";
 import CommonPlugin from "./CommonPlugin";
 import { Board, IBoardPlugin, ImageElement, Operation } from "../types";
 import ImageElementComponent from "../components/ImageElement";
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_DESCRIPTION_POSITION,
+  DEFAULT_DESCRIPTION_ALIGNMENT,
+  DEFAULT_DESCRIPTION_FONT_SIZE,
+} from "../constants/image";
 
 export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   name = "image";
@@ -79,6 +85,12 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
               y: center.y - height / 2,
               width,
               height,
+              description: DEFAULT_DESCRIPTION,
+              descriptionPosition: DEFAULT_DESCRIPTION_POSITION,
+              descriptionAlignment: DEFAULT_DESCRIPTION_ALIGNMENT,
+              descriptionStyle: {
+                fontSize: DEFAULT_DESCRIPTION_FONT_SIZE,
+              },
             },
           });
         }
