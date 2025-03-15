@@ -284,6 +284,14 @@ class Board {
     executeSequence(fns, event, this);
   }
 
+  // 添加一个清除参考线的辅助方法
+  clearRefLines() {
+    this.refLine.setCurrent({
+      rects: [],
+      lines: [],
+    });
+  }
+
   apply(ops: Operation | Operation[], updateHistory = true) {
     if (this.readonly) return;
     if (!Array.isArray(ops)) {
@@ -390,6 +398,8 @@ class Board {
               this.viewPort[key] = value;
             }
           }
+          // 视口变化时清除参考线
+          this.clearRefLines();
         } else if (op.type === "set_selection") {
           this.selection = createDraft(this.selection);
           const { newProperties } = op;
