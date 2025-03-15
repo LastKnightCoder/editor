@@ -306,6 +306,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
         statusBar.removeEventListener("mouseup", stopPropagation, true);
       }
 
+      // 确保在组件卸载时清除参考线
+      board.clearRefLines();
+
       observer.disconnect();
       board.destroy();
     };

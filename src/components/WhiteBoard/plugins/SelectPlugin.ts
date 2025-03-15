@@ -119,6 +119,9 @@ export class SelectPlugin implements IBoardPlugin {
         selectedElements,
       });
 
+      // 确保参考线被清除
+      board.clearRefLines();
+
       // 重置状态
       this.startPoint = null;
       this.moved = false;
@@ -205,6 +208,12 @@ export class SelectPlugin implements IBoardPlugin {
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,
         selectedElements: [],
+      });
+
+      // 确保参考线被清除
+      board.refLine.setCurrent({
+        rects: [],
+        lines: [],
       });
     }
   }

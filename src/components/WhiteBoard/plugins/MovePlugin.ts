@@ -201,7 +201,22 @@ export class MovePlugin implements IBoardPlugin {
 
   onPointerUp(e: PointerEvent, board: Board) {
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!endPoint || !this.startPoint || !this.moveElements || !this.isMoved) {
+    if (!endPoint || !this.startPoint || !this.moveElements) {
+      // 即使没有移动元素或起始点，也要清除参考线
+      board.clearRefLines();
+      board.emit("element:move-end");
+      this.moveElements = null;
+      this.startPoint = null;
+      this.isMoved = false;
+      return;
+    }
+
+    if (!this.isMoved) {
+      // 如果没有移动，也要清除参考线
+      board.refLine.setCurrent({
+        rects: [],
+        lines: [],
+      });
       board.emit("element:move-end");
       this.moveElements = null;
       this.startPoint = null;
@@ -237,10 +252,12 @@ export class MovePlugin implements IBoardPlugin {
       this.isHitSelected = false;
     }
 
+    // 确保清除参考线
     board.refLine.setCurrent({
       rects: [],
       lines: [],
     });
+
     if (operations.length > 0) {
       board.apply(operations);
     }
