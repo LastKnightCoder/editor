@@ -1,6 +1,6 @@
-import { EventEmitter } from 'node:events';
-import axios, { AxiosRequestConfig } from 'axios';
-import { ipcMain, WebContents } from 'electron';
+import { EventEmitter } from "node:events";
+import axios, { AxiosRequestConfig } from "axios";
+import { ipcMain, WebContents } from "electron";
 
 interface StreamResponse {
   requestId: number;
@@ -41,46 +41,58 @@ export default class StreamFetch extends EventEmitter {
   public static init() {
     const streamFetch = StreamFetch.getInstance();
 
-    ipcMain.handle('stream-fetch', async (event, {
-      method,
-      url,
-      headers,
-      body
-    }: {
-      method: string,
-      url: string,
-      headers: Record<string, string>,
-      body?: Buffer
-    }) => {
-      const requestId = await StreamFetch.getNextRequestId();
-      StreamFetch.senders.set(requestId, event.sender);
-      return await streamFetch.fetch(method, url, headers, body, requestId);
-    });
+    ipcMain.handle(
+      "stream-fetch",
+      async (
+        event,
+        {
+          method,
+          url,
+          headers,
+          body,
+        }: {
+          method: string;
+          url: string;
+          headers: Record<string, string>;
+          body?: Buffer;
+        },
+      ) => {
+        const requestId = await StreamFetch.getNextRequestId();
+        StreamFetch.senders.set(requestId, event.sender);
+        return await streamFetch.fetch(method, url, headers, body, requestId);
+      },
+    );
 
-    streamFetch.on('chunk', (payload: ChunkPayload) => {
+    streamFetch.on("chunk", (payload: ChunkPayload) => {
       const { requestId } = payload;
       if (StreamFetch.senders.has(requestId)) {
-        StreamFetch.senders.get(requestId)?.send('stream-response', payload);
+        StreamFetch.senders.get(requestId)?.send("stream-response", payload);
       }
     });
 
-    streamFetch.on('end', (payload: EndPayload) => {
+    streamFetch.on("end", (payload: EndPayload) => {
       const { requestId } = payload;
       const sender = StreamFetch.senders.get(requestId);
       if (sender) {
-        sender.send('stream-response', payload);
+        sender.send("stream-response", payload);
         StreamFetch.senders.delete(requestId);
       }
     });
 
-    streamFetch.on('error', ({ requestId, error }: { requestId: number, error: Error }) => {
-      const sender = StreamFetch.senders.get(requestId);
-      if (sender) {
-        sender.send('stream-response', { requestId, chunk: Buffer.from(error.message) });
-        sender.send('stream-response', { requestId, status: 0 })
-        StreamFetch.senders.delete(requestId);
-      }
-    });
+    streamFetch.on(
+      "error",
+      ({ requestId, error }: { requestId: number; error: Error }) => {
+        const sender = StreamFetch.senders.get(requestId);
+        if (sender) {
+          sender.send("stream-response", {
+            requestId,
+            chunk: Buffer.from(error.message),
+          });
+          sender.send("stream-response", { requestId, status: 0 });
+          StreamFetch.senders.delete(requestId);
+        }
+      },
+    );
   }
 
   public static getInstance(): StreamFetch {
@@ -101,12 +113,12 @@ export default class StreamFetch extends EventEmitter {
       method,
       url,
       headers,
-      responseType: 'stream',
+      responseType: "stream",
       maxRedirects: 3,
       timeout: 3000,
     };
 
-    if (body && ['POST', 'PUT', 'PATCH'].includes(method.toUpperCase())) {
+    if (body && ["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
       config.data = body;
     }
 
@@ -119,30 +131,30 @@ export default class StreamFetch extends EventEmitter {
         headers: this.normalizeHeaders(response.headers),
       };
 
-      response.data.on('data', (chunk: Buffer) => {
-        this.emit('chunk', { requestId, chunk } as ChunkPayload);
+      response.data.on("data", (chunk: Buffer) => {
+        this.emit("chunk", { requestId, chunk } as ChunkPayload);
       });
 
-      response.data.on('end', () => {
-        this.emit('end', { requestId, status: 0 } as EndPayload);
+      response.data.on("end", () => {
+        this.emit("end", { requestId, status: 0 } as EndPayload);
       });
 
-      response.data.on('error', (error: Error) => {
-        this.emit('error', { requestId, error });
+      response.data.on("error", (error: Error) => {
+        this.emit("error", { requestId, error });
       });
 
       return streamResponse;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status || 599;
-        const statusText = error.response?.statusText || 'Error';
+        const statusText = error.response?.statusText || "Error";
         const headers = error.response?.headers
           ? this.normalizeHeaders(error.response.headers)
           : {};
 
-        this.emit('error', {
+        this.emit("error", {
           requestId,
-          error: new Error(error.message)
+          error: new Error(error.message),
         });
 
         return {
@@ -155,7 +167,7 @@ export default class StreamFetch extends EventEmitter {
         return {
           requestId,
           status: 599,
-          statusText: 'Error',
+          statusText: "Error",
           headers: {},
         };
       }
@@ -165,10 +177,10 @@ export default class StreamFetch extends EventEmitter {
   private normalizeHeaders(headers: any): Record<string, string> {
     const normalized: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {
-      if (typeof value === 'string') {
+      if (typeof value === "string") {
         normalized[key] = value;
       } else if (Array.isArray(value)) {
-        normalized[key] = value.join(', ');
+        normalized[key] = value.join(", ");
       }
     }
     return normalized;
