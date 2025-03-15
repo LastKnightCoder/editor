@@ -2,7 +2,7 @@ import Editor, { EditorRef } from "@editor/index.tsx";
 import If from "@/components/If";
 
 import { BoardElement, EMarkerType, MindNodeElement } from "../../types";
-import { useBoard, useSelection, useSelectState } from "../../hooks";
+import { useBoard, useSelectState } from "../../hooks";
 import {
   MIND_LINE_COLORS,
   SELECT_RECT_FILL_OPACITY,
@@ -18,8 +18,8 @@ import {
 } from "@/editor-extensions";
 import { produce } from "immer";
 import { MindUtil, PathUtil } from "@/components/WhiteBoard/utils";
-import isHotkey from "is-hotkey";
 import CurveArrow from "@/components/WhiteBoard/components/Arrow/CurveArrow.tsx";
+import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
 
 interface MindNodeProps {
   element: MindNodeElement;
@@ -45,14 +45,12 @@ const MindNode = (props: MindNodeProps) => {
 
   const board = useBoard();
 
-  const [isEditing, setIsEditing] = useState(defaultFocus);
+  const [isEditing, setIsEditing] = useState(Boolean(defaultFocus));
   const [isMoving, setIsMoving] = useState(false);
 
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selection = useSelection();
-  const { selectedElements } = selection || {};
   const { isSelected, isSelecting } = useSelectState(id);
 
   useEffect(() => {
@@ -131,7 +129,9 @@ const MindNode = (props: MindNodeProps) => {
     handleResize.flush();
     setTimeout(() => {
       setIsEditing(false);
-      board.isEditing = false;
+      board.isEditingElements = board.isEditingElements.filter(
+        (eid) => eid !== id,
+      );
     }, 100);
 
     // TODO 应该可以直接快速的知道 Root 是什么，不要每次都查
@@ -168,6 +168,10 @@ const MindNode = (props: MindNodeProps) => {
     ) => {
       e.stopPropagation();
       setIsEditing(true);
+      board.isEditingElements = [
+        ...board.isEditingElements.filter((eid) => eid !== id),
+        id,
+      ];
       setTimeout(() => {
         editorRef.current?.focus();
       }, 100);
@@ -212,143 +216,14 @@ const MindNode = (props: MindNodeProps) => {
     }
   });
 
-  const handleKeyDown = useMemoizedFn((e: KeyboardEvent) => {
-    const onlyOneSelected = selectedElements && selectedElements.length === 1;
-    // 如果选中了当前节点
-    if (isSelected && onlyOneSelected && !isEditing) {
-      e.stopPropagation();
-      if (isHotkey("tab", e)) {
-        e.preventDefault();
-        const oldRoot = MindUtil.getRoot(board, element);
-        if (!oldRoot) return;
-
-        const newRoot = MindUtil.addChild(oldRoot, element);
-        if (!newRoot) return;
-
-        const rootPath = PathUtil.getPathByElement(board, oldRoot);
-
-        if (!rootPath) return;
-        board.apply([
-          {
-            type: "set_node",
-            path: rootPath,
-            properties: oldRoot,
-            newProperties: newRoot,
-          },
-          {
-            type: "set_selection",
-            properties: board.selection,
-            newProperties: {
-              selectArea: null,
-              selectedElements: [],
-            },
-          },
-        ]);
-      } else if (isHotkey("enter", e)) {
-        e.preventDefault();
-        e.stopPropagation();
-        const oldRoot = MindUtil.getRoot(board, element);
-        if (!oldRoot) return;
-
-        const newRoot = MindUtil.addSibling(oldRoot, element);
-        if (!newRoot) return;
-
-        const rootPath = PathUtil.getPathByElement(board, oldRoot);
-        if (!rootPath) return;
-
-        board.apply([
-          {
-            type: "set_node",
-            path: rootPath,
-            properties: oldRoot,
-            newProperties: newRoot,
-          },
-          {
-            type: "set_selection",
-            properties: board.selection,
-            newProperties: {
-              selectArea: null,
-              selectedElements: [],
-            },
-          },
-        ]);
-      } else if (isHotkey("shift+enter", e)) {
-        e.preventDefault();
-        e.stopPropagation();
-        const oldRoot = MindUtil.getRoot(board, element);
-        if (!oldRoot) return;
-
-        const newRoot = MindUtil.addSiblingBefore(oldRoot, element);
-        if (!newRoot) return;
-
-        const rootPath = PathUtil.getPathByElement(board, oldRoot);
-        if (!rootPath) return;
-
-        board.apply([
-          {
-            type: "set_node",
-            path: rootPath,
-            properties: oldRoot,
-            newProperties: newRoot,
-          },
-          {
-            type: "set_selection",
-            properties: board.selection,
-            newProperties: {
-              selectArea: null,
-              selectedElements: [],
-            },
-          },
-        ]);
-      } else if (isHotkey("backspace", e)) {
-        e.stopPropagation();
-        e.preventDefault();
-        if (MindUtil.isRoot(element)) {
-          const rootPath = PathUtil.getPathByElement(board, element);
-          if (!rootPath) return;
-          board.apply({
-            type: "remove_node",
-            path: rootPath,
-            node: element,
-          });
-        } else {
-          const oldRoot = MindUtil.getRoot(board, element);
-          if (!oldRoot) return;
-          const newRoot = MindUtil.deleteNode(oldRoot, element);
-          if (!newRoot) return;
-
-          const rootPath = PathUtil.getPathByElement(board, oldRoot);
-          if (!rootPath) return;
-
-          board.apply([
-            {
-              type: "set_node",
-              path: rootPath,
-              properties: oldRoot,
-              newProperties: newRoot,
-            },
-            {
-              type: "set_selection",
-              properties: board.selection,
-              newProperties: {
-                selectArea: null,
-                selectedElements: [],
-              },
-            },
-          ]);
-        }
-      }
-    } else if (isEditing) {
-      if (isHotkey("enter", e)) {
-        e.stopPropagation();
-        e.preventDefault();
-        editorRef.current?.deselect();
-        handleBlur();
-      } else if (isHotkey("delete", e)) {
-        e.stopImmediatePropagation();
-      }
-    }
-  });
+  const { handleKeyDown } = useMindNodeKeyboardNavigation(
+    board,
+    element,
+    isSelected,
+    isEditing,
+    setIsEditing,
+    editorRef.current,
+  );
 
   useEffect(() => {
     // TODO 每一个节点都注册了，是否可以由一个统一处理
@@ -387,7 +262,9 @@ const MindNode = (props: MindNodeProps) => {
         y={y}
         width={isEditing ? 200 : width}
         height={height}
-        style={{ overflow: "visible" }}
+        style={{
+          overflow: "visible",
+        }}
       >
         <div
           style={containerStyle}

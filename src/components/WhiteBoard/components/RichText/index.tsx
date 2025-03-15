@@ -129,7 +129,10 @@ const Richtext = memo((props: RichTextProps) => {
   const handleFocus = useMemoizedFn(() => {
     if (readonly) return;
     setFocus(true);
-    board.isEditing = true;
+    board.isEditingElements = [
+      ...board.isEditingElements.filter((eid) => eid !== elementId),
+      elementId,
+    ];
   });
 
   const handleBlur = useMemoizedFn(() => {
@@ -137,7 +140,9 @@ const Richtext = memo((props: RichTextProps) => {
     handleResize.flush();
     setTimeout(() => {
       setFocus(false);
-      board.isEditing = false;
+      board.isEditingElements = board.isEditingElements.filter(
+        (eid) => eid !== elementId,
+      );
       // 按道理 blur 的时候取消选中，但是这个时候如果想通过工具栏改变样式就没法做到了
       // 暂时不 deselect 了，后续改为右键菜单的时候在改回来
       // editorRef.current?.deselect();
@@ -288,6 +293,9 @@ const Richtext = memo((props: RichTextProps) => {
           className={styles.richTextContainer}
           ref={containerRef}
           style={containerStyle}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+          }}
         >
           <div
             style={{

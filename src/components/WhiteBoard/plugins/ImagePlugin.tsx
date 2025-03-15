@@ -14,7 +14,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   }
 
   onPaste(event: ClipboardEvent, board: Board) {
-    if (board.isEditing) return;
+    if (board.isEditingElements.length > 0) return;
     // 如果粘贴的是图片
     // 检查剪贴板中是否包含图片
     const items = event.clipboardData?.items;
