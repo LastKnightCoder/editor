@@ -16,6 +16,7 @@ import VecDocumentTable from "./tables/vec-document";
 import ChatMessageTable from "./tables/chat-message";
 import OperationTable from "./tables/operation";
 import StatisticTable from "./tables/statistic";
+import FtsTable from "./tables/fts";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -51,6 +52,7 @@ class DatabaseModule implements Module {
       ChatMessageTable,
       OperationTable,
       StatisticTable,
+      FtsTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

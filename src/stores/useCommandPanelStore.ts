@@ -1,17 +1,20 @@
 import { create } from "zustand";
 import { produce } from "immer";
-import { VecDocument } from "@/types";
-import { embeddingOpenAI, searchVecDocuments } from "@/commands";
+import { SearchParams, SearchResult } from "@/types";
+import { searchContent } from "@/utils/search";
 import useSettingStore, { ELLMProvider } from "./useSettingStore";
 
 interface ICommandPanelState {
   open: boolean;
   action?: "search" | "setting";
+  searchLoading: boolean;
+  ftsResults: SearchResult[];
+  vecResults: SearchResult[];
 }
 
 interface ICommandPanelActions {
   toggleTheme: () => void;
-  onSearch: (input: string) => Promise<Array<[VecDocument, number]>>;
+  onSearch: (input: string) => Promise<void>;
 }
 
 const EMBEDDING_MODEL = "text-embedding-3-large";
@@ -21,6 +24,9 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
   () => ({
     open: false,
     action: undefined,
+    searchLoading: false,
+    ftsResults: [],
+    vecResults: [],
     toggleTheme: () => {
       useSettingStore.setState(
         produce(useSettingStore.getState(), (draft) => {
@@ -35,15 +41,35 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
       const currentConfig = configs.find(
         (config) => config.id === currentConfigId,
       );
-      if (!currentConfig) return [];
-      const { apiKey, baseUrl } = currentConfig;
-      const queryEmbedding = await embeddingOpenAI(
-        apiKey,
-        baseUrl,
-        EMBEDDING_MODEL,
-        input,
-      );
-      return await searchVecDocuments(queryEmbedding, TOP_K);
+
+      useCommandPanelStore.setState({ searchLoading: true });
+
+      try {
+        // 执行全文搜索和向量搜索
+        const searchParams: SearchParams = {
+          query: input,
+          types: ["card", "article", "project-item", "document-item"],
+          limit: TOP_K,
+          modelInfo: currentConfig
+            ? {
+                key: currentConfig.apiKey,
+                baseUrl: currentConfig.baseUrl,
+                model: EMBEDDING_MODEL,
+              }
+            : undefined,
+        };
+
+        const [ftsResults, vecResults] = await searchContent(searchParams);
+
+        useCommandPanelStore.setState({
+          ftsResults,
+          vecResults,
+          searchLoading: false,
+        });
+      } catch (error) {
+        console.error("搜索失败:", error);
+        useCommandPanelStore.setState({ searchLoading: false });
+      }
     },
   }),
 );

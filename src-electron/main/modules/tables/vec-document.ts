@@ -1,5 +1,17 @@
 import Database from "better-sqlite3";
-import { VecDocument } from "@/types";
+import {
+  VecDocument,
+  IndexParams,
+  SearchParams,
+  SearchResult,
+  IndexType,
+} from "@/types";
+import OpenAI from "openai";
+import { chunk } from "llm-chunk";
+import CardTable from "./card";
+import ArticleTable from "./article";
+import ProjectTable from "./project";
+import DocumentTable from "./document";
 
 export default class VecDocumentTable {
   static initTable(db: Database.Database) {
@@ -32,6 +44,11 @@ export default class VecDocumentTable {
       "get-vec-documents-by-ref-type": this.getVecDocumentsByRefType.bind(this),
       "get-all-vec-documents": this.getAllVecDocuments.bind(this),
       "search-vec-documents": this.searchVecDocuments.bind(this),
+      "vec-document-index-content": this.indexContent.bind(this),
+      "vec-document-batch-index-content": this.batchIndexContent.bind(this),
+      "vec-document-remove-index": this.removeIndexByIdAndType.bind(this),
+      "vec-document-search-content": this.searchContent.bind(this),
+      "get-all-vec-document-results": this.getAllVecDocumentResults.bind(this),
     };
   }
 
@@ -57,6 +74,7 @@ export default class VecDocumentTable {
       contentsEmbedding: number[];
     },
   ): VecDocument {
+    this.deleteVecDocumentsByRef(db, params.refId, params.refType);
     const stmt = db.prepare(`
       INSERT INTO vec_documents
       (create_time, update_time, ref_type, ref_id, ref_update_time, contents, contents_embedding)
@@ -173,12 +191,14 @@ export default class VecDocumentTable {
     db: Database.Database,
     queryEmbedding: number[],
     topK: number,
+    types: IndexType[] = [],
   ): Array<[document: VecDocument, distance: number]> {
     const searchStmt = db.prepare(
-      "SELECT id, vec_distance_cosine(?, contents_embedding) AS distance FROM vec_documents WHERE distance < 0.6 ORDER BY distance LIMIT ?",
+      `SELECT id, vec_distance_cosine(?, contents_embedding) AS distance FROM vec_documents WHERE distance < 0.6 AND ref_type IN (${types.map(() => "?").join(",")}) ORDER BY distance LIMIT ?`,
     );
     const searchRes = searchStmt.all(
       JSON.stringify(queryEmbedding),
+      ...types,
       topK,
     ) as Array<{ id: number; distance: number }>;
     const res: Array<[document: VecDocument, distance: number]> = [];
@@ -187,5 +207,204 @@ export default class VecDocumentTable {
       res.push([doc, row.distance]);
     }
     return res;
+  }
+
+  static async indexContent(db: Database.Database, params: IndexParams) {
+    const { id, content, type, updateTime, modelInfo } = params;
+
+    // 如果有 modelInfo，使用 OpenAI API 生成嵌入
+    if (modelInfo && modelInfo.key && modelInfo.model && modelInfo.baseUrl) {
+      const chunks = chunk(content, {
+        minLength: 500,
+        maxLength: 2000,
+        overlap: 0,
+        splitter: "paragraph",
+      });
+
+      for (const chunk of chunks) {
+        // 使用 OpenAI API 生成嵌入
+        const client = new OpenAI({
+          apiKey: modelInfo.key,
+          baseURL: modelInfo.baseUrl,
+        });
+
+        const res = await client.embeddings.create({
+          model: modelInfo.model,
+          input: content,
+        });
+
+        const contentsEmbedding = res.data[0].embedding;
+        this.createVecDocument(db, {
+          refType: type,
+          refId: id,
+          refUpdateTime: updateTime,
+          contents: chunk,
+          contentsEmbedding: contentsEmbedding,
+        });
+      }
+    }
+
+    return true;
+  }
+
+  static async batchIndexContent(db: Database.Database, items: IndexParams[]) {
+    const res = await Promise.all(
+      items.map((item) => this.indexContent(db, item)),
+    );
+    return res.every(Boolean);
+  }
+
+  static removeIndexByIdAndType(
+    db: Database.Database,
+    id: number,
+    type: IndexType,
+  ) {
+    try {
+      this.deleteVecDocumentsByRef(db, id, type);
+      return true;
+    } catch (error) {
+      console.error("移除向量索引失败:", error);
+      return false;
+    }
+  }
+
+  static async searchContent(
+    db: Database.Database,
+    searchParams: SearchParams,
+  ): Promise<SearchResult[]> {
+    const { query, types = [], limit = 10, modelInfo } = searchParams;
+
+    if (!query) return [];
+
+    const results: SearchResult[] = [];
+
+    // 如果有 modelInfo，使用 OpenAI API 生成嵌入
+    if (modelInfo && modelInfo.key && modelInfo.model && modelInfo.baseUrl) {
+      // 使用 OpenAI API 生成嵌入
+      const client = new OpenAI({
+        apiKey: modelInfo.key,
+        baseURL: modelInfo.baseUrl,
+      });
+
+      const res = await client.embeddings.create({
+        model: modelInfo.model,
+        input: query,
+      });
+
+      const queryEmbedding = res.data[0].embedding;
+      const searchResults = this.searchVecDocuments(
+        db,
+        queryEmbedding,
+        limit,
+        types,
+      );
+
+      for (const [doc] of searchResults) {
+        let details = null;
+
+        switch (doc.refType as IndexType) {
+          case "card":
+            details = CardTable.getCardById(db, doc.refId);
+            break;
+          case "article":
+            details = ArticleTable.getArticleById(db, doc.refId);
+            break;
+          case "project-item":
+            details = ProjectTable.getProjectItem(db, doc.refId);
+            break;
+          case "document-item":
+            details = DocumentTable.getDocumentItem(db, doc.refId);
+            break;
+          default:
+            break;
+        }
+
+        if (details) {
+          // 按照 type 和 id 去重
+          const uniqueResult = results.find(
+            (result) => result.id === doc.refId && result.type === doc.refType,
+          );
+          if (!uniqueResult) {
+            results.push({
+              id: doc.refId,
+              type: doc.refType as IndexType,
+              // @ts-ignore
+              title: details.title || "",
+              content: details.content,
+              source: "vec-document" as const,
+              updateTime: doc.updateTime,
+            });
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+
+  // 获取所有向量索引结果
+  static getAllVecDocumentResults(
+    db: Database.Database,
+    type?: IndexType,
+  ): SearchResult[] {
+    let query = `
+      SELECT *, vec_to_json(contents_embedding) as contents_embedding_json 
+      FROM vec_documents
+    `;
+
+    // 如果指定了类型，添加类型过滤
+    if (type) {
+      query += ` WHERE ref_type = ?`;
+    }
+
+    const stmt = db.prepare(query);
+    const documents = type ? stmt.all(type) : stmt.all();
+    const vecDocuments = documents.map((doc) => this.parseVecDocument(doc));
+
+    const results: SearchResult[] = [];
+    const processedIds = new Set<string>(); // 用于去重
+
+    for (const doc of vecDocuments) {
+      let details = null;
+      const uniqueKey = `${doc.refType}:${doc.refId}`;
+
+      // 如果已经处理过相同的引用ID和类型，则跳过
+      if (processedIds.has(uniqueKey)) {
+        continue;
+      }
+
+      processedIds.add(uniqueKey);
+
+      switch (doc.refType as IndexType) {
+        case "card":
+          details = CardTable.getCardById(db, doc.refId);
+          break;
+        case "article":
+          details = ArticleTable.getArticleById(db, doc.refId);
+          break;
+        case "project-item":
+          details = ProjectTable.getProjectItem(db, doc.refId);
+          break;
+        case "document-item":
+          details = DocumentTable.getDocumentItem(db, doc.refId);
+          break;
+        default:
+          break;
+      }
+
+      if (details) {
+        results.push({
+          id: doc.refId,
+          type: doc.refType as IndexType,
+          // @ts-ignore
+          title: details.title || "",
+          content: details.content,
+          source: "vec-document" as const,
+          updateTime: doc.refUpdateTime,
+        });
+      }
+    }
+
+    return results;
   }
 }
