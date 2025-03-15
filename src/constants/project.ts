@@ -10,4 +10,5 @@ export const DEFAULT_CREATE_PROJECT: CreateProject = {
     },
   ],
   archived: false,
+  pinned: false,
 };
