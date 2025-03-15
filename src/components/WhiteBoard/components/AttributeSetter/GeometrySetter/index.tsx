@@ -13,6 +13,7 @@ import { BiSolidColorFill } from "react-icons/bi";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
+import { GeometryExtraSetters } from "../GeometrySetterRegistry";
 
 interface GeometrySetterProps {
   element: GeometryElement;
@@ -263,6 +264,7 @@ const GeometrySetter = (props: GeometrySetterProps) => {
           </div>
         </Tooltip>
       </Popover>
+      <GeometryExtraSetters element={element} onChange={onChange} />
     </div>
   );
 };

@@ -49,6 +49,7 @@ import {
   FullscreenOutlined,
 } from "@ant-design/icons";
 import For from "@/components/For";
+import "./init";
 import styles from "./index.module.less";
 
 const viewPortPlugin = new ViewPortPlugin();
@@ -539,5 +540,4 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 });
 
 export default WhiteBoard;
-
 export * from "./types";

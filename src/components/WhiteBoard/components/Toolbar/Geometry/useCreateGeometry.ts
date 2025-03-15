@@ -87,10 +87,16 @@ const useCreateGeometry = () => {
     if (!geometryCreateId.current) {
       geometryCreateId.current = getUuid();
     }
+
+    const geometryType = createOptions.geometryType || "default";
+    const defaultExtraInfo = createOptions.defaultExtraInfo || {};
+
     const geometryElement: GeometryElement = {
       id: geometryCreateId.current,
       type: "geometry",
+      geometryType,
       paths: createOptions.paths,
+      extraInfo: defaultExtraInfo,
       text: {
         align: "center",
         content: [

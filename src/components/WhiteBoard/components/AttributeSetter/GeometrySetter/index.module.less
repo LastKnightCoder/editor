@@ -7,16 +7,19 @@
   gap: 12px;
   grid-template-columns: repeat(5, 30px);
   grid-template-rows: auto;
+
   .item {
     padding: 4px;
     width: 24px;
     height: 24px;
     cursor: pointer;
     border-radius: 4px;
+
     &.active {
       color: rgb(102, 152, 255);
       background: rgba(102, 152, 255, 0.1);
     }
+
     &:not(.active):hover {
       color: rgb(102, 152, 255);
       background: rgba(102, 152, 255, 0.1);
@@ -31,6 +34,7 @@
   gap: 12px;
   grid-template-columns: repeat(5, 64px);
   grid-template-rows: auto;
+
   .item {
     padding: 4px;
     cursor: pointer;
@@ -49,6 +53,7 @@
   gap: 12px;
   grid-template-columns: repeat(3, 40px);
   grid-template-rows: auto;
+
   .item {
     padding: 4px;
     cursor: pointer;
@@ -57,13 +62,20 @@
     display: flex;
     align-items: center;
     justify-content: center;
+
     &.active {
       color: rgb(102, 152, 255);
       background-color: rgb(230, 242, 255);
     }
+
     &:not(.active):hover {
       color: rgb(102, 152, 255);
       background: rgba(102, 152, 255, 0.1);
     }
   }
+}
+
+.sliderContainer {
+  width: 100%;
+  padding: 8px;
 }
