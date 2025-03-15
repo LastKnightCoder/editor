@@ -1,15 +1,16 @@
 import React from "react";
+import { GeometrySetterComponentProps } from "../IGeometrySetter";
+import { BaseGeometrySetter } from "../BaseGeometrySetter";
 import { Popover, Tooltip, Slider } from "antd";
-import { RiRoundedCorner } from "react-icons/ri";
-import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
-import styles from "./index.module.less";
-import { GeometrySetterComponentProps } from "../GeometrySetterRegistry";
+import { useMemoizedFn } from "ahooks";
+import styles from "./setters.module.less";
+import { RiRoundedCorner } from "react-icons/ri";
 
-const RectangleCornerRadiusSetter: React.FC<GeometrySetterComponentProps> = ({
-  element,
-  onChange,
-}) => {
+// 矩形圆角设置器组件
+const RectangleCornerRadiusSetterComponent: React.FC<
+  GeometrySetterComponentProps
+> = ({ element, onChange }) => {
   // 从 extraInfo 中获取圆角值，如果不存在则默认为 0
   const cornerRadius = element.extraInfo?.cornerRadius || 0;
 
@@ -26,8 +27,8 @@ const RectangleCornerRadiusSetter: React.FC<GeometrySetterComponentProps> = ({
   return (
     <Popover
       arrow={false}
-      trigger="click"
-      placement="right"
+      trigger={"click"}
+      placement={"right"}
       styles={{
         body: {
           padding: 12,
@@ -36,10 +37,11 @@ const RectangleCornerRadiusSetter: React.FC<GeometrySetterComponentProps> = ({
         },
       }}
       content={
-        <div className={styles.sliderContainer}>
+        <div>
           <Slider
             min={0}
             max={50}
+            step={1}
             value={cornerRadius}
             onChange={handleCornerRadiusChange}
             tooltip={{ formatter: (value) => `${value}px` }}
@@ -47,7 +49,7 @@ const RectangleCornerRadiusSetter: React.FC<GeometrySetterComponentProps> = ({
         </div>
       }
     >
-      <Tooltip title="圆角" placement="left">
+      <Tooltip title={"圆角"} placement={"left"}>
         <div className={styles.item}>
           <RiRoundedCorner />
         </div>
@@ -56,4 +58,23 @@ const RectangleCornerRadiusSetter: React.FC<GeometrySetterComponentProps> = ({
   );
 };
 
-export default RectangleCornerRadiusSetter;
+// 矩形圆角设置器实现
+export class RectangleCornerRadiusSetter extends BaseGeometrySetter {
+  constructor() {
+    // 只适用于矩形
+    super(
+      "rectangle-corner-radius-setter",
+      "矩形圆角设置器",
+      ["rectangle"],
+      70,
+    );
+  }
+
+  getIcon(): React.ReactNode {
+    return <RiRoundedCorner />;
+  }
+
+  getComponent(): React.ComponentType<GeometrySetterComponentProps> {
+    return RectangleCornerRadiusSetterComponent;
+  }
+}

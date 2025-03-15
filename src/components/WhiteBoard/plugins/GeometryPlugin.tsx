@@ -12,6 +12,8 @@ export interface GeometryElement extends CommonElement {
   stroke?: string;
   strokeWidth?: number;
   strokeOpacity?: number;
+  sketchEnabled?: boolean;
+  roughness?: number;
   paths: string[];
   extraInfo?: Record<string, any>;
   text: {

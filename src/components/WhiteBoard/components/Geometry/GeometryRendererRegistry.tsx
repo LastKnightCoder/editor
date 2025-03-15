@@ -1,6 +1,6 @@
 import React from "react";
 import { GeometryElement } from "../../plugins";
-import { transformPath } from "../../utils";
+import DefaultRenderer from "./renderers/DefaultRenderer";
 
 // 渲染器接口
 export interface GeometryRendererProps {
@@ -26,63 +26,85 @@ interface GeometryRendererInfo {
 
 // 渲染器注册表
 class GeometryRendererRegistry {
-  private renderers: Map<string, GeometryRenderer> = new Map();
+  private renderers: Map<string, GeometryRenderer[]> = new Map();
+  private priorities: Map<string, number[]> = new Map();
 
   // 注册渲染器
   register = (info: GeometryRendererInfo): void => {
-    this.renderers.set(info.geometryType, info.renderer);
+    const { geometryType, renderer, priority = 0 } = info;
+
+    // 获取当前类型的渲染器列表，如果不存在则创建新列表
+    if (!this.renderers.has(geometryType)) {
+      this.renderers.set(geometryType, []);
+      this.priorities.set(geometryType, []);
+    }
+
+    // 添加渲染器和优先级
+    const renderers = this.renderers.get(geometryType)!;
+    const priorities = this.priorities.get(geometryType)!;
+
+    if (renderers.includes(renderer)) {
+      return;
+    }
+
+    renderers.push(renderer);
+    priorities.push(priority);
+
+    // 根据优先级排序
+    const indices = Array.from({ length: renderers.length }, (_, i) => i);
+    indices.sort((a, b) => priorities[b] - priorities[a]);
+
+    // 重新排序渲染器和优先级
+    this.renderers.set(
+      geometryType,
+      indices.map((i) => renderers[i]),
+    );
+    this.priorities.set(
+      geometryType,
+      indices.map((i) => priorities[i]),
+    );
   };
 
   // 获取渲染器
-  getRenderer = (geometryType: string): GeometryRenderer | null => {
-    return this.renderers.get(geometryType) || null;
+  getSpecificRenderer = (geometryType: string): GeometryRenderer | null => {
+    // 首先检查是否有特定类型的渲染器
+    const renderers = this.renderers.get(geometryType);
+    if (renderers && renderers.length > 0) {
+      return renderers[0];
+    }
+
+    return null;
   };
 
   // 渲染几何图形
   renderGeometry = (props: GeometryRendererProps): React.ReactNode => {
     const { element } = props;
-    const renderer = this.getRenderer(element.geometryType);
 
-    if (renderer) {
-      return renderer(props);
+    // 首先尝试使用通用渲染器（可能包含草图风格等特殊渲染器）
+    const universalRenderers = this.renderers.get("*");
+    console.log("universalRenderers", universalRenderers);
+    if (universalRenderers) {
+      for (const renderer of universalRenderers) {
+        const result = renderer(props);
+        console.log("renderer", renderer.name, result);
+        if (result) {
+          return result;
+        }
+      }
+    }
+
+    // 然后尝试使用特定类型的渲染器
+    const specificRenderer = this.getSpecificRenderer(element.geometryType);
+    if (specificRenderer) {
+      const result = specificRenderer(props);
+      console.log("specificRenderer", specificRenderer.name, result);
+      if (result) {
+        return result;
+      }
     }
 
     // 默认渲染方式：使用 SVG path
-    return this.defaultRenderer(props);
-  };
-
-  // 默认渲染器
-  defaultRenderer = ({
-    element,
-    width,
-    height,
-    fill,
-    fillOpacity,
-    stroke,
-    strokeWidth,
-    strokeOpacity,
-  }: GeometryRendererProps): React.ReactNode => {
-    const { paths } = element;
-
-    return (
-      <>
-        {paths.map((path, index) => {
-          // 使用项目中已有的 transformPath 函数
-          const pathString = transformPath(path, width, height);
-          return (
-            <path
-              key={`${path}-${index}`}
-              d={pathString}
-              fill={fill}
-              fillOpacity={fillOpacity}
-              stroke={stroke}
-              strokeWidth={strokeWidth}
-              strokeOpacity={strokeOpacity}
-            />
-          );
-        })}
-      </>
-    );
+    return <DefaultRenderer {...props} />;
   };
 }
 

@@ -8,6 +8,7 @@ import Editor, { EditorRef } from "@/components/Editor";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPoint from "../ArrowConnectPoint";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
+import GeometryRenderer from "./GeometryRenderer";
 
 import { Board, EHandlerPosition, Point } from "../../types";
 import { PathUtil, PointUtil } from "../../utils";
@@ -22,8 +23,7 @@ import {
   ARROW_CONNECT_POINT_FILL,
   ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
-import { geometryRendererRegistry } from "./GeometryRendererRegistry";
-
+import { registerGeometryRenderers } from "./registerGeometryRenderers";
 import styles from "./index.module.less";
 
 interface GeometryProps {
@@ -46,6 +46,8 @@ interface GeometryProps {
     endPoint: Point,
   ) => void;
 }
+
+registerGeometryRenderers();
 
 const Geometry = memo((props: GeometryProps) => {
   const { element, onResize, onResizeStart, onResizeEnd } = props;
@@ -202,7 +204,7 @@ const Geometry = memo((props: GeometryProps) => {
   return (
     <g ref={geometryRef}>
       <svg
-        style={{ overflow: "visible" }}
+        className={styles.svgContainer}
         key={id}
         x={x}
         y={y}
@@ -210,16 +212,16 @@ const Geometry = memo((props: GeometryProps) => {
         height={height}
         viewBox={`0 0 ${width} ${height}`}
       >
-        {geometryRendererRegistry.renderGeometry({
-          element,
-          width,
-          height,
-          fill,
-          fillOpacity,
-          stroke,
-          strokeWidth,
-          strokeOpacity,
-        })}
+        <GeometryRenderer
+          element={element}
+          width={width}
+          height={height}
+          fill={fill}
+          fillOpacity={fillOpacity}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+        />
       </svg>
       <foreignObject x={x} y={y} width={width} height={height}>
         <div
