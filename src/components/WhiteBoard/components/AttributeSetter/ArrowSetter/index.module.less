@@ -9,18 +9,21 @@
   width: fit-content;
   box-sizing: border-box;
   gap: 12px;
-  grid-template-columns: repeat(2, 30px);
+  grid-template-columns: repeat(3, 30px);
   grid-template-rows: auto;
+
   .item {
     padding: 4px;
     width: 24px;
     height: 24px;
     cursor: pointer;
     border-radius: 4px;
+
     &.active {
       color: rgb(102, 152, 255);
       background: rgba(102, 152, 255, 0.1);
     }
+
     &:not(.active):hover {
       color: rgb(102, 152, 255);
       background: rgba(102, 152, 255, 0.1);
@@ -35,16 +38,19 @@
   gap: 12px;
   grid-template-columns: repeat(4, 30px);
   grid-template-rows: auto;
+
   .item {
     padding: 4px;
     width: 24px;
     height: 24px;
     cursor: pointer;
     border-radius: 4px;
+
     &.active {
       color: rgb(102, 152, 255);
       background: rgba(102, 152, 255, 0.1);
     }
+
     &:not(.active):hover {
       color: rgb(102, 152, 255);
       background: rgba(102, 152, 255, 0.1);

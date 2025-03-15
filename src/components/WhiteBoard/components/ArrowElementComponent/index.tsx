@@ -150,6 +150,8 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         lineType={lineType}
         sourceMarker={source.marker}
         targetMarker={target.marker}
+        sourceConnectId={source.connectId}
+        targetConnectId={target.connectId}
       />
       <If condition={isSelected}>
         {points.map((point, index) => (

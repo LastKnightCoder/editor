@@ -21,6 +21,37 @@ const arrowTypes = [
     label: "曲线",
     type: EArrowLineType.CURVE,
   },
+  {
+    label: "正交线",
+    type: EArrowLineType.ORTHOGONAL,
+  },
+] as const;
+
+const markerTypes = [
+  {
+    label: "无箭头",
+    type: EMarkerType.None,
+  },
+  {
+    label: "标准箭头",
+    type: EMarkerType.Arrow,
+  },
+  {
+    label: "开放式箭头",
+    type: EMarkerType.OpenArrow,
+  },
+  {
+    label: "闭合式箭头",
+    type: EMarkerType.ClosedArrow,
+  },
+  {
+    label: "菱形箭头",
+    type: EMarkerType.Diamond,
+  },
+  {
+    label: "圆形箭头",
+    type: EMarkerType.Circle,
+  },
 ] as const;
 
 const lineWidthOptions = [
@@ -72,6 +103,20 @@ const ArrowSetter = (props: ArrowSetterProps) => {
   const onSelectArrowType = (type: EArrowLineType) => {
     const newElement = produce(element, (draft) => {
       draft.lineType = type;
+    });
+    onChange(newElement);
+  };
+
+  const onSelectSourceMarker = (marker: EMarkerType) => {
+    const newElement = produce(element, (draft) => {
+      draft.source.marker = marker;
+    });
+    onChange(newElement);
+  };
+
+  const onSelectTargetMarker = (marker: EMarkerType) => {
+    const newElement = produce(element, (draft) => {
+      draft.target.marker = marker;
     });
     onChange(newElement);
   };
@@ -142,13 +187,13 @@ const ArrowSetter = (props: ArrowSetterProps) => {
           </div>
         }
       >
-        <Tooltip title={"类型"}>
+        <Tooltip title={"线型"}>
           <div className={styles.item}>
             <svg width={16} height={16} viewBox={"0 0 16 16"}>
               <Arrow
                 sourceMarker={EMarkerType.None}
                 targetMarker={EMarkerType.Arrow}
-                lineType={EArrowLineType.STRAIGHT}
+                lineType={element.lineType}
                 lineColor={"black"}
                 lineWidth={1}
                 points={[
@@ -160,6 +205,123 @@ const ArrowSetter = (props: ArrowSetterProps) => {
           </div>
         </Tooltip>
       </Popover>
+
+      <Popover
+        arrow={false}
+        trigger={"click"}
+        placement={"right"}
+        styles={{
+          body: {
+            marginLeft: 24,
+          },
+        }}
+        content={
+          <div className={styles.typeSelect}>
+            {markerTypes.map((marker) => (
+              <div
+                key={marker.type}
+                className={styles.item}
+                onClick={() => {
+                  onSelectSourceMarker(marker.type);
+                }}
+              >
+                <Tooltip title={marker.label}>
+                  <svg width={24} height={24} viewBox={`0 0 1024 1024`}>
+                    <Arrow
+                      sourceMarker={marker.type}
+                      targetMarker={EMarkerType.None}
+                      lineType={EArrowLineType.STRAIGHT}
+                      lineColor={"black"}
+                      lineWidth={50}
+                      points={[
+                        { x: 50, y: 512 },
+                        { x: 974, y: 512 },
+                      ]}
+                    />
+                  </svg>
+                </Tooltip>
+              </div>
+            ))}
+          </div>
+        }
+      >
+        <Tooltip title={"起点箭头"}>
+          <div className={styles.item}>
+            <svg width={16} height={16} viewBox={"0 0 16 16"}>
+              <Arrow
+                sourceMarker={element.source.marker}
+                targetMarker={EMarkerType.None}
+                lineType={EArrowLineType.STRAIGHT}
+                lineColor={"black"}
+                lineWidth={1}
+                points={[
+                  { x: 1, y: 8 },
+                  { x: 15, y: 8 },
+                ]}
+              />
+            </svg>
+          </div>
+        </Tooltip>
+      </Popover>
+
+      <Popover
+        arrow={false}
+        trigger={"click"}
+        placement={"right"}
+        styles={{
+          body: {
+            marginLeft: 24,
+          },
+        }}
+        content={
+          <div className={styles.typeSelect}>
+            {markerTypes.map((marker) => (
+              <div
+                key={marker.type}
+                className={styles.item}
+                onClick={() => {
+                  onSelectTargetMarker(marker.type);
+                }}
+              >
+                <Tooltip title={marker.label}>
+                  <svg width={24} height={24} viewBox={`0 0 1024 1024`}>
+                    <Arrow
+                      sourceMarker={EMarkerType.None}
+                      targetMarker={marker.type}
+                      lineType={EArrowLineType.STRAIGHT}
+                      lineColor={"black"}
+                      lineWidth={50}
+                      points={[
+                        { x: 50, y: 512 },
+                        { x: 974, y: 512 },
+                      ]}
+                    />
+                  </svg>
+                </Tooltip>
+              </div>
+            ))}
+          </div>
+        }
+      >
+        <Tooltip title={"终点箭头"}>
+          <div className={styles.item}>
+            <svg width={16} height={16} viewBox={"0 0 16 16"}>
+              <Arrow
+                sourceMarker={EMarkerType.None}
+                targetMarker={element.target.marker}
+                lineType={EArrowLineType.STRAIGHT}
+                lineColor={"black"}
+                lineWidth={1}
+                points={[
+                  { x: 1, y: 8 },
+                  { x: 15, y: 8 },
+                ]}
+              />
+            </svg>
+          </div>
+        </Tooltip>
+      </Popover>
+
       <Popover
         arrow={false}
         trigger={"click"}
@@ -189,6 +351,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
           </div>
         </Tooltip>
       </Popover>
+
       <Popover
         arrow={false}
         trigger={"click"}
