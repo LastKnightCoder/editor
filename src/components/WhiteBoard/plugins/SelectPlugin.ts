@@ -89,8 +89,6 @@ export class SelectPlugin implements IBoardPlugin {
       if (!this.moved && this.hitElements && this.hitElements.length > 0) {
         const clickedElement = this.hitElements[this.hitElements.length - 1];
 
-        console.log(isMultiSelect, selectedElements, clickedElement);
-
         if (isMultiSelect) {
           // 多选模式下，如果点击的元素已经在选中列表中，则移除它；否则添加它
           const existingIndex = selectedElements.findIndex(

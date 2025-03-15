@@ -11,7 +11,6 @@ const DefaultRenderer: React.FC<GeometryRendererProps> = ({
   strokeWidth,
   strokeOpacity,
 }) => {
-  console.log("DefaultRenderer", element);
   const { paths } = element;
 
   return (
