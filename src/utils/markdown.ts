@@ -436,6 +436,7 @@ const normalizeEditorContent = (
     } else if (
       parent &&
       element.type === "divide-line" &&
+      // @ts-ignore
       parent.children[i + 1]?.type === "divide-line"
     ) {
       continue;
@@ -544,8 +545,8 @@ const elementToMarkdown = (
 
   const extension = extensions.find((ext) => ext.type === type);
 
-  // @ts-ignore
   return (
+    // @ts-ignore
     extension?.toMarkdown(element, childrenStr, parentElement) || childrenStr
   );
 };

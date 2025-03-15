@@ -3,8 +3,8 @@ import { getCurrentTextNode } from "@/components/Editor/utils";
 
 export const unwrapCardLink = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    // @ts-ignore
     match: (n) =>
+      // @ts-ignore
       !Editor.isEditor(n) && Element.isElement(n) && n.type === "card-link",
   });
 };
