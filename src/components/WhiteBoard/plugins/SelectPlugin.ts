@@ -126,6 +126,22 @@ export class SelectPlugin implements IBoardPlugin {
     }
   }
   onKeyDown(e: KeyboardEvent, board: Board) {
+    // 实现mod+a全选功能
+    if (isHotkey("mod+a", e)) {
+      e.preventDefault();
+      const allElements: BoardElement[] = [];
+      BoardUtil.dfs(board, (node) => {
+        allElements.push(node);
+      });
+
+      SelectTransforms.updateSelectArea(board, {
+        selectArea: null,
+        selectedElements: allElements,
+      });
+
+      return;
+    }
+
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
     if (isHotkey(["delete", "backspace"], e)) {
