@@ -29,7 +29,11 @@ const Geometry = memo((props: GeometryProps) => {
   useCreateGeometry();
 
   const handleClickGeometryItem = useMemoizedFn((item) => {
-    board.createOptions = item;
+    board.createOptions = {
+      ...item,
+      geometryType: item.geometryType,
+      defaultExtraInfo: item.defaultExtraInfo || {},
+    };
     setPopoverOpen(false);
   });
 

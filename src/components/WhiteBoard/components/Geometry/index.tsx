@@ -10,7 +10,7 @@ import ArrowConnectPoint from "../ArrowConnectPoint";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
 import { Board, EHandlerPosition, Point } from "../../types";
-import { PathUtil, PointUtil, transformPath } from "../../utils";
+import { PathUtil, PointUtil } from "../../utils";
 import { useBoard, useSelectState, useDropArrow } from "../../hooks";
 import { GeometryElement } from "../../plugins";
 import {
@@ -22,6 +22,7 @@ import {
   ARROW_CONNECT_POINT_FILL,
   ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
+import { geometryRendererRegistry } from "./GeometryRendererRegistry";
 
 import styles from "./index.module.less";
 
@@ -55,7 +56,6 @@ const Geometry = memo((props: GeometryProps) => {
     y,
     width,
     height,
-    paths,
     fillOpacity,
     fill,
     stroke,
@@ -210,20 +210,15 @@ const Geometry = memo((props: GeometryProps) => {
         height={height}
         viewBox={`0 0 ${width} ${height}`}
       >
-        {paths.map((path) => {
-          // 提取 path 中的所有坐标，分别乘以 width 和 height
-          const pathString = transformPath(path, width, height);
-          return (
-            <path
-              key={path}
-              d={pathString}
-              fill={fill}
-              fillOpacity={fillOpacity}
-              stroke={stroke}
-              strokeWidth={strokeWidth}
-              strokeOpacity={strokeOpacity}
-            />
-          );
+        {geometryRendererRegistry.renderGeometry({
+          element,
+          width,
+          height,
+          fill,
+          fillOpacity,
+          stroke,
+          strokeWidth,
+          strokeOpacity,
         })}
       </svg>
       <foreignObject x={x} y={y} width={width} height={height}>

@@ -5,6 +5,7 @@ import { Descendant } from "slate";
 
 export interface GeometryElement extends CommonElement {
   type: "geometry";
+  geometryType: string;
   color?: string;
   fill?: string;
   fillOpacity?: number;
@@ -12,6 +13,7 @@ export interface GeometryElement extends CommonElement {
   strokeWidth?: number;
   strokeOpacity?: number;
   paths: string[];
+  extraInfo?: Record<string, any>;
   text: {
     align: "left" | "center" | "right";
     content: Descendant[];
