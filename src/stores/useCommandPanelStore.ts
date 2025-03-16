@@ -18,7 +18,7 @@ interface ICommandPanelActions {
 }
 
 const EMBEDDING_MODEL = "text-embedding-3-large";
-const TOP_K = 10;
+const TOP_K = 100;
 
 const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
   () => ({

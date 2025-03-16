@@ -26,6 +26,21 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
   ? path.join(process.env.APP_ROOT, "public")
   : RENDERER_DIST;
 
+// 劫持 jieba 加载 dict 时找不到
+const originalResolve = require.resolve;
+require.resolve = function (spec: string, options: any) {
+  if (spec.endsWith("dict.txt") || spec.endsWith("idf.txt")) {
+    console.log("spec", spec);
+    // 关键拦截点
+    const realPath = path.join(
+      app.isPackaged ? process.resourcesPath : __dirname,
+      spec,
+    );
+    return realPath;
+  }
+  return originalResolve(spec, options);
+} as any;
+
 const preload = path.join(__dirname, "../preload/index.js");
 const indexHtml = path.join(RENDERER_DIST, "index.html");
 
