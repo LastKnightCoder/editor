@@ -2,7 +2,7 @@ import classnames from "classnames";
 import { ECardCategory, ICard } from "@/types";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import styles from "./index.module.less";
-import React, { MouseEvent, useEffect, useRef } from "react";
+import React, { MouseEvent, useEffect, useRef, useState } from "react";
 import Tags from "@/components/Tags";
 import { formatDate, getMarkdown } from "@/utils";
 import {
@@ -16,6 +16,7 @@ import useCardManagement from "@/hooks/useCardManagement.ts";
 import { useMemoizedFn } from "ahooks";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import PresentationMode from "@/components/PresentationMode";
 
 interface CardItemProps {
   card: ICard;
@@ -27,6 +28,7 @@ const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 const CardItem = (props: CardItemProps) => {
   const { card, className, style } = props;
+  const [isPresentation, setIsPresentation] = useState(false);
 
   const editorRef = useRef<EditorRef>(null);
 
@@ -88,6 +90,13 @@ const CardItem = (props: CardItemProps) => {
     }
   });
 
+  const handlePresentationMode = useMemoizedFn(
+    (e: MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      setIsPresentation(true);
+    },
+  );
+
   const handleMoreClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
       if (key === "delete-card") {
@@ -124,37 +133,56 @@ const CardItem = (props: CardItemProps) => {
   );
 
   return (
-    <div className={classnames(styles.itemContainer, className)} style={style}>
-      <div className={styles.time}>
-        <span>创建于：{formatDate(card.create_time, true)}</span>
-        <span>更新于：{formatDate(card.update_time, true)}</span>
-      </div>
-      <ErrorBoundary>
-        <Editor
-          ref={editorRef}
-          className={styles.content}
-          readonly={true}
-          initValue={content}
-          extensions={customExtensions}
-        />
-      </ErrorBoundary>
-      {tags.length > 0 && <Tags className={styles.tags} tags={tags} showIcon />}
-      <div className={styles.actions}>
-        <div className={styles.action} onClick={onClick}>
-          <IoResizeOutline />
+    <>
+      <div
+        className={classnames(styles.itemContainer, className)}
+        style={style}
+        onClick={onClick}
+      >
+        <div className={styles.time}>
+          <span>创建于：{formatDate(card.create_time, true)}</span>
+          <span>更新于：{formatDate(card.update_time, true)}</span>
         </div>
-        <Dropdown
-          menu={{
-            items: moreMenuItems,
-            onClick: handleMoreClick,
-          }}
-        >
-          <div className={styles.action}>
-            <MdMoreHoriz />
+        <ErrorBoundary>
+          <Editor
+            ref={editorRef}
+            className={styles.content}
+            readonly={true}
+            initValue={content}
+            extensions={customExtensions}
+          />
+        </ErrorBoundary>
+        {tags.length > 0 && (
+          <Tags className={styles.tags} tags={tags} showIcon />
+        )}
+        <div className={styles.actions}>
+          <div className={styles.action} onClick={handlePresentationMode}>
+            <IoResizeOutline />
           </div>
-        </Dropdown>
+          <Dropdown
+            menu={{
+              items: moreMenuItems,
+              onClick: handleMoreClick,
+            }}
+          >
+            <div className={styles.action}>
+              <MdMoreHoriz />
+            </div>
+          </Dropdown>
+        </div>
       </div>
-    </div>
+
+      {isPresentation && (
+        <PresentationMode
+          content={card.content}
+          extensions={customExtensions}
+          onExit={() => {
+            console.log("CardItem: 退出演示模式");
+            setIsPresentation(false);
+          }}
+        />
+      )}
+    </>
   );
 };
 
