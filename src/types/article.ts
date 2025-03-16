@@ -7,6 +7,7 @@ export interface ICreateArticle {
   links: number[];
   content: Descendant[];
   bannerBg: string;
+  bannerPosition?: string;
   isTop: boolean;
   isDelete: boolean;
   count: number;

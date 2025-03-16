@@ -20,6 +20,7 @@ import {
   ReadOutlined,
 } from "@ant-design/icons";
 import LocalImage from "@/components/LocalImage";
+import CoverEditor from "@/components/CoverEditor";
 import EditorOutline from "@/components/EditorOutline";
 import { getInlineElementText } from "@/utils";
 import { formatDate } from "@/utils/time.ts";
@@ -36,6 +37,7 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context.ts";
+import { produce } from "immer";
 
 const extensions = [cardLinkExtension, fileAttachmentExtension];
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
@@ -54,6 +56,7 @@ const EditArticle = memo(() => {
     onAddTag,
     onTitleChange,
     saveArticle,
+    setEditingArticle,
   } = useEditArticle(activeArticleId);
 
   const editorRef = useRef<EditorRef>(null);
@@ -178,6 +181,15 @@ const EditArticle = memo(() => {
     editorRef.current.scrollHeaderIntoView(index);
   });
 
+  const handleCoverChange = useMemoizedFn((url: string, position: string) => {
+    if (!editingArticle) return;
+    const newEditingArticle = produce(editingArticle, (draft) => {
+      draft.bannerBg = url;
+      draft.bannerPosition = position;
+    });
+    setEditingArticle(newEditingArticle);
+  });
+
   if (!editingArticle) {
     return null;
   }
@@ -192,6 +204,22 @@ const EditArticle = memo(() => {
             "https://cdn.jsdelivr.net/gh/LastKnightCoder/ImgHosting2/20210402153806.png"
           }
           className={styles.img}
+          style={{
+            objectPosition: `center ${
+              editingArticle.bannerPosition === "top"
+                ? "0%"
+                : editingArticle.bannerPosition === "bottom"
+                  ? "100%"
+                  : editingArticle.bannerPosition === "center"
+                    ? "center"
+                    : editingArticle.bannerPosition // 支持自定义百分比
+            }`,
+          }}
+        />
+        <CoverEditor
+          coverUrl={editingArticle.bannerBg || ""}
+          coverPosition={editingArticle.bannerPosition || "center"}
+          onCoverChange={handleCoverChange}
         />
         <EditText
           className={styles.title}
