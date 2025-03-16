@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
 import { FloatButton, message, Button } from "antd";
@@ -8,14 +8,11 @@ import For from "@/components/For";
 import ProjectCard from "./ProjectCard";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import EditProjectInfoModal from "@/layouts/components/EditProjectInfoModal";
+import useGridLayout from "@/hooks/useGridLayout";
 
 import styles from "./index.module.less";
 import { Descendant } from "slate";
 import { CreateProject, Project } from "@/types";
-
-const MIN_WIDTH = 320;
-const MAX_WIDTH = 400;
-const GAP = 20;
 
 const EMPTY_DESC: Descendant[] = [
   {
@@ -25,8 +22,7 @@ const EMPTY_DESC: Descendant[] = [
 ];
 
 const ProjectsView = () => {
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-  const [itemWidth, setItemWidth] = useState(MIN_WIDTH);
+  const { gridContainerRef, itemWidth, gap } = useGridLayout();
   const [createOpen, setCreateOpen] = useState(false);
 
   const navigate = useNavigate();
@@ -55,32 +51,6 @@ const ProjectsView = () => {
   const handleToggleArchived = (checked: boolean) => {
     useProjectsStore.setState({ showArchived: checked });
   };
-
-  const handleResize = useMemoizedFn((entries: ResizeObserverEntry[]) => {
-    const { width } = entries[0].contentRect;
-
-    const nMin = Math.ceil((width + GAP) / (MAX_WIDTH + GAP));
-    const nMax = Math.floor((width + GAP) / (MIN_WIDTH + GAP));
-
-    const n = Math.min(nMin, nMax);
-
-    const itemWidth = (width + GAP) / n - GAP;
-
-    setItemWidth(itemWidth);
-  });
-
-  useEffect(() => {
-    const container = gridContainerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver(handleResize);
-
-    observer.observe(container);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [handleResize]);
 
   const handleCreateProject = useMemoizedFn(
     async (title: string, desc: Descendant[]) => {
@@ -111,11 +81,7 @@ const ProjectsView = () => {
   );
 
   return (
-    <div
-      className={styles.container}
-      ref={gridContainerRef}
-      style={{ gap: GAP }}
-    >
+    <div className={styles.container} ref={gridContainerRef} style={{ gap }}>
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <div className={styles.title}>活跃项目</div>

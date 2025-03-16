@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { App, Flex, FloatButton, Input, Modal } from "antd";
-import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 
@@ -11,13 +10,10 @@ import WhiteBoard from "@/layouts/components/EditWhiteBoard";
 import { PlusOutlined } from "@ant-design/icons";
 
 import styles from "./index.module.less";
-
-const MIN_WIDTH = 320;
-const MAX_WIDTH = 400;
-const GAP = 20;
+import useGridLayout from "@/hooks/useGridLayout";
 
 const WhiteBoardView = () => {
-  const gridContainerRef = useRef<HTMLDivElement>(null);
+  const { gridContainerRef, itemWidth, gap } = useGridLayout();
 
   const { whiteBoards, activeWhiteBoardId, createWhiteBoard } =
     useWhiteBoardStore((state) => ({
@@ -28,38 +24,11 @@ const WhiteBoardView = () => {
 
   const showEdit = !!activeWhiteBoardId;
 
-  const [itemWidth, setItemWidth] = useState(MIN_WIDTH);
   const [createWhiteBoardModalOpen, setCreateWhiteBoardModalOpen] =
     useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const { message } = App.useApp();
-
-  const handleResize = useMemoizedFn((entries: ResizeObserverEntry[]) => {
-    const { width } = entries[0].contentRect;
-
-    const nMin = Math.ceil((width + GAP) / (MAX_WIDTH + GAP));
-    const nMax = Math.floor((width + GAP) / (MIN_WIDTH + GAP));
-
-    const n = Math.min(nMin, nMax);
-
-    const itemWidth = (width + GAP) / n - GAP;
-
-    setItemWidth(itemWidth);
-  });
-
-  useEffect(() => {
-    const container = gridContainerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver(handleResize);
-
-    observer.observe(container);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [handleResize]);
 
   return (
     <div
@@ -70,7 +39,7 @@ const WhiteBoardView = () => {
       <div
         className={styles.gridContainer}
         ref={gridContainerRef}
-        style={{ gap: GAP }}
+        style={{ gap }}
       >
         <For
           data={whiteBoards}
