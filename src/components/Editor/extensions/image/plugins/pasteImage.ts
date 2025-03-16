@@ -1,6 +1,6 @@
 import { Editor, Transforms } from "slate";
 import { insertImage } from "@/components/Editor/utils";
-import { uploadImage } from "@/hooks/useUploadImage.ts";
+import { uploadResource } from "@/hooks/useUploadResource.ts";
 import { message } from "antd";
 
 export const pasteImage = (editor: Editor) => {
@@ -22,7 +22,7 @@ export const pasteImage = (editor: Editor) => {
       if (!insertPath) {
         return;
       }
-      const url = await uploadImage(file);
+      const url = await uploadResource(file);
       if (!url) {
         message.error("上传失败");
         Transforms.setNodes(

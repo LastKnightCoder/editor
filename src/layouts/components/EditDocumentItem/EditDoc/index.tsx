@@ -7,7 +7,7 @@ import classnames from "classnames";
 import Editor, { EditorRef } from "@/components/Editor";
 import EditorSourceValue from "@/components/EditorSourceValue";
 
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 import useEditDoc from "./useEditDoc";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
@@ -52,7 +52,7 @@ const EditDoc = memo(() => {
     initValue,
   } = useEditDoc();
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
 
   useRafInterval(() => {
     saveDocument();

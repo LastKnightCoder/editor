@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 import { useMemoizedFn, useRafInterval } from "ahooks";
 import useEdit from "./useEdit";
 import useProjectsStore from "@/stores/useProjectsStore";
@@ -51,7 +51,7 @@ const Project = () => {
     };
   }, [readonly, saveProjectItem]);
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
 
   const onClickHeader = useMemoizedFn((index: number) => {
     editorRef.current?.scrollHeaderIntoView(index);

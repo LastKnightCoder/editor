@@ -10,7 +10,7 @@ import AISearch from "@/layouts/ShortSidebarLayout/components/AISearch";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 import { ECardCategory } from "@/types";
 import {
   cardLinkExtension,
@@ -40,7 +40,7 @@ const QuickCard = () => {
     createCard: state.createCard,
   }));
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
 
   const [content, setContent] = useState(initValue);

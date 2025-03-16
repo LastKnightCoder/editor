@@ -6,7 +6,7 @@ import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
@@ -53,7 +53,7 @@ const EditCard = (props: IEditCardProps) => {
     return editingCard.content;
   });
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
 
   useRafInterval(() => {
     if (!readonly) {

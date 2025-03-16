@@ -2,7 +2,7 @@ import { Button, Flex, Switch, App } from "antd";
 import { useState } from "react";
 import { useLocalStorageState } from "ahooks";
 import { selectFile, readBinaryFile, getFileBaseName } from "@/commands";
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 import { CheckOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface SelectFileModalProps {
@@ -15,7 +15,7 @@ const SelectFileModal = (props: SelectFileModalProps) => {
 
   const { message } = App.useApp();
 
-  const uploadFile = useUploadImage();
+  const uploadFile = useUploadResource();
   const [filePath, setFilePath] = useState<string | undefined>();
   const [fileName, setFileName] = useState<string | undefined>();
   const [file, setFile] = useState<File>();

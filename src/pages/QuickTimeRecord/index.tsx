@@ -5,7 +5,7 @@ import Editor, { EditorRef } from "@/components/Editor";
 import { getAllEventTypes, createTimeRecord } from "@/commands";
 
 import styles from "./index.module.less";
-import useUploadImage from "@/hooks/useUploadImage";
+import useUploadResource from "@/hooks/useUploadResource";
 import WindowControl from "@/components/WindowControl";
 import dayjs from "dayjs";
 
@@ -23,7 +23,7 @@ const QuickTimeRecord = () => {
   const [allEventTypes, setAllEventTypes] = useState<string[]>([]);
   const [cost, setCost] = useState<number>(0);
   const [saveLoading, setSaveLoading] = useState(false);
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { memo, useState, useRef } from "react";
 import { Typography, Popover, App, Modal, Spin, Flex } from "antd";
 import classnames from "classnames";
-import useUploadImage from "@/hooks/useUploadImage";
+import useUploadResource from "@/hooks/useUploadResource";
 
 // import Tags from "@/components/Tags";
 import LocalImage from "@/components/LocalImage";
@@ -28,7 +28,7 @@ const ArticleItem = memo((props: IArticleItemProps) => {
   const [bannerUploading, setBannerUploading] = useState(false);
   const [settingOpen, setSettingOpen] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
   const { message } = App.useApp();
 
   const {
