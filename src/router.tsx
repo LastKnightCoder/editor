@@ -2,6 +2,7 @@ import { createHashRouter } from "react-router-dom";
 
 import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
+import SettingsPage from "@/pages/Settings";
 
 import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
 import HomeView from "@/layouts/ShortSidebarLayout/components/HomeView";
@@ -74,6 +75,10 @@ const routes = [
       {
         path: "vec-documents/",
         element: <VecDocumentView />,
+      },
+      {
+        path: "settings",
+        element: <SettingsPage />,
       },
     ],
   },

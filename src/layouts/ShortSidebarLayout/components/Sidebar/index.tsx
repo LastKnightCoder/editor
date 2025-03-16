@@ -229,9 +229,7 @@ const Sidebar = (props: SidebarProps) => {
           />
           <SidebarItem
             onClick={() => {
-              useSettingStore.setState({
-                settingModalOpen: true,
-              });
+              navigate("/settings");
             }}
             label={"设置"}
             icon={<SVG src={setting} />}

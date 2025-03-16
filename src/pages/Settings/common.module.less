@@ -1,0 +1,26 @@
+.settingTabs {
+  height: 100%;
+  overflow: hidden;
+
+  :global {
+    .ant-tabs {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ant-tabs-content-holder {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .ant-tabs-content {
+      height: 100%;
+    }
+
+    .ant-tabs-tabpane {
+      overflow-y: auto;
+      padding-bottom: 20px;
+    }
+  }
+}

@@ -3,6 +3,7 @@ import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import OpenAISetting from "./OpenAISetting";
 import OtherSetting from "./OtherSetting";
 import { produce } from "immer";
+import styles from "../common.module.less";
 
 const LLMProviderSetting = () => {
   const { llmProviders } = useSettingStore((state) => ({
@@ -37,6 +38,7 @@ const LLMProviderSetting = () => {
       activeKey={currentProvider}
       items={items}
       onChange={(key) => onCurKeyChange(key as ELLMProvider)}
+      className={styles.settingTabs}
     />
   );
 };

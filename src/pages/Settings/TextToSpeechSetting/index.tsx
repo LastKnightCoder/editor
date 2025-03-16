@@ -2,6 +2,7 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 import DoubaoSetting from "./DoubaoSetting";
 import { Tabs, TabsProps } from "antd";
 import { produce } from "immer";
+import styles from "../common.module.less";
 
 const TextSpeechSetting = () => {
   const { currentModel } = useSettingStore((state) => ({
@@ -27,6 +28,7 @@ const TextSpeechSetting = () => {
         );
       }}
       items={tabs}
+      className={styles.settingTabs}
     />
   );
 };
