@@ -33,8 +33,6 @@ const ListItem = (props: IListItemProps) => {
         ? parseInt(getComputedStyle(firstLine).lineHeight)
         : 24;
 
-      console.log(lineHeight);
-
       setIsMultiline(height > lineHeight * 2); // 如果高度超过2倍行高，认为是多行
 
       // 设置CSS变量，用于垂直线定位

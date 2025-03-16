@@ -11,6 +11,7 @@ import OverviewMode from "./components/OverviewMode";
 import useSlides from "./hooks/useSlides";
 import useKeyboardNavigation from "./hooks/useKeyboardNavigation";
 import useTemporaryMessage from "./hooks/useTemporaryMessage";
+import useHelpModal from "./hooks/useHelpModal";
 import styles from "./index.module.less";
 import IExtension from "../Editor/extensions/types";
 
@@ -26,12 +27,14 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
 }) => {
   const [showTip, setShowTip] = useState(true);
   const [isOverview, setIsOverview] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
   const [isExitingOverview, setIsExitingOverview] = useState(false);
   const presentationEditorRef = useRef<EditorRef>(null);
   const presentationModeRef = useRef<HTMLDivElement>(null);
 
   const [extensions, setExtensions] = useState<IExtension[]>([]);
+
+  // 使用帮助弹窗hook
+  const { showHelp, closeHelp, toggleHelp } = useHelpModal();
 
   useEffect(() => {
     import("@/editor-extensions").then((module) => {
@@ -100,7 +103,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
     isOverview,
     setIsOverview,
     showHelp,
-    setShowHelp,
+    setShowHelp: toggleHelp,
     darkMode,
     onDarkModeChange,
     slides,
@@ -175,7 +178,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
 
         {message && <div className={styles.tipMessage}>{message}</div>}
 
-        {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+        {showHelp && <HelpModal onClose={closeHelp} />}
       </div>
     </PortalToBody>
   );
