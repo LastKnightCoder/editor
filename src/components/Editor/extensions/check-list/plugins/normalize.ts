@@ -88,8 +88,8 @@ export const withNormalize = (editor: Editor) => {
       const children = node.children;
 
       // 确保第一个子节点是paragraph
-      // @ts-ignore
       if (
+        // @ts-ignore
         children.length === 0 ||
         (children.length >= 1 && children[0].type !== "paragraph")
       ) {

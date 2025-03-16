@@ -4,19 +4,14 @@ import EditPdf from "@/layouts/components/EditPdf";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import PdfCard from "./PdfCard";
 import styles from "./index.module.less";
-import { useMemoizedFn } from "ahooks";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button, Flex, Input, message, Modal, Tabs, FloatButton } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { selectFile, getFileBaseName } from "@/commands";
-
-const MIN_WIDTH = 320;
-const MAX_WIDTH = 400;
-const GAP = 20;
+import useGridLayout from "@/hooks/useGridLayout";
 
 const PdfView = () => {
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-  const [itemWidth, setItemWidth] = useState(MIN_WIDTH);
+  const { gridContainerRef, itemWidth, gap } = useGridLayout();
 
   const { pdfs, activePdf, createPdf } = usePdfsStore((state) => ({
     pdfs: state.pdfs,
@@ -115,32 +110,6 @@ const PdfView = () => {
 
   const isShowEdit = activePdf !== null;
 
-  const handleResize = useMemoizedFn((entries: ResizeObserverEntry[]) => {
-    const { width } = entries[0].contentRect;
-
-    const nMin = Math.ceil((width + GAP) / (MAX_WIDTH + GAP));
-    const nMax = Math.floor((width + GAP) / (MIN_WIDTH + GAP));
-
-    const n = Math.min(nMin, nMax);
-
-    const itemWidth = (width + GAP) / n - GAP;
-
-    setItemWidth(itemWidth);
-  });
-
-  useEffect(() => {
-    const container = gridContainerRef.current;
-    if (!container) return;
-
-    const observer = new ResizeObserver(handleResize);
-
-    observer.observe(container);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [handleResize]);
-
   return (
     <div
       className={classnames(styles.viewContainer, {
@@ -150,7 +119,7 @@ const PdfView = () => {
       <div
         ref={gridContainerRef}
         className={styles.gridContainer}
-        style={{ gap: GAP }}
+        style={{ gap }}
       >
         <For
           data={pdfs}
