@@ -10,6 +10,7 @@ import LocalImage from "@/components/LocalImage";
 import Editor from "@editor/index.tsx";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
+import PresentationMode from "@/components/PresentationMode";
 
 import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
@@ -18,9 +19,9 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
 import { IArticle } from "@/types";
 
-import styles from "./index.module.less";
 import { formatDate } from "@/utils";
 import { useLocation, useNavigate } from "react-router-dom";
+import styles from "./index.module.less";
 
 const { Text } = Typography;
 
@@ -49,6 +50,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
+  const [isPresentation, setIsPresentation] = useState(false);
 
   const uploadImage = useUploadResource();
 
@@ -193,6 +195,15 @@ const ArticleCard = (props: IArticleCardProps) => {
                       >
                         换背景图
                       </div>
+                      <div
+                        className={styles.settingItem}
+                        onClick={() => {
+                          setSettingOpen(false);
+                          setIsPresentation(true);
+                        }}
+                      >
+                        演示模式
+                      </div>
                       <input
                         ref={fileUploadRef}
                         type={"file"}
@@ -230,6 +241,15 @@ const ArticleCard = (props: IArticleCardProps) => {
           </div>
         </div>
       </Spin>
+
+      {isPresentation && (
+        <PresentationMode
+          content={article.content}
+          onExit={() => {
+            setIsPresentation(false);
+          }}
+        />
+      )}
     </div>
   );
 };

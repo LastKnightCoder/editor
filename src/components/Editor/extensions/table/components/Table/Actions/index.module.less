@@ -1,23 +1,26 @@
 .itemContainer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 540px;
+  gap: 0.5em;
+  max-height: 22.5em;
   overflow: auto;
-  padding: 8px;
+  padding: 0.5em;
+
   .title {
-    padding: 4px 0;
-    font-size: 14px;
+    padding: 0.25em 0;
+    font-size: 0.875em;
     color: #666;
     border-bottom: 1px solid #ddd;
   }
+
   .item {
     box-sizing: border-box;
-    border-radius: 8px;
-    padding: 4px 8px;
-    height: 60px;
+    border-radius: 0.5em;
+    padding: 0.25em 0.5em;
+    height: 3.75em;
     display: flex;
     align-items: center;
+
     &:hover {
       cursor: pointer;
       background: var(--common-hover-bg);

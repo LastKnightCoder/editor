@@ -3,6 +3,7 @@
   cursor: pointer;
   border-bottom: 1px dashed gray;
   color: gray;
+
   .icon {
     width: 1em;
     height: 1em;
@@ -11,44 +12,50 @@
 }
 
 .editContainer {
-  padding: 12px;
-  width: 400px;
+  padding: 0.75em;
+  width: 18.75em;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1em;
+
   .inputArea {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 0.75em;
+
     .label {
       flex: none;
     }
+
     .input {
       flex: auto;
     }
   }
+
   .btnGroups {
     display: flex;
-    gap: 12px;
+    gap: 0.75em;
     justify-content: flex-end;
   }
 }
 
 .unEditable {
   display: flex;
-  height: 40px;
+  height: 2.5em;
   align-items: center;
-  max-width: 300px;
-  gap: 12px;
-  padding: 0 8px;
-  border-radius: 8px;
+  max-width: 18.75em;
+  gap: 0.75em;
+  padding: 0 0.5em;
+  border-radius: 0.5em;
   color: gray;
+
   .text {
     flex: auto;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
   .icon {
     flex: none;
     cursor: pointer;

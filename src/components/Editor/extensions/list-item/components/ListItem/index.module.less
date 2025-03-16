@@ -1,5 +1,6 @@
 .listItem {
   position: relative;
+
   &:hover {
     .arrowContainer {
       &.show {
@@ -10,12 +11,14 @@
       }
     }
   }
+
   .arrowContainer {
     position: absolute;
     top: 0.9em;
     left: -2em;
-    width: 10px;
+    width: 0.625em;
     height: 100%;
+
     &:hover {
       &.show {
         .arrow {
@@ -24,6 +27,7 @@
         }
       }
     }
+
     .arrow {
       width: 0;
       height: 0;
@@ -31,6 +35,7 @@
       border-top-color: #666;
       display: none;
       transform: translateY(-2.5px);
+
       &.fold {
         transform: translateY(-5px) rotate(-90deg);
       }

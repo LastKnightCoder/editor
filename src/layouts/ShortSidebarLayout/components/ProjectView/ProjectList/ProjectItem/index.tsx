@@ -41,6 +41,7 @@ import whiteBoardIcon from "@/assets/icons/white-board.svg";
 import styles from "./index.module.less";
 import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
+import PresentationMode from "@/components/PresentationMode";
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -92,6 +93,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     multiple,
   } = useAddRefWhiteBoard(projectItem);
   const { modal } = App.useApp();
+  const [isPresentation, setIsPresentation] = useState(false);
 
   const refresh = useMemoizedFn((projectItemId) => {
     getProjectItemById(projectItemId).then((projectItem) => {
@@ -312,6 +314,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               }
             : undefined,
           {
+            key: "presentation-mode",
+            label: "演示模式",
+          },
+          {
             key: "remove",
             label: "删除文档",
           },
@@ -382,6 +388,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         setTitleEditable(true);
         titleRef.current?.setContentEditable(true);
         titleRef.current?.focusEnd();
+      } else if (key === "presentation-mode") {
+        if (
+          !projectItem ||
+          projectItem.projectItemType !== EProjectItemType.Document
+        )
+          return;
+        setIsPresentation(true);
       }
     },
   );
@@ -565,140 +578,143 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   if (!projectItem) return null;
 
   return (
-    <div
-      ref={drag}
-      className={classnames(styles.item, {
-        [styles.dragging]: isDragging,
-      })}
-    >
+    <>
       <div
-        ref={(node) => {
-          dropContainerRef.current = node;
-          drop(node);
-        }}
-        className={classnames(styles.header, {
-          [styles.active]: activeProjectItemId === projectItem.id,
-          [styles.top]: isOver && canDrop && dragPosition === EDragPosition.Top,
-          [styles.bottom]:
-            isOver && canDrop && dragPosition === EDragPosition.Bottom,
-          [styles.inside]:
-            isOver && canDrop && dragPosition === EDragPosition.Inside,
+        ref={drag}
+        className={classnames(styles.item, {
+          [styles.dragging]: isDragging,
         })}
-        onClick={async () => {
-          const activeProjectItem = await getProjectItemById(projectItem.id);
-          if (!activeProjectItem) return;
-          const headers = activeProjectItem.content.filter(
-            (node) => node.type === "header",
-          );
-          useProjectsStore.setState({
-            activeProjectItemId: projectItem.id,
-            showOutline: headers.length > 0,
-          });
-        }}
       >
-        <div className={styles.titleContainer}>
-          <Tooltip
-            title={
-              projectItem.children.length > 0
-                ? folderOpen
-                  ? "收起"
-                  : "展开"
-                : undefined
-            }
+        <div
+          ref={(node) => {
+            dropContainerRef.current = node;
+            drop(node);
+          }}
+          className={classnames(styles.header, {
+            [styles.active]: activeProjectItemId === projectItem.id,
+            [styles.top]:
+              isOver && canDrop && dragPosition === EDragPosition.Top,
+            [styles.bottom]:
+              isOver && canDrop && dragPosition === EDragPosition.Bottom,
+            [styles.inside]:
+              isOver && canDrop && dragPosition === EDragPosition.Inside,
+          })}
+          onClick={async () => {
+            const activeProjectItem = await getProjectItemById(projectItem.id);
+            if (!activeProjectItem) return;
+            const headers = activeProjectItem.content.filter(
+              (node) => node.type === "header",
+            );
+            useProjectsStore.setState({
+              activeProjectItemId: projectItem.id,
+              showOutline: headers.length > 0,
+            });
+          }}
+        >
+          <div className={styles.titleContainer}>
+            <Tooltip
+              title={
+                projectItem.children.length > 0
+                  ? folderOpen
+                    ? "收起"
+                    : "展开"
+                  : undefined
+              }
+            >
+              <div
+                className={classnames(styles.icon, {
+                  [styles.hoverable]: projectItem.children.length > 0,
+                })}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (projectItem.children.length === 0) return;
+                  setFolderOpen(!folderOpen);
+                }}
+              >
+                {projectItem.children.length > 0 ? (
+                  <FolderOpenTwoTone />
+                ) : projectItem.projectItemType ===
+                  EProjectItemType.WhiteBoard ? (
+                  <SVG src={whiteBoardIcon} />
+                ) : (
+                  <FileOutlined />
+                )}
+              </div>
+            </Tooltip>
+            <EditText
+              className={styles.title}
+              key={projectItem.id}
+              ref={titleRef}
+              defaultValue={projectItem.title}
+              contentEditable={titleEditable}
+              onPressEnter={() => {
+                const textContent =
+                  titleRef.current?.getValue() || projectItem?.title;
+                setTitleEditable(false);
+                if (textContent !== projectItem.title) {
+                  // 更新标题
+                  updateProjectItem({
+                    ...projectItem,
+                    title: textContent,
+                  }).then((newProjectItem) => {
+                    setProjectItem(newProjectItem);
+                    setTitleEditable(false);
+                    titleRef.current?.setContentEditable(false);
+                  });
+                }
+              }}
+            />
+            {/*<div className={styles.title}>{projectItem.title}</div>*/}
+          </div>
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className={styles.icons}
           >
-            <div
-              className={classnames(styles.icon, {
-                [styles.hoverable]: projectItem.children.length > 0,
-              })}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (projectItem.children.length === 0) return;
-                setFolderOpen(!folderOpen);
+            <Dropdown
+              menu={{
+                items: moreMenuItems,
+                onClick: handleMoreMenuClick,
               }}
             >
-              {projectItem.children.length > 0 ? (
-                <FolderOpenTwoTone />
-              ) : projectItem.projectItemType ===
-                EProjectItemType.WhiteBoard ? (
-                <SVG src={whiteBoardIcon} />
-              ) : (
-                <FileOutlined />
-              )}
-            </div>
-          </Tooltip>
-          <EditText
-            className={styles.title}
-            key={projectItem.id}
-            ref={titleRef}
-            defaultValue={projectItem.title}
-            contentEditable={titleEditable}
-            onPressEnter={() => {
-              const textContent =
-                titleRef.current?.getValue() || projectItem?.title;
-              setTitleEditable(false);
-              if (textContent !== projectItem.title) {
-                // 更新标题
-                updateProjectItem({
-                  ...projectItem,
-                  title: textContent,
-                }).then((newProjectItem) => {
-                  setProjectItem(newProjectItem);
-                  setTitleEditable(false);
-                  titleRef.current?.setContentEditable(false);
-                });
-              }
-            }}
-          />
-          {/*<div className={styles.title}>{projectItem.title}</div>*/}
+              <div className={styles.icon}>
+                <MoreOutlined />
+              </div>
+            </Dropdown>
+            <Dropdown
+              menu={{
+                items: addMenuItems,
+                onClick: handleAddMenuClick,
+              }}
+            >
+              <div className={styles.icon}>
+                <PlusOutlined />
+              </div>
+            </Dropdown>
+          </div>
         </div>
         <div
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-          className={styles.icons}
+          className={classnames(styles.gridContainer, {
+            [styles.hide]: !folderOpen || projectItem.children.length === 0,
+          })}
         >
-          <Dropdown
-            menu={{
-              items: moreMenuItems,
-              onClick: handleMoreMenuClick,
-            }}
-          >
-            <div className={styles.icon}>
-              <MoreOutlined />
-            </div>
-          </Dropdown>
-          <Dropdown
-            menu={{
-              items: addMenuItems,
-              onClick: handleAddMenuClick,
-            }}
-          >
-            <div className={styles.icon}>
-              <PlusOutlined />
-            </div>
-          </Dropdown>
-        </div>
-      </div>
-      <div
-        className={classnames(styles.gridContainer, {
-          [styles.hide]: !folderOpen || projectItem.children.length === 0,
-        })}
-      >
-        <div className={styles.children}>
-          <For
-            data={projectItem.children}
-            renderItem={(projectItemId, index) => (
-              <ProjectItem
-                key={projectItemId}
-                projectItemId={projectItemId}
-                parentProjectItemId={projectItem.id}
-                isRoot={false}
-                path={[...path, index]}
-                parentChildren={projectItem.children}
-              />
-            )}
-          />
+          <div className={styles.children}>
+            <For
+              data={projectItem.children}
+              renderItem={(projectItemId, index) => (
+                <ProjectItem
+                  key={projectItemId}
+                  projectItemId={projectItemId}
+                  parentProjectItemId={projectItem.id}
+                  isRoot={false}
+                  path={[...path, index]}
+                  parentChildren={projectItem.children}
+                />
+              )}
+            />
+          </div>
         </div>
       </div>
       <SelectCardModal
@@ -823,7 +839,18 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           placeholder="请输入网址"
         />
       </Modal>
-    </div>
+
+      {isPresentation &&
+        projectItem &&
+        projectItem.projectItemType === EProjectItemType.Document && (
+          <PresentationMode
+            content={projectItem.content}
+            onExit={() => {
+              setIsPresentation(false);
+            }}
+          />
+        )}
+    </>
   );
 });
 

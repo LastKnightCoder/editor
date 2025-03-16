@@ -1,26 +1,33 @@
 .container {
   position: relative;
+
   .paragraph {
     margin: 0 0 var(--block-distance, 10px) 0;
+
     &.noMargin {
       margin: 0;
     }
+
     @import "@/components/Editor/extensions/drop-common.less";
+
     &.drop {
       &.before {
         &::before {
-          top: -4px;
+          top: -0.25em;
         }
       }
+
       &.after {
         &::after {
-          bottom: -2px;
+          bottom: -0.125em;
         }
       }
     }
   }
+
   @import "@/components/Editor/extensions/drag-common.less";
+
   .dragHandler {
-    top: 1px;
+    top: 0.0625em;
   }
 }

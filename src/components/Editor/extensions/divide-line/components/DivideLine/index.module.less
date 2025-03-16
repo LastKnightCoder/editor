@@ -1,14 +1,17 @@
 .container {
   position: relative;
+
   .divideLine {
     width: 80%;
-    height: 2px;
+    height: 0.125em;
     background-color: var(--line-color, #e8e8e8);
-    margin: 64px auto;
+    margin: 3em auto;
   }
+
   @import "@/components/Editor/extensions/drop-common.less";
   @import "@/components/Editor/extensions/drag-common.less";
+
   .dragHandler {
-    top: -12px;
+    top: -0.75em;
   }
 }

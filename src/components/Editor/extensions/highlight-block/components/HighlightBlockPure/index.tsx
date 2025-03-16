@@ -14,7 +14,7 @@ const HighBlockPure = (props: IHighBlockPureProps) => {
       className={styles.container}
       style={{
         backgroundColor,
-        border: `2px solid ${borderColor}`,
+        border: `0.125em solid ${borderColor}`,
       }}
     >
       {children}

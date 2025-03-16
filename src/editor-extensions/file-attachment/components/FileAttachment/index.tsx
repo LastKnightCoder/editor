@@ -1,6 +1,6 @@
 import React from "react";
 import { RenderElementProps } from "slate-react";
-import { FileAttachmentElement } from "@/editor-extensions/file-attachment";
+import { FileAttachmentElement } from "@/editor-extensions/file-attachment/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { MdDragIndicator } from "react-icons/md";
 import { showInFolder } from "@/commands";

@@ -1,8 +1,8 @@
 .container {
   background-color: #f9f9fa;
-  border-radius: 8px;
+  border-radius: 0.5em;
   border: 1px solid rgba(60, 60, 67, 0.29);
-  padding: var(--block-distance) 16px;
+  padding: var(--block-distance) 1em;
   position: relative;
 
   &.dark {
@@ -12,6 +12,7 @@
 
   &:has(.show) {
     padding-bottom: 0;
+
     .title {
       margin-bottom: calc(var(--block-distance) / 2);
     }
@@ -21,33 +22,40 @@
 
   .title {
     display: flex;
-    gap: 5px;
+    gap: 0.25em;
     transition: margin-bottom 0.2s ease-in-out;
+
     .arrow {
       cursor: pointer;
       transition: transform 0.2s linear;
+
       &.show {
         transform: rotate(90deg);
       }
+
       &.hide {
         transform: rotate(0deg);
       }
     }
   }
+
   .content {
-    padding-left: 16px;
+    padding-left: 1em;
     display: grid;
     grid-template-rows: 0fr;
     transition: all 0.2s ease-in-out;
     overflow: hidden;
+
     & > div {
       min-height: 0;
     }
+
     &.show {
       box-sizing: border-box;
       grid-template-rows: 1fr;
     }
   }
+
   @import "@/components/Editor/extensions/drop-common.less";
 }
 

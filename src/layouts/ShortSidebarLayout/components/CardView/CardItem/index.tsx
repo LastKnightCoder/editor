@@ -175,9 +175,7 @@ const CardItem = (props: CardItemProps) => {
       {isPresentation && (
         <PresentationMode
           content={card.content}
-          extensions={customExtensions}
           onExit={() => {
-            console.log("CardItem: 退出演示模式");
             setIsPresentation(false);
           }}
         />
