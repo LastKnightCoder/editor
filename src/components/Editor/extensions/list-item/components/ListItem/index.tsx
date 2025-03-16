@@ -2,6 +2,7 @@ import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
 import { ListItemElement } from "@/components/Editor/types";
 import { Editor, Transforms } from "slate";
 import classnames from "classnames";
+import { useEffect, useRef, useState } from "react";
 
 import styles from "./index.module.less";
 
@@ -14,8 +15,37 @@ interface IListItemProps {
 const ListItem = (props: IListItemProps) => {
   const { attributes, children, element } = props;
   const { isFold = false, allContent = element.children } = element;
+  const [isMultiline, setIsMultiline] = useState(false);
+  const listItemRef = useRef<HTMLLIElement>(null);
 
   const editor = useSlate();
+
+  // 检测内容是否多行并测量第一行高度
+  useEffect(() => {
+    if (listItemRef.current) {
+      const height = listItemRef.current.offsetHeight;
+
+      // 找到下面的第一个 data-slate-node="element" children
+      const firstLine = listItemRef.current.querySelector(
+        '[data-slate-node="element"]',
+      );
+      const lineHeight = firstLine
+        ? parseInt(getComputedStyle(firstLine).lineHeight)
+        : 24;
+
+      console.log(lineHeight);
+
+      setIsMultiline(height > lineHeight * 2); // 如果高度超过2倍行高，认为是多行
+
+      // 设置CSS变量，用于垂直线定位
+      if (listItemRef.current) {
+        listItemRef.current.style.setProperty(
+          "--first-line-height",
+          `${lineHeight * 1.5}px`,
+        );
+      }
+    }
+  }, [children]);
 
   const handleFold = () => {
     // 设置 allContent 为 element.children
@@ -78,8 +108,10 @@ const ListItem = (props: IListItemProps) => {
   return (
     <li
       data-fold={isFold ? "fold" : "unfold"}
+      data-multiline={isMultiline ? "true" : "false"}
       className={styles.listItem}
       {...attributes}
+      ref={listItemRef}
     >
       <div
         className={classnames(styles.arrowContainer, {
