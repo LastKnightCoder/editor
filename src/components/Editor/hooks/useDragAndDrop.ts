@@ -5,6 +5,7 @@ import { ReactEditor, useSlate, useReadOnly } from "slate-react";
 
 interface IUseDragAndDropParams {
   element: Element;
+  disableDrag?: boolean;
 }
 
 const EDITOR_DRAG_TYPE = "editor-item";
@@ -75,7 +76,7 @@ const moveNode = (
 const useDragAndDrop = (params: IUseDragAndDropParams) => {
   const editor = useSlate();
   const readOnly = useReadOnly();
-  const { element } = params;
+  const { element, disableDrag = false } = params;
 
   const [isBefore, setIsBefore] = useState(false);
 
@@ -87,6 +88,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         editor,
       },
       canDrag: () => {
+        if (disableDrag) return false;
         return Editor.isBlock(editor, element) && !readOnly;
       },
       collect: (monitor) => ({
@@ -94,7 +96,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         canDrag: monitor.canDrag(),
       }),
     },
-    [readOnly, element],
+    [readOnly, element, disableDrag],
   );
 
   const [{ canDrop, isOverCurrent }, drop] = useDrop<
@@ -114,6 +116,23 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         const dragPath = ReactEditor.findPath(editor, item.element);
         const dropPath = ReactEditor.findPath(editor, element);
         const dragEditor = item.editor;
+        let dropParent;
+        try {
+          dropParent = Editor.parent(editor, dropPath);
+        } catch (e) {
+          console.error(e);
+        }
+
+        // 如果当前元素是 check-list-item，拖动的元素不是 check-list-item，则不允许移动
+        if (
+          (element.type === "check-list-item" ||
+            (element.type === "paragraph" &&
+              dropParent?.[0].type === "check-list-item")) &&
+          item.element.type !== "check-list-item"
+        ) {
+          return false;
+        }
+
         if (editor.isBlock(item.element) && editor.isBlock(element)) {
           return editor !== dragEditor || !Path.equals(dragPath, dropPath);
         } else {

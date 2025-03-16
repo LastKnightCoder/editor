@@ -12,7 +12,7 @@ import {
   Divider,
 } from "antd";
 import { useState } from "react";
-import { current, produce } from "immer";
+import { produce } from "immer";
 import { v4 as getUuid } from "uuid";
 
 const MODAL_ITEM_WIDTH = 100;
@@ -254,7 +254,6 @@ const OtherSetting = () => {
         const currentConfig = draft.setting.llmProviders[
           ELLMProvider.OTHER
         ].configs.find((item: any) => item.id === currentConfigId);
-        console.log(current(currentConfig));
         if (currentConfig) {
           if (currentConfig.models) {
             currentConfig.models.push({

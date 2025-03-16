@@ -1,0 +1,79 @@
+.checkboxContainer {
+  position: relative;
+  width: 1.25em;
+  height: 1.25em;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 0.2em;
+}
+
+.checkbox {
+  width: 100%;
+  height: 100%;
+}
+
+.checkboxRect {
+  stroke: var(--checkbox-border-color, #d9d9d9);
+  fill: transparent;
+  transition: all 0.3s cubic-bezier(0.78, 0.14, 0.15, 0.86);
+
+  &.checked {
+    stroke: var(--active-text-color, #1890ff);
+    fill: var(--active-text-color, #1890ff);
+  }
+}
+
+.checkmark {
+  stroke: white;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: checkmark 0.3s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+}
+
+@keyframes checkmark {
+  from {
+    stroke-dashoffset: 20;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.fireworks {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 0.375em;
+  height: 0.375em;
+  border-radius: 50%;
+  background-color: var(--active-text-color, #1890ff);
+  transform-origin: center;
+  opacity: 0;
+  animation: particle 0.4s ease-out forwards;
+  animation-delay: var(--delay, 0s);
+  transform: rotate(var(--angle, 0deg)) translateX(0);
+}
+
+@keyframes particle {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--angle, 0deg)) translateX(0);
+  }
+
+  70% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle, 0deg)) translateX(1.25em);
+  }
+}

@@ -67,7 +67,6 @@ const items: IBlockPanelListItem[] = [
 
       for await (const command of parser) {
         if (!command) continue;
-        // console.log('command: ', command);
         try {
           if (command.type === "insert-text") {
             editor.select(Editor.end(editor, path));

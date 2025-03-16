@@ -27,7 +27,6 @@ export const withNormalize = (editor: Editor) => {
             at: [...path, i],
           },
         );
-        console.log([...editor.children]);
         return;
       }
     }

@@ -70,7 +70,6 @@ const useDocumentsStore = create<IState & IActions>((set, get) => ({
     const { documents, updateDocument } = get();
     const document = documents.find((item) => item.id === documentId);
     if (!document) return;
-    console.log("documentItemId", documentItemId);
     const newDocument = produce(document, (draft) => {
       draft.children.push(documentItemId);
     });

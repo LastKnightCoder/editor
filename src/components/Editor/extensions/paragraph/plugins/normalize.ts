@@ -21,6 +21,12 @@ export const normalizeParagraph = (editor: Editor) => {
           return;
         }
       }
+      // 如果 paragraph 在 check-list-item 里面，则标记为不可拖动
+      if (Editor.parent(editor, path)[0].type === "check-list-item") {
+        Transforms.setNodes(editor, { disableDrag: true }, { at: path });
+      } else {
+        Transforms.setNodes(editor, { disableDrag: false }, { at: path });
+      }
     }
     normalizeNode(entry);
   };

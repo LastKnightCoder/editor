@@ -187,23 +187,14 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     // 获取当前选中的元素
     const selectedElements = selection.selectedElements;
 
-    console.log(
-      "全览按钮被点击，选中元素数量:",
-      selectedElements.length,
-      "选中元素:",
-      selectedElements,
-    );
-
     // 确保我们使用的是当前的选中元素
     if (selectedElements && selectedElements.length > 0) {
       // 如果有选中的元素，则全览选中的元素
-      console.log("全览选中的元素");
       ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, [
         ...selectedElements,
       ]);
     } else {
       // 否则全览所有元素
-      console.log("全览所有元素");
       ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
     }
   });

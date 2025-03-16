@@ -1,8 +1,8 @@
 .dragHandler {
   position: absolute;
   top: 0;
-  left: -20px;
-  width: 20px;
+  left: -1.25em;
+  width: 1.25em;
   height: 1.8em;
   user-select: none;
   opacity: 0;
@@ -10,10 +10,12 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
+
   .icon {
     transform: translateY(-2px);
   }
 }
+
 &:hover {
   .dragHandler.canDrag {
     opacity: 1;

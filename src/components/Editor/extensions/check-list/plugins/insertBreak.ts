@@ -1,10 +1,8 @@
-import { Editor, Element as SlateElement, Transforms } from "slate";
+import { Editor, Element as SlateElement, Transforms, Path } from "slate";
 import {
-  isCheckListItemElement,
   isParagraphAndEmpty,
-  isParagraphElement,
+  getParentNodeByNode,
 } from "@/components/Editor/utils";
-import { CheckListItemElement } from "@/components/Editor/types";
 
 export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;
@@ -13,54 +11,75 @@ export const insertBreak = (editor: Editor) => {
       match: (n) => SlateElement.isElement(n) && n.type === "check-list-item",
     });
     if (listMatch) {
-      const [para] = Editor.nodes(editor, {
-        match: (n) => SlateElement.isElement(n) && isParagraphElement(n),
-      });
       // 在行首，并且内容为空
       if (isParagraphAndEmpty(editor)) {
-        // 如果是第一个段落，并且后面没有段落，则转换为 paragraph
-        if ((listMatch[0] as CheckListItemElement).children.length === 1) {
-          Transforms.unwrapNodes(editor, {
-            match: (n) =>
-              SlateElement.isElement(n) && isCheckListItemElement(n),
-          });
-          Transforms.liftNodes(editor, {
-            match: (n) => SlateElement.isElement(n) && isParagraphElement(n),
-          });
-          return;
+        const [checkListItem, checkListItemPath] = listMatch;
+        const parent = getParentNodeByNode(editor, checkListItem);
+
+        if (parent[0].type === "check-list") {
+          const checkListPath = parent[1];
+          const checkList = parent[0];
+          const itemIndex = checkListItemPath[checkListItemPath.length - 1];
+
+          // 判断是否是最后一个 check-list-item
+          const isLastItem = itemIndex === checkList.children.length - 1;
+
+          if (isLastItem) {
+            // 如果是最后一个 check-list-item，则把自己转化为一个段落，在父级 check-list 之后
+            Editor.withoutNormalizing(editor, () => {
+              // 删除当前的 check-list-item
+              Transforms.removeNodes(editor, {
+                at: checkListItemPath,
+              });
+
+              // 在 check-list 之后插入一个段落
+              Transforms.insertNodes(
+                editor,
+                {
+                  type: "paragraph",
+                  children: [{ type: "formatted", text: "" }],
+                },
+                {
+                  at: Path.next(checkListPath),
+                },
+              );
+
+              // 将光标移动到新段落
+              Transforms.select(editor, Path.next(checkListPath));
+            });
+          } else {
+            // 不是最后一个，在后面插入一个 check-list-item，带有一个空段落
+            Editor.withoutNormalizing(editor, () => {
+              Transforms.insertNodes(
+                editor,
+                {
+                  type: "check-list-item",
+                  checked: false,
+                  children: [
+                    {
+                      type: "paragraph",
+                      children: [{ type: "formatted", text: "" }],
+                    },
+                  ],
+                },
+                {
+                  at: Path.next(checkListItemPath),
+                },
+              );
+
+              // 将光标移动到新的 check-list-item
+              Transforms.select(editor, [
+                ...Path.next(checkListItemPath),
+                0,
+                0,
+              ]);
+            });
+          }
+          return; // 阻止默认行为
         }
-        // 如果是最后一个段落，则将 paragraph 转换为 list-item
-        if (
-          para[1][para[1].length - 1] + 1 ===
-          (listMatch[0] as CheckListItemElement).children.length
-        ) {
-          Transforms.wrapNodes(editor, {
-            type: "check-list-item",
-            checked: false,
-            children: [],
-          });
-          Transforms.liftNodes(editor, {
-            match: (n) =>
-              SlateElement.isElement(n) && n.type === "check-list-item",
-          });
-          return;
-        }
-      }
-      // 不为空且是第一个段落，将 paragraph 转为 list-item
-      if (para && para[1][para[1].length - 1] === 0) {
-        insertBreak();
-        Transforms.wrapNodes(editor, {
-          type: "check-list-item",
-          checked: false,
-          children: [],
-        });
-        Transforms.liftNodes(editor, {
-          match: (n) =>
-            SlateElement.isElement(n) && n.type === "check-list-item",
-        });
-        return;
       }
     }
+    // 不为空或不是 check-list-item，执行默认行为
     insertBreak();
   };
 

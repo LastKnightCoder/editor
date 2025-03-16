@@ -190,7 +190,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
     const newItem = produce(item, (draft) => {
       draft.children.push(createdDocumentItem.id);
     });
-    // console.log('newItem', newItem);
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
     if (item.id === activeDocumentItem?.id) {
