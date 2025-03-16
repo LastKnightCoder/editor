@@ -60,6 +60,7 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
           data={articles}
           renderItem={(article) => (
             <div
+              key={article.id}
               className={classnames(styles.item, {
                 [styles.active]: article.id === activeArticleId,
               })}
