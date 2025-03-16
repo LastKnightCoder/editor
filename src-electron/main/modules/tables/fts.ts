@@ -1,11 +1,14 @@
 import Database from "better-sqlite3";
-import nodejieba from "nodejieba";
+import { Jieba } from "@node-rs/jieba";
+import { dict } from "@node-rs/jieba/dict";
 import { IndexType, SearchResult, IndexParams, SearchParams } from "@/types";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
 import { chunk } from "llm-chunk";
+
+const jieba = Jieba.withDict(dict);
 
 // 添加类型前缀到ID
 const addTypePrefix = (id: number, type: string): string => {
@@ -35,7 +38,7 @@ class FTSTable {
     if (!text) return "";
 
     // 使用segmentit进行分词
-    const result = nodejieba.cutForSearch(text, true);
+    const result = jieba.cutForSearch(text, true);
 
     return result.join(" ");
   }
@@ -233,7 +236,7 @@ class FTSTable {
 
     if (!query) return [];
 
-    const segmentedQuery = nodejieba
+    const segmentedQuery = jieba
       .cutForSearch(query, true)
       .filter((item) => !!item.trim())
       .join(" OR ");
@@ -246,7 +249,7 @@ class FTSTable {
 
     // 如果指定了类型，添加类型过滤
     if (types && types.length > 0) {
-      sql += ` AND type IN (${types.map(() => "?").join(",")}) AND rank < -3`;
+      sql += ` AND type IN (${types.map(() => "?").join(",")}) AND rank < -1`;
     }
 
     sql += ` ORDER BY rank LIMIT ?`;

@@ -9,6 +9,14 @@ directories:
   output: release/
   buildResources: build
 
+extraResources:
+  - from: dist-electron/main/dict.txt
+    to: dict.txt
+    filter: ["**/*"]
+  - from: dist-electron/main/idf.txt
+    to: idf.txt
+    filter: ["**/*"]
+
 
 files:
   - "dist/**/*"
