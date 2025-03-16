@@ -27,6 +27,7 @@ const ArticleView = () => {
       title: "默认文章标题",
       content: DEFAULT_ARTICLE_CONTENT,
       bannerBg: "",
+      bannerPosition: "center",
       isTop: false,
       author: "",
       links: [],
@@ -94,6 +95,7 @@ const ArticleView = () => {
                       await createArticle({
                         title: fileName,
                         bannerBg: "",
+                        bannerPosition: "center",
                         isTop: false,
                         isDelete: false,
                         author: "",

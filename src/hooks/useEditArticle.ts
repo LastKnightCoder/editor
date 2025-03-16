@@ -140,6 +140,7 @@ const useEditArticle = (articleId?: number) => {
     toggleIsTop,
     toggleReadOnly,
     clear,
+    setEditingArticle,
   };
 };
 

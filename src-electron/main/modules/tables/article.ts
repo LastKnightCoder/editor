@@ -16,6 +16,7 @@ export default class ArticleTable {
         links TEXT,
         content TEXT,
         banner_bg TEXT,
+        banner_position TEXT DEFAULT 'center',
         is_top INTEGER DEFAULT 0,
         is_delete INTEGER DEFAULT 0,
         count INTEGER DEFAULT 0
@@ -37,6 +38,12 @@ export default class ArticleTable {
     if (!tableInfo.includes("banner_bg")) {
       const alertStmt = db.prepare(
         "ALTER TABLE articles ADD COLUMN banner_bg TEXT DEFAULT ''",
+      );
+      alertStmt.run();
+    }
+    if (!tableInfo.includes("banner_position")) {
+      const alertStmt = db.prepare(
+        "ALTER TABLE articles ADD COLUMN banner_position TEXT DEFAULT 'center'",
       );
       alertStmt.run();
     }
@@ -75,6 +82,8 @@ export default class ArticleTable {
       "get-article-by-id": this.getArticleById.bind(this),
       "update-article-is-top": this.updateArticleIsTop.bind(this),
       "update-article-banner-bg": this.updateArticleBannerBg.bind(this),
+      "update-article-banner-position":
+        this.updateArticleBannerPosition.bind(this),
     };
   }
 
@@ -89,6 +98,7 @@ export default class ArticleTable {
       author: article.author || "",
       links: JSON.parse(article.links || "[]"),
       bannerBg: article.banner_bg || "",
+      bannerPosition: article.banner_position || "center",
       isTop: article.is_top || false,
       isDelete: article.is_delete || false,
       count: article.count || 0,
@@ -128,10 +138,19 @@ export default class ArticleTable {
     db: Database.Database,
     article: ICreateArticle,
   ): IArticle {
-    const { tags, title, content, bannerBg, isDelete, isTop, count } = article;
+    const {
+      tags,
+      title,
+      content,
+      bannerBg,
+      bannerPosition,
+      isDelete,
+      isTop,
+      count,
+    } = article;
 
     const stmt = db.prepare(
-      "INSERT INTO articles (create_time, update_time, tags, title, content, banner_bg, is_delete, is_top, count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO articles (create_time, update_time, tags, title, content, banner_bg, banner_position, is_delete, is_top, count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     );
     const now = Date.now();
     const res = stmt.run(
@@ -141,6 +160,7 @@ export default class ArticleTable {
       title,
       JSON.stringify(content),
       bannerBg,
+      bannerPosition || "center",
       Number(isDelete),
       Number(isTop),
       count,
@@ -156,10 +176,19 @@ export default class ArticleTable {
     db: Database.Database,
     article: IUpdateArticle,
   ): IArticle {
-    const { tags, title, content, id, bannerBg, isTop, isDelete, count } =
-      article;
+    const {
+      tags,
+      title,
+      content,
+      id,
+      bannerBg,
+      bannerPosition,
+      isTop,
+      isDelete,
+      count,
+    } = article;
     const stmt = db.prepare(
-      "UPDATE articles SET update_time = ?, tags = ?, title = ?, content = ?, banner_bg = ?, is_top = ?, is_delete = ?, count = ? WHERE id = ?",
+      "UPDATE articles SET update_time = ?, tags = ?, title = ?, content = ?, banner_bg = ?, banner_position = ?, is_top = ?, is_delete = ?, count = ? WHERE id = ?",
     );
     const now = Date.now();
     stmt.run(
@@ -168,6 +197,7 @@ export default class ArticleTable {
       title,
       JSON.stringify(content),
       bannerBg,
+      bannerPosition || "center",
       Number(isTop),
       Number(isDelete),
       count,
@@ -228,6 +258,18 @@ export default class ArticleTable {
   ): IArticle {
     const stmt = db.prepare("UPDATE articles SET banner_bg = ? WHERE id = ?");
     stmt.run(bannerBg, id);
+    return this.getArticleById(db, id);
+  }
+
+  static updateArticleBannerPosition(
+    db: Database.Database,
+    id: number,
+    bannerPosition: string,
+  ): IArticle {
+    const stmt = db.prepare(
+      "UPDATE articles SET banner_position = ? WHERE id = ?",
+    );
+    stmt.run(bannerPosition, id);
     return this.getArticleById(db, id);
   }
 }
