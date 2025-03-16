@@ -1,5 +1,7 @@
 .listItem {
   position: relative;
+  padding-left: 0.5em;
+  border-left: 1px solid transparent;
 
   &:hover {
     .arrowContainer {
@@ -9,6 +11,21 @@
           display: block;
         }
       }
+    }
+  }
+
+  // 当内容超过一行时显示左侧垂直线，但只从第二行开始
+  &[data-multiline="true"] {
+    position: relative;
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: -0.85em;
+      top: var(--first-line-height, 1.5em); // 使用CSS变量，从第一行底部开始
+      bottom: 0;
+      width: 0.08em;
+      background-color: var(--list-item-line-color, #ddd);
     }
   }
 
