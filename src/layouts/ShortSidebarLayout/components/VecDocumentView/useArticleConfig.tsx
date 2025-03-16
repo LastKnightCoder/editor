@@ -369,17 +369,6 @@ const useArticleConfig = () => {
           );
         };
 
-        let status = "已索引";
-        if (!hasFTSIndex && !vecResult) {
-          status = "未索引";
-        } else if (
-          (hasFTSIndex && !vecResult) ||
-          (!hasFTSIndex && vecResult) ||
-          (vecResult && record.update_time > vecResult.updateTime)
-        ) {
-          status = "待更新";
-        }
-
         return renderIndexStatus();
       },
     },
