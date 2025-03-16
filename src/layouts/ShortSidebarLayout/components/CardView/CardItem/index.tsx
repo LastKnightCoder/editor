@@ -2,7 +2,7 @@ import classnames from "classnames";
 import { ECardCategory, ICard } from "@/types";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import styles from "./index.module.less";
-import React, { MouseEvent, useEffect, useRef, useState } from "react";
+import React, { MouseEvent, useRef, useState } from "react";
 import Tags from "@/components/Tags";
 import { formatDate, getMarkdown } from "@/utils";
 import {
@@ -31,10 +31,6 @@ const CardItem = (props: CardItemProps) => {
   const [isPresentation, setIsPresentation] = useState(false);
 
   const editorRef = useRef<EditorRef>(null);
-
-  useEffect(() => {
-    editorRef.current?.setEditorValue(card.content);
-  }, [card.content]);
 
   const { onClickCard, onCtrlClickCard, onDeleteCard } = useCardManagement();
 

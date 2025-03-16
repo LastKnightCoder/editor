@@ -72,7 +72,6 @@ const ListItem = (props: IListItemProps) => {
     // 设置 foldContent 为 children
     // 设置 children 为 [foldContent, ...allContent.slice(1)]
     const path = ReactEditor.findPath(editor, element);
-    console.log([...element.children, ...allContent.slice(1)]);
     Editor.withoutNormalizing(editor, () => {
       Transforms.delete(editor, {
         at: path,

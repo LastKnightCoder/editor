@@ -85,7 +85,6 @@ class GeometryRendererRegistry {
     if (universalRenderers) {
       for (const renderer of universalRenderers) {
         const result = renderer(props);
-        console.log("renderer", renderer.name, result);
         if (result) {
           return result;
         }

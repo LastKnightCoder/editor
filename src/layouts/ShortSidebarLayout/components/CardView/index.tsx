@@ -167,75 +167,79 @@ const CardContainer = () => {
                 )}
               />
             </div>
-            <div className={styles.cardContainer}>
-              <div className={styles.cardList}>
-                <div className={styles.header}>
-                  <div className={styles.left}>
-                    <div className={styles.title}>卡片</div>
-                    <Select
-                      value={selectCategory}
-                      options={Object.keys(cardCategoryName).map((key) => ({
-                        label: cardCategoryName[key as ECardCategory],
-                        value: key,
-                      }))}
-                      onChange={onSelectCategoryChange}
-                    />
+            <If condition={!isShowEdit}>
+              <div className={styles.cardContainer}>
+                <div className={styles.cardList}>
+                  <div className={styles.header}>
+                    <div className={styles.left}>
+                      <div className={styles.title}>卡片</div>
+                      <Select
+                        value={selectCategory}
+                        options={Object.keys(cardCategoryName).map((key) => ({
+                          label: cardCategoryName[key as ECardCategory],
+                          value: key,
+                        }))}
+                        onChange={onSelectCategoryChange}
+                      />
+                    </div>
+                    <Dropdown
+                      menu={{
+                        items: menuItems,
+                        onClick: handleClickCreate,
+                      }}
+                    >
+                      <div className={styles.addCard}>
+                        <PlusOutlined />
+                      </div>
+                    </Dropdown>
                   </div>
-                  <Dropdown
-                    menu={{
-                      items: menuItems,
-                      onClick: handleClickCreate,
+                  {isCreatingCard && (
+                    <CreateCard
+                      className={styles.createCard}
+                      onSave={onSaveCard}
+                      onCancel={() => {
+                        setIsCreatingCard(false);
+                      }}
+                    />
+                  )}
+                  <div
+                    className={styles.list}
+                    ref={listRef}
+                    onScroll={(e) => {
+                      if (e.currentTarget.scrollTop > 100) {
+                        setShowScrollToTop(true);
+                      } else {
+                        setShowScrollToTop(false);
+                      }
                     }}
                   >
-                    <div className={styles.addCard}>
-                      <PlusOutlined />
-                    </div>
-                  </Dropdown>
-                </div>
-                {isCreatingCard && (
-                  <CreateCard
-                    className={styles.createCard}
-                    onSave={onSaveCard}
-                    onCancel={() => {
-                      setIsCreatingCard(false);
-                    }}
-                  />
-                )}
-                <div
-                  className={styles.list}
-                  ref={listRef}
-                  onScroll={(e) => {
-                    if (e.currentTarget.scrollTop > 100) {
-                      setShowScrollToTop(true);
-                    } else {
-                      setShowScrollToTop(false);
-                    }
-                  }}
-                >
-                  <If condition={filteredCards.length === 0}>
-                    <Empty description={"暂无卡片"} />
-                  </If>
-                  <If condition={filteredCards.length > 0}>
-                    <LoadMoreComponent
-                      onLoadMore={loadMore}
-                      showLoader={cardsCount < filteredCards.length}
-                    >
-                      <For
-                        data={sliceCards}
-                        renderItem={(card) => (
-                          <CardItem key={card.id} card={card} />
-                        )}
-                      />
-                    </LoadMoreComponent>
-                  </If>
+                    <If condition={filteredCards.length === 0}>
+                      <Empty description={"暂无卡片"} />
+                    </If>
+                    <If condition={filteredCards.length > 0}>
+                      <LoadMoreComponent
+                        onLoadMore={loadMore}
+                        showLoader={cardsCount < filteredCards.length}
+                      >
+                        <For
+                          data={sliceCards}
+                          renderItem={(card) => (
+                            <CardItem key={card.id} card={card} />
+                          )}
+                        />
+                      </LoadMoreComponent>
+                    </If>
+                  </div>
                 </div>
               </div>
-            </div>
+            </If>
           </div>
         </div>
-        <div className={styles.edit}>
-          <Card />
-        </div>
+        <If condition={isShowEdit}>
+          <div className={styles.edit}>
+            <Card />
+          </div>
+        </If>
       </div>
       {!isShowEdit && showScrollToTop && (
         <FloatButton

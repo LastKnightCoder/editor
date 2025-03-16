@@ -1,10 +1,23 @@
+.container {
+  position: relative;
+
+  @import "@/components/Editor/extensions/drop-common.less";
+  @import "@/components/Editor/extensions/drag-common.less";
+
+  .dragHandler {
+    top: 0.0625em;
+    left: -24px; // 将拖拽把手向左移动，确保不会挡住checkbox
+  }
+}
+
 .item {
   display: flex;
-  gap: 0.25em;
+  gap: 0.5em;
   align-items: flex-start;
   line-height: 1.8;
+  position: relative;
 
-  .checkbox {
-    transform: translateY(0.2075em);
+  .content {
+    flex: 1;
   }
 }

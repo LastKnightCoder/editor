@@ -1,9 +1,9 @@
-import { BlockElement } from "../custom-element.ts";
+import { ParagraphElement } from "./paragraph.ts";
 
 export interface CheckListItemElement {
   type: "check-list-item";
   checked: boolean;
-  children: BlockElement[];
+  children: [ParagraphElement] | [ParagraphElement, CheckListElement];
 }
 
 export interface CheckListElement {

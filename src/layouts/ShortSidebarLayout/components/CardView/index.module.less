@@ -12,8 +12,10 @@
   --card-tree-width: 240px;
   --card-grid-width: calc(100% - var(--card-tree-width));
   --list-width: calc(var(--card-grid-width) + var(--card-tree-width));
+
   &.showEdit {
     --card-grid-width: 0px;
+
     .cardContainer {
       padding: 0;
     }
@@ -22,10 +24,12 @@
   .list {
     width: var(--list-width);
     overflow: hidden;
+
     .select {
       display: flex;
       margin: 20px 40px;
       height: 40px;
+
       .showCardTreeIcon {
         box-sizing: border-box;
         border: 2px solid var(--line-color);
@@ -38,15 +42,18 @@
         border-radius: 4px;
         flex: none;
         cursor: pointer;
+
         &:hover {
           background-color: var(--common-hover-bg);
         }
       }
     }
+
     .cards {
       display: flex;
       height: 100%;
     }
+
     .cardTree {
       background: var(--second-sidevar-background);
       border: 20px solid transparent;
@@ -55,36 +62,43 @@
       width: var(--card-tree-width);
       height: 100%;
       overflow: auto;
+
       &::-webkit-scrollbar {
         display: none;
       }
     }
+
     .cardContainer {
       width: var(--card-grid-width);
       height: 100%;
       //padding: 20px 40px;
       box-sizing: border-box;
+
       .cardList {
         padding: 20px 40px;
         height: 100%;
         max-width: 720px;
         margin: 0 auto;
       }
+
       .header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         height: 60px;
+
         .left {
           height: 100%;
           display: flex;
           align-items: center;
           gap: 12px;
+
           .title {
             font-size: 30px;
             font-weight: bold;
           }
         }
+
         .addCard {
           display: flex;
           align-items: center;
@@ -98,9 +112,11 @@
           flex: none;
         }
       }
+
       .createCard {
         margin-bottom: 12px;
       }
+
       .list {
         border-bottom: 20px solid transparent;
         box-sizing: border-box;
@@ -110,12 +126,14 @@
         margin-top: 20px;
         overflow-y: auto;
         height: calc(100% - 60px);
+
         &::-webkit-scrollbar {
           display: none;
         }
       }
     }
   }
+
   .edit {
     width: calc(100% - var(--list-width));
     height: 100%;
@@ -129,13 +147,16 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+
   .categoryItem {
     cursor: pointer;
     padding: 8px 12px;
     border-radius: 8px;
+
     &:hover:not(.disable) {
       background-color: var(--common-hover-bg);
     }
+
     &.disable {
       cursor: not-allowed;
       opacity: 0.5;

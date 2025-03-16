@@ -21,6 +21,8 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = (
 ) => {
   const { children, attributes, element } = props;
 
+  const { disableDrag } = element;
+
   const editor = useSlate();
 
   const path = ReactEditor.findPath(editor, element);
@@ -29,6 +31,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = (
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
     useDragAndDrop({
       element,
+      disableDrag,
     });
 
   useEffect(() => {
@@ -86,6 +89,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = (
         ref={drag}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
+          [styles.disableDrag]: disableDrag,
         })}
       >
         <MdDragIndicator className={styles.icon} />

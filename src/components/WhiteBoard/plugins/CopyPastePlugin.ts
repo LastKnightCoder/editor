@@ -15,7 +15,6 @@ export class CopyPastePlugin implements IBoardPlugin {
   onCopy(e: ClipboardEvent, board: Board) {
     // 读取当前所有选择的元素
     const selectedElements = board.selection.selectedElements;
-    console.log("selectedElements", selectedElements);
     if (selectedElements.length === 0) return;
 
     // 解决有的对象的属性不可更改

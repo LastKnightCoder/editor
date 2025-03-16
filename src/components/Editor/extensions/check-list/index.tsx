@@ -8,8 +8,9 @@ import {
 
 import CheckList from "./components/CheckList";
 import CheckListItem from "./components/CheckListItem";
-import { insertBreak, deleteBackward } from "./plugins";
+import { insertBreak, deleteBackward, withNormalize } from "./plugins";
 import blockPanelItems from "./block-panel-items";
+import hotkeys from "./hotkeys";
 
 import Base from "../base";
 import IExtension from "../types.ts";
@@ -19,6 +20,10 @@ export class CheckListExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override getPlugins() {
+    return [withNormalize];
   }
 
   override toMarkdown(_element: Element, children: string): string {
@@ -40,6 +45,10 @@ export class CheckListItemExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [insertBreak, deleteBackward];
+  }
+
+  override getHotkeyConfigs() {
+    return hotkeys;
   }
 
   override toMarkdown(element: Element, children: string): string {

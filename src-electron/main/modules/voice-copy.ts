@@ -127,8 +127,6 @@ async function signRequest(
     hashedCanonicalRequest,
   ].join("\n");
 
-  console.log("stringToSign", stringToSign);
-
   let key: string | Buffer = secretKey;
   for (const msg of [shortXDate, REGION, SERVICE, "request"]) {
     key = hmacSha256(key, msg);
@@ -138,8 +136,6 @@ async function signRequest(
   signResult.Authorization = `HMAC-SHA256 Credential=${accessToken}/${credentialScope}, SignedHeaders=${signedHeadersStr}, Signature=${signature}`;
 
   const finalHeader = { ...header, ...signResult };
-
-  console.log("finalHeader", finalHeader);
 
   try {
     const response: AxiosResponse = await axios({

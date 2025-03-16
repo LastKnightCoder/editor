@@ -66,8 +66,6 @@ export class ViewPortTransforms {
     // 使用指定的元素或所有元素
     const targetElements = elements || board.children;
 
-    console.log("fitAllElements - 目标元素数量:", targetElements.length);
-
     if (targetElements.length === 0) return;
 
     let minX = Infinity;
@@ -112,10 +110,6 @@ export class ViewPortTransforms {
       console.log("未找到有效边界，退出全览");
       return;
     }
-
-    console.log(
-      `计算得到的边界: minX=${minX}, minY=${minY}, maxX=${maxX}, maxY=${maxY}`,
-    );
 
     minX -= padding;
     minY -= padding;
