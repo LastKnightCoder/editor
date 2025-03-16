@@ -1,5 +1,5 @@
 import { getVideoInfo } from "@/utils";
-import { uploadImage } from "@/hooks/useUploadImage";
+import { uploadResource } from "@/hooks/useUploadResource";
 import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
 
@@ -28,7 +28,7 @@ export class VideoUtil {
       videoHeight = videoWidth / ratio;
     }
 
-    const videoPath = await uploadImage(file);
+    const videoPath = await uploadResource(file);
 
     if (videoPath) {
       ops.push({

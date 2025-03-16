@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, memo } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
@@ -213,7 +213,7 @@ const Richtext = memo((props: RichTextProps) => {
     handleAutoFocus();
   }, [handleAutoFocus]);
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
 
   const { handleResize, editorStyle } = useHandleResize({
     handleOnEditorSizeChange,

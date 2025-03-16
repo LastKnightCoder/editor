@@ -27,7 +27,7 @@ import { formatDate } from "@/utils/time.ts";
 import { HeaderElement } from "@editor/types";
 
 import useEditArticle from "@/hooks/useEditArticle.ts";
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
@@ -63,7 +63,7 @@ const EditArticle = memo(() => {
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
   const size = useSize(containerRef);
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
 
   const headers: Array<{
     level: number;

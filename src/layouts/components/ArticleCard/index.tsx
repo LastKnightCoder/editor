@@ -13,7 +13,7 @@ import If from "@/components/If";
 
 import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
 import { IArticle } from "@/types";
@@ -50,7 +50,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   const [bannerUploading, setBannerUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
 
   const randomTheme = allThemes[article.id % allThemes.length];
   const cardClassName = classnames(styles.articleCard, randomTheme, {

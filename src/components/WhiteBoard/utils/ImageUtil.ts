@@ -1,5 +1,5 @@
 import { getImageInfo } from "@/utils";
-import { uploadImage } from "@/hooks/useUploadImage";
+import { uploadResource } from "@/hooks/useUploadResource";
 import { v4 as getUuid } from "uuid";
 import { Board, Operation } from "../types";
 import {
@@ -33,7 +33,7 @@ export class ImageUtil {
       imageHeight = imageWidth / ratio;
     }
 
-    const imagePath = await uploadImage(file);
+    const imagePath = await uploadResource(file);
 
     if (imagePath) {
       ops.push({

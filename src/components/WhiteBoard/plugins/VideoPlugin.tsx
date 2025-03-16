@@ -1,6 +1,6 @@
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
-import { uploadImage } from "@/hooks/useUploadImage";
+import { uploadResource } from "@/hooks/useUploadResource";
 import { getVideoInfo } from "@/utils";
 import CommonPlugin from "./CommonPlugin";
 import { Board, IBoardPlugin, Operation, VideoElement } from "../types";
@@ -64,7 +64,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           height = width / ratio;
         }
 
-        const videoPath = await uploadImage(file);
+        const videoPath = await uploadResource(file);
         if (videoPath) {
           ops.push({
             type: "insert_node",

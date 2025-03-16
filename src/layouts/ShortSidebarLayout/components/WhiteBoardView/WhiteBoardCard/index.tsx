@@ -8,7 +8,7 @@ import classnames from "classnames";
 
 import useTheme from "@/hooks/useTheme.ts";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 
 import { WhiteBoard } from "@/types";
 import LocalImage from "@/components/LocalImage";
@@ -48,7 +48,7 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
       deleteWhiteBoard: state.deleteWhiteBoard,
     }));
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
 
   const randomTheme = allThemes[whiteBoard.id % allThemes.length];
   const cardClassName = classnames(

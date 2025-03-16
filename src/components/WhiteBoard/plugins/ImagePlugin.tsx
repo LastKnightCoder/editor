@@ -1,6 +1,6 @@
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
-import { uploadImage } from "@/hooks/useUploadImage";
+import { uploadResource } from "@/hooks/useUploadResource";
 import { getImageInfo } from "@/utils";
 import CommonPlugin from "./CommonPlugin";
 import { Board, IBoardPlugin, ImageElement, Operation } from "../types";
@@ -72,7 +72,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
           height = width / ratio;
         }
 
-        const imagePath = await uploadImage(file);
+        const imagePath = await uploadResource(file);
         if (imagePath) {
           ops.push({
             type: "insert_node",

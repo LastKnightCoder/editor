@@ -1,5 +1,5 @@
 import { useRafInterval, useUnmount } from "ahooks";
-import useUploadImage from "@/hooks/useUploadImage.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 
 import Editor from "@/components/Editor";
 
@@ -27,7 +27,7 @@ const DailyNoteContent = () => {
     saveDailyNote?.();
   });
 
-  const uploadImage = useUploadImage();
+  const uploadImage = useUploadResource();
 
   if (!editingDailyNote) return null;
 

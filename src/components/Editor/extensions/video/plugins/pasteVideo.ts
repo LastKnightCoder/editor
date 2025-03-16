@@ -1,6 +1,6 @@
 import { Editor, Transforms } from "slate";
 import { insertVideo } from "@editor/utils";
-import { uploadImage } from "@/hooks/useUploadImage.ts";
+import { uploadResource } from "@/hooks/useUploadResource.ts";
 import { message } from "antd";
 
 export const pasteVideo = (editor: Editor) => {
@@ -22,7 +22,7 @@ export const pasteVideo = (editor: Editor) => {
       if (!insertPath) {
         return;
       }
-      const src = await uploadImage(file);
+      const src = await uploadResource(file);
       if (!src) {
         message.error("上传失败");
         Editor.withoutNormalizing(editor, () => {
