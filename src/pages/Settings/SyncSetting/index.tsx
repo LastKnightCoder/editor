@@ -113,7 +113,7 @@ const SyncSetting = () => {
       </div>
       <h2>数据同步设置</h2>
       <Tabs
-        className={styles.settings}
+        className={styles.settingTabs}
         activeKey={activeKey}
         onChange={(key) => {
           useSettingStore.setState(

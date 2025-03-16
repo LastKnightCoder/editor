@@ -3,7 +3,6 @@ import { useMemoizedFn } from "ahooks";
 import { Outlet, Route, Routes } from "react-router-dom";
 
 import Titlebar from "../components/Titlebar";
-import SettingModal from "../components/SettingModal";
 import Sidebar from "./components/Sidebar";
 import CardTitlebar from "./components/Titlebar/CardTitlebar";
 import ArticleTitlebar from "./components/Titlebar/ArticleTitlebar";
@@ -87,7 +86,6 @@ const ShortSidebarLayout = () => {
           )}
         </div>
       </div>
-      <SettingModal />
       <AISearch />
     </div>
   );

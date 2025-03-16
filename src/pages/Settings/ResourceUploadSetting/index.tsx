@@ -5,7 +5,7 @@ import AliOssSetting from "./AliOssSetting";
 import LocalSetting from "./LocalSetting";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore.ts";
 
-const ImageBedSetting = () => {
+const ResourceUploadSetting = () => {
   const { activeKey } = useSettingStore((state) => ({
     activeKey: state.setting.imageBed.active,
   }));
@@ -43,4 +43,4 @@ const ImageBedSetting = () => {
   );
 };
 
-export default ImageBedSetting;
+export default ResourceUploadSetting;

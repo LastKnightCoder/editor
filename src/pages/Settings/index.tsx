@@ -1,13 +1,12 @@
-import { Modal, Tabs, TabsProps } from "antd";
+import { Tabs, TabsProps } from "antd";
 import { useEffect } from "react";
-import { useMemoizedFn } from "ahooks";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { saveSetting } from "@/commands";
 
 import AppAbout from "./AppAbout";
 import FontSetting from "./FontSetting";
-import ImageBedSetting from "./ImageBedSetting";
+import ResourceUploadSetting from "./ResourceUploadSetting";
 import SyncSetting from "./SyncSetting";
 import ModuleSetting from "./ModuleSetting";
 import TextToSpeechSetting from "./TextToSpeechSetting";
@@ -15,16 +14,11 @@ import LLMProviderSetting from "./LLMProviderSetting";
 
 import styles from "./index.module.less";
 
-const SettingModal = () => {
-  const { open, setting, inited } = useSettingStore((state) => ({
-    open: state.settingModalOpen,
+const SettingsPage = () => {
+  const { setting, inited } = useSettingStore((state) => ({
     setting: state.setting,
     inited: state.inited,
   }));
-
-  const close = useMemoizedFn(() => {
-    useSettingStore.setState({ settingModalOpen: false });
-  });
 
   useEffect(() => {
     if (!inited) return;
@@ -44,8 +38,8 @@ const SettingModal = () => {
     },
     {
       key: "imageBed",
-      label: "图床",
-      children: <ImageBedSetting />,
+      label: "资源存储",
+      children: <ResourceUploadSetting />,
     },
     {
       key: "sync",
@@ -70,28 +64,13 @@ const SettingModal = () => {
   ];
 
   return (
-    <Modal
-      title={"设置"}
-      open={open}
-      footer={null}
-      onCancel={close}
-      width={820}
-      styles={{
-        body: {
-          minHeight: 200,
-          maxHeight: "calc(100vh - 200px)",
-          overflow: "auto",
-          padding: "16px 16px 24px",
-        },
-        content: {
-          maxHeight: "calc(100vh - 100px)",
-          overflow: "auto",
-        },
-      }}
-    >
-      <Tabs tabPosition={"left"} items={items} className={styles.tabs} />
-    </Modal>
+    <div className={styles.settingsPage}>
+      <h1 className={styles.title}>设置</h1>
+      <div className={styles.content}>
+        <Tabs tabPosition={"left"} items={items} className={styles.tabs} />
+      </div>
+    </div>
   );
 };
 
-export default SettingModal;
+export default SettingsPage;
