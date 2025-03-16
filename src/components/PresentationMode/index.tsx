@@ -12,18 +12,17 @@ import useSlides from "./hooks/useSlides";
 import useKeyboardNavigation from "./hooks/useKeyboardNavigation";
 import useTemporaryMessage from "./hooks/useTemporaryMessage";
 import styles from "./index.module.less";
+import IExtension from "../Editor/extensions/types";
 
 // 主演示模式组件
 interface PresentationModeProps {
   content: Descendant[];
   onExit: () => void;
-  extensions?: any[];
 }
 
 const PresentationMode: React.FC<PresentationModeProps> = ({
   content,
   onExit,
-  extensions = [],
 }) => {
   const [showTip, setShowTip] = useState(true);
   const [isOverview, setIsOverview] = useState(false);
@@ -31,6 +30,27 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   const [isExitingOverview, setIsExitingOverview] = useState(false);
   const presentationEditorRef = useRef<EditorRef>(null);
   const presentationModeRef = useRef<HTMLDivElement>(null);
+
+  const [extensions, setExtensions] = useState<IExtension[]>([]);
+
+  useEffect(() => {
+    import("@/editor-extensions").then((module) => {
+      const {
+        fileAttachmentExtension,
+        dailySummaryExtension,
+        projectCardListExtension,
+        cardLinkExtension,
+        documentCardListExtension,
+      } = module;
+      setExtensions([
+        fileAttachmentExtension,
+        dailySummaryExtension,
+        projectCardListExtension,
+        cardLinkExtension,
+        documentCardListExtension,
+      ]);
+    });
+  }, []);
 
   // 从设置中获取暗黑模式状态和切换方法
   const { darkMode, onDarkModeChange } = useSettingStore((state) => ({

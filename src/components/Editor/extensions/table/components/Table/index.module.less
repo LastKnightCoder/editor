@@ -1,40 +1,49 @@
 .dropContainer {
   position: relative;
+
   .operate {
     user-select: none;
-    height: 40px;
+    height: 2.5em;
     display: flex;
     justify-content: space-between;
     align-items: center;
     transition: height 0.3s ease-in-out;
+
     &.hide {
       height: 0;
       overflow: hidden;
+
       .right {
         opacity: 0;
       }
     }
+
     .left {
     }
+
     .right {
       transition: opacity 0.2s 0.1s ease-in-out;
       display: flex;
-      gap: 8px;
+      gap: 0.5em;
+
       .item {
         display: flex;
         justify-content: center;
         align-items: center;
-        width: 30px;
-        height: 30px;
+        width: 1.875em;
+        height: 1.875em;
         border-radius: 50%;
         cursor: pointer;
+
         &:hover {
           background: var(--common-hover-bg);
         }
       }
+
       .more {
         cursor: pointer;
       }
+
       .delete {
         cursor: pointer;
       }
@@ -55,7 +64,7 @@
 
     th,
     td {
-      padding: 12px 16px;
+      padding: 0.75em 1em;
       text-align: left;
       border: 1px solid var(--table-border-color);
       overflow: hidden;
@@ -63,6 +72,7 @@
       word-break: break-word;
     }
   }
+
   @import "@/components/Editor/extensions/drop-common.less";
   @import "@/components/Editor/extensions/drag-common.less";
 }

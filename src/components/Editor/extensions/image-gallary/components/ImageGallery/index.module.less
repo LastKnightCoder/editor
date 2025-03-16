@@ -1,50 +1,59 @@
 .imageGalleryContainer {
   position: relative;
+
   &.wider {
-    width: calc(100% + 160px);
-    transform: translateX(-80px);
+    width: calc(100% + 10em);
+    transform: translateX(-5em);
   }
+
   .emptySetting {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 160px;
-    border-radius: 8px;
+    height: 10em;
+    border-radius: 0.5em;
     border: 2px dashed #d3d7d4;
     cursor: pointer;
     font-size: 16px;
     background-color: var(--primary-bg-color);
+
     &:hover {
       background-color: var(--common-hover-bg);
     }
+
     .uploadTips {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 0.625em;
       align-items: center;
+
       .icon {
-        font-size: 24px;
+        font-size: 1.5em;
       }
     }
   }
+
   .settingButton {
-    border-radius: 8px;
+    border-radius: 0.5em;
     cursor: pointer;
     position: absolute;
-    padding: 10px;
+    padding: 0.625em;
     left: 50%;
     transform: translateX(-50%);
-    top: -36px;
+    top: -2.25em;
     background-color: var(--primary-bg-color);
     box-shadow: var(--box-shadow1);
   }
+
   &:hover .actions {
     opacity: 1;
     color: white;
     display: flex;
   }
+
   @import "@/components/Editor/extensions/drop-common.less";
   @import "@/components/Editor/extensions/drag-common.less";
+
   .dragHandler {
     height: 1em;
   }
@@ -54,17 +63,17 @@
   display: none;
   opacity: 0;
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 0.625em;
+  right: 0.625em;
   z-index: 100;
   background-color: rgba(38, 38, 38, 0.6);
-  border-radius: 8px;
+  border-radius: 0.5em;
   transition: opacity 0.3s ease-in-out;
 }
 
 .item {
-  width: 28px;
-  height: 28px;
+  width: 1.75em;
+  height: 1.75em;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -73,8 +82,8 @@
 
 .divider {
   width: 1px;
-  height: 18px;
-  margin: auto 4px;
+  height: 1.125em;
+  margin: auto 0.25em;
   background-color: white;
   background-color: rgba(255, 255, 255, 0.1);
 }

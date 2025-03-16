@@ -28,6 +28,7 @@ import {
 } from "@/commands";
 import SelectCardModal from "@/components/SelectCardModal";
 import SelectModal from "@/components/SelectModal";
+import PresentationMode from "@/components/PresentationMode";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import { IArticle, ICard, IDocumentItem } from "@/types";
 
@@ -79,6 +80,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [folderOpen, setFolderOpen] = useState(() => {
     return path.length === 1;
   });
+  const [isPresentation, setIsPresentation] = useState(false);
   const { modal } = App.useApp();
 
   const { cards } = useCardsManagementStore((state) => ({
@@ -566,6 +568,17 @@ const DocumentItem = (props: IDocumentItemProps) => {
                 >
                   删除文档
                 </div>
+                <div
+                  className={styles.item}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setMorePopoverOpen(false);
+                    setIsPresentation(true);
+                  }}
+                >
+                  演示模式
+                </div>
               </div>
             }
             placement={"bottomLeft"}
@@ -722,6 +735,15 @@ const DocumentItem = (props: IDocumentItemProps) => {
         onCancel={onSelectDocumentItemCancel}
         onOk={onSelectDocumentItemFinish}
       />
+
+      {isPresentation && item && (
+        <PresentationMode
+          content={item.content}
+          onExit={() => {
+            setIsPresentation(false);
+          }}
+        />
+      )}
     </div>
   );
 };

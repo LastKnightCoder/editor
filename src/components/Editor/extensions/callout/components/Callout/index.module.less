@@ -1,12 +1,13 @@
 .container {
   position: relative;
+
   .callout {
     position: relative;
-    padding: 0.25rem 1rem;
+    padding: 0.5em 1em;
     background-color: var(--hint-background-color);
-    border-left: 0.3rem solid;
+    border-left: 0.3em solid;
     border-color: var(--hint-border-color);
-    border-radius: 0.5rem;
+    border-radius: 0.5em;
 
     &.tip {
       color: var(--hint-text-color);
@@ -76,22 +77,25 @@
     .title {
       font-weight: 600;
       position: relative;
-      padding-left: 1.5rem;
+      padding-left: 1.5em;
       margin-top: 10px;
       line-height: 1.25;
       color: var(--hint-text-color);
+
       &::before {
         content: " ";
         position: absolute;
-        width: 20px;
-        height: 20px;
+        width: 1.25em;
+        height: 1.25em;
         left: 0;
         background-position: 0;
         background-repeat: no-repeat;
         background-image: var(--icon-url);
       }
     }
+
     @import "@/components/Editor/extensions/drop-common.less";
   }
+
   @import "@/components/Editor/extensions/drag-common.less";
 }

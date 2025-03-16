@@ -15,41 +15,14 @@
     /* 暗色模式下的背景色 */
   }
 
-  z-index: 9999;
+  font-size: 40px;
+
+  z-index: 98;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   overflow-y: auto;
-  /* 滚动条移至最外层 */
-
-  /* 自定义滚动条样式 */
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 4px;
-    margin: 4px 0;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--scroller-thumb-background-color);
-    border-radius: 4px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
-  /* 默认隐藏滚动条 */
-  &::-webkit-scrollbar-thumb {
-    opacity: 0;
-  }
-
-  /* 仅在滚动时显示滚动条 */
-  &.scrolling::-webkit-scrollbar-thumb {
-    opacity: 1;
-  }
 
   &::before {
     content: "";
@@ -78,30 +51,19 @@
   .presentationEditor {
     width: 100%;
     height: auto;
-    font-size: 2rem !important;
     line-height: 1.5;
-    padding: 2rem;
+    padding: 2em;
     background-color: var(--main-bg-color);
     position: relative;
     z-index: 2;
     overflow: visible;
     box-shadow: none;
-
-    :global {
-      .slate-editor {
-        font-size: 2rem !important;
-        background-color: var(--main-bg-color);
-        box-shadow: none;
-        --block-distance: 1.5rem;
-        /* 演示模式下段落间距更大 */
-      }
-    }
   }
 
   .presentationFooter {
     position: absolute;
     bottom: 20px;
-    font-size: 1.2rem;
+    font-size: 18px;
     color: var(--text-normal);
     background-color: var(--main-bg-color);
     padding: 5px 15px;

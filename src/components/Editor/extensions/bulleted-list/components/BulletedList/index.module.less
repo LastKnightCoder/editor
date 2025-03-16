@@ -1,12 +1,15 @@
 .list {
-  padding-inline-start: 40px;
+  padding-inline-start: 2.5em;
   margin: 0;
+
   li:last-child *:last-of-type([data-slate-node="element"]) {
     margin: 0;
   }
+
   & > li {
     position: relative;
     list-style-type: none;
+
     &::before {
       position: absolute;
       content: "";
@@ -17,11 +20,13 @@
       left: -1em;
       top: 0.7em;
       transition: transform 0.3s ease-in-out;
+
       &:hover {
         transform-origin: center;
         transform: scale(1.2);
       }
     }
+
     &[data-fold="fold"]::before {
       box-shadow: var(--bullet-list-item-shodow);
     }

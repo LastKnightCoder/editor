@@ -2,29 +2,34 @@
   position: relative;
   --code-block-bg-color: rgba(246, 248, 250, 0.6);
   --code-block-shadow: 0 1px 2px 0 #0000001a;
+
   &.dark {
     --code-block-bg-color: rgba(40, 42, 52);
     --code-block-shadow: 0 1px 2px 0 #0000001a;
   }
+
   &.readOnly {
     :global(.CodeMirror-cursors) {
       display: none;
     }
   }
+
   &:hover {
     .copyButton {
       display: block;
     }
   }
+
   .copyButton {
     position: absolute;
     top: 10px;
     right: 10px;
-    width: 32px;
+    width: 2em;
     z-index: 2;
-    height: 32px;
+    height: 2em;
     cursor: pointer;
   }
+
   .windowsControl {
     position: absolute;
     top: 24px;
@@ -40,20 +45,22 @@
       24px 0 #dea123,
       48px 0 #1aab29;
   }
+
   .languageSelect {
     position: absolute;
     top: 10px;
     left: 24px;
     z-index: 1;
   }
+
   .CodeMirrorContainer :global(.CodeMirror) {
     box-shadow: var(--code-block-shadow);
     background-color: var(--code-block-bg-color);
     height: auto;
-    padding: 48px 12px 18px;
+    padding: 3em 0.75em 1.1em;
     border-radius: 5px;
     line-height: 1.8;
-    font-size: calc(var(--font-size) * 0.8);
+    font-size: 0.8em;
     font-family: var(--mono-font, "'Monaco', '楷体'");
   }
 
@@ -74,6 +81,7 @@
   :global(.CodeMirror-linenumber) {
     cursor: pointer;
   }
+
   @import "@/components/Editor/extensions/drag-common.less";
   @import "@/components/Editor/extensions/drop-common.less";
 }
