@@ -6,3 +6,5 @@ export * from "./useResize";
 export * from "./useDropArrow";
 export * from "./useMoveArrow";
 export * from "./useCreateElementType";
+export * from "./useReadonly";
+export * from "./usePresentationState";

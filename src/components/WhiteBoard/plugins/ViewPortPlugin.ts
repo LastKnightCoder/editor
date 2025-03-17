@@ -18,6 +18,7 @@ export class ViewPortPlugin implements IBoardPlugin {
   lastMoveTime = 0;
 
   onPointerDown(e: PointerEvent, board: Board) {
+    if (board.presentationManager.isPresentationMode) return;
     // 右键
     if (e.button === 2) {
       this.isMouseDown = true;
@@ -30,7 +31,8 @@ export class ViewPortPlugin implements IBoardPlugin {
     if (
       !this.isMouseDown ||
       !this.boardOriginOffset ||
-      !this.boardOriginViewPort
+      !this.boardOriginViewPort ||
+      board.presentationManager.isPresentationMode
     )
       return;
 
@@ -61,7 +63,11 @@ export class ViewPortPlugin implements IBoardPlugin {
   }
 
   onWheel(e: WheelEvent, board: Board) {
-    if (board.currentCreateType !== ECreateBoardElementType.None) return;
+    if (
+      board.currentCreateType !== ECreateBoardElementType.None ||
+      board.presentationManager.isPresentationMode
+    )
+      return;
 
     const now = Date.now();
     if (now - this.lastWheelTime < 100) return;

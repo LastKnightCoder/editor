@@ -1,4 +1,5 @@
 import { BoardElement, ViewPort, Selection } from "@/components/WhiteBoard";
+import type { PresentationSequence } from "@/components/WhiteBoard/utils/PresentationManager";
 
 export interface WhiteBoard {
   id: number;
@@ -7,6 +8,7 @@ export interface WhiteBoard {
     children: BoardElement[];
     viewPort: ViewPort;
     selection: Selection;
+    presentationSequences?: PresentationSequence[];
   };
   createTime: number;
   updateTime: number;
