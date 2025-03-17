@@ -160,8 +160,9 @@ const EditText = memo(
     };
 
     const handleBlur = useMemoizedFn(() => {
+      if (!ref.current) return;
       setIsEditing(false);
-      onChange?.(ref.current?.innerText || "");
+      onChange?.(ref.current.innerText || "");
       onBlur?.();
     });
 
