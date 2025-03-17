@@ -86,12 +86,13 @@ const CardItem = (props: CardItemProps) => {
     }
   });
 
-  const handlePresentationMode = useMemoizedFn(
-    (e: MouseEvent<HTMLDivElement>) => {
-      e.stopPropagation();
-      setIsPresentation(true);
-    },
-  );
+  const stopPropagation = useMemoizedFn((e: MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+  });
+
+  const handlePresentationMode = useMemoizedFn(() => {
+    setIsPresentation(true);
+  });
 
   const handleMoreClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
@@ -151,7 +152,7 @@ const CardItem = (props: CardItemProps) => {
         {tags.length > 0 && (
           <Tags className={styles.tags} tags={tags} showIcon />
         )}
-        <div className={styles.actions}>
+        <div className={styles.actions} onClick={stopPropagation}>
           <div className={styles.action} onClick={handlePresentationMode}>
             <IoResizeOutline />
           </div>
