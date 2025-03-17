@@ -136,33 +136,64 @@ export class ViewPortTransforms {
 
     if (animate) {
       // 使用动画效果
-      const startViewport = { ...board.viewPort };
+      this.animateToViewport(board, board.viewPort, newViewport, 300);
+    } else {
+      // 直接应用新视图，无动画
+      board.apply(
+        {
+          type: "set_viewport",
+          properties: board.viewPort,
+          newProperties: newViewport,
+        },
+        false,
+      );
+    }
+  }
+
+  /**
+   * 从一个视图平滑过渡到另一个视图
+   * @param board 白板实例
+   * @param startViewport 起始视图
+   * @param endViewport 目标视图
+   * @param duration 动画持续时间（毫秒）
+   * @param easeFunction 缓动函数，默认为缓出效果
+   * @returns Promise，动画完成时解析
+   */
+  static animateToViewport(
+    board: Board,
+    startViewport: ViewPort,
+    endViewport: ViewPort,
+    duration = 500,
+    easeFunction: (t: number) => number = (t) => 1 - Math.pow(1 - t, 3),
+  ): Promise<void> {
+    return new Promise((resolve) => {
       const startTime = Date.now();
-      const duration = 300; // 动画持续时间（毫秒）
 
       const animateViewport = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         // 使用缓动函数使动画更自然
-        const easeProgress = 1 - Math.pow(1 - progress, 3); // 缓出效果
+        const easeProgress = easeFunction(progress);
 
         const currentViewport = {
           zoom:
             startViewport.zoom +
-            (newViewport.zoom - startViewport.zoom) * easeProgress,
+            (endViewport.zoom - startViewport.zoom) * easeProgress,
           width:
             startViewport.width +
-            (newViewport.width - startViewport.width) * easeProgress,
+            (endViewport.width - startViewport.width) * easeProgress,
           height:
             startViewport.height +
-            (newViewport.height - startViewport.height) * easeProgress,
+            (endViewport.height - startViewport.height) * easeProgress,
           minX:
             startViewport.minX +
-            (newViewport.minX - startViewport.minX) * easeProgress,
+            (endViewport.minX - startViewport.minX) * easeProgress,
           minY:
             startViewport.minY +
-            (newViewport.minY - startViewport.minY) * easeProgress,
+            (endViewport.minY - startViewport.minY) * easeProgress,
         };
+
+        console.log("当前视口", currentViewport);
 
         board.apply(
           {
@@ -175,21 +206,13 @@ export class ViewPortTransforms {
 
         if (progress < 1) {
           requestAnimationFrame(animateViewport);
+        } else {
+          resolve();
         }
       };
 
       animateViewport();
-    } else {
-      // 直接应用新视图，无动画
-      board.apply(
-        {
-          type: "set_viewport",
-          properties: board.viewPort,
-          newProperties: newViewport,
-        },
-        false,
-      );
-    }
+    });
   }
 
   private static getNewViewport(

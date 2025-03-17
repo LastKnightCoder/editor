@@ -24,7 +24,10 @@ export class MovePlugin implements IBoardPlugin {
   isMoved = false;
 
   onPointerDown(e: PointerEvent, board: Board) {
-    if (board.currentCreateType !== ECreateBoardElementType.None) {
+    if (
+      board.currentCreateType !== ECreateBoardElementType.None ||
+      board.presentationManager.isPresentationMode
+    ) {
       return;
     }
 
@@ -158,7 +161,12 @@ export class MovePlugin implements IBoardPlugin {
   }
 
   onPointerMove(e: PointerEvent, board: Board) {
-    if (!this.moveElements || !this.startPoint) return;
+    if (
+      !this.moveElements ||
+      !this.startPoint ||
+      board.presentationManager.isPresentationMode
+    )
+      return;
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint) return;
     const offsetX = endPoint.x - this.startPoint.x;
@@ -201,7 +209,12 @@ export class MovePlugin implements IBoardPlugin {
 
   onPointerUp(e: PointerEvent, board: Board) {
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-    if (!endPoint || !this.startPoint || !this.moveElements) {
+    if (
+      !endPoint ||
+      !this.startPoint ||
+      !this.moveElements ||
+      board.presentationManager.isPresentationMode
+    ) {
       // 即使没有移动元素或起始点，也要清除参考线
       board.clearRefLines();
       board.emit("element:move-end");

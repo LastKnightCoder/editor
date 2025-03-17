@@ -3,6 +3,10 @@ import EventEmitter from "eventemitter3";
 import { createDraft, finishDraft, isDraft, current } from "immer";
 import curry from "lodash/curry";
 import RefLineUtil, { Rect } from "./utils/RefLineUtil";
+import {
+  PresentationManager,
+  PresentationSequence,
+} from "./utils/PresentationManager";
 
 import {
   Operation,
@@ -33,6 +37,7 @@ class Board {
   private eventEmitter: EventEmitter;
   public refLine: RefLineUtil;
 
+  public presentationManager: PresentationManager;
   public boardFlag: typeof boardFlag;
   public isDestroyed: boolean;
   public children: BoardElement[];
@@ -45,6 +50,7 @@ class Board {
     children: BoardElement[];
     viewPort: ViewPort;
     selection: Selection;
+    presentationSequences: PresentationSequence[];
   };
 
   private _currentCreateType: ECreateBoardElementType =
@@ -58,7 +64,8 @@ class Board {
     viewPort: ViewPort,
     selection: Selection,
     plugins: IBoardPlugin[] = [],
-    public readonly: boolean = false,
+    presentationSequences: PresentationSequence[] = [],
+    readonly = false,
   ) {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
@@ -72,14 +79,34 @@ class Board {
       children: this.children,
       viewPort: this.viewPort,
       selection: this.selection,
+      presentationSequences: presentationSequences,
     };
 
     this.initPlugins(plugins);
+
+    // 初始化演示管理器和序列
+    this.presentationManager = new PresentationManager(
+      this,
+      presentationSequences,
+    );
     this.subscribe = this.subscribe.bind(this);
     this.getSnapshot = this.getSnapshot.bind(this);
     this.refLine = new RefLineUtil({
       refRects: this.getRefRects(),
     });
+    this._readonly = readonly;
+  }
+
+  // 只读属性
+  private _readonly = false;
+
+  get readonly(): boolean {
+    return this._readonly;
+  }
+
+  set readonly(value: boolean) {
+    this._readonly = value;
+    this.emit("readonlyChange", value);
   }
 
   on(event: string, listener: (...args: any[]) => void) {
@@ -201,49 +228,41 @@ class Board {
   }
 
   onContextMenu(event: MouseEvent) {
-    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onContextMenu")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onWheel(event: WheelEvent) {
-    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onWheel")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onKeyDown(event: KeyboardEvent) {
-    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onKeyDown")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onKeyUp(event: KeyboardEvent) {
-    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onKeyUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerDown(event: PointerEvent) {
-    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onPointerDown")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerUp(event: PointerEvent) {
-    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onPointerUp")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onPointerMove(event: PointerEvent) {
-    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onPointerMove")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onGlobalPointerDown(event: PointerEvent) {
-    if (this.readonly) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerDown"))
       .filter(isValid);
@@ -251,7 +270,6 @@ class Board {
   }
 
   onGlobalPointerUp(event: PointerEvent) {
-    if (this.readonly) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerUp"))
       .filter(isValid);
@@ -259,7 +277,6 @@ class Board {
   }
 
   onGlobalPointerMove(event: PointerEvent) {
-    if (this.readonly) return;
     const fns = this.plugins
       .map(bindHandler("onGlobalPointerMove"))
       .filter(isValid);
@@ -273,7 +290,6 @@ class Board {
   }
 
   onCopy(event: ClipboardEvent) {
-    if (this.readonly) return;
     const fns = this.plugins.map(bindHandler("onCopy")).filter(isValid);
     executeSequence(fns, event, this);
   }
@@ -293,7 +309,6 @@ class Board {
   }
 
   apply(ops: Operation | Operation[], updateHistory = true) {
-    if (this.readonly) return;
     if (!Array.isArray(ops)) {
       ops = [ops];
     }
@@ -306,6 +321,7 @@ class Board {
     try {
       for (const op of ops) {
         if (op.type === "set_node") {
+          if (this.readonly) return;
           if (!isDraft(this.children)) {
             this.children = createDraft(this.children);
           }
@@ -338,6 +354,7 @@ class Board {
             });
           }
         } else if (op.type === "insert_node") {
+          if (this.readonly) return;
           if (!isDraft(this.children)) {
             this.children = createDraft(this.children);
           }
@@ -365,6 +382,7 @@ class Board {
             });
           }
         } else if (op.type === "remove_node") {
+          if (this.readonly) return;
           if (!isDraft(this.children)) {
             this.children = createDraft(this.children);
           }
@@ -401,6 +419,7 @@ class Board {
           // 视口变化时清除参考线
           this.clearRefLines();
         } else if (op.type === "set_selection") {
+          if (this.readonly) return;
           this.selection = createDraft(this.selection);
           const { newProperties } = op;
           for (const key in newProperties) {
@@ -450,10 +469,12 @@ class Board {
       }
 
       if (changed) {
+        console.log("changed", this.viewPort);
         this.snapshot = {
           children: this.children,
           selection: this.selection,
           viewPort: this.viewPort,
+          presentationSequences: this.presentationManager.sequences,
         };
         this.emit("change");
       }
@@ -548,6 +569,11 @@ class Board {
       });
     });
     return rects;
+  }
+
+  // 获取插件实例
+  public getPlugin<T extends IBoardPlugin>(name: string): T | undefined {
+    return this.plugins.find((p) => p.name === name) as T | undefined;
   }
 }
 

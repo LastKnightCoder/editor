@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Flex, Switch, Select, Popover } from "antd";
+import { Flex, Switch, Select, Popover, Tooltip } from "antd";
 import { BorderOutlined } from "@ant-design/icons";
 import {
   GRID_SIZE_OPTIONS,
@@ -64,9 +64,11 @@ const GridSettings: React.FC<GridSettingsProps> = ({
         },
       }}
     >
-      <div className={styles.gridSettingsButton}>
-        <BorderOutlined />
-      </div>
+      <Tooltip title="网格设置">
+        <div className={styles.gridSettingsButton}>
+          <BorderOutlined />
+        </div>
+      </Tooltip>
     </Popover>
   );
 };

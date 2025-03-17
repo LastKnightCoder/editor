@@ -17,7 +17,11 @@ export class SelectPlugin implements IBoardPlugin {
   moved = false;
 
   onPointerDown(e: PointerEvent, board: Board) {
-    if (board.currentCreateType !== ECreateBoardElementType.None) {
+    if (
+      board.currentCreateType !== ECreateBoardElementType.None ||
+      board.presentationManager.isPresentationMode ||
+      board.presentationManager.isCreatingSequence
+    ) {
       return;
     }
 
@@ -146,6 +150,12 @@ export class SelectPlugin implements IBoardPlugin {
     if (board.selection.selectedElements.length === 0) return;
     const selectedElements = board.selection.selectedElements;
     if (isHotkey(["delete", "backspace"], e)) {
+      if (
+        board.presentationManager.isPresentationMode ||
+        board.presentationManager.isCreatingSequence
+      ) {
+        return;
+      }
       // 思维导图节点还需要特殊处理，删除后需要布局
       const mindNodes = selectedElements.filter(
         (element) => element.type === "mind-node",

@@ -51,6 +51,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
         initData={whiteBoard.data.children}
         initViewPort={whiteBoard.data.viewPort}
         initSelection={whiteBoard.data.selection}
+        initPresentationSequences={whiteBoard.data.presentationSequences || []}
         onChange={onChange}
       />
     </div>

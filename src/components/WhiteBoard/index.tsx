@@ -8,6 +8,14 @@ import React, {
 } from "react";
 import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
 import classnames from "classnames";
+import { App } from "antd";
+import { EditOutlined, CloseOutlined } from "@ant-design/icons";
+import {
+  FullscreenOutlined,
+  PlayCircleOutlined,
+  MinusOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 
 import Board from "./Board";
 import {
@@ -24,6 +32,9 @@ import {
   VideoPlugin,
   MindPlugin,
 } from "./plugins";
+import PresentationPlugin, {
+  PresentationSequence,
+} from "./plugins/PresentationPlugin";
 import { ViewPortTransforms } from "./transforms";
 import { BoardContext, SelectionContext, ViewPortContext } from "./context";
 import {
@@ -43,13 +54,10 @@ import Grid from "./components/Grid";
 import GridSettings from "./components/GridSettings";
 import AttributeSetter from "./components/AttributeSetter";
 import { Flex, Popover, Divider, Tooltip } from "antd";
-import {
-  MinusOutlined,
-  PlusOutlined,
-  FullscreenOutlined,
-} from "@ant-design/icons";
 import For from "@/components/For";
 import styles from "./index.module.less";
+import PresentationCreator from "./components/PresentationCreator";
+import PresentationMode from "./components/PresentationMode";
 
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
@@ -64,33 +72,21 @@ const cardPlugin = new CardPlugin();
 const imagePlugin = new ImagePlugin();
 const videoPlugin = new VideoPlugin();
 const mindPlugin = new MindPlugin();
-
-const plugins = [
-  arrowPlugin,
-  geometryPlugin,
-  cardPlugin,
-  richTextPlugin,
-  imagePlugin,
-  videoPlugin,
-  mindPlugin,
-  historyPlugin,
-  selectPlugin,
-  movePlugin,
-  viewPortPlugin,
-  copyPastePlugin,
-];
+const presentationPlugin = new PresentationPlugin();
 
 interface WhiteBoardProps {
   className?: string;
   style?: React.CSSProperties;
-  initData: BoardElement[];
+  initData: BoardElement[] & { presentationSequences?: PresentationSequence[] };
   initViewPort?: ViewPort;
   initSelection?: Selection;
+  initPresentationSequences?: PresentationSequence[];
   readonly?: boolean;
   onChange?: (data: {
     children: BoardElement[];
     viewPort: ViewPort;
     selection: Selection;
+    presentationSequences?: PresentationSequence[];
   }) => void;
 }
 
@@ -104,9 +100,12 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       selectArea: null,
       selectedElements: [] as BoardElement[],
     },
+    initPresentationSequences = [],
     readonly,
     onChange,
   } = props;
+
+  const { modal } = App.useApp();
 
   const [gridVisible, setGridVisible] = useState<boolean>(DEFAULT_GRID_VISIBLE);
   const [gridSize, setGridSize] = useState<number>(DEFAULT_GRID_SIZE);
@@ -118,10 +117,31 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   const statusBarRef = useRef<HTMLDivElement>(null);
   const fitViewButtonRef = useRef<HTMLDivElement>(null);
 
-  const board = useCreation<Board>(
-    () => new Board(initData, initViewPort, initSelection, plugins, readonly),
-    [],
-  );
+  const board = useCreation<Board>(() => {
+    const plugins = [
+      arrowPlugin,
+      geometryPlugin,
+      cardPlugin,
+      richTextPlugin,
+      imagePlugin,
+      videoPlugin,
+      mindPlugin,
+      historyPlugin,
+      selectPlugin,
+      movePlugin,
+      viewPortPlugin,
+      copyPastePlugin,
+      presentationPlugin,
+    ];
+    return new Board(
+      initData,
+      initViewPort,
+      initSelection,
+      plugins,
+      initPresentationSequences,
+      readonly,
+    );
+  }, []);
 
   const { children, viewPort, selection } = useSyncExternalStore(
     board.subscribe,
@@ -306,6 +326,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   }, [board, eventHandlerGenerator, handleContainerResize]);
 
   const lines = board.refLine.matchRefLines(15 / zoom);
+
   return (
     <div
       ref={containerRef}
@@ -326,7 +347,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       <BoardContext.Provider value={board}>
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
-            {!readonly && <Toolbar />}
+            {!readonly && !board.presentationManager.isPresentationMode && (
+              <Toolbar />
+            )}
             <svg
               ref={svgRef}
               width={"100%"}
@@ -449,79 +472,182 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
               </g>
             </svg>
             <div className={styles.verticalBar}>
-              {!readonly && <AttributeSetter />}
+              {!readonly && !board.presentationManager.isPresentationMode && (
+                <AttributeSetter />
+              )}
             </div>
-            <Flex
-              ref={statusBarRef}
-              className={styles.statusBar}
-              gap={12}
-              align={"center"}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-            >
-              <GridSettings
-                onVisibleChange={handleGridVisibleChange}
-                onSizeChange={handleGridSizeChange}
-              />
-              <Divider
-                type="vertical"
-                style={{ margin: "0 4px", height: "16px" }}
-              />
-              <Tooltip title="全览">
-                <div
-                  ref={fitViewButtonRef}
-                  onClick={handleFitElements}
-                  style={{
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <FullscreenOutlined />
-                </div>
-              </Tooltip>
-              <Divider
-                type="vertical"
-                style={{ margin: "0 4px", height: "16px" }}
-              />
-              <MinusOutlined onClick={handleZoomIn} />
-              <Popover
-                trigger={"click"}
-                arrow={false}
-                content={
-                  <Flex vertical gap={4}>
-                    <For
-                      data={ZOOMS}
-                      renderItem={(zoomValue) => (
-                        <div
-                          key={zoomValue}
-                          className={styles.zoomItem}
-                          onClick={() => {
-                            ViewPortTransforms.updateZoom(board, zoomValue);
-                          }}
-                        >
-                          {Math.round(zoomValue * 100)}%
-                        </div>
-                      )}
-                    />
-                  </Flex>
-                }
-                styles={{
-                  body: {
-                    padding: 4,
-                    marginBottom: 12,
-                  },
+
+            <PresentationCreator />
+            <PresentationMode />
+
+            {!board.presentationManager.isPresentationMode && (
+              <Flex
+                ref={statusBarRef}
+                className={styles.statusBar}
+                gap={8}
+                align={"center"}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
                 }}
               >
-                {Math.round(zoom * 100)}%
-              </Popover>
-              <PlusOutlined onClick={handleZoomOut} />
-            </Flex>
+                <GridSettings
+                  onVisibleChange={handleGridVisibleChange}
+                  onSizeChange={handleGridSizeChange}
+                />
+                <Divider type="vertical" />
+                <Tooltip title="全览">
+                  <div
+                    ref={fitViewButtonRef}
+                    onClick={handleFitElements}
+                    style={{
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 32,
+                      height: 32,
+                    }}
+                  >
+                    <FullscreenOutlined />
+                  </div>
+                </Tooltip>
+                <Divider type="vertical" />
+                <MinusOutlined onClick={handleZoomIn} />
+                <Popover
+                  trigger={"click"}
+                  arrow={false}
+                  content={
+                    <Flex vertical gap={4}>
+                      <For
+                        data={ZOOMS}
+                        renderItem={(zoomValue) => (
+                          <div
+                            key={zoomValue}
+                            className={styles.zoomItem}
+                            onClick={() => {
+                              ViewPortTransforms.updateZoom(board, zoomValue);
+                            }}
+                          >
+                            {Math.round(zoomValue * 100)}%
+                          </div>
+                        )}
+                      />
+                    </Flex>
+                  }
+                  styles={{
+                    body: {
+                      padding: 4,
+                      marginBottom: 12,
+                    },
+                  }}
+                >
+                  {Math.round(zoom * 100)}%
+                </Popover>
+                <PlusOutlined onClick={handleZoomOut} />
+                {board.presentationManager.sequences.length > 0 && (
+                  <>
+                    <Divider
+                      type="vertical"
+                      style={{ margin: "0 4px", height: "16px" }}
+                    />
+                    <Popover
+                      trigger={"click"}
+                      arrow={false}
+                      onOpenChange={(open) => {
+                        if (!open) {
+                          // 关闭弹窗
+                          document.body.click();
+                        }
+                      }}
+                      content={
+                        <Flex vertical gap={4}>
+                          <For
+                            data={board.presentationManager.sequences}
+                            renderItem={(sequence) => (
+                              <div
+                                key={sequence.id}
+                                className={styles.zoomItem}
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <span
+                                  onClick={() => {
+                                    board.presentationManager.startPresentationMode(
+                                      sequence.id,
+                                    );
+                                  }}
+                                  style={{ flex: 1, cursor: "pointer" }}
+                                >
+                                  {sequence.name}
+                                </span>
+                                <Flex gap={12}>
+                                  <EditOutlined
+                                    style={{ color: "#000" }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // 设置当前序列
+                                      board.presentationManager.setCurrentSequence(
+                                        sequence.id,
+                                      );
+                                    }}
+                                  />
+                                  <CloseOutlined
+                                    style={{ color: "#000" }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      // 删除序列
+                                      modal.confirm({
+                                        title: "删除序列",
+                                        content: "确定删除该序列吗？",
+                                        onOk: () => {
+                                          board.presentationManager.deleteSequence(
+                                            sequence.id,
+                                          );
+                                        },
+                                        okButtonProps: {
+                                          danger: true,
+                                        },
+                                      });
+                                    }}
+                                  />
+                                </Flex>
+                              </div>
+                            )}
+                          />
+                        </Flex>
+                      }
+                      styles={{
+                        body: {
+                          padding: 4,
+                          marginBottom: 12,
+                        },
+                      }}
+                    >
+                      <Tooltip title="开始演示">
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: 32,
+                            height: 32,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <PlayCircleOutlined style={{ color: "#000" }} />
+                        </div>
+                      </Tooltip>
+                    </Popover>
+                  </>
+                )}
+              </Flex>
+            )}
           </ViewPortContext.Provider>
         </SelectionContext.Provider>
       </BoardContext.Provider>
