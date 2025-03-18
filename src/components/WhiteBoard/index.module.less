@@ -6,7 +6,7 @@
 
 .verticalBar {
   position: absolute;
-  left: 20px;
+  left: 1.25em;
   top: 50%;
   transform: translateY(-50%);
 }
@@ -16,9 +16,9 @@
   top: var(--title-bar-height, 60px);
   bottom: 0;
   right: 0;
-  width: 240px;
+  width: 15em;
   background-color: var(--primary-bg-color);
-  padding: 20px;
+  padding: 1.25em;
 
   &.hide {
     display: none;
@@ -27,15 +27,15 @@
 
 .statusBar {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
+  bottom: 1.25em;
+  right: 1.25em;
   background: #fff;
-  height: 48px;
+  height: 2.5em;
   color: #000;
-  border-radius: 8px;
+  border-radius: 0.5em;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   font-size: 0.8em;
-  padding: 0 12px;
+  padding: 0 0.75em;
   cursor: pointer;
   user-select: none;
   display: flex;
@@ -43,13 +43,13 @@
 }
 
 .zoomItem {
-  width: 100px;
-  height: 32px;
-  padding: 5px 12px;
+  width: 6.25em;
+  height: 2em;
+  padding: 0.3125em 0.75em;
   font-size: 0.9em;
   cursor: pointer;
   transition: all 0.2s;
-  border-radius: 4px;
+  border-radius: 0.25em;
   box-sizing: border-box;
 
   &.disabled {
