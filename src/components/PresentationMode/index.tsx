@@ -30,6 +30,10 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   const [isExitingOverview, setIsExitingOverview] = useState(false);
   const presentationEditorRef = useRef<EditorRef>(null);
   const presentationModeRef = useRef<HTMLDivElement>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const [showScrollbar, setShowScrollbar] = useState(false);
+  const [showCloseIcon, setShowCloseIcon] = useState(false);
+  const scrollbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [extensions, setExtensions] = useState<IExtension[]>([]);
 
@@ -117,12 +121,90 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
     onExit,
   });
 
-  // 当前幻灯片变化时，更新编辑器内容
+  // 当前幻灯片变化时，更新编辑器内容并滚动到顶部
   useEffect(() => {
     if (slides.length > 0 && presentationEditorRef.current && !isOverview) {
       presentationEditorRef.current.setEditorValue(slides[currentSlide]);
+      // 切换Slide时滚动到顶部
+      if (presentationModeRef.current) {
+        presentationModeRef.current.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      }
     }
   }, [currentSlide, slides, isOverview]);
+
+  // 处理滚动事件
+  const handleScroll = useCallback(() => {
+    if (presentationModeRef.current) {
+      const scrollTop = presentationModeRef.current.scrollTop;
+      // 显示/隐藏回到顶部按钮 (当滚动超过100px时显示)
+      setShowBackToTop(scrollTop > 100);
+
+      // 显示滚动条
+      setShowScrollbar(true);
+
+      // 检测鼠标是否在顶部区域
+      const isMouseNearTop = scrollTop < 50;
+      setShowCloseIcon(isMouseNearTop);
+
+      // 清除之前的定时器
+      if (scrollbarTimeoutRef.current) {
+        clearTimeout(scrollbarTimeoutRef.current);
+      }
+
+      // 设置新的定时器，滚动停止后1.5秒隐藏滚动条
+      scrollbarTimeoutRef.current = setTimeout(() => {
+        setShowScrollbar(false);
+      }, 1500);
+    }
+  }, []);
+
+  // 监听滚动事件
+  useEffect(() => {
+    const presentationModeElement = presentationModeRef.current;
+    if (presentationModeElement) {
+      presentationModeElement.addEventListener("scroll", handleScroll);
+    }
+
+    return () => {
+      if (presentationModeElement) {
+        presentationModeElement.removeEventListener("scroll", handleScroll);
+      }
+      if (scrollbarTimeoutRef.current) {
+        clearTimeout(scrollbarTimeoutRef.current);
+      }
+    };
+  }, [handleScroll]);
+
+  // 监听鼠标移动事件来检测鼠标位置
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      // 如果鼠标在顶部50px区域内，显示关闭图标
+      if (e.clientY < 50) {
+        setShowCloseIcon(true);
+      } else {
+        setShowCloseIcon(false);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, []);
+
+  // 回到顶部
+  const scrollToTop = useCallback(() => {
+    if (presentationModeRef.current) {
+      presentationModeRef.current.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  }, []);
 
   // 3秒后隐藏提示
   useEffect(() => {
@@ -139,7 +221,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
     <PortalToBody>
       <div
         ref={presentationModeRef}
-        className={`${styles.presentationMode}`}
+        className={`${styles.presentationMode} ${showScrollbar ? styles.showScrollbar : ""}`}
         onClick={(e) => e.stopPropagation()}
       >
         {isOverview ? (
@@ -166,6 +248,36 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
               />
             </div>
           </>
+        )}
+
+        {showCloseIcon && (
+          <div className={styles.closeIcon} onClick={onExit}>
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+            >
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+          </div>
+        )}
+
+        {showBackToTop && (
+          <div className={styles.backToTopButton} onClick={scrollToTop}>
+            <svg
+              viewBox="0 0 24 24"
+              width="24"
+              height="24"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+            >
+              <path d="M12 19V5M5 12l7-7 7 7"></path>
+            </svg>
+          </div>
         )}
 
         <div className={styles.presentationFooter}>

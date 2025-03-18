@@ -20,6 +20,8 @@ import PresentationMode from "@/components/PresentationMode";
 
 interface CardItemProps {
   card: ICard;
+  onPresentationMode?: () => void;
+  onExitPresentationMode?: () => void;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -27,7 +29,8 @@ interface CardItemProps {
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 const CardItem = (props: CardItemProps) => {
-  const { card, className, style } = props;
+  const { card, className, style, onPresentationMode, onExitPresentationMode } =
+    props;
   const [isPresentation, setIsPresentation] = useState(false);
 
   const editorRef = useRef<EditorRef>(null);
@@ -92,6 +95,7 @@ const CardItem = (props: CardItemProps) => {
 
   const handlePresentationMode = useMemoizedFn(() => {
     setIsPresentation(true);
+    onPresentationMode?.();
   });
 
   const handleMoreClick: MenuProps["onClick"] = useMemoizedFn(
@@ -174,6 +178,7 @@ const CardItem = (props: CardItemProps) => {
           content={card.content}
           onExit={() => {
             setIsPresentation(false);
+            onExitPresentationMode?.();
           }}
         />
       )}

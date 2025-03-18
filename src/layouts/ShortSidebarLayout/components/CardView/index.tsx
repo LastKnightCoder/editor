@@ -28,7 +28,7 @@ const CardContainer = () => {
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
-
+  const [isPresentation, setIsPresentation] = useState(false);
   const { cards, selectCategory, activeCardTag, createCard } =
     useCardsManagementStore((state) => ({
       cards: state.cards,
@@ -145,6 +145,14 @@ const CardContainer = () => {
     setCardsCount(5);
   });
 
+  const onPresentationMode = useMemoizedFn(() => {
+    setIsPresentation(true);
+  });
+
+  const onExitPresentationMode = useMemoizedFn(() => {
+    setIsPresentation(false);
+  });
+
   return (
     <div className={styles.queryContainer}>
       <div
@@ -224,7 +232,12 @@ const CardContainer = () => {
                         <For
                           data={sliceCards}
                           renderItem={(card) => (
-                            <CardItem key={card.id} card={card} />
+                            <CardItem
+                              key={card.id}
+                              card={card}
+                              onPresentationMode={onPresentationMode}
+                              onExitPresentationMode={onExitPresentationMode}
+                            />
                           )}
                         />
                       </LoadMoreComponent>
@@ -241,12 +254,10 @@ const CardContainer = () => {
           </div>
         </If>
       </div>
-      {!isShowEdit && showScrollToTop && (
+      {!isShowEdit && showScrollToTop && !isPresentation && (
         <FloatButton
           style={{
             position: "absolute",
-            // right: 0,
-            // bottom: 0,
           }}
           icon={<UpOutlined />}
           tooltip={"回到顶部"}
