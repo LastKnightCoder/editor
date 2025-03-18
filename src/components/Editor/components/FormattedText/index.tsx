@@ -62,7 +62,11 @@ const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> =
 
     const addCodeWrapper = (originChildren: React.ReactNode) => {
       if (code) {
-        return <code className={styles.code}>{originChildren}</code>;
+        return (
+          <code className={classnames(styles.code, { [styles.dark]: isDark })}>
+            {originChildren}
+          </code>
+        );
       }
       return originChildren;
     };
