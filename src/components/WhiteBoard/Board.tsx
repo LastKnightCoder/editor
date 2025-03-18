@@ -469,7 +469,6 @@ class Board {
       }
 
       if (changed) {
-        console.log("changed", this.viewPort);
         this.snapshot = {
           children: this.children,
           selection: this.selection,

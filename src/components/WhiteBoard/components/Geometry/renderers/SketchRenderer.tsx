@@ -22,7 +22,6 @@ const SketchRenderer: React.FC<GeometryRendererProps> = ({
 
   // 从元素属性中获取草图风格设置
   const sketchEnabled = element.sketchEnabled || false;
-  const roughness = element.roughness || 1;
 
   useEffect(() => {
     // 如果草图风格未启用或SVG元素未创建，则不执行任何操作
@@ -47,7 +46,6 @@ const SketchRenderer: React.FC<GeometryRendererProps> = ({
       stroke,
       strokeWidth,
       strokeOpacity,
-      roughness,
       roughSvg,
       svgRef,
     });
@@ -63,7 +61,6 @@ const SketchRenderer: React.FC<GeometryRendererProps> = ({
     fill,
     stroke,
     strokeWidth,
-    roughness,
     fillOpacity,
     strokeOpacity,
     sketchEnabled,
@@ -80,7 +77,6 @@ const SketchRenderer: React.FC<GeometryRendererProps> = ({
       ref={svgRef}
       width={width}
       height={height}
-      opacity={fillOpacity}
       style={{ overflow: "visible" }} // 确保草图效果不会被裁剪
     />
   );
