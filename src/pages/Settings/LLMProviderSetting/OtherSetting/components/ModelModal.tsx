@@ -1,4 +1,4 @@
-import { Flex, Input, Modal } from "antd";
+import { Flex, Input, Modal, Select } from "antd";
 import { useEffect, useState } from "react";
 import { ModelFormData, ModelItem } from "../types";
 
@@ -12,6 +12,12 @@ interface ModelModalProps {
   action?: "create" | "edit";
 }
 
+const featureOptions = [
+  { label: "联网", value: "online" },
+  { label: "思考", value: "thinking" },
+  { label: "多模态", value: "multimodal" },
+];
+
 const ModelModal = ({
   open,
   onFinish,
@@ -21,27 +27,46 @@ const ModelModal = ({
 }: ModelModalProps) => {
   const [modelName, setModelName] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
 
   useEffect(() => {
     if (initialData && open) {
       setModelName(initialData.name);
       setDescription(initialData.description);
+      const initialFeatures = Object.entries(
+        initialData.features || {
+          online: false,
+          thinking: false,
+          multimodal: false,
+        },
+      )
+        .filter(([_, value]) => value)
+        .map(([key]) => key);
+      setSelectedFeatures(initialFeatures);
     }
   }, [initialData, open]);
 
   const handleFinish = () => {
+    const features = {
+      online: selectedFeatures.includes("online"),
+      thinking: selectedFeatures.includes("thinking"),
+      multimodal: selectedFeatures.includes("multimodal"),
+    };
     onFinish({
       name: modelName,
       description,
+      features,
     });
     setModelName("");
     setDescription("");
+    setSelectedFeatures([]);
   };
 
   const handleCancel = () => {
     onCancel();
     setModelName("");
     setDescription("");
+    setSelectedFeatures([]);
   };
 
   const isEdit = action === "edit";
@@ -71,6 +96,18 @@ const ModelModal = ({
           <Input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+          />
+        </Flex>
+        <Flex gap={12} align={"center"}>
+          <div style={{ flex: "none", width: MODAL_ITEM_WIDTH }}>
+            支持的特性：
+          </div>
+          <Select
+            mode="multiple"
+            style={{ width: "100%" }}
+            options={featureOptions}
+            value={selectedFeatures}
+            onChange={setSelectedFeatures}
           />
         </Flex>
       </Flex>

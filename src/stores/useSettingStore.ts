@@ -128,6 +128,11 @@ export interface ISetting {
         models: Array<{
           name: string;
           description: string;
+          features: {
+            online: boolean;
+            thinking: boolean;
+            multimodal: boolean;
+          };
         }>;
       }>;
     };
@@ -142,6 +147,11 @@ export interface ISetting {
         models: Array<{
           name: string;
           description: string;
+          features: {
+            online: boolean;
+            thinking: boolean;
+            multimodal: boolean;
+          };
         }>;
       }>;
     };

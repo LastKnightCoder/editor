@@ -10,6 +10,11 @@ export interface ConfigItem {
 export interface ModelItem {
   name: string;
   description: string;
+  features: {
+    online: boolean;
+    thinking: boolean;
+    multimodal: boolean;
+  };
 }
 
 export interface ConfigFormData {
@@ -22,4 +27,9 @@ export interface ConfigFormData {
 export interface ModelFormData {
   name: string;
   description: string;
+  features: {
+    online: boolean;
+    thinking: boolean;
+    multimodal: boolean;
+  };
 }

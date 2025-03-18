@@ -114,6 +114,7 @@ const OtherSetting = () => {
             currentConfig.models.push({
               name: data.name,
               description: data.description,
+              features: data.features,
             });
           } else {
             // Edit existing model
@@ -124,6 +125,7 @@ const OtherSetting = () => {
               currentConfig.models[modelIndex] = {
                 name: data.name,
                 description: data.description,
+                features: data.features,
               };
 
               // Update currentModel if the name changed and it was the active model

@@ -12,6 +12,71 @@
   overflow: hidden;
   z-index: 1000;
   user-select: none;
+
+  /* 修复List组件相关样式 */
+  :global(.ant-list) {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 8px;
+  }
+
+  :global(.ant-list-item) {
+    padding: 0;
+    margin-bottom: 8px;
+    border: none;
+  }
+
+  :global(.ant-list-item-action) {
+    margin-left: 8px;
+  }
+
+  :global(.ant-list-empty-text) {
+    padding: 16px 0;
+    color: #999;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  /* 修复按钮组样式 */
+  :global(.ant-space) {
+    flex-wrap: wrap;
+  }
+
+  :global(.ant-space-item) {
+    margin-bottom: 8px;
+  }
+
+  :global(.ant-btn) {
+    border-radius: 8px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    &:active {
+      transform: translateY(0);
+      box-shadow: none;
+    }
+  }
+
+  :global(.ant-btn-primary) {
+    background-color: #1890ff;
+
+    &:hover {
+      background-color: #40a9ff;
+    }
+  }
+
+  /* 确保弹窗内容正确显示 */
+  :global(.ant-modal-wrap) {
+    z-index: 1100;
+  }
+
+  :global(.ant-modal-mask) {
+    z-index: 1050;
+  }
 }
 
 .header {
@@ -226,69 +291,4 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* 修复List组件相关样式 */
-:global(.ant-list) {
-  max-height: 300px;
-  overflow-y: auto;
-  margin-bottom: 8px;
-}
-
-:global(.ant-list-item) {
-  padding: 0;
-  margin-bottom: 8px;
-  border: none;
-}
-
-:global(.ant-list-item-action) {
-  margin-left: 8px;
-}
-
-:global(.ant-list-empty-text) {
-  padding: 16px 0;
-  color: #999;
-  font-size: 13px;
-  text-align: center;
-}
-
-/* 修复按钮组样式 */
-:global(.ant-space) {
-  flex-wrap: wrap;
-}
-
-:global(.ant-space-item) {
-  margin-bottom: 8px;
-}
-
-:global(.ant-btn) {
-  border-radius: 8px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  &:active {
-    transform: translateY(0);
-    box-shadow: none;
-  }
-}
-
-:global(.ant-btn-primary) {
-  background-color: #1890ff;
-
-  &:hover {
-    background-color: #40a9ff;
-  }
-}
-
-/* 确保弹窗内容正确显示 */
-:global(.ant-modal-wrap) {
-  z-index: 1100;
-}
-
-:global(.ant-modal-mask) {
-  z-index: 1050;
 }
