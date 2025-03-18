@@ -1,4 +1,5 @@
 import { ISketchRenderer, SketchRendererProps } from "./ISketchRenderer";
+import type { Options } from "roughjs/bin/core";
 
 /**
  * 基础草图渲染器抽象类
@@ -45,20 +46,38 @@ export abstract class BaseSketchRenderer implements ISketchRenderer {
    * 获取Rough.js渲染选项
    * @param props 渲染参数
    */
-  protected getRoughOptions(props: SketchRendererProps) {
-    const { fill, stroke, strokeWidth, roughness, fillOpacity } = props;
+  protected getRoughOptions(props: SketchRendererProps): Options {
+    const { element, fill, stroke, strokeWidth } = props;
+    const sketchOptions = element.sketchOptions || {};
 
-    // 确保填充颜色正确设置，如果有填充颜色但没有指定不透明度，则使用默认值
+    // 确保填充颜色正确设置
     const hasFill = fill && fill !== "none";
 
-    return {
-      fill: hasFill ? fill : "none",
-      fillStyle: hasFill ? "solid" : "none",
-      fillWeight: hasFill ? 0.5 : 0,
+    const options: Options = {
       stroke: stroke || "#000",
       strokeWidth: strokeWidth || 1,
-      roughness: roughness || 1,
-      opacity: fillOpacity,
+      roughness: sketchOptions.roughness || 1,
+      seed: sketchOptions.seed,
+
+      // 填充相关配置
+      fill: hasFill ? fill : undefined,
+      fillStyle: sketchOptions.fillStyle || "hachure",
+
+      // 填充样式相关参数
+      hachureAngle: sketchOptions.hachureAngle || 0,
+      hachureGap: sketchOptions.hachureGap || 8,
+      fillWeight: sketchOptions.fillWeight || 1,
+      dashOffset: sketchOptions.dashOffset || 4,
+      dashGap: sketchOptions.dashGap || 4,
+      zigzagOffset: sketchOptions.zigzagOffset || 4,
     };
+
+    // 如果没有填充色，则禁用填充
+    if (!hasFill) {
+      options.fillStyle = "none";
+      options.fill = undefined;
+    }
+
+    return options;
   }
 }

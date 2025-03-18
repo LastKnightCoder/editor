@@ -13,7 +13,24 @@ export interface GeometryElement extends CommonElement {
   strokeWidth?: number;
   strokeOpacity?: number;
   sketchEnabled?: boolean;
-  roughness?: number;
+  sketchOptions?: {
+    seed?: number;
+    roughness?: number;
+    fillStyle?:
+      | "hachure"
+      | "solid"
+      | "zigzag"
+      | "cross-hatch"
+      | "dots"
+      | "dashed"
+      | "zigzag-line";
+    fillWeight?: number;
+    hachureAngle?: number;
+    hachureGap?: number;
+    dashOffset?: number;
+    dashGap?: number;
+    zigzagOffset?: number;
+  };
   paths: string[];
   extraInfo?: Record<string, any>;
   text: {
