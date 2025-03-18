@@ -86,6 +86,24 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
       },
     },
     {
+      title: "支持的特性",
+      key: "features",
+      render: (_text, record) => {
+        const features = record.features || {
+          online: false,
+          thinking: false,
+          multimodal: false,
+        };
+        const featureTags = [];
+        if (features.online) featureTags.push(<Tag color="blue">联网</Tag>);
+        if (features.thinking) featureTags.push(<Tag color="purple">思考</Tag>);
+        if (features.multimodal)
+          featureTags.push(<Tag color="orange">多模态</Tag>);
+        if (featureTags.length === 0) featureTags.push(<Tag>-</Tag>);
+        return <>{featureTags}</>;
+      },
+    },
+    {
       title: "操作",
       key: "action",
       render: (_text, record) => (

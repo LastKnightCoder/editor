@@ -19,30 +19,65 @@ const OPENAI_MODELS = [
   {
     name: "gpt-3.5-turbo",
     description: "gpt-3.5-turbo",
+    features: {
+      online: false,
+      thinking: false,
+      multimodal: false,
+    },
   },
   {
     name: "gpt-4",
     description: "gpt-4",
+    features: {
+      online: false,
+      thinking: false,
+      multimodal: false,
+    },
   },
   {
     name: "gpt-4-turbo",
     description: "gpt-4-turbo",
+    features: {
+      online: false,
+      thinking: false,
+      multimodal: false,
+    },
   },
   {
     name: "gpt-4o",
     description: "gpt-4o",
+    features: {
+      online: false,
+      thinking: false,
+      multimodal: true,
+    },
   },
   {
     name: "gpt-4o-mini",
     description: "gpt-4o-mini",
+    features: {
+      online: false,
+      thinking: false,
+      multimodal: false,
+    },
   },
   {
     name: "gpt-o1-preview",
     description: "gpt-o1-preview",
+    features: {
+      online: false,
+      thinking: true,
+      multimodal: false,
+    },
   },
   {
     name: "gpt-o1-mini",
     description: "gpt-o1-mini",
+    features: {
+      online: false,
+      thinking: true,
+      multimodal: false,
+    },
   },
 ];
 
@@ -164,22 +199,19 @@ const OpenAISetting = () => {
       dataIndex: "name",
       key: "name",
       ellipsis: true,
-      width: 120,
     },
     {
       title: "API Key",
       dataIndex: "apiKey",
       key: "apiKey",
       ellipsis: true,
-      render: (_text, _record) => <div>********</div>,
-      width: 120,
+      render: () => <div>********</div>,
     },
     {
       title: "Base URL",
       dataIndex: "baseUrl",
       key: "baseUrl",
       ellipsis: true,
-      width: 120,
     },
     {
       title: "状态",
@@ -191,7 +223,6 @@ const OpenAISetting = () => {
           </Tag>
         );
       },
-      width: 80,
     },
     {
       title: "操作",
@@ -243,16 +274,34 @@ const OpenAISetting = () => {
     );
   };
 
-  const modelColumns: TableColumnsType<(typeof configs)[0]["models"][0]> = [
+  const modelColumns: TableColumnsType<any> = [
     {
-      title: "名称",
+      title: "模型名称",
       dataIndex: "name",
       key: "name",
     },
     {
-      title: "描述",
+      title: "模型描述",
       dataIndex: "description",
       key: "description",
+    },
+    {
+      title: "支持的特性",
+      key: "features",
+      render: (_text, record) => {
+        const features = record.features || {
+          online: false,
+          thinking: false,
+          multimodal: false,
+        };
+        const featureTags = [];
+        if (features.online) featureTags.push(<Tag color="blue">联网</Tag>);
+        if (features.thinking) featureTags.push(<Tag color="purple">思考</Tag>);
+        if (features.multimodal)
+          featureTags.push(<Tag color="orange">多模态</Tag>);
+        if (featureTags.length === 0) featureTags.push(<Tag>-</Tag>);
+        return <>{featureTags}</>;
+      },
     },
     {
       title: "状态",
