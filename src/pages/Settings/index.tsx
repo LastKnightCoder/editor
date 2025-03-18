@@ -1,8 +1,4 @@
 import { Tabs, TabsProps } from "antd";
-import { useEffect } from "react";
-
-import useSettingStore from "@/stores/useSettingStore.ts";
-import { saveSetting } from "@/commands";
 
 import AppAbout from "./AppAbout";
 import FontSetting from "./FontSetting";
@@ -15,16 +11,6 @@ import LLMProviderSetting from "./LLMProviderSetting";
 import styles from "./index.module.less";
 
 const SettingsPage = () => {
-  const { setting, inited } = useSettingStore((state) => ({
-    setting: state.setting,
-    inited: state.inited,
-  }));
-
-  useEffect(() => {
-    if (!inited) return;
-    saveSetting(JSON.stringify(setting, null, 2)).then();
-  }, [inited, setting]);
-
   const items: TabsProps["items"] = [
     {
       key: "app",
