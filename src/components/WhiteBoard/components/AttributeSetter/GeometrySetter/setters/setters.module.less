@@ -17,6 +17,7 @@
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
+  color: #999;
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.06);
@@ -47,19 +48,191 @@
   padding: 8px;
 }
 
-.sketchOptions {
+.modernSketchOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  color: #2c3e50;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  .title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e50;
+  }
+}
+
+.previewSection {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 140px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.previewContainer {
+  canvas {
+    border-radius: 4px;
+    background: white;
+  }
+}
+
+.controls {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.optionItem {
+.controlGroup {
   display: flex;
   flex-direction: column;
   gap: 8px;
 
-  span {
+  .controlLabel {
     font-size: 12px;
-    color: rgba(0, 0, 0, 0.65);
+    color: #64748b;
+    font-weight: 500;
   }
+}
+
+// 自定义 antd 组件样式
+:global {
+  .ant-slider {
+    margin: 8px 0;
+  }
+
+  .ant-select {
+    .ant-select-selector {
+      background: #f8f9fa;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 6px;
+      transition: all 0.2s;
+
+      &:hover {
+        border-color: #4a90e2;
+      }
+    }
+  }
+
+  .ant-switch {
+    background: #e2e8f0;
+
+    &.ant-switch-checked {
+      background: #4a90e2;
+    }
+  }
+}
+
+.styleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.styleOption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  &.selected {
+    background-color: rgba(134, 168, 231, 0.15);
+    border: 1px solid rgba(134, 168, 231, 0.3);
+  }
+
+  canvas {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    background: white;
+  }
+
+  .styleLabel {
+    font-size: 12px;
+    color: #2c3e50;
+    text-align: center;
+  }
+}
+
+.modernSlider {
+  position: relative;
+  width: 100%;
+  height: 32px;
+  padding: 14px 0;
+  cursor: pointer;
+
+  .sliderTrack {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    transform: translateY(-50%);
+  }
+
+  .sliderFill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(to right, #7f7fd5, #86a8e7, #91eae4);
+    border-radius: 2px;
+  }
+
+  .sliderHandle {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border: 2px solid #86a8e7;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition:
+      transform 0.1s ease,
+      box-shadow 0.1s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+
+    &:hover {
+      transform: translate(-50%, -50%) scale(1.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+  }
+
+  &.dragging {
+    .sliderHandle {
+      transform: translate(-50%, -50%) scale(1.15);
+      box-shadow: 0 4px 12px rgba(134, 168, 231, 0.4);
+      border-color: #7f7fd5;
+    }
+  }
+}
+
+// Remove unused styles
+.previewSection,
+.previewContainer {
+  display: none;
 }

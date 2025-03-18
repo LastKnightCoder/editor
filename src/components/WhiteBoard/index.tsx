@@ -199,25 +199,27 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   });
 
   // 添加一个新方法，用于处理选中元素或所有元素的全览
-  const handleFitElements = useMemoizedFn((e: any) => {
-    // 阻止事件冒泡和默认行为
-    e.stopPropagation();
-    e.preventDefault();
+  const handleFitElements = useMemoizedFn(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      // 阻止事件冒泡和默认行为
+      e.stopPropagation();
+      e.preventDefault();
 
-    // 获取当前选中的元素
-    const selectedElements = selection.selectedElements;
+      // 获取当前选中的元素
+      const selectedElements = selection.selectedElements;
 
-    // 确保我们使用的是当前的选中元素
-    if (selectedElements && selectedElements.length > 0) {
-      // 如果有选中的元素，则全览选中的元素
-      ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, [
-        ...selectedElements,
-      ]);
-    } else {
-      // 否则全览所有元素
-      ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
-    }
-  });
+      // 确保我们使用的是当前的选中元素
+      if (selectedElements && selectedElements.length > 0) {
+        // 如果有选中的元素，则全览选中的元素
+        ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, [
+          ...selectedElements,
+        ]);
+      } else {
+        // 否则全览所有元素
+        ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
+      }
+    },
+  );
 
   const handleMouseDown = eventHandlerGenerator("onMouseDown");
   const handleMouseMove = eventHandlerGenerator("onMouseMove");

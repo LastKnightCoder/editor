@@ -7,9 +7,9 @@ import {
   FullscreenOutlined,
   CloseOutlined,
 } from "@ant-design/icons";
-import { useBoard } from "../hooks/useBoard";
-import styles from "./PresentationMode.module.less";
-import usePresentationState from "../hooks/usePresentationState";
+import { useBoard } from "../../hooks/useBoard";
+import styles from "./index.module.less";
+import usePresentationState from "../../hooks/usePresentationState";
 
 const PresentationMode: React.FC = () => {
   const [showTip, setShowTip] = useState(true);

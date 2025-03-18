@@ -20,12 +20,12 @@ import {
   LeftOutlined,
   RightOutlined,
 } from "@ant-design/icons";
-import type { PresentationFrame } from "../utils/PresentationManager";
-import styles from "./PresentationCreator.module.less";
-import usePresentationState from "../hooks/usePresentationState";
-import { useBoard } from "../hooks";
-import { ViewPort } from "../types";
-import { ViewPortTransforms } from "../transforms/ViewPortTransforms";
+import type { PresentationFrame } from "../../utils/PresentationManager";
+import styles from "./index.module.less";
+import usePresentationState from "../../hooks/usePresentationState";
+import { useBoard } from "../../hooks";
+import { ViewPort } from "../../types";
+import { ViewPortTransforms } from "../../transforms/ViewPortTransforms";
 
 const PresentationCreator: React.FC = () => {
   const board = useBoard();
