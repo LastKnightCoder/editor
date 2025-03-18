@@ -62,6 +62,8 @@ import "codemirror/addon/edit/closebrackets.js";
 import "codemirror/lib/codemirror.css";
 import "codemirror/theme/blackboard.css";
 import { IConfigItem } from "@/components/Editor/types";
+import styles from "./index.module.less";
+import classnames from "classnames";
 
 interface IEditorContext {
   uploadImage?: (file: File) => Promise<string | null>;
@@ -309,7 +311,11 @@ const Index = memo(
           onChange={handleOnChange}
         >
           <Editable
-            className={props.className}
+            className={classnames(
+              styles.editor,
+              { [styles.dark]: theme === "dark" },
+              props.className,
+            )}
             style={props.style}
             readOnly={readonly}
             renderElement={renderElement}

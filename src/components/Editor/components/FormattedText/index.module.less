@@ -1,22 +1,30 @@
 .bold {
   font-weight: bold;
 }
+
 .italic {
   font-style: italic;
 }
+
 .underline {
   text-decoration: underline;
 }
+
 .strikethrough {
   text-decoration: line-through;
 }
+
 .code {
-  color: var(--code-normal, #fbde2d);
-  background-color: var(--code-bg, transparent);
-  padding: 4px;
+  color: #18045f;
+  padding: 0.25em;
   font-size: 0.9em;
   font-family: var(--mono-font, "monospace");
+
+  &.dark {
+    color: #fbde2d;
+  }
 }
+
 .padding {
   padding-left: 0.1px;
 }

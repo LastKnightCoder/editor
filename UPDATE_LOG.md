@@ -483,5 +483,6 @@
 - feat: 优化任务列表的各种操作，已经完全可用
 - feat: 无序列表和有序列表支持参考线
 - feat: 向量知识库支持卡片、文章、项目和知识库所有的文档索引管理，同时支持全文索引和向量索引
+- feat: 支持白板演示
 - chore: 为项目添加 eslint，husky，lint-staged,prettier, commit-lint 等工程能力
 - fix: 项目文档列表和知识库文档列表滚动问题修复
