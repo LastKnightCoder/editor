@@ -101,6 +101,67 @@
     z-index: 3;
     animation: fadeIn 0.3s ease-in-out;
   }
+
+  /* 回到顶部按钮 */
+  .backToTopButton {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background-color: rgba(0, 0, 0, 0.3);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 10;
+    transition:
+      background-color 0.3s,
+      transform 0.3s;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.5);
+      transform: scale(1.1);
+    }
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  /* 关闭按钮 */
+  .closeIcon {
+    position: fixed;
+    top: 20px;
+    right: 30px;
+    width: 40px;
+    height: 40px;
+    background-color: rgba(0, 0, 0, 0.3);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 10;
+    animation: fadeIn 0.3s ease-in-out;
+    transition:
+      background-color 0.3s,
+      transform 0.3s;
+
+    &:hover {
+      transform: scale(1.1);
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
 }
 
 @keyframes fadeIn {
@@ -122,5 +183,19 @@
 
   to {
     opacity: 0;
+  }
+}
+
+/* 修复关闭按钮和回到顶部按钮的动画 */
+.closeIcon,
+.backToTopButton {
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 }
