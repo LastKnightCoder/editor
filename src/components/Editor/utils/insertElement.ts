@@ -220,7 +220,7 @@ export const insertNumberedList = (editor: Editor) => {
 };
 
 export const insertCheckList = (editor: Editor) => {
-  return setOrInsertNode(editor, {
+  const path = setOrInsertNode(editor, {
     type: "check-list",
     children: [
       {
@@ -240,6 +240,13 @@ export const insertCheckList = (editor: Editor) => {
       },
     ],
   });
+  if (!path) return;
+  Transforms.select(editor, {
+    anchor: Editor.start(editor, path),
+    focus: Editor.start(editor, path),
+  });
+
+  return path;
 };
 
 export const insertBlockMath = (editor: Editor) => {
