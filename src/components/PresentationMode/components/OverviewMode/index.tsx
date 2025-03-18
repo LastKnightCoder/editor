@@ -1,7 +1,7 @@
 import { Descendant } from "slate";
 import Editor from "@/components/Editor";
 import styles from "./index.module.less";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import useGridLayout from "@/hooks/useGridLayout";
 
 // 全览模式组件
