@@ -39,7 +39,7 @@ const ListItem = (props: IListItemProps) => {
       if (listItemRef.current) {
         listItemRef.current.style.setProperty(
           "--first-line-height",
-          `${lineHeight * 1.5}px`,
+          `${lineHeight}px`,
         );
       }
     }
