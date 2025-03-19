@@ -11,7 +11,8 @@ import { Editor, EditorChange } from "codemirror";
 import { message } from "antd";
 import { UnControlled as CodeEditor } from "react-codemirror2";
 import isHotkey from "is-hotkey";
-
+import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
+import SVG from "react-inlinesvg";
 import { CodeBlockElement } from "@/components/Editor/types";
 import AddParagraph, {
   AddParagraphRef,
@@ -27,6 +28,8 @@ import { LANGUAGES } from "./config";
 import { codeBlockMap } from "../../index";
 
 import styles from "./index.module.less";
+import PortalToBody from "@/components/PortalToBody";
+import { useMemoizedFn } from "ahooks";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -61,12 +64,15 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   const { onChange, children, element, onDidMount, onWillUnmount, attributes } =
     props;
   const { code: defaultCode, language, uuid } = element;
-  const [code] = useState(defaultCode);
+  const [code, setCode] = useState(defaultCode);
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
   const slateEditor = useSlate();
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
   const addParagraphRef = useRef<AddParagraphRef>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const editorRef = useRef<Editor | null>(null);
+  const fullscreenEditorRef = useRef<Editor | null>(null);
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -85,17 +91,15 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     setLangConfig(languageConfig);
   }, [language]);
 
-  const handleOnChange = (
-    _editor: Editor,
-    _change: EditorChange,
-    code: string,
-  ) => {
-    const path = ReactEditor.findPath(slateEditor, element);
-    Transforms.setNodes(slateEditor, { code }, { at: path });
-    onChange && onChange(code);
-  };
+  const handleOnChange = useMemoizedFn(
+    (_editor: Editor, _change: EditorChange, code: string) => {
+      const path = ReactEditor.findPath(slateEditor, element);
+      Transforms.setNodes(slateEditor, { code }, { at: path });
+      onChange && onChange(code);
+    },
+  );
 
-  const handleCopyCode = async () => {
+  const handleCopyCode = useMemoizedFn(async () => {
     const editor = codeBlockMap.get(uuid);
     if (navigator.clipboard && editor) {
       const code = editor.getValue();
@@ -104,15 +108,101 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     } else {
       await message.error("复制代码失败");
     }
-  };
+  });
 
-  const handleOnLanguageChange = (value: string) => {
+  const toggleFullscreen = useMemoizedFn(() => {
+    if (!isFullscreen) {
+      const code = editorRef.current?.getValue() || "";
+      setCode(code);
+      setTimeout(() => {
+        if (fullscreenEditorRef.current) {
+          fullscreenEditorRef.current.setValue(code);
+          fullscreenEditorRef.current.refresh();
+          fullscreenEditorRef.current.focus();
+          // 去最后一行最后一列
+          const doc = fullscreenEditorRef.current.getDoc();
+          const lastLine = doc.lineCount() - 1;
+          const lastLineLength = doc.getLine(lastLine).length;
+          doc.setCursor({ line: lastLine, ch: lastLineLength });
+        }
+      }, 50);
+    } else {
+      const code = fullscreenEditorRef.current?.getValue() || "";
+      setCode(code);
+      if (editorRef.current) {
+        editorRef.current.setValue(code);
+        editorRef.current.refresh();
+        editorRef.current.focus();
+        // 去最后一行最后一列
+        const doc = editorRef.current.getDoc();
+        const lastLine = doc.lineCount() - 1;
+        const lastLineLength = doc.getLine(lastLine).length;
+        doc.setCursor({ line: lastLine, ch: lastLineLength });
+      }
+    }
+    setIsFullscreen(!isFullscreen);
+  });
+
+  const handleOnLanguageChange = useMemoizedFn((value: string) => {
     Transforms.setNodes(
       slateEditor,
       { language: value },
       { at: ReactEditor.findPath(slateEditor, element) },
     );
-  };
+  });
+
+  const handleOnKeyDown = useMemoizedFn(
+    (editor: Editor, event: KeyboardEvent) => {
+      if (isHotkey(["delete", "backspace"], event)) {
+        if (editor.getValue() === "") {
+          event.preventDefault();
+          const path = ReactEditor.findPath(slateEditor, element);
+          SlateEditor.withoutNormalizing(slateEditor, () => {
+            Transforms.delete(slateEditor, { at: path });
+            Transforms.insertNodes(
+              slateEditor,
+              {
+                type: "paragraph",
+                children: [
+                  {
+                    type: "formatted",
+                    text: "",
+                  },
+                ],
+              },
+              {
+                at: path,
+                select: true,
+              },
+            );
+          });
+          codeBlockMap.delete(uuid);
+        }
+      }
+      if (isHotkey("enter", event) && !isFullscreen) {
+        // 所在最后一行，且最后一行为空行，删除最后一行，并且聚焦到下一行
+        const cursor = editor.getCursor();
+        const line = editor.getLine(cursor.line);
+        const lineCount = editor.lineCount();
+        if (cursor.line === lineCount - 1 && line === "") {
+          event.preventDefault();
+          // 只处理超过一行的情况
+          if (lineCount !== 1) {
+            const doc = editor.getDoc();
+            const previousLine = cursor.line - 1;
+            const previousLineLength = doc.getLine(previousLine).length;
+            const from = { line: previousLine, ch: previousLineLength };
+            const to = { line: cursor.line, ch: cursor.ch };
+            doc.replaceRange("", from, to);
+            doc.setCursor({ line: previousLine, ch: previousLineLength });
+            if (addParagraphRef.current) {
+              addParagraphRef.current.addParagraph();
+            }
+          }
+        }
+      }
+    },
+  );
 
   return (
     <div
@@ -140,14 +230,15 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
       >
         {children}
       </div>
-      {/*<div className={styles.windowsControl} />*/}
-      <div
-        style={{
-          background: `url(${copyIcon}) no-repeat center center / 60% 60%`,
-        }}
-        className={styles.copyButton}
-        onClick={handleCopyCode}
-      />
+      <div className={styles.btnGroup}>
+        <div className={styles.fullscreenButton} onClick={toggleFullscreen}>
+          <MdFullscreen size={16} />
+        </div>
+        <div className={styles.divider} />
+        <div className={styles.copyButton} onClick={handleCopyCode}>
+          <SVG src={copyIcon} className={styles.copyIcon} />
+        </div>
+      </div>
       <SelectLanguage
         readonly={readOnly}
         className={styles.languageSelect}
@@ -181,6 +272,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
         className={styles.CodeMirrorContainer}
         onChange={handleOnChange}
         editorDidMount={(editor) => {
+          editorRef.current = editor;
           onDidMount && onDidMount(editor);
           // 添加聚焦事件监听
           editor.on("focus", () => {
@@ -194,68 +286,85 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
         }}
         editorWillUnmount={(editor) => {
           onWillUnmount && onWillUnmount(editor);
+          editorRef.current = null;
         }}
-        onKeyDown={(editor, event) => {
-          if (isHotkey(["delete", "backspace"], event)) {
-            if (editor.getValue() === "") {
-              event.preventDefault();
-              const path = ReactEditor.findPath(slateEditor, element);
-              SlateEditor.withoutNormalizing(slateEditor, () => {
-                Transforms.delete(slateEditor, { at: path });
-                Transforms.insertNodes(
-                  slateEditor,
-                  {
-                    type: "paragraph",
-                    children: [
-                      {
-                        type: "formatted",
-                        text: "",
-                      },
-                    ],
-                  },
-                  {
-                    at: path,
-                    select: true,
-                  },
-                );
-              });
-              codeBlockMap.delete(uuid);
-            }
-          }
-          if (isHotkey("enter", event)) {
-            // 所在最后一行，且最后一行为空行，删除最后一行，并且聚焦到下一行
-            const cursor = editor.getCursor();
-            const line = editor.getLine(cursor.line);
-            const lineCount = editor.lineCount();
-            if (cursor.line === lineCount - 1 && line === "") {
-              event.preventDefault();
-              // 只处理超过一行的情况
-              if (lineCount !== 1) {
-                const doc = editor.getDoc();
-                const previousLine = cursor.line - 1;
-                const previousLineLength = doc.getLine(previousLine).length;
-                const from = { line: previousLine, ch: previousLineLength };
-                const to = { line: cursor.line, ch: cursor.ch };
-                doc.replaceRange("", from, to);
-                doc.setCursor({ line: previousLine, ch: previousLineLength });
-                if (addParagraphRef.current) {
-                  addParagraphRef.current.addParagraph();
-                }
-              }
-            }
-          }
-        }}
+        onKeyDown={handleOnKeyDown}
       />
       <AddParagraph element={element} ref={addParagraphRef} />
       <div
-        contentEditable={false}
-        ref={drag}
         className={classnames(styles.dragHandler, {
           [styles.canDrag]: canDrag,
         })}
+        contentEditable={false}
+        ref={drag}
       >
         <MdDragIndicator className={styles.icon} />
       </div>
+      {isFullscreen && (
+        <PortalToBody>
+          <div
+            className={classnames(styles.fullscreenOverlay, {
+              [styles.darkOverlay]: isDark,
+            })}
+            onClick={() => setIsFullscreen(false)}
+          >
+            <div
+              className={classnames(styles.fullscreenContent, {
+                [styles.dark]: isDark,
+              })}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.fullscreenHeader}>
+                <SelectLanguage
+                  readonly={readOnly}
+                  className={styles.fullscreenLanguageSelect}
+                  value={language}
+                  onChange={handleOnLanguageChange}
+                />
+                <div className={styles.closeButton} onClick={toggleFullscreen}>
+                  <MdFullscreenExit size={20} />
+                </div>
+              </div>
+              <CodeEditor
+                value={code || ""}
+                autoCursor
+                autoScroll
+                options={{
+                  inputStyle: "textarea",
+                  mode: langConfig?.mime || langConfig?.mode || "text/plain",
+                  theme: isDark ? "blackboard" : "one-light",
+                  scrollbarStyle: "null",
+                  viewportMargin: Infinity,
+                  lineWrapping: false,
+                  smartIndent: true,
+                  extraKeys: {
+                    "Shift-Tab": "indentLess",
+                  },
+                  readOnly,
+                  indentUnit: 2,
+                  tabSize: 2,
+                  cursorHeight: 1,
+                  autoCloseBrackets: true,
+                  tabindex: -1,
+                }}
+                className={styles.fullscreenCodeMirror}
+                onChange={handleOnChange}
+                onKeyDown={handleOnKeyDown}
+                editorDidMount={(editor) => {
+                  fullscreenEditorRef.current = editor;
+                  setTimeout(() => {
+                    editor.refresh();
+                    editor.focus();
+                  }, 50);
+                }}
+                editorWillUnmount={() => {
+                  fullscreenEditorRef.current = null;
+                }}
+              />
+            </div>
+          </div>
+        </PortalToBody>
+      )}
     </div>
   );
 };

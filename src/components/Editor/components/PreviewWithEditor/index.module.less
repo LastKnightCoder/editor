@@ -1,22 +1,29 @@
 .dropContainer {
   position: relative;
+
   .container {
     --code-block-bg-color: rgba(246, 248, 250, 0.6);
     --code-block-shadow: 0 1px 2px 0 #0000001a;
+    --overlay-bg-color: rgba(255, 255, 255, 0.7);
+    --overlay-blur: 10px;
+
     &.dark {
       --code-block-bg-color: rgba(40, 42, 52);
       --code-block-shadow: 0 1px 2px 0 #0000001a;
+      --overlay-bg-color: rgba(30, 30, 30, 0.7);
     }
+
     position: relative;
 
     .editor {
       height: auto;
-      padding: 18px 12px 0;
+      padding: 1.125em 0.75em 0;
+
       :global(.CodeMirror) {
         height: auto !important;
-        padding: 18px 12px 18px 12px;
+        padding: 1.125em 0.75em 1.125em 0.75em;
         border-radius: 0;
-        font-size: calc(var(--font-size) * 0.75);
+        font-size: 0.75em;
         font-family: var(--mono-font, "'Monaco', '楷体'");
         box-shadow: var(--code-block-shadow);
         background-color: var(--code-block-bg-color);
@@ -42,22 +49,24 @@
     }
 
     .divider {
-      margin: 0 20px 20px;
+      margin: 0 1.25em 1.25em;
       background-color: #e8e8e8;
-      height: 2px;
+      height: 0.125em;
     }
 
     &.editing {
       background-color: var(--code-block-bg-color);
-      padding: 0 0 16px;
+      padding: 0 0 1.25em;
     }
 
     .preview {
-      min-height: 40px;
+      min-height: 2.5em;
       box-sizing: border-box;
+
       &.extend {
-        padding: 5px 0;
+        padding: 0.3125em 0;
       }
+
       &.center {
         display: flex;
         justify-content: center;
@@ -68,15 +77,15 @@
     .actions {
       display: none;
       position: absolute;
-      top: 10px;
-      right: 10px;
+      top: 0.625em;
+      right: 0.625em;
       background-color: rgba(38, 38, 38, 0.6);
-      border-radius: 8px;
+      border-radius: 0.5em;
       color: white;
 
       .item {
-        width: 28px;
-        height: 28px;
+        width: 1.75em;
+        height: 1.75em;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -85,8 +94,8 @@
 
       .divider {
         width: 1px;
-        height: 18px;
-        margin: 8px 4px;
+        height: 1.125em;
+        margin: 0.5em 0.25em;
         background-color: var(--line-color);
       }
     }
@@ -94,7 +103,145 @@
     &:hover .actions {
       display: flex;
     }
+
     @import "@/components/Editor/extensions/drop-common.less";
   }
+
   @import "@/components/Editor/extensions/drag-common.less";
+}
+
+.fullscreenOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--overlay-bg-color);
+  backdrop-filter: blur(var(--overlay-blur));
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  --code-block-bg-color: rgba(246, 248, 250, 0.6);
+  --code-block-shadow: 0 1px 2px 0 #0000001a;
+  --overlay-bg-color: rgba(255, 255, 255, 0.7);
+  --content-bg-color: rgba(255, 255, 255, 0.7);
+  --overlay-blur: 10px;
+  --box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
+
+  &.darkOverlay {
+    --code-block-bg-color: rgba(40, 42, 52);
+    --content-bg-color: rgba(30, 30, 30, 0.3);
+    --code-block-shadow: 0 1px 2px 0 #0000001a;
+    --overlay-bg-color: rgba(30, 30, 30, 0.7);
+    --box-shadow: 0 4px 25px rgba(255, 255, 255, 0.15);
+  }
+
+  .fullscreenContent {
+    width: 90%;
+    height: 90%;
+    box-sizing: border-box;
+    border-radius: 0.5em;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: var(--box-shadow);
+    background-color: var(--content-bg-color);
+    padding: 2.25em 1.5em;
+    backdrop-filter: blur(var(--overlay-blur));
+  }
+
+  .fullscreenEditorContainer {
+    position: relative;
+    z-index: 2;
+    padding-bottom: 1.25em;
+    margin-bottom: 1.25em;
+
+    .fullscreenEditor {
+      height: 100%;
+
+      :global(.CodeMirror) {
+        height: auto !important;
+        padding: 1.125em 0.75em 1.125em 0.75em;
+        border-radius: 0;
+        font-size: 0.75em;
+        font-family: var(--mono-font, "'Monaco', '楷体'");
+        box-shadow: var(--code-block-shadow);
+        background-color: var(--code-block-bg-color);
+      }
+
+      :global(.CodeMirror pre.CodeMirror-line),
+      :global(.CodeMirror pre.CodeMirror-line-like) {
+        padding: 0 0.75em;
+      }
+
+      :global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
+        overflow: hidden;
+      }
+
+      :global(.CodeMirror-gutters) {
+        background-color: unset;
+        border-right: none;
+      }
+
+      :global(.CodeMirror-linenumber) {
+        cursor: pointer;
+      }
+    }
+  }
+
+  .fullscreenPreview {
+    flex: 1;
+    overflow: auto;
+    position: relative;
+    z-index: 1;
+    min-height: 2.5em;
+
+    &.center {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+  }
+
+  .fullscreenControls {
+    position: absolute;
+    top: 0.625em;
+    right: 0.625em;
+    display: flex;
+    gap: 0.5em;
+    z-index: 100;
+
+    .closeButton {
+      border-radius: 0.25em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      width: 1.75em;
+      height: 1.75em;
+
+      &:hover {
+        background-color: var(--common-hover-bg-color);
+      }
+    }
+
+    .editButton {
+      border-radius: 0.25em;
+      width: 1.75em;
+      height: 1.75em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &:hover {
+        background-color: var(--common-hover-bg-color);
+      }
+    }
+  }
 }
