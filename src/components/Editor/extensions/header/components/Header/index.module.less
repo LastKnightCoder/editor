@@ -1,12 +1,51 @@
 .container {
   position: relative;
 
+  .headerContent {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+
+  .arrow {
+    position: absolute;
+    left: -1.5em;
+    top: 0;
+    cursor: pointer;
+    transition:
+      transform 0.2s ease,
+      opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5em;
+    height: 1.5em;
+    user-select: none;
+    border-radius: 50%;
+    transform-origin: center;
+    opacity: 0;
+    transform: scale(0.9);
+
+    &:hover {
+      opacity: 1;
+    }
+
+    &.show {
+      transform: scale(0.9) rotate(90deg);
+    }
+
+    &.hide {
+      transform: scale(0.9) rotate(0deg);
+    }
+  }
+
   .h1,
   .h2,
   .h3,
   .h4,
   .h5,
   .h6 {
+    position: relative;
     line-height: 1.5;
     font-weight: bold;
     margin-bottom: 32px;
@@ -15,6 +54,10 @@
     align-items: center;
     // 没有内容时宽度为 0，看不到光标
     padding-left: 0.1px;
+
+    &:hover .arrow {
+      opacity: 1;
+    }
   }
 
   .h1 {
@@ -94,19 +137,26 @@
 
   @import "@/components/Editor/extensions/drag-common.less";
 
-  .h1 + .dragHandler {
+  .h1 + .dragHandler,
+  .h2 + .dragHandler,
+  .h3 + .dragHandler,
+  .h4 + .dragHandler,
+  .h5 + .dragHandler,
+  .h6 + .dragHandler {
     top: 0.375em;
   }
 
-  .h2 + .dragHandler {
-    top: 0.375em;
-  }
+  &.collapsed {
+    margin-bottom: 0.5em;
+    position: relative;
 
-  .h3 + .dragHandler {
-    top: 0.375em;
-  }
-
-  .h4 + .dragHandler {
-    top: 0.375em;
+    .h1,
+    .h2,
+    .h3,
+    .h4,
+    .h5,
+    .h6 {
+      margin-bottom: 0;
+    }
   }
 }
