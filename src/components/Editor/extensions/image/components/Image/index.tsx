@@ -219,18 +219,20 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       contentEditable={false}
       style={{ userSelect: "none" }}
     >
-      <div {...attributes}>{children}</div>
-      {renderContent()}
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
+      <div {...attributes}>
+        {renderContent()}
+        <div
+          contentEditable={false}
+          ref={drag}
+          className={classnames(styles.dragHandler, {
+            [styles.canDrag]: canDrag,
+          })}
+        >
+          <MdDragIndicator className={styles.icon} />
+        </div>
+        {children}
+        <AddParagraph element={element} />
       </div>
-      <AddParagraph element={element} />
     </div>
   );
 };

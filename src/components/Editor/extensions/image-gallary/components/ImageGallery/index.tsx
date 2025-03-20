@@ -91,57 +91,59 @@ const ImageGallery = (props: IImageGalleryProps) => {
         [styles.after]: !isBefore,
       })}
     >
-      <If condition={images.length > 0}>
-        <div contentEditable={false}>
-          <If condition={mode === EGalleryMode.Horizontal}>
-            <HorizontalImageGallery items={images} height={height} />
-          </If>
-          <If condition={mode === EGalleryMode.Vertical}>
-            <VerticalImageGallery items={images} columnCount={columnCount} />
-          </If>
-          <If condition={mode === EGalleryMode.Inline}>
-            <SwipeImageGallery items={images} />
-          </If>
-        </div>
-      </If>
-      <If condition={images.length === 0}>
-        <div
-          contentEditable={false}
-          className={styles.emptySetting}
-          onClick={() => {
-            setSettingModalOpen(true);
-          }}
-        >
-          <div className={styles.uploadTips}>
-            <PlusOutlined className={styles.icon} />
-            <div>上传图片</div>
+      <div {...attributes}>
+        <If condition={images.length > 0}>
+          <div contentEditable={false}>
+            <If condition={mode === EGalleryMode.Horizontal}>
+              <HorizontalImageGallery items={images} height={height} />
+            </If>
+            <If condition={mode === EGalleryMode.Vertical}>
+              <VerticalImageGallery items={images} columnCount={columnCount} />
+            </If>
+            <If condition={mode === EGalleryMode.Inline}>
+              <SwipeImageGallery items={images} />
+            </If>
           </div>
-        </div>
-      </If>
-      <If condition={!readOnly}>
-        <div contentEditable={false} className={styles.actions}>
+        </If>
+        <If condition={images.length === 0}>
           <div
-            className={styles.item}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
+            contentEditable={false}
+            className={styles.emptySetting}
+            onClick={() => {
               setSettingModalOpen(true);
             }}
           >
-            <SettingOutlined />
+            <div className={styles.uploadTips}>
+              <PlusOutlined className={styles.icon} />
+              <div>上传图片</div>
+            </div>
           </div>
-        </div>
-      </If>
-      <AddParagraph element={element} />
-      <Modal
-        width={720}
-        open={settingModalOpen}
-        onCancel={onCancel}
-        onOk={onOk}
-      >
-        <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
-      </Modal>
-      <div {...attributes}>{children}</div>
+        </If>
+        <If condition={!readOnly}>
+          <div contentEditable={false} className={styles.actions}>
+            <div
+              className={styles.item}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSettingModalOpen(true);
+              }}
+            >
+              <SettingOutlined />
+            </div>
+          </div>
+        </If>
+        <AddParagraph element={element} />
+        <Modal
+          width={720}
+          open={settingModalOpen}
+          onCancel={onCancel}
+          onOk={onOk}
+        >
+          <ImageGallerySetting setting={setting} onSettingChange={setSetting} />
+        </Modal>
+        {children}
+      </div>
       <div
         contentEditable={false}
         ref={drag}

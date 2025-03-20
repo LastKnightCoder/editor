@@ -12,6 +12,7 @@ import { useClickAway, useDebounceFn, useMemoizedFn } from "ahooks";
 import { ReactEditor, useSlate, useReadOnly } from "slate-react";
 import { Transforms, Path, Element, Node } from "slate";
 import isHotkey from "is-hotkey";
+import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
 
 import useTheme from "../../hooks/useTheme";
 
@@ -25,6 +26,7 @@ import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 
 import { CustomElement } from "../../types";
 import styles from "./index.module.less";
+import PortalToBody from "@/components/PortalToBody";
 
 interface IPreviewWithEditorProps {
   mode: string;
@@ -41,8 +43,12 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
       props;
     const [editing, setEditing] = useState(false);
     const [value, setValue] = useState(initValue);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [fullscreenEditing, setFullscreenEditing] = useState(false);
     const editorRef = useRef<Editor>();
+    const fullscreenEditorRef = useRef<Editor>();
     const ref = useRef<HTMLDivElement>(null);
+    const fullscreenRef = useRef<HTMLDivElement>(null);
     const addParagraphRef = useRef<AddParagraphRef>(null);
     const slateEditor = useSlate();
     const readOnly = useReadOnly();
@@ -61,11 +67,19 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     });
 
     useClickAway(() => {
-      if (editing) {
+      if (editing && !isFullscreen) {
         setEditing(false);
         setValue(editorRef.current?.getValue() || "");
       }
     }, ref);
+
+    useClickAway(() => {
+      if (fullscreenEditing && isFullscreen) {
+        setFullscreenEditing(false);
+        console.log("useClickAway setFullscreenEditing(false)");
+        setValue(fullscreenEditorRef.current?.getValue() || "");
+      }
+    }, fullscreenRef);
 
     useEffect(() => {
       const handleFocus = (e: any) => {
@@ -161,6 +175,48 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
       setEditing(true);
     });
 
+    const toggleFullscreen = useMemoizedFn(() => {
+      if (isFullscreen) {
+        const value = fullscreenEditorRef.current?.getValue() || "";
+        setValue(value);
+        editorRef.current?.setValue(value);
+        editorRef.current?.focus();
+        if (fullscreenEditing) {
+          setFullscreenEditing(false);
+          setEditing(true);
+        } else {
+          setEditing(false);
+        }
+      } else {
+        const value = editorRef.current?.getValue() || "";
+        setValue(value);
+        fullscreenEditorRef.current?.setValue(value);
+        if (editing) {
+          setFullscreenEditing(true);
+          setEditing(false);
+          setTimeout(() => {
+            if (fullscreenEditorRef.current) {
+              fullscreenEditorRef.current.focus();
+            }
+          }, 50);
+        }
+      }
+      setIsFullscreen(!isFullscreen);
+    });
+
+    const toggleFullscreenEditing = useMemoizedFn(() => {
+      setFullscreenEditing(!fullscreenEditing);
+
+      if (!fullscreenEditing) {
+        setTimeout(() => {
+          if (fullscreenEditorRef.current) {
+            fullscreenEditorRef.current.refresh();
+            fullscreenEditorRef.current.focus();
+          }
+        }, 50);
+      }
+    });
+
     const containerClassName = classnames(styles.container, {
       [styles.editing]: editing,
       [styles.dark]: isDark,
@@ -223,6 +279,9 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
           </div>
           <If condition={!readOnly}>
             <div className={styles.actions}>
+              <div onClick={toggleFullscreen} className={styles.item}>
+                <MdFullscreen />
+              </div>
               <div onClick={editElement} className={styles.item}>
                 <EditOutlined />
               </div>
@@ -246,6 +305,97 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
         >
           <MdDragIndicator className={styles.icon} />
         </div>
+        <If condition={isFullscreen}>
+          <PortalToBody>
+            <div
+              className={classnames(styles.fullscreenOverlay, {
+                [styles.darkOverlay]: isDark,
+              })}
+              onClick={() => setIsFullscreen(false)}
+            >
+              <div
+                className={classnames(styles.fullscreenContent, {
+                  [styles.dark]: isDark,
+                })}
+                onClick={(e) => e.stopPropagation()}
+                ref={fullscreenRef}
+              >
+                <If condition={fullscreenEditing}>
+                  <div className={styles.fullscreenEditorContainer}>
+                    <CodeEditor
+                      key="fullscreen-editor"
+                      value={value || ""}
+                      autoCursor
+                      autoScroll
+                      options={{
+                        mode,
+                        theme: isDark ? "blackboard" : "one-light",
+                        lineNumbers: true,
+                        firstLineNumber: 1,
+                        scrollbarStyle: "native",
+                        viewportMargin: Infinity,
+                        lineWrapping: false,
+                        smartIndent: true,
+                        extraKeys: {
+                          "Shift-Tab": "indentLess",
+                        },
+                        readOnly,
+                        indentUnit: 2,
+                        tabSize: 2,
+                        cursorHeight: 1,
+                        autoCloseBrackets: true,
+                        tabindex: -1,
+                      }}
+                      className={styles.fullscreenEditor}
+                      onChange={handleInputChange}
+                      editorDidMount={(editor) => {
+                        fullscreenEditorRef.current = editor;
+                        setTimeout(() => {
+                          editor.refresh();
+                          editor.focus();
+                        }, 50);
+                      }}
+                      editorWillUnmount={() => {
+                        fullscreenEditorRef.current = undefined;
+                      }}
+                    />
+                    <div className={styles.divider}></div>
+                  </div>
+                </If>
+                <div
+                  className={classnames(styles.fullscreenPreview, {
+                    [styles.center]: center,
+                    [styles.extend]: extend,
+                    [styles.withEditor]: fullscreenEditing,
+                  })}
+                >
+                  <ErrorBoundary>{children}</ErrorBoundary>
+                </div>
+                <div
+                  className={styles.fullscreenControls}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div
+                    className={styles.closeButton}
+                    onClick={toggleFullscreen}
+                  >
+                    <MdFullscreenExit />
+                  </div>
+                  {!readOnly && (
+                    <div
+                      className={classnames(styles.editButton, {
+                        [styles.active]: fullscreenEditing,
+                      })}
+                      onClick={toggleFullscreenEditing}
+                    >
+                      <EditOutlined />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </PortalToBody>
+        </If>
       </div>
     );
   });
