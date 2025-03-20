@@ -5,22 +5,19 @@ import remarkMath from "remark-math";
 import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
 import { Descendant } from "slate";
-import { CustomElement, FormattedText } from "@editor/types";
-import IExtension from "@editor/extensions/types.ts";
-import { startExtensions } from "@editor/extensions";
-import {
-  cardLinkExtension,
-  fileAttachmentExtension,
-} from "@/editor-extensions";
 import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
-// import { remove } from 'unist-util-remove'
 
-const allExtensions = [
-  ...startExtensions,
-  cardLinkExtension,
-  fileAttachmentExtension,
-];
+export {
+  markdownSerializerRegistry,
+  type MarkdownSerializer,
+} from "./markdownSerializerRegistry";
+
+export {
+  getMarkdown,
+  elementToMarkdown,
+  leafToMarkdown,
+} from "./markdown-helper";
 
 const remarkHtmlProcessor = () => (tree: any) => {
   // 第一次遍历：合并连续的 HTML 节点
@@ -447,106 +444,4 @@ const normalizeEditorContent = (
     result.push(element);
   }
   return result;
-};
-
-const isBlock = (element: CustomElement): boolean => {
-  const blockTypes: string[] = [
-    "paragraph",
-    "header",
-    "callout",
-    "bulleted-list",
-    "numbered-list",
-    "list-item",
-    "code-block",
-    "image",
-    "detail",
-    "blockquote",
-    "table",
-    "table-row",
-    "table-cell",
-    "block-math",
-    "mermaid",
-    "tikz",
-    "html-block",
-    "graphviz",
-    "custom-block",
-    "divide-line",
-    "image-gallery",
-    "audio",
-    "video",
-  ];
-  return blockTypes.includes(element.type);
-};
-
-export const getMarkdown = (value: Descendant[]): string => {
-  return value
-    .map((element) => {
-      const isBlockElement = isBlock(element as CustomElement);
-      const str = elementToMarkdown(
-        element as CustomElement,
-        null,
-        allExtensions,
-      );
-      return isBlockElement ? `${str}\n\n` : str;
-    })
-    .join("")
-    .trim()
-    .concat("\n");
-};
-
-const leafToMarkdown = (leaf: FormattedText): string => {
-  const { text, code, highlight, strikethrough, bold, italic } = leaf;
-  let str = text;
-  if (code) {
-    str = `\`${str}\``;
-  }
-  if (bold) {
-    str = `**${str}**`;
-  }
-  if (italic) {
-    str = `*${str}*`;
-  }
-  if (strikethrough) {
-    str = `~~${str}~~`;
-  }
-  if (highlight) {
-    str = `==${str}==`;
-  }
-
-  return str;
-};
-
-const elementToMarkdown = (
-  element: CustomElement,
-  parentElement: CustomElement | null,
-  extensions: IExtension[],
-): string => {
-  const { type, children } = element;
-  const childrenStr = children
-    .map((node, index) => {
-      if (node.type === "formatted") {
-        return leafToMarkdown(node);
-      } else {
-        const isLast = index === children.length - 1;
-        // list-item 里面都是块级元素，会自己进行换行
-        const isListItem = node.type === "list-item";
-        let tail = "";
-        if (isBlock(node)) {
-          if (isLast || isListItem) {
-            tail = "\n";
-          } else {
-            tail = "\n\n";
-          }
-        }
-        return elementToMarkdown(node, element, extensions) + tail;
-      }
-    })
-    .join("");
-
-  const extension = extensions.find((ext) => ext.type === type);
-
-  return (
-    // @ts-ignore
-    extension?.toMarkdown(element, childrenStr, parentElement) || childrenStr
-  );
 };
