@@ -1,7 +1,7 @@
 import { IDocumentItem } from "@/types";
 import { updateDocumentItem } from "@/commands";
-import { useEffect, useRef, useState } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useRef, useState } from "react";
+import { useDebounceFn, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { Descendant, Editor } from "slate";
 import { getContentLength } from "@/utils";
@@ -27,21 +27,15 @@ const useEditDoc = () => {
     return activeDocumentItem.content;
   });
   const prevDocument = useRef<IDocumentItem | null>(activeDocumentItem);
-  const documentChanged = useRef(false);
-
-  useEffect(() => {
-    if (!activeDocumentItem || !prevDocument.current) return;
-    documentChanged.current =
-      JSON.stringify(activeDocumentItem) !==
-      JSON.stringify(prevDocument.current);
-  }, [activeDocumentItem]);
 
   const saveDocument = useMemoizedFn((saveAnyway = false) => {
-    if (!activeDocumentItem || !(documentChanged.current || saveAnyway)) return;
+    const changed =
+      JSON.stringify(activeDocumentItem) !==
+      JSON.stringify(prevDocument.current);
+    if (!activeDocumentItem || !(changed || saveAnyway)) return;
     updateDocumentItem(activeDocumentItem).then((updatedDoc) => {
       useDocumentsStore.setState({ activeDocumentItem: updatedDoc });
       prevDocument.current = updatedDoc;
-      documentChanged.current = false;
     });
     if (activeDocumentItem.isCard && activeDocumentItem.cardId) {
       // 更新卡片数据，暂时拉取全部数据
@@ -66,15 +60,18 @@ const useEditDoc = () => {
     useDocumentsStore.setState({ activeDocumentItem: newDocument });
   });
 
-  const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!activeDocumentItem) return;
-    const wordsCount = getContentLength(content);
-    const newDocument = produce(activeDocumentItem, (draft) => {
-      draft.content = content;
-      draft.count = wordsCount;
-    });
-    useDocumentsStore.setState({ activeDocumentItem: newDocument });
-  });
+  const { run: onContentChange } = useDebounceFn(
+    (content: Descendant[]) => {
+      if (!activeDocumentItem) return;
+      const wordsCount = getContentLength(content);
+      const newDocument = produce(activeDocumentItem, (draft) => {
+        draft.content = content;
+        draft.count = wordsCount;
+      });
+      useDocumentsStore.setState({ activeDocumentItem: newDocument });
+    },
+    { wait: 200 },
+  );
 
   return {
     onTitleChange,
