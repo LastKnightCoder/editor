@@ -32,7 +32,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   const presentationEditorRef = useRef<EditorRef>(null);
   const presentationModeRef = useRef<HTMLDivElement>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const [showScrollbar, setShowScrollbar] = useState(false);
   const [showCloseIcon, setShowCloseIcon] = useState(false);
   const scrollbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -143,9 +142,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
       // 显示/隐藏回到顶部按钮 (当滚动超过100px时显示)
       setShowBackToTop(scrollTop > 100);
 
-      // 显示滚动条
-      setShowScrollbar(true);
-
       // 检测鼠标是否在顶部区域
       const isMouseNearTop = scrollTop < 50;
       setShowCloseIcon(isMouseNearTop);
@@ -154,11 +150,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
       if (scrollbarTimeoutRef.current) {
         clearTimeout(scrollbarTimeoutRef.current);
       }
-
-      // 设置新的定时器，滚动停止后1.5秒隐藏滚动条
-      scrollbarTimeoutRef.current = setTimeout(() => {
-        setShowScrollbar(false);
-      }, 1500);
     }
   }, []);
 
