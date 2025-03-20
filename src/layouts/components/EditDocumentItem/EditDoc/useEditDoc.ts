@@ -70,7 +70,7 @@ const useEditDoc = () => {
       });
       useDocumentsStore.setState({ activeDocumentItem: newDocument });
     },
-    { wait: 200 },
+    { wait: 500 },
   );
 
   return {

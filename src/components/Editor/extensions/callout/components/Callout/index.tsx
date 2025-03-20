@@ -48,38 +48,40 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
 
   return (
     <div ref={drop} className={styles.container}>
-      <div
-        className={classnames(styles.callout, styles[calloutType], {
-          [styles.dragging]: isDragging,
-          [styles.drop]: isOverCurrent && canDrop,
-          [styles.before]: isBefore,
-          [styles.after]: !isBefore,
-        })}
-      >
-        <div contentEditable={false} style={{ userSelect: "none" }}>
-          <p
-            data-slate-editor
-            ref={titleRef}
-            onBlur={handleTitleBlur}
-            className={styles.title}
-            // @ts-ignore
-            contentEditable={!readOnly ? "plaintext-only" : false}
-            suppressContentEditableWarning
-          >
-            {realTitle}
-          </p>
+      <div {...attributes}>
+        <div
+          className={classnames(styles.callout, styles[calloutType], {
+            [styles.dragging]: isDragging,
+            [styles.drop]: isOverCurrent && canDrop,
+            [styles.before]: isBefore,
+            [styles.after]: !isBefore,
+          })}
+        >
+          <div contentEditable={false} style={{ userSelect: "none" }}>
+            <p
+              data-slate-editor
+              ref={titleRef}
+              onBlur={handleTitleBlur}
+              className={styles.title}
+              // @ts-ignore
+              contentEditable={!readOnly ? "plaintext-only" : false}
+              suppressContentEditableWarning
+            >
+              {realTitle}
+            </p>
+          </div>
+          <div>{children}</div>
         </div>
-        <div {...attributes}>{children}</div>
-      </div>
-      <AddParagraph element={element} />
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
+        <AddParagraph element={element} />
+        <div
+          contentEditable={false}
+          ref={drag}
+          className={classnames(styles.dragHandler, {
+            [styles.canDrag]: canDrag,
+          })}
+        >
+          <MdDragIndicator className={styles.icon} />
+        </div>
       </div>
     </div>
   );

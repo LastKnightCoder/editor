@@ -217,154 +217,147 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
       })}
       ref={drop}
     >
-      <div
-        {...attributes}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          pointerEvents: "none",
-        }}
-      >
+      <div {...attributes}>
         {children}
-      </div>
-      <div className={styles.btnGroup}>
-        <div className={styles.fullscreenButton} onClick={toggleFullscreen}>
-          <MdFullscreen size={16} />
-        </div>
-        <div className={styles.divider} />
-        <div className={styles.copyButton} onClick={handleCopyCode}>
-          <SVG src={copyIcon} className={styles.copyIcon} />
-        </div>
-      </div>
-      <SelectLanguage
-        readonly={readOnly}
-        className={styles.languageSelect}
-        value={language}
-        onChange={handleOnLanguageChange}
-      />
-      <CodeEditor
-        value={code || ""}
-        autoCursor
-        autoScroll
-        options={{
-          inputStyle: "textarea",
-          mode: langConfig?.mime || langConfig?.mode || "text/plain",
-          theme: isDark ? "blackboard" : "one-light",
-          // lineNumbers: true,
-          // firstLineNumber: 1,
-          scrollbarStyle: "null",
-          viewportMargin: Infinity,
-          lineWrapping: false,
-          smartIndent: true,
-          extraKeys: {
-            "Shift-Tab": "indentLess",
-          },
-          readOnly: readOnly || (canDrop && isOverCurrent),
-          indentUnit: 2,
-          tabSize: 2,
-          cursorHeight: 1,
-          autoCloseBrackets: true,
-          tabindex: -1,
-        }}
-        className={styles.CodeMirrorContainer}
-        onChange={handleOnChange}
-        editorDidMount={(editor) => {
-          editorRef.current = editor;
-          onDidMount && onDidMount(editor);
-          // 添加聚焦事件监听
-          editor.on("focus", () => {
-            document.dispatchEvent(new CustomEvent("code-block-focus"));
-          });
-
-          // 添加失焦事件监听
-          editor.on("blur", () => {
-            document.dispatchEvent(new CustomEvent("code-block-blur"));
-          });
-        }}
-        editorWillUnmount={(editor) => {
-          onWillUnmount && onWillUnmount(editor);
-          editorRef.current = null;
-        }}
-        onKeyDown={handleOnKeyDown}
-      />
-      <AddParagraph element={element} ref={addParagraphRef} />
-      <div
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-        contentEditable={false}
-        ref={drag}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
-      {isFullscreen && (
-        <PortalToBody>
-          <div
-            className={classnames(styles.fullscreenOverlay, {
-              [styles.darkOverlay]: isDark,
-            })}
-            onClick={() => setIsFullscreen(false)}
-          >
-            <div
-              className={classnames(styles.fullscreenContent, {
-                [styles.dark]: isDark,
-              })}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className={styles.fullscreenHeader}>
-                <SelectLanguage
-                  readonly={readOnly}
-                  className={styles.fullscreenLanguageSelect}
-                  value={language}
-                  onChange={handleOnLanguageChange}
-                />
-                <div className={styles.closeButton} onClick={toggleFullscreen}>
-                  <MdFullscreenExit size={20} />
-                </div>
-              </div>
-              <CodeEditor
-                value={code || ""}
-                autoCursor
-                autoScroll
-                options={{
-                  inputStyle: "textarea",
-                  mode: langConfig?.mime || langConfig?.mode || "text/plain",
-                  theme: isDark ? "blackboard" : "one-light",
-                  scrollbarStyle: "null",
-                  viewportMargin: Infinity,
-                  lineWrapping: false,
-                  smartIndent: true,
-                  extraKeys: {
-                    "Shift-Tab": "indentLess",
-                  },
-                  readOnly,
-                  indentUnit: 2,
-                  tabSize: 2,
-                  cursorHeight: 1,
-                  autoCloseBrackets: true,
-                  tabindex: -1,
-                }}
-                className={styles.fullscreenCodeMirror}
-                onChange={handleOnChange}
-                onKeyDown={handleOnKeyDown}
-                editorDidMount={(editor) => {
-                  fullscreenEditorRef.current = editor;
-                  setTimeout(() => {
-                    editor.refresh();
-                    editor.focus();
-                  }, 50);
-                }}
-                editorWillUnmount={() => {
-                  fullscreenEditorRef.current = null;
-                }}
-              />
-            </div>
+        <div className={styles.btnGroup}>
+          <div className={styles.fullscreenButton} onClick={toggleFullscreen}>
+            <MdFullscreen />
           </div>
-        </PortalToBody>
-      )}
+          <div className={styles.divider} />
+          <div className={styles.copyButton} onClick={handleCopyCode}>
+            <SVG src={copyIcon} className={styles.copyIcon} />
+          </div>
+        </div>
+        <SelectLanguage
+          readonly={readOnly}
+          className={styles.languageSelect}
+          value={language}
+          onChange={handleOnLanguageChange}
+        />
+        <CodeEditor
+          value={code || ""}
+          autoCursor
+          autoScroll
+          options={{
+            inputStyle: "textarea",
+            mode: langConfig?.mime || langConfig?.mode || "text/plain",
+            theme: isDark ? "blackboard" : "one-light",
+            scrollbarStyle: "null",
+            viewportMargin: Infinity,
+            lineWrapping: false,
+            smartIndent: true,
+            extraKeys: {
+              "Shift-Tab": "indentLess",
+            },
+            readOnly: readOnly || (canDrop && isOverCurrent),
+            indentUnit: 2,
+            tabSize: 2,
+            cursorHeight: 1,
+            autoCloseBrackets: true,
+            tabindex: -1,
+          }}
+          className={styles.CodeMirrorContainer}
+          onChange={handleOnChange}
+          editorDidMount={(editor) => {
+            editorRef.current = editor;
+            onDidMount && onDidMount(editor);
+            // 添加聚焦事件监听
+            editor.on("focus", () => {
+              document.dispatchEvent(new CustomEvent("code-block-focus"));
+            });
+
+            // 添加失焦事件监听
+            editor.on("blur", () => {
+              document.dispatchEvent(new CustomEvent("code-block-blur"));
+            });
+          }}
+          editorWillUnmount={(editor) => {
+            onWillUnmount && onWillUnmount(editor);
+            editorRef.current = null;
+          }}
+          onKeyDown={handleOnKeyDown}
+        />
+        <AddParagraph element={element} ref={addParagraphRef} />
+        <div
+          className={classnames(styles.dragHandler, {
+            [styles.canDrag]: canDrag,
+          })}
+          contentEditable={false}
+          ref={drag}
+        >
+          <MdDragIndicator className={styles.icon} />
+        </div>
+        {isFullscreen && (
+          <PortalToBody>
+            <div
+              className={classnames(styles.fullscreenOverlay, {
+                [styles.darkOverlay]: isDark,
+              })}
+              onClick={() => setIsFullscreen(false)}
+            >
+              <div
+                className={classnames(styles.fullscreenContent, {
+                  [styles.dark]: isDark,
+                })}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className={styles.fullscreenHeader}>
+                  <SelectLanguage
+                    readonly={readOnly}
+                    className={styles.fullscreenLanguageSelect}
+                    value={language}
+                    onChange={handleOnLanguageChange}
+                  />
+                  <div
+                    className={styles.closeButton}
+                    onClick={toggleFullscreen}
+                  >
+                    <MdFullscreenExit size={20} />
+                  </div>
+                </div>
+                <CodeEditor
+                  value={code || ""}
+                  autoCursor
+                  autoScroll
+                  options={{
+                    inputStyle: "textarea",
+                    mode: langConfig?.mime || langConfig?.mode || "text/plain",
+                    theme: isDark ? "blackboard" : "one-light",
+                    scrollbarStyle: "null",
+                    viewportMargin: Infinity,
+                    lineWrapping: false,
+                    smartIndent: true,
+                    extraKeys: {
+                      "Shift-Tab": "indentLess",
+                    },
+                    readOnly,
+                    indentUnit: 2,
+                    tabSize: 2,
+                    cursorHeight: 1,
+                    autoCloseBrackets: true,
+                    tabindex: -1,
+                  }}
+                  className={styles.fullscreenCodeMirror}
+                  onChange={handleOnChange}
+                  onKeyDown={handleOnKeyDown}
+                  editorDidMount={(editor) => {
+                    fullscreenEditorRef.current = editor;
+                    if (!readOnly) {
+                      setTimeout(() => {
+                        editor.refresh();
+                        editor.focus();
+                      }, 50);
+                    }
+                  }}
+                  editorWillUnmount={() => {
+                    fullscreenEditorRef.current = null;
+                  }}
+                />
+              </div>
+            </div>
+          </PortalToBody>
+        )}
+      </div>
     </div>
   );
 };
