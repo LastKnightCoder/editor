@@ -135,7 +135,7 @@ const ArticleView = () => {
           }
         />
       )}
-      {activeArticleId && (
+      {activeArticleId && !isPresentation && (
         <FloatButton
           style={{
             right: 60,

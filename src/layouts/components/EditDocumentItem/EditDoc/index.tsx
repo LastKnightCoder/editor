@@ -60,9 +60,10 @@ const EditDoc = memo(() => {
 
   useEffect(() => {
     return () => {
+      onContentChange.flush();
       saveDocument();
     };
-  }, [saveDocument]);
+  }, [saveDocument, onContentChange]);
 
   useEffect(() => {
     // 禁止在标题中输入回车

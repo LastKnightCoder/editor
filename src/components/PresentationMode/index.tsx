@@ -4,6 +4,7 @@ import { useMemoizedFn } from "ahooks";
 import Editor, { EditorRef } from "@/components/Editor";
 import PortalToBody from "@/components/PortalToBody";
 import useSettingStore from "@/stores/useSettingStore";
+import classnames from "classnames";
 
 // 导入抽离的组件和hooks
 import HelpModal from "./components/HelpModal";
@@ -182,7 +183,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       // 如果鼠标在顶部50px区域内，显示关闭图标
-      if (e.clientY < 50) {
+      if (e.clientY < 100) {
         setShowCloseIcon(true);
       } else {
         setShowCloseIcon(false);
@@ -221,7 +222,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
     <PortalToBody>
       <div
         ref={presentationModeRef}
-        className={`${styles.presentationMode} ${showScrollbar ? styles.showScrollbar : ""}`}
+        className={styles.presentationMode}
         onClick={(e) => e.stopPropagation()}
       >
         {isOverview ? (
@@ -251,7 +252,10 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         )}
 
         {showCloseIcon && (
-          <div className={styles.closeIcon} onClick={onExit}>
+          <div
+            className={classnames(styles.closeIcon, styles.floatingButton)}
+            onClick={onExit}
+          >
             <svg
               viewBox="0 0 24 24"
               width="24"
@@ -266,7 +270,13 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         )}
 
         {showBackToTop && (
-          <div className={styles.backToTopButton} onClick={scrollToTop}>
+          <div
+            className={classnames(
+              styles.backToTopButton,
+              styles.floatingButton,
+            )}
+            onClick={scrollToTop}
+          >
             <svg
               viewBox="0 0 24 24"
               width="24"
