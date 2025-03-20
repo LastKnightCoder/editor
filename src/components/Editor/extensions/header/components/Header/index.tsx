@@ -1,10 +1,11 @@
 import React from "react";
-import { RenderElementProps } from "slate-react";
+import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import classnames from "classnames";
 import styles from "./index.module.less";
 import { HeaderElement } from "@/components/Editor/types";
-import classnames from "classnames";
-import { MdDragIndicator } from "react-icons/md";
+import { useHeaderCollapse } from "./hooks";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import { HeaderContent, DragHandle } from "./components";
 
 interface IHeaderProps {
   attributes: RenderElementProps["attributes"];
@@ -13,53 +14,22 @@ interface IHeaderProps {
 
 const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
   const { element, attributes, children } = props;
-  const { level } = element;
+  const { level, collapsed = false } = element;
+  const editor = useSlate();
+  const path = ReactEditor.findPath(editor, element);
 
+  // Use the header collapse hook
+  const { toggleCollapse } = useHeaderCollapse({
+    editor,
+    element,
+    path,
+  });
+
+  // Use the drag and drop hook
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
     });
-
-  const renderHeader = () => {
-    switch (level) {
-      case 1:
-        return (
-          <h1 {...attributes} className={styles.h1}>
-            {children}
-          </h1>
-        );
-      case 2:
-        return (
-          <h2 {...attributes} className={styles.h2}>
-            {children}
-          </h2>
-        );
-      case 3:
-        return (
-          <h3 {...attributes} className={styles.h3}>
-            {children}
-          </h3>
-        );
-      case 4:
-        return (
-          <h4 {...attributes} className={styles.h4}>
-            {children}
-          </h4>
-        );
-      case 5:
-        return (
-          <h5 {...attributes} className={styles.h5}>
-            {children}
-          </h5>
-        );
-      case 6:
-        return (
-          <h6 {...attributes} className={styles.h6}>
-            {children}
-          </h6>
-        );
-    }
-  };
 
   return (
     <div
@@ -69,18 +39,18 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
         [styles.drop]: isOverCurrent && canDrop,
         [styles.before]: isBefore,
         [styles.after]: !isBefore,
+        [styles.collapsed]: collapsed,
       })}
     >
-      {renderHeader()}
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
+      <HeaderContent
+        level={level}
+        collapsed={collapsed}
+        toggleCollapse={toggleCollapse}
+        attributes={attributes}
       >
-        <MdDragIndicator className={styles.icon} />
-      </div>
+        {children}
+      </HeaderContent>
+      <DragHandle dragRef={drag} canDrag={canDrag} />
     </div>
   );
 };

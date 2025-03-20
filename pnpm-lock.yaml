@@ -164,7 +164,7 @@ importers:
         version: 34.0.1
       electron-builder:
         specifier: ^25.1.8
-        version: 25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
+        version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
       electron-devtools-installer:
         specifier: ^4.0.0
         version: 4.0.0
@@ -298,14 +298,14 @@ importers:
         specifier: ^5.9.2
         version: 5.14.0(rollup@3.29.5)
       slate:
-        specifier: ^0.94.1
-        version: 0.94.1
+        specifier: ^0.112.0
+        version: 0.112.0
       slate-history:
-        specifier: ^0.93.0
-        version: 0.93.0(slate@0.94.1)
+        specifier: ^0.110.3
+        version: 0.110.3(slate@0.112.0)
       slate-react:
-        specifier: ^0.97.0
-        version: 0.97.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(slate@0.94.1)
+        specifier: ^0.112.1
+        version: 0.112.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(slate-dom@0.112.2(slate@0.112.0))(slate@0.112.0)
       swiper:
         specifier: ^11.0.3
         version: 11.2.1
@@ -779,8 +779,8 @@ packages:
     resolution: {integrity: sha512-Qkzpg2s9GnVV2I2BjRksUi43U5e6+zaQMcjoJy0C+C5oxaKl+fmckGDQFtRpZpZV0NQekuZZ+tGz7EA9TVnQtQ==}
     engines: {node: '>=12'}
 
-  '@electron/node-gyp@git+https://git@github.com:electron/node-gyp.git#06b29aafb7708acef8b3669835c8a7857ebc92d2':
-    resolution: {commit: 06b29aafb7708acef8b3669835c8a7857ebc92d2, repo: git@github.com:electron/node-gyp.git, type: git}
+  '@electron/node-gyp@https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2':
+    resolution: {tarball: https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2}
     version: 10.2.0-electron.1
     engines: {node: '>=12.13.0'}
     hasBin: true
@@ -2368,9 +2368,6 @@ packages:
   compressorjs@1.2.1:
     resolution: {integrity: sha512-+geIjeRnPhQ+LLvvA7wxBQE5ddeLU7pJ3FsKFWirDw6veY3s9iLxAQEw7lXGHnhCJvBujEQWuNnGzZcvCvdkLQ==}
 
-  compute-scroll-into-view@1.0.20:
-    resolution: {integrity: sha512-UCB0ioiyj8CRjtrvaceBLqqhZCVP+1B8+NWQhmdsm0VXOJtobBCf1dBQmebCCo34qZmUwZfIH2MZLqNHazrfjg==}
-
   compute-scroll-into-view@3.1.1:
     resolution: {integrity: sha512-VRhuHOLoKYOy4UbilLbUzbYg93XLjv2PncJC50EuTWPA3gaja1UjBsUP/D/9/juV3vQFr6XBEzn9KCAHdUvOHw==}
 
@@ -3633,9 +3630,6 @@ packages:
   immer@10.1.1:
     resolution: {integrity: sha512-s2MPrmjovJcoMaHtx6K11Ra7oD05NT97w1IC5zpMkT6Atjr7H8LjaDd81iIxUYpMKSRRNMJE703M1Fhr/TctHw==}
 
-  immer@9.0.21:
-    resolution: {integrity: sha512-bc4NBHqOqSfRW7POMkHd51LvClaeMXpm8dx0e8oE2GORbq5aRK7Bxl4FyzVLdGtLmvLKL7BTDBG5ACQm4HWjTA==}
-
   import-fresh@3.3.0:
     resolution: {integrity: sha512-veYYhQa+D1QBKznvhUHxb8faxlrwUnxseDAbAp457E0wLNio2bOSKnjYDhMj+YiAq61xrMGhQk9iXVk5FzgQMw==}
     engines: {node: '>=6'}
@@ -3811,9 +3805,6 @@ packages:
 
   is-hexadecimal@2.0.1:
     resolution: {integrity: sha512-DgZQp241c8oO6cA1SbTEWiXeoxV42vlcJxgH+B3hi1AiqqKruZR3ZGF8In3fj4+/y/7rHvlOZLZtgJ/4ttYGZg==}
-
-  is-hotkey@0.1.8:
-    resolution: {integrity: sha512-qs3NZ1INIS+H+yeo7cD9pDfwYV/jqRh1JG9S9zYrNudkoUQg7OL7ziXqRKu+InFjUIDoP2o6HIkLYMh1pcWgyQ==}
 
   is-hotkey@0.2.0:
     resolution: {integrity: sha512-UknnZK4RakDmTgz4PI1wIph5yxSs/mvChWs9ifnlXsKuXgWmOkY/hAE0H/k2MIqH0RlRye0i1oC07MCRSD28Mw==}
@@ -5587,9 +5578,6 @@ packages:
     resolution: {integrity: sha512-9BakfsO2aUQN2K9Fdbj87RJIEZ82Q9IGim7FqM5OsebfoFC6ZHXgDq/KvniuLTPdeM8wY2o6Dj3WQ7KeQCj3cA==}
     engines: {node: '>=0.10.0'}
 
-  scroll-into-view-if-needed@2.2.31:
-    resolution: {integrity: sha512-dGCXy99wZQivjmjIqihaBQNjryrz5rueJY7eHfTdyWEiR4ttYpsajb14rn9s5d4DY4EcY6+4+U/maARBXJedkA==}
-
   scroll-into-view-if-needed@3.1.0:
     resolution: {integrity: sha512-49oNpRjWRvnU8NyGVmUaYG4jtTkNonFZI86MmGRDqBphEK2EXT9gdEUoQPZhuBM8yWHxCWbobltqYO5M4XrUvQ==}
 
@@ -5688,20 +5676,26 @@ packages:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
 
-  slate-history@0.93.0:
-    resolution: {integrity: sha512-Gr1GMGPipRuxIz41jD2/rbvzPj8eyar56TVMyJBvBeIpQSSjNISssvGNDYfJlSWM8eaRqf6DAcxMKzsLCYeX6g==}
+  slate-dom@0.112.2:
+    resolution: {integrity: sha512-cozITMlpcBxrov854reM6+TooiHiqpfM/nZPrnjpN1wSiDsAQmYbWUyftC+jlwcpFj80vywfDHzlG6hXIc5h6A==}
+    peerDependencies:
+      slate: '>=0.99.0'
+
+  slate-history@0.110.3:
+    resolution: {integrity: sha512-sgdff4Usdflmw5ZUbhDkxFwCBQ2qlDKMMkF93w66KdV48vHOgN2BmLrf+2H8SdX8PYIpP/cTB0w8qWC2GwhDVA==}
     peerDependencies:
       slate: '>=0.65.3'
 
-  slate-react@0.97.2:
-    resolution: {integrity: sha512-jVUbTU+0MnbT7l09thQnWfM7gneTFGMsybmXX9utryQnbttKwIo3NynPI6chGwiz0N4/6k5Yb4fc8N/eZkYHUw==}
+  slate-react@0.112.1:
+    resolution: {integrity: sha512-V9b+waxPweXqAkSQmKQ1afG4Me6nVQACPpxQtHPIX02N7MXa5f5WilYv+bKt7vKKw+IZC2F0Gjzhv5BekVgP/A==}
     peerDependencies:
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
-      slate: '>=0.65.3'
+      react: '>=18.2.0'
+      react-dom: '>=18.2.0'
+      slate: '>=0.99.0'
+      slate-dom: '>=0.110.2'
 
-  slate@0.94.1:
-    resolution: {integrity: sha512-GH/yizXr1ceBoZ9P9uebIaHe3dC/g6Plpf9nlUwnvoyf6V1UOYrRwkabtOCd3ZfIGxomY4P7lfgLr7FPH8/BKA==}
+  slate@0.112.0:
+    resolution: {integrity: sha512-PRnfFgDA3tSop4OH47zu4M1R4Uuhm/AmASu29Qp7sGghVFb713kPBKEnSf1op7Lx/nCHkRlCa3ThfHtCBy+5Yw==}
 
   slice-ansi@3.0.0:
     resolution: {integrity: sha512-pSyv7bSTC7ig9Dcgbw9AuRNUb5k5V6oDudjZoMBSr13qpLBG7tB+zgCkARjq7xIUgdz5P1Qe8u+rSGdouOOIyQ==}
@@ -5988,8 +5982,8 @@ packages:
   through@2.3.8:
     resolution: {integrity: sha512-w89qg7PI8wAdvX60bMDP+bFoD5Dvhm9oLheFp5O4a2QF0cSBGsBX4qZmadPMvVqlLJBBci+WqGGOAPvcDeNSVg==}
 
-  tiny-invariant@1.0.6:
-    resolution: {integrity: sha512-FOyLWWVjG+aC0UqG76V53yAWdXfH8bO6FNmyZOuUrzDzK8DI3/JRY25UD7+g49JWM1LXwymsKERB+DzI0dTEQA==}
+  tiny-invariant@1.3.1:
+    resolution: {integrity: sha512-AD5ih2NlSssTCwsMznbvwMZpJ1cbhkGd2uueNxzv2jDlEeZdU04JQfRnggJQ8DrcVBGjAsCKwFBbDlVNtEMlzw==}
 
   tiny-warning@1.0.3:
     resolution: {integrity: sha512-lBN9zLN/oAf68o3zNXYrdCt1kP8WsiGW8Oo2ka41b2IM5JL/S1CTyX1rW0mb/zSuJun0ZUrDxx4sqvYS2FWzPA==}
@@ -7365,7 +7359,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@electron/node-gyp@git+https://git@github.com:electron/node-gyp.git#06b29aafb7708acef8b3669835c8a7857ebc92d2':
+  '@electron/node-gyp@https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2':
     dependencies:
       env-paths: 2.2.1
       exponential-backoff: 3.1.1
@@ -7422,7 +7416,7 @@ snapshots:
 
   '@electron/rebuild@3.7.1':
     dependencies:
-      '@electron/node-gyp': git+https://git@github.com:electron/node-gyp.git#06b29aafb7708acef8b3669835c8a7857ebc92d2
+      '@electron/node-gyp': https://codeload.github.com/electron/node-gyp/tar.gz/06b29aafb7708acef8b3669835c8a7857ebc92d2
       '@malept/cross-spawn-promise': 2.0.0
       chalk: 4.1.2
       debug: 4.4.0
@@ -8661,7 +8655,7 @@ snapshots:
 
   app-builder-bin@5.0.0-alpha.10: {}
 
-  app-builder-lib@25.1.8(dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)))(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)):
+  app-builder-lib@25.1.8(dmg-builder@25.1.8)(electron-builder-squirrel-windows@25.1.8):
     dependencies:
       '@develar/schema-utils': 2.6.5
       '@electron/notarize': 2.5.0
@@ -8677,7 +8671,7 @@ snapshots:
       chromium-pickle-js: 0.2.0
       config-file-ts: 0.2.8-rc1
       debug: 4.4.0
-      dmg-builder: 25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
+      dmg-builder: 25.1.8(electron-builder-squirrel-windows@25.1.8)
       dotenv: 16.4.7
       dotenv-expand: 11.0.7
       ejs: 3.1.10
@@ -9136,8 +9130,6 @@ snapshots:
     dependencies:
       blueimp-canvas-to-blob: 3.29.0
       is-blob: 2.1.0
-
-  compute-scroll-into-view@1.0.20: {}
 
   compute-scroll-into-view@3.1.1: {}
 
@@ -9637,9 +9629,9 @@ snapshots:
 
   direction@1.0.4: {}
 
-  dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)):
+  dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8):
     dependencies:
-      app-builder-lib: 25.1.8(dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)))(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
+      app-builder-lib: 25.1.8(dmg-builder@25.1.8)(electron-builder-squirrel-windows@25.1.8)
       builder-util: 25.1.7
       builder-util-runtime: 9.2.10
       fs-extra: 10.1.0
@@ -9733,7 +9725,7 @@ snapshots:
 
   electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8):
     dependencies:
-      app-builder-lib: 25.1.8(dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)))(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
+      app-builder-lib: 25.1.8(dmg-builder@25.1.8)(electron-builder-squirrel-windows@25.1.8)
       archiver: 5.3.2
       builder-util: 25.1.7
       fs-extra: 10.1.0
@@ -9742,13 +9734,13 @@ snapshots:
       - dmg-builder
       - supports-color
 
-  electron-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)):
+  electron-builder@25.1.8(electron-builder-squirrel-windows@25.1.8):
     dependencies:
-      app-builder-lib: 25.1.8(dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)))(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
+      app-builder-lib: 25.1.8(dmg-builder@25.1.8)(electron-builder-squirrel-windows@25.1.8)
       builder-util: 25.1.7
       builder-util-runtime: 9.2.10
       chalk: 4.1.2
-      dmg-builder: 25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
+      dmg-builder: 25.1.8(electron-builder-squirrel-windows@25.1.8)
       fs-extra: 10.1.0
       is-ci: 3.0.1
       lazy-val: 1.0.5
@@ -10659,8 +10651,6 @@ snapshots:
 
   immer@10.1.1: {}
 
-  immer@9.0.21: {}
-
   import-fresh@3.3.0:
     dependencies:
       parent-module: 1.0.1
@@ -10817,8 +10807,6 @@ snapshots:
   is-hexadecimal@1.0.4: {}
 
   is-hexadecimal@2.0.1: {}
-
-  is-hotkey@0.1.8: {}
 
   is-hotkey@0.2.0: {}
 
@@ -13111,10 +13099,6 @@ snapshots:
 
   screenfull@5.2.0: {}
 
-  scroll-into-view-if-needed@2.2.31:
-    dependencies:
-      compute-scroll-into-view: 1.0.20
-
   scroll-into-view-if-needed@3.1.0:
     dependencies:
       compute-scroll-into-view: 3.1.1
@@ -13225,29 +13209,39 @@ snapshots:
 
   slash@3.0.0: {}
 
-  slate-history@0.93.0(slate@0.94.1):
-    dependencies:
-      is-plain-object: 5.0.0
-      slate: 0.94.1
-
-  slate-react@0.97.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(slate@0.94.1):
+  slate-dom@0.112.2(slate@0.112.0):
     dependencies:
       '@juggle/resize-observer': 3.4.0
-      '@types/is-hotkey': 0.1.10
-      '@types/lodash': 4.17.14
       direction: 1.0.4
-      is-hotkey: 0.1.8
+      is-hotkey: 0.2.0
+      is-plain-object: 5.0.0
+      lodash: 4.17.21
+      scroll-into-view-if-needed: 3.1.0
+      slate: 0.112.0
+      tiny-invariant: 1.3.1
+
+  slate-history@0.110.3(slate@0.112.0):
+    dependencies:
+      is-plain-object: 5.0.0
+      slate: 0.112.0
+
+  slate-react@0.112.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(slate-dom@0.112.2(slate@0.112.0))(slate@0.112.0):
+    dependencies:
+      '@juggle/resize-observer': 3.4.0
+      direction: 1.0.4
+      is-hotkey: 0.2.0
       is-plain-object: 5.0.0
       lodash: 4.17.21
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      scroll-into-view-if-needed: 2.2.31
-      slate: 0.94.1
-      tiny-invariant: 1.0.6
+      scroll-into-view-if-needed: 3.1.0
+      slate: 0.112.0
+      slate-dom: 0.112.2(slate@0.112.0)
+      tiny-invariant: 1.3.1
 
-  slate@0.94.1:
+  slate@0.112.0:
     dependencies:
-      immer: 9.0.21
+      immer: 10.1.1
       is-plain-object: 5.0.0
       tiny-warning: 1.0.3
 
@@ -13560,7 +13554,7 @@ snapshots:
 
   through@2.3.8: {}
 
-  tiny-invariant@1.0.6: {}
+  tiny-invariant@1.3.1: {}
 
   tiny-warning@1.0.3: {}
 

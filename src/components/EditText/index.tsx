@@ -18,6 +18,7 @@ interface IEditTextProps {
   onDeleteEmpty?: () => void;
   defaultFocus?: boolean;
   onBlur?: () => void;
+  onKeyDown?: (e: KeyboardEvent) => boolean;
 }
 
 export type EditTextHandle = {
@@ -42,6 +43,7 @@ const EditText = memo(
       defaultFocus = false,
       onDeleteEmpty,
       onBlur,
+      onKeyDown,
     } = props;
 
     const [initValue] = useState(defaultValue);
@@ -127,6 +129,12 @@ const EditText = memo(
 
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
+        if (isEditing) {
+          if (onKeyDown?.(e)) {
+            return;
+          }
+        }
+
         if (
           e.key === "Enter" &&
           isEditing &&

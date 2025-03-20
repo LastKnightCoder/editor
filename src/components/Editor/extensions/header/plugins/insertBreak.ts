@@ -1,4 +1,5 @@
-import { Editor, Transforms } from "slate";
+import { HeaderElement } from "@/components/Editor/types";
+import { Editor, NodeEntry, Transforms } from "slate";
 
 export const insertBreak = (editor: Editor) => {
   const { insertBreak } = editor;
@@ -7,6 +8,11 @@ export const insertBreak = (editor: Editor) => {
       match: (n) => n.type === "header",
     });
     if (match) {
+      const [node, path] = match as NodeEntry<HeaderElement>;
+      if (node.collapsed) {
+        Transforms.setNodes(editor, { collapsed: false }, { at: path });
+        return;
+      }
       // 标题换行时，插入段落，而不是标题
       insertBreak();
       Transforms.setNodes(editor, { type: "paragraph" });
