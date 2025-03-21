@@ -73,7 +73,7 @@ const CardItem = (props: CardItemProps) => {
     return [
       {
         key: "open-card-in-new-window",
-        label: "在新窗口中打开",
+        label: "窗口打开",
         onClick: () => openCardInNewWindow(databaseName, card.id),
       },
       {
