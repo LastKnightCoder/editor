@@ -117,7 +117,7 @@ export default class DocumentTable {
       createTime: document.create_time,
       updateTime: document.update_time,
       bannerBg: document.banner_bg,
-      isTop: document.is_top,
+      isTop: Boolean(document.is_top),
     };
 
     delete res.is_delete;

@@ -1,14 +1,14 @@
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import For from "@/components/For";
 import DocumentCard from "./DocumentCard";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FloatButton } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import EditDocumentModal from "./EditDocumentModal";
 
 import styles from "./index.module.less";
-import { ICreateDocument } from "@/types";
+import { ICreateDocument, IDocument } from "@/types";
 import useGridLayout from "@/hooks/useGridLayout";
 
 const DocumentsView = () => {
@@ -22,11 +22,19 @@ const DocumentsView = () => {
     createDocument: state.createDocument,
   }));
 
+  const sortedDocuments = useMemo(() => {
+    return [...documents].sort((a, b) => {
+      if (a.isTop && !b.isTop) return -1;
+      if (!a.isTop && b.isTop) return 1;
+      return 0;
+    });
+  }, [documents]);
+
   return (
     <div className={styles.container} ref={gridContainerRef} style={{ gap }}>
       <For
-        data={documents}
-        renderItem={(document) => (
+        data={sortedDocuments}
+        renderItem={(document: IDocument) => (
           <DocumentCard
             style={{ width: itemWidth, height: 160 }}
             key={document.id}
