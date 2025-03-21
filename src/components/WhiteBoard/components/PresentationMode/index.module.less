@@ -11,6 +11,55 @@
   align-items: center;
   pointer-events: none;
   overflow: hidden;
+
+  :global {
+    .ant-btn-text {
+      color: white;
+      pointer-events: auto;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+
+      &:active {
+        background-color: rgba(255, 255, 255, 0.3);
+      }
+    }
+
+    .ant-btn-text[disabled] {
+      color: rgba(255, 255, 255, 0.3);
+
+      &:hover {
+        background-color: transparent;
+      }
+    }
+
+    // 为演示模式中的按钮添加明显的图标颜色
+    .presentationControls,
+    .presentationFooter {
+      .anticon {
+        font-size: 18px;
+
+        svg {
+          fill: white;
+        }
+      }
+
+      .ant-btn {
+        min-height: 36px;
+        min-width: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+
+        &:not([disabled]):hover {
+          transform: translateY(-2px);
+          transition: transform 0.2s ease;
+        }
+      }
+    }
+  }
 }
 
 .presentationFooter {
@@ -75,55 +124,5 @@
 
   to {
     opacity: 0;
-  }
-}
-
-:global {
-  .ant-btn-text {
-    color: white !important;
-    pointer-events: auto;
-
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.2) !important;
-      color: white !important;
-    }
-
-    &:active {
-      background-color: rgba(255, 255, 255, 0.3) !important;
-    }
-  }
-
-  .ant-btn-text[disabled] {
-    color: rgba(255, 255, 255, 0.3) !important;
-
-    &:hover {
-      background-color: transparent !important;
-    }
-  }
-
-  // 为演示模式中的按钮添加明显的图标颜色
-  .presentationControls,
-  .presentationFooter {
-    .anticon {
-      font-size: 18px;
-
-      svg {
-        fill: white;
-      }
-    }
-
-    .ant-btn {
-      min-height: 36px;
-      min-width: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
-
-      &:not([disabled]):hover {
-        transform: translateY(-2px);
-        transition: transform 0.2s ease;
-      }
-    }
   }
 }
