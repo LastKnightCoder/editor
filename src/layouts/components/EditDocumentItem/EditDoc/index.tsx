@@ -52,7 +52,7 @@ const EditDoc = memo(() => {
     initValue,
   } = useEditDoc();
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
 
   useRafInterval(() => {
     saveDocument();
@@ -147,7 +147,7 @@ const EditDoc = memo(() => {
               initValue={initValue}
               onChange={onContentChange}
               readonly={readonly}
-              uploadImage={uploadImage}
+              uploadResource={uploadResource}
               extensions={extensions}
               onInit={onInit}
             />

@@ -89,7 +89,6 @@ const ContainerCol: React.FC<ColProps> = (props) => {
     // 初始化 ResizeObserver 来监听容器大小变化
     const resizeCallback = (entries: ResizeObserverEntry[]) => {
       const entry = entries[0];
-      console.log(entry);
       if (entry) {
         // 获取父容器宽度
         const parentWidth = entry.contentRect.width;

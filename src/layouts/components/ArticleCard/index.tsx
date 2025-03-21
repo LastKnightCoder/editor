@@ -52,7 +52,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   const fileUploadRef = useRef<HTMLInputElement>(null);
   const [isPresentation, setIsPresentation] = useState(false);
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
 
   const randomTheme = allThemes[article.id % allThemes.length];
   const cardClassName = classnames(styles.articleCard, randomTheme, {
@@ -86,7 +86,7 @@ const ArticleCard = (props: IArticleCardProps) => {
         setBannerUploading(false);
         return;
       }
-      const url = await uploadImage(file);
+      const url = await uploadResource(file);
       if (!url) {
         message.error("上传失败");
         setBannerUploading(false);

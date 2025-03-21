@@ -28,7 +28,7 @@ const ArticleItem = memo((props: IArticleItemProps) => {
   const [bannerUploading, setBannerUploading] = useState(false);
   const [settingOpen, setSettingOpen] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
   const { message } = App.useApp();
 
   const {
@@ -59,7 +59,7 @@ const ArticleItem = memo((props: IArticleItemProps) => {
         setBannerUploading(false);
         return;
       }
-      const url = await uploadImage(file);
+      const url = await uploadResource(file);
       if (!url) {
         message.error("上传失败");
         setBannerUploading(false);

@@ -66,13 +66,13 @@ import styles from "./index.module.less";
 import classnames from "classnames";
 
 interface IEditorContext {
-  uploadImage?: (file: File) => Promise<string | null>;
+  uploadResource?: (file: File) => Promise<string | null>;
   theme?: "light" | "dark";
 }
 
 export const EditorContext = createContext<IEditorContext>({
   theme: "light",
-  uploadImage: undefined,
+  uploadResource: undefined,
 });
 
 export type EditorRef = {
@@ -91,7 +91,7 @@ interface IEditorProps {
   readonly?: boolean;
   extensions?: IExtension[];
   hoveringBarConfigs?: IConfigItem[];
-  uploadImage?: (file: File) => Promise<string | null>;
+  uploadResource?: (file: File) => Promise<string | null>;
   onInit?: (editor: Editor, content: Descendant[]) => void;
   className?: string;
   style?: React.CSSProperties;
@@ -116,7 +116,7 @@ const Index = memo(
       readonly = true,
       extensions,
       hoveringBarConfigs,
-      uploadImage,
+      uploadResource,
       onInit,
       onFocus,
       onBlur,
@@ -301,7 +301,7 @@ const Index = memo(
     return (
       <EditorContext.Provider
         value={{
-          uploadImage,
+          uploadResource,
           theme: theme || systemTheme,
         }}
       >

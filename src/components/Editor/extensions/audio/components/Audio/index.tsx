@@ -45,7 +45,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       element,
     });
 
-  const { uploadImage: uploadFile } = useContext(EditorContext) || {};
+  const { uploadResource: uploadFile } = useContext(EditorContext) || {};
 
   const setUploading = (uploading: boolean) => {
     const path = ReactEditor.findPath(editor, element);

@@ -51,7 +51,7 @@ const Project = () => {
     };
   }, [readonly, saveProjectItem]);
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
 
   const onClickHeader = useMemoizedFn((index: number) => {
     editorRef.current?.scrollHeaderIntoView(index);
@@ -91,7 +91,7 @@ const Project = () => {
               initValue={projectItem.content}
               onInit={onInit}
               onChange={onContentChange}
-              uploadImage={uploadImage}
+              uploadResource={uploadResource}
               readonly={readonly}
               extensions={extensions}
             />

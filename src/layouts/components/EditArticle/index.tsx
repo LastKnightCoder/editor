@@ -66,7 +66,7 @@ const EditArticle = memo(() => {
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
   const size = useSize(containerRef);
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
 
   const headers: Array<{
     level: number;
@@ -260,7 +260,7 @@ const EditArticle = memo(() => {
               onInit={onInit}
               extensions={extensions}
               onChange={onContentChange}
-              uploadImage={uploadImage}
+              uploadResource={uploadResource}
               readonly={readonly}
             />
           </EditCardContext.Provider>

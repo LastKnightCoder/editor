@@ -23,7 +23,7 @@ const QuickTimeRecord = () => {
   const [allEventTypes, setAllEventTypes] = useState<string[]>([]);
   const [cost, setCost] = useState<number>(0);
   const [saveLoading, setSaveLoading] = useState(false);
-  const uploadImage = useUploadResource();
+  const uploadResoure = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ const QuickTimeRecord = () => {
             initValue={initValue}
             onChange={setContent}
             readonly={false}
-            uploadImage={uploadImage}
+            uploadResource={uploadResoure}
             style={{
               flex: "auto",
             }}

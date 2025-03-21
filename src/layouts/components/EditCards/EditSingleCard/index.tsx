@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Descendant, Editor as SlateEditor } from "slate";
 import { useRafInterval, useUnmount } from "ahooks";
 
@@ -14,8 +14,11 @@ import {
 import { ICard } from "@/types";
 import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
+import { on, off } from "@/electron";
+import useSettingStore from "@/stores/useSettingStore";
 
 import styles from "./index.module.less";
+import { getCardById } from "@/commands";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -27,6 +30,7 @@ interface IEditCardProps {
   onAddTag: (tag: string) => void;
   onDeleteTag: (tag: string) => void;
   saveCard: () => void;
+  onTagChange: (tags: string[]) => void;
 }
 
 const EditCard = (props: IEditCardProps) => {
@@ -38,7 +42,12 @@ const EditCard = (props: IEditCardProps) => {
     onAddTag,
     onDeleteTag,
     saveCard,
+    onTagChange,
   } = props;
+
+  const { currentDatabaseName } = useSettingStore((state) => ({
+    currentDatabaseName: state.setting.database.active,
+  }));
 
   const editorRef = useRef<EditorRef>(null);
   const [initValue] = useState(() => {
@@ -53,7 +62,7 @@ const EditCard = (props: IEditCardProps) => {
     return editingCard.content;
   });
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
 
   useRafInterval(() => {
     if (!readonly) {
@@ -66,6 +75,29 @@ const EditCard = (props: IEditCardProps) => {
       saveCard();
     }
   });
+
+  useEffect(() => {
+    const handleCardWindowClosed = async (
+      _event: any,
+      data: { cardId: number; databaseName: string },
+    ) => {
+      if (
+        data.cardId === editingCard.id &&
+        data.databaseName === currentDatabaseName
+      ) {
+        const card = await getCardById(editingCard.id);
+        onContentChange(card.content);
+        onTagChange(card.tags);
+        editorRef.current?.setEditorValue(card.content);
+      }
+    };
+
+    on("card-window-closed", handleCardWindowClosed);
+
+    return () => {
+      off("card-window-closed", handleCardWindowClosed);
+    };
+  }, [currentDatabaseName, editingCard.id]);
 
   return (
     <EditCardContext.Provider
@@ -92,7 +124,7 @@ const EditCard = (props: IEditCardProps) => {
               onChange={onContentChange}
               extensions={customExtensions}
               readonly={readonly}
-              uploadImage={uploadImage}
+              uploadResource={uploadResource}
             />
           </ErrorBoundary>
         </div>

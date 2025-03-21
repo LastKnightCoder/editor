@@ -48,7 +48,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   const [successCount, setSuccessCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
 
-  const { uploadImage } = useContext(EditorContext) || {};
+  const { uploadResource } = useContext(EditorContext) || {};
 
   const onHeightChange = (value: number) => {
     onSettingChange(
@@ -112,12 +112,12 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   };
 
   const uploadFile = async (file: File) => {
-    if (!uploadImage) {
+    if (!uploadResource) {
       message.warning("尚未配置任何图床，无法上传图片");
       return null;
     }
     try {
-      return await Promise.race([uploadImage(file), timeoutPromise(10000)]);
+      return await Promise.race([uploadResource(file), timeoutPromise(10000)]);
     } catch (e) {
       return null;
     }

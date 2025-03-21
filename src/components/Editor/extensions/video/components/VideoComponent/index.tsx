@@ -32,7 +32,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       element,
     });
 
-  const { uploadImage: uploadFile } = useContext(EditorContext) || {};
+  const { uploadResource: uploadFile } = useContext(EditorContext) || {};
 
   const setUploading = useMemoizedFn((uploading) => {
     const path = ReactEditor.findPath(editor, element);
