@@ -27,7 +27,7 @@ const DailyNoteContent = () => {
     saveDailyNote?.();
   });
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
 
   if (!editingDailyNote) return null;
 
@@ -42,7 +42,7 @@ const DailyNoteContent = () => {
             onInit={onInit}
             onChange={onContentChange}
             readonly={readonly}
-            uploadImage={uploadImage}
+            uploadResource={uploadResource}
             extensions={extensions}
           />
         </div>

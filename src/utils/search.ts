@@ -35,7 +35,7 @@ export const searchContent = async (
     console.log(ftsResults);
     console.log(vecResults);
 
-    return [ftsResults, vecResults];
+    return [ftsResults || [], vecResults || []];
   } catch (error) {
     console.error("搜索内容失败:", error);
     return [[], []];
@@ -57,7 +57,7 @@ export const getAllIndexResults = async (
       getAllVecDocumentResults(type),
     ]);
 
-    return [ftsResults, vecResults];
+    return [ftsResults || [], vecResults || []];
   } catch (error) {
     console.error("获取索引结果失败:", error);
     return [[], []];

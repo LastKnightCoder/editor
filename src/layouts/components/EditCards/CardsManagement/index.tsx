@@ -66,6 +66,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
     onDeleteTag,
     onAddLink,
     onRemoveLink,
+    onTagChange,
   } = useEditCard(activeCardId);
 
   const getCardLinks = useMemoizedFn((card: ICard) => {
@@ -109,6 +110,7 @@ const CardsManagement = (props: ICardsManagementProps) => {
                   onAddTag={onAddTag}
                   onDeleteTag={onDeleteTag}
                   saveCard={saveCard}
+                  onTagChange={onTagChange}
                 />
               )
             )}

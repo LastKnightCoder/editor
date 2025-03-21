@@ -40,7 +40,7 @@ const QuickCard = () => {
     createCard: state.createCard,
   }));
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
 
   const [content, setContent] = useState(initValue);
@@ -91,7 +91,7 @@ const QuickCard = () => {
             onChange={setContent}
             extensions={customExtensions}
             readonly={false}
-            uploadImage={uploadImage}
+            uploadResource={uploadResource}
           />
         </ErrorBoundary>
       </div>

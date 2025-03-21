@@ -213,7 +213,7 @@ const Richtext = memo((props: RichTextProps) => {
     handleAutoFocus();
   }, [handleAutoFocus]);
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
 
   const { handleResize, editorStyle } = useHandleResize({
     handleOnEditorSizeChange,
@@ -324,7 +324,7 @@ const Richtext = memo((props: RichTextProps) => {
             readonly={readonly}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            uploadImage={uploadImage}
+            uploadResource={uploadResource}
             extensions={customExtensions}
             theme={theme}
           />

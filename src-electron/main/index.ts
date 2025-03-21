@@ -50,6 +50,9 @@ if (os.release().startsWith("6.1")) app.disableHardwareAcceleration();
 // Set application name for Windows 10+ notifications
 if (process.platform === "win32") app.setAppUserModelId(app.getName());
 
+// Track open card editor windows
+const cardEditorWindows = new Map<string, BrowserWindow>();
+
 const createWindow = () => {
   const win = new BrowserWindow({
     width: 1200,
@@ -90,6 +93,83 @@ const createWindow = () => {
   win.webContents.on("did-finish-load", () => {
     win.webContents.setZoomFactor(1);
     win.webContents.setVisualZoomLevelLimits(1, 1);
+  });
+};
+
+const createCardEditorWindow = (databaseName: string, cardId: number) => {
+  const windowKey = `${databaseName}-${cardId}`;
+
+  // Check if window with this card already exists
+  if (cardEditorWindows.has(windowKey)) {
+    const existingWindow = cardEditorWindows.get(windowKey);
+    if (existingWindow && !existingWindow.isDestroyed()) {
+      existingWindow.show();
+      existingWindow.focus();
+      return;
+    }
+  }
+
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, "../../build/icon.png"),
+    webPreferences: {
+      preload,
+      spellcheck: false,
+    },
+    trafficLightPosition: { x: 12, y: 17 },
+    // Mac 专属配置
+    ...(process.platform === "darwin" && {
+      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
+      frame: false, // 隐藏默认窗口框架
+    }),
+    // Windows 配置（保持默认标题栏）
+    ...(process.platform === "win32" && {
+      frame: true, // 显式保留默认框架
+    }),
+  });
+
+  // Store the window reference in our map
+  cardEditorWindows.set(windowKey, win);
+
+  win.setAlwaysOnTop(true);
+
+  const url = VITE_DEV_SERVER_URL
+    ? `${VITE_DEV_SERVER_URL}#/single-card-editor?databaseName=${databaseName}&cardId=${cardId}`
+    : `${indexHtml}#/single-card-editor?databaseName=${databaseName}&cardId=${cardId}`;
+
+  win.loadURL(url);
+
+  if (VITE_DEV_SERVER_URL) {
+    win.webContents.openDevTools();
+  }
+
+  // 监听最大化事件
+  win.on("enter-full-screen", () => {
+    win.webContents.send("full-screen-change");
+  });
+  win.on("leave-full-screen", () => {
+    win.webContents.send("full-screen-change");
+  });
+
+  win.webContents.on("did-finish-load", () => {
+    win.webContents.setZoomFactor(1);
+    win.webContents.setVisualZoomLevelLimits(1, 1);
+  });
+
+  win.on("closed", () => {
+    cardEditorWindows.delete(windowKey);
+
+    // Notify main window about card update
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("card-window-closed", {
+          databaseName,
+          cardId,
+        });
+      }
+    });
   });
 };
 
@@ -139,6 +219,7 @@ app.whenReady().then(() => {
   ipcMain.handle("set-always-on-top", (event, flag) => {
     const sender = event.sender;
     const window = BrowserWindow.fromWebContents(sender);
+    console.log("set-always-on-top", flag);
     window?.setAlwaysOnTop(flag);
   });
 
@@ -146,6 +227,10 @@ app.whenReady().then(() => {
     const sender = event.sender;
     const win = BrowserWindow.fromWebContents(sender);
     event.returnValue = win?.fullScreen || false;
+  });
+
+  ipcMain.handle("open-card-in-new-window", (_event, databaseName, cardId) => {
+    createCardEditorWindow(databaseName, cardId);
   });
 
   initModules().then(() => {

@@ -92,6 +92,14 @@ const useEditCard = (cardId: number | undefined) => {
     setEditingCard(newEditingCard);
   });
 
+  const onTagChange = useMemoizedFn((tags: string[]) => {
+    if (!editingCard) return;
+    const newEditingCard = produce(editingCard, (draft) => {
+      draft.tags = tags;
+    });
+    setEditingCard(newEditingCard);
+  });
+
   const onAddLink = useMemoizedFn(async (link: number) => {
     if (!editingCard || editingCard.links.includes(link)) return;
     const newEditingCard = produce(editingCard, (draft) => {
@@ -133,6 +141,7 @@ const useEditCard = (cardId: number | undefined) => {
     onDeleteTag,
     onAddLink,
     onRemoveLink,
+    onTagChange,
   };
 };
 

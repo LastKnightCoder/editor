@@ -2,9 +2,11 @@ import classnames from "classnames";
 import { ECardCategory, ICard } from "@/types";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import styles from "./index.module.less";
-import React, { MouseEvent, useRef, useState } from "react";
+import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import Tags from "@/components/Tags";
 import { formatDate, getMarkdown } from "@/utils";
+import { getCardById, openCardInNewWindow } from "@/commands";
+import { on, off } from "@/electron";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
@@ -15,6 +17,7 @@ import { Dropdown, MenuProps } from "antd";
 import useCardManagement from "@/hooks/useCardManagement.ts";
 import { useMemoizedFn } from "ahooks";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import useSettingStore from "@/stores/useSettingStore.ts";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PresentationMode from "@/components/PresentationMode";
 
@@ -41,45 +44,75 @@ const CardItem = (props: CardItemProps) => {
     updateCard: state.updateCard,
   }));
 
+  const { databaseName } = useSettingStore((state) => ({
+    databaseName: state.setting.database.active,
+  }));
+
   const { content, tags } = card;
 
-  const moreMenuItems: MenuProps["items"] = [
-    {
-      key: "delete-card",
-      label: "删除卡片",
-    },
-    {
-      key: "export-card",
-      label: "导出卡片",
-      children: [
-        {
-          key: "export-markdown",
-          label: "Markdown",
-        },
-      ],
-    },
-    {
-      key: "edit-category",
-      label: "编辑分类",
-      children: [
-        {
-          key: "category-temporary",
-          label: "闪念笔记",
-          disabled: ECardCategory.Temporary === card.category,
-        },
-        {
-          key: "category-permanent",
-          label: "永久笔记",
-          disabled: ECardCategory.Permanent === card.category,
-        },
-        {
-          key: "category-theme",
-          label: "主题笔记",
-          disabled: ECardCategory.Theme === card.category,
-        },
-      ],
-    },
-  ];
+  useEffect(() => {
+    const handleCardWindowClosed = async (
+      _event: any,
+      data: { cardId: number; databaseName: string },
+    ) => {
+      if (data.cardId === card.id && data.databaseName === databaseName) {
+        const card = await getCardById(data.cardId);
+        editorRef.current?.setEditorValue(card.content);
+        await updateCard(card);
+      }
+    };
+
+    on("card-window-closed", handleCardWindowClosed);
+
+    return () => {
+      off("card-window-closed", handleCardWindowClosed);
+    };
+  }, [databaseName, card.id]);
+
+  const moreMenuItems: MenuProps["items"] = useMemo(() => {
+    return [
+      {
+        key: "open-card-in-new-window",
+        label: "在新窗口中打开",
+        onClick: () => openCardInNewWindow(databaseName, card.id),
+      },
+      {
+        key: "delete-card",
+        label: "删除卡片",
+      },
+      {
+        key: "export-card",
+        label: "导出卡片",
+        children: [
+          {
+            key: "export-markdown",
+            label: "Markdown",
+          },
+        ],
+      },
+      {
+        key: "edit-category",
+        label: "编辑分类",
+        children: [
+          {
+            key: "category-temporary",
+            label: "闪念笔记",
+            disabled: ECardCategory.Temporary === card.category,
+          },
+          {
+            key: "category-permanent",
+            label: "永久笔记",
+            disabled: ECardCategory.Permanent === card.category,
+          },
+          {
+            key: "category-theme",
+            label: "主题笔记",
+            disabled: ECardCategory.Theme === card.category,
+          },
+        ],
+      },
+    ];
+  }, [card.category, databaseName, card.id]);
 
   const onClick = useMemoizedFn((e: MouseEvent<HTMLDivElement>) => {
     if (e.ctrlKey) {

@@ -48,7 +48,7 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
       deleteWhiteBoard: state.deleteWhiteBoard,
     }));
 
-  const uploadImage = useUploadResource();
+  const uploadResource = useUploadResource();
 
   const randomTheme = allThemes[whiteBoard.id % allThemes.length];
   const cardClassName = classnames(
@@ -72,7 +72,7 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
         return;
       }
       setBannerUploading(true);
-      const url = await uploadImage(file);
+      const url = await uploadResource(file);
       if (!url) {
         setBannerUploading(false);
         message.error("上传失败");

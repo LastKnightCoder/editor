@@ -3,8 +3,11 @@ import { createHashRouter } from "react-router-dom";
 import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
 import SettingsPage from "@/pages/Settings";
+import SingleCardEditor from "@/pages/SingleCardEditor";
 
 import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
+import QuickOpenLayout from "@/layouts/QuickOpenLayout";
+
 import HomeView from "@/layouts/ShortSidebarLayout/components/HomeView";
 import CardView from "@/layouts/ShortSidebarLayout/components/CardView";
 import ArticleView from "@/layouts/ShortSidebarLayout/components/ArticleView";
@@ -89,6 +92,16 @@ const routes = [
   {
     path: "/quick-time-record",
     element: <QuickTimeRecord />,
+  },
+  {
+    path: "/single-card-editor/",
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <SingleCardEditor />,
+      },
+    ],
   },
 ];
 

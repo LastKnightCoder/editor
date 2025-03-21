@@ -36,7 +36,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { attributes, children, element } = props;
   const { url, alt = "", pasteUploading = false } = element;
 
-  const { uploadImage } = useContext(EditorContext) || {};
+  const { uploadResource } = useContext(EditorContext) || {};
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -113,13 +113,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       event.target.value = "";
       return;
     }
-    if (!uploadImage) {
+    if (!uploadResource) {
       message.warning("尚未配置任何图床，无法上传图片");
       return null;
     }
     const path = ReactEditor.findPath(editor, element);
     const file = files[0];
-    const uploadRes = await uploadImage(file);
+    const uploadRes = await uploadResource(file);
     if (!uploadRes) {
       setUploading(false);
       event.target.value = "";

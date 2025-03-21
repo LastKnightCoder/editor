@@ -1,34 +1,33 @@
 .defaultLayout {
+  width: 100vw;
+  height: 100vh;
   display: flex;
-  --sidebar-width: 60px;
-  --title-bar-height: 60px;
-  --container-width: calc(100vw - var(--sidebar-width));
-  --detail-height: calc(100vh - var(--title-bar-height));
-  //background-image:
-  //  linear-gradient(-80deg, rgba(0, 118, 189, 0.1), transparent 80%),
-  //  linear-gradient(100deg, rgba(189, 187, 73, 0.1), transparent 80%);
-  .sidebar {
-    width: var(--sidebar-width);
-    height: 100vh;
-    border-right: 1px solid var(--line-color);
-  }
-  .container {
-    width: var(--container-width);
-    height: 100vh;
-    .titleBar {
-      height: var(--title-bar-height);
-      border-bottom: 1px solid var(--line-color);
-    }
-    .detail {
-      position: relative;
-      box-sizing: border-box;
-      height: var(--detail-height);
-      overflow: auto;
-      .app {
-        height: 100%;
-        font-size: var(--font-size);
-        color: var(--text-normal);
+  flex-direction: column;
+  overflow: hidden;
+
+  .titlebar {
+    width: 100%;
+    height: 48px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    -webkit-app-region: drag;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 12px;
+
+    .pin {
+      transform: rotate(0deg);
+      transition: transform 0.2s;
+
+      &.onTop {
+        transform: rotate(-45deg);
       }
     }
+  }
+
+  .content {
+    flex: 1;
+    overflow: hidden;
   }
 }
