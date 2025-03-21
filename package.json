@@ -32,6 +32,7 @@
     "fs-extra": "^11.3.0",
     "llm-chunk": "^0.0.1",
     "openai": "^4.80.1",
+    "react-scan": "^0.3.2",
     "roughjs": "^4.6.6",
     "sqlite-vec": "0.1.7-alpha.2"
   },
