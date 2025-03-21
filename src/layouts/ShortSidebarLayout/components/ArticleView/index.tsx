@@ -3,7 +3,6 @@ import { PlusOutlined } from "@ant-design/icons";
 import { RiSlideshowLine } from "react-icons/ri";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
-import { useState, useMemo } from "react";
 
 import ArticleList from "@/layouts/components/ArticleList";
 import SimpleArticleList from "./SimpleArticleList";
@@ -16,16 +15,31 @@ import styles from "./index.module.less";
 import { getFileBaseName, readTextFile, selectFile } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import PresentationMode from "@/components/PresentationMode";
+import { openArticleInNewWindow } from "@/commands/article.ts";
+import useSettingStore from "@/stores/useSettingStore.ts";
 
 const ArticleView = () => {
-  const [isPresentation, setIsPresentation] = useState(false);
-  const { activeArticleId, createArticle, hideArticleList, articles } =
-    useArticleManagementStore((state) => ({
-      activeArticleId: state.activeArticleId,
-      createArticle: state.createArticle,
-      hideArticleList: state.hideArticleList,
-      articles: state.articles,
-    }));
+  const {
+    activeArticleId,
+    createArticle,
+    hideArticleList,
+    isArticlePresentation,
+    startArticlePresentation,
+    stopArticlePresentation,
+    presentationArticle,
+  } = useArticleManagementStore((state) => ({
+    activeArticleId: state.activeArticleId,
+    createArticle: state.createArticle,
+    hideArticleList: state.hideArticleList,
+    isArticlePresentation: state.isArticlePresentation,
+    startArticlePresentation: state.startArticlePresentation,
+    stopArticlePresentation: state.stopArticlePresentation,
+    presentationArticle: state.presentationArticle,
+  }));
+
+  const { currentDatabaseName } = useSettingStore((state) => ({
+    currentDatabaseName: state.setting.database.active,
+  }));
 
   const handleAddNewArticle = useMemoizedFn(async () => {
     const article = await createArticle({
@@ -47,11 +61,6 @@ const ArticleView = () => {
 
   const isShowEdit = !!activeArticleId;
 
-  // 获取当前激活的文章
-  const activeArticle = useMemo(() => {
-    return articles.find((article) => article.id === activeArticleId);
-  }, [articles, activeArticleId]);
-
   return (
     <div
       className={classnames(styles.viewContainer, {
@@ -66,7 +75,7 @@ const ArticleView = () => {
       <div className={styles.editContainer}>
         {isShowEdit && <EditArticle key={activeArticleId} />}
       </div>
-      {!activeArticleId && (
+      {!activeArticleId && !isArticlePresentation && (
         <FloatButton
           style={{
             right: 60,
@@ -82,11 +91,6 @@ const ArticleView = () => {
                   {
                     key: "import-markdown",
                     label: "导入文章",
-                  },
-                  {
-                    key: "presentation-mode",
-                    label: "演示模式",
-                    disabled: !activeArticleId,
                   },
                 ],
                 onClick: async ({ key }) => {
@@ -120,12 +124,6 @@ const ArticleView = () => {
                         count: getContentLength(content),
                       });
                     }
-                  } else if (
-                    key === "presentation-mode" &&
-                    activeArticleId &&
-                    activeArticle
-                  ) {
-                    setIsPresentation(true);
                   }
                 },
               }}
@@ -135,23 +133,47 @@ const ArticleView = () => {
           }
         />
       )}
-      {activeArticleId && !isPresentation && (
+      {activeArticleId && !isArticlePresentation && (
         <FloatButton
           style={{
-            right: 60,
+            right: 30,
+            bottom: 80,
           }}
-          onClick={() => {
-            setIsPresentation(true);
-          }}
-          icon={<RiSlideshowLine />}
+          icon={
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: "presentation-mode",
+                    label: "演示模式",
+                  },
+                  {
+                    key: "open-in-new-window",
+                    label: "在新窗口中打开",
+                  },
+                ],
+                onClick: async ({ key }) => {
+                  if (key === "presentation-mode") {
+                    startArticlePresentation(activeArticleId);
+                  } else if (key === "open-in-new-window") {
+                    openArticleInNewWindow(
+                      currentDatabaseName,
+                      activeArticleId,
+                    );
+                  }
+                },
+              }}
+            >
+              <RiSlideshowLine />
+            </Dropdown>
+          }
         />
       )}
-
-      {isPresentation && activeArticle && (
+      {isArticlePresentation && presentationArticle && (
         <PresentationMode
-          content={activeArticle.content}
+          content={presentationArticle.content}
           onExit={() => {
-            setIsPresentation(false);
+            stopArticlePresentation();
           }}
         />
       )}

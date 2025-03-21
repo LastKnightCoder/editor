@@ -23,4 +23,3 @@ export * from "./extra.ts";
 export * from "./window.ts";
 export * from "./operation.ts";
 export * from "./search";
-export * from "./page";

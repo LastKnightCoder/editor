@@ -28,3 +28,7 @@ export async function getTagsById(id: number): Promise<string[]> {
 export async function getCardsGroupByTag(): Promise<Record<string, ICard[]>> {
   return invoke("get-cards-group-by-tag");
 }
+
+export const openCardInNewWindow = (databaseName: string, cardId: number) => {
+  return invoke("open-card-in-new-window", databaseName, cardId);
+};

@@ -31,6 +31,7 @@
     object-position: center;
     flex: none;
   }
+
   .title {
     font-size: 1.2em;
     font-weight: bold;
@@ -47,12 +48,15 @@
   &.active {
     // border: 2px solid var(--active-text-color);
     background-color: var(--active-bg-color);
+
     .moreIcon {
       background-color: var(--active-icon-bg);
     }
+
     .content {
       opacity: 1;
     }
+
     .tags {
       font-weight: bold;
       color: var(--active-icon-bg);
@@ -61,15 +65,18 @@
 
   .content {
     opacity: 0.75;
+
     :global(.ant-typography) {
       margin-bottom: 0;
     }
   }
+
   .tags {
     margin-top: 10px;
     color: var(--tag-color);
   }
 }
+
 .operate {
   position: absolute;
   top: 6px;
@@ -81,21 +88,9 @@
   justify-content: center;
   border-radius: 50%;
   z-index: 1;
+
   &:hover {
     cursor: pointer;
     background-color: rgba(255, 255, 255, 0.2);
-  }
-}
-.settings {
-  display: flex;
-  gap: 10px;
-  flex-direction: column;
-  .settingItem {
-    padding: 8px 16px;
-    border-radius: 4px;
-    &:hover {
-      background-color: var(--common-hover-bg);
-      cursor: pointer;
-    }
   }
 }

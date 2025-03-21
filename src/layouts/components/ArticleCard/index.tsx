@@ -1,16 +1,15 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import classnames from "classnames";
-import { message, Modal, Popover, Spin, Typography } from "antd";
+import { Dropdown, message, Modal, Spin, Typography } from "antd";
 import SVG from "react-inlinesvg";
 import { CalendarOutlined } from "@ant-design/icons";
 import star from "@/assets/article/star.svg";
 import { MdMoreVert } from "react-icons/md";
 
 import LocalImage from "@/components/LocalImage";
-import Editor from "@editor/index.tsx";
+import Editor, { EditorRef } from "@editor/index.tsx";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
-import PresentationMode from "@/components/PresentationMode";
 
 import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
@@ -22,7 +21,15 @@ import { IArticle } from "@/types";
 import { formatDate } from "@/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.less";
-
+import { openArticleInNewWindow } from "@/commands/article";
+import {
+  findOneArticle,
+  getFileBaseName,
+  readBinaryFile,
+  selectFile,
+} from "@/commands";
+import useSettingStore from "@/stores/useSettingStore";
+import { on, off } from "@/electron";
 const { Text } = Typography;
 
 interface IArticleCardProps {
@@ -49,8 +56,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   const navigate = useNavigate();
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
-  const fileUploadRef = useRef<HTMLInputElement>(null);
-  const [isPresentation, setIsPresentation] = useState(false);
+  const editorRef = useRef<EditorRef>(null);
 
   const uploadResource = useUploadResource();
 
@@ -65,43 +71,58 @@ const ArticleCard = (props: IArticleCardProps) => {
     deleteArticle,
     updateArticleBannerBg,
     activeArticleId,
+    updateArticle,
+    startPresentation,
   } = useArticleManagementStore((state) => ({
     updateArticleIsTop: state.updateArticleIsTop,
     deleteArticle: state.deleteArticle,
     updateArticleBannerBg: state.updateArticleBannerBg,
     activeArticleId: state.activeArticleId,
+    updateArticle: state.updateArticle,
+    startPresentation: state.startArticlePresentation,
   }));
 
-  const handleUploadFileChange = useMemoizedFn(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      setBannerUploading(true);
-      const files = event.target.files;
-      if (!files) {
-        setBannerUploading(false);
-        return;
-      }
-      const file = files[0];
-      if (file.size > 1024 * 1024 * 5) {
-        message.error("文件大小超过5M");
-        setBannerUploading(false);
-        return;
-      }
-      const url = await uploadResource(file);
-      if (!url) {
-        message.error("上传失败");
-        setBannerUploading(false);
-        return;
-      }
-      await updateArticleBannerBg(article.id, url || "");
+  const { currentDatabaseName } = useSettingStore((state) => ({
+    currentDatabaseName: state.setting.database.active,
+  }));
+
+  const handleUploadFileChange = useMemoizedFn(async () => {
+    const filePath = await selectFile({
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "Image",
+          extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"],
+        },
+      ],
+    });
+    if (!filePath || (Array.isArray(filePath) && filePath.length !== 1)) {
       setBannerUploading(false);
-    },
-  );
+      return;
+    }
+    const fileData = await readBinaryFile(filePath[0]);
+    const file = new File([fileData], await getFileBaseName(filePath[0]));
+    if (file.size > 1024 * 1024 * 5) {
+      message.error("文件大小超过5M");
+      setBannerUploading(false);
+      return;
+    }
+    const url = await uploadResource(file);
+    if (!url) {
+      message.error("上传失败");
+      setBannerUploading(false);
+      return;
+    }
+    updateArticleBannerBg?.(article.id, url || "");
+    setBannerUploading(false);
+  });
 
   const handleDeleteArticle = useMemoizedFn(() => {
     Modal.confirm({
       title: "确定删除该文章？",
       onOk: async () => {
         await deleteArticle(article.id);
+        message.success("删除成功");
       },
       okText: "确定",
       cancelText: "取消",
@@ -132,6 +153,28 @@ const ArticleCard = (props: IArticleCardProps) => {
     });
   });
 
+  useEffect(() => {
+    const handleArticleWindowClosed = async (
+      _e: any,
+      data: { articleId: number; databaseName: string },
+    ) => {
+      if (
+        data.articleId === article.id &&
+        data.databaseName === currentDatabaseName
+      ) {
+        const article = await findOneArticle(data.articleId);
+        editorRef.current?.setEditorValue(article.content.slice(0, 1));
+        await updateArticle(article);
+      }
+    };
+
+    on("article-window-closed", handleArticleWindowClosed);
+
+    return () => {
+      off("article-window-closed", handleArticleWindowClosed);
+    };
+  }, []);
+
   return (
     <div className={classnames(styles.cardContainer, className)}>
       <Spin spinning={bannerUploading}>
@@ -159,63 +202,57 @@ const ArticleCard = (props: IArticleCardProps) => {
                   [styles.left]: imageRight,
                 })}
               >
-                <Popover
+                <Dropdown
                   open={settingOpen}
                   onOpenChange={setSettingOpen}
                   placement={"bottomRight"}
-                  trigger={"click"}
-                  styles={{
-                    body: {
-                      padding: 4,
-                    },
+                  trigger={["click"]}
+                  menu={{
+                    items: [
+                      {
+                        key: "presentation-mode",
+                        label: "演示模式",
+                        onClick: () => {
+                          startPresentation(article.id);
+                          setSettingOpen(false);
+                        },
+                      },
+                      {
+                        key: "delete-article",
+                        label: "删除文章",
+                        onClick: handleDeleteArticle,
+                      },
+                      {
+                        key: "change-banner-bg",
+                        label: "换背景图",
+                        onClick: () => {
+                          setSettingOpen(false);
+                          handleUploadFileChange();
+                        },
+                      },
+                      {
+                        key: "set-top",
+                        label: article.isTop ? "取消置顶" : "置顶",
+                        onClick: () => {
+                          updateArticleIsTop(article.id, !article.isTop);
+                          setSettingOpen(false);
+                        },
+                      },
+                      {
+                        key: "open-in-new-window",
+                        label: "在新窗口中打开",
+                        onClick: () => {
+                          openArticleInNewWindow(
+                            currentDatabaseName,
+                            article.id,
+                          );
+                        },
+                      },
+                    ],
                   }}
-                  content={
-                    <div className={styles.settings}>
-                      <div
-                        className={styles.settingItem}
-                        onClick={async () => {
-                          await updateArticleIsTop(article.id, !article.isTop);
-                          setSettingOpen(false);
-                        }}
-                      >
-                        {article.isTop ? "取消置顶" : "置顶文章"}
-                      </div>
-                      <div
-                        className={styles.settingItem}
-                        onClick={handleDeleteArticle}
-                      >
-                        删除文章
-                      </div>
-                      <div
-                        className={styles.settingItem}
-                        onClick={() => {
-                          setSettingOpen(false);
-                          fileUploadRef.current?.click();
-                        }}
-                      >
-                        换背景图
-                      </div>
-                      <div
-                        className={styles.settingItem}
-                        onClick={() => {
-                          setSettingOpen(false);
-                          setIsPresentation(true);
-                        }}
-                      >
-                        演示模式
-                      </div>
-                      <input
-                        ref={fileUploadRef}
-                        type={"file"}
-                        accept={"image/*"}
-                        style={{ display: "none" }}
-                        onChange={handleUploadFileChange}
-                      />
-                    </div>
-                  }
                 >
                   <MdMoreVert />
-                </Popover>
+                </Dropdown>
               </div>
             )}
             <div onClick={handleClickArticle}>
@@ -237,19 +274,14 @@ const ArticleCard = (props: IArticleCardProps) => {
             <div>
               <Tags tags={article.tags} showIcon />
             </div>
-            <Editor initValue={article.content.slice(0, 1)} readonly />
+            <Editor
+              ref={editorRef}
+              initValue={article.content.slice(0, 1)}
+              readonly
+            />
           </div>
         </div>
       </Spin>
-
-      {isPresentation && (
-        <PresentationMode
-          content={article.content}
-          onExit={() => {
-            setIsPresentation(false);
-          }}
-        />
-      )}
     </div>
   );
 };

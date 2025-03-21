@@ -4,6 +4,7 @@ import QuickCard from "@/pages/QuickCard";
 import QuickTimeRecord from "@/pages/QuickTimeRecord";
 import SettingsPage from "@/pages/Settings";
 import SingleCardEditor from "@/pages/SingleCardEditor";
+import SingleArticleEditor from "@/pages/SingleArticleEditor";
 
 import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
 import QuickOpenLayout from "@/layouts/QuickOpenLayout";
@@ -100,6 +101,16 @@ const routes = [
       {
         index: true,
         element: <SingleCardEditor />,
+      },
+    ],
+  },
+  {
+    path: "/single-article-editor/",
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <SingleArticleEditor />,
       },
     ],
   },

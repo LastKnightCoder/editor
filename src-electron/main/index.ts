@@ -52,6 +52,8 @@ if (process.platform === "win32") app.setAppUserModelId(app.getName());
 
 // Track open card editor windows
 const cardEditorWindows = new Map<string, BrowserWindow>();
+// Track open article editor windows
+const articleEditorWindows = new Map<string, BrowserWindow>();
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -173,6 +175,83 @@ const createCardEditorWindow = (databaseName: string, cardId: number) => {
   });
 };
 
+const createArticleEditorWindow = (databaseName: string, articleId: number) => {
+  const windowKey = `${databaseName}-${articleId}`;
+
+  // Check if window with this article already exists
+  if (articleEditorWindows.has(windowKey)) {
+    const existingWindow = articleEditorWindows.get(windowKey);
+    if (existingWindow && !existingWindow.isDestroyed()) {
+      existingWindow.show();
+      existingWindow.focus();
+      return;
+    }
+  }
+
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, "../../build/icon.png"),
+    webPreferences: {
+      preload,
+      spellcheck: false,
+    },
+    trafficLightPosition: { x: 12, y: 17 },
+    // Mac 专属配置
+    ...(process.platform === "darwin" && {
+      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
+      frame: false, // 隐藏默认窗口框架
+    }),
+    // Windows 配置（保持默认标题栏）
+    ...(process.platform === "win32" && {
+      frame: true, // 显式保留默认框架
+    }),
+  });
+
+  // Store the window reference in our map
+  articleEditorWindows.set(windowKey, win);
+
+  win.setAlwaysOnTop(true);
+
+  const url = VITE_DEV_SERVER_URL
+    ? `${VITE_DEV_SERVER_URL}#/single-article-editor?databaseName=${databaseName}&articleId=${articleId}`
+    : `${indexHtml}#/single-article-editor?databaseName=${databaseName}&articleId=${articleId}`;
+
+  win.loadURL(url);
+
+  if (VITE_DEV_SERVER_URL) {
+    win.webContents.openDevTools();
+  }
+
+  // 监听最大化事件
+  win.on("enter-full-screen", () => {
+    win.webContents.send("full-screen-change");
+  });
+  win.on("leave-full-screen", () => {
+    win.webContents.send("full-screen-change");
+  });
+
+  win.webContents.on("did-finish-load", () => {
+    win.webContents.setZoomFactor(1);
+    win.webContents.setVisualZoomLevelLimits(1, 1);
+  });
+
+  win.on("closed", () => {
+    articleEditorWindows.delete(windowKey);
+
+    // Notify main window about article update
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("article-window-closed", {
+          databaseName,
+          articleId,
+        });
+      }
+    });
+  });
+};
+
 function getMimeType(ext: string): string {
   const mimeTypes: Record<string, string> = {
     ".mp4": "video/mp4",
@@ -232,6 +311,13 @@ app.whenReady().then(() => {
   ipcMain.handle("open-card-in-new-window", (_event, databaseName, cardId) => {
     createCardEditorWindow(databaseName, cardId);
   });
+
+  ipcMain.handle(
+    "open-article-in-new-window",
+    (_event, databaseName, articleId) => {
+      createArticleEditorWindow(databaseName, articleId);
+    },
+  );
 
   initModules().then(() => {
     createWindow();

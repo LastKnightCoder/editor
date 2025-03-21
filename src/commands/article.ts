@@ -18,9 +18,7 @@ export async function deleteArticle(id: number): Promise<number> {
 }
 
 export async function findOneArticle(id: number): Promise<IArticle> {
-  return await invoke("get-article-by-id", {
-    id,
-  });
+  return await invoke("get-article-by-id", id);
 }
 
 export async function getAllArticles(): Promise<IArticle[]> {
@@ -39,4 +37,11 @@ export async function updateArticleBannerBg(
   bannerBg: string,
 ): Promise<number> {
   return await invoke("update-article-banner-bg", id, bannerBg);
+}
+
+export async function openArticleInNewWindow(
+  databaseName: string,
+  articleId: number,
+): Promise<void> {
+  return await invoke("open-article-in-new-window", databaseName, articleId);
 }
