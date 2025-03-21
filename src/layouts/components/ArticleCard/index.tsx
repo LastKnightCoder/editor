@@ -232,7 +232,7 @@ const ArticleCard = (props: IArticleCardProps) => {
                       },
                       {
                         key: "set-top",
-                        label: article.isTop ? "取消置顶" : "置顶",
+                        label: article.isTop ? "取消置顶" : "设置置顶",
                         onClick: () => {
                           updateArticleIsTop(article.id, !article.isTop);
                           setSettingOpen(false);
@@ -240,7 +240,7 @@ const ArticleCard = (props: IArticleCardProps) => {
                       },
                       {
                         key: "open-in-new-window",
-                        label: "在新窗口中打开",
+                        label: "窗口打开",
                         onClick: () => {
                           openArticleInNewWindow(
                             currentDatabaseName,
