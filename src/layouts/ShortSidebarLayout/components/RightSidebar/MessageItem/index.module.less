@@ -1,0 +1,61 @@
+.message {
+  padding: 24px;
+  background: #f5f6f9;
+  border-radius: 12px;
+  width: 85%;
+  align-self: flex-start;
+  overflow: hidden;
+
+  &.userMessage {
+    align-self: flex-end;
+  }
+
+  &.assistantMessage {
+    align-self: flex-start;
+  }
+
+  .messageContent {
+    width: 100%;
+  }
+
+  .reasoningContent {
+    margin: 0 0 16px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-left: 3px solid rgba(0, 0, 0, 0.4);
+    padding: 16px;
+    color: #454a52;
+  }
+
+  &.dark {
+    background: #323233;
+
+    .reasoningContent {
+      background-color: rgba(255, 255, 255, 0.05);
+      border-left: 3px solid rgba(255, 255, 255, 0.4);
+      color: #abb3be;
+    }
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.markdown {
+  border-radius: 12px;
+  font-family: var(--font);
+  font-size: var(--font-size);
+
+  code {
+    font-family: var(--mono-font) !important;
+    font-size: 0.8em !important;
+
+    :global(.token) {
+      font-style: normal !important;
+    }
+  }
+
+  :not(pre) code {
+    color: var(--code-normal);
+  }
+}
