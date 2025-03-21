@@ -14,6 +14,35 @@
   );
   position: relative;
   box-sizing: border-box;
+
+  &.pinned {
+    background-image: linear-gradient(
+      -30deg,
+      rgba(255, 140, 0, 0.1),
+      transparent 50%
+    );
+    border: 1px solid rgba(255, 140, 0, 0.3);
+  }
+
+  .pinnedFlag {
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #ff8c00;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    svg {
+      font-size: 16px;
+    }
+  }
+
   .operate {
     position: absolute;
     top: 10px;
@@ -24,21 +53,26 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
+
     &:hover {
       cursor: pointer;
       background-color: rgba(255, 255, 255, 0.2);
     }
   }
+
   &:hover {
     box-shadow: 0 3px 6px 0 rgb(0 0 0 / 15%);
+
     .title {
       color: #7d1abd;
     }
   }
+
   &.dark {
     background-color: #18151f;
     box-shadow: 0 4px 21px -12px rgba(0, 0, 0, 0.66);
   }
+
   .title {
     user-select: none;
     font-weight: bold;
@@ -47,6 +81,7 @@
     white-space: nowrap;
     overflow: hidden;
   }
+
   .desc {
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -59,9 +94,11 @@
   display: flex;
   gap: 10px;
   flex-direction: column;
+
   .settingItem {
     padding: 8px 16px;
     border-radius: 4px;
+
     &:hover {
       background-color: var(--common-hover-bg);
       cursor: pointer;

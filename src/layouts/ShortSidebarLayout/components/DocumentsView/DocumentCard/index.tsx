@@ -6,6 +6,7 @@ import { Modal, Popover } from "antd";
 import EditDocumentModal from "../EditDocumentModal";
 
 import { MdMoreVert } from "react-icons/md";
+import { AiFillPushpin } from "react-icons/ai";
 import useTheme from "@/hooks/useTheme.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 
@@ -45,6 +46,14 @@ const DocumentCard = (props: DocumentCardProps) => {
     setSettingOpen(false);
   };
 
+  const handleTogglePin = async () => {
+    const newDocument = produce(document, (draft) => {
+      draft.isTop = !draft.isTop;
+    });
+    await updateDocument(newDocument);
+    setSettingOpen(false);
+  };
+
   const onClick = () => {
     useDocumentsStore.setState({
       activeDocumentId: document.id,
@@ -58,15 +67,26 @@ const DocumentCard = (props: DocumentCardProps) => {
       className={classnames(
         styles.cardContainer,
         { [styles.dark]: isDark },
+        { [styles.pinned]: document.isTop },
         className,
       )}
       style={style}
     >
+      {document.isTop && (
+        <div className={styles.pinnedFlag}>
+          <AiFillPushpin />
+        </div>
+      )}
       <div className={styles.title} onClick={onClick}>
         {document.title}
       </div>
       <div className={styles.desc}>{document.desc}</div>
-      <div className={classnames(styles.operate)}>
+      <div
+        className={classnames(styles.operate)}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      >
         <Popover
           open={settingOpen}
           onOpenChange={setSettingOpen}
@@ -81,18 +101,31 @@ const DocumentCard = (props: DocumentCardProps) => {
             <div className={styles.settings}>
               <div
                 className={styles.settingItem}
-                onClick={handleDeleteDocument}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTogglePin();
+                }}
               >
-                删除知识库
+                {document.isTop ? "取消置顶" : "置顶"}
               </div>
               <div
                 className={styles.settingItem}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setEditOpen(true);
                   setSettingOpen(false);
                 }}
               >
                 编辑知识库
+              </div>
+              <div
+                className={styles.settingItem}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteDocument();
+                }}
+              >
+                删除知识库
               </div>
             </div>
           }
