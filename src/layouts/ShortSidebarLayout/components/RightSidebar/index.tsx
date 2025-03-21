@@ -1,6 +1,6 @@
 import { App, Button, Select } from "antd";
 import classnames from "classnames";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { produce } from "immer";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -35,6 +35,9 @@ import styles from "./index.module.less";
 interface RightSidebarProps {
   onWidthChange: (width: number) => void;
 }
+
+const rehypePlugins = [rehypeKatex];
+const remarkPlugins = [remarkMath, remarkGfm];
 
 const RightSidebar = (props: RightSidebarProps) => {
   const { onWidthChange } = props;
@@ -263,6 +266,29 @@ const RightSidebar = (props: RightSidebarProps) => {
     });
   });
 
+  const markdownComponents = useMemo(() => {
+    return {
+      code(props: any) {
+        const { children, className, node, ...rest } = props;
+        const match = /language-(\w+)/.exec(className || "");
+        return match ? (
+          // @ts-ignore
+          <SyntaxHighlighter
+            {...rest}
+            PreTag="div"
+            children={String(children).replace(/\n$/, "")}
+            language={match[1]}
+            style={isDark ? oneDark : oneLight}
+          />
+        ) : (
+          <code {...rest} className={className}>
+            {children}
+          </code>
+        );
+      },
+    };
+  }, [isDark]);
+
   return (
     <ResizableAndHideableSidebar
       className={styles.rightSidebar}
@@ -366,34 +392,9 @@ const RightSidebar = (props: RightSidebarProps) => {
                       {role === Role.Assistant && reasoning_content && (
                         <blockquote className={styles.reasoningContent}>
                           <Markdown
-                            rehypePlugins={[rehypeKatex]}
-                            remarkPlugins={[remarkMath, remarkGfm]}
-                            components={{
-                              code(props) {
-                                const { children, className, node, ...rest } =
-                                  props;
-                                const match = /language-(\w+)/.exec(
-                                  className || "",
-                                );
-                                return match ? (
-                                  // @ts-ignore
-                                  <SyntaxHighlighter
-                                    {...rest}
-                                    PreTag="div"
-                                    children={String(children).replace(
-                                      /\n$/,
-                                      "",
-                                    )}
-                                    language={match[1]}
-                                    style={isDark ? oneDark : oneLight}
-                                  />
-                                ) : (
-                                  <code {...rest} className={className}>
-                                    {children}
-                                  </code>
-                                );
-                              },
-                            }}
+                            rehypePlugins={rehypePlugins}
+                            remarkPlugins={remarkPlugins}
+                            components={markdownComponents}
                           >
                             {reasoning_content}
                           </Markdown>
@@ -401,31 +402,9 @@ const RightSidebar = (props: RightSidebarProps) => {
                       )}
                       <Markdown
                         className={styles.markdown}
-                        rehypePlugins={[rehypeKatex]}
-                        remarkPlugins={[remarkMath, remarkGfm]}
-                        components={{
-                          code(props) {
-                            const { children, className, node, ...rest } =
-                              props;
-                            const match = /language-(\w+)/.exec(
-                              className || "",
-                            );
-                            return match ? (
-                              // @ts-ignore
-                              <SyntaxHighlighter
-                                {...rest}
-                                PreTag="div"
-                                children={String(children).replace(/\n$/, "")}
-                                language={match[1]}
-                                style={isDark ? oneDark : oneLight}
-                              />
-                            ) : (
-                              <code {...rest} className={className}>
-                                {children}
-                              </code>
-                            );
-                          },
-                        }}
+                        rehypePlugins={rehypePlugins}
+                        remarkPlugins={remarkPlugins}
+                        components={markdownComponents}
                       >
                         {content}
                       </Markdown>
