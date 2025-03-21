@@ -29,13 +29,6 @@ export default function useScrollToBottom(
 
       // 获取滚动方向
       const scrollDirection = e.deltaY > 0 ? "down" : "up";
-      console.log(
-        "isHitBottom",
-        isHitBottom,
-        bottomHeight,
-        ele.scrollHeight,
-        scrollDirection,
-      );
 
       setAutoScroll(isHitBottom && scrollDirection === "down");
     },

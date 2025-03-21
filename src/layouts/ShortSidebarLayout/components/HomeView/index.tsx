@@ -25,6 +25,7 @@ import dayjs from "dayjs";
 import { Line } from "@ant-design/charts";
 import useTheme from "@/hooks/useTheme.ts";
 import { useMemoizedFn } from "ahooks";
+import ContainerCol from "@/components/ContainerCol";
 
 const HomeView = () => {
   const navigate = useNavigate();
@@ -154,7 +155,7 @@ const HomeView = () => {
         }}
       />
       <Row gutter={[16, 16]}>
-        <Col sm={24} md={24} lg={12} xxl={6}>
+        <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
           <Card title={"卡片"}>
             <Row>
               <Col span={12}>
@@ -165,8 +166,8 @@ const HomeView = () => {
               </Col>
             </Row>
           </Card>
-        </Col>
-        <Col sm={24} md={24} lg={12} xxl={6}>
+        </ContainerCol>
+        <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
           <Card title={"文章"}>
             <Row>
               <Col span={12}>
@@ -177,8 +178,8 @@ const HomeView = () => {
               </Col>
             </Row>
           </Card>
-        </Col>
-        <Col sm={24} md={24} lg={12} xxl={6}>
+        </ContainerCol>
+        <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
           <Card title={"项目"}>
             <Row>
               <Col span={12}>
@@ -189,8 +190,8 @@ const HomeView = () => {
               </Col>
             </Row>
           </Card>
-        </Col>
-        <Col sm={24} md={24} lg={12} xxl={6}>
+        </ContainerCol>
+        <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
           <Card title={"知识库"}>
             <Row>
               <Col span={12}>
@@ -201,13 +202,13 @@ const HomeView = () => {
               </Col>
             </Row>
           </Card>
-        </Col>
+        </ContainerCol>
       </Row>
       {notesLineData.length > 4 && (
         <>
           <h2>数据趋势</h2>
           <Row gutter={[16, 16]}>
-            <Col md={24} lg={12} xxl={12}>
+            <ContainerCol md={24} lg={12} xl={12} xxl={12}>
               <Card title={"笔记数量"}>
                 <Line
                   xField={"date"}
@@ -227,8 +228,8 @@ const HomeView = () => {
                   theme={isDark ? "classicDark" : "classic"}
                 />
               </Card>
-            </Col>
-            <Col md={24} lg={12} xxl={12}>
+            </ContainerCol>
+            <ContainerCol md={24} lg={12} xl={12} xxl={12}>
               <Card title={"字数统计"}>
                 <Line
                   xField={"date"}
@@ -248,13 +249,13 @@ const HomeView = () => {
                   theme={isDark ? "classicDark" : "classic"}
                 />
               </Card>
-            </Col>
+            </ContainerCol>
           </Row>
         </>
       )}
       <h2>最近编辑</h2>
       <Row gutter={[16, 16]} align={"stretch"}>
-        <Col sm={24} md={24} lg={12} xxl={6}>
+        <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
           <Card title={"卡片"} style={{ height: "100%" }}>
             <div className={styles.list}>
               <For
@@ -291,8 +292,8 @@ const HomeView = () => {
               />
             </div>
           </Card>
-        </Col>
-        <Col sm={24} md={24} lg={12} xxl={6}>
+        </ContainerCol>
+        <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
           <Card title={"文章"} style={{ height: "100%" }}>
             <div className={styles.list}>
               <For
@@ -331,8 +332,8 @@ const HomeView = () => {
               />
             </div>
           </Card>
-        </Col>
-        <Col sm={24} md={24} lg={12} xxl={6}>
+        </ContainerCol>
+        <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
           <Card title={"项目"} style={{ height: "100%" }}>
             <div className={styles.list}>
               <For
@@ -373,8 +374,8 @@ const HomeView = () => {
               />
             </div>
           </Card>
-        </Col>
-        <Col sm={24} md={24} lg={12} xxl={6}>
+        </ContainerCol>
+        <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
           <Card title={"知识库"} style={{ height: "100%" }}>
             <div className={styles.list}>
               <For
@@ -420,7 +421,7 @@ const HomeView = () => {
               />
             </div>
           </Card>
-        </Col>
+        </ContainerCol>
       </Row>
     </div>
   );
