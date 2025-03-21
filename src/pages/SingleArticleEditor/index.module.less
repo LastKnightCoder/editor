@@ -1,4 +1,4 @@
-.singleCardEditorContainer {
+.singleArticleEditorContainer {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -9,7 +9,7 @@
 }
 
 .time {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   display: flex;
   gap: 10px;
   opacity: 0.8;
@@ -17,11 +17,19 @@
   flex-shrink: 0;
 }
 
+.title {
+  margin: 24px 0;
+  flex-shrink: 0;
+  font-size: 24px;
+  font-weight: 600;
+  text-align: center;
+}
+
 .editor {
   flex: 1;
   overflow: auto;
   border-radius: 4px;
-  padding: 16px;
+  padding: 32px;
   max-width: 720px;
   margin: 0 auto;
 }

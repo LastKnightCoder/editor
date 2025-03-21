@@ -1,10 +1,11 @@
-import { memo, useState, useRef } from "react";
-import { Typography, Popover, App, Modal, Spin, Flex } from "antd";
+import { memo, useEffect, useState } from "react";
+import { Typography, App, Modal, Spin, Flex, Dropdown } from "antd";
 import classnames from "classnames";
 import useUploadResource from "@/hooks/useUploadResource";
 
 // import Tags from "@/components/Tags";
 import LocalImage from "@/components/LocalImage";
+import useSettingStore from "@/stores/useSettingStore";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 
 import { MdMoreVert } from "react-icons/md";
@@ -14,6 +15,14 @@ import { IArticle } from "@/types";
 import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 import Tags from "@/components/Tags";
+import {
+  getFileBaseName,
+  openArticleInNewWindow,
+  readBinaryFile,
+  selectFile,
+  findOneArticle,
+} from "@/commands";
+import { on, off } from "@/electron";
 
 interface IArticleItemProps {
   article: IArticle;
@@ -27,7 +36,6 @@ const ArticleItem = memo((props: IArticleItemProps) => {
 
   const [bannerUploading, setBannerUploading] = useState(false);
   const [settingOpen, setSettingOpen] = useState(false);
-  const fileUploadRef = useRef<HTMLInputElement>(null);
   const uploadResource = useUploadResource();
   const { message } = App.useApp();
 
@@ -36,39 +44,53 @@ const ArticleItem = memo((props: IArticleItemProps) => {
     deleteArticle,
     updateArticleBannerBg,
     activeArticleId,
+    updateArticle,
+    startPresentation,
   } = useArticleManagementStore((state) => ({
     updateArticleIsTop: state.updateArticleIsTop,
     deleteArticle: state.deleteArticle,
     updateArticleBannerBg: state.updateArticleBannerBg,
     activeArticleId: state.activeArticleId,
+    updateArticle: state.updateArticle,
+    startPresentation: state.startArticlePresentation,
+  }));
+
+  const { currentDatabaseName } = useSettingStore((state) => ({
+    currentDatabaseName: state.setting.database.active,
   }));
 
   const isActive = activeArticleId === article.id;
 
-  const handleUploadFileChange = useMemoizedFn(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      setBannerUploading(true);
-      const files = event.target.files;
-      if (!files) {
-        setBannerUploading(false);
-        return;
-      }
-      const file = files[0];
-      if (file.size > 1024 * 1024 * 5) {
-        message.error("文件大小超过5M");
-        setBannerUploading(false);
-        return;
-      }
-      const url = await uploadResource(file);
-      if (!url) {
-        message.error("上传失败");
-        setBannerUploading(false);
-        return;
-      }
-      updateArticleBannerBg?.(article.id, url || "");
+  const handleUploadFileChange = useMemoizedFn(async () => {
+    const filePath = await selectFile({
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "Image",
+          extensions: ["jpg", "jpeg", "png", "gif", "bmp", "webp"],
+        },
+      ],
+    });
+    if (!filePath || (Array.isArray(filePath) && filePath.length !== 1)) {
       setBannerUploading(false);
-    },
-  );
+      return;
+    }
+    const fileData = await readBinaryFile(filePath[0]);
+    const file = new File([fileData], await getFileBaseName(filePath[0]));
+    if (file.size > 1024 * 1024 * 5) {
+      message.error("文件大小超过5M");
+      setBannerUploading(false);
+      return;
+    }
+    const url = await uploadResource(file);
+    if (!url) {
+      message.error("上传失败");
+      setBannerUploading(false);
+      return;
+    }
+    updateArticleBannerBg?.(article.id, url || "");
+    setBannerUploading(false);
+  });
 
   const handleDeleteArticle = useMemoizedFn(() => {
     Modal.confirm({
@@ -94,6 +116,27 @@ const ArticleItem = memo((props: IArticleItemProps) => {
     });
   });
 
+  useEffect(() => {
+    const handleArticleWindowClosed = async (
+      _e: any,
+      data: { articleId: number; databaseName: string },
+    ) => {
+      if (
+        data.articleId === article.id &&
+        data.databaseName === currentDatabaseName
+      ) {
+        const article = await findOneArticle(data.articleId);
+        await updateArticle(article);
+      }
+    };
+
+    on("article-window-closed", handleArticleWindowClosed);
+
+    return () => {
+      off("article-window-closed", handleArticleWindowClosed);
+    };
+  }, []);
+
   return (
     <div
       className={classnames(styles.articleItem, { [styles.active]: isActive })}
@@ -101,54 +144,54 @@ const ArticleItem = memo((props: IArticleItemProps) => {
     >
       {!disableOperation && (
         <div className={styles.operate} onClick={(e) => e.stopPropagation()}>
-          <Popover
+          <Dropdown
             open={settingOpen}
             onOpenChange={setSettingOpen}
             placement={"bottomRight"}
-            trigger={"click"}
-            styles={{
-              body: {
-                padding: 4,
-              },
-            }}
-            content={
-              <div className={styles.settings}>
-                <div
-                  className={styles.settingItem}
-                  onClick={() => {
+            trigger={["click"]}
+            menu={{
+              items: [
+                {
+                  key: "presentation-mode",
+                  label: "演示模式",
+                  onClick: () => {
+                    startPresentation(article.id);
+                    setSettingOpen(false);
+                  },
+                },
+                {
+                  key: "delete-article",
+                  label: "删除文章",
+                  onClick: handleDeleteArticle,
+                },
+                {
+                  key: "change-banner-bg",
+                  label: "换背景图",
+                  onClick: () => {
+                    setSettingOpen(false);
+                    handleUploadFileChange();
+                  },
+                },
+                {
+                  key: "set-top",
+                  label: article.isTop ? "取消置顶" : "置顶",
+                  onClick: () => {
                     updateArticleIsTop(article.id, !article.isTop);
                     setSettingOpen(false);
-                  }}
-                >
-                  {article.isTop ? "取消置顶" : "置顶文章"}
-                </div>
-                <div
-                  className={styles.settingItem}
-                  onClick={handleDeleteArticle}
-                >
-                  删除文章
-                </div>
-                <div
-                  className={styles.settingItem}
-                  onClick={() => {
-                    setSettingOpen(false);
-                    fileUploadRef.current?.click();
-                  }}
-                >
-                  换背景图
-                </div>
-                <input
-                  ref={fileUploadRef}
-                  type={"file"}
-                  accept={"image/*"}
-                  style={{ display: "none" }}
-                  onChange={handleUploadFileChange}
-                />
-              </div>
-            }
+                  },
+                },
+                {
+                  key: "open-in-new-window",
+                  label: "在新窗口中打开",
+                  onClick: () => {
+                    openArticleInNewWindow(currentDatabaseName, article.id);
+                  },
+                },
+              ],
+            }}
           >
             <MdMoreVert />
-          </Popover>
+          </Dropdown>
         </div>
       )}
       <div className={styles.time}>

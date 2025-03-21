@@ -4,7 +4,7 @@ import { useMemoizedFn, useRafInterval, useThrottleFn, useSize } from "ahooks";
 
 import Editor, { EditorRef } from "@editor/index.tsx";
 import AddTag from "@/components/AddTag";
-import EditText from "@/components/EditText";
+import EditText, { EditTextHandle } from "@/components/EditText";
 import StatusBar from "@/components/StatusBar";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import { isValid } from "@/components/WhiteBoard/utils";
@@ -34,6 +34,9 @@ import {
   fileAttachmentExtension,
 } from "@/editor-extensions";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
+import useSettingStore from "@/stores/useSettingStore.ts";
+import { on, off } from "@/electron";
+import { findOneArticle } from "@/commands";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context.ts";
@@ -47,6 +50,10 @@ const EditArticle = memo(() => {
     activeArticleId: state.activeArticleId,
   }));
 
+  const { currentDatabaseName } = useSettingStore((state) => ({
+    currentDatabaseName: state.setting.database.active,
+  }));
+
   const {
     initValue,
     editingArticle,
@@ -54,6 +61,7 @@ const EditArticle = memo(() => {
     onInit,
     onDeleteTag,
     onAddTag,
+    onTagsChange,
     onTitleChange,
     saveArticle,
     setEditingArticle,
@@ -64,6 +72,7 @@ const EditArticle = memo(() => {
   const [showOutline, setShowOutline] = useState(false);
   const [readonly, setReadonly] = useState(true);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
+  const titleRef = useRef<EditTextHandle>(null);
   const size = useSize(containerRef);
 
   const uploadResource = useUploadResource();
@@ -176,6 +185,43 @@ const EditArticle = memo(() => {
     };
   }, [saveArticle]);
 
+  useEffect(() => {
+    const handleArticleWindowClosed = async (
+      _event: any,
+      data: { articleId: number; databaseName: string },
+    ) => {
+      if (
+        data.articleId === activeArticleId &&
+        data.databaseName === currentDatabaseName
+      ) {
+        const article = await findOneArticle(data.articleId);
+        if (editorRef.current) {
+          editorRef.current.setEditorValue(article.content);
+        }
+        if (titleRef.current) {
+          titleRef.current.setValue(article.title);
+        }
+        setEditingArticle(article);
+        onContentChange(article.content);
+        onTitleChange(article.title);
+        onTagsChange(article.tags);
+      }
+    };
+
+    on("article-window-closed", handleArticleWindowClosed);
+
+    return () => {
+      off("article-window-closed", handleArticleWindowClosed);
+    };
+  }, [
+    activeArticleId,
+    currentDatabaseName,
+    onContentChange,
+    onTagsChange,
+    onTitleChange,
+    setEditingArticle,
+  ]);
+
   const onClickHeader = useMemoizedFn((index: number) => {
     if (!editorRef.current) return;
     editorRef.current.scrollHeaderIntoView(index);
@@ -222,6 +268,7 @@ const EditArticle = memo(() => {
           onCoverChange={handleCoverChange}
         />
         <EditText
+          ref={titleRef}
           className={styles.title}
           defaultValue={editingArticle.title || "默认标题"}
           onChange={onTitleChange}

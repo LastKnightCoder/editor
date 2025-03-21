@@ -118,8 +118,11 @@ export default class ArticleTable {
     db: Database.Database,
     articleId: number | bigint,
   ): IArticle {
+    console.log("getArticleById", articleId);
     const stmt = db.prepare("SELECT * FROM articles WHERE id = ?");
-    return this.parseArticle(stmt.get(articleId));
+    const article = stmt.get(articleId);
+    console.log("article", article, articleId);
+    return this.parseArticle(article);
   }
 
   static getArticleByIds(

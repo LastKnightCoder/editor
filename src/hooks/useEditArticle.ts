@@ -64,17 +64,15 @@ const useEditArticle = (articleId?: number) => {
     setEditingArticle(newEditingArticle);
   });
 
-  const onContentChange = useMemoizedFn(
-    (content: Descendant[], editor: Editor) => {
-      if (!editingArticle || !editor) return;
-      const wordsCount = getContentLength(content);
-      const newEditingArticle = produce(editingArticle, (draft) => {
-        draft.content = content;
-        draft.count = wordsCount;
-      });
-      setEditingArticle(newEditingArticle);
-    },
-  );
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!editingArticle) return;
+    const wordsCount = getContentLength(content);
+    const newEditingArticle = produce(editingArticle, (draft) => {
+      draft.content = content;
+      draft.count = wordsCount;
+    });
+    setEditingArticle(newEditingArticle);
+  });
 
   const onTitleChange = useMemoizedFn((title: string) => {
     if (!editingArticle) return;
@@ -96,6 +94,14 @@ const useEditArticle = (articleId?: number) => {
     if (!editingArticle) return;
     const newEditingArticle = produce(editingArticle, (draft) => {
       draft.tags = draft.tags.filter((t) => t !== tag);
+    });
+    setEditingArticle(newEditingArticle);
+  });
+
+  const onTagsChange = useMemoizedFn((tags: string[]) => {
+    if (!editingArticle) return;
+    const newEditingArticle = produce(editingArticle, (draft) => {
+      draft.tags = tags;
     });
     setEditingArticle(newEditingArticle);
   });
@@ -136,6 +142,7 @@ const useEditArticle = (articleId?: number) => {
     onTitleChange,
     onAddTag,
     onDeleteTag,
+    onTagsChange,
     saveArticle,
     toggleIsTop,
     toggleReadOnly,

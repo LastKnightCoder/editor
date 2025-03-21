@@ -16,6 +16,8 @@ interface IState {
   initLoading: boolean;
   activeArticleId: number | undefined;
   hideArticleList: boolean;
+  isArticlePresentation: boolean;
+  presentationArticle: IArticle | null;
 }
 
 interface IActions {
@@ -27,6 +29,8 @@ interface IActions {
   deleteArticle: (id: number) => Promise<number>;
   updateArticleIsTop: (id: number, isTop: boolean) => Promise<number>;
   updateArticleBannerBg: (id: number, bannerBg: string) => Promise<number>;
+  startArticlePresentation: (id: number) => void;
+  stopArticlePresentation: () => void;
 }
 
 const processArticles = (articles: IArticle[]) => {
@@ -41,6 +45,8 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
   initLoading: false,
   activeArticleId: undefined,
   hideArticleList: false,
+  isArticlePresentation: false,
+  presentationArticle: null,
   init: async () => {
     set({ initLoading: true });
     const articles = await getAllArticles();
@@ -108,6 +114,22 @@ const useArticleManagementStore = create<IState & IActions>((set, get) => ({
     const processedArticles = processArticles(newArticles);
     set({ articles: processedArticles });
     return updatedArticle;
+  },
+  startArticlePresentation: (id) => {
+    const { articles } = get();
+    const article = articles.find((a) => a.id === id);
+    if (article) {
+      set({ isArticlePresentation: true, presentationArticle: article });
+    }
+  },
+  stopArticlePresentation() {
+    const { isArticlePresentation } = get();
+    if (isArticlePresentation) {
+      set({
+        isArticlePresentation: false,
+        presentationArticle: null,
+      });
+    }
   },
 }));
 
