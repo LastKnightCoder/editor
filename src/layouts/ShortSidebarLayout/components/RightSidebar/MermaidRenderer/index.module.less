@@ -1,0 +1,48 @@
+.mermaidContainer {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.svgContainer {
+  padding: 20px;
+  min-height: inherit;
+
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+.mermaidError {
+  padding: 8px;
+  margin: 8px 0;
+  border: 1px solid #ff6b6b;
+  border-radius: 4px;
+  background-color: rgba(255, 107, 107, 0.1);
+  color: #ff6b6b;
+  font-size: 14px;
+
+  p {
+    margin: 0 0 8px;
+    font-weight: bold;
+  }
+
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    font-family: monospace;
+  }
+
+  .codeBlock {
+    margin-top: 8px;
+    padding: 8px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+}

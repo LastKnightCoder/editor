@@ -24,6 +24,7 @@
   "dependencies": {
     "@electron/rebuild": "^3.7.1",
     "@node-rs/jieba": "^2.0.1",
+    "@tanstack/react-virtual": "^3.13.4",
     "ali-oss": "^6.22.0",
     "axios": "^1.4.0",
     "better-sqlite3": "^11.8.1",
