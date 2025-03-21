@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import classnames from "classnames";
 import styles from "./index.module.less";
 import { Tooltip } from "antd";
@@ -13,7 +13,7 @@ interface SidebarItemProps {
   isShortWidth?: boolean;
 }
 
-const SidebarItem = (props: SidebarItemProps) => {
+const SidebarItem = memo((props: SidebarItemProps) => {
   const { onClick, style, className, label, icon, active, isShortWidth } =
     props;
 
@@ -32,6 +32,6 @@ const SidebarItem = (props: SidebarItemProps) => {
       <div className={styles.label}>{label}</div>
     </div>
   );
-};
+});
 
 export default SidebarItem;
