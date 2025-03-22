@@ -4,6 +4,7 @@ import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { ECardCategory, ICard, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import {
   Tag,
   Button,
@@ -28,13 +29,17 @@ type Filters = Parameters<OnChange>[1];
 
 const useCardConfig = () => {
   const { message } = App.useApp();
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const { cards } = useCardsManagementStore(
+    useShallow((state) => ({
+      cards: state.cards,
+    })),
+  );
 
-  const { provider } = useSettingStore((state) => ({
-    provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-  }));
+  const { provider } = useSettingStore(
+    useShallow((state) => ({
+      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
+    })),
+  );
 
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ICard[]>([]);

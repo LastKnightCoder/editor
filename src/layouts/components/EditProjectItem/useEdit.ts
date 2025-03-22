@@ -7,16 +7,18 @@ import { Descendant, Editor } from "slate";
 import { produce } from "immer";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
-
+import { useShallow } from "zustand/react/shallow";
 const useEdit = () => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const prevProjectItem = useRef<ProjectItem | null>(null);
   const contentChanged = useRef(false);
 
-  const { activeProjectItemId, dragging } = useProjectsStore((state) => ({
-    dragging: state.dragging,
-    activeProjectItemId: state.activeProjectItemId,
-  }));
+  const { activeProjectItemId, dragging } = useProjectsStore(
+    useShallow((state) => ({
+      dragging: state.dragging,
+      activeProjectItemId: state.activeProjectItemId,
+    })),
+  );
 
   useEffect(() => {
     if (!activeProjectItemId) {

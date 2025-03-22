@@ -5,7 +5,7 @@ import MonthViewChart from "./MonthViewChart";
 import styles from "./index.module.less";
 import { EFilterType } from "@/types/time";
 import If from "@/components/If";
-import React, { useMemo } from "react";
+import React, { useMemo, memo } from "react";
 import {
   filterTimeRecordsByDate,
   filterTimeRecordsByDateRange,
@@ -16,21 +16,22 @@ import {
 } from "@/utils";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import classnames from "classnames";
+import { useShallow } from "zustand/react/shallow";
 
 interface TimeRecordStatisticProps {
   className?: string;
   style?: React.CSSProperties;
 }
 
-const TimeRecordStatistic = (props: TimeRecordStatisticProps) => {
+const TimeRecordStatistic = memo((props: TimeRecordStatisticProps) => {
   const { className, style } = props;
 
   const { timeRecords, filterType, filterValue } = useTimeRecordStore(
-    (state) => ({
+    useShallow((state) => ({
       timeRecords: state.timeRecords,
       filterType: state.filterType,
       filterValue: state.filterValue,
-    }),
+    })),
   );
 
   const filteredTimeRecords = useMemo(() => {
@@ -85,6 +86,6 @@ const TimeRecordStatistic = (props: TimeRecordStatisticProps) => {
       </If>
     </div>
   );
-};
+});
 
 export default TimeRecordStatistic;

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, memo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { App, Flex, FloatButton, Input, Modal } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
@@ -12,15 +13,17 @@ import { PlusOutlined } from "@ant-design/icons";
 import styles from "./index.module.less";
 import useGridLayout from "@/hooks/useGridLayout";
 
-const WhiteBoardView = () => {
+const WhiteBoardView = memo(() => {
   const { gridContainerRef, itemWidth, gap } = useGridLayout();
 
   const { whiteBoards, activeWhiteBoardId, createWhiteBoard } =
-    useWhiteBoardStore((state) => ({
-      whiteBoards: state.whiteBoards,
-      activeWhiteBoardId: state.activeWhiteBoardId,
-      createWhiteBoard: state.createWhiteBoard,
-    }));
+    useWhiteBoardStore(
+      useShallow((state) => ({
+        whiteBoards: state.whiteBoards,
+        activeWhiteBoardId: state.activeWhiteBoardId,
+        createWhiteBoard: state.createWhiteBoard,
+      })),
+    );
 
   const showEdit = !!activeWhiteBoardId;
 
@@ -130,6 +133,6 @@ const WhiteBoardView = () => {
       </Modal>
     </div>
   );
-};
+});
 
 export default WhiteBoardView;

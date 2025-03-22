@@ -1,5 +1,5 @@
 import { ITimeRecord } from "@/types";
-import React from "react";
+import React, { memo } from "react";
 import useTheme from "@/hooks/useTheme.ts";
 import { Column } from "@ant-design/charts";
 
@@ -10,7 +10,7 @@ interface StackColumnStatisticProps {
   style?: React.CSSProperties;
 }
 
-const StackColumnStatistic = (props: StackColumnStatisticProps) => {
+const StackColumnStatistic = memo((props: StackColumnStatisticProps) => {
   const { timeRecords, className, style, category } = props;
 
   const { isDark } = useTheme();
@@ -83,6 +83,6 @@ const StackColumnStatistic = (props: StackColumnStatisticProps) => {
   };
 
   return <Column className={className} {...config} />;
-};
+});
 
 export default StackColumnStatistic;

@@ -1,5 +1,6 @@
 import { App, Button, Select } from "antd";
 import classnames from "classnames";
+import { useShallow } from "zustand/react/shallow";
 import { useState, useRef, useCallback, useMemo, memo, Suspense } from "react";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
@@ -37,16 +38,20 @@ const RightSidebar = ({ onWidthChange }: RightSidebarProps) => {
   const { chatLLMStream } = useChatLLM();
 
   const { chats, createChatMessage, updateChatMessage, deleteChatMessage } =
-    useChatMessageStore((state) => ({
-      chats: state.chats,
-      createChatMessage: state.createChatMessage,
-      updateChatMessage: state.updateChatMessage,
-      deleteChatMessage: state.deleteChatMessage,
-    }));
+    useChatMessageStore(
+      useShallow((state) => ({
+        chats: state.chats,
+        createChatMessage: state.createChatMessage,
+        updateChatMessage: state.updateChatMessage,
+        deleteChatMessage: state.deleteChatMessage,
+      })),
+    );
 
-  const { rightSidebarOpen } = useGlobalStateStore((state) => ({
-    rightSidebarOpen: state.rightSidebarOpen,
-  }));
+  const { rightSidebarOpen } = useGlobalStateStore(
+    useShallow((state) => ({
+      rightSidebarOpen: state.rightSidebarOpen,
+    })),
+  );
 
   const [rightSidebarWidth, setRightSidebarWidth] = useLocalStorageState(
     "rightSidebarWidth",

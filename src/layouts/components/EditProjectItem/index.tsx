@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import { useMemoizedFn, useRafInterval } from "ahooks";
 import useEdit from "./useEdit";
+import { useShallow } from "zustand/react/shallow";
 import useProjectsStore from "@/stores/useProjectsStore";
 
 import { formatDate } from "@/utils/time";
@@ -37,10 +38,12 @@ const Project = () => {
     saveProjectItem,
   } = useEdit();
 
-  const { showOutline, readonly } = useProjectsStore((state) => ({
-    showOutline: state.showOutline,
-    readonly: state.readonly,
-  }));
+  const { showOutline, readonly } = useProjectsStore(
+    useShallow((state) => ({
+      showOutline: state.showOutline,
+      readonly: state.readonly,
+    })),
+  );
 
   useRafInterval(() => {
     if (readonly) return;

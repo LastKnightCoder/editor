@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { Descendant } from "slate";
 import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
@@ -33,9 +34,11 @@ const useBatchOperation = <
 
   const { message } = App.useApp();
 
-  const { provider } = useSettingStore((state) => ({
-    provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-  }));
+  const { provider } = useSettingStore(
+    useShallow((state) => ({
+      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
+    })),
+  );
   const { configs, currentConfigId } = provider;
   const currentConfig = configs.find((item) => item.id === currentConfigId);
 

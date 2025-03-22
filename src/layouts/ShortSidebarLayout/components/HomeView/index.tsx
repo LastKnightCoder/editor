@@ -1,4 +1,5 @@
 import { Card, Statistic, Row, Col, Popover } from "antd";
+import { useShallow } from "zustand/react/shallow";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import styles from "./index.module.less";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
@@ -56,23 +57,23 @@ const HomeView = () => {
     documentItems: [] as IDocumentItem[],
   });
 
-  const { databaseStatus } = useGlobalStateStore((state) => ({
-    databaseStatus: state.databaseStatus,
-  }));
+  const { databaseStatus } = useGlobalStateStore(
+    useShallow((state) => ({
+      databaseStatus: state.databaseStatus,
+    })),
+  );
 
-  const { active } = useSettingStore((state) => ({
-    active: state.setting.database.active,
-  }));
+  const active = useSettingStore(
+    useShallow((state) => state.setting.database.active),
+  );
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const cards = useCardsManagementStore(useShallow((state) => state.cards));
 
   const { onCtrlClickCard } = useCardManagement();
 
-  const { articles } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-  }));
+  const articles = useArticleManagementStore(
+    useShallow((state) => state.articles),
+  );
 
   const cardWordCounts = useMemo(() => {
     return cards.reduce((acc, card) => {

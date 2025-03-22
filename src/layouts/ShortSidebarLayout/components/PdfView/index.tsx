@@ -1,4 +1,5 @@
 import classnames from "classnames";
+import { useShallow } from "zustand/react/shallow";
 import For from "@/components/For";
 import EditPdf from "@/layouts/components/EditPdf";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
@@ -13,11 +14,13 @@ import useGridLayout from "@/hooks/useGridLayout";
 const PdfView = () => {
   const { gridContainerRef, itemWidth, gap } = useGridLayout();
 
-  const { pdfs, activePdf, createPdf } = usePdfsStore((state) => ({
-    pdfs: state.pdfs,
-    activePdf: state.activePdf,
-    createPdf: state.createPdf,
-  }));
+  const { pdfs, activePdf, createPdf } = usePdfsStore(
+    useShallow((state) => ({
+      pdfs: state.pdfs,
+      activePdf: state.activePdf,
+      createPdf: state.createPdf,
+    })),
+  );
 
   const [addPdfOpen, setAddPdfOpen] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");

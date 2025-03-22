@@ -1,6 +1,6 @@
 import { useMemo, useState, memo } from "react";
 import { useMemoizedFn } from "ahooks";
-
+import { useShallow } from "zustand/react/shallow";
 import SelectTime from "@/components/SelectTime";
 import LoadMoreComponent from "@/components/LoadMoreComponent";
 import For from "@/components/For";
@@ -37,14 +37,16 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
     filterValue,
     deleteTimeRecord,
     updateTimeRecord,
-  } = useTimeRecordStore((state) => ({
-    timeRecords: state.timeRecords,
-    filterType: state.filterType,
-    filterValue: state.filterValue,
-    createTimeRecord: state.createTimeRecord,
-    deleteTimeRecord: state.deleteTimeRecord,
-    updateTimeRecord: state.updateTimeRecord,
-  }));
+  } = useTimeRecordStore(
+    useShallow((state) => ({
+      timeRecords: state.timeRecords,
+      filterType: state.filterType,
+      filterValue: state.filterValue,
+      createTimeRecord: state.createTimeRecord,
+      deleteTimeRecord: state.deleteTimeRecord,
+      updateTimeRecord: state.updateTimeRecord,
+    })),
+  );
 
   const onSelectFilterTypeChange = useMemoizedFn((type: EFilterType) => {
     let filterValue: string | string[] = "";

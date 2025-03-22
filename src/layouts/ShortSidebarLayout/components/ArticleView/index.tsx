@@ -3,6 +3,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import { RiSlideshowLine } from "react-icons/ri";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
+import { useShallow } from "zustand/react/shallow";
 
 import ArticleList from "@/layouts/components/ArticleList";
 import SimpleArticleList from "./SimpleArticleList";
@@ -27,19 +28,17 @@ const ArticleView = () => {
     startArticlePresentation,
     stopArticlePresentation,
     presentationArticle,
-  } = useArticleManagementStore((state) => ({
-    activeArticleId: state.activeArticleId,
-    createArticle: state.createArticle,
-    hideArticleList: state.hideArticleList,
-    isArticlePresentation: state.isArticlePresentation,
-    startArticlePresentation: state.startArticlePresentation,
-    stopArticlePresentation: state.stopArticlePresentation,
-    presentationArticle: state.presentationArticle,
-  }));
-
-  const { currentDatabaseName } = useSettingStore((state) => ({
-    currentDatabaseName: state.setting.database.active,
-  }));
+  } = useArticleManagementStore(
+    useShallow((state) => ({
+      activeArticleId: state.activeArticleId,
+      createArticle: state.createArticle,
+      hideArticleList: state.hideArticleList,
+      isArticlePresentation: state.isArticlePresentation,
+      startArticlePresentation: state.startArticlePresentation,
+      stopArticlePresentation: state.stopArticlePresentation,
+      presentationArticle: state.presentationArticle,
+    })),
+  );
 
   const handleAddNewArticle = useMemoizedFn(async () => {
     const article = await createArticle({
@@ -157,7 +156,7 @@ const ArticleView = () => {
                     startArticlePresentation(activeArticleId);
                   } else if (key === "open-in-new-window") {
                     openArticleInNewWindow(
-                      currentDatabaseName,
+                      useSettingStore.getState().setting.database.active,
                       activeArticleId,
                     );
                   }

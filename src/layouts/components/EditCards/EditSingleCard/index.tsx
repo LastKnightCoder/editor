@@ -16,6 +16,7 @@ import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
 import { on, off } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
+import { useShallow } from "zustand/react/shallow";
 
 import styles from "./index.module.less";
 import { getCardById } from "@/commands";
@@ -45,9 +46,11 @@ const EditCard = (props: IEditCardProps) => {
     onTagChange,
   } = props;
 
-  const { currentDatabaseName } = useSettingStore((state) => ({
-    currentDatabaseName: state.setting.database.active,
-  }));
+  const { currentDatabaseName } = useSettingStore(
+    useShallow((state) => ({
+      currentDatabaseName: state.setting.database.active,
+    })),
+  );
 
   const editorRef = useRef<EditorRef>(null);
   const [initValue] = useState(() => {

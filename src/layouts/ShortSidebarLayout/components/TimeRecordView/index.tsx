@@ -3,6 +3,7 @@ import TimeRecordChart from "./TimeRecord";
 import styles from "./index.module.less";
 import EditRecordModal from "@/components/EditRecordModal";
 import { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import useTimeRecordStore from "@/stores/useTimeRecordStore.ts";
 import { ITimeRecord } from "@/types";
 import { useMemoizedFn } from "ahooks";
@@ -19,10 +20,10 @@ const TimeRecordView = () => {
   const [createPopoverOpen, setCreatePopoverOpen] = useState<boolean>(false);
 
   const { createTimeRecord, updateTimeRecord } = useTimeRecordStore(
-    (state) => ({
+    useShallow((state) => ({
       createTimeRecord: state.createTimeRecord,
       updateTimeRecord: state.updateTimeRecord,
-    }),
+    })),
   );
 
   const onEditTimeRecord = useMemoizedFn((timeRecord: ITimeRecord) => {

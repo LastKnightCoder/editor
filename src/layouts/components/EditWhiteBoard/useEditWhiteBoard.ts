@@ -5,13 +5,17 @@ import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { BoardElement, ViewPort, Selection } from "@/components/WhiteBoard";
 import { getWhiteBoardById } from "@/commands";
+import { useShallow } from "zustand/react/shallow";
+
 const useEditWhiteBoard = (whiteBoardId: number) => {
   const [whiteBoard, setWhiteBoard] = useState<WhiteBoard | null>(null);
   const [loading, setLoading] = useState(false);
   const changed = useRef(false);
-  const { updateWhiteBoard } = useWhiteBoardStore((state) => ({
-    updateWhiteBoard: state.updateWhiteBoard,
-  }));
+  const { updateWhiteBoard } = useWhiteBoardStore(
+    useShallow((state) => ({
+      updateWhiteBoard: state.updateWhiteBoard,
+    })),
+  );
 
   useEffect(() => {
     setLoading(true);

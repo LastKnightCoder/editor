@@ -1,6 +1,6 @@
 import { Line } from "@ant-design/charts";
 import { ITimeRecord } from "@/types";
-import React from "react";
+import React, { memo } from "react";
 
 interface LineStatisticProps {
   timeRecords: ITimeRecord[];
@@ -8,7 +8,7 @@ interface LineStatisticProps {
   style?: React.CSSProperties;
 }
 
-const LineStatistic = (props: LineStatisticProps) => {
+const LineStatistic = memo((props: LineStatisticProps) => {
   const { timeRecords, className, style } = props;
 
   const data = timeRecords.reduce((acc, cur) => {
@@ -60,6 +60,6 @@ const LineStatistic = (props: LineStatisticProps) => {
   };
 
   return <Line className={className} {...config} />;
-};
+});
 
 export default LineStatistic;

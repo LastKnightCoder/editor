@@ -1,5 +1,5 @@
 import { ITimeRecord } from "@/types";
-import React from "react";
+import React, { memo } from "react";
 import { Card, Col, Row } from "antd";
 import StackColumnStatistic from "../StackColumnStatistic";
 
@@ -9,7 +9,7 @@ interface MonthViewChartProps {
   style?: React.CSSProperties;
 }
 
-const MonthViewChart = (props: MonthViewChartProps) => {
+const MonthViewChart = memo((props: MonthViewChartProps) => {
   const { timeRecords, className, style } = props;
 
   return (
@@ -31,6 +31,6 @@ const MonthViewChart = (props: MonthViewChartProps) => {
       </Row>
     </div>
   );
-};
+});
 
 export default MonthViewChart;

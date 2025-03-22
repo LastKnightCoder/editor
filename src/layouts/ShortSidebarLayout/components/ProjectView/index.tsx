@@ -1,5 +1,6 @@
 import ProjectList from "./ProjectList";
 import classnames from "classnames";
+import { useShallow } from "zustand/react/shallow";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 
 import EditProjectView from "./EditProjectView";
@@ -7,10 +8,10 @@ import styles from "./index.module.less";
 
 const ProjectView = () => {
   const { activeProjectItemId, hideProjectItemList } = useProjectsStore(
-    (state) => ({
+    useShallow((state) => ({
       activeProjectItemId: state.activeProjectItemId,
       hideProjectItemList: state.hideProjectItemList,
-    }),
+    })),
   );
 
   return (

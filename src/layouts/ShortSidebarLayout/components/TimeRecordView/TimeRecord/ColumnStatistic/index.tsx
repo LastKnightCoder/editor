@@ -1,6 +1,6 @@
 import { Column } from "@ant-design/charts";
 import { ITimeRecord } from "@/types";
-import React from "react";
+import React, { memo } from "react";
 import groupByEventType from "../utils/groupByEventType.ts";
 import useTheme from "@/hooks/useTheme.ts";
 
@@ -10,7 +10,7 @@ interface BarStatisticProps {
   style?: React.CSSProperties;
 }
 
-const ColumnStatistic = (props: BarStatisticProps) => {
+const ColumnStatistic = memo((props: BarStatisticProps) => {
   const { timeRecords, className, style } = props;
 
   const data = groupByEventType(timeRecords);
@@ -54,6 +54,6 @@ const ColumnStatistic = (props: BarStatisticProps) => {
   };
 
   return <Column className={className} {...config} />;
-};
+});
 
 export default ColumnStatistic;

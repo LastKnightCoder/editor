@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { produce } from "immer";
 import classnames from "classnames";
 import { Modal, Popover } from "antd";
@@ -29,10 +30,12 @@ const DocumentCard = (props: DocumentCardProps) => {
 
   const navigate = useNavigate();
 
-  const { deleteDocument, updateDocument } = useDocumentsStore((state) => ({
-    deleteDocument: state.deleteDocument,
-    updateDocument: state.updateDocument,
-  }));
+  const { deleteDocument, updateDocument } = useDocumentsStore(
+    useShallow((state) => ({
+      deleteDocument: state.deleteDocument,
+      updateDocument: state.updateDocument,
+    })),
+  );
 
   const handleDeleteDocument = () => {
     Modal.confirm({

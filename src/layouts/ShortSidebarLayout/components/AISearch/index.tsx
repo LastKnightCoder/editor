@@ -1,5 +1,6 @@
 import { useEffect, memo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import isHotkey from "is-hotkey";
 import Editor from "@/components/Editor";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -75,13 +76,15 @@ const AISearch = memo(() => {
   const vecListRef = useRef<HTMLDivElement>(null);
 
   const { open, searchLoading, ftsResults, vecResults, onSearch } =
-    useCommandPanelStore((state) => ({
-      open: state.open,
-      searchLoading: state.searchLoading,
-      ftsResults: state.ftsResults,
-      vecResults: state.vecResults,
-      onSearch: state.onSearch,
-    }));
+    useCommandPanelStore(
+      useShallow((state) => ({
+        open: state.open,
+        searchLoading: state.searchLoading,
+        ftsResults: state.ftsResults,
+        vecResults: state.vecResults,
+        onSearch: state.onSearch,
+      })),
+    );
   const { onCtrlClickCard } = useCardManagement();
 
   const ftsVirtualizer = useVirtualizer({

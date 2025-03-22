@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, memo } from "react";
 import classnames from "classnames";
 import { Tag } from "antd";
 
@@ -19,7 +19,7 @@ interface TimeRecordItemProps {
   onRecordTimeFinish?: (time: number) => Promise<void>;
 }
 
-const TimeRecordItem = (props: TimeRecordItemProps) => {
+const TimeRecordItem = memo((props: TimeRecordItemProps) => {
   const {
     showLine,
     color,
@@ -94,6 +94,6 @@ const TimeRecordItem = (props: TimeRecordItemProps) => {
       </div>
     </div>
   );
-};
+});
 
 export default TimeRecordItem;

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import classnames from "classnames";
 import For from "@/components/For";
-
+import { useShallow } from "zustand/react/shallow";
 import ArticleCard from "../ArticleCard";
 import styles from "./index.module.less";
 import { Pagination } from "antd";
@@ -15,9 +15,11 @@ interface ArticleListProps {
 const ArticleList = (props: ArticleListProps) => {
   const { className, style } = props;
 
-  const { articles } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-  }));
+  const { articles } = useArticleManagementStore(
+    useShallow((state) => ({
+      articles: state.articles,
+    })),
+  );
 
   const [pageNum, setPageNum] = useState(1);
 
