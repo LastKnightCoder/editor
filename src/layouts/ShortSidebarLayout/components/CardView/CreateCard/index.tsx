@@ -3,9 +3,11 @@ import Editor, { EditorRef } from "@editor/index.tsx";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import AddTag from "@/components/AddTag";
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 import { Button } from "antd";
+import PortalToBody from "@/components/PortalToBody";
+import useTheme from "@/hooks/useTheme";
 
 const DEFAULT_CONTENT = [
   {
@@ -23,11 +25,14 @@ interface CreateCardProps {
   className?: string;
   onSave: (content: Descendant[], tags: string[]) => Promise<void>;
   onCancel: () => void;
+  visible: boolean;
 }
 
 const CreateCard = memo((props: CreateCardProps) => {
-  const { className, onSave, onCancel } = props;
+  const { className, onSave, onCancel, visible } = props;
   const editorRef = useRef<EditorRef>(null);
+  const { isDark } = useTheme();
+
   const [content, setContent] = useLocalStorageState<Descendant[]>(
     "card-edit-content",
     {
@@ -39,8 +44,12 @@ const CreateCard = memo((props: CreateCardProps) => {
   });
 
   useEffect(() => {
-    editorRef.current?.focus();
-  }, []);
+    if (visible) {
+      setTimeout(() => {
+        editorRef.current?.focus();
+      }, 100);
+    }
+  }, [visible]);
 
   const onAddTag = (tag: string) => {
     setTags([...new Set([...(tags || []), tag])]);
@@ -66,30 +75,57 @@ const CreateCard = memo((props: CreateCardProps) => {
     onCancel();
   };
 
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onCancelSaveCard();
+    }
+  };
+
+  if (!visible) {
+    return null;
+  }
+
   return (
-    <div className={classnames(styles.container, className)}>
-      <Editor
-        ref={editorRef}
-        initValue={content || DEFAULT_CONTENT}
-        readonly={false}
-        onChange={setContent}
-      />
-      <div className={styles.save}>
-        <AddTag tags={tags || []} addTag={onAddTag} removeTag={onRemoveTag} />
-        <div className={styles.buttons}>
-          <Button onClick={onCancelSaveCard}>取消</Button>
-          <Button
-            onClick={onSaveCard.bind(
-              null,
-              content || DEFAULT_CONTENT,
-              tags || [],
-            )}
-          >
-            保存
-          </Button>
+    <PortalToBody>
+      <div className={styles.modalOverlay} onClick={handleOverlayClick}>
+        <div
+          className={classnames(
+            styles.modalContainer,
+            isDark ? styles.darkTheme : styles.lightTheme,
+          )}
+        >
+          <div className={classnames(styles.container, className)}>
+            <div className={styles.editorWrapper}>
+              <Editor
+                ref={editorRef}
+                initValue={content || DEFAULT_CONTENT}
+                readonly={false}
+                onChange={setContent}
+              />
+            </div>
+            <div className={styles.save}>
+              <AddTag
+                tags={tags || []}
+                addTag={onAddTag}
+                removeTag={onRemoveTag}
+              />
+              <div className={styles.buttons}>
+                <Button onClick={onCancelSaveCard}>取消</Button>
+                <Button
+                  onClick={onSaveCard.bind(
+                    null,
+                    content || DEFAULT_CONTENT,
+                    tags || [],
+                  )}
+                >
+                  保存
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </PortalToBody>
   );
 });
 

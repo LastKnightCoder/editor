@@ -206,15 +206,14 @@ const CardContainer = () => {
                       </div>
                     </Dropdown>
                   </div>
-                  {isCreatingCard && (
-                    <CreateCard
-                      className={styles.createCard}
-                      onSave={onSaveCard}
-                      onCancel={() => {
-                        setIsCreatingCard(false);
-                      }}
-                    />
-                  )}
+                  <CreateCard
+                    className={styles.createCard}
+                    visible={isCreatingCard}
+                    onSave={onSaveCard}
+                    onCancel={() => {
+                      setIsCreatingCard(false);
+                    }}
+                  />
                   <div
                     className={styles.list}
                     ref={listRef}
