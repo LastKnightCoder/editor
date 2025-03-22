@@ -3,7 +3,7 @@ import Editor, { EditorRef } from "@editor/index.tsx";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import AddTag from "@/components/AddTag";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef } from "react";
 import classnames from "classnames";
 import { Button } from "antd";
 import PortalToBody from "@/components/PortalToBody";
