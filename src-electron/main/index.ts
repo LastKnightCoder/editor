@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, protocol } from "electron";
+import { app, BrowserWindow, protocol } from "electron";
 import path, { extname } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { createReadStream, existsSync, statSync } from "node:fs";
+import log from "electron-log";
 import resourceModule from "./modules/resource";
 import databaseModule from "./modules/database";
 import settingModule from "./modules/setting";
@@ -12,9 +13,12 @@ import aliOssModule from "./modules/ali-oss";
 import fileModule from "./modules/file";
 import extraModule from "./modules/extra";
 import voiceCopyModule from "./modules/voice-copy";
+import windowManagerModule from "./modules/window-manager";
+import loggerModule from "./modules/logger";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// 初始化应用环境
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
 process.env.APP_ROOT = path.join(__dirname, "../..");
 
@@ -41,379 +45,18 @@ require.resolve = function (spec: string, options: any) {
 } as any;
 
 const preload = path.join(__dirname, "../preload/index.js");
-const indexHtml = path.join(RENDERER_DIST, "index.html");
 
 // Disable GPU Acceleration for Windows 7
-if (os.release().startsWith("6.1")) app.disableHardwareAcceleration();
+if (os.release().startsWith("6.1")) {
+  app.disableHardwareAcceleration();
+}
 
 // Set application name for Windows 10+ notifications
-if (process.platform === "win32") app.setAppUserModelId(app.getName());
+if (process.platform === "win32") {
+  app.setAppUserModelId(app.getName());
+}
 
-// Track open card editor windows
-const cardEditorWindows = new Map<string, BrowserWindow>();
-// Track open article editor windows
-const articleEditorWindows = new Map<string, BrowserWindow>();
-// Track open project item editor windows
-const projectItemEditorWindows = new Map<string, BrowserWindow>();
-// Track open document item editor windows
-const documentItemEditorWindows = new Map<string, BrowserWindow>();
-
-const createWindow = () => {
-  const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    autoHideMenuBar: true,
-    icon: path.join(__dirname, "../../build/icon.png"),
-    webPreferences: {
-      preload,
-      spellcheck: false,
-    },
-    trafficLightPosition: { x: 12, y: 17 },
-    // Mac 专属配置
-    ...(process.platform === "darwin" && {
-      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
-      frame: false, // 隐藏默认窗口框架
-    }),
-    // Windows 配置（保持默认标题栏）
-    ...(process.platform === "win32" && {
-      frame: true, // 显式保留默认框架
-    }),
-  });
-
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL);
-    win.webContents.openDevTools();
-  } else {
-    win.loadFile(indexHtml);
-  }
-
-  // 监听最大化事件
-  win.on("enter-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-  win.on("leave-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-
-  win.webContents.on("did-finish-load", () => {
-    win.webContents.setZoomFactor(1);
-    win.webContents.setVisualZoomLevelLimits(1, 1);
-  });
-};
-
-const createCardEditorWindow = (databaseName: string, cardId: number) => {
-  const windowKey = `${databaseName}-${cardId}`;
-
-  // Check if window with this card already exists
-  if (cardEditorWindows.has(windowKey)) {
-    const existingWindow = cardEditorWindows.get(windowKey);
-    if (existingWindow && !existingWindow.isDestroyed()) {
-      existingWindow.show();
-      existingWindow.focus();
-      return;
-    }
-  }
-
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
-    autoHideMenuBar: true,
-    icon: path.join(__dirname, "../../build/icon.png"),
-    webPreferences: {
-      preload,
-      spellcheck: false,
-    },
-    trafficLightPosition: { x: 12, y: 17 },
-    // Mac 专属配置
-    ...(process.platform === "darwin" && {
-      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
-      frame: false, // 隐藏默认窗口框架
-    }),
-    // Windows 配置（保持默认标题栏）
-    ...(process.platform === "win32" && {
-      frame: true, // 显式保留默认框架
-    }),
-  });
-
-  // Store the window reference in our map
-  cardEditorWindows.set(windowKey, win);
-
-  win.setAlwaysOnTop(true);
-
-  const url = VITE_DEV_SERVER_URL
-    ? `${VITE_DEV_SERVER_URL}#/single-card-editor?databaseName=${databaseName}&cardId=${cardId}`
-    : `${indexHtml}#/single-card-editor?databaseName=${databaseName}&cardId=${cardId}`;
-
-  win.loadURL(url);
-
-  if (VITE_DEV_SERVER_URL) {
-    win.webContents.openDevTools();
-  }
-
-  // 监听最大化事件
-  win.on("enter-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-  win.on("leave-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-
-  win.webContents.on("did-finish-load", () => {
-    win.webContents.setZoomFactor(1);
-    win.webContents.setVisualZoomLevelLimits(1, 1);
-  });
-
-  win.on("closed", () => {
-    cardEditorWindows.delete(windowKey);
-
-    // Notify main window about card update
-    BrowserWindow.getAllWindows().forEach((window) => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("card-window-closed", {
-          databaseName,
-          cardId,
-        });
-      }
-    });
-  });
-};
-
-const createArticleEditorWindow = (databaseName: string, articleId: number) => {
-  const windowKey = `${databaseName}-${articleId}`;
-
-  // Check if window with this article already exists
-  if (articleEditorWindows.has(windowKey)) {
-    const existingWindow = articleEditorWindows.get(windowKey);
-    if (existingWindow && !existingWindow.isDestroyed()) {
-      existingWindow.show();
-      existingWindow.focus();
-      return;
-    }
-  }
-
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
-    autoHideMenuBar: true,
-    icon: path.join(__dirname, "../../build/icon.png"),
-    webPreferences: {
-      preload,
-      spellcheck: false,
-    },
-    trafficLightPosition: { x: 12, y: 17 },
-    // Mac 专属配置
-    ...(process.platform === "darwin" && {
-      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
-      frame: false, // 隐藏默认窗口框架
-    }),
-    // Windows 配置（保持默认标题栏）
-    ...(process.platform === "win32" && {
-      frame: true, // 显式保留默认框架
-    }),
-  });
-
-  // Store the window reference in our map
-  articleEditorWindows.set(windowKey, win);
-
-  win.setAlwaysOnTop(true);
-
-  const url = VITE_DEV_SERVER_URL
-    ? `${VITE_DEV_SERVER_URL}#/single-article-editor?databaseName=${databaseName}&articleId=${articleId}`
-    : `${indexHtml}#/single-article-editor?databaseName=${databaseName}&articleId=${articleId}`;
-
-  win.loadURL(url);
-
-  if (VITE_DEV_SERVER_URL) {
-    win.webContents.openDevTools();
-  }
-
-  // 监听最大化事件
-  win.on("enter-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-  win.on("leave-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-
-  win.webContents.on("did-finish-load", () => {
-    win.webContents.setZoomFactor(1);
-    win.webContents.setVisualZoomLevelLimits(1, 1);
-  });
-
-  win.on("closed", () => {
-    articleEditorWindows.delete(windowKey);
-
-    // Notify main window about article update
-    BrowserWindow.getAllWindows().forEach((window) => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("article-window-closed", {
-          databaseName,
-          articleId,
-        });
-      }
-    });
-  });
-};
-
-const createProjectItemEditorWindow = (
-  databaseName: string,
-  projectItemId: number,
-) => {
-  const windowKey = `${databaseName}-${projectItemId}`;
-
-  // Check if window with this project item already exists
-  if (projectItemEditorWindows.has(windowKey)) {
-    const existingWindow = projectItemEditorWindows.get(windowKey);
-    if (existingWindow && !existingWindow.isDestroyed()) {
-      existingWindow.show();
-      existingWindow.focus();
-      return;
-    }
-  }
-
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
-    autoHideMenuBar: true,
-    icon: path.join(__dirname, "../../build/icon.png"),
-    webPreferences: {
-      preload,
-      spellcheck: false,
-    },
-    trafficLightPosition: { x: 12, y: 17 },
-    // Mac 专属配置
-    ...(process.platform === "darwin" && {
-      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
-      frame: false, // 隐藏默认窗口框架
-    }),
-    // Windows 配置（保持默认标题栏）
-    ...(process.platform === "win32" && {
-      frame: true, // 显式保留默认框架
-    }),
-  });
-
-  // Store the window reference in our map
-  projectItemEditorWindows.set(windowKey, win);
-
-  win.setAlwaysOnTop(true);
-
-  const url = VITE_DEV_SERVER_URL
-    ? `${VITE_DEV_SERVER_URL}#/single-project-item-editor?databaseName=${databaseName}&projectItemId=${projectItemId}`
-    : `${indexHtml}#/single-project-item-editor?databaseName=${databaseName}&projectItemId=${projectItemId}`;
-
-  win.loadURL(url);
-
-  if (VITE_DEV_SERVER_URL) {
-    win.webContents.openDevTools();
-  }
-
-  // 监听最大化事件
-  win.on("enter-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-  win.on("leave-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-
-  win.webContents.on("did-finish-load", () => {
-    win.webContents.setZoomFactor(1);
-    win.webContents.setVisualZoomLevelLimits(1, 1);
-  });
-
-  win.on("closed", () => {
-    projectItemEditorWindows.delete(windowKey);
-
-    // Notify main window about project item update
-    BrowserWindow.getAllWindows().forEach((window) => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("project-item-window-closed", {
-          databaseName,
-          projectItemId,
-        });
-      }
-    });
-  });
-};
-
-const createDocumentItemEditorWindow = (
-  databaseName: string,
-  documentItemId: number,
-) => {
-  const windowKey = `${databaseName}-${documentItemId}`;
-
-  // Check if window with this document item already exists
-  if (documentItemEditorWindows.has(windowKey)) {
-    const existingWindow = documentItemEditorWindows.get(windowKey);
-    if (existingWindow && !existingWindow.isDestroyed()) {
-      existingWindow.show();
-      existingWindow.focus();
-      return;
-    }
-  }
-
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
-    autoHideMenuBar: true,
-    icon: path.join(__dirname, "../../build/icon.png"),
-    webPreferences: {
-      preload,
-      spellcheck: false,
-    },
-    trafficLightPosition: { x: 12, y: 17 },
-    // Mac 专属配置
-    ...(process.platform === "darwin" && {
-      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
-      frame: false, // 隐藏默认窗口框架
-    }),
-    // Windows 配置（保持默认标题栏）
-    ...(process.platform === "win32" && {
-      frame: true, // 显式保留默认框架
-    }),
-  });
-
-  // Store the window reference in our map
-  documentItemEditorWindows.set(windowKey, win);
-
-  win.setAlwaysOnTop(true);
-
-  const url = VITE_DEV_SERVER_URL
-    ? `${VITE_DEV_SERVER_URL}#/single-document-item-editor?databaseName=${databaseName}&documentItemId=${documentItemId}`
-    : `${indexHtml}#/single-document-item-editor?databaseName=${databaseName}&documentItemId=${documentItemId}`;
-
-  win.loadURL(url);
-
-  if (VITE_DEV_SERVER_URL) {
-    win.webContents.openDevTools();
-  }
-
-  // 监听最大化事件
-  win.on("enter-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-  win.on("leave-full-screen", () => {
-    win.webContents.send("full-screen-change");
-  });
-
-  win.webContents.on("did-finish-load", () => {
-    win.webContents.setZoomFactor(1);
-    win.webContents.setVisualZoomLevelLimits(1, 1);
-  });
-
-  win.on("closed", () => {
-    documentItemEditorWindows.delete(windowKey);
-
-    // Notify main window about document item update
-    BrowserWindow.getAllWindows().forEach((window) => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("document-item-window-closed", {
-          databaseName,
-          documentItemId,
-        });
-      }
-    });
-  });
-};
+let windowManager: Awaited<ReturnType<typeof windowManagerModule.init>>;
 
 function getMimeType(ext: string): string {
   const mimeTypes: Record<string, string> = {
@@ -442,70 +85,62 @@ function streamResponse(
 }
 
 const initModules = async () => {
-  Promise.all([
-    settingModule.init(),
-    resourceModule.init(),
-    databaseModule.init(),
-    llmModule.init(),
-    streamFetchModule.init(),
-    aliOssModule.init(),
-    fileModule.init(),
-    extraModule.init(),
-    voiceCopyModule.init(),
-  ]).catch((e) => {
-    console.error(e);
-  });
+  // 首先初始化日志模块
+  await loggerModule.init();
+
+  log.info("应用启动");
+  log.info(`操作系统: ${os.platform()} ${os.release()}`);
+  log.info(`Node.js 版本: ${process.version}`);
+  log.info(`Electron 版本: ${process.versions.electron}`);
+
+  log.info("开始初始化其他模块");
+  const startTime = Date.now();
+
+  try {
+    await Promise.all([
+      settingModule.init(),
+      resourceModule.init(),
+      databaseModule.init(),
+      llmModule.init(),
+      streamFetchModule.init(),
+      aliOssModule.init(),
+      fileModule.init(),
+      extraModule.init(),
+      voiceCopyModule.init(),
+    ]);
+
+    // 初始化窗口管理器
+    windowManager = await windowManagerModule.init(
+      VITE_DEV_SERVER_URL || "",
+      RENDERER_DIST,
+      preload,
+    );
+
+    log.info(`所有模块初始化完成，耗时: ${Date.now() - startTime}ms`);
+  } catch (e) {
+    log.error("模块初始化失败", e);
+  }
 };
 
 app.whenReady().then(() => {
-  ipcMain.handle("set-always-on-top", (event, flag) => {
-    const sender = event.sender;
-    const window = BrowserWindow.fromWebContents(sender);
-    window?.setAlwaysOnTop(flag);
-  });
-
-  ipcMain.on("get-full-screen-status", (event) => {
-    const sender = event.sender;
-    const win = BrowserWindow.fromWebContents(sender);
-    event.returnValue = win?.fullScreen || false;
-  });
-
-  ipcMain.handle("open-card-in-new-window", (_event, databaseName, cardId) => {
-    createCardEditorWindow(databaseName, cardId);
-  });
-
-  ipcMain.handle(
-    "open-article-in-new-window",
-    (_event, databaseName, articleId) => {
-      createArticleEditorWindow(databaseName, articleId);
-    },
-  );
-
-  ipcMain.handle(
-    "open-project-item-in-new-window",
-    (_event, databaseName, projectItemId) => {
-      createProjectItemEditorWindow(databaseName, projectItemId);
-    },
-  );
-
-  ipcMain.handle(
-    "open-document-item-in-new-window",
-    (_event, databaseName, documentItemId) => {
-      createDocumentItemEditorWindow(databaseName, documentItemId);
-    },
-  );
+  log.info("应用就绪");
 
   initModules().then(() => {
-    createWindow();
+    log.info("创建主窗口");
+    windowManager.createMainWindow();
+
     app.on("activate", () => {
+      log.info("应用激活");
       if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
+        windowManager.createMainWindow();
       }
     });
   });
 
   protocol.handle("ltoh", async (request) => {
     const startTime = Date.now();
+    log.debug(`协议请求: ${request.url}`);
+
     try {
       // 转换URL为文件路径
       const parsedUrl = new URL(request.url);
@@ -515,6 +150,7 @@ app.whenReady().then(() => {
 
       // 验证文件存在
       if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+        log.warn(`文件不存在: ${filePath}`);
         return new Response("Not Found", { status: 404 });
       }
 
@@ -524,6 +160,8 @@ app.whenReady().then(() => {
       const rangeHeader = request.headers.get("range") || "";
       const mimeType = getMimeType(extname(filePath));
 
+      log.debug(`文件信息 [${filePath}]: 大小=${fileSize}, 类型=${mimeType}`);
+
       // 处理范围请求
       if (
         (rangeHeader && mimeType.startsWith("video/")) ||
@@ -532,6 +170,9 @@ app.whenReady().then(() => {
         const ranges = rangeHeader.replace(/bytes=/, "").split("-");
         const start = parseInt(ranges[0], 10);
         const end = ranges[1] ? parseInt(ranges[1], 10) : fileSize - 1;
+
+        log.debug(`处理范围请求: ${start}-${end}/${fileSize}`);
+
         return streamResponse(
           filePath,
           {
@@ -549,6 +190,7 @@ app.whenReady().then(() => {
       }
 
       // 完整文件请求
+      log.debug(`处理完整文件请求: ${filePath}`);
       return streamResponse(filePath, {
         status: 200,
         headers: {
@@ -559,14 +201,16 @@ app.whenReady().then(() => {
         },
       });
     } catch (error) {
-      console.error(`❌ 请求失败 [${Date.now() - startTime}ms]:`, error);
+      log.error(`协议请求失败 [${Date.now() - startTime}ms]:`, error);
       return new Response("Internal Error", { status: 500 });
     }
   });
 });
 
 app.on("window-all-closed", () => {
+  log.info("所有窗口已关闭");
   if (process.platform !== "darwin") {
+    log.info("退出应用");
     app.quit();
   }
 });
