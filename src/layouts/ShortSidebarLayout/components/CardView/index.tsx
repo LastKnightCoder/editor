@@ -1,11 +1,11 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import classnames from "classnames";
 import { Empty, Select, Dropdown, MenuProps, FloatButton } from "antd";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import For from "@/components/For";
-import LoadMoreComponent from "@/components/LoadMoreComponent";
 import TagItem from "@/components/TagItem";
 import { PlusOutlined, UpOutlined } from "@ant-design/icons";
 import CardItem from "./CardItem";
@@ -59,10 +59,6 @@ const CardContainer = () => {
     );
   }, [activeCardTag, cards, selectCategory]);
 
-  const [cardsCount, setCardsCount] = useState<number>(5);
-
-  const sliceCards = filteredCards.slice(0, cardsCount);
-
   const { leftCardIds, rightCardIds } = useCardPanelStore(
     useShallow((state) => ({
       leftCardIds: state.leftCardIds,
@@ -73,6 +69,56 @@ const CardContainer = () => {
   const isShowEdit = useMemo(() => {
     return leftCardIds.length > 0 || rightCardIds.length > 0;
   }, [leftCardIds, rightCardIds]);
+
+  // 使用 react-virtual 的虚拟滚动
+  const virtualizer = useVirtualizer({
+    count: filteredCards.length,
+    getScrollElement: () => listRef.current,
+    estimateSize: () => 350, // 调整预估卡片高度，包含边距
+    overscan: 5, // 预加载的项目数量
+    // 获取实际元素的尺寸，支持动态高度
+    getItemKey: (index) => filteredCards[index].id,
+    // 确保只有可见的卡片被渲染和测量
+    measureElement: (el) => {
+      const card = el.firstElementChild;
+      if (!card) return 350; // 默认高度
+      // 包括元素自身和边距的高度
+      return el.getBoundingClientRect().height;
+    },
+  });
+
+  const scrollToTop = useMemoizedFn(() => {
+    // 使用虚拟滚动的方式滚动到顶部
+    virtualizer.scrollToIndex(0);
+  });
+
+  // 使用 throttle 优化滚动事件处理
+  const { run: throttledCheckScroll } = useThrottleFn(
+    () => {
+      const scrollElement = listRef.current;
+      if (!scrollElement) return;
+      const { scrollTop } = scrollElement;
+
+      // 滚动位置检测 - 控制回到顶部按钮显示
+      if (scrollTop > 100) {
+        setShowScrollToTop(true);
+      } else {
+        setShowScrollToTop(false);
+      }
+    },
+    { wait: 100 },
+  );
+
+  // 监听滚动事件，仅用于控制回到顶部按钮显示
+  useEffect(() => {
+    const scrollElement = listRef.current;
+    if (!scrollElement) return;
+
+    scrollElement.addEventListener("scroll", throttledCheckScroll);
+    return () => {
+      scrollElement.removeEventListener("scroll", throttledCheckScroll);
+    };
+  }, []);
 
   const menuItems: MenuProps["items"] = [
     {
@@ -129,10 +175,6 @@ const CardContainer = () => {
     },
   );
 
-  const loadMore = useMemoizedFn(async () => {
-    setCardsCount(Math.min(cardsCount + 5, filteredCards.length));
-  });
-
   const onSelectCategoryChange = useMemoizedFn((category: ECardCategory) => {
     useCardsManagementStore.setState({
       selectCategory: category,
@@ -143,11 +185,8 @@ const CardContainer = () => {
     useCardsManagementStore.setState({
       activeCardTag: tag === activeCardTag ? "" : tag,
     });
-    listRef.current?.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-    setCardsCount(5);
+    // 滚动到顶部适配虚拟滚动
+    scrollToTop();
   });
 
   const onPresentationMode = useMemoizedFn(() => {
@@ -214,37 +253,43 @@ const CardContainer = () => {
                       setIsCreatingCard(false);
                     }}
                   />
-                  <div
-                    className={styles.list}
-                    ref={listRef}
-                    onScroll={(e) => {
-                      if (e.currentTarget.scrollTop > 100) {
-                        setShowScrollToTop(true);
-                      } else {
-                        setShowScrollToTop(false);
-                      }
-                    }}
-                  >
+                  <div className={styles.list} ref={listRef}>
                     <If condition={filteredCards.length === 0}>
                       <Empty description={"暂无卡片"} />
                     </If>
                     <If condition={filteredCards.length > 0}>
-                      <LoadMoreComponent
-                        onLoadMore={loadMore}
-                        showLoader={cardsCount < filteredCards.length}
+                      <div
+                        style={{
+                          height: `${virtualizer.getTotalSize()}px`,
+                          width: "100%",
+                          position: "relative",
+                        }}
                       >
-                        <For
-                          data={sliceCards}
-                          renderItem={(card) => (
-                            <CardItem
-                              key={card.id}
-                              card={card}
-                              onPresentationMode={onPresentationMode}
-                              onExitPresentationMode={onExitPresentationMode}
-                            />
-                          )}
-                        />
-                      </LoadMoreComponent>
+                        {virtualizer.getVirtualItems().map((virtualItem) => {
+                          const card = filteredCards[virtualItem.index];
+                          return (
+                            <div
+                              key={virtualItem.key}
+                              data-index={virtualItem.index}
+                              ref={virtualizer.measureElement}
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                transform: `translateY(${virtualItem.start}px)`,
+                                padding: "10px 0", // 添加上下间距
+                              }}
+                            >
+                              <CardItem
+                                card={card}
+                                onPresentationMode={onPresentationMode}
+                                onExitPresentationMode={onExitPresentationMode}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
                     </If>
                   </div>
                 </div>
@@ -265,12 +310,7 @@ const CardContainer = () => {
           }}
           icon={<UpOutlined />}
           tooltip={"回到顶部"}
-          onClick={() => {
-            listRef.current?.scrollTo({
-              top: 0,
-              behavior: "smooth",
-            });
-          }}
+          onClick={scrollToTop}
         />
       )}
     </div>
