@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { Editor, Element, Path, Transforms } from "slate";
 import { useDrag, useDrop } from "react-dnd";
 import { ReactEditor, useSlate, useReadOnly } from "slate-react";
-import type { DropTargetMonitor, DragSourceMonitor } from "react-dnd";
+import type { DropTargetMonitor } from "react-dnd";
 
 interface IUseDragAndDropParams {
   element: Element;
@@ -141,7 +141,7 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
 
   // 使用 useCallback 优化 hover 函数
   const hoverFn = useCallback(
-    (item: IDragItem, monitor: DropTargetMonitor) => {
+    (_item: IDragItem, monitor: DropTargetMonitor) => {
       if (!monitor.canDrop()) {
         return;
       }
