@@ -1,0 +1,1 @@
+export { useTextDecorations } from "./useTextDecorations";

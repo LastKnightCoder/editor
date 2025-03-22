@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect, useMemo, useRef } from "react";
+import { useState, useContext, useEffect, useMemo, useRef, memo } from "react";
 import { Editor, Range, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn, useClickAway } from "ahooks";
@@ -17,7 +17,7 @@ import color from "@/assets/hovering_bar/color.svg";
 
 import styles from "./index.module.less";
 
-const ColorText = () => {
+const ColorText = memo(() => {
   const editor = useSlate();
   const selection = useSlateSelection();
   const { isDark } = useTheme();
@@ -76,7 +76,8 @@ const ColorText = () => {
         <div className={styles.text}>
           <SVG
             src={color}
-            style={{ fill: activeColor, width: 16, height: 16 }}
+            style={{ fill: activeColor }}
+            className={styles.icon}
           />
           <BiChevronDown />
         </div>
@@ -84,6 +85,6 @@ const ColorText = () => {
       <ColorSelect open={open} onClick={handleSelectColor} />
     </div>
   );
-};
+});
 
 export default ColorText;

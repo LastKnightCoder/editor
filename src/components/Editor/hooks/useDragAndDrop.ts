@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Editor, Element, Path, Transforms } from "slate";
 import { useDrag, useDrop } from "react-dnd";
 import { ReactEditor, useSlate, useReadOnly } from "slate-react";
+import type { DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 
 interface IUseDragAndDropParams {
   element: Element;
@@ -80,6 +81,13 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
 
   const [isBefore, setIsBefore] = useState(false);
 
+  // 使用 useCallback 优化 canDrag 函数
+  const canDragFn = useCallback(() => {
+    if (disableDrag) return false;
+    return Editor.isBlock(editor, element) && !readOnly;
+  }, [disableDrag, editor, element, readOnly]);
+
+  // 拖拽相关部分
   const [{ isDragging, canDrag }, drag] = useDrag(
     {
       type: EDITOR_DRAG_TYPE,
@@ -87,18 +95,101 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
         element,
         editor,
       },
-      canDrag: () => {
-        if (disableDrag) return false;
-        return Editor.isBlock(editor, element) && !readOnly;
-      },
+      canDrag: canDragFn,
       collect: (monitor) => ({
         isDragging: monitor.isDragging(),
         canDrag: monitor.canDrag(),
       }),
     },
-    [readOnly, element, disableDrag],
+    [readOnly, element, disableDrag, canDragFn],
   );
 
+  // 使用 useCallback 优化 canDrop 函数
+  const canDropFn = useCallback(
+    (item: IDragItem) => {
+      if (readOnly) {
+        return false;
+      }
+      const dragPath = ReactEditor.findPath(editor, item.element);
+      const dropPath = ReactEditor.findPath(editor, element);
+      const dragEditor = item.editor;
+      let dropParent;
+      try {
+        dropParent = Editor.parent(editor, dropPath);
+      } catch (e) {
+        console.error(e);
+      }
+
+      // 如果当前元素是 check-list-item，拖动的元素不是 check-list-item，则不允许移动
+      if (
+        (element.type === "check-list-item" ||
+          (element.type === "paragraph" &&
+            dropParent?.[0].type === "check-list-item")) &&
+        item.element.type !== "check-list-item"
+      ) {
+        return false;
+      }
+
+      if (editor.isBlock(item.element) && editor.isBlock(element)) {
+        return editor !== dragEditor || !Path.equals(dragPath, dropPath);
+      } else {
+        return false;
+      }
+    },
+    [editor, element, readOnly],
+  );
+
+  // 使用 useCallback 优化 hover 函数
+  const hoverFn = useCallback(
+    (item: IDragItem, monitor: DropTargetMonitor) => {
+      if (!monitor.canDrop()) {
+        return;
+      }
+      const monitorClientOffset = monitor.getClientOffset();
+      if (!monitorClientOffset) {
+        return;
+      }
+      const dropDOMNode = ReactEditor.toDOMNode(editor, element);
+      const dropRect = dropDOMNode.getBoundingClientRect();
+      const isBefore =
+        monitorClientOffset.y - dropRect.top < dropRect.height / 2;
+      setIsBefore(isBefore);
+    },
+    [editor, element],
+  );
+
+  // 使用 useCallback 优化 drop 函数
+  const dropFn = useCallback(
+    (item: IDragItem, monitor: DropTargetMonitor) => {
+      const didDrop = monitor.didDrop();
+      if (didDrop) {
+        return;
+      }
+      try {
+        const dragEditor = item.editor;
+        const dragElement = item.element;
+        const dragPath = ReactEditor.findPath(dragEditor, dragElement);
+        const dropPath = ReactEditor.findPath(editor, element);
+
+        if (editor !== dragEditor) {
+          Transforms.removeNodes(dragEditor, {
+            at: dragPath,
+          });
+          Transforms.insertNodes(editor, dragElement, {
+            at: isBefore ? dropPath : Path.next(dropPath),
+          });
+          return;
+        }
+
+        moveNode(editor, dragPath, dropPath, isBefore);
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    [editor, element, isBefore],
+  );
+
+  // 放置相关部分
   const [{ canDrop, isOverCurrent }, drop] = useDrop<
     IDragItem,
     void,
@@ -109,84 +200,17 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
   >(
     {
       accept: EDITOR_DRAG_TYPE,
-      canDrop: (item) => {
-        if (readOnly) {
-          return false;
-        }
-        const dragPath = ReactEditor.findPath(editor, item.element);
-        const dropPath = ReactEditor.findPath(editor, element);
-        const dragEditor = item.editor;
-        let dropParent;
-        try {
-          dropParent = Editor.parent(editor, dropPath);
-        } catch (e) {
-          console.error(e);
-        }
-
-        // 如果当前元素是 check-list-item，拖动的元素不是 check-list-item，则不允许移动
-        if (
-          (element.type === "check-list-item" ||
-            (element.type === "paragraph" &&
-              dropParent?.[0].type === "check-list-item")) &&
-          item.element.type !== "check-list-item"
-        ) {
-          return false;
-        }
-
-        if (editor.isBlock(item.element) && editor.isBlock(element)) {
-          return editor !== dragEditor || !Path.equals(dragPath, dropPath);
-        } else {
-          return false;
-        }
-      },
+      canDrop: canDropFn,
       collect: (monitor) => {
         return {
           isOverCurrent: monitor.isOver({ shallow: true }),
           canDrop: monitor.canDrop(),
         };
       },
-      hover: (_item, monitor) => {
-        if (!monitor.canDrop()) {
-          return;
-        }
-        const monitorClientOffset = monitor.getClientOffset();
-        if (!monitorClientOffset) {
-          return;
-        }
-        const dropDOMNode = ReactEditor.toDOMNode(editor, element);
-        const dropRect = dropDOMNode.getBoundingClientRect();
-        const isBefore =
-          monitorClientOffset.y - dropRect.top < dropRect.height / 2;
-        setIsBefore(isBefore);
-      },
-      drop: (item, monitor) => {
-        const didDrop = monitor.didDrop();
-        if (didDrop) {
-          return;
-        }
-        try {
-          const dragEditor = item.editor;
-          const dragElement = item.element;
-          const dragPath = ReactEditor.findPath(dragEditor, dragElement);
-          const dropPath = ReactEditor.findPath(editor, element);
-
-          if (editor !== dragEditor) {
-            Transforms.removeNodes(dragEditor, {
-              at: dragPath,
-            });
-            Transforms.insertNodes(editor, dragElement, {
-              at: isBefore ? dropPath : Path.next(dropPath),
-            });
-            return;
-          }
-
-          moveNode(editor, dragPath, dropPath, isBefore);
-        } catch (e) {
-          console.error(e);
-        }
-      },
+      hover: hoverFn,
+      drop: dropFn,
     },
-    [readOnly, isBefore, element],
+    [readOnly, isBefore, element, canDropFn, hoverFn, dropFn],
   );
 
   return {

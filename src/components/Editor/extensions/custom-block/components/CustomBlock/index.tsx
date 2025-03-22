@@ -17,33 +17,31 @@ interface CustomBlockProps {
   element: CustomBlockElement;
 }
 
-const prefix = `const { antd } = components;\n`;
-const suffix = `
-if (typeof Component === 'function') {
-  const App = () => {
-    const { isDark = false } = hooks.useTheme();
-    const { ConfigProvider, theme } = antd;
-    return (
-      <ConfigProvider
-        theme={{
-          algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-        }}
-      >
-        <Component />
-      </ConfigProvider>
-    )
-  }
-  const root = ReactDOM.createRoot(el);
-  root.render(<App />);
-}`;
-
 const CustomBlock = (props: { content: string }) => {
   const [availableCode, setAvailableCode] = React.useState<string>("");
   const ref = useRef<HTMLDivElement>(null);
-
+  const { isDark } = useTheme();
   const { content } = props;
 
   const code = useMemo(() => {
+    const prefix = `const { antd } = components;\n`;
+    const suffix = `
+    if (typeof Component === 'function') {
+      const App = () => {
+        const { ConfigProvider, theme } = antd;
+        return (
+          <ConfigProvider
+            theme={{
+              algorithm: ${isDark} ? theme.darkAlgorithm : theme.defaultAlgorithm,
+            }}
+          >
+            <Component />
+          </ConfigProvider>
+        )
+      }
+      const root = ReactDOM.createRoot(el);
+      root.render(<App />);
+    }`;
     const normalizedCode = `${prefix}${content}${suffix}`;
     try {
       const code =
@@ -65,7 +63,7 @@ const CustomBlock = (props: { content: string }) => {
     } catch (e) {
       return availableCode;
     }
-  }, [content, availableCode]);
+  }, [content, availableCode, isDark]);
 
   useEffect(() => {
     const AsyncFunction = Object.getPrototypeOf(
@@ -78,6 +76,7 @@ const CustomBlock = (props: { content: string }) => {
       "el",
       "components",
       "hooks",
+      "extraInfo",
       code + "\nreturn root;",
     );
 
@@ -88,6 +87,7 @@ const CustomBlock = (props: { content: string }) => {
         ref.current,
         { antd, antdIcons },
         { useTheme },
+        { isDark },
       );
 
       return () => {

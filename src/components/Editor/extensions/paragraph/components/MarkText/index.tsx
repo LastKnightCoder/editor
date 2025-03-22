@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { Tooltip } from "antd";
 import { Mark } from "@/components/Editor/types";
@@ -17,7 +17,7 @@ interface IMarkTextProps {
   icon: React.ReactNode;
 }
 
-const MarkText = (props: IMarkTextProps) => {
+const MarkText = memo((props: IMarkTextProps) => {
   const { mark, tooltip, icon } = props;
   const editor = useSlate();
   const selection = useSlateSelection();
@@ -52,6 +52,6 @@ const MarkText = (props: IMarkTextProps) => {
       </div>
     </Tooltip>
   );
-};
+});
 
 export default MarkText;

@@ -313,7 +313,7 @@ const Index = memo(
           <Editable
             className={classnames(
               styles.editor,
-              { [styles.dark]: theme === "dark" },
+              { [styles.dark]: (theme || systemTheme) === "dark" },
               props.className,
             )}
             style={props.style}
