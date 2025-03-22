@@ -1,94 +1,87 @@
 import React, { useMemo, memo } from "react";
 import { RenderLeafProps } from "slate-react";
 import classnames from "classnames";
-
-import Highlight from "../Highlight";
-
 import useTheme from "../../hooks/useTheme";
-
 import styles from "./index.module.less";
+import { type FormattedText as FormattedTextType } from "../../types";
 
-import { type FormattedText, HighlightColor } from "../../types";
+// 导入子组件
+import { CodeText, HighlightText, StyledText } from "./components";
+import { useTextDecorations } from "./hooks";
+import { useMemoizedFn } from "ahooks";
 
 interface IFormattedTextProps {
   attributes: RenderLeafProps["attributes"];
-  leaf: FormattedText;
+  leaf: FormattedTextType;
+  children: React.ReactNode;
 }
 
-const FormattedText: React.FC<React.PropsWithChildren<IFormattedTextProps>> =
-  memo((props) => {
-    const { attributes, leaf, children } = props;
-    const {
-      bold,
-      italic,
-      underline,
-      highlight,
-      code,
-      strikethrough,
-      color,
-      darkColor = color,
-    } = leaf;
+const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
+  const { attributes, leaf, children } = props;
+  const {
+    bold,
+    italic,
+    underline,
+    highlight,
+    code,
+    strikethrough,
+    color,
+    darkColor = color,
+  } = leaf;
 
-    const { isDark } = useTheme();
+  const { isDark } = useTheme();
 
-    const className = classnames({
+  // 使用自定义Hook计算文本装饰
+  const textDecorations = useTextDecorations(underline, strikethrough);
+
+  // 计算类名
+  const className = useMemo(() => {
+    return classnames({
       [styles.bold]: bold,
       [styles.italic]: italic,
-      // 如果没有文字，就设置一个 padding-left: 0.1px，这样即使在链接等后面也可以点击到
       [styles.padding]: true,
     });
+  }, [bold, italic]);
 
-    const textDecorations = useMemo(() => {
-      let text = "";
-      if (underline) {
-        text += "underline ";
-      }
-      if (strikethrough) {
-        text += "line-through ";
-      }
-      return text;
-    }, [underline, strikethrough]);
-
-    const addHighlightWrapper = (originChildren: React.ReactNode) => {
-      if (highlight) {
-        let type: HighlightColor = "yellow";
-        if (typeof highlight === "string") {
-          type = highlight;
-        }
-        return <Highlight type={type}>{originChildren}</Highlight>;
-      }
-      return originChildren;
-    };
-
-    const addCodeWrapper = (originChildren: React.ReactNode) => {
-      if (code) {
-        return (
-          <code className={classnames(styles.code, { [styles.dark]: isDark })}>
-            {originChildren}
-          </code>
-        );
-      }
-      return originChildren;
-    };
-
-    return (
-      <span
-        {...attributes}
-        className={className}
-        style={{
-          textDecoration: textDecorations,
-          color: isDark ? darkColor : color,
-        }}
-        onDragStart={(e) => {
-          e.preventDefault();
-        }}
-        onDrop={(e) => {
-          e.preventDefault();
-        }}
-      >
-        {addHighlightWrapper(addCodeWrapper(children))}
-      </span>
-    );
+  // 处理拖拽事件
+  const handleDragStart = useMemoizedFn((e: React.DragEvent) => {
+    e.preventDefault();
   });
+
+  const handleDrop = useMemoizedFn((e: React.DragEvent) => {
+    e.preventDefault();
+  });
+
+  // 渲染内容，嵌套包装组件
+  const renderContent = useMemoizedFn(() => {
+    let content = children;
+
+    // 按顺序应用样式包装
+    if (code) {
+      content = <CodeText isDark={isDark}>{content}</CodeText>;
+    }
+
+    if (highlight) {
+      content = <HighlightText highlight={highlight}>{content}</HighlightText>;
+    }
+
+    return content;
+  });
+
+  return (
+    <StyledText
+      attributes={attributes}
+      className={className}
+      textDecoration={textDecorations}
+      color={isDark ? darkColor : color}
+      onDragStart={handleDragStart}
+      onDrop={handleDrop}
+    >
+      {renderContent()}
+    </StyledText>
+  );
+});
+
+FormattedText.displayName = "FormattedText";
 
 export default FormattedText;

@@ -1,5 +1,5 @@
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
-import { useContext, useEffect, useMemo, useState, useRef } from "react";
+import { useContext, useEffect, useMemo, useState, useRef, memo } from "react";
 import { useMemoizedFn, useClickAway } from "ahooks";
 import { Editor, Range, Transforms } from "slate";
 
@@ -17,7 +17,7 @@ import { HoveringBarContext } from "@/components/Editor/components/HoveringToolb
 
 import classnames from "classnames";
 
-const HighlightText = () => {
+const HighlightText = memo(() => {
   const editor = useSlate();
   const selection = useSlateSelection();
 
@@ -52,28 +52,27 @@ const HighlightText = () => {
     },
   );
 
+  const handleClickContainer = useMemoizedFn((event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setOpen(!open);
+  });
+
   return (
     <div
       ref={ref}
       className={classnames(styles.textContainer, { [styles.active]: active })}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setOpen(!open);
-      }}
+      onClick={handleClickContainer}
     >
       <Tooltip title={"高亮"} trigger={"hover"}>
         <div className={styles.text}>
-          <SVG
-            src={highlight}
-            style={{ fill: "currentcolor", width: 16, height: 16 }}
-          />
+          <SVG src={highlight} className={styles.icon} />
           <BiChevronDown />
         </div>
         <HighlightSelect open={open} onClick={handleClick} />
       </Tooltip>
     </div>
   );
-};
+});
 
 export default HighlightText;

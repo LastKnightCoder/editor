@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { Tooltip } from "antd";
 
 import For from "@/components/For";
@@ -54,7 +54,7 @@ interface IColorSelectProps {
   open: boolean;
 }
 
-const ColorSelect = (props: IColorSelectProps) => {
+const ColorSelect = memo((props: IColorSelectProps) => {
   const { onClick, open } = props;
 
   const { isDark } = useTheme();
@@ -94,6 +94,6 @@ const ColorSelect = (props: IColorSelectProps) => {
       />
     </div>
   );
-};
+});
 
 export default ColorSelect;

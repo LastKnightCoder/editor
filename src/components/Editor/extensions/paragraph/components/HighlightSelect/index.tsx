@@ -1,5 +1,5 @@
+import { memo } from "react";
 import For from "@/components/For";
-
 import styles from "./index.module.less";
 
 const highlightColors = [
@@ -30,7 +30,7 @@ interface IHighlightSelectProps {
   open: boolean;
 }
 
-const HighlightSelect = (props: IHighlightSelectProps) => {
+const HighlightSelect = memo((props: IHighlightSelectProps) => {
   const { onClick, open } = props;
 
   if (!open) {
@@ -63,6 +63,6 @@ const HighlightSelect = (props: IHighlightSelectProps) => {
       </>
     </div>
   );
-};
+});
 
 export default HighlightSelect;
