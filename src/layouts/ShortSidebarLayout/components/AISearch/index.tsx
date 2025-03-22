@@ -2,7 +2,7 @@ import { useEffect, memo, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import isHotkey from "is-hotkey";
 import Editor from "@/components/Editor";
-
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import useCardManagement from "@/hooks/useCardManagement.ts";
@@ -15,7 +15,6 @@ import classnames from "classnames";
 import { LoadingOutlined, SearchOutlined } from "@ant-design/icons";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import If from "@/components/If";
-import For from "@/components/For";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
@@ -25,6 +24,45 @@ import {
   getRootDocumentsByDocumentItemId,
 } from "@/commands";
 
+// 搜索结果项组件
+const SearchResultItem = memo(
+  ({
+    result,
+    getRefTypeLabel,
+    getTagColor,
+    handleSearchResultClick,
+  }: {
+    result: SearchResult;
+    getRefTypeLabel: (type: string) => string;
+    getTagColor: (type: string) => string;
+    handleSearchResultClick: (result: SearchResult) => void;
+  }) => {
+    return (
+      <div
+        className={styles.item}
+        onClick={() => handleSearchResultClick(result)}
+      >
+        <div>
+          <Tag
+            color={getTagColor(result.type)}
+            style={{ marginBottom: 12, flexShrink: 0 }}
+          >
+            {getRefTypeLabel(result.type)}
+          </Tag>
+        </div>
+        <Editor
+          style={{
+            flex: 1,
+            overflow: "hidden",
+          }}
+          initValue={result.content.slice(0, 3)}
+          readonly={true}
+        />
+      </div>
+    );
+  },
+);
+
 const AISearch = memo(() => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
@@ -32,6 +70,9 @@ const AISearch = memo(() => {
   const searchRef = useRef<EditTextHandle>(null);
   const lastSearchText = useRef("");
   const [activeTab, setActiveTab] = useState<string>("fts");
+
+  const ftsListRef = useRef<HTMLDivElement>(null);
+  const vecListRef = useRef<HTMLDivElement>(null);
 
   const { open, searchLoading, ftsResults, vecResults, onSearch } =
     useCommandPanelStore((state) => ({
@@ -42,6 +83,20 @@ const AISearch = memo(() => {
       onSearch: state.onSearch,
     }));
   const { onCtrlClickCard } = useCardManagement();
+
+  const ftsVirtualizer = useVirtualizer({
+    count: ftsResults.length,
+    getScrollElement: () => ftsListRef.current,
+    estimateSize: () => 240,
+    overscan: 5,
+  });
+
+  const vecVirtualizer = useVirtualizer({
+    count: vecResults.length,
+    getScrollElement: () => vecListRef.current,
+    estimateSize: () => 240,
+    overscan: 5,
+  });
 
   const onClickMask = useMemoizedFn(() => {
     useCommandPanelStore.setState({ open: false });
@@ -201,36 +256,32 @@ const AISearch = memo(() => {
                         />
                       </If>
                       <If condition={ftsResults.length > 0}>
-                        <div className={styles.list}>
-                          <For
-                            data={ftsResults}
-                            renderItem={(result) => {
-                              return (
-                                <div
-                                  className={styles.item}
-                                  key={`fts-${result.id}-${result.type}`}
-                                  onClick={() =>
-                                    handleSearchResultClick(result)
-                                  }
-                                >
-                                  <Tag
-                                    color={getTagColor(result.type)}
-                                    style={{ marginBottom: 12 }}
-                                  >
-                                    {getRefTypeLabel(result.type)}
-                                  </Tag>
-                                  <Editor
-                                    style={{
-                                      maxHeight: 160,
-                                      overflowY: "hidden",
-                                    }}
-                                    initValue={result.content}
-                                    readonly={true}
-                                  />
-                                </div>
-                              );
+                        <div ref={ftsListRef} className={styles.list}>
+                          <div
+                            style={{
+                              height: `${ftsVirtualizer.getTotalSize()}px`,
+                              width: "100%",
+                              position: "relative",
                             }}
-                          />
+                          >
+                            {ftsVirtualizer
+                              .getVirtualItems()
+                              .map((virtualItem) => {
+                                const result = ftsResults[virtualItem.index];
+                                return (
+                                  <div key={`fts-${result.id}-${result.type}`}>
+                                    <SearchResultItem
+                                      result={result}
+                                      getRefTypeLabel={getRefTypeLabel}
+                                      getTagColor={getTagColor}
+                                      handleSearchResultClick={
+                                        handleSearchResultClick
+                                      }
+                                    />
+                                  </div>
+                                );
+                              })}
+                          </div>
                         </div>
                       </If>
                     </>
@@ -250,36 +301,30 @@ const AISearch = memo(() => {
                         />
                       </If>
                       <If condition={vecResults.length > 0}>
-                        <div className={styles.list}>
-                          <For
-                            data={vecResults}
-                            renderItem={(result) => {
-                              return (
-                                <div
-                                  className={styles.item}
-                                  key={`vec-${result.id}-${result.type}`}
-                                  onClick={() =>
-                                    handleSearchResultClick(result)
-                                  }
-                                >
-                                  <Tag
-                                    color={getTagColor(result.type)}
-                                    style={{ marginBottom: 12 }}
-                                  >
-                                    {getRefTypeLabel(result.type)}
-                                  </Tag>
-                                  <Editor
-                                    style={{
-                                      maxHeight: 160,
-                                      overflowY: "hidden",
-                                    }}
-                                    initValue={result.content}
-                                    readonly={true}
-                                  />
-                                </div>
-                              );
+                        <div ref={vecListRef} className={styles.list}>
+                          <div
+                            style={{
+                              height: `${vecVirtualizer.getTotalSize()}px`,
+                              width: "100%",
                             }}
-                          />
+                          >
+                            {vecVirtualizer
+                              .getVirtualItems()
+                              .map((virtualItem) => {
+                                const result = vecResults[virtualItem.index];
+                                return (
+                                  <SearchResultItem
+                                    key={`vec-${result.id}-${result.type}`}
+                                    result={result}
+                                    getRefTypeLabel={getRefTypeLabel}
+                                    getTagColor={getTagColor}
+                                    handleSearchResultClick={
+                                      handleSearchResultClick
+                                    }
+                                  />
+                                );
+                              })}
+                          </div>
                         </div>
                       </If>
                     </>
