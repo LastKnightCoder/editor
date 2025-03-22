@@ -1,14 +1,14 @@
 import { useState, memo } from "react";
 import classnames from "classnames";
 
-import HideChildrenWithAnimation from "@/components/HideChildrenWithAnimation";
 import For from "@/components/For";
-
+import If from "@/components/If";
 import { TagOutlined } from "@ant-design/icons";
 
 import { ICardTree } from "@/types";
 
 import styles from "./index.module.less";
+import { useMemoizedFn } from "ahooks";
 
 interface ITagItemProps {
   item: ICardTree;
@@ -24,35 +24,42 @@ const TagItem = memo((props: ITagItemProps) => {
 
   const active = tag === activeTag.split("/")[0];
 
-  const toggleOpen = () => {
+  const toggleOpen = useMemoizedFn(() => {
     setOpen(!open);
-  };
+  });
+
+  const handleClickTag = useMemoizedFn(() => {
+    onClickTag?.(tag);
+  });
+
+  const handleClickChildTag = useMemoizedFn((childTag: string) => {
+    onClickTag?.(tag + "/" + childTag);
+  });
+
+  const handleClickTagCount = useMemoizedFn(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+      if (children.length > 0) {
+        toggleOpen();
+      }
+    },
+  );
 
   return (
     <div className={styles.tagItem}>
       <div
         className={classnames(styles.header, { [styles.active]: active })}
-        onClick={() => {
-          onClickTag?.(tag);
-        }}
+        onClick={handleClickTag}
       >
         <div className={styles.tagIcon}>
           <TagOutlined />
         </div>
         <div className={styles.tagName}>{tag}</div>
-        <div
-          className={styles.tagCount}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (children.length > 0) {
-              toggleOpen();
-            }
-          }}
-        >
+        <div className={styles.tagCount} onClick={handleClickTagCount}>
           {cardIds.length}
         </div>
       </div>
-      <HideChildrenWithAnimation open={open}>
+      <If condition={open}>
         <div className={styles.children}>
           <For
             data={children}
@@ -60,15 +67,13 @@ const TagItem = memo((props: ITagItemProps) => {
               <TagItem
                 key={cardTree.tag}
                 item={cardTree}
-                onClickTag={(childTag) => {
-                  onClickTag?.(tag + "/" + childTag);
-                }}
+                onClickTag={handleClickChildTag}
                 activeTag={activeTag.split("/").slice(1).join("/")}
               />
             )}
           />
         </div>
-      </HideChildrenWithAnimation>
+      </If>
     </div>
   );
 });
