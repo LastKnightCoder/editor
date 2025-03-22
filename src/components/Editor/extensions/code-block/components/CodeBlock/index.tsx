@@ -18,7 +18,7 @@ import AddParagraph, {
 import useTheme from "../../../../hooks/useTheme";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import SelectLanguage from "../SelectLanguage";
-import ToolbarButtons from "./ToolbarButtons/ToolbarButtons";
+import ToolbarButtons from "./ToolbarButtons";
 import DragHandle from "./DragHandle";
 import { LANGUAGES } from "./config";
 import { codeBlockMap } from "../../index";
