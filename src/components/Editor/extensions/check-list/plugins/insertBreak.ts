@@ -30,7 +30,7 @@ export const insertBreak = (editor: Editor) => {
             try {
               grandParent = getParentNodeByNode(editor, parent[0]);
             } catch (e) {
-              console.log("e", e);
+              console.error("e", e);
             }
 
             if (grandParent && grandParent[0].type === "check-list-item") {

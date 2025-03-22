@@ -41,14 +41,12 @@ const PresentationMode: React.FC = () => {
 
   const handleNext = useMemoizedFn(() => {
     if (board) {
-      console.log("尝试切换到下一帧");
       board.presentationManager.nextFrame();
     }
   });
 
   const handlePrev = useMemoizedFn(() => {
     if (board) {
-      console.log("尝试切换到上一帧");
       board.presentationManager.prevFrame();
     }
   });

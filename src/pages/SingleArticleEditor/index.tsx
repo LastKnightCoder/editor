@@ -23,6 +23,7 @@ import { useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
+import { IArticle } from "@/types";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -31,7 +32,7 @@ const SingleArticleEditor = () => {
   const articleId = Number(searchParams.get("articleId"));
   const databaseName = searchParams.get("databaseName");
 
-  const [editingArticle, setEditingArticle] = useState<any | null>(null);
+  const [editingArticle, setEditingArticle] = useState<IArticle | null>(null);
   const [content, setContent] = useState<Descendant[]>([]);
   const [tags, setTags] = useState<string[]>([]);
   const [title, setTitle] = useState<string>("");
@@ -47,7 +48,6 @@ const SingleArticleEditor = () => {
     const loadArticle = async (articleId: number) => {
       try {
         const article = await findOneArticle(articleId);
-        console.log("article", article, articleId);
         setEditingArticle(article);
         setContent(article.content);
         setTags(article.tags);

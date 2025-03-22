@@ -245,8 +245,6 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     overflow: "hidden",
   };
 
-  console.log(isEditingDescription, !description, isSelected);
-
   return (
     <>
       {/* 图片描述区域 - 上方 */}
@@ -290,7 +288,6 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
                 )}
                 style={descriptionTextStyle}
                 onBlur={() => {
-                  console.log("onBlur");
                   setIsEditingDescription(false);
                 }}
               />

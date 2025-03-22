@@ -1,14 +1,16 @@
-import { useState, useEffect, memo, useRef } from "react";
+import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import { App, Dropdown, Input, MenuProps, message, Modal, Tooltip } from "antd";
 import { produce } from "immer";
 import { getFileBaseName, readTextFile, selectFile } from "@/commands";
+import { on, off } from "@/electron";
 
 import SelectCardModal from "@/components/SelectCardModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
+import useSettingStore from "@/stores/useSettingStore";
 import useDragAndDrop, {
   EDragPosition,
   IDragItem,
@@ -22,6 +24,7 @@ import {
   getProjectById,
   getProjectItemById,
   updateProjectItem,
+  openProjectItemInNewWindow,
 } from "@/commands";
 import { CreateProjectItem, EProjectItemType, type ProjectItem } from "@/types";
 import {
@@ -124,6 +127,25 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { createWhiteBoard } = useWhiteBoardStore((state) => ({
     createWhiteBoard: state.createWhiteBoard,
   }));
+
+  useEffect(() => {
+    const handleProjectItemWindowClosed = async (
+      _e: any,
+      data: { projectItemId: number; databaseName: string },
+    ) => {
+      if (data.projectItemId === projectItemId) {
+        const projectItem = await getProjectItemById(projectItemId);
+        titleRef.current?.setValue(projectItem.title);
+        setProjectItem(projectItem);
+      }
+    };
+
+    on("project-item-window-closed", handleProjectItemWindowClosed);
+
+    return () => {
+      off("project-item-window-closed", handleProjectItemWindowClosed);
+    };
+  }, [projectItemId]);
 
   const onRemoveProjectItem = useMemoizedFn(async () => {
     modal.confirm({
@@ -304,8 +326,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
   });
 
-  const moreMenuItems: MenuProps["items"] =
-    projectItem?.projectItemType === EProjectItemType.Document
+  const moreMenuItems: MenuProps["items"] = useMemo(() => {
+    return projectItem?.projectItemType === EProjectItemType.Document
       ? [
           projectItem?.refType !== "card"
             ? {
@@ -316,6 +338,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           {
             key: "presentation-mode",
             label: "演示模式",
+          },
+          {
+            key: "open-in-new-window",
+            label: "窗口打开",
           },
           {
             key: "remove",
@@ -338,6 +364,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             label: "编辑标题",
           },
         ].filter(isValid);
+  }, [projectItem?.projectItemType, projectItem?.refType]);
 
   const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
@@ -395,6 +422,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         )
           return;
         setIsPresentation(true);
+      } else if (key === "open-in-new-window") {
+        const databaseName = useSettingStore.getState().setting.database.active;
+        openProjectItemInNewWindow(databaseName, projectItemId);
       }
     },
   );

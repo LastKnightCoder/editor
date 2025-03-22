@@ -121,3 +121,10 @@ export const deleteProjectItemsNotInAnyProject = async (): Promise<number> => {
 export const getAllProjectItems = async (): Promise<ProjectItem[]> => {
   return await invoke("get-all-project-items");
 };
+
+export const openProjectItemInNewWindow = (
+  databaseName: string,
+  projectItemId: number,
+) => {
+  return invoke("open-project-item-in-new-window", databaseName, projectItemId);
+};

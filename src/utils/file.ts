@@ -18,9 +18,7 @@ export const getVideoInfo = async (
 ): Promise<{ width: number; height: number } | null> => {
   return new Promise((resolve) => {
     const video = document.createElement("video");
-    video.onloadedmetadata = (e) => {
-      console.log(e);
-      console.log(video.videoWidth, video.videoHeight);
+    video.onloadedmetadata = () => {
       resolve({ width: video.videoWidth, height: video.videoHeight });
     };
     video.onerror = () => {

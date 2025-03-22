@@ -6,9 +6,11 @@ import { EFilterType } from "@/types/time";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
+import dayjs from "dayjs";
 
 interface ISelectTimeProps {
   filterType: EFilterType;
+  filterValue: string | string[];
   onSelectFilterTypeChange: (type: EFilterType) => void;
   onFilterValueChange: (value: string | string[]) => void;
   className?: string;
@@ -19,6 +21,7 @@ const { RangePicker } = DatePicker;
 const SelectTime = memo((props: ISelectTimeProps) => {
   const {
     filterType,
+    filterValue,
     onSelectFilterTypeChange,
     onFilterValueChange,
     className,
@@ -41,6 +44,8 @@ const SelectTime = memo((props: ISelectTimeProps) => {
       </Select>
       <If condition={filterType === EFilterType.RANGE}>
         <RangePicker
+          // @ts-ignore
+          value={(filterValue as string[])?.map?.((date) => dayjs(date)) || []}
           className={styles.picker}
           onChange={(_, dateStrings) => {
             onFilterValueChange(dateStrings);
@@ -53,6 +58,7 @@ const SelectTime = memo((props: ISelectTimeProps) => {
         }
       >
         <DatePicker
+          value={dayjs(filterValue as string)}
           className={styles.picker}
           picker={filterType as any}
           onChange={(_, dateString) => {

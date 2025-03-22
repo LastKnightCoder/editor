@@ -6,7 +6,7 @@ import useProjectsStore from "@/stores/useProjectsStore";
 
 import { formatDate } from "@/utils/time";
 import Editor, { EditorRef } from "@/components/Editor";
-import EditText from "@/components/EditText";
+import EditText, { EditTextHandle } from "@/components/EditText";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import {
@@ -14,6 +14,8 @@ import {
   fileAttachmentExtension,
   projectCardListExtension,
 } from "@/editor-extensions";
+import { getProjectItemById } from "@/commands";
+import { on, off } from "@/electron";
 
 import styles from "./index.module.less";
 
@@ -25,6 +27,7 @@ const extensions = [
 
 const Project = () => {
   const editorRef = useRef<EditorRef>(null);
+  const titleRef = useRef<EditTextHandle>(null);
 
   const {
     projectItem,
@@ -60,6 +63,31 @@ const Project = () => {
   const onPressEnter = useMemoizedFn(() => {
     editorRef.current?.focus();
   });
+
+  useEffect(() => {
+    if (!projectItem) return;
+
+    const handleProjectItemWindowClosed = async (
+      _e: any,
+      data: { projectItemId: number; databaseName: string },
+    ) => {
+      if (data.projectItemId === projectItem.id) {
+        const updatedProjectItem = await getProjectItemById(data.projectItemId);
+
+        editorRef.current?.setEditorValue(updatedProjectItem.content);
+        titleRef.current?.setValue(updatedProjectItem.title);
+
+        onTitleChange(updatedProjectItem.title);
+        onContentChange(updatedProjectItem.content);
+      }
+    };
+
+    on("project-item-window-closed", handleProjectItemWindowClosed);
+
+    return () => {
+      off("project-item-window-closed", handleProjectItemWindowClosed);
+    };
+  }, [projectItem?.id, onTitleChange, onContentChange]);
 
   if (!projectItem) return null;
 

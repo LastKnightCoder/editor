@@ -122,7 +122,6 @@ export const createTableStore = (
         produce<TableState>((state) => {
           const rowIndex = state.rows.findIndex((r) => r.id === rowId);
           if (rowIndex !== -1) {
-            console.log("updateCellValue", rowIndex, columnId, value);
             state.rows[rowIndex][columnId] = value;
           }
         }),

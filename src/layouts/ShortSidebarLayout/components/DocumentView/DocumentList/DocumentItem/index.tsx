@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { App, message, Popover, Tooltip } from "antd";
+import { App, Dropdown, MenuProps, message, Tooltip } from "antd";
 import {
   FileOutlined,
   MoreOutlined,
@@ -25,12 +25,15 @@ import {
   getDocumentItemAllParents,
   isDocumentItemChildOf,
   updateDocumentItem,
+  openDocumentItemInNewWindow,
 } from "@/commands";
 import SelectCardModal from "@/components/SelectCardModal";
 import SelectModal from "@/components/SelectModal";
 import PresentationMode from "@/components/PresentationMode";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import { IArticle, ICard, IDocumentItem } from "@/types";
+import useSettingStore from "@/stores/useSettingStore";
+import { on, off } from "@/electron";
 
 import styles from "./index.module.less";
 
@@ -66,8 +69,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
   } = props;
 
   const [item, setItem] = useState<IDocumentItem | null>(null);
-  const [addPopoverOpen, setAddPopoverOpen] = useState(false);
-  const [morePopoverOpen, setMorePopoverOpen] = useState(false);
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
   const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
   const [selectArticleModalOpen, setSelectArticleModalOpen] = useState(false);
@@ -109,6 +110,26 @@ const DocumentItem = (props: IDocumentItemProps) => {
       setItem(activeDocumentItem);
     }
   }, [itemId, activeDocumentItem]);
+
+  useEffect(() => {
+    if (!itemId) return;
+
+    const handleDocumentItemWindowClosed = async (
+      _e: any,
+      data: { documentItemId: number; databaseName: string },
+    ) => {
+      if (data.documentItemId === itemId) {
+        const updatedItem = await getDocumentItem(itemId);
+        setItem(updatedItem);
+      }
+    };
+
+    on("document-item-window-closed", handleDocumentItemWindowClosed);
+
+    return () => {
+      off("document-item-window-closed", handleDocumentItemWindowClosed);
+    };
+  }, [itemId]);
 
   const onDrop = useMemoizedFn(
     async (dragItem: IDragItem, dragPosition: EDragPosition) => {
@@ -483,6 +504,87 @@ const DocumentItem = (props: IDocumentItemProps) => {
     setSelectDocumentItemModalOpen(false);
   });
 
+  // Create menu items for the more dropdown
+  const moreMenuItems: MenuProps["items"] = useMemo(
+    () => [
+      {
+        key: "delete",
+        label: "删除文档",
+      },
+      {
+        key: "presentation",
+        label: "演示模式",
+      },
+      {
+        key: "open-in-new-window",
+        label: "窗口打开",
+      },
+    ],
+    [],
+  );
+
+  const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
+    async ({ key }) => {
+      if (key === "delete") {
+        await onClickDelete();
+      } else if (key === "presentation") {
+        setIsPresentation(true);
+      } else if (key === "open-in-new-window") {
+        const databaseName = useSettingStore.getState().setting.database.active;
+        openDocumentItemInNewWindow(databaseName, itemId);
+      }
+    },
+  );
+
+  const addMenuItems: MenuProps["items"] = useMemo(
+    () => [
+      {
+        key: "add-document",
+        label: "添加文档",
+      },
+      {
+        key: "associate-card",
+        label: "关联卡片",
+      },
+      {
+        key: "associate-article",
+        label: "关联文章",
+      },
+      {
+        key: "associate-document",
+        label: "关联文档",
+      },
+    ],
+    [],
+  );
+
+  const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(
+    async ({ key }) => {
+      if (!item) return;
+
+      if (key === "add-document") {
+        await onAddNewDocumentItem();
+      } else if (key === "associate-card") {
+        setSelectCardModalOpen(true);
+      } else if (key === "associate-article") {
+        setSelectArticleModalOpen(true);
+      } else if (key === "associate-document") {
+        try {
+          const [allItems, allParents] = await Promise.all([
+            getAllDocumentItems(),
+            getDocumentItemAllParents(item.id),
+          ]);
+          setAllDocumentItems(allItems);
+          setExcludeDocumentItemIds([...allParents, item.id, ...item.children]);
+          setSelectDocumentItemModalOpen(true);
+        } catch (e) {
+          console.error(e);
+          message.error("获取文档列表失败" + e);
+        }
+      }
+    },
+  );
+
   if (!item) {
     return null;
   }
@@ -550,43 +652,12 @@ const DocumentItem = (props: IDocumentItemProps) => {
           <div className={styles.title}>{item.title}</div>
         </div>
         <div className={styles.icons}>
-          <Popover
-            open={morePopoverOpen}
-            onOpenChange={setMorePopoverOpen}
-            trigger={"click"}
-            content={
-              <div className={styles.settings}>
-                <div
-                  className={styles.item}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onClickDelete().then();
-                    setMorePopoverOpen(false);
-                  }}
-                >
-                  删除文档
-                </div>
-                <div
-                  className={styles.item}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setMorePopoverOpen(false);
-                    setIsPresentation(true);
-                  }}
-                >
-                  演示模式
-                </div>
-              </div>
-            }
-            placement={"bottomLeft"}
-            arrow={false}
-            styles={{
-              body: {
-                padding: 0,
-              },
+          <Dropdown
+            menu={{
+              items: moreMenuItems,
+              onClick: handleMoreMenuClick,
             }}
+            trigger={["hover"]}
           >
             <div
               className={styles.icon}
@@ -597,82 +668,13 @@ const DocumentItem = (props: IDocumentItemProps) => {
             >
               <MoreOutlined />
             </div>
-          </Popover>
-          <Popover
-            open={addPopoverOpen}
-            onOpenChange={setAddPopoverOpen}
-            trigger={"click"}
-            content={
-              <div className={styles.settings}>
-                <div
-                  className={styles.item}
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setAddPopoverOpen(false);
-                    await onAddNewDocumentItem();
-                  }}
-                >
-                  添加文档
-                </div>
-                <div
-                  className={styles.item}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setAddPopoverOpen(false);
-                    setSelectCardModalOpen(true);
-                  }}
-                >
-                  关联卡片
-                </div>
-                <div
-                  className={styles.item}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setAddPopoverOpen(false);
-                    setSelectArticleModalOpen(true);
-                  }}
-                >
-                  关联文章
-                </div>
-                <div
-                  className={styles.item}
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    try {
-                      const [allItems, allParents] = await Promise.all([
-                        getAllDocumentItems(),
-                        getDocumentItemAllParents(item.id),
-                      ]);
-                      setAllDocumentItems(allItems);
-                      setExcludeDocumentItemIds([
-                        ...allParents,
-                        item.id,
-                        ...item.children,
-                      ]);
-                      setSelectDocumentItemModalOpen(true);
-                    } catch (e) {
-                      console.error(e);
-                      message.error("获取文档列表失败" + e);
-                    } finally {
-                      setAddPopoverOpen(false);
-                    }
-                  }}
-                >
-                  关联文档
-                </div>
-              </div>
-            }
-            placement={"bottomLeft"}
-            arrow={false}
-            styles={{
-              body: {
-                padding: 0,
-              },
+          </Dropdown>
+          <Dropdown
+            menu={{
+              items: addMenuItems,
+              onClick: handleAddMenuClick,
             }}
+            trigger={["hover"]}
           >
             <div
               className={styles.icon}
@@ -683,7 +685,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
             >
               <PlusOutlined />
             </div>
-          </Popover>
+          </Dropdown>
         </div>
       </div>
       <div

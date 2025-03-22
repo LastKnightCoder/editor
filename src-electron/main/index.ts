@@ -30,7 +30,6 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 const originalResolve = require.resolve;
 require.resolve = function (spec: string, options: any) {
   if (spec.endsWith("dict.txt") || spec.endsWith("idf.txt")) {
-    console.log("spec", spec);
     // 关键拦截点
     const realPath = path.join(
       app.isPackaged ? process.resourcesPath : __dirname,
@@ -54,6 +53,10 @@ if (process.platform === "win32") app.setAppUserModelId(app.getName());
 const cardEditorWindows = new Map<string, BrowserWindow>();
 // Track open article editor windows
 const articleEditorWindows = new Map<string, BrowserWindow>();
+// Track open project item editor windows
+const projectItemEditorWindows = new Map<string, BrowserWindow>();
+// Track open document item editor windows
+const documentItemEditorWindows = new Map<string, BrowserWindow>();
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -252,6 +255,166 @@ const createArticleEditorWindow = (databaseName: string, articleId: number) => {
   });
 };
 
+const createProjectItemEditorWindow = (
+  databaseName: string,
+  projectItemId: number,
+) => {
+  const windowKey = `${databaseName}-${projectItemId}`;
+
+  // Check if window with this project item already exists
+  if (projectItemEditorWindows.has(windowKey)) {
+    const existingWindow = projectItemEditorWindows.get(windowKey);
+    if (existingWindow && !existingWindow.isDestroyed()) {
+      existingWindow.show();
+      existingWindow.focus();
+      return;
+    }
+  }
+
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, "../../build/icon.png"),
+    webPreferences: {
+      preload,
+      spellcheck: false,
+    },
+    trafficLightPosition: { x: 12, y: 17 },
+    // Mac 专属配置
+    ...(process.platform === "darwin" && {
+      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
+      frame: false, // 隐藏默认窗口框架
+    }),
+    // Windows 配置（保持默认标题栏）
+    ...(process.platform === "win32" && {
+      frame: true, // 显式保留默认框架
+    }),
+  });
+
+  // Store the window reference in our map
+  projectItemEditorWindows.set(windowKey, win);
+
+  win.setAlwaysOnTop(true);
+
+  const url = VITE_DEV_SERVER_URL
+    ? `${VITE_DEV_SERVER_URL}#/single-project-item-editor?databaseName=${databaseName}&projectItemId=${projectItemId}`
+    : `${indexHtml}#/single-project-item-editor?databaseName=${databaseName}&projectItemId=${projectItemId}`;
+
+  win.loadURL(url);
+
+  if (VITE_DEV_SERVER_URL) {
+    win.webContents.openDevTools();
+  }
+
+  // 监听最大化事件
+  win.on("enter-full-screen", () => {
+    win.webContents.send("full-screen-change");
+  });
+  win.on("leave-full-screen", () => {
+    win.webContents.send("full-screen-change");
+  });
+
+  win.webContents.on("did-finish-load", () => {
+    win.webContents.setZoomFactor(1);
+    win.webContents.setVisualZoomLevelLimits(1, 1);
+  });
+
+  win.on("closed", () => {
+    projectItemEditorWindows.delete(windowKey);
+
+    // Notify main window about project item update
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("project-item-window-closed", {
+          databaseName,
+          projectItemId,
+        });
+      }
+    });
+  });
+};
+
+const createDocumentItemEditorWindow = (
+  databaseName: string,
+  documentItemId: number,
+) => {
+  const windowKey = `${databaseName}-${documentItemId}`;
+
+  // Check if window with this document item already exists
+  if (documentItemEditorWindows.has(windowKey)) {
+    const existingWindow = documentItemEditorWindows.get(windowKey);
+    if (existingWindow && !existingWindow.isDestroyed()) {
+      existingWindow.show();
+      existingWindow.focus();
+      return;
+    }
+  }
+
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, "../../build/icon.png"),
+    webPreferences: {
+      preload,
+      spellcheck: false,
+    },
+    trafficLightPosition: { x: 12, y: 17 },
+    // Mac 专属配置
+    ...(process.platform === "darwin" && {
+      titleBarStyle: "hidden", // 隐藏标题栏但保留交通灯按钮
+      frame: false, // 隐藏默认窗口框架
+    }),
+    // Windows 配置（保持默认标题栏）
+    ...(process.platform === "win32" && {
+      frame: true, // 显式保留默认框架
+    }),
+  });
+
+  // Store the window reference in our map
+  documentItemEditorWindows.set(windowKey, win);
+
+  win.setAlwaysOnTop(true);
+
+  const url = VITE_DEV_SERVER_URL
+    ? `${VITE_DEV_SERVER_URL}#/single-document-item-editor?databaseName=${databaseName}&documentItemId=${documentItemId}`
+    : `${indexHtml}#/single-document-item-editor?databaseName=${databaseName}&documentItemId=${documentItemId}`;
+
+  win.loadURL(url);
+
+  if (VITE_DEV_SERVER_URL) {
+    win.webContents.openDevTools();
+  }
+
+  // 监听最大化事件
+  win.on("enter-full-screen", () => {
+    win.webContents.send("full-screen-change");
+  });
+  win.on("leave-full-screen", () => {
+    win.webContents.send("full-screen-change");
+  });
+
+  win.webContents.on("did-finish-load", () => {
+    win.webContents.setZoomFactor(1);
+    win.webContents.setVisualZoomLevelLimits(1, 1);
+  });
+
+  win.on("closed", () => {
+    documentItemEditorWindows.delete(windowKey);
+
+    // Notify main window about document item update
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("document-item-window-closed", {
+          databaseName,
+          documentItemId,
+        });
+      }
+    });
+  });
+};
+
 function getMimeType(ext: string): string {
   const mimeTypes: Record<string, string> = {
     ".mp4": "video/mp4",
@@ -298,7 +461,6 @@ app.whenReady().then(() => {
   ipcMain.handle("set-always-on-top", (event, flag) => {
     const sender = event.sender;
     const window = BrowserWindow.fromWebContents(sender);
-    console.log("set-always-on-top", flag);
     window?.setAlwaysOnTop(flag);
   });
 
@@ -316,6 +478,20 @@ app.whenReady().then(() => {
     "open-article-in-new-window",
     (_event, databaseName, articleId) => {
       createArticleEditorWindow(databaseName, articleId);
+    },
+  );
+
+  ipcMain.handle(
+    "open-project-item-in-new-window",
+    (_event, databaseName, projectItemId) => {
+      createProjectItemEditorWindow(databaseName, projectItemId);
+    },
+  );
+
+  ipcMain.handle(
+    "open-document-item-in-new-window",
+    (_event, databaseName, documentItemId) => {
+      createDocumentItemEditorWindow(databaseName, documentItemId);
     },
   );
 
