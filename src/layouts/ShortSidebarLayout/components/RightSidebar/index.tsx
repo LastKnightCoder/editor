@@ -1,32 +1,33 @@
 import { App, Button, Select } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
-import { useState, useRef, useCallback, useMemo, memo, Suspense } from "react";
+import { useState, useMemo, memo, lazy, Suspense } from "react";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
-import { produce } from "immer";
 import "katex/dist/katex.min.css";
 
-import EditText from "@/components/EditText";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import If from "@/components/If";
+import EditText from "@/components/EditText";
+import type { EditTextHandle } from "@/components/EditText";
 
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
-import useChatLLM, { chatWithGPT35 } from "@/hooks/useChatLLM";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
-import useScrollToBottom from "./hooks/useScrollToBottom";
 
 import MermaidRenderer from "./MermaidRenderer";
 import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
-import MessageItem from "./MessageItem";
+import { MarkdownProvider } from "./MarkdownContext";
 
 import { ChatMessage, Message } from "@/types";
-import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
-import type { EditTextHandle } from "@/components/EditText";
+import { Role } from "@/constants";
+import { useRef } from "react";
 
 import styles from "./index.module.less";
+
+// 懒加载ChatContainer组件
+const ChatContainer = lazy(() => import("./ChatContainer"));
 
 interface RightSidebarProps {
   onWidthChange: (width: number) => void;
@@ -35,7 +36,7 @@ interface RightSidebarProps {
 const RightSidebar = ({ onWidthChange }: RightSidebarProps) => {
   const { isDark } = useTheme();
   const { message, modal } = App.useApp();
-  const { chatLLMStream } = useChatLLM();
+  const editTitleRef = useRef<EditTextHandle>(null);
 
   const { chats, createChatMessage, updateChatMessage, deleteChatMessage } =
     useChatMessageStore(
@@ -68,15 +69,6 @@ const RightSidebar = ({ onWidthChange }: RightSidebarProps) => {
 
   const [createMessageLoading, setCreateMessageLoading] = useState(false);
   const [sendLoading, setSendLoading] = useState(false);
-
-  const editTextRef = useRef<EditTextHandle>(null);
-  const editTitleRef = useRef<EditTextHandle>(null);
-  const messagesRef = useRef<HTMLDivElement>(null);
-
-  const { scrollDomToBottom, onChatBodyWheel, autoScroll } = useScrollToBottom(
-    messagesRef,
-    true,
-  );
 
   const onCreateNewMessage = useMemoizedFn(async () => {
     const perf = measurePerformance("createNewMessage");
@@ -127,15 +119,21 @@ const RightSidebar = ({ onWidthChange }: RightSidebarProps) => {
     });
   });
 
+  const handleSelectChange = useMemoizedFn((id: number) => {
+    const chat = chats.find((chat) => chat.id === id);
+    if (chat) {
+      localStorage.setItem("right-sidebar-chat-id", String(chat.id));
+      setCurrentChat(chat);
+    }
+  });
+
   const onTitleChange = useMemoizedFn(async (title: string) => {
     if (!currentChat) return;
 
     const perf = measurePerformance("titleChange");
     try {
-      const updateChat = produce(currentChat, (draft) => {
-        draft.title = title;
-      });
-      const updatedChatMessage = await updateChatMessage(updateChat);
+      const updatedChat = { ...currentChat, title };
+      const updatedChatMessage = await updateChatMessage(updatedChat);
       setCurrentChat(updatedChatMessage);
       localStorage.setItem(
         "right-sidebar-chat-id",
@@ -148,168 +146,10 @@ const RightSidebar = ({ onWidthChange }: RightSidebarProps) => {
     perf.end();
   });
 
-  const sendMessage = useMemoizedFn(async () => {
-    if (!currentChat || !editTextRef.current) return;
-
-    const userContent = editTextRef.current.getValue();
-    if (!userContent) {
-      message.warning("请输入内容");
-      return;
-    }
-
-    const perf = measurePerformance("sendMessage");
-    setSendLoading(true);
-    if (autoScroll) {
-      scrollDomToBottom();
-    }
-
-    const newMessage: Message = {
-      role: Role.User,
-      content: userContent,
-    };
-
-    const responseMessage: Message = {
-      role: Role.Assistant,
-      content: "...",
-    };
-
-    // Prepare messages for the API
-    const sendMessages = [
-      currentChat.messages[0], // System Prompt
-      ...currentChat.messages
-        .slice(1)
-        .slice(-10)
-        .map((message) => ({
-          content: message.content,
-          role: message.role,
-        })),
-      newMessage,
-    ];
-
-    setCurrentChat({
-      ...currentChat,
-      messages: [...currentChat.messages, newMessage, responseMessage],
-    });
-
-    editTextRef.current.clear();
-
-    chatLLMStream(sendMessages, {
-      onFinish: async (content, reasoning_content) => {
-        try {
-          const newCurrentChat = produce(currentChat, (draft) => {
-            draft.messages.push(newMessage);
-            draft.messages.push({
-              role: Role.Assistant,
-              content,
-              reasoning_content,
-            });
-          });
-
-          const updatedChatMessage = await updateChatMessage(newCurrentChat);
-          editTextRef.current?.focusEnd();
-          setCurrentChat(updatedChatMessage);
-          localStorage.setItem(
-            "right-sidebar-chat-id",
-            String(updatedChatMessage.id),
-          );
-          if (autoScroll) {
-            scrollDomToBottom();
-          }
-
-          try {
-            const newTitle = await chatWithGPT35([
-              {
-                role: Role.System,
-                content: SUMMARY_TITLE_PROMPT,
-              },
-              ...updatedChatMessage.messages
-                .slice(1)
-                .slice(-10)
-                .map((message) => ({
-                  content: message.content,
-                  role: message.role,
-                })),
-            ]);
-
-            if (newTitle) {
-              const updateChat = produce(updatedChatMessage, (draft) => {
-                draft.title = newTitle.slice(0, 20);
-              });
-              await updateChatMessage(updateChat);
-              editTitleRef.current?.setValue(newTitle);
-            }
-          } catch (e) {
-            console.error("Failed to generate title:", e);
-          }
-        } catch (error) {
-          message.error("Failed to update chat");
-          console.error(error);
-        } finally {
-          setSendLoading(false);
-        }
-        perf.end();
-      },
-
-      onUpdate: (full, _inc, reasoningText) => {
-        const newCurrentChat = produce(currentChat, (draft) => {
-          draft.messages.push(newMessage);
-          draft.messages.push({
-            role: Role.Assistant,
-            reasoning_content: reasoningText,
-            content: full,
-          });
-        });
-        setCurrentChat(newCurrentChat);
-        if (autoScroll) {
-          scrollDomToBottom();
-        }
-      },
-
-      onReasoning: (full) => {
-        const newCurrentChat = produce(currentChat, (draft) => {
-          draft.messages.push(newMessage);
-          draft.messages.push({
-            role: Role.Assistant,
-            content: "",
-            reasoning_content: full,
-          });
-        });
-        setCurrentChat(newCurrentChat);
-        if (autoScroll) {
-          scrollDomToBottom();
-        }
-      },
-
-      onError: () => {
-        setCurrentChat(currentChat);
-        setSendLoading(false);
-        editTextRef.current?.setValue(userContent);
-        editTextRef.current?.focusEnd();
-        message.error("请求失败");
-        perf.end();
-      },
-    });
-  });
-
-  const handleSelectChange = useCallback(
-    (id: number) => {
-      const chat = chats.find((chat) => chat.id === id);
-      if (chat) {
-        localStorage.setItem("right-sidebar-chat-id", String(chat.id));
-        setCurrentChat(chat);
-      }
-    },
-    [chats],
-  );
-
-  const visibleMessages = useMemo(() => {
-    if (!currentChat) return [];
-    return currentChat.messages.filter(
-      (message) => message.role !== Role.System,
-    );
-  }, [currentChat]);
-
+  // 只有在侧边栏打开时才需要渲染Markdown组件
   const markdownComponents = useMemo(() => {
+    if (!rightSidebarOpen) return null;
+
     return {
       code(props: any) {
         const { children, className, node, ...rest } = props;
@@ -337,7 +177,7 @@ const RightSidebar = ({ onWidthChange }: RightSidebarProps) => {
         );
       },
     };
-  }, [isDark]);
+  }, [isDark, rightSidebarOpen]);
 
   return (
     <ResizableAndHideableSidebar
@@ -355,108 +195,87 @@ const RightSidebar = ({ onWidthChange }: RightSidebarProps) => {
       maxWidth={920}
       disableResize={!rightSidebarOpen}
     >
-      <div className={styles.wrapContainer}>
-        <div
-          className={classnames(styles.innerContainer, {
-            [styles.dark]: isDark,
-          })}
-        >
-          <div className={styles.header}>
-            <div className={styles.title}>
-              {currentChat && (
-                <EditText
-                  key={currentChat.id}
-                  ref={editTitleRef}
-                  defaultValue={currentChat.title}
-                  onChange={onTitleChange}
-                  contentEditable={!sendLoading}
-                />
-              )}
-            </div>
-            <div className={styles.operations}>
-              <Button
-                disabled={sendLoading || createMessageLoading}
-                icon={<PlusOutlined />}
-                onClick={onCreateNewMessage}
-              >
-                新建对话
-              </Button>
-              <If condition={!!currentChat}>
-                <Button
-                  danger
-                  disabled={sendLoading || createMessageLoading}
-                  icon={<DeleteOutlined />}
-                  onClick={onDeleteMessage}
-                >
-                  删除对话
-                </Button>
-              </If>
-              {chats.length > 0 && (
-                <Select
-                  style={{
-                    minWidth: 120,
-                  }}
-                  value={currentChat?.id}
-                  onChange={handleSelectChange}
-                  options={chats.map((chat) => ({
-                    label: chat.title,
-                    value: chat.id,
-                  }))}
-                />
-              )}
-            </div>
-          </div>
-
+      <MarkdownProvider isDark={isDark} isVisible={rightSidebarOpen}>
+        <div className={styles.wrapContainer}>
           <div
-            className={styles.messages}
-            ref={messagesRef}
-            onWheel={(e) => {
-              if (messagesRef.current) {
-                onChatBodyWheel(messagesRef.current, e);
-              }
-            }}
+            className={classnames(styles.innerContainer, {
+              [styles.dark]: isDark,
+            })}
           >
-            {currentChat && visibleMessages.length > 0 && (
-              <div className={styles.messagesList}>
-                {visibleMessages.map((message, index) => (
-                  <MessageItem
-                    key={index}
-                    message={message}
+            <div className={styles.header}>
+              <div className={styles.title}>
+                {currentChat && (
+                  <EditText
+                    key={currentChat.id}
+                    ref={editTitleRef}
+                    defaultValue={currentChat.title}
+                    onChange={onTitleChange}
+                    contentEditable={!sendLoading}
+                  />
+                )}
+              </div>
+              <div className={styles.operations}>
+                <Button
+                  disabled={sendLoading || createMessageLoading}
+                  icon={<PlusOutlined />}
+                  onClick={onCreateNewMessage}
+                >
+                  新建对话
+                </Button>
+                <If condition={!!currentChat}>
+                  <Button
+                    danger
+                    disabled={sendLoading || createMessageLoading}
+                    icon={<DeleteOutlined />}
+                    onClick={onDeleteMessage}
+                  >
+                    删除对话
+                  </Button>
+                </If>
+                {chats.length > 0 && (
+                  <Select
+                    style={{
+                      minWidth: 120,
+                    }}
+                    value={currentChat?.id}
+                    onChange={handleSelectChange}
+                    options={chats.map((chat) => ({
+                      label: chat.title,
+                      value: chat.id,
+                    }))}
+                  />
+                )}
+              </div>
+            </div>
+
+            {currentChat ? (
+              <Suspense fallback={<div>加载中...</div>}>
+                {rightSidebarOpen && (
+                  <ChatContainer
+                    currentChat={currentChat}
                     isDark={isDark}
                     markdownComponents={markdownComponents}
+                    isVisible={rightSidebarOpen}
+                    updateChatMessage={updateChatMessage}
+                    setCurrentChat={setCurrentChat}
+                    sendLoading={sendLoading}
+                    setSendLoading={setSendLoading}
+                    titleRef={editTitleRef}
                   />
-                ))}
-              </div>
+                )}
+              </Suspense>
+            ) : (
+              <Button
+                size="large"
+                loading={createMessageLoading}
+                onClick={onCreateNewMessage}
+              >
+                创建新对话
+              </Button>
             )}
           </div>
-
-          {currentChat ? (
-            <div className={styles.input}>
-              <EditText
-                className={styles.inputContent}
-                contentEditable={!sendLoading}
-                ref={editTextRef}
-                onPressEnter={sendMessage}
-              />
-              <Button
-                className={styles.btn}
-                loading={sendLoading}
-                onClick={sendMessage}
-              >
-                确定
-              </Button>
-            </div>
-          ) : (
-            <Button
-              size="large"
-              loading={createMessageLoading}
-              onClick={onCreateNewMessage}
-            >
-              创建新对话
-            </Button>
-          )}
         </div>
-      </div>
+      </MarkdownProvider>
     </ResizableAndHideableSidebar>
   );
 };

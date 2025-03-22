@@ -49,12 +49,47 @@
         flex: 1;
         box-sizing: border-box;
         overflow-y: auto;
+        position: relative;
+        will-change: transform;
+        -webkit-overflow-scrolling: touch;
+
+        &::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background-color: rgba(0, 0, 0, 0.2);
+          border-radius: 3px;
+        }
 
         .messagesList {
           display: flex;
           flex-direction: column;
           gap: 24px;
           overflow-y: auto;
+
+          .messageWrapper {
+            padding: 12px 0;
+          }
+        }
+
+        .messagesInner {
+          > div {
+            padding: 12px 0;
+
+            &:not(:last-child) {
+              margin-bottom: 12px;
+            }
+          }
+
+          .messageWrapper {
+            transition: transform 0.1s ease;
+            contain: content;
+
+            &:last-child {
+              margin-bottom: 24px;
+            }
+          }
         }
       }
 

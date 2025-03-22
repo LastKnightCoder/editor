@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { Transforms, Editor as SlateEditor } from "slate";
 import {
   ReactEditor,
@@ -9,10 +9,8 @@ import {
 import classnames from "classnames";
 import { Editor, EditorChange } from "codemirror";
 import { message } from "antd";
-import { UnControlled as CodeEditor } from "react-codemirror2";
 import isHotkey from "is-hotkey";
-import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
-import SVG from "react-inlinesvg";
+import { MdFullscreenExit } from "react-icons/md";
 import { CodeBlockElement } from "@/components/Editor/types";
 import AddParagraph, {
   AddParagraphRef,
@@ -20,16 +18,18 @@ import AddParagraph, {
 import useTheme from "../../../../hooks/useTheme";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import SelectLanguage from "../SelectLanguage";
-
-import copyIcon from "@/assets/icons/copy.svg";
-import { MdDragIndicator } from "react-icons/md";
-
+import ToolbarButtons from "./ToolbarButtons/ToolbarButtons";
+import DragHandle from "./DragHandle";
 import { LANGUAGES } from "./config";
 import { codeBlockMap } from "../../index";
 
 import styles from "./index.module.less";
 import PortalToBody from "@/components/PortalToBody";
 import { useMemoizedFn } from "ahooks";
+
+// 懒加载CodeMirror编辑器组件
+const CodeEditorLazy = lazy(() => import("./CodeEditor"));
+const FullscreenCodeEditorLazy = lazy(() => import("./FullscreenCodeEditor"));
 
 interface ICodeBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -204,6 +204,25 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     },
   );
 
+  const editorOptions = {
+    inputStyle: "textarea",
+    mode: langConfig?.mime || langConfig?.mode || "text/plain",
+    theme: isDark ? "blackboard" : "one-light",
+    scrollbarStyle: "null",
+    viewportMargin: Infinity,
+    lineWrapping: false,
+    smartIndent: true,
+    extraKeys: {
+      "Shift-Tab": "indentLess",
+    },
+    readOnly: readOnly || (canDrop && isOverCurrent),
+    indentUnit: 2,
+    tabSize: 2,
+    cursorHeight: 1,
+    autoCloseBrackets: true,
+    tabindex: -1,
+  };
+
   return (
     <div
       contentEditable={false}
@@ -219,74 +238,46 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     >
       <div {...attributes}>
         {children}
-        <div className={styles.btnGroup}>
-          <div className={styles.fullscreenButton} onClick={toggleFullscreen}>
-            <MdFullscreen />
-          </div>
-          <div className={styles.divider} />
-          <div className={styles.copyButton} onClick={handleCopyCode}>
-            <SVG src={copyIcon} className={styles.copyIcon} />
-          </div>
-        </div>
+        <ToolbarButtons
+          onCopy={handleCopyCode}
+          onFullscreen={toggleFullscreen}
+        />
         <SelectLanguage
           readonly={readOnly}
           className={styles.languageSelect}
           value={language}
           onChange={handleOnLanguageChange}
         />
-        <CodeEditor
-          value={code || ""}
-          autoCursor
-          autoScroll
-          options={{
-            inputStyle: "textarea",
-            mode: langConfig?.mime || langConfig?.mode || "text/plain",
-            theme: isDark ? "blackboard" : "one-light",
-            scrollbarStyle: "null",
-            viewportMargin: Infinity,
-            lineWrapping: false,
-            smartIndent: true,
-            extraKeys: {
-              "Shift-Tab": "indentLess",
-            },
-            readOnly: readOnly || (canDrop && isOverCurrent),
-            indentUnit: 2,
-            tabSize: 2,
-            cursorHeight: 1,
-            autoCloseBrackets: true,
-            tabindex: -1,
-          }}
-          className={styles.CodeMirrorContainer}
-          onChange={handleOnChange}
-          editorDidMount={(editor) => {
-            editorRef.current = editor;
-            onDidMount && onDidMount(editor);
-            // 添加聚焦事件监听
-            editor.on("focus", () => {
-              document.dispatchEvent(new CustomEvent("code-block-focus"));
-            });
-
-            // 添加失焦事件监听
-            editor.on("blur", () => {
-              document.dispatchEvent(new CustomEvent("code-block-blur"));
-            });
-          }}
-          editorWillUnmount={(editor) => {
-            onWillUnmount && onWillUnmount(editor);
-            editorRef.current = null;
-          }}
-          onKeyDown={handleOnKeyDown}
-        />
-        <AddParagraph element={element} ref={addParagraphRef} />
-        <div
-          className={classnames(styles.dragHandler, {
-            [styles.canDrag]: canDrag,
-          })}
-          contentEditable={false}
-          ref={drag}
+        <Suspense
+          fallback={<div className={styles.loading}>加载代码编辑器中...</div>}
         >
-          <MdDragIndicator className={styles.icon} />
-        </div>
+          <CodeEditorLazy
+            value={code || ""}
+            options={editorOptions}
+            className={styles.CodeMirrorContainer}
+            onChange={handleOnChange}
+            onKeyDown={handleOnKeyDown}
+            editorDidMount={(editor: Editor) => {
+              editorRef.current = editor;
+              onDidMount && onDidMount(editor);
+              // 添加聚焦事件监听
+              editor.on("focus", () => {
+                document.dispatchEvent(new CustomEvent("code-block-focus"));
+              });
+
+              // 添加失焦事件监听
+              editor.on("blur", () => {
+                document.dispatchEvent(new CustomEvent("code-block-blur"));
+              });
+            }}
+            editorWillUnmount={(editor: Editor) => {
+              onWillUnmount && onWillUnmount(editor);
+              editorRef.current = null;
+            }}
+          />
+        </Suspense>
+        <AddParagraph element={element} ref={addParagraphRef} />
+        <DragHandle canDrag={canDrag} dragRef={drag} />
         {isFullscreen && (
           <PortalToBody>
             <div
@@ -315,44 +306,31 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
                     <MdFullscreenExit size={20} />
                   </div>
                 </div>
-                <CodeEditor
-                  value={code || ""}
-                  autoCursor
-                  autoScroll
-                  options={{
-                    inputStyle: "textarea",
-                    mode: langConfig?.mime || langConfig?.mode || "text/plain",
-                    theme: isDark ? "blackboard" : "one-light",
-                    scrollbarStyle: "null",
-                    viewportMargin: Infinity,
-                    lineWrapping: false,
-                    smartIndent: true,
-                    extraKeys: {
-                      "Shift-Tab": "indentLess",
-                    },
-                    readOnly,
-                    indentUnit: 2,
-                    tabSize: 2,
-                    cursorHeight: 1,
-                    autoCloseBrackets: true,
-                    tabindex: -1,
-                  }}
-                  className={styles.fullscreenCodeMirror}
-                  onChange={handleOnChange}
-                  onKeyDown={handleOnKeyDown}
-                  editorDidMount={(editor) => {
-                    fullscreenEditorRef.current = editor;
-                    if (!readOnly) {
-                      setTimeout(() => {
-                        editor.refresh();
-                        editor.focus();
-                      }, 50);
-                    }
-                  }}
-                  editorWillUnmount={() => {
-                    fullscreenEditorRef.current = null;
-                  }}
-                />
+                <Suspense
+                  fallback={
+                    <div className={styles.loading}>加载全屏编辑器中...</div>
+                  }
+                >
+                  <FullscreenCodeEditorLazy
+                    value={code || ""}
+                    options={editorOptions}
+                    className={styles.fullscreenCodeMirror}
+                    onChange={handleOnChange}
+                    onKeyDown={handleOnKeyDown}
+                    editorDidMount={(editor: Editor) => {
+                      fullscreenEditorRef.current = editor;
+                      if (!readOnly) {
+                        setTimeout(() => {
+                          editor.refresh();
+                          editor.focus();
+                        }, 50);
+                      }
+                    }}
+                    editorWillUnmount={() => {
+                      fullscreenEditorRef.current = null;
+                    }}
+                  />
+                </Suspense>
               </div>
             </div>
           </PortalToBody>
@@ -362,4 +340,4 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   );
 };
 
-export default CodeBlock;
+export default React.memo(CodeBlock);

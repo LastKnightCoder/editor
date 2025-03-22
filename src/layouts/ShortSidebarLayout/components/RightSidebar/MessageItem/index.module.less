@@ -2,16 +2,15 @@
   padding: 24px;
   background: #f5f6f9;
   border-radius: 12px;
-  width: 85%;
+  width: fit-content;
+  max-width: 85%;
+  box-sizing: border-box;
   align-self: flex-start;
   overflow: hidden;
 
   &.userMessage {
-    align-self: flex-end;
-  }
-
-  &.assistantMessage {
-    align-self: flex-start;
+    margin-left: auto;
+    text-align: right;
   }
 
   .messageContent {
