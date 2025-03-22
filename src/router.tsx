@@ -5,6 +5,8 @@ import QuickTimeRecord from "@/pages/QuickTimeRecord";
 import SettingsPage from "@/pages/Settings";
 import SingleCardEditor from "@/pages/SingleCardEditor";
 import SingleArticleEditor from "@/pages/SingleArticleEditor";
+import SingleProjectItemEditor from "@/pages/SingleProjectItemEditor";
+import SingleDocumentItemEditor from "@/pages/SingleDocumentItemEditor";
 
 import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
 import QuickOpenLayout from "@/layouts/QuickOpenLayout";
@@ -111,6 +113,26 @@ const routes = [
       {
         index: true,
         element: <SingleArticleEditor />,
+      },
+    ],
+  },
+  {
+    path: "/single-project-item-editor/",
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <SingleProjectItemEditor />,
+      },
+    ],
+  },
+  {
+    path: "/single-document-item-editor/",
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <SingleDocumentItemEditor />,
       },
     ],
   },

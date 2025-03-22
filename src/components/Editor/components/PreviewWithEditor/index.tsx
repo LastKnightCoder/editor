@@ -76,7 +76,6 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     useClickAway(() => {
       if (fullscreenEditing && isFullscreen) {
         setFullscreenEditing(false);
-        console.log("useClickAway setFullscreenEditing(false)");
         setValue(fullscreenEditorRef.current?.getValue() || "");
       }
     }, fullscreenRef);

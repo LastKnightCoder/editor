@@ -72,7 +72,7 @@ export class MarkdownSerializerRegistry {
       {
         type: "code-block",
         isBlock: true,
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           const language = element.language || "";
           return `\`\`\`${language}\n${element.code || ""}\n\`\`\``;
         },
@@ -90,7 +90,7 @@ export class MarkdownSerializerRegistry {
       {
         type: "image",
         isBlock: true,
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           const alt = element.alt || "";
           return `![${alt}](${element.url})`;
         },
@@ -107,20 +107,20 @@ export class MarkdownSerializerRegistry {
       {
         type: "block-math",
         isBlock: true,
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           return `$$\n${element.tex || ""}\n$$`;
         },
       },
       {
         type: "inline-math",
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           return `$${element.tex || ""}$`;
         },
       },
       {
         type: "html-block",
         isBlock: true,
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           return element.html || "";
         },
       },
@@ -186,14 +186,14 @@ export class MarkdownSerializerRegistry {
       {
         type: "mermaid",
         isBlock: true,
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           return `\`\`\`mermaid\n${element.chart || ""}\n\`\`\``;
         },
       },
       {
         type: "tikz",
         isBlock: true,
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           return `\`\`\`tikz\n${element.content || ""}\n\`\`\``;
         },
       },
@@ -214,14 +214,14 @@ export class MarkdownSerializerRegistry {
       {
         type: "video",
         isBlock: true,
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           return `<video src="${element.url}" controls></video>`;
         },
       },
       {
         type: "audio",
         isBlock: true,
-        toMarkdown: (element, _childrenStr) => {
+        toMarkdown: (element) => {
           return `<audio src="${element.url}" controls></audio>`;
         },
       },
@@ -229,7 +229,6 @@ export class MarkdownSerializerRegistry {
         type: "check-list",
         isBlock: true,
         toMarkdown: (_element, childrenStr) => {
-          console.log("childrenStr", childrenStr);
           return childrenStr.split("\n").filter(Boolean).join("\n");
         },
       },
@@ -238,10 +237,7 @@ export class MarkdownSerializerRegistry {
         isBlock: true,
         toMarkdown: (element, childrenStr) => {
           const prefix = element.checked ? "- [x] " : "- [ ] ";
-          // Split the children string into lines
           const lines = childrenStr.trim().split("\n");
-          console.log("lines", lines, childrenStr);
-          // If there are multiple lines, format accordingly
           if (lines.length > 1) {
             return (
               prefix +

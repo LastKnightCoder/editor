@@ -85,9 +85,6 @@ export class ViewPortTransforms {
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x + width);
         maxY = Math.max(maxY, y + height);
-        console.log(
-          `元素 ${element.id} 的边界: x=${x}, y=${y}, width=${width}, height=${height}`,
-        );
       }
 
       if (element.type === "arrow" && element.points) {
@@ -192,8 +189,6 @@ export class ViewPortTransforms {
             startViewport.minY +
             (endViewport.minY - startViewport.minY) * easeProgress,
         };
-
-        console.log("当前视口", currentViewport);
 
         board.apply(
           {

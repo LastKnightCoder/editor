@@ -152,7 +152,6 @@ export class PresentationPlugin implements IBoardPlugin {
 
   // 处理键盘事件
   onKeyDown(e: KeyboardEvent, board: Board) {
-    console.log("键盘事件", e.key);
     if (board.presentationManager.isPresentationMode) {
       if (e.key === "ArrowRight" || e.key === "ArrowDown") {
         e.preventDefault();

@@ -112,16 +112,13 @@ export const replaceNode = (
     Transforms.removeNodes(editor, {
       at: curEle[1],
     });
-    if (node.type === "code-block") {
-      console.log("replace Node");
-    }
     try {
       Transforms.insertNodes(editor, node, {
         at: curEle[1],
         ...options,
       });
     } catch (e) {
-      console.log("replaceNode error", e);
+      console.error("replaceNode error", e);
     }
   });
   return curEle[1];

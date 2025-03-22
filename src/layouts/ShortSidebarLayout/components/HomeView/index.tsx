@@ -106,7 +106,6 @@ const HomeView = () => {
     });
 
     getLatestOperations(5).then((operations) => {
-      // console.log('operations', operations);
       setLatestOperations(operations);
     });
 
@@ -150,7 +149,7 @@ const HomeView = () => {
         className={styles.calendar}
         data={operationData}
         year={dayjs().format("YYYY")}
-        renderTooltip={(date, _value) => {
+        renderTooltip={(date) => {
           return date;
         }}
       />

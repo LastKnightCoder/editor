@@ -23,6 +23,8 @@ import {
   documentCardListExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
+import { getDocumentItem } from "@/commands";
+import { on, off } from "@/electron";
 
 import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
@@ -81,6 +83,33 @@ const EditDoc = memo(() => {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [editingTitle]);
+
+  useEffect(() => {
+    if (!activeDocumentItem) return;
+
+    const handleDocumentItemWindowClosed = async (
+      _e: any,
+      data: { documentItemId: number; databaseName: string },
+    ) => {
+      if (data.documentItemId === activeDocumentItem.id) {
+        const updatedDocumentItem = await getDocumentItem(data.documentItemId);
+
+        editorRef.current?.setEditorValue(updatedDocumentItem.content);
+        if (titleRef.current) {
+          titleRef.current.innerText = updatedDocumentItem.title;
+        }
+
+        onTitleChange(updatedDocumentItem.title);
+        onContentChange(updatedDocumentItem.content);
+      }
+    };
+
+    on("document-item-window-closed", handleDocumentItemWindowClosed);
+
+    return () => {
+      off("document-item-window-closed", handleDocumentItemWindowClosed);
+    };
+  }, [activeDocumentItem, onContentChange, onTitleChange, saveDocument]);
 
   const headers: Array<{
     level: number;

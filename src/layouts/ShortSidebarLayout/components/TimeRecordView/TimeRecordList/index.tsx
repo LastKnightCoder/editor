@@ -47,7 +47,7 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
   }));
 
   const onSelectFilterTypeChange = useMemoizedFn((type: EFilterType) => {
-    let filterValue = "";
+    let filterValue: string | string[] = "";
     if (type === EFilterType.YEAR) {
       filterValue = new Date().getFullYear().toString();
     } else if (type === EFilterType.QUARTER) {
@@ -72,6 +72,11 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
       filterValue = `${year}-${week}周`;
     } else if (type === EFilterType.DATE) {
       filterValue = dayjs().format("YYYY-MM-DD");
+    } else if (type === EFilterType.RANGE) {
+      filterValue = [
+        dayjs().format("YYYY-MM-DD"),
+        dayjs().add(1, "day").format("YYYY-MM-DD"),
+      ];
     }
     useTimeRecordStore.setState({
       filterType: type,
@@ -130,6 +135,7 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
       <SelectTime
         className={styles.selectTime}
         filterType={filterType}
+        filterValue={filterValue}
         onSelectFilterTypeChange={onSelectFilterTypeChange}
         onFilterValueChange={onFilterValueChange}
       />

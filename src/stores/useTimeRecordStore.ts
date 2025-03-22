@@ -8,6 +8,7 @@ import {
 
 import { ITimeRecord, TimeRecordGroup } from "@/types";
 import { EFilterType } from "@/types/time";
+import dayjs from "dayjs";
 
 interface IState {
   loading: boolean;
@@ -28,8 +29,8 @@ interface IActions {
 const initState: IState = {
   loading: false,
   timeRecords: [],
-  filterType: EFilterType.ALL,
-  filterValue: "",
+  filterType: EFilterType.MONTH,
+  filterValue: dayjs().format("YYYY-MM"),
 };
 
 const useTimeRecordStore = create<IState & IActions>((set) => ({

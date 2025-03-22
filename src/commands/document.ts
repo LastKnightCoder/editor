@@ -96,3 +96,14 @@ export const getRootDocumentsByDocumentItemId = async (
 ): Promise<IDocument[]> => {
   return await invoke("get-root-documents-by-document-item-id", id);
 };
+
+export const openDocumentItemInNewWindow = (
+  databaseName: string,
+  documentItemId: number,
+) => {
+  return invoke(
+    "open-document-item-in-new-window",
+    databaseName,
+    documentItemId,
+  );
+};

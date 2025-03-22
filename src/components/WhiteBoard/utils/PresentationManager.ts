@@ -58,7 +58,6 @@ export class PresentationManager {
 
   set isPresentationMode(value: boolean) {
     this._isPresentationMode = value;
-    console.log("isPresentationMode", value);
     this.emit("presentationModeChange", value);
   }
 
@@ -69,7 +68,6 @@ export class PresentationManager {
 
   set isCreatingSequence(value: boolean) {
     this._isCreatingSequence = value;
-    console.log("isCreatingSequence", value);
     this.emit("presentationCreatorChange", value);
   }
 
@@ -79,7 +77,6 @@ export class PresentationManager {
 
   set sequences(value: PresentationSequence[]) {
     this._sequences = value;
-    console.log("sequences", value);
     this.emit("presentationSequencesChange", value);
     this.board.emit("change");
   }
@@ -90,7 +87,6 @@ export class PresentationManager {
 
   set currentSequence(value: PresentationSequence | null) {
     this._currentSequence = value;
-    console.log("currentSequence", value);
     this.emit("presentationCurrentSequenceChange", value);
   }
 
@@ -101,7 +97,6 @@ export class PresentationManager {
 
   set currentFrameIndex(value: number) {
     this._currentFrameIndex = value;
-    console.log("currentFrameIndex", value);
     this.emit("presentationCurrentFrameIndexChange", value);
   }
 
@@ -289,19 +284,11 @@ export class PresentationManager {
 
   // 设置当前演示序列
   setCurrentSequence(id: string): boolean {
-    console.log("尝试设置当前序列:", id);
-    console.log(
-      "可用序列:",
-      this.sequences.map((s) => ({ id: s.id, name: s.name })),
-    );
-
     const sequence = this.sequences.find((s) => s.id === id);
     if (!sequence) {
       console.error(`未找到ID为 ${id} 的序列`);
       return false;
     }
-
-    console.log("找到序列:", sequence.name, "帧数:", sequence.frames.length);
 
     // 检查序列中的帧是否有效
     if (!sequence.frames || sequence.frames.length === 0) {
@@ -318,7 +305,6 @@ export class PresentationManager {
 
     this.currentSequence = sequence;
     this.currentFrameIndex = 0;
-    console.log("成功设置当前序列:", sequence.name);
     return true;
   }
 
@@ -446,9 +432,6 @@ export class PresentationManager {
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x + width);
         maxY = Math.max(maxY, y + height);
-        console.log(
-          `元素 ${element.id} 的边界: x=${x}, y=${y}, width=${width}, height=${height}`,
-        );
       } else if (element.type === "arrow" && element.points) {
         // 对于箭头，考虑所有点
         element.points.forEach((point: { x: number; y: number }) => {
@@ -496,10 +479,6 @@ export class PresentationManager {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
-    console.log(
-      `容器尺寸: ${containerWidth}x${containerHeight}, 元素区域: ${elementsWidth}x${elementsHeight}`,
-    );
-
     const scaleX = containerWidth / elementsWidth;
     const scaleY = containerHeight / elementsHeight;
     const zoom = Math.min(scaleX, scaleY);
@@ -512,7 +491,6 @@ export class PresentationManager {
       zoom,
     };
 
-    console.log("计算得到的视口:", viewPort);
     return viewPort;
   }
 }

@@ -25,7 +25,6 @@ export function useCellEditor(
 
   // 保存更改
   const handleSave = useMemoizedFn(() => {
-    console.log("handleSave", draftValue, initialValue);
     if (draftValue !== initialValue) {
       onSave(draftValue);
     }
@@ -34,7 +33,6 @@ export function useCellEditor(
 
   // 取消编辑
   const handleCancel = useMemoizedFn(() => {
-    console.log("handleCancel", draftValue, initialValue);
     setIsEditing(false);
     setDraftValue(initialValue);
   });
