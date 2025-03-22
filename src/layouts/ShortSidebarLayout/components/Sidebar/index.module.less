@@ -4,18 +4,21 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+
   &.isShort {
     .header {
       opacity: 0;
       position: absolute;
       pointer-events: none;
     }
+
     .list {
       &.isMac {
         margin-top: 24px;
       }
     }
   }
+
   .header {
     white-space: nowrap;
     transition: opacity 0.2s;
@@ -28,10 +31,12 @@
     padding: 0 12px 0 20px;
     height: 48px;
     line-height: 32px;
+
     &.indent {
       margin-left: 72px;
     }
   }
+
   .list {
     padding: 6px 12px 12px 12px;
     flex: auto;
@@ -39,57 +44,35 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+
     &::-webkit-scrollbar {
       display: none;
     }
+
     .search {
-      height: 32px;
+      height: 36px;
       display: flex;
-      align-items: center;
       justify-content: space-between;
-      padding: 0 10px 0 12px;
-      margin-bottom: 8px;
+      padding: 0 12px;
+      background: var(--search-bg);
       border-radius: 8px;
-      transition: color 0.2s;
-      --search-bg-color: #eef0f5;
-      --search-color: rgba(60, 60, 67, 0.78);
-      --kbd-border-color: #e2e2e3;
-      --search-border-color: transparent;
-      background-color: var(--search-bg-color);
-      color: var(--search-color);
-      border: 1px solid var(--search-border-color);
-      span {
-        display: inline-block;
-        margin-top: 2px;
-        padding: 0 16px 0 0;
-        font-size: 13px;
-      }
-      kbd {
-        font-size: 0.8em;
-        font-family: var(--mono-font);
-        display: block;
-        border-radius: 4px;
-        padding: 0 6px;
-        width: auto;
-        height: 22px;
-        line-height: 22px;
-      }
-      &:hover {
-        cursor: pointer;
-        --search-border-color: #3451b2;
-        --search-color: rgba(60, 60, 67);
-      }
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 8px;
+
       &.dark {
-        --search-bg-color: #161618;
-        --search-color: rgba(235, 235, 245, 0.6);
-        --kbd-border-color: rgb(46, 46, 50);
-        &:hover {
-          --search-border-color: #a8b1ff;
-          --search-color: rgba(255, 255, 245, 0.86);
-        }
+        background: var(--search-dark-bg);
+      }
+
+      kbd {
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-size: 0.75em;
+        background: var(--search-kbd-bg);
       }
     }
   }
+
   .setting {
     padding: 12px;
     margin-top: auto;

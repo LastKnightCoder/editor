@@ -122,7 +122,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
           </div>
           <div>{children}</div>
         </div>
-        {!readOnly && <AddParagraph element={element} />}
+        <AddParagraph element={element} />
         {!readOnly && (
           <Dropdown
             menu={menu}
