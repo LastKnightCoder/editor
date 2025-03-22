@@ -1,14 +1,16 @@
 import React, { memo } from "react";
+import SVG from "react-inlinesvg";
 import classnames from "classnames";
 import styles from "./index.module.less";
 import { Tooltip } from "antd";
+import { useWhyDidYouUpdate } from "ahooks";
 
 interface SidebarItemProps {
   onClick: () => void;
   style?: React.CSSProperties;
   className?: string;
   label: string;
-  icon: React.ReactNode;
+  icon: string;
   active: boolean;
   isShortWidth?: boolean;
 }
@@ -16,6 +18,8 @@ interface SidebarItemProps {
 const SidebarItem = memo((props: SidebarItemProps) => {
   const { onClick, style, className, label, icon, active, isShortWidth } =
     props;
+
+  useWhyDidYouUpdate("SidebarItem", props);
 
   return (
     <div
@@ -27,7 +31,9 @@ const SidebarItem = memo((props: SidebarItemProps) => {
       onClick={onClick}
     >
       <Tooltip title={isShortWidth ? label : ""} trigger={"hover"}>
-        <div className={styles.icon}>{icon}</div>
+        <div className={styles.icon}>
+          <SVG src={icon} />
+        </div>
       </Tooltip>
       <div className={styles.label}>{label}</div>
     </div>

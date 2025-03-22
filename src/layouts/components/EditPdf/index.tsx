@@ -1,11 +1,13 @@
 import PDFViewer from "@/components/PDF";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import { Flex } from "antd";
-
+import { useShallow } from "zustand/react/shallow";
 const PdfContent = () => {
-  const { activePdf } = usePdfsStore((state) => ({
-    activePdf: state.activePdf,
-  }));
+  const { activePdf } = usePdfsStore(
+    useShallow((state) => ({
+      activePdf: state.activePdf,
+    })),
+  );
 
   if (!activePdf) return null;
 

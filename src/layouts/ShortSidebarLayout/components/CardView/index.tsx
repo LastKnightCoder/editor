@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import classnames from "classnames";
 import { Empty, Select, Dropdown, MenuProps, FloatButton } from "antd";
 import { useMemoizedFn } from "ahooks";
+import { useShallow } from "zustand/react/shallow";
 
 import For from "@/components/For";
 import LoadMoreComponent from "@/components/LoadMoreComponent";
@@ -30,12 +31,14 @@ const CardContainer = () => {
   const listRef = useRef<HTMLDivElement>(null);
   const [isPresentation, setIsPresentation] = useState(false);
   const { cards, selectCategory, activeCardTag, createCard } =
-    useCardsManagementStore((state) => ({
-      cards: state.cards,
-      selectCategory: state.selectCategory,
-      activeCardTag: state.activeCardTag,
-      createCard: state.createCard,
-    }));
+    useCardsManagementStore(
+      useShallow((state) => ({
+        cards: state.cards,
+        selectCategory: state.selectCategory,
+        activeCardTag: state.activeCardTag,
+        createCard: state.createCard,
+      })),
+    );
 
   const filteredCards = useMemo(() => {
     const cardWithCategory = cards.filter((card) => {
@@ -60,10 +63,12 @@ const CardContainer = () => {
 
   const sliceCards = filteredCards.slice(0, cardsCount);
 
-  const { leftCardIds, rightCardIds } = useCardPanelStore((state) => ({
-    leftCardIds: state.leftCardIds,
-    rightCardIds: state.rightCardIds,
-  }));
+  const { leftCardIds, rightCardIds } = useCardPanelStore(
+    useShallow((state) => ({
+      leftCardIds: state.leftCardIds,
+      rightCardIds: state.rightCardIds,
+    })),
+  );
 
   const isShowEdit = useMemo(() => {
     return leftCardIds.length > 0 || rightCardIds.length > 0;

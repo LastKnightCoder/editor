@@ -1,10 +1,11 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, memo } from "react";
 import { message, Modal, Popover, Spin, Typography } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { MdMoreVert } from "react-icons/md";
 import { CalendarOutlined } from "@ant-design/icons";
 import classnames from "classnames";
+import { useShallow } from "zustand/react/shallow";
 
 import useTheme from "@/hooks/useTheme.ts";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
@@ -33,7 +34,7 @@ const allThemes = [
 const defaultSnapshot =
   "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
 
-const WhiteBoardCard = (props: WhiteBoardCardProps) => {
+const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   const { whiteBoard, className, style } = props;
 
   const { isDark } = useTheme();
@@ -42,11 +43,13 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
   const { activeWhiteBoardId, updateWhiteBoard, deleteWhiteBoard } =
-    useWhiteBoardStore((state) => ({
-      activeWhiteBoardId: state.activeWhiteBoardId,
-      updateWhiteBoard: state.updateWhiteBoard,
-      deleteWhiteBoard: state.deleteWhiteBoard,
-    }));
+    useWhiteBoardStore(
+      useShallow((state) => ({
+        activeWhiteBoardId: state.activeWhiteBoardId,
+        updateWhiteBoard: state.updateWhiteBoard,
+        deleteWhiteBoard: state.deleteWhiteBoard,
+      })),
+    );
 
   const uploadResource = useUploadResource();
 
@@ -179,6 +182,6 @@ const WhiteBoardCard = (props: WhiteBoardCardProps) => {
       </div>
     </Spin>
   );
-};
+});
 
 export default WhiteBoardCard;

@@ -5,17 +5,21 @@ import { useDebounceFn, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { Descendant, Editor } from "slate";
 import { getContentLength } from "@/utils";
-
+import { useShallow } from "zustand/react/shallow";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
 
 const useEditDoc = () => {
-  const { activeDocumentItem } = useDocumentsStore((state) => ({
-    activeDocumentItem: state.activeDocumentItem,
-  }));
-  const { initCards } = useCardsManagementStore((state) => ({
-    initCards: state.init,
-  }));
+  const { activeDocumentItem } = useDocumentsStore(
+    useShallow((state) => ({
+      activeDocumentItem: state.activeDocumentItem,
+    })),
+  );
+  const { initCards } = useCardsManagementStore(
+    useShallow((state) => ({
+      initCards: state.init,
+    })),
+  );
   const [initValue] = useState<Descendant[]>(() => {
     if (!activeDocumentItem)
       return [

@@ -1,7 +1,7 @@
 import React from "react";
 import { Calendar, Modal } from "antd";
 import classnames from "classnames";
-
+import { useShallow } from "zustand/react/shallow";
 import { Dayjs } from "dayjs";
 import Editor from "@editor/index.tsx";
 import DailyNote from "@/layouts/components/EditDailyNote";
@@ -17,12 +17,14 @@ const extensions = [dailySummaryExtension];
 
 const DailyNoteView = () => {
   const { dailyNotes, deleteDailyNote, onCreateDailyNote, activeDailyId } =
-    useDailyNoteStore((state) => ({
-      dailyNotes: state.dailyNotes,
-      deleteDailyNote: state.deleteDailyNote,
-      onCreateDailyNote: state.onCreateDailyNote,
-      activeDailyId: state.activeDailyId,
-    }));
+    useDailyNoteStore(
+      useShallow((state) => ({
+        dailyNotes: state.dailyNotes,
+        deleteDailyNote: state.deleteDailyNote,
+        onCreateDailyNote: state.onCreateDailyNote,
+        activeDailyId: state.activeDailyId,
+      })),
+    );
 
   const isShowEdit = !!activeDailyId;
 

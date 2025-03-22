@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { App, Button, Empty, message } from "antd";
-
+import { useShallow } from "zustand/react/shallow";
 import CardItem2 from "@/components/CardItem2";
 import If from "@/components/If";
 import AddCardLinkModal from "../AddCardLinkModal";
@@ -32,9 +32,11 @@ const LinkTab = (props: ILinkTabProps) => {
 
   const { modal } = App.useApp();
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const { cards } = useCardsManagementStore(
+    useShallow((state) => ({
+      cards: state.cards,
+    })),
+  );
 
   const openAddLinkModal = () => {
     if (readonly) {

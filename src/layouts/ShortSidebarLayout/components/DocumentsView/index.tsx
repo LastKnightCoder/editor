@@ -1,3 +1,4 @@
+import { useShallow } from "zustand/react/shallow";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import For from "@/components/For";
 import DocumentCard from "./DocumentCard";
@@ -17,10 +18,12 @@ const DocumentsView = () => {
 
   const navigate = useNavigate();
 
-  const { documents, createDocument } = useDocumentsStore((state) => ({
-    documents: state.documents,
-    createDocument: state.createDocument,
-  }));
+  const { documents, createDocument } = useDocumentsStore(
+    useShallow((state) => ({
+      documents: state.documents,
+      createDocument: state.createDocument,
+    })),
+  );
 
   const sortedDocuments = useMemo(() => {
     return [...documents].sort((a, b) => {

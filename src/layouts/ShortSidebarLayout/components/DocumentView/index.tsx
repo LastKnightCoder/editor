@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import DocumentList from "./DocumentList";
 import EditDocument from "@/layouts/components/EditDocumentItem";
 
@@ -12,10 +13,10 @@ const DocumentView = () => {
   const documentId = Number(params.id);
 
   const { hideDocumentItemsList, activeDocumentItem } = useDocumentsStore(
-    (state) => ({
+    useShallow((state) => ({
       hideDocumentItemsList: state.hideDocumentItemsList,
       activeDocumentItem: state.activeDocumentItem,
-    }),
+    })),
   );
 
   if (!documentId) return null;

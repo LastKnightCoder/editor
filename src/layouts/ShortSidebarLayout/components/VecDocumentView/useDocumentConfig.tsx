@@ -19,6 +19,7 @@ import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
+import { useShallow } from "zustand/react/shallow";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 
@@ -91,9 +92,11 @@ const useDocumentConfig = () => {
   // 解构索引结果
   const [ftsResults, vecResults] = indexResults;
 
-  const { provider } = useSettingStore((state) => ({
-    provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-  }));
+  const { provider } = useSettingStore(
+    useShallow((state) => ({
+      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
+    })),
+  );
 
   // 获取所有知识库
   useEffect(() => {

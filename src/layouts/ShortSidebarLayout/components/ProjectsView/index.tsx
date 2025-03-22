@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
 import { FloatButton, message, Button } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
@@ -28,11 +29,11 @@ const ProjectsView = () => {
   const navigate = useNavigate();
 
   const { projects, createProject, showArchived } = useProjectsStore(
-    (state) => ({
+    useShallow((state) => ({
       projects: state.projects,
       createProject: state.createProject,
       showArchived: state.showArchived,
-    }),
+    })),
   );
 
   const { activeProjects, archivedProjects } = useMemo(() => {

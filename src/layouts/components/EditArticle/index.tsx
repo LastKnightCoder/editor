@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, memo, useState } from "react";
 import { Tooltip } from "antd";
 import { useMemoizedFn, useRafInterval, useThrottleFn, useSize } from "ahooks";
-
+import { useShallow } from "zustand/react/shallow";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import AddTag from "@/components/AddTag";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -46,13 +46,17 @@ const extensions = [cardLinkExtension, fileAttachmentExtension];
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
 
 const EditArticle = memo(() => {
-  const { activeArticleId } = useArticleManagementStore((state) => ({
-    activeArticleId: state.activeArticleId,
-  }));
+  const { activeArticleId } = useArticleManagementStore(
+    useShallow((state) => ({
+      activeArticleId: state.activeArticleId,
+    })),
+  );
 
-  const { currentDatabaseName } = useSettingStore((state) => ({
-    currentDatabaseName: state.setting.database.active,
-  }));
+  const { currentDatabaseName } = useSettingStore(
+    useShallow((state) => ({
+      currentDatabaseName: state.setting.database.active,
+    })),
+  );
 
   const {
     initValue,

@@ -1,14 +1,17 @@
 import { memo } from "react";
+import { useShallow } from "zustand/react/shallow";
 import Document from "./Document";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 
 import styles from "./index.module.less";
 
 const DocumentList = memo(() => {
-  const { documents, activeDocumentId } = useDocumentsStore((state) => ({
-    documents: state.documents,
-    activeDocumentId: state.activeDocumentId,
-  }));
+  const { documents, activeDocumentId } = useDocumentsStore(
+    useShallow((state) => ({
+      documents: state.documents,
+      activeDocumentId: state.activeDocumentId,
+    })),
+  );
 
   const activeDocument = documents.find(
     (document) => document.id === activeDocumentId,

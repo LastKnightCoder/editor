@@ -7,14 +7,16 @@ import useEditDailyNote from "@/hooks/useEditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import { dailySummaryExtension } from "@/editor-extensions";
 import styles from "./index.module.less";
-
+import { useShallow } from "zustand/react/shallow";
 const extensions = [dailySummaryExtension];
 
 const DailyNoteContent = () => {
-  const { activeDailyId, readonly } = useDailyNoteStore((state) => ({
-    activeDailyId: state.activeDailyId,
-    readonly: state.readonly,
-  }));
+  const { activeDailyId, readonly } = useDailyNoteStore(
+    useShallow((state) => ({
+      activeDailyId: state.activeDailyId,
+      readonly: state.readonly,
+    })),
+  );
 
   const { editingDailyNote, onInit, onContentChange, saveDailyNote } =
     useEditDailyNote(activeDailyId);

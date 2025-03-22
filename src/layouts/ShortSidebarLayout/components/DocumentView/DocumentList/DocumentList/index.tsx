@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { App } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { ICreateDocument, IDocument } from "@/types";
@@ -18,11 +19,11 @@ const DocumentList = (props: IDocumentListProps) => {
   const { documents } = props;
 
   const { createDocument, updateDocument, deleteDocument } = useDocumentsStore(
-    (state) => ({
+    useShallow((state) => ({
       createDocument: state.createDocument,
       updateDocument: state.updateDocument,
       deleteDocument: state.deleteDocument,
-    }),
+    })),
   );
 
   const [editDocumentModalOpen, setEditDocumentModalOpen] =

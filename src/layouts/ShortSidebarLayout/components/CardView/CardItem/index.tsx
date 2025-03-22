@@ -10,6 +10,7 @@ import React, {
   useState,
   memo,
 } from "react";
+import { useShallow } from "zustand/react/shallow";
 import Tags from "@/components/Tags";
 import { formatDate, getMarkdown } from "@/utils";
 import { getCardById, openCardInNewWindow } from "@/commands";
@@ -53,13 +54,15 @@ const CardItem = memo(
 
     const { onClickCard, onCtrlClickCard, onDeleteCard } = useCardManagement();
 
-    const { updateCard } = useCardsManagementStore((state) => ({
-      updateCard: state.updateCard,
-    }));
+    const { updateCard } = useCardsManagementStore(
+      useShallow((state) => ({
+        updateCard: state.updateCard,
+      })),
+    );
 
-    const { databaseName } = useSettingStore((state) => ({
-      databaseName: state.setting.database.active,
-    }));
+    const databaseName = useSettingStore(
+      useShallow((state) => state.setting.database.active),
+    );
 
     const { content, tags } = card;
 

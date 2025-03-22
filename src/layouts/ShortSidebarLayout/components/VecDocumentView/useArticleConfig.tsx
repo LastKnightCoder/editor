@@ -1,4 +1,5 @@
 import Editor from "@/components/Editor";
+import { useShallow } from "zustand/react/shallow";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
@@ -28,13 +29,17 @@ type Filters = Parameters<OnChange>[1];
 
 const useArticleConfig = () => {
   const { message } = App.useApp();
-  const { articles } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-  }));
+  const { articles } = useArticleManagementStore(
+    useShallow((state) => ({
+      articles: state.articles,
+    })),
+  );
 
-  const { provider } = useSettingStore((state) => ({
-    provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-  }));
+  const { provider } = useSettingStore(
+    useShallow((state) => ({
+      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
+    })),
+  );
 
   const [selectedRows, setSelectedRows] = useState<IArticle[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);

@@ -3,10 +3,10 @@ import { Flex, Select } from "antd";
 import AutoHeightTable from "@/components/AutoHeightTable";
 import useTableConfig from "./useTableConfig";
 import styles from "./index.module.less";
-import { useState } from "react";
+import { useState, memo } from "react";
 import { IndexType } from "@/types";
 
-const VecDocumentView = () => {
+const VecDocumentView = memo(() => {
   const [indexType, setIndexType] = useState<IndexType>("card");
   const tableConfig = useTableConfig(indexType);
 
@@ -58,6 +58,6 @@ const VecDocumentView = () => {
       </Flex>
     </div>
   );
-};
+});
 
 export default VecDocumentView;

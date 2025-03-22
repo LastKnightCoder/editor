@@ -2,12 +2,12 @@ import { Pie } from "@ant-design/charts";
 import useTheme from "@/hooks/useTheme.ts";
 import { ITimeRecord } from "@/types";
 import groupByEventType from "../utils/groupByEventType.ts";
-
+import { memo } from "react";
 interface PieStatisticProps {
   timeRecords: ITimeRecord[];
 }
 
-const PieStatistic = (props: PieStatisticProps) => {
+const PieStatistic = memo((props: PieStatisticProps) => {
   const { timeRecords } = props;
 
   const { isDark } = useTheme();
@@ -44,6 +44,6 @@ const PieStatistic = (props: PieStatisticProps) => {
   };
 
   return <Pie {...config} />;
-};
+});
 
 export default PieStatistic;

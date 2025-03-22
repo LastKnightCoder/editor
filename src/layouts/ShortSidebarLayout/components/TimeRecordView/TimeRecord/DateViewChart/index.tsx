@@ -2,12 +2,13 @@ import { ITimeRecord } from "@/types";
 import ColumnStatistic from "../ColumnStatistic";
 import PieStatistic from "../PieStatistic";
 import { Card, Col, Row } from "antd";
+import { memo } from "react";
 
 interface DateViewChartProps {
   timeRecords: ITimeRecord[];
 }
 
-const DateViewChart = (props: DateViewChartProps) => {
+const DateViewChart = memo((props: DateViewChartProps) => {
   const { timeRecords } = props;
 
   return (
@@ -24,6 +25,6 @@ const DateViewChart = (props: DateViewChartProps) => {
       </Col>
     </Row>
   );
-};
+});
 
 export default DateViewChart;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { App, Dropdown, MenuProps, message, Tooltip } from "antd";
 import {
   FileOutlined,
@@ -84,17 +85,15 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [isPresentation, setIsPresentation] = useState(false);
   const { modal } = App.useApp();
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const cards = useCardsManagementStore(useShallow((state) => state.cards));
 
-  const { articles } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-  }));
+  const articles = useArticleManagementStore(
+    useShallow((state) => state.articles),
+  );
 
-  const { activeDocumentItem } = useDocumentsStore((state) => ({
-    activeDocumentItem: state.activeDocumentItem,
-  }));
+  const activeDocumentItem = useDocumentsStore(
+    useShallow((state) => state.activeDocumentItem),
+  );
 
   useAsyncEffect(async () => {
     const item = await getDocumentItem(itemId);

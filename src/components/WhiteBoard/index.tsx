@@ -509,8 +509,8 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      width: 32,
-                      height: 32,
+                      width: "2em",
+                      height: "2em",
                     }}
                   >
                     <FullscreenOutlined />
@@ -648,6 +648,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                     </Popover>
                   </>
                 )}
+                <div />
               </Flex>
             )}
           </ViewPortContext.Provider>

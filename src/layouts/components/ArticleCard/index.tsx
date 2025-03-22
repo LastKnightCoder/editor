@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 import { Dropdown, message, Modal, Spin, Typography } from "antd";
 import SVG from "react-inlinesvg";
@@ -73,18 +74,22 @@ const ArticleCard = (props: IArticleCardProps) => {
     activeArticleId,
     updateArticle,
     startPresentation,
-  } = useArticleManagementStore((state) => ({
-    updateArticleIsTop: state.updateArticleIsTop,
-    deleteArticle: state.deleteArticle,
-    updateArticleBannerBg: state.updateArticleBannerBg,
-    activeArticleId: state.activeArticleId,
-    updateArticle: state.updateArticle,
-    startPresentation: state.startArticlePresentation,
-  }));
+  } = useArticleManagementStore(
+    useShallow((state) => ({
+      updateArticleIsTop: state.updateArticleIsTop,
+      deleteArticle: state.deleteArticle,
+      updateArticleBannerBg: state.updateArticleBannerBg,
+      activeArticleId: state.activeArticleId,
+      updateArticle: state.updateArticle,
+      startPresentation: state.startArticlePresentation,
+    })),
+  );
 
-  const { currentDatabaseName } = useSettingStore((state) => ({
-    currentDatabaseName: state.setting.database.active,
-  }));
+  const { currentDatabaseName } = useSettingStore(
+    useShallow((state) => ({
+      currentDatabaseName: state.setting.database.active,
+    })),
+  );
 
   const handleUploadFileChange = useMemoizedFn(async () => {
     const filePath = await selectFile({

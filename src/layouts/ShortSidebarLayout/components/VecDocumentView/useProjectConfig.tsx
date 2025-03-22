@@ -21,6 +21,7 @@ import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
+import { useShallow } from "zustand/react/shallow";
 
 const EMBEDDING_MODEL = "text-embedding-3-large";
 const PAGE_SIZE = 20;
@@ -91,9 +92,11 @@ const useProjectConfig = () => {
   // 解构索引结果
   const [ftsResults, vecResults] = indexResults;
 
-  const { provider } = useSettingStore((state) => ({
-    provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-  }));
+  const { provider } = useSettingStore(
+    useShallow((state) => ({
+      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
+    })),
+  );
 
   // 获取所有项目
   useEffect(() => {

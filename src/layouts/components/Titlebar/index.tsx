@@ -8,7 +8,7 @@ import PortalToBody from "@/components/PortalToBody";
 import If from "@/components/If";
 import { CloseOutlined } from "@ant-design/icons";
 import SVG from "react-inlinesvg";
-
+import { useShallow } from "zustand/react/shallow";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 import TitlebarIcon from "@/components/TitlebarIcon";
@@ -26,10 +26,12 @@ interface TitlebarProps {
 
 const Titlebar = memo((props: TitlebarProps) => {
   const { showColumns, showSelectDatabase, showFocusMode, showSearch } = props;
-  const { sidebarOpen, focusMode } = useGlobalStateStore((state) => ({
-    sidebarOpen: state.sidebarOpen,
-    focusMode: state.focusMode,
-  }));
+  const { sidebarOpen, focusMode } = useGlobalStateStore(
+    useShallow((state) => ({
+      sidebarOpen: state.sidebarOpen,
+      focusMode: state.focusMode,
+    })),
+  );
 
   const timer = useRef<number>();
 

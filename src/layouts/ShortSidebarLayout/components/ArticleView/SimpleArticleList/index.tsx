@@ -1,4 +1,5 @@
 import React from "react";
+import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import For from "@/components/For";
@@ -15,10 +16,12 @@ interface SimpleArticleListProps {
 const SimpleArticleList = (props: SimpleArticleListProps) => {
   const { className, style } = props;
 
-  const { articles, activeArticleId } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-    activeArticleId: state.activeArticleId,
-  }));
+  const { articles, activeArticleId } = useArticleManagementStore(
+    useShallow((state) => ({
+      articles: state.articles,
+      activeArticleId: state.activeArticleId,
+    })),
+  );
 
   const onClick = (article: IArticle) => {
     if (activeArticleId === article.id) {

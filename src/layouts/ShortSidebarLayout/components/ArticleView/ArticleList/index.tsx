@@ -1,5 +1,6 @@
 import { useState, memo } from "react";
 import { useMemoizedFn } from "ahooks";
+import { useShallow } from "zustand/react/shallow";
 
 import For from "@/components/For";
 import LoadMoreComponent from "@/components/LoadMoreComponent";
@@ -10,9 +11,11 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import styles from "./index.module.less";
 
 const ArticleList = memo(() => {
-  const { articles } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-  }));
+  const { articles } = useArticleManagementStore(
+    useShallow((state) => ({
+      articles: state.articles,
+    })),
+  );
 
   const [articleCount, setArticleCount] = useState<number>(10);
   const slicedArticles = articles.slice(0, articleCount);

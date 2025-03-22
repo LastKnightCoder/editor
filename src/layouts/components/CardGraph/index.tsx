@@ -1,6 +1,6 @@
 import { useMemo, memo } from "react";
 import { useMemoizedFn } from "ahooks";
-
+import { useShallow } from "zustand/react/shallow";
 import LinkGraph from "@/components/LinkGraph";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
@@ -19,14 +19,18 @@ interface CardGraphProps {
 const CardGraph = memo((props: CardGraphProps) => {
   const { className, style, onClickCard } = props;
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const { cards } = useCardsManagementStore(
+    useShallow((state) => ({
+      cards: state.cards,
+    })),
+  );
 
-  const { leftCardIds, rightCardIds } = useCardPanelStore((state) => ({
-    leftCardIds: state.leftCardIds,
-    rightCardIds: state.rightCardIds,
-  }));
+  const { leftCardIds, rightCardIds } = useCardPanelStore(
+    useShallow((state) => ({
+      leftCardIds: state.leftCardIds,
+      rightCardIds: state.rightCardIds,
+    })),
+  );
 
   const activeIds = useMemo(() => {
     return [...leftCardIds, ...rightCardIds];

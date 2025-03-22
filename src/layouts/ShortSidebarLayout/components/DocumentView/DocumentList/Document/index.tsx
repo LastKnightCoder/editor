@@ -1,4 +1,5 @@
 import { useMemoizedFn } from "ahooks";
+import { useShallow } from "zustand/react/shallow";
 import { Button, Dropdown, Empty, MenuProps, message } from "antd";
 import { produce } from "immer";
 import { useNavigate } from "react-router-dom";
@@ -29,11 +30,13 @@ const Document = (props: IDocumentProps) => {
   const navigate = useNavigate();
 
   const { addDocumentItem, updateDocument, activeDocumentItem } =
-    useDocumentsStore((state) => ({
-      addDocumentItem: state.addDocumentItem,
-      updateDocument: state.updateDocument,
-      activeDocumentItem: state.activeDocumentItem,
-    }));
+    useDocumentsStore(
+      useShallow((state) => ({
+        addDocumentItem: state.addDocumentItem,
+        updateDocument: state.updateDocument,
+        activeDocumentItem: state.activeDocumentItem,
+      })),
+    );
 
   const addNewDocumentItem = useMemoizedFn(async () => {
     const createdItem = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);

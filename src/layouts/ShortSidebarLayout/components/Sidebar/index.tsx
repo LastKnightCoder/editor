@@ -1,6 +1,6 @@
-import React from "react";
-import { useNavigate, useMatch } from "react-router-dom";
-import { HomeOutlined } from "@ant-design/icons";
+import React, { useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
+import { useNavigate, matchPath, useLocation } from "react-router-dom";
 import classnames from "classnames";
 import For from "@/components/For";
 import SidebarItem from "./SidebarItem";
@@ -8,6 +8,7 @@ import { platform } from "@/electron.ts";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 
+import home from "@/assets/icons/home.svg";
 import card from "@/assets/icons/card.svg";
 import article from "@/assets/icons/article.svg";
 import document from "@/assets/icons/documents.svg";
@@ -30,6 +31,7 @@ import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import useFullScreen from "@/hooks/useFullScreen.ts";
 import If from "@/components/If";
 import TitlebarIcon from "@/components/TitlebarIcon";
+import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
 
 interface SidebarProps {
   className?: string;
@@ -39,109 +41,187 @@ interface SidebarProps {
 const Sidebar = (props: SidebarProps) => {
   const { className, style } = props;
 
-  const { darkMode, onDarkModeChange, module } = useSettingStore((state) => ({
-    darkMode: state.setting.darkMode,
-    onDarkModeChange: state.onDarkModeChange,
-    module: state.setting.module,
-  }));
+  const { darkMode, onDarkModeChange, module } = useSettingStore(
+    useShallow((state) => ({
+      darkMode: state.setting.darkMode,
+      onDarkModeChange: state.onDarkModeChange,
+      module: state.setting.module,
+    })),
+  );
 
-  const { sidebarOpen } = useGlobalStateStore((state) => ({
-    sidebarOpen: state.sidebarOpen,
-  }));
+  const { sidebarOpen } = useGlobalStateStore(
+    useShallow((state) => ({
+      sidebarOpen: state.sidebarOpen,
+    })),
+  );
+
+  const navigate = useNavigate();
+  const path = useLocation();
 
   const isFullscreen = useFullScreen();
   const isMac = platform === "darwin";
 
-  const configs = [
-    {
-      key: "home",
-      icon: <HomeOutlined />,
-      desc: "首页",
-      path: "/",
-      active: useMatch("/") !== null,
-      enable: true,
-    },
-    {
-      key: "whiteBoard",
-      icon: <SVG src={whiteBoard} />,
-      desc: "白板",
-      path: "/white-boards",
-      active: useMatch("/white-boards") !== null,
-      enable: module.whiteBoard.enable,
-    },
-    {
-      key: "project",
-      icon: <SVG src={document} />,
-      desc: "项目",
-      path: "/projects/list",
-      active: useMatch("/projects/*") !== null,
-      enable: module.project.enable,
-    },
-    {
-      key: "card",
-      icon: <SVG src={card} />,
-      desc: "卡片",
-      path: "/cards/list",
-      active: useMatch("/cards/*") !== null,
-      enable: module.card.enable,
-    },
-    {
-      key: "article",
-      icon: <SVG src={article} />,
-      desc: "文章",
-      path: "/articles",
-      active: useMatch("/articles/*") !== null,
-      enable: module.article.enable,
-    },
-    {
-      key: "document",
-      icon: <SVG src={document} />,
-      desc: "知识库",
-      path: "/documents",
-      active: useMatch("/documents/*") !== null,
-      enable: module.document.enable,
-    },
-    {
-      key: "pdf",
-      icon: <SVG src={pdf} />,
-      desc: "PDF",
-      path: "/pdfs",
-      active: useMatch("/pdfs/*") !== null,
-      enable: module.pdf.enable,
-    },
-    {
-      key: "vec-documents",
-      icon: <SVG src={vecDatabase} />,
-      desc: "向量数据库",
-      path: "/vec-documents",
-      active: useMatch("/vec-documents/*") !== null,
-      enable: module.vecDocuments.enable,
-    },
-    {
-      key: "daily",
-      icon: <SVG src={daily} />,
-      desc: "日记",
-      path: "/dailies",
-      active: useMatch("/dailies/*") !== null,
-      enable: module.dailyNote.enable,
-    },
-    {
-      key: "timeRecord",
-      icon: <SVG src={timeRecord} />,
-      desc: "时间统计",
-      path: "/time-records",
-      active: useMatch("/time-records/*") !== null,
-      enable: module.timeRecord.enable,
-    },
-  ].filter((item) => item.enable);
+  const navigateToHome = useMemoizedFn(() => {
+    navigate("/");
+  });
 
-  const navigate = useNavigate();
+  const navigateToWhiteBoard = useMemoizedFn(() => {
+    navigate("/white-boards");
+  });
 
-  const handleHideSidebar = () => {
+  const navigateToProjects = useMemoizedFn(() => {
+    navigate("/projects/list");
+  });
+
+  const navigateToCards = useMemoizedFn(() => {
+    navigate("/cards/list");
+  });
+
+  const navigateToArticles = useMemoizedFn(() => {
+    navigate("/articles");
+  });
+
+  const navigateToDocuments = useMemoizedFn(() => {
+    navigate("/documents");
+  });
+
+  const navigateToPDFs = useMemoizedFn(() => {
+    navigate("/pdfs");
+  });
+
+  const navigateToVecDocuments = useMemoizedFn(() => {
+    navigate("/vec-documents");
+  });
+
+  const navigateToDailies = useMemoizedFn(() => {
+    navigate("/dailies");
+  });
+
+  const navigateToTimeRecords = useMemoizedFn(() => {
+    navigate("/time-records");
+  });
+
+  const navigateToSettings = useMemoizedFn(() => {
+    navigate("/settings");
+  });
+
+  const darkModeChange = useMemoizedFn(() => {
+    onDarkModeChange(!darkMode);
+  });
+
+  const configs = useMemo(() => {
+    return [
+      {
+        key: "home",
+        icon: home,
+        desc: "首页",
+        path: "/",
+        active: matchPath("/", path.pathname) !== null,
+        enable: true,
+        onClick: navigateToHome,
+      },
+      {
+        key: "whiteBoard",
+        icon: whiteBoard,
+        desc: "白板",
+        path: "/white-boards",
+        active: matchPath("/white-boards", path.pathname) !== null,
+        enable: module.whiteBoard.enable,
+        onClick: navigateToWhiteBoard,
+      },
+      {
+        key: "project",
+        icon: document,
+        desc: "项目",
+        path: "/projects/list",
+        active: matchPath("/projects/*", path.pathname) !== null,
+        enable: module.project.enable,
+        onClick: navigateToProjects,
+      },
+      {
+        key: "card",
+        icon: card,
+        desc: "卡片",
+        path: "/cards/list",
+        active: matchPath("/cards/*", path.pathname) !== null,
+        enable: module.card.enable,
+        onClick: navigateToCards,
+      },
+      {
+        key: "article",
+        icon: article,
+        desc: "文章",
+        path: "/articles",
+        active: matchPath("/articles/*", path.pathname) !== null,
+        enable: module.article.enable,
+        onClick: navigateToArticles,
+      },
+      {
+        key: "document",
+        icon: document,
+        desc: "知识库",
+        path: "/documents",
+        active: matchPath("/documents/*", path.pathname) !== null,
+        enable: module.document.enable,
+        onClick: navigateToDocuments,
+      },
+      {
+        key: "pdf",
+        icon: pdf,
+        desc: "PDF",
+        path: "/pdfs",
+        active: matchPath("/pdfs/*", path.pathname) !== null,
+        enable: module.pdf.enable,
+        onClick: navigateToPDFs,
+      },
+      {
+        key: "vec-documents",
+        icon: vecDatabase,
+        desc: "向量数据库",
+        path: "/vec-documents",
+        active: matchPath("/vec-documents/*", path.pathname) !== null,
+        enable: module.vecDocuments.enable,
+        onClick: navigateToVecDocuments,
+      },
+      {
+        key: "daily",
+        icon: daily,
+        desc: "日记",
+        path: "/dailies",
+        active: matchPath("/dailies/*", path.pathname) !== null,
+        enable: module.dailyNote.enable,
+        onClick: navigateToDailies,
+      },
+      {
+        key: "timeRecord",
+        icon: timeRecord,
+        desc: "时间统计",
+        path: "/time-records",
+        active: matchPath("/time-records/*", path.pathname) !== null,
+        enable: module.timeRecord.enable,
+        onClick: navigateToTimeRecords,
+      },
+    ].filter((item) => item.enable);
+  }, [module, navigate, path.pathname]);
+
+  const handleHideSidebar = useMemoizedFn(() => {
     useGlobalStateStore.setState({
       sidebarOpen: false,
     });
-  };
+  });
+
+  useWhyDidYouUpdate("Sidebar", {
+    sidebarOpen,
+    darkMode,
+    module,
+    isMac,
+    isFullscreen,
+    path,
+    configs,
+    navigate,
+    onDarkModeChange,
+    ...props,
+  });
 
   return (
     <div
@@ -213,7 +293,7 @@ const Sidebar = (props: SidebarProps) => {
                 icon={item.icon}
                 label={item.desc}
                 active={item.active}
-                onClick={() => navigate(item.path)}
+                onClick={item.onClick}
                 isShortWidth={!sidebarOpen}
               />
             )}
@@ -221,18 +301,16 @@ const Sidebar = (props: SidebarProps) => {
         </div>
         <div className={styles.setting}>
           <SidebarItem
-            onClick={() => onDarkModeChange(!darkMode)}
+            onClick={darkModeChange}
             label={darkMode ? "浅色" : "深色"}
-            icon={<SVG src={darkMode ? sun : moon} />}
+            icon={darkMode ? sun : moon}
             active={false}
             isShortWidth={!sidebarOpen}
           />
           <SidebarItem
-            onClick={() => {
-              navigate("/settings");
-            }}
+            onClick={navigateToSettings}
             label={"设置"}
-            icon={<SVG src={setting} />}
+            icon={setting}
             active={false}
             isShortWidth={!sidebarOpen}
           />

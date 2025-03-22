@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
 import { Descendant } from "slate";
 import { Modal, Popover } from "antd";
 import classnames from "classnames";
@@ -37,14 +38,16 @@ const ProjectCard = (props: ProjectCardProps) => {
     unarchiveProject,
     pinProject,
     unpinProject,
-  } = useProjectsStore((state) => ({
-    deleteProject: state.deleteProject,
-    updateProject: state.updateProject,
-    archiveProject: state.archiveProject,
-    unarchiveProject: state.unarchiveProject,
-    pinProject: state.pinProject,
-    unpinProject: state.unpinProject,
-  }));
+  } = useProjectsStore(
+    useShallow((state) => ({
+      deleteProject: state.deleteProject,
+      updateProject: state.updateProject,
+      archiveProject: state.archiveProject,
+      unarchiveProject: state.unarchiveProject,
+      pinProject: state.pinProject,
+      unpinProject: state.unpinProject,
+    })),
+  );
 
   const onClick = () => {
     useProjectsStore.setState({
