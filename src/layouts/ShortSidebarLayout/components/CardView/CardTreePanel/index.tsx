@@ -1,6 +1,5 @@
 import { useMemoizedFn, useCreation } from "ahooks";
-import { memo } from "react";
-import For from "@/components/For";
+import { memo, useMemo } from "react";
 import TagItem from "@/components/TagItem";
 import useCardTree from "@/hooks/useCardTree";
 import styles from "./index.module.less";
@@ -22,21 +21,19 @@ const CardTreePanel = memo(
     // 使用useCreation只有cardTree实际变化时才会重新计算
     const memoizedTree = useCreation(() => cardTree, [cardTree]);
 
-    return (
-      <div className={styles.cardTree}>
-        <For
-          data={memoizedTree}
-          renderItem={(card) => (
-            <TagItem
-              key={card.tag}
-              item={card}
-              onClickTag={handleClickTag}
-              activeTag={activeCardTag}
-            />
-          )}
+    // 使用useMemo将tree转换为优化的组件列表，只在必要时更新
+    const tagItemList = useMemo(() => {
+      return memoizedTree.map((card) => (
+        <TagItem
+          key={card.tag}
+          item={card}
+          onClickTag={handleClickTag}
+          activeTag={activeCardTag}
         />
-      </div>
-    );
+      ));
+    }, [memoizedTree, activeCardTag, handleClickTag]);
+
+    return <div className={styles.cardTree}>{tagItemList}</div>;
   },
 );
 
