@@ -42,10 +42,22 @@ win:
   target: ["nsis", "msi"]
   icon: "build/icon.ico"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
+  fileAssociations:
+    - ext: md
+      name: Markdown
+      description: Markdown文件
+      icon: build/icon.ico
+      role: Editor
+      isPackage: false
 
 mac:
   icon: "build/icon.icns"
   artifactName: "${productName}-v${version}-${platform}.${ext}"
+  fileAssociations:
+    - ext: md
+      name: Markdown
+      role: Editor
+      isPackage: false
 
 linux:
   icon: "build/icon.png"

@@ -126,5 +126,13 @@ export const openProjectItemInNewWindow = (
   databaseName: string,
   projectItemId: number,
 ) => {
-  return invoke("open-project-item-in-new-window", databaseName, projectItemId);
+  return invoke(
+    "open-project-item-in-new-window",
+    databaseName,
+    projectItemId,
+    {
+      showTitlebar: true,
+      isDefaultTop: true,
+    },
+  );
 };

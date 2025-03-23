@@ -43,5 +43,8 @@ export async function openArticleInNewWindow(
   databaseName: string,
   articleId: number,
 ): Promise<void> {
-  return await invoke("open-article-in-new-window", databaseName, articleId);
+  return await invoke("open-article-in-new-window", databaseName, articleId, {
+    showTitlebar: true,
+    isDefaultTop: true,
+  });
 }

@@ -8,12 +8,20 @@ let indexHtml: string;
 let preload: string;
 
 // 窗口类型定义
-type EditorType = "card" | "article" | "project-item" | "document-item";
+type EditorType =
+  | "card"
+  | "article"
+  | "project-item"
+  | "document-item"
+  | "markdown";
 
 // 窗口参数定义
 interface EditorParams {
-  databaseName: string;
-  itemId: number;
+  databaseName?: string;
+  itemId?: number;
+  filePath?: string;
+  showTitlebar?: boolean;
+  isDefaultTop?: boolean;
 }
 
 // 窗口管理器
@@ -36,6 +44,7 @@ export class WindowManager {
     this.windowsMap.set("article", new Map<string, BrowserWindow>());
     this.windowsMap.set("project-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("document-item", new Map<string, BrowserWindow>());
+    this.windowsMap.set("markdown", new Map<string, BrowserWindow>());
 
     this.registerIpcHandlers();
   }
@@ -59,39 +68,81 @@ export class WindowManager {
 
     ipcMain.handle(
       "open-card-in-new-window",
-      (_event, databaseName, cardId) => {
+      (
+        _event,
+        databaseName,
+        cardId,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+      ) => {
         log.info(`打开卡片编辑器窗口: ${databaseName}, ${cardId}`);
-        this.createEditorWindow("card", { databaseName, itemId: cardId });
+        this.createEditorWindow("card", {
+          databaseName,
+          itemId: cardId,
+          ...options,
+        });
       },
     );
 
     ipcMain.handle(
       "open-article-in-new-window",
-      (_event, databaseName, articleId) => {
+      (
+        _event,
+        databaseName,
+        articleId,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+      ) => {
         log.info(`打开文章编辑器窗口: ${databaseName}, ${articleId}`);
-        this.createEditorWindow("article", { databaseName, itemId: articleId });
+        this.createEditorWindow("article", {
+          databaseName,
+          itemId: articleId,
+          ...options,
+        });
       },
     );
 
     ipcMain.handle(
       "open-project-item-in-new-window",
-      (_event, databaseName, projectItemId) => {
+      (
+        _event,
+        databaseName,
+        projectItemId,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+      ) => {
         log.info(`打开项目编辑器窗口: ${databaseName}, ${projectItemId}`);
         this.createEditorWindow("project-item", {
           databaseName,
           itemId: projectItemId,
+          ...options,
         });
       },
     );
 
     ipcMain.handle(
       "open-document-item-in-new-window",
-      (_event, databaseName, documentItemId) => {
+      (
+        _event,
+        databaseName,
+        documentItemId,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+      ) => {
         log.info(`打开文档编辑器窗口: ${databaseName}, ${documentItemId}`);
         this.createEditorWindow("document-item", {
           databaseName,
           itemId: documentItemId,
+          ...options,
         });
+      },
+    );
+
+    ipcMain.handle(
+      "open-markdown-in-new-window",
+      (
+        _event,
+        filePath,
+        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+      ) => {
+        log.info(`打开Markdown编辑器窗口: ${filePath}`);
+        this.createEditorWindow("markdown", { filePath, ...options });
       },
     );
   }
@@ -172,8 +223,6 @@ export class WindowManager {
 
   // 设置窗口公共事件
   private setupWindowEvents(win: BrowserWindow) {
-    win.setAlwaysOnTop(true);
-
     // 监听最大化事件
     win.on("enter-full-screen", () => {
       win.webContents.send("full-screen-change");
@@ -199,6 +248,7 @@ export class WindowManager {
       article: "single-article-editor",
       "project-item": "single-project-item-editor",
       "document-item": "single-document-item-editor",
+      markdown: "single-markdown-editor",
     };
     return routes[type];
   }
@@ -210,6 +260,7 @@ export class WindowManager {
       article: "articleId",
       "project-item": "projectItemId",
       "document-item": "documentItemId",
+      markdown: "filePath",
     };
     return paramNames[type];
   }
@@ -221,18 +272,34 @@ export class WindowManager {
       article: "文章",
       "project-item": "项目",
       "document-item": "知识库",
+      markdown: "Markdown",
     };
     return names[type];
   }
 
   // 通用创建编辑器窗口方法
   public createEditorWindow(type: EditorType, params: EditorParams) {
-    const { databaseName, itemId } = params;
+    const {
+      databaseName,
+      itemId,
+      filePath,
+      showTitlebar = false,
+      isDefaultTop = false,
+    } = params;
+    let windowKey = "";
+
+    if (type === "markdown") {
+      windowKey = filePath || "";
+    } else {
+      windowKey = `${databaseName}-${itemId}`;
+    }
+
     const editorName = this.getEditorName(type);
-    const windowKey = `${databaseName}-${itemId}`;
     const windowMap = this.windowsMap.get(type)!;
 
-    log.debug(`尝试创建${editorName}编辑器窗口: ${databaseName}, ${itemId}`);
+    log.debug(
+      `尝试创建${editorName}编辑器窗口: ${type === "markdown" ? filePath : `${databaseName}, ${itemId}`}`,
+    );
 
     // 检查窗口是否已存在
     if (windowMap.has(windowKey)) {
@@ -249,14 +316,26 @@ export class WindowManager {
 
     // 存储窗口引用
     windowMap.set(windowKey, win);
+    win.setAlwaysOnTop(isDefaultTop);
     this.setupWindowEvents(win);
 
     // 构建URL
     const route = this.getEditorRoute(type);
     const paramName = this.getParamName(type);
-    const url = VITE_DEV_SERVER_URL
-      ? `${VITE_DEV_SERVER_URL}#/${route}?databaseName=${databaseName}&${paramName}=${itemId}`
-      : `${indexHtml}#/${route}?databaseName=${databaseName}&${paramName}=${itemId}`;
+
+    let url = "";
+
+    if (type === "markdown") {
+      // 对文件路径进行编码处理
+      const encodedFilePath = encodeURIComponent(filePath || "");
+      url = VITE_DEV_SERVER_URL
+        ? `${VITE_DEV_SERVER_URL}#/${route}?${paramName}=${encodedFilePath}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`
+        : `${indexHtml}#/${route}?${paramName}=${encodedFilePath}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
+    } else {
+      url = VITE_DEV_SERVER_URL
+        ? `${VITE_DEV_SERVER_URL}#/${route}?databaseName=${databaseName}&${paramName}=${itemId}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`
+        : `${indexHtml}#/${route}?databaseName=${databaseName}&${paramName}=${itemId}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
+    }
 
     win.loadURL(url);
     log.debug(`加载${editorName}编辑器URL: ${url}`);
@@ -280,15 +359,28 @@ export class WindowManager {
   }
 
   // 为向后兼容而保留的方法
-  public createCardEditorWindow(databaseName: string, cardId: number) {
-    return this.createEditorWindow("card", { databaseName, itemId: cardId });
+  public createCardEditorWindow(
+    databaseName: string,
+    cardId: number,
+    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+  ) {
+    return this.createEditorWindow("card", {
+      databaseName,
+      itemId: cardId,
+      ...options,
+    });
   }
 
   // 为向后兼容而保留的方法
-  public createArticleEditorWindow(databaseName: string, articleId: number) {
+  public createArticleEditorWindow(
+    databaseName: string,
+    articleId: number,
+    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
+  ) {
     return this.createEditorWindow("article", {
       databaseName,
       itemId: articleId,
+      ...options,
     });
   }
 
@@ -296,10 +388,12 @@ export class WindowManager {
   public createProjectItemEditorWindow(
     databaseName: string,
     projectItemId: number,
+    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
   ) {
     return this.createEditorWindow("project-item", {
       databaseName,
       itemId: projectItemId,
+      ...options,
     });
   }
 
@@ -307,10 +401,12 @@ export class WindowManager {
   public createDocumentItemEditorWindow(
     databaseName: string,
     documentItemId: number,
+    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">,
   ) {
     return this.createEditorWindow("document-item", {
       databaseName,
       itemId: documentItemId,
+      ...options,
     });
   }
 }

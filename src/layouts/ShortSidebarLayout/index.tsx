@@ -17,6 +17,8 @@ import useInitDatabase from "@/hooks/useInitDatabase.ts";
 
 import styles from "./index.module.less";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
+import isHotkey from "is-hotkey";
+import { openMarkdownInNewWindow, selectFile } from "@/commands/file";
 
 const ShortSidebarLayout = () => {
   useInitDatabase();
@@ -50,6 +52,27 @@ const ShortSidebarLayout = () => {
   useEffect(() => {
     handleSidebarOpenChange(sidebarOpen);
   }, [handleSidebarOpenChange, sidebarOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
+      if (isHotkey("mod+o", event)) {
+        event.preventDefault();
+        const filePaths = await selectFile({
+          properties: ["openFile"],
+          filters: [{ name: "Markdown", extensions: ["md"] }],
+        });
+        if (filePaths && filePaths.length > 0) {
+          openMarkdownInNewWindow(filePaths[0]);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   return (
     <div className={styles.container} style={containerStyle}>

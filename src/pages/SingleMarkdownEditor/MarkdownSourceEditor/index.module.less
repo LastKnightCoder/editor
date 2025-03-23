@@ -1,0 +1,26 @@
+.CodeMirrorContainer :global(.CodeMirror) {
+  box-shadow: var(--code-block-shadow);
+  background-color: var(--code-block-bg-color);
+  height: auto;
+  line-height: 1.8;
+  font-size: 0.9em;
+  font-family: var(--mono-font, "'Maple Mono', '楷体'");
+}
+
+.CodeMirrorContainer :global(.CodeMirror pre.CodeMirror-line),
+.CodeMirrorContainer :global(.CodeMirror pre.CodeMirror-line-like) {
+  padding: 0 1.2em;
+}
+
+:global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
+  overflow: hidden;
+}
+
+:global(.CodeMirror-gutters) {
+  background-color: unset;
+  border-right: none;
+}
+
+:global(.CodeMirror-linenumber) {
+  cursor: pointer;
+}

@@ -1,4 +1,4 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useSearchParams } from "react-router-dom";
 
 import styles from "./index.module.less";
 import { PushpinOutlined } from "@ant-design/icons";
@@ -8,7 +8,10 @@ import classnames from "classnames";
 import { setAlwaysOnTop as setTop } from "@/commands";
 
 const Management = () => {
-  const [alwaysOnTop, setAlwaysOnTop] = useState(true);
+  const [searchParams] = useSearchParams();
+  const showTitlebar = searchParams.get("showTitlebar") === "true";
+  const isDefaultTop = searchParams.get("isDefaultTop") === "true";
+  const [alwaysOnTop, setAlwaysOnTop] = useState(isDefaultTop);
 
   const toggleAlwaysOnTop = () => {
     setAlwaysOnTop(!alwaysOnTop);
@@ -17,20 +20,22 @@ const Management = () => {
 
   return (
     <div className={styles.defaultLayout}>
-      <div className={styles.titlebar}>
-        <div className={styles.icons}>
-          <TitlebarIcon
-            tip={alwaysOnTop ? "取消置顶" : "置顶"}
-            onClick={toggleAlwaysOnTop}
-          >
-            <PushpinOutlined
-              className={classnames(styles.pin, {
-                [styles.onTop]: alwaysOnTop,
-              })}
-            />
-          </TitlebarIcon>
+      {showTitlebar && (
+        <div className={styles.titlebar}>
+          <div className={styles.icons}>
+            <TitlebarIcon
+              tip={alwaysOnTop ? "取消置顶" : "置顶"}
+              onClick={toggleAlwaysOnTop}
+            >
+              <PushpinOutlined
+                className={classnames(styles.pin, {
+                  [styles.onTop]: alwaysOnTop,
+                })}
+              />
+            </TitlebarIcon>
+          </div>
         </div>
-      </div>
+      )}
       <div className={styles.content}>
         <Outlet />
       </div>
