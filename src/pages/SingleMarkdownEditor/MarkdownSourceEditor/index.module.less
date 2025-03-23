@@ -12,15 +12,15 @@
   padding: 0 1.2em;
 }
 
-:global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
+.CodeMirrorContainer :global(.CodeMirror-scroll, .CodeMirror-hscrollbar) {
   overflow: hidden;
 }
 
-:global(.CodeMirror-gutters) {
-  background-color: unset;
+.CodeMirrorContainer :global(.CodeMirror-gutters) {
+  background-color: transparent;
   border-right: none;
 }
 
-:global(.CodeMirror-linenumber) {
+.CodeMirrorContainer :global(.CodeMirror-linenumber) {
   cursor: pointer;
 }
