@@ -7,6 +7,7 @@ import SingleCardEditor from "@/pages/SingleCardEditor";
 import SingleArticleEditor from "@/pages/SingleArticleEditor";
 import SingleProjectItemEditor from "@/pages/SingleProjectItemEditor";
 import SingleDocumentItemEditor from "@/pages/SingleDocumentItemEditor";
+import SingleMarkdownEditor from "@/pages/SingleMarkdownEditor";
 
 import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
 import QuickOpenLayout from "@/layouts/QuickOpenLayout";
@@ -133,6 +134,16 @@ const routes = [
       {
         index: true,
         element: <SingleDocumentItemEditor />,
+      },
+    ],
+  },
+  {
+    path: "/single-markdown-editor/",
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <SingleMarkdownEditor />,
       },
     ],
   },

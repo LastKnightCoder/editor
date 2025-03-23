@@ -114,10 +114,12 @@ const useDragAndDrop = (params: IUseDragAndDropParams) => {
       const dropPath = ReactEditor.findPath(editor, element);
       const dragEditor = item.editor;
       let dropParent;
-      try {
-        dropParent = Editor.parent(editor, dropPath);
-      } catch (e) {
-        console.error(e);
+      if (dropPath.length > 1) {
+        try {
+          dropParent = Editor.parent(editor, dropPath);
+        } catch (e) {
+          console.error(e);
+        }
       }
 
       // 如果当前元素是 check-list-item，拖动的元素不是 check-list-item，则不允许移动

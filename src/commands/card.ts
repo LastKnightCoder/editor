@@ -30,5 +30,8 @@ export async function getCardsGroupByTag(): Promise<Record<string, ICard[]>> {
 }
 
 export const openCardInNewWindow = (databaseName: string, cardId: number) => {
-  return invoke("open-card-in-new-window", databaseName, cardId);
+  return invoke("open-card-in-new-window", databaseName, cardId, {
+    showTitlebar: true,
+    isDefaultTop: true,
+  });
 };

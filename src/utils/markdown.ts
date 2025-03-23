@@ -395,6 +395,19 @@ export const importFromMarkdown = (markdown: string): Descendant[] => {
     afterNormalize = normalizeEditorContent(afterNormalize);
     count -= 1;
   }
+  if (afterNormalize.length === 0) {
+    return [
+      {
+        type: "paragraph",
+        children: [
+          {
+            type: "formatted",
+            text: "",
+          },
+        ],
+      },
+    ];
+  }
   return afterNormalize;
 };
 

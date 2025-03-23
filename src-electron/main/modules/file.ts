@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import { readFile, writeFile } from "node:fs/promises";
 import { ensureDir, pathExists, remove } from "fs-extra/esm";
 import { sep } from "node:path";
+import prettier from "prettier";
 import { Module } from "../types/module";
 
 class File implements Module {
@@ -35,6 +36,9 @@ class File implements Module {
     ipcMain.handle("remove-file", async (_event, path) => {
       return remove(path);
     });
+    ipcMain.handle("format-markdown", async (_event, markdown) => {
+      return await this.formatMarkdown(markdown);
+    });
   }
 
   async readBinaryFile(filePath: string): Promise<Uint8Array> {
@@ -63,6 +67,15 @@ class File implements Module {
 
   async getSep(): Promise<string> {
     return sep;
+  }
+
+  async formatMarkdown(markdown: string): Promise<string> {
+    return await prettier.format(markdown, {
+      parser: "markdown",
+      proseWrap: "always", // 自动换行
+      tabWidth: 2, // 缩进空格
+      singleQuote: true,
+    });
   }
 }
 

@@ -105,5 +105,9 @@ export const openDocumentItemInNewWindow = (
     "open-document-item-in-new-window",
     databaseName,
     documentItemId,
+    {
+      showTitlebar: true,
+      isDefaultTop: true,
+    },
   );
 };

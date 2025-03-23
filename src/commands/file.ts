@@ -65,3 +65,14 @@ export const removeFile = async (filePath: string): Promise<void> => {
 export const convertFileSrc = (filePath: string): string => {
   return `ltoh:///${filePath}`;
 };
+
+export const openMarkdownInNewWindow = async (filePath: string) => {
+  return await invoke("open-markdown-in-new-window", filePath, {
+    showTitlebar: false,
+    isDefaultTop: false,
+  });
+};
+
+export const formatMarkdown = async (markdown: string): Promise<string> => {
+  return await invoke("format-markdown", markdown);
+};
