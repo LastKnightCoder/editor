@@ -6,10 +6,12 @@ import TitlebarIcon from "@/components/TitlebarIcon";
 import { useState } from "react";
 import classnames from "classnames";
 import { setAlwaysOnTop as setTop } from "@/commands";
+import { platform } from "@/electron";
 
 const Management = () => {
   const [searchParams] = useSearchParams();
-  const showTitlebar = searchParams.get("showTitlebar") === "true";
+  const isMac = platform === "darwin";
+  const showTitlebar = isMac || searchParams.get("showTitlebar") === "true";
   const isDefaultTop = searchParams.get("isDefaultTop") === "true";
   const [alwaysOnTop, setAlwaysOnTop] = useState(isDefaultTop);
 

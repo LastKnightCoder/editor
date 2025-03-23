@@ -139,12 +139,11 @@ const SingleMarkdownEditor = () => {
     try {
       const markdownText = isSourceMode
         ? currentSourceText.current
-        : getMarkdown(content);
+        : await formatMarkdown(getMarkdown(content));
       if (markdownText === beforeSaveSourceText.current) return;
-      const formattedMarkdown = await formatMarkdown(markdownText);
-      beforeSaveSourceText.current = formattedMarkdown;
-      currentSourceText.current = formattedMarkdown;
-      await writeTextFile(filePath, formattedMarkdown);
+      beforeSaveSourceText.current = markdownText;
+      currentSourceText.current = markdownText;
+      await writeTextFile(filePath, markdownText);
       console.log("Markdown file saved:", filePath);
     } catch (error) {
       console.error("保存Markdown文件失败:", error);

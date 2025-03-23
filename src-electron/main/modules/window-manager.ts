@@ -149,7 +149,6 @@ export class WindowManager {
 
   // 创建主窗口
   public createMainWindow() {
-    log.info("创建主窗口");
     const win = new BrowserWindow({
       width: 1200,
       height: 800,
@@ -162,12 +161,12 @@ export class WindowManager {
       trafficLightPosition: { x: 12, y: 17 },
       // Mac 专属配置
       ...(process.platform === "darwin" && {
-        titleBarStyle: "hidden" as const, // 隐藏标题栏但保留交通灯按钮
-        frame: false, // 隐藏默认窗口框架
+        titleBarStyle: "hidden" as const,
+        frame: false,
       }),
       // Windows 配置（保持默认标题栏）
       ...(process.platform === "win32" && {
-        frame: true, // 显式保留默认框架
+        frame: true,
       }),
     });
 
@@ -194,6 +193,15 @@ export class WindowManager {
       log.info("主窗口加载完成");
     });
 
+    win.webContents.on(
+      "did-fail-load",
+      (_event, errorCode, errorDescription, validatedURL) => {
+        log.error(
+          `主窗口加载失败: ${errorCode} - ${errorDescription}, URL: ${validatedURL}`,
+        );
+      },
+    );
+
     return win;
   }
 
@@ -211,12 +219,12 @@ export class WindowManager {
       trafficLightPosition: { x: 12, y: 17 },
       // Mac 专属配置
       ...(process.platform === "darwin" && {
-        titleBarStyle: "hidden" as const, // 隐藏标题栏但保留交通灯按钮
-        frame: false, // 隐藏默认窗口框架
+        titleBarStyle: "hidden" as const,
+        frame: false,
       }),
       // Windows 配置（保持默认标题栏）
       ...(process.platform === "win32" && {
-        frame: true, // 显式保留默认框架
+        frame: true,
       }),
     };
   }
@@ -234,7 +242,18 @@ export class WindowManager {
     win.webContents.on("did-finish-load", () => {
       win.webContents.setZoomFactor(1);
       win.webContents.setVisualZoomLevelLimits(1, 1);
+      log.info("主窗口加载完成");
     });
+
+    // 添加错误处理
+    win.webContents.on(
+      "did-fail-load",
+      (_event, errorCode, errorDescription, validatedURL) => {
+        log.error(
+          `主窗口加载失败: ${errorCode} - ${errorDescription}, URL: ${validatedURL}`,
+        );
+      },
+    );
 
     if (VITE_DEV_SERVER_URL) {
       win.webContents.openDevTools();
@@ -325,20 +344,25 @@ export class WindowManager {
 
     let url = "";
 
+    let urlParams = "";
     if (type === "markdown") {
-      // 对文件路径进行编码处理
       const encodedFilePath = encodeURIComponent(filePath || "");
-      url = VITE_DEV_SERVER_URL
-        ? `${VITE_DEV_SERVER_URL}#/${route}?${paramName}=${encodedFilePath}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`
-        : `${indexHtml}#/${route}?${paramName}=${encodedFilePath}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
+      urlParams = `${paramName}=${encodedFilePath}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
     } else {
-      url = VITE_DEV_SERVER_URL
-        ? `${VITE_DEV_SERVER_URL}#/${route}?databaseName=${databaseName}&${paramName}=${itemId}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`
-        : `${indexHtml}#/${route}?databaseName=${databaseName}&${paramName}=${itemId}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
+      urlParams = `databaseName=${databaseName}&${paramName}=${itemId}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
     }
 
-    win.loadURL(url);
-    log.debug(`加载${editorName}编辑器URL: ${url}`);
+    log.info(`加载${editorName}编辑器URL: ${url}`);
+    if (VITE_DEV_SERVER_URL) {
+      log.info(`开发模式: 加载URL: ${url}`);
+      url = `${VITE_DEV_SERVER_URL}#/${route}?${urlParams}`;
+      win.loadURL(url);
+    } else {
+      log.info(`生产模式: 加载文件: ${url}`);
+      win.loadFile(indexHtml, {
+        hash: `/${route}?${urlParams}`,
+      });
+    }
 
     win.on("closed", () => {
       log.debug(`${editorName}编辑器窗口关闭: ${windowKey}`);
