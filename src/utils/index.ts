@@ -12,3 +12,4 @@ export * from "./command-parser";
 export * from "./helper.ts";
 export * from "./markdown.ts";
 export * from "./web-clip.ts";
+export * from "./event-bus";

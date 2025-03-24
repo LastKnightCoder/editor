@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Descendant, Editor as SlateEditor } from "slate";
-import { useRafInterval, useUnmount } from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
@@ -16,7 +16,7 @@ import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
 import { on, off } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
-import { useShallow } from "zustand/react/shallow";
+import { defaultCardEventBus } from "@/utils";
 
 import styles from "./index.module.less";
 import { getCardById } from "@/commands";
@@ -46,13 +46,11 @@ const EditCard = (props: IEditCardProps) => {
     onTagChange,
   } = props;
 
-  const { currentDatabaseName } = useSettingStore(
-    useShallow((state) => ({
-      currentDatabaseName: state.setting.database.active,
-    })),
-  );
-
   const editorRef = useRef<EditorRef>(null);
+  const cardEventBus = useCreation(
+    () => defaultCardEventBus.createEditor(),
+    [],
+  );
   const [initValue] = useState(() => {
     if (editingCard.content.length === 0) {
       return [
@@ -65,6 +63,33 @@ const EditCard = (props: IEditCardProps) => {
     return editingCard.content;
   });
 
+  const onChange = useMemoizedFn((value: Descendant[]) => {
+    if (!editingCard || !editorRef.current?.isFocus()) return;
+    onContentChange(value);
+    console.log("onChange", cardEventBus.getUuid());
+    cardEventBus.publishCardEvent("card:updated", {
+      ...editingCard,
+      content: value,
+    });
+  });
+
+  const handleAddTag = useMemoizedFn((tag: string) => {
+    if (!editingCard || editingCard.tags.includes(tag)) return;
+    onAddTag(tag);
+    cardEventBus.publishCardEvent("card:updated", {
+      ...editingCard,
+      tags: [...editingCard.tags, tag],
+    });
+  });
+
+  const handleDeleteTag = useMemoizedFn((tag: string) => {
+    if (!editingCard || !editingCard.tags.includes(tag)) return;
+    onDeleteTag(tag);
+    cardEventBus.publishCardEvent("card:updated", {
+      ...editingCard,
+      tags: editingCard.tags.filter((t) => t !== tag),
+    });
+  });
   const uploadResource = useUploadResource();
 
   useRafInterval(() => {
@@ -84,6 +109,8 @@ const EditCard = (props: IEditCardProps) => {
       _event: any,
       data: { cardId: number; databaseName: string },
     ) => {
+      const currentDatabaseName =
+        useSettingStore.getState().setting.database.active;
       if (
         data.cardId === editingCard.id &&
         data.databaseName === currentDatabaseName
@@ -100,7 +127,22 @@ const EditCard = (props: IEditCardProps) => {
     return () => {
       off("card-window-closed", handleCardWindowClosed);
     };
-  }, [currentDatabaseName, editingCard.id]);
+  }, [editingCard.id]);
+
+  useEffect(() => {
+    const unsubscribe = cardEventBus.subscribeToCardWithId(
+      "card:updated",
+      editingCard.id,
+      (data) => {
+        onContentChange(data.card.content);
+        editorRef.current?.setEditorValue(data.card.content);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [editingCard.id]);
 
   return (
     <EditCardContext.Provider
@@ -124,7 +166,7 @@ const EditCard = (props: IEditCardProps) => {
               ref={editorRef}
               onInit={onInit}
               initValue={initValue}
-              onChange={onContentChange}
+              onChange={onChange}
               extensions={customExtensions}
               readonly={readonly}
               uploadResource={uploadResource}
@@ -134,8 +176,8 @@ const EditCard = (props: IEditCardProps) => {
         <div className={styles.addTag}>
           <AddTag
             tags={editingCard.tags}
-            addTag={onAddTag}
-            removeTag={onDeleteTag}
+            addTag={handleAddTag}
+            removeTag={handleDeleteTag}
             readonly={readonly}
           />
         </div>

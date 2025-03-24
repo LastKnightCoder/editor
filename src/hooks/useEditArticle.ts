@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useRef, useState } from "react";
+import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
 
-import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import { getContentLength } from "@/utils";
 import { IArticle } from "@/types";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
+import { findOneArticle, updateArticle } from "@/commands";
 
 const useEditArticle = (articleId?: number) => {
   const [readonly, setReadonly] = useState(false);
@@ -18,18 +18,12 @@ const useEditArticle = (articleId?: number) => {
     undefined,
   );
 
-  const changed = useRef(false);
   const prevArticle = useRef<IArticle | undefined>(undefined);
 
-  const { articles, updateArticle } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-    updateArticle: state.updateArticle,
-  }));
-
-  useEffect(() => {
+  useAsyncEffect(async () => {
     if (!articleId) return;
     setInitLoading(true);
-    const article = articles.find((article) => article.id === articleId);
+    const article = await findOneArticle(articleId);
     if (!article) {
       setInitLoading(false);
       setInitValue(DEFAULT_ARTICLE_CONTENT);
@@ -41,19 +35,7 @@ const useEditArticle = (articleId?: number) => {
     setEditingArticle(article);
     prevArticle.current = article;
     setInitLoading(false);
-
-    return () => {
-      setInitValue(DEFAULT_ARTICLE_CONTENT);
-      setEditingArticle(undefined);
-      prevArticle.current = undefined;
-    };
-  }, [articleId, articles]);
-
-  useEffect(() => {
-    if (!editingArticle || !prevArticle.current) return;
-    changed.current =
-      JSON.stringify(editingArticle) !== JSON.stringify(prevArticle.current);
-  }, [editingArticle]);
+  }, [articleId]);
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
     if (!editor || !editingArticle) return;
@@ -107,10 +89,12 @@ const useEditArticle = (articleId?: number) => {
   });
 
   const saveArticle = useMemoizedFn(() => {
-    if (!editingArticle || !changed.current) return;
+    if (!editingArticle) return;
+    const changed =
+      JSON.stringify(editingArticle) !== JSON.stringify(prevArticle.current);
+    if (!changed) return;
     updateArticle(editingArticle).then((newEditingArticle) => {
       prevArticle.current = newEditingArticle;
-      changed.current = false;
     });
   });
 
