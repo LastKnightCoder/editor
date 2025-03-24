@@ -1,17 +1,30 @@
 import { ProjectItem } from "@/types";
 import { useEffect, useRef, useState } from "react";
-import { useMemoizedFn } from "ahooks";
-import { getProjectItemById, partialUpdateProjectItem } from "@/commands";
+import { useCreation, useMemoizedFn } from "ahooks";
+import {
+  getCardById,
+  findOneArticle,
+  getProjectItemById,
+  partialUpdateProjectItem,
+} from "@/commands";
 import { getContentLength } from "@/utils";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
 import useProjectsStore from "@/stores/useProjectsStore";
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import { useShallow } from "zustand/react/shallow";
+import { defaultCardEventBus, defaultArticleEventBus } from "@/utils";
+
 const useEdit = () => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const prevProjectItem = useRef<ProjectItem | null>(null);
-  const contentChanged = useRef(false);
+  const cardEventBus = useCreation(
+    () => defaultCardEventBus.createEditor(),
+    [],
+  );
+  const articleEventBus = useCreation(
+    () => defaultArticleEventBus.createEditor(),
+    [],
+  );
 
   const { activeProjectItemId, dragging } = useProjectsStore(
     useShallow((state) => ({
@@ -24,7 +37,6 @@ const useEdit = () => {
     if (!activeProjectItemId) {
       setProjectItem(null);
       prevProjectItem.current = null;
-      contentChanged.current = false;
       return;
     }
 
@@ -34,28 +46,30 @@ const useEdit = () => {
     });
   }, [activeProjectItemId]);
 
-  useEffect(() => {
-    if (!projectItem || !prevProjectItem.current) return;
-    contentChanged.current =
-      JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
-  }, [projectItem]);
+  const saveProjectItem = useMemoizedFn(async (saveAnyway = false) => {
+    if (!projectItem || dragging) return;
 
-  const saveProjectItem = useMemoizedFn((saveAnyway = false) => {
-    if (!projectItem || !(contentChanged.current || saveAnyway) || dragging)
-      return;
-    partialUpdateProjectItem({
+    const changed =
+      JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
+    if (!changed && !saveAnyway) return;
+
+    const updatedProjectItem = await partialUpdateProjectItem({
       id: projectItem.id,
       title: projectItem.title,
       content: projectItem.content,
       count: projectItem.count,
-    }).then((updatedProject) => {
-      setProjectItem(updatedProject);
-      prevProjectItem.current = updatedProject;
-      contentChanged.current = false;
-      if (updatedProject.refType === "card" && updatedProject.refId) {
-        useCardsManagementStore.getState().init().then();
-      }
     });
+
+    setProjectItem(updatedProjectItem);
+    prevProjectItem.current = updatedProjectItem;
+    if (updatedProjectItem.refType === "card" && updatedProjectItem.refId) {
+      const card = await getCardById(updatedProjectItem.refId);
+      cardEventBus.publishCardEvent("card:updated", card);
+    }
+    if (updatedProjectItem.refType === "article" && updatedProjectItem.refId) {
+      const article = await findOneArticle(updatedProjectItem.refId);
+      articleEventBus.publishArticleEvent("article:updated", article);
+    }
   });
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
@@ -95,6 +109,7 @@ const useEdit = () => {
     onInit,
     onContentChange,
     onTitleChange,
+    setProjectItem,
   };
 };
 

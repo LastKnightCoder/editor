@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Empty } from "antd";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 
-import Editor from "@editor/index.tsx";
+import Editor, { EditorRef } from "@editor/index.tsx";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
 import {
@@ -18,7 +18,9 @@ import {
   partialUpdateProjectItem,
   updateProjectItemContent,
 } from "@/commands";
+import { defaultProjectItemEventBus } from "@/utils";
 import { Descendant } from "slate";
+import { useRightSidebarContext } from "../../../RightSidebarContext";
 
 import styles from "./index.module.less";
 
@@ -40,6 +42,32 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const [loading, setLoading] = useState(true);
   const titleRef = useRef<EditTextHandle>(null);
+  const editorRef = useRef<EditorRef>(null);
+  const { visible } = useRightSidebarContext();
+
+  const projectItemEventBus = useCreation(
+    () => defaultProjectItemEventBus.createEditor(),
+    [],
+  );
+
+  useEffect(() => {
+    const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
+      "project-item:updated",
+      Number(projectItemId),
+      (data) => {
+        setProjectItem(data.projectItem);
+        editorRef.current?.setEditorValue(data.projectItem.content);
+        titleRef.current?.setValue(data.projectItem.title);
+        if (onTitleChange) {
+          onTitleChange(data.projectItem.title);
+        }
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [projectItemEventBus, projectItemId]);
 
   const fetchProjectItem = useMemoizedFn(async () => {
     setLoading(true);
@@ -60,11 +88,19 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   });
 
   useEffect(() => {
-    fetchProjectItem();
-  }, [projectItemId, fetchProjectItem]);
+    if (visible) {
+      fetchProjectItem();
+    }
+  }, [projectItemId, fetchProjectItem, visible]);
 
   const handleTitleChange = useMemoizedFn(async (title: string) => {
-    if (!projectItem || title === projectItem.title) return;
+    if (
+      !projectItem ||
+      title === projectItem.title ||
+      !titleRef.current ||
+      !titleRef.current.isFocus()
+    )
+      return;
 
     try {
       const updatedProjectItem = await partialUpdateProjectItem({
@@ -76,20 +112,29 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
       if (onTitleChange) {
         onTitleChange(title);
       }
+      projectItemEventBus.publishProjectItemEvent(
+        "project-item:updated",
+        updatedProjectItem,
+      );
     } catch (error) {
       console.error("Error updating project item title:", error);
     }
   });
 
   const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (!projectItem) return;
+    if (!projectItem || !editorRef.current || !editorRef.current.isFocus())
+      return;
 
     try {
       const updatedProjectItem = await updateProjectItemContent(
         Number(projectItem.id),
         content,
       );
-      console.log("updatedProjectItem", updatedProjectItem);
+      setProjectItem(updatedProjectItem);
+      projectItemEventBus.publishProjectItemEvent(
+        "project-item:updated",
+        updatedProjectItem,
+      );
     } catch (error) {
       console.error("Error updating project item content:", error);
     }
@@ -124,6 +169,7 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
       </div>
       <div className={styles.contentContainer}>
         <Editor
+          ref={editorRef}
           initValue={projectItem.content}
           onChange={handleContentChange}
           readonly={false}

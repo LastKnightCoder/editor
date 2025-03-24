@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import { message } from "antd";
 
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
@@ -10,7 +10,8 @@ import {
   ProjectItem,
   WhiteBoard,
 } from "@/types";
-import { getWhiteBoardById } from "@/commands";
+import { getProjectItemById, getWhiteBoardById } from "@/commands";
+import { defaultProjectItemEventBus } from "@/utils";
 
 /**
  * 用于在项目项中添加/关联白板的 hook
@@ -21,6 +22,11 @@ const useAddRefWhiteBoard = (projectItem?: ProjectItem) => {
   const [selectWhiteBoardModalOpen, setSelectWhiteBoardModalOpen] =
     useState(false);
   const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<WhiteBoard[]>(
+    [],
+  );
+
+  const projectItemEventBus = useCreation(
+    () => defaultProjectItemEventBus.createEditor(),
     [],
   );
 
@@ -100,13 +106,11 @@ const useAddRefWhiteBoard = (projectItem?: ProjectItem) => {
       }
 
       if (projectItem) {
-        // 触发刷新
-        const event = new CustomEvent("refreshProjectItem", {
-          detail: {
-            id: projectItem.id,
-          },
-        });
-        document.dispatchEvent(event);
+        const updatedProjectItem = await getProjectItemById(projectItem.id);
+        projectItemEventBus.publishProjectItemEvent(
+          "project-item:updated",
+          updatedProjectItem,
+        );
       }
 
       message.success("关联白板成功");

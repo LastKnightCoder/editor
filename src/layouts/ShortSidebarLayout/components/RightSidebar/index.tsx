@@ -8,6 +8,7 @@ import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import RightSidebarContent from "./RightSidebarContent";
+import { RightSidebarContext } from "./RightSidebarContext";
 
 import "./registerTabs";
 import styles from "./index.module.less";
@@ -43,11 +44,15 @@ const RightSidebar: React.FC = memo(() => {
       minWidth={300}
       maxWidth={800}
     >
-      <div
-        className={classnames(styles.contentWrapper, { [styles.dark]: isDark })}
-      >
-        {content}
-      </div>
+      <RightSidebarContext.Provider value={{ visible: open }}>
+        <div
+          className={classnames(styles.contentWrapper, {
+            [styles.dark]: isDark,
+          })}
+        >
+          {content}
+        </div>
+      </RightSidebarContext.Provider>
     </ResizableAndHideableSidebar>
   );
 });

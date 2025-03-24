@@ -15,6 +15,7 @@ import {
 import { IDocumentItem } from "@/types/document";
 import { getDocumentItem, updateDocumentItem } from "@/commands";
 import { Descendant } from "slate";
+import { useRightSidebarContext } from "../../../RightSidebarContext";
 
 import styles from "./index.module.less";
 
@@ -36,7 +37,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   const [documentItem, setDocumentItem] = useState<IDocumentItem | null>(null);
   const [loading, setLoading] = useState(true);
   const titleRef = useRef<EditTextHandle>(null);
-
+  const { visible } = useRightSidebarContext();
   const fetchDocumentItem = useMemoizedFn(async () => {
     setLoading(true);
     try {
@@ -54,8 +55,10 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   });
 
   useEffect(() => {
-    fetchDocumentItem();
-  }, [documentItemId, fetchDocumentItem]);
+    if (visible) {
+      fetchDocumentItem();
+    }
+  }, [documentItemId, fetchDocumentItem, visible]);
 
   const handleTitleChange = useMemoizedFn(async (title: string) => {
     if (!documentItem || title === documentItem.title) return;

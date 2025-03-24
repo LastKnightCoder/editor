@@ -572,7 +572,7 @@ export default class ProjectTable {
       UPDATE project_item SET
         update_time = ?,
         content = ?,
-        count = ?,
+        count = ?
       WHERE id = ?
     `);
     const now = Date.now();

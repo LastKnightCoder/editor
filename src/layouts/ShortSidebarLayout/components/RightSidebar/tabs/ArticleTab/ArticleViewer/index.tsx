@@ -15,6 +15,7 @@ import { IArticle } from "@/types";
 import { findOneArticle, updateArticle } from "@/commands";
 import { Descendant } from "slate";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
+import { useRightSidebarContext } from "../../../RightSidebarContext";
 
 import styles from "./index.module.less";
 
@@ -33,6 +34,8 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
+  const { visible } = useRightSidebarContext();
+
   const articleEventBus = useCreation(
     () => defaultArticleEventBus.createEditor(),
     [],
@@ -54,8 +57,10 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   });
 
   useEffect(() => {
-    fetchArticle();
-  }, [articleId, fetchArticle]);
+    if (visible) {
+      fetchArticle();
+    }
+  }, [articleId, fetchArticle, visible]);
 
   useEffect(() => {
     const unsubscribe = articleEventBus.subscribeToArticleWithId(
