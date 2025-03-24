@@ -1,9 +1,6 @@
 import { useEffect, useRef } from "react";
 import { v4 as getUuid } from "uuid";
-import {
-  useThrottleFn,
-  // useWhyDidYouUpdate
-} from "ahooks";
+import { useThrottleFn } from "ahooks";
 
 import {
   useCreateElementType,
@@ -31,10 +28,6 @@ export const useCreateArrow = () => {
   const createdArrowPath = useRef<number[] | null>(null);
 
   const { zoom } = useViewPort();
-
-  // useWhyDidYouUpdate('useCreateArrow', {
-  //   createBoardElementType,
-  // })
 
   const { getUpdateArrowElement } = useMoveArrow({
     isMoved,

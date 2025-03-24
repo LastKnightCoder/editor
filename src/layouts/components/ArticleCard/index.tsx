@@ -31,6 +31,7 @@ import {
 } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import { on, off } from "@/electron";
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
 const { Text } = Typography;
 
 interface IArticleCardProps {
@@ -180,6 +181,21 @@ const ArticleCard = (props: IArticleCardProps) => {
     };
   }, []);
 
+  const handleEdit = () => {
+    setSettingOpen(false);
+    handleUploadFileChange();
+  };
+
+  const handleView = () => {
+    const { addTab } = useRightSidebarStore.getState();
+    addTab({
+      id: String(article.id),
+      title: article.title || "文章",
+      type: "article",
+    });
+    setSettingOpen(false);
+  };
+
   return (
     <div className={classnames(styles.cardContainer, className)}>
       <Spin spinning={bannerUploading}>
@@ -230,10 +246,7 @@ const ArticleCard = (props: IArticleCardProps) => {
                       {
                         key: "change-banner-bg",
                         label: "换背景图",
-                        onClick: () => {
-                          setSettingOpen(false);
-                          handleUploadFileChange();
-                        },
+                        onClick: handleEdit,
                       },
                       {
                         key: "set-top",
@@ -252,6 +265,11 @@ const ArticleCard = (props: IArticleCardProps) => {
                             article.id,
                           );
                         },
+                      },
+                      {
+                        key: "open-in-right-sidebar",
+                        label: "右侧打开",
+                        onClick: handleView,
                       },
                     ],
                   }}

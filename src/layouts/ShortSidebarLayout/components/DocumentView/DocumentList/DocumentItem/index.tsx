@@ -37,6 +37,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { on, off } from "@/electron";
 
 import styles from "./index.module.less";
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 interface IDocumentItemProps {
   itemId: number;
@@ -518,6 +519,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
         key: "open-in-new-window",
         label: "窗口打开",
       },
+      {
+        key: "open-in-right-sidebar",
+        label: "右侧打开",
+      },
     ],
     [],
   );
@@ -531,6 +536,13 @@ const DocumentItem = (props: IDocumentItemProps) => {
       } else if (key === "open-in-new-window") {
         const databaseName = useSettingStore.getState().setting.database.active;
         openDocumentItemInNewWindow(databaseName, itemId);
+      } else if (key === "open-in-right-sidebar") {
+        const addTab = useRightSidebarStore.getState().addTab;
+        addTab({
+          type: "document-item",
+          id: String(itemId),
+          title: item?.title || "知识库",
+        });
       }
     },
   );
@@ -650,7 +662,12 @@ const DocumentItem = (props: IDocumentItemProps) => {
           </Tooltip>
           <div className={styles.title}>{item.title}</div>
         </div>
-        <div className={styles.icons}>
+        <div
+          className={styles.icons}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
           <Dropdown
             menu={{
               items: moreMenuItems,
@@ -658,13 +675,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
             }}
             trigger={["hover"]}
           >
-            <div
-              className={styles.icon}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
+            <div className={styles.icon}>
               <MoreOutlined />
             </div>
           </Dropdown>

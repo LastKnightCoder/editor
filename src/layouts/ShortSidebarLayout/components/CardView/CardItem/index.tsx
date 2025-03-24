@@ -12,7 +12,7 @@ import React, {
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 import Tags from "@/components/Tags";
-import { formatDate, getMarkdown } from "@/utils";
+import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { getCardById, openCardInNewWindow } from "@/commands";
 import { on, off } from "@/electron";
 import {
@@ -28,6 +28,7 @@ import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PresentationMode from "@/components/PresentationMode";
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 interface CardItemProps {
   card: ICard;
@@ -60,6 +61,8 @@ const CardItem = memo(
       })),
     );
 
+    const addTab = useRightSidebarStore((state) => state.addTab);
+
     const databaseName = useSettingStore(
       useShallow((state) => state.setting.database.active),
     );
@@ -91,6 +94,17 @@ const CardItem = memo(
           key: "open-card-in-new-window",
           label: "窗口打开",
           onClick: () => openCardInNewWindow(databaseName, card.id),
+        },
+        {
+          key: "open-card-in-right-sidebar",
+          label: "右侧打开",
+          onClick: () => {
+            addTab({
+              type: "card",
+              id: String(card.id),
+              title: getEditorText(card.content, 10),
+            });
+          },
         },
         {
           key: "delete-card",

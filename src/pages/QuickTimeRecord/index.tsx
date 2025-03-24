@@ -6,7 +6,6 @@ import { getAllEventTypes, createTimeRecord } from "@/commands";
 
 import styles from "./index.module.less";
 import useUploadResource from "@/hooks/useUploadResource";
-import WindowControl from "@/components/WindowControl";
 import dayjs from "dayjs";
 
 const initValue: Descendant[] = [
@@ -59,11 +58,6 @@ const QuickTimeRecord = () => {
     <div className={styles.quickTimeRecordContainer}>
       <div data-tauri-drag-region className={styles.titleBar}>
         <div className={styles.title}>快捷时间记录</div>
-        <WindowControl
-          className={styles.windowControl}
-          notShowFullscreen
-          initAlwaysOnTop
-        />
       </div>
       <div className={styles.form}>
         <div className={styles.content}>

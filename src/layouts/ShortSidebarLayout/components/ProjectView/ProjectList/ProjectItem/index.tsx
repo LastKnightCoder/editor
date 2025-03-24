@@ -45,6 +45,7 @@ import styles from "./index.module.less";
 import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -344,6 +345,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             label: "窗口打开",
           },
           {
+            key: "open-in-right-sidebar",
+            label: "右侧打开",
+          },
+          {
             key: "remove",
             label: "删除文档",
           },
@@ -425,6 +430,15 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       } else if (key === "open-in-new-window") {
         const databaseName = useSettingStore.getState().setting.database.active;
         openProjectItemInNewWindow(databaseName, projectItemId);
+      } else if (key === "open-in-right-sidebar") {
+        if (!projectItem) return;
+
+        const { addTab } = useRightSidebarStore.getState();
+        addTab({
+          id: String(projectItem.id),
+          title: projectItem.title || "项目",
+          type: "project-item",
+        });
       }
     },
   );
@@ -695,7 +709,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 }
               }}
             />
-            {/*<div className={styles.title}>{projectItem.title}</div>*/}
           </div>
           <div
             onClick={(e) => {

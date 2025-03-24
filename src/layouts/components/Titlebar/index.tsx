@@ -1,70 +1,35 @@
-import { memo, useRef, useState } from "react";
+import { memo, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
-
-import WindowControl from "@/components/WindowControl";
-import PortalToBody from "@/components/PortalToBody";
-import If from "@/components/If";
-import { CloseOutlined } from "@ant-design/icons";
 import SVG from "react-inlinesvg";
-import { useShallow } from "zustand/react/shallow";
+
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 import TitlebarIcon from "@/components/TitlebarIcon";
 import { platform } from "@/electron.ts";
+import { setAlwaysOnTop as setTop } from "@/commands";
+
 import sidebarLeftIcon from "@/assets/icons/sidebar-left.svg";
+import sidebarRightIcon from "@/assets/icons/sidebar-right.svg";
+import chatIcon from "@/assets/icons/chat.svg";
+import { PushpinOutlined } from "@ant-design/icons";
 
 import styles from "./index.module.less";
+import useChatMessageStore from "@/stores/useChatMessageStore";
 
-interface TitlebarProps {
-  showColumns?: boolean;
-  showSelectDatabase?: boolean;
-  showFocusMode?: boolean;
-  showSearch?: boolean;
-}
+const Titlebar = memo(() => {
+  const leftSidebarOpen = useGlobalStateStore((state) => state.sidebarOpen);
+  const chatSidebarOpen = useChatMessageStore((state) => state.open);
+  const rightSidebarOpen = useRightSidebarStore((state) => state.open);
 
-const Titlebar = memo((props: TitlebarProps) => {
-  const { showColumns, showSelectDatabase, showFocusMode, showSearch } = props;
-  const { sidebarOpen, focusMode } = useGlobalStateStore(
-    useShallow((state) => ({
-      sidebarOpen: state.sidebarOpen,
-      focusMode: state.focusMode,
-    })),
-  );
+  const [alwaysOnTop, setAlwaysOnTop] = useState<boolean>(false);
 
-  const timer = useRef<number>();
-
-  const [showQuitFocus, setShowQuitFocus] = useState(false);
-
-  const onMouseEnter = useMemoizedFn(() => {
-    if (!focusMode) return;
-    if (timer) {
-      clearTimeout(timer.current);
-    }
-    setShowQuitFocus(true);
-    timer.current = setTimeout(() => {
-      setShowQuitFocus(false);
-    }, 3000) as any;
-  });
-
-  const onMouseLeave = useMemoizedFn(() => {
-    if (!focusMode) return;
-    if (timer) {
-      clearTimeout(timer.current);
-    }
-    setShowQuitFocus(false);
-  });
-
-  const handleQuitFocus = useMemoizedFn(() => {
-    useGlobalStateStore.setState({
-      focusMode: false,
-    });
-    setShowQuitFocus(false);
-    if (timer) {
-      clearTimeout(timer.current);
-    }
-  });
+  const toggleAlwaysOnTop = async () => {
+    setAlwaysOnTop(!alwaysOnTop);
+    await setTop(!alwaysOnTop);
+  };
 
   const handleOpenSidebar = useMemoizedFn(() => {
     useGlobalStateStore.setState({
@@ -72,49 +37,82 @@ const Titlebar = memo((props: TitlebarProps) => {
     });
   });
 
+  const handleOpenChatSidebar = useMemoizedFn(() => {
+    if (chatSidebarOpen) {
+      useChatMessageStore.setState({
+        open: false,
+      });
+      return;
+    }
+    if (rightSidebarOpen) {
+      useRightSidebarStore.setState({
+        open: false,
+      });
+    }
+    setTimeout(() => {
+      useChatMessageStore.setState({
+        open: true,
+      });
+    }, 300);
+  });
+
+  const handleOpenRightSidebar = useMemoizedFn(() => {
+    if (rightSidebarOpen) {
+      useRightSidebarStore.setState({
+        open: false,
+      });
+      return;
+    }
+    if (chatSidebarOpen) {
+      useChatMessageStore.setState({
+        open: false,
+      });
+    }
+    setTimeout(() => {
+      useRightSidebarStore.setState({
+        open: true,
+      });
+    }, 300);
+  });
+
   const isMac = platform === "darwin";
 
   return (
     <div
       className={classnames(styles.titleBar, {
-        [styles.sidebarHide]: isMac && !sidebarOpen,
+        [styles.sidebarHide]: isMac && !leftSidebarOpen,
       })}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
     >
-      {!sidebarOpen && (
+      {!leftSidebarOpen && (
         <TitlebarIcon onClick={handleOpenSidebar}>
           <SVG src={sidebarLeftIcon} />
         </TitlebarIcon>
       )}
-      <If condition={focusMode}>
-        <PortalToBody>
-          <div
-            className={classnames(styles.quitFocus, {
-              [styles.show]: showQuitFocus,
-            })}
-          >
-            <div className={styles.quitIcon} onClick={handleQuitFocus}>
-              <CloseOutlined
-                style={{
-                  fontSize: 20,
-                }}
-              />
-            </div>
-          </div>
-        </PortalToBody>
-      </If>
-      <If condition={!focusMode}>
-        <Outlet />
-      </If>
-      <WindowControl
-        className={styles.windowControl}
-        showColumns={showColumns}
-        showSelectDatabase={showSelectDatabase}
-        showFocusMode={showFocusMode}
-        showRightSidebar={true}
-        showSearch={showSearch}
-      />
+      <Outlet />
+      <div className={styles.right}>
+        <TitlebarIcon
+          tip={alwaysOnTop ? "取消置顶" : "置顶"}
+          onClick={toggleAlwaysOnTop}
+        >
+          <PushpinOutlined
+            className={classnames(styles.pin, { [styles.onTop]: alwaysOnTop })}
+          />
+        </TitlebarIcon>
+        <TitlebarIcon
+          tip="聊天"
+          onClick={handleOpenChatSidebar}
+          active={chatSidebarOpen}
+        >
+          <SVG src={chatIcon} />
+        </TitlebarIcon>
+        <TitlebarIcon
+          tip="右侧栏"
+          onClick={handleOpenRightSidebar}
+          active={rightSidebarOpen}
+        >
+          <SVG src={sidebarRightIcon} />
+        </TitlebarIcon>
+      </div>
     </div>
   );
 });
