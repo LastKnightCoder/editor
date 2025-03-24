@@ -19,6 +19,7 @@ import SelectCardModal from "@/components/SelectCardModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
 import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
+import { ProjectContext } from "./ProjectContext";
 import { getFileBaseName, readTextFile, selectFile } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 
@@ -192,80 +193,82 @@ const Project = () => {
   if (!project) return null;
 
   return (
-    <div className={styles.list}>
-      <div className={styles.header}>
-        <div className={styles.title}>
-          <HomeOutlined
-            onClick={() => {
-              useProjectsStore.setState({
-                activeProjectId: null,
-                activeProjectItemId: null,
-                hideProjectItemList: false,
-              });
-              navigate(`/projects/list`);
-            }}
-          />
-          {project.title}
-        </div>
-        <div className={styles.icons}>
-          {activeProjectItemId && (
-            <div className={styles.icon} onClick={onFoldSidebar}>
-              <MenuFoldOutlined />
-            </div>
-          )}
-          <Dropdown
-            menu={{
-              items: addMenuItems,
-              onClick: handleAddMenuClick,
-            }}
-          >
-            <div className={styles.icon}>
-              <PlusOutlined />
-            </div>
-          </Dropdown>
-        </div>
-      </div>
-      <div className={styles.divider}></div>
-      <div className={styles.contentArea}>
-        <If condition={project.children.length === 0}>
-          <Empty description={"项目下暂无文档"} />
-        </If>
-        <For
-          data={project.children}
-          renderItem={(projectItemId, index) => (
-            <ProjectItem
-              projectItemId={projectItemId}
-              isRoot
-              key={projectItemId}
-              path={[index]}
-              parentProjectItemId={project.id}
-              parentChildren={project.children}
+    <ProjectContext.Provider value={{ projectId: project.id }}>
+      <div className={styles.list}>
+        <div className={styles.header}>
+          <div className={styles.title}>
+            <HomeOutlined
+              onClick={() => {
+                useProjectsStore.setState({
+                  activeProjectId: null,
+                  activeProjectItemId: null,
+                  hideProjectItemList: false,
+                });
+                navigate(`/projects/list`);
+              }}
             />
-          )}
+            {project.title}
+          </div>
+          <div className={styles.icons}>
+            {activeProjectItemId && (
+              <div className={styles.icon} onClick={onFoldSidebar}>
+                <MenuFoldOutlined />
+              </div>
+            )}
+            <Dropdown
+              menu={{
+                items: addMenuItems,
+                onClick: handleAddMenuClick,
+              }}
+            >
+              <div className={styles.icon}>
+                <PlusOutlined />
+              </div>
+            </Dropdown>
+          </div>
+        </div>
+        <div className={styles.divider}></div>
+        <div className={styles.contentArea}>
+          <If condition={project.children.length === 0}>
+            <Empty description={"项目下暂无文档"} />
+          </If>
+          <For
+            data={project.children}
+            renderItem={(projectItemId, index) => (
+              <ProjectItem
+                projectItemId={projectItemId}
+                isRoot
+                key={projectItemId}
+                path={[index]}
+                parentProjectItemId={project.id}
+                parentChildren={project.children}
+              />
+            )}
+          />
+        </div>
+        <SelectCardModal
+          title={"选择关联卡片"}
+          selectedCards={selectedCards}
+          onChange={onCardChange}
+          open={selectCardModalOpen}
+          allCards={cards}
+          onCancel={onCardCancel}
+          onOk={onCardOk}
+          excludeCardIds={excludeCardIds}
+        />
+        <SelectWhiteBoardModal
+          title={"选择关联白板"}
+          selectedWhiteBoards={selectedWhiteBoards}
+          onChange={onWhiteBoardChange}
+          open={selectWhiteBoardModalOpen}
+          allWhiteBoards={whiteBoards}
+          onCancel={onWhiteBoardCancel}
+          onOk={onWhiteBoardOk}
+          excludeWhiteBoardIds={excludeWhiteBoardIds}
+          multiple={multiple}
         />
       </div>
-      <SelectCardModal
-        title={"选择关联卡片"}
-        selectedCards={selectedCards}
-        onChange={onCardChange}
-        open={selectCardModalOpen}
-        allCards={cards}
-        onCancel={onCardCancel}
-        onOk={onCardOk}
-        excludeCardIds={excludeCardIds}
-      />
-      <SelectWhiteBoardModal
-        title={"选择关联白板"}
-        selectedWhiteBoards={selectedWhiteBoards}
-        onChange={onWhiteBoardChange}
-        open={selectWhiteBoardModalOpen}
-        allWhiteBoards={whiteBoards}
-        onCancel={onWhiteBoardCancel}
-        onOk={onWhiteBoardOk}
-        excludeWhiteBoardIds={excludeWhiteBoardIds}
-        multiple={multiple}
-      />
-    </div>
+    </ProjectContext.Provider>
   );
 };
 

@@ -15,6 +15,8 @@ import { Descendant } from "slate";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 import { defaultCardEventBus } from "@/utils";
+import { useRightSidebarContext } from "../../../RightSidebarContext";
+
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 interface CardViewerProps {
@@ -26,6 +28,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   const [loading, setLoading] = useState(true);
   const [card, setCard] = useState<ICard | null>(null);
   const editorRef = useRef<EditorRef>(null);
+  const { visible } = useRightSidebarContext();
 
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
@@ -33,6 +36,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   );
 
   useEffect(() => {
+    if (!visible) return;
     getCardById(Number(cardId))
       .then((card) => {
         setCard(card);
@@ -43,7 +47,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       .finally(() => {
         setLoading(false);
       });
-  }, [cardId]);
+  }, [cardId, visible]);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!card || !editorRef.current) return;

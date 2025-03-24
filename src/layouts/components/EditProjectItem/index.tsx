@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import { useMemoizedFn, useRafInterval } from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval } from "ahooks";
 import useEdit from "./useEdit";
 import { useShallow } from "zustand/react/shallow";
 import useProjectsStore from "@/stores/useProjectsStore";
 
-import { formatDate } from "@/utils/time";
+import { formatDate, defaultProjectItemEventBus } from "@/utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import EditorOutline from "@/components/EditorOutline";
@@ -15,10 +15,11 @@ import {
   fileAttachmentExtension,
   projectCardListExtension,
 } from "@/editor-extensions";
-import { getProjectItemById } from "@/commands";
+import { getProjectItemById, updateProjectItem } from "@/commands";
 import { on, off } from "@/electron";
 
 import styles from "./index.module.less";
+import { Descendant } from "slate";
 
 const extensions = [
   cardLinkExtension,
@@ -29,6 +30,10 @@ const extensions = [
 const Project = () => {
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
+  const projectItemEventBus = useCreation(
+    () => defaultProjectItemEventBus.createEditor(),
+    [],
+  );
 
   const {
     projectItem,
@@ -36,6 +41,7 @@ const Project = () => {
     onTitleChange,
     onContentChange,
     saveProjectItem,
+    setProjectItem,
   } = useEdit();
 
   const { showOutline, readonly } = useProjectsStore(
@@ -92,8 +98,45 @@ const Project = () => {
     };
   }, [projectItem?.id, onTitleChange, onContentChange]);
 
-  if (!projectItem) return null;
+  useEffect(() => {
+    if (!projectItem) return;
 
+    const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
+      "project-item:updated",
+      projectItem.id,
+      (data) => {
+        setProjectItem(data.projectItem);
+        editorRef.current?.setEditorValue(data.projectItem.content);
+        titleRef.current?.setValue(data.projectItem.title);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [projectItem?.id]);
+
+  const handleOnTitleChange = useMemoizedFn((title: string) => {
+    if (!projectItem || !titleRef.current || !titleRef.current.isFocus())
+      return;
+    onTitleChange(title);
+    projectItemEventBus.publishProjectItemEvent("project-item:updated", {
+      ...projectItem,
+      title,
+    });
+  });
+
+  const handleOnContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!projectItem || !editorRef.current || !editorRef.current.isFocus())
+      return;
+    onContentChange(content);
+    projectItemEventBus.publishProjectItemEvent("project-item:updated", {
+      ...projectItem,
+      content,
+    });
+  });
+
+  if (!projectItem) return null;
   return (
     <div className={styles.editProjectContainer}>
       <div className={styles.editProject}>
@@ -101,8 +144,9 @@ const Project = () => {
           <div className={styles.title}>
             <EditText
               key={projectItem.id}
+              ref={titleRef}
               defaultValue={projectItem.title}
-              onChange={onTitleChange}
+              onChange={handleOnTitleChange}
               contentEditable={!readonly}
               onPressEnter={onPressEnter}
             />
@@ -121,7 +165,7 @@ const Project = () => {
               ref={editorRef}
               initValue={projectItem.content}
               onInit={onInit}
-              onChange={onContentChange}
+              onChange={handleOnContentChange}
               uploadResource={uploadResource}
               readonly={readonly}
               extensions={extensions}

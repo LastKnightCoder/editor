@@ -9,15 +9,20 @@ import {
 } from "@/types";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useCardsManagementStore from "@/stores/useCardsManagementStore";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import { App } from "antd";
 import { produce } from "immer";
-import { updateProjectItem } from "@/commands";
-import { getContentLength } from "@/utils";
+import { getProjectItemById, updateProjectItem } from "@/commands";
+import { getContentLength, defaultProjectItemEventBus } from "@/utils";
 
 const useAddRefCard = (projectItem?: ProjectItem) => {
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
   const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
+
+  const projectItemEventBus = useCreation(
+    () => defaultProjectItemEventBus.createEditor(),
+    [],
+  );
 
   const { message } = App.useApp();
 
@@ -57,13 +62,11 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
         draft.refId = createdCard.id;
         draft.refType = "card";
       });
-      await updateProjectItem(newProjectItem);
-      const event = new CustomEvent("refreshProjectItem", {
-        detail: {
-          id: projectItem.id,
-        },
-      });
-      document.dispatchEvent(event);
+      const updatedProjectItem = await updateProjectItem(newProjectItem);
+      projectItemEventBus.publishProjectItemEvent(
+        "project-item:updated",
+        updatedProjectItem,
+      );
     },
   );
 
@@ -99,12 +102,11 @@ const useAddRefCard = (projectItem?: ProjectItem) => {
     }
 
     if (projectItem) {
-      const event = new CustomEvent("refreshProjectItem", {
-        detail: {
-          id: projectItem.id,
-        },
-      });
-      document.dispatchEvent(event);
+      const updatedProjectItem = await getProjectItemById(projectItem.id);
+      projectItemEventBus.publishProjectItemEvent(
+        "project-item:updated",
+        updatedProjectItem,
+      );
     }
 
     setSelectCardModalOpen(false);

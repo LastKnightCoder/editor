@@ -1,9 +1,17 @@
 import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
 import { App, Dropdown, Input, MenuProps, message, Modal, Tooltip } from "antd";
 import { produce } from "immer";
-import { getFileBaseName, readTextFile, selectFile } from "@/commands";
+import {
+  getFileBaseName,
+  readTextFile,
+  selectFile,
+  getProjectById,
+  getProjectItemById,
+  updateProjectItem,
+  openProjectItemInNewWindow,
+} from "@/commands";
 import { on, off } from "@/electron";
 
 import SelectCardModal from "@/components/SelectCardModal";
@@ -20,12 +28,6 @@ import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
 
 import SVG from "react-inlinesvg";
 import For from "@/components/For";
-import {
-  getProjectById,
-  getProjectItemById,
-  updateProjectItem,
-  openProjectItemInNewWindow,
-} from "@/commands";
 import { CreateProjectItem, EProjectItemType, type ProjectItem } from "@/types";
 import {
   FileOutlined,
@@ -38,6 +40,7 @@ import {
   getEditorText,
   importFromMarkdown,
   webClipFromUrl,
+  defaultProjectItemEventBus,
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
@@ -46,6 +49,7 @@ import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
+import { useProjectContext } from "../ProjectContext";
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -64,6 +68,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentChildren,
   } = props;
 
+  const projectItemEventBus = useCreation(
+    () => defaultProjectItemEventBus.createEditor(),
+    [],
+  );
+
+  const { projectId } = useProjectContext();
+
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState("");
   const [titleEditable, setTitleEditable] = useState(false);
@@ -71,9 +82,15 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const parserControllerRef = useRef<AbortController>();
   const [parseLoading, setParseLoading] = useState(false);
   const [projectItem, setProjectItem] = useState<ProjectItem>();
-  const [folderOpen, setFolderOpen] = useState(() => {
-    return path.length === 1;
-  });
+  const [folderOpen, setFolderOpen] = useLocalStorageState<boolean>(
+    `${projectId}-${projectItemId}`,
+    {
+      defaultValue: () => {
+        return path.length === 1;
+      },
+    },
+  );
+
   const {
     cards,
     selectCardModalOpen,
@@ -108,6 +125,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   useEffect(() => {
     refresh(projectItemId);
   }, [refresh, projectItemId]);
+
+  useEffect(() => {
+    const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
+      "project-item:updated",
+      projectItemId,
+      (data) => {
+        setProjectItem(data.projectItem);
+        titleRef.current?.setValue(data.projectItem.title);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [projectItemId]);
 
   const {
     updateProject,
@@ -160,12 +192,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         } else {
           if (parentProjectItemId) {
             await removeChildProjectItem(parentProjectItemId, projectItemId);
-            const event = new CustomEvent("refreshProjectItem", {
-              detail: {
-                id: parentProjectItemId,
-              },
-            });
-            document.dispatchEvent(event);
+            const updatedProjectItem =
+              await getProjectItemById(parentProjectItemId);
+            defaultProjectItemEventBus
+              .createEditor()
+              .publishProjectItemEvent(
+                "project-item:updated",
+                updatedProjectItem,
+              );
           }
         }
         if (activeProjectItemId === projectItemId) {
@@ -297,10 +331,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           needRefreshId.push(activeProjectItemId);
         }
         for (const refreshId of [...new Set(needRefreshId)]) {
-          const event = new CustomEvent("refreshProjectItem", {
-            detail: { id: refreshId },
-          });
-          document.dispatchEvent(event);
+          const updatedProjectItem = await getProjectItemById(refreshId);
+          defaultProjectItemEventBus
+            .createEditor()
+            .publishProjectItemEvent(
+              "project-item:updated",
+              updatedProjectItem,
+            );
         }
         useProjectsStore.setState({
           dragging: false,
@@ -402,13 +439,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             draft.refId = createdWhiteBoard.id;
             draft.refType = "white-board";
           });
-          await updateProjectItem(newProjectItem);
-          const event = new CustomEvent("refreshProjectItem", {
-            detail: {
-              id: projectItem.id,
-            },
-          });
-          document.dispatchEvent(event);
+          const updatedProjectItem = await updateProjectItem(newProjectItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            updatedProjectItem,
+          );
           message.success("成功创建白板");
         } catch (e) {
           console.error(e);
@@ -491,13 +526,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           count: 0,
         };
         await createChildProjectItem(projectItemId, createProjectItem);
-
-        const event = new CustomEvent("refreshProjectItem", {
-          detail: {
-            id: projectItemId,
-          },
-        });
-        document.dispatchEvent(event);
+        const updatedProjectItem = await getProjectItemById(projectItemId);
+        projectItemEventBus.publishProjectItemEvent(
+          "project-item:updated",
+          updatedProjectItem,
+        );
       } else if (key === "add-white-board-project-item") {
         if (!projectItemId) return;
         const createProjectItem: CreateProjectItem = {
@@ -526,13 +559,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           count: 0,
         };
         await createChildProjectItem(projectItemId, createProjectItem);
-
-        const event = new CustomEvent("refreshProjectItem", {
-          detail: {
-            id: projectItemId,
-          },
-        });
-        document.dispatchEvent(event);
+        const updatedProjectItem = await getProjectItemById(projectItemId);
+        projectItemEventBus.publishProjectItemEvent(
+          "project-item:updated",
+          updatedProjectItem,
+        );
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -568,56 +599,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             count: getContentLength(content),
           });
         }
-        const event = new CustomEvent("refreshProjectItem", {
-          detail: {
-            id: projectItemId,
-          },
-        });
-        document.dispatchEvent(event);
+        const updatedProjectItem = await getProjectItemById(projectItemId);
+        projectItemEventBus.publishProjectItemEvent(
+          "project-item:updated",
+          updatedProjectItem,
+        );
       } else if (key === "add-web-project-item") {
         setWebClipModalOpen(true);
       }
     },
   );
-
-  useEffect(() => {
-    if (!projectItem) return;
-
-    const handleProjectTitleChange = (e: any) => {
-      const changedItem = e.detail;
-      if (changedItem.id === projectItem.id) {
-        setProjectItem(changedItem);
-        titleRef.current?.setValue(changedItem.title);
-      }
-    };
-
-    document.addEventListener("projectTitleChange", handleProjectTitleChange);
-
-    return () => {
-      document.removeEventListener(
-        "projectTitleChange",
-        handleProjectTitleChange,
-      );
-    };
-  }, [projectItem]);
-
-  useEffect(() => {
-    const handleRefreshProjectItem = (e: any) => {
-      const { id } = (e as CustomEvent<{ id: number }>).detail;
-      if (id === projectItemId) {
-        refresh(projectItemId);
-      }
-    };
-
-    document.addEventListener("refreshProjectItem", handleRefreshProjectItem);
-
-    return () => {
-      document.removeEventListener(
-        "refreshProjectItem",
-        handleRefreshProjectItem,
-      );
-    };
-  }, [projectItemId, refresh]);
 
   if (!projectItem) return null;
 
@@ -705,6 +696,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                     setProjectItem(newProjectItem);
                     setTitleEditable(false);
                     titleRef.current?.setContentEditable(false);
+                    projectItemEventBus.publishProjectItemEvent(
+                      "project-item:updated",
+                      newProjectItem,
+                    );
                   });
                 }
               }}
@@ -843,13 +838,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             };
 
             await createChildProjectItem(projectItem.id, createProjectItem);
+            const updatedProjectItem = await getProjectItemById(projectItem.id);
+            projectItemEventBus.publishProjectItemEvent(
+              "project-item:updated",
+              updatedProjectItem,
+            );
 
-            const event = new CustomEvent("refreshProjectItem", {
-              detail: {
-                id: projectItem.id,
-              },
-            });
-            document.dispatchEvent(event);
             setWebClip("");
             setWebClipModalOpen(false);
             setParseLoading(false);
