@@ -28,7 +28,7 @@ const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
 
   const onClickItem = (item: IDocumentItem) => {
     useDocumentsStore.setState({
-      activeDocumentItem: item,
+      activeDocumentItemId: item.id,
     });
   };
 

@@ -2,14 +2,14 @@ import { memo } from "react";
 import EditDoc from "./EditDoc";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 
-const Document = memo(() => {
-  const { activeDocumentItem } = useDocumentsStore((state) => ({
-    activeDocumentItem: state.activeDocumentItem,
-  }));
+const EditDocumentItem = memo(() => {
+  const activeDocumentItemId = useDocumentsStore(
+    (state) => state.activeDocumentItemId,
+  );
 
-  if (!activeDocumentItem) return null;
+  if (!activeDocumentItemId) return null;
 
-  return <EditDoc key={activeDocumentItem.id} />;
+  return <EditDoc key={activeDocumentItemId} />;
 });
 
-export default Document;
+export default EditDocumentItem;

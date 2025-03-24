@@ -9,23 +9,23 @@ import styles from "./index.module.less";
 const WhiteBoardTitlebar = () => {
   const navigate = useNavigate();
 
-  const { activeDocumentItem, hideDocumentItemsList } = useDocumentsStore(
+  const { activeDocumentItemId, hideDocumentItemsList } = useDocumentsStore(
     (state) => ({
-      activeDocumentItem: state.activeDocumentItem,
+      activeDocumentItemId: state.activeDocumentItemId,
       hideDocumentItemsList: state.hideDocumentItemsList,
     }),
   );
 
   return (
     <div className={styles.iconList}>
-      {activeDocumentItem && hideDocumentItemsList && (
+      {activeDocumentItemId && hideDocumentItemsList && (
         <>
           <TitlebarIcon
             tip={"主页"}
             onClick={() => {
               useDocumentsStore.setState({
                 activeDocumentId: null,
-                activeDocumentItem: null,
+                activeDocumentItemId: null,
                 hideDocumentItemsList: false,
               });
               navigate(`/documents`);
@@ -33,7 +33,7 @@ const WhiteBoardTitlebar = () => {
           >
             <HomeOutlined />
           </TitlebarIcon>
-          {activeDocumentItem && hideDocumentItemsList && (
+          {activeDocumentItemId && hideDocumentItemsList && (
             <TitlebarIcon
               onClick={() => {
                 useDocumentsStore.setState({
