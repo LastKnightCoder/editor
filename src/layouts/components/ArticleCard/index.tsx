@@ -22,15 +22,13 @@ import { IArticle } from "@/types";
 import { formatDate } from "@/utils";
 import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./index.module.less";
-import { openArticleInNewWindow } from "@/commands/article";
 import {
-  findOneArticle,
   getFileBaseName,
   readBinaryFile,
   selectFile,
+  openArticleInNewWindow,
 } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
-import { on, off } from "@/electron";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 
@@ -80,7 +78,6 @@ const ArticleCard = (props: IArticleCardProps) => {
     deleteArticle,
     updateArticleBannerBg,
     activeArticleId,
-    updateArticle,
     startPresentation,
   } = useArticleManagementStore(
     useShallow((state) => ({
@@ -88,7 +85,6 @@ const ArticleCard = (props: IArticleCardProps) => {
       deleteArticle: state.deleteArticle,
       updateArticleBannerBg: state.updateArticleBannerBg,
       activeArticleId: state.activeArticleId,
-      updateArticle: state.updateArticle,
       startPresentation: state.startArticlePresentation,
     })),
   );
@@ -98,7 +94,6 @@ const ArticleCard = (props: IArticleCardProps) => {
       "article:updated",
       article.id,
       (data) => {
-        updateArticle(data.article);
         editorRef.current?.setEditorValue(data.article.content.slice(0, 1));
       },
     );
@@ -182,28 +177,6 @@ const ArticleCard = (props: IArticleCardProps) => {
       activeArticleId: article.id,
     });
   });
-
-  useEffect(() => {
-    const handleArticleWindowClosed = async (
-      _e: any,
-      data: { articleId: number; databaseName: string },
-    ) => {
-      if (
-        data.articleId === article.id &&
-        data.databaseName === currentDatabaseName
-      ) {
-        const article = await findOneArticle(data.articleId);
-        editorRef.current?.setEditorValue(article.content.slice(0, 1));
-        await updateArticle(article);
-      }
-    };
-
-    on("article-window-closed", handleArticleWindowClosed);
-
-    return () => {
-      off("article-window-closed", handleArticleWindowClosed);
-    };
-  }, []);
 
   const handleEdit = () => {
     setSettingOpen(false);

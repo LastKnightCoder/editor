@@ -17,6 +17,7 @@ import { getDocumentItem, updateDocumentItem } from "@/commands";
 import { Descendant } from "slate";
 import { defaultDocumentItemEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 import styles from "./index.module.less";
 
@@ -43,7 +44,8 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
-  const { visible } = useRightSidebarContext();
+  const { visible, isConnected } = useRightSidebarContext();
+  const isWindowFocused = useWindowFocus();
   const fetchDocumentItem = useMemoizedFn(async () => {
     setLoading(true);
     try {
@@ -52,7 +54,6 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
       if (onTitleChange) {
         onTitleChange(fetchedDocumentItem.title);
       }
-      console.log(fetchedDocumentItem);
     } catch (error) {
       console.error("Error fetching document item:", error);
     } finally {
@@ -65,7 +66,6 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
       "document-item:updated",
       Number(documentItemId),
       (data) => {
-        console.log("viewerreceive document-item:updated", data);
         editorRef.current?.setEditorValue(data.documentItem.content);
         titleRef.current?.setValue(data.documentItem.title);
         setDocumentItem(data.documentItem);
@@ -77,16 +77,17 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   }, [documentItemId, documentItemEventBus]);
 
   useEffect(() => {
-    if (visible) {
+    if (visible && isConnected) {
       fetchDocumentItem();
     }
-  }, [documentItemId, fetchDocumentItem, visible]);
+  }, [documentItemId, fetchDocumentItem, visible, isConnected]);
 
   const handleTitleChange = useMemoizedFn(async (title: string) => {
     if (
       !documentItem ||
       title === documentItem.title ||
-      !titleRef.current?.isFocus()
+      !titleRef.current?.isFocus() ||
+      !isWindowFocused
     )
       return;
 
@@ -110,7 +111,8 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   });
 
   const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (!documentItem || !editorRef.current?.isFocus()) return;
+    if (!documentItem || !editorRef.current?.isFocus() || !isWindowFocused)
+      return;
 
     try {
       const updatedDocumentItem = await updateDocumentItem({

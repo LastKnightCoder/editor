@@ -60,26 +60,6 @@ export const withOverrideSettings = (editor: Editor) => {
     const zeroWidthChar = "\uFEFF";
     const [node, path] = entry;
 
-    if (Editor.isEditor(node)) {
-      if (node.children.length === 0) {
-        Editor.withoutNormalizing(editor, () => {
-          Transforms.insertNodes(
-            editor,
-            {
-              type: "paragraph",
-              children: [{ type: "formatted", text: "" }],
-            },
-            { at: [0] },
-          );
-          Transforms.select(editor, {
-            anchor: Editor.start(editor, [0]),
-            focus: Editor.start(editor, [0]),
-          });
-        });
-        return;
-      }
-    }
-
     if (node.type === "inline-math") {
       const parentNode = Node.parent(editor, path);
       const isFirstChild = !Path.hasPrevious(path);

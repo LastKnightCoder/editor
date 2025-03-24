@@ -170,7 +170,7 @@ class DatabaseModule implements Module {
         console.log(`database ${dbName} event ${eventName}`);
         try {
           db.exec("BEGIN");
-          const res = this.eventAndHandlers[eventName](db, ...args);
+          const res = this.eventAndHandlers[eventName](db, ...args, win);
           db.exec("COMMIT");
           return res;
         } catch (e) {

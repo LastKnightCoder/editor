@@ -2,6 +2,8 @@ import Database from "better-sqlite3";
 import { ICreateArticle, IUpdateArticle, IArticle } from "@/types";
 import Operation from "./operation";
 import { getContentLength } from "@/utils/helper.ts";
+import { basename } from "node:path";
+import { BrowserWindow } from "electron";
 
 export default class ArticleTable {
   static initTable(db: Database.Database) {
@@ -176,6 +178,7 @@ export default class ArticleTable {
   static updateArticle(
     db: Database.Database,
     article: IUpdateArticle,
+    ...res: any[]
   ): IArticle {
     const {
       tags,
@@ -188,6 +191,8 @@ export default class ArticleTable {
       isDelete,
       count,
     } = article;
+    const win = res[res.length - 1];
+
     const stmt = db.prepare(
       "UPDATE articles SET update_time = ?, tags = ?, title = ?, content = ?, banner_bg = ?, banner_position = ?, is_top = ?, is_delete = ?, count = ? WHERE id = ?",
     );
@@ -219,6 +224,15 @@ export default class ArticleTable {
 
     Operation.insertOperation(db, "article", "update", id, now);
 
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("article:updated", {
+          databaseName: basename(db.name),
+          articleId: id,
+        });
+      }
+    });
+
     return this.getArticleById(db, id);
   }
 
@@ -246,9 +260,21 @@ export default class ArticleTable {
     db: Database.Database,
     id: number,
     isTop: boolean,
+    ...res: any[]
   ): IArticle {
+    const win = res[res.length - 1];
     const stmt = db.prepare("UPDATE articles SET is_top = ? WHERE id = ?");
     stmt.run(Number(isTop), id);
+
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("article:updated", {
+          databaseName: basename(db.name),
+          articleId: id,
+        });
+      }
+    });
+
     return this.getArticleById(db, id);
   }
 
@@ -256,9 +282,21 @@ export default class ArticleTable {
     db: Database.Database,
     id: number,
     bannerBg: string,
+    ...res: any[]
   ): IArticle {
+    const win = res[res.length - 1];
     const stmt = db.prepare("UPDATE articles SET banner_bg = ? WHERE id = ?");
     stmt.run(bannerBg, id);
+
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("article:updated", {
+          databaseName: basename(db.name),
+          articleId: id,
+        });
+      }
+    });
+
     return this.getArticleById(db, id);
   }
 
@@ -266,11 +304,23 @@ export default class ArticleTable {
     db: Database.Database,
     id: number,
     bannerPosition: string,
+    ...res: any[]
   ): IArticle {
+    const win = res[res.length - 1];
     const stmt = db.prepare(
       "UPDATE articles SET banner_position = ? WHERE id = ?",
     );
     stmt.run(bannerPosition, id);
+
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("article:updated", {
+          databaseName: basename(db.name),
+          articleId: id,
+        });
+      }
+    });
+
     return this.getArticleById(db, id);
   }
 }

@@ -43,28 +43,20 @@ import {
   fileAttachmentExtension,
 } from "@/editor-extensions";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
-import useSettingStore from "@/stores/useSettingStore.ts";
-import { on, off } from "@/electron";
-import { findOneArticle } from "@/commands";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context.ts";
 import { produce } from "immer";
 import { Descendant } from "slate";
-
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 const extensions = [cardLinkExtension, fileAttachmentExtension];
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
 
 const EditArticle = memo(() => {
+  const isWindowFocused = useWindowFocus();
   const { activeArticleId } = useArticleManagementStore(
     useShallow((state) => ({
       activeArticleId: state.activeArticleId,
-    })),
-  );
-
-  const { currentDatabaseName } = useSettingStore(
-    useShallow((state) => ({
-      currentDatabaseName: state.setting.database.active,
     })),
   );
 
@@ -75,7 +67,6 @@ const EditArticle = memo(() => {
     onInit,
     onDeleteTag,
     onAddTag,
-    onTagsChange,
     onTitleChange,
     saveArticle,
     setEditingArticle,
@@ -212,7 +203,12 @@ const EditArticle = memo(() => {
   }, [activeArticleId]);
 
   const handleOnEditorContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!editingArticle || !editorRef.current || !editorRef.current.isFocus())
+    if (
+      !editingArticle ||
+      !editorRef.current ||
+      !editorRef.current.isFocus() ||
+      !isWindowFocused
+    )
       return;
     onContentChange(content);
     articleEventBus.publishArticleEvent("article:updated", {
@@ -222,7 +218,12 @@ const EditArticle = memo(() => {
   });
 
   const handleOnTitleChange = useMemoizedFn((title: string) => {
-    if (!editingArticle || !titleRef.current || !titleRef.current.isFocus())
+    if (
+      !editingArticle ||
+      !titleRef.current ||
+      !titleRef.current.isFocus() ||
+      !isWindowFocused
+    )
       return;
     onTitleChange(title);
     articleEventBus.publishArticleEvent("article:updated", {
@@ -250,51 +251,20 @@ const EditArticle = memo(() => {
   });
 
   useRafInterval(() => {
+    if (
+      !editingArticle ||
+      (!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
+      !isWindowFocused
+    )
+      return;
     saveArticle();
   }, 3000);
 
   useEffect(() => {
     return () => {
-      saveArticle();
+      saveArticle(true);
     };
   }, [saveArticle]);
-
-  useEffect(() => {
-    const handleArticleWindowClosed = async (
-      _event: any,
-      data: { articleId: number; databaseName: string },
-    ) => {
-      if (
-        data.articleId === activeArticleId &&
-        data.databaseName === currentDatabaseName
-      ) {
-        const article = await findOneArticle(data.articleId);
-        if (editorRef.current) {
-          editorRef.current.setEditorValue(article.content);
-        }
-        if (titleRef.current) {
-          titleRef.current.setValue(article.title);
-        }
-        setEditingArticle(article);
-        onContentChange(article.content);
-        onTitleChange(article.title);
-        onTagsChange(article.tags);
-      }
-    };
-
-    on("article-window-closed", handleArticleWindowClosed);
-
-    return () => {
-      off("article-window-closed", handleArticleWindowClosed);
-    };
-  }, [
-    activeArticleId,
-    currentDatabaseName,
-    onContentChange,
-    onTagsChange,
-    onTitleChange,
-    setEditingArticle,
-  ]);
 
   const onClickHeader = useMemoizedFn((index: number) => {
     if (!editorRef.current) return;

@@ -144,7 +144,6 @@ const SingleMarkdownEditor = () => {
       beforeSaveSourceText.current = markdownText;
       currentSourceText.current = markdownText;
       await writeTextFile(filePath, markdownText);
-      console.log("Markdown file saved:", filePath);
     } catch (error) {
       console.error("保存Markdown文件失败:", error);
       message.error("保存失败");

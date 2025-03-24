@@ -18,12 +18,14 @@ import {
   connectDatabaseByName,
   closeDatabase,
 } from "@/commands";
+import { defaultDocumentItemEventBus } from "@/utils/event-bus";
 import { formatDate, getContentLength } from "@/utils";
-import { useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
 import { IDocumentItem } from "@/types";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 const customExtensions = [
   cardLinkExtension,
@@ -35,18 +37,38 @@ const editorContextValue = {
 };
 
 const SingleDocumentItemEditor = () => {
+  const documentItemEventBus = useCreation(
+    () => defaultDocumentItemEventBus.createEditor(),
+    [],
+  );
   const [searchParams] = useSearchParams();
   const documentItemId = Number(searchParams.get("documentItemId"));
   const databaseName = searchParams.get("databaseName");
 
+  const isWindowFocused = useWindowFocus();
   const titleRef = useRef<EditTextHandle>(null);
   const [editingDocumentItem, setEditingDocumentItem] =
     useState<IDocumentItem | null>(null);
-  const [content, setContent] = useState<Descendant[]>([]);
-  const [title, setTitle] = useState<string>("");
 
   const editorRef = useRef<EditorRef>(null);
   const uploadResource = useUploadResource();
+  const prevDocumentItemRef = useRef<IDocumentItem | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
+      "document-item:updated",
+      documentItemId,
+      (data) => {
+        setEditingDocumentItem(data.documentItem);
+        editorRef.current?.setEditorValue(data.documentItem.content);
+        titleRef.current?.setValue(data.documentItem.title);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [documentItemId]);
 
   useEffect(() => {
     if (!databaseName || !documentItemId) {
@@ -57,8 +79,7 @@ const SingleDocumentItemEditor = () => {
       try {
         const documentItem = await getDocumentItem(documentItemId);
         setEditingDocumentItem(documentItem);
-        setContent(documentItem.content);
-        setTitle(documentItem.title);
+        prevDocumentItemRef.current = documentItem;
       } catch (error) {
         console.error("Failed to load document item:", error);
       }
@@ -74,24 +95,57 @@ const SingleDocumentItemEditor = () => {
   }, [databaseName, documentItemId]);
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
-    setContent(value);
+    if (
+      !editingDocumentItem ||
+      !editorRef.current?.isFocus() ||
+      !isWindowFocused
+    )
+      return;
+    const newDocumentItem = {
+      ...editingDocumentItem,
+      content: value,
+    };
+    setEditingDocumentItem(newDocumentItem);
   });
 
   const onTitleChange = useMemoizedFn((value: string) => {
-    setTitle(value);
+    if (
+      !editingDocumentItem ||
+      !titleRef.current?.isFocus() ||
+      !isWindowFocused
+    )
+      return;
+
+    const newDocumentItem = {
+      ...editingDocumentItem,
+      title: value,
+    };
+    setEditingDocumentItem(newDocumentItem);
   });
 
-  const saveDocumentItem = useMemoizedFn(async () => {
+  const saveDocumentItem = useMemoizedFn(async (forceSave = false) => {
     if (!editingDocumentItem) return;
 
+    const changed =
+      JSON.stringify(editingDocumentItem) !==
+      JSON.stringify(prevDocumentItemRef.current);
+    if (
+      ((!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
+        !isWindowFocused ||
+        !changed) &&
+      !forceSave
+    )
+      return;
+
     try {
-      const wordsCount = getContentLength(content);
-      await updateDocumentItem({
+      const wordsCount = getContentLength(editingDocumentItem.content);
+      const updatedDocumentItem = await updateDocumentItem({
         ...editingDocumentItem,
-        title,
-        content,
         count: wordsCount,
       });
+
+      setEditingDocumentItem(updatedDocumentItem);
+      prevDocumentItemRef.current = updatedDocumentItem;
     } catch (error) {
       console.error("Failed to save document item:", error);
     }
@@ -99,10 +153,10 @@ const SingleDocumentItemEditor = () => {
 
   useRafInterval(() => {
     saveDocumentItem();
-  }, 2000);
+  }, 3000);
 
   useUnmount(() => {
-    saveDocumentItem();
+    saveDocumentItem(true);
   });
 
   const onPressEnter = useMemoizedFn(() => {
@@ -128,7 +182,7 @@ const SingleDocumentItemEditor = () => {
       <div className={styles.title}>
         <EditText
           ref={titleRef}
-          defaultValue={title}
+          defaultValue={editingDocumentItem.title}
           onChange={onTitleChange}
           onPressEnter={onPressEnter}
           contentEditable={true}
@@ -139,7 +193,7 @@ const SingleDocumentItemEditor = () => {
           <ErrorBoundary>
             <Editor
               ref={editorRef}
-              initValue={content}
+              initValue={editingDocumentItem.content}
               onChange={onContentChange}
               extensions={customExtensions}
               readonly={false}

@@ -21,6 +21,7 @@ import {
 import { defaultProjectItemEventBus } from "@/utils";
 import { Descendant } from "slate";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 import styles from "./index.module.less";
 
@@ -43,7 +44,8 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const titleRef = useRef<EditTextHandle>(null);
   const editorRef = useRef<EditorRef>(null);
-  const { visible } = useRightSidebarContext();
+  const { visible, isConnected } = useRightSidebarContext();
+  const isWindowFocused = useWindowFocus();
 
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
@@ -79,7 +81,6 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
       if (onTitleChange) {
         onTitleChange(fetchedProjectItem.title);
       }
-      console.log(fetchedProjectItem);
     } catch (error) {
       console.error("Error fetching project item:", error);
     } finally {
@@ -88,17 +89,18 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   });
 
   useEffect(() => {
-    if (visible) {
+    if (visible && isConnected) {
       fetchProjectItem();
     }
-  }, [projectItemId, fetchProjectItem, visible]);
+  }, [projectItemId, fetchProjectItem, visible, isConnected]);
 
   const handleTitleChange = useMemoizedFn(async (title: string) => {
     if (
       !projectItem ||
       title === projectItem.title ||
       !titleRef.current ||
-      !titleRef.current.isFocus()
+      !titleRef.current.isFocus() ||
+      !isWindowFocused
     )
       return;
 
@@ -122,7 +124,12 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   });
 
   const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (!projectItem || !editorRef.current || !editorRef.current.isFocus())
+    if (
+      !projectItem ||
+      !editorRef.current ||
+      !editorRef.current.isFocus() ||
+      !isWindowFocused
+    )
       return;
 
     try {

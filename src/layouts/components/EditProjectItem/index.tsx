@@ -15,8 +15,7 @@ import {
   fileAttachmentExtension,
   projectCardListExtension,
 } from "@/editor-extensions";
-import { getProjectItemById } from "@/commands";
-import { on, off } from "@/electron";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 import styles from "./index.module.less";
 import { Descendant } from "slate";
@@ -35,6 +34,8 @@ const Project = () => {
     [],
   );
 
+  const isWindowFocused = useWindowFocus();
+
   const {
     projectItem,
     onInit,
@@ -52,14 +53,19 @@ const Project = () => {
   );
 
   useRafInterval(() => {
-    if (readonly) return;
+    if (
+      readonly ||
+      (!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
+      !isWindowFocused
+    )
+      return;
     saveProjectItem();
   }, 3000);
 
   useEffect(() => {
     return () => {
       if (readonly) return;
-      saveProjectItem();
+      saveProjectItem(true);
     };
   }, [readonly, saveProjectItem]);
 
@@ -72,31 +78,6 @@ const Project = () => {
   const onPressEnter = useMemoizedFn(() => {
     editorRef.current?.focus();
   });
-
-  useEffect(() => {
-    if (!projectItem) return;
-
-    const handleProjectItemWindowClosed = async (
-      _e: any,
-      data: { projectItemId: number; databaseName: string },
-    ) => {
-      if (data.projectItemId === projectItem.id) {
-        const updatedProjectItem = await getProjectItemById(data.projectItemId);
-
-        editorRef.current?.setEditorValue(updatedProjectItem.content);
-        titleRef.current?.setValue(updatedProjectItem.title);
-
-        onTitleChange(updatedProjectItem.title);
-        onContentChange(updatedProjectItem.content);
-      }
-    };
-
-    on("project-item-window-closed", handleProjectItemWindowClosed);
-
-    return () => {
-      off("project-item-window-closed", handleProjectItemWindowClosed);
-    };
-  }, [projectItem?.id, onTitleChange, onContentChange]);
 
   useEffect(() => {
     if (!projectItem) return;
@@ -117,7 +98,12 @@ const Project = () => {
   }, [projectItem?.id]);
 
   const handleOnTitleChange = useMemoizedFn((title: string) => {
-    if (!projectItem || !titleRef.current || !titleRef.current.isFocus())
+    if (
+      !projectItem ||
+      !titleRef.current ||
+      !titleRef.current.isFocus() ||
+      !isWindowFocused
+    )
       return;
     onTitleChange(title);
     projectItemEventBus.publishProjectItemEvent("project-item:updated", {
@@ -127,7 +113,12 @@ const Project = () => {
   });
 
   const handleOnContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!projectItem || !editorRef.current || !editorRef.current.isFocus())
+    if (
+      !projectItem ||
+      !editorRef.current ||
+      !editorRef.current.isFocus() ||
+      !isWindowFocused
+    )
       return;
     onContentChange(content);
     projectItemEventBus.publishProjectItemEvent("project-item:updated", {

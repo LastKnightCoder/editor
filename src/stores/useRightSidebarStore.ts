@@ -64,7 +64,6 @@ const useRightSidebarStore = create<RightSidebarState>()(
         const newTabs = produce(tabs, (draft) => {
           draft[type] = draft[type].filter((t) => t.id !== id);
         });
-        console.log("newTabs", newTabs);
         if (activeTabKey[type] === id) {
           if (newTabs[type].length > 0) {
             set({
@@ -97,6 +96,7 @@ const useRightSidebarStore = create<RightSidebarState>()(
       partialize: (state) => ({
         tabs: state.tabs,
         activeTabKey: state.activeTabKey,
+        containerActiveTabKey: state.containerActiveTabKey,
         open: state.open,
         width: state.width,
       }),

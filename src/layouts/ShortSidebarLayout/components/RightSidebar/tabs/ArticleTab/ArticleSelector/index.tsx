@@ -47,7 +47,6 @@ const ArticleSelector: React.FC<ArticleSelectorProps> = ({ onSelect }) => {
         types: ["article"],
         limit: 10,
       });
-      console.log("result", result);
       const searchedArticles = articles.filter((article) =>
         result.some((item) => item.id === article.id),
       );
