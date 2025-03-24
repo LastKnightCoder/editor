@@ -25,6 +25,7 @@ export type EditTextHandle = {
   clear: () => void;
   setValue: (value: string) => void;
   focus: () => void;
+  isFocus: () => boolean;
   focusEnd: () => void;
   blur: () => void;
   getValue: () => string;
@@ -68,6 +69,9 @@ const EditText = memo(
       },
       focus: () => {
         ref.current?.focus();
+      },
+      isFocus: () => {
+        return isEditing;
       },
       focusEnd,
       blur: () => {
@@ -173,12 +177,6 @@ const EditText = memo(
       onChange?.(ref.current.innerText || "");
       onBlur?.();
     });
-
-    useEffect(() => {
-      return () => {
-        handleBlur();
-      };
-    }, [handleBlur]);
 
     return (
       <div

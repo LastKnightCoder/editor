@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Empty } from "antd";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useCreation } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 
-import Editor from "@editor/index.tsx";
+import Editor, { EditorRef } from "@editor/index.tsx";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
 import {
@@ -14,6 +14,7 @@ import {
 import { IArticle } from "@/types";
 import { findOneArticle, updateArticle } from "@/commands";
 import { Descendant } from "slate";
+import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 
 import styles from "./index.module.less";
 
@@ -30,7 +31,12 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
 }) => {
   const [article, setArticle] = useState<IArticle | null>(null);
   const [loading, setLoading] = useState(true);
+  const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
+  const articleEventBus = useCreation(
+    () => defaultArticleEventBus.createEditor(),
+    [],
+  );
 
   const fetchArticle = useMemoizedFn(async () => {
     setLoading(true);
@@ -51,9 +57,27 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
     fetchArticle();
   }, [articleId, fetchArticle]);
 
-  const handleTitleChange = useMemoizedFn(async (title: string) => {
-    if (!article || title === article.title) return;
+  useEffect(() => {
+    const unsubscribe = articleEventBus.subscribeToArticleWithId(
+      "article:updated",
+      Number(articleId),
+      (data) => {
+        setArticle(data.article);
+        editorRef.current?.setEditorValue(data.article.content);
+        if (onTitleChange) {
+          onTitleChange(data.article.title);
+        }
+      },
+    );
 
+    return () => {
+      unsubscribe();
+    };
+  }, [articleId, onTitleChange, articleEventBus]);
+
+  const handleTitleChange = useMemoizedFn(async (title: string) => {
+    if (!article || title === article.title || !titleRef.current?.isFocus())
+      return;
     try {
       const updatedArticle = await updateArticle({
         ...article,
@@ -64,13 +88,15 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
       if (onTitleChange) {
         onTitleChange(title);
       }
+
+      articleEventBus.publishArticleEvent("article:updated", updatedArticle);
     } catch (error) {
       console.error("Error updating article title:", error);
     }
   });
 
   const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (!article) return;
+    if (!article || !editorRef.current || !editorRef.current.isFocus()) return;
 
     try {
       const updatedArticle = await updateArticle({
@@ -78,6 +104,8 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
         content,
       });
       setArticle(updatedArticle);
+
+      articleEventBus.publishArticleEvent("article:updated", updatedArticle);
     } catch (error) {
       console.error("Error updating article content:", error);
     }
@@ -112,6 +140,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
       </div>
       <div className={styles.contentContainer}>
         <Editor
+          ref={editorRef}
           initValue={article.content}
           onChange={handleContentChange}
           readonly={false}
