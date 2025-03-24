@@ -18,12 +18,14 @@ import {
   connectDatabaseByName,
   closeDatabase,
 } from "@/commands";
+import { defaultProjectItemEventBus } from "@/utils/event-bus";
 import { formatDate, getContentLength } from "@/utils";
-import { useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
 import { ProjectItem } from "@/types";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 const customExtensions = [
   cardLinkExtension,
@@ -35,18 +37,38 @@ const editotContextValue = {
 };
 
 const SingleProjectItemEditor = () => {
+  const projectItemEventBus = useCreation(
+    () => defaultProjectItemEventBus.createEditor(),
+    [],
+  );
   const [searchParams] = useSearchParams();
   const projectItemId = Number(searchParams.get("projectItemId"));
   const databaseName = searchParams.get("databaseName");
 
+  const isWindowFocused = useWindowFocus();
   const titleRef = useRef<EditTextHandle>(null);
   const [editingProjectItem, setEditingProjectItem] =
     useState<ProjectItem | null>(null);
-  const [content, setContent] = useState<Descendant[]>([]);
-  const [title, setTitle] = useState<string>("");
 
   const editorRef = useRef<EditorRef>(null);
   const uploadResource = useUploadResource();
+  const prevProjectItemRef = useRef<ProjectItem | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
+      "project-item:updated",
+      projectItemId,
+      (data) => {
+        setEditingProjectItem(data.projectItem);
+        editorRef.current?.setEditorValue(data.projectItem.content);
+        titleRef.current?.setValue(data.projectItem.title);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [projectItemId]);
 
   useEffect(() => {
     if (!databaseName || !projectItemId) {
@@ -57,8 +79,7 @@ const SingleProjectItemEditor = () => {
       try {
         const projectItem = await getProjectItemById(projectItemId);
         setEditingProjectItem(projectItem);
-        setContent(projectItem.content);
-        setTitle(projectItem.title);
+        prevProjectItemRef.current = projectItem;
       } catch (error) {
         console.error("Failed to load project item:", error);
       }
@@ -74,24 +95,54 @@ const SingleProjectItemEditor = () => {
   }, [databaseName, projectItemId]);
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
-    setContent(value);
+    if (
+      !editingProjectItem ||
+      !editorRef.current?.isFocus() ||
+      !isWindowFocused
+    )
+      return;
+    const newProjectItem = {
+      ...editingProjectItem,
+      content: value,
+    };
+    setEditingProjectItem(newProjectItem);
   });
 
   const onTitleChange = useMemoizedFn((value: string) => {
-    setTitle(value);
+    if (!editingProjectItem || !titleRef.current?.isFocus() || !isWindowFocused)
+      return;
+    const newProjectItem = {
+      ...editingProjectItem,
+      title: value,
+    };
+    setEditingProjectItem(newProjectItem);
   });
 
-  const saveProjectItem = useMemoizedFn(async () => {
+  const saveProjectItem = useMemoizedFn(async (forceSave = false) => {
     if (!editingProjectItem) return;
 
+    const changed =
+      JSON.stringify(editingProjectItem) !==
+      JSON.stringify(prevProjectItemRef.current);
+    if (
+      ((!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
+        !isWindowFocused ||
+        !changed) &&
+      !forceSave
+    )
+      return;
+
     try {
-      const wordsCount = getContentLength(content);
-      await partialUpdateProjectItem({
+      const wordsCount = getContentLength(editingProjectItem.content);
+      const updatedProjectItem = await partialUpdateProjectItem({
         id: editingProjectItem.id,
-        title,
-        content,
+        title: editingProjectItem.title,
+        content: editingProjectItem.content,
         count: wordsCount,
       });
+
+      setEditingProjectItem(updatedProjectItem);
+      prevProjectItemRef.current = updatedProjectItem;
     } catch (error) {
       console.error("Failed to save project item:", error);
     }
@@ -99,10 +150,10 @@ const SingleProjectItemEditor = () => {
 
   useRafInterval(() => {
     saveProjectItem();
-  }, 2000);
+  }, 3000);
 
   useUnmount(() => {
-    saveProjectItem();
+    saveProjectItem(true);
   });
 
   const onPressEnter = useMemoizedFn(() => {
@@ -128,7 +179,7 @@ const SingleProjectItemEditor = () => {
       <div className={styles.title}>
         <EditText
           ref={titleRef}
-          defaultValue={title}
+          defaultValue={editingProjectItem.title}
           onChange={onTitleChange}
           onPressEnter={onPressEnter}
           contentEditable={true}
@@ -139,7 +190,7 @@ const SingleProjectItemEditor = () => {
           <ErrorBoundary>
             <Editor
               ref={editorRef}
-              initValue={content}
+              initValue={editingProjectItem.content}
               onChange={onContentChange}
               extensions={customExtensions}
               readonly={false}

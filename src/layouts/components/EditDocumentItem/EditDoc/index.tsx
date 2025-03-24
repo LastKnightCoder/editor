@@ -9,6 +9,7 @@ import EditorSourceValue from "@/components/EditorSourceValue";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useEditDoc from "./useEditDoc";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
 import {
@@ -23,8 +24,6 @@ import {
   documentCardListExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
-import { getDocumentItem } from "@/commands";
-import { on, off } from "@/electron";
 
 import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
@@ -53,6 +52,7 @@ const EditDoc = memo(() => {
   );
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
+  const isWindowFocused = useWindowFocus();
 
   const {
     activeDocumentItem,
@@ -73,7 +73,6 @@ const EditDoc = memo(() => {
       "document-item:updated",
       activeDocumentItemId,
       (data) => {
-        console.log("receive document-item:updated", data);
         editorRef.current?.setEditorValue(data.documentItem.content);
         titleRef.current?.setValue(data.documentItem.title);
         setActiveDocumentItem(data.documentItem);
@@ -86,7 +85,8 @@ const EditDoc = memo(() => {
   }, [activeDocumentItemId]);
 
   const handleOnTitleChange = useMemoizedFn((title: string) => {
-    if (!activeDocumentItem || !titleRef.current?.isFocus()) return;
+    if (!activeDocumentItem || !titleRef.current?.isFocus() || !isWindowFocused)
+      return;
     onTitleChange(title);
     documentItemEventBus.publishDocumentItemEvent("document-item:updated", {
       ...activeDocumentItem,
@@ -101,7 +101,12 @@ const EditDoc = memo(() => {
   });
 
   const handleContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!activeDocumentItem || !editorRef.current?.isFocus()) return;
+    if (
+      !activeDocumentItem ||
+      !editorRef.current?.isFocus() ||
+      !isWindowFocused
+    )
+      return;
     onContentChange(content);
     documentItemEventBus.publishDocumentItemEvent("document-item:updated", {
       ...activeDocumentItem,
@@ -110,40 +115,22 @@ const EditDoc = memo(() => {
   });
 
   useRafInterval(() => {
+    if (
+      !isWindowFocused ||
+      readonly ||
+      (!editorRef.current?.isFocus() && !titleRef.current?.isFocus())
+    )
+      return;
     saveDocument();
   }, 3000);
 
   useEffect(() => {
     return () => {
+      if (readonly) return;
       onContentChange.flush();
-      saveDocument();
+      saveDocument(true);
     };
   }, [saveDocument, onContentChange]);
-
-  useEffect(() => {
-    if (!activeDocumentItem) return;
-
-    const handleDocumentItemWindowClosed = async (
-      _e: any,
-      data: { documentItemId: number; databaseName: string },
-    ) => {
-      if (data.documentItemId === activeDocumentItem.id) {
-        const updatedDocumentItem = await getDocumentItem(data.documentItemId);
-
-        editorRef.current?.setEditorValue(updatedDocumentItem.content);
-        titleRef.current?.setValue(updatedDocumentItem.title);
-
-        onTitleChange(updatedDocumentItem.title);
-        onContentChange(updatedDocumentItem.content);
-      }
-    };
-
-    on("document-item-window-closed", handleDocumentItemWindowClosed);
-
-    return () => {
-      off("document-item-window-closed", handleDocumentItemWindowClosed);
-    };
-  }, [activeDocumentItem, onContentChange, onTitleChange, saveDocument]);
 
   const headers: Array<{
     level: number;

@@ -12,7 +12,6 @@ import {
   updateProjectItem,
   openProjectItemInNewWindow,
 } from "@/commands";
-import { on, off } from "@/electron";
 
 import SelectCardModal from "@/components/SelectCardModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
@@ -160,25 +159,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { createWhiteBoard } = useWhiteBoardStore((state) => ({
     createWhiteBoard: state.createWhiteBoard,
   }));
-
-  useEffect(() => {
-    const handleProjectItemWindowClosed = async (
-      _e: any,
-      data: { projectItemId: number; databaseName: string },
-    ) => {
-      if (data.projectItemId === projectItemId) {
-        const projectItem = await getProjectItemById(projectItemId);
-        titleRef.current?.setValue(projectItem.title);
-        setProjectItem(projectItem);
-      }
-    };
-
-    on("project-item-window-closed", handleProjectItemWindowClosed);
-
-    return () => {
-      off("project-item-window-closed", handleProjectItemWindowClosed);
-    };
-  }, [projectItemId]);
 
   const onRemoveProjectItem = useMemoizedFn(async () => {
     modal.confirm({

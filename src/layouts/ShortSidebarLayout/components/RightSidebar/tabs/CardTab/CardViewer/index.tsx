@@ -16,6 +16,7 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 import { defaultCardEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -28,15 +29,17 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   const [loading, setLoading] = useState(true);
   const [card, setCard] = useState<ICard | null>(null);
   const editorRef = useRef<EditorRef>(null);
-  const { visible } = useRightSidebarContext();
+  const { visible, isConnected } = useRightSidebarContext();
 
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
     [],
   );
 
+  const isWindowFocused = useWindowFocus();
+
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !isConnected) return;
     getCardById(Number(cardId))
       .then((card) => {
         setCard(card);
@@ -47,11 +50,16 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       .finally(() => {
         setLoading(false);
       });
-  }, [cardId, visible]);
+  }, [cardId, visible, isConnected]);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!card || !editorRef.current) return;
-    if (!editorRef.current.isFocus()) return;
+    if (
+      !card ||
+      !editorRef.current ||
+      !editorRef.current.isFocus() ||
+      !isWindowFocused
+    )
+      return;
     updateCard({
       ...card,
       content: content,

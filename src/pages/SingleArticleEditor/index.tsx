@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
-import EditText from "@/components/EditText";
+import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
@@ -19,25 +19,31 @@ import {
   closeDatabase,
 } from "@/commands";
 import { formatDate } from "@/utils";
-import { useRafInterval, useUnmount } from "ahooks";
+import { useCreation, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
 import { IArticle } from "@/types";
+import { defaultArticleEventBus } from "@/utils";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 const SingleArticleEditor = () => {
+  const articleEventBus = useCreation(
+    () => defaultArticleEventBus.createEditor(),
+    [],
+  );
   const [searchParams] = useSearchParams();
   const articleId = Number(searchParams.get("articleId"));
   const databaseName = searchParams.get("databaseName");
 
   const [editingArticle, setEditingArticle] = useState<IArticle | null>(null);
-  const [content, setContent] = useState<Descendant[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
-  const [title, setTitle] = useState<string>("");
+  const isWindowFocused = useWindowFocus();
 
   const editorRef = useRef<EditorRef>(null);
+  const titleRef = useRef<EditTextHandle>(null);
+  const prevArticleRef = useRef<IArticle | null>(null);
   const uploadResource = useUploadResource();
 
   useEffect(() => {
@@ -49,9 +55,7 @@ const SingleArticleEditor = () => {
       try {
         const article = await findOneArticle(articleId);
         setEditingArticle(article);
-        setContent(article.content);
-        setTags(article.tags);
-        setTitle(article.title);
+        prevArticleRef.current = article;
       } catch (error) {
         console.error("Failed to load article:", error);
       }
@@ -66,35 +70,85 @@ const SingleArticleEditor = () => {
     };
   }, [databaseName, articleId]);
 
+  useEffect(() => {
+    const unsubscribe = articleEventBus.subscribeToArticleWithId(
+      "article:updated",
+      articleId,
+      (data) => {
+        setEditingArticle(data.article);
+        editorRef.current?.setEditorValue(data.article.content);
+        titleRef.current?.setValue(data.article.title);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [articleId]);
+
   const onContentChange = (value: Descendant[]) => {
-    setContent(value);
+    if (
+      !editingArticle ||
+      !editorRef.current ||
+      !editorRef.current.isFocus() ||
+      !isWindowFocused
+    )
+      return;
+    setEditingArticle({
+      ...editingArticle,
+      content: value,
+    });
   };
 
   const onTitleChange = (value: string) => {
-    setTitle(value);
+    if (
+      !editingArticle ||
+      !titleRef.current ||
+      !titleRef.current.isFocus() ||
+      !isWindowFocused
+    )
+      return;
+    setEditingArticle({
+      ...editingArticle,
+      title: value,
+    });
   };
 
   const onAddTag = (tag: string) => {
-    if (tags.includes(tag)) {
+    if (!editingArticle) return;
+    if (editingArticle.tags.includes(tag)) {
       return;
     }
-    setTags([...tags, tag]);
+    setEditingArticle({
+      ...editingArticle,
+      tags: [...editingArticle.tags, tag],
+    });
   };
 
   const onDeleteTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag));
+    if (!editingArticle) return;
+    setEditingArticle({
+      ...editingArticle,
+      tags: editingArticle.tags.filter((t) => t !== tag),
+    });
   };
 
-  const saveArticle = async () => {
+  const saveArticle = async (forceSave = false) => {
     if (!editingArticle) return;
+    const changed =
+      JSON.stringify(editingArticle) !== JSON.stringify(prevArticleRef.current);
+    if (
+      ((!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
+        !isWindowFocused ||
+        !changed) &&
+      !forceSave
+    )
+      return;
 
     try {
-      await updateArticle({
-        ...editingArticle,
-        title,
-        content,
-        tags,
-      });
+      const updatedArticle = await updateArticle(editingArticle);
+      setEditingArticle(updatedArticle);
+      prevArticleRef.current = updatedArticle;
     } catch (error) {
       console.error("Failed to save article:", error);
     }
@@ -102,10 +156,10 @@ const SingleArticleEditor = () => {
 
   useRafInterval(() => {
     saveArticle();
-  }, 1000);
+  }, 3000);
 
   useUnmount(() => {
-    saveArticle();
+    saveArticle(true);
   });
 
   if (!editingArticle) {
@@ -124,7 +178,8 @@ const SingleArticleEditor = () => {
       </div>
       <div className={styles.title}>
         <EditText
-          defaultValue={title}
+          ref={titleRef}
+          defaultValue={editingArticle.title}
           onChange={onTitleChange}
           onPressEnter={() => {
             editorRef.current?.focus();
@@ -141,7 +196,7 @@ const SingleArticleEditor = () => {
           <ErrorBoundary>
             <Editor
               ref={editorRef}
-              initValue={content}
+              initValue={editingArticle.content}
               onChange={onContentChange}
               extensions={customExtensions}
               readonly={false}
@@ -152,7 +207,7 @@ const SingleArticleEditor = () => {
       </div>
       <div className={styles.addTag}>
         <AddTag
-          tags={tags}
+          tags={editingArticle.tags}
           addTag={onAddTag}
           removeTag={onDeleteTag}
           readonly={false}

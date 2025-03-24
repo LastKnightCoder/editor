@@ -9,6 +9,8 @@ import {
 } from "@/types";
 import Operation from "./operation";
 import { getContentLength } from "@/utils/helper";
+import { BrowserWindow } from "electron";
+import { basename } from "node:path";
 
 export default class DocumentTable {
   static initTable(db: Database.Database) {
@@ -309,7 +311,9 @@ export default class DocumentTable {
   static updateDocumentItem(
     db: Database.Database,
     item: IUpdateDocumentItem,
+    ...res: any[]
   ): IDocumentItem {
+    const win = res[res.length - 1];
     const stmt = db.prepare(`
       UPDATE document_items SET
         update_time = ?,
@@ -353,11 +357,29 @@ export default class DocumentTable {
 
     Operation.insertOperation(db, "document-item", "update", item.id, now);
 
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("document-item:updated", {
+          databaseName: basename(db.name),
+          documentItemId: item.id,
+        });
+      }
+    });
+
     if (item.isCard) {
       const cardStmt = db.prepare(
         `UPDATE cards SET content = ?, update_time = ?, count = ? WHERE id = ?`,
       );
       cardStmt.run(JSON.stringify(item.content), now, item.count, item.cardId);
+
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send("card:updated", {
+            databaseName: basename(db.name),
+            cardId: item.cardId,
+          });
+        }
+      });
     }
 
     if (item.isArticle) {
@@ -370,6 +392,15 @@ export default class DocumentTable {
         item.count,
         item.articleId,
       );
+
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send("article:updated", {
+            databaseName: basename(db.name),
+            articleId: item.articleId,
+          });
+        }
+      });
     }
 
     return this.getDocumentItem(db, item.id);

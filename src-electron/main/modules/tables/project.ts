@@ -13,6 +13,8 @@ import { WhiteBoard } from "@/types";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
 import { snakeCase } from "lodash";
+import { basename } from "node:path";
+import { BrowserWindow } from "electron";
 
 const projectItemAttributes = [
   "title",
@@ -308,7 +310,9 @@ export default class ProjectTable {
   static partialUpdateProjectItem(
     db: Database.Database,
     item: Partial<UpdateProjectItem> & { id: number },
+    ...res: any[]
   ): ProjectItem {
+    const win = res[res.length - 1];
     const availableFields = Object.keys(item)
       .map((key) => {
         if (projectItemAttributes.includes(snakeCase(key))) {
@@ -343,6 +347,15 @@ export default class ProjectTable {
 
     const updatedItem = this.getProjectItem(db, item.id);
 
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("project-item:updated", {
+          databaseName: basename(db.name),
+          projectItemId: item.id,
+        });
+      }
+    });
+
     if (item.refType === "card" && item.refId && item.content) {
       const cardStmt = db.prepare(
         "UPDATE cards SET update_time = ?, content = ?, count = ? WHERE id = ?",
@@ -353,6 +366,15 @@ export default class ProjectTable {
         updatedItem.count || 0,
         updatedItem.refId,
       );
+
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send("card:updated", {
+            databaseName: basename(db.name),
+            cardId: item.refId,
+          });
+        }
+      });
     }
 
     if (item.refType === "article" && item.refId && item.content) {
@@ -366,6 +388,15 @@ export default class ProjectTable {
         updatedItem.count || 0,
         updatedItem.refId,
       );
+
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send("article:updated", {
+            databaseName: basename(db.name),
+            articleId: item.refId,
+          });
+        }
+      });
     }
 
     if (item.refType === "white-board" && item.refId && item.whiteBoardData) {
@@ -404,6 +435,15 @@ export default class ProjectTable {
             updatedItem.count,
             projectItem.id,
           );
+
+          BrowserWindow.getAllWindows().forEach((window) => {
+            if (window !== win && !window.isDestroyed()) {
+              window.webContents.send("project-item:updated", {
+                databaseName: basename(db.name),
+                projectItemId: projectItem.id,
+              });
+            }
+          });
         }
       }
     }
@@ -414,7 +454,9 @@ export default class ProjectTable {
   static updateProjectItem(
     db: Database.Database,
     item: UpdateProjectItem,
+    ...res: any[]
   ): ProjectItem {
+    const win = res[res.length - 1];
     const stmt = db.prepare(`
       UPDATE project_item SET
         update_time = ?,
@@ -446,6 +488,15 @@ export default class ProjectTable {
       item.id,
     );
 
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("project-item:updated", {
+          databaseName: basename(db.name),
+          projectItemId: item.id,
+        });
+      }
+    });
+
     if (item.refType === "card" && item.refId && item.content) {
       const cardStmt = db.prepare(
         "UPDATE cards SET update_time = ?, content = ?, count = ? WHERE id = ?",
@@ -456,6 +507,15 @@ export default class ProjectTable {
         item.count || 0,
         item.refId,
       );
+
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send("card:updated", {
+            databaseName: basename(db.name),
+            cardId: item.refId,
+          });
+        }
+      });
     }
 
     if (item.refType === "article" && item.refId) {
@@ -469,6 +529,15 @@ export default class ProjectTable {
         item.count || 0,
         item.refId,
       );
+
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send("article:updated", {
+            databaseName: basename(db.name),
+            articleId: item.refId,
+          });
+        }
+      });
     }
 
     if (item.refType === "white-board" && item.refId && item.whiteBoardData) {
@@ -507,6 +576,15 @@ export default class ProjectTable {
             projectItem.count,
             projectItem.id,
           );
+
+          BrowserWindow.getAllWindows().forEach((window) => {
+            if (window !== win && !window.isDestroyed()) {
+              window.webContents.send("project-item:updated", {
+                databaseName: basename(db.name),
+                projectItemId: projectItem.id,
+              });
+            }
+          });
         }
       }
     }
@@ -566,7 +644,9 @@ export default class ProjectTable {
     db: Database.Database,
     id: number,
     content: Descendant[],
+    ...res: any[]
   ): ProjectItem {
+    const win = res[res.length - 1];
     const count = getContentLength(content);
     const stmt = db.prepare(`
       UPDATE project_item SET
@@ -577,6 +657,15 @@ export default class ProjectTable {
     `);
     const now = Date.now();
     stmt.run(now, JSON.stringify(content || []), count, id);
+
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("project-item:updated", {
+          databaseName: basename(db.name),
+          projectItemId: id,
+        });
+      }
+    });
 
     Operation.insertOperation(db, "project_item", "update", id, now);
 
@@ -592,6 +681,15 @@ export default class ProjectTable {
         item.count || 0,
         item.refId,
       );
+
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send("card:updated", {
+            databaseName: basename(db.name),
+            cardId: item.refId,
+          });
+        }
+      });
     }
 
     if (item.refType === "article" && item.refId) {
@@ -604,6 +702,15 @@ export default class ProjectTable {
         item.count || 0,
         item.refId,
       );
+
+      BrowserWindow.getAllWindows().forEach((window) => {
+        if (window !== win && !window.isDestroyed()) {
+          window.webContents.send("article:updated", {
+            databaseName: basename(db.name),
+            articleId: item.refId,
+          });
+        }
+      });
     }
 
     if (item.refType !== "" && item.refId) {
@@ -623,6 +730,15 @@ export default class ProjectTable {
             projectItem.count || 0,
             projectItem.id,
           );
+
+          BrowserWindow.getAllWindows().forEach((window) => {
+            if (window !== win && !window.isDestroyed()) {
+              window.webContents.send("project-item:updated", {
+                databaseName: basename(db.name),
+                projectItemId: projectItem.id,
+              });
+            }
+          });
         }
       }
     }

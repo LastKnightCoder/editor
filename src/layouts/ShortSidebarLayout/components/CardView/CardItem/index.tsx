@@ -13,8 +13,7 @@ import React, {
 import { useShallow } from "zustand/react/shallow";
 import Tags from "@/components/Tags";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
-import { getCardById, openCardInNewWindow } from "@/commands";
-import { on, off } from "@/electron";
+import { openCardInNewWindow } from "@/commands";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
@@ -73,24 +72,6 @@ const CardItem = memo(
     );
 
     const { content, tags } = card;
-
-    useEffect(() => {
-      const handleCardWindowClosed = async (
-        _event: any,
-        data: { cardId: number; databaseName: string },
-      ) => {
-        if (data.cardId === card.id && data.databaseName === databaseName) {
-          const card = await getCardById(data.cardId);
-          editorRef.current?.setEditorValue(card.content.slice(0, 3));
-        }
-      };
-
-      on("card-window-closed", handleCardWindowClosed);
-
-      return () => {
-        off("card-window-closed", handleCardWindowClosed);
-      };
-    }, [databaseName, card.id]);
 
     useEffect(() => {
       const unsubscribe = cardEventBus.subscribeToCardWithId(

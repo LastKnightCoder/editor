@@ -35,7 +35,6 @@ import PresentationMode from "@/components/PresentationMode";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import { IArticle, ICard, IDocumentItem } from "@/types";
 import useSettingStore from "@/stores/useSettingStore";
-import { on, off } from "@/electron";
 
 import styles from "./index.module.less";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
@@ -120,26 +119,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
     return () => {
       unsubscribe();
-    };
-  }, [itemId]);
-
-  useEffect(() => {
-    if (!itemId) return;
-
-    const handleDocumentItemWindowClosed = async (
-      _e: any,
-      data: { documentItemId: number; databaseName: string },
-    ) => {
-      if (data.documentItemId === itemId) {
-        const updatedItem = await getDocumentItem(itemId);
-        setItem(updatedItem);
-      }
-    };
-
-    on("document-item-window-closed", handleDocumentItemWindowClosed);
-
-    return () => {
-      off("document-item-window-closed", handleDocumentItemWindowClosed);
     };
   }, [itemId]);
 

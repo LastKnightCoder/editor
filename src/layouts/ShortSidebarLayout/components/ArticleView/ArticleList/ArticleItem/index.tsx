@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { Typography, App, Modal, Spin, Flex, Dropdown } from "antd";
 import classnames from "classnames";
 import useUploadResource from "@/hooks/useUploadResource";
@@ -20,9 +20,7 @@ import {
   openArticleInNewWindow,
   readBinaryFile,
   selectFile,
-  findOneArticle,
 } from "@/commands";
-import { on, off } from "@/electron";
 
 interface IArticleItemProps {
   article: IArticle;
@@ -44,14 +42,12 @@ const ArticleItem = memo((props: IArticleItemProps) => {
     deleteArticle,
     updateArticleBannerBg,
     activeArticleId,
-    updateArticle,
     startPresentation,
   } = useArticleManagementStore((state) => ({
     updateArticleIsTop: state.updateArticleIsTop,
     deleteArticle: state.deleteArticle,
     updateArticleBannerBg: state.updateArticleBannerBg,
     activeArticleId: state.activeArticleId,
-    updateArticle: state.updateArticle,
     startPresentation: state.startArticlePresentation,
   }));
 
@@ -115,27 +111,6 @@ const ArticleItem = memo((props: IArticleItemProps) => {
       activeArticleId: article.id,
     });
   });
-
-  useEffect(() => {
-    const handleArticleWindowClosed = async (
-      _e: any,
-      data: { articleId: number; databaseName: string },
-    ) => {
-      if (
-        data.articleId === article.id &&
-        data.databaseName === currentDatabaseName
-      ) {
-        const article = await findOneArticle(data.articleId);
-        await updateArticle(article);
-      }
-    };
-
-    on("article-window-closed", handleArticleWindowClosed);
-
-    return () => {
-      off("article-window-closed", handleArticleWindowClosed);
-    };
-  }, []);
 
   return (
     <div

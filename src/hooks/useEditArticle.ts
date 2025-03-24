@@ -88,11 +88,11 @@ const useEditArticle = (articleId?: number) => {
     setEditingArticle(newEditingArticle);
   });
 
-  const saveArticle = useMemoizedFn(() => {
+  const saveArticle = useMemoizedFn((forceSave = false) => {
     if (!editingArticle) return;
     const changed =
       JSON.stringify(editingArticle) !== JSON.stringify(prevArticle.current);
-    if (!changed) return;
+    if (!changed && !forceSave) return;
     updateArticle(editingArticle).then((newEditingArticle) => {
       prevArticle.current = newEditingArticle;
     });

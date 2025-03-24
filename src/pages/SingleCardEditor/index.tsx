@@ -18,24 +18,44 @@ import {
   closeDatabase,
 } from "@/commands";
 import { ICard } from "@/types";
-import { formatDate } from "@/utils";
-import { useRafInterval, useUnmount } from "ahooks";
+import { formatDate, defaultCardEventBus } from "@/utils";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 const SingleCardEditor = () => {
+  const cardEventBus = useCreation(
+    () => defaultCardEventBus.createEditor(),
+    [],
+  );
   const [searchParams] = useSearchParams();
   const cardId = Number(searchParams.get("cardId"));
   const databaseName = searchParams.get("databaseName");
 
+  const isWindowFocused = useWindowFocus();
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
-  const [content, setContent] = useState<Descendant[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
 
   const editorRef = useRef<EditorRef>(null);
   const uploadResource = useUploadResource();
+  const prevCardRef = useRef<ICard | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = cardEventBus.subscribeToCardWithId(
+      "card:updated",
+      cardId,
+      (data) => {
+        editorRef.current?.setEditorValue(data.card.content);
+        setEditingCard(data.card);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (!databaseName || !cardId) {
@@ -46,8 +66,7 @@ const SingleCardEditor = () => {
       try {
         const card = await getCardById(cardId);
         setEditingCard(card);
-        setContent(card.content);
-        setTags(card.tags);
+        prevCardRef.current = card;
       } catch (error) {
         console.error("Failed to load card:", error);
       }
@@ -62,41 +81,62 @@ const SingleCardEditor = () => {
     };
   }, [databaseName, cardId]);
 
-  const onContentChange = (value: Descendant[]) => {
-    setContent(value);
-  };
+  const onContentChange = useMemoizedFn((value: Descendant[]) => {
+    if (!editingCard || !editorRef.current?.isFocus() || !isWindowFocused)
+      return;
+    setEditingCard({
+      ...editingCard,
+      content: value,
+    });
+  });
 
-  const onAddTag = (tag: string) => {
-    if (tags.includes(tag)) {
+  const onAddTag = useMemoizedFn((tag: string) => {
+    if (!editingCard) return;
+    const newTags = [...editingCard.tags];
+    if (newTags.includes(tag)) {
       return;
     }
-    setTags([...tags, tag]);
-  };
+    newTags.push(tag);
+    setEditingCard({
+      ...editingCard,
+      tags: newTags,
+    });
+  });
 
-  const onDeleteTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag));
-  };
-
-  const saveCard = async () => {
+  const onDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingCard) return;
+    const newTags = editingCard.tags.filter((t) => t !== tag);
+    setEditingCard({
+      ...editingCard,
+      tags: newTags,
+    });
+  });
+
+  const saveCard = useMemoizedFn(async (forceSave = false) => {
+    if (!editingCard) return;
+    const changed =
+      JSON.stringify(editingCard) !== JSON.stringify(prevCardRef.current);
+    if (
+      (!editorRef.current?.isFocus() || !isWindowFocused || !changed) &&
+      !forceSave
+    )
+      return;
 
     try {
-      await updateCard({
-        ...editingCard,
-        content,
-        tags,
-      });
+      const updatedCard = await updateCard(editingCard);
+      setEditingCard(updatedCard);
+      prevCardRef.current = updatedCard;
     } catch (error) {
       console.error("Failed to save card:", error);
     }
-  };
+  });
 
   useRafInterval(() => {
     saveCard();
-  }, 1000);
+  }, 3000);
 
   useUnmount(() => {
-    saveCard();
+    saveCard(true);
   });
 
   if (!editingCard) {
@@ -117,7 +157,7 @@ const SingleCardEditor = () => {
         <ErrorBoundary>
           <Editor
             ref={editorRef}
-            initValue={content}
+            initValue={editingCard.content}
             onChange={onContentChange}
             extensions={customExtensions}
             readonly={false}
@@ -127,7 +167,7 @@ const SingleCardEditor = () => {
       </div>
       <div className={styles.addTag}>
         <AddTag
-          tags={tags}
+          tags={editingCard.tags}
           addTag={onAddTag}
           removeTag={onDeleteTag}
           readonly={false}

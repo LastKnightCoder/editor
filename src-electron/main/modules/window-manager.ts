@@ -187,6 +187,14 @@ export class WindowManager {
       win.webContents.send("full-screen-change");
     });
 
+    win.on("focus", () => {
+      win.webContents.send("window-focus");
+    });
+
+    win.on("blur", () => {
+      win.webContents.send("window-blur");
+    });
+
     win.webContents.on("did-finish-load", () => {
       win.webContents.setZoomFactor(1);
       win.webContents.setVisualZoomLevelLimits(1, 1);
@@ -237,6 +245,14 @@ export class WindowManager {
     });
     win.on("leave-full-screen", () => {
       win.webContents.send("full-screen-change");
+    });
+
+    win.on("focus", () => {
+      win.webContents.send("window-focus");
+    });
+
+    win.on("blur", () => {
+      win.webContents.send("window-blur");
     });
 
     win.webContents.on("did-finish-load", () => {
@@ -367,18 +383,6 @@ export class WindowManager {
     win.on("closed", () => {
       log.debug(`${editorName}编辑器窗口关闭: ${windowKey}`);
       windowMap.delete(windowKey);
-
-      // 通知主窗口更新
-      const eventName = `${type}-window-closed`.replace("-item", "-item-");
-      log.debug(`通知主窗口更新: ${eventName}`);
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send(eventName, {
-            databaseName,
-            [paramName]: itemId,
-          });
-        }
-      });
     });
   }
 

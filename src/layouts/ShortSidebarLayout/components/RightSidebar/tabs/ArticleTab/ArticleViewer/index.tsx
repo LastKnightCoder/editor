@@ -18,6 +18,7 @@ import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 
 import styles from "./index.module.less";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 interface ArticleViewerProps {
   articleId: string;
@@ -34,7 +35,8 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
-  const { visible } = useRightSidebarContext();
+  const { visible, isConnected } = useRightSidebarContext();
+  const isWindowFocused = useWindowFocus();
 
   const articleEventBus = useCreation(
     () => defaultArticleEventBus.createEditor(),
@@ -57,10 +59,10 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   });
 
   useEffect(() => {
-    if (visible) {
+    if (visible && isConnected) {
       fetchArticle();
     }
-  }, [articleId, fetchArticle, visible]);
+  }, [articleId, fetchArticle, visible, isConnected]);
 
   useEffect(() => {
     const unsubscribe = articleEventBus.subscribeToArticleWithId(
@@ -69,6 +71,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
       (data) => {
         setArticle(data.article);
         editorRef.current?.setEditorValue(data.article.content);
+        titleRef.current?.setValue(data.article.title);
         if (onTitleChange) {
           onTitleChange(data.article.title);
         }
@@ -81,7 +84,12 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   }, [articleId, onTitleChange, articleEventBus]);
 
   const handleTitleChange = useMemoizedFn(async (title: string) => {
-    if (!article || title === article.title || !titleRef.current?.isFocus())
+    if (
+      !article ||
+      title === article.title ||
+      !titleRef.current?.isFocus() ||
+      !isWindowFocused
+    )
       return;
     try {
       const updatedArticle = await updateArticle({
@@ -101,7 +109,13 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   });
 
   const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (!article || !editorRef.current || !editorRef.current.isFocus()) return;
+    if (
+      !article ||
+      !editorRef.current ||
+      !editorRef.current.isFocus() ||
+      !isWindowFocused
+    )
+      return;
 
     try {
       const updatedArticle = await updateArticle({

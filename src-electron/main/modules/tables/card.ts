@@ -2,6 +2,8 @@ import Database from "better-sqlite3";
 import { getContentLength } from "@/utils/helper.ts";
 import { ICreateCard, IUpdateCard, ICard } from "@/types";
 import Operation from "./operation";
+import { BrowserWindow } from "electron";
+import { basename } from "node:path";
 
 export default class CardTable {
   static getListenEvents() {
@@ -112,7 +114,12 @@ export default class CardTable {
     return this.getCardById(db, createdCardId);
   }
 
-  static updateCard(db: Database.Database, card: IUpdateCard): ICard {
+  static updateCard(
+    db: Database.Database,
+    card: IUpdateCard,
+    ...res: any[]
+  ): ICard {
+    const win: BrowserWindow = res[res.length - 1];
     const { tags, links, content, category, id, count } = card;
     const stmt = db.prepare(
       "UPDATE cards SET update_time = ?, tags = ?, links = ?, content = ?, category = ?, count = ? WHERE id = ?",
@@ -141,6 +148,15 @@ export default class CardTable {
     updateProjectItemStmt.run(now, JSON.stringify(content), count, id);
 
     Operation.insertOperation(db, "card", "update", card.id, now);
+
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("card:updated", {
+          databaseName: basename(db.name),
+          cardId: id,
+        });
+      }
+    });
 
     return this.getCardById(db, id);
   }

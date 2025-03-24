@@ -14,12 +14,10 @@ import {
 import { ICard } from "@/types";
 import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
-import { on, off } from "@/electron";
-import useSettingStore from "@/stores/useSettingStore";
 import { defaultCardEventBus } from "@/utils";
 
 import styles from "./index.module.less";
-import { getCardById } from "@/commands";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -43,8 +41,9 @@ const EditCard = (props: IEditCardProps) => {
     onAddTag,
     onDeleteTag,
     saveCard,
-    onTagChange,
   } = props;
+
+  const isWindowFocused = useWindowFocus();
 
   const editorRef = useRef<EditorRef>(null);
   const cardEventBus = useCreation(
@@ -64,9 +63,9 @@ const EditCard = (props: IEditCardProps) => {
   });
 
   const onChange = useMemoizedFn((value: Descendant[]) => {
-    if (!editingCard || !editorRef.current?.isFocus()) return;
+    if (!editingCard || !editorRef.current?.isFocus() || !isWindowFocused)
+      return;
     onContentChange(value);
-    console.log("onChange", cardEventBus.getUuid());
     cardEventBus.publishCardEvent("card:updated", {
       ...editingCard,
       content: value,
@@ -93,41 +92,16 @@ const EditCard = (props: IEditCardProps) => {
   const uploadResource = useUploadResource();
 
   useRafInterval(() => {
-    if (!readonly) {
+    if (!readonly && editorRef.current?.isFocus() && isWindowFocused) {
       saveCard();
     }
-  }, 1000);
+  }, 3000);
 
   useUnmount(() => {
     if (!readonly) {
       saveCard();
     }
   });
-
-  useEffect(() => {
-    const handleCardWindowClosed = async (
-      _event: any,
-      data: { cardId: number; databaseName: string },
-    ) => {
-      const currentDatabaseName =
-        useSettingStore.getState().setting.database.active;
-      if (
-        data.cardId === editingCard.id &&
-        data.databaseName === currentDatabaseName
-      ) {
-        const card = await getCardById(editingCard.id);
-        onContentChange(card.content);
-        onTagChange(card.tags);
-        editorRef.current?.setEditorValue(card.content);
-      }
-    };
-
-    on("card-window-closed", handleCardWindowClosed);
-
-    return () => {
-      off("card-window-closed", handleCardWindowClosed);
-    };
-  }, [editingCard.id]);
 
   useEffect(() => {
     const unsubscribe = cardEventBus.subscribeToCardWithId(

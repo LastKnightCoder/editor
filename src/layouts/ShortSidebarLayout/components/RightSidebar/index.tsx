@@ -12,6 +12,7 @@ import { RightSidebarContext } from "./RightSidebarContext";
 
 import "./registerTabs";
 import styles from "./index.module.less";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 
 const RightSidebar: React.FC = memo(() => {
   const { isDark } = useTheme();
@@ -21,6 +22,7 @@ const RightSidebar: React.FC = memo(() => {
       width: state.width,
     })),
   );
+  const isConnected = useDatabaseConnected();
 
   const handleWidthChange = useMemoizedFn((width: number) => {
     useRightSidebarStore.setState({ width });
@@ -44,7 +46,7 @@ const RightSidebar: React.FC = memo(() => {
       minWidth={300}
       maxWidth={800}
     >
-      <RightSidebarContext.Provider value={{ visible: open }}>
+      <RightSidebarContext.Provider value={{ visible: open, isConnected }}>
         <div
           className={classnames(styles.contentWrapper, {
             [styles.dark]: isDark,
