@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, memo, useState } from "react";
 import { Tooltip } from "antd";
-import { useMemoizedFn, useRafInterval, useThrottleFn, useSize } from "ahooks";
+import {
+  useMemoizedFn,
+  useRafInterval,
+  useThrottleFn,
+  useSize,
+  useCreation,
+} from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import AddTag from "@/components/AddTag";
@@ -22,8 +28,11 @@ import {
 import LocalImage from "@/components/LocalImage";
 import CoverEditor from "@/components/CoverEditor";
 import EditorOutline from "@/components/EditorOutline";
-import { getInlineElementText } from "@/utils";
-import { formatDate } from "@/utils/time.ts";
+import {
+  getInlineElementText,
+  formatDate,
+  defaultArticleEventBus,
+} from "@/utils";
 
 import { HeaderElement } from "@editor/types";
 
@@ -41,6 +50,7 @@ import { findOneArticle } from "@/commands";
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context.ts";
 import { produce } from "immer";
+import { Descendant } from "slate";
 
 const extensions = [cardLinkExtension, fileAttachmentExtension];
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
@@ -71,6 +81,10 @@ const EditArticle = memo(() => {
     setEditingArticle,
   } = useEditArticle(activeArticleId);
 
+  const articleEventBus = useCreation(
+    () => defaultArticleEventBus.createEditor(),
+    [],
+  );
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showOutline, setShowOutline] = useState(false);
@@ -179,6 +193,62 @@ const EditArticle = memo(() => {
     };
   }, [handleContentResize, headers]);
 
+  useEffect(() => {
+    if (!activeArticleId) return;
+
+    const unsubscribe = articleEventBus.subscribeToArticleWithId(
+      "article:updated",
+      activeArticleId,
+      (data) => {
+        setEditingArticle(data.article);
+        editorRef.current?.setEditorValue(data.article.content);
+        titleRef.current?.setValue(data.article.title);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [activeArticleId]);
+
+  const handleOnEditorContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!editingArticle || !editorRef.current || !editorRef.current.isFocus())
+      return;
+    onContentChange(content);
+    articleEventBus.publishArticleEvent("article:updated", {
+      ...editingArticle,
+      content,
+    });
+  });
+
+  const handleOnTitleChange = useMemoizedFn((title: string) => {
+    if (!editingArticle || !titleRef.current || !titleRef.current.isFocus())
+      return;
+    onTitleChange(title);
+    articleEventBus.publishArticleEvent("article:updated", {
+      ...editingArticle,
+      title,
+    });
+  });
+
+  const handleAddTag = useMemoizedFn((tag: string) => {
+    if (!editingArticle || editingArticle.tags.includes(tag)) return;
+    onAddTag(tag);
+    articleEventBus.publishArticleEvent("article:updated", {
+      ...editingArticle,
+      tags: [...editingArticle.tags, tag],
+    });
+  });
+
+  const handleDeleteTag = useMemoizedFn((tag: string) => {
+    if (!editingArticle || !editingArticle.tags.includes(tag)) return;
+    onDeleteTag(tag);
+    articleEventBus.publishArticleEvent("article:updated", {
+      ...editingArticle,
+      tags: editingArticle.tags.filter((t) => t !== tag),
+    });
+  });
+
   useRafInterval(() => {
     saveArticle();
   }, 3000);
@@ -238,6 +308,7 @@ const EditArticle = memo(() => {
       draft.bannerPosition = position;
     });
     setEditingArticle(newEditingArticle);
+    articleEventBus.publishArticleEvent("article:updated", newEditingArticle);
   });
 
   if (!editingArticle) {
@@ -275,7 +346,7 @@ const EditArticle = memo(() => {
           ref={titleRef}
           className={styles.title}
           defaultValue={editingArticle.title || "默认标题"}
-          onChange={onTitleChange}
+          onChange={handleOnTitleChange}
           onPressEnter={() => {
             editorRef.current?.focus();
           }}
@@ -310,7 +381,7 @@ const EditArticle = memo(() => {
               initValue={initValue}
               onInit={onInit}
               extensions={extensions}
-              onChange={onContentChange}
+              onChange={handleOnEditorContentChange}
               uploadResource={uploadResource}
               readonly={readonly}
             />
@@ -319,8 +390,8 @@ const EditArticle = memo(() => {
             style={{ marginTop: 20 }}
             readonly={readonly}
             tags={editingArticle.tags}
-            addTag={onAddTag}
-            removeTag={onDeleteTag}
+            addTag={handleAddTag}
+            removeTag={handleDeleteTag}
           />
         </div>
         <EditorOutline

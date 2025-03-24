@@ -12,7 +12,7 @@ import Editor, { EditorRef } from "@editor/index.tsx";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
 
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
@@ -32,6 +32,8 @@ import {
 import useSettingStore from "@/stores/useSettingStore";
 import { on, off } from "@/electron";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
+import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
+
 const { Text } = Typography;
 
 interface IArticleCardProps {
@@ -52,6 +54,11 @@ const allThemes = [
 
 const ArticleCard = (props: IArticleCardProps) => {
   const { article, className, style, imageRight, disableOperation } = props;
+
+  const articleEventBus = useCreation(
+    () => defaultArticleEventBus.createEditor(),
+    [],
+  );
 
   const { isDark } = useTheme();
   const location = useLocation();
@@ -86,10 +93,22 @@ const ArticleCard = (props: IArticleCardProps) => {
     })),
   );
 
-  const { currentDatabaseName } = useSettingStore(
-    useShallow((state) => ({
-      currentDatabaseName: state.setting.database.active,
-    })),
+  useEffect(() => {
+    const unsubscribe = articleEventBus.subscribeToArticleWithId(
+      "article:updated",
+      article.id,
+      (data) => {
+        updateArticle(data.article);
+        editorRef.current?.setEditorValue(data.article.content.slice(0, 1));
+      },
+    );
+    return () => {
+      unsubscribe();
+    };
+  }, [articleEventBus, article.id]);
+
+  const currentDatabaseName = useSettingStore(
+    useShallow((state) => state.setting.database.active),
   );
 
   const handleUploadFileChange = useMemoizedFn(async () => {
@@ -121,6 +140,10 @@ const ArticleCard = (props: IArticleCardProps) => {
     }
     updateArticleBannerBg?.(article.id, url || "");
     setBannerUploading(false);
+    articleEventBus.publishArticleEvent("article:updated", {
+      ...article,
+      bannerBg: url || "",
+    });
   });
 
   const handleDeleteArticle = useMemoizedFn(() => {
@@ -137,6 +160,7 @@ const ArticleCard = (props: IArticleCardProps) => {
       },
     });
     setSettingOpen(false);
+    articleEventBus.publishArticleEvent("article:deleted", article);
   });
 
   const handleClickArticle = useMemoizedFn(() => {
