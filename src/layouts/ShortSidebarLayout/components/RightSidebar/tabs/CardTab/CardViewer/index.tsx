@@ -1,10 +1,10 @@
 import { getCardById, updateCard } from "@/commands";
 import { ICard } from "@/types";
 import { Empty } from "antd";
-import { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo, useRef } from "react";
 import styles from "./index.module.less";
 import { formatDate, getEditorText } from "@/utils";
-import Editor from "@/components/Editor";
+import Editor, { EditorRef } from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Tags from "@/components/Tags";
 import {
@@ -12,9 +12,9 @@ import {
   fileAttachmentExtension,
 } from "@/editor-extensions";
 import { Descendant } from "slate";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
-
+import { defaultCardEventBus } from "@/utils";
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 interface CardViewerProps {
@@ -25,6 +25,12 @@ interface CardViewerProps {
 const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   const [loading, setLoading] = useState(true);
   const [card, setCard] = useState<ICard | null>(null);
+  const editorRef = useRef<EditorRef>(null);
+
+  const cardEventBus = useCreation(
+    () => defaultCardEventBus.createEditor(),
+    [],
+  );
 
   useEffect(() => {
     getCardById(Number(cardId))
@@ -40,7 +46,8 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   }, [cardId]);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!card) return;
+    if (!card || !editorRef.current) return;
+    if (!editorRef.current.isFocus()) return;
     updateCard({
       ...card,
       content: content,
@@ -48,11 +55,28 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       .then((card) => {
         setCard(card);
         onTitleChange(getEditorText(content, 10));
+        cardEventBus.publishCardEvent("card:updated", card);
       })
       .catch((error) => {
         console.error(error);
       });
   });
+
+  useEffect(() => {
+    const unsubscribe = cardEventBus.subscribeToCardWithId(
+      "card:updated",
+      Number(cardId),
+      (data) => {
+        setCard(data.card);
+        onTitleChange(getEditorText(data.card.content, 10));
+        editorRef.current?.setEditorValue(data.card.content);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [cardId]);
 
   if (loading) {
     return (
@@ -74,6 +98,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       </div>
       <ErrorBoundary>
         <Editor
+          ref={editorRef}
           className={styles.content}
           initValue={card.content}
           extensions={customExtensions}

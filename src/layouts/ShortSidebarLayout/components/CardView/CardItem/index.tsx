@@ -23,12 +23,13 @@ import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
 import { Dropdown, MenuProps } from "antd";
 import useCardManagement from "@/hooks/useCardManagement.ts";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PresentationMode from "@/components/PresentationMode";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
+import { defaultCardEventBus } from "@/utils";
 
 interface CardItemProps {
   card: ICard;
@@ -52,6 +53,10 @@ const CardItem = memo(
     const [isPresentation, setIsPresentation] = useState(false);
 
     const editorRef = useRef<EditorRef>(null);
+    const cardEventBus = useCreation(
+      () => defaultCardEventBus.createEditor(),
+      [],
+    );
 
     const { onClickCard, onCtrlClickCard, onDeleteCard } = useCardManagement();
 
@@ -77,7 +82,6 @@ const CardItem = memo(
         if (data.cardId === card.id && data.databaseName === databaseName) {
           const card = await getCardById(data.cardId);
           editorRef.current?.setEditorValue(card.content.slice(0, 3));
-          await updateCard(card);
         }
       };
 
@@ -87,6 +91,20 @@ const CardItem = memo(
         off("card-window-closed", handleCardWindowClosed);
       };
     }, [databaseName, card.id]);
+
+    useEffect(() => {
+      const unsubscribe = cardEventBus.subscribeToCardWithId(
+        "card:updated",
+        card.id,
+        (data) => {
+          editorRef.current?.setEditorValue(data.card.content.slice(0, 3));
+        },
+      );
+
+      return () => {
+        unsubscribe();
+      };
+    }, [card.id]);
 
     const moreMenuItems: MenuProps["items"] = useMemo(() => {
       return [

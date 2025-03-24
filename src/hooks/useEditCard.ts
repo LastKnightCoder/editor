@@ -1,28 +1,22 @@
 import { Descendant, Editor } from "slate";
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import { ICard } from "@/types";
 import { getContentLength } from "@/utils";
+import { getCardById, updateCard } from "@/commands";
 
 const useEditCard = (cardId: number | undefined) => {
   const [loading, setLoading] = useState(false);
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
   const prevCard = useRef<ICard | null>(null);
-  const cardChanged = useRef(false);
-
-  const { cards, updateCard } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-    updateCard: state.updateCard,
-  }));
 
   useAsyncEffect(async () => {
     if (!cardId) return;
     setLoading(true);
 
-    const card = cards.find((c) => c.id === cardId);
+    const card = await getCardById(cardId);
     if (!card) {
       setLoading(false);
       return;
@@ -33,23 +27,21 @@ const useEditCard = (cardId: number | undefined) => {
     setLoading(false);
   }, [cardId]);
 
-  useEffect(() => {
-    if (!editingCard || !prevCard.current) return;
+  const saveCard = useMemoizedFn(() => {
+    if (!editingCard) return;
     const content = editingCard.content;
     const links = editingCard.links;
     const tags = editingCard.tags;
 
-    cardChanged.current =
-      JSON.stringify(content) !== JSON.stringify(prevCard.current.content) ||
-      JSON.stringify(links) !== JSON.stringify(prevCard.current.links) ||
-      JSON.stringify(tags) !== JSON.stringify(prevCard.current.tags);
-  }, [editingCard]);
+    const cardChanged =
+      JSON.stringify(content) !== JSON.stringify(prevCard.current?.content) ||
+      JSON.stringify(links) !== JSON.stringify(prevCard.current?.links) ||
+      JSON.stringify(tags) !== JSON.stringify(prevCard.current?.tags);
 
-  const saveCard = useMemoizedFn(() => {
-    if (!editingCard || !cardChanged.current) return;
+    if (!cardChanged) return;
+
     updateCard(editingCard).then(() => {
       prevCard.current = editingCard;
-      cardChanged.current = false;
     });
   });
 
@@ -63,18 +55,15 @@ const useEditCard = (cardId: number | undefined) => {
     setEditingCard(newEditingCard);
   });
 
-  const onContentChange = useMemoizedFn(
-    (content: Descendant[], editor?: Editor) => {
-      if (!editor) return;
-      const wordsCount = getContentLength(content);
-      const newEditingCard = produce(editingCard, (draft) => {
-        if (!draft) return;
-        draft.content = content;
-        draft.count = wordsCount;
-      });
-      setEditingCard(newEditingCard);
-    },
-  );
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    const wordsCount = getContentLength(content);
+    const newEditingCard = produce(editingCard, (draft) => {
+      if (!draft) return;
+      draft.content = content;
+      draft.count = wordsCount;
+    });
+    setEditingCard(newEditingCard);
+  });
 
   const onAddTag = useMemoizedFn((tag: string) => {
     if (!editingCard || editingCard.tags.includes(tag)) return;
@@ -105,7 +94,7 @@ const useEditCard = (cardId: number | undefined) => {
     const newEditingCard = produce(editingCard, (draft) => {
       draft.links.push(link);
     });
-    const linkedCard = cards.find((c) => c.id === link);
+    const linkedCard = await getCardById(link);
     if (linkedCard) {
       if (linkedCard.links.includes(editingCard.id)) return;
       const newLinkedCard = produce(linkedCard, (draft) => {
@@ -121,7 +110,7 @@ const useEditCard = (cardId: number | undefined) => {
     const newEditingCard = produce(editingCard, (draft) => {
       draft.links = draft.links.filter((l) => l !== link);
     });
-    const linkedCard = cards.find((c) => c.id === link);
+    const linkedCard = await getCardById(link);
     if (linkedCard) {
       const newLinkedCard = produce(linkedCard, (draft) => {
         draft.links = draft.links.filter((l) => l !== editingCard.id);
