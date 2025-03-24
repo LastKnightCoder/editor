@@ -4,8 +4,9 @@ import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { message } from "antd";
 
 export const insertDocumentCardList = (editor: Editor) => {
-  const activeDocumentItem = useDocumentsStore.getState().activeDocumentItem;
-  if (!activeDocumentItem || activeDocumentItem.children.length === 0) {
+  const activeDocumentItemId =
+    useDocumentsStore.getState().activeDocumentItemId;
+  if (!activeDocumentItemId) {
     message.warning("无法获取到当前文档或者当前文档无子项");
     return;
   }
@@ -13,7 +14,7 @@ export const insertDocumentCardList = (editor: Editor) => {
   return setOrInsertNode(editor, {
     // @ts-ignore
     type: "document-card-list",
-    documentItemId: activeDocumentItem.id,
+    documentItemId: activeDocumentItemId,
     children: [
       {
         type: "formatted",

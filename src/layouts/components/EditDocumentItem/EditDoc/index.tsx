@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { motion } from "framer-motion";
 import { Tooltip } from "antd";
-import { useRafInterval } from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval } from "ahooks";
 import classnames from "classnames";
 
 import Editor, { EditorRef } from "@/components/Editor";
@@ -17,7 +17,7 @@ import {
   MdOutlineCode,
 } from "react-icons/md";
 
-import { formatDate } from "@/utils/time.ts";
+import { formatDate, defaultDocumentItemEventBus } from "@/utils";
 import {
   cardLinkExtension,
   documentCardListExtension,
@@ -29,6 +29,9 @@ import { on, off } from "@/electron";
 import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
+import EditText, { EditTextHandle } from "@/components/EditText";
+import { Descendant } from "slate";
+import useDocumentsStore from "@/stores/useDocumentsStore";
 
 const extensions = [
   cardLinkExtension,
@@ -37,11 +40,17 @@ const extensions = [
 ];
 
 const EditDoc = memo(() => {
-  const [editingTitle, setEditingTitle] = useState(false);
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<EditTextHandle>(null);
   const editorRef = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
+  const documentItemEventBus = useCreation(
+    () => defaultDocumentItemEventBus.createEditor(),
+    [],
+  );
 
+  const activeDocumentItemId = useDocumentsStore(
+    (state) => state.activeDocumentItemId,
+  );
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
 
@@ -52,9 +61,53 @@ const EditDoc = memo(() => {
     onContentChange,
     onTitleChange,
     initValue,
+    setActiveDocumentItem,
   } = useEditDoc();
 
   const uploadResource = useUploadResource();
+
+  useEffect(() => {
+    if (!activeDocumentItemId) return;
+
+    const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
+      "document-item:updated",
+      activeDocumentItemId,
+      (data) => {
+        console.log("receive document-item:updated", data);
+        editorRef.current?.setEditorValue(data.documentItem.content);
+        titleRef.current?.setValue(data.documentItem.title);
+        setActiveDocumentItem(data.documentItem);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [activeDocumentItemId]);
+
+  const handleOnTitleChange = useMemoizedFn((title: string) => {
+    if (!activeDocumentItem || !titleRef.current?.isFocus()) return;
+    onTitleChange(title);
+    documentItemEventBus.publishDocumentItemEvent("document-item:updated", {
+      ...activeDocumentItem,
+      title,
+    });
+  });
+
+  const handleOnPressEnter = useMemoizedFn(() => {
+    if (!activeDocumentItem) return;
+    titleRef.current?.blur();
+    editorRef.current?.focus();
+  });
+
+  const handleContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!activeDocumentItem || !editorRef.current?.isFocus()) return;
+    onContentChange(content);
+    documentItemEventBus.publishDocumentItemEvent("document-item:updated", {
+      ...activeDocumentItem,
+      content,
+    });
+  });
 
   useRafInterval(() => {
     saveDocument();
@@ -68,23 +121,6 @@ const EditDoc = memo(() => {
   }, [saveDocument, onContentChange]);
 
   useEffect(() => {
-    // 禁止在标题中输入回车
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && editingTitle) {
-        e.preventDefault();
-        e.stopPropagation();
-        titleRef.current?.blur();
-        editorRef.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [editingTitle]);
-
-  useEffect(() => {
     if (!activeDocumentItem) return;
 
     const handleDocumentItemWindowClosed = async (
@@ -95,9 +131,7 @@ const EditDoc = memo(() => {
         const updatedDocumentItem = await getDocumentItem(data.documentItemId);
 
         editorRef.current?.setEditorValue(updatedDocumentItem.content);
-        if (titleRef.current) {
-          titleRef.current.innerText = updatedDocumentItem.title;
-        }
+        titleRef.current?.setValue(updatedDocumentItem.title);
 
         onTitleChange(updatedDocumentItem.title);
         onContentChange(updatedDocumentItem.content);
@@ -145,20 +179,14 @@ const EditDoc = memo(() => {
     <motion.div layout className={styles.editDocContainer}>
       <div className={styles.editDoc}>
         <div className={styles.editorContainer}>
-          <div
+          <EditText
             className={styles.title}
             ref={titleRef}
-            // @ts-ignore
-            contentEditable={!readonly ? "plaintext-only" : false}
-            suppressContentEditableWarning
-            onFocus={() => setEditingTitle(true)}
-            onBlur={(e) => {
-              onTitleChange(e.target.innerText);
-              setEditingTitle(false);
-            }}
-          >
-            {activeDocumentItem.title}
-          </div>
+            contentEditable={true}
+            defaultValue={activeDocumentItem.title}
+            onChange={handleOnTitleChange}
+            onPressEnter={handleOnPressEnter}
+          />
           <div className={styles.time}>
             <div>创建于 {formatDate(activeDocumentItem.createTime, true)}</div>
             <div>
@@ -174,7 +202,7 @@ const EditDoc = memo(() => {
               key={activeDocumentItem.id}
               ref={editorRef}
               initValue={initValue}
-              onChange={onContentChange}
+              onChange={handleContentChange}
               readonly={readonly}
               uploadResource={uploadResource}
               extensions={extensions}

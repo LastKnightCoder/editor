@@ -15,7 +15,7 @@ import {
   fileAttachmentExtension,
   projectCardListExtension,
 } from "@/editor-extensions";
-import { getProjectItemById, updateProjectItem } from "@/commands";
+import { getProjectItemById } from "@/commands";
 import { on, off } from "@/electron";
 
 import styles from "./index.module.less";

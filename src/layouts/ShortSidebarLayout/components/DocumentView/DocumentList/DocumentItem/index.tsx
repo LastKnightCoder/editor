@@ -7,7 +7,7 @@ import {
   PlusOutlined,
   FolderOpenTwoTone,
 } from "@ant-design/icons";
-import { useAsyncEffect, useMemoizedFn } from "ahooks";
+import { useAsyncEffect, useCreation, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import classnames from "classnames";
 
@@ -18,6 +18,7 @@ import useDragAndDrop, {
   EDragPosition,
   IDragItem,
 } from "@/hooks/useDragAndDrop.ts";
+import { defaultDocumentItemEventBus } from "@/utils";
 
 import {
   createDocumentItem,
@@ -85,6 +86,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
   });
   const [isPresentation, setIsPresentation] = useState(false);
   const { modal } = App.useApp();
+  const documentItemEventBus = useCreation(
+    () => defaultDocumentItemEventBus.createEditor(),
+    [],
+  );
 
   const cards = useCardsManagementStore(useShallow((state) => state.cards));
 
@@ -92,8 +97,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
     useShallow((state) => state.articles),
   );
 
-  const activeDocumentItem = useDocumentsStore(
-    useShallow((state) => state.activeDocumentItem),
+  const activeDocumentItemId = useDocumentsStore(
+    useShallow((state) => state.activeDocumentItemId),
   );
 
   useAsyncEffect(async () => {
@@ -104,12 +109,19 @@ const DocumentItem = (props: IDocumentItemProps) => {
     setItem(item);
   }, [itemId]);
 
-  // 监听 EditDoc 导致的 activeDocumentItem 变化，同步到当前 item
   useEffect(() => {
-    if (activeDocumentItem?.id === itemId) {
-      setItem(activeDocumentItem);
-    }
-  }, [itemId, activeDocumentItem]);
+    const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
+      "document-item:updated",
+      itemId,
+      (data) => {
+        setItem(data.documentItem);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [itemId]);
 
   useEffect(() => {
     if (!itemId) return;
@@ -169,11 +181,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
         draft.parents = Array.from(new Set(draft.parents));
       });
       const updatedDragItem = await updateDocumentItem(toUpdateItem);
-      if (updatedDragItem.id === activeDocumentItem?.id) {
-        useDocumentsStore.setState({
-          activeDocumentItem: updatedDragItem,
-        });
-      }
+      defaultDocumentItemEventBus
+        .createEditor()
+        .publishDocumentItemEvent("document-item:updated", updatedDragItem);
     },
   );
 
@@ -212,15 +222,14 @@ const DocumentItem = (props: IDocumentItemProps) => {
       draft.children.push(createdDocumentItem.id);
     });
     const updatedDoc = await updateDocumentItem(newItem);
+    documentItemEventBus.publishDocumentItemEvent(
+      "document-item:updated",
+      updatedDoc,
+    );
     setItem(updatedDoc);
-    if (item.id === activeDocumentItem?.id) {
-      useDocumentsStore.setState({
-        activeDocumentItem: updatedDoc,
-      });
-    }
 
     useDocumentsStore.setState({
-      activeDocumentItem: createdDocumentItem,
+      activeDocumentItemId: createdDocumentItem.id,
     });
   });
 
@@ -234,7 +243,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
       if (position === EDragPosition.Inside) {
         // 加入当前文档的开头
         newItem = produce(item, (draft) => {
-          draft.children.unshift(id);
+          draft.children.push(id);
         });
         setFolderOpen(true);
       } else {
@@ -253,11 +262,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
       const updatedDoc = await updateDocumentItem(newItem);
       setItem(updatedDoc);
-      if (item.id === activeDocumentItem?.id) {
-        useDocumentsStore.setState({
-          activeDocumentItem: updatedDoc,
-        });
-      }
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDoc,
+      );
     },
   );
 
@@ -270,11 +278,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
-    if (item.id === activeDocumentItem?.id) {
-      useDocumentsStore.setState({
-        activeDocumentItem: updatedDoc,
-      });
-    }
+    documentItemEventBus.publishDocumentItemEvent(
+      "document-item:updated",
+      updatedDoc,
+    );
   });
 
   // 处理同级别子元素的移动，此时 position 绝对不可能是 EDragPosition.Inside
@@ -309,11 +316,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
       });
       const updatedDoc = await updateDocumentItem(newItem);
       setItem(updatedDoc);
-      if (item.id === activeDocumentItem?.id) {
-        useDocumentsStore.setState({
-          activeDocumentItem: updatedDoc,
-        });
-      }
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDoc,
+      );
     },
   );
 
@@ -331,29 +337,42 @@ const DocumentItem = (props: IDocumentItemProps) => {
           : "删除后无法恢复",
       onOk: async () => {
         await onParentDeleteChild(realTimeItem.id);
-        // 更新 parents，将 parentId 从当前文档的 parents 中删除
+        const parentDocumentItem = await getDocumentItem(parentId);
+        defaultDocumentItemEventBus
+          .createEditor()
+          .publishDocumentItemEvent(
+            "document-item:updated",
+            parentDocumentItem,
+          );
+
         const toUpdateItem = produce(realTimeItem, (draft) => {
           draft.parents = draft.parents.filter((parent) => parent !== parentId);
           draft.parents = Array.from(new Set(draft.parents));
         });
         await updateDocumentItem(toUpdateItem);
-        if (!activeDocumentItem || realTimeItem.id === activeDocumentItem.id) {
+        documentItemEventBus.publishDocumentItemEvent(
+          "document-item:updated",
+          realTimeItem,
+        );
+        const activeDocumentItemId =
+          useDocumentsStore.getState().activeDocumentItemId;
+        if (!activeDocumentItemId || activeDocumentItemId === realTimeItem.id) {
           useDocumentsStore.setState({
-            activeDocumentItem: null,
+            activeDocumentItemId: null,
           });
           return;
         }
+
         if (item.children.length === 0) return;
 
         // 判断所有的孩子以及子孙是否包含 activeDocumentItem，如果包含需要将 activeDocumentItem 设置为 null
-        const activeDocumentItemId = activeDocumentItem.id;
         const isChildOf = await isDocumentItemChildOf(
           activeDocumentItemId,
           realTimeItem.id,
         );
         if (isChildOf) {
           useDocumentsStore.setState({
-            activeDocumentItem: null,
+            activeDocumentItemId: null,
           });
         }
       },
@@ -385,18 +404,17 @@ const DocumentItem = (props: IDocumentItemProps) => {
     });
     const updatedDoc = await updateDocumentItem(newItem);
     setItem(updatedDoc);
-    if (item.id === activeDocumentItem?.id) {
-      useDocumentsStore.setState({
-        activeDocumentItem: updatedDoc,
-      });
-    }
+    documentItemEventBus.publishDocumentItemEvent(
+      "document-item:updated",
+      updatedDoc,
+    );
     setFolderOpen(true);
     setSelectCardModalOpen(false);
 
     const cardItem = await getDocumentItem(createdDocumentItem.id);
     if (!cardItem) return;
     useDocumentsStore.setState({
-      activeDocumentItem: cardItem,
+      activeDocumentItemId: cardItem.id,
     });
   });
 
@@ -422,18 +440,17 @@ const DocumentItem = (props: IDocumentItemProps) => {
       });
       const updatedDoc = await updateDocumentItem(newItem);
       setItem(updatedDoc);
-      if (item.id === activeDocumentItem?.id) {
-        useDocumentsStore.setState({
-          activeDocumentItem: updatedDoc,
-        });
-      }
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDoc,
+      );
       setFolderOpen(true);
       setSelectArticleModalOpen(false);
 
       const articleItem = await getDocumentItem(createdDocumentItem.id);
       if (!articleItem) return;
       useDocumentsStore.setState({
-        activeDocumentItem: articleItem,
+        activeDocumentItemId: articleItem.id,
       });
     },
   );
@@ -465,11 +482,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
       });
       const updatedDoc = await updateDocumentItem(newItem);
       setItem(updatedDoc);
-      if (item.id === activeDocumentItem?.id) {
-        useDocumentsStore.setState({
-          activeDocumentItem: updatedDoc,
-        });
-      }
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDoc,
+      );
       // 为这些项的 parents 添加此文档的 id
       const toUpdateItems = selectedDocumentItems.map((selectDocumentItem) => {
         return produce(selectDocumentItem, (draft) => {
@@ -488,23 +504,28 @@ const DocumentItem = (props: IDocumentItemProps) => {
       const activeItem = updatedItems[0];
       if (!activeItem) return;
       useDocumentsStore.setState({
-        activeDocumentItem: activeItem,
+        activeDocumentItemId: activeItem.id,
+      });
+      updatedItems.forEach((updatedItem) => {
+        defaultDocumentItemEventBus
+          .createEditor()
+          .publishDocumentItemEvent("document-item:updated", updatedItem);
       });
     },
   );
 
   const excludeArticleIds = useMemo(() => {
-    if (!activeDocumentItem?.articleId) {
-      return [-1];
-    }
-    return [activeDocumentItem.articleId];
-  }, [activeDocumentItem?.articleId]);
+    return [-1];
+  }, []);
+
+  const excludeCardIds = useMemo(() => {
+    return [-1];
+  }, []);
 
   const onSelectDocumentItemCancel = useMemoizedFn(() => {
     setSelectDocumentItemModalOpen(false);
   });
 
-  // Create menu items for the more dropdown
   const moreMenuItems: MenuProps["items"] = useMemo(
     () => [
       {
@@ -613,7 +634,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
           drop(node);
         }}
         className={classnames(styles.header, {
-          [styles.active]: activeDocumentItem?.id === item.id,
+          [styles.active]: activeDocumentItemId === item.id,
           [styles.top]: isOver && canDrop && dragPosition === EDragPosition.Top,
           [styles.bottom]:
             isOver && canDrop && dragPosition === EDragPosition.Bottom,
@@ -621,14 +642,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
             isOver && canDrop && dragPosition === EDragPosition.Inside,
         })}
         onClick={async () => {
-          // 防止一个 Document 里面有多个相同的 DocumentItem
-          // 其它 DocumentItem 进行了更新，但是当前 DocumentItem 没有更新
-          // 导致更新了错误的数据，因此在编辑之前需要重新获取一次
-          const realTimeItem = await getDocumentItem(item.id);
-          if (!realTimeItem) return;
-          setItem(realTimeItem);
           useDocumentsStore.setState({
-            activeDocumentItem: realTimeItem,
+            activeDocumentItemId: item.id,
           });
         }}
       >
@@ -728,7 +743,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
           setSelectCardModalOpen(false);
         }}
         onOk={onSelectCardFinish}
-        excludeCardIds={[activeDocumentItem?.cardId || -1]}
+        excludeCardIds={excludeCardIds}
       />
       <SelectModal
         title={"选择关联文章"}

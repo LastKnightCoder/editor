@@ -167,7 +167,7 @@ const AISearch = memo(() => {
       navigate(`/documents/${document.id}`);
       useDocumentsStore.setState({
         activeDocumentId: document.id,
-        activeDocumentItem: documentItem,
+        activeDocumentItemId: documentItem.id,
         hideDocumentItemsList: false,
       });
     }

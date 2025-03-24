@@ -97,10 +97,6 @@ const useEdit = () => {
       draft.title = title;
     });
     setProjectItem(newProjectItem);
-    const event = new CustomEvent("projectTitleChange", {
-      detail: newProjectItem,
-    });
-    document.dispatchEvent(event);
   });
 
   return {

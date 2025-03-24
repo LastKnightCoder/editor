@@ -12,10 +12,10 @@ const DocumentView = () => {
 
   const documentId = Number(params.id);
 
-  const { hideDocumentItemsList, activeDocumentItem } = useDocumentsStore(
+  const { hideDocumentItemsList, activeDocumentItemId } = useDocumentsStore(
     useShallow((state) => ({
       hideDocumentItemsList: state.hideDocumentItemsList,
-      activeDocumentItem: state.activeDocumentItem,
+      activeDocumentItemId: state.activeDocumentItemId,
     })),
   );
 
@@ -24,7 +24,7 @@ const DocumentView = () => {
   return (
     <div
       className={classnames(styles.viewContainer, {
-        [styles.hideSidebar]: hideDocumentItemsList && !!activeDocumentItem,
+        [styles.hideSidebar]: hideDocumentItemsList && !!activeDocumentItemId,
       })}
     >
       <div className={styles.sidebar}>

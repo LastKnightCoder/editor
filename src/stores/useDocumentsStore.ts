@@ -4,7 +4,6 @@ import {
   ICreateDocument,
   IUpdateDocument,
   IDeleteDocument,
-  IDocumentItem,
 } from "@/types";
 import {
   getAllDocuments,
@@ -18,7 +17,7 @@ interface IState {
   documents: IDocument[];
   loading: boolean;
   activeDocumentId: number | null;
-  activeDocumentItem: IDocumentItem | null;
+  activeDocumentItemId: number | null;
   hideDocumentItemsList: boolean;
 }
 
@@ -34,7 +33,7 @@ const initState: IState = {
   documents: [],
   loading: false,
   activeDocumentId: null,
-  activeDocumentItem: null,
+  activeDocumentItemId: null,
   hideDocumentItemsList: false,
 };
 

@@ -1,49 +1,68 @@
 import { IDocumentItem } from "@/types";
-import { updateDocumentItem } from "@/commands";
+import {
+  findOneArticle,
+  getCardById,
+  getDocumentItem,
+  updateDocumentItem,
+} from "@/commands";
 import { useRef, useState } from "react";
-import { useDebounceFn, useMemoizedFn } from "ahooks";
+import {
+  useAsyncEffect,
+  useCreation,
+  useDebounceFn,
+  useMemoizedFn,
+} from "ahooks";
 import { produce } from "immer";
 import { Descendant, Editor } from "slate";
 import { getContentLength } from "@/utils";
-import { useShallow } from "zustand/react/shallow";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import { defaultCardEventBus, defaultArticleEventBus } from "@/utils";
 
 const useEditDoc = () => {
-  const { activeDocumentItem } = useDocumentsStore(
-    useShallow((state) => ({
-      activeDocumentItem: state.activeDocumentItem,
-    })),
+  const activeDocumentItemId = useDocumentsStore(
+    (state) => state.activeDocumentItemId,
   );
-  const { initCards } = useCardsManagementStore(
-    useShallow((state) => ({
-      initCards: state.init,
-    })),
-  );
-  const [initValue] = useState<Descendant[]>(() => {
-    if (!activeDocumentItem)
-      return [
-        {
-          type: "paragraph",
-          children: [{ type: "formatted", text: "" }],
-        },
-      ];
-    return activeDocumentItem.content;
-  });
-  const prevDocument = useRef<IDocumentItem | null>(activeDocumentItem);
+  const [initValue, setInitValue] = useState<Descendant[]>([
+    {
+      type: "paragraph",
+      children: [{ type: "formatted", text: "" }],
+    },
+  ]);
+  const [activeDocumentItem, setActiveDocumentItem] =
+    useState<IDocumentItem | null>(null);
 
-  const saveDocument = useMemoizedFn((saveAnyway = false) => {
+  const prevDocument = useRef<IDocumentItem | null>(null);
+  const cardEventBus = useCreation(
+    () => defaultCardEventBus.createEditor(),
+    [],
+  );
+  const articleEventBus = useCreation(
+    () => defaultArticleEventBus.createEditor(),
+    [],
+  );
+
+  useAsyncEffect(async () => {
+    if (!activeDocumentItemId) return;
+    const documentItem = await getDocumentItem(activeDocumentItemId);
+    setActiveDocumentItem(documentItem);
+    prevDocument.current = documentItem;
+    setInitValue(documentItem.content);
+  }, [activeDocumentItemId]);
+
+  const saveDocument = useMemoizedFn(async (saveAnyway = false) => {
     const changed =
       JSON.stringify(activeDocumentItem) !==
       JSON.stringify(prevDocument.current);
     if (!activeDocumentItem || !(changed || saveAnyway)) return;
-    updateDocumentItem(activeDocumentItem).then((updatedDoc) => {
-      useDocumentsStore.setState({ activeDocumentItem: updatedDoc });
-      prevDocument.current = updatedDoc;
-    });
+    const updatedDoc = await updateDocumentItem(activeDocumentItem);
+    setActiveDocumentItem(updatedDoc);
+    prevDocument.current = updatedDoc;
     if (activeDocumentItem.isCard && activeDocumentItem.cardId) {
-      // 更新卡片数据，暂时拉取全部数据
-      initCards();
+      const card = await getCardById(activeDocumentItem.cardId);
+      cardEventBus.publishCardEvent("card:updated", card);
+    } else if (activeDocumentItem.isArticle && activeDocumentItem.articleId) {
+      const article = await findOneArticle(activeDocumentItem.articleId);
+      articleEventBus.publishArticleEvent("article:updated", article);
     }
   });
 
@@ -53,7 +72,7 @@ const useEditDoc = () => {
     const newDocumentItem = produce(activeDocumentItem, (draft) => {
       draft.count = wordsCount;
     });
-    useDocumentsStore.setState({ activeDocumentItem: newDocumentItem });
+    setActiveDocumentItem(newDocumentItem);
   });
 
   const onTitleChange = useMemoizedFn((title: string) => {
@@ -61,7 +80,7 @@ const useEditDoc = () => {
     const newDocument = produce(activeDocumentItem, (draft) => {
       draft.title = title;
     });
-    useDocumentsStore.setState({ activeDocumentItem: newDocument });
+    setActiveDocumentItem(newDocument);
   });
 
   const { run: onContentChange } = useDebounceFn(
@@ -72,7 +91,7 @@ const useEditDoc = () => {
         draft.content = content;
         draft.count = wordsCount;
       });
-      useDocumentsStore.setState({ activeDocumentItem: newDocument });
+      setActiveDocumentItem(newDocument);
     },
     { wait: 500 },
   );
@@ -84,6 +103,7 @@ const useEditDoc = () => {
     activeDocumentItem,
     initValue,
     onInit,
+    setActiveDocumentItem,
   };
 };
 

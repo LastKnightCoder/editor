@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Empty } from "antd";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 
-import Editor from "@editor/index.tsx";
+import Editor, { EditorRef } from "@editor/index.tsx";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
 import {
@@ -15,6 +15,7 @@ import {
 import { IDocumentItem } from "@/types/document";
 import { getDocumentItem, updateDocumentItem } from "@/commands";
 import { Descendant } from "slate";
+import { defaultDocumentItemEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 
 import styles from "./index.module.less";
@@ -34,8 +35,13 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   documentItemId,
   onTitleChange,
 }) => {
+  const documentItemEventBus = useCreation(
+    () => defaultDocumentItemEventBus.createEditor(),
+    [],
+  );
   const [documentItem, setDocumentItem] = useState<IDocumentItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
   const { visible } = useRightSidebarContext();
   const fetchDocumentItem = useMemoizedFn(async () => {
@@ -55,13 +61,34 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   });
 
   useEffect(() => {
+    const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
+      "document-item:updated",
+      Number(documentItemId),
+      (data) => {
+        console.log("viewerreceive document-item:updated", data);
+        editorRef.current?.setEditorValue(data.documentItem.content);
+        titleRef.current?.setValue(data.documentItem.title);
+        setDocumentItem(data.documentItem);
+      },
+    );
+    return () => {
+      unsubscribe();
+    };
+  }, [documentItemId, documentItemEventBus]);
+
+  useEffect(() => {
     if (visible) {
       fetchDocumentItem();
     }
   }, [documentItemId, fetchDocumentItem, visible]);
 
   const handleTitleChange = useMemoizedFn(async (title: string) => {
-    if (!documentItem || title === documentItem.title) return;
+    if (
+      !documentItem ||
+      title === documentItem.title ||
+      !titleRef.current?.isFocus()
+    )
+      return;
 
     try {
       const updatedDocumentItem = await updateDocumentItem({
@@ -73,20 +100,28 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
       if (onTitleChange) {
         onTitleChange(title);
       }
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
     } catch (error) {
       console.error("Error updating document item title:", error);
     }
   });
 
   const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (!documentItem) return;
+    if (!documentItem || !editorRef.current?.isFocus()) return;
 
     try {
       const updatedDocumentItem = await updateDocumentItem({
         ...documentItem,
         content,
       });
-      console.log("updatedDocumentItem", updatedDocumentItem);
+      setDocumentItem(updatedDocumentItem);
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
     } catch (error) {
       console.error("Error updating document item content:", error);
     }
@@ -121,6 +156,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
       </div>
       <div className={styles.contentContainer}>
         <Editor
+          ref={editorRef}
           initValue={documentItem.content}
           onChange={handleContentChange}
           readonly={false}

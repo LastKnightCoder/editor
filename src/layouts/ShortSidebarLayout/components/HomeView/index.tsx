@@ -409,7 +409,7 @@ const HomeView = () => {
                         const documentId = documents[0].id;
                         navigate(`/documents/${documentId}`);
                         useDocumentsStore.setState({
-                          activeDocumentItem: documentItem,
+                          activeDocumentItemId: documentItem.id,
                           activeDocumentId: documentId,
                         });
                       }}

@@ -76,7 +76,7 @@ const DocumentsView = () => {
           setCreateOpen(false);
           useDocumentsStore.setState({
             activeDocumentId: createdDocument.id,
-            activeDocumentItem: null,
+            activeDocumentItemId: null,
           });
           navigate(`/documents/${createdDocument.id}`);
         }}

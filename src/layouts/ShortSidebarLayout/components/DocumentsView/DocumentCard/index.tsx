@@ -60,7 +60,7 @@ const DocumentCard = (props: DocumentCardProps) => {
   const onClick = () => {
     useDocumentsStore.setState({
       activeDocumentId: document.id,
-      activeDocumentItem: null,
+      activeDocumentItemId: null,
     });
     navigate(`/documents/${document.id}`);
   };

@@ -29,12 +29,12 @@ const Document = (props: IDocumentProps) => {
 
   const navigate = useNavigate();
 
-  const { addDocumentItem, updateDocument, activeDocumentItem } =
+  const { addDocumentItem, updateDocument, activeDocumentItemId } =
     useDocumentsStore(
       useShallow((state) => ({
         addDocumentItem: state.addDocumentItem,
         updateDocument: state.updateDocument,
-        activeDocumentItem: state.activeDocumentItem,
+        activeDocumentItemId: state.activeDocumentItemId,
       })),
     );
 
@@ -73,7 +73,7 @@ const Document = (props: IDocumentProps) => {
     if (key === "add-document-item") {
       const item = await addNewDocumentItem();
       useDocumentsStore.setState({
-        activeDocumentItem: item,
+        activeDocumentItemId: item.id,
       });
     }
   });
@@ -128,7 +128,7 @@ const Document = (props: IDocumentProps) => {
             onClick={() => {
               useDocumentsStore.setState({
                 activeDocumentId: null,
-                activeDocumentItem: null,
+                activeDocumentItemId: null,
                 hideDocumentItemsList: false,
               });
               navigate(`/documents`);
@@ -137,7 +137,7 @@ const Document = (props: IDocumentProps) => {
           {document.title}
         </div>
         <div className={styles.icons}>
-          {activeDocumentItem && (
+          {activeDocumentItemId && (
             <div className={styles.icon} onClick={onFoldSidebar}>
               <MenuFoldOutlined />
             </div>
