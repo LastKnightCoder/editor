@@ -21,7 +21,7 @@ interface ChatContainerProps {
   markdownComponents: any;
   isVisible: boolean; // 控制是否应该渲染内容
   updateChatMessage: (chat: ChatMessage) => Promise<ChatMessage>;
-  setCurrentChat: (chat: ChatMessage | undefined) => void;
+  updateCurrentChat: (chat: ChatMessage) => void;
   sendLoading: boolean;
   setSendLoading: (loading: boolean) => void;
   titleRef: React.RefObject<EditTextHandle>;
@@ -34,7 +34,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
     markdownComponents,
     isVisible,
     updateChatMessage,
-    setCurrentChat,
+    updateCurrentChat,
     sendLoading,
     setSendLoading,
     titleRef,
@@ -126,7 +126,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
         newMessage,
       ];
 
-      setCurrentChat({
+      updateCurrentChat({
         ...currentChat,
         messages: [...currentChat.messages, newMessage, responseMessage],
       });
@@ -154,11 +154,6 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
 
             const updatedChatMessage = await updateChatMessage(newCurrentChat);
             editTextRef.current?.focusEnd();
-            setCurrentChat(updatedChatMessage);
-            localStorage.setItem(
-              "right-sidebar-chat-id",
-              String(updatedChatMessage.id),
-            );
 
             // 确保消息结束时滚动到底部
             scrollToBottom();
@@ -183,7 +178,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
                   draft.title = newTitle.slice(0, 20);
                 });
                 await updateChatMessage(updateChat);
-                titleRef.current?.setValue(newTitle);
+                titleRef.current?.setValue(newTitle.slice(0, 20));
               }
             } catch (e) {
               console.error("Failed to generate title:", e);
@@ -206,7 +201,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
               content: full,
             });
           });
-          setCurrentChat(newCurrentChat);
+          updateCurrentChat(newCurrentChat);
 
           // 更新内容时滚动到底部
           setTimeout(() => {
@@ -223,7 +218,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
               reasoning_content: full,
             });
           });
-          setCurrentChat(newCurrentChat);
+          updateCurrentChat(newCurrentChat);
 
           // 推理内容更新时滚动到底部
           setTimeout(() => {
@@ -232,7 +227,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
         },
 
         onError: () => {
-          setCurrentChat(currentChat);
+          updateCurrentChat(currentChat);
           setSendLoading(false);
           editTextRef.current?.setValue(userContent);
           editTextRef.current?.focusEnd();

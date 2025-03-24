@@ -1,9 +1,6 @@
 import { useRef, useEffect, memo } from "react";
 import { v4 as getUuid } from "uuid";
-import {
-  // useWhyDidYouUpdate,
-  useThrottleFn,
-} from "ahooks";
+import { useThrottleFn } from "ahooks";
 
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useBoard, useViewPort } from "../../hooks";
@@ -45,11 +42,6 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
     isMoved,
     currentPoint,
   });
-
-  // useWhyDidYouUpdate('ArrowConnectPoint', {
-  //   ...props,
-  //   zoom
-  // });
 
   useMoveInAnimate(ref, r);
 

@@ -1,34 +1,28 @@
 import classnames from "classnames";
 import CardGraph from "@/layouts/components/CardGraph";
-import Card from "@/layouts/components/EditCards";
-import useCardPanelStore from "@/stores/useCardPanelStore";
-import useCardManagement from "@/hooks/useCardManagement";
-import { useShallow } from "zustand/react/shallow";
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
+import { useMemoizedFn } from "ahooks";
+import { getCardById } from "@/commands";
+import { getEditorText } from "@/utils";
+
 import styles from "./index.module.less";
 
 const CardLinkGraph = () => {
-  const { onCtrlClickCard } = useCardManagement();
+  const addTab = useRightSidebarStore((state) => state.addTab);
 
-  const { leftCardIds, rightCardIds } = useCardPanelStore(
-    useShallow((state) => ({
-      leftCardIds: state.leftCardIds,
-      rightCardIds: state.rightCardIds,
-    })),
-  );
-
-  const showEdit = leftCardIds.length > 0 || rightCardIds.length > 0;
+  const onClickCard = useMemoizedFn(async (id: number) => {
+    const card = await getCardById(id);
+    addTab({
+      type: "card",
+      id: String(id),
+      title: getEditorText(card.content, 10),
+    });
+  });
 
   return (
     <div className={styles.queryContainer}>
-      <div
-        className={classnames(styles.container, {
-          [styles.showEdit]: showEdit,
-        })}
-      >
-        <CardGraph className={styles.graph} onClickCard={onCtrlClickCard} />
-        <div className={styles.edit}>
-          <Card />
-        </div>
+      <div className={classnames(styles.container)}>
+        <CardGraph className={styles.graph} onClickCard={onClickCard} />
       </div>
     </div>
   );

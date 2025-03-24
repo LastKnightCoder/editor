@@ -1,7 +1,7 @@
 import { Empty, Input, Modal, Spin } from "antd";
 import { Descendant } from "slate";
 import { useRef, useState } from "react";
-import { useMemoizedFn, useWhyDidYouUpdate } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import useSearch from "./hooks/useSearch.ts";
 
 import Card from "./Card";
@@ -41,13 +41,6 @@ const SelectArticleModal = <T extends IItem>(
   const { searchValue, searchedItems, onSearchValueChange } = useSearch({
     allItems,
     excludeIds,
-  });
-
-  useWhyDidYouUpdate("SelectArticleModal", {
-    ...props,
-    searchedItems,
-    searchValue,
-    onSearchValueChange,
   });
 
   const [selectedItems, setSelectedItems] = useState<T[]>([]);

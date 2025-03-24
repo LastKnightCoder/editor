@@ -6,7 +6,6 @@ interface IState {
   focusMode: boolean;
   listWidth: number;
   listOpen: boolean;
-  rightSidebarOpen: boolean;
   databaseStatus: Record<string, boolean>;
 }
 
@@ -19,7 +18,6 @@ export const useGlobalStateStore = create<IState>(() => ({
   listOpen: true,
   listWidth,
   focusMode: false,
-  rightSidebarOpen: false,
   databaseStatus: {},
 }));
 

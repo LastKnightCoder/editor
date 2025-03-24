@@ -1,0 +1,39 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.loadingContainer,
+.errorContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2em;
+}
+
+.titleContainer {
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  outline: none;
+  width: 100%;
+  padding: 4px 0;
+}
+
+.contentContainer {
+  flex: 1;
+  border-top: 20px solid transparent;
+  border-bottom: 20px solid transparent;
+  padding: 0 20px;
+  overflow-y: auto;
+}

@@ -1,0 +1,36 @@
+.itemContainer {
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+
+  .time {
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    color: gray;
+    font-size: 0.9em;
+  }
+
+  .content {
+    border-top: 20px solid transparent;
+    border-bottom: 20px solid transparent;
+    padding: 0 20px;
+    flex: 1;
+    overflow: auto;
+  }
+
+  .tags {
+    flex-shrink: 0;
+  }
+}
+
+.loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 2em;
+}

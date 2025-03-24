@@ -4,7 +4,6 @@ import { Button } from "antd";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Editor, { EditorRef } from "@/components/Editor";
-import WindowControl from "@/components/WindowControl";
 import AddTag from "@/components/AddTag";
 import AISearch from "@/layouts/ShortSidebarLayout/components/AISearch";
 
@@ -77,11 +76,6 @@ const QuickCard = () => {
     <div className={styles.quickCardContainer}>
       <div data-tauri-drag-region className={styles.titleBar}>
         <div className={styles.title}>快捷卡片</div>
-        <WindowControl
-          className={styles.windowControl}
-          notShowFullscreen
-          initAlwaysOnTop
-        />
       </div>
       <div className={styles.editor}>
         <ErrorBoundary>

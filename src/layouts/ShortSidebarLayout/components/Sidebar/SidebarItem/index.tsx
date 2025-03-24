@@ -3,7 +3,6 @@ import SVG from "react-inlinesvg";
 import classnames from "classnames";
 import styles from "./index.module.less";
 import { Tooltip } from "antd";
-import { useWhyDidYouUpdate } from "ahooks";
 
 interface SidebarItemProps {
   onClick: () => void;
@@ -18,8 +17,6 @@ interface SidebarItemProps {
 const SidebarItem = memo((props: SidebarItemProps) => {
   const { onClick, style, className, label, icon, active, isShortWidth } =
     props;
-
-  useWhyDidYouUpdate("SidebarItem", props);
 
   return (
     <div

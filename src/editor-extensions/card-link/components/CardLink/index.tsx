@@ -9,8 +9,10 @@ import { EditCardContext } from "@/context";
 
 import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useCardPanelStore, { EActiveSide } from "@/stores/useCardPanelStore";
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 import styles from "./index.module.less";
+import { getEditorText } from "@/utils";
 
 interface ICardLinkProps {
   attributes: RenderElementProps["attributes"];
@@ -51,6 +53,21 @@ const CardLink = (props: ICardLinkProps) => {
     return EActiveSide.Left;
   }, [leftCardIds, rightCardIds, editingCardId]);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const { addTab } = useRightSidebarStore.getState();
+
+    if (addTab && linkCard) {
+      addTab({
+        id: String(linkCard.id),
+        type: "card",
+        title: getEditorText(linkCard.content, 10),
+      });
+    }
+  };
+
   return (
     <Popover
       trigger={"hover"}
@@ -68,9 +85,7 @@ const CardLink = (props: ICardLinkProps) => {
       mouseEnterDelay={0.5}
     >
       <span
-        onClick={() => {
-          addCardToSide(cardId, side);
-        }}
+        onClick={handleCardClick}
         className={styles.cardLinkContainer}
         {...attributes}
       >

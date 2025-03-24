@@ -1,0 +1,126 @@
+.rightSidebar {
+  box-sizing: border-box;
+  flex: none;
+  height: 100%;
+
+  .wrapContainer {
+    height: calc(100% - 8px);
+    background: var(--main-bg-color);
+    margin: 0 8px 8px 0;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    box-sizing: border-box;
+
+    .innerContainer {
+      box-sizing: border-box;
+      padding: 16px;
+      height: 100%;
+
+      &.dark {
+        background: #29292f;
+        box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.4);
+      }
+
+      display: flex;
+      flex-direction: column;
+
+      .header {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-content: center;
+
+        .title {
+          font-weight: bold;
+        }
+
+        .operations {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+      }
+
+      .messages {
+        border-top: 12px solid transparent;
+        border-bottom: 12px solid transparent;
+        padding: 12px 24px;
+        flex: 1;
+        box-sizing: border-box;
+        overflow-y: auto;
+        position: relative;
+        will-change: transform;
+        -webkit-overflow-scrolling: touch;
+
+        &::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background-color: rgba(0, 0, 0, 0.2);
+          border-radius: 3px;
+        }
+
+        .messagesList {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          overflow-y: auto;
+
+          .messageWrapper {
+            padding: 12px 0;
+          }
+        }
+
+        .messagesInner {
+          > div {
+            padding: 12px 0;
+
+            &:not(:last-child) {
+              margin-bottom: 12px;
+            }
+          }
+
+          .messageWrapper {
+            transition: transform 0.1s ease;
+            contain: content;
+
+            &:last-child {
+              margin-bottom: 24px;
+            }
+          }
+        }
+      }
+
+      .input {
+        margin-top: 12px;
+        margin-bottom: 12px;
+        display: flex;
+        flex: none;
+        padding: 12px 24px;
+        border-radius: 24px;
+        box-sizing: border-box;
+        background-color: var(--primary-bg-color);
+        min-height: 36px;
+        align-items: center;
+
+        .inputContent {
+          flex: 1;
+        }
+
+        .btn {
+          flex: none;
+          margin-left: 12px;
+        }
+      }
+    }
+  }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}

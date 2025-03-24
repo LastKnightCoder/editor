@@ -6,14 +6,17 @@
   --title-bar-height: 48px;
   --right-sidebar-width: 0px;
   .sidebar {
-    width: var(--sidebar-width);
+    // width: var(--sidebar-width);
+    flex-shrink: 0;
     height: 100%;
     background: var(--sidebar-background);
     overflow: hidden;
     transition: width 0.3s;
   }
   .content {
-    width: calc(100vw - var(--sidebar-width));
+    // width: calc(100vw - var(--sidebar-width));
+    width: 300px;
+    flex: 1;
     height: 100%;
     transition: width 0.3s;
     .titlebar {
@@ -30,7 +33,8 @@
       overflow: hidden;
       border-radius: 8px;
       .mainContent {
-        width: calc(100% - var(--right-sidebar-width));
+        flex: 1;
+        // width: calc(100% - var(--right-sidebar-width));
         height: calc(100% - 8px);
         overflow: hidden;
         background: var(--main-bg-color);
@@ -38,6 +42,17 @@
         border-radius: 8px;
         box-shadow: var(--shadow);
         box-sizing: border-box;
+      }
+      .rightSidebar {
+        flex-shrink: 0;
+        height: 100%;
+        margin: 0 8px 8px 0;
+        overflow: hidden;
+        border-radius: 8px;
+        display: flex;
+        &.hide {
+          margin-right: 0;
+        }
       }
     }
   }

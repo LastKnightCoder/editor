@@ -1,0 +1,34 @@
+.container {
+  height: 100%;
+  margin: 0 20px;
+  overflow: hidden;
+  box-sizing: border-box;
+  :global {
+    .ant-tabs {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ant-tabs-content-holder {
+      overflow-y: hidden;
+      flex: 1;
+    }
+
+    .ant-tabs-content {
+      height: 100%;
+    }
+
+    .ant-tabs-tabpane {
+      height: 100%;
+      overflow-y: hidden;
+    }
+  }
+}
+
+.loading {
+  height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
