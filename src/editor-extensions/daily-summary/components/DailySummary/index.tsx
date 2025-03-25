@@ -6,16 +6,18 @@ import { MdDragIndicator } from "react-icons/md";
 import classnames from "classnames";
 
 import styles from "./index.module.less";
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import dayjs from "dayjs";
 import CardItem2 from "@/components/CardItem2";
 import For from "@/components/For";
 import { Empty, Tag } from "antd";
-import useCardManagement from "@/hooks/useCardManagement.ts";
 import { useNavigate } from "react-router-dom";
-import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import If from "@/components/If";
-import ArticleCard from "@/layouts/components/ArticleCard";
+import ArticleCard from "@/pages/ArticleListView/ArticleCard";
+import { useEffect } from "react";
+import { ICard } from "@/types";
+import { IArticle } from "@/types";
+import { getAllArticles, getAllCards } from "@/commands";
+import { useState } from "react";
 
 const DailySummary = (props: IExtensionBaseProps<DailySummaryElement>) => {
   const { element, attributes, children } = props;
@@ -30,12 +32,17 @@ const DailySummary = (props: IExtensionBaseProps<DailySummaryElement>) => {
 
   const { date } = element;
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
-  const { articles } = useArticleManagementStore((state) => ({
-    articles: state.articles,
-  }));
+  const [cards, setCards] = useState<ICard[]>([]);
+  const [articles, setArticles] = useState<IArticle[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+    getAllArticles().then((articles) => {
+      setArticles(articles);
+    });
+  }, []);
 
   const cardsWithDate = cards.filter(
     (card) =>
@@ -54,8 +61,6 @@ const DailySummary = (props: IExtensionBaseProps<DailySummaryElement>) => {
   articlesWithDate.sort(
     (a, b) => dayjs(b.update_time).valueOf() - dayjs(a.update_time).valueOf(),
   );
-
-  const { onCtrlClickCard } = useCardManagement();
 
   return (
     <div
@@ -80,8 +85,7 @@ const DailySummary = (props: IExtensionBaseProps<DailySummaryElement>) => {
                 card={card}
                 showLine={false}
                 onClick={() => {
-                  navigate("/cards/list");
-                  onCtrlClickCard(card.id);
+                  navigate(`/cards/detail/${card.id}`);
                 }}
                 style={{
                   marginBottom: 0,

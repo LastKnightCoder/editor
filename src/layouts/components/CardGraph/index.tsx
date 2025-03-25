@@ -1,40 +1,22 @@
-import { useMemo, memo } from "react";
+import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useShallow } from "zustand/react/shallow";
 import LinkGraph from "@/components/LinkGraph";
 
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-import useCardPanelStore from "@/stores/useCardPanelStore";
-
 import { ICard } from "@/types";
-
-import { getInlineLinks } from "../EditCards/CardsManagement/utils";
+import { getInlineLinks } from "@/utils";
 
 interface CardGraphProps {
   className?: string;
   style?: React.CSSProperties;
   onClickCard?: (id: number) => void;
+  cards: ICard[];
+  fitView?: boolean;
+  fitViewPadding?: number[];
 }
 
 const CardGraph = memo((props: CardGraphProps) => {
-  const { className, style, onClickCard } = props;
-
-  const { cards } = useCardsManagementStore(
-    useShallow((state) => ({
-      cards: state.cards,
-    })),
-  );
-
-  const { leftCardIds, rightCardIds } = useCardPanelStore(
-    useShallow((state) => ({
-      leftCardIds: state.leftCardIds,
-      rightCardIds: state.rightCardIds,
-    })),
-  );
-
-  const activeIds = useMemo(() => {
-    return [...leftCardIds, ...rightCardIds];
-  }, [leftCardIds, rightCardIds]);
+  const { className, style, onClickCard, cards, fitView, fitViewPadding } =
+    props;
 
   const getCardLinks = useMemoizedFn((card: ICard) => {
     const links = getInlineLinks(card);
@@ -48,7 +30,9 @@ const CardGraph = memo((props: CardGraphProps) => {
       style={style}
       getCardLinks={getCardLinks}
       onClickCard={onClickCard}
-      currentCardIds={activeIds}
+      currentCardIds={[]}
+      fitView={fitView}
+      fitViewPadding={fitViewPadding}
     />
   );
 });

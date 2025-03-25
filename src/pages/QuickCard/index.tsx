@@ -5,11 +5,11 @@ import { Button } from "antd";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
-import AISearch from "@/layouts/ShortSidebarLayout/components/AISearch";
+import AISearch from "@/layouts/ShortSidebarLayout/components/Search";
 
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
 import useUploadResource from "@/hooks/useUploadResource.ts";
+import { createCard } from "@/commands";
 import { ECardCategory } from "@/types";
 import {
   cardLinkExtension,
@@ -34,10 +34,6 @@ const QuickCard = () => {
   useEffect(() => {
     initDatabase();
   }, [initDatabase]);
-
-  const { createCard } = useCardsManagementStore((state) => ({
-    createCard: state.createCard,
-  }));
 
   const uploadResource = useUploadResource();
   const editorRef = useRef<EditorRef>(null);

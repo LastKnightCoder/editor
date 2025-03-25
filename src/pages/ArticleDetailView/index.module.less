@@ -1,0 +1,63 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.titlebar {
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.breadcrumb {
+  height: 48px;
+  padding-left: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumbItem {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  &:hover {
+    background-color: var(--common-hover-bg);
+  }
+}
+
+.content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
+
+.empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.simpleArticleListContainer {
+  flex-shrink: 0;
+  width: 300px;
+  height: 100%;
+  overflow-y: auto;
+  transition: width 0.3s ease;
+
+  &.hide {
+    width: 0;
+  }
+}
+
+.articleContainer {
+  flex: 1;
+  overflow-y: auto;
+  transition: width 0.3s ease;
+}

@@ -25,6 +25,7 @@ interface ILinkGraphProps {
   cardFontSize?: number;
   currentCardIds?: number[];
   fitView?: boolean;
+  fitViewPadding?: number[];
   onClickCard?: (id: number) => void;
 }
 
@@ -39,6 +40,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     currentCardIds,
     getCardLinks = (card) => card.links,
     fitView = true,
+    fitViewPadding = [40],
     onClickCard,
   } = props;
 
@@ -128,96 +130,98 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     editorRef.current.setEditorValue(content);
   }, [content]);
 
-  const handleInitialize = useMemoizedFn((isDark) => {
-    if (!ref.current) return;
-    const width = ref.current.clientWidth;
-    const height = ref.current.clientHeight;
-    if (graph.current) {
-      graph.current.destroy();
-    }
-    graph.current = new Graph({
-      container: ref.current,
-      width,
-      height,
-      fitView,
-      fitViewPadding: [40],
-      animate: true,
-      defaultNode: {
-        style: {
-          fill: isDark ? "hsl(168, 50%, 20%)" : "hsl(168, 50%, 70%)",
-          stroke: isDark ? "hsl(168, 50%, 40%)" : "hsl(168, 50%, 50%)",
-          lineWidth: 6,
+  const handleInitialize = useMemoizedFn(
+    (cards: ICard[], isDark: boolean, fitViewPadding) => {
+      if (!ref.current) return;
+      const width = ref.current.clientWidth;
+      const height = ref.current.clientHeight;
+      if (graph.current) {
+        graph.current.destroy();
+      }
+      graph.current = new Graph({
+        container: ref.current,
+        width,
+        height,
+        fitView,
+        fitViewPadding,
+        animate: true,
+        defaultNode: {
+          style: {
+            fill: isDark ? "hsl(168, 50%, 20%)" : "hsl(168, 50%, 70%)",
+            stroke: isDark ? "hsl(168, 50%, 40%)" : "hsl(168, 50%, 50%)",
+            lineWidth: 6,
+          },
+          type: "circle",
         },
-        type: "circle",
-      },
-      defaultEdge: {
-        style: {
-          stroke: isDark ? "hsla(168, 40%, 20%, 50%)" : "hsl(168, 40%, 80%)",
-          lineWidth: 8,
+        defaultEdge: {
+          style: {
+            stroke: isDark ? "hsla(168, 40%, 20%, 50%)" : "hsl(168, 40%, 80%)",
+            lineWidth: 8,
+          },
         },
-      },
-      layout: {
-        type: "force2",
-        maxSpeed: 100,
-        linkDistance: 100,
-        preventOverlap: true,
-        workerEnabled: true,
-        nodeSize: 50,
-      },
-      modes: {
-        default: ["drag-canvas", "zoom-canvas"],
-      },
-      nodeStateStyles: {
-        selected: {
-          fill: "#91d5ff",
-          stroke: "#40a9ff",
-          lineWidth: 8,
+        layout: {
+          type: "force2",
+          maxSpeed: 100,
+          linkDistance: 100,
+          preventOverlap: true,
+          workerEnabled: true,
+          nodeSize: 50,
         },
-        current: {
-          fill: "rgba(251,185,87,0.58)",
-          stroke: "#fbb957",
-          lineWidth: 8,
+        modes: {
+          default: ["drag-canvas", "zoom-canvas"],
         },
-      },
-    });
-    const nodes = cards.map(
-      (card) =>
-        ({
-          id: String(card.id),
-          size: Math.min(getCardLinks(card).length * 10 + 30, 80),
-        }) as const,
-    );
+        nodeStateStyles: {
+          selected: {
+            fill: "#91d5ff",
+            stroke: "#40a9ff",
+            lineWidth: 8,
+          },
+          current: {
+            fill: "rgba(251,185,87,0.58)",
+            stroke: "#fbb957",
+            lineWidth: 8,
+          },
+        },
+      });
+      const nodes = cards.map(
+        (card) =>
+          ({
+            id: String(card.id),
+            size: Math.min(getCardLinks(card).length * 10 + 30, 80),
+          }) as const,
+      );
 
-    const edges = cards
-      .map((card) =>
-        getCardLinks(card).map(
-          (link) =>
-            ({
-              source: String(card.id),
-              target: String(link),
-            }) as const,
-        ),
-      )
-      .flat();
+      const edges = cards
+        .map((card) =>
+          getCardLinks(card).map(
+            (link) =>
+              ({
+                source: String(card.id),
+                target: String(link),
+              }) as const,
+          ),
+        )
+        .flat();
 
-    graph.current.data({
-      nodes,
-      edges,
-    });
+      graph.current.data({
+        nodes,
+        edges,
+      });
 
-    graph.current.render();
+      graph.current.render();
 
-    graph.current.once("afterlayout", () => {
-      console.log("afterlayout");
-      setIsAfterLayout(true);
-    });
+      graph.current.once("afterlayout", () => {
+        console.log("afterlayout");
+        setIsAfterLayout(true);
+      });
 
-    graph.current.on("node:mouseenter", handleNodeMouseEnter);
-    graph.current.on("node:mouseleave", handleNodeMouseLeave);
+      graph.current.on("node:mouseenter", handleNodeMouseEnter);
+      graph.current.on("node:mouseleave", handleNodeMouseLeave);
 
-    graph.current.on("node:click", handleNodeClick);
-    graph.current.on("canvas:click", handleCanvasClick);
-  });
+      graph.current.on("node:click", handleNodeClick);
+      graph.current.on("canvas:click", handleCanvasClick);
+    },
+  );
 
   const handleCurrentCardIdsChange = useMemoizedFn(
     (currentCardIds: number[] | undefined, isAfterLayout?: boolean) => {
@@ -237,13 +241,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   );
 
   useEffect(() => {
-    handleInitialize(isDark);
+    handleInitialize(cards, isDark, fitViewPadding);
 
     return () => {
       if (graph.current) graph.current.destroy();
       graph.current = undefined;
     };
-  }, [handleInitialize, isDark]);
+  }, [handleInitialize, isDark, cards, fitViewPadding]);
 
   useEffect(() => {
     handleCurrentCardIdsChange(currentCardIds, isAfterLayout);

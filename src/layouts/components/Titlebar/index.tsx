@@ -20,10 +20,11 @@ import useChatMessageStore from "@/stores/useChatMessageStore";
 
 interface TitlebarProps {
   children: React.ReactNode;
+  className?: string;
 }
 
 const Titlebar = memo((props: TitlebarProps) => {
-  const { children } = props;
+  const { children, className } = props;
   const leftSidebarOpen = useGlobalStateStore((state) => state.sidebarOpen);
   const chatSidebarOpen = useChatMessageStore((state) => state.open);
   const rightSidebarOpen = useRightSidebarStore((state) => state.open);
@@ -79,9 +80,13 @@ const Titlebar = memo((props: TitlebarProps) => {
 
   return (
     <div
-      className={classnames(styles.titleBar, {
-        [styles.sidebarHide]: isMac && !leftSidebarOpen,
-      })}
+      className={classnames(
+        styles.titleBar,
+        {
+          [styles.sidebarHide]: isMac && !leftSidebarOpen,
+        },
+        className,
+      )}
     >
       {!leftSidebarOpen && (
         <TitlebarIcon onClick={handleOpenSidebar}>

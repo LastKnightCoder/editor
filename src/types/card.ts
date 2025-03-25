@@ -4,6 +4,7 @@ export enum ECardCategory {
   Temporary = "temporary",
   Permanent = "permanent",
   Theme = "theme",
+  Literature = "literature",
 }
 
 export interface ICard {

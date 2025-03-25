@@ -1,7 +1,15 @@
 import { App, Button, Select } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
-import { useState, useMemo, memo, lazy, Suspense, useRef } from "react";
+import {
+  useState,
+  useMemo,
+  memo,
+  lazy,
+  Suspense,
+  useRef,
+  useEffect,
+} from "react";
 import {
   DeleteOutlined,
   LoadingOutlined,
@@ -27,6 +35,8 @@ import { Message } from "@/types";
 import { Role } from "@/constants";
 
 import styles from "./index.module.less";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import useSettingStore from "@/stores/useSettingStore";
 
 const ChatContainer = lazy(() => import("./ChatContainer"));
 
@@ -35,7 +45,11 @@ const ChatSidebar = memo(() => {
   const { message, modal } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
 
+  const database = useSettingStore((state) => state.setting.database.active);
+  const isConnected = useDatabaseConnected();
+
   const {
+    initChatMessage,
     open,
     width,
     currentChatId,
@@ -46,6 +60,7 @@ const ChatSidebar = memo(() => {
     updateCurrentChat,
   } = useChatMessageStore(
     useShallow((state) => ({
+      initChatMessage: state.initChatMessage,
       open: state.open,
       width: state.width,
       currentChatId: state.currentChatId,
@@ -56,6 +71,12 @@ const ChatSidebar = memo(() => {
       updateCurrentChat: state.updateCurrentChat,
     })),
   );
+
+  useEffect(() => {
+    if (isConnected) {
+      initChatMessage();
+    }
+  }, [initChatMessage, isConnected, database]);
 
   const currentChat = useMemo(() => {
     return chats.find((chat) => chat.id === currentChatId);

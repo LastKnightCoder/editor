@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Empty } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -13,10 +13,8 @@ import {
   cardLinkExtension,
 } from "@/editor-extensions";
 
-import useArticleManagementStore from "@/stores/useArticleManagementStore";
-
 import { formatDate } from "@/utils";
-import { searchFTS } from "@/commands";
+import { getAllArticles, searchFTS } from "@/commands";
 import { IArticle } from "@/types";
 import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
 
@@ -31,7 +29,12 @@ const customExtensions = [fileAttachmentExtension, cardLinkExtension];
 
 const ArticleSelector: React.FC<ArticleSelectorProps> = ({ onSelect }) => {
   const { theme } = useTheme();
-  const articles = useArticleManagementStore((state) => state.articles);
+  const [articles, setArticles] = useState<IArticle[]>([]);
+  useEffect(() => {
+    getAllArticles().then((articles) => {
+      setArticles(articles);
+    });
+  }, []);
 
   const [search, setSearch] = useState("");
   const [searchedArticles, setSearchedArticles] =

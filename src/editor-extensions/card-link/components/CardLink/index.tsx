@@ -1,15 +1,16 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Popover } from "antd";
 import { RenderElementProps } from "slate-react";
 
 import { CardLinkElement } from "@/editor-extensions/card-link";
 import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
 import CardContent from "../CardContent";
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 import styles from "./index.module.less";
 import { getEditorText } from "@/utils";
+import { getAllCards } from "@/commands";
+import { ICard } from "@/types";
 
 interface ICardLinkProps {
   attributes: RenderElementProps["attributes"];
@@ -21,9 +22,13 @@ const CardLink = (props: ICardLinkProps) => {
   const { attributes, children, element } = props;
   const { cardId } = element;
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const [cards, setCards] = useState<ICard[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+  }, []);
 
   const linkCard = useMemo(() => {
     return cards.find((card) => card.id === cardId);

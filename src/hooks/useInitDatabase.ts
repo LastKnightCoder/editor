@@ -4,8 +4,6 @@ import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 
 import { connectDatabaseByName } from "@/commands";
-import useArticleManagementStore from "@/stores/useArticleManagementStore";
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
@@ -13,7 +11,6 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore.ts";
-import useChatMessageStore from "@/stores/useChatMessageStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
 const useInitDatabase = () => {
@@ -29,14 +26,6 @@ const useInitDatabase = () => {
   }));
 
   const { active } = database;
-
-  const { initArticles } = useArticleManagementStore((state) => ({
-    initArticles: state.init,
-  }));
-
-  const { initCards } = useCardsManagementStore((state) => ({
-    initCards: state.init,
-  }));
 
   const { initDocuments } = useDocumentsStore((state) => ({
     initDocuments: state.init,
@@ -62,21 +51,14 @@ const useInitDatabase = () => {
     initWhiteBoards: state.initWhiteBoards,
   }));
 
-  const { initChatMessage } = useChatMessageStore((state) => ({
-    initChatMessage: state.initChatMessage,
-  }));
-
   const initDatabase = useMemoizedFn(async () => {
     await Promise.allSettled([
-      initArticles(),
-      initCards(),
       initDocuments(),
       initDailyNotes(),
       initTimeRecords(),
       initProjects(),
       initPdfs(),
       initWhiteBoards(),
-      initChatMessage(),
     ]);
   });
 
