@@ -20,3 +20,28 @@
   width: 100%;
   overflow: hidden;
 }
+
+.rightContent {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+.breadcrumb {
+  height: 48px;
+  padding-left: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.breadcrumbItem {
+  cursor: pointer;
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: var(--primary-color, #1890ff);
+    text-decoration: underline;
+  }
+}

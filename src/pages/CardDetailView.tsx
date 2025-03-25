@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button } from "antd";
-import { LeftOutlined } from "@ant-design/icons";
+import { Breadcrumb } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { ICard } from "@/types";
 import EditCard from "@/layouts/components/EditCard";
+import Titlebar from "@/layouts/components/Titlebar";
 import { getCardById } from "@/commands/card";
 import styles from "./CardDetailView.module.less";
 
@@ -32,10 +32,6 @@ const CardDetailView = () => {
     }
   });
 
-  const handleBack = useMemoizedFn(() => {
-    navigate("/cards/list");
-  });
-
   if (loading) {
     return <div className={styles.loading}>加载中...</div>;
   }
@@ -44,17 +40,31 @@ const CardDetailView = () => {
     return <div className={styles.notFound}>卡片不存在</div>;
   }
 
+  // 面包屑导航
+  const breadcrumbItems = [
+    { title: "首页", path: "/" },
+    { title: "卡片列表", path: "/cards/list" },
+    { title: `卡片详情 #${card.id}`, path: `/cards/detail/${card.id}` },
+  ];
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <Button
-          type="text"
-          icon={<LeftOutlined />}
-          onClick={handleBack}
-          className={styles.backButton}
-        >
-          返回列表
-        </Button>
+        <Titlebar>
+          <Breadcrumb
+            className={styles.breadcrumb}
+            items={breadcrumbItems.map((item) => ({
+              title: (
+                <span
+                  className={styles.breadcrumbItem}
+                  onClick={() => navigate(item.path)}
+                >
+                  {item.title}
+                </span>
+              ),
+            }))}
+          />
+        </Titlebar>
       </div>
       <div className={styles.content}>
         <EditCard cardId={card.id} />

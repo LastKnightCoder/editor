@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
+import { Breadcrumb } from "antd";
 import { ICard, ECardCategory, ICreateCard } from "@/types";
 import {
   getAllCards,
@@ -12,6 +13,7 @@ import CardTreePanel from "@/layouts/ShortSidebarLayout/components/CardView/Card
 import CardListPanel, {
   CardListPanelRef,
 } from "@/layouts/ShortSidebarLayout/components/CardView/CardListPanel";
+import Titlebar from "@/layouts/components/Titlebar";
 import styles from "./CardListView.module.less";
 
 const CardListView = () => {
@@ -122,6 +124,12 @@ const CardListView = () => {
     return filterCards(cards, selectCategory, activeCardTag);
   }, [cards, selectCategory, activeCardTag]);
 
+  // 面包屑导航
+  const breadcrumbItems = [
+    { title: "首页", path: "/" },
+    { title: "卡片列表", path: "/cards/list" },
+  ];
+
   return (
     <div className={styles.container}>
       <div className={styles.list}>
@@ -131,17 +139,34 @@ const CardListView = () => {
             activeCardTag={activeCardTag}
             onClickTag={handleClickTag}
           />
-          <CardListPanel
-            ref={cardListRef}
-            cards={filteredCards}
-            selectCategory={selectCategory}
-            onSelectCategoryChange={handleSelectCategoryChange}
-            onCreateCard={handleCreateCard}
-            onImportMarkdown={handleImportMarkdown}
-            onCardClick={handleCardClick}
-            onDeleteCard={handleDeleteCard}
-            onUpdateCardCategory={handleUpdateCardCategory}
-          />
+          <div className={styles.rightContent}>
+            <Titlebar>
+              <Breadcrumb
+                className={styles.breadcrumb}
+                items={breadcrumbItems.map((item) => ({
+                  title: (
+                    <span
+                      className={styles.breadcrumbItem}
+                      onClick={() => navigate(item.path)}
+                    >
+                      {item.title}
+                    </span>
+                  ),
+                }))}
+              />
+            </Titlebar>
+            <CardListPanel
+              ref={cardListRef}
+              cards={filteredCards}
+              selectCategory={selectCategory}
+              onSelectCategoryChange={handleSelectCategoryChange}
+              onCreateCard={handleCreateCard}
+              onImportMarkdown={handleImportMarkdown}
+              onCardClick={handleCardClick}
+              onDeleteCard={handleDeleteCard}
+              onUpdateCardCategory={handleUpdateCardCategory}
+            />
+          </div>
         </div>
       </div>
     </div>

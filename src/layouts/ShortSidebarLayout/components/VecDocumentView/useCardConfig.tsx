@@ -35,6 +35,8 @@ const useCardConfig = () => {
     })),
   );
 
+  console.log("所有的卡片", cards);
+
   const { provider } = useSettingStore(
     useShallow((state) => ({
       provider: state.setting.llmProviders[ELLMProvider.OPENAI],
@@ -80,14 +82,37 @@ const useCardConfig = () => {
         (result) => result.id === card.id && result.type === "card",
       );
 
-      const vecResult = vecResults.find(
+      const hasVecResult = vecResults.some(
         (result) => result.id === card.id && result.type === "card",
       );
 
+      const vecResult = vecResults.find(
+        (result) => result.id === card.id && result.type === "card",
+      );
+      const ftsResult = ftsResults.find(
+        (result) => result.id === card.id && result.type === "card",
+      );
+
+      console.log(
+        "card.id: ",
+        card.id,
+        "hasFTSIndex: ",
+        hasFTSIndex,
+        "hasVecResult: ",
+        hasVecResult,
+        "vecResult: ",
+        vecResult,
+        "ftsResult: ",
+        ftsResult,
+      );
+
       let status;
-      if (!hasFTSIndex && !vecResult) {
+      if (!hasFTSIndex && !hasVecResult) {
         status = "未索引";
-      } else if (vecResult && card.update_time > vecResult.updateTime) {
+      } else if (
+        (vecResult && card.update_time > vecResult.updateTime) ||
+        (ftsResult && card.update_time > ftsResult.updateTime)
+      ) {
         status = "待更新";
       } else {
         status = "已索引";
@@ -97,6 +122,15 @@ const useCardConfig = () => {
       const isHitIndexStatus =
         indexStatusFilterArray.length === 0 ||
         indexStatusFilterArray.includes(status);
+
+      console.log(
+        "card.id: ",
+        card.id,
+        "status: ",
+        status,
+        "isHitIndexStatus: ",
+        isHitIndexStatus,
+      );
 
       return isHitIndexStatus;
     });
@@ -111,6 +145,7 @@ const useCardConfig = () => {
 
   const initIndexResults = useMemoizedFn(async () => {
     const results = await getAllIndexResults("card");
+    console.log(results);
     setIndexResults(results);
   });
 
