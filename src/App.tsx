@@ -69,7 +69,11 @@ const Application = () => {
     ) => {
       const currentDatabaseName =
         useSettingStore.getState().setting.database.active;
-      if (data.databaseName !== currentDatabaseName) return;
+      if (
+        data.databaseName.replace(".db", "") !==
+        currentDatabaseName.replace(".db", "")
+      )
+        return;
       const card = await getCardById(data.cardId);
       cardEventBus.publishCardEvent("card:updated", card);
     };
