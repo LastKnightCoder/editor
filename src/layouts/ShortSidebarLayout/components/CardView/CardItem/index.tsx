@@ -21,9 +21,7 @@ import {
 import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
 import { Dropdown, MenuProps } from "antd";
-import useCardManagement from "@/hooks/useCardManagement.ts";
 import { useCreation, useMemoizedFn } from "ahooks";
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PresentationMode from "@/components/PresentationMode";
@@ -34,6 +32,12 @@ interface CardItemProps {
   card: ICard;
   onPresentationMode?: () => void;
   onExitPresentationMode?: () => void;
+  onCardClick?: (cardId: number) => void;
+  onDeleteCard?: (cardId: number) => Promise<void>;
+  onUpdateCardCategory?: (
+    card: ICard,
+    category: ECardCategory,
+  ) => Promise<void>;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -48,6 +52,9 @@ const CardItem = memo(
       style,
       onPresentationMode,
       onExitPresentationMode,
+      onCardClick,
+      onDeleteCard,
+      onUpdateCardCategory,
     } = props;
     const [isPresentation, setIsPresentation] = useState(false);
 
@@ -55,14 +62,6 @@ const CardItem = memo(
     const cardEventBus = useCreation(
       () => defaultCardEventBus.createEditor(),
       [],
-    );
-
-    const { onClickCard, onCtrlClickCard, onDeleteCard } = useCardManagement();
-
-    const { updateCard } = useCardsManagementStore(
-      useShallow((state) => ({
-        updateCard: state.updateCard,
-      })),
     );
 
     const addTab = useRightSidebarStore((state) => state.addTab);
@@ -143,11 +142,9 @@ const CardItem = memo(
       ];
     }, [card.category, databaseName, card.id]);
 
-    const onClick = useMemoizedFn((e: MouseEvent<HTMLDivElement>) => {
-      if (e.ctrlKey) {
-        onCtrlClickCard(card.id);
-      } else {
-        onClickCard(card.id);
+    const onClick = useMemoizedFn(() => {
+      if (onCardClick) {
+        onCardClick(card.id);
       }
     });
 
@@ -163,7 +160,9 @@ const CardItem = memo(
     const handleMoreClick: MenuProps["onClick"] = useMemoizedFn(
       async ({ key }) => {
         if (key === "delete-card") {
-          await onDeleteCard(card.id);
+          if (onDeleteCard) {
+            await onDeleteCard(card.id);
+          }
         } else if (key === "export-markdown") {
           const markdown = getMarkdown(card.content);
           const blob = new Blob([markdown], { type: "text/markdown" });
@@ -175,22 +174,19 @@ const CardItem = memo(
           URL.revokeObjectURL(url);
         } else if (key === "category-temporary") {
           if (card.category === ECardCategory.Temporary) return;
-          await updateCard({
-            ...card,
-            category: ECardCategory.Temporary,
-          });
+          if (onUpdateCardCategory) {
+            await onUpdateCardCategory(card, ECardCategory.Temporary);
+          }
         } else if (key === "category-permanent") {
           if (card.category === ECardCategory.Permanent) return;
-          await updateCard({
-            ...card,
-            category: ECardCategory.Permanent,
-          });
+          if (onUpdateCardCategory) {
+            await onUpdateCardCategory(card, ECardCategory.Permanent);
+          }
         } else if (key === "category-theme") {
           if (card.category === ECardCategory.Theme) return;
-          await updateCard({
-            ...card,
-            category: ECardCategory.Theme,
-          });
+          if (onUpdateCardCategory) {
+            await onUpdateCardCategory(card, ECardCategory.Theme);
+          }
         }
       },
     );

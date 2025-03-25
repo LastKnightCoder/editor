@@ -3,15 +3,17 @@ import { memo, useMemo } from "react";
 import TagItem from "@/components/TagItem";
 import useCardTree from "@/hooks/useCardTree";
 import styles from "./index.module.less";
+import { ICard } from "@/types";
 
 interface CardTreePanelProps {
+  cards: ICard[];
   activeCardTag: string;
   onClickTag: (tag: string) => void;
 }
 
 const CardTreePanel = memo(
-  ({ activeCardTag, onClickTag }: CardTreePanelProps) => {
-    const { cardTree } = useCardTree();
+  ({ cards, activeCardTag, onClickTag }: CardTreePanelProps) => {
+    const { cardTree } = useCardTree(cards);
 
     // 使用useMemoizedFn缓存回调函数，防止每次渲染创建新函数
     const handleClickTag = useMemoizedFn((tag: string) => {

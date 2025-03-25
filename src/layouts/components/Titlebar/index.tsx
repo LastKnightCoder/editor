@@ -1,5 +1,4 @@
 import { memo, useState } from "react";
-import { Outlet } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import SVG from "react-inlinesvg";
@@ -19,7 +18,12 @@ import { PushpinOutlined } from "@ant-design/icons";
 import styles from "./index.module.less";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 
-const Titlebar = memo(() => {
+interface TitlebarProps {
+  children: React.ReactNode;
+}
+
+const Titlebar = memo((props: TitlebarProps) => {
+  const { children } = props;
   const leftSidebarOpen = useGlobalStateStore((state) => state.sidebarOpen);
   const chatSidebarOpen = useChatMessageStore((state) => state.open);
   const rightSidebarOpen = useRightSidebarStore((state) => state.open);
@@ -49,11 +53,9 @@ const Titlebar = memo(() => {
         open: false,
       });
     }
-    setTimeout(() => {
-      useChatMessageStore.setState({
-        open: true,
-      });
-    }, 300);
+    useChatMessageStore.setState({
+      open: true,
+    });
   });
 
   const handleOpenRightSidebar = useMemoizedFn(() => {
@@ -68,11 +70,9 @@ const Titlebar = memo(() => {
         open: false,
       });
     }
-    setTimeout(() => {
-      useRightSidebarStore.setState({
-        open: true,
-      });
-    }, 300);
+    useRightSidebarStore.setState({
+      open: true,
+    });
   });
 
   const isMac = platform === "darwin";
@@ -88,7 +88,7 @@ const Titlebar = memo(() => {
           <SVG src={sidebarLeftIcon} />
         </TitlebarIcon>
       )}
-      <Outlet />
+      {children}
       <div className={styles.right}>
         <TitlebarIcon
           tip={alwaysOnTop ? "取消置顶" : "置顶"}

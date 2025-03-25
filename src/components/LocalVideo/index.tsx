@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useAsyncEffect } from "ahooks";
+import React, { useEffect, useRef, useState, memo } from "react";
+import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { readBinaryFile, getFileExtension } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 
@@ -25,7 +25,7 @@ function getMimeType(ext: string): string {
   return mimeTypes[ext.toLowerCase()] || "application/octet-stream";
 }
 
-const LocalVideo = (props: LocalVideoProps) => {
+const LocalVideo = memo((props: LocalVideoProps) => {
   const { src, ...rest } = props;
 
   const [previewUrl, setPreviewUrl] = useState(src);
@@ -74,22 +74,24 @@ const LocalVideo = (props: LocalVideoProps) => {
     }
   }, [previewUrl]);
 
-  const handleOnError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-    setPreviewUrl(src);
-    // @ts-ignore
-    const errorCode = e.target.error?.code as string;
-    const errorMessage: string =
-      {
-        "1": "MEDIA_ERR_ABORTED - 用户取消加载",
-        "2": "MEDIA_ERR_NETWORK - 网络错误",
-        "3": "MEDIA_ERR_DECODE - 解码错误",
-        "4": "MEDIA_ERR_SRC_NOT_SUPPORTED - 格式不支持",
-      }[errorCode] || "未知错误";
+  const handleOnError = useMemoizedFn(
+    (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+      setPreviewUrl(src);
+      // @ts-ignore
+      const errorCode = e.target.error?.code as string;
+      const errorMessage: string =
+        {
+          "1": "MEDIA_ERR_ABORTED - 用户取消加载",
+          "2": "MEDIA_ERR_NETWORK - 网络错误",
+          "3": "MEDIA_ERR_DECODE - 解码错误",
+          "4": "MEDIA_ERR_SRC_NOT_SUPPORTED - 格式不支持",
+        }[errorCode] || "未知错误";
 
-    console.error("视频错误:", errorMessage);
-  };
+      console.error("视频错误:", errorMessage);
+    },
+  );
 
   return <video ref={ref} onError={handleOnError} src={previewUrl} {...rest} />;
-};
+});
 
 export default LocalVideo;

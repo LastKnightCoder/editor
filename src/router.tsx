@@ -8,12 +8,13 @@ import SingleArticleEditor from "@/pages/SingleArticleEditor";
 import SingleProjectItemEditor from "@/pages/SingleProjectItemEditor";
 import SingleDocumentItemEditor from "@/pages/SingleDocumentItemEditor";
 import SingleMarkdownEditor from "@/pages/SingleMarkdownEditor";
+import CardListView from "@/pages/CardListView";
+import CardDetailView from "@/pages/CardDetailView";
 
 import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
 import QuickOpenLayout from "@/layouts/QuickOpenLayout";
 
 import HomeView from "@/layouts/ShortSidebarLayout/components/HomeView";
-import CardView from "@/layouts/ShortSidebarLayout/components/CardView";
 import ArticleView from "@/layouts/ShortSidebarLayout/components/ArticleView";
 import CardLinkGraph from "@/layouts/ShortSidebarLayout/components/CardLinkGraph";
 import WhiteBoardView from "@/layouts/ShortSidebarLayout/components/WhiteBoardView";
@@ -37,7 +38,11 @@ const routes = [
       },
       {
         path: "cards/list",
-        element: <CardView />,
+        element: <CardListView />,
+      },
+      {
+        path: "cards/detail/:id",
+        element: <CardDetailView />,
       },
       {
         path: "cards/link-graph",

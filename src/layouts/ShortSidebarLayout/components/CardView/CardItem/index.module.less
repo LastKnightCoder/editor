@@ -12,9 +12,10 @@
   .time {
     margin-bottom: 20px;
     display: flex;
+    font-size: 0.75em;
     gap: 10px;
     color: gray;
-    font-size: 0.75em;
+    margin-bottom: 20px;
   }
 
   .content {
@@ -22,28 +23,29 @@
     overflow: hidden;
   }
 
-  .tags {
-    margin-top: 20px;
-  }
-
   .actions {
     position: absolute;
     top: 16px;
-    right: 10px;
+    right: 16px;
     display: flex;
+    justify-content: flex-end;
     gap: 8px;
+  }
 
-    .action {
-      width: 24px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
+  .action {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+  }
 
-      &:hover {
-        background: var(--common-hover-bg);
-      }
-    }
+  .action:hover {
+    background-color: var(--common-hover-bg);
+  }
+
+  .tags {
+    margin-top: 20px;
   }
 }

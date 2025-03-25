@@ -11,6 +11,12 @@ const useEditCard = (cardId: number | undefined) => {
   const [loading, setLoading] = useState(false);
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
   const prevCard = useRef<ICard | null>(null);
+  const [initValue, setInitValue] = useState<Descendant[]>([
+    {
+      type: "paragraph",
+      children: [{ type: "formatted", text: "" }],
+    },
+  ]);
 
   useAsyncEffect(async () => {
     if (!cardId) return;
@@ -23,6 +29,7 @@ const useEditCard = (cardId: number | undefined) => {
     }
 
     setEditingCard(card);
+    setInitValue(card.content);
     prevCard.current = card;
     setLoading(false);
   }, [cardId]);
@@ -121,6 +128,7 @@ const useEditCard = (cardId: number | undefined) => {
   });
 
   return {
+    initValue,
     loading,
     editingCard,
     saveCard,

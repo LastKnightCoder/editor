@@ -135,8 +135,7 @@ const AISearch = memo(() => {
     useCommandPanelStore.setState({ open: false });
 
     if (result.type === "card") {
-      navigate("/cards/list");
-      onCtrlClickCard(result.id);
+      navigate(`/cards/detail/${result.id}`);
     } else if (result.type === "article") {
       navigate("/articles");
       useArticleManagementStore.setState({
