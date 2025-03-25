@@ -10,6 +10,7 @@ export const DEFAULT_CARD_CONTENT: Descendant[] = [
 
 export const cardCategoryName = {
   [ECardCategory.Temporary]: "闪念笔记",
+  [ECardCategory.Literature]: "文献笔记",
   [ECardCategory.Permanent]: "永久笔记",
   [ECardCategory.Theme]: "主题笔记",
 } as const;

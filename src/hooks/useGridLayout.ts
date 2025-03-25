@@ -21,6 +21,8 @@ const useGridLayout = (options: UseGridLayoutOptions = {}) => {
   const handleResize = useMemoizedFn((entries: ResizeObserverEntry[]) => {
     const { width } = entries[0].contentRect;
 
+    console.log("handleResize", width, gap);
+
     const nMin = Math.ceil((width + gap) / (maxWidth + gap));
     const nMax = Math.floor((width + gap) / (minWidth + gap));
 

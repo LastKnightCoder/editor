@@ -21,7 +21,6 @@ interface IState {
   projects: Project[];
   loading: boolean;
   dragging: boolean;
-  activeProjectId: number | null;
   activeProjectItemId: number | null;
   showOutline: boolean;
   readonly: boolean;
@@ -39,6 +38,7 @@ interface IActions {
     createProjectItem: CreateProjectItem,
   ) => Promise<ProjectItem | undefined>;
   createChildProjectItem: (
+    projectId: number,
     parentProjectItemId: number,
     createProjectItem: CreateProjectItem,
   ) => Promise<ProjectItem | undefined>;
@@ -65,7 +65,6 @@ const initState: IState = {
   loading: false,
   // 是否正在拖拽，如果正在处理拖拽逻辑，阻止自动保存，以防同时操作数据，导致数据错乱
   dragging: false,
-  activeProjectId: null,
   activeProjectItemId: null,
   showOutline: false,
   readonly: false,
@@ -121,17 +120,19 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
 
     return res;
   },
-  createChildProjectItem: async (parentProjectItemId, projectItem) => {
-    const { activeProjectId } = get();
-    if (!activeProjectId) return;
+  createChildProjectItem: async (
+    projectId,
+    parentProjectItemId,
+    projectItem,
+  ) => {
     const parentProjectItem = await getProjectItemById(parentProjectItemId);
     if (!parentProjectItem) return;
     const checkedProjectItem = produce(projectItem, (draft) => {
       if (!draft.parents.includes(parentProjectItemId)) {
         draft.parents.push(parentProjectItemId);
       }
-      if (!draft.projects.includes(activeProjectId)) {
-        draft.projects.push(activeProjectId);
+      if (!draft.projects.includes(projectId)) {
+        draft.projects.push(projectId);
       }
       // 子项要继承父的所有 project
       for (const id of parentProjectItem.projects) {

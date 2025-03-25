@@ -24,11 +24,10 @@ const WhiteBoardTitlebar = () => {
             tip={"主页"}
             onClick={() => {
               useDocumentsStore.setState({
-                activeDocumentId: null,
                 activeDocumentItemId: null,
                 hideDocumentItemsList: false,
               });
-              navigate(`/documents`);
+              navigate(`/documents/list`);
             }}
           >
             <HomeOutlined />

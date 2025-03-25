@@ -4,7 +4,7 @@ import classnames from "classnames";
 import Sidebar from "./components/Sidebar";
 import RightSidebar from "./components/RightSidebar";
 import ChatSidebar from "./components/ChatSidebar";
-import AISearch from "./components/AISearch";
+import Search from "./components/Search";
 
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
 
@@ -35,7 +35,7 @@ const ShortSidebarLayout = () => {
           <RightSidebar />
         </div>
       </div>
-      <AISearch />
+      <Search />
     </div>
   );
 };

@@ -28,14 +28,14 @@ export async function getAllArticles(): Promise<IArticle[]> {
 export async function updateArticleIsTop(
   id: number,
   isTop: boolean,
-): Promise<number> {
+): Promise<IArticle> {
   return await invoke("update-article-is-top", id, isTop);
 }
 
 export async function updateArticleBannerBg(
   id: number,
   bannerBg: string,
-): Promise<number> {
+): Promise<IArticle> {
   return await invoke("update-article-banner-bg", id, bannerBg);
 }
 

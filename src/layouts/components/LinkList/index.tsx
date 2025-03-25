@@ -1,15 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { App, Button, Empty, message } from "antd";
-import { useShallow } from "zustand/react/shallow";
 import CardItem2 from "@/components/CardItem2";
 import If from "@/components/If";
 import AddCardLinkModal from "../AddCardLinkModal";
 
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-
 import { ICard } from "@/types";
 
 import styles from "./index.module.less";
+import { getAllCards } from "@/commands";
 
 interface ILinkTabProps {
   onClickLinkCard: (id: number) => void;
@@ -32,11 +30,13 @@ const LinkTab = (props: ILinkTabProps) => {
 
   const { modal } = App.useApp();
 
-  const { cards } = useCardsManagementStore(
-    useShallow((state) => ({
-      cards: state.cards,
-    })),
-  );
+  const [cards, setCards] = useState<ICard[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+  }, []);
 
   const openAddLinkModal = () => {
     if (readonly) {

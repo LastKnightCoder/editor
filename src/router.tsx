@@ -1,31 +1,43 @@
 import { createHashRouter } from "react-router-dom";
+import loadable from "@loadable/component";
+import HomeView from "@/pages/HomeView";
 
-import QuickCard from "@/pages/QuickCard";
-import QuickTimeRecord from "@/pages/QuickTimeRecord";
-import SettingsPage from "@/pages/Settings";
-import SingleCardEditor from "@/pages/SingleCardEditor";
-import SingleArticleEditor from "@/pages/SingleArticleEditor";
-import SingleProjectItemEditor from "@/pages/SingleProjectItemEditor";
-import SingleDocumentItemEditor from "@/pages/SingleDocumentItemEditor";
-import SingleMarkdownEditor from "@/pages/SingleMarkdownEditor";
-import CardListView from "@/pages/CardListView";
-import CardDetailView from "@/pages/CardDetailView";
+const SettingsPage = loadable(() => import("@/pages/Settings"));
 
-import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
-import QuickOpenLayout from "@/layouts/QuickOpenLayout";
+const QuickCard = loadable(() => import("@/pages/QuickCard"));
+const QuickTimeRecord = loadable(() => import("@/pages/QuickTimeRecord"));
+const SingleCardEditor = loadable(() => import("@/pages/SingleCardEditor"));
+const SingleArticleEditor = loadable(
+  () => import("@/pages/SingleArticleEditor"),
+);
+const SingleProjectItemEditor = loadable(
+  () => import("@/pages/SingleProjectItemEditor"),
+);
+const SingleDocumentItemEditor = loadable(
+  () => import("@/pages/SingleDocumentItemEditor"),
+);
+const SingleMarkdownEditor = loadable(
+  () => import("@/pages/SingleMarkdownEditor"),
+);
 
-import HomeView from "@/layouts/ShortSidebarLayout/components/HomeView";
-import ArticleView from "@/layouts/ShortSidebarLayout/components/ArticleView";
-import CardLinkGraph from "@/layouts/ShortSidebarLayout/components/CardLinkGraph";
-import WhiteBoardView from "@/layouts/ShortSidebarLayout/components/WhiteBoardView";
-import DocumentsView from "@/layouts/ShortSidebarLayout/components/DocumentsView";
-import DocumentView from "@/layouts/ShortSidebarLayout/components/DocumentView";
-import ProjectsView from "@/layouts/ShortSidebarLayout/components/ProjectsView";
-import ProjectView from "@/layouts/ShortSidebarLayout/components/ProjectView";
-import PdfView from "@/layouts/ShortSidebarLayout/components/PdfView";
-import DailyNoteView from "@/layouts/ShortSidebarLayout/components/DailyNoteView";
-import TimeRecordView from "@/layouts/ShortSidebarLayout/components/TimeRecordView";
-import VecDocumentView from "@/layouts/ShortSidebarLayout/components/VecDocumentView";
+const ShortSidebarLayout = loadable(
+  () => import("@/layouts/ShortSidebarLayout"),
+);
+const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
+
+const CardListView = loadable(() => import("@/pages/CardListView"));
+const CardDetailView = loadable(() => import("@/pages/CardDetailView"));
+const ArticleListView = loadable(() => import("@/pages/ArticleListView"));
+const ArticleDetailView = loadable(() => import("@/pages/ArticleDetailView"));
+const WhiteBoardView = loadable(() => import("@/pages/WhiteBoardView"));
+const DocumentsView = loadable(() => import("@/pages/DocumentsView"));
+const DocumentView = loadable(() => import("@/pages/DocumentView"));
+const ProjectsView = loadable(() => import("@/pages/ProjectsView"));
+const ProjectView = loadable(() => import("@/pages/ProjectView"));
+const PdfView = loadable(() => import("@/pages/PdfView"));
+const DailyNoteView = loadable(() => import("@/pages/DailyNoteView"));
+const TimeRecordView = loadable(() => import("@/pages/TimeRecordView"));
+const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
 
 const routes = [
   {
@@ -45,32 +57,32 @@ const routes = [
         element: <CardDetailView />,
       },
       {
-        path: "cards/link-graph",
-        element: <CardLinkGraph />,
+        path: "articles/list",
+        element: <ArticleListView />,
       },
       {
-        path: "articles/",
-        element: <ArticleView />,
-      },
-      {
-        path: "white-boards/",
-        element: <WhiteBoardView />,
-      },
-      {
-        path: "documents/",
-        element: <DocumentsView />,
-      },
-      {
-        path: "documents/:id",
-        element: <DocumentView />,
+        path: "articles/detail/:id",
+        element: <ArticleDetailView />,
       },
       {
         path: "projects/list",
         element: <ProjectsView />,
       },
       {
-        path: "projects/:id",
+        path: "projects/detail/:id",
         element: <ProjectView />,
+      },
+      {
+        path: "documents/list",
+        element: <DocumentsView />,
+      },
+      {
+        path: "documents/detail/:id",
+        element: <DocumentView />,
+      },
+      {
+        path: "white-boards/",
+        element: <WhiteBoardView />,
       },
       {
         path: "pdfs/",

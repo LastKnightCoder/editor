@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Empty } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -13,10 +13,9 @@ import {
   cardLinkExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
 
 import { formatDate } from "@/utils";
-import { searchFTS } from "@/commands";
+import { getAllCards, searchFTS } from "@/commands";
 import { ICard } from "@/types";
 import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
 
@@ -30,7 +29,13 @@ interface CardSelectorProps {
 }
 
 const CardSelector: React.FC<CardSelectorProps> = ({ onSelect }) => {
-  const cards = useCardsManagementStore((state) => state.cards);
+  const [cards, setCards] = useState<ICard[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+  }, []);
   const { theme } = useTheme();
 
   const [search, setSearch] = useState("");
@@ -46,7 +51,6 @@ const CardSelector: React.FC<CardSelectorProps> = ({ onSelect }) => {
         types: ["card"],
         limit: 10,
       });
-      console.log("result", result);
       const searchedCards = cards.filter((card) =>
         result.some((item) => item.id === card.id),
       );

@@ -79,9 +79,16 @@ export default class CardTable {
     return cards.map((card) => this.parseCard(card));
   }
 
-  static getCardById(db: Database.Database, cardId: number | bigint): ICard {
+  static getCardById(
+    db: Database.Database,
+    cardId: number | bigint,
+  ): ICard | null {
     const stmt = db.prepare("SELECT * FROM cards WHERE id = ?");
-    return this.parseCard(stmt.get(cardId));
+    const card = stmt.get(cardId);
+    if (!card) {
+      return null;
+    }
+    return this.parseCard(card);
   }
 
   static getCardByIds(db: Database.Database, cardIds: number[]): ICard[] {
@@ -111,7 +118,7 @@ export default class CardTable {
     );
     const createdCardId = res.lastInsertRowid;
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
-    return this.getCardById(db, createdCardId);
+    return this.getCardById(db, createdCardId) as ICard;
   }
 
   static updateCard(
@@ -158,7 +165,7 @@ export default class CardTable {
       }
     });
 
-    return this.getCardById(db, id);
+    return this.getCardById(db, id) as ICard;
   }
 
   static deleteCard(db: Database.Database, cardId: number): number {

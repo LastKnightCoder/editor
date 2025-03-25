@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import SVG from "react-inlinesvg";
 import cardIcon from "@/assets/icons/card.svg";
 import SelectCardModal from "@/components/SelectCardModal";
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
+import { getAllCards } from "@/commands";
 import { v4 as getUuid } from "uuid";
 
 import { useBoard } from "../../../hooks";
@@ -21,9 +21,13 @@ const Card = (props: CardProps) => {
   const { className, style } = props;
   const board = useBoard();
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const [cards, setCards] = useState<ICard[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+  }, []);
 
   const [selectModalOpen, setSelectModalOpen] = useState(false);
   const [excludeCardIds, setExcludeCardIds] = useState([-1]);

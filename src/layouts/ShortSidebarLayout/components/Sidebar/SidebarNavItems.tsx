@@ -135,14 +135,14 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         key: "article",
         icon: article,
         desc: "文章",
-        path: "/articles",
+        path: "/articles/list",
         enable: module.article.enable,
       },
       {
         key: "document",
         icon: document,
         desc: "知识库",
-        path: "/documents",
+        path: "/documents/list",
         enable: module.document.enable,
       },
       {

@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useContext } from "react";
+import { useMemo, useState, useRef, useContext, useEffect, memo } from "react";
 import { BaseSelection, Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
@@ -10,22 +10,25 @@ import { EditCardContext } from "@/context";
 import classnames from "classnames";
 import { unwrapCardLink, wrapCardLink } from "../utils";
 
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-
 import card from "@/assets/hovering_bar/card.svg";
 
 import styles from "./index.module.less";
 import { ICard } from "@/types";
+import { getAllCards } from "@/commands";
 
-const LinkHoveringItem = () => {
+const LinkHoveringItem = memo(() => {
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openSelectModal, setOpenSelectModal] = useState<boolean>(false);
   const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
   const { cardId } = useContext(EditCardContext) || {};
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const [cards, setCards] = useState<ICard[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+  }, []);
 
   const editor = useSlate();
   const selection = useSlateSelection();
@@ -106,6 +109,6 @@ const LinkHoveringItem = () => {
       />
     </div>
   );
-};
+});
 
 export default LinkHoveringItem;

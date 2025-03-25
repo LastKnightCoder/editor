@@ -20,15 +20,12 @@ import {
 } from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
-import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useDailyNoteStore from "@/stores/useDailyNoteStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
-import useChatMessageStore from "@/stores/useChatMessageStore.ts";
 
 export const getDatabasePath = async (
   databaseName: string,
@@ -264,15 +261,12 @@ export const download = async () => {
   } finally {
     await connectDatabaseByName(databaseName, true);
     await Promise.all([
-      useCardsManagementStore.getState().init(),
-      useArticleManagementStore.getState().init(),
       useDocumentsStore.getState().init(),
       useProjectsStore.getState().init(),
       useDailyNoteStore.getState().init(),
       useTimeRecordStore.getState().init(),
       usePdfsStore.getState().initPdfs(),
       useWhiteBoardStore.getState().initWhiteBoards(),
-      useChatMessageStore.getState().initChatMessage(),
     ]);
     const event = new CustomEvent("database-sync-finish");
     document.dispatchEvent(event);

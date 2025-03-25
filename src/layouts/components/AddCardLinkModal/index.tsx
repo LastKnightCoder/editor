@@ -1,10 +1,9 @@
-import { useMemo, useState } from "react";
-
-import useCardsManagementStore from "@/stores/useCardsManagementStore.ts";
+import { useEffect, useMemo, useState } from "react";
 
 import SelectCardModal from "@/components/SelectCardModal";
 
 import { ICard } from "@/types";
+import { getAllCards } from "@/commands";
 
 interface IAddCardLinkModalProps {
   open: boolean;
@@ -16,9 +15,13 @@ interface IAddCardLinkModalProps {
 const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
   const { open, editingCard, onOk, onClose } = props;
 
-  const { cards } = useCardsManagementStore((state) => ({
-    cards: state.cards,
-  }));
+  const [cards, setCards] = useState<ICard[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+  }, []);
 
   const excludeCardIds = useMemo(() => {
     if (!editingCard) return [];

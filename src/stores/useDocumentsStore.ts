@@ -16,7 +16,6 @@ import { produce } from "immer";
 interface IState {
   documents: IDocument[];
   loading: boolean;
-  activeDocumentId: number | null;
   activeDocumentItemId: number | null;
   hideDocumentItemsList: boolean;
 }
@@ -32,7 +31,6 @@ interface IActions {
 const initState: IState = {
   documents: [],
   loading: false,
-  activeDocumentId: null,
   activeDocumentItemId: null,
   hideDocumentItemsList: false,
 };
