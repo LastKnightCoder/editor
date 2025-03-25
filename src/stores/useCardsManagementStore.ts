@@ -5,7 +5,6 @@ import { produce } from "immer";
 
 interface IState {
   cards: ICard[];
-  initLoading: boolean;
   selectCategory: ECardCategory;
   activeCardTag: string;
 }
@@ -19,7 +18,6 @@ interface IActions {
 
 const initState: IState = {
   cards: [],
-  initLoading: false,
   selectCategory: ECardCategory.Permanent,
   activeCardTag: "",
 };
@@ -29,10 +27,9 @@ const useCardsManagementStore = create<IState & IActions>((set, get) => ({
   init: async () => {
     set({
       ...initState,
-      initLoading: true,
     });
     const cards = await getAllCards();
-    set({ cards, initLoading: false });
+    set({ cards });
   },
   createCard: async (card) => {
     const { cards } = get();

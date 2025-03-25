@@ -1,11 +1,10 @@
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
 import { generateCardTree } from "@/utils";
 import { useMemoizedFn } from "ahooks";
 import { useMemo, useState } from "react";
+import { ICard } from "@/types";
 
-const useCardTree = (defaultCount = 10) => {
+const useCardTree = (cards: ICard[], defaultCount = 10) => {
   const [cardTreeCount, setCardTreeCount] = useState(defaultCount);
-  const cards = useCardsManagementStore((state) => state.cards);
 
   const cardTree = useMemo(() => {
     const cardTree = generateCardTree(cards);

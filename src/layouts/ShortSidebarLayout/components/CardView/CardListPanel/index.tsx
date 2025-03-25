@@ -17,11 +17,16 @@ export interface CardListPanelRef {
 interface CardListPanelProps {
   cards: ICard[];
   selectCategory: ECardCategory;
-  isShowEdit: boolean;
   onSelectCategoryChange: (category: ECardCategory) => void;
   onCreateCard: (card: ICreateCard) => Promise<void>;
   onImportMarkdown: () => Promise<void>;
   onScrollToTop?: () => void; // 通知父组件已经回到顶部，可用于同步其他组件
+  onCardClick?: (cardId: number) => void; // 卡片点击事件回调
+  onDeleteCard?: (cardId: number) => Promise<void>;
+  onUpdateCardCategory?: (
+    card: ICard,
+    category: ECardCategory,
+  ) => Promise<void>;
 }
 
 const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
@@ -29,11 +34,13 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
     {
       cards,
       selectCategory,
-      isShowEdit,
       onSelectCategoryChange,
       onCreateCard,
       onImportMarkdown,
       onScrollToTop,
+      onCardClick,
+      onDeleteCard,
+      onUpdateCardCategory,
     },
     ref,
   ) => {
@@ -92,40 +99,45 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
       onScrollToTop?.();
     });
 
+    const handleCardClick = useMemoizedFn((cardId: number) => {
+      onCardClick?.(cardId);
+    });
+
     return (
-      <If condition={!isShowEdit}>
-        <div className={styles.cardContainer}>
-          <div className={styles.cardList}>
-            <CardHeader
-              selectCategory={selectCategory}
-              onSelectCategoryChange={onSelectCategoryChange}
-              onCreateCard={handleCreateCard}
-              onImportMarkdown={onImportMarkdown}
+      <div className={styles.cardContainer}>
+        <div className={styles.cardList}>
+          <CardHeader
+            selectCategory={selectCategory}
+            onSelectCategoryChange={onSelectCategoryChange}
+            onCreateCard={handleCreateCard}
+            onImportMarkdown={onImportMarkdown}
+          />
+          <CreateCard
+            className={styles.createCard}
+            visible={isCreatingCard}
+            onSave={handleSaveCard}
+            onCancel={handleCancelCreate}
+          />
+          <VirtualCardList
+            ref={virtualListRef}
+            cards={cards}
+            onScroll={handleScroll}
+            onPresentationMode={handlePresentationMode}
+            onExitPresentationMode={handleExitPresentationMode}
+            onCardClick={handleCardClick}
+            onDeleteCard={onDeleteCard}
+            onUpdateCardCategory={onUpdateCardCategory}
+          />
+          <If condition={showScrollToTop && !isPresentation}>
+            <FloatButton
+              className={styles.floatButton}
+              icon={<UpOutlined />}
+              tooltip={"回到顶部"}
+              onClick={handleScrollToTop}
             />
-            <CreateCard
-              className={styles.createCard}
-              visible={isCreatingCard}
-              onSave={handleSaveCard}
-              onCancel={handleCancelCreate}
-            />
-            <VirtualCardList
-              ref={virtualListRef}
-              cards={cards}
-              onScroll={handleScroll}
-              onPresentationMode={handlePresentationMode}
-              onExitPresentationMode={handleExitPresentationMode}
-            />
-            <If condition={showScrollToTop && !isPresentation}>
-              <FloatButton
-                className={styles.floatButton}
-                icon={<UpOutlined />}
-                tooltip={"回到顶部"}
-                onClick={handleScrollToTop}
-              />
-            </If>
-          </div>
+          </If>
         </div>
-      </If>
+      </div>
     );
   },
 );

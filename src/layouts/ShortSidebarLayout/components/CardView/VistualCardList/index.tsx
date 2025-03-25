@@ -4,7 +4,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
 import If from "@/components/If";
 import CardItem from "../CardItem";
-import { ICard } from "@/types";
+import { ICard, ECardCategory } from "@/types";
 import styles from "./index.module.less";
 
 export interface VirtualCardListRef {
@@ -16,11 +16,30 @@ interface VirtualCardListProps {
   onScroll?: (scrollTop: number) => void;
   onPresentationMode: () => void;
   onExitPresentationMode: () => void;
+  onCardClick?: (cardId: number) => void;
+  onDeleteCard?: (cardId: number) => Promise<void>;
+  onUpdateCardCategory?: (
+    card: ICard,
+    category: ECardCategory,
+  ) => Promise<void>;
 }
 
 const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
-  ({ cards, onScroll, onPresentationMode, onExitPresentationMode }, ref) => {
+  (
+    {
+      cards,
+      onScroll,
+      onPresentationMode,
+      onExitPresentationMode,
+      onCardClick,
+      onDeleteCard,
+      onUpdateCardCategory,
+    },
+    ref,
+  ) => {
     const listRef = useRef<HTMLDivElement>(null);
+
+    console.log(cards);
 
     const virtualizer = useVirtualizer({
       count: cards.length,
@@ -70,6 +89,10 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
       };
     }, []);
 
+    const handleCardClick = useMemoizedFn((cardId: number) => {
+      onCardClick?.(cardId);
+    });
+
     return (
       <div className={styles.list} ref={listRef}>
         <If condition={cards.length === 0}>
@@ -103,6 +126,9 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
                     card={card}
                     onPresentationMode={onPresentationMode}
                     onExitPresentationMode={onExitPresentationMode}
+                    onCardClick={handleCardClick}
+                    onDeleteCard={onDeleteCard}
+                    onUpdateCardCategory={onUpdateCardCategory}
                   />
                 </div>
               );

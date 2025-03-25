@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Descendant, Editor as SlateEditor } from "slate";
+import { useEffect, useRef } from "react";
+import { Descendant } from "slate";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import Editor, { EditorRef } from "@/components/Editor";
@@ -11,37 +11,34 @@ import {
   cardLinkExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
-import { ICard } from "@/types";
 import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
 import { defaultCardEventBus } from "@/utils";
 
 import styles from "./index.module.less";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditCard from "@/hooks/useEditCard";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 interface IEditCardProps {
-  readonly: boolean;
-  editingCard: ICard;
-  onInit?: (editor: SlateEditor, content: Descendant[]) => void;
-  onContentChange: (value: Descendant[]) => void;
-  onAddTag: (tag: string) => void;
-  onDeleteTag: (tag: string) => void;
-  saveCard: () => void;
-  onTagChange: (tags: string[]) => void;
+  cardId: number;
+  readonly?: boolean;
 }
 
 const EditCard = (props: IEditCardProps) => {
+  const { cardId, readonly = false } = props;
+
   const {
-    readonly = false,
+    initValue,
+    loading,
     editingCard,
     onInit,
     onContentChange,
     onAddTag,
     onDeleteTag,
     saveCard,
-  } = props;
+  } = useEditCard(cardId);
 
   const isWindowFocused = useWindowFocus();
 
@@ -50,17 +47,6 @@ const EditCard = (props: IEditCardProps) => {
     () => defaultCardEventBus.createEditor(),
     [],
   );
-  const [initValue] = useState(() => {
-    if (editingCard.content.length === 0) {
-      return [
-        {
-          type: "paragraph",
-          children: [{ type: "formatted", text: "" }],
-        },
-      ] as Descendant[];
-    }
-    return editingCard.content;
-  });
 
   const onChange = useMemoizedFn((value: Descendant[]) => {
     if (!editingCard || !editorRef.current?.isFocus() || !isWindowFocused)
@@ -104,6 +90,8 @@ const EditCard = (props: IEditCardProps) => {
   });
 
   useEffect(() => {
+    if (!editingCard) return;
+
     const unsubscribe = cardEventBus.subscribeToCardWithId(
       "card:updated",
       editingCard.id,
@@ -116,7 +104,15 @@ const EditCard = (props: IEditCardProps) => {
     return () => {
       unsubscribe();
     };
-  }, [editingCard.id]);
+  }, [editingCard?.id]);
+
+  if (loading) {
+    return <div className={styles.loading}>Loading...</div>;
+  }
+
+  if (!editingCard) {
+    return null;
+  }
 
   return (
     <EditCardContext.Provider
