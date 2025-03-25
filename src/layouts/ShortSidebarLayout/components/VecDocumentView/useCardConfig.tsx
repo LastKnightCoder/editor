@@ -144,9 +144,14 @@ const useCardConfig = () => {
   );
 
   const initIndexResults = useMemoizedFn(async () => {
-    const results = await getAllIndexResults("card");
-    console.log(results);
-    setIndexResults(results);
+    console.log("开始始化索引结果");
+    try {
+      const results = await getAllIndexResults("card");
+      console.log("结束初始化索引成功", results);
+      setIndexResults(results);
+    } catch (e) {
+      console.error("初始化索引结果失败", e);
+    }
   });
 
   useEffect(() => {

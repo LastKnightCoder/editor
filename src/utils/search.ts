@@ -57,6 +57,8 @@ export const getAllIndexResults = async (
       getAllVecDocumentResults(type),
     ]);
 
+    console.log("获取索引结果成功", ftsResults, vecResults);
+
     return [ftsResults || [], vecResults || []];
   } catch (error) {
     console.error("获取索引结果失败:", error);
