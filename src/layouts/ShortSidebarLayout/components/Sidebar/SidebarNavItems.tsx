@@ -9,7 +9,8 @@ import { useMemoizedFn } from "ahooks";
 import home from "@/assets/icons/home.svg";
 import card from "@/assets/icons/card.svg";
 import article from "@/assets/icons/article.svg";
-import document from "@/assets/icons/documents.svg";
+import project from "@/assets/icons/project.svg";
+import document from "@/assets/icons/document.svg";
 import daily from "@/assets/icons/daily.svg";
 import timeRecord from "@/assets/icons/time-record.svg";
 import whiteBoard from "@/assets/icons/white-board.svg";
@@ -118,18 +119,18 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         enable: module.whiteBoard.enable,
       },
       {
-        key: "project",
-        icon: document,
-        desc: "项目",
-        path: "/projects/list",
-        enable: module.project.enable,
-      },
-      {
         key: "card",
         icon: card,
         desc: "卡片",
         path: "/cards/list",
         enable: module.card.enable,
+      },
+      {
+        key: "project",
+        icon: project,
+        desc: "项目",
+        path: "/projects/list",
+        enable: module.project.enable,
       },
       {
         key: "article",
@@ -149,13 +150,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         key: "pdf",
         icon: pdf,
         desc: "PDF",
-        path: "/pdfs",
+        path: "/pdfs/list",
         enable: module.pdf.enable,
       },
       {
         key: "vec-documents",
         icon: vecDatabase,
-        desc: "向量数据库",
+        desc: "索引数据库",
         path: "/vec-documents",
         enable: module.vecDocuments.enable,
       },

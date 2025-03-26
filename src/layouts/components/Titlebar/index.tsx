@@ -3,14 +3,11 @@ import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import SVG from "react-inlinesvg";
 
-import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 import TitlebarIcon from "@/components/TitlebarIcon";
-import { platform } from "@/electron.ts";
 import { setAlwaysOnTop as setTop } from "@/commands";
 
-import sidebarLeftIcon from "@/assets/icons/sidebar-left.svg";
 import sidebarRightIcon from "@/assets/icons/sidebar-right.svg";
 import chatIcon from "@/assets/icons/chat.svg";
 import { PushpinOutlined } from "@ant-design/icons";
@@ -25,7 +22,6 @@ interface TitlebarProps {
 
 const Titlebar = memo((props: TitlebarProps) => {
   const { children, className } = props;
-  const leftSidebarOpen = useGlobalStateStore((state) => state.sidebarOpen);
   const chatSidebarOpen = useChatMessageStore((state) => state.open);
   const rightSidebarOpen = useRightSidebarStore((state) => state.open);
 
@@ -35,12 +31,6 @@ const Titlebar = memo((props: TitlebarProps) => {
     setAlwaysOnTop(!alwaysOnTop);
     await setTop(!alwaysOnTop);
   };
-
-  const handleOpenSidebar = useMemoizedFn(() => {
-    useGlobalStateStore.setState({
-      sidebarOpen: true,
-    });
-  });
 
   const handleOpenChatSidebar = useMemoizedFn(() => {
     if (chatSidebarOpen) {
@@ -76,23 +66,8 @@ const Titlebar = memo((props: TitlebarProps) => {
     });
   });
 
-  const isMac = platform === "darwin";
-
   return (
-    <div
-      className={classnames(
-        styles.titleBar,
-        {
-          [styles.sidebarHide]: isMac && !leftSidebarOpen,
-        },
-        className,
-      )}
-    >
-      {!leftSidebarOpen && (
-        <TitlebarIcon onClick={handleOpenSidebar}>
-          <SVG src={sidebarLeftIcon} />
-        </TitlebarIcon>
-      )}
+    <div className={classnames(styles.titleBar, className)}>
       {children}
       <div className={styles.right}>
         <TitlebarIcon

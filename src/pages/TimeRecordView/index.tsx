@@ -2,15 +2,18 @@ import TimeRecordList from "./TimeRecordList";
 import TimeRecordChart from "./TimeRecord";
 import styles from "./index.module.less";
 import EditRecordModal from "@/components/EditRecordModal";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import useTimeRecordStore from "@/stores/useTimeRecordStore.ts";
 import { ITimeRecord } from "@/types";
 import { useMemoizedFn } from "ahooks";
-import { Button, Calendar, FloatButton, Popover } from "antd";
+import { Breadcrumb, Button, Calendar, FloatButton, Popover } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { PlusOutlined } from "@ant-design/icons";
-
+import Titlebar from "@/layouts/components/Titlebar";
+import { useNavigate } from "react-router-dom";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import useSettingStore from "@/stores/useSettingStore";
 const TimeRecordView = () => {
   const [editAction, setEditAction] = useState<"create" | "edit" | null>(null);
   const [editRecordModalOpen, setEditRecordModalOpen] = useState(false);
@@ -18,13 +21,23 @@ const TimeRecordView = () => {
     useState<ITimeRecord | null>(null);
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
   const [createPopoverOpen, setCreatePopoverOpen] = useState<boolean>(false);
-
-  const { createTimeRecord, updateTimeRecord } = useTimeRecordStore(
+  const navigate = useNavigate();
+  const { createTimeRecord, updateTimeRecord, initData } = useTimeRecordStore(
     useShallow((state) => ({
       createTimeRecord: state.createTimeRecord,
       updateTimeRecord: state.updateTimeRecord,
+      initData: state.init,
     })),
   );
+
+  const isConnected = useDatabaseConnected();
+  const active = useSettingStore((state) => state.setting.database.active);
+
+  useEffect(() => {
+    if (isConnected && active) {
+      initData();
+    }
+  }, [isConnected, active, initData]);
 
   const onEditTimeRecord = useMemoizedFn((timeRecord: ITimeRecord) => {
     setEditingTimeRecord(timeRecord);
@@ -81,13 +94,35 @@ const TimeRecordView = () => {
     setCreatePopoverOpen(false);
   };
 
+  const breadcrumbItems = [
+    { title: "首页", path: "/" },
+    { title: "时间记录", path: "/time-records" },
+  ];
+
   return (
     <div className={styles.viewContainer}>
       <TimeRecordList
         className={styles.sidebar}
         onClickEdit={onEditTimeRecord}
       />
-      <TimeRecordChart className={styles.chart} />
+      <div className={styles.chartContainer}>
+        <Titlebar className={styles.titlebar}>
+          <Breadcrumb
+            className={styles.breadcrumb}
+            items={breadcrumbItems.map((item) => ({
+              title: (
+                <span
+                  className={styles.breadcrumbItem}
+                  onClick={() => navigate(item.path)}
+                >
+                  {item.title}
+                </span>
+              ),
+            }))}
+          />
+        </Titlebar>
+        <TimeRecordChart className={styles.chart} />
+      </div>
       <EditRecordModal
         key={editingTimeRecord?.id}
         title={"编辑记录"}

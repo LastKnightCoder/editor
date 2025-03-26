@@ -1,11 +1,9 @@
-import { useState, useRef, forwardRef, useImperativeHandle } from "react";
-import { FloatButton } from "antd";
-import { UpOutlined } from "@ant-design/icons";
-import If from "@/components/If";
+import { useRef, forwardRef, useImperativeHandle } from "react";
 import { ICard, ECardCategory, ICreateCard } from "@/types";
 import VirtualCardList, { VirtualCardListRef } from "../VistualCardList";
 import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
+import useCardsManagementStore from "@/stores/useCardsManagementStore";
 
 export interface CardListPanelRef {
   scrollToTop: () => void;
@@ -18,7 +16,7 @@ interface CardListPanelProps {
   onCreateCard: (card: ICreateCard) => Promise<void>;
   onImportMarkdown: () => Promise<void>;
   onScrollToTop?: () => void; // 通知父组件已经回到顶部，可用于同步其他组件
-  onCardClick?: (cardId: number) => void; // 卡片点击事件回调
+  onCardClick?: (card: ICard) => void; // 卡片点击事件回调
   onDeleteCard?: (cardId: number) => Promise<void>;
   onUpdateCardCategory?: (
     card: ICard,
@@ -27,12 +25,7 @@ interface CardListPanelProps {
 }
 
 const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
-  (
-    { cards, onScrollToTop, onCardClick, onDeleteCard, onUpdateCardCategory },
-    ref,
-  ) => {
-    const [showScrollToTop, setShowScrollToTop] = useState(false);
-    const [isPresentation, setIsPresentation] = useState(false);
+  ({ cards, onCardClick, onDeleteCard, onUpdateCardCategory }, ref) => {
     const virtualListRef = useRef<VirtualCardListRef>(null);
 
     // 暴露方法给父组件
@@ -44,27 +37,30 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
 
     const handleScroll = useMemoizedFn((scrollTop: number) => {
       if (scrollTop > 100) {
-        setShowScrollToTop(true);
+        useCardsManagementStore.setState({
+          showScrollToTop: true,
+        });
       } else {
-        setShowScrollToTop(false);
+        useCardsManagementStore.setState({
+          showScrollToTop: false,
+        });
       }
     });
 
     const handlePresentationMode = useMemoizedFn(() => {
-      setIsPresentation(true);
+      useCardsManagementStore.setState({
+        isPresentation: true,
+      });
     });
 
     const handleExitPresentationMode = useMemoizedFn(() => {
-      setIsPresentation(false);
+      useCardsManagementStore.setState({
+        isPresentation: false,
+      });
     });
 
-    const handleScrollToTop = useMemoizedFn(() => {
-      virtualListRef.current?.scrollToTop();
-      onScrollToTop?.();
-    });
-
-    const handleCardClick = useMemoizedFn((cardId: number) => {
-      onCardClick?.(cardId);
+    const handleCardClick = useMemoizedFn((card: ICard) => {
+      onCardClick?.(card);
     });
 
     return (
@@ -80,14 +76,6 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
             onDeleteCard={onDeleteCard}
             onUpdateCardCategory={onUpdateCardCategory}
           />
-          <If condition={showScrollToTop && !isPresentation}>
-            <FloatButton
-              className={styles.floatButton}
-              icon={<UpOutlined />}
-              tooltip={"回到顶部"}
-              onClick={handleScrollToTop}
-            />
-          </If>
         </div>
       </div>
     );

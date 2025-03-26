@@ -4,7 +4,7 @@ import { persist } from "zustand/middleware";
 import useChatMessageStore from "./useChatMessageStore";
 
 export interface TabItem {
-  id: number | string;
+  id: string;
   type: string;
   title: string;
 }
@@ -13,7 +13,7 @@ interface RightSidebarState {
   open: boolean;
   width: number;
   tabs: Record<string, TabItem[]>;
-  activeTabKey: Record<string, string | number | null>;
+  activeTabKey: Record<string, string | null>;
   containerActiveTabKey: string | null;
 
   setOpen: (open: boolean) => void;
@@ -61,6 +61,7 @@ const useRightSidebarStore = create<RightSidebarState>()(
       removeTab: (tabItem) => {
         const { tabs, activeTabKey } = get();
         const { type, id } = tabItem;
+        console.log(tabs, activeTabKey, tabItem);
         const newTabs = produce(tabs, (draft) => {
           draft[type] = draft[type].filter((t) => t.id !== id);
         });

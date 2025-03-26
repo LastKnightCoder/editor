@@ -20,12 +20,7 @@ import {
 } from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
-import useDocumentsStore from "@/stores/useDocumentsStore.ts";
-import useProjectsStore from "@/stores/useProjectsStore";
-import useDailyNoteStore from "@/stores/useDailyNoteStore";
-import useTimeRecordStore from "@/stores/useTimeRecordStore";
-import usePdfsStore from "@/stores/usePdfsStore.ts";
-import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
+import useGlobalStateStore from "@/stores/useGlobalStateStore";
 
 export const getDatabasePath = async (
   databaseName: string,
@@ -177,6 +172,11 @@ export const download = async () => {
   const dataObjectName = `${path}/${databaseName}`;
   try {
     await closeDatabase(databaseName);
+    useGlobalStateStore.setState(
+      produce(useGlobalStateStore.getState(), (draft) => {
+        draft.databaseStatus[databaseName] = false;
+      }),
+    );
 
     const sep = await getSep();
     // 在覆盖本地文件之前，先备份一下，加上时间
@@ -260,16 +260,11 @@ export const download = async () => {
     return false;
   } finally {
     await connectDatabaseByName(databaseName, true);
-    await Promise.all([
-      useDocumentsStore.getState().init(),
-      useProjectsStore.getState().init(),
-      useDailyNoteStore.getState().init(),
-      useTimeRecordStore.getState().init(),
-      usePdfsStore.getState().initPdfs(),
-      useWhiteBoardStore.getState().initWhiteBoards(),
-    ]);
-    const event = new CustomEvent("database-sync-finish");
-    document.dispatchEvent(event);
+    useGlobalStateStore.setState(
+      produce(useGlobalStateStore.getState(), (draft) => {
+        draft.databaseStatus[databaseName] = true;
+      }),
+    );
   }
 };
 

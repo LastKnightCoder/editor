@@ -4,6 +4,8 @@ import { ICreateCard, IUpdateCard, ICard } from "@/types";
 import Operation from "./operation";
 import { BrowserWindow } from "electron";
 import { basename } from "node:path";
+import FTSTable from "./fts";
+import VecDocumentTable from "./vec-document";
 
 export default class CardTable {
   static getListenEvents() {
@@ -181,6 +183,11 @@ export default class CardTable {
       `UPDATE project_item SET ref_type = '' WHERE ref_type = 'card' AND ref_id = ?`,
     );
     projectItemStmt.run(cardId);
+
+    // 删除全文搜索索引
+    FTSTable.removeIndexByIdAndType(db, cardId, "card");
+    // 删除向量文档索引
+    VecDocumentTable.removeIndexByIdAndType(db, cardId, "card");
 
     Operation.insertOperation(db, "card", "delete", cardId, Date.now());
 

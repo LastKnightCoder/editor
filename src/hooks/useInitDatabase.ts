@@ -4,12 +4,6 @@ import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 
 import { connectDatabaseByName } from "@/commands";
-import useDocumentsStore from "@/stores/useDocumentsStore";
-import useDailyNoteStore from "@/stores/useDailyNoteStore";
-import useTimeRecordStore from "@/stores/useTimeRecordStore";
-import useProjectsStore from "@/stores/useProjectsStore";
-import usePdfsStore from "@/stores/usePdfsStore.ts";
-import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore.ts";
 
@@ -27,49 +21,16 @@ const useInitDatabase = () => {
 
   const { active } = database;
 
-  const { initDocuments } = useDocumentsStore((state) => ({
-    initDocuments: state.init,
-  }));
-
-  const { initDailyNotes } = useDailyNoteStore((state) => ({
-    initDailyNotes: state.init,
-  }));
-
-  const { initTimeRecords } = useTimeRecordStore((state) => ({
-    initTimeRecords: state.init,
-  }));
-
-  const { initProjects } = useProjectsStore((state) => ({
-    initProjects: state.init,
-  }));
-
-  const { initPdfs } = usePdfsStore((state) => ({
-    initPdfs: state.initPdfs,
-  }));
-
-  const { initWhiteBoards } = useWhiteBoardStore((state) => ({
-    initWhiteBoards: state.initWhiteBoards,
-  }));
-
-  const initDatabase = useMemoizedFn(async () => {
-    await Promise.allSettled([
-      initDocuments(),
-      initDailyNotes(),
-      initTimeRecords(),
-      initProjects(),
-      initPdfs(),
-      initWhiteBoards(),
-    ]);
-  });
-
-  const handleDatabaseStatus = useMemoizedFn((databaseName: string) => {
-    const newDatabaseStatus = produce(databaseStatus, (draft) => {
-      draft[databaseName] = true;
-    });
-    useGlobalStateStore.setState({
-      databaseStatus: newDatabaseStatus,
-    });
-  });
+  const handleDatabaseStatus = useMemoizedFn(
+    (databaseName: string, status: boolean) => {
+      const newDatabaseStatus = produce(databaseStatus, (draft) => {
+        draft[databaseName] = status;
+      });
+      useGlobalStateStore.setState({
+        databaseStatus: newDatabaseStatus,
+      });
+    },
+  );
 
   useEffect(() => {
     if (!inited || !active) return;
@@ -79,12 +40,11 @@ const useInitDatabase = () => {
       key: "initDatabase",
       duration: 0,
     });
+    handleDatabaseStatus(active, false);
     connectDatabaseByName(active)
       .then(() => {
-        initDatabase().finally(() => {
-          message.destroy("initDatabase");
-          handleDatabaseStatus(active);
-        });
+        message.destroy("initDatabase");
+        handleDatabaseStatus(active, true);
       })
       .catch((e) => {
         message.error({
@@ -92,10 +52,9 @@ const useInitDatabase = () => {
           content: e.message,
         });
       });
-  }, [inited, active, initDatabase, message, handleDatabaseStatus]);
+  }, [inited, active, message, handleDatabaseStatus]);
 
   return {
-    initDatabase,
     databaseStatus,
   };
 };

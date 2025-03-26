@@ -1,26 +1,50 @@
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
 import For from "@/components/For";
-import EditPdf from "@/layouts/components/EditPdf";
+import EditPdf from "./EditPdf";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import PdfCard from "./PdfCard";
 import styles from "./index.module.less";
-import { useState } from "react";
-import { Button, Flex, Input, message, Modal, Tabs, FloatButton } from "antd";
+import { useEffect, useState } from "react";
+import {
+  Button,
+  Flex,
+  Input,
+  message,
+  Modal,
+  Tabs,
+  FloatButton,
+  Breadcrumb,
+} from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { selectFile, getFileBaseName } from "@/commands";
 import useGridLayout from "@/hooks/useGridLayout";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import useSettingStore from "@/stores/useSettingStore";
+import Titlebar from "@/layouts/components/Titlebar";
+import { useNavigate } from "react-router-dom";
 
 const PdfView = () => {
+  const navigate = useNavigate();
   const { gridContainerRef, itemWidth, gap } = useGridLayout();
 
-  const { pdfs, activePdf, createPdf } = usePdfsStore(
+  const isConnected = useDatabaseConnected();
+  const active = useSettingStore((state) => state.setting.database.active);
+
+  const { pdfs, activePdf, createPdf, initPdfs } = usePdfsStore(
     useShallow((state) => ({
       pdfs: state.pdfs,
       activePdf: state.activePdf,
       createPdf: state.createPdf,
+      initPdfs: state.initPdfs,
     })),
   );
+
+  useEffect(() => {
+    if (isConnected && active) {
+      initPdfs();
+    }
+  }, [isConnected, active]);
 
   const [addPdfOpen, setAddPdfOpen] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");
@@ -113,29 +137,56 @@ const PdfView = () => {
 
   const isShowEdit = activePdf !== null;
 
+  // 面包屑导航
+  const breadcrumbItems = [
+    { title: "首页", onClick: () => navigate("/") },
+    {
+      title: "PDF列表",
+      onClick: () => {
+        usePdfsStore.setState({
+          activePdf: null,
+        });
+      },
+    },
+  ];
+
   return (
     <div
       className={classnames(styles.viewContainer, {
         [styles.showEdit]: isShowEdit,
       })}
     >
-      <div
-        ref={gridContainerRef}
-        className={styles.gridContainer}
-        style={{ gap }}
-      >
-        <For
-          data={pdfs}
-          renderItem={(pdf) => (
-            <PdfCard
-              pdf={pdf}
-              key={pdf.id}
-              style={{ width: itemWidth, height: 200 }}
-            />
-          )}
+      <Titlebar className={styles.titlebar}>
+        <Breadcrumb
+          className={styles.breadcrumb}
+          items={breadcrumbItems.map((item) => ({
+            title: (
+              <span className={styles.breadcrumbItem} onClick={item.onClick}>
+                {item.title}
+              </span>
+            ),
+          }))}
         />
+      </Titlebar>
+      <div className={styles.editContainer}>
+        <div
+          ref={gridContainerRef}
+          className={styles.gridContainer}
+          style={{ gap }}
+        >
+          <For
+            data={pdfs}
+            renderItem={(pdf) => (
+              <PdfCard
+                pdf={pdf}
+                key={pdf.id}
+                style={{ width: itemWidth, height: 200 }}
+              />
+            )}
+          />
+        </div>
+        <div className={styles.edit}>{isShowEdit && <EditPdf />}</div>
       </div>
-      <div className={styles.edit}>{isShowEdit && <EditPdf />}</div>
       <Modal open={addPdfOpen} onCancel={onCancelAddPdf} footer={null}>
         <Tabs items={items} />
       </Modal>

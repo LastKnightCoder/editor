@@ -48,7 +48,7 @@ const SelectDatabase = () => {
 
   return (
     // @ts-ignore
-    <div style={{ cursor: "pointer", "-webkit-app-region": "no-drag" }}>
+    <div style={{ cursor: "pointer" }}>
       <Popover
         open={databaseSelectPopoverOpen}
         onOpenChange={setDatabaseSelectPopoverOpen}
@@ -121,10 +121,12 @@ const SelectDatabase = () => {
           </Flex>
         }
       >
-        <Flex gap={4} align={"center"}>
-          {active.replace(".db", "")}
-          <IoCaretDownOutline />
-        </Flex>
+        <div style={{ width: 150 }}>
+          <Flex gap={4} align={"center"}>
+            {active.replace(".db", "")}
+            <IoCaretDownOutline />
+          </Flex>
+        </div>
       </Popover>
       <Modal
         width={400}

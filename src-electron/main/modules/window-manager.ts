@@ -158,7 +158,7 @@ export class WindowManager {
         preload,
         spellcheck: false,
       },
-      trafficLightPosition: { x: 12, y: 17 },
+      trafficLightPosition: { x: 12, y: 23 },
       // Mac 专属配置
       ...(process.platform === "darwin" && {
         titleBarStyle: "hidden" as const,

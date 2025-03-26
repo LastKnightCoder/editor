@@ -11,6 +11,8 @@ import Operation from "./operation";
 import { getContentLength } from "@/utils/helper";
 import { BrowserWindow } from "electron";
 import { basename } from "node:path";
+import FTSTable from "./fts";
+import VecDocumentTable from "./vec-document";
 
 export default class DocumentTable {
   static initTable(db: Database.Database) {
@@ -408,6 +410,12 @@ export default class DocumentTable {
 
   static deleteDocumentItem(db: Database.Database, id: number): number {
     const stmt = db.prepare("DELETE FROM document_items WHERE id = ?");
+
+    // 删除全文搜索索引
+    FTSTable.removeIndexByIdAndType(db, id, "document-item");
+    // 删除向量文档索引
+    VecDocumentTable.removeIndexByIdAndType(db, id, "document-item");
+
     Operation.insertOperation(db, "document-item", "delete", id, Date.now());
     return stmt.run(id).changes;
   }

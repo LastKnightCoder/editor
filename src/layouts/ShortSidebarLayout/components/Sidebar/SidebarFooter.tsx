@@ -10,6 +10,7 @@ import styles from "./index.module.less";
 import setting from "@/assets/icons/setting.svg";
 import sun from "@/assets/icons/sun.svg";
 import moon from "@/assets/icons/moon.svg";
+import SearchBox from "./SearchBox";
 
 interface SidebarFooterProps {
   isShortWidth: boolean;
@@ -76,6 +77,7 @@ const SidebarFooter = memo((props: SidebarFooterProps) => {
 
   return (
     <div className={styles.setting}>
+      <SearchBox />
       <ThemeToggle
         darkMode={darkMode}
         onToggle={darkModeChange}

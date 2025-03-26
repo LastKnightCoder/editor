@@ -4,6 +4,8 @@ import Operation from "./operation";
 import { getContentLength } from "@/utils/helper.ts";
 import { basename } from "node:path";
 import { BrowserWindow } from "electron";
+import FTSTable from "./fts";
+import VecDocumentTable from "./vec-document";
 
 export default class ArticleTable {
   static initTable(db: Database.Database) {
@@ -250,6 +252,11 @@ export default class ArticleTable {
       "UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?",
     );
     projectItemStmt.run(articleId);
+
+    // 删除全文搜索索引
+    FTSTable.removeIndexByIdAndType(db, articleId, "article");
+    // 删除向量文档索引
+    VecDocumentTable.removeIndexByIdAndType(db, articleId, "article");
 
     Operation.insertOperation(db, "article", "delete", articleId, Date.now());
 

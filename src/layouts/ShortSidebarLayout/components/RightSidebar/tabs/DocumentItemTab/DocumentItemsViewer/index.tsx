@@ -48,8 +48,7 @@ const DocumentItemsViewer: React.FC<BaseViewerProps> = ({
       id: String(activeKey),
       type: "document-item",
       title:
-        tabs.find((tab) => tab.id === Number(activeKey) || tab.id === activeKey)
-          ?.title || "",
+        tabs.find((tab) => Number(tab.id) === Number(activeKey))?.title || "",
     });
   });
 

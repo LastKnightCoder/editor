@@ -49,7 +49,8 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
     setActiveTabKey({
       id: String(activeKey),
       type: "card",
-      title: tabs.find((tab) => tab.id === Number(activeKey))?.title || "",
+      title:
+        tabs.find((tab) => Number(tab.id) === Number(activeKey))?.title || "",
     });
   });
 
@@ -58,6 +59,7 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
       if (action === "add") {
         setSelectorOpen(true);
       } else if (action === "remove") {
+        console.log(targetKey, typeof targetKey);
         removeTab({
           id: targetKey as string,
           type: "card",

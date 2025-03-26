@@ -11,12 +11,16 @@ interface IState {
   selectCategory: ECardCategory;
   activeCardTag: string;
   viewMode: ViewMode;
+  showScrollToTop: boolean;
+  isPresentation: boolean;
 }
 
 const initState: IState = {
   selectCategory: ECardCategory.Permanent,
   activeCardTag: "",
   viewMode: ViewMode.List,
+  showScrollToTop: false,
+  isPresentation: false,
 };
 
 const useCardsManagementStore = create<IState>()(

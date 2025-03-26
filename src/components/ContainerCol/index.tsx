@@ -14,9 +14,17 @@ const BREAKPOINTS = {
 
 type BreakpointKey = keyof typeof BREAKPOINTS;
 
-const ContainerCol: React.FC<ColProps> = (props) => {
+interface ContainerColProps extends ColProps {
+  forceRefresh?: boolean;
+}
+
+const ContainerCol: React.FC<ContainerColProps> = ({
+  forceRefresh = false,
+  ...props
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(0);
+  const [renderKey, setRenderKey] = useState<number>(0);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   // 计算当前容器宽度对应的断点类型
@@ -93,6 +101,10 @@ const ContainerCol: React.FC<ColProps> = (props) => {
         // 获取父容器宽度
         const parentWidth = entry.contentRect.width;
         setContainerWidth(parentWidth);
+        // 只有在 forceRefresh 为 true 时才更新 key 值
+        if (forceRefresh) {
+          setRenderKey((prev) => prev + 1);
+        }
       }
     };
 
@@ -108,14 +120,18 @@ const ContainerCol: React.FC<ColProps> = (props) => {
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [forceRefresh]);
 
   // 计算最终要传递给 Col 的属性
   const colProps = calculateProps();
 
   return (
     <Col ref={containerRef} {...colProps}>
-      {props.children}
+      {forceRefresh ? (
+        <div key={renderKey}>{props.children}</div>
+      ) : (
+        props.children
+      )}
     </Col>
   );
 };

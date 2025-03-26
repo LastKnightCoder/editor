@@ -10,30 +10,47 @@
   background-image:
     linear-gradient(-30deg, rgba(0, 118, 189, 0.1), transparent 80%),
     linear-gradient(30deg, rgba(189, 187, 73, 0.1), transparent 80%);
+
   .titleBar {
     box-sizing: border-box;
     height: 56px;
     display: flex;
     align-items: center;
+
     .title {
       font-size: 1.2em;
       font-weight: bold;
     }
+
     .windowControl {
       margin-left: auto;
     }
   }
-  .editor {
-  }
+
   .tags {
     position: fixed;
     left: 24px;
     bottom: 24px;
   }
+
   .buttons {
     position: fixed;
     right: 24px;
     bottom: 24px;
     margin-left: auto;
   }
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
 }

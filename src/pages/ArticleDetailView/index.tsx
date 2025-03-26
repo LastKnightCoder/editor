@@ -68,23 +68,6 @@ const ArticleDetailView = () => {
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <Titlebar>
-          <Breadcrumb
-            className={styles.breadcrumb}
-            items={breadcrumbItems.map((item) => ({
-              title: (
-                <span
-                  className={styles.breadcrumbItem}
-                  onClick={() => navigate(item.path)}
-                >
-                  {item.title}
-                </span>
-              ),
-            }))}
-          />
-        </Titlebar>
-      </div>
       <div className={styles.content}>
         <div
           className={classnames(styles.simpleArticleListContainer, {
@@ -98,7 +81,24 @@ const ArticleDetailView = () => {
             [styles.readonly]: readonly,
           })}
         >
-          <EditArticle articleId={articleId} />
+          <Titlebar className={styles.titlebar}>
+            <Breadcrumb
+              className={styles.breadcrumb}
+              items={breadcrumbItems.map((item) => ({
+                title: (
+                  <span
+                    className={styles.breadcrumbItem}
+                    onClick={() => navigate(item.path)}
+                  >
+                    {item.title}
+                  </span>
+                ),
+              }))}
+            />
+          </Titlebar>
+          <div className={styles.editContainer}>
+            <EditArticle articleId={articleId} />
+          </div>
         </div>
       </div>
 
@@ -106,8 +106,8 @@ const ArticleDetailView = () => {
         <FloatButton
           style={{
             position: "absolute",
-            right: 80,
-            bottom: 60,
+            right: 32,
+            bottom: 80,
           }}
           icon={
             <Dropdown

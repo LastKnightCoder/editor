@@ -26,8 +26,10 @@ interface ILinkGraphProps {
   currentCardIds?: number[];
   fitView?: boolean;
   fitViewPadding?: number[];
-  onClickCard?: (id: number) => void;
+  onClickCard?: (card: ICard) => void;
 }
+
+const defaultFitViewPadding = [40];
 
 const LinkGraph = memo((props: ILinkGraphProps) => {
   const {
@@ -40,7 +42,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     currentCardIds,
     getCardLinks = (card) => card.links,
     fitView = true,
-    fitViewPadding = [40],
+    fitViewPadding = defaultFitViewPadding,
     onClickCard,
   } = props;
 
@@ -72,17 +74,27 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
 
   const handleNodeMouseEnter = useMemoizedFn((evt: IG6GraphEvent) => {
     const { item } = evt;
-    if (!item) return;
+    if (!item || !graph.current || !isAfterLayout) return;
+
     const { id } = item.getModel();
     mouseEnterId.current = id;
+
     setTimeout(() => {
-      if (!ref.current || mouseEnterId.current !== id) return;
-      graph.current?.setItemState(item, "selected", true);
-      graph.current?.getNodes().forEach((node) => {
-        if (node !== item) {
-          graph.current?.clearItemStates(node, "selected");
-        }
-      });
+      if (!ref.current || mouseEnterId.current !== id || !graph.current) return;
+
+      // 检查节点是否已经是选中状态
+      const isSelected = item.hasState("selected");
+      if (!isSelected) {
+        // 清除其他节点的选中状态
+        graph.current.getNodes().forEach((node) => {
+          if (node !== item) {
+            graph.current?.clearItemStates(node, "selected");
+          }
+        });
+        // 设置当前节点为选中状态
+        graph.current.setItemState(item, "selected", true);
+      }
+
       // 获取位置
       const x = evt.clientX;
       const y = evt.clientY;
@@ -104,7 +116,10 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     if (!item) return;
     const { id } = item.getModel();
     if (onClickCard) {
-      onClickCard(Number(id));
+      const card = cards.find((card) => card.id === Number(id));
+      if (card) {
+        onClickCard(card);
+      }
     }
     if (activeId === Number(id)) {
       setActiveId(-1);
@@ -241,6 +256,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   );
 
   useEffect(() => {
+    setIsAfterLayout(false);
     handleInitialize(cards, isDark, fitViewPadding);
 
     return () => {

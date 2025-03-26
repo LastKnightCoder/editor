@@ -33,7 +33,7 @@ interface CardItemProps {
   card: ICard;
   onPresentationMode?: () => void;
   onExitPresentationMode?: () => void;
-  onCardClick?: (cardId: number) => void;
+  onCardClick?: (card: ICard) => void;
   onDeleteCard?: (cardId: number) => Promise<void>;
   onUpdateCardCategory?: (
     card: ICard,
@@ -133,7 +133,7 @@ const CardItem = memo(
 
     const onClick = useMemoizedFn(() => {
       if (onCardClick) {
-        onCardClick(card.id);
+        onCardClick(card);
       }
     });
 

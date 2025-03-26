@@ -48,8 +48,7 @@ const ProjectItemsViewer: React.FC<BaseViewerProps> = ({
       id: String(activeKey),
       type: "project-item",
       title:
-        tabs.find((tab) => tab.id === Number(activeKey) || tab.id === activeKey)
-          ?.title || "",
+        tabs.find((tab) => Number(tab.id) === Number(activeKey))?.title || "",
     });
   });
 

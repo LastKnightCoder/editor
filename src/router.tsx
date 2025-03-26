@@ -1,6 +1,7 @@
 import { createHashRouter } from "react-router-dom";
 import loadable from "@loadable/component";
 import HomeView from "@/pages/HomeView";
+import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
 
 const SettingsPage = loadable(() => import("@/pages/Settings"));
 
@@ -20,9 +21,6 @@ const SingleMarkdownEditor = loadable(
   () => import("@/pages/SingleMarkdownEditor"),
 );
 
-const ShortSidebarLayout = loadable(
-  () => import("@/layouts/ShortSidebarLayout"),
-);
 const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
 
 const CardListView = loadable(() => import("@/pages/CardListView"));
@@ -81,15 +79,15 @@ const routes = [
         element: <DocumentView />,
       },
       {
-        path: "white-boards/",
+        path: "white-boards",
         element: <WhiteBoardView />,
       },
       {
-        path: "pdfs/",
+        path: "pdfs/list",
         element: <PdfView />,
       },
       {
-        path: "dailies/",
+        path: "dailies",
         element: <DailyNoteView />,
       },
       {
@@ -97,7 +95,7 @@ const routes = [
         element: <TimeRecordView />,
       },
       {
-        path: "vec-documents/",
+        path: "vec-documents",
         element: <VecDocumentView />,
       },
       {

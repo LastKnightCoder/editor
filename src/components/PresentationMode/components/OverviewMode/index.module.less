@@ -1,18 +1,21 @@
 /* 全览模式样式 */
 .overviewContainer {
   position: relative;
-  width: 90%;
-  height: 90%;
+  width: 100%;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: flex-start;
-  padding: 20px;
+  border: 40px solid transparent;
+  padding-right: 20px;
+  border-right: 20px solid transparent;
+  // border-top: 40px solid transparent;
+  // border-bottom: 40px solid transparent;
+  // padding: 0 40px;
+  box-sizing: border-box;
   overflow-y: auto;
+  align-content: flex-start;
   z-index: 2;
   backdrop-filter: blur(10px);
   background-color: rgba(var(--main-bg-color-rgb), 0.7);
-  border-radius: 10px;
   transition:
     opacity 0.3s ease,
     transform 0.3s ease;
@@ -26,14 +29,14 @@
 
 .overviewSlide {
   position: relative;
-  height: 180px;
+  height: 220px;
   background-color: var(--main-bg-color);
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border: 2px solid transparent;
+  border: 2px solid var(--line-color);
   transition: border-color 0.2s ease;
+  box-sizing: border-box;
 
   &.active {
     border: 2px solid var(--active-text-color);
