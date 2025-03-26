@@ -71,7 +71,7 @@ const useArticleConfig = () => {
 
     const filteredArticles = articles.filter((article) => {
       // 查找索引状态
-      const hasFTSIndex = ftsResults.some(
+      const ftsResult = ftsResults.find(
         (result) => result.id === article.id && result.type === "article",
       );
 
@@ -80,9 +80,12 @@ const useArticleConfig = () => {
       );
 
       let status;
-      if (!hasFTSIndex && !vecResult) {
+      if (!ftsResult && !vecResult) {
         status = "未索引";
-      } else if (vecResult && article.update_time > vecResult.updateTime) {
+      } else if (
+        (vecResult && article.update_time > vecResult.updateTime) ||
+        (ftsResult && article.update_time > ftsResult.updateTime)
+      ) {
         status = "待更新";
       } else {
         status = "已索引";
@@ -105,8 +108,13 @@ const useArticleConfig = () => {
   );
 
   const initIndexResults = useMemoizedFn(async () => {
-    const results = await getAllIndexResults("article");
-    setIndexResults(results);
+    try {
+      const results = await getAllIndexResults("article");
+      setIndexResults(results);
+    } catch (e) {
+      console.error("初始化索引结果失败", e);
+      throw e;
+    }
   });
 
   useEffect(() => {
@@ -167,7 +175,7 @@ const useArticleConfig = () => {
     async (markdown: string, record: IArticle) => {
       if (!currentConfig) {
         message.error("未配置OpenAI API密钥");
-        return;
+        return false;
       }
 
       setLoadingIds((prev) => [...prev, record.id]);
@@ -176,7 +184,28 @@ const useArticleConfig = () => {
 
       try {
         const { apiKey, baseUrl } = currentConfig;
-        await indexContent({
+
+        // 检查当前索引状态
+        const ftsResult = ftsResults.find(
+          (result) => result.id === record.id && result.type === "article",
+        );
+
+        const vecResult = vecResults.find(
+          (result) => result.id === record.id && result.type === "article",
+        );
+
+        // 确定需要创建的索引类型
+        const indexTypes: ("fts" | "vec")[] = [];
+        if (!ftsResult) indexTypes.push("fts");
+        if (!vecResult) indexTypes.push("vec");
+
+        // 如果没有需要创建的索引，直接返回成功
+        if (indexTypes.length === 0) {
+          message.success({ content: "索引已存在", key: messageKey });
+          return true;
+        }
+
+        const success = await indexContent({
           id: record.id,
           content: markdown,
           type: "article",
@@ -186,12 +215,21 @@ const useArticleConfig = () => {
             baseUrl,
             model: EMBEDDING_MODEL,
           },
+          indexTypes,
         });
-        await initIndexResults();
-        message.success({ content: "索引创建成功", key: messageKey });
+
+        if (success) {
+          await initIndexResults();
+          message.success({ content: "索引创建成功", key: messageKey });
+          return true;
+        } else {
+          message.error({ content: "索引创建失败", key: messageKey });
+          return false;
+        }
       } catch (error) {
         console.error("创建索引失败:", error);
         message.error({ content: "索引创建失败", key: messageKey });
+        return false;
       } finally {
         setLoadingIds((prev) => prev.filter((id) => id !== record.id));
       }
@@ -219,7 +257,7 @@ const useArticleConfig = () => {
     async (markdown: string, record: IArticle) => {
       if (!currentConfig) {
         message.error("未配置OpenAI API密钥");
-        return;
+        return false;
       }
 
       setLoadingIds((prev) => [...prev, record.id]);
@@ -228,7 +266,29 @@ const useArticleConfig = () => {
 
       try {
         const { apiKey, baseUrl } = currentConfig;
-        await indexContent({
+
+        // 检查当前索引状态
+        const ftsResult = ftsResults.find(
+          (result) => result.id === record.id && result.type === "article",
+        );
+
+        const vecResult = vecResults.find(
+          (result) => result.id === record.id && result.type === "article",
+        );
+
+        // 确定需要更新的索引类型
+        const indexTypes: ("fts" | "vec")[] = [];
+        if (!ftsResult) indexTypes.push("fts");
+        if (!vecResult || record.update_time > vecResult.updateTime)
+          indexTypes.push("vec");
+
+        // 如果没有需要更新的索引，直接返回成功
+        if (indexTypes.length === 0) {
+          message.success({ content: "索引已是最新", key: messageKey });
+          return true;
+        }
+
+        const success = await indexContent({
           id: record.id,
           content: markdown,
           type: "article",
@@ -238,12 +298,21 @@ const useArticleConfig = () => {
             baseUrl,
             model: EMBEDDING_MODEL,
           },
+          indexTypes,
         });
-        await initIndexResults();
-        message.success({ content: "索引更新成功", key: messageKey });
+
+        if (success) {
+          await initIndexResults();
+          message.success({ content: "索引更新成功", key: messageKey });
+          return true;
+        } else {
+          message.error({ content: "索引更新失败", key: messageKey });
+          return false;
+        }
       } catch (error) {
         console.error("更新索引失败:", error);
         message.error({ content: "索引更新失败", key: messageKey });
+        return false;
       } finally {
         setLoadingIds((prev) => prev.filter((id) => id !== record.id));
       }
@@ -339,9 +408,9 @@ const useArticleConfig = () => {
         },
       ],
       filteredValue: filteredInfo.index_status || null,
-      render: (_: any, record: IArticle) => {
+      render: (_, record) => {
         // 查找索引状态
-        const hasFTSIndex = ftsResults.some(
+        const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "article",
         );
 
@@ -353,9 +422,22 @@ const useArticleConfig = () => {
         const renderIndexStatus = () => {
           return (
             <Flex gap={4}>
-              <Tag color={hasFTSIndex ? "green" : "red"}>
-                FTS: {hasFTSIndex ? "已索引" : "未索引"}
-              </Tag>
+              {ftsResult ? (
+                <Tag
+                  color={
+                    record.update_time > ftsResult.updateTime
+                      ? "orange"
+                      : "green"
+                  }
+                >
+                  FTS:{" "}
+                  {record.update_time > ftsResult.updateTime
+                    ? "待更新"
+                    : "已索引"}
+                </Tag>
+              ) : (
+                <Tag color="red">FTS: 未索引</Tag>
+              )}
               {vecResult ? (
                 <Tag
                   color={
@@ -387,7 +469,7 @@ const useArticleConfig = () => {
         const isLoading = loadingIds.includes(record.id);
 
         // 查找索引状态
-        const hasFTSIndex = ftsResults.some(
+        const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "article",
         );
 
@@ -395,7 +477,7 @@ const useArticleConfig = () => {
           (result) => result.id === record.id && result.type === "article",
         );
 
-        if (!hasFTSIndex && !vecResult) {
+        if (!ftsResult && !vecResult) {
           return (
             <Button
               type="link"
@@ -411,9 +493,10 @@ const useArticleConfig = () => {
             </Button>
           );
         } else if (
-          (hasFTSIndex && !vecResult) ||
-          (!hasFTSIndex && vecResult) ||
-          (vecResult && record.update_time > vecResult.updateTime)
+          (ftsResult && !vecResult) ||
+          (!ftsResult && vecResult) ||
+          (vecResult && record.update_time > vecResult.updateTime) ||
+          (ftsResult && record.update_time > ftsResult.updateTime)
         ) {
           return (
             <Button

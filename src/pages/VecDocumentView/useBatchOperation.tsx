@@ -52,7 +52,7 @@ const useBatchOperation = <
 
     selectedRows.forEach((item) => {
       // 查找FTS索引结果
-      const hasFTSIndex = ftsResults.some(
+      const ftsResult = ftsResults.find(
         (result) => result.id === item.id && result.type === type,
       );
 
@@ -62,11 +62,14 @@ const useBatchOperation = <
       );
 
       // 如果没有任何索引，则添加到创建列表
-      if (!hasFTSIndex && !vecResult) {
+      if (!ftsResult && !vecResult) {
         createEmbddings.push(item);
       }
       // 如果有索引但需要更新
-      else if (vecResult && item.update_time > vecResult.updateTime) {
+      else if (
+        (vecResult && item.update_time > vecResult.updateTime) ||
+        (ftsResult && item.update_time > ftsResult.updateTime)
+      ) {
         updateEmbeddings.push(item);
       }
       // 如果有索引且不需要更新，则添加到删除列表
