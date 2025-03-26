@@ -286,77 +286,79 @@ const CardListView = () => {
               onSave={handleSaveCard}
               onCancel={() => setIsCreatingCard(false)}
             />
-            <FloatButton.Group
-              style={{
-                position: "absolute",
-                right: 30,
-                bottom: 30,
-              }}
-            >
-              <If condition={showScrollToTop && !isPresentation}>
+            <If condition={!isPresentation}>
+              <FloatButton.Group
+                style={{
+                  position: "absolute",
+                  right: 30,
+                  bottom: 30,
+                }}
+              >
+                <If condition={showScrollToTop}>
+                  <FloatButton
+                    className={styles.floatButton}
+                    icon={<UpOutlined />}
+                    tooltip={"回到顶部"}
+                    onClick={() => {
+                      cardListRef.current?.scrollToTop();
+                    }}
+                  />
+                </If>
                 <FloatButton
-                  className={styles.floatButton}
-                  icon={<UpOutlined />}
-                  tooltip={"回到顶部"}
+                  icon={
+                    <Dropdown
+                      trigger={["hover"]}
+                      menu={{
+                        items: Object.keys(cardCategoryName).map((key) => ({
+                          label: cardCategoryName[key as ECardCategory],
+                          key: key,
+                          disabled: selectCategory === (key as ECardCategory),
+                        })),
+                        onClick: ({ key }) => {
+                          useCardsManagementStore.setState({
+                            selectCategory: key as ECardCategory,
+                          });
+                        },
+                      }}
+                    >
+                      <BiCategory />
+                    </Dropdown>
+                  }
+                ></FloatButton>
+                <FloatButton
+                  tooltip={
+                    viewMode === ViewMode.List ? "前往图谱模式" : "前往列表模式"
+                  }
+                  icon={
+                    viewMode === ViewMode.List ? (
+                      <UnorderedListOutlined />
+                    ) : (
+                      <PiGraphLight />
+                    )
+                  }
                   onClick={() => {
-                    cardListRef.current?.scrollToTop();
+                    useCardsManagementStore.setState({
+                      viewMode:
+                        viewMode === ViewMode.List
+                          ? ViewMode.Graph
+                          : ViewMode.List,
+                    });
                   }}
                 />
-              </If>
-              <FloatButton
-                icon={
-                  <Dropdown
-                    trigger={["hover"]}
-                    menu={{
-                      items: Object.keys(cardCategoryName).map((key) => ({
-                        label: cardCategoryName[key as ECardCategory],
-                        key: key,
-                        disabled: selectCategory === (key as ECardCategory),
-                      })),
-                      onClick: ({ key }) => {
-                        useCardsManagementStore.setState({
-                          selectCategory: key as ECardCategory,
-                        });
-                      },
-                    }}
-                  >
-                    <BiCategory />
-                  </Dropdown>
-                }
-              ></FloatButton>
-              <FloatButton
-                tooltip={
-                  viewMode === ViewMode.List ? "前往图谱模式" : "前往列表模式"
-                }
-                icon={
-                  viewMode === ViewMode.List ? (
-                    <UnorderedListOutlined />
-                  ) : (
-                    <PiGraphLight />
-                  )
-                }
-                onClick={() => {
-                  useCardsManagementStore.setState({
-                    viewMode:
-                      viewMode === ViewMode.List
-                        ? ViewMode.Graph
-                        : ViewMode.List,
-                  });
-                }}
-              />
-              <FloatButton
-                icon={
-                  <Dropdown
-                    menu={{
-                      items: titlebarMenuItems,
-                      onClick: handleMoreClick,
-                    }}
-                  >
-                    <PlusOutlined />
-                  </Dropdown>
-                }
-              />
-            </FloatButton.Group>
+                <FloatButton
+                  icon={
+                    <Dropdown
+                      menu={{
+                        items: titlebarMenuItems,
+                        onClick: handleMoreClick,
+                      }}
+                    >
+                      <PlusOutlined />
+                    </Dropdown>
+                  }
+                />
+              </FloatButton.Group>
+            </If>
           </div>
         </div>
       </div>
