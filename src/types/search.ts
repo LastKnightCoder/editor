@@ -18,6 +18,7 @@ export interface IndexParams {
   updateTime: number;
   title?: string;
   modelInfo?: { key: string; model: string; baseUrl: string };
+  indexTypes?: ("fts" | "vec")[];
 }
 
 export interface SearchParams {

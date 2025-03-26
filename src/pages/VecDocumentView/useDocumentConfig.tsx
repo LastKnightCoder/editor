@@ -129,8 +129,13 @@ const useDocumentConfig = () => {
 
   // 获取索引结果
   const initIndexResults = useMemoizedFn(async () => {
-    const results = await getAllIndexResults("document-item");
-    setIndexResults(results);
+    try {
+      const results = await getAllIndexResults("document-item");
+      setIndexResults(results);
+    } catch (e) {
+      console.error("初始化索引结果失败", e);
+      throw e;
+    }
   });
 
   useEffect(() => {
@@ -202,7 +207,7 @@ const useDocumentConfig = () => {
       ): ExtendedDocumentItem[] => {
         return items.filter((item) => {
           // 查找索引状态
-          const hasFTSIndex = ftsResults.some(
+          const ftsResult = ftsResults.find(
             (result) =>
               result.id === item.id && result.type === "document-item",
           );
@@ -213,9 +218,12 @@ const useDocumentConfig = () => {
           );
 
           let status;
-          if (!hasFTSIndex && !vecResult) {
+          if (!ftsResult && !vecResult) {
             status = "未索引";
-          } else if (vecResult && item.updateTime > vecResult.updateTime) {
+          } else if (
+            (vecResult && item.updateTime > vecResult.updateTime) ||
+            (ftsResult && item.updateTime > ftsResult.updateTime)
+          ) {
             status = "待更新";
           } else {
             status = "已索引";
@@ -368,7 +376,29 @@ const useDocumentConfig = () => {
       try {
         const { apiKey, baseUrl } = currentConfig;
 
-        await indexContent({
+        // 检查当前索引状态
+        const ftsResult = ftsResults.find(
+          (result) =>
+            result.id === record.id && result.type === "document-item",
+        );
+
+        const vecResult = vecResults.find(
+          (result) =>
+            result.id === record.id && result.type === "document-item",
+        );
+
+        // 确定需要创建的索引类型
+        const indexTypes: ("fts" | "vec")[] = [];
+        if (!ftsResult) indexTypes.push("fts");
+        if (!vecResult) indexTypes.push("vec");
+
+        // 如果没有需要创建的索引，直接返回成功
+        if (indexTypes.length === 0) {
+          message.success({ content: "索引已存在", key: messageKey });
+          return true;
+        }
+
+        const success = await indexContent({
           id: record.id,
           content: markdown,
           type: "document-item",
@@ -378,11 +408,17 @@ const useDocumentConfig = () => {
             baseUrl,
             model: EMBEDDING_MODEL,
           },
+          indexTypes,
         });
 
-        await initIndexResults();
-        message.success({ content: "索引创建成功", key: messageKey });
-        return true;
+        if (success) {
+          await initIndexResults();
+          message.success({ content: "索引创建成功", key: messageKey });
+          return true;
+        } else {
+          message.error({ content: "索引创建失败", key: messageKey });
+          return false;
+        }
       } catch (error) {
         console.error("创建索引失败", error);
         message.error({ content: "索引创建失败", key: messageKey });
@@ -417,7 +453,30 @@ const useDocumentConfig = () => {
       try {
         const { apiKey, baseUrl } = currentConfig;
 
-        await indexContent({
+        // 检查当前索引状态
+        const ftsResult = ftsResults.find(
+          (result) =>
+            result.id === record.id && result.type === "document-item",
+        );
+
+        const vecResult = vecResults.find(
+          (result) =>
+            result.id === record.id && result.type === "document-item",
+        );
+
+        // 确定需要更新的索引类型
+        const indexTypes: ("fts" | "vec")[] = [];
+        if (!ftsResult) indexTypes.push("fts");
+        if (!vecResult || record.updateTime > vecResult.updateTime)
+          indexTypes.push("vec");
+
+        // 如果没有需要更新的索引，直接返回成功
+        if (indexTypes.length === 0) {
+          message.success({ content: "索引已是最新", key: messageKey });
+          return true;
+        }
+
+        const success = await indexContent({
           id: record.id,
           content: markdown,
           type: "document-item",
@@ -427,11 +486,17 @@ const useDocumentConfig = () => {
             baseUrl,
             model: EMBEDDING_MODEL,
           },
+          indexTypes,
         });
 
-        await initIndexResults();
-        message.success({ content: "索引更新成功", key: messageKey });
-        return true;
+        if (success) {
+          await initIndexResults();
+          message.success({ content: "索引更新成功", key: messageKey });
+          return true;
+        } else {
+          message.error({ content: "索引更新失败", key: messageKey });
+          return false;
+        }
       } catch (error) {
         console.error("更新索引失败", error);
         message.error({ content: "索引更新失败", key: messageKey });
@@ -527,7 +592,7 @@ const useDocumentConfig = () => {
       filteredValue: filteredInfo.index_status || null,
       render: (_, record) => {
         // 查找索引状态
-        const hasFTSIndex = ftsResults.some(
+        const ftsResult = ftsResults.find(
           (result) =>
             result.id === record.id && result.type === "document-item",
         );
@@ -541,9 +606,22 @@ const useDocumentConfig = () => {
         const renderIndexStatus = () => {
           return (
             <Flex gap={4}>
-              <Tag color={hasFTSIndex ? "green" : "red"}>
-                FTS: {hasFTSIndex ? "已索引" : "未索引"}
-              </Tag>
+              {ftsResult ? (
+                <Tag
+                  color={
+                    record.updateTime > ftsResult.updateTime
+                      ? "orange"
+                      : "green"
+                  }
+                >
+                  FTS:{" "}
+                  {record.updateTime > ftsResult.updateTime
+                    ? "待更新"
+                    : "已索引"}
+                </Tag>
+              ) : (
+                <Tag color="red">FTS: 未索引</Tag>
+              )}
               {vecResult ? (
                 <Tag
                   color={
@@ -575,7 +653,7 @@ const useDocumentConfig = () => {
         const isLoading = loadingIds.includes(record.id);
 
         // 查找索引状态
-        const hasFTSIndex = ftsResults.some(
+        const ftsResult = ftsResults.find(
           (result) =>
             result.id === record.id && result.type === "document-item",
         );
@@ -585,7 +663,7 @@ const useDocumentConfig = () => {
             result.id === record.id && result.type === "document-item",
         );
 
-        if (!hasFTSIndex && !vecResult) {
+        if (!ftsResult && !vecResult) {
           return (
             <Button
               type="link"
@@ -601,9 +679,10 @@ const useDocumentConfig = () => {
             </Button>
           );
         } else if (
-          (hasFTSIndex && !vecResult) ||
-          (!hasFTSIndex && vecResult) ||
-          (vecResult && record.updateTime > vecResult.updateTime)
+          (ftsResult && !vecResult) ||
+          (!ftsResult && vecResult) ||
+          (vecResult && record.updateTime > vecResult.updateTime) ||
+          (ftsResult && record.updateTime > ftsResult.updateTime)
         ) {
           return (
             <Button

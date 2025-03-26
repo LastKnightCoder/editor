@@ -73,17 +73,28 @@ export const indexContent = async (
   indexParams: IndexParams,
 ): Promise<boolean> => {
   try {
-    // 并行执行全文索引和向量索引
-    const [ftsResult, vecResult] = await Promise.all([
-      indexFTSContent(indexParams),
-      // 如果有模型信息，则执行向量索引，否则只执行全文索引
-      indexParams.modelInfo
-        ? indexVecDocumentContent(indexParams)
-        : Promise.resolve(true),
-    ]);
+    const indexTypes = indexParams.indexTypes || ["fts", "vec"];
+    const promises: Promise<boolean>[] = [];
 
-    // 只有当两者都成功时，才返回成功
-    return ftsResult && vecResult;
+    // 根据指定的索引类型执行相应的索引操作
+    if (indexTypes.includes("fts")) {
+      promises.push(indexFTSContent(indexParams));
+    }
+
+    if (indexTypes.includes("vec") && indexParams.modelInfo) {
+      promises.push(indexVecDocumentContent(indexParams));
+    }
+
+    // 如果没有需要执行的索引操作，直接返回true
+    if (promises.length === 0) {
+      return true;
+    }
+
+    // 执行所有需要的索引操作
+    const results = await Promise.all(promises);
+
+    // 只有当所有操作都成功时，才返回true
+    return results.every((result) => result);
   } catch (error) {
     console.error("索引内容失败:", error);
     return false;

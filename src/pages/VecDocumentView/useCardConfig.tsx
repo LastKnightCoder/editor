@@ -77,23 +77,16 @@ const useCardConfig = () => {
       if (!isHitCategory) return false;
 
       // 查找索引状态
-      const hasFTSIndex = ftsResults.some(
-        (result) => result.id === card.id && result.type === "card",
-      );
-
-      const hasVecResult = vecResults.some(
+      const ftsResult = ftsResults.find(
         (result) => result.id === card.id && result.type === "card",
       );
 
       const vecResult = vecResults.find(
         (result) => result.id === card.id && result.type === "card",
       );
-      const ftsResult = ftsResults.find(
-        (result) => result.id === card.id && result.type === "card",
-      );
 
       let status;
-      if (!hasFTSIndex && !hasVecResult) {
+      if (!ftsResult && !vecResult) {
         status = "未索引";
       } else if (
         (vecResult && card.update_time > vecResult.updateTime) ||
@@ -135,6 +128,7 @@ const useCardConfig = () => {
       setIndexResults(results);
     } catch (e) {
       console.error("初始化索引结果失败", e);
+      throw e;
     }
   });
 
@@ -196,7 +190,7 @@ const useCardConfig = () => {
     async (markdown: string, record: ICard) => {
       if (!currentConfig) {
         message.error("未配置OpenAI API密钥");
-        return;
+        return false;
       }
 
       setLoadingIds((prev) => [...prev, record.id]);
@@ -205,7 +199,28 @@ const useCardConfig = () => {
 
       try {
         const { apiKey, baseUrl } = currentConfig;
-        await indexContent({
+
+        // 检查当前索引状态
+        const ftsResult = ftsResults.find(
+          (result) => result.id === record.id && result.type === "card",
+        );
+
+        const vecResult = vecResults.find(
+          (result) => result.id === record.id && result.type === "card",
+        );
+
+        // 确定需要创建的索引类型
+        const indexTypes: ("fts" | "vec")[] = [];
+        if (!ftsResult) indexTypes.push("fts");
+        if (!vecResult) indexTypes.push("vec");
+
+        // 如果没有需要创建的索引，直接返回成功
+        if (indexTypes.length === 0) {
+          message.success({ content: "索引已存在", key: messageKey });
+          return true;
+        }
+
+        const success = await indexContent({
           id: record.id,
           content: markdown,
           type: "card",
@@ -215,12 +230,21 @@ const useCardConfig = () => {
             baseUrl,
             model: EMBEDDING_MODEL,
           },
+          indexTypes,
         });
-        await initIndexResults();
-        message.success({ content: "索引创建成功", key: messageKey });
+
+        if (success) {
+          await initIndexResults();
+          message.success({ content: "索引创建成功", key: messageKey });
+          return true;
+        } else {
+          message.error({ content: "索引创建失败", key: messageKey });
+          return false;
+        }
       } catch (error) {
         console.error("创建索引失败:", error);
         message.error({ content: "索引创建失败", key: messageKey });
+        return false;
       } finally {
         setLoadingIds((prev) => prev.filter((id) => id !== record.id));
       }
@@ -248,7 +272,7 @@ const useCardConfig = () => {
     async (markdown: string, record: ICard) => {
       if (!currentConfig) {
         message.error("未配置OpenAI API密钥");
-        return;
+        return false;
       }
 
       setLoadingIds((prev) => [...prev, record.id]);
@@ -257,7 +281,29 @@ const useCardConfig = () => {
 
       try {
         const { apiKey, baseUrl } = currentConfig;
-        await indexContent({
+
+        // 检查当前索引状态
+        const ftsResult = ftsResults.find(
+          (result) => result.id === record.id && result.type === "card",
+        );
+
+        const vecResult = vecResults.find(
+          (result) => result.id === record.id && result.type === "card",
+        );
+
+        // 确定需要更新的索引类型
+        const indexTypes: ("fts" | "vec")[] = [];
+        if (!ftsResult) indexTypes.push("fts");
+        if (!vecResult || record.update_time > vecResult.updateTime)
+          indexTypes.push("vec");
+
+        // 如果没有需要更新的索引，直接返回成功
+        if (indexTypes.length === 0) {
+          message.success({ content: "索引已是最新", key: messageKey });
+          return true;
+        }
+
+        const success = await indexContent({
           id: record.id,
           content: markdown,
           type: "card",
@@ -267,12 +313,21 @@ const useCardConfig = () => {
             baseUrl,
             model: EMBEDDING_MODEL,
           },
+          indexTypes,
         });
-        await initIndexResults();
-        message.success({ content: "索引更新成功", key: messageKey });
+
+        if (success) {
+          await initIndexResults();
+          message.success({ content: "索引更新成功", key: messageKey });
+          return true;
+        } else {
+          message.error({ content: "索引更新失败", key: messageKey });
+          return false;
+        }
       } catch (error) {
         console.error("更新索引失败:", error);
         message.error({ content: "索引更新失败", key: messageKey });
+        return false;
       } finally {
         setLoadingIds((prev) => prev.filter((id) => id !== record.id));
       }
@@ -355,6 +410,10 @@ const useCardConfig = () => {
           value: ECardCategory.Temporary,
         },
         {
+          text: "文献笔记",
+          value: ECardCategory.Literature,
+        },
+        {
           text: "主题笔记",
           value: ECardCategory.Theme,
         },
@@ -371,6 +430,9 @@ const useCardConfig = () => {
         } else if (category === ECardCategory.Theme) {
           text = "主题笔记";
           color = "orange";
+        } else if (category === ECardCategory.Literature) {
+          text = "文献笔记";
+          color = "purple";
         }
 
         return <Tag color={color}> {text} </Tag>;
@@ -413,9 +475,9 @@ const useCardConfig = () => {
         },
       ],
       filteredValue: filteredInfo.index_status || null,
-      render: (_: any, record: ICard) => {
+      render: (_, record) => {
         // 查找索引状态
-        const hasFTSIndex = ftsResults.some(
+        const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "card",
         );
 
@@ -427,9 +489,22 @@ const useCardConfig = () => {
         const renderIndexStatus = () => {
           return (
             <Flex gap={4}>
-              <Tag color={hasFTSIndex ? "green" : "red"}>
-                FTS: {hasFTSIndex ? "已索引" : "未索引"}
-              </Tag>
+              {ftsResult ? (
+                <Tag
+                  color={
+                    record.update_time > ftsResult.updateTime
+                      ? "orange"
+                      : "green"
+                  }
+                >
+                  FTS:{" "}
+                  {record.update_time > ftsResult.updateTime
+                    ? "待更新"
+                    : "已索引"}
+                </Tag>
+              ) : (
+                <Tag color="red">FTS: 未索引</Tag>
+              )}
               {vecResult ? (
                 <Tag
                   color={
@@ -461,7 +536,7 @@ const useCardConfig = () => {
         const isLoading = loadingIds.includes(record.id);
 
         // 查找索引状态
-        const hasFTSIndex = ftsResults.some(
+        const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "card",
         );
 
@@ -469,7 +544,7 @@ const useCardConfig = () => {
           (result) => result.id === record.id && result.type === "card",
         );
 
-        if (!hasFTSIndex && !vecResult) {
+        if (!ftsResult && !vecResult) {
           return (
             <Button
               type="link"
@@ -485,9 +560,10 @@ const useCardConfig = () => {
             </Button>
           );
         } else if (
-          (hasFTSIndex && !vecResult) ||
-          (!hasFTSIndex && vecResult) ||
-          (vecResult && record.update_time > vecResult.updateTime)
+          (ftsResult && !vecResult) ||
+          (!ftsResult && vecResult) ||
+          (vecResult && record.update_time > vecResult.updateTime) ||
+          (ftsResult && record.update_time > ftsResult.updateTime)
         ) {
           return (
             <Button
