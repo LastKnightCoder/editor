@@ -13,7 +13,7 @@ import {
   cardLinkExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
-import { readTextFile, writeTextFile, formatMarkdown } from "@/commands";
+import { readTextFile, writeTextFile } from "@/commands";
 import {
   useMemoizedFn,
   useRafInterval,
@@ -76,9 +76,8 @@ const SingleMarkdownEditor = () => {
         const markdownText = await readTextFile(filePath);
         const editorContent = importFromMarkdown(markdownText);
         setContent(editorContent);
-        const formattedMarkdown = await formatMarkdown(markdownText);
-        currentSourceText.current = formattedMarkdown;
-        beforeSaveSourceText.current = formattedMarkdown;
+        currentSourceText.current = markdownText;
+        beforeSaveSourceText.current = markdownText;
         editorRef.current?.focus();
         calculateWordCount();
       } catch (error) {
@@ -139,7 +138,7 @@ const SingleMarkdownEditor = () => {
     try {
       const markdownText = isSourceMode
         ? currentSourceText.current
-        : await formatMarkdown(getMarkdown(content));
+        : getMarkdown(content);
       if (markdownText === beforeSaveSourceText.current) return;
       beforeSaveSourceText.current = markdownText;
       currentSourceText.current = markdownText;
@@ -164,10 +163,9 @@ const SingleMarkdownEditor = () => {
     } else {
       // 从编辑模式切换到源码模式
       const markdownText = getMarkdown(content);
-      const formattedMarkdown = await formatMarkdown(markdownText);
-      currentSourceText.current = formattedMarkdown;
+      currentSourceText.current = markdownText;
       if (!sourceEditorRef.current) return;
-      sourceEditorRef.current.setValue(formattedMarkdown);
+      sourceEditorRef.current.setValue(markdownText);
       setTimeout(() => {
         if (!sourceEditorRef.current) return;
         sourceEditorRef.current.refresh();

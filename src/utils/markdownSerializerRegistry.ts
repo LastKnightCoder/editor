@@ -125,6 +125,20 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        type: "bulleted-list",
+        isBlock: true,
+        toMarkdown: (_element, childrenStr) => {
+          return childrenStr;
+        },
+      },
+      {
+        type: "numbered-list",
+        isBlock: true,
+        toMarkdown: (_element, childrenStr) => {
+          return childrenStr;
+        },
+      },
+      {
         type: "list-item",
         isBlock: true,
         toMarkdown: (element, children: string, parentElement) => {
@@ -179,6 +193,7 @@ export class MarkdownSerializerRegistry {
       },
       {
         type: "table-row",
+        isBlock: true,
         toMarkdown: (_element, children) => {
           return `| ${children.split("\n").join("")}`.trim();
         },
@@ -207,7 +222,7 @@ export class MarkdownSerializerRegistry {
         toMarkdown: (element, childrenStr) => {
           const title = element.title ? ` title="${element.title}"` : "";
           const type = element.calloutType || "note";
-          return `::${type}${title}\n${childrenStr}\n::`;
+          return `::${type}${title}\n${childrenStr}::`;
         },
       },
       {
@@ -254,19 +269,20 @@ export class MarkdownSerializerRegistry {
                 .join("\n")
             );
           }
-          // If there's only one line, return it with the prefix
           return prefix + lines[0];
         },
       },
       {
         type: "highlight-block",
+        isBlock: true,
         toMarkdown: (element, childrenStr) => {
           const color = element.color || "default";
-          return `:::highlight-block{color=${color}}\n${childrenStr}\n:::`;
+          return `:::highlight-block{color=${color}}\n${childrenStr}:::`;
         },
       },
       {
         type: "custom-block",
+        isBlock: true,
         toMarkdown: (element) => {
           return `\`\`\`custom-block\n${element.content}\n\`\`\``;
         },

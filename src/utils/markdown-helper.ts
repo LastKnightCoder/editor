@@ -53,10 +53,13 @@ export const elementToMarkdown = (
       } else {
         const isLast = index === children.length - 1;
         // list-item 里面都是块级元素，会自己进行换行
-        const isListItem = node.type === "list-item";
+        const isList =
+          node.type === "list-item" ||
+          node.type === "bulleted-list" ||
+          node.type === "numbered-list";
         let tail = "";
         if (markdownSerializerRegistry.isBlock(node)) {
-          if (isLast || isListItem) {
+          if (isLast || isList) {
             tail = "\n";
           } else {
             tail = "\n\n";
