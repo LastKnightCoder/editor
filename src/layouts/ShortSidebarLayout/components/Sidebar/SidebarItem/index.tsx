@@ -19,21 +19,22 @@ const SidebarItem = memo((props: SidebarItemProps) => {
     props;
 
   return (
-    <div
-      className={classnames(styles.itemContainer, className, {
-        [styles.active]: active,
-        [styles.isShort]: isShortWidth,
-      })}
-      style={style}
-      onClick={onClick}
-    >
-      <Tooltip title={isShortWidth ? label : ""} trigger={"hover"}>
+    <Tooltip title={isShortWidth ? label : ""} trigger={"hover"}>
+      <div
+        className={classnames(styles.itemContainer, className, {
+          [styles.active]: active,
+          [styles.isShort]: isShortWidth,
+        })}
+        style={style}
+        onClick={onClick}
+      >
         <div className={styles.icon}>
           <SVG src={icon} />
         </div>
-      </Tooltip>
-      <div className={styles.label}>{label}</div>
-    </div>
+
+        <div className={styles.label}>{label}</div>
+      </div>
+    </Tooltip>
   );
 });
 

@@ -1,30 +1,49 @@
-import React from "react";
-import { Calendar, Modal } from "antd";
+import React, { useEffect } from "react";
+import { Calendar, Modal, Breadcrumb } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
 import { Dayjs } from "dayjs";
 import Editor from "@editor/index.tsx";
-import DailyNote from "@/layouts/components/EditDailyNote";
+import DailyNote from "@/pages/DailyNoteView/EditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
 import { DeleteOutlined } from "@ant-design/icons";
 import { SelectInfo } from "antd/es/calendar/generateCalendar";
+import { useNavigate } from "react-router-dom";
+import Titlebar from "@/layouts/components/Titlebar";
 
 import styles from "./index.module.less";
 import For from "@/components/For";
 import { dailySummaryExtension } from "@/editor-extensions";
-
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import useSettingStore from "@/stores/useSettingStore";
 const extensions = [dailySummaryExtension];
 
 const DailyNoteView = () => {
-  const { dailyNotes, deleteDailyNote, onCreateDailyNote, activeDailyId } =
-    useDailyNoteStore(
-      useShallow((state) => ({
-        dailyNotes: state.dailyNotes,
-        deleteDailyNote: state.deleteDailyNote,
-        onCreateDailyNote: state.onCreateDailyNote,
-        activeDailyId: state.activeDailyId,
-      })),
-    );
+  const navigate = useNavigate();
+  const {
+    dailyNotes,
+    deleteDailyNote,
+    onCreateDailyNote,
+    activeDailyId,
+    initData,
+  } = useDailyNoteStore(
+    useShallow((state) => ({
+      dailyNotes: state.dailyNotes,
+      deleteDailyNote: state.deleteDailyNote,
+      onCreateDailyNote: state.onCreateDailyNote,
+      activeDailyId: state.activeDailyId,
+      initData: state.init,
+    })),
+  );
+
+  const isConnected = useDatabaseConnected();
+  const active = useSettingStore((state) => state.setting.database.active);
+
+  useEffect(() => {
+    if (isConnected && active) {
+      initData();
+    }
+  }, [isConnected, active, initData]);
 
   const isShowEdit = !!activeDailyId;
 
@@ -101,17 +120,39 @@ const DailyNoteView = () => {
     }
   };
 
+  const breadcrumbItems = [
+    { title: "首页", path: "/" },
+    { title: "日记", path: "/dailies" },
+  ];
+
   return (
-    <div
-      className={classnames(styles.viewContainer, {
-        [styles.showEdit]: isShowEdit,
-      })}
-    >
-      <div className={styles.calendarContainer}>
-        <Calendar cellRender={cellRender} onSelect={onSelect} />
-      </div>
-      <div className={styles.edit}>
-        <DailyNote />
+    <div className={styles.container}>
+      <Titlebar className={styles.titlebar}>
+        <Breadcrumb
+          className={styles.breadcrumb}
+          items={breadcrumbItems.map((item) => ({
+            title: (
+              <span
+                className={styles.breadcrumbItem}
+                onClick={() => navigate(item.path)}
+              >
+                {item.title}
+              </span>
+            ),
+          }))}
+        />
+      </Titlebar>
+      <div
+        className={classnames(styles.viewContainer, {
+          [styles.showEdit]: isShowEdit,
+        })}
+      >
+        <div className={styles.calendarContainer}>
+          <Calendar cellRender={cellRender} onSelect={onSelect} />
+        </div>
+        <div className={styles.edit}>
+          <DailyNote />
+        </div>
       </div>
     </div>
   );

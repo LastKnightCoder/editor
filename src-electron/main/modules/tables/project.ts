@@ -15,6 +15,8 @@ import { getContentLength } from "@/utils/helper";
 import { snakeCase } from "lodash";
 import { basename } from "node:path";
 import { BrowserWindow } from "electron";
+import FTSTable from "./fts";
+import VecDocumentTable from "./vec-document";
 
 const projectItemAttributes = [
   "title",
@@ -749,6 +751,11 @@ export default class ProjectTable {
   static deleteProjectItem(db: Database.Database, id: number): number {
     // TODO，一个 projectItem 可能在多个 project 中，删除  projectItem 需谨慎
     const stmt = db.prepare("DELETE FROM project_item WHERE id = ?");
+
+    // 删除全文搜索索引
+    FTSTable.removeIndexByIdAndType(db, id, "project-item");
+    // 删除向量文档索引
+    VecDocumentTable.removeIndexByIdAndType(db, id, "project-item");
 
     Operation.insertOperation(db, "project_item", "delete", id, Date.now());
     return stmt.run(id).changes;

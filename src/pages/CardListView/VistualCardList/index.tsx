@@ -16,7 +16,7 @@ interface VirtualCardListProps {
   onScroll?: (scrollTop: number) => void;
   onPresentationMode: () => void;
   onExitPresentationMode: () => void;
-  onCardClick?: (cardId: number) => void;
+  onCardClick?: (card: ICard) => void;
   onDeleteCard?: (cardId: number) => Promise<void>;
   onUpdateCardCategory?: (
     card: ICard,
@@ -87,8 +87,8 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
       };
     }, []);
 
-    const handleCardClick = useMemoizedFn((cardId: number) => {
-      onCardClick?.(cardId);
+    const handleCardClick = useMemoizedFn((card: ICard) => {
+      onCardClick?.(card);
     });
 
     return (

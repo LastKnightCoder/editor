@@ -7,6 +7,7 @@ import {
   FormattedText,
   HTMLBlockElement,
   InlineMathElement,
+  ListItemElement,
   MermaidElement,
   TabsElement,
   TikzElement,
@@ -49,6 +50,12 @@ export const getContentLength = (value: Descendant[]) => {
       length += wordsCount((node as CustomBlockElement).content);
     } else if (node.type === "tikz") {
       length += wordsCount((node as TikzElement).content);
+    } else if (node.type === "list-item") {
+      if ((node as ListItemElement).isFold) {
+        length += getContentLength(
+          (node as ListItemElement).allContent!.slice(1),
+        );
+      }
     }
   });
 

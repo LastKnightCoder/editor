@@ -8,12 +8,19 @@
 }
 
 .titlebar {
-  height: 48px;
+  width: 100%;
+  height: 60px;
   flex-shrink: 0;
 }
 
+.editContainer {
+  width: 100%;
+  flex: 1;
+  overflow: hidden;
+}
+
 .breadcrumb {
-  height: 48px;
+  height: 60px;
   padding-left: 16px;
   display: flex;
   align-items: center;
@@ -57,7 +64,8 @@
 }
 
 .articleContainer {
+  display: flex;
+  flex-direction: column;
   flex: 1;
-  overflow-y: auto;
   transition: width 0.3s ease;
 }

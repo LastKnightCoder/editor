@@ -47,8 +47,7 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
       id: String(activeKey),
       type: "article",
       title:
-        tabs.find((tab) => tab.id === Number(activeKey) || tab.id === activeKey)
-          ?.title || "",
+        tabs.find((tab) => Number(tab.id) === Number(activeKey))?.title || "",
     });
   });
 

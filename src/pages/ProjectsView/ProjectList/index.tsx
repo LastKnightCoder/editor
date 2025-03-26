@@ -2,7 +2,6 @@ import For from "@/components/For";
 import { Project } from "@/types";
 import ProjectCard from "../ProjectCard";
 import useGridLayout from "@/hooks/useGridLayout";
-import { useRef } from "react";
 import styles from "./index.module.less";
 
 interface ProjectListProps {
@@ -12,9 +11,7 @@ interface ProjectListProps {
 const ProjectList = (props: ProjectListProps) => {
   const { projects } = props;
 
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-
-  const { itemWidth, gap } = useGridLayout();
+  const { itemWidth, gap, gridContainerRef } = useGridLayout();
 
   return (
     <div className={styles.projectGrid} ref={gridContainerRef} style={{ gap }}>

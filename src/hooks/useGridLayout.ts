@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from "react";
-import { useMemoizedFn } from "ahooks";
+import { useDebounceFn } from "ahooks";
 
 interface UseGridLayoutOptions {
   minWidth?: number;
@@ -17,21 +17,24 @@ const useGridLayout = (options: UseGridLayoutOptions = {}) => {
 
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const [itemWidth, setItemWidth] = useState(minWidth);
+  const [columnsCount, setColumnsCount] = useState(0);
 
-  const handleResize = useMemoizedFn((entries: ResizeObserverEntry[]) => {
-    const { width } = entries[0].contentRect;
+  const { run: handleResize } = useDebounceFn(
+    (entries: ResizeObserverEntry[]) => {
+      const { width } = entries[0].contentRect;
 
-    console.log("handleResize", width, gap);
+      const nMin = Math.ceil((width + gap) / (maxWidth + gap));
+      const nMax = Math.floor((width + gap) / (minWidth + gap));
 
-    const nMin = Math.ceil((width + gap) / (maxWidth + gap));
-    const nMax = Math.floor((width + gap) / (minWidth + gap));
+      const n = Math.min(nMin, nMax);
 
-    const n = Math.min(nMin, nMax);
+      const itemWidth = (width + gap) / n - gap;
 
-    const itemWidth = (width + gap) / n - gap;
-
-    setItemWidth(itemWidth);
-  });
+      setItemWidth(itemWidth);
+      setColumnsCount(n);
+    },
+    { wait: 100 },
+  );
 
   useEffect(() => {
     const container = gridContainerRef.current;
@@ -50,6 +53,7 @@ const useGridLayout = (options: UseGridLayoutOptions = {}) => {
     gridContainerRef,
     itemWidth,
     gap,
+    columnsCount,
   };
 };
 

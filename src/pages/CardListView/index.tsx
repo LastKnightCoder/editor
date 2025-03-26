@@ -6,6 +6,7 @@ import {
   LoadingOutlined,
   PlusOutlined,
   UnorderedListOutlined,
+  UpOutlined,
 } from "@ant-design/icons";
 import { ICard, ECardCategory, ICreateCard } from "@/types";
 import {
@@ -32,6 +33,7 @@ import useCardsManagementStore, {
 import { useShallow } from "zustand/react/shallow";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
+import If from "@/components/If";
 
 const CardListView = () => {
   const navigate = useNavigate();
@@ -43,12 +45,20 @@ const CardListView = () => {
 
   const cardListRef = useRef<CardListPanelRef>(null);
 
-  const { activeCardTag, selectCategory, viewMode } = useCardsManagementStore(
+  const {
+    activeCardTag,
+    selectCategory,
+    viewMode,
+    showScrollToTop,
+    isPresentation,
+  } = useCardsManagementStore(
     useShallow((state) => {
       return {
         activeCardTag: state.activeCardTag,
         selectCategory: state.selectCategory,
         viewMode: state.viewMode,
+        showScrollToTop: state.showScrollToTop,
+        isPresentation: state.isPresentation,
       };
     }),
   );
@@ -97,8 +107,8 @@ const CardListView = () => {
     }
   });
 
-  const handleCardClick = useMemoizedFn((cardId: number) => {
-    navigate(`/cards/detail/${cardId}`);
+  const handleCardClick = useMemoizedFn((card: ICard) => {
+    navigate(`/cards/detail/${card.id}`);
   });
 
   const handleImportMarkdown = useMemoizedFn(async () => {
@@ -263,10 +273,10 @@ const CardListView = () => {
             ) : (
               <div className={styles.graphContainer}>
                 <CardGraph
-                  cards={filteredCards}
+                  cards={cards}
                   onClickCard={handleCardClick}
                   className={styles.cardGraph}
-                  fitViewPadding={filteredCards.length > 20 ? [40] : [200]}
+                  currentCardIds={filteredCards.map((card) => card.id)}
                 />
               </div>
             )}
@@ -283,6 +293,16 @@ const CardListView = () => {
                 bottom: 30,
               }}
             >
+              <If condition={showScrollToTop && !isPresentation}>
+                <FloatButton
+                  className={styles.floatButton}
+                  icon={<UpOutlined />}
+                  tooltip={"回到顶部"}
+                  onClick={() => {
+                    cardListRef.current?.scrollToTop();
+                  }}
+                />
+              </If>
               <FloatButton
                 icon={
                   <Dropdown

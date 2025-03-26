@@ -7,9 +7,8 @@ import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import AISearch from "@/layouts/ShortSidebarLayout/components/Search";
 
-import useInitDatabase from "@/hooks/useInitDatabase.ts";
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import { createCard } from "@/commands";
+import { connectDatabaseByName, createCard } from "@/commands";
 import { ECardCategory } from "@/types";
 import {
   cardLinkExtension,
@@ -18,6 +17,7 @@ import {
 
 import styles from "./index.module.less";
 import { getContentLength } from "@/utils";
+import useSettingStore from "@/stores/useSettingStore";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -29,12 +29,19 @@ const initValue: Descendant[] = [
 ];
 
 const QuickCard = () => {
-  const { initDatabase } = useInitDatabase();
-
+  const active = useSettingStore((state) => state.setting.database.active);
   useEffect(() => {
-    initDatabase();
-  }, [initDatabase]);
+    connectDatabaseByName(active)
+      .catch((err) => {
+        setError(err.message);
+      })
+      .finally(() => {
+        setReady(true);
+      });
+  }, [active]);
 
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const uploadResource = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
 
@@ -67,6 +74,14 @@ const QuickCard = () => {
     editorRef.current?.setEditorValue(initValue);
     setContent(initValue);
   };
+
+  if (!ready) {
+    return <div className={styles.loading}>加载中...</div>;
+  }
+
+  if (error) {
+    return <div className={styles.error}>{error}</div>;
+  }
 
   return (
     <div className={styles.quickCardContainer}>

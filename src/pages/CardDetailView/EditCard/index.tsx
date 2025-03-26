@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
@@ -13,21 +13,38 @@ import {
 } from "@/editor-extensions";
 import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
-import { defaultCardEventBus } from "@/utils";
+import {
+  defaultCardEventBus,
+  getAllLinkedCards,
+  getEditorText,
+  getInlineLinks,
+} from "@/utils";
 
 import styles from "./index.module.less";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditCard from "../useEditCard";
+import StatusBar from "@/components/StatusBar";
+import { LinkOutlined, ReadOutlined } from "@ant-design/icons";
+import { Drawer, Tooltip } from "antd";
+import { EditOutlined } from "@ant-design/icons";
+import { MdOutlineCode } from "react-icons/md";
+import { isValid } from "@/components/WhiteBoard/utils";
+import LinkList from "../LinkList";
+import { ICard } from "@/types";
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
+import EditorSourceValue from "@/components/EditorSourceValue";
+import LinkGraph from "@/components/LinkGraph";
+import { getAllCards } from "@/commands";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 interface IEditCardProps {
   cardId: number;
-  readonly?: boolean;
+  defaultReadonly?: boolean;
 }
 
 const EditCard = (props: IEditCardProps) => {
-  const { cardId, readonly = false } = props;
+  const { cardId, defaultReadonly = false } = props;
 
   const {
     initValue,
@@ -38,6 +55,8 @@ const EditCard = (props: IEditCardProps) => {
     onAddTag,
     onDeleteTag,
     saveCard,
+    onAddLink,
+    onRemoveLink,
   } = useEditCard(cardId);
 
   const isWindowFocused = useWindowFocus();
@@ -47,6 +66,28 @@ const EditCard = (props: IEditCardProps) => {
     () => defaultCardEventBus.createEditor(),
     [],
   );
+  const [cards, setCards] = useState<ICard[]>([]);
+  const [readonly, setReadonly] = useState(defaultReadonly);
+  const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
+  const [linkListOpen, setLinkListOpen] = useState(false);
+  const [linkGraphOpen, setLinkGraphOpen] = useState(false);
+
+  useEffect(() => {
+    getAllCards().then((res) => {
+      setCards(res);
+    });
+  }, []);
+
+  const getCardLinks = useMemoizedFn((card: ICard) => {
+    const links = getInlineLinks(card);
+    return [...new Set([...links, ...card.links])];
+  });
+
+  const allLinkedCards = useMemo(() => {
+    if (!editingCard) return [];
+    const links = getAllLinkedCards(editingCard, cards);
+    return links;
+  }, [cards, editingCard?.links]);
 
   const onChange = useMemoizedFn((value: Descendant[]) => {
     if (!editingCard || !editorRef.current?.isFocus() || !isWindowFocused)
@@ -106,6 +147,82 @@ const EditCard = (props: IEditCardProps) => {
     };
   }, [editingCard?.id]);
 
+  const statusBarConfigs = useMemo(() => {
+    return [
+      {
+        key: "words-count",
+        children: <>字数：{editingCard?.count}</>,
+      },
+      {
+        key: "readonly",
+        children: (
+          <>
+            {readonly ? (
+              <Tooltip title={"编辑"}>
+                <EditOutlined />
+              </Tooltip>
+            ) : (
+              <Tooltip title={"预览"}>
+                <ReadOutlined />
+              </Tooltip>
+            )}
+          </>
+        ),
+        onClick: () => {
+          setReadonly(!readonly);
+        },
+      },
+      {
+        key: "link-list",
+        children: (
+          <>
+            <Tooltip title={"关联列表"}>
+              <LinkOutlined />
+            </Tooltip>
+          </>
+        ),
+        onClick: () => {
+          setLinkListOpen(true);
+        },
+      },
+      {
+        key: "link-graph",
+        children: (
+          <>
+            <Tooltip title={"关联图谱"}>
+              <LinkOutlined />
+            </Tooltip>
+          </>
+        ),
+        onClick: () => {
+          setLinkGraphOpen(true);
+        },
+      },
+      {
+        key: "source",
+        children: (
+          <>
+            <Tooltip title={"源码"}>
+              <MdOutlineCode className={styles.icon} />
+            </Tooltip>
+          </>
+        ),
+        onClick: () => {
+          setEditorSourceValueOpen(true);
+        },
+      },
+    ].filter(isValid);
+  }, [readonly, editingCard?.count]);
+
+  const handleClickLinkCard = useMemoizedFn((card: ICard) => {
+    const { addTab } = useRightSidebarStore.getState();
+    addTab({
+      id: String(card.id),
+      title: getEditorText(card.content, 10),
+      type: "card",
+    });
+  });
+
   if (loading) {
     return <div className={styles.loading}>Loading...</div>;
   }
@@ -129,19 +246,21 @@ const EditCard = (props: IEditCardProps) => {
             <span>最后修改于 {formatDate(editingCard.update_time, true)}</span>
           </div>
         </div>
-        <div className={styles.editor}>
-          <ErrorBoundary>
-            <Editor
-              key={editingCard.id}
-              ref={editorRef}
-              onInit={onInit}
-              initValue={initValue}
-              onChange={onChange}
-              extensions={customExtensions}
-              readonly={readonly}
-              uploadResource={uploadResource}
-            />
-          </ErrorBoundary>
+        <div className={styles.editorContainer}>
+          <div className={styles.editor}>
+            <ErrorBoundary>
+              <Editor
+                key={editingCard.id}
+                ref={editorRef}
+                onInit={onInit}
+                initValue={initValue}
+                onChange={onChange}
+                extensions={customExtensions}
+                readonly={readonly}
+                uploadResource={uploadResource}
+              />
+            </ErrorBoundary>
+          </div>
         </div>
         <div className={styles.addTag}>
           <AddTag
@@ -151,6 +270,45 @@ const EditCard = (props: IEditCardProps) => {
             readonly={readonly}
           />
         </div>
+        <StatusBar className={styles.statusBar} configs={statusBarConfigs} />
+        <Drawer
+          title="关联列表"
+          open={linkListOpen}
+          width={500}
+          onClose={() => setLinkListOpen(false)}
+        >
+          <LinkList
+            onClickLinkCard={handleClickLinkCard}
+            addLink={onAddLink}
+            removeLink={onRemoveLink}
+            editingCard={editingCard}
+            readonly={readonly}
+          />
+        </Drawer>
+        <Drawer
+          title="关联图谱"
+          open={linkGraphOpen}
+          width={500}
+          onClose={() => setLinkGraphOpen(false)}
+        >
+          <LinkGraph
+            key={editingCard.id}
+            cards={allLinkedCards}
+            currentCardIds={[editingCard.id]}
+            cardWidth={360}
+            getCardLinks={getCardLinks}
+            fitView={allLinkedCards.length > 20}
+            style={{
+              height: "calc(100vh - 105px)",
+            }}
+            onClickCard={handleClickLinkCard}
+          />
+        </Drawer>
+        <EditorSourceValue
+          open={editorSourceValueOpen}
+          onClose={() => setEditorSourceValueOpen(false)}
+          content={editingCard.content}
+        />
       </div>
     </EditCardContext.Provider>
   );

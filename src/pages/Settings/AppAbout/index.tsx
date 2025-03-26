@@ -3,7 +3,9 @@ import { useAsyncEffect } from "ahooks";
 import { getVersions } from "@/commands";
 
 import styles from "./index.module.less";
-
+import { LoadingOutlined } from "@ant-design/icons";
+import SelectDatabase from "@/components/SelectDatabase";
+import { Flex } from "antd";
 const AppAbout = () => {
   const [loading, setLoading] = useState(false);
   const [version, setVersion] = useState("0.0");
@@ -15,17 +17,20 @@ const AppAbout = () => {
     setLoading(false);
   });
 
-  if (loading) {
-    return (
-      <div className={styles.loadContainer}>
-        <div className={styles.loader} />
-      </div>
-    );
-  }
-
   return (
     <div className={styles.container}>
-      <div className={styles.version}>软件版本：{version}</div>
+      <Flex vertical gap={12}>
+        <h2>软件信息</h2>
+        <div className={styles.version}>
+          {loading ? (
+            <LoadingOutlined spin={true} />
+          ) : (
+            <div>软件版本：{version}</div>
+          )}
+        </div>
+        <h2>选择数据库</h2>
+        <SelectDatabase />
+      </Flex>
     </div>
   );
 };

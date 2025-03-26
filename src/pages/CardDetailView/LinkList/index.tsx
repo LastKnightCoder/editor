@@ -10,7 +10,7 @@ import styles from "./index.module.less";
 import { getAllCards } from "@/commands";
 
 interface ILinkTabProps {
-  onClickLinkCard: (id: number) => void;
+  onClickLinkCard: (card: ICard) => void;
   addLink: (id: number) => Promise<void>;
   removeLink: (id: number) => Promise<void>;
   editingCard: ICard;
@@ -76,7 +76,7 @@ const LinkTab = (props: ILinkTabProps) => {
       {linkedList.map((card) => (
         <CardItem2
           onClick={() => {
-            onClickLinkCard(card.id);
+            onClickLinkCard(card);
           }}
           card={card}
           key={card.id}
