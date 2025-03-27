@@ -210,8 +210,10 @@ export default class VecDocumentTable {
 
   static clearTableData(db: Database.Database): boolean {
     // 清空虚拟表数据，但是保留虚拟表
-    db.prepare("DELETE FROM vec_documents; VACUUM").run();
-    log.info("向量索引表已清空");
+    // db.prepare("DELETE FROM vec_documents; VACUUM").run();
+    // log.info("向量索引表已清空");
+    // 删除数据库
+    db.prepare("DROP TABLE IF EXISTS vec_documents").run();
     return true;
   }
 
@@ -220,6 +222,7 @@ export default class VecDocumentTable {
     queryEmbedding: number[],
     topK: number,
     types: IndexType[] = [],
+    distance = 0.6,
   ): Array<[document: VecDocument, distance: number]> {
     const typeClause =
       types.length > 0 ? `AND type IN (${types.map(() => "?").join(",")})` : "";
@@ -227,16 +230,18 @@ export default class VecDocumentTable {
     const searchQuery = `
       SELECT prefixed_id, update_time, content, distance
       FROM vec_documents
-      WHERE distance < 0.6 AND vec_embedding match ? ${typeClause} AND k = ?
+      WHERE distance < ? AND vec_embedding match ? ${typeClause} AND k = ?
       ORDER BY distance
     `;
 
     const searchStmt = db.prepare(searchQuery);
 
+    log.info("params", distance, types, topK);
+
     const params =
       types.length > 0
-        ? [JSON.stringify(queryEmbedding), ...types, topK]
-        : [JSON.stringify(queryEmbedding), topK];
+        ? [distance, JSON.stringify(queryEmbedding), ...types, topK]
+        : [distance, JSON.stringify(queryEmbedding), topK];
 
     const searchRes = searchStmt.all(...params);
 
@@ -286,16 +291,22 @@ export default class VecDocumentTable {
         // 插入到虚拟表
         const stmt = db.prepare(`
           INSERT INTO vec_documents
-          (prefixed_id, update_time, content, vec_embedding)
-          VALUES (?, ?, ?, vec_f32(?))
+          (prefixed_id, update_time, content, type, vec_embedding)
+          VALUES (?, ?, ?, ?, vec_f32(?))
         `);
 
-        stmt.run(prefixedId, updateTime, chunkText, JSON.stringify(embedding));
+        stmt.run(
+          prefixedId,
+          updateTime,
+          chunkText,
+          type,
+          JSON.stringify(embedding),
+        );
       });
 
       try {
-        await Promise.all(embeddingPromises);
-        return true;
+        const res = await Promise.all(embeddingPromises);
+        return res.every(Boolean);
       } catch (error) {
         log.error("生成嵌入失败:", error);
         return false;
@@ -363,6 +374,7 @@ export default class VecDocumentTable {
         queryEmbedding,
         limit,
         types,
+        modelInfo.distance || 0.6,
       );
 
       const end = Date.now();
@@ -451,8 +463,6 @@ export default class VecDocumentTable {
 
     // 添加分组，确保每个prefixed_id只返回一次
     query += ` GROUP BY prefixed_id`;
-
-    log.info("query: ", query, type);
 
     const stmt = db.prepare(query);
     const documents = type ? stmt.all(type) : stmt.all();

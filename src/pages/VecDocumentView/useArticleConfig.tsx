@@ -1,6 +1,4 @@
 import Editor from "@/components/Editor";
-import { useShallow } from "zustand/react/shallow";
-import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { IArticle, IndexParams, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
@@ -18,10 +16,10 @@ import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
+import useEmbeddingConfig from "./useEmbeddingConfig";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 import { getAllArticles } from "@/commands";
 
-const EMBEDDING_MODEL = "text-embedding-3-large";
 const PAGE_SIZE = 20;
 
 type OnChange = NonNullable<TableProps<IArticle>["onChange"]>;
@@ -37,11 +35,7 @@ const useArticleConfig = () => {
     });
   }, []);
 
-  const { provider } = useSettingStore(
-    useShallow((state) => ({
-      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-    })),
-  );
+  const modelInfo = useEmbeddingConfig();
 
   const [selectedRows, setSelectedRows] = useState<IArticle[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
@@ -53,9 +47,6 @@ const useArticleConfig = () => {
     selectedRowKeys: selectedRows.map((row) => row.id),
     onChange: onSelectChange,
   };
-
-  const { configs, currentConfigId } = provider;
-  const currentConfig = configs.find((item) => item.id === currentConfigId);
 
   const [indexResults, setIndexResults] = useState<
     [SearchResult[], SearchResult[]]
@@ -206,15 +197,8 @@ const useArticleConfig = () => {
           type: "article",
           updateTime: record.update_time,
           indexTypes,
+          modelInfo,
         };
-
-        if (currentConfig) {
-          params.modelInfo = {
-            key: currentConfig.apiKey,
-            baseUrl: currentConfig.baseUrl,
-            model: EMBEDDING_MODEL,
-          };
-        }
 
         const success = await indexContent(params);
 
@@ -303,15 +287,8 @@ const useArticleConfig = () => {
           type: "article",
           updateTime: record.update_time,
           indexTypes,
+          modelInfo,
         };
-
-        if (currentConfig) {
-          params.modelInfo = {
-            key: currentConfig.apiKey,
-            baseUrl: currentConfig.baseUrl,
-            model: EMBEDDING_MODEL,
-          };
-        }
 
         const success = await indexContent(params);
 

@@ -1,9 +1,7 @@
 import Editor from "@/components/Editor";
-import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { ECardCategory, ICard, IndexParams, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
-import { useShallow } from "zustand/react/shallow";
 import {
   Tag,
   Button,
@@ -20,8 +18,8 @@ import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 import { getAllCards } from "@/commands";
+import useEmbeddingConfig from "./useEmbeddingConfig";
 
-const EMBEDDING_MODEL = "text-embedding-3-large";
 const PAGE_SIZE = 20;
 
 type OnChange = NonNullable<TableProps<ICard>["onChange"]>;
@@ -36,13 +34,7 @@ const useCardConfig = () => {
     });
   }, []);
 
-  const { provider } = useSettingStore(
-    useShallow((state) => ({
-      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-    })),
-  );
-  const { configs, currentConfigId } = provider;
-  const currentConfig = configs.find((item) => item.id === currentConfigId);
+  const modelInfo = useEmbeddingConfig();
 
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ICard[]>([]);
@@ -211,15 +203,8 @@ const useCardConfig = () => {
           type: "card",
           updateTime: record.update_time,
           indexTypes,
+          modelInfo,
         };
-
-        if (currentConfig) {
-          params.modelInfo = {
-            key: currentConfig.apiKey,
-            baseUrl: currentConfig.baseUrl,
-            model: EMBEDDING_MODEL,
-          };
-        }
 
         const success = await indexContent(params);
 
@@ -302,15 +287,8 @@ const useCardConfig = () => {
           type: "card",
           updateTime: record.update_time,
           indexTypes,
+          modelInfo,
         };
-
-        if (currentConfig) {
-          params.modelInfo = {
-            key: currentConfig.apiKey,
-            baseUrl: currentConfig.baseUrl,
-            model: EMBEDDING_MODEL,
-          };
-        }
 
         const success = await indexContent(params);
 

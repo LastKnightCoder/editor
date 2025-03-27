@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { SearchParams, SearchResult } from "@/types";
 import { searchContent } from "@/utils/search";
-import useSettingStore, { ELLMProvider } from "./useSettingStore";
+import useSettingStore from "./useSettingStore";
 
 interface ICommandPanelState {
   open: boolean;
@@ -17,7 +17,6 @@ interface ICommandPanelActions {
   onSearch: (input: string) => Promise<void>;
 }
 
-const EMBEDDING_MODEL = "text-embedding-3-large";
 const TOP_K = 20;
 
 const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
@@ -36,10 +35,14 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
     },
     onSearch: async (input: string) => {
       const settings = useSettingStore.getState().setting;
-      const { configs, currentConfigId } =
-        settings.llmProviders[ELLMProvider.OPENAI];
-      const currentConfig = configs.find(
-        (config) => config.id === currentConfigId,
+
+      // 从 embeddingProvider 中获取模型信息
+      const embeddingProvider = settings.embeddingProvider;
+      const currentEmbeddingConfig = embeddingProvider.configs.find(
+        (config) => config.id === embeddingProvider.currentConfigId,
+      );
+      const currentEmbeddingModel = currentEmbeddingConfig?.models.find(
+        (model) => model.name === currentEmbeddingConfig.currentModel,
       );
 
       useCommandPanelStore.setState({ searchLoading: true });
@@ -50,13 +53,15 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
           query: input,
           types: ["card", "article", "project-item", "document-item"],
           limit: TOP_K,
-          modelInfo: currentConfig
-            ? {
-                key: currentConfig.apiKey,
-                baseUrl: currentConfig.baseUrl,
-                model: EMBEDDING_MODEL,
-              }
-            : undefined,
+          modelInfo:
+            currentEmbeddingConfig && currentEmbeddingModel
+              ? {
+                  key: currentEmbeddingConfig.apiKey,
+                  baseUrl: currentEmbeddingConfig.baseUrl,
+                  model: currentEmbeddingModel.name,
+                  distance: currentEmbeddingModel.distance,
+                }
+              : undefined,
         };
 
         const [ftsResults, vecResults] = await searchContent(searchParams);

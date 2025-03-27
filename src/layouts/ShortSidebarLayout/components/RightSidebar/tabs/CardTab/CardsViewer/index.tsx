@@ -59,7 +59,6 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
       if (action === "add") {
         setSelectorOpen(true);
       } else if (action === "remove") {
-        console.log(targetKey, typeof targetKey);
         removeTab({
           id: targetKey as string,
           type: "card",

@@ -24,5 +24,5 @@ export interface SearchParams {
   query: string;
   types?: IndexType[];
   limit?: number;
-  modelInfo?: { key: string; model: string; baseUrl: string };
+  modelInfo?: { key: string; model: string; baseUrl: string; distance: number };
 }
