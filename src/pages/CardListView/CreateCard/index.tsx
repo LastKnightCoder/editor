@@ -112,11 +112,10 @@ const CreateCard = memo((props: CreateCardProps) => {
               <div className={styles.buttons}>
                 <Button onClick={onCancelSaveCard}>取消</Button>
                 <Button
-                  onClick={onSaveCard.bind(
-                    null,
-                    content || DEFAULT_CONTENT,
-                    tags || [],
-                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSaveCard(content || DEFAULT_CONTENT, tags || []);
+                  }}
                 >
                   保存
                 </Button>
