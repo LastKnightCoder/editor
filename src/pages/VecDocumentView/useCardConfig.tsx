@@ -13,7 +13,7 @@ import {
   App,
 } from "antd";
 import { Descendant } from "slate";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
@@ -39,6 +39,12 @@ const useCardConfig = () => {
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ICard[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
+  const [pageSize, setPageSize] = useLocalStorageState<number>(
+    "card-pagesize",
+    {
+      defaultValue: PAGE_SIZE,
+    },
+  );
   const onSelectChange = (_: React.Key[], newSelectedRows: ICard[]) => {
     setSelectedRows(newSelectedRows);
   };
@@ -100,8 +106,8 @@ const useCardConfig = () => {
   }, [cards, filteredInfo, ftsResults, vecResults]);
 
   const slicedCards = filteredCards.slice(
-    (current - 1) * PAGE_SIZE,
-    current * PAGE_SIZE,
+    (current - 1) * (pageSize || PAGE_SIZE),
+    current * (pageSize || PAGE_SIZE),
   );
 
   const initIndexResults = useMemoizedFn(async () => {
@@ -586,10 +592,10 @@ const useCardConfig = () => {
   ];
 
   const pagination = {
-    pageSize: PAGE_SIZE,
+    pageSize,
     current,
     total: filteredCards.length,
-    showSizeChanger: false,
+    showSizeChanger: true,
   };
 
   const onChange: TableProps["onChange"] = useMemoizedFn(
@@ -597,6 +603,9 @@ const useCardConfig = () => {
       if (pagination.current !== current) {
         setCurrent(pagination.current || 1);
         setSelectedRows([]);
+      }
+      if (pagination.pageSize !== pageSize) {
+        setPageSize(pagination.pageSize || PAGE_SIZE);
       }
       setFilteredInfo(filteredInfo);
     },

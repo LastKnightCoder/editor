@@ -19,8 +19,9 @@ const AutoHeightTable = (props: TableProps) => {
         target.current?.firstElementChild?.getElementsByClassName(
           "ant-table-pagination",
         )[0]?.clientHeight || 0;
+      // 这个组件不通用，这个 32 是上面的按钮，12 是间距
       const newHeight =
-        size.height - headerHeight - ((paginationHeight || -24) + 24);
+        size.height - headerHeight - ((paginationHeight || -24) + 24) - 32 - 12;
       setTableHeight(Math.round(newHeight));
     }
   }, [size?.height]);

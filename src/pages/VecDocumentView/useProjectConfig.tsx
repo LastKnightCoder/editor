@@ -16,7 +16,7 @@ import {
   App,
 } from "antd";
 import { Descendant } from "slate";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
 import useEmbeddingConfig from "./useEmbeddingConfig";
@@ -86,6 +86,12 @@ const useProjectConfig = () => {
   const [current, setCurrent] = useState(1);
   const [allTreeData, setAllTreeData] = useState<ExtendedProjectItem[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
+  const [pageSize, setPageSize] = useLocalStorageState<number>(
+    "project-pagesize",
+    {
+      defaultValue: PAGE_SIZE,
+    },
+  );
   const modelInfo = useEmbeddingConfig();
 
   // 解构索引结果
@@ -241,10 +247,10 @@ const useProjectConfig = () => {
 
   // 分页处理
   const slicedProjectItems = useMemo(() => {
-    const start = (current - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
+    const start = (current - 1) * (pageSize || PAGE_SIZE);
+    const end = start + (pageSize || PAGE_SIZE);
     return filteredData.slice(start, end);
-  }, [filteredData, current]);
+  }, [filteredData, current, pageSize]);
 
   // 适配useBatchOperation所需的数据结构
   const adaptedSelectedRows = selectedRows.map((item) => ({
@@ -688,10 +694,10 @@ const useProjectConfig = () => {
 
   // 分页配置
   const pagination = {
-    pageSize: PAGE_SIZE,
+    pageSize,
     current,
     total: filteredData.length,
-    showSizeChanger: false,
+    showSizeChanger: true,
   };
 
   // 表格变化处理
@@ -700,6 +706,9 @@ const useProjectConfig = () => {
       if (pagination.current !== current) {
         setCurrent(pagination.current || 1);
         setSelectedRows([]);
+      }
+      if (pagination.pageSize !== pageSize) {
+        setPageSize(pagination.pageSize || PAGE_SIZE);
       }
       setFilteredInfo(filteredInfo);
     },

@@ -13,7 +13,7 @@ import {
   App,
 } from "antd";
 import { Descendant } from "slate";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
 import useEmbeddingConfig from "./useEmbeddingConfig";
@@ -39,6 +39,12 @@ const useArticleConfig = () => {
 
   const [selectedRows, setSelectedRows] = useState<IArticle[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
+  const [pageSize, setPageSize] = useLocalStorageState<number>(
+    "article-pagesize",
+    {
+      defaultValue: PAGE_SIZE,
+    },
+  );
   const onSelectChange = (_: React.Key[], newSelectedRows: IArticle[]) => {
     setSelectedRows(newSelectedRows);
   };
@@ -94,8 +100,8 @@ const useArticleConfig = () => {
   }, [articles, filteredInfo, ftsResults, vecResults]);
 
   const slicedArticles = filteredArticles.slice(
-    (current - 1) * PAGE_SIZE,
-    current * PAGE_SIZE,
+    (current - 1) * (pageSize || PAGE_SIZE),
+    current * (pageSize || PAGE_SIZE),
   );
 
   const initIndexResults = useMemoizedFn(async () => {
@@ -534,10 +540,10 @@ const useArticleConfig = () => {
   ];
 
   const pagination = {
-    pageSize: PAGE_SIZE,
+    pageSize,
     current,
-    total: articles.length,
-    showSizeChanger: false,
+    total: filteredArticles.length,
+    showSizeChanger: true,
   };
 
   const onChange: TableProps["onChange"] = useMemoizedFn(
@@ -545,6 +551,9 @@ const useArticleConfig = () => {
       if (pagination.current !== current) {
         setCurrent(pagination.current || 1);
         setSelectedRows([]);
+      }
+      if (pagination.pageSize !== pageSize) {
+        setPageSize(pagination.pageSize || PAGE_SIZE);
       }
       setFilteredInfo(filteredInfo);
     },
