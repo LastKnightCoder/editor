@@ -61,7 +61,6 @@ const useRightSidebarStore = create<RightSidebarState>()(
       removeTab: (tabItem) => {
         const { tabs, activeTabKey } = get();
         const { type, id } = tabItem;
-        console.log(tabs, activeTabKey, tabItem);
         const newTabs = produce(tabs, (draft) => {
           draft[type] = draft[type].filter((t) => t.id !== id);
         });

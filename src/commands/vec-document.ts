@@ -18,8 +18,7 @@ export const indexVecDocumentContent = async (
 ): Promise<boolean> => {
   try {
     // 调用Electron的IPC接口索引FTS内容
-    await invoke("vec-document-index-content", indexParams);
-    return true;
+    return await invoke("vec-document-index-content", indexParams);
   } catch (error) {
     console.error("索引内容失败:", error);
     return false;

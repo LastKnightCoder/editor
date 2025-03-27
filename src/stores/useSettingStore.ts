@@ -156,6 +156,25 @@ export interface ISetting {
       }>;
     };
   };
+  embeddingProvider: {
+    currentConfigId: string;
+    configs: Array<{
+      id: string;
+      name: string;
+      apiKey: string;
+      baseUrl: string;
+      currentModel: string;
+      models: Array<{
+        name: string;
+        description: string;
+        contextLength: number;
+        features: {
+          multimodal: boolean;
+        };
+        distance: number;
+      }>;
+    }>;
+  };
 }
 
 interface IState {
@@ -279,6 +298,10 @@ const initialState: IState = {
         currentConfigId: "",
         configs: [],
       },
+    },
+    embeddingProvider: {
+      currentConfigId: "",
+      configs: [],
     },
   },
   settingModalOpen: false,

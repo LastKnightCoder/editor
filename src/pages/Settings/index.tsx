@@ -7,6 +7,7 @@ import SyncSetting from "./SyncSetting";
 import ModuleSetting from "./ModuleSetting";
 import TextToSpeechSetting from "./TextToSpeechSetting";
 import LLMProviderSetting from "./LLMProviderSetting";
+import EmbeddingProviderSetting from "./EmbeddingProviderSetting";
 
 import styles from "./index.module.less";
 
@@ -36,6 +37,11 @@ const SettingsPage = () => {
       key: "llm",
       label: "大语言模型",
       children: <LLMProviderSetting />,
+    },
+    {
+      key: "embedding",
+      label: "嵌入模型",
+      children: <EmbeddingProviderSetting />,
     },
     {
       key: "textToSpeech",

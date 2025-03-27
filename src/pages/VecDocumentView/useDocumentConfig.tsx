@@ -19,11 +19,9 @@ import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
-import { useShallow } from "zustand/react/shallow";
-import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
+import useEmbeddingConfig from "./useEmbeddingConfig";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 
-const EMBEDDING_MODEL = "text-embedding-3-large";
 const PAGE_SIZE = 20;
 
 type OnChange = NonNullable<TableProps<IDocumentItem>["onChange"]>;
@@ -89,13 +87,7 @@ const useDocumentConfig = () => {
   const [allTreeData, setAllTreeData] = useState<ExtendedDocumentItem[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
 
-  const { provider } = useSettingStore(
-    useShallow((state) => ({
-      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-    })),
-  );
-  const { configs, currentConfigId } = provider;
-  const currentConfig = configs.find((item) => item.id === currentConfigId);
+  const modelInfo = useEmbeddingConfig();
 
   // 解构索引结果
   const [ftsResults, vecResults] = indexResults;
@@ -392,15 +384,8 @@ const useDocumentConfig = () => {
           type: "document-item",
           updateTime: record.updateTime,
           indexTypes,
+          modelInfo,
         };
-
-        if (currentConfig) {
-          params.modelInfo = {
-            key: currentConfig.apiKey,
-            baseUrl: currentConfig.baseUrl,
-            model: EMBEDDING_MODEL,
-          };
-        }
 
         const success = await indexContent(params);
 
@@ -469,15 +454,8 @@ const useDocumentConfig = () => {
           type: "document-item",
           updateTime: record.updateTime,
           indexTypes,
+          modelInfo,
         };
-
-        if (currentConfig) {
-          params.modelInfo = {
-            key: currentConfig.apiKey,
-            baseUrl: currentConfig.baseUrl,
-            model: EMBEDDING_MODEL,
-          };
-        }
 
         const success = await indexContent(params);
 

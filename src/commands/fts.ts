@@ -18,8 +18,8 @@ export const indexFTSContent = async (
 ): Promise<boolean> => {
   try {
     // 调用Electron的IPC接口索引FTS内容
-    await invoke("fts-index-content", indexParams);
-    return true;
+    const res = await invoke("fts-index-content", indexParams);
+    return res;
   } catch (error) {
     console.error("索引内容失败:", error);
     return false;

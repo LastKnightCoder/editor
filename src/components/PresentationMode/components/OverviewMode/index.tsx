@@ -23,8 +23,6 @@ const OverviewMode = ({
 }) => {
   const { gridContainerRef, itemWidth, gap, columnsCount } = useGridLayout();
 
-  console.log("columnCount", columnsCount);
-
   // 使用键盘导航
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
