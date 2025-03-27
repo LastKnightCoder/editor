@@ -198,7 +198,7 @@ const CardListView = () => {
 
   const filteredCards = useMemo(() => {
     return filterCards(cards, selectCategory, activeCardTag);
-  }, [cards, selectCategory, activeCardTag]);
+  }, [cards, selectCategory, activeCardTag, fetchCards]);
 
   const handleMoreClick = useMemoizedFn(async ({ key }: { key: string }) => {
     if (key === "create-card") {

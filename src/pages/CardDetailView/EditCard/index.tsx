@@ -131,13 +131,11 @@ const EditCard = (props: IEditCardProps) => {
   });
 
   useEffect(() => {
-    if (!editingCard) return;
-
     const unsubscribe = cardEventBus.subscribeToCardWithId(
       "card:updated",
-      editingCard.id,
+      cardId,
       (data) => {
-        onContentChange(data.card.content);
+        // onContentChange(data.card.content);
         editorRef.current?.setEditorValue(data.card.content);
       },
     );
@@ -145,7 +143,7 @@ const EditCard = (props: IEditCardProps) => {
     return () => {
       unsubscribe();
     };
-  }, [editingCard?.id]);
+  }, [cardId, cardEventBus, onContentChange]);
 
   const statusBarConfigs = useMemo(() => {
     return [

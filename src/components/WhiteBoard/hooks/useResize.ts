@@ -107,7 +107,7 @@ export const useResize = (props: IUseResize) => {
     return () => {
       resizeHandle.removeEventListener("pointerdown", handlePointerDown);
     };
-  }, [board]);
+  }, [board, handleResize]);
 };
 
 export default useResize;

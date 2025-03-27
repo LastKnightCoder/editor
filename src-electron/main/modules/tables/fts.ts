@@ -7,6 +7,7 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
 import { chunk } from "llm-chunk";
+import log from "electron-log";
 
 const jieba = Jieba.withDict(dict);
 
@@ -27,58 +28,67 @@ const extractIdFromPrefixed = (
 export interface PartialSearchResult {
   id: number;
   type: IndexType;
-  title?: string;
   source: "fts";
   updateTime: number;
 }
 
 class FTSTable {
-  // 中文分词处理
   static segmentText(text: string): string {
     if (!text) return "";
 
-    // 使用segmentit进行分词
     const result = jieba.cutForSearch(text, true);
-
     return result.join(" ");
   }
 
-  // 初始化FTS5虚拟表
   static initTable(db: Database.Database) {
-    // 检查FTS5表是否存在
-    const tableExists = db
-      .prepare(
-        `
-      SELECT name FROM sqlite_master 
-      WHERE type='table' AND name='content_fts'
-    `,
+    db.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
+        prefixed_id,
+        update_time,
+        content,
+        type,
+        title,
+        chunk_index,
+        tokenize='porter unicode61'
       )
-      .get();
-
-    if (!tableExists) {
-      // 创建FTS5虚拟表
-      db.exec(`
-        CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
-          prefixed_id,
-          update_time,
-          content,
-          type,
-          title,
-          chunk_index,
-          tokenize='porter unicode61'
-        )
-      `);
-    }
+    `);
   }
 
-  // 升级表结构（如果需要）
-  static upgradeTable(_db: Database.Database) {
-    // 这里可以添加表结构升级逻辑
+  static upgradeTable(db: Database.Database) {
+    // 当表中存在type, title, chunk_index列时，才执行
+    const stmt = db.prepare("PRAGMA table_info(content_fts)");
+    const columns = stmt.all();
+    const titleColumn = columns.find((col: any) => col.name === "title");
+    const chunkIndexColumn = columns.find(
+      (col: any) => col.name === "chunk_index",
+    );
+    if (!titleColumn || !chunkIndexColumn) return;
+
+    log.info(`开始升级FTS表`);
+
+    db.exec(`
+      CREATE VIRTUAL TABLE content_fts_new 
+      USING fts5(
+        prefixed_id,
+        update_time,
+        content,
+        type,
+      );
+    `);
+
+    db.exec(`
+      INSERT INTO content_fts_new(prefixed_id, update_time, content, type)
+      SELECT prefixed_id, update_time, content, type FROM content_fts;
+    `);
+
+    db.exec(`DROP TABLE content_fts;`);
+
+    db.exec(`ALTER TABLE content_fts_new RENAME TO content_fts;`);
   }
 
   // 索引内容
   static indexContent(db: Database.Database, params: IndexParams) {
-    const { id, content, type, title = "", updateTime } = params;
+    const { id, content, type, updateTime } = params;
 
     // 添加类型前缀到ID
     const prefixedId = addTypePrefix(id, type);
@@ -96,16 +106,16 @@ class FTSTable {
 
     try {
       const stmt = db.prepare(`
-        INSERT INTO content_fts (prefixed_id, content, type, title, update_time, chunk_index)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO content_fts (prefixed_id, content, update_time, type)
+        VALUES (?, ?, ?, ?)
       `);
 
       // 对每个分块进行处理并索引
-      chunks.forEach((chunkText, index) => {
+      chunks.forEach((chunkText) => {
         // 分词处理
         const segmentedText = this.segmentText(chunkText);
 
-        stmt.run(prefixedId, segmentedText, type, title, updateTime, index);
+        stmt.run(prefixedId, segmentedText, updateTime, type);
       });
     } catch (error) {
       console.error("索引内容失败:", error);
@@ -119,7 +129,7 @@ class FTSTable {
   static batchIndexContent(db: Database.Database, items: IndexParams[]) {
     try {
       for (const item of items) {
-        const { id, content, type, title = "", updateTime } = item;
+        const { id, content, type, updateTime } = item;
         // 添加类型前缀到ID
         const prefixedId = addTypePrefix(id, type);
 
@@ -135,16 +145,16 @@ class FTSTable {
         });
 
         const stmt = db.prepare(`
-          INSERT INTO content_fts (prefixed_id, content, type, title, update_time, chunk_index)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO content_fts (prefixed_id, content, update_time, type)
+          VALUES (?, ?, ?, ?)
         `);
 
         // 对每个分块进行处理并索引
-        chunks.forEach((chunkText, index) => {
+        chunks.forEach((chunkText) => {
           // 分词处理
           const segmentedText = this.segmentText(chunkText);
 
-          stmt.run(prefixedId, segmentedText, type, title, updateTime, index);
+          stmt.run(prefixedId, segmentedText, updateTime, type);
         });
       }
     } catch (error) {
@@ -181,14 +191,19 @@ class FTSTable {
     db: Database.Database,
     id: number,
     type: IndexType,
-  ): boolean {
+  ): { updateTime: number } | null {
     const prefixedId = addTypePrefix(id, type);
     const stmt = db.prepare(`
-      SELECT prefixed_id FROM content_fts WHERE prefixed_id = ?
+      SELECT update_time FROM content_fts WHERE prefixed_id = ?
     `);
 
-    const result = stmt.get(prefixedId);
-    return !!result;
+    const result: any = stmt.get(prefixedId);
+    if (!result) {
+      return null;
+    }
+    return {
+      updateTime: result.update_time,
+    };
   }
 
   // 获取所有FTS索引结果
@@ -197,7 +212,7 @@ class FTSTable {
     type?: IndexType,
   ): SearchResult[] {
     let sql = `
-      SELECT prefixed_id, type, title, update_time
+      SELECT prefixed_id, update_time
       FROM content_fts
     `;
 
@@ -218,7 +233,6 @@ class FTSTable {
       return {
         id: Number(id),
         type: type as IndexType,
-        title: result.title,
         source: "fts" as const,
         updateTime: result.update_time,
       };
@@ -241,18 +255,21 @@ class FTSTable {
       .filter((item) => !!item.trim())
       .join(" OR ");
 
-    let sql = `
-      SELECT prefixed_id, type, title, update_time, rank
-      FROM content_fts
-      WHERE content MATCH ?
+    const sql = `
+      SELECT prefixed_id, update_time, rank FROM (
+        SELECT prefixed_id, update_time, rank,
+               ROW_NUMBER() OVER (PARTITION BY prefixed_id ORDER BY rank) as rn
+        FROM content_fts
+        WHERE content MATCH ?
+        ${
+          types && types.length > 0
+            ? ` AND type IN (${types.map(() => "?").join(",")}) AND rank < -2`
+            : ""
+        }
+      ) WHERE rn = 1
+      ORDER BY rank
+      LIMIT ?
     `;
-
-    // 如果指定了类型，添加类型过滤
-    if (types && types.length > 0) {
-      sql += ` AND type IN (${types.map(() => "?").join(",")}) AND rank < -1`;
-    }
-
-    sql += ` ORDER BY rank LIMIT ?`;
 
     const stmt = db.prepare(sql);
 
@@ -270,7 +287,6 @@ class FTSTable {
       return {
         id: Number(id),
         type: type as IndexType,
-        title: result.title,
         source: "fts" as const,
         updateTime: result.update_time,
         rank: result.rank,
@@ -286,19 +302,8 @@ class FTSTable {
     results: PartialSearchResult[],
   ): SearchResult[] {
     const detailedResults = [];
-    const processedIds = new Set<string>(); // 用于去重
 
     for (const result of results) {
-      // 创建唯一键，用于去重
-      const uniqueKey = `${result.type}:${result.id}`;
-
-      // 如果已经处理过相同的ID和类型，则跳过
-      if (processedIds.has(uniqueKey)) {
-        continue;
-      }
-
-      processedIds.add(uniqueKey);
-
       let details = null;
 
       switch (result.type) {
@@ -322,6 +327,8 @@ class FTSTable {
         detailedResults.push({
           ...result,
           ...details,
+          // @ts-ignore
+          title: details.title || "",
           updateTime: result.updateTime,
         });
       }

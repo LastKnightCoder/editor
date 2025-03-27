@@ -14,12 +14,6 @@ const CardDetailView = () => {
   const [loading, setLoading] = useState(false);
   const [card, setCard] = useState<ICard | null>(null);
 
-  useEffect(() => {
-    if (id) {
-      fetchCardDetails(parseInt(id, 10));
-    }
-  }, [id]);
-
   const fetchCardDetails = useMemoizedFn(async (cardId: number) => {
     setLoading(true);
     try {
@@ -31,6 +25,12 @@ const CardDetailView = () => {
       setLoading(false);
     }
   });
+
+  useEffect(() => {
+    if (id) {
+      fetchCardDetails(parseInt(id, 10));
+    }
+  }, [id, fetchCardDetails]);
 
   if (loading) {
     return <div className={styles.loading}>加载中...</div>;

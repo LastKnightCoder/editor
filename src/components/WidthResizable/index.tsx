@@ -2,7 +2,7 @@ import React, { useEffect, useState, PropsWithChildren } from "react";
 import classnames from "classnames";
 
 import styles from "./index.module.less";
-import { useMemoizedFn } from "ahooks";
+import { useDebounceFn } from "ahooks";
 
 interface IWidthResizableProps {
   defaultWidth: number;
@@ -44,25 +44,28 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     e.preventDefault();
   };
 
-  const handleMouseMove = useMemoizedFn((e: MouseEvent) => {
-    if (disableResize) return;
-    if (isResizing) {
-      const container = containerRef.current;
-      if (!container) return;
-      let newWidth = e.clientX - container.getBoundingClientRect().left;
-      if (side === "left") {
-        newWidth = container.offsetWidth - newWidth;
+  const { run: handleMouseMove } = useDebounceFn(
+    (e: MouseEvent) => {
+      if (disableResize) return;
+      if (isResizing) {
+        const container = containerRef.current;
+        if (!container) return;
+        let newWidth = e.clientX - container.getBoundingClientRect().left;
+        if (side === "left") {
+          newWidth = container.offsetWidth - newWidth;
+        }
+        if (minWidth && newWidth < minWidth) {
+          newWidth = minWidth;
+        }
+        if (maxWidth && newWidth > maxWidth) {
+          newWidth = maxWidth;
+        }
+        setWidth(newWidth);
+        if (onResize) onResize(newWidth);
       }
-      if (minWidth && newWidth < minWidth) {
-        newWidth = minWidth;
-      }
-      if (maxWidth && newWidth > maxWidth) {
-        newWidth = maxWidth;
-      }
-      setWidth(newWidth);
-      if (onResize) onResize(newWidth);
-    }
-  });
+    },
+    { wait: 20 },
+  );
 
   const handleMouseUp = () => {
     setIsResizing(false);

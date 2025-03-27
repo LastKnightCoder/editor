@@ -68,7 +68,7 @@ const SingleProjectItemEditor = () => {
     return () => {
       unsubscribe();
     };
-  }, [projectItemId]);
+  }, [projectItemId, projectItemEventBus]);
 
   useEffect(() => {
     if (!databaseName || !projectItemId) {

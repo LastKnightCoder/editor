@@ -1,7 +1,7 @@
 import Editor from "@/components/Editor";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { getAllDocuments, getAllDocumentItems } from "@/commands";
-import { IDocument, IDocumentItem, SearchResult } from "@/types";
+import { IDocument, IDocumentItem, IndexParams, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import {
   Button,
@@ -89,30 +89,32 @@ const useDocumentConfig = () => {
   const [allTreeData, setAllTreeData] = useState<ExtendedDocumentItem[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
 
-  // 解构索引结果
-  const [ftsResults, vecResults] = indexResults;
-
   const { provider } = useSettingStore(
     useShallow((state) => ({
       provider: state.setting.llmProviders[ELLMProvider.OPENAI],
     })),
   );
+  const { configs, currentConfigId } = provider;
+  const currentConfig = configs.find((item) => item.id === currentConfigId);
 
-  // 获取所有知识库
-  useEffect(() => {
-    const fetchDocuments = async () => {
-      try {
-        const docs = await getAllDocuments();
-        setDocuments(docs);
-        if (docs.length > 0 && !selectedDocumentId) {
-          setSelectedDocumentId(docs[0].id);
-        }
-      } catch (error) {
-        console.error("获取知识库列表失败", error);
+  // 解构索引结果
+  const [ftsResults, vecResults] = indexResults;
+
+  const handleFetchDocuments = useMemoizedFn(async () => {
+    try {
+      const docs = await getAllDocuments();
+      setDocuments(docs);
+      if (docs.length > 0 && !selectedDocumentId) {
+        setSelectedDocumentId(docs[0].id);
       }
-    };
-    fetchDocuments();
-  }, []);
+    } catch (error) {
+      console.error("获取知识库列表失败", error);
+    }
+  });
+
+  useEffect(() => {
+    handleFetchDocuments();
+  }, [handleFetchDocuments]);
 
   // 获取所有知识库项
   useEffect(() => {
@@ -175,8 +177,8 @@ const useDocumentConfig = () => {
               ? buildTree(item.children)
               : undefined;
 
-          // 创建扩展的知识库项，排除原始的children属性
           const { children: _, ...rest } = item;
+
           return {
             ...rest,
             level: 0,
@@ -221,8 +223,8 @@ const useDocumentConfig = () => {
           if (!ftsResult && !vecResult) {
             status = "未索引";
           } else if (
-            (vecResult && item.updateTime > vecResult.updateTime) ||
-            (ftsResult && item.updateTime > ftsResult.updateTime)
+            (vecResult && item.updateTime !== vecResult.updateTime) ||
+            (ftsResult && item.updateTime !== ftsResult.updateTime)
           ) {
             status = "待更新";
           } else {
@@ -288,7 +290,7 @@ const useDocumentConfig = () => {
           if (!item) return undefined;
 
           // 转换为ExtendedDocumentItem
-          const { children, ...rest } = item;
+          const { children: _, ...rest } = item;
           return { ...rest } as ExtendedDocumentItem;
         })
         .filter(Boolean) as ExtendedDocumentItem[];
@@ -355,27 +357,11 @@ const useDocumentConfig = () => {
   // 创建索引
   const onCreateEmbedding = useMemoizedFn(
     async (markdown: string, record: ExtendedDocumentItem) => {
-      if (!provider.currentConfigId) {
-        message.error("未配置OpenAI API密钥");
-        return false;
-      }
-
-      const currentConfig = provider.configs.find(
-        (config) => config.id === provider.currentConfigId,
-      );
-
-      if (!currentConfig) {
-        message.error("未找到有效的API配置");
-        return false;
-      }
-
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `create-index-${record.id}`;
+      const messageKey = `create-document-item-index-${record.id}`;
       message.loading({ content: "正在创建索引...", key: messageKey });
 
       try {
-        const { apiKey, baseUrl } = currentConfig;
-
         // 检查当前索引状态
         const ftsResult = ftsResults.find(
           (result) =>
@@ -389,8 +375,10 @@ const useDocumentConfig = () => {
 
         // 确定需要创建的索引类型
         const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult) indexTypes.push("fts");
-        if (!vecResult) indexTypes.push("vec");
+        if (!ftsResult || ftsResult.updateTime !== record.updateTime)
+          indexTypes.push("fts");
+        if (!vecResult || vecResult.updateTime !== record.updateTime)
+          indexTypes.push("vec");
 
         // 如果没有需要创建的索引，直接返回成功
         if (indexTypes.length === 0) {
@@ -398,23 +386,37 @@ const useDocumentConfig = () => {
           return true;
         }
 
-        const success = await indexContent({
+        const params: IndexParams = {
           id: record.id,
           content: markdown,
           type: "document-item",
           updateTime: record.updateTime,
-          modelInfo: {
-            key: apiKey,
-            baseUrl,
-            model: EMBEDDING_MODEL,
-          },
           indexTypes,
-        });
+        };
+
+        if (currentConfig) {
+          params.modelInfo = {
+            key: currentConfig.apiKey,
+            baseUrl: currentConfig.baseUrl,
+            model: EMBEDDING_MODEL,
+          };
+        }
+
+        const success = await indexContent(params);
 
         if (success) {
-          await initIndexResults();
-          message.success({ content: "索引创建成功", key: messageKey });
-          return true;
+          try {
+            await initIndexResults();
+            message.success({ content: "索引创建成功", key: messageKey });
+            return true;
+          } catch (error) {
+            console.error("初始化索引结果失败", error);
+            message.error({
+              content: "索引创建成功，但初始化索引结果失败",
+              key: messageKey,
+            });
+            return false;
+          }
         } else {
           message.error({ content: "索引创建失败", key: messageKey });
           return false;
@@ -432,27 +434,11 @@ const useDocumentConfig = () => {
   // 更新索引
   const onUpdateEmbedding = useMemoizedFn(
     async (markdown: string, record: ExtendedDocumentItem) => {
-      if (!provider.currentConfigId) {
-        message.error("未配置OpenAI API密钥");
-        return false;
-      }
-
-      const currentConfig = provider.configs.find(
-        (config) => config.id === provider.currentConfigId,
-      );
-
-      if (!currentConfig) {
-        message.error("未找到有效的API配置");
-        return false;
-      }
-
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `update-index-${record.id}`;
+      const messageKey = `update-document-item-index-${record.id}`;
       message.loading({ content: "正在更新索引...", key: messageKey });
 
       try {
-        const { apiKey, baseUrl } = currentConfig;
-
         // 检查当前索引状态
         const ftsResult = ftsResults.find(
           (result) =>
@@ -466,8 +452,9 @@ const useDocumentConfig = () => {
 
         // 确定需要更新的索引类型
         const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult) indexTypes.push("fts");
-        if (!vecResult || record.updateTime > vecResult.updateTime)
+        if (!ftsResult || ftsResult.updateTime !== record.updateTime)
+          indexTypes.push("fts");
+        if (!vecResult || vecResult.updateTime !== record.updateTime)
           indexTypes.push("vec");
 
         // 如果没有需要更新的索引，直接返回成功
@@ -476,23 +463,37 @@ const useDocumentConfig = () => {
           return true;
         }
 
-        const success = await indexContent({
+        const params: IndexParams = {
           id: record.id,
           content: markdown,
           type: "document-item",
           updateTime: record.updateTime,
-          modelInfo: {
-            key: apiKey,
-            baseUrl,
-            model: EMBEDDING_MODEL,
-          },
           indexTypes,
-        });
+        };
+
+        if (currentConfig) {
+          params.modelInfo = {
+            key: currentConfig.apiKey,
+            baseUrl: currentConfig.baseUrl,
+            model: EMBEDDING_MODEL,
+          };
+        }
+
+        const success = await indexContent(params);
 
         if (success) {
-          await initIndexResults();
-          message.success({ content: "索引更新成功", key: messageKey });
-          return true;
+          try {
+            await initIndexResults();
+            message.success({ content: "索引更新成功", key: messageKey });
+            return true;
+          } catch (error) {
+            console.error("初始化索引结果失败", error);
+            message.error({
+              content: "索引更新成功，但初始化索引结果失败",
+              key: messageKey,
+            });
+            return false;
+          }
         } else {
           message.error({ content: "索引更新失败", key: messageKey });
           return false;
@@ -511,7 +512,7 @@ const useDocumentConfig = () => {
   const onRemoveEmbedding = useMemoizedFn(
     async (record: ExtendedDocumentItem) => {
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `remove-index-${record.id}`;
+      const messageKey = `remove-document-item-index-${record.id}`;
       message.loading({ content: "正在删除索引...", key: messageKey });
 
       try {
@@ -609,13 +610,13 @@ const useDocumentConfig = () => {
               {ftsResult ? (
                 <Tag
                   color={
-                    record.updateTime > ftsResult.updateTime
+                    record.updateTime !== ftsResult.updateTime
                       ? "orange"
                       : "green"
                   }
                 >
                   FTS:{" "}
-                  {record.updateTime > ftsResult.updateTime
+                  {record.updateTime !== ftsResult.updateTime
                     ? "待更新"
                     : "已索引"}
                 </Tag>
@@ -625,13 +626,13 @@ const useDocumentConfig = () => {
               {vecResult ? (
                 <Tag
                   color={
-                    record.updateTime > vecResult.updateTime
+                    record.updateTime !== vecResult.updateTime
                       ? "orange"
                       : "green"
                   }
                 >
                   向量:{" "}
-                  {record.updateTime > vecResult.updateTime
+                  {record.updateTime !== vecResult.updateTime
                     ? "待更新"
                     : "已索引"}
                 </Tag>
@@ -681,8 +682,8 @@ const useDocumentConfig = () => {
         } else if (
           (ftsResult && !vecResult) ||
           (!ftsResult && vecResult) ||
-          (vecResult && record.updateTime > vecResult.updateTime) ||
-          (ftsResult && record.updateTime > ftsResult.updateTime)
+          (vecResult && record.updateTime !== vecResult.updateTime) ||
+          (ftsResult && record.updateTime !== ftsResult.updateTime)
         ) {
           return (
             <Button

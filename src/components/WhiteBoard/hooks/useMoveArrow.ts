@@ -168,7 +168,7 @@ export const useMoveArrow = ({
       board.off("arrow:remove-closing-elements", handleRemoveClosingElements);
       board.off("arrow:move-end", handleArrowMoveEnd);
     };
-  }, []);
+  }, [board]);
 
   return {
     candidateConnectPoints,

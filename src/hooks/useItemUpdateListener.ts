@@ -98,5 +98,10 @@ export const useItemUpdateListener = () => {
       off("project-item:updated", handleProjectItemUpdated);
       off("document-item:updated", handleDocumentItemUpdated);
     };
-  }, []);
+  }, [
+    cardEventBus,
+    articleEventBus,
+    projectItemEventBus,
+    documentItemEventBus,
+  ]);
 };

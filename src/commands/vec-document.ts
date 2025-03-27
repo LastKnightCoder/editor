@@ -1,53 +1,98 @@
-import { invoke } from "@/electron";
-import { VecDocument } from "@/types";
+import { invoke } from "../electron";
+import { SearchParams, SearchResult, IndexParams, IndexType } from "@/types";
 
-export const createVecDocument = async (
-  createVecDocument: Omit<VecDocument, "id" | "createTime" | "updateTime">,
-): Promise<VecDocument> => {
-  return await invoke("create-vec-document", createVecDocument);
+export const searchVecDocument = async (
+  searchParams: SearchParams,
+): Promise<SearchResult[]> => {
+  try {
+    return await invoke("vec-document-search-content", searchParams);
+  } catch (error) {
+    console.error("全文搜索失败:", error);
+    return [];
+  }
 };
 
-export const getVecDocumentById = async (id: number): Promise<VecDocument> => {
-  return await invoke("get-vec-document-by-id", id);
+// 索引内容
+export const indexVecDocumentContent = async (
+  indexParams: IndexParams,
+): Promise<boolean> => {
+  try {
+    // 调用Electron的IPC接口索引FTS内容
+    await invoke("vec-document-index-content", indexParams);
+    return true;
+  } catch (error) {
+    console.error("索引内容失败:", error);
+    return false;
+  }
 };
 
-export const getVecDocumentsByRef = async (
-  refId: number,
-  refType: string,
-): Promise<VecDocument[]> => {
-  return await invoke("get-vec-documents-by-ref", refId, refType);
+// 批量索引内容
+export const batchIndexVecDocumentContent = async (
+  items: Array<IndexParams>,
+): Promise<boolean> => {
+  try {
+    await invoke("vec-document-batch-index-content", items);
+    return true;
+  } catch (error) {
+    console.error("批量索引内容失败:", error);
+    return false;
+  }
 };
 
-export const getVecDocumentsByRefType = async (
-  refType: string,
-): Promise<VecDocument[]> => {
-  return await invoke("get-vec-documents-by-ref-type", refType);
+// 移除索引
+export const removeVecDocumentIndex = async (
+  id: number,
+  type: string,
+): Promise<boolean> => {
+  try {
+    await invoke("vec-document-remove-index", id, type);
+    return true;
+  } catch (error) {
+    console.error("移除索引失败:", error);
+    return false;
+  }
 };
 
-export const deleteVecDocument = async (id: number): Promise<number> => {
-  return await invoke("delete-vec-document", id);
+// 获取所有FTS索引结果
+export const getAllVecDocumentResults = async (
+  type?: IndexType,
+): Promise<SearchResult[]> => {
+  try {
+    return await invoke("get-all-vec-document-results", type);
+  } catch (error) {
+    console.error("获取向量索引结果失败:", error);
+    return [];
+  }
 };
 
-export const deleteVecDocumentsByRef = async (
-  refId: number,
-  refType: string,
-): Promise<void> => {
-  return await invoke("delete-vec-documents-by-ref", refId, refType);
+export const checkVecDocumentIndexStatus = async (
+  id: number,
+  type: IndexType,
+): Promise<{ updateTime: number } | null> => {
+  try {
+    return await invoke("vec-document-check-index-exists", id, type);
+  } catch (error) {
+    console.error("检查向量索引状态失败:", error);
+    return null;
+  }
 };
 
-export const getAllVecDocuments = async (): Promise<VecDocument[]> => {
-  return await invoke("get-all-vec-documents");
+export const clearVecDocumentTable = async (): Promise<boolean> => {
+  try {
+    return await invoke("clear-vec-document-table");
+  } catch (error) {
+    console.error("清空向量索引表失败:", error);
+    return false;
+  }
 };
 
-export const updateVecDocument = async (
-  updateVecDocument: Omit<VecDocument, "updateTime">,
-): Promise<VecDocument> => {
-  return await invoke("update-vec-document", updateVecDocument);
-};
-
-export const searchVecDocuments = async (
-  queryEmbedding: number[],
-  topK: number,
-): Promise<Array<[VecDocument, number]>> => {
-  return await invoke("search-vec-documents", queryEmbedding, topK);
+export const initVecDocumentTable = async (
+  vecLength: number,
+): Promise<boolean> => {
+  try {
+    return await invoke("init-vec-document-table", vecLength);
+  } catch (error) {
+    console.error("初始化向量索引表失败:", error);
+    return false;
+  }
 };

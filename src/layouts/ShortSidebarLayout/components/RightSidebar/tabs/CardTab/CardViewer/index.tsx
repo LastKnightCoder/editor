@@ -88,7 +88,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
     return () => {
       unsubscribe();
     };
-  }, [cardId]);
+  }, [cardId, cardEventBus]);
 
   if (loading) {
     return (

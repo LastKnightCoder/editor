@@ -71,7 +71,7 @@ const Card = memo((props: CardProps) => {
     return () => {
       unsubscribe();
     };
-  }, [cardId]);
+  }, [cardId, cardEventBus]);
 
   const handleOnContentChange = (
     _board: Board,

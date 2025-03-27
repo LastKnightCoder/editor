@@ -40,7 +40,7 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
         ),
       };
     });
-  }, [tabs]);
+  }, [tabs, updateTab]);
 
   const handleTabChange = useMemoizedFn((activeKey: string) => {
     setActiveTabKey({

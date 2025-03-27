@@ -17,7 +17,7 @@ export const useDropArrow = (element: CommonElement & any) => {
     const arrowConnectExtendPoints =
       CommonPlugin.getArrowConnectExtendPoints(element);
     return [arrowConnectPoints, arrowConnectExtendPoints, zoom];
-  }, [element]);
+  }, [element, zoom]);
 
   const handleArrowMove = useMemoizedFn((data: { currentPoint: Point }) => {
     const extend = 10;
@@ -74,7 +74,7 @@ export const useDropArrow = (element: CommonElement & any) => {
       board.off("arrow:move-end", handleArrowMoveEnd);
       board.off("arrow:drop", handleArrowDroped);
     };
-  }, [handleArrowMove, handleArrowMoveEnd, handleArrowDroped]);
+  }, [handleArrowMove, handleArrowMoveEnd, handleArrowDroped, board]);
 
   return {
     isMoveArrowClosing,

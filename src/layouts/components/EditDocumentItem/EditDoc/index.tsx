@@ -82,7 +82,7 @@ const EditDoc = memo(() => {
     return () => {
       unsubscribe();
     };
-  }, [activeDocumentItemId]);
+  }, [activeDocumentItemId, documentItemEventBus]);
 
   const handleOnTitleChange = useMemoizedFn((title: string) => {
     if (!activeDocumentItem || !titleRef.current?.isFocus() || !isWindowFocused)
@@ -124,13 +124,17 @@ const EditDoc = memo(() => {
     saveDocument();
   }, 3000);
 
+  const handleUnMount = useMemoizedFn(() => {
+    if (readonly) return;
+    onContentChange.flush();
+    saveDocument(true);
+  });
+
   useEffect(() => {
     return () => {
-      if (readonly) return;
-      onContentChange.flush();
-      saveDocument(true);
+      handleUnMount();
     };
-  }, [saveDocument, onContentChange]);
+  }, [handleUnMount]);
 
   const headers: Array<{
     level: number;

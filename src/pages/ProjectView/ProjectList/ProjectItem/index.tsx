@@ -138,7 +138,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     return () => {
       unsubscribe();
     };
-  }, [projectItemId]);
+  }, [projectItemId, projectItemEventBus]);
 
   const {
     updateProject,

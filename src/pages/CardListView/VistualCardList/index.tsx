@@ -85,7 +85,7 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
       return () => {
         scrollElement.removeEventListener("scroll", throttledCheckScroll);
       };
-    }, []);
+    }, [throttledCheckScroll]);
 
     const handleCardClick = useMemoizedFn((card: ICard) => {
       onCardClick?.(card);

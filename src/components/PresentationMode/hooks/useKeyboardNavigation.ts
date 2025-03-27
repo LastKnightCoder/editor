@@ -134,6 +134,8 @@ const useKeyboardNavigation = ({
     goToSlide,
     showMessage,
     onExit,
+    handleEnterSlide,
+    handleExitOverview,
   ]);
 };
 
