@@ -101,7 +101,7 @@ const CardListView = () => {
     try {
       const newCard = await createCard(card);
       // 直接更新本地cards状态，不需要重新获取
-      setCards((prevCards) => [...prevCards, newCard]);
+      setCards((prevCards) => [newCard, ...prevCards]);
     } catch (error) {
       console.error("Failed to create card:", error);
     }

@@ -319,6 +319,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
         />
         <EditText
           ref={titleRef}
+          key={editingArticle.id}
           className={styles.title}
           defaultValue={editingArticle.title || "默认标题"}
           onChange={handleOnTitleChange}
