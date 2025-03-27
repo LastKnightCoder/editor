@@ -305,8 +305,9 @@ export default class VecDocumentTable {
       });
 
       try {
-        const res = await Promise.all(embeddingPromises);
-        return res.every(Boolean);
+        const res = await Promise.allSettled(embeddingPromises);
+        log.info("res", res);
+        return res.every((item) => item.status === "fulfilled");
       } catch (error) {
         log.error("生成嵌入失败:", error);
         return false;
