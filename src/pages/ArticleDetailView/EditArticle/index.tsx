@@ -205,7 +205,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
     return () => {
       unsubscribe();
     };
-  }, [articleId]);
+  }, [articleId, articleEventBus]);
 
   const handleOnEditorContentChange = useMemoizedFn((content: Descendant[]) => {
     if (

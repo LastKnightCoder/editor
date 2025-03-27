@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain } from "electron";
 import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
 import { join } from "node:path";
+import log from "electron-log";
 import { Module } from "../types/module";
 import { Table } from "../types/table";
 import CardTable from "./tables/card";
@@ -92,6 +93,12 @@ class DatabaseModule implements Module {
     if (!database) throw new Error("No database found");
     sqliteVec.load(database);
 
+    const { vec_version } = database
+      .prepare("select vec_version() as vec_version;")
+      .get() as any;
+
+    log.info(`vec_version=${vec_version}`);
+
     database.pragma("journal_mode = WAL");
 
     for (const table of this.tables) {
@@ -121,7 +128,7 @@ class DatabaseModule implements Module {
       return true;
     } catch (err) {
       // @ts-ignore
-      console.error("检查点执行失败:", err.message);
+      log.error("检查点执行失败:", err.message);
       return false;
     }
   }
@@ -174,7 +181,7 @@ class DatabaseModule implements Module {
           db.exec("COMMIT");
           return res;
         } catch (e) {
-          console.error(e);
+          log.error(e);
           db.exec("ROLLBACK");
         }
       });

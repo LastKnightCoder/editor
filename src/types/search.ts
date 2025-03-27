@@ -5,7 +5,7 @@ export type IndexType = "card" | "article" | "project-item" | "document-item";
 export interface SearchResult {
   id: number;
   type: IndexType;
-  title?: string;
+  title: string;
   source: "fts" | "vec-document";
   updateTime: number;
   content: Descendant[];
@@ -16,7 +16,6 @@ export interface IndexParams {
   content: string;
   type: IndexType;
   updateTime: number;
-  title?: string;
   modelInfo?: { key: string; model: string; baseUrl: string };
   indexTypes?: ("fts" | "vec")[];
 }

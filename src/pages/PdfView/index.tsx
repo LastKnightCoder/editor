@@ -44,7 +44,7 @@ const PdfView = () => {
     if (isConnected && active) {
       initPdfs();
     }
-  }, [isConnected, active]);
+  }, [isConnected, active, initPdfs]);
 
   const [addPdfOpen, setAddPdfOpen] = useState(false);
   const [remoteUrl, setRemoteUrl] = useState("");

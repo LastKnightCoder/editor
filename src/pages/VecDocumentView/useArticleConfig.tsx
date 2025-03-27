@@ -2,7 +2,7 @@ import Editor from "@/components/Editor";
 import { useShallow } from "zustand/react/shallow";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
-import { IArticle, SearchResult } from "@/types";
+import { IArticle, IndexParams, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import {
   Tag,
@@ -83,8 +83,8 @@ const useArticleConfig = () => {
       if (!ftsResult && !vecResult) {
         status = "未索引";
       } else if (
-        (vecResult && article.update_time > vecResult.updateTime) ||
-        (ftsResult && article.update_time > ftsResult.updateTime)
+        (vecResult && article.update_time !== vecResult.updateTime) ||
+        (ftsResult && article.update_time !== ftsResult.updateTime)
       ) {
         status = "待更新";
       } else {
@@ -100,7 +100,7 @@ const useArticleConfig = () => {
     });
 
     return filteredArticles;
-  }, [indexResults, articles, filteredInfo]);
+  }, [articles, filteredInfo, ftsResults, vecResults]);
 
   const slicedArticles = filteredArticles.slice(
     (current - 1) * PAGE_SIZE,
@@ -173,18 +173,11 @@ const useArticleConfig = () => {
 
   const onCreateEmbedding = useMemoizedFn(
     async (markdown: string, record: IArticle) => {
-      if (!currentConfig) {
-        message.error("未配置OpenAI API密钥");
-        return false;
-      }
-
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `create-index-${record.id}`;
+      const messageKey = `create-article-index-${record.id}`;
       message.loading({ content: "正在创建索引...", key: messageKey });
 
       try {
-        const { apiKey, baseUrl } = currentConfig;
-
         // 检查当前索引状态
         const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "article",
@@ -196,8 +189,10 @@ const useArticleConfig = () => {
 
         // 确定需要创建的索引类型
         const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult) indexTypes.push("fts");
-        if (!vecResult) indexTypes.push("vec");
+        if (!ftsResult || record.update_time !== ftsResult.updateTime)
+          indexTypes.push("fts");
+        if (!vecResult || record.update_time !== vecResult.updateTime)
+          indexTypes.push("vec");
 
         // 如果没有需要创建的索引，直接返回成功
         if (indexTypes.length === 0) {
@@ -205,23 +200,37 @@ const useArticleConfig = () => {
           return true;
         }
 
-        const success = await indexContent({
+        const params: IndexParams = {
           id: record.id,
           content: markdown,
           type: "article",
           updateTime: record.update_time,
-          modelInfo: {
-            key: apiKey,
-            baseUrl,
-            model: EMBEDDING_MODEL,
-          },
           indexTypes,
-        });
+        };
+
+        if (currentConfig) {
+          params.modelInfo = {
+            key: currentConfig.apiKey,
+            baseUrl: currentConfig.baseUrl,
+            model: EMBEDDING_MODEL,
+          };
+        }
+
+        const success = await indexContent(params);
 
         if (success) {
-          await initIndexResults();
-          message.success({ content: "索引创建成功", key: messageKey });
-          return true;
+          try {
+            await initIndexResults();
+            message.success({ content: "索引创建成功", key: messageKey });
+            return true;
+          } catch (error) {
+            console.error("初始化索引结果失败", error);
+            message.error({
+              content: "索引创建成功，但初始化索引结果失败",
+              key: messageKey,
+            });
+            return false;
+          }
         } else {
           message.error({ content: "索引创建失败", key: messageKey });
           return false;
@@ -238,7 +247,7 @@ const useArticleConfig = () => {
 
   const onRemoveEmbedding = useMemoizedFn(async (record: IArticle) => {
     setLoadingIds((prev) => [...prev, record.id]);
-    const messageKey = `remove-index-${record.id}`;
+    const messageKey = `remove-article-index-${record.id}`;
     message.loading({ content: "正在删除索引...", key: messageKey });
 
     try {
@@ -255,17 +264,17 @@ const useArticleConfig = () => {
 
   const onUpdateEmbedding = useMemoizedFn(
     async (markdown: string, record: IArticle) => {
-      if (!currentConfig) {
-        message.error("未配置OpenAI API密钥");
-        return false;
-      }
+      // if (!currentConfig) {
+      //   message.error("未配置OpenAI API密钥");
+      //   return false;
+      // }
 
       setLoadingIds((prev) => [...prev, record.id]);
       const messageKey = `update-index-${record.id}`;
       message.loading({ content: "正在更新索引...", key: messageKey });
 
       try {
-        const { apiKey, baseUrl } = currentConfig;
+        // const { apiKey, baseUrl } = currentConfig;
 
         // 检查当前索引状态
         const ftsResult = ftsResults.find(
@@ -288,23 +297,37 @@ const useArticleConfig = () => {
           return true;
         }
 
-        const success = await indexContent({
+        const params: IndexParams = {
           id: record.id,
           content: markdown,
           type: "article",
           updateTime: record.update_time,
-          modelInfo: {
-            key: apiKey,
-            baseUrl,
-            model: EMBEDDING_MODEL,
-          },
           indexTypes,
-        });
+        };
+
+        if (currentConfig) {
+          params.modelInfo = {
+            key: currentConfig.apiKey,
+            baseUrl: currentConfig.baseUrl,
+            model: EMBEDDING_MODEL,
+          };
+        }
+
+        const success = await indexContent(params);
 
         if (success) {
-          await initIndexResults();
-          message.success({ content: "索引更新成功", key: messageKey });
-          return true;
+          try {
+            await initIndexResults();
+            message.success({ content: "索引更新成功", key: messageKey });
+            return true;
+          } catch (error) {
+            console.error("初始化索引结果失败", error);
+            message.error({
+              content: "索引更新成功，但初始化索引结果失败",
+              key: messageKey,
+            });
+            return false;
+          }
         } else {
           message.error({ content: "索引更新失败", key: messageKey });
           return false;
@@ -371,9 +394,9 @@ const useArticleConfig = () => {
               content={
                 <Editor
                   style={{
-                    maxWidth: 400,
-                    maxHeight: 300,
-                    overflow: "auto",
+                    width: 320,
+                    height: 180,
+                    overflow: "hidden",
                   }}
                   readonly
                   initValue={content}
@@ -425,13 +448,13 @@ const useArticleConfig = () => {
               {ftsResult ? (
                 <Tag
                   color={
-                    record.update_time > ftsResult.updateTime
+                    record.update_time !== ftsResult.updateTime
                       ? "orange"
                       : "green"
                   }
                 >
                   FTS:{" "}
-                  {record.update_time > ftsResult.updateTime
+                  {record.update_time !== ftsResult.updateTime
                     ? "待更新"
                     : "已索引"}
                 </Tag>
@@ -441,13 +464,13 @@ const useArticleConfig = () => {
               {vecResult ? (
                 <Tag
                   color={
-                    record.update_time > vecResult.updateTime
+                    record.update_time !== vecResult.updateTime
                       ? "orange"
                       : "green"
                   }
                 >
                   向量:{" "}
-                  {record.update_time > vecResult.updateTime
+                  {record.update_time !== vecResult.updateTime
                     ? "待更新"
                     : "已索引"}
                 </Tag>
@@ -495,8 +518,8 @@ const useArticleConfig = () => {
         } else if (
           (ftsResult && !vecResult) ||
           (!ftsResult && vecResult) ||
-          (vecResult && record.update_time > vecResult.updateTime) ||
-          (ftsResult && record.update_time > ftsResult.updateTime)
+          (vecResult && record.update_time !== vecResult.updateTime) ||
+          (ftsResult && record.update_time !== ftsResult.updateTime)
         ) {
           return (
             <Button

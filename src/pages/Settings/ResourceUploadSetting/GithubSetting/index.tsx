@@ -5,6 +5,7 @@ import { produce } from "immer";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { getGithubUserInfo, getReposByOwner, getBranchesByRepo } from "@/utils";
 import If from "@/components/If";
+import { useMemoizedFn } from "ahooks";
 
 const GithubSetting = () => {
   const { github } = useSettingStore((state) => ({
@@ -17,7 +18,7 @@ const GithubSetting = () => {
   const [branches, setBranches] = useState<string[]>([]);
   const [checkTokenLoading, setCheckTokenLoading] = useState(false);
 
-  const handleSelectRepo = async (value: string) => {
+  const handleSelectRepo = useMemoizedFn(async (value: string) => {
     useSettingStore.setState(
       produce((state) => {
         state.setting.imageBed.github.repo = value;
@@ -29,9 +30,9 @@ const GithubSetting = () => {
     } else {
       message.error("获取分支列表失败");
     }
-  };
+  });
 
-  const onCheckToken = async (showLoading = true) => {
+  const onCheckToken = useMemoizedFn(async (showLoading = true) => {
     if (showLoading) {
       setCheckTokenLoading(true);
     }
@@ -56,27 +57,27 @@ const GithubSetting = () => {
       message.error("token 无效");
     }
     setCheckTokenLoading(false);
-  };
+  });
 
-  const handleSelectBranch = async (value: string) => {
+  const handleSelectBranch = useMemoizedFn(async (value: string) => {
     useSettingStore.setState(
       produce((state) => {
         state.setting.imageBed.github.branch = value;
       }),
     );
-  };
+  });
 
   useEffect(() => {
     if (!!repo && repos.length === 0 && token) {
       onCheckToken(false).then();
     }
-  }, [repo, repos]);
+  }, [onCheckToken, repo, repos, token]);
 
   useEffect(() => {
     if (!!branch && branches.length === 0 && token && !!repo) {
       handleSelectRepo(repo).then();
     }
-  }, [branch, branches]);
+  }, [branch, branches, handleSelectRepo, repo, token]);
 
   return (
     <Space direction="vertical" size="middle" style={{ display: "flex" }}>

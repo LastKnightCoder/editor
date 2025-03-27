@@ -126,7 +126,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     return () => {
       unsubscribe();
     };
-  }, [itemId]);
+  }, [itemId, documentItemEventBus]);
 
   const onDrop = useMemoizedFn(
     async (dragItem: IDragItem, dragPosition: EDragPosition) => {

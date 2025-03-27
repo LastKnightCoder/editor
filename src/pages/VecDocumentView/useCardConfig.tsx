@@ -1,7 +1,7 @@
 import Editor from "@/components/Editor";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
-import { ECardCategory, ICard, SearchResult } from "@/types";
+import { ECardCategory, ICard, IndexParams, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -41,6 +41,8 @@ const useCardConfig = () => {
       provider: state.setting.llmProviders[ELLMProvider.OPENAI],
     })),
   );
+  const { configs, currentConfigId } = provider;
+  const currentConfig = configs.find((item) => item.id === currentConfigId);
 
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ICard[]>([]);
@@ -53,9 +55,6 @@ const useCardConfig = () => {
     selectedRowKeys: selectedRows.map((row) => row.id),
     onChange: onSelectChange,
   };
-
-  const { configs, currentConfigId } = provider;
-  const currentConfig = configs.find((item) => item.id === currentConfigId);
 
   const [indexResults, setIndexResults] = useState<
     [SearchResult[], SearchResult[]]
@@ -102,20 +101,11 @@ const useCardConfig = () => {
         indexStatusFilterArray.length === 0 ||
         indexStatusFilterArray.includes(status);
 
-      console.log(
-        "card.id: ",
-        card.id,
-        "status: ",
-        status,
-        "isHitIndexStatus: ",
-        isHitIndexStatus,
-      );
-
       return isHitIndexStatus;
     });
 
     return filteredCards;
-  }, [indexResults, cards, filteredInfo]);
+  }, [cards, filteredInfo, ftsResults, vecResults]);
 
   const slicedCards = filteredCards.slice(
     (current - 1) * PAGE_SIZE,
@@ -188,18 +178,11 @@ const useCardConfig = () => {
 
   const onCreateEmbedding = useMemoizedFn(
     async (markdown: string, record: ICard) => {
-      if (!currentConfig) {
-        message.error("未配置OpenAI API密钥");
-        return false;
-      }
-
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `create-index-${record.id}`;
+      const messageKey = `create-card-index-${record.id}`;
       message.loading({ content: "正在创建索引...", key: messageKey });
 
       try {
-        const { apiKey, baseUrl } = currentConfig;
-
         // 检查当前索引状态
         const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "card",
@@ -211,8 +194,10 @@ const useCardConfig = () => {
 
         // 确定需要创建的索引类型
         const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult) indexTypes.push("fts");
-        if (!vecResult) indexTypes.push("vec");
+        if (!ftsResult || ftsResult.updateTime !== record.update_time)
+          indexTypes.push("fts");
+        if (!vecResult || vecResult.updateTime !== record.update_time)
+          indexTypes.push("vec");
 
         // 如果没有需要创建的索引，直接返回成功
         if (indexTypes.length === 0) {
@@ -220,23 +205,37 @@ const useCardConfig = () => {
           return true;
         }
 
-        const success = await indexContent({
+        const params: IndexParams = {
           id: record.id,
           content: markdown,
           type: "card",
           updateTime: record.update_time,
-          modelInfo: {
-            key: apiKey,
-            baseUrl,
-            model: EMBEDDING_MODEL,
-          },
           indexTypes,
-        });
+        };
+
+        if (currentConfig) {
+          params.modelInfo = {
+            key: currentConfig.apiKey,
+            baseUrl: currentConfig.baseUrl,
+            model: EMBEDDING_MODEL,
+          };
+        }
+
+        const success = await indexContent(params);
 
         if (success) {
-          await initIndexResults();
-          message.success({ content: "索引创建成功", key: messageKey });
-          return true;
+          try {
+            await initIndexResults();
+            message.success({ content: "索引创建成功", key: messageKey });
+            return true;
+          } catch (error) {
+            console.error("初始化索引结果失败", error);
+            message.error({
+              content: "索引创建成功，但初始化索引结果失败",
+              key: messageKey,
+            });
+            return false;
+          }
         } else {
           message.error({ content: "索引创建失败", key: messageKey });
           return false;
@@ -253,7 +252,7 @@ const useCardConfig = () => {
 
   const onRemoveEmbedding = useMemoizedFn(async (record: ICard) => {
     setLoadingIds((prev) => [...prev, record.id]);
-    const messageKey = `remove-index-${record.id}`;
+    const messageKey = `remove-card-index-${record.id}`;
     message.loading({ content: "正在删除索引...", key: messageKey });
 
     try {
@@ -270,18 +269,11 @@ const useCardConfig = () => {
 
   const onUpdateEmbedding = useMemoizedFn(
     async (markdown: string, record: ICard) => {
-      if (!currentConfig) {
-        message.error("未配置OpenAI API密钥");
-        return false;
-      }
-
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `update-index-${record.id}`;
+      const messageKey = `update-card-index-${record.id}`;
       message.loading({ content: "正在更新索引...", key: messageKey });
 
       try {
-        const { apiKey, baseUrl } = currentConfig;
-
         // 检查当前索引状态
         const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "card",
@@ -293,8 +285,9 @@ const useCardConfig = () => {
 
         // 确定需要更新的索引类型
         const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult) indexTypes.push("fts");
-        if (!vecResult || record.update_time > vecResult.updateTime)
+        if (!ftsResult || record.update_time !== ftsResult.updateTime)
+          indexTypes.push("fts");
+        if (!vecResult || record.update_time !== vecResult.updateTime)
           indexTypes.push("vec");
 
         // 如果没有需要更新的索引，直接返回成功
@@ -303,23 +296,37 @@ const useCardConfig = () => {
           return true;
         }
 
-        const success = await indexContent({
+        const params: IndexParams = {
           id: record.id,
           content: markdown,
           type: "card",
           updateTime: record.update_time,
-          modelInfo: {
-            key: apiKey,
-            baseUrl,
-            model: EMBEDDING_MODEL,
-          },
           indexTypes,
-        });
+        };
+
+        if (currentConfig) {
+          params.modelInfo = {
+            key: currentConfig.apiKey,
+            baseUrl: currentConfig.baseUrl,
+            model: EMBEDDING_MODEL,
+          };
+        }
+
+        const success = await indexContent(params);
 
         if (success) {
-          await initIndexResults();
-          message.success({ content: "索引更新成功", key: messageKey });
-          return true;
+          try {
+            await initIndexResults();
+            message.success({ content: "索引更新成功", key: messageKey });
+            return true;
+          } catch (error) {
+            console.error("初始化索引结果失败", error);
+            message.error({
+              content: "索引更新成功，但初始化索引结果失败",
+              key: messageKey,
+            });
+            return false;
+          }
         } else {
           message.error({ content: "索引更新失败", key: messageKey });
           return false;
@@ -378,12 +385,12 @@ const useCardConfig = () => {
               content={
                 <Editor
                   style={{
-                    maxWidth: 400,
-                    maxHeight: 300,
-                    overflow: "auto",
+                    maxWidth: 320,
+                    maxHeight: 180,
+                    overflow: "hidden",
                   }}
                   readonly
-                  initValue={content}
+                  initValue={content.slice(0, 3)}
                 />
               }
             >
@@ -492,13 +499,13 @@ const useCardConfig = () => {
               {ftsResult ? (
                 <Tag
                   color={
-                    record.update_time > ftsResult.updateTime
+                    record.update_time !== ftsResult.updateTime
                       ? "orange"
                       : "green"
                   }
                 >
                   FTS:{" "}
-                  {record.update_time > ftsResult.updateTime
+                  {record.update_time !== ftsResult.updateTime
                     ? "待更新"
                     : "已索引"}
                 </Tag>
@@ -508,13 +515,13 @@ const useCardConfig = () => {
               {vecResult ? (
                 <Tag
                   color={
-                    record.update_time > vecResult.updateTime
+                    record.update_time !== vecResult.updateTime
                       ? "orange"
                       : "green"
                   }
                 >
                   向量:{" "}
-                  {record.update_time > vecResult.updateTime
+                  {record.update_time !== vecResult.updateTime
                     ? "待更新"
                     : "已索引"}
                 </Tag>
@@ -562,8 +569,8 @@ const useCardConfig = () => {
         } else if (
           (ftsResult && !vecResult) ||
           (!ftsResult && vecResult) ||
-          (vecResult && record.update_time > vecResult.updateTime) ||
-          (ftsResult && record.update_time > ftsResult.updateTime)
+          (vecResult && record.update_time !== vecResult.updateTime) ||
+          (ftsResult && record.update_time !== ftsResult.updateTime)
         ) {
           return (
             <Button

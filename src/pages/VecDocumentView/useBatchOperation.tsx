@@ -1,13 +1,11 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Descendant } from "slate";
 import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { SearchResult, IndexParams, IndexType } from "@/types";
 import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
-import { getMarkdown } from "@/utils";
-import { batchIndexContent, removeIndex } from "@/utils/search";
-import React from "react";
+import { getMarkdown, batchIndexContent, removeIndex } from "@/utils";
 
 interface Params<T> {
   selectedRows: T[];
@@ -67,8 +65,8 @@ const useBatchOperation = <
       }
       // 如果有索引但需要更新
       else if (
-        (vecResult && item.update_time > vecResult.updateTime) ||
-        (ftsResult && item.update_time > ftsResult.updateTime)
+        (vecResult && item.update_time !== vecResult.updateTime) ||
+        (ftsResult && item.update_time !== ftsResult.updateTime)
       ) {
         updateEmbeddings.push(item);
       }
@@ -89,11 +87,6 @@ const useBatchOperation = <
     useState(false);
 
   const handleBatchEmbedding = useMemoizedFn(async () => {
-    if (!currentConfig) {
-      message.error("请先配置 OpenAI API Key");
-      return;
-    }
-
     setBatchCreateOrUpdateTotal(
       createEmbeddings.length + updateEmbeddings.length,
     );
@@ -106,37 +99,59 @@ const useBatchOperation = <
     // 准备创建索引的项
     for (const item of createEmbeddings) {
       const markdown = getMarkdown(item.content);
-      const { apiKey, baseUrl } = currentConfig;
 
-      batchItems.push({
+      const itemIndexParams: IndexParams = {
         id: item.id,
         content: markdown,
         type: type as IndexType,
         updateTime: item.update_time,
-        modelInfo: {
-          key: apiKey,
-          baseUrl,
+      };
+
+      if (currentConfig) {
+        itemIndexParams.modelInfo = {
+          key: currentConfig.apiKey,
+          baseUrl: currentConfig.baseUrl,
           model: EMBEDDING_MODEL,
-        },
-      });
+        };
+      }
+
+      batchItems.push(itemIndexParams);
     }
 
     // 准备更新索引的项
     for (const item of updateEmbeddings) {
       const markdown = getMarkdown(item.content);
-      const { apiKey, baseUrl } = currentConfig;
 
-      batchItems.push({
+      const indexTypes: ("fts" | "vec")[] = [];
+      const ftsResult = ftsResults.find(
+        (result) => result.id === item.id && result.type === type,
+      );
+
+      const vecResult = vecResults.find(
+        (result) => result.id === item.id && result.type === type,
+      );
+      if (!ftsResult || item.update_time !== ftsResult.updateTime)
+        indexTypes.push("fts");
+      if (!vecResult || item.update_time !== vecResult.updateTime)
+        indexTypes.push("vec");
+
+      const itemIndexParams: IndexParams = {
         id: item.id,
         content: markdown,
         type: type as IndexType,
         updateTime: item.update_time,
-        modelInfo: {
-          key: apiKey,
-          baseUrl,
+        indexTypes,
+      };
+
+      if (currentConfig) {
+        itemIndexParams.modelInfo = {
+          key: currentConfig.apiKey,
+          baseUrl: currentConfig.baseUrl,
           model: EMBEDDING_MODEL,
-        },
-      });
+        };
+      }
+
+      batchItems.push(itemIndexParams);
     }
 
     try {

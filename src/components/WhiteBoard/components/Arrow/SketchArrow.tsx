@@ -89,7 +89,15 @@ const SketchArrow = memo((props: SketchArrowProps) => {
         );
       }
     }
-  }, [props, sketchEnabled, roughness]);
+  }, [
+    sketchEnabled,
+    roughness,
+    lineWidth,
+    lineColor,
+    points,
+    sourceMarker,
+    targetMarker,
+  ]);
 
   if (!sketchEnabled) return null;
 

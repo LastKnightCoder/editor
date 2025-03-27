@@ -148,7 +148,7 @@ const ArrowConnectPoint = memo((props: ArrowConnectPointProps) => {
       document.addEventListener("pointerup", handlePointerUp);
     };
 
-    const handlePointerUp = (_e: PointerEvent) => {
+    const handlePointerUp = () => {
       if (
         startPoint.current &&
         currentPoint.current &&

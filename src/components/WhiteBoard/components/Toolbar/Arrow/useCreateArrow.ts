@@ -135,7 +135,7 @@ export const useCreateArrow = () => {
       document.addEventListener("pointerup", handlePointerUp);
     };
 
-    const handlePointerUp = (_e: PointerEvent) => {
+    const handlePointerUp = () => {
       if (
         startPoint.current &&
         currentPoint.current &&
@@ -208,7 +208,7 @@ export const useCreateArrow = () => {
       boardContainer.removeEventListener("pointermove", handlePointerMove);
       boardContainer.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [createBoardElementType, handlePointerMove]);
+  }, [createBoardElementType, handlePointerMove, board]);
 };
 
 export default useCreateArrow;

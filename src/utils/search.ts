@@ -10,9 +10,9 @@ import {
   removeVecDocumentIndex,
   getAllFTSResults,
   getAllVecDocumentResults,
-} from "@/commands/search";
-import { getVecDocumentsByRef } from "@/commands/vec-document";
-import { invoke } from "@/electron";
+  checkFTSIndexStatus,
+  checkVecDocumentIndexStatus,
+} from "@/commands";
 
 /**
  * 搜索内容 - 同时使用全文搜索和向量搜索
@@ -152,42 +152,18 @@ export const removeIndex = async (
   }
 };
 
-/**
- * 检查FTS索引状态
- * @param id 内容ID
- * @param type 内容类型
- * @returns 是否已索引
- */
-export const checkFTSIndexStatus = async (
-  id: number,
-  type: IndexType,
-): Promise<boolean> => {
-  try {
-    // 调用Electron的IPC接口检查FTS索引状态
-    return await invoke("fts-check-index-exists", id, type);
-  } catch (error) {
-    console.error("检查FTS索引状态失败:", error);
-    return false;
+const getResultStatus = (
+  result: { updateTime: number } | null,
+  updateTime: number,
+): "unindexed" | "indexed" | "outdated" => {
+  if (!result) {
+    return "unindexed";
   }
-};
-
-/**
- * 检查向量索引状态
- * @param id 内容ID
- * @param type 内容类型
- * @returns 是否已索引
- */
-export const checkVecIndexStatus = async (
-  id: number,
-  type: IndexType,
-): Promise<boolean> => {
-  try {
-    // 获取向量文档
-    const vecDocs = await getVecDocumentsByRef(id, type);
-    return vecDocs.length > 0;
-  } catch (error) {
-    console.error("检查向量索引状态失败:", error);
-    return false;
+  // 如果等于当前时间
+  if (result.updateTime === updateTime) {
+    return "indexed";
+  } else {
+    return "outdated";
   }
 };
 
@@ -195,48 +171,34 @@ export const checkVecIndexStatus = async (
  * 获取索引状态
  * @param id 内容ID
  * @param type 内容类型
- * @param updateTime 内容更新时间
- * @param vecUpdateTime 向量更新时间（如果有）
  * @returns 索引状态对象
  */
 export const getIndexStatus = async (
   id: number,
   type: IndexType,
   updateTime: number,
-  vecUpdateTime?: number,
 ): Promise<{
-  ftsStatus: "unindexed" | "indexed";
+  ftsStatus: "unindexed" | "indexed" | "outdated";
   vecStatus: "unindexed" | "indexed" | "outdated";
-  status: "unindexed" | "partial" | "indexed" | "outdated";
+  status: "unindexed" | "indexed" | "outdated";
 }> => {
-  // 并行检查FTS和向量索引状态
-  const [hasFTSIndex, hasVecIndex] = await Promise.all([
+  const [ftsResult, vecResult] = await Promise.all([
     checkFTSIndexStatus(id, type),
-    checkVecIndexStatus(id, type),
+    checkVecDocumentIndexStatus(id, type),
   ]);
 
   // 确定FTS索引状态
-  const ftsStatus = hasFTSIndex ? "indexed" : "unindexed";
-
-  // 确定向量索引状态
-  let vecStatus: "unindexed" | "indexed" | "outdated" = "unindexed";
-  if (hasVecIndex) {
-    // 如果有向量索引，检查是否过期
-    if (vecUpdateTime && updateTime > vecUpdateTime) {
-      vecStatus = "outdated";
-    } else {
-      vecStatus = "indexed";
-    }
-  }
+  const ftsStatus = getResultStatus(ftsResult, updateTime);
+  const vecStatus = getResultStatus(vecResult, updateTime);
 
   // 确定综合状态
-  let status: "unindexed" | "partial" | "indexed" | "outdated";
-  if (!hasFTSIndex && !hasVecIndex) {
+  let status: "unindexed" | "indexed" | "outdated";
+  if (ftsStatus === "unindexed" && vecStatus === "unindexed") {
     status = "unindexed";
-  } else if (hasFTSIndex && hasVecIndex) {
-    status = vecStatus === "outdated" ? "outdated" : "indexed";
+  } else if (ftsStatus === "indexed" && vecStatus === "indexed") {
+    status = "indexed";
   } else {
-    status = "partial";
+    status = "outdated";
   }
 
   return {

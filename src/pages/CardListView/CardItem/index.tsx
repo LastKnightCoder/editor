@@ -85,7 +85,7 @@ const CardItem = memo(
       return () => {
         unsubscribe();
       };
-    }, [card.id]);
+    }, [card.id, cardEventBus]);
 
     const moreMenuItems: MenuProps["items"] = useMemo(() => {
       return [
@@ -129,7 +129,7 @@ const CardItem = memo(
           })),
         },
       ];
-    }, [card.category, databaseName, card.id]);
+    }, [card.category, databaseName, card.id, addTab, card.content]);
 
     const onClick = useMemoizedFn(() => {
       if (onCardClick) {

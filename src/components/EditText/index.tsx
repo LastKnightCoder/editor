@@ -165,7 +165,7 @@ const EditText = memo(
       return () => {
         document.removeEventListener("keydown", handleKeyDown);
       };
-    }, [isEditing, onDeleteEmpty, onPressEnter]);
+    }, [isEditing, onDeleteEmpty, onPressEnter, onKeyDown]);
 
     const handleFocus = () => {
       setIsEditing(true);

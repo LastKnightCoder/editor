@@ -40,7 +40,7 @@ const ModelModal = ({
           multimodal: false,
         },
       )
-        .filter(([_, value]) => value)
+        .filter(([, value]) => value)
         .map(([key]) => key);
       setSelectedFeatures(initialFeatures);
     }

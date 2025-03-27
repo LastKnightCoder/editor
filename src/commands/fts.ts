@@ -65,67 +65,15 @@ export const getAllFTSResults = async (
   }
 };
 
-// Vec-Document 相关方法
-// 向量搜索
-export const searchVecDocument = async (
-  searchParams: SearchParams,
-): Promise<SearchResult[]> => {
-  try {
-    return await invoke("vec-document-search-content", searchParams);
-  } catch (error) {
-    console.error("向量搜索失败:", error);
-    return [];
-  }
-};
-
-// 索引向量内容
-export const indexVecDocumentContent = async (
-  indexParams: IndexParams,
-): Promise<boolean> => {
-  try {
-    await invoke("vec-document-index-content", indexParams);
-    return true;
-  } catch (error) {
-    console.error("索引向量内容失败:", error);
-    return false;
-  }
-};
-
-// 批量索引向量内容
-export const batchIndexVecDocumentContent = async (
-  items: Array<IndexParams>,
-): Promise<boolean> => {
-  try {
-    await invoke("vec-document-batch-index-content", items);
-    return true;
-  } catch (error) {
-    console.error("批量索引向量内容失败:", error);
-    return false;
-  }
-};
-
-// 移除向量索引
-export const removeVecDocumentIndex = async (
+export const checkFTSIndexStatus = async (
   id: number,
-  type: string,
-): Promise<boolean> => {
+  type: IndexType,
+): Promise<{ updateTime: number } | null> => {
   try {
-    await invoke("vec-document-remove-index", id, type);
-    return true;
+    // 调用Electron的IPC接口检查FTS索引状态
+    return await invoke("fts-check-index-exists", id, type);
   } catch (error) {
-    console.error("移除向量索引失败:", error);
-    return false;
-  }
-};
-
-// 获取所有向量索引结果
-export const getAllVecDocumentResults = async (
-  type?: IndexType,
-): Promise<SearchResult[]> => {
-  try {
-    return await invoke("get-all-vec-document-results", type);
-  } catch (error) {
-    console.error("获取向量索引结果失败:", error);
-    return [];
+    console.error("检查FTS索引状态失败:", error);
+    return null;
   }
 };

@@ -84,7 +84,7 @@ const SingleArticleEditor = () => {
     return () => {
       unsubscribe();
     };
-  }, [articleId]);
+  }, [articleId, articleEventBus]);
 
   const onContentChange = (value: Descendant[]) => {
     if (

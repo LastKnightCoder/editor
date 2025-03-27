@@ -1,7 +1,7 @@
 import Editor from "@/components/Editor";
 import { formatDate, getEditorText, getMarkdown } from "@/utils";
 import { getProjectList, getAllProjectItems } from "@/commands";
-import { Project, ProjectItem, SearchResult } from "@/types";
+import { IndexParams, Project, ProjectItem, SearchResult } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import {
   Button,
@@ -97,22 +97,25 @@ const useProjectConfig = () => {
       provider: state.setting.llmProviders[ELLMProvider.OPENAI],
     })),
   );
+  const { configs, currentConfigId } = provider;
+  const currentConfig = configs.find((item) => item.id === currentConfigId);
+
+  const fetchProjects = useMemoizedFn(async () => {
+    try {
+      const projects = await getProjectList();
+      setProjects(projects);
+      if (projects.length > 0 && !selectedProjectId) {
+        setSelectedProjectId(projects[0].id);
+      }
+    } catch (error) {
+      console.error("获取项目列表失败", error);
+    }
+  });
 
   // 获取所有项目
   useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const projects = await getProjectList();
-        setProjects(projects);
-        if (projects.length > 0 && !selectedProjectId) {
-          setSelectedProjectId(projects[0].id);
-        }
-      } catch (error) {
-        console.error("获取项目列表失败", error);
-      }
-    };
     fetchProjects();
-  }, []);
+  }, [fetchProjects]);
 
   // 获取所有项目项
   useEffect(() => {
@@ -217,8 +220,8 @@ const useProjectConfig = () => {
           if (!ftsResult && !vecResult) {
             status = "未索引";
           } else if (
-            (vecResult && item.updateTime > vecResult.updateTime) ||
-            (ftsResult && item.updateTime > ftsResult.updateTime)
+            (vecResult && item.updateTime !== vecResult.updateTime) ||
+            (ftsResult && item.updateTime !== ftsResult.updateTime)
           ) {
             status = "待更新";
           } else {
@@ -351,27 +354,11 @@ const useProjectConfig = () => {
   // 创建索引
   const onCreateEmbedding = useMemoizedFn(
     async (markdown: string, record: ExtendedProjectItem) => {
-      if (!provider.currentConfigId) {
-        message.error("未配置OpenAI API密钥");
-        return false;
-      }
-
-      const currentConfig = provider.configs.find(
-        (config) => config.id === provider.currentConfigId,
-      );
-
-      if (!currentConfig) {
-        message.error("未找到有效的API配置");
-        return false;
-      }
-
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `create-index-${record.id}`;
+      const messageKey = `create-project-item-index-${record.id}`;
       message.loading({ content: "正在创建索引...", key: messageKey });
 
       try {
-        const { apiKey, baseUrl } = currentConfig;
-
         // 检查当前索引状态
         const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "project-item",
@@ -383,8 +370,10 @@ const useProjectConfig = () => {
 
         // 确定需要创建的索引类型
         const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult) indexTypes.push("fts");
-        if (!vecResult) indexTypes.push("vec");
+        if (!ftsResult || ftsResult.updateTime !== record.updateTime)
+          indexTypes.push("fts");
+        if (!vecResult || vecResult.updateTime !== record.updateTime)
+          indexTypes.push("vec");
 
         // 如果没有需要创建的索引，直接返回成功
         if (indexTypes.length === 0) {
@@ -392,23 +381,37 @@ const useProjectConfig = () => {
           return true;
         }
 
-        const success = await indexContent({
+        const params: IndexParams = {
           id: record.id,
           content: markdown,
           type: "project-item",
           updateTime: record.updateTime,
-          modelInfo: {
-            key: apiKey,
-            baseUrl,
-            model: EMBEDDING_MODEL,
-          },
           indexTypes,
-        });
+        };
+
+        if (currentConfig) {
+          params.modelInfo = {
+            key: currentConfig.apiKey,
+            baseUrl: currentConfig.baseUrl,
+            model: EMBEDDING_MODEL,
+          };
+        }
+
+        const success = await indexContent(params);
 
         if (success) {
-          await initIndexResults();
-          message.success({ content: "索引创建成功", key: messageKey });
-          return true;
+          try {
+            await initIndexResults();
+            message.success({ content: "索引创建成功", key: messageKey });
+            return true;
+          } catch (error) {
+            console.error("初始化索引结果失败", error);
+            message.error({
+              content: "索引创建成功，但初始化索引结果失败",
+              key: messageKey,
+            });
+            return false;
+          }
         } else {
           message.error({ content: "索引创建失败", key: messageKey });
           return false;
@@ -426,27 +429,11 @@ const useProjectConfig = () => {
   // 更新索引
   const onUpdateEmbedding = useMemoizedFn(
     async (markdown: string, record: ExtendedProjectItem) => {
-      if (!provider.currentConfigId) {
-        message.error("未配置OpenAI API密钥");
-        return false;
-      }
-
-      const currentConfig = provider.configs.find(
-        (config) => config.id === provider.currentConfigId,
-      );
-
-      if (!currentConfig) {
-        message.error("未找到有效的API配置");
-        return false;
-      }
-
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `update-index-${record.id}`;
+      const messageKey = `update-project-item-index-${record.id}`;
       message.loading({ content: "正在更新索引...", key: messageKey });
 
       try {
-        const { apiKey, baseUrl } = currentConfig;
-
         // 检查当前索引状态
         const ftsResult = ftsResults.find(
           (result) => result.id === record.id && result.type === "project-item",
@@ -458,8 +445,9 @@ const useProjectConfig = () => {
 
         // 确定需要更新的索引类型
         const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult) indexTypes.push("fts");
-        if (!vecResult || record.updateTime > vecResult.updateTime)
+        if (!ftsResult || ftsResult.updateTime !== record.updateTime)
+          indexTypes.push("fts");
+        if (!vecResult || vecResult.updateTime !== record.updateTime)
           indexTypes.push("vec");
 
         // 如果没有需要更新的索引，直接返回成功
@@ -468,23 +456,37 @@ const useProjectConfig = () => {
           return true;
         }
 
-        const success = await indexContent({
+        const params: IndexParams = {
           id: record.id,
           content: markdown,
           type: "project-item",
           updateTime: record.updateTime,
-          modelInfo: {
-            key: apiKey,
-            baseUrl,
-            model: EMBEDDING_MODEL,
-          },
           indexTypes,
-        });
+        };
+
+        if (currentConfig) {
+          params.modelInfo = {
+            key: currentConfig.apiKey,
+            baseUrl: currentConfig.baseUrl,
+            model: EMBEDDING_MODEL,
+          };
+        }
+
+        const success = await indexContent(params);
 
         if (success) {
-          await initIndexResults();
-          message.success({ content: "索引更新成功", key: messageKey });
-          return true;
+          try {
+            await initIndexResults();
+            message.success({ content: "索引更新成功", key: messageKey });
+            return true;
+          } catch (error) {
+            console.error("初始化索引结果失败", error);
+            message.error({
+              content: "索引更新成功，但初始化索引结果失败",
+              key: messageKey,
+            });
+            return false;
+          }
         } else {
           message.error({ content: "索引更新失败", key: messageKey });
           return false;
@@ -503,7 +505,7 @@ const useProjectConfig = () => {
   const onRemoveEmbedding = useMemoizedFn(
     async (record: ExtendedProjectItem) => {
       setLoadingIds((prev) => [...prev, record.id]);
-      const messageKey = `remove-index-${record.id}`;
+      const messageKey = `remove-project-item-index-${record.id}`;
       message.loading({ content: "正在删除索引...", key: messageKey });
 
       try {
@@ -544,7 +546,7 @@ const useProjectConfig = () => {
         return (
           <Popover
             content={
-              <div style={{ width: 400, maxHeight: 400, overflow: "auto" }}>
+              <div style={{ width: 320, maxHeight: 180, overflow: "hidden" }}>
                 <Editor initValue={content || []} readonly={true} />
               </div>
             }
@@ -552,7 +554,7 @@ const useProjectConfig = () => {
           >
             <Typography.Text
               ellipsis
-              style={{ maxWidth: 300, cursor: "pointer" }}
+              style={{ maxWidth: 200, cursor: "pointer" }}
             >
               {getEditorText(content || [])}
             </Typography.Text>
@@ -599,13 +601,13 @@ const useProjectConfig = () => {
               {ftsResult ? (
                 <Tag
                   color={
-                    record.updateTime > ftsResult.updateTime
+                    record.updateTime !== ftsResult.updateTime
                       ? "orange"
                       : "green"
                   }
                 >
                   FTS:{" "}
-                  {record.updateTime > ftsResult.updateTime
+                  {record.updateTime !== ftsResult.updateTime
                     ? "待更新"
                     : "已索引"}
                 </Tag>
@@ -615,13 +617,13 @@ const useProjectConfig = () => {
               {vecResult ? (
                 <Tag
                   color={
-                    record.updateTime > vecResult.updateTime
+                    record.updateTime !== vecResult.updateTime
                       ? "orange"
                       : "green"
                   }
                 >
                   向量:{" "}
-                  {record.updateTime > vecResult.updateTime
+                  {record.updateTime !== vecResult.updateTime
                     ? "待更新"
                     : "已索引"}
                 </Tag>
@@ -669,8 +671,8 @@ const useProjectConfig = () => {
         } else if (
           (ftsResult && !vecResult) ||
           (!ftsResult && vecResult) ||
-          (vecResult && record.updateTime > vecResult.updateTime) ||
-          (ftsResult && record.updateTime > ftsResult.updateTime)
+          (vecResult && record.updateTime !== vecResult.updateTime) ||
+          (ftsResult && record.updateTime !== ftsResult.updateTime)
         ) {
           return (
             <Button

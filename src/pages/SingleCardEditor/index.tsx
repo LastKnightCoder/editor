@@ -55,7 +55,7 @@ const SingleCardEditor = () => {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [cardEventBus, cardId]);
 
   useEffect(() => {
     if (!databaseName || !cardId) {

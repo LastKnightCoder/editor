@@ -147,7 +147,7 @@ const useCreateGeometry = () => {
     }
   });
 
-  const handlePointerUp = useMemoizedFn((_e: PointerEvent) => {
+  const handlePointerUp = useMemoizedFn(() => {
     if (
       startPoint.current &&
       currentPoint.current &&
@@ -218,6 +218,7 @@ const useCreateGeometry = () => {
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
+    board,
   ]);
 };
 

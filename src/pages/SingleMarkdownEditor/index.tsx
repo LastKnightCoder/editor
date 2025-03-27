@@ -65,90 +65,6 @@ const SingleMarkdownEditor = () => {
     onDarkModeChange(!isDark);
   });
 
-  useEffect(() => {
-    if (!filePath) {
-      setLoading(false);
-      return;
-    }
-
-    const loadMarkdownFile = async () => {
-      try {
-        const markdownText = await readTextFile(filePath);
-        const editorContent = importFromMarkdown(markdownText);
-        setContent(editorContent);
-        currentSourceText.current = markdownText;
-        beforeSaveSourceText.current = markdownText;
-        editorRef.current?.focus();
-        calculateWordCount();
-      } catch (error) {
-        console.error("加载Markdown文件失败:", error);
-        message.error("加载文件失败");
-        setError(error instanceof Error ? error.message : "未知错误");
-      }
-    };
-
-    loadMarkdownFile().finally(() => {
-      setLoading(false);
-    });
-  }, [filePath]);
-
-  useEffect(() => {
-    // 监听键盘快捷键
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // 保存: Ctrl+S 或 Command+S
-      if (isHotkey("mod+s", event)) {
-        event.preventDefault();
-        saveMarkdownFile();
-      }
-
-      // 切换模式: Ctrl+/ 或 Command+/
-      if (isHotkey("mod+/", event)) {
-        event.preventDefault();
-        toggleMode();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
-  useEffect(() => {
-    calculateWordCount();
-  }, [content]);
-
-  // 使用节流函数计算字数，每秒最多计算一次
-  const { run: calculateWordCount } = useThrottleFn(
-    () => {
-      if (isSourceMode) {
-        const editorContent = importFromMarkdown(currentSourceText.current);
-        setWordCount(getContentLength(editorContent));
-      } else {
-        setWordCount(getContentLength(content));
-      }
-    },
-    { wait: 1000 },
-  );
-
-  const saveMarkdownFile = useMemoizedFn(async () => {
-    if (!filePath) return;
-
-    try {
-      const markdownText = isSourceMode
-        ? currentSourceText.current
-        : getMarkdown(content);
-      if (markdownText === beforeSaveSourceText.current) return;
-      beforeSaveSourceText.current = markdownText;
-      currentSourceText.current = markdownText;
-      await writeTextFile(filePath, markdownText);
-    } catch (error) {
-      console.error("保存Markdown文件失败:", error);
-      message.error("保存失败");
-    }
-  });
-
   const toggleMode = useMemoizedFn(async () => {
     if (isSourceMode) {
       // 从源码模式切换到编辑模式
@@ -180,9 +96,93 @@ const SingleMarkdownEditor = () => {
     setIsSourceMode(!isSourceMode);
   });
 
+  // 使用节流函数计算字数，每秒最多计算一次
+  const { run: calculateWordCount } = useThrottleFn(
+    () => {
+      if (isSourceMode) {
+        const editorContent = importFromMarkdown(currentSourceText.current);
+        setWordCount(getContentLength(editorContent));
+      } else {
+        setWordCount(getContentLength(content));
+      }
+    },
+    { wait: 1000 },
+  );
+
+  const saveMarkdownFile = useMemoizedFn(async () => {
+    if (!filePath) return;
+
+    try {
+      const markdownText = isSourceMode
+        ? currentSourceText.current
+        : getMarkdown(content);
+      if (markdownText === beforeSaveSourceText.current) return;
+      beforeSaveSourceText.current = markdownText;
+      currentSourceText.current = markdownText;
+      await writeTextFile(filePath, markdownText);
+    } catch (error) {
+      console.error("保存Markdown文件失败:", error);
+      message.error("保存失败");
+    }
+  });
+
   const onSourceEditorDidMount = useMemoizedFn((editor: CodeMirrorEditor) => {
     sourceEditorRef.current = editor;
   });
+
+  useEffect(() => {
+    // 监听键盘快捷键
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // 保存: Ctrl+S 或 Command+S
+      if (isHotkey("mod+s", event)) {
+        event.preventDefault();
+        saveMarkdownFile();
+      }
+
+      // 切换模式: Ctrl+/ 或 Command+/
+      if (isHotkey("mod+/", event)) {
+        event.preventDefault();
+        toggleMode();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [saveMarkdownFile, toggleMode]);
+
+  useEffect(() => {
+    if (!filePath) {
+      setLoading(false);
+      return;
+    }
+
+    const loadMarkdownFile = async () => {
+      try {
+        const markdownText = await readTextFile(filePath);
+        const editorContent = importFromMarkdown(markdownText);
+        setContent(editorContent);
+        currentSourceText.current = markdownText;
+        beforeSaveSourceText.current = markdownText;
+        editorRef.current?.focus();
+        calculateWordCount();
+      } catch (error) {
+        console.error("加载Markdown文件失败:", error);
+        message.error("加载文件失败");
+        setError(error instanceof Error ? error.message : "未知错误");
+      }
+    };
+
+    loadMarkdownFile().finally(() => {
+      setLoading(false);
+    });
+  }, [calculateWordCount, filePath]);
+
+  useEffect(() => {
+    calculateWordCount();
+  }, [content, calculateWordCount]);
 
   // 每隔3秒自动保存
   useRafInterval(() => {
