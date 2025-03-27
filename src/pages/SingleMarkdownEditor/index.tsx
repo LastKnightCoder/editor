@@ -224,35 +224,37 @@ const SingleMarkdownEditor = () => {
         [styles.dark]: isDark,
       })}
     >
-      <div
-        className={classnames(styles.sourceEditor, {
-          [styles.hidden]: !isSourceMode,
-        })}
-      >
-        <MarkdownSourceEditor
-          value={currentSourceText.current}
-          onChange={onSourceTextChange}
-          editorDidMount={onSourceEditorDidMount}
-          isDark={isDark}
-          readonly={isReadonly}
-        />
-      </div>
-      <div
-        className={classnames(styles.editor, {
-          [styles.hidden]: isSourceMode,
-        })}
-      >
-        <ErrorBoundary>
-          <Editor
-            ref={editorRef}
-            initValue={content}
-            onChange={onContentChange}
-            extensions={customExtensions}
+      <div className={styles.editorContainer}>
+        <div
+          className={classnames(styles.sourceEditor, {
+            [styles.hidden]: !isSourceMode,
+          })}
+        >
+          <MarkdownSourceEditor
+            value={currentSourceText.current}
+            onChange={onSourceTextChange}
+            editorDidMount={onSourceEditorDidMount}
+            isDark={isDark}
             readonly={isReadonly}
-            uploadResource={uploadResource}
-            theme={isDark ? "dark" : "light"}
           />
-        </ErrorBoundary>
+        </div>
+        <div
+          className={classnames(styles.editor, {
+            [styles.hidden]: isSourceMode,
+          })}
+        >
+          <ErrorBoundary>
+            <Editor
+              ref={editorRef}
+              initValue={content}
+              onChange={onContentChange}
+              extensions={customExtensions}
+              readonly={isReadonly}
+              uploadResource={uploadResource}
+              theme={isDark ? "dark" : "light"}
+            />
+          </ErrorBoundary>
+        </div>
       </div>
 
       <div className={styles.statusBar}>
