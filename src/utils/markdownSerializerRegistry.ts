@@ -2,6 +2,14 @@ import { markdownTable } from "markdown-table";
 import { CustomElement } from "@editor/types";
 import { trim } from "lodash";
 
+const DEFAULT_TITLE = {
+  tip: "技巧",
+  info: "信息",
+  warning: "警告",
+  danger: "危险",
+  note: "注意",
+};
+
 export interface MarkdownSerializer {
   type: string;
   isBlock?: boolean;
@@ -200,7 +208,9 @@ export class MarkdownSerializerRegistry {
       },
       {
         type: "table-cell",
-        toMarkdown: (_element, children) => `${children.trim()} | `,
+        toMarkdown: (_element, children) => {
+          return `${children.trim()} | `;
+        },
       },
       {
         type: "mermaid",
@@ -220,9 +230,11 @@ export class MarkdownSerializerRegistry {
         type: "callout",
         isBlock: true,
         toMarkdown: (element, childrenStr) => {
-          const title = element.title ? ` title="${element.title}"` : "";
+          const title = element.title
+            ? ` title="${element.title}"`
+            : ` title=${DEFAULT_TITLE[element.calloutType as keyof typeof DEFAULT_TITLE]}`;
           const type = element.calloutType || "note";
-          return `::${type}${title}\n${childrenStr}::`;
+          return `:::${type}{${title}}\n${childrenStr}:::`;
         },
       },
       {

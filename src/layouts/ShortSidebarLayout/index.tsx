@@ -12,10 +12,31 @@ import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 
 import styles from "./index.module.less";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import isHotkey from "is-hotkey";
+import { openMarkdownInNewWindow, selectFile } from "@/commands";
 
 const ShortSidebarLayout = () => {
   useInitDatabase();
+
+  useEffect(() => {
+    const handleOpenMarkdown = async (e: any) => {
+      if (isHotkey("mod+o", e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        const filePaths = await selectFile({
+          properties: ["openFile"],
+          filters: [{ name: "Markdown", extensions: ["md"] }],
+        });
+        if (!filePaths) return;
+        await openMarkdownInNewWindow(filePaths[0]);
+      }
+    };
+    window.addEventListener("keydown", handleOpenMarkdown);
+    return () => {
+      window.removeEventListener("keydown", handleOpenMarkdown);
+    };
+  }, []);
 
   const chatSidebarOpen = useChatMessageStore((state) => state.open);
   const rightSidebarOpen = useRightSidebarStore((state) => state.open);

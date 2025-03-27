@@ -265,6 +265,12 @@ const markdownToDescendant = (
       type: "formatted",
       text: node.value,
     };
+  } else if (node.type === "textDirective") {
+    console.log("textDirective", node);
+    return {
+      type: "formatted",
+      text: `:${node.name}`,
+    };
   } else if (node.type === "inlineCode") {
     return {
       type: "formatted",
@@ -320,9 +326,10 @@ const markdownToDescendant = (
   } else {
     console.log("unknown node", node);
     if (
-      (parent && parent.type === "paragraph") ||
-      parent.type === "link" ||
-      parent.type === "heading"
+      parent &&
+      (parent.type === "paragraph" ||
+        parent.type === "link" ||
+        parent.type === "heading")
     ) {
       return {
         type: "formatted",
