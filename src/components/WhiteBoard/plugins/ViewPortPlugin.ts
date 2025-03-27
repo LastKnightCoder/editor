@@ -73,38 +73,38 @@ export class ViewPortPlugin implements IBoardPlugin {
     if (now - this.lastWheelTime < 100) return;
     this.lastWheelTime = now;
 
+    // 获取当前鼠标的位置
+    const container = BOARD_TO_CONTAINER.get(board);
+    if (!container) return;
+    const { x, y } = { x: e.clientX, y: e.clientY };
+    const containerRect = container.getBoundingClientRect();
+
+    // 检查鼠标是否在白板区域内
+    const isInBoard =
+      x >= containerRect.left &&
+      x <= containerRect.right &&
+      y >= containerRect.top &&
+      y <= containerRect.bottom;
+
+    if (!isInBoard) return;
+
+    // 阻止默认行为
+    e.preventDefault();
+
     if (e.ctrlKey) {
-      // 获取当前鼠标的位置
-      const container = BOARD_TO_CONTAINER.get(board);
-      if (!container) return;
-      const { x, y } = { x: e.clientX, y: e.clientY };
-      const containerRect = container.getBoundingClientRect();
       // 得到当前鼠标在board中的坐标
       const boardX = x - containerRect.left;
       const boardY = y - containerRect.top;
-      // 判断滚轮方向以及是否在board中
-      if (
-        e.deltaY < 0 &&
-        boardX > 0 &&
-        boardY > 0 &&
-        boardX < containerRect.width &&
-        boardY < containerRect.height
-      ) {
+      // 判断滚轮方向
+      if (e.deltaY < 0) {
         // 放大
         const newZoom = Math.min(board.viewPort.zoom * 1.1, MAX_ZOOM);
         ViewPortTransforms.updateZoom(board, newZoom, [boardX, boardY]);
-      } else if (
-        e.deltaY > 0 &&
-        boardX > 0 &&
-        boardY > 0 &&
-        boardX < containerRect.width &&
-        boardY < containerRect.height
-      ) {
+      } else if (e.deltaY > 0) {
         // 缩小
         const newZoom = Math.max(board.viewPort.zoom / 1.1, MIN_ZOOM);
         ViewPortTransforms.updateZoom(board, newZoom, [boardX, boardY]);
       }
-      e.preventDefault();
     } else {
       // 使用触摸板的 deltaX 和 deltaY 都比较小，鼠标一般都会在 40 以上
       const isTouch = Math.abs(e.deltaX) < 10 && Math.abs(e.deltaY) < 10;

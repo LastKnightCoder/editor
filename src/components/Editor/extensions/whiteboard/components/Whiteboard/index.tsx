@@ -16,6 +16,7 @@ import {
 } from "@/components/WhiteBoard/types";
 
 import styles from "./index.module.less";
+import AddParagraph from "@/components/Editor/components/AddParagraph";
 
 type IWhiteboardProps = IExtensionBaseProps<WhiteboardElement>;
 
@@ -75,6 +76,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
         </If>
       </div>
       {children}
+      <AddParagraph element={element} />
       {isFullscreen &&
         createPortal(
           <div
