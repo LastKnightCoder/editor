@@ -24,7 +24,7 @@ export default class Base implements Omit<IExtension, "render"> {
     return [] as IConfigItem[];
   }
 
-  toMarkdown(_element: Element, children: string) {
+  toMarkdown(_element: Element, children: string, _parentElement: Element) {
     return children;
   }
 }
