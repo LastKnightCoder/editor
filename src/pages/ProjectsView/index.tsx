@@ -79,11 +79,15 @@ const ProjectsView = () => {
         pinned: false,
       };
 
-      const createdProject = await createProject(project);
-      if (createdProject) {
-        setCreateOpen(false);
-        navigate(`/projects/detail/${createdProject.id}`);
-      } else {
+      try {
+        const createdProject = await createProject(project);
+        if (createdProject) {
+          setCreateOpen(false);
+          navigate(`/projects/detail/${createdProject.id}`);
+        } else {
+          message.error("创建项目失败");
+        }
+      } catch (error) {
         message.error("创建项目失败");
       }
     },
