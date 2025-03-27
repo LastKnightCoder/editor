@@ -275,7 +275,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
     document.addEventListener("mousedown", handleGlobalMouseDown);
     document.addEventListener("mouseup", handleGlobalMouseUp);
-    document.addEventListener("wheel", handleOnWheel, {
+
+    // 将滚轮事件监听器移到容器上
+    container.addEventListener("wheel", handleOnWheel, {
       passive: false,
     });
 
@@ -305,7 +307,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       document.removeEventListener("mouseup", handleGlobalMouseUp);
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("keyup", handleKeyUp);
-      document.removeEventListener("wheel", handleOnWheel);
+      container.removeEventListener("wheel", handleOnWheel);
       document.removeEventListener("pointerdown", handleOnGlobalPointerDown);
       document.removeEventListener("pointermove", handleOnGlobalPointerMove);
       document.removeEventListener("pointerup", handleOnGlobalPointerUp);
