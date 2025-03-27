@@ -1,10 +1,10 @@
-import { useEffect, memo, useState, useRef } from "react";
+import { useEffect, memo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import isHotkey from "is-hotkey";
 import Editor from "@/components/Editor";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
@@ -68,7 +68,12 @@ const AISearch = memo(() => {
 
   const searchRef = useRef<EditTextHandle>(null);
   const lastSearchText = useRef("");
-  const [activeTab, setActiveTab] = useState<string>("fts");
+  const [activeTab, setActiveTab] = useLocalStorageState<string>(
+    "search-active-tab",
+    {
+      defaultValue: "vec",
+    },
+  );
 
   const ftsListRef = useRef<HTMLDivElement>(null);
   const vecListRef = useRef<HTMLDivElement>(null);
@@ -235,6 +240,49 @@ const AISearch = memo(() => {
               onChange={setActiveTab}
               items={[
                 {
+                  key: "vec",
+                  label: "AI 搜索",
+                  children: (
+                    <>
+                      <If condition={vecResults.length === 0}>
+                        <Empty
+                          style={{
+                            padding: 24,
+                          }}
+                          description={"暂无数据"}
+                        />
+                      </If>
+                      <If condition={vecResults.length > 0}>
+                        <div ref={vecListRef} className={styles.list}>
+                          <div
+                            style={{
+                              height: `${vecVirtualizer.getTotalSize()}px`,
+                              width: "100%",
+                            }}
+                          >
+                            {vecVirtualizer
+                              .getVirtualItems()
+                              .map((virtualItem) => {
+                                const result = vecResults[virtualItem.index];
+                                return (
+                                  <SearchResultItem
+                                    key={`vec-${result.id}-${result.type}`}
+                                    result={result}
+                                    getRefTypeLabel={getRefTypeLabel}
+                                    getTagColor={getTagColor}
+                                    handleSearchResultClick={
+                                      handleSearchResultClick
+                                    }
+                                  />
+                                );
+                              })}
+                          </div>
+                        </div>
+                      </If>
+                    </>
+                  ),
+                },
+                {
                   key: "fts",
                   label: "全文搜索",
                   children: (
@@ -271,49 +319,6 @@ const AISearch = memo(() => {
                                       }
                                     />
                                   </div>
-                                );
-                              })}
-                          </div>
-                        </div>
-                      </If>
-                    </>
-                  ),
-                },
-                {
-                  key: "vec",
-                  label: "AI 搜索",
-                  children: (
-                    <>
-                      <If condition={vecResults.length === 0}>
-                        <Empty
-                          style={{
-                            padding: 24,
-                          }}
-                          description={"暂无数据"}
-                        />
-                      </If>
-                      <If condition={vecResults.length > 0}>
-                        <div ref={vecListRef} className={styles.list}>
-                          <div
-                            style={{
-                              height: `${vecVirtualizer.getTotalSize()}px`,
-                              width: "100%",
-                            }}
-                          >
-                            {vecVirtualizer
-                              .getVirtualItems()
-                              .map((virtualItem) => {
-                                const result = vecResults[virtualItem.index];
-                                return (
-                                  <SearchResultItem
-                                    key={`vec-${result.id}-${result.type}`}
-                                    result={result}
-                                    getRefTypeLabel={getRefTypeLabel}
-                                    getTagColor={getTagColor}
-                                    handleSearchResultClick={
-                                      handleSearchResultClick
-                                    }
-                                  />
                                 );
                               })}
                           </div>
