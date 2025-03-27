@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { Descendant } from "slate";
 import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { SearchResult, IndexParams, IndexType } from "@/types";
-import useSettingStore, { ELLMProvider } from "@/stores/useSettingStore.ts";
 import { getMarkdown, batchIndexContent, removeIndex } from "@/utils";
+import useEmbeddingConfig from "./useEmbeddingConfig";
 
 interface Params<T> {
   selectedRows: T[];
@@ -14,8 +13,6 @@ interface Params<T> {
   indexResults: [SearchResult[], SearchResult[]]; // [ftsResults, vecResults]
   initIndexResults: () => Promise<void>;
 }
-
-const EMBEDDING_MODEL = "text-embedding-3-large";
 
 const useBatchOperation = <
   T extends { id: number; content: Descendant[]; update_time: number },
@@ -31,14 +28,7 @@ const useBatchOperation = <
   } = params;
 
   const { message } = App.useApp();
-
-  const { provider } = useSettingStore(
-    useShallow((state) => ({
-      provider: state.setting.llmProviders[ELLMProvider.OPENAI],
-    })),
-  );
-  const { configs, currentConfigId } = provider;
-  const currentConfig = configs.find((item) => item.id === currentConfigId);
+  const modelInfo = useEmbeddingConfig();
 
   // 解构索引结果
   const [ftsResults, vecResults] = indexResults;
@@ -105,15 +95,8 @@ const useBatchOperation = <
         content: markdown,
         type: type as IndexType,
         updateTime: item.update_time,
+        modelInfo,
       };
-
-      if (currentConfig) {
-        itemIndexParams.modelInfo = {
-          key: currentConfig.apiKey,
-          baseUrl: currentConfig.baseUrl,
-          model: EMBEDDING_MODEL,
-        };
-      }
 
       batchItems.push(itemIndexParams);
     }
@@ -141,15 +124,8 @@ const useBatchOperation = <
         type: type as IndexType,
         updateTime: item.update_time,
         indexTypes,
+        modelInfo,
       };
-
-      if (currentConfig) {
-        itemIndexParams.modelInfo = {
-          key: currentConfig.apiKey,
-          baseUrl: currentConfig.baseUrl,
-          model: EMBEDDING_MODEL,
-        };
-      }
 
       batchItems.push(itemIndexParams);
     }
