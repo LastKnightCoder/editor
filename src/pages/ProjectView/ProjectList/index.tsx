@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Dropdown, Empty, MenuProps } from "antd";
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
@@ -10,26 +10,52 @@ import If from "@/components/If";
 import For from "@/components/For";
 
 import styles from "./index.module.less";
-import { CreateProjectItem, EProjectItemType } from "@/types";
+import {
+  CreateProjectItem,
+  EProjectItemType,
+  ICard,
+  Project as IProject,
+  WhiteBoard,
+} from "@/types";
 import { useMemoizedFn } from "ahooks";
 import SelectCardModal from "@/components/SelectCardModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
 import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
 import { ProjectContext } from "../ProjectContext.ts";
-import { getFileBaseName, readTextFile, selectFile } from "@/commands";
+import {
+  getFileBaseName,
+  readTextFile,
+  selectFile,
+  getProjectById,
+  getAllWhiteBoards,
+  getAllCards,
+} from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 
 const Project = () => {
   const { id } = useParams();
-  const { projects, createRootProjectItem } = useProjectsStore((state) => ({
-    projects: state.projects,
+  const { createRootProjectItem } = useProjectsStore((state) => ({
     createRootProjectItem: state.createRootProjectItem,
   }));
 
-  const project = useMemo(() => {
-    return projects.find((p) => p.id === Number(id));
-  }, [projects, id]);
+  const [project, setProject] = useState<IProject | null>(null);
+  const [cards, setCards] = useState<ICard[]>([]);
+  const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+    getAllWhiteBoards().then((whiteBoards) => {
+      setWhiteBoards(whiteBoards);
+    });
+  }, []);
+  useEffect(() => {
+    getProjectById(Number(id)).then((res) => {
+      setProject(res);
+    });
+  }, [id]);
 
   const navigate = useNavigate();
 
@@ -40,9 +66,8 @@ const Project = () => {
     onCancel: onCardCancel,
     selectCardModalOpen,
     openSelectCardModal,
-    cards,
     excludeCardIds,
-  } = useAddRefCard(Number(id));
+  } = useAddRefCard(cards, Number(id));
 
   const {
     selectedWhiteBoards,
@@ -51,10 +76,9 @@ const Project = () => {
     onCancel: onWhiteBoardCancel,
     selectWhiteBoardModalOpen,
     openSelectWhiteBoardModal,
-    whiteBoards,
     excludeWhiteBoardIds,
     multiple,
-  } = useAddRefWhiteBoard(Number(id));
+  } = useAddRefWhiteBoard(whiteBoards, Number(id));
 
   const addMenuItems: MenuProps["items"] = [
     {
@@ -226,6 +250,8 @@ const Project = () => {
                 path={[index]}
                 parentProjectItemId={project.id}
                 parentChildren={project.children}
+                cards={cards}
+                whiteBoards={whiteBoards}
               />
             )}
           />

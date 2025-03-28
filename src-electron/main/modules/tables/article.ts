@@ -6,7 +6,6 @@ import { basename } from "node:path";
 import { BrowserWindow } from "electron";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
-
 export default class ArticleTable {
   static initTable(db: Database.Database) {
     const createTableSql = `
@@ -75,6 +74,39 @@ export default class ArticleTable {
         stmt.run(contentLength, article.id);
       }
     }
+
+    // 解析所有文章的 content，解析所有的 image 的 url，如果是 https://jsd.cdn.zzko.cn/gh/ 格式的，替换为 https://github.com/ 格式
+    // const articles = this.getAllArticles(db);
+    // for (const article of articles) {
+    //   const content = produce(article.content, (draft) => {
+    //     dfs(draft, (node) => {
+    //       if (node.type === "image") {
+    //         if (node.url.startsWith("https://jsd.cdn.zzko.cn/gh/")) {
+    //           const match = node.url.match(
+    //             /^https:\/\/jsd\.cdn\.zzko\.cn\/gh\/([^/]+)\/([^/]+)@([^/]+)\/([^/]+)$/,
+    //           );
+    //           const match2 = node.url.match(
+    //             /^https:\/\/jsd\.cdn\.zzko\.cn\/gh\/([^/]+)\/([^/]+)\/([^/]+)$/,
+    //           );
+    //           if (match) {
+    //             const owner = match[1];
+    //             const repo = match[2];
+    //             const branch = match[3];
+    //             const path = match[4];
+    //             node.url = `https://github.com/${owner}/${repo}/raw/${branch}/${path}`;
+    //           } else if (match2) {
+    //             const owner = match2[1];
+    //             const repo = match2[2];
+    //             const path = match2[3];
+    //             node.url = `https://github.com/${owner}/${repo}/raw/master/${path}`;
+    //           }
+    //         }
+    //       }
+    //     });
+    //   });
+    //   const stmt = db.prepare("UPDATE articles SET content = ? WHERE id = ?");
+    //   stmt.run(JSON.stringify(content), article.id);
+    // }
   }
 
   static getListenEvents() {

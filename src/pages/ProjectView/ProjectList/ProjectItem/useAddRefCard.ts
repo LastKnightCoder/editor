@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CreateProjectItem,
   ECardCategory,
@@ -12,7 +12,6 @@ import { useCreation, useMemoizedFn } from "ahooks";
 import { App } from "antd";
 import { produce } from "immer";
 import {
-  getAllCards,
   getProjectItemById,
   updateProjectItem,
   createCard,
@@ -24,7 +23,11 @@ import {
   defaultCardEventBus,
 } from "@/utils";
 
-const useAddRefCard = (projectId: number, projectItem?: ProjectItem) => {
+const useAddRefCard = (
+  cards: ICard[],
+  projectId: number,
+  projectItem?: ProjectItem,
+) => {
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
   const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
 
@@ -41,14 +44,6 @@ const useAddRefCard = (projectId: number, projectItem?: ProjectItem) => {
       createRootProjectItem: state.createRootProjectItem,
     }),
   );
-
-  const [cards, setCards] = useState<ICard[]>([]);
-
-  useEffect(() => {
-    getAllCards().then((cards) => {
-      setCards(cards);
-    });
-  }, []);
 
   const excludeCardIds = useMemo(() => {
     if (!projectItem) return [];

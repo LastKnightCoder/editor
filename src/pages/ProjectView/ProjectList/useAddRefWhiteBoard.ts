@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { message } from "antd";
 
-import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useProjectsStore from "@/stores/useProjectsStore";
 import {
   CreateProjectItem,
@@ -18,7 +17,11 @@ import { defaultProjectItemEventBus } from "@/utils";
  * @param projectItem 当前项目项
  * @returns 白板选择相关的状态和方法
  */
-const useAddRefWhiteBoard = (projectId: number, projectItem?: ProjectItem) => {
+const useAddRefWhiteBoard = (
+  whiteBoards: WhiteBoard[],
+  projectId: number,
+  projectItem?: ProjectItem,
+) => {
   const [selectWhiteBoardModalOpen, setSelectWhiteBoardModalOpen] =
     useState(false);
   const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<WhiteBoard[]>(
@@ -29,11 +32,6 @@ const useAddRefWhiteBoard = (projectId: number, projectItem?: ProjectItem) => {
     () => defaultProjectItemEventBus.createEditor(),
     [],
   );
-
-  const { whiteBoards, initWhiteBoards } = useWhiteBoardStore((state) => ({
-    whiteBoards: state.whiteBoards,
-    initWhiteBoards: state.initWhiteBoards,
-  }));
 
   const { createChildProjectItem, createRootProjectItem } = useProjectsStore(
     (state) => ({
@@ -50,9 +48,6 @@ const useAddRefWhiteBoard = (projectId: number, projectItem?: ProjectItem) => {
 
   // 打开选择白板弹窗
   const openSelectWhiteBoardModal = useMemoizedFn(async () => {
-    if (whiteBoards.length === 0) {
-      await initWhiteBoards();
-    }
     setSelectedWhiteBoards([]);
     setSelectWhiteBoardModalOpen(true);
   });

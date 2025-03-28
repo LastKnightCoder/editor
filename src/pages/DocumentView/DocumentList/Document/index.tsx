@@ -6,14 +6,20 @@ import { useNavigate } from "react-router-dom";
 import DocumentItem from "../DocumentItem";
 import If from "@/components/If";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
-import { createDocumentItem } from "@/commands";
+import {
+  createDocumentItem,
+  getAllArticles,
+  getAllCards,
+  getAllDocumentItems,
+} from "@/commands";
 
-import { IDocument } from "@/types";
+import { IArticle, ICard, IDocument, IDocumentItem } from "@/types";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { EDragPosition } from "@/hooks/useDragAndDrop.ts";
 
 import styles from "./index.module.less";
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
+import { useEffect, useState } from "react";
 
 interface IDocumentProps {
   document: IDocument;
@@ -22,6 +28,22 @@ interface IDocumentProps {
 const Document = (props: IDocumentProps) => {
   const { document } = props;
   const { children } = document;
+
+  const [cards, setCards] = useState<ICard[]>([]);
+  const [articles, setArticles] = useState<IArticle[]>([]);
+  const [documents, setDocuments] = useState<IDocumentItem[]>([]);
+
+  useEffect(() => {
+    getAllCards().then((cards) => {
+      setCards(cards);
+    });
+    getAllArticles().then((articles) => {
+      setArticles(articles);
+    });
+    getAllDocumentItems().then((documentItems) => {
+      setDocuments(documentItems);
+    });
+  }, []);
 
   const navigate = useNavigate();
 
@@ -158,6 +180,9 @@ const Document = (props: IDocumentProps) => {
               itemId={itemId}
               parentId={document.id}
               isRoot
+              cards={cards}
+              articles={articles}
+              documentItems={documents}
             />
           ))}
         </div>

@@ -111,7 +111,7 @@ const SyncSetting = () => {
           检查
         </Button>
       </div>
-      <h2>数据同步设置</h2>
+      <h2 style={{ marginTop: 20 }}>数据同步设置</h2>
       <Tabs
         className={styles.settingTabs}
         activeKey={activeKey}

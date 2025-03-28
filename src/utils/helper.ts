@@ -13,7 +13,7 @@ import {
   TikzElement,
 } from "@editor/types";
 
-const dfs = (editor: Descendant[], visit: (node: Descendant) => any) => {
+export const dfs = (editor: Descendant[], visit: (node: Descendant) => any) => {
   for (const node of editor) {
     visit(node);
     // @ts-ignore

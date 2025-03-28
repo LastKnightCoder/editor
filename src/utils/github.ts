@@ -140,7 +140,7 @@ export const transformGithubUrlToCDNUrl = (url: string, branch: string) => {
     return url;
   }
   return url
-    .replace("https://raw.githubusercontent.com", "https://jsd.cdn.zzko.cn/gh")
+    .replace("https://raw.githubusercontent.com", "https://cdn.jsdelivr.net/gh")
     .replace(`/${branch}`, `@${branch}`);
 };
 

@@ -1,28 +1,28 @@
-import { memo } from "react";
-import { useShallow } from "zustand/react/shallow";
+import { memo, useState } from "react";
 import Document from "./Document";
-import useDocumentsStore from "@/stores/useDocumentsStore";
 import { useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { getDocument } from "@/commands";
+import { IDocument } from "@/types";
 
 import styles from "./index.module.less";
 
 const DocumentList = memo(() => {
   const { id } = useParams();
-  const { documents } = useDocumentsStore(
-    useShallow((state) => ({
-      documents: state.documents,
-    })),
-  );
 
-  const activeDocument = documents.find(
-    (document) => document.id === Number(id),
-  );
+  const [document, setDocument] = useState<IDocument | null>(null);
 
-  if (!activeDocument) return null;
+  useEffect(() => {
+    getDocument(Number(id)).then((res) => {
+      setDocument(res);
+    });
+  }, [id]);
+
+  if (!document) return null;
 
   return (
     <div className={styles.documentList}>
-      <Document document={activeDocument} />
+      <Document document={document} />
     </div>
   );
 });
