@@ -409,6 +409,7 @@ const useCardConfig = () => {
           value: ECardCategory.Theme,
         },
       ],
+      filteredValue: filteredInfo.category || null,
       render: (category: ICard["category"]) => {
         let text = "";
         let color = "";
@@ -607,7 +608,15 @@ const useCardConfig = () => {
       if (pagination.pageSize !== pageSize) {
         setPageSize(pagination.pageSize || PAGE_SIZE);
       }
-      setFilteredInfo(filteredInfo);
+      setFilteredInfo((prevFilteredInfo) => {
+        return {
+          ...prevFilteredInfo,
+          ...filteredInfo,
+          category: filteredInfo.category || prevFilteredInfo.category,
+          index_status:
+            filteredInfo.index_status || prevFilteredInfo.index_status,
+        };
+      });
     },
   );
 

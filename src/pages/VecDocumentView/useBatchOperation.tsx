@@ -131,33 +131,64 @@ const useBatchOperation = <
     }
 
     try {
-      // 批量创建/更新索引
-      const result = await batchIndexContent(batchItems);
+      // 批量创建/更新索引，每批处理10个
+      const batchSize = 10;
+      let processedCount = 0;
+      let successCount = 0;
 
-      if (result) {
-        setBatchCreateOrUpdateSuccess(batchItems.length);
-        successEmbeddings.push(...createEmbeddings, ...updateEmbeddings);
+      // 将项目分成多个批次处理
+      for (let i = 0; i < batchItems.length; i += batchSize) {
+        const currentBatch = batchItems.slice(i, i + batchSize);
+        const result = await batchIndexContent(currentBatch);
+
+        processedCount += currentBatch.length;
+
+        if (result) {
+          successCount += currentBatch.length;
+          setBatchCreateOrUpdateSuccess(successCount);
+
+          // 确定当前批次中哪些是创建操作，哪些是更新操作
+          const currentBatchIds = currentBatch.map((item) => item.id);
+          const currentCreateItems = createEmbeddings.filter((item) =>
+            currentBatchIds.includes(item.id),
+          );
+          const currentUpdateItems = updateEmbeddings.filter((item) =>
+            currentBatchIds.includes(item.id),
+          );
+
+          // 添加成功的项到成功列表
+          successEmbeddings.push(...currentCreateItems, ...currentUpdateItems);
+        } else {
+          setBatchCreateOrUpdateError(processedCount - successCount);
+        }
+
+        // 更新进度
+        message.loading({
+          content: `正在处理: ${processedCount}/${batchItems.length}`,
+          key: "batchProgress",
+        });
+      }
+
+      // 清除进度消息并显示最终结果
+      if (successCount === batchItems.length) {
+        message.success({ content: "批量索引成功", key: "batchProgress" });
+      } else if (successCount === 0) {
+        message.error({ content: "批量索引失败", key: "batchProgress" });
       } else {
-        setBatchCreateOrUpdateError(batchItems.length);
+        message.warning({
+          content: `部分索引失败，失败数：${batchItems.length - successCount}`,
+          key: "batchProgress",
+        });
       }
     } catch (e) {
       console.error(e);
-      setBatchCreateOrUpdateError(batchItems.length);
+      setBatchCreateOrUpdateError(
+        batchItems.length - batchCreateOrUpdateSuccess,
+      );
+      message.error({ content: "批量索引出错", key: "batchProgress" });
     }
 
     setBatchCreateOrUpdateLoading(false);
-    if (
-      successEmbeddings.length ===
-      createEmbeddings.length + updateEmbeddings.length
-    ) {
-      message.success("批量索引成功");
-    } else if (successEmbeddings.length === 0) {
-      message.error("批量索引失败");
-    } else {
-      message.warning(
-        `部分索引失败，失败数：${createEmbeddings.length + updateEmbeddings.length - successEmbeddings.length}`,
-      );
-    }
 
     // 选中那些处理失败的
     const successCardIds = successEmbeddings.map((c) => c.id);
