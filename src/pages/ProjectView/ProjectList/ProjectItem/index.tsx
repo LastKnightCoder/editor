@@ -27,7 +27,13 @@ import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
 
 import SVG from "react-inlinesvg";
 import For from "@/components/For";
-import { CreateProjectItem, EProjectItemType, type ProjectItem } from "@/types";
+import {
+  CreateProjectItem,
+  EProjectItemType,
+  ICard,
+  WhiteBoard,
+  type ProjectItem,
+} from "@/types";
 import {
   FileOutlined,
   FolderOpenTwoTone,
@@ -56,6 +62,9 @@ interface IProjectItemProps {
   isRoot?: boolean;
   path: number[];
   parentChildren: number[];
+  cards: ICard[];
+  whiteBoards: WhiteBoard[];
+  onOpenChange?: (open: boolean) => void;
 }
 
 const ProjectItem = memo((props: IProjectItemProps) => {
@@ -65,6 +74,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     parentProjectItemId,
     path,
     parentChildren,
+    cards,
+    whiteBoards,
+    onOpenChange,
   } = props;
 
   const projectItemEventBus = useCreation(
@@ -73,6 +85,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   );
 
   const { projectId } = useProjectContext();
+  const databaseName = useSettingStore.getState().setting.database.active;
 
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState("");
@@ -82,7 +95,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [parseLoading, setParseLoading] = useState(false);
   const [projectItem, setProjectItem] = useState<ProjectItem>();
   const [folderOpen, setFolderOpen] = useLocalStorageState<boolean>(
-    `${projectId}-${projectItemId}`,
+    `project-item-${databaseName}-${projectItemId}`,
     {
       defaultValue: () => {
         return path.length === 1;
@@ -91,7 +104,33 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   );
 
   const {
-    cards,
+    updateProject,
+    activeProjectItemId,
+    removeChildProjectItem,
+    removeRootProjectItem,
+    createChildProjectItem,
+  } = useProjectsStore((state) => ({
+    updateProject: state.updateProject,
+    activeProjectItemId: state.activeProjectItemId,
+    removeRootProjectItem: state.removeRootProjectItem,
+    removeChildProjectItem: state.removeChildProjectItem,
+    createChildProjectItem: state.createChildProjectItem,
+  }));
+
+  useEffect(() => {
+    if (activeProjectItemId === projectItemId) {
+      setFolderOpen(true);
+      onOpenChange?.(true);
+    }
+  }, [activeProjectItemId]);
+
+  const onChildOpenChange = useMemoizedFn((open: boolean) => {
+    if (open) {
+      setFolderOpen(true);
+    }
+  });
+
+  const {
     selectCardModalOpen,
     openSelectCardModal,
     selectedCards,
@@ -100,9 +139,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     onCancel: onCardCancel,
     onChange: onCardChange,
     buildCardFromProjectItem,
-  } = useAddRefCard(projectId, projectItem);
+  } = useAddRefCard(cards, projectId, projectItem);
   const {
-    whiteBoards,
     selectWhiteBoardModalOpen,
     openSelectWhiteBoardModal,
     selectedWhiteBoards,
@@ -111,7 +149,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     onCancel: onWhiteBoardCancel,
     onChange: onWhiteBoardChange,
     multiple,
-  } = useAddRefWhiteBoard(projectId, projectItem);
+  } = useAddRefWhiteBoard(whiteBoards, projectId, projectItem);
   const { modal } = App.useApp();
   const [isPresentation, setIsPresentation] = useState(false);
 
@@ -139,20 +177,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       unsubscribe();
     };
   }, [projectItemId, projectItemEventBus]);
-
-  const {
-    updateProject,
-    activeProjectItemId,
-    removeChildProjectItem,
-    removeRootProjectItem,
-    createChildProjectItem,
-  } = useProjectsStore((state) => ({
-    updateProject: state.updateProject,
-    activeProjectItemId: state.activeProjectItemId,
-    removeRootProjectItem: state.removeRootProjectItem,
-    removeChildProjectItem: state.removeChildProjectItem,
-    createChildProjectItem: state.createChildProjectItem,
-  }));
 
   const { createWhiteBoard } = useWhiteBoardStore((state) => ({
     createWhiteBoard: state.createWhiteBoard,
@@ -736,6 +760,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   isRoot={false}
                   path={[...path, index]}
                   parentChildren={projectItem.children}
+                  cards={cards}
+                  whiteBoards={whiteBoards}
+                  onOpenChange={onChildOpenChange}
                 />
               )}
             />

@@ -1,7 +1,9 @@
-import React, { useState, forwardRef } from "react";
+import React, { forwardRef, useMemo, useState } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
 import { convertFileSrc } from "@/commands";
+import useSettingStore from "@/stores/useSettingStore";
+import { EGithubCDN } from "@/constants/github.ts";
 
 interface ILocalImageProps {
   url: string;
@@ -15,24 +17,60 @@ interface ILocalImageProps {
 const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
   (props, ref) => {
     const { url, alt, className, style, onClick, ...restProps } = props;
+    const github = useSettingStore((state) => state.setting.imageBed.github);
+    const { cdn } = github;
 
-    const [previewUrl, setPreviewUrl] = useState(url);
+    const cdnUrl = useMemo(() => {
+      // 如果是 https://github.com/{{owner}}/{{repo}}/raw/{{branch}}/{{path}}
+      // 或者 https://raw.githubusercontent.com/{{owner}}/{{repo}}/{{branch}}/{{path}}
+      // 并且配置了 Github CDN，则使用 CDN 地址
+      if (!cdn) return url;
+
+      // 正则匹配
+      const match1 = url.match(
+        /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/raw\/([^/]+)\/([^/]+)$/,
+      );
+      const match2 = url.match(
+        /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/([^/]+)$/,
+      );
+
+      if (cdn === EGithubCDN.JsDelivr) {
+        if (match1) {
+          return `https://cdn.jsdelivr.net/gh/${match1[1]}/${match1[2]}@${match1[3]}/${match1[4]}`;
+        }
+        if (match2) {
+          return `https://cdn.jsdelivr.net/gh/${match2[1]}/${match2[2]}@${match2[3]}/${match2[4]}`;
+        }
+      } else if (cdn === EGithubCDN.Statically) {
+        if (match1) {
+          return `https://cdn.statically.io/gh/${match1[1]}/${match1[2]}/@${match1[3]}/${match1[4]}`;
+        }
+        if (match2) {
+          return `https://cdn.statically.io/gh/${match2[1]}/${match2[2]}/@${match2[3]}/${match2[4]}`;
+        }
+      }
+
+      return url;
+    }, [url, cdn]);
+
+    const [previewUrl, setPreviewUrl] = useState(cdnUrl);
     const [isConverting, setIsConverting] = useState(false);
 
     useAsyncEffect(async () => {
       setIsConverting(true);
       try {
+        console.log("cdnUrl", cdnUrl);
         // 如果是 base64 或 blob url，直接使用
-        if (url.startsWith("data:") || url.startsWith("blob:")) {
+        if (cdnUrl.startsWith("data:") || cdnUrl.startsWith("blob:")) {
           return;
         }
 
-        if (url.startsWith("http")) {
-          const localUrl = await remoteResourceToLocal(url);
+        if (cdnUrl.startsWith("http")) {
+          const localUrl = await remoteResourceToLocal(cdnUrl);
           const filePath = convertFileSrc(localUrl);
           setPreviewUrl(filePath);
         } else {
-          const filePath = convertFileSrc(url);
+          const filePath = convertFileSrc(cdnUrl);
           setPreviewUrl(filePath);
         }
       } catch (e) {
@@ -40,10 +78,10 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
       } finally {
         setIsConverting(false);
       }
-    }, [url]);
+    }, [cdnUrl]);
 
     const onError = useMemoizedFn(() => {
-      setPreviewUrl(url);
+      setPreviewUrl(cdnUrl);
     });
 
     if (isConverting) return null;

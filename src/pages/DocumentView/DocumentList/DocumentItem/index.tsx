@@ -7,7 +7,12 @@ import {
   PlusOutlined,
   FolderOpenTwoTone,
 } from "@ant-design/icons";
-import { useAsyncEffect, useCreation, useMemoizedFn } from "ahooks";
+import {
+  useAsyncEffect,
+  useCreation,
+  useLocalStorageState,
+  useMemoizedFn,
+} from "ahooks";
 import { produce } from "immer";
 import classnames from "classnames";
 
@@ -20,14 +25,11 @@ import { defaultDocumentItemEventBus } from "@/utils";
 
 import {
   createDocumentItem,
-  getAllDocumentItems,
   getDocumentItem,
   getDocumentItemAllParents,
   isDocumentItemChildOf,
   updateDocumentItem,
   openDocumentItemInNewWindow,
-  getAllCards,
-  getAllArticles,
 } from "@/commands";
 import SelectCardModal from "@/components/SelectCardModal";
 import SelectModal from "@/components/SelectModal";
@@ -54,8 +56,12 @@ interface IDocumentItemProps {
     targetId: number,
     position: EDragPosition,
   ) => Promise<void>;
+  onOpenChange?: (open: boolean) => void;
   path: number[];
   parentChildren: number[];
+  cards: ICard[];
+  articles: IArticle[];
+  documentItems: IDocumentItem[];
 }
 
 const DocumentItem = (props: IDocumentItemProps) => {
@@ -68,6 +74,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
     onParentAddChild,
     onParentMoveChild,
     parentChildren,
+    cards,
+    articles,
+    documentItems,
+    onOpenChange,
   } = props;
 
   const [item, setItem] = useState<IDocumentItem | null>(null);
@@ -76,13 +86,16 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const [selectArticleModalOpen, setSelectArticleModalOpen] = useState(false);
   const [selectDocumentItemModalOpen, setSelectDocumentItemModalOpen] =
     useState(false);
-  const [allDocumentItems, setAllDocumentItems] = useState<IDocumentItem[]>([]);
   const [excludeDocumentItemIds, setExcludeDocumentItemIds] = useState<
     number[]
   >([]);
-  const [folderOpen, setFolderOpen] = useState(() => {
-    return path.length === 1;
-  });
+  const databaseName = useSettingStore.getState().setting.database.active;
+  const [folderOpen, setFolderOpen] = useLocalStorageState(
+    `document-item-${databaseName}-${itemId}`,
+    {
+      defaultValue: path.length === 1,
+    },
+  );
   const [isPresentation, setIsPresentation] = useState(false);
   const { modal } = App.useApp();
   const documentItemEventBus = useCreation(
@@ -90,21 +103,22 @@ const DocumentItem = (props: IDocumentItemProps) => {
     [],
   );
 
-  const [cards, setCards] = useState<ICard[]>([]);
-  const [articles, setArticles] = useState<IArticle[]>([]);
-
-  useEffect(() => {
-    getAllCards().then((cards) => {
-      setCards(cards);
-    });
-    getAllArticles().then((articles) => {
-      setArticles(articles);
-    });
-  }, []);
-
   const activeDocumentItemId = useDocumentsStore(
     useShallow((state) => state.activeDocumentItemId),
   );
+
+  useEffect(() => {
+    if (activeDocumentItemId === itemId) {
+      setFolderOpen(true);
+      onOpenChange?.(true);
+    }
+  }, [activeDocumentItemId]);
+
+  const onChildOpenChange = useMemoizedFn((open: boolean) => {
+    if (open) {
+      setFolderOpen(true);
+    }
+  });
 
   useAsyncEffect(async () => {
     const item = await getDocumentItem(itemId);
@@ -587,11 +601,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
         setSelectArticleModalOpen(true);
       } else if (key === "associate-document") {
         try {
-          const [allItems, allParents] = await Promise.all([
-            getAllDocumentItems(),
-            getDocumentItemAllParents(item.id),
-          ]);
-          setAllDocumentItems(allItems);
+          const allParents = await getDocumentItemAllParents(item.id);
           setExcludeDocumentItemIds([...allParents, item.id, ...item.children]);
           setSelectDocumentItemModalOpen(true);
         } catch (e) {
@@ -714,6 +724,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
               onParentMoveChild={onMoveDocumentItem}
               path={[...path, index]}
               parentChildren={item.children}
+              cards={cards}
+              articles={articles}
+              documentItems={documentItems}
+              onOpenChange={onChildOpenChange}
             />
           ))}
         </div>
@@ -741,7 +755,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
       <SelectModal
         title={"选择关联文档"}
         open={selectDocumentItemModalOpen}
-        allItems={allDocumentItems}
+        allItems={documentItems}
         excludeIds={excludeDocumentItemIds}
         onCancel={onSelectDocumentItemCancel}
         onOk={onSelectDocumentItemFinish}

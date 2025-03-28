@@ -60,6 +60,43 @@ export default class CardTable {
         stmt.run(contentLength, card.id);
       }
     }
+
+    // 解析所有的卡片的 content，解析所有的 image 的 url，
+    // 如果是 https://jsd.cdn.zzko.cn/gh/{{owner}}/{{repo}}@{{branch}}/{{path}} 格式的，替换为 https://github.com/{{owner}}/{{repo}}/raw/{{branch}}/{{path}}
+    // 或者是 https://jsd.cdn.zzko.cn/gh/{{owner}}/{{repo}}/{{path}} 格式的，替换为 https://github.com/{{owner}}/{{repo}}/raw/master/{{path}}
+    // const cards = this.getAllCards(db);
+    // for (const card of cards) {
+    //   const content = produce(card.content, (draft) => {
+    //     dfs(draft, (node) => {
+
+    //       if (node.type === "image") {
+    //         if (node.url.startsWith("https://jsd.cdn.zzko.cn/gh/")) {
+    //           // 匹配出 owner, repo, branch, path
+    //           const match = node.url.match(
+    //             /^https:\/\/jsd\.cdn\.zzko\.cn\/gh\/([^/]+)\/([^/]+)@([^/]+)\/([^/]+)$/,
+    //           );
+    //           const match2 = node.url.match(
+    //             /^https:\/\/jsd\.cdn\.zzko\.cn\/gh\/([^/]+)\/([^/]+)\/([^/]+)$/,
+    //           );
+    //           if (match) {
+    //             const owner = match[1];
+    //             const repo = match[2];
+    //             const branch = match[3];
+    //             const path = match[4];
+    //             node.url = `https://github.com/${owner}/${repo}/raw/${branch}/${path}`;
+    //           } else if (match2) {
+    //             const owner = match2[1];
+    //             const repo = match2[2];
+    //             const path = match2[3];
+    //             node.url = `https://github.com/${owner}/${repo}/raw/master/${path}`;
+    //           }
+    //         }
+    //       }
+    //     });
+    //   });
+    //   const stmt = db.prepare("UPDATE cards SET content = ? WHERE id = ?");
+    //   stmt.run(JSON.stringify(content), card.id);
+    // }
   }
 
   static parseCard(card: any): ICard {

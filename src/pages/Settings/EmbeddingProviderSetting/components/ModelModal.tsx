@@ -110,7 +110,7 @@ const ModelModal = ({
         </Flex>
         <Flex gap={12} align={"center"}>
           <div style={{ flex: "none", width: MODAL_ITEM_WIDTH }}>
-            上下文长度：
+            向量长度：
           </div>
           <InputNumber
             min={1}
@@ -131,15 +131,17 @@ const ModelModal = ({
             onChange={setSelectedFeatures}
           />
         </Flex>
-      </Flex>
-      <Flex gap={12} align={"center"}>
-        <div style={{ flex: "none", width: MODAL_ITEM_WIDTH }}>距离阈值：</div>
-        <InputNumber
-          min={0}
-          style={{ width: "100%" }}
-          value={distance}
-          onChange={(value) => setDistance(value || 0)}
-        />
+        <Flex gap={12} align={"center"}>
+          <div style={{ flex: "none", width: MODAL_ITEM_WIDTH }}>
+            距离阈值：
+          </div>
+          <InputNumber
+            min={0}
+            style={{ width: "100%" }}
+            value={distance}
+            onChange={(value) => setDistance(value || 0)}
+          />
+        </Flex>
       </Flex>
     </Modal>
   );

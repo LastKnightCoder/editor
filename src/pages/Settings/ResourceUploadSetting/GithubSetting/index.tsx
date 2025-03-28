@@ -1,18 +1,18 @@
 import { useEffect, useState } from "react";
-import { Button, Input, message, Select, Space } from "antd";
+import { Button, Flex, Input, message, Select, Space } from "antd";
 import { produce } from "immer";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { getGithubUserInfo, getReposByOwner, getBranchesByRepo } from "@/utils";
 import If from "@/components/If";
 import { useMemoizedFn } from "ahooks";
-
+import { EGithubCDN, GithubCDNOptions } from "@/constants/github";
 const GithubSetting = () => {
   const { github } = useSettingStore((state) => ({
     github: state.setting.imageBed.github,
   }));
 
-  const { token, repo, branch, user } = github;
+  const { token, repo, branch, user, cdn } = github;
 
   const [repos, setRepos] = useState<string[]>([]);
   const [branches, setBranches] = useState<string[]>([]);
@@ -67,6 +67,14 @@ const GithubSetting = () => {
     );
   });
 
+  const handleSelectCDN = useMemoizedFn(async (value: string) => {
+    useSettingStore.setState(
+      produce((state) => {
+        state.setting.imageBed.github.cdn = value as EGithubCDN;
+      }),
+    );
+  });
+
   useEffect(() => {
     if (!!repo && repos.length === 0 && token) {
       onCheckToken(false).then();
@@ -80,7 +88,8 @@ const GithubSetting = () => {
   }, [branch, branches, handleSelectRepo, repo, token]);
 
   return (
-    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
+    <Flex vertical gap={12}>
+      <h2>基础设置</h2>
       <Space>
         <div>token：</div>
         <Space>
@@ -141,7 +150,14 @@ const GithubSetting = () => {
           </Select>
         </Space>
       </If>
-    </Space>
+      <h2>CDN 设置</h2>
+      <Select
+        style={{ width: 400 }}
+        options={GithubCDNOptions}
+        value={cdn}
+        onChange={handleSelectCDN}
+      />
+    </Flex>
   );
 };
 

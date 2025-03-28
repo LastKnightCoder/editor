@@ -2,7 +2,7 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 import { useEffect, useState } from "react";
 import { produce } from "immer";
 import { getBucketList } from "@/commands";
-import { Input, message, Select, Space } from "antd";
+import { Flex, Input, message, Select, Space } from "antd";
 import If from "@/components/If";
 
 const AliOssSetting = () => {
@@ -57,7 +57,7 @@ const AliOssSetting = () => {
   }, [accessKeySecret, accessKeyId]);
 
   return (
-    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
+    <Flex vertical gap={10}>
       <Space>
         <div>accessKeyId：</div>
         <Space>
@@ -93,39 +93,41 @@ const AliOssSetting = () => {
         </Space>
       </Space>
       <If condition={bucketsInfo.length > 0 || (!!bucket && !!region)}>
-        <Space>
-          <div>Bucket：</div>
-          <Space>
-            <Select
-              style={{ width: 400 }}
-              options={bucketsInfo.map((bucketInfo) => ({
-                label: bucketInfo.bucket,
-                value: bucketInfo.bucket,
-              }))}
-              onChange={onSelectBucket}
-              value={bucket}
-            />
-          </Space>
-        </Space>
-        <Space style={{ marginTop: 10 }}>
-          <div>路径：</div>
-          <Space>
-            <Input
-              width={600}
-              value={path}
-              onChange={(e) => {
-                useSettingStore.setState(
-                  produce((state) => {
-                    state.setting.sync.aliOSS.path = e.target.value;
-                  }),
-                );
-              }}
-              allowClear
-            />
-          </Space>
-        </Space>
+        <Flex vertical gap={10}>
+          <Flex gap={10}>
+            <div>Bucket：</div>
+            <Space>
+              <Select
+                style={{ width: 400 }}
+                options={bucketsInfo.map((bucketInfo) => ({
+                  label: bucketInfo.bucket,
+                  value: bucketInfo.bucket,
+                }))}
+                onChange={onSelectBucket}
+                value={bucket}
+              />
+            </Space>
+          </Flex>
+          <Flex gap={10}>
+            <div>路径：</div>
+            <Space>
+              <Input
+                width={600}
+                value={path}
+                onChange={(e) => {
+                  useSettingStore.setState(
+                    produce((state) => {
+                      state.setting.sync.aliOSS.path = e.target.value;
+                    }),
+                  );
+                }}
+                allowClear
+              />
+            </Space>
+          </Flex>
+        </Flex>
       </If>
-    </Space>
+    </Flex>
   );
 };
 

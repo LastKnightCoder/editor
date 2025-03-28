@@ -3,6 +3,7 @@ import { produce } from "immer";
 import { merge, cloneDeep } from "lodash";
 
 import { getSetting } from "@/commands";
+import { EGithubCDN } from "@/constants/github";
 
 export enum EImageBed {
   Local = "local",
@@ -43,6 +44,7 @@ export interface ISetting {
         name: string;
         email: string;
       };
+      cdn: EGithubCDN | null;
     };
     aliOSS: {
       accessKeyId: string;
@@ -209,6 +211,7 @@ const initialState: IState = {
           name: "",
           email: "",
         },
+        cdn: null,
       },
       aliOSS: {
         accessKeyId: "",

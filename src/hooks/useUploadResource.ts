@@ -1,11 +1,7 @@
 import { useMemoizedFn } from "ahooks";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore.ts";
 import { putObject } from "@/commands";
-import {
-  copyFileToLocal,
-  transformGithubUrlToCDNUrl,
-  uploadFileFromFile,
-} from "@/utils";
+import { copyFileToLocal, uploadFileFromFile } from "@/utils";
 import { v4 as uuid } from "uuid";
 
 const uploadResourceInner = async (imageBed: any, file: File) => {
@@ -19,7 +15,7 @@ const uploadResourceInner = async (imageBed: any, file: File) => {
         const {
           content: { download_url },
         } = res;
-        return transformGithubUrlToCDNUrl(download_url, githubInfo.branch);
+        return download_url;
       }
       return null;
     } catch {

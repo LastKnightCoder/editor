@@ -100,7 +100,7 @@ const ModelTable = ({ onAddModel, onEditModel }: ModelTableProps) => {
       key: "description",
     },
     {
-      title: "上下文长度",
+      title: "向量长度",
       dataIndex: "contextLength",
       key: "contextLength",
     },

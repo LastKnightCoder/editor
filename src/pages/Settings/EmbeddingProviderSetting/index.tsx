@@ -3,6 +3,7 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 import { useState } from "react";
 import { produce } from "immer";
 import { v4 as getUuid } from "uuid";
+import { clearVecDocumentTable, initVecDocumentTable } from "@/commands";
 import { ConfigTable, ModelTable, ConfigModal, ModelModal } from "./components";
 import { ConfigFormData, ConfigItem, ModelFormData, ModelItem } from "./types";
 
@@ -16,7 +17,7 @@ const EmbeddingProviderSetting = () => {
   const [initialModelData, setInitialModelData] = useState<ModelItem | null>(
     null,
   );
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
 
   const { currentConfig } = useSettingStore((state) => {
     const settings = state.setting.embeddingProvider;
@@ -122,15 +123,52 @@ const EmbeddingProviderSetting = () => {
               (item: ModelItem) => item.name === initialModelData?.name,
             );
             if (modelIndex !== -1) {
-              currentConfig.models[modelIndex] = {
-                name: data.name,
-                description: data.description,
-                contextLength: data.contextLength,
-                features: data.features,
-                distance: data.distance,
-              };
+              // contextLength 是否和之前的不同，如果不同，则需要删掉重建
+              const prevContextLength =
+                currentConfig.models[modelIndex].contextLength;
+              if (prevContextLength !== data.contextLength) {
+                modal.confirm({
+                  title: "切换嵌入模型",
+                  content:
+                    "不同的嵌入模型不能共用，之前的嵌入数据将会被删除，是否继续？",
+                  okText: "确认",
+                  cancelText: "取消",
+                  okButtonProps: {
+                    danger: true,
+                  },
+                  onOk: async () => {
+                    try {
+                      // 清除现有向量数据
+                      await clearVecDocumentTable();
 
-              // Update currentModel if the name changed and it was the active model
+                      await initVecDocumentTable(data.contextLength);
+
+                      // 更新模型名称
+                      currentConfig.models[modelIndex] = {
+                        name: data.name,
+                        description: data.description,
+                        contextLength: data.contextLength,
+                        features: data.features,
+                        distance: data.distance,
+                      };
+                    } catch (error) {
+                      console.error("向量数据库重置失败:", error);
+                      modal.error({
+                        title: "错误",
+                        content: "向量数据库重置失败，请重试",
+                      });
+                    }
+                  },
+                });
+              } else {
+                currentConfig.models[modelIndex] = {
+                  name: data.name,
+                  description: data.description,
+                  contextLength: data.contextLength,
+                  features: data.features,
+                  distance: data.distance,
+                };
+              }
               if (
                 initialModelData?.name !== data.name &&
                 currentConfig.currentModel === initialModelData?.name
