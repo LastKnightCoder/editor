@@ -18,7 +18,7 @@ interface IEditTextProps {
   onDeleteEmpty?: () => void;
   defaultFocus?: boolean;
   onBlur?: () => void;
-  onKeyDown?: (e: KeyboardEvent) => boolean;
+  onKeyDown?: (e: KeyboardEvent) => void;
 }
 
 export type EditTextHandle = {
@@ -131,41 +131,42 @@ const EditText = memo(
       },
     );
 
-    useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (isEditing) {
-          if (onKeyDown?.(e)) {
-            return;
-          }
-        }
+    const defaultKeyDownHandler = useMemoizedFn((e: KeyboardEvent) => {
+      if (
+        e.key === "Enter" &&
+        isEditing &&
+        !isComposing.current &&
+        !e.shiftKey
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        ref.current?.blur();
+        onPressEnter?.();
+      } else if (
+        e.key === "Backspace" &&
+        isEditing &&
+        !isComposing.current &&
+        !innerText.current
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        onDeleteEmpty?.();
+      }
+    });
 
-        if (
-          e.key === "Enter" &&
-          isEditing &&
-          !isComposing.current &&
-          !e.shiftKey
-        ) {
-          e.preventDefault();
-          e.stopPropagation();
-          ref.current?.blur();
-          onPressEnter?.();
-        } else if (
-          e.key === "Backspace" &&
-          isEditing &&
-          !isComposing.current &&
-          !innerText.current
-        ) {
-          e.preventDefault();
-          e.stopPropagation();
-          onDeleteEmpty?.();
-        }
-      };
-      document.addEventListener("keydown", handleKeyDown);
+    useEffect(() => {
+      document.addEventListener(
+        "keydown",
+        onKeyDown ? onKeyDown : defaultKeyDownHandler,
+      );
 
       return () => {
-        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener(
+          "keydown",
+          onKeyDown ? onKeyDown : defaultKeyDownHandler,
+        );
       };
-    }, [isEditing, onDeleteEmpty, onPressEnter, onKeyDown]);
+    }, [onKeyDown, defaultKeyDownHandler]);
 
     const handleFocus = () => {
       setIsEditing(true);

@@ -1,0 +1,25 @@
+.container {
+  display: flex;
+  gap: 20px;
+  height: 100%;
+  width: 100%;
+}
+
+.videoSection {
+  flex: 1;
+
+  .video {
+    width: 100%;
+    height: auto;
+    max-height: 100vh;
+    object-fit: contain;
+  }
+}
+
+.editorSection {
+  flex: 1;
+  height: 100%;
+  padding: 20px;
+  overflow: auto;
+  max-width: 600px;
+}

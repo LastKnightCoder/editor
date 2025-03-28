@@ -174,6 +174,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         path: "/time-records",
         enable: module.timeRecord.enable,
       },
+      {
+        key: "videoNoteDemo",
+        icon: timeRecord,
+        desc: "视频笔记",
+        path: "/video-note-demo",
+        enable: true,
+      },
     ].filter((item) => item.enable);
   }, [module]);
 

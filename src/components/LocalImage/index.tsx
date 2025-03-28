@@ -24,7 +24,8 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
       // 如果是 https://github.com/{{owner}}/{{repo}}/raw/{{branch}}/{{path}}
       // 或者 https://raw.githubusercontent.com/{{owner}}/{{repo}}/{{branch}}/{{path}}
       // 并且配置了 Github CDN，则使用 CDN 地址
-      if (!cdn) return url;
+      console.log("cdn", cdn, url);
+      if (!cdn || !url) return url;
 
       // 正则匹配
       const match1 = url.match(
@@ -61,7 +62,11 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
       try {
         console.log("cdnUrl", cdnUrl);
         // 如果是 base64 或 blob url，直接使用
-        if (cdnUrl.startsWith("data:") || cdnUrl.startsWith("blob:")) {
+        if (
+          !cdnUrl ||
+          cdnUrl.startsWith("data:") ||
+          cdnUrl.startsWith("blob:")
+        ) {
           return;
         }
 
