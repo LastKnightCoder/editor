@@ -1,6 +1,7 @@
 .resizableSection {
   width: 100% !important;
   margin-bottom: 12px;
+  position: relative;
 
   &:last-child {
     margin-bottom: 0;
@@ -12,7 +13,7 @@
       border-radius: 0 0 4px 4px;
       position: absolute;
       bottom: 0;
-      width: 20px;
+      width: 40px;
       left: 50%;
       transform: translateX(-50%);
       cursor: row-resize;
@@ -20,6 +21,8 @@
       align-items: center;
       justify-content: center;
       background-image: none;
+      z-index: 200;
+      transition: all 0.2s ease;
 
       &::after {
         content: "";
@@ -27,13 +30,13 @@
         height: 3px;
         background-color: var(--button-bg);
         border-radius: 1px;
+        transition: all 0.2s ease;
       }
 
       &:hover {
-        background-color: var(--button-bg);
-
         &::after {
-          background-color: white;
+          width: 30px;
+          background-color: var(--button-bg);
         }
       }
     }
@@ -47,8 +50,13 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
   position: relative;
+  will-change: transform, opacity;
 
   &.activeEditor {
     border-color: var(--button-bg);
@@ -56,7 +64,7 @@
   }
 
   &.dragging {
-    opacity: 0.4;
+    opacity: 0.7;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
     border-color: var(--button-bg);
   }
@@ -64,7 +72,7 @@
   &.dropOver {
     box-shadow: 0 0 5px var(--button-bg);
     border-color: var(--button-bg);
-    transform: translateY(5px);
+    transform: translateY(2px);
   }
 }
 

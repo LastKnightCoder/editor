@@ -23,15 +23,16 @@ import { useEffect, useState } from "react";
 
 interface IDocumentProps {
   document: IDocument;
+  refreshDocument?: () => void;
 }
 
 const Document = (props: IDocumentProps) => {
-  const { document } = props;
+  const { document, refreshDocument } = props;
   const { children } = document;
 
   const [cards, setCards] = useState<ICard[]>([]);
   const [articles, setArticles] = useState<IArticle[]>([]);
-  const [documents, setDocuments] = useState<IDocumentItem[]>([]);
+  const [documentItems, setDocumentItemss] = useState<IDocumentItem[]>([]);
 
   useEffect(() => {
     getAllCards().then((cards) => {
@@ -41,7 +42,7 @@ const Document = (props: IDocumentProps) => {
       setArticles(articles);
     });
     getAllDocumentItems().then((documentItems) => {
-      setDocuments(documentItems);
+      setDocumentItemss(documentItems);
     });
   }, []);
 
@@ -75,6 +76,7 @@ const Document = (props: IDocumentProps) => {
         draft.children.splice(spliceIndex, 0, id);
       });
       await updateDocument(newDocument);
+      refreshDocument?.();
     },
   );
 
@@ -120,6 +122,7 @@ const Document = (props: IDocumentProps) => {
         }
       });
       await updateDocument(newDocument);
+      refreshDocument?.();
     },
   );
 
@@ -128,6 +131,7 @@ const Document = (props: IDocumentProps) => {
       draft.children = draft.children.filter((childId) => childId !== id);
     });
     await updateDocument(newDocument);
+    refreshDocument?.();
   });
 
   return (
@@ -182,7 +186,7 @@ const Document = (props: IDocumentProps) => {
               isRoot
               cards={cards}
               articles={articles}
-              documentItems={documents}
+              documentItems={documentItems}
             />
           ))}
         </div>

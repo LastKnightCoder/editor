@@ -39,6 +39,32 @@ export const createProjectItem = async (
   return await invoke("create-project-item", item);
 };
 
+export const createProjectItemByCardId = async (
+  cardId: number,
+  projectId: number,
+  parents: number[],
+): Promise<ProjectItem> => {
+  return await invoke(
+    "create-project-item-by-card-id",
+    cardId,
+    projectId,
+    parents,
+  );
+};
+
+export const createProjectItemByArticleId = async (
+  articleId: number,
+  projectId: number,
+  parents: number[],
+): Promise<ProjectItem> => {
+  return await invoke(
+    "create-project-item-by-article-id",
+    articleId,
+    projectId,
+    parents,
+  );
+};
+
 export const updateProjectItem = async (
   item: UpdateProjectItem,
 ): Promise<ProjectItem> => {

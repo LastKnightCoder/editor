@@ -32,6 +32,7 @@ export interface VideoNoteBaseReturnProps {
   handleResizeSection: (noteId: string, height: number) => void;
   handleSlideCardDrop: (noteId: string) => void;
   handleMoveEditorSection: (dragIndex: number, hoverIndex: number) => void;
+  handleMoveNote: (dragId: string, hoverId: string) => void;
   isSelectionMode: boolean;
   toggleSelectionMode: () => void;
   selectedNoteIds: string[];
@@ -172,6 +173,10 @@ export const useVideoNoteBase = ({
           height: EDITOR_SECTION_DEFAULT_HEIGHT,
         },
       ]);
+    } else {
+      setEditorSections((prev) =>
+        prev.filter((section) => section.noteId !== noteId),
+      );
     }
   });
 
@@ -225,16 +230,13 @@ export const useVideoNoteBase = ({
   const handleMoveEditorSection = useMemoizedFn(
     (dragIndex: number, hoverIndex: number) => {
       setEditorSections((prev) => {
-        return produce(prev, (draft) => {
-          // 克隆要移动的元素
-          const draggedSection = { ...draft[dragIndex] };
+        if (dragIndex === hoverIndex) return prev;
 
-          // 从数组中删除拖拽的项
-          draft.splice(dragIndex, 1);
-
-          // 将其插入到新位置
-          draft.splice(hoverIndex, 0, draggedSection);
-        });
+        // 使用更直接的数组操作方式，提高性能
+        const result = [...prev];
+        const [removed] = result.splice(dragIndex, 1);
+        result.splice(hoverIndex, 0, removed);
+        return result;
       });
     },
   );
@@ -361,6 +363,27 @@ export const useVideoNoteBase = ({
     setIsSelectionMode(false);
   });
 
+  // 处理卡片排序
+  const handleMoveNote = useMemoizedFn((dragId: string, hoverId: string) => {
+    if (dragId === hoverId) return;
+
+    const dragIndex = notes.findIndex((note) => note.id === dragId);
+    const hoverIndex = notes.findIndex((note) => note.id === hoverId);
+
+    if (dragIndex === -1 || hoverIndex === -1) return;
+
+    const updatedNotes = produce(notes, (draft) => {
+      const [removed] = draft.splice(dragIndex, 1);
+      draft.splice(hoverIndex, 0, removed);
+    });
+
+    setNotes(updatedNotes);
+
+    if (onNotesChange) {
+      onNotesChange(updatedNotes);
+    }
+  });
+
   return {
     videoRef,
     notes,
@@ -371,11 +394,12 @@ export const useVideoNoteBase = ({
     handleDeleteNote,
     formatTime,
     editorSections,
+    handleExitEditByNoteId,
     handleExitEdit,
     handleResizeSection,
-    handleExitEditByNoteId,
     handleSlideCardDrop,
     handleMoveEditorSection,
+    handleMoveNote,
     isSelectionMode,
     toggleSelectionMode,
     selectedNoteIds,

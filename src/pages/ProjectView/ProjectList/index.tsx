@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Dropdown, Empty, MenuProps } from "antd";
+import { Dropdown, Empty, MenuProps, App } from "antd";
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ import {
   EProjectItemType,
   ICard,
   Project as IProject,
+  VideoNote,
   WhiteBoard,
 } from "@/types";
 import { useMemoizedFn } from "ahooks";
@@ -30,10 +31,12 @@ import {
   getProjectById,
   getAllWhiteBoards,
   getAllCards,
+  createVideoNote,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 
 const Project = () => {
+  const { message } = App.useApp();
   const { id } = useParams();
   const { createRootProjectItem } = useProjectsStore((state) => ({
     createRootProjectItem: state.createRootProjectItem,
@@ -51,11 +54,16 @@ const Project = () => {
       setWhiteBoards(whiteBoards);
     });
   }, []);
-  useEffect(() => {
+
+  const refresh = useMemoizedFn(() => {
     getProjectById(Number(id)).then((res) => {
       setProject(res);
     });
-  }, [id]);
+  });
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const navigate = useNavigate();
 
@@ -88,6 +96,10 @@ const Project = () => {
     {
       key: "add-white-board-project-item",
       label: "添加白板",
+    },
+    {
+      key: "add-video-note-project-item",
+      label: "添加视频笔记",
     },
     {
       key: "link-card-project-item",
@@ -129,6 +141,9 @@ const Project = () => {
             activeProjectItemId: item.id,
           });
         }
+        getProjectById(project.id).then((project) => {
+          setProject(project);
+        });
       } else if (key === "add-white-board-project-item") {
         const createProjectItem: CreateProjectItem = {
           title: "新白板",
@@ -161,6 +176,60 @@ const Project = () => {
             activeProjectItemId: item.id,
           });
         }
+        getProjectById(project.id).then((project) => {
+          setProject(project);
+        });
+      } else if (key === "add-video-note-project-item") {
+        // 选择视频文件
+        const filePath = await selectFile({
+          properties: ["openFile"],
+          filters: [
+            {
+              name: "Video",
+              extensions: ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm"],
+            },
+          ],
+        });
+        if (!filePath) return;
+        const newVideoNote: Omit<
+          VideoNote,
+          "id" | "createTime" | "updateTime"
+        > = {
+          notes: [],
+          count: 0,
+          metaInfo: {
+            type: "local",
+            filePath: filePath[0],
+          },
+        };
+        const item = await createVideoNote(newVideoNote);
+        if (!item) {
+          message.error("创建视频笔记失败");
+          return;
+        }
+        const createProjectItem: CreateProjectItem = {
+          title: "新视频笔记",
+          content: [],
+          children: [],
+          parents: [],
+          projects: [project.id],
+          refType: "video-note",
+          refId: item.id,
+          projectItemType: EProjectItemType.VideoNote,
+          count: 0,
+        };
+        const projectItem = await createRootProjectItem(
+          project.id,
+          createProjectItem,
+        );
+        if (projectItem) {
+          useProjectsStore.setState({
+            activeProjectItemId: projectItem.id,
+          });
+        }
+        getProjectById(project.id).then((project) => {
+          setProject(project);
+        });
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -252,6 +321,7 @@ const Project = () => {
                 parentChildren={project.children}
                 cards={cards}
                 whiteBoards={whiteBoards}
+                refreshProject={refresh}
               />
             )}
           />

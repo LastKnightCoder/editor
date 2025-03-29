@@ -5,6 +5,12 @@ export async function createCard(card: ICreateCard): Promise<ICard> {
   return invoke("create-card", card);
 }
 
+export async function createCardFromProjectItem(
+  projectItemId: number,
+): Promise<ICard> {
+  return invoke("create-card-from-project-item", projectItemId);
+}
+
 export async function getAllCards(): Promise<ICard[]> {
   return invoke("get-all-cards");
 }

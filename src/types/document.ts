@@ -57,6 +57,7 @@ export interface IDocumentItem {
   isDelete: boolean;
   parents: number[];
   count: number;
+  contentId: number;
 }
 
 export interface ICreateDocumentItem {

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { App } from "antd";
 import EditProject from "@/layouts/components/EditProjectItem";
-import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
+
 import { getProjectItemById } from "@/commands";
 import { EProjectItemType, ProjectItem } from "@/types";
 import useProjectsStore from "@/stores/useProjectsStore";
-
+import VideoNoteView from "../VideoNoteView";
+import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
+import styles from "./index.module.less";
 const EditProjectView = () => {
   const { activeProjectItemId } = useProjectsStore((state) => ({
     activeProjectItemId: state.activeProjectItemId,
@@ -34,20 +36,31 @@ const EditProjectView = () => {
 
   if (!projectItem) return null;
 
-  return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-      }}
-    >
-      {projectItem.projectItemType === EProjectItemType.WhiteBoard ? (
+  if (projectItem.projectItemType === EProjectItemType.VideoNote) {
+    return (
+      <div className={styles.container}>
+        <VideoNoteView key={projectItem.id} videoNoteId={projectItem.refId} />
+      </div>
+    );
+  }
+
+  if (projectItem.projectItemType === EProjectItemType.WhiteBoard) {
+    return (
+      <div className={styles.container}>
         <WhiteBoardProjectView key={projectItem.id} />
-      ) : (
+      </div>
+    );
+  }
+
+  if (projectItem.projectItemType === EProjectItemType.Document) {
+    return (
+      <div className={styles.container}>
         <EditProject key={projectItem.id} />
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default EditProjectView;

@@ -15,10 +15,12 @@ export interface ICreateArticle {
 
 export interface IUpdateArticle extends Partial<ICreateArticle> {
   id: number;
+  contentId: number;
 }
 
 export interface IArticle extends ICreateArticle {
   id: number;
   create_time: number;
   update_time: number;
+  contentId: number;
 }

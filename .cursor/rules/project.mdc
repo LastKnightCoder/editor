@@ -3,6 +3,11 @@ description:
 globs: 
 alwaysApply: true
 ---
+---
+description: 项目信息
+globs: 
+alwaysApply: true
+---
 
 ## 代码规范
 
@@ -19,3 +24,15 @@ alwaysApply: true
 - 类型尽可能不使用 any
 - 所有的组件都需要考虑深色和浅色两种样式，一般通过 CSS 变量控制，在 src/themes 下存在两个样式文件，light.less 和 dark.less，其中定义了浅色和深色的 CSS 变量，如果是全局 CSS 变量就定义在这里，否则定义在组件里面就可以了，antd 的组件不需要，因为统一处理了
 - 当文件太长时，你需要考虑拆分组件和 hook
+- 非必须不使用 :global 样式
+- 组件使用 memo 进行性能优化时，不要在最后通过 export default memo(Component) 的方式导出，而是通过 const Component = memo(() => {}) 这样，因为前一种方式对 react-refresh 不友好
+
+## 数据库
+
+- src-electron/main/modules/table 中放了所有的表
+- 所有的表都是提供的都是静态方法，第一个参数必须是 db: Database.Databse
+- 所有的表格需要在 [database.ts](mdc:src-electron/main/modules/database.ts) 中注册
+- 表必须提供三个静态方法
+  - initTable 创建表
+  - upgradeTable 有新的字段变化，或者数据迁移时在此升级表
+  - getListenEvents 为前端提供的 command，键名为 commnd 名称，值为对应的处理方法，为保证 this 指向正确，建议 bind(this) 
