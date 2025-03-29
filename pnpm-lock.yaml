@@ -204,9 +204,6 @@ importers:
       immer:
         specifier: ^10.0.2
         version: 10.1.1
-      immutability-helper:
-        specifier: ^3.1.1
-        version: 3.1.1
       is-hotkey:
         specifier: ^0.2.0
         version: 0.2.0

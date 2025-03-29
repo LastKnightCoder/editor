@@ -1,0 +1,133 @@
+.resizableSection {
+  width: 100% !important;
+  margin-bottom: 12px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  :global {
+    .react-resizable-handle {
+      height: 8px;
+      border-radius: 0 0 4px 4px;
+      position: absolute;
+      bottom: 0;
+      width: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      cursor: row-resize;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image: none;
+
+      &::after {
+        content: "";
+        width: 20px;
+        height: 3px;
+        background-color: var(--button-bg);
+        border-radius: 1px;
+      }
+
+      &:hover {
+        background-color: var(--button-bg);
+
+        &::after {
+          background-color: white;
+        }
+      }
+    }
+  }
+}
+
+.editorSection {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.2s ease;
+
+  &.activeEditor {
+    border-color: var(--button-bg);
+    box-shadow: 0 0 0 1px var(--button-bg);
+  }
+
+  &.dragging {
+    opacity: 0.4;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    border-color: var(--button-bg);
+  }
+}
+
+.editorHeader {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+
+  h4 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-color-secondary);
+    font-weight: 500;
+    flex: 1;
+  }
+
+  .dragHandle {
+    cursor: move;
+    color: var(--text-color-tertiary);
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+    user-select: none;
+    line-height: 1;
+    transition: color 0.2s ease;
+    font-size: 18px;
+
+    &:hover {
+      color: var(--button-bg);
+    }
+
+    svg {
+      display: block;
+    }
+  }
+}
+
+.editorContent {
+  flex: 1;
+  overflow: auto;
+  padding: 32px;
+  box-sizing: border-box;
+}
+
+.editorActions {
+  display: flex;
+  gap: 8px;
+}
+
+.editorCloseButton {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--delete-button-color);
+  color: white;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: var(--delete-button-hover);
+    transform: scale(1.1);
+  }
+}

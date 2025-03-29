@@ -1,0 +1,21 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+## 代码规范
+
+- 包管理器使用 pnpm，因为是 electron 项目，尽量使用 -D 下载包
+- 使用中文注释，只在关键节点注释，非重要逻辑不注释
+- 数据管理使用 zustand，不可变数据流使用 immer
+- electron 数据存储使用 sqlite
+- 所有的类型声明在 src/types 文件夹
+- 所有和 Electron 的交互都在 src/commands 下，调用 command 和 Electron 交互
+- 编辑器的代码在 src/components/Editor 下，Editor 是一个非受控组件，当切换时（如卡片 id 发生变化），需要通过 ref.current.setEditorValue 设置内容
+- 组件创建规则，创建一个文件夹，名称和组件名相同，里面有一个 index.tsx 和 index.module.less
+- 项目的图标库使用的是 react-icons
+- 在移动和重构时，记得一定删除之前被移动或不需要的内容，比如引用，样式，文件夹，文件等等
+- 类型尽可能不使用 any
+- 所有的组件都需要考虑深色和浅色两种样式，一般通过 CSS 变量控制，在 src/themes 下存在两个样式文件，light.less 和 dark.less，其中定义了浅色和深色的 CSS 变量，如果是全局 CSS 变量就定义在这里，否则定义在组件里面就可以了，antd 的组件不需要，因为统一处理了
+- 当文件太长时，你需要考虑拆分组件和 hook

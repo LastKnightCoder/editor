@@ -89,7 +89,6 @@
     "gsap": "^3.12.5",
     "husky": "^9.1.7",
     "immer": "^10.0.2",
-    "immutability-helper": "^3.1.1",
     "is-hotkey": "^0.2.0",
     "katex": "^0.16.8",
     "less": "^4.1.3",
