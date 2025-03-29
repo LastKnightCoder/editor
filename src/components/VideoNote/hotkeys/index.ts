@@ -17,6 +17,8 @@ export const createTimestampHotkey = (
 
       Transforms.collapse(editor, { edge: "end" });
       Transforms.insertNodes(editor, timestampNode as any);
+      Transforms.insertNodes(editor, { type: "formatted", text: "" });
+      ReactEditor.focus(editor);
     },
   };
 };

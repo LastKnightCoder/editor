@@ -1,11 +1,9 @@
-import React, { useRef, useMemo } from "react";
-import LocalVideo from "@/components/LocalVideo";
-import Editor from "@/components/Editor";
-import { Descendant } from "slate";
-import { createVideoNoteExtensions } from "./extensions";
-import { VideoControllerImpl } from "./VideoController";
-import styles from "./index.module.less";
-import classnames from "classnames";
+import React from "react";
+import { VideoNote as VideoNoteType } from "@/types";
+import SlideLayout from "./layouts/SlideLayout";
+import { ThemeContext } from "./ThemeContext";
+import { DndProvider } from "react-dnd";
+import { HTML5Backend } from "react-dnd-html5-backend";
 
 export interface VideoNoteContextType {
   captureVideoFrame: () => Promise<string | null>;
@@ -13,70 +11,32 @@ export interface VideoNoteContextType {
   seekTo: (time: number) => void;
 }
 
-interface VideoNoteProps {
+export interface VideoNoteProps {
   videoSrc: string;
-  initialNotes?: Descendant[];
-  onNotesChange?: (value: Descendant[]) => void;
+  initialNotes?: VideoNoteType["notes"];
+  onNotesChange?: (value: VideoNoteType["notes"]) => void;
   uploadResource?: (file: File) => Promise<string | null>;
-  containerClassName?: string;
-  videoSectionClassName?: string;
-  editorSectionClassName?: string;
-  videoSectionStyle?: React.CSSProperties;
-  editorSectionStyle?: React.CSSProperties;
-  containerStyle?: React.CSSProperties;
+  theme?: "light" | "dark";
 }
 
 const VideoNote: React.FC<VideoNoteProps> = ({
   videoSrc,
-  initialNotes,
+  initialNotes = [],
   onNotesChange,
   uploadResource,
-  containerClassName,
-  videoSectionClassName,
-  editorSectionClassName,
-  videoSectionStyle,
-  editorSectionStyle,
-  containerStyle,
+  theme = "light",
 }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const videoController = useMemo(() => {
-    return new VideoControllerImpl(() => videoRef.current, uploadResource);
-  }, [uploadResource]);
-
-  const extensions = useMemo(() => {
-    return createVideoNoteExtensions(videoController);
-  }, [videoController]);
-
   return (
-    <div
-      className={classnames(styles.container, containerClassName)}
-      style={containerStyle}
-    >
-      <div
-        className={classnames(styles.videoSection, videoSectionClassName)}
-        style={videoSectionStyle}
-      >
-        <LocalVideo
-          className={styles.video}
-          ref={videoRef}
-          src={videoSrc}
-          controls
-        />
-      </div>
-      <div
-        className={classnames(styles.editorSection, editorSectionClassName)}
-        style={editorSectionStyle}
-      >
-        <Editor
-          initValue={initialNotes}
-          onChange={onNotesChange}
-          readonly={false}
+    <ThemeContext.Provider value={theme}>
+      <DndProvider backend={HTML5Backend}>
+        <SlideLayout
+          videoSrc={videoSrc}
+          initialNotes={initialNotes}
+          onNotesChange={onNotesChange}
           uploadResource={uploadResource}
-          extensions={extensions}
         />
-      </div>
-    </div>
+      </DndProvider>
+    </ThemeContext.Provider>
   );
 };
 

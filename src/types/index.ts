@@ -12,3 +12,4 @@ export * from "./vec-document";
 export * from "./operation";
 export * from "./statistic";
 export * from "./search";
+export * from "./video-note";
