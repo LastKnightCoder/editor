@@ -55,6 +55,20 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
           editorRef.current.setEditorValue(activeNote.content);
         }
       }
+
+      if (
+        activeNoteId &&
+        !editorSections.some((section) => section.noteId === activeNoteId)
+      ) {
+        setEditorSections((prev) => [
+          ...prev,
+          {
+            id: `section-${Date.now()}`,
+            noteId: activeNoteId,
+            height: 300,
+          },
+        ]);
+      }
     });
 
     const handleExitEdit = useMemoizedFn(() => {
@@ -78,23 +92,6 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
     useEffect(() => {
       handleActiveNoteChange(activeNoteId);
     }, [activeNoteId, handleActiveNoteChange]);
-
-    // 当activeNoteId发生变化时，若不在editorSections中，添加一个新的区域
-    useEffect(() => {
-      if (
-        activeNoteId &&
-        !editorSections.some((section) => section.noteId === activeNoteId)
-      ) {
-        setEditorSections((prev) => [
-          ...prev,
-          {
-            id: `section-${Date.now()}`,
-            noteId: activeNoteId,
-            height: 300,
-          },
-        ]);
-      }
-    }, [activeNoteId]);
 
     // 处理删除笔记时的编辑区域更新
     useEffect(() => {
