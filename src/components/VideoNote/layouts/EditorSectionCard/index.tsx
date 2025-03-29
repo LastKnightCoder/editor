@@ -55,14 +55,15 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
   });
 
   // 放置处理
-  const [{ handlerId }, drop] = useDrop<
+  const [{ handlerId, isOver }, drop] = useDrop<
     EditorSectionDragItem,
     void,
-    { handlerId: string | symbol | null }
+    { handlerId: string | symbol | null; isOver: boolean }
   >({
     accept: ItemTypes.EDITOR_SECTION,
     collect: (monitor) => ({
       handlerId: monitor.getHandlerId(),
+      isOver: monitor.isOver(),
     }),
     hover: (item: EditorSectionDragItem, monitor) => {
       if (!ref.current) {
@@ -114,8 +115,6 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
   // 合并引用
   drag(drop(ref));
 
-  const opacity = isDragging ? 0.4 : 1;
-
   return (
     <ResizableBox
       key={section.noteId}
@@ -134,8 +133,13 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
         ref={ref}
         className={classnames(styles.editorSection, {
           [styles.dragging]: isDragging,
+          [styles.dropOver]: isOver && !isDragging,
         })}
-        style={{ opacity }}
+        style={{
+          opacity: isDragging ? 0.4 : 1,
+          transform: isDragging ? "scale(1.02)" : "scale(1)",
+          zIndex: isDragging ? 100 : 1,
+        }}
         data-handler-id={handlerId}
       >
         <div className={styles.editorHeader}>

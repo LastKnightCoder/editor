@@ -89,10 +89,19 @@
   flex-direction: column;
   gap: 16px;
   position: relative;
+  transition: all 0.3s ease;
 
   &.dropTarget {
     background-color: var(--drop-target-bg);
     border-color: var(--drop-target-border);
+    box-shadow: 0 0 0 2px var(--drop-target-border);
+    transform: scale(1.01);
+    transition: all 0.3s;
+  }
+
+  &.dropInvalid {
+    background-color: rgba(255, 77, 79, 0.05);
+    border-color: rgba(255, 77, 79, 0.3);
     transition: all 0.3s;
   }
 }
@@ -106,6 +115,7 @@
   text-align: center;
   flex: 1;
   min-height: 300px;
+  transition: all 0.3s ease;
 
   p {
     margin-top: 16px;
@@ -118,6 +128,7 @@
     border: 1px dashed var(--border-color);
     padding: 12px;
     border-radius: 4px;
+    transition: all 0.3s ease;
   }
 }
 
