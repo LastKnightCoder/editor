@@ -32,6 +32,7 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
       handleExitEditByNoteId,
       handleSlideCardDrop,
       handleMoveEditorSection,
+      handleMoveNote,
       isSelectionMode,
       toggleSelectionMode,
       selectedNoteIds,
@@ -104,6 +105,7 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
             gridContainerRef={gridContainerRef}
             itemWidth={itemWidth}
             gap={gap}
+            handleMoveNote={handleMoveNote}
           />
         </div>
 

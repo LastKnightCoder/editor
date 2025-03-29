@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   CreateProjectItem,
-  ECardCategory,
   EProjectItemType,
   ICard,
-  ICreateCard,
   ProjectItem,
 } from "@/types";
 import useProjectsStore from "@/stores/useProjectsStore";
@@ -14,14 +12,9 @@ import { produce } from "immer";
 import {
   getProjectItemById,
   updateProjectItem,
-  createCard,
-  getCardById,
+  createCardFromProjectItem,
 } from "@/commands";
-import {
-  getContentLength,
-  defaultProjectItemEventBus,
-  defaultCardEventBus,
-} from "@/utils";
+import { defaultProjectItemEventBus, defaultCardEventBus } from "@/utils";
 
 const useAddRefCard = (
   cards: ICard[],
@@ -56,15 +49,7 @@ const useAddRefCard = (
 
   const buildCardFromProjectItem = useMemoizedFn(
     async (projectItem: ProjectItem) => {
-      const { content } = projectItem;
-      const newCard: ICreateCard = {
-        content,
-        tags: [],
-        links: [],
-        category: ECardCategory.Permanent,
-        count: getContentLength(content),
-      };
-      const createdCard = await createCard(newCard);
+      const createdCard = await createCardFromProjectItem(projectItem.id);
       const newProjectItem = produce(projectItem, (draft) => {
         draft.refId = createdCard.id;
         draft.refType = "card";
@@ -121,14 +106,6 @@ const useAddRefCard = (
         "project-item:updated",
         updatedProjectItem,
       );
-      if (updatedProjectItem.refType === "card") {
-        const card = await getCardById(updatedProjectItem.refId);
-        if (card) {
-          defaultCardEventBus
-            .createEditor()
-            .publishCardEvent("card:updated", card);
-        }
-      }
     }
 
     setSelectCardModalOpen(false);

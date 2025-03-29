@@ -7,6 +7,12 @@ export async function createArticle(
   return await invoke("create-article", article);
 }
 
+export async function createArticleFromProjectItem(
+  projectItemId: number,
+): Promise<IArticle> {
+  return await invoke("create-article-from-project-item", projectItemId);
+}
+
 export async function updateArticle(
   article: IUpdateArticle,
 ): Promise<IArticle> {

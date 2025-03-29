@@ -7,6 +7,7 @@ import {
   ICreateDocumentItem,
   IUpdateDocumentItem,
 } from "@/types";
+import { Descendant } from "slate";
 import Operation from "./operation";
 import { getContentLength } from "@/utils/helper";
 import { BrowserWindow } from "electron";
@@ -14,6 +15,9 @@ import { basename } from "node:path";
 
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
+import ContentTable from "./content";
+import CardTable from "./card";
+import ArticleTable from "./article";
 
 export default class DocumentTable {
   static initTable(db: Database.Database) {
@@ -50,12 +54,12 @@ export default class DocumentTable {
         article_id INTEGER DEFAULT 0,
         is_card INTEGER DEFAULT 0,
         card_id INTEGER DEFAULT 0,
-        content TEXT,
+        content_id INTEGER,
         banner_bg TEXT,
         icon TEXT,
         is_delete INTEGER DEFAULT 0,
         parents TEXT DEFAULT '[]',
-        count INTEGER DEFAULT 0
+        FOREIGN KEY(content_id) REFERENCES contents(id)
       )
     `);
   }
@@ -71,56 +75,79 @@ export default class DocumentTable {
       );
       alertStmt.run();
     }
-    if (!tableInfo.includes("count")) {
-      const alertStmt = db.prepare(
-        "ALTER TABLE document_items ADD COLUMN count INTEGER DEFAULT 0",
+
+    // 如果不包含content_id字段，则添加
+    if (!tableInfo.includes("content_id")) {
+      // 1. 添加content_id列
+      const addColumnStmt = db.prepare(
+        "ALTER TABLE document_items ADD COLUMN content_id INTEGER",
       );
-      alertStmt.run();
-      for (const item of this.getAllDocumentItems(db)) {
-        const contentLength = getContentLength(item.content);
-        const stmt = db.prepare(
-          "UPDATE document_items SET count = ? WHERE id = ?",
-        );
-        stmt.run(contentLength, item.id);
+      addColumnStmt.run();
+
+      // 2. 获取所有文档条目
+      const getAllItemsStmt = db.prepare("SELECT * FROM document_items");
+      const items = getAllItemsStmt.all();
+
+      // 3. 为每个条目创建内容记录
+      for (const item of items as any[]) {
+        let contentId = null;
+
+        // 处理不同的引用类型
+        if (item.is_card && item.card_id) {
+          // 对于引用卡片的条目，获取卡片的contentId
+          const cardResult = CardTable.getCardById(db, item.card_id);
+          if (cardResult && cardResult.contentId) {
+            contentId = cardResult.contentId;
+            // 增加引用计数
+            ContentTable.incrementRefCount(db, contentId);
+          }
+        } else if (item.is_article && item.article_id) {
+          // 对于引用文章的条目，获取文章的contentId
+          const articleResult = ArticleTable.getArticleById(
+            db,
+            item.article_id,
+          );
+          if (articleResult && articleResult.contentId) {
+            contentId = articleResult.contentId;
+            // 增加引用计数
+            ContentTable.incrementRefCount(db, contentId);
+          }
+        } else if (item.content) {
+          // 创建新的内容记录
+          try {
+            const content = JSON.parse(item.content);
+            const count = item.count || getContentLength(content);
+
+            contentId = ContentTable.createContent(db, {
+              content: content,
+              count: count,
+            });
+          } catch (error) {
+            console.error("Error parsing content:", error);
+          }
+        }
+
+        // 更新条目的content_id字段
+        if (contentId) {
+          const updateStmt = db.prepare(
+            "UPDATE document_items SET content_id = ? WHERE id = ?",
+          );
+          updateStmt.run(contentId, item.id);
+        }
       }
+
+      // 删除content字段
+      const dropContentColumnStmt = db.prepare(
+        "ALTER TABLE document_items DROP COLUMN content",
+      );
+      dropContentColumnStmt.run();
+
+      // 删除count字段
+      const dropCountColumnStmt = db.prepare(
+        "ALTER TABLE document_items DROP COLUMN count",
+      );
+      dropCountColumnStmt.run();
     }
-
-    // 解析所有文档项的 content，解析所有的 image 的 url，如果是 https://jsd.cdn.zzko.cn/gh/ 格式的，替换为 https://github.com/ 格式
-    // const documentItems = this.getAllDocumentItems(db);
-    // for (const item of documentItems) {
-    //   const content = produce(item.content, (draft) => {
-    //     dfs(draft, (node) => {
-    //       if (node.type === "image") {
-
-    //         console.log(current(node))
-    //         if (node.url.startsWith("https://jsd.cdn.zzko.cn/gh")) {
-    //           const match = node.url.match(
-    //             /^https:\/\/jsd\.cdn\.zzko\.cn\/gh\/([^/]+)\/([^/]+)@([^/]+)\/([^/]+)$/,
-    //           );
-    //           const match2 = node.url.match(
-    //             /^https:\/\/jsd\.cdn\.zzko\.cn\/gh\/([^/]+)\/([^/]+)\/([^/]+)$/,
-    //           );
-    //           if (match) {
-    //             const owner = match[1];
-    //             const repo = match[2];
-    //             const branch = match[3];
-    //             const path = match[4];
-    //             node.url = `https://github.com/${owner}/${repo}/raw/${branch}/${path}`;
-    //           } else if (match2) {
-    //             const owner = match2[1];
-    //             const repo = match2[2];
-    //             const path = match2[3];
-    //             node.url = `https://github.com/${owner}/${repo}/raw/master/${path}`;
-    //           }
-    //         }
-    //       }
-    //     });
-    //   });
-    //   const stmt = db.prepare(
-    //     "UPDATE document_items SET content = ? WHERE id = ?",
-    //   );
-    //   stmt.run(JSON.stringify(content), item.id);
-    // }
   }
 
   static getListenEvents() {
@@ -171,11 +198,22 @@ export default class DocumentTable {
   }
 
   static parseDocumentItem(item: any): IDocumentItem {
+    let content: Descendant[] = [];
+    let count = 0;
+    const contentId = item.content_id;
+
+    try {
+      content = JSON.parse(item.content);
+      count = item.count || 0;
+    } catch (error) {
+      console.error("Error parsing content:", error);
+    }
+
     const res = {
       ...item,
-      authors: JSON.parse("[]"),
-      tags: JSON.parse("[]"),
-      content: JSON.parse(item.content),
+      authors: JSON.parse(item.authors || "[]"),
+      tags: JSON.parse(item.tags || "[]"),
+      content: content,
       children: JSON.parse(item.children || "[]"),
       parents: JSON.parse(item.parents || "[]"),
       isDelete: item.is_delete,
@@ -187,6 +225,8 @@ export default class DocumentTable {
       isCard: item.is_card,
       articleId: item.article_id,
       cardId: item.card_id,
+      count: count,
+      contentId: contentId,
     };
 
     delete res.create_time;
@@ -198,6 +238,7 @@ export default class DocumentTable {
     delete res.is_card;
     delete res.article_id;
     delete res.card_id;
+    delete res.content_id;
 
     return res;
   }
@@ -309,12 +350,35 @@ export default class DocumentTable {
     db: Database.Database,
     item: ICreateDocumentItem,
   ): IDocumentItem {
+    let contentId = null;
+
+    if (item.isCard && item.cardId) {
+      const card = CardTable.getCardById(db, item.cardId);
+      if (card) {
+        contentId = card.contentId;
+      }
+    } else if (item.isArticle && item.articleId) {
+      const article = ArticleTable.getArticleById(db, item.articleId);
+      if (article) {
+        contentId = article.contentId;
+      }
+    } else {
+      contentId = ContentTable.createContent(db, {
+        content: item.content,
+        count: item.count || getContentLength(item.content),
+      });
+    }
+
+    if (!contentId) {
+      throw new Error("contentId is null");
+    }
+
     const stmt = db.prepare(`
       INSERT INTO document_items
       (create_time, update_time, title, authors, tags, is_directory, 
       children, is_article, article_id, is_card, card_id, 
-      content, banner_bg, icon, is_delete, parents, count)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      content_id, banner_bg, icon, is_delete, parents)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
@@ -329,12 +393,11 @@ export default class DocumentTable {
       item.articleId,
       Number(item.isCard),
       item.cardId,
-      JSON.stringify(item.content),
+      contentId,
       item.bannerBg,
       item.icon,
       Number(item.isDelete),
-      JSON.stringify(item.parents),
-      item.count,
+      JSON.stringify(item.parents || []),
     );
 
     Operation.insertOperation(
@@ -354,6 +417,12 @@ export default class DocumentTable {
     ...res: any[]
   ): IDocumentItem {
     const win = res[res.length - 1];
+
+    ContentTable.updateContent(db, item.contentId, {
+      content: item.content,
+      count: item.count || getContentLength(item.content),
+    });
+
     const stmt = db.prepare(`
       UPDATE document_items SET
         update_time = ?,
@@ -366,12 +435,11 @@ export default class DocumentTable {
         article_id = ?,
         is_card = ?,
         card_id = ?,
-        content = ?,
+        content_id = ?,
         banner_bg = ?,
         icon = ?,
         is_delete = ?,
-        parents = ?,
-        count = ?
+        parents = ?
       WHERE id = ?
     `);
     const now = Date.now();
@@ -386,12 +454,11 @@ export default class DocumentTable {
       item.articleId,
       Number(item.isCard),
       item.cardId,
-      JSON.stringify(item.content),
+      item.contentId,
       item.bannerBg,
       item.icon,
       Number(item.isDelete),
       JSON.stringify(item.parents),
-      item.count,
       item.id,
     );
 
@@ -406,12 +473,7 @@ export default class DocumentTable {
       }
     });
 
-    if (item.isCard) {
-      const cardStmt = db.prepare(
-        `UPDATE cards SET content = ?, update_time = ?, count = ? WHERE id = ?`,
-      );
-      cardStmt.run(JSON.stringify(item.content), now, item.count, item.cardId);
-
+    if (item.isCard && item.cardId) {
       BrowserWindow.getAllWindows().forEach((window) => {
         if (window !== win && !window.isDestroyed()) {
           window.webContents.send("card:updated", {
@@ -422,17 +484,7 @@ export default class DocumentTable {
       });
     }
 
-    if (item.isArticle) {
-      const articleStmt = db.prepare(
-        `UPDATE articles SET content = ?, update_time = ?, count = ? WHERE id = ?`,
-      );
-      articleStmt.run(
-        JSON.stringify(item.content),
-        now,
-        item.count,
-        item.articleId,
-      );
-
+    if (item.isArticle && item.articleId) {
       BrowserWindow.getAllWindows().forEach((window) => {
         if (window !== win && !window.isDestroyed()) {
           window.webContents.send("article:updated", {
@@ -447,6 +499,14 @@ export default class DocumentTable {
   }
 
   static deleteDocumentItem(db: Database.Database, id: number): number {
+    // 获取document_item信息，以获取contentId
+    const itemInfo = this.getDocumentItem(db, id);
+
+    if (itemInfo && itemInfo.contentId) {
+      // 删除关联的content记录（减少引用计数）
+      ContentTable.deleteContent(db, itemInfo.contentId);
+    }
+
     const stmt = db.prepare("DELETE FROM document_items WHERE id = ?");
 
     // 删除全文搜索索引
@@ -459,7 +519,12 @@ export default class DocumentTable {
   }
 
   static getDocumentItem(db: Database.Database, id: number): IDocumentItem {
-    const stmt = db.prepare("SELECT * FROM document_items WHERE id = ?");
+    const stmt = db.prepare(`
+      SELECT di.*, c.content, c.count
+      FROM document_items di
+      LEFT JOIN contents c ON di.content_id = c.id
+      WHERE di.id = ?
+    `);
     const item = stmt.get(id);
     return this.parseDocumentItem(item);
   }
@@ -468,15 +533,25 @@ export default class DocumentTable {
     db: Database.Database,
     ids: number[],
   ): IDocumentItem[] {
-    const res: IDocumentItem[] = [];
-    for (const id of ids) {
-      res.push(this.getDocumentItem(db, id));
-    }
-    return res;
+    if (ids.length === 0) return [];
+
+    const placeholders = ids.map(() => "?").join(",");
+    const stmt = db.prepare(
+      `SELECT di.*, c.content, c.count
+       FROM document_items di
+       LEFT JOIN contents c ON di.content_id = c.id
+       WHERE di.id IN (${placeholders})`,
+    );
+    const items = stmt.all(ids);
+    return items.map((item) => this.parseDocumentItem(item));
   }
 
   static getAllDocumentItems(db: Database.Database): IDocumentItem[] {
-    const stmt = db.prepare("SELECT * FROM document_items");
+    const stmt = db.prepare(`
+      SELECT di.*, c.content, c.count
+      FROM document_items di
+      LEFT JOIN contents c ON di.content_id = c.id
+    `);
     const items = stmt.all();
     return items.map((item) => this.parseDocumentItem(item));
   }
@@ -563,7 +638,7 @@ export default class DocumentTable {
         }
       }
       const stmt = db.prepare(
-        `UPDATE document_item SET update_time = ?, parents = ? WHERE id = ?`,
+        `UPDATE document_items SET update_time = ?, parents = ? WHERE id = ?`,
       );
       stmt.run(now, JSON.stringify(parents), id);
       Operation.insertOperation(db, "document-item", "init-parents", id, now);

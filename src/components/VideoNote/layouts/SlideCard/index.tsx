@@ -4,7 +4,7 @@ import { VideoNote as VideoNoteType } from "@/types";
 import styles from "./index.module.less";
 import Editor from "@/components/Editor";
 import { useTheme } from "../../ThemeContext";
-import { App } from "antd";
+import { App, Checkbox } from "antd";
 import { useDrag } from "react-dnd";
 import { ItemTypes } from "../../constants";
 
@@ -19,6 +19,7 @@ interface SlideCardProps {
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
+  onBatchDelete?: (ids: string[]) => void;
 }
 
 const SlideCard: React.FC<SlideCardProps> = memo(
@@ -59,14 +60,17 @@ const SlideCard: React.FC<SlideCardProps> = memo(
       }
     };
 
-    const [{ isDragging }, drag] = useDrag(() => ({
-      type: ItemTypes.SLIDE_CARD,
-      item: { id: note.id },
-      collect: (monitor) => ({
-        isDragging: monitor.isDragging(),
+    const [{ isDragging }, drag] = useDrag(
+      () => ({
+        type: ItemTypes.SLIDE_CARD,
+        item: { id: note.id },
+        collect: (monitor) => ({
+          isDragging: monitor.isDragging(),
+        }),
+        canDrag: () => !isSelectionMode, // 在选择模式下禁用拖拽
       }),
-      canDrag: () => !isSelectionMode, // 在选择模式下禁用拖拽
-    }));
+      [isSelectionMode, note],
+    );
 
     return (
       <div
@@ -87,13 +91,7 @@ const SlideCard: React.FC<SlideCardProps> = memo(
       >
         {isSelectionMode && (
           <div className={styles.checkboxWrapper} onClick={handleSelect}>
-            <div
-              className={classnames(styles.checkbox, {
-                [styles.checked]: isSelected,
-              })}
-            >
-              {isSelected && <span className={styles.checkmark}>✓</span>}
-            </div>
+            <Checkbox checked={isSelected} />
           </div>
         )}
         <div className={styles.slideTime}>{formatTime(note.startTime)}</div>

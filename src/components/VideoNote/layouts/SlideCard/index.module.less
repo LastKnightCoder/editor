@@ -1,6 +1,6 @@
 .slideCard {
-  width: 160px;
-  height: 136px;
+  width: 200px;
+  height: 160px;
   border-radius: 8px;
   padding: 12px;
   cursor: pointer;
@@ -25,10 +25,6 @@
   --border-dashed-color: rgba(0, 0, 0, 0.06);
   --delete-button-color: rgba(255, 77, 79, 0.7);
   --delete-button-hover: rgb(255, 77, 79);
-  --checkbox-border: #d9d9d9;
-  --checkbox-bg: #fff;
-  --checkbox-checked-bg: var(--button-bg);
-  --checkbox-checked-color: #fff;
 
   &.dark {
     --text-color-primary: #e0e0e0;
@@ -44,10 +40,6 @@
     --border-dashed-color: rgba(255, 255, 255, 0.1);
     --delete-button-color: rgba(255, 77, 79, 0.7);
     --delete-button-hover: rgb(255, 77, 79);
-    --checkbox-border: #434343;
-    --checkbox-bg: #1f1f1f;
-    --checkbox-checked-bg: var(--button-bg);
-    --checkbox-checked-color: #fff;
   }
 
   /* 应用变量 */
@@ -67,8 +59,6 @@
 
   &:hover {
     border-color: var(--button-bg);
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
     .deleteButton {
       opacity: 1;
@@ -78,8 +68,6 @@
   &.activeSlide {
     border-color: var(--button-bg);
     background-color: var(--card-bg-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
     &::after {
       opacity: 1;
@@ -92,10 +80,8 @@
 
   &.dragging {
     opacity: 0.6;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-    transform: scale(1.05);
     z-index: 100;
-    border-color: var(--button-bg);
+    // border-color: var(--button-bg);
   }
 
   &.selectionMode {
@@ -177,32 +163,4 @@
   top: 8px;
   right: 8px;
   z-index: 2;
-}
-
-.checkbox {
-  width: 16px;
-  height: 16px;
-  border: 1px solid var(--checkbox-border);
-  border-radius: 2px;
-  background-color: var(--checkbox-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &.checked {
-    background-color: var(--checkbox-checked-bg);
-    border-color: var(--checkbox-checked-bg);
-  }
-
-  &:hover {
-    border-color: var(--button-bg);
-  }
-}
-
-.checkmark {
-  color: var(--checkbox-checked-color);
-  font-size: 12px;
-  line-height: 1;
 }

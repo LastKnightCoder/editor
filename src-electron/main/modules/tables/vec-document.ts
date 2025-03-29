@@ -360,7 +360,6 @@ export default class VecDocumentTable {
         baseURL: modelInfo.baseUrl,
       });
 
-      const start = Date.now();
       const res = await client.embeddings.create({
         model: modelInfo.model,
         input: query,
@@ -375,8 +374,6 @@ export default class VecDocumentTable {
         modelInfo.distance || 0.6,
       );
 
-      const end = Date.now();
-      log.info("embedding time", end - start);
       const processedIds = new Set<string>(); // 用于去重
 
       for (const [doc, distance] of searchResults) {
@@ -418,7 +415,6 @@ export default class VecDocumentTable {
           });
         }
       }
-      log.info("search time", Date.now() - start);
     } else {
       log.error("没有提供模型信息，无法生成嵌入");
     }

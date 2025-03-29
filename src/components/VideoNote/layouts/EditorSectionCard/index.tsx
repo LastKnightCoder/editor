@@ -44,6 +44,7 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
 }) => {
   // 使用 ref 引用 DOM 元素
   const ref = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
 
   // 拖拽处理
   const [{ isDragging }, drag] = useDrag({
@@ -86,9 +87,10 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
 
       // 确定鼠标位置
       const clientOffset = monitor.getClientOffset();
+      if (!clientOffset) return;
 
       // 获取距顶部距离
-      const hoverClientY = clientOffset!.y - hoverBoundingRect.top;
+      const hoverClientY = clientOffset.y - hoverBoundingRect.top;
 
       // 仅在越过一半高度时执行移动
       // 向下拖动
@@ -112,8 +114,9 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
   const note = notes.find((n) => n.id === section.noteId);
   if (!note) return null;
 
-  // 合并引用
-  drag(drop(ref));
+  // 只对放置目标使用ref，拖拽只应用于拖拽手柄
+  drag(dragHandleRef);
+  drop(ref);
 
   return (
     <ResizableBox
@@ -127,6 +130,12 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
       onResize={(_e: React.SyntheticEvent, data: ResizeCallbackData) => {
         handleResizeSection(section.noteId, data.size.height);
       }}
+      onResizeStart={(e) => {
+        e.stopPropagation();
+      }}
+      onResizeStop={(e) => {
+        e.stopPropagation();
+      }}
       className={styles.resizableSection}
     >
       <div
@@ -136,14 +145,15 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
           [styles.dropOver]: isOver && !isDragging,
         })}
         style={{
-          opacity: isDragging ? 0.4 : 1,
-          transform: isDragging ? "scale(1.02)" : "scale(1)",
+          opacity: isDragging ? 0.7 : 1,
+          transform: isDragging ? "scale(1.01)" : "scale(1)",
           zIndex: isDragging ? 100 : 1,
+          height: "100%",
         }}
         data-handler-id={handlerId}
       >
         <div className={styles.editorHeader}>
-          <div className={styles.dragHandle}>
+          <div className={styles.dragHandle} ref={dragHandleRef}>
             <MdDragIndicator />
           </div>
           <h4>{formatTime(note.startTime)} 的笔记</h4>

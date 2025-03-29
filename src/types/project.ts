@@ -18,6 +18,7 @@ export type UpdateProject = Omit<Project, "createTime" | "updateTime">;
 export enum EProjectItemType {
   Document = "document",
   WhiteBoard = "white-board",
+  VideoNote = "video-note",
 }
 
 export interface ProjectItem {
@@ -34,10 +35,11 @@ export interface ProjectItem {
   whiteBoardData?: WhiteBoard["data"];
   projectItemType: EProjectItemType;
   count: number;
+  contentId: number;
 }
 
 export type CreateProjectItem = Omit<
   ProjectItem,
-  "id" | "createTime" | "updateTime"
+  "id" | "createTime" | "updateTime" | "contentId"
 >;
 export type UpdateProjectItem = Omit<ProjectItem, "createTime" | "updateTime">;

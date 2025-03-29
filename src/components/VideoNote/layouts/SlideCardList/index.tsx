@@ -1,12 +1,12 @@
 import React, { memo } from "react";
-import { Button, Tooltip } from "antd";
+import { Button, Tooltip, App } from "antd";
 import { DeleteOutlined, MergeCellsOutlined } from "@ant-design/icons";
 import classnames from "classnames";
 import { VideoNote as VideoNoteType } from "@/types";
-import SlideCard from "../SlideCard";
 import styles from "./index.module.less";
 import { useTheme } from "../../ThemeContext";
 import { EditorSection } from "../useVideoNoteBase";
+import DraggableSlideCard from "../DraggableSlideCard";
 
 interface SlideCardListProps {
   notes: VideoNoteType["notes"];
@@ -25,6 +25,7 @@ interface SlideCardListProps {
   gridContainerRef: React.RefObject<HTMLDivElement>;
   itemWidth: number;
   gap: number;
+  handleMoveNote: (dragId: string, hoverId: string) => void;
 }
 
 const SlideCardList: React.FC<SlideCardListProps> = memo(
@@ -45,8 +46,25 @@ const SlideCardList: React.FC<SlideCardListProps> = memo(
     gridContainerRef,
     itemWidth,
     gap,
+    handleMoveNote,
   }) => {
     const theme = useTheme();
+    const { modal } = App.useApp();
+
+    const handleBatchDeleteWithConfirm = () => {
+      if (selectedNoteIds.length === 0) return;
+
+      modal.confirm({
+        title: "批量删除笔记",
+        content: `确定要删除选中的 ${selectedNoteIds.length} 条笔记吗？`,
+        okText: "确认",
+        okButtonProps: {
+          danger: true,
+        },
+        cancelText: "取消",
+        onOk: handleBatchDelete,
+      });
+    };
 
     return (
       <div
@@ -75,7 +93,7 @@ const SlideCardList: React.FC<SlideCardListProps> = memo(
                     danger
                     icon={<DeleteOutlined />}
                     disabled={selectedNoteIds.length === 0}
-                    onClick={handleBatchDelete}
+                    onClick={handleBatchDeleteWithConfirm}
                   >
                     删除
                   </Button>
@@ -123,7 +141,7 @@ const SlideCardList: React.FC<SlideCardListProps> = memo(
           style={{ gap }}
         >
           {notes.map((note) => (
-            <SlideCard
+            <DraggableSlideCard
               key={note.id}
               note={note}
               isActive={editorSections.some(
@@ -136,6 +154,7 @@ const SlideCardList: React.FC<SlideCardListProps> = memo(
               isSelectionMode={isSelectionMode}
               isSelected={selectedNoteIds.includes(note.id)}
               onSelect={toggleSelectNote}
+              moveCard={handleMoveNote}
             />
           ))}
           {!isSelectionMode && (

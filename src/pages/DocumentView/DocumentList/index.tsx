@@ -6,6 +6,7 @@ import { getDocument } from "@/commands";
 import { IDocument } from "@/types";
 
 import styles from "./index.module.less";
+import { useMemoizedFn } from "ahooks";
 
 const DocumentList = memo(() => {
   const { id } = useParams();
@@ -18,11 +19,17 @@ const DocumentList = memo(() => {
     });
   }, [id]);
 
+  const refreshDocument = useMemoizedFn(() => {
+    getDocument(Number(id)).then((res) => {
+      setDocument(res);
+    });
+  });
+
   if (!document) return null;
 
   return (
     <div className={styles.documentList}>
-      <Document document={document} />
+      <Document document={document} refreshDocument={refreshDocument} />
     </div>
   );
 });

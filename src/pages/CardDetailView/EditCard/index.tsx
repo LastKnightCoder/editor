@@ -35,6 +35,8 @@ import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import LinkGraph from "@/components/LinkGraph";
 import { getAllCards } from "@/commands";
+import SVG from "react-inlinesvg";
+import graphIcon from "@/assets/icons/graph.svg";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -188,7 +190,7 @@ const EditCard = (props: IEditCardProps) => {
         children: (
           <>
             <Tooltip title={"关联图谱"}>
-              <LinkOutlined />
+              <SVG src={graphIcon} />
             </Tooltip>
           </>
         ),

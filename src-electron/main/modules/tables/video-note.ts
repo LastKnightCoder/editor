@@ -43,16 +43,18 @@ export default class VideoNoteTable {
 
   static createVideoNote(
     db: Database.Database,
-    note: Omit<VideoNote, "id">,
+    note: Omit<VideoNote, "id" | "createTime" | "updateTime">,
   ): VideoNote {
     const stmt = db.prepare(`
       INSERT INTO video_notes (notes, create_time, update_time, meta_info, count)
-      VALUES (?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?)
     `);
+
+    const now = Date.now();
     const result = stmt.run(
       JSON.stringify(note.notes),
-      note.createTime,
-      note.updateTime,
+      now,
+      now,
       JSON.stringify(note.metaInfo),
       note.count,
     );
@@ -87,7 +89,7 @@ export default class VideoNoteTable {
 
   static updateVideoNote(
     db: Database.Database,
-    note: Omit<VideoNote, "updateTime">,
+    note: Omit<VideoNote, "createTime" | "updateTime">,
   ): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`

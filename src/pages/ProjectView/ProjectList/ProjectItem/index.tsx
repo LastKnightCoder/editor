@@ -11,6 +11,7 @@ import {
   getProjectItemById,
   updateProjectItem,
   openProjectItemInNewWindow,
+  createVideoNote,
 } from "@/commands";
 
 import SelectCardModal from "@/components/SelectCardModal";
@@ -33,6 +34,7 @@ import {
   ICard,
   WhiteBoard,
   type ProjectItem,
+  VideoNote,
 } from "@/types";
 import {
   FileOutlined,
@@ -65,6 +67,7 @@ interface IProjectItemProps {
   cards: ICard[];
   whiteBoards: WhiteBoard[];
   onOpenChange?: (open: boolean) => void;
+  refreshProject?: () => void;
 }
 
 const ProjectItem = memo((props: IProjectItemProps) => {
@@ -77,6 +80,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     cards,
     whiteBoards,
     onOpenChange,
+    refreshProject,
   } = props;
 
   const projectItemEventBus = useCreation(
@@ -190,6 +194,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         if (isRoot) {
           if (projectId) {
             await removeRootProjectItem(projectId, projectItemId);
+            refreshProject?.();
           }
         } else {
           if (parentProjectItemId) {
@@ -237,6 +242,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         if (dragIsRoot) {
           if (projectId) {
             await removeRootProjectItem(projectId, dragId);
+            refreshProject?.();
           }
         } else {
           if (dragParentId) {
@@ -294,6 +300,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               }
             });
             await updateProjectItem(newDragProjectItem);
+            refreshProject?.();
           } else {
             const parentProjectItem =
               await getProjectItemById(parentProjectItemId);
@@ -367,47 +374,64 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   });
 
   const moreMenuItems: MenuProps["items"] = useMemo(() => {
-    return projectItem?.projectItemType === EProjectItemType.Document
-      ? [
-          projectItem?.refType !== "card"
-            ? {
-                key: "to-card",
-                label: "建立卡片",
-              }
-            : undefined,
-          {
-            key: "presentation-mode",
-            label: "演示模式",
-          },
-          {
-            key: "open-in-new-window",
-            label: "窗口打开",
-          },
-          {
-            key: "open-in-right-sidebar",
-            label: "右侧打开",
-          },
-          {
-            key: "remove",
-            label: "删除文档",
-          },
-        ].filter(isValid)
-      : [
-          projectItem?.refType !== "white-board"
-            ? {
-                key: "to-white-board",
-                label: "建立白板",
-              }
-            : undefined,
-          {
-            key: "remove",
-            label: "删除白板",
-          },
-          {
-            key: "edit-title",
-            label: "编辑标题",
-          },
-        ].filter(isValid);
+    if (projectItem?.projectItemType === EProjectItemType.Document) {
+      return [
+        projectItem?.refType !== "card"
+          ? {
+              key: "to-card",
+              label: "建立卡片",
+            }
+          : undefined,
+        {
+          key: "presentation-mode",
+          label: "演示模式",
+        },
+        {
+          key: "open-in-new-window",
+          label: "窗口打开",
+        },
+        {
+          key: "open-in-right-sidebar",
+          label: "右侧打开",
+        },
+        {
+          key: "remove",
+          label: "删除文档",
+        },
+      ].filter(isValid);
+    }
+
+    if (projectItem?.projectItemType === EProjectItemType.WhiteBoard) {
+      return [
+        projectItem?.refType !== "white-board"
+          ? {
+              key: "to-white-board",
+              label: "建立白板",
+            }
+          : undefined,
+        {
+          key: "remove",
+          label: "删除白板",
+        },
+        {
+          key: "edit-title",
+          label: "编辑标题",
+        },
+      ].filter(isValid);
+    }
+
+    if (projectItem?.projectItemType === EProjectItemType.VideoNote) {
+      return [
+        {
+          key: "remove",
+          label: "删除视频笔记",
+        },
+        {
+          key: "edit-title",
+          label: "编辑标题",
+        },
+      ].filter(isValid);
+    }
   }, [projectItem?.projectItemType, projectItem?.refType]);
 
   const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
@@ -488,6 +512,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     {
       key: "add-white-board-project-item",
       label: "添加白板",
+    },
+    {
+      key: "add-video-note-project-item",
+      label: "添加视频笔记",
     },
     {
       key: "link-card-project-item",
@@ -575,6 +603,56 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           "project-item:updated",
           updatedProjectItem,
         );
+      } else if (key === "add-video-note-project-item") {
+        // 选择视频文件
+        // 选择视频文件
+        const filePath = await selectFile({
+          properties: ["openFile"],
+          filters: [
+            {
+              name: "Video",
+              extensions: ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm"],
+            },
+          ],
+        });
+        if (!filePath) return;
+        const newVideoNote: Omit<
+          VideoNote,
+          "id" | "createTime" | "updateTime"
+        > = {
+          notes: [],
+          count: 0,
+          metaInfo: {
+            type: "local",
+            filePath: filePath[0],
+          },
+        };
+        const item = await createVideoNote(newVideoNote);
+        if (!item) {
+          message.error("创建视频笔记失败");
+          return;
+        }
+        const createProjectItem: CreateProjectItem = {
+          title: "新视频笔记",
+          content: [],
+          children: [],
+          parents: [],
+          projects: [projectId],
+          refType: "video-note",
+          refId: item.id,
+          projectItemType: EProjectItemType.VideoNote,
+          count: 0,
+        };
+        await createChildProjectItem(
+          projectId,
+          projectItemId,
+          createProjectItem,
+        );
+        const updatedProjectItem = await getProjectItemById(projectItemId);
+        projectItemEventBus.publishProjectItemEvent(
+          "project-item:updated",
+          updatedProjectItem,
+        );
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -611,6 +689,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           });
         }
         const updatedProjectItem = await getProjectItemById(projectItemId);
+        console.log("updatedProjectItem", updatedProjectItem);
         projectItemEventBus.publishProjectItemEvent(
           "project-item:updated",
           updatedProjectItem,
