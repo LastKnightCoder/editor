@@ -1,0 +1,146 @@
+.slideCard {
+  width: 160px;
+  height: 136px;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  /* 浅色模式变量 */
+  --text-color-primary: #333;
+  --text-color-secondary: #666;
+  --text-color-tertiary: #999;
+  --bg-color-primary: #fff;
+  --bg-color-secondary: #f5f5f5;
+  --border-color: #eee;
+  --button-bg: #1890ff;
+  --button-hover: #40a9ff;
+  --card-bg-hover: rgba(24, 144, 255, 0.03);
+  --card-icon-bg: rgba(0, 0, 0, 0.03);
+  --border-dashed-color: rgba(0, 0, 0, 0.06);
+  --delete-button-color: rgba(255, 77, 79, 0.7);
+  --delete-button-hover: rgb(255, 77, 79);
+
+  &.dark {
+    --text-color-primary: #e0e0e0;
+    --text-color-secondary: #aaa;
+    --text-color-tertiary: #777;
+    --bg-color-primary: #1f1f1f;
+    --bg-color-secondary: #141414;
+    --border-color: #333;
+    --button-bg: #177ddc;
+    --button-hover: #3c9ae8;
+    --card-bg-hover: rgba(23, 125, 220, 0.08);
+    --card-icon-bg: rgba(255, 255, 255, 0.05);
+    --border-dashed-color: rgba(255, 255, 255, 0.1);
+    --delete-button-color: rgba(255, 77, 79, 0.7);
+    --delete-button-hover: rgb(255, 77, 79);
+  }
+
+  /* 应用变量 */
+  border: 1px solid var(--line-color);
+
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--button-bg), var(--button-hover));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  &:hover {
+    border-color: var(--button-bg);
+
+    .deleteButton {
+      opacity: 1;
+    }
+  }
+
+  &.activeSlide {
+    border-color: var(--button-bg);
+    background-color: var(--card-bg-hover);
+
+    &::after {
+      opacity: 1;
+    }
+
+    .deleteButton {
+      opacity: 1;
+    }
+  }
+
+  &.dragging {
+    opacity: 0.6;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    transform: scale(1.02);
+  }
+}
+
+.slideTime {
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text-color-primary);
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background-color: var(--card-icon-bg);
+  font-size: 14px;
+}
+
+.slidePreview {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  flex: 1;
+  line-height: 1.5;
+}
+
+.cardActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-dashed-color);
+}
+
+.slideWordCount {
+  font-size: 11px;
+  color: var(--text-color-tertiary);
+}
+
+.deleteButton {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--delete-button-color);
+  color: white;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: var(--delete-button-hover);
+    transform: scale(1.1);
+  }
+}

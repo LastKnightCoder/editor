@@ -209,9 +209,6 @@ export default class VecDocumentTable {
   }
 
   static clearTableData(db: Database.Database): boolean {
-    // 清空虚拟表数据，但是保留虚拟表
-    // db.prepare("DELETE FROM vec_documents; VACUUM").run();
-    // log.info("向量索引表已清空");
     // 删除数据库
     db.prepare("DROP TABLE IF EXISTS vec_documents").run();
     return true;

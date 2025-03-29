@@ -1,7 +1,8 @@
 import React, { PropsWithChildren } from "react";
 import { RenderElementProps } from "slate-react";
 import classnames from "classnames";
-import useTheme from "@/hooks/useTheme";
+import { useTheme } from "../../../../ThemeContext";
+import { formatTimestamp } from "../../../../utils";
 import styles from "./index.module.less";
 
 interface VideoTimestampProps {
@@ -18,16 +19,19 @@ const VideoTimestamp: React.FC<PropsWithChildren<VideoTimestampProps>> = ({
   children,
   onSeek,
 }) => {
-  const { isDark } = useTheme();
+  const theme = useTheme();
+
+  const { time } = element;
 
   return (
     <span
       {...attributes}
       onClick={() => onSeek(element.time)}
       className={classnames(styles.timestamp, {
-        [styles.dark]: isDark,
+        [styles.dark]: theme === "dark",
       })}
     >
+      {formatTimestamp(time)}
       {children}
     </span>
   );

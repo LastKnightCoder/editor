@@ -2,22 +2,32 @@ import VideoNote from "@/components/VideoNote";
 import useUploadResource from "@/hooks/useUploadResource";
 import { useCallback } from "react";
 import { Descendant } from "slate";
+import { VideoNote as VideoNoteType } from "@/types";
+import useTheme from "@/hooks/useTheme";
 const defaultContent = [
   {
-    type: "paragraph",
-    children: [
+    id: "1",
+    startTime: 0,
+    content: [
       {
-        type: "formatted",
-        text: "这是一个视频笔记",
+        type: "paragraph",
+        children: [
+          {
+            type: "formatted",
+            text: "这是一个视频笔记",
+          },
+        ],
       },
-    ],
+    ] as Descendant[],
+    count: 8,
   },
-] as Descendant[];
+];
 
 const VideoNoteDemo = () => {
   const uploadResource = useUploadResource();
+  const { theme } = useTheme();
 
-  const handleNotesChange = useCallback((value: Descendant[]) => {
+  const handleNotesChange = useCallback((value: VideoNoteType["notes"]) => {
     console.log(value);
   }, []);
 
@@ -27,6 +37,7 @@ const VideoNoteDemo = () => {
       initialNotes={defaultContent}
       onNotesChange={handleNotesChange}
       uploadResource={uploadResource}
+      theme={theme}
     />
   );
 };

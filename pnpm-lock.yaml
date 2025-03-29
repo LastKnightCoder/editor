@@ -96,6 +96,9 @@ importers:
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4
+      '@types/immutability-helper':
+        specifier: ^2.6.3
+        version: 2.6.3
       '@types/is-hotkey':
         specifier: ^0.1.7
         version: 0.1.10
@@ -167,7 +170,7 @@ importers:
         version: 34.0.1
       electron-builder:
         specifier: ^25.1.8
-        version: 25.1.8(electron-builder-squirrel-windows@25.1.8)
+        version: 25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
       electron-devtools-installer:
         specifier: ^4.0.0
         version: 4.0.0
@@ -201,6 +204,9 @@ importers:
       immer:
         specifier: ^10.0.2
         version: 10.1.1
+      immutability-helper:
+        specifier: ^3.1.1
+        version: 3.1.1
       is-hotkey:
         specifier: ^0.2.0
         version: 0.2.0
@@ -273,6 +279,9 @@ importers:
       react-markdown:
         specifier: ^9.0.3
         version: 9.0.3(@types/react@18.3.18)(react@18.3.1)
+      react-resizable:
+        specifier: ^3.0.5
+        version: 3.0.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: ^6.12.1
         version: 6.28.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1971,6 +1980,10 @@ packages:
   '@types/http-cache-semantics@4.0.4':
     resolution: {integrity: sha512-1m0bIFVc7eJWyve9S0RnuRgcQqF/Xd5QsUZAZeQFr1Q3/p9JWoQQEqmVy+DPTNpGXwhgIetAoYF8JSc33q29QA==}
 
+  '@types/immutability-helper@2.6.3':
+    resolution: {integrity: sha512-WKddkNbFonQIwbplhRQuBFBVgMM7yqpfaYTlxeN6oubEU+q0TCQJx7LZvKaFXHQzP7KnPpzhCVjfYGLfBB2nzQ==}
+    deprecated: This is a stub types definition for immutability-helper (https://github.com/kolodny/immutability-helper). immutability-helper provides its own type definitions, so you don't need @types/immutability-helper installed!
+
   '@types/is-hotkey@0.1.10':
     resolution: {integrity: sha512-RvC8KMw5BCac1NvRRyaHgMMEtBaZ6wh0pyPTBu7izn4Sj/AX9Y4aXU5c7rX8PnM/knsuUpC1IeoBkANtxBypsQ==}
 
@@ -2636,6 +2649,10 @@ packages:
   clone@1.0.4:
     resolution: {integrity: sha512-JQHZ2QMW6l3aH/j6xCqQThY/9OH4D/9ls34cgkUBiEeocRTU04tHfKPBsUK1PqZCUQM7GiA0IIXJSuXHI64Kbg==}
     engines: {node: '>=0.8'}
+
+  clsx@1.2.1:
+    resolution: {integrity: sha512-EcR6r5a8bj6pu3ycsa/E/cKVGuTgZJZdsyUYHOksG/UHIiKfjxzRxYJpyVBwYaQeOvghal9fcc4PidlgzugAQg==}
+    engines: {node: '>=6'}
 
   clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
@@ -4005,6 +4022,9 @@ packages:
 
   immer@10.1.1:
     resolution: {integrity: sha512-s2MPrmjovJcoMaHtx6K11Ra7oD05NT97w1IC5zpMkT6Atjr7H8LjaDd81iIxUYpMKSRRNMJE703M1Fhr/TctHw==}
+
+  immutability-helper@3.1.1:
+    resolution: {integrity: sha512-Q0QaXjPjwIju/28TsugCHNEASwoCcJSyJV3uO1sOIQGI0jKgm9f41Lvz0DZj3n46cNCyAZTsEYoY4C2bVRUzyQ==}
 
   import-fresh@3.3.0:
     resolution: {integrity: sha512-veYYhQa+D1QBKznvhUHxb8faxlrwUnxseDAbAp457E0wLNio2bOSKnjYDhMj+YiAq61xrMGhQk9iXVk5FzgQMw==}
@@ -5671,6 +5691,12 @@ packages:
     peerDependencies:
       react: ^18.3.1
 
+  react-draggable@4.4.6:
+    resolution: {integrity: sha512-LtY5Xw1zTPqHkVmtM3X8MUOxNDOUhv/khTgBgrUvwaS064bwVvxT+q5El0uUFNx5IEPKXuRejr7UqLwBIg5pdw==}
+    peerDependencies:
+      react: '>= 16.3.0'
+      react-dom: '>= 16.3.0'
+
   react-fast-compare@3.2.2:
     resolution: {integrity: sha512-nsO+KSNgo1SbJqJEYRE9ERzo7YtYbou/OqjSQKxV7jcKox7+usiUVZOAC+XnDOABXggQTno0Y1CpVnuWEc1boQ==}
 
@@ -5706,6 +5732,11 @@ packages:
     engines: {node: '>=0.10.0'}
     peerDependencies:
       react: ^17.0.2
+
+  react-resizable@3.0.5:
+    resolution: {integrity: sha512-vKpeHhI5OZvYn82kXOs1bC8aOXktGU5AmKAgaZS4F5JPburCtbmDPqE7Pzp+1kN4+Wb81LlF33VpGwWwtXem+w==}
+    peerDependencies:
+      react: '>= 16.3'
 
   react-router-dom@6.28.2:
     resolution: {integrity: sha512-O81EWqNJWqvlN/a7eTudAdQm0TbI7hw+WIi7OwwMcTn5JMyZ0ibTFNGz+t+Lju0df4LcqowCegcrK22lB1q9Kw==}
@@ -8790,6 +8821,10 @@ snapshots:
 
   '@types/http-cache-semantics@4.0.4': {}
 
+  '@types/immutability-helper@2.6.3':
+    dependencies:
+      immutability-helper: 3.1.1
+
   '@types/is-hotkey@0.1.10': {}
 
   '@types/json-schema@7.0.15': {}
@@ -9267,7 +9302,7 @@ snapshots:
 
   app-builder-bin@5.0.0-alpha.10: {}
 
-  app-builder-lib@25.1.8(dmg-builder@25.1.8)(electron-builder-squirrel-windows@25.1.8):
+  app-builder-lib@25.1.8(dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)))(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)):
     dependencies:
       '@develar/schema-utils': 2.6.5
       '@electron/notarize': 2.5.0
@@ -9283,7 +9318,7 @@ snapshots:
       chromium-pickle-js: 0.2.0
       config-file-ts: 0.2.8-rc1
       debug: 4.4.0
-      dmg-builder: 25.1.8(electron-builder-squirrel-windows@25.1.8)
+      dmg-builder: 25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
       dotenv: 16.4.7
       dotenv-expand: 11.0.7
       ejs: 3.1.10
@@ -9680,6 +9715,8 @@ snapshots:
       mimic-response: 1.0.1
 
   clone@1.0.4: {}
+
+  clsx@1.2.1: {}
 
   clsx@2.1.1: {}
 
@@ -10248,9 +10285,9 @@ snapshots:
 
   direction@1.0.4: {}
 
-  dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8):
+  dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)):
     dependencies:
-      app-builder-lib: 25.1.8(dmg-builder@25.1.8)(electron-builder-squirrel-windows@25.1.8)
+      app-builder-lib: 25.1.8(dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)))(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
       builder-util: 25.1.7
       builder-util-runtime: 9.2.10
       fs-extra: 10.1.0
@@ -10344,7 +10381,7 @@ snapshots:
 
   electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8):
     dependencies:
-      app-builder-lib: 25.1.8(dmg-builder@25.1.8)(electron-builder-squirrel-windows@25.1.8)
+      app-builder-lib: 25.1.8(dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)))(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
       archiver: 5.3.2
       builder-util: 25.1.7
       fs-extra: 10.1.0
@@ -10353,13 +10390,13 @@ snapshots:
       - dmg-builder
       - supports-color
 
-  electron-builder@25.1.8(electron-builder-squirrel-windows@25.1.8):
+  electron-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)):
     dependencies:
-      app-builder-lib: 25.1.8(dmg-builder@25.1.8)(electron-builder-squirrel-windows@25.1.8)
+      app-builder-lib: 25.1.8(dmg-builder@25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8)))(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
       builder-util: 25.1.7
       builder-util-runtime: 9.2.10
       chalk: 4.1.2
-      dmg-builder: 25.1.8(electron-builder-squirrel-windows@25.1.8)
+      dmg-builder: 25.1.8(electron-builder-squirrel-windows@25.1.8(dmg-builder@25.1.8))
       fs-extra: 10.1.0
       is-ci: 3.0.1
       lazy-val: 1.0.5
@@ -11340,6 +11377,8 @@ snapshots:
   immediate@3.0.6: {}
 
   immer@10.1.1: {}
+
+  immutability-helper@3.1.1: {}
 
   import-fresh@3.3.0:
     dependencies:
@@ -13417,6 +13456,13 @@ snapshots:
       react: 18.3.1
       scheduler: 0.23.2
 
+  react-draggable@4.4.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      clsx: 1.2.1
+      prop-types: 15.8.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
   react-fast-compare@3.2.2: {}
 
   react-from-dom@0.7.5(react@18.3.1):
@@ -13459,6 +13505,14 @@ snapshots:
       object-assign: 4.1.1
       react: 18.3.1
       scheduler: 0.20.2
+
+  react-resizable@3.0.5(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      prop-types: 15.8.1
+      react: 18.3.1
+      react-draggable: 4.4.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    transitivePeerDependencies:
+      - react-dom
 
   react-router-dom@6.28.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:

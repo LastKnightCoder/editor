@@ -8,12 +8,11 @@ export const formatTimestamp = (time: number): string => {
 
 export const createTimestampElement = (videoController: VideoController) => {
   const time = videoController.getCurrentTime();
-  const timestamp = formatTimestamp(time);
 
   return {
     type: "video-timestamp",
     time,
-    children: [{ type: "formatted", text: timestamp }],
+    children: [{ type: "formatted", text: "" }],
   };
 };
 
