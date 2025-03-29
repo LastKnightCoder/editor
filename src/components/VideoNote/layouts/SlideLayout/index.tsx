@@ -51,7 +51,7 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
       maxWidth: 240,
     });
 
-    const [{ isOver }, drop] = useDrop(
+    const [{ isOver, canDrop }, drop] = useDrop(
       () => ({
         accept: ItemTypes.SLIDE_CARD,
         drop: (item: { id: string }) => {
@@ -60,8 +60,11 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
             handleSlideCardDrop(noteId);
           }
         },
+        canDrop: (item: { id: string }) =>
+          !editorSections.some((section) => section.noteId === item.id),
         collect: (monitor) => ({
           isOver: monitor.isOver(),
+          canDrop: monitor.canDrop(),
         }),
       }),
       [handleSlideCardDrop, editorSections],
@@ -107,7 +110,8 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
         <div
           ref={drop}
           className={classnames(styles.editorsContainer, {
-            [styles.dropTarget]: isOver,
+            [styles.dropTarget]: isOver && canDrop,
+            [styles.dropInvalid]: isOver && !canDrop,
             [styles.empty]: editorSections.length === 0,
           })}
         >

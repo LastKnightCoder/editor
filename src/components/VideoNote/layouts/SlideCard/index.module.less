@@ -67,6 +67,8 @@
 
   &:hover {
     border-color: var(--button-bg);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
     .deleteButton {
       opacity: 1;
@@ -76,6 +78,8 @@
   &.activeSlide {
     border-color: var(--button-bg);
     background-color: var(--card-bg-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
     &::after {
       opacity: 1;
@@ -88,8 +92,10 @@
 
   &.dragging {
     opacity: 0.6;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-    transform: scale(1.02);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    transform: scale(1.05);
+    z-index: 100;
+    border-color: var(--button-bg);
   }
 
   &.selectionMode {

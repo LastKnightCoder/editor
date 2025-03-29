@@ -8,6 +8,7 @@ import { VideoNote as VideoNoteType } from "@/types";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 import IExtension from "@/components/Editor/extensions/types";
+import { EDITOR_SECTION_DEFAULT_HEIGHT } from "../constants";
 
 export interface VideoNoteBaseProps {
   videoSrc: string;
@@ -121,7 +122,7 @@ export const useVideoNoteBase = ({
       setEditorSections([
         {
           noteId: newNote.id,
-          height: 300,
+          height: EDITOR_SECTION_DEFAULT_HEIGHT,
         },
       ]);
     } else {
@@ -129,7 +130,7 @@ export const useVideoNoteBase = ({
         ...prev,
         {
           noteId: newNote.id,
-          height: 300,
+          height: EDITOR_SECTION_DEFAULT_HEIGHT,
         },
       ]);
     }
@@ -168,7 +169,7 @@ export const useVideoNoteBase = ({
         ...prev,
         {
           noteId,
-          height: 300,
+          height: EDITOR_SECTION_DEFAULT_HEIGHT,
         },
       ]);
     }
@@ -215,7 +216,7 @@ export const useVideoNoteBase = ({
         ...prev,
         {
           noteId,
-          height: 300,
+          height: EDITOR_SECTION_DEFAULT_HEIGHT,
         },
       ]);
     }
@@ -224,10 +225,16 @@ export const useVideoNoteBase = ({
   const handleMoveEditorSection = useMemoizedFn(
     (dragIndex: number, hoverIndex: number) => {
       setEditorSections((prev) => {
-        const newEditorSections = [...prev];
-        const [removed] = newEditorSections.splice(dragIndex, 1);
-        newEditorSections.splice(hoverIndex, 0, removed);
-        return newEditorSections;
+        return produce(prev, (draft) => {
+          // 克隆要移动的元素
+          const draggedSection = { ...draft[dragIndex] };
+
+          // 从数组中删除拖拽的项
+          draft.splice(dragIndex, 1);
+
+          // 将其插入到新位置
+          draft.splice(hoverIndex, 0, draggedSection);
+        });
       });
     },
   );
@@ -297,7 +304,7 @@ export const useVideoNoteBase = ({
       ...selectedNotes.map(
         (note) =>
           editorSections.find((section) => section.noteId === note.id)
-            ?.height || 300,
+            ?.height || EDITOR_SECTION_DEFAULT_HEIGHT,
       ),
     );
 
