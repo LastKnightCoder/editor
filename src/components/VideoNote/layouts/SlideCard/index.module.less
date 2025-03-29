@@ -25,6 +25,10 @@
   --border-dashed-color: rgba(0, 0, 0, 0.06);
   --delete-button-color: rgba(255, 77, 79, 0.7);
   --delete-button-hover: rgb(255, 77, 79);
+  --checkbox-border: #d9d9d9;
+  --checkbox-bg: #fff;
+  --checkbox-checked-bg: var(--button-bg);
+  --checkbox-checked-color: #fff;
 
   &.dark {
     --text-color-primary: #e0e0e0;
@@ -40,6 +44,10 @@
     --border-dashed-color: rgba(255, 255, 255, 0.1);
     --delete-button-color: rgba(255, 77, 79, 0.7);
     --delete-button-hover: rgb(255, 77, 79);
+    --checkbox-border: #434343;
+    --checkbox-bg: #1f1f1f;
+    --checkbox-checked-bg: var(--button-bg);
+    --checkbox-checked-color: #fff;
   }
 
   /* 应用变量 */
@@ -82,6 +90,19 @@
     opacity: 0.6;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
     transform: scale(1.02);
+  }
+
+  &.selectionMode {
+    padding-top: 32px;
+  }
+
+  &.selected {
+    border-color: var(--button-bg);
+    background-color: var(--card-bg-hover);
+
+    &::after {
+      opacity: 1;
+    }
   }
 }
 
@@ -143,4 +164,39 @@
     background-color: var(--delete-button-hover);
     transform: scale(1.1);
   }
+}
+
+.checkboxWrapper {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--checkbox-border);
+  border-radius: 2px;
+  background-color: var(--checkbox-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.checked {
+    background-color: var(--checkbox-checked-bg);
+    border-color: var(--checkbox-checked-bg);
+  }
+
+  &:hover {
+    border-color: var(--button-bg);
+  }
+}
+
+.checkmark {
+  color: var(--checkbox-checked-color);
+  font-size: 12px;
+  line-height: 1;
 }
