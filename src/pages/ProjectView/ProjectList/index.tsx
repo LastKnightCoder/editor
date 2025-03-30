@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Dropdown, Empty, MenuProps, App } from "antd";
+import { Dropdown, Empty, MenuProps, App, Modal, Input } from "antd";
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import { useNavigate } from "react-router-dom";
@@ -46,6 +46,8 @@ const Project = () => {
   const [cards, setCards] = useState<ICard[]>([]);
   const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
 
+  const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
+  const [webVideoUrl, setWebVideoUrl] = useState("");
   useEffect(() => {
     getAllCards().then((cards) => {
       setCards(cards);
@@ -100,6 +102,16 @@ const Project = () => {
     {
       key: "add-video-note-project-item",
       label: "添加视频笔记",
+      children: [
+        {
+          key: "add-local-video-note-project-item",
+          label: "本地视频",
+        },
+        {
+          key: "add-remote-video-note-project-item",
+          label: "远程视频",
+        },
+      ],
     },
     {
       key: "link-card-project-item",
@@ -179,7 +191,7 @@ const Project = () => {
         getProjectById(project.id).then((project) => {
           setProject(project);
         });
-      } else if (key === "add-video-note-project-item") {
+      } else if (key === "add-local-video-note-project-item") {
         // 选择视频文件
         const filePath = await selectFile({
           properties: ["openFile"],
@@ -207,8 +219,9 @@ const Project = () => {
           message.error("创建视频笔记失败");
           return;
         }
+        const fileName = await getFileBaseName(filePath[0], true);
         const createProjectItem: CreateProjectItem = {
-          title: "新视频笔记",
+          title: fileName,
           content: [],
           children: [],
           parents: [],
@@ -230,6 +243,8 @@ const Project = () => {
         getProjectById(project.id).then((project) => {
           setProject(project);
         });
+      } else if (key === "add-remote-video-note-project-item") {
+        setWebVideoModalOpen(true);
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -347,6 +362,59 @@ const Project = () => {
           excludeWhiteBoardIds={excludeWhiteBoardIds}
           multiple={multiple}
         />
+        <Modal
+          open={webVideoModalOpen}
+          onCancel={() => setWebVideoModalOpen(false)}
+          onOk={async () => {
+            const newVideoNote: Omit<
+              VideoNote,
+              "id" | "createTime" | "updateTime"
+            > = {
+              notes: [],
+              count: 0,
+              metaInfo: {
+                type: "remote",
+                url: webVideoUrl,
+              },
+            };
+            const item = await createVideoNote(newVideoNote);
+            if (!item) {
+              message.error("创建视频笔记失败");
+              return;
+            }
+            const createProjectItem: CreateProjectItem = {
+              title: webVideoUrl,
+              content: [],
+              children: [],
+              parents: [],
+              projects: [project.id],
+              refType: "video-note",
+              refId: item.id,
+              projectItemType: EProjectItemType.VideoNote,
+              count: 0,
+            };
+            const projectItem = await createRootProjectItem(
+              project.id,
+              createProjectItem,
+            );
+            if (projectItem) {
+              useProjectsStore.setState({
+                activeProjectItemId: projectItem.id,
+              });
+            }
+            getProjectById(project.id).then((project) => {
+              setProject(project);
+            });
+            setWebVideoModalOpen(false);
+            setWebVideoUrl("");
+          }}
+        >
+          <Input
+            placeholder="请输入网址"
+            value={webVideoUrl}
+            onChange={(e) => setWebVideoUrl(e.target.value)}
+          />
+        </Modal>
       </div>
     </ProjectContext.Provider>
   );

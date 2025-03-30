@@ -2,6 +2,7 @@
   &.dragging {
     opacity: 0.5;
   }
+
   .header {
     position: relative;
     display: flex;
@@ -12,10 +13,12 @@
     border-radius: 8px;
     cursor: pointer;
     border: 1px solid transparent;
+
     &.active {
       background-color: var(--sidebar-active-bg);
       //color: var(--active-text-color);
     }
+
     &.top {
       &::before {
         content: "";
@@ -26,6 +29,7 @@
         height: 2px;
         background-color: var(--active-text-color);
       }
+
       &::after {
         content: "";
         position: absolute;
@@ -35,6 +39,7 @@
         border-left-color: var(--active-text-color);
       }
     }
+
     &.bottom {
       &::before {
         content: "";
@@ -45,6 +50,7 @@
         height: 2px;
         background-color: var(--active-text-color);
       }
+
       &::after {
         content: "";
         position: absolute;
@@ -54,19 +60,23 @@
         border-left-color: var(--active-text-color);
       }
     }
+
     &.inside {
       border: 1px dashed var(--active-text-color);
       background-color: var(--active-bg-color);
     }
+
     &:hover:not(.active) {
       background-color: var(--common-hover-bg);
     }
+
     .titleContainer {
       display: flex;
       align-items: center;
       gap: 8px;
       height: 30px;
       overflow: hidden;
+
       .icon {
         width: 30px;
         height: 30px;
@@ -75,19 +85,24 @@
         justify-content: center;
         flex: none;
         border-radius: 50%;
+
         &.hoverable:hover {
           background-color: var(--common-hover-bg);
         }
       }
+
       .title {
         line-height: 32px;
         align-self: flex-start;
+        word-break: break-all;
       }
     }
+
     .icons {
       display: flex;
       align-items: center;
       flex: none;
+
       .icon {
         cursor: pointer;
         width: 28px;
@@ -96,22 +111,26 @@
         align-items: center;
         justify-content: center;
         border-radius: 50%;
+
         &:hover {
           background-color: var(--common-hover-bg);
         }
       }
     }
   }
+
   .gridContainer {
     display: grid;
     grid-template-rows: 1fr;
     transition: grid-template-rows 0.3s ease;
     overflow: hidden;
     margin: 8px 0;
+
     &.hide {
       grid-template-rows: 0fr;
       margin: 0;
     }
+
     .children {
       min-height: 0;
       padding-left: 16px;
@@ -128,10 +147,12 @@
   flex-direction: column;
   gap: 8px;
   width: 100px;
+
   .item {
     border-radius: 8px;
     text-align: center;
     padding: 8px 12px;
+
     &:hover {
       background-color: var(--common-hover-bg);
       cursor: pointer;

@@ -106,6 +106,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       },
     },
   );
+  const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
+  const [webVideoUrl, setWebVideoUrl] = useState("");
 
   const {
     updateProject,
@@ -481,6 +483,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         setTitleEditable(true);
         titleRef.current?.setContentEditable(true);
         titleRef.current?.focusEnd();
+        titleRef.current?.selectAll();
       } else if (key === "presentation-mode") {
         if (
           !projectItem ||
@@ -516,6 +519,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     {
       key: "add-video-note-project-item",
       label: "添加视频笔记",
+      children: [
+        {
+          key: "add-local-video-note-project-item",
+          label: "本地视频",
+        },
+        {
+          key: "add-remote-video-note-project-item",
+          label: "远程视频",
+        },
+      ],
     },
     {
       key: "link-card-project-item",
@@ -603,7 +616,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           "project-item:updated",
           updatedProjectItem,
         );
-      } else if (key === "add-video-note-project-item") {
+      } else if (key === "add-local-video-note-project-item") {
         // 选择视频文件
         // 选择视频文件
         const filePath = await selectFile({
@@ -632,8 +645,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           message.error("创建视频笔记失败");
           return;
         }
+        const fileName = await getFileBaseName(filePath[0], true);
         const createProjectItem: CreateProjectItem = {
-          title: "新视频笔记",
+          title: fileName,
           content: [],
           children: [],
           parents: [],
@@ -643,7 +657,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           projectItemType: EProjectItemType.VideoNote,
           count: 0,
         };
-        await createChildProjectItem(
+        const childProjectItem = await createChildProjectItem(
           projectId,
           projectItemId,
           createProjectItem,
@@ -653,6 +667,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           "project-item:updated",
           updatedProjectItem,
         );
+        if (childProjectItem) {
+          useProjectsStore.setState({
+            activeProjectItemId: childProjectItem.id,
+          });
+        }
+      } else if (key === "add-remote-video-note-project-item") {
+        setWebVideoModalOpen(true);
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -767,7 +788,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               </div>
             </Tooltip>
             <EditText
-              className={styles.title}
+              className={classnames(styles.title, {
+                [styles.editing]: titleEditable,
+              })}
               key={projectItem.id}
               ref={titleRef}
               defaultValue={projectItem.title}
@@ -970,6 +993,66 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           value={webClip}
           onChange={(e) => setWebClip(e.target.value)}
           placeholder="请输入网址"
+        />
+      </Modal>
+      <Modal
+        open={webVideoModalOpen}
+        onCancel={() => setWebVideoModalOpen(false)}
+        onOk={async () => {
+          if (!projectItem || !projectId) {
+            message.error("项目文档尚未加载完成");
+            return;
+          }
+          const newVideoNote: Omit<
+            VideoNote,
+            "id" | "createTime" | "updateTime"
+          > = {
+            notes: [],
+            count: 0,
+            metaInfo: {
+              type: "remote",
+              url: webVideoUrl,
+            },
+          };
+          const item = await createVideoNote(newVideoNote);
+          if (!item) {
+            message.error("创建视频笔记失败");
+            return;
+          }
+          const createProjectItem: CreateProjectItem = {
+            title: webVideoUrl,
+            content: [],
+            children: [],
+            parents: [],
+            projects: [projectId],
+            refType: "video-note",
+            refId: item.id,
+            projectItemType: EProjectItemType.VideoNote,
+            count: 0,
+          };
+          const newProjectItem = await createChildProjectItem(
+            projectId,
+            projectItem.id,
+            createProjectItem,
+          );
+          if (newProjectItem) {
+            useProjectsStore.setState({
+              activeProjectItemId: newProjectItem.id,
+            });
+          }
+          const updatedProjectItem = await getProjectItemById(projectItem.id);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            updatedProjectItem,
+          );
+          setWebVideoModalOpen(false);
+          setWebVideoUrl("");
+        }}
+      >
+        <Input
+          placeholder="请输入网址"
+          value={webVideoUrl}
+          onChange={(e) => setWebVideoUrl(e.target.value)}
         />
       </Modal>
 
