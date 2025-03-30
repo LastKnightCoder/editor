@@ -32,18 +32,33 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     { wait: 200 },
   );
 
-  if (!videoNote || videoNote.metaInfo.type !== "local") return null;
+  if (!videoNote) return null;
 
-  return (
-    <div className={styles.container}>
-      <VideoNote
-        videoSrc={videoNote.metaInfo.filePath}
-        initialNotes={videoNote.notes}
-        onNotesChange={handleNotesChange}
-        uploadResource={uploadResource}
-      />
-    </div>
-  );
+  if (videoNote.metaInfo.type === "local") {
+    return (
+      <div className={styles.container}>
+        <VideoNote
+          videoSrc={videoNote.metaInfo.filePath}
+          initialNotes={videoNote.notes}
+          onNotesChange={handleNotesChange}
+          uploadResource={uploadResource}
+        />
+      </div>
+    );
+  } else if (videoNote.metaInfo.type === "remote") {
+    return (
+      <div className={styles.container}>
+        <VideoNote
+          videoSrc={videoNote.metaInfo.url}
+          initialNotes={videoNote.notes}
+          onNotesChange={handleNotesChange}
+          uploadResource={uploadResource}
+        />
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default VideoNoteView;

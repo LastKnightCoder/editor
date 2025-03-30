@@ -27,6 +27,7 @@ export type EditTextHandle = {
   focus: () => void;
   isFocus: () => boolean;
   focusEnd: () => void;
+  selectAll: () => void;
   blur: () => void;
   getValue: () => string;
   setContentEditable: (editable: boolean) => void;
@@ -66,6 +67,16 @@ const EditText = memo(
         if (inputEle) {
           inputEle.innerText = value;
         }
+      },
+      selectAll: () => {
+        const inputEle = ref.current;
+        if (!inputEle) return;
+        const range = document.createRange();
+        range.selectNodeContents(inputEle);
+
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
       },
       focus: () => {
         ref.current?.focus();
