@@ -606,7 +606,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           projectItemType: EProjectItemType.WhiteBoard,
           count: 0,
         };
-        await createChildProjectItem(
+        const childProjectItem = await createChildProjectItem(
           projectId,
           projectItemId,
           createProjectItem,
@@ -616,6 +616,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           "project-item:updated",
           updatedProjectItem,
         );
+        setProjectItem(updatedProjectItem);
+        if (childProjectItem) {
+          useProjectsStore.setState({
+            activeProjectItemId: childProjectItem.id,
+          });
+        }
       } else if (key === "add-local-video-note-project-item") {
         // 选择视频文件
         // 选择视频文件
@@ -756,67 +762,69 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             });
           }}
         >
-          <div className={styles.titleContainer}>
-            <Tooltip
-              title={
-                projectItem.children.length > 0
-                  ? folderOpen
-                    ? "收起"
-                    : "展开"
-                  : undefined
-              }
-            >
-              <div
-                className={classnames(styles.icon, {
-                  [styles.hoverable]: projectItem.children.length > 0,
-                })}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (projectItem.children.length === 0) return;
-                  setFolderOpen(!folderOpen);
-                }}
-              >
-                {projectItem.children.length > 0 ? (
-                  <FolderOpenTwoTone />
-                ) : projectItem.projectItemType ===
-                  EProjectItemType.WhiteBoard ? (
-                  <SVG src={whiteBoardIcon} />
-                ) : (
-                  <FileOutlined />
-                )}
-              </div>
-            </Tooltip>
-            <EditText
-              className={classnames(styles.title, {
-                [styles.editing]: titleEditable,
-              })}
-              key={projectItem.id}
-              ref={titleRef}
-              defaultValue={projectItem.title}
-              contentEditable={titleEditable}
-              onPressEnter={() => {
-                const textContent =
-                  titleRef.current?.getValue() || projectItem?.title;
-                setTitleEditable(false);
-                if (textContent !== projectItem.title) {
-                  // 更新标题
-                  updateProjectItem({
-                    ...projectItem,
-                    title: textContent,
-                  }).then((newProjectItem) => {
-                    setProjectItem(newProjectItem);
-                    setTitleEditable(false);
-                    titleRef.current?.setContentEditable(false);
-                    projectItemEventBus.publishProjectItemEvent(
-                      "project-item:updated",
-                      newProjectItem,
-                    );
-                  });
+          <Tooltip title={projectItem.title} trigger={"hover"}>
+            <div className={styles.titleContainer}>
+              <Tooltip
+                title={
+                  projectItem.children.length > 0
+                    ? folderOpen
+                      ? "收起"
+                      : "展开"
+                    : undefined
                 }
-              }}
-            />
-          </div>
+              >
+                <div
+                  className={classnames(styles.icon, {
+                    [styles.hoverable]: projectItem.children.length > 0,
+                  })}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (projectItem.children.length === 0) return;
+                    setFolderOpen(!folderOpen);
+                  }}
+                >
+                  {projectItem.children.length > 0 ? (
+                    <FolderOpenTwoTone />
+                  ) : projectItem.projectItemType ===
+                    EProjectItemType.WhiteBoard ? (
+                    <SVG src={whiteBoardIcon} />
+                  ) : (
+                    <FileOutlined />
+                  )}
+                </div>
+              </Tooltip>
+              <EditText
+                className={classnames(styles.title, {
+                  [styles.editing]: titleEditable,
+                })}
+                key={projectItem.id}
+                ref={titleRef}
+                defaultValue={projectItem.title}
+                contentEditable={titleEditable}
+                onPressEnter={() => {
+                  const textContent =
+                    titleRef.current?.getValue() || projectItem?.title;
+                  setTitleEditable(false);
+                  if (textContent !== projectItem.title) {
+                    // 更新标题
+                    updateProjectItem({
+                      ...projectItem,
+                      title: textContent,
+                    }).then((newProjectItem) => {
+                      setProjectItem(newProjectItem);
+                      setTitleEditable(false);
+                      titleRef.current?.setContentEditable(false);
+                      projectItemEventBus.publishProjectItemEvent(
+                        "project-item:updated",
+                        newProjectItem,
+                      );
+                    });
+                  }
+                }}
+              />
+            </div>
+          </Tooltip>
           <div
             onClick={(e) => {
               e.stopPropagation();
