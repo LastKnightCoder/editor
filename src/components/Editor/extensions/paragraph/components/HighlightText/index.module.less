@@ -2,12 +2,23 @@
 
 .textContainer {
   width: 3.5em;
+  height: 2.5em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375em;
+  border-radius: 0.5em;
+  cursor: pointer;
 
   .text {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     gap: 0.375em;
+  }
+
+  &:hover {
+    background: var(--common-hover-bg);
   }
 
   .icon {
