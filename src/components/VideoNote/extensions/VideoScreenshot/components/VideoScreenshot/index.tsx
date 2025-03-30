@@ -71,7 +71,7 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
           })}
         >
           <LocalImage
-            src={url}
+            url={url}
             className={styles.image}
             onClick={() => onSeek(time)}
           />

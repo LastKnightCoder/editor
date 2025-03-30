@@ -4,6 +4,7 @@ import { type VideoNote as IVideoNote } from "@/types";
 import { getVideoNoteById, updateVideoNote } from "@/commands";
 import VideoNote from "@/components/VideoNote";
 import styles from "./index.module.less";
+import useUploadResource from "@/hooks/useUploadResource.ts";
 
 interface IVideoNoteViewProps {
   videoNoteId: number;
@@ -11,6 +12,7 @@ interface IVideoNoteViewProps {
 
 const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
+  const uploadResource = useUploadResource();
 
   useEffect(() => {
     getVideoNoteById(videoNoteId).then((videoNote) => {
@@ -38,6 +40,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         videoSrc={videoNote.metaInfo.filePath}
         initialNotes={videoNote.notes}
         onNotesChange={handleNotesChange}
+        uploadResource={uploadResource}
       />
     </div>
   );
