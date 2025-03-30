@@ -94,9 +94,11 @@ const SelectArticleModal = <T extends IItem>(
       onOk={handleOk}
       onCancel={handleCancel}
       width={800}
-      bodyStyle={{
-        height: 500,
-        boxSizing: "border-box",
+      styles={{
+        body: {
+          height: 500,
+          boxSizing: "border-box",
+        },
       }}
     >
       <div className={styles.modal}>

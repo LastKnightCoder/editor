@@ -71,12 +71,6 @@ export const updateProjectItem = async (
   return await invoke("update-project-item", item);
 };
 
-export const partialUpdateProjectItem = async (
-  item: Partial<UpdateProjectItem> & { id: number },
-): Promise<ProjectItem> => {
-  return await invoke("partial-update-project-item", item);
-};
-
 export const updateProjectItemWhiteBoardData = async (
   id: number,
   whiteBoardData: WhiteBoard["data"],
@@ -86,13 +80,6 @@ export const updateProjectItemWhiteBoardData = async (
     id,
     whiteBoardData,
   );
-};
-
-export const updateProjectItemContent = async (
-  id: number,
-  content: ProjectItem["content"],
-): Promise<ProjectItem> => {
-  return await invoke("update-project-item-content", id, content);
 };
 
 export const deleteProjectItem = async (id: number): Promise<number> => {

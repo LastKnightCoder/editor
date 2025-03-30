@@ -12,7 +12,6 @@ import Operation from "./operation";
 import { WhiteBoard } from "@/types";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
-import { snakeCase } from "lodash";
 import { basename } from "node:path";
 import { BrowserWindow } from "electron";
 import FTSTable from "./fts";
@@ -21,24 +20,6 @@ import ContentTable from "./content";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
-const projectItemAttributes = [
-  "title",
-  "children",
-  "parents",
-  "projects",
-  "ref_type",
-  "ref_id",
-  "white_board_data",
-  "project_item_type",
-];
-
-const projectItemNeedStringifyAttributes = [
-  "content",
-  "children",
-  "parents",
-  "projects",
-  "white_board_data",
-];
 
 export default class ProjectTable {
   static initTable(db: Database.Database) {
@@ -201,7 +182,6 @@ export default class ProjectTable {
       "update-project-item": this.updateProjectItem.bind(this),
       "update-project-item-whiteboard-data":
         this.updateProjectItemWhiteBoardData.bind(this),
-      "update-project-item-content": this.updateProjectItemContent.bind(this),
       "delete-project-item": this.deleteProjectItem.bind(this),
       "get-project-item": this.getProjectItem.bind(this),
       "get-project-items-by-ids": this.getProjectItemsByIds.bind(this),
@@ -217,7 +197,6 @@ export default class ProjectTable {
       "delete-project-items-not-in-any-project":
         this.deleteProjectItemsNotInAnyProject.bind(this),
       "get-all-project-items": this.getAllProjectItems.bind(this),
-      "partial-update-project-item": this.partialUpdateProjectItem.bind(this),
     };
   }
 
@@ -235,7 +214,6 @@ export default class ProjectTable {
   }
 
   static parseProjectItem(item: any): ProjectItem {
-    console.log("item", item);
     let content: Descendant[] = [];
     let count = 0;
     const contentId = item.content_id;
@@ -347,18 +325,22 @@ export default class ProjectTable {
     db: Database.Database,
     item: CreateProjectItem,
   ): ProjectItem {
-    let contentId = -1;
+    let contentId = 0;
 
     if (item.refType === "card" && item.refId) {
       const card = CardTable.getCardById(db, item.refId);
       if (card) {
         contentId = card.contentId;
       }
+      // 增加计数
+      ContentTable.incrementRefCount(db, contentId);
     } else if (item.refType === "article" && item.refId) {
       const article = ArticleTable.getArticleById(db, item.refId);
       if (article) {
         contentId = article.contentId;
       }
+      // 增加计数
+      ContentTable.incrementRefCount(db, contentId);
     } else if (
       item.refType !== "white-board" &&
       item.refType !== "video-note"
@@ -401,135 +383,6 @@ export default class ProjectTable {
     return this.getProjectItem(db, Number(res.lastInsertRowid));
   }
 
-  static partialUpdateProjectItem(
-    db: Database.Database,
-    item: Partial<UpdateProjectItem> & { id: number },
-    ...res: any[]
-  ): ProjectItem {
-    const win = res[res.length - 1];
-
-    const availableFields = Object.keys(item)
-      .map((key) => {
-        if (projectItemAttributes.includes(snakeCase(key))) {
-          return key;
-        }
-      })
-      .filter(Boolean) as string[];
-
-    const updateSql = availableFields
-      .map((field) => `${snakeCase(field)} = ?`)
-      .join(", ");
-    const stmt = db.prepare(`
-      UPDATE project_item SET
-        ${updateSql},
-        update_time = ?
-      WHERE id = ?
-    `);
-    const now = Date.now();
-    stmt.run(
-      ...availableFields.map((field) => {
-        if (projectItemNeedStringifyAttributes.includes(snakeCase(field))) {
-          // @ts-ignore
-          return JSON.stringify(item[field]);
-        } else {
-          // @ts-ignore
-          return item[field];
-        }
-      }),
-      now,
-      item.id,
-    );
-
-    if (item.content && item.contentId) {
-      ContentTable.updateContent(db, item.contentId, {
-        content: item.content,
-        count: item.count || getContentLength(item.content),
-      });
-    }
-
-    const updatedItem = this.getProjectItem(db, item.id);
-
-    BrowserWindow.getAllWindows().forEach((window) => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("project-item:updated", {
-          databaseName: basename(db.name),
-          projectItemId: item.id,
-        });
-      }
-    });
-
-    if (item.refType === "card" && item.refId && item.content) {
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send("card:updated", {
-            databaseName: basename(db.name),
-            cardId: item.refId,
-          });
-        }
-      });
-    }
-
-    if (item.refType === "article" && item.refId && item.content) {
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send("article:updated", {
-            databaseName: basename(db.name),
-            articleId: item.refId,
-          });
-        }
-      });
-    }
-
-    if (item.refType === "white-board" && item.refId && item.whiteBoardData) {
-      const whiteBoardStmt = db.prepare(
-        "UPDATE white_boards SET update_time = ?, data = ?, title = ?, is_project_item = ? WHERE id = ?",
-      );
-      whiteBoardStmt.run(
-        now,
-        JSON.stringify(updatedItem.whiteBoardData),
-        updatedItem.title,
-        1,
-        updatedItem.refId,
-      );
-    }
-
-    Operation.insertOperation(db, "project_item", "update", item.id, now);
-
-    // project_item 可能通过 card 和 article 有引用关系，更新 project_item
-    // TODO 可以优化
-    if (item.refType !== "" && item.refId) {
-      const projectItems = this.getProjectItemByRef(
-        db,
-        updatedItem.refType,
-        updatedItem.refId,
-      );
-      for (const projectItem of projectItems) {
-        if (projectItem.id !== item.id) {
-          const projectItemStmt = db.prepare(
-            `UPDATE project_item SET update_time = ?, white_board_data = ?, title = ?, WHERE id = ?`,
-          );
-          projectItemStmt.run(
-            now,
-            JSON.stringify(updatedItem.whiteBoardData || {}),
-            updatedItem.title,
-            projectItem.id,
-          );
-
-          BrowserWindow.getAllWindows().forEach((window) => {
-            if (window !== win && !window.isDestroyed()) {
-              window.webContents.send("project-item:updated", {
-                databaseName: basename(db.name),
-                projectItemId: projectItem.id,
-              });
-            }
-          });
-        }
-      }
-    }
-
-    return updatedItem;
-  }
-
   static updateProjectItem(
     db: Database.Database,
     item: UpdateProjectItem,
@@ -540,8 +393,7 @@ export default class ProjectTable {
     if (
       item.refType !== "white-board" &&
       item.refType !== "video-note" &&
-      item.contentId &&
-      item.contentId !== -1
+      item.contentId
     ) {
       ContentTable.updateContent(db, item.contentId, {
         content: item.content,
@@ -660,89 +512,6 @@ export default class ProjectTable {
     return item;
   }
 
-  static updateProjectItemContent(
-    db: Database.Database,
-    id: number,
-    content: Descendant[],
-    ...res: any[]
-  ): ProjectItem {
-    const win = res[res.length - 1];
-    const count = getContentLength(content);
-    const stmt = db.prepare(`
-      UPDATE project_item SET
-        update_time = ?
-      WHERE id = ?
-    `);
-    const now = Date.now();
-    stmt.run(now, id);
-
-    const item = this.getProjectItem(db, id);
-    ContentTable.updateContent(db, item.contentId, {
-      content: content,
-      count: count,
-    });
-
-    BrowserWindow.getAllWindows().forEach((window) => {
-      if (window !== win && !window.isDestroyed()) {
-        window.webContents.send("project-item:updated", {
-          databaseName: basename(db.name),
-          projectItemId: id,
-        });
-      }
-    });
-
-    Operation.insertOperation(db, "project_item", "update", id, now);
-
-    if (item.refType === "card" && item.refId) {
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send("card:updated", {
-            databaseName: basename(db.name),
-            cardId: item.refId,
-          });
-        }
-      });
-    }
-
-    if (item.refType === "article" && item.refId) {
-      BrowserWindow.getAllWindows().forEach((window) => {
-        if (window !== win && !window.isDestroyed()) {
-          window.webContents.send("article:updated", {
-            databaseName: basename(db.name),
-            articleId: item.refId,
-          });
-        }
-      });
-    }
-
-    if (item.refType !== "" && item.refId) {
-      const projectItems = this.getProjectItemByRef(
-        db,
-        item.refType,
-        item.refId,
-      );
-      for (const projectItem of projectItems) {
-        if (projectItem.id !== item.id) {
-          const projectItemStmt = db.prepare(
-            `UPDATE project_item SET update_time = ? WHERE id = ?`,
-          );
-          projectItemStmt.run(now, projectItem.id);
-
-          BrowserWindow.getAllWindows().forEach((window) => {
-            if (window !== win && !window.isDestroyed()) {
-              window.webContents.send("project-item:updated", {
-                databaseName: basename(db.name),
-                projectItemId: projectItem.id,
-              });
-            }
-          });
-        }
-      }
-    }
-
-    return item;
-  }
-
   static deleteProjectItem(db: Database.Database, id: number): boolean {
     // 获取project_item信息，以获取contentId
     const itemInfo = this.getProjectItem(db, id);
@@ -770,7 +539,6 @@ export default class ProjectTable {
   }
 
   static getProjectItem(db: Database.Database, id: number): ProjectItem {
-    console.log("getProjectItem", id);
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count
       FROM project_item pi

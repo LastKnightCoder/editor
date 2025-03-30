@@ -8,19 +8,16 @@ import { useMemoizedFn, useRafInterval } from "ahooks";
 import { isEmpty } from "lodash";
 import { produce } from "immer";
 import { memo, useState, useEffect, useRef } from "react";
-import useProjectsStore from "@/stores/useProjectsStore";
 
-const WhiteBoardProjectView = memo(() => {
-  const { activeProjectItemId } = useProjectsStore((state) => ({
-    activeProjectItemId: state.activeProjectItemId,
-  }));
+const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
+  const { projectItemId } = props;
 
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const changed = useRef(false);
 
   useEffect(() => {
-    if (activeProjectItemId) {
-      getProjectItemById(activeProjectItemId)
+    if (projectItemId) {
+      getProjectItemById(projectItemId)
         .then((item) => {
           setProjectItem(item);
         })
@@ -32,7 +29,7 @@ const WhiteBoardProjectView = memo(() => {
     return () => {
       setProjectItem(null);
     };
-  }, [activeProjectItemId]);
+  }, [projectItemId]);
 
   const onWhiteBoardChange = useMemoizedFn(
     async (data: IWhiteBoard["data"]) => {

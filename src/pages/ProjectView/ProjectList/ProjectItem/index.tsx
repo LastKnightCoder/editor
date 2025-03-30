@@ -689,7 +689,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           });
         }
         const updatedProjectItem = await getProjectItemById(projectItemId);
-        console.log("updatedProjectItem", updatedProjectItem);
         projectItemEventBus.publishProjectItemEvent(
           "project-item:updated",
           updatedProjectItem,

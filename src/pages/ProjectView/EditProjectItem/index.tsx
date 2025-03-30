@@ -26,7 +26,8 @@ const extensions = [
   projectCardListExtension,
 ];
 
-const Project = () => {
+const EditProjectItem = (props: { projectItemId: number }) => {
+  const { projectItemId } = props;
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
   const projectItemEventBus = useCreation(
@@ -43,7 +44,7 @@ const Project = () => {
     onContentChange,
     saveProjectItem,
     setProjectItem,
-  } = useEdit();
+  } = useEdit(projectItemId);
 
   const { showOutline, readonly } = useProjectsStore(
     useShallow((state) => ({
@@ -80,11 +81,9 @@ const Project = () => {
   });
 
   useEffect(() => {
-    if (!projectItem) return;
-
     const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
       "project-item:updated",
-      projectItem.id,
+      projectItemId,
       (data) => {
         setProjectItem(data.projectItem);
         editorRef.current?.setEditorValue(data.projectItem.content);
@@ -95,7 +94,7 @@ const Project = () => {
     return () => {
       unsubscribe();
     };
-  }, [projectItem?.id]);
+  }, [projectItemId]);
 
   const handleOnTitleChange = useMemoizedFn((title: string) => {
     if (
@@ -185,4 +184,4 @@ const Project = () => {
   );
 };
 
-export default Project;
+export default EditProjectItem;

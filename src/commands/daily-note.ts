@@ -2,7 +2,7 @@ import { DailyNote } from "@/types/daily_note.ts";
 import { invoke } from "@/electron";
 
 export const createDailyNote = async (
-  dailyNote: Omit<DailyNote, "id">,
+  dailyNote: Omit<DailyNote, "id" | "contentId">,
 ): Promise<DailyNote> => {
   return await invoke("create-daily-note", dailyNote);
 };

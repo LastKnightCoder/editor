@@ -231,19 +231,19 @@ interface InsertDelete {
   - 其他  
   
   对应的指令为
-  { "type": "insert-bulleted-list" }
+  { "type": "insert-bulleted-list" } // 创建一个无序列表，并且创建了一个空的列表项
   { "type": "insert-text", "text": "学科" }
-  { "type": "insert-break" }
-  { "type": "insert-delete" }
-  { "type": "insert-bulleted-list" }
+  { "type": "insert-break" } // 创建一个空的列表项
+  { "type": "insert-delete" } // 删除当前列表项，回到上一个列表项中
+  { "type": "insert-bulleted-list" } // 创建一个无序列表，并且创建了一个空的列表项
   { "type": "insert-text", "text": "语文" }
-  { "type": "insert-break" }
+  { "type": "insert-break" } // 创建一个空的列表项
   { "type": "insert-text", "text": "数学" }
-  { "type": "insert-break" }
+  { "type": "insert-break" } // 创建一个空的列表项
   { "type": "insert-text", "text": "英语" }
-  { "type": "insert-break" }
-  { "type": "insert-break" }
-  { "type": "insert-break" }
+  { "type": "insert-break" } // 创建一个空的列表项
+  { "type": "insert-break" } // 退出第二层列表
+  { "type": "insert-break" } // 创建一个空的列表项
   { "type": "insert-text", "text": "其他" }
   \`\`\`
   
@@ -251,33 +251,27 @@ interface InsertDelete {
   
 - insert-xxx-start 和 insert-xxx-end 一定是闭合的
 
-- 所有的属性都得用 "" 包括，保证可悲 JSON.parse 解析
-- 你应该在插入标题和标题内容后插入一个 insert-break 来进行换行，否则所有内容都显示在一行，你需要确保这一点
+- 所有的属性都得用 "" 包括，保证可被 JSON.parse 解析
+- 你应该在插入标题和标题内容后插入一个 insert-break 来进行换行，否则所有内容都显示在一行
 - 段与段之间使用一个 insert-break 即可
 - 有序（无序）列表以 Command 的形式插入，insert-bulleted-list 或 insert-numbered-list
-
-  \`\`\`
-  // 错误写法
-  { "type": "insert-text", "text": "1. aaa" }
-  { "type": "insert-break" }
-  { "type": "insert-text", "text": "2. bbb" }
-  { "type": "insert-break" }
   
   // 正确写法
   { "type": "insert-numbered-list": "aaa" }
-  { "type": "insert-break" }
+  { "type": "insert-break" } // 创建一个空的列表项
   { "type": "insert-text", "text": "bbb" }
-  { "type": "insert-break" }
-  { "type": "insert-break" }
+  { "type": "insert-break" } // 创建一个空的列表项
+  { "type": "insert-break" } // 退出当前所在的列表
   \`\`\`
   
 - insert-text 的 text 中不要以 “1. ” 这样有序列表写法开头，出现在内容中的 " 需要进行转义，防止 JSON.parse 抛出异常
-  
+- 一行文字可以插入多个 insert-text 指令，比如 "Hello World!" 可以插入多个 insert-text 指令，比如 "Hello" 和 "World!"
+
 ## 输出
 
 示例：
 
-{ type: "insert-header", "level": 3 }
+{ "type": "insert-header", "level": 3 }
 { "type": "insert-text", "text": "Hello World!" }
 { "type": "insert-break" }
 { "type": "insert-text", "text": "通过指定不同的 " }
@@ -297,5 +291,5 @@ interface InsertDelete {
 { "type": "insert-code", "code": "const a = 1;\\nconst b = 2;\\nconsole.log(\\"Hello World!\\")" }
 { "type": "insert-code-end" }
 
-直接输出命令，不需要有任何的解释。
+直接输出命令，不需要有任何的解释（以上注释仅是示意，输出时不需要包含这些注释，否则无法被 JSON.parse 解析）。
 `;

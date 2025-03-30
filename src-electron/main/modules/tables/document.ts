@@ -356,11 +356,15 @@ export default class DocumentTable {
       const card = CardTable.getCardById(db, item.cardId);
       if (card) {
         contentId = card.contentId;
+        // 增加计数
+        ContentTable.incrementRefCount(db, contentId);
       }
     } else if (item.isArticle && item.articleId) {
       const article = ArticleTable.getArticleById(db, item.articleId);
       if (article) {
         contentId = article.contentId;
+        // 增加计数
+        ContentTable.incrementRefCount(db, contentId);
       }
     } else {
       contentId = ContentTable.createContent(db, {
