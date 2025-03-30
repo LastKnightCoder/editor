@@ -13,11 +13,7 @@ import {
 } from "@/editor-extensions";
 
 import { ProjectItem } from "@/types/project";
-import {
-  getProjectItemById,
-  partialUpdateProjectItem,
-  updateProjectItemContent,
-} from "@/commands";
+import { getProjectItemById, updateProjectItem } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils";
 import { Descendant } from "slate";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
@@ -105,8 +101,8 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
       return;
 
     try {
-      const updatedProjectItem = await partialUpdateProjectItem({
-        id: projectItem.id,
+      const updatedProjectItem = await updateProjectItem({
+        ...projectItem,
         title,
       });
       setProjectItem(updatedProjectItem);
@@ -133,10 +129,10 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
       return;
 
     try {
-      const updatedProjectItem = await updateProjectItemContent(
-        Number(projectItem.id),
+      const updatedProjectItem = await updateProjectItem({
+        ...projectItem,
         content,
-      );
+      });
       setProjectItem(updatedProjectItem);
       projectItemEventBus.publishProjectItemEvent(
         "project-item:updated",

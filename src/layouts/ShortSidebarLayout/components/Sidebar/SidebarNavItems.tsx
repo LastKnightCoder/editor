@@ -126,18 +126,18 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         enable: module.card.enable,
       },
       {
-        key: "project",
-        icon: project,
-        desc: "项目",
-        path: "/projects/list",
-        enable: module.project.enable,
-      },
-      {
         key: "article",
         icon: article,
         desc: "文章",
         path: "/articles/list",
         enable: module.article.enable,
+      },
+      {
+        key: "project",
+        icon: project,
+        desc: "项目",
+        path: "/projects/list",
+        enable: module.project.enable,
       },
       {
         key: "document",
@@ -173,13 +173,6 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "时间统计",
         path: "/time-records",
         enable: module.timeRecord.enable,
-      },
-      {
-        key: "videoNoteDemo",
-        icon: timeRecord,
-        desc: "视频笔记",
-        path: "/video-note-demo",
-        enable: true,
       },
     ].filter((item) => item.enable);
   }, [module]);

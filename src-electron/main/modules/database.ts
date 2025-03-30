@@ -144,7 +144,7 @@ class DatabaseModule implements Module {
         const appDir = PathUtil.getAppDir();
         const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
         if (!this.databases.has(name) || force) {
-          console.log(`connect database ${dbPath}`);
+          log.info(`connect database ${dbPath}`);
           if (this.databases.has(name)) {
             this.databases.get(name)!.close();
           }
@@ -178,7 +178,7 @@ class DatabaseModule implements Module {
         const db = this.getDatabase(dbName);
         if (!db) throw new Error("No database found");
 
-        console.log(`database ${dbName} event ${eventName}`);
+        log.info(`database ${dbName} event ${eventName}`);
         try {
           db.exec("BEGIN");
           const res = this.eventAndHandlers[eventName](db, ...args, win);

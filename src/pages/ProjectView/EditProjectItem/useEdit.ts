@@ -5,7 +5,7 @@ import {
   getCardById,
   findOneArticle,
   getProjectItemById,
-  partialUpdateProjectItem,
+  updateProjectItem,
 } from "@/commands";
 import { getContentLength } from "@/utils";
 import { Descendant, Editor } from "slate";
@@ -14,7 +14,7 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import { useShallow } from "zustand/react/shallow";
 import { defaultCardEventBus, defaultArticleEventBus } from "@/utils";
 
-const useEdit = () => {
+const useEdit = (projectItemId: number) => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const prevProjectItem = useRef<ProjectItem | null>(null);
   const cardEventBus = useCreation(
@@ -26,25 +26,24 @@ const useEdit = () => {
     [],
   );
 
-  const { activeProjectItemId, dragging } = useProjectsStore(
+  const { dragging } = useProjectsStore(
     useShallow((state) => ({
       dragging: state.dragging,
-      activeProjectItemId: state.activeProjectItemId,
     })),
   );
 
   useEffect(() => {
-    if (!activeProjectItemId) {
+    if (!projectItemId) {
       setProjectItem(null);
       prevProjectItem.current = null;
       return;
     }
 
-    getProjectItemById(activeProjectItemId).then((projectItem) => {
+    getProjectItemById(projectItemId).then((projectItem) => {
       setProjectItem(projectItem);
       prevProjectItem.current = projectItem;
     });
-  }, [activeProjectItemId]);
+  }, [projectItemId]);
 
   const saveProjectItem = useMemoizedFn(async (saveAnyway = false) => {
     if (!projectItem || dragging) return;
@@ -53,12 +52,7 @@ const useEdit = () => {
       JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
     if (!changed && !saveAnyway) return;
 
-    const updatedProjectItem = await partialUpdateProjectItem({
-      id: projectItem.id,
-      title: projectItem.title,
-      content: projectItem.content,
-      count: projectItem.count,
-    });
+    const updatedProjectItem = await updateProjectItem(projectItem);
 
     setProjectItem(updatedProjectItem);
     prevProjectItem.current = updatedProjectItem;

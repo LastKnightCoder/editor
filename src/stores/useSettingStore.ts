@@ -109,7 +109,7 @@ export interface ISetting {
     };
     vecDocuments: {
       enable: boolean;
-      name: "向量数据库";
+      name: "索引数据库";
     };
   };
   darkMode: boolean;
@@ -278,7 +278,7 @@ const initialState: IState = {
       },
       vecDocuments: {
         enable: true,
-        name: "向量数据库",
+        name: "索引数据库",
       },
     },
     textToSpeech: {

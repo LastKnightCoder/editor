@@ -37,8 +37,6 @@ const DailyNoteView = loadable(() => import("@/pages/DailyNoteView"));
 const TimeRecordView = loadable(() => import("@/pages/TimeRecordView"));
 const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
 
-const VideoNoteDemo = loadable(() => import("@/pages/VideoNoteDemo"));
-
 const routes = [
   {
     path: "/",
@@ -103,10 +101,6 @@ const routes = [
       {
         path: "settings",
         element: <SettingsPage />,
-      },
-      {
-        path: "video-note-demo",
-        element: <VideoNoteDemo />,
       },
     ],
   },

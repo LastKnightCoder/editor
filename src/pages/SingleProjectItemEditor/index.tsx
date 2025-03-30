@@ -14,9 +14,9 @@ import {
 } from "@/editor-extensions";
 import {
   getProjectItemById,
-  partialUpdateProjectItem,
   connectDatabaseByName,
   closeDatabase,
+  updateProjectItem,
 } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils/event-bus";
 import { formatDate, getContentLength } from "@/utils";
@@ -134,10 +134,8 @@ const SingleProjectItemEditor = () => {
 
     try {
       const wordsCount = getContentLength(editingProjectItem.content);
-      const updatedProjectItem = await partialUpdateProjectItem({
-        id: editingProjectItem.id,
-        title: editingProjectItem.title,
-        content: editingProjectItem.content,
+      const updatedProjectItem = await updateProjectItem({
+        ...editingProjectItem,
         count: wordsCount,
       });
 

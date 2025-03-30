@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { App } from "antd";
-import EditProject from "@/layouts/components/EditProjectItem";
+import EditProject from "../EditProjectItem";
 
 import { getProjectItemById } from "@/commands";
 import { EProjectItemType, ProjectItem } from "@/types";
@@ -47,7 +47,10 @@ const EditProjectView = () => {
   if (projectItem.projectItemType === EProjectItemType.WhiteBoard) {
     return (
       <div className={styles.container}>
-        <WhiteBoardProjectView key={projectItem.id} />
+        <WhiteBoardProjectView
+          key={projectItem.id}
+          projectItemId={projectItem.id}
+        />
       </div>
     );
   }
@@ -55,7 +58,7 @@ const EditProjectView = () => {
   if (projectItem.projectItemType === EProjectItemType.Document) {
     return (
       <div className={styles.container}>
-        <EditProject key={projectItem.id} />
+        <EditProject key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );
   }
