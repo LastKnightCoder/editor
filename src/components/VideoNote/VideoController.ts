@@ -2,6 +2,8 @@ export interface VideoController {
   captureVideoFrame: () => Promise<string | null>;
   getCurrentTime: () => number;
   seekTo: (time: number) => void;
+  pause: () => void;
+  play: () => void;
 }
 
 export class VideoControllerImpl implements VideoController {
@@ -48,5 +50,19 @@ export class VideoControllerImpl implements VideoController {
         resolve(url);
       }, "image/png");
     });
+  };
+
+  pause = () => {
+    const video = this.getVideoElement();
+    if (video) {
+      video.pause();
+    }
+  };
+
+  play = () => {
+    const video = this.getVideoElement();
+    if (video) {
+      video.play();
+    }
   };
 }
