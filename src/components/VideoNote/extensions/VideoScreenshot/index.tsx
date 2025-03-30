@@ -4,7 +4,11 @@ import IExtension from "@/components/Editor/extensions/types";
 import { FormattedText, IHotKeyConfig } from "@/components/Editor/types";
 import VideoScreenshot from "./components/VideoScreenshot";
 import { createVoidElementPlugin } from "../../plugins";
-import { createScreenshotHotkey } from "../../hotkeys";
+import {
+  createScreenshotHotkey,
+  pauseVideoHotkey,
+  playVideoHotkey,
+} from "../../hotkeys";
 
 export interface VideoScreenshotElement {
   type: "video-screenshot";
@@ -24,7 +28,11 @@ class VideoScreenshotExtension implements IExtension {
   }
 
   getHotkeyConfigs(): IHotKeyConfig[] {
-    return [createScreenshotHotkey(this.videoController)];
+    return [
+      createScreenshotHotkey(this.videoController),
+      pauseVideoHotkey(this.videoController),
+      playVideoHotkey(this.videoController),
+    ];
   }
 
   render(props: any) {

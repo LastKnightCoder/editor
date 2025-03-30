@@ -47,3 +47,25 @@ export const createScreenshotHotkey = (
     },
   };
 };
+
+export const pauseVideoHotkey = (
+  videoController: VideoController,
+): IHotKeyConfig => {
+  return {
+    hotKey: "mod+shift+p",
+    action: () => {
+      videoController.pause();
+    },
+  };
+};
+
+export const playVideoHotkey = (
+  videoController: VideoController,
+): IHotKeyConfig => {
+  return {
+    hotKey: "mod+shift+l",
+    action: () => {
+      videoController.play();
+    },
+  };
+};
