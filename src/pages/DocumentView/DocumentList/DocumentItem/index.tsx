@@ -642,36 +642,38 @@ const DocumentItem = (props: IDocumentItemProps) => {
           });
         }}
       >
-        <div className={styles.titleContainer}>
-          <Tooltip
-            title={
-              item.children.length > 0
-                ? folderOpen
-                  ? "收起"
-                  : "展开"
-                : undefined
-            }
-          >
-            <div
-              className={classnames(styles.icon, {
-                [styles.hoverable]: item.children.length > 0,
-              })}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (item.children.length === 0) return;
-                setFolderOpen(!folderOpen);
-              }}
+        <Tooltip title={item.title} trigger={"hover"}>
+          <div className={styles.titleContainer}>
+            <Tooltip
+              title={
+                item.children.length > 0
+                  ? folderOpen
+                    ? "收起"
+                    : "展开"
+                  : undefined
+              }
             >
-              {item.children.length > 0 ? (
-                <FolderOpenTwoTone />
-              ) : (
-                <FileOutlined />
-              )}
-            </div>
-          </Tooltip>
-          <div className={styles.title}>{item.title}</div>
-        </div>
+              <div
+                className={classnames(styles.icon, {
+                  [styles.hoverable]: item.children.length > 0,
+                })}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (item.children.length === 0) return;
+                  setFolderOpen(!folderOpen);
+                }}
+              >
+                {item.children.length > 0 ? (
+                  <FolderOpenTwoTone />
+                ) : (
+                  <FileOutlined />
+                )}
+              </div>
+            </Tooltip>
+            <div className={styles.title}>{item.title}</div>
+          </div>
+        </Tooltip>
         <div
           className={styles.icons}
           onClick={(e) => {

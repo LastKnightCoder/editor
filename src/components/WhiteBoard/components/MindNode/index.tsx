@@ -26,6 +26,7 @@ interface MindNodeProps {
 }
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const MIND_NODE_MAX_WIDTH = 300;
 
 const MindNode = (props: MindNodeProps) => {
   const { element } = props;
@@ -96,7 +97,7 @@ const MindNode = (props: MindNodeProps) => {
   });
 
   const { handleResize } = useHandleResize({
-    maxWidth: 200,
+    maxWidth: MIND_NODE_MAX_WIDTH,
     container: containerRef.current,
     handleOnEditorSizeChange: handleEditorResize,
   });
@@ -260,7 +261,7 @@ const MindNode = (props: MindNodeProps) => {
       <foreignObject
         x={x}
         y={y}
-        width={isEditing ? 200 : width}
+        width={isEditing ? MIND_NODE_MAX_WIDTH : width}
         height={height}
         style={{
           overflow: "visible",
@@ -293,7 +294,7 @@ const MindNode = (props: MindNodeProps) => {
             readonly={!isEditing}
             style={{
               width: "fit-content",
-              maxWidth: 200,
+              maxWidth: MIND_NODE_MAX_WIDTH,
               padding: "10px 14px",
               boxSizing: "border-box",
             }}
