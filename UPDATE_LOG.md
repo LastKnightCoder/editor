@@ -486,3 +486,34 @@
 - feat: 支持白板演示
 - chore: 为项目添加 eslint，husky，lint-staged,prettier, commit-lint 等工程能力
 - fix: 项目文档列表和知识库文档列表滚动问题修复
+- fix: 若干 bug 修复
+
+## v0.12.0
+
+- feat: 演示模式添加关闭 icon 和回到顶部 icon
+- feat: 支持选择草图风格
+- feat: 支持设置大语言模型支持的特性
+- feat: 编辑器标题可折叠内容
+- feat: 代码块可全屏编辑
+- feat: 数据库表格初版实现
+- feat: 卡片列表，搜索列表，侧边栏性能优化
+- feat: 知识库支持置顶
+- feat: callout 之间可以互相转换
+- feat: 优化对话列表渲染性能
+- feat: 添加 ContainerCol 解决 Col 只对窗口响应式的问题
+- feat: 支持单独对卡片，文章，项目，知识库打开新窗口，并且支持窗口间的数据同步
+- feat: 支持直接打开 Markdown 文件，Typora 编辑体验
+- feat: 优化 Markdown 导出，与前端代码无关，Electron Node 端也可以使用
+- feat: 添加右侧栏支持查看卡片、文章、项目、知识库，且保持数据同步
+- feat: 卡片、文章、项目、知识库调整为多路由
+- feat: UI 改版升级
+- feat: 支持配置自定义嵌入模型，索引数据库功能优化
+- feat: 支持视频笔记
+- refactor: 富文本内容存储底层数据库表调整，卡片、文章、项目、知识库同步数据更高效合理
+- refactor: 重构数据同步方案
+- fix: 知识库输入卡顿问题
+- fix: 选择数据库或创建数据库配置文件不更新问题
+- fix: 修复在编辑器中 tab 导航问题
+- fix: 边距等适配字体大小
+- fix: 编辑器内白班内容随编辑器滚动问题
+- fix: 若干 bug 修复
