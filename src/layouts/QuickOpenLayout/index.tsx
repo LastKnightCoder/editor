@@ -8,11 +8,16 @@ import classnames from "classnames";
 import { setAlwaysOnTop as setTop } from "@/commands";
 import { platform } from "@/electron";
 
-const Management = () => {
+interface QuickOpenLayoutProps {
+  title?: string;
+}
+
+const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
   const [searchParams] = useSearchParams();
   const isMac = platform === "darwin";
   const showTitlebar = isMac || searchParams.get("showTitlebar") === "true";
   const isDefaultTop = searchParams.get("isDefaultTop") === "true";
+
   const [alwaysOnTop, setAlwaysOnTop] = useState(isDefaultTop);
 
   const toggleAlwaysOnTop = () => {
@@ -24,6 +29,7 @@ const Management = () => {
     <div className={styles.defaultLayout}>
       {showTitlebar && (
         <div className={styles.titlebar}>
+          {title && <div className={classnames(styles.title)}>{title}</div>}
           <div className={styles.icons}>
             <TitlebarIcon
               tip={alwaysOnTop ? "取消置顶" : "置顶"}
@@ -45,4 +51,4 @@ const Management = () => {
   );
 };
 
-export default Management;
+export default QuickOpenLayout;

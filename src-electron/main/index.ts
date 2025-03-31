@@ -16,6 +16,7 @@ import voiceCopyModule from "./modules/voice-copy";
 import windowManagerModule from "./modules/window-manager";
 import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
+import { globalShortcut } from "electron";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -186,6 +187,15 @@ app.whenReady().then(() => {
     log.info("创建主窗口");
     windowManager.createMainWindow();
 
+    // 注册全局快捷键 Ctrl/Command+N 打开快速卡片窗口
+    const shortcutKey = process.platform === "darwin" ? "Command+N" : "Ctrl+N";
+    globalShortcut.register(shortcutKey, () => {
+      log.info(`触发全局快捷键 ${shortcutKey}，打开快速卡片窗口`);
+      windowManager.createQuickCardWindow();
+    });
+
+    log.info(`已注册全局快捷键: ${shortcutKey} - 打开快速卡片窗口`);
+
     // 应用初始化完成后，处理之前保存的文件路径
     if (filesToOpen.length > 0) {
       log.info(`处理启动时收到的Markdown文件: ${filesToOpen}`);
@@ -330,6 +340,9 @@ function getFilePathFromArgs(args: string[]): string | null {
 // 添加退出前的清理
 app.on("before-quit", () => {
   log.info("应用即将退出，执行清理");
+  // 注销所有全局快捷键
+  globalShortcut.unregisterAll();
+
   if (trayManager) {
     trayManager.destroyTray();
   }

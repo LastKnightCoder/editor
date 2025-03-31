@@ -56,6 +56,7 @@ const useInitDatabase = () => {
 
   return {
     databaseStatus,
+    active,
   };
 };
 

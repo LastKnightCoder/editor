@@ -1,14 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Descendant } from "slate";
 import { Button } from "antd";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
-import AISearch from "@/layouts/ShortSidebarLayout/components/Search";
-
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import { connectDatabaseByName, createCard } from "@/commands";
+import { createCard } from "@/commands";
 import { ECardCategory } from "@/types";
 import {
   cardLinkExtension,
@@ -17,7 +15,8 @@ import {
 
 import styles from "./index.module.less";
 import { getContentLength } from "@/utils";
-import useSettingStore from "@/stores/useSettingStore";
+import useInitDatabase from "@/hooks/useInitDatabase";
+import { LoadingOutlined } from "@ant-design/icons";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -29,19 +28,10 @@ const initValue: Descendant[] = [
 ];
 
 const QuickCard = () => {
-  const active = useSettingStore((state) => state.setting.database.active);
-  useEffect(() => {
-    connectDatabaseByName(active)
-      .catch((err) => {
-        setError(err.message);
-      })
-      .finally(() => {
-        setReady(true);
-      });
-  }, [active]);
+  const { databaseStatus, active } = useInitDatabase();
 
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const isConnected = databaseStatus[active];
+
   const uploadResource = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
 
@@ -75,22 +65,20 @@ const QuickCard = () => {
     setContent(initValue);
   };
 
-  if (!ready) {
-    return <div className={styles.loading}>加载中...</div>;
-  }
-
-  if (error) {
-    return <div className={styles.error}>{error}</div>;
+  if (!isConnected) {
+    return (
+      <div className={styles.loading}>
+        <LoadingOutlined />
+      </div>
+    );
   }
 
   return (
     <div className={styles.quickCardContainer}>
-      <div data-tauri-drag-region className={styles.titleBar}>
-        <div className={styles.title}>快捷卡片</div>
-      </div>
-      <div className={styles.editor}>
+      <div className={styles.editorContainer}>
         <ErrorBoundary>
           <Editor
+            className={styles.editor}
             ref={editorRef}
             initValue={initValue}
             onChange={setContent}
@@ -113,7 +101,6 @@ const QuickCard = () => {
           保存
         </Button>
       </div>
-      <AISearch />
     </div>
   );
 };

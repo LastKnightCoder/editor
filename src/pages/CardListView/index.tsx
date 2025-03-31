@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
-import { Breadcrumb, Dropdown, MenuProps, FloatButton } from "antd";
+import { Breadcrumb, Dropdown, MenuProps, FloatButton, App } from "antd";
 import {
   LoadingOutlined,
   PlusOutlined,
@@ -45,6 +45,7 @@ const CardListView = () => {
     undefined,
   );
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const { modal } = App.useApp();
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
 
@@ -149,8 +150,21 @@ const CardListView = () => {
 
   const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
     try {
-      await deleteCard(cardId);
-      setCards((prevCards) => prevCards.filter((card) => card.id !== cardId));
+      modal.confirm({
+        title: "删除卡片",
+        content: "确定要删除该卡片吗？",
+        okText: "确定",
+        cancelText: "取消",
+        okButtonProps: {
+          danger: true,
+        },
+        onOk: async () => {
+          await deleteCard(cardId);
+          setCards((prevCards) =>
+            prevCards.filter((card) => card.id !== cardId),
+          );
+        },
+      });
     } catch (error) {
       console.error("Failed to delete card:", error);
     }

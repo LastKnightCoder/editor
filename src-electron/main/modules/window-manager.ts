@@ -278,7 +278,7 @@ export class WindowManager {
 
   // 获取编辑器路由路径
   private getEditorRoute(type: EditorType): string {
-    const routes = {
+    const routes: Record<EditorType, string> = {
       card: "single-card-editor",
       article: "single-article-editor",
       "project-item": "single-project-item-editor",
@@ -290,7 +290,7 @@ export class WindowManager {
 
   // 获取参数名称
   private getParamName(type: EditorType): string {
-    const paramNames = {
+    const paramNames: Record<EditorType, string> = {
       card: "cardId",
       article: "articleId",
       "project-item": "projectItemId",
@@ -300,16 +300,40 @@ export class WindowManager {
     return paramNames[type];
   }
 
-  // 获取编辑器显示名称
+  // 获取编辑器名称
   private getEditorName(type: EditorType): string {
-    const names = {
+    const editorNames: Record<EditorType, string> = {
       card: "卡片",
       article: "文章",
       "project-item": "项目",
       "document-item": "知识库",
       markdown: "Markdown",
     };
-    return names[type];
+    return editorNames[type];
+  }
+
+  // 创建快速卡片窗口
+  public createQuickCardWindow() {
+    log.info("创建快速卡片窗口");
+    const win = new BrowserWindow(this.createBaseWindowConfig());
+
+    this.setupWindowEvents(win);
+
+    const params = `showTitlebar=true&isDefaultTop=true`;
+
+    if (VITE_DEV_SERVER_URL) {
+      log.debug("开发模式：加载开发服务器URL");
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/quick-card?${params}`);
+    } else {
+      log.debug("生产模式：加载本地HTML文件");
+      win.loadFile(indexHtml, {
+        hash: `/quick-card?${params}`,
+      });
+    }
+
+    win.setAlwaysOnTop(true);
+
+    return win;
   }
 
   // 通用创建编辑器窗口方法
