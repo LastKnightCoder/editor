@@ -13,9 +13,8 @@ import {
   cardLinkExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
-import { formatDate } from "@/utils/time";
 import { useEffect, useRef } from "react";
-import { defaultCardEventBus } from "@/utils";
+import { formatDate, defaultCardEventBus } from "@/utils";
 import styles from "./index.module.less";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];

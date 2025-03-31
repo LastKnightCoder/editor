@@ -153,10 +153,11 @@ const SingleCardEditor = () => {
           <span>最后修改于 {formatDate(editingCard.update_time, true)}</span>
         </div>
       </div>
-      <div className={styles.editor}>
+      <div className={styles.editorContainer}>
         <ErrorBoundary>
           <Editor
             ref={editorRef}
+            className={styles.editor}
             initValue={editingCard.content}
             onChange={onContentChange}
             extensions={customExtensions}
