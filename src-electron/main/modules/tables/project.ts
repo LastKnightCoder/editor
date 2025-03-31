@@ -20,6 +20,7 @@ import ContentTable from "./content";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
+import log from "electron-log";
 
 export default class ProjectTable {
   static initTable(db: Database.Database) {
@@ -53,6 +54,9 @@ export default class ProjectTable {
         FOREIGN KEY(content_id) REFERENCES contents(id)
       )
     `);
+
+    // 删除不在任何项目中的条目
+    this.deleteProjectItemsNotInAnyProject(db);
   }
 
   static upgradeTable(db: Database.Database) {
@@ -637,6 +641,9 @@ export default class ProjectTable {
     for (const deleteItem of toDeleteItems) {
       this.deleteProjectItem(db, deleteItem.id);
     }
+    log.info(
+      `删除不在任何项目中的条目: ${toDeleteItems.map((item) => item.id)}`,
+    );
     return toDeleteItems.length;
   }
 
