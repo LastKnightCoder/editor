@@ -35,7 +35,7 @@ const CardItem = memo((props: CardItemProps) => {
         <ErrorBoundary>
           <Editor
             initValue={
-              content && content.length > 0 ? content.slice(0, 1) : undefined
+              content && content.length > 0 ? content.slice(0, 2) : undefined
             }
             readonly={true}
           />
