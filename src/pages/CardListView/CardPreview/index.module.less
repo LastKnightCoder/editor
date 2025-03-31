@@ -1,0 +1,63 @@
+.cardPreviewModal {
+  :global(.ant-modal-header) {
+    margin-bottom: 0;
+    padding: 0 12px 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  :global(.ant-modal-content) {
+    overflow: hidden;
+  }
+
+  :global(.ant-modal-body) {
+    max-height: 70vh;
+    overflow: auto;
+  }
+}
+
+.header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .time {
+    display: flex;
+    font-size: 0.75em;
+    gap: 10px;
+    color: gray;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+.cardPreviewContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editorContainer {
+  min-height: 200px;
+  padding: 8px 0;
+  border-radius: 6px;
+  font-size: var(--font-size);
+}
+
+.tagsContainer {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 300px;
+  font-size: var(--font-size);
+}

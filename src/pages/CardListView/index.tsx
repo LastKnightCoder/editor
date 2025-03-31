@@ -20,6 +20,7 @@ import CardListPanel, { CardListPanelRef } from "./CardListPanel";
 import Titlebar from "@/layouts/components/Titlebar";
 import CardGraph from "@/layouts/components/CardGraph";
 import CreateCard from "./CreateCard";
+import CardPreview from "./CardPreview";
 import styles from "./index.module.less";
 import { cardCategoryName } from "@/constants";
 import { Descendant } from "slate";
@@ -40,6 +41,10 @@ const CardListView = () => {
   const [cards, setCards] = useState<ICard[]>([]);
   const [loading, setLoading] = useState(false);
   const [isCreatingCard, setIsCreatingCard] = useState(false);
+  const [previewCardId, setPreviewCardId] = useState<number | undefined>(
+    undefined,
+  );
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
 
@@ -108,7 +113,13 @@ const CardListView = () => {
   });
 
   const handleCardClick = useMemoizedFn((card: ICard) => {
-    navigate(`/cards/detail/${card.id}`);
+    setPreviewCardId(card.id);
+    setIsPreviewVisible(true);
+  });
+
+  const handleClosePreview = useMemoizedFn(() => {
+    setIsPreviewVisible(false);
+    setPreviewCardId(undefined);
   });
 
   const handleImportMarkdown = useMemoizedFn(async () => {
@@ -285,6 +296,12 @@ const CardListView = () => {
               visible={isCreatingCard}
               onSave={handleSaveCard}
               onCancel={() => setIsCreatingCard(false)}
+            />
+            <CardPreview
+              key={previewCardId}
+              cardId={previewCardId}
+              visible={isPreviewVisible}
+              onClose={handleClosePreview}
             />
             <If condition={!isPresentation}>
               <FloatButton.Group
