@@ -148,6 +148,12 @@ const CardListView = () => {
     }
   });
 
+  const handleCardChange = useMemoizedFn((card: ICard) => {
+    setCards((prevCards) =>
+      prevCards.map((c) => (c.id === card.id ? card : c)),
+    );
+  });
+
   const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
     try {
       modal.confirm({
@@ -294,6 +300,7 @@ const CardListView = () => {
                 onCardClick={handleCardClick}
                 onDeleteCard={handleDeleteCard}
                 onUpdateCardCategory={handleUpdateCardCategory}
+                onCardChange={handleCardChange}
               />
             ) : (
               <div className={styles.graphContainer}>

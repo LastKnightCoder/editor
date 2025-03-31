@@ -22,10 +22,14 @@ interface CardListPanelProps {
     card: ICard,
     category: ECardCategory,
   ) => Promise<void>;
+  onCardChange: (card: ICard) => void;
 }
 
 const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
-  ({ cards, onCardClick, onDeleteCard, onUpdateCardCategory }, ref) => {
+  (
+    { cards, onCardClick, onDeleteCard, onUpdateCardCategory, onCardChange },
+    ref,
+  ) => {
     const virtualListRef = useRef<VirtualCardListRef>(null);
 
     // 暴露方法给父组件
@@ -75,6 +79,7 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
             onCardClick={handleCardClick}
             onDeleteCard={onDeleteCard}
             onUpdateCardCategory={onUpdateCardCategory}
+            onCardChange={onCardChange}
           />
         </div>
       </div>

@@ -17,13 +17,18 @@
   flex-shrink: 0;
 }
 
-.editor {
+.editorContainer {
   flex: 1;
   overflow: auto;
-  border-radius: 4px;
-  padding: 16px;
-  max-width: 720px;
+  border-bottom: 20px solid transparent;
+}
+
+.editor {
+  padding: 20px 40px;
   margin: 0 auto;
+  width: 100%;
+  max-width: min(100%, 800px);
+  box-sizing: border-box;
 }
 
 .addTag {

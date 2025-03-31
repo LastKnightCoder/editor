@@ -41,6 +41,7 @@ interface CardItemProps {
   ) => Promise<void>;
   className?: string;
   style?: React.CSSProperties;
+  onCardChange: (card: ICard) => void;
 }
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
@@ -56,6 +57,7 @@ const CardItem = memo(
       onCardClick,
       onDeleteCard,
       onUpdateCardCategory,
+      onCardChange,
     } = props;
     const [isPresentation, setIsPresentation] = useState(false);
 
@@ -79,6 +81,7 @@ const CardItem = memo(
         card.id,
         (data) => {
           editorRef.current?.setEditorValue(data.card.content.slice(0, 3));
+          onCardChange(data.card);
         },
       );
 
