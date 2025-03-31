@@ -106,7 +106,13 @@ const routes = [
   },
   {
     path: "/quick-card",
-    element: <QuickCard />,
+    element: <QuickOpenLayout title="快捷卡片" />,
+    children: [
+      {
+        index: true,
+        element: <QuickCard />,
+      },
+    ],
   },
   {
     path: "/quick-time-record",

@@ -13,8 +13,20 @@
     -webkit-app-region: drag;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
     padding: 0 12px;
+    position: relative;
+
+    .title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-weight: bold;
+    }
+
+    .icons {
+      margin-left: auto;
+    }
 
     .pin {
       transform: rotate(0deg);
