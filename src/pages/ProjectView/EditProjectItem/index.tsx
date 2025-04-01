@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import { useCreation, useMemoizedFn, useRafInterval } from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import useEdit from "./useEdit";
 import { useShallow } from "zustand/react/shallow";
 import useProjectsStore from "@/stores/useProjectsStore";
@@ -63,12 +63,10 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     saveProjectItem();
   }, 3000);
 
-  useEffect(() => {
-    return () => {
-      if (readonly) return;
-      saveProjectItem(true);
-    };
-  }, [readonly, saveProjectItem]);
+  useUnmount(() => {
+    if (readonly) return;
+    saveProjectItem();
+  });
 
   const uploadResource = useUploadResource();
 
@@ -94,7 +92,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     return () => {
       unsubscribe();
     };
-  }, [projectItemId]);
+  }, [projectItemId, projectItemEventBus, setProjectItem]);
 
   const handleOnTitleChange = useMemoizedFn((title: string) => {
     if (
