@@ -27,6 +27,20 @@ import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
 import Titlebar from "@/layouts/components/Titlebar";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import {
+  fileAttachmentExtension,
+  cardLinkExtension,
+  projectCardListExtension,
+  documentCardListExtension,
+} from "@/editor-extensions";
+
+const customExtensions = [
+  fileAttachmentExtension,
+  cardLinkExtension,
+  projectCardListExtension,
+  documentCardListExtension,
+];
+
 const HomeView = memo(() => {
   const navigate = useNavigate();
 
@@ -262,6 +276,7 @@ const HomeView = memo(() => {
                         <Editor
                           readonly
                           initValue={card.content}
+                          extensions={customExtensions}
                           style={{
                             maxWidth: 300,
                             maxHeight: 200,
@@ -299,6 +314,7 @@ const HomeView = memo(() => {
                         <Editor
                           readonly
                           initValue={article.content}
+                          extensions={customExtensions}
                           style={{
                             maxWidth: 300,
                             maxHeight: 200,
@@ -335,6 +351,7 @@ const HomeView = memo(() => {
                       content={
                         <Editor
                           readonly
+                          extensions={customExtensions}
                           initValue={projectItem.content}
                           style={{
                             maxWidth: 300,
@@ -378,6 +395,7 @@ const HomeView = memo(() => {
                       content={
                         <Editor
                           readonly
+                          extensions={customExtensions}
                           initValue={documentItem.content}
                           style={{
                             maxWidth: 300,

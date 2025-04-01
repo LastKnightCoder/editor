@@ -1,7 +1,6 @@
 import { useRef, useState, useEffect, useMemo, memo } from "react";
-import { motion } from "framer-motion";
 import { Tooltip } from "antd";
-import { useCreation, useMemoizedFn, useRafInterval } from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import classnames from "classnames";
 
 import Editor, { EditorRef } from "@/components/Editor";
@@ -38,7 +37,7 @@ const extensions = [
   fileAttachmentExtension,
 ];
 
-const EditDoc = memo(() => {
+const EditDocumentItem = memo(() => {
   const titleRef = useRef<EditTextHandle>(null);
   const editorRef = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
@@ -55,14 +54,14 @@ const EditDoc = memo(() => {
   const isWindowFocused = useWindowFocus();
 
   const {
-    activeDocumentItem,
+    documentItem,
     saveDocument,
     onInit,
     onContentChange,
     onTitleChange,
     initValue,
-    setActiveDocumentItem,
-  } = useEditDoc();
+    setDocumentItem,
+  } = useEditDoc(activeDocumentItemId);
 
   const uploadResource = useUploadResource();
 
@@ -75,41 +74,37 @@ const EditDoc = memo(() => {
       (data) => {
         editorRef.current?.setEditorValue(data.documentItem.content);
         titleRef.current?.setValue(data.documentItem.title);
-        setActiveDocumentItem(data.documentItem);
+        setDocumentItem(data.documentItem);
       },
     );
 
     return () => {
       unsubscribe();
     };
-  }, [activeDocumentItemId, documentItemEventBus]);
+  }, [activeDocumentItemId, documentItemEventBus, setDocumentItem]);
 
   const handleOnTitleChange = useMemoizedFn((title: string) => {
-    if (!activeDocumentItem || !titleRef.current?.isFocus() || !isWindowFocused)
+    if (!documentItem || !titleRef.current?.isFocus() || !isWindowFocused)
       return;
     onTitleChange(title);
     documentItemEventBus.publishDocumentItemEvent("document-item:updated", {
-      ...activeDocumentItem,
+      ...documentItem,
       title,
     });
   });
 
   const handleOnPressEnter = useMemoizedFn(() => {
-    if (!activeDocumentItem) return;
+    if (!documentItem) return;
     titleRef.current?.blur();
     editorRef.current?.focus();
   });
 
   const handleContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (
-      !activeDocumentItem ||
-      !editorRef.current?.isFocus() ||
-      !isWindowFocused
-    )
+    if (!documentItem || !editorRef.current?.isFocus() || !isWindowFocused)
       return;
     onContentChange(content);
     documentItemEventBus.publishDocumentItemEvent("document-item:updated", {
-      ...activeDocumentItem,
+      ...documentItem,
       content,
     });
   });
@@ -124,24 +119,18 @@ const EditDoc = memo(() => {
     saveDocument();
   }, 3000);
 
-  const handleUnMount = useMemoizedFn(() => {
+  useUnmount(() => {
     if (readonly) return;
     onContentChange.flush();
-    saveDocument(true);
+    saveDocument();
   });
-
-  useEffect(() => {
-    return () => {
-      handleUnMount();
-    };
-  }, [handleUnMount]);
 
   const headers: Array<{
     level: number;
     title: string;
   }> = useMemo(() => {
-    if (!activeDocumentItem || !activeDocumentItem.content) return [];
-    const headers = activeDocumentItem.content.filter(
+    if (!documentItem || !documentItem.content) return [];
+    const headers = documentItem.content.filter(
       (node) => node.type === "header",
     );
     return headers.map((header: any) => ({
@@ -150,10 +139,10 @@ const EditDoc = memo(() => {
         .map((node: { text: string }) => node.text)
         .join(""),
     }));
-  }, [activeDocumentItem]);
+  }, [documentItem]);
 
   const [outlineOpen, setOutlineOpen] = useState(() => {
-    if (!activeDocumentItem) return false;
+    if (!documentItem) return false;
     return headers.length > 0;
   });
 
@@ -162,27 +151,25 @@ const EditDoc = memo(() => {
     editorRef.current.scrollHeaderIntoView(index);
   };
 
-  if (!activeDocumentItem) {
+  if (!documentItem) {
     return null;
   }
 
   return (
-    <motion.div layout className={styles.editDocContainer}>
+    <div className={styles.editDocContainer}>
       <div className={styles.editDoc}>
         <div className={styles.editorContainer}>
           <EditText
             className={styles.title}
             ref={titleRef}
             contentEditable={true}
-            defaultValue={activeDocumentItem.title}
+            defaultValue={documentItem.title}
             onChange={handleOnTitleChange}
             onPressEnter={handleOnPressEnter}
           />
           <div className={styles.time}>
-            <div>创建于 {formatDate(activeDocumentItem.createTime, true)}</div>
-            <div>
-              最后修改于 {formatDate(activeDocumentItem.updateTime, true)}
-            </div>
+            <div>创建于 {formatDate(documentItem.createTime, true)}</div>
+            <div>最后修改于 {formatDate(documentItem.updateTime, true)}</div>
           </div>
           <EditCardContext.Provider
             value={{
@@ -190,7 +177,7 @@ const EditDoc = memo(() => {
             }}
           >
             <Editor
-              key={activeDocumentItem.id}
+              key={documentItem.id}
               ref={editorRef}
               initValue={initValue}
               onChange={handleContentChange}
@@ -205,7 +192,7 @@ const EditDoc = memo(() => {
           className={classnames(styles.outline, {
             [styles.hide]: !outlineOpen,
           })}
-          content={activeDocumentItem.content}
+          content={documentItem.content}
           show={outlineOpen}
           onClickHeader={onClickHeader}
         />
@@ -218,7 +205,7 @@ const EditDoc = memo(() => {
             opacity: 0.8,
           }}
         >
-          <div>字数：{activeDocumentItem.count}</div>
+          <div>字数：{documentItem.count}</div>
         </div>
         <div className={styles.item}>
           {readonly ? (
@@ -284,10 +271,10 @@ const EditDoc = memo(() => {
         onClose={() => {
           setEditorSourceValueOpen(false);
         }}
-        content={activeDocumentItem.content}
+        content={documentItem.content}
       />
-    </motion.div>
+    </div>
   );
 });
 
-export default EditDoc;
+export default EditDocumentItem;

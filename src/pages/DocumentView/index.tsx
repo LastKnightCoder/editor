@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
 import DocumentList from "./DocumentList";
-import EditDocument from "@/layouts/components/EditDocumentItem";
+import EditDocumentItem from "./EditDocumentItem";
 
 import styles from "./index.module.less";
 import Titlebar from "@/layouts/components/Titlebar";
 import { Breadcrumb } from "antd";
+import useDocumentsStore from "@/stores/useDocumentsStore";
 
 const DocumentView = () => {
   const params = useParams();
@@ -12,6 +13,10 @@ const DocumentView = () => {
   const documentId = Number(params.id);
 
   const navigate = useNavigate();
+
+  const activeDocumentItemId = useDocumentsStore(
+    (state) => state.activeDocumentItemId,
+  );
 
   if (!documentId) return null;
 
@@ -46,7 +51,7 @@ const DocumentView = () => {
           />
         </Titlebar>
         <div className={styles.editorContainer}>
-          <EditDocument />
+          <EditDocumentItem key={activeDocumentItemId} />
         </div>
       </div>
     </div>

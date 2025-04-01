@@ -112,7 +112,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
       setFolderOpen(true);
       onOpenChange?.(true);
     }
-  }, [activeDocumentItemId]);
+  }, [activeDocumentItemId, itemId, onOpenChange, setFolderOpen]);
 
   const onChildOpenChange = useMemoizedFn((open: boolean) => {
     if (open) {
