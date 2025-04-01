@@ -54,9 +54,6 @@ export default class ProjectTable {
         FOREIGN KEY(content_id) REFERENCES contents(id)
       )
     `);
-
-    // 删除不在任何项目中的条目
-    this.deleteProjectItemsNotInAnyProject(db);
   }
 
   static upgradeTable(db: Database.Database) {
@@ -173,6 +170,8 @@ export default class ProjectTable {
       );
       dropCountColumnStmt.run();
     }
+    // 删除不在任何项目中的条目
+    this.deleteProjectItemsNotInAnyProject(db);
   }
 
   static getListenEvents() {
