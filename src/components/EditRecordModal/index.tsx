@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Modal, InputNumber, AutoComplete } from "antd";
 import { produce } from "immer";
 import { Descendant } from "slate";
 import Editor from "@/components/Editor";
 
-import { getAllEventTypes, getAllTimeTypes } from "@/commands";
+import { getAllTimeTypes, getAllEventTypesGroupByTimeType } from "@/commands";
 import { ITimeRecord } from "@/types";
 
 import styles from "./index.module.less";
@@ -23,21 +23,25 @@ const EditRecordModal = (props: EditRecordModalProps) => {
 
   const [editingTimeRecord, setEditingTimeRecord] =
     useState<ITimeRecord | null>(timeRecord);
-  const [allEventTypes, setAllEventTypes] = useState<string[]>([]);
   const [allTimeTypes, setAllTimeTypes] = useState<string[]>([]);
-
+  const [allEventTypesGroupByTimeType, setAllEventTypesGroupByTimeType] =
+    useState<{ [timeType: string]: string[] }>({});
   useEffect(() => {
-    getAllEventTypes().then((res) => {
-      setAllEventTypes(res);
-    });
     getAllTimeTypes().then((res) => {
       setAllTimeTypes(res);
     });
+    getAllEventTypesGroupByTimeType().then((res) => {
+      setAllEventTypesGroupByTimeType(res);
+    });
   }, []);
 
-  const eventTypeOptions = allEventTypes.map((eventType) => ({
-    value: eventType,
-  }));
+  const eventTypeOptions = useMemo(() => {
+    return (
+      allEventTypesGroupByTimeType[editingTimeRecord?.timeType || ""] || []
+    ).map((eventType) => ({
+      value: eventType,
+    }));
+  }, [editingTimeRecord?.timeType]);
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
     if (!editingTimeRecord) return;

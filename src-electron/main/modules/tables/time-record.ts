@@ -32,6 +32,8 @@ export default class TimeRecordTable {
         this.getTimeRecordsByDateRange.bind(this),
       "get-all-event-types": this.getAllEventTypes.bind(this),
       "get-all-time-types": this.getAllTimeTypes.bind(this),
+      "get-all-event-types-group-by-time-type":
+        this.getAllEventTypesGroupByTimeType.bind(this),
     };
   }
 
@@ -224,5 +226,29 @@ export default class TimeRecordTable {
     const records = stmt.all(eventType, timeType);
 
     return records.map(this.parseTimeRecord);
+  }
+
+  static getAllEventTypesGroupByTimeType(db: Database.Database): {
+    [timeType: string]: string[];
+  } {
+    const stmt = db.prepare(`
+      SELECT DISTINCT time_type, event_type FROM time_records
+      ORDER BY time_type, event_type
+    `);
+    const records = stmt.all() as { time_type: string; event_type: string }[];
+
+    const result: { [timeType: string]: string[] } = {};
+
+    records.forEach((record) => {
+      if (!result[record.time_type]) {
+        result[record.time_type] = [];
+      }
+
+      if (!result[record.time_type].includes(record.event_type)) {
+        result[record.time_type].push(record.event_type);
+      }
+    });
+
+    return result;
   }
 }
