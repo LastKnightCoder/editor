@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { DatePicker, Select } from "antd";
 import If from "@/components/If";
 
@@ -26,6 +26,50 @@ const SelectTime = memo((props: ISelectTimeProps) => {
     onFilterValueChange,
     className,
   } = props;
+
+  // 将特殊格式的filterValue转换为dayjs可识别的格式
+  const dateValue = useMemo(() => {
+    if (!filterValue || Array.isArray(filterValue)) return null;
+
+    if (filterType === EFilterType.QUARTER) {
+      // 处理季度格式 "2023-Q1" => dayjs对象
+      const [year, quarter] = filterValue.split("-");
+      const quarterMonth = (parseInt(quarter.slice(1)) - 1) * 3;
+      return dayjs(`${year}-${quarterMonth + 1}-01`);
+    }
+
+    if (filterType === EFilterType.WEEK) {
+      // 处理周格式 "2023-18周" => dayjs对象
+      const [year, week] = filterValue.split("-");
+      const weekNum = parseInt(week.slice(0, -1));
+      return dayjs().year(parseInt(year)).week(weekNum);
+    }
+
+    return dayjs(filterValue);
+  }, [filterType, filterValue]);
+
+  // 当日期选择器值改变时的处理函数
+  const handleDateChange = (date: any, dateString: string) => {
+    if (filterType === EFilterType.QUARTER) {
+      if (!date) {
+        onFilterValueChange("");
+        return;
+      }
+      const year = date.year();
+      const quarter = Math.floor(date.month() / 3) + 1;
+      onFilterValueChange(`${year}-Q${quarter}`);
+    } else if (filterType === EFilterType.WEEK) {
+      if (!date) {
+        onFilterValueChange("");
+        return;
+      }
+      const year = date.year();
+      const week = date.week();
+      onFilterValueChange(`${year}-${week}周`);
+    } else {
+      onFilterValueChange(dateString);
+    }
+  };
 
   return (
     <div className={classnames(styles.selectTime, className)}>
@@ -58,12 +102,11 @@ const SelectTime = memo((props: ISelectTimeProps) => {
         }
       >
         <DatePicker
-          value={dayjs(filterValue as string)}
+          value={dateValue}
           className={styles.picker}
           picker={filterType as any}
-          onChange={(_, dateString) => {
-            onFilterValueChange(dateString);
-          }}
+          // @ts-ignore
+          onChange={handleDateChange}
         />
       </If>
     </div>
