@@ -45,3 +45,9 @@ export const getAllEventTypes = async (): Promise<string[]> => {
 export const getAllTimeTypes = async (): Promise<string[]> => {
   return invoke("get-all-time-types");
 };
+
+export const getAllEventTypesGroupByTimeType = async (): Promise<{
+  [timeType: string]: string[];
+}> => {
+  return invoke("get-all-event-types-group-by-time-type");
+};
