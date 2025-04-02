@@ -195,12 +195,6 @@ export class WindowManager {
       win.webContents.send("window-blur");
     });
 
-    win.webContents.on("did-finish-load", () => {
-      win.webContents.setZoomFactor(1);
-      win.webContents.setVisualZoomLevelLimits(1, 1);
-      log.info("主窗口加载完成");
-    });
-
     win.webContents.on(
       "did-fail-load",
       (_event, errorCode, errorDescription, validatedURL) => {
@@ -239,7 +233,6 @@ export class WindowManager {
 
   // 设置窗口公共事件
   private setupWindowEvents(win: BrowserWindow) {
-    // 监听最大化事件
     win.on("enter-full-screen", () => {
       win.webContents.send("full-screen-change");
     });
@@ -253,12 +246,6 @@ export class WindowManager {
 
     win.on("blur", () => {
       win.webContents.send("window-blur");
-    });
-
-    win.webContents.on("did-finish-load", () => {
-      win.webContents.setZoomFactor(1);
-      win.webContents.setVisualZoomLevelLimits(1, 1);
-      log.info("主窗口加载完成");
     });
 
     // 添加错误处理
@@ -469,7 +456,6 @@ export default {
     rendererDistPath: string,
     preloadPath: string,
   ) => {
-    log.info("初始化窗口管理模块");
     return new WindowManager(viteDevServerUrl, rendererDistPath, preloadPath);
   },
 };

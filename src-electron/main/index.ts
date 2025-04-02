@@ -190,11 +190,26 @@ app.whenReady().then(() => {
     // 注册全局快捷键 Ctrl/Command+N 打开快速卡片窗口
     const shortcutKey = process.platform === "darwin" ? "Command+N" : "Ctrl+N";
     globalShortcut.register(shortcutKey, () => {
-      log.info(`触发全局快捷键 ${shortcutKey}，打开快速卡片窗口`);
       windowManager.createQuickCardWindow();
     });
 
-    log.info(`已注册全局快捷键: ${shortcutKey} - 打开快速卡片窗口`);
+    // 注册DPR调整快捷键
+    globalShortcut.register("Ctrl+=", () => {
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      if (focusedWindow) {
+        const currentFactor = focusedWindow.webContents.getZoomFactor();
+        focusedWindow.webContents.setZoomFactor(currentFactor + 0.1);
+        log.info(`窗口DPR已调整为: ${currentFactor + 0.1}`);
+      }
+    });
+
+    globalShortcut.register("Ctrl+-", () => {
+      const focusedWindow = BrowserWindow.getFocusedWindow();
+      if (focusedWindow) {
+        const currentFactor = focusedWindow.webContents.getZoomFactor();
+        focusedWindow.webContents.setZoomFactor(currentFactor - 0.1);
+      }
+    });
 
     // 应用初始化完成后，处理之前保存的文件路径
     if (filesToOpen.length > 0) {
