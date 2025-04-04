@@ -1,16 +1,27 @@
 import React, { useMemo, useState } from "react";
-import { Empty, Modal, Tabs, Button } from "antd";
+import { Empty, Tabs, Button } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { BaseViewerProps } from "../../../types";
 import ProjectItemViewer from "../ProjectItemViewer";
-import ProjectItemSelector from "../ProjectItemSelector";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
+import {
+  fileAttachmentExtension,
+  cardLinkExtension,
+  projectCardListExtension,
+} from "@/editor-extensions";
 
 import styles from "./index.module.less";
 import If from "@/components/If";
 import { SearchResult } from "@/types/search";
 
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
+
+const customExtensions = [
+  fileAttachmentExtension,
+  cardLinkExtension,
+  projectCardListExtension,
+];
 
 const ProjectItemsViewer: React.FC<BaseViewerProps> = ({
   addTab,
@@ -66,14 +77,28 @@ const ProjectItemsViewer: React.FC<BaseViewerProps> = ({
     },
   );
 
-  const onSelectProjectItem = useMemoizedFn((projectItem: SearchResult) => {
-    setSelectorOpen(false);
-    addTab({
-      id: String(projectItem.id),
-      type: "project-item",
-      title: projectItem.title || "项目",
-    });
-  });
+  const onSelectProjectItem = useMemoizedFn(
+    (items: SearchResult | SearchResult[]) => {
+      setSelectorOpen(false);
+      if (Array.isArray(items)) {
+        // 处理多选的情况
+        items.forEach((projectItem) => {
+          addTab({
+            id: String(projectItem.id),
+            type: "project-item",
+            title: projectItem.title || "项目",
+          });
+        });
+      } else {
+        // 单选情况
+        addTab({
+          id: String(items.id),
+          type: "project-item",
+          title: items.title || "项目",
+        });
+      }
+    },
+  );
 
   return (
     <div className={styles.container}>
@@ -93,20 +118,16 @@ const ProjectItemsViewer: React.FC<BaseViewerProps> = ({
           animated={true}
         />
       </If>
-      <Modal
+      <ContentSelectorModal
         open={selectorOpen}
         onCancel={() => setSelectorOpen(false)}
-        footer={null}
-        width={800}
-        destroyOnClose
-        styles={{
-          body: {
-            maxHeight: 800,
-          },
-        }}
-      >
-        <ProjectItemSelector onSelect={onSelectProjectItem} />
-      </Modal>
+        onSelect={onSelectProjectItem}
+        contentType="project-item"
+        extensions={customExtensions}
+        emptyDescription="无结果"
+        showTitle={true}
+        multiple={true}
+      />
     </div>
   );
 };

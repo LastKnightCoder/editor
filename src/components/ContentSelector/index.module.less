@@ -4,6 +4,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
   max-height: 600px;
 }
 
@@ -62,8 +63,21 @@
     cursor: pointer;
   }
 
+  &.selected {
+    border: 1px solid var(--active-text-color);
+  }
+
+  .title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .time {
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     display: flex;
     gap: 10px;
     color: gray;
@@ -71,11 +85,14 @@
   }
 
   .content {
-    max-height: 300px;
-    overflow: hidden;
+    color: #666;
+    font-size: 14px;
   }
 
-  .tags {
-    margin-top: 20px;
+  .paragraph {
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

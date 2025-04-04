@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from "react";
-import { Empty, Modal, Tabs, Button } from "antd";
+import { Empty, Tabs, Button } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { BaseViewerProps } from "../../../types";
 import ArticleViewer from "../ArticleViewer";
-import ArticleSelector from "../ArticleSelector";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
+import {
+  fileAttachmentExtension,
+  cardLinkExtension,
+} from "@/editor-extensions";
 
 import If from "@/components/If";
 import { SearchResult } from "@/types";
@@ -12,6 +16,8 @@ import { SearchResult } from "@/types";
 import styles from "./index.module.less";
 
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
+
+const customExtensions = [fileAttachmentExtension, cardLinkExtension];
 
 const ArticlesViewer: React.FC<BaseViewerProps> = ({
   addTab,
@@ -67,14 +73,28 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
     },
   );
 
-  const onSelectArticle = useMemoizedFn((article: SearchResult) => {
-    setSelectorOpen(false);
-    addTab({
-      id: String(article.id),
-      type: "article",
-      title: article.title || `文章 #${article.id}`,
-    });
-  });
+  const onSelectArticle = useMemoizedFn(
+    (items: SearchResult | SearchResult[]) => {
+      setSelectorOpen(false);
+      if (Array.isArray(items)) {
+        // 处理多选的情况
+        items.forEach((article) => {
+          addTab({
+            id: String(article.id),
+            type: "article",
+            title: article.title || `文章 #${article.id}`,
+          });
+        });
+      } else {
+        // 单选情况
+        addTab({
+          id: String(items.id),
+          type: "article",
+          title: items.title || `文章 #${items.id}`,
+        });
+      }
+    },
+  );
 
   return (
     <div className={styles.container}>
@@ -94,20 +114,16 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
           animated={true}
         />
       </If>
-      <Modal
+      <ContentSelectorModal
         open={selectorOpen}
         onCancel={() => setSelectorOpen(false)}
-        footer={null}
-        width={800}
-        destroyOnClose
-        styles={{
-          body: {
-            maxHeight: 800,
-          },
-        }}
-      >
-        <ArticleSelector onSelect={onSelectArticle} />
-      </Modal>
+        onSelect={onSelectArticle}
+        contentType="article"
+        extensions={customExtensions}
+        emptyDescription="暂无文章"
+        showTitle={true}
+        multiple={true}
+      />
     </div>
   );
 };
