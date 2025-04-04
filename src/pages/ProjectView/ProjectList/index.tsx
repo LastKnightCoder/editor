@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Dropdown, Empty, MenuProps, App, Modal, Input } from "antd";
 import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
@@ -17,9 +17,12 @@ import {
   Project as IProject,
   VideoNote,
   WhiteBoard,
+  IndexType,
+  SearchResult,
 } from "@/types";
+import { IExtension } from "@/components/Editor";
 import { useMemoizedFn } from "ahooks";
-import SelectCardModal from "@/components/SelectCardModal";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
 import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
@@ -45,9 +48,11 @@ const Project = () => {
   const [project, setProject] = useState<IProject | null>(null);
   const [cards, setCards] = useState<ICard[]>([]);
   const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
+  const [extensions, setExtensions] = useState<IExtension[]>([]);
 
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
   const [webVideoUrl, setWebVideoUrl] = useState("");
+
   useEffect(() => {
     getAllCards().then((cards) => {
       setCards(cards);
@@ -55,6 +60,14 @@ const Project = () => {
     getAllWhiteBoards().then((whiteBoards) => {
       setWhiteBoards(whiteBoards);
     });
+  }, []);
+
+  useEffect(() => {
+    import("@/editor-extensions").then(
+      ({ cardLinkExtension, fileAttachmentExtension }) => {
+        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      },
+    );
   }, []);
 
   const refresh = useMemoizedFn(() => {
@@ -70,14 +83,38 @@ const Project = () => {
   const navigate = useNavigate();
 
   const {
-    selectedCards,
-    onChange: onCardChange,
     onOk: onCardOk,
     onCancel: onCardCancel,
     selectCardModalOpen,
     openSelectCardModal,
     excludeCardIds,
   } = useAddRefCard(cards, Number(id));
+
+  const initialCardContents = useMemo(() => {
+    return cards.map((card) => ({
+      id: card.id,
+      type: "card" as IndexType,
+      title: "",
+      content: card.content,
+      source: "fts" as "fts" | "vec-document",
+      updateTime: card.update_time,
+    }));
+  }, [cards]);
+
+  const handleCardSelect = async (
+    selectedResults: SearchResult | SearchResult[],
+  ) => {
+    const results = Array.isArray(selectedResults)
+      ? selectedResults
+      : [selectedResults];
+    const selectedCardIds = results.map((result) => result.id);
+    const newSelectedCards = selectedCardIds
+      .map((id) => cards.find((card) => card.id === id))
+      .filter((card): card is ICard => !!card);
+
+    await onCardOk(newSelectedCards);
+    refresh();
+  };
 
   const {
     selectedWhiteBoards,
@@ -148,6 +185,7 @@ const Project = () => {
           count: 0,
         };
         const item = await createRootProjectItem(project.id, createProjectItem);
+        console.log("item", item);
         if (item) {
           useProjectsStore.setState({
             activeProjectItemId: item.id,
@@ -341,15 +379,16 @@ const Project = () => {
             )}
           />
         </div>
-        <SelectCardModal
+        <ContentSelectorModal
           title={"选择关联卡片"}
-          selectedCards={selectedCards}
-          onChange={onCardChange}
           open={selectCardModalOpen}
-          allCards={cards}
           onCancel={onCardCancel}
-          onOk={onCardOk}
-          excludeCardIds={excludeCardIds}
+          onSelect={handleCardSelect}
+          contentType="card"
+          multiple={false}
+          excludeIds={excludeCardIds}
+          initialContents={initialCardContents}
+          extensions={extensions}
         />
         <SelectWhiteBoardModal
           title={"选择关联白板"}

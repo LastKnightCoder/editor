@@ -22,7 +22,6 @@ const useAddRefCard = (
   projectItem?: ProjectItem,
 ) => {
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
-  const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
 
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
@@ -42,10 +41,6 @@ const useAddRefCard = (
     if (!projectItem) return [];
     return [projectItem.refId];
   }, [projectItem]);
-
-  const onChange = useMemoizedFn((selectedCards: ICard[]) => {
-    setSelectedCards(selectedCards);
-  });
 
   const buildCardFromProjectItem = useMemoizedFn(
     async (projectItem: ProjectItem) => {
@@ -128,11 +123,9 @@ const useAddRefCard = (
     selectCardModalOpen,
     openSelectCardModal,
     excludeCardIds,
-    selectedCards,
     cards,
     onOk,
     onCancel,
-    onChange,
     buildCardFromProjectItem,
   };
 };

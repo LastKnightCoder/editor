@@ -14,8 +14,8 @@ import {
   createVideoNote,
 } from "@/commands";
 
-import SelectCardModal from "@/components/SelectCardModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore";
@@ -35,7 +35,10 @@ import {
   WhiteBoard,
   type ProjectItem,
   VideoNote,
+  IndexType,
+  SearchResult,
 } from "@/types";
+import { IExtension } from "@/components/Editor";
 import {
   FileOutlined,
   FolderOpenTwoTone,
@@ -108,6 +111,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   );
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
   const [webVideoUrl, setWebVideoUrl] = useState("");
+  const [extensions, setExtensions] = useState<IExtension[]>([]);
 
   const {
     updateProject,
@@ -139,11 +143,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const {
     selectCardModalOpen,
     openSelectCardModal,
-    selectedCards,
     excludeCardIds,
     onOk: onCardOk,
     onCancel: onCardCancel,
-    onChange: onCardChange,
     buildCardFromProjectItem,
   } = useAddRefCard(cards, projectId, projectItem);
   const {
@@ -726,6 +728,39 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     },
   );
 
+  useEffect(() => {
+    import("@/editor-extensions").then(
+      ({ cardLinkExtension, fileAttachmentExtension }) => {
+        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      },
+    );
+  }, []);
+
+  const initialCardContents = useMemo(() => {
+    return cards.map((card) => ({
+      id: card.id,
+      type: "card" as IndexType,
+      title: "",
+      content: card.content,
+      source: "fts" as "fts" | "vec-document",
+      updateTime: card.update_time,
+    }));
+  }, [cards]);
+
+  const handleCardSelect = async (
+    selectedResults: SearchResult | SearchResult[],
+  ) => {
+    const results = Array.isArray(selectedResults)
+      ? selectedResults
+      : [selectedResults];
+    const selectedCardIds = results.map((result) => result.id);
+    const newSelectedCards = selectedCardIds
+      .map((id) => cards.find((card) => card.id === id))
+      .filter((card): card is ICard => !!card);
+
+    await onCardOk(newSelectedCards);
+  };
+
   if (!projectItem) return null;
 
   return (
@@ -878,15 +913,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           </div>
         </div>
       </div>
-      <SelectCardModal
+      <ContentSelectorModal
         title={"选择关联卡片"}
-        selectedCards={selectedCards}
-        onChange={onCardChange}
         open={selectCardModalOpen}
-        allCards={cards}
         onCancel={onCardCancel}
-        onOk={onCardOk}
-        excludeCardIds={excludeCardIds}
+        onSelect={handleCardSelect}
+        contentType="card"
+        multiple={false}
+        excludeIds={excludeCardIds}
+        initialContents={initialCardContents}
+        extensions={extensions}
       />
       <SelectWhiteBoardModal
         title={"选择关联白板"}

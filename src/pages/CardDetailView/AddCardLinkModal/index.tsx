@@ -60,8 +60,6 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
       .map((id) => cards.find((card) => card.id === id))
       .filter((card): card is ICard => !!card);
 
-    console.log("newSelectedCards", newSelectedCards);
-
     onOk(newSelectedCards);
   };
 

@@ -15,6 +15,7 @@ import {
   createProjectItem,
   updateProjectItem,
   getProjectItemById,
+  getProjectById,
 } from "@/commands";
 
 interface IState {
@@ -101,8 +102,8 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     return res;
   },
   createRootProjectItem: async (projectId, projectItem) => {
-    const { projects, updateProject } = get();
-    const project = projects.find((item) => item.id === projectId);
+    const { updateProject } = get();
+    const project = await getProjectById(projectId);
     if (!project) return;
     const checkedProjectItem = produce(projectItem, (draft) => {
       if (!draft.projects.includes(projectId)) {
@@ -152,8 +153,8 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     return res;
   },
   removeRootProjectItem: async (projectId, projectItemId) => {
-    const { projects, updateProject, tryRemoveFromProject } = get();
-    const project = projects.find((item) => item.id === projectId);
+    const { updateProject, tryRemoveFromProject } = get();
+    const project = await getProjectById(projectId);
     if (!project) return;
     const newProject = produce(project, (draft) => {
       draft.children = draft.children.filter((id) => id !== projectItemId);
@@ -209,8 +210,8 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     }
   },
   archiveProject: async (projectId: number) => {
-    const { projects, updateProject } = get();
-    const project = projects.find((item) => item.id === projectId);
+    const { updateProject } = get();
+    const project = await getProjectById(projectId);
     if (!project) return;
     const newProject = produce(project, (draft) => {
       draft.archived = true;
@@ -218,8 +219,8 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     return updateProject(newProject);
   },
   unarchiveProject: async (projectId: number) => {
-    const { projects, updateProject } = get();
-    const project = projects.find((item) => item.id === projectId);
+    const { updateProject } = get();
+    const project = await getProjectById(projectId);
     if (!project) return;
     const newProject = produce(project, (draft) => {
       draft.archived = false;
@@ -227,8 +228,8 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     return updateProject(newProject);
   },
   pinProject: async (projectId: number) => {
-    const { projects, updateProject } = get();
-    const project = projects.find((item) => item.id === projectId);
+    const { updateProject } = get();
+    const project = await getProjectById(projectId);
     if (!project) return;
     const newProject = produce(project, (draft) => {
       draft.pinned = true;
@@ -236,8 +237,8 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     return updateProject(newProject);
   },
   unpinProject: async (projectId: number) => {
-    const { projects, updateProject } = get();
-    const project = projects.find((item) => item.id === projectId);
+    const { updateProject } = get();
+    const project = await getProjectById(projectId);
     if (!project) return;
     const newProject = produce(project, (draft) => {
       draft.pinned = false;
