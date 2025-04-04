@@ -59,6 +59,7 @@ const QuickCard = () => {
       links: [] as number[],
       category: ECardCategory.Temporary,
       count: getContentLength(content),
+      isTop: false,
     });
     setSaveLoading(false);
     closeWindow();

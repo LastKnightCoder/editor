@@ -20,6 +20,7 @@ import {
 } from "@/editor-extensions";
 import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
+import { AiFillPushpin } from "react-icons/ai";
 import { Dropdown, MenuProps } from "antd";
 import { useCreation, useMemoizedFn } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore.ts";
@@ -39,6 +40,7 @@ interface CardItemProps {
     card: ICard,
     category: ECardCategory,
   ) => Promise<void>;
+  onToggleCardTop?: (cardId: number) => Promise<void>;
   className?: string;
   style?: React.CSSProperties;
   onCardChange: (card: ICard) => void;
@@ -57,6 +59,7 @@ const CardItem = memo(
       onCardClick,
       onDeleteCard,
       onUpdateCardCategory,
+      onToggleCardTop,
       onCardChange,
     } = props;
     const [isPresentation, setIsPresentation] = useState(false);
@@ -73,7 +76,7 @@ const CardItem = memo(
       useShallow((state) => state.setting.database.active),
     );
 
-    const { content, tags } = card;
+    const { content, tags, isTop } = card;
 
     useEffect(() => {
       const unsubscribe = cardEventBus.subscribeToCardWithId(
@@ -109,6 +112,10 @@ const CardItem = memo(
           },
         },
         {
+          key: "toggle-top",
+          label: isTop ? "取消置顶" : "设置置顶",
+        },
+        {
           key: "delete-card",
           label: "删除卡片",
         },
@@ -132,7 +139,7 @@ const CardItem = memo(
           })),
         },
       ];
-    }, [card.category, databaseName, card.id, addTab, card.content]);
+    }, [card.category, databaseName, card.id, addTab, card.content, isTop]);
 
     const onClick = useMemoizedFn(() => {
       if (onCardClick) {
@@ -155,6 +162,11 @@ const CardItem = memo(
           if (onDeleteCard) {
             await onDeleteCard(card.id);
           }
+        } else if (key === "toggle-top") {
+          if (onToggleCardTop) {
+            await onToggleCardTop(card.id);
+            cardEventBus.publishCardEvent("card:updated", card);
+          }
         } else if (key === "export-markdown") {
           const markdown = getMarkdown(card.content);
           const blob = new Blob([markdown], { type: "text/markdown" });
@@ -167,6 +179,7 @@ const CardItem = memo(
         } else if (Object.keys(cardCategoryName).includes(key)) {
           if (onUpdateCardCategory) {
             await onUpdateCardCategory(card, key as ECardCategory);
+            cardEventBus.publishCardEvent("card:updated", card);
           }
         }
       },
@@ -175,10 +188,17 @@ const CardItem = memo(
     return (
       <>
         <div
-          className={classnames(styles.itemContainer, className)}
+          className={classnames(styles.itemContainer, className, {
+            [styles.isTop]: isTop,
+          })}
           style={style}
           onClick={onClick}
         >
+          {isTop && (
+            <div className={styles.topFlag}>
+              <AiFillPushpin />
+            </div>
+          )}
           <div className={styles.time}>
             <span>创建于：{formatDate(card.create_time, true)}</span>
             <span>更新于：{formatDate(card.update_time, true)}</span>
@@ -227,7 +247,8 @@ const CardItem = memo(
   (prevProps, nextProps) => {
     return (
       prevProps.card.id === nextProps.card.id &&
-      prevProps.card.update_time === nextProps.card.update_time
+      prevProps.card.update_time === nextProps.card.update_time &&
+      prevProps.card.isTop === nextProps.card.isTop
     );
   },
 );

@@ -2,11 +2,38 @@
   padding: 20px;
   border: 1px solid var(--line-color);
   border-radius: 8px;
-  content-visibility: auto;
   position: relative;
 
   &:hover {
     cursor: pointer;
+  }
+
+  &.isTop {
+    background-image: linear-gradient(
+      -30deg,
+      rgba(255, 140, 0, 0.1),
+      transparent 50%
+    );
+    border: 1px solid rgba(255, 140, 0, 0.3);
+  }
+
+  .topFlag {
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #ff8c00;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+    svg {
+      font-size: 16px;
+    }
   }
 
   .time {

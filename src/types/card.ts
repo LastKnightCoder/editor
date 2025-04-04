@@ -17,6 +17,7 @@ export interface ICard {
   category: ECardCategory;
   count: number;
   contentId: number;
+  isTop: boolean;
 }
 
 export type ICreateCard = Omit<

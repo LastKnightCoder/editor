@@ -69,6 +69,20 @@ const CardListView = () => {
     }),
   );
 
+  // 计算排序后的卡片
+  const sortedCards = useMemo(() => {
+    return [...cards].sort((a, b) => {
+      // 首先按照置顶状态排序
+      if (a.isTop && !b.isTop) return -1;
+      if (!a.isTop && b.isTop) return 1;
+      // 如果置顶状态相同，则按照创建时间降序排序
+      if (a.isTop === b.isTop) {
+        return b.create_time - a.create_time;
+      }
+      return 0;
+    });
+  }, [cards]);
+
   const fetchCards = useMemoizedFn(async () => {
     setLoading(true);
     try {
@@ -106,7 +120,6 @@ const CardListView = () => {
   const handleCreateCard = useMemoizedFn(async (card: ICreateCard) => {
     try {
       const newCard = await createCard(card);
-      // 直接更新本地cards状态，不需要重新获取
       setCards((prevCards) => [newCard, ...prevCards]);
     } catch (error) {
       console.error("Failed to create card:", error);
@@ -143,6 +156,7 @@ const CardListView = () => {
         links: [],
         category: selectCategory,
         count: getContentLength(content),
+        isTop: false,
       };
       await handleCreateCard(newCard);
     }
@@ -192,6 +206,24 @@ const CardListView = () => {
     },
   );
 
+  const handleToggleCardTop = useMemoizedFn(async (cardId: number) => {
+    try {
+      const card = cards.find((c) => c.id === cardId);
+      if (!card) return;
+
+      const updatedCard = await updateCard({
+        ...card,
+        isTop: !card.isTop,
+      });
+
+      setCards((prevCards) =>
+        prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
+      );
+    } catch (error) {
+      console.error("Failed to toggle card top:", error);
+    }
+  });
+
   const handleSaveCard = useMemoizedFn(
     async (content: Descendant[], tags: string[]) => {
       const card: ICreateCard = {
@@ -200,6 +232,7 @@ const CardListView = () => {
         links: [],
         category: selectCategory,
         count: 0,
+        isTop: false,
       };
       await handleCreateCard(card);
       setIsCreatingCard(false);
@@ -228,8 +261,8 @@ const CardListView = () => {
   );
 
   const filteredCards = useMemo(() => {
-    return filterCards(cards, selectCategory, activeCardTag);
-  }, [cards, selectCategory, activeCardTag, fetchCards]);
+    return filterCards(sortedCards, selectCategory, activeCardTag);
+  }, [sortedCards, selectCategory, activeCardTag, filterCards]);
 
   const handleMoreClick = useMemoizedFn(async ({ key }: { key: string }) => {
     if (key === "create-card") {
@@ -269,7 +302,7 @@ const CardListView = () => {
       <div className={styles.list}>
         <div className={styles.cards}>
           <CardTreePanel
-            cards={cards}
+            cards={sortedCards}
             activeCardTag={activeCardTag}
             onClickTag={handleClickTag}
           />
@@ -300,12 +333,13 @@ const CardListView = () => {
                 onCardClick={handleCardClick}
                 onDeleteCard={handleDeleteCard}
                 onUpdateCardCategory={handleUpdateCardCategory}
+                onToggleCardTop={handleToggleCardTop}
                 onCardChange={handleCardChange}
               />
             ) : (
               <div className={styles.graphContainer}>
                 <CardGraph
-                  cards={cards}
+                  cards={sortedCards}
                   onClickCard={handleCardClick}
                   className={styles.cardGraph}
                   currentCardIds={filteredCards.map((card) => card.id)}

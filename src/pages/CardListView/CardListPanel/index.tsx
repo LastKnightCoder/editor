@@ -22,12 +22,20 @@ interface CardListPanelProps {
     card: ICard,
     category: ECardCategory,
   ) => Promise<void>;
+  onToggleCardTop?: (cardId: number) => Promise<void>;
   onCardChange: (card: ICard) => void;
 }
 
 const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
   (
-    { cards, onCardClick, onDeleteCard, onUpdateCardCategory, onCardChange },
+    {
+      cards,
+      onCardClick,
+      onDeleteCard,
+      onUpdateCardCategory,
+      onToggleCardTop,
+      onCardChange,
+    },
     ref,
   ) => {
     const virtualListRef = useRef<VirtualCardListRef>(null);
@@ -79,6 +87,7 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
             onCardClick={handleCardClick}
             onDeleteCard={onDeleteCard}
             onUpdateCardCategory={onUpdateCardCategory}
+            onToggleCardTop={onToggleCardTop}
             onCardChange={onCardChange}
           />
         </div>
