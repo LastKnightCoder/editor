@@ -75,39 +75,15 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-
-      :global {
-        .ant-tabs {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-        }
-
-        .ant-tabs-nav {
-          margin: 0;
-          padding: 0 16px;
-          background-color: inherit;
-          position: sticky;
-          top: 0;
-          z-index: 10;
-        }
-
-        .ant-tabs-content {
-          flex: 1;
-          overflow-y: auto;
-          max-height: calc(80vh - 110px);
-        }
-
-        .ant-tabs-tabpane {
-          padding: 0;
-        }
-      }
+      max-height: calc(80vh - 56px);
 
       .list {
         display: flex;
         flex-direction: column;
         gap: 16px;
         padding: 16px;
+        overflow-y: auto;
+        max-height: calc(80vh - 56px);
 
         .item {
           position: relative;
