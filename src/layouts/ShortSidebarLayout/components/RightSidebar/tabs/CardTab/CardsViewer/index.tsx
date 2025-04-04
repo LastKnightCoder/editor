@@ -1,18 +1,24 @@
 import React, { useMemo, useState } from "react";
-import { Empty, Modal, Tabs, Button } from "antd";
+import { Empty, Tabs, Button } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { getEditorText } from "@/utils";
 import { SearchResult } from "@/types";
 
 import { BaseViewerProps } from "../../../types";
-import CardSelector from "../CardSelector";
 import CardViewer from "../CardViewer";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
+import {
+  cardLinkExtension,
+  fileAttachmentExtension,
+} from "@/editor-extensions";
 
 import styles from "./index.module.less";
 import If from "@/components/If";
 
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
+
+const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 const CardsViewer: React.FC<BaseViewerProps> = ({
   addTab,
@@ -68,13 +74,25 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
     },
   );
 
-  const onSelectCard = useMemoizedFn((card: SearchResult) => {
+  const onSelectCard = useMemoizedFn((items: SearchResult | SearchResult[]) => {
     setSelectorOpen(false);
-    addTab({
-      id: String(card.id),
-      type: "card",
-      title: getEditorText(card.content, 10),
-    });
+    if (Array.isArray(items)) {
+      // 处理多选的情况
+      items.forEach((card) => {
+        addTab({
+          id: String(card.id),
+          type: "card",
+          title: getEditorText(card.content, 10),
+        });
+      });
+    } else {
+      // 单选情况
+      addTab({
+        id: String(items.id),
+        type: "card",
+        title: getEditorText(items.content, 10),
+      });
+    }
   });
 
   return (
@@ -95,20 +113,16 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
           animated={true}
         />
       </If>
-      <Modal
+      <ContentSelectorModal
         open={selectorOpen}
         onCancel={() => setSelectorOpen(false)}
-        footer={null}
-        width={800}
-        destroyOnClose
-        styles={{
-          body: {
-            maxHeight: 800,
-          },
-        }}
-      >
-        <CardSelector onSelect={onSelectCard} />
-      </Modal>
+        onSelect={onSelectCard}
+        contentType="card"
+        extensions={customExtensions}
+        emptyDescription="暂无卡片"
+        showTitle={false}
+        multiple={true}
+      />
     </div>
   );
 };

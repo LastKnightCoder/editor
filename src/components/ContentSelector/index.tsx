@@ -3,49 +3,46 @@ import { Empty } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import EditText from "@/components/EditText";
+import Editor from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import If from "@/components/If";
-import Editor from "@/components/Editor";
-
-import {
-  fileAttachmentExtension,
-  cardLinkExtension,
-  documentCardListExtension,
-} from "@/editor-extensions";
-
+import EditText from "@/components/EditText";
 import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
-import { formatDate, searchContent } from "@/utils";
 
-import styles from "./index.module.less";
-import { SearchResult } from "@/types/search";
+import { formatDate, searchContent } from "@/utils";
+import { IndexType, SearchResult } from "@/types/search";
 import useTheme from "@/hooks/useTheme";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
-interface DocumentItemSelectorProps {
-  onSelect: (documentItem: SearchResult) => void;
+import styles from "./index.module.less";
+
+export interface ContentSelectorProps {
+  onSelect: (item: SearchResult) => void;
+  contentType: IndexType | IndexType[];
+  extensions: any[];
+  emptyDescription?: string;
+  showTitle?: boolean;
+  isItemSelected?: (item: SearchResult) => boolean;
 }
 
-const customExtensions = [
-  fileAttachmentExtension,
-  cardLinkExtension,
-  documentCardListExtension,
-];
-
-const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
+const ContentSelector: React.FC<ContentSelectorProps> = ({
   onSelect,
+  contentType,
+  extensions,
+  emptyDescription = "无结果",
+  showTitle = true,
+  isItemSelected,
 }) => {
   const { theme } = useTheme();
   const modelInfo = useEmbeddingConfig();
+
   const [search, setSearch] = useState("");
-  const [searchedDocumentItems, setSearchedDocumentItems] = useState<
-    SearchResult[]
-  >([]);
+  const [searchedItems, setSearchedItems] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const searchDocumentItems = useMemoizedFn(async () => {
+  const searchItems = useMemoizedFn(async () => {
     if (!search.trim()) {
-      setSearchedDocumentItems([]);
+      setSearchedItems([]);
       return;
     }
 
@@ -53,11 +50,11 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
     try {
       const result = await searchContent({
         query: search,
-        types: ["document-item"],
+        types: Array.isArray(contentType) ? contentType : [contentType],
         limit: 10,
         modelInfo,
       });
-      setSearchedDocumentItems(result);
+      setSearchedItems(result);
     } catch (error) {
       console.error(error);
     } finally {
@@ -68,11 +65,11 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
   const listRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
-    count: searchedDocumentItems.length,
+    count: searchedItems.length,
     getScrollElement: () => listRef.current,
     estimateSize: () => 350,
     overscan: 3,
-    getItemKey: (index) => searchedDocumentItems[index].id,
+    getItemKey: (index) => searchedItems[index].id,
     measureElement: (el) => {
       const item = el.firstElementChild;
       if (!item) return 350;
@@ -80,11 +77,9 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
     },
   });
 
-  const handleDocumentItemClick = useMemoizedFn(
-    (documentItem: SearchResult) => {
-      onSelect(documentItem);
-    },
-  );
+  const handleItemClick = useMemoizedFn((item: SearchResult) => {
+    onSelect(item);
+  });
 
   return (
     <div className={styles.container}>
@@ -96,11 +91,11 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
           defaultValue=""
           contentEditable={true}
           onChange={setSearch}
-          onPressEnter={searchDocumentItems}
+          onPressEnter={searchItems}
           className={styles.search}
           onDeleteEmpty={() => {
             setSearch("");
-            setSearchedDocumentItems([]);
+            setSearchedItems([]);
           }}
         />
       </div>
@@ -110,10 +105,10 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
             <LoadingOutlined />
           </div>
         </If>
-        <If condition={!searching && searchedDocumentItems.length === 0}>
-          <Empty description="无结果" />
+        <If condition={!searching && searchedItems.length === 0}>
+          <Empty description={emptyDescription} />
         </If>
-        <If condition={!searching && searchedDocumentItems.length > 0}>
+        <If condition={!searching && searchedItems.length > 0}>
           <div
             style={{
               height: `${virtualizer.getTotalSize()}px`,
@@ -122,7 +117,9 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
             }}
           >
             {virtualizer.getVirtualItems().map((virtualItem) => {
-              const documentItem = searchedDocumentItems[virtualItem.index];
+              const item = searchedItems[virtualItem.index];
+              const selected = isItemSelected ? isItemSelected(item) : false;
+
               return (
                 <div
                   key={virtualItem.key}
@@ -138,21 +135,21 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
                   }}
                 >
                   <div
-                    className={styles.itemContainer}
-                    onClick={handleDocumentItemClick.bind(null, documentItem)}
+                    className={`${styles.itemContainer} ${selected ? styles.selected : ""}`}
+                    onClick={handleItemClick.bind(null, item)}
                   >
-                    <div className={styles.title}>{documentItem.title}</div>
+                    {showTitle && (
+                      <div className={styles.title}>{item.title}</div>
+                    )}
                     <div className={styles.time}>
-                      <span>
-                        更新于：{formatDate(documentItem.updateTime, true)}
-                      </span>
+                      <span>更新于：{formatDate(item.updateTime, true)}</span>
                     </div>
                     <ErrorBoundary>
                       <div className={styles.content}>
                         <Editor
                           readonly={true}
-                          initValue={documentItem.content.slice(0, 3)}
-                          extensions={customExtensions}
+                          initValue={item.content.slice(0, 3)}
+                          extensions={extensions}
                           theme={theme}
                         />
                       </div>
@@ -168,4 +165,4 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
   );
 };
 
-export default DocumentItemSelector;
+export default ContentSelector;

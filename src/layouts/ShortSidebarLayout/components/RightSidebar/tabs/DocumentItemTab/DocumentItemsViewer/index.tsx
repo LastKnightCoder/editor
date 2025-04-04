@@ -1,16 +1,27 @@
 import React, { useMemo, useState } from "react";
-import { Empty, Modal, Tabs, Button } from "antd";
+import { Empty, Tabs, Button } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { BaseViewerProps } from "../../../types";
 import DocumentItemViewer from "../DocumentItemViewer";
-import DocumentItemSelector from "../DocumentItemSelector";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
+import {
+  fileAttachmentExtension,
+  cardLinkExtension,
+  documentCardListExtension,
+} from "@/editor-extensions";
 
 import styles from "./index.module.less";
 import If from "@/components/If";
 import { SearchResult } from "@/types/search";
 
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
+
+const customExtensions = [
+  fileAttachmentExtension,
+  cardLinkExtension,
+  documentCardListExtension,
+];
 
 const DocumentItemsViewer: React.FC<BaseViewerProps> = ({
   addTab,
@@ -66,14 +77,28 @@ const DocumentItemsViewer: React.FC<BaseViewerProps> = ({
     },
   );
 
-  const onSelectDocumentItem = useMemoizedFn((documentItem: SearchResult) => {
-    setSelectorOpen(false);
-    addTab({
-      id: String(documentItem.id),
-      type: "document-item",
-      title: documentItem.title || "文档",
-    });
-  });
+  const onSelectDocumentItem = useMemoizedFn(
+    (items: SearchResult | SearchResult[]) => {
+      setSelectorOpen(false);
+      if (Array.isArray(items)) {
+        // 处理多选的情况
+        items.forEach((documentItem) => {
+          addTab({
+            id: String(documentItem.id),
+            type: "document-item",
+            title: documentItem.title || "文档",
+          });
+        });
+      } else {
+        // 单选情况
+        addTab({
+          id: String(items.id),
+          type: "document-item",
+          title: items.title || "文档",
+        });
+      }
+    },
+  );
 
   return (
     <div className={styles.container}>
@@ -93,20 +118,16 @@ const DocumentItemsViewer: React.FC<BaseViewerProps> = ({
           animated={true}
         />
       </If>
-      <Modal
+      <ContentSelectorModal
         open={selectorOpen}
         onCancel={() => setSelectorOpen(false)}
-        footer={null}
-        width={800}
-        destroyOnClose
-        styles={{
-          body: {
-            maxHeight: 800,
-          },
-        }}
-      >
-        <DocumentItemSelector onSelect={onSelectDocumentItem} />
-      </Modal>
+        onSelect={onSelectDocumentItem}
+        contentType="document-item"
+        extensions={customExtensions}
+        emptyDescription="无结果"
+        showTitle={true}
+        multiple={true}
+      />
     </div>
   );
 };
