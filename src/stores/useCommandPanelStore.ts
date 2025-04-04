@@ -1,15 +1,14 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { SearchParams, SearchResult } from "@/types";
-import { searchContent } from "@/utils/search";
+import { searchContent } from "@/utils";
 import useSettingStore from "./useSettingStore";
 
 interface ICommandPanelState {
   open: boolean;
   action?: "search" | "setting";
   searchLoading: boolean;
-  ftsResults: SearchResult[];
-  vecResults: SearchResult[];
+  searchResults: SearchResult[];
 }
 
 interface ICommandPanelActions {
@@ -24,8 +23,7 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
     open: false,
     action: undefined,
     searchLoading: false,
-    ftsResults: [],
-    vecResults: [],
+    searchResults: [],
     toggleTheme: () => {
       useSettingStore.setState(
         produce(useSettingStore.getState(), (draft) => {
@@ -64,11 +62,10 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
               : undefined,
         };
 
-        const [ftsResults, vecResults] = await searchContent(searchParams);
+        const searchResults = await searchContent(searchParams);
 
         useCommandPanelStore.setState({
-          ftsResults,
-          vecResults,
+          searchResults,
           searchLoading: false,
         });
       } catch (error) {

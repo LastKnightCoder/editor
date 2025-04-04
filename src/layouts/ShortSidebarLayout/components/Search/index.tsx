@@ -4,11 +4,11 @@ import { useShallow } from "zustand/react/shallow";
 import isHotkey from "is-hotkey";
 import Editor from "@/components/Editor";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
-import { Empty, Tag, Tabs } from "antd";
+import { Empty, Tag } from "antd";
 import styles from "./index.module.less";
 import { SearchResult } from "@/types";
 import classnames from "classnames";
@@ -68,37 +68,20 @@ const AISearch = memo(() => {
 
   const searchRef = useRef<EditTextHandle>(null);
   const lastSearchText = useRef("");
-  const [activeTab, setActiveTab] = useLocalStorageState<string>(
-    "search-active-tab",
-    {
-      defaultValue: "vec",
-    },
+  const resultsListRef = useRef<HTMLDivElement>(null);
+
+  const { open, searchLoading, searchResults, onSearch } = useCommandPanelStore(
+    useShallow((state) => ({
+      open: state.open,
+      searchLoading: state.searchLoading,
+      searchResults: state.searchResults,
+      onSearch: state.onSearch,
+    })),
   );
 
-  const ftsListRef = useRef<HTMLDivElement>(null);
-  const vecListRef = useRef<HTMLDivElement>(null);
-
-  const { open, searchLoading, ftsResults, vecResults, onSearch } =
-    useCommandPanelStore(
-      useShallow((state) => ({
-        open: state.open,
-        searchLoading: state.searchLoading,
-        ftsResults: state.ftsResults,
-        vecResults: state.vecResults,
-        onSearch: state.onSearch,
-      })),
-    );
-
-  const ftsVirtualizer = useVirtualizer({
-    count: ftsResults.length,
-    getScrollElement: () => ftsListRef.current,
-    estimateSize: () => 240,
-    overscan: 5,
-  });
-
-  const vecVirtualizer = useVirtualizer({
-    count: vecResults.length,
-    getScrollElement: () => vecListRef.current,
+  const resultsVirtualizer = useVirtualizer({
+    count: searchResults.length,
+    getScrollElement: () => resultsListRef.current,
     estimateSize: () => 240,
     overscan: 5,
   });
@@ -235,100 +218,51 @@ const AISearch = memo(() => {
             </div>
           </If>
           <If condition={!searchLoading}>
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              items={[
-                {
-                  key: "vec",
-                  label: "AI 搜索",
-                  children: (
-                    <>
-                      <If condition={vecResults.length === 0}>
-                        <Empty
+            <>
+              <If condition={searchResults.length === 0}>
+                <Empty
+                  style={{
+                    padding: 24,
+                  }}
+                  description={"暂无数据"}
+                />
+              </If>
+              <If condition={searchResults.length > 0}>
+                <div ref={resultsListRef} className={styles.list}>
+                  <div
+                    style={{
+                      height: `${resultsVirtualizer.getTotalSize()}px`,
+                      width: "100%",
+                      position: "relative",
+                    }}
+                  >
+                    {resultsVirtualizer.getVirtualItems().map((virtualItem) => {
+                      const result = searchResults[virtualItem.index];
+                      return (
+                        <div
+                          key={`search-${result.id}-${result.type}`}
                           style={{
-                            padding: 24,
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: `${virtualItem.size}px`,
+                            transform: `translateY(${virtualItem.start}px)`,
                           }}
-                          description={"暂无数据"}
-                        />
-                      </If>
-                      <If condition={vecResults.length > 0}>
-                        <div ref={vecListRef} className={styles.list}>
-                          <div
-                            style={{
-                              height: `${vecVirtualizer.getTotalSize()}px`,
-                              width: "100%",
-                            }}
-                          >
-                            {vecVirtualizer
-                              .getVirtualItems()
-                              .map((virtualItem) => {
-                                const result = vecResults[virtualItem.index];
-                                return (
-                                  <SearchResultItem
-                                    key={`vec-${result.id}-${result.type}`}
-                                    result={result}
-                                    getRefTypeLabel={getRefTypeLabel}
-                                    getTagColor={getTagColor}
-                                    handleSearchResultClick={
-                                      handleSearchResultClick
-                                    }
-                                  />
-                                );
-                              })}
-                          </div>
+                        >
+                          <SearchResultItem
+                            result={result}
+                            getRefTypeLabel={getRefTypeLabel}
+                            getTagColor={getTagColor}
+                            handleSearchResultClick={handleSearchResultClick}
+                          />
                         </div>
-                      </If>
-                    </>
-                  ),
-                },
-                {
-                  key: "fts",
-                  label: "全文搜索",
-                  children: (
-                    <>
-                      <If condition={ftsResults.length === 0}>
-                        <Empty
-                          style={{
-                            padding: 24,
-                          }}
-                          description={"暂无数据"}
-                        />
-                      </If>
-                      <If condition={ftsResults.length > 0}>
-                        <div ref={ftsListRef} className={styles.list}>
-                          <div
-                            style={{
-                              height: `${ftsVirtualizer.getTotalSize()}px`,
-                              width: "100%",
-                              position: "relative",
-                            }}
-                          >
-                            {ftsVirtualizer
-                              .getVirtualItems()
-                              .map((virtualItem) => {
-                                const result = ftsResults[virtualItem.index];
-                                return (
-                                  <div key={`fts-${result.id}-${result.type}`}>
-                                    <SearchResultItem
-                                      result={result}
-                                      getRefTypeLabel={getRefTypeLabel}
-                                      getTagColor={getTagColor}
-                                      handleSearchResultClick={
-                                        handleSearchResultClick
-                                      }
-                                    />
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        </div>
-                      </If>
-                    </>
-                  ),
-                },
-              ]}
-            />
+                      );
+                    })}
+                  </div>
+                </div>
+              </If>
+            </>
           </If>
         </div>
       </div>
