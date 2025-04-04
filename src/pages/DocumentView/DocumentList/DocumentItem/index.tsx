@@ -31,11 +31,17 @@ import {
   updateDocumentItem,
   openDocumentItemInNewWindow,
 } from "@/commands";
-import SelectCardModal from "@/components/SelectCardModal";
-import SelectModal from "@/components/SelectModal";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
 import PresentationMode from "@/components/PresentationMode";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
-import { IArticle, ICard, IDocumentItem } from "@/types";
+import {
+  IArticle,
+  ICard,
+  IDocumentItem,
+  IndexType,
+  SearchResult,
+} from "@/types";
+import { IExtension } from "@/components/Editor";
 import useSettingStore from "@/stores/useSettingStore";
 
 import styles from "./index.module.less";
@@ -82,7 +88,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
   const [item, setItem] = useState<IDocumentItem | null>(null);
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
-  const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
   const [selectArticleModalOpen, setSelectArticleModalOpen] = useState(false);
   const [selectDocumentItemModalOpen, setSelectDocumentItemModalOpen] =
     useState(false);
@@ -97,6 +102,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     },
   );
   const [isPresentation, setIsPresentation] = useState(false);
+  const [extensions, setExtensions] = useState<IExtension[]>([]);
   const { modal } = App.useApp();
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
@@ -141,6 +147,14 @@ const DocumentItem = (props: IDocumentItemProps) => {
       unsubscribe();
     };
   }, [itemId, documentItemEventBus]);
+
+  useEffect(() => {
+    import("@/editor-extensions").then(
+      ({ cardLinkExtension, fileAttachmentExtension }) => {
+        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      },
+    );
+  }, []);
 
   const onDrop = useMemoizedFn(
     async (dragItem: IDragItem, dragPosition: EDragPosition) => {
@@ -521,6 +535,85 @@ const DocumentItem = (props: IDocumentItemProps) => {
     return [-1];
   }, []);
 
+  const initialCardContents = useMemo(() => {
+    return cards.map((card) => ({
+      id: card.id,
+      type: "card" as IndexType,
+      title: "",
+      content: card.content,
+      source: "fts" as "fts" | "vec-document",
+      updateTime: card.update_time,
+    }));
+  }, [cards]);
+
+  const initialArticleContents = useMemo(() => {
+    return articles.map((article) => ({
+      id: article.id,
+      type: "article" as IndexType,
+      title: article.title,
+      content: article.content,
+      source: "fts" as "fts" | "vec-document",
+      updateTime: article.update_time,
+    }));
+  }, [articles]);
+
+  const initialDocumentItemContents = useMemo(() => {
+    return documentItems.map((documentItem) => ({
+      id: documentItem.id,
+      type: "document-item" as IndexType,
+      title: documentItem.title,
+      content: documentItem.content,
+      source: "fts" as "fts" | "vec-document",
+      updateTime: documentItem.updateTime,
+    }));
+  }, [documentItems]);
+
+  const handleCardSelect = useMemoizedFn(
+    (selectedResults: SearchResult | SearchResult[]) => {
+      const results = Array.isArray(selectedResults)
+        ? selectedResults
+        : [selectedResults];
+      const selectedCardIds = results.map((result) => result.id);
+      const newSelectedCards = selectedCardIds
+        .map((id) => cards.find((card) => card.id === id))
+        .filter((card): card is ICard => !!card);
+
+      onSelectCardFinish(newSelectedCards);
+    },
+  );
+
+  const handleArticleSelect = useMemoizedFn(
+    (selectedResults: SearchResult | SearchResult[]) => {
+      const results = Array.isArray(selectedResults)
+        ? selectedResults
+        : [selectedResults];
+      const selectedArticleIds = results.map((result) => result.id);
+      const newSelectedArticles = selectedArticleIds
+        .map((id) => articles.find((article) => article.id === id))
+        .filter((article): article is IArticle => !!article);
+
+      onSelectArticleFinish(newSelectedArticles);
+    },
+  );
+
+  const handleDocumentItemSelect = useMemoizedFn(
+    (selectedResults: SearchResult | SearchResult[]) => {
+      const results = Array.isArray(selectedResults)
+        ? selectedResults
+        : [selectedResults];
+      const selectedDocumentItemIds = results.map((result) => result.id);
+      const newSelectedDocumentItems = selectedDocumentItemIds
+        .map((id) =>
+          documentItems.find((documentItem) => documentItem.id === id),
+        )
+        .filter(
+          (documentItem): documentItem is IDocumentItem => !!documentItem,
+        );
+
+      onSelectDocumentItemFinish(newSelectedDocumentItems);
+    },
+  );
+
   const onSelectDocumentItemCancel = useMemoizedFn(() => {
     setSelectDocumentItemModalOpen(false);
   });
@@ -734,33 +827,40 @@ const DocumentItem = (props: IDocumentItemProps) => {
           ))}
         </div>
       </div>
-      <SelectCardModal
+      <ContentSelectorModal
         title={"选择关联卡片"}
-        selectedCards={selectedCards}
-        onChange={setSelectedCards}
         open={selectCardModalOpen}
-        allCards={cards}
         onCancel={() => {
           setSelectCardModalOpen(false);
         }}
-        onOk={onSelectCardFinish}
-        excludeCardIds={excludeCardIds}
+        onSelect={handleCardSelect}
+        contentType="card"
+        multiple={false}
+        excludeIds={excludeCardIds}
+        initialContents={initialCardContents}
+        extensions={extensions}
       />
-      <SelectModal
+      <ContentSelectorModal
         title={"选择关联文章"}
         open={selectArticleModalOpen}
-        allItems={articles}
-        excludeIds={excludeArticleIds}
         onCancel={onSelectArticleCancel}
-        onOk={onSelectArticleFinish}
+        onSelect={handleArticleSelect}
+        contentType="article"
+        multiple={false}
+        excludeIds={excludeArticleIds}
+        extensions={extensions}
+        initialContents={initialArticleContents}
       />
-      <SelectModal
+      <ContentSelectorModal
         title={"选择关联文档"}
         open={selectDocumentItemModalOpen}
-        allItems={documentItems}
-        excludeIds={excludeDocumentItemIds}
         onCancel={onSelectDocumentItemCancel}
-        onOk={onSelectDocumentItemFinish}
+        onSelect={handleDocumentItemSelect}
+        contentType="document-item"
+        multiple={false}
+        excludeIds={excludeDocumentItemIds}
+        extensions={extensions}
+        initialContents={initialDocumentItemContents}
       />
 
       {isPresentation && item && (
