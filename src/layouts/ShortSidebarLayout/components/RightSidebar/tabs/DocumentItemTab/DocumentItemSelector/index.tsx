@@ -14,13 +14,13 @@ import {
   documentCardListExtension,
 } from "@/editor-extensions";
 
-import { searchFTS } from "@/commands";
 import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
-import { formatDate } from "@/utils";
+import { formatDate, searchContent } from "@/utils";
 
 import styles from "./index.module.less";
 import { SearchResult } from "@/types/search";
 import useTheme from "@/hooks/useTheme";
+import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
 interface DocumentItemSelectorProps {
   onSelect: (documentItem: SearchResult) => void;
@@ -36,6 +36,7 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
   onSelect,
 }) => {
   const { theme } = useTheme();
+  const modelInfo = useEmbeddingConfig();
   const [search, setSearch] = useState("");
   const [searchedDocumentItems, setSearchedDocumentItems] = useState<
     SearchResult[]
@@ -50,14 +51,13 @@ const DocumentItemSelector: React.FC<DocumentItemSelectorProps> = ({
 
     setSearching(true);
     try {
-      console.time("searchDocumentItems");
-      const result = await searchFTS({
+      const result = await searchContent({
         query: search,
         types: ["document-item"],
         limit: 10,
+        modelInfo,
       });
       setSearchedDocumentItems(result);
-      console.timeEnd("searchDocumentItems");
     } catch (error) {
       console.error(error);
     } finally {

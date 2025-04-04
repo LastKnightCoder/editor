@@ -6,8 +6,10 @@ import { BaseViewerProps } from "../../../types";
 import ArticleViewer from "../ArticleViewer";
 import ArticleSelector from "../ArticleSelector";
 
-import styles from "./index.module.less";
 import If from "@/components/If";
+import { SearchResult } from "@/types";
+
+import styles from "./index.module.less";
 
 type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
@@ -65,12 +67,12 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
     },
   );
 
-  const onSelectArticle = useMemoizedFn((article: any) => {
+  const onSelectArticle = useMemoizedFn((article: SearchResult) => {
     setSelectorOpen(false);
     addTab({
       id: String(article.id),
       type: "article",
-      title: article.title || "文章",
+      title: article.title || `文章 #${article.id}`,
     });
   });
 

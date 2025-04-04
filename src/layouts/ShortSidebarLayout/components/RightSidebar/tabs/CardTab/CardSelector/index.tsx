@@ -1,10 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Empty } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import Editor from "@/components/Editor";
-import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import If from "@/components/If";
 import EditText from "@/components/EditText";
@@ -14,48 +13,39 @@ import {
   fileAttachmentExtension,
 } from "@/editor-extensions";
 
-import { formatDate } from "@/utils";
-import { getAllCards, searchFTS } from "@/commands";
-import { ICard } from "@/types";
+import { formatDate, searchContent } from "@/utils";
+import { SearchResult } from "@/types";
 import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
+import useTheme from "@/hooks/useTheme";
+import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
 import styles from "./index.module.less";
-import useTheme from "@/hooks/useTheme";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 interface CardSelectorProps {
-  onSelect: (card: ICard) => void;
+  onSelect: (card: SearchResult) => void;
 }
 
 const CardSelector: React.FC<CardSelectorProps> = ({ onSelect }) => {
-  const [cards, setCards] = useState<ICard[]>([]);
+  const modelInfo = useEmbeddingConfig();
 
-  useEffect(() => {
-    getAllCards().then((cards) => {
-      setCards(cards);
-    });
-  }, []);
   const { theme } = useTheme();
 
   const [search, setSearch] = useState("");
-  const [searchedCards, setSearchedCards] = useState<ICard[]>(cards);
+  const [searchedCards, setSearchedCards] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   const searchCards = useMemoizedFn(async () => {
     setSearching(true);
     try {
-      console.time("searchCards");
-      const result = await searchFTS({
+      const result = await searchContent({
         query: search,
         types: ["card"],
         limit: 10,
+        modelInfo,
       });
-      const searchedCards = cards.filter((card) =>
-        result.some((item) => item.id === card.id),
-      );
-      setSearchedCards(searchedCards);
-      console.timeEnd("searchCards");
+      setSearchedCards(result);
     } catch (error) {
       console.error(error);
     } finally {
@@ -81,7 +71,7 @@ const CardSelector: React.FC<CardSelectorProps> = ({ onSelect }) => {
     },
   });
 
-  const handleCardClick = useMemoizedFn((card: ICard) => {
+  const handleCardClick = useMemoizedFn((card: SearchResult) => {
     onSelect(card);
   });
 
@@ -99,7 +89,7 @@ const CardSelector: React.FC<CardSelectorProps> = ({ onSelect }) => {
           className={styles.search}
           onDeleteEmpty={() => {
             setSearch("");
-            setSearchedCards(cards);
+            setSearchedCards([]);
           }}
         />
       </div>
@@ -141,8 +131,7 @@ const CardSelector: React.FC<CardSelectorProps> = ({ onSelect }) => {
                     onClick={handleCardClick.bind(null, card)}
                   >
                     <div className={styles.time}>
-                      <span>创建于：{formatDate(card.create_time, true)}</span>
-                      <span>更新于：{formatDate(card.update_time, true)}</span>
+                      <span>更新于：{formatDate(card.updateTime, true)}</span>
                     </div>
                     <ErrorBoundary>
                       <Editor
@@ -153,9 +142,6 @@ const CardSelector: React.FC<CardSelectorProps> = ({ onSelect }) => {
                         theme={theme}
                       />
                     </ErrorBoundary>
-                    {card.tags.length > 0 && (
-                      <Tags className={styles.tags} tags={card.tags} showIcon />
-                    )}
                   </div>
                 </div>
               );

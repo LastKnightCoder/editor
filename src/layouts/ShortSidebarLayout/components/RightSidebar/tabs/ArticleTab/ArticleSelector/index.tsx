@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Empty } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -13,48 +13,37 @@ import {
   cardLinkExtension,
 } from "@/editor-extensions";
 
-import { formatDate } from "@/utils";
-import { getAllArticles, searchFTS } from "@/commands";
-import { IArticle } from "@/types";
+import { formatDate, searchContent } from "@/utils";
+import { SearchResult } from "@/types";
 import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
 
 import styles from "./index.module.less";
 import useTheme from "@/hooks/useTheme";
-
+import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 interface ArticleSelectorProps {
-  onSelect: (article: IArticle) => void;
+  onSelect: (article: SearchResult) => void;
 }
 
 const customExtensions = [fileAttachmentExtension, cardLinkExtension];
 
 const ArticleSelector: React.FC<ArticleSelectorProps> = ({ onSelect }) => {
   const { theme } = useTheme();
-  const [articles, setArticles] = useState<IArticle[]>([]);
-  useEffect(() => {
-    getAllArticles().then((articles) => {
-      setArticles(articles);
-    });
-  }, []);
+  const modelInfo = useEmbeddingConfig();
 
   const [search, setSearch] = useState("");
-  const [searchedArticles, setSearchedArticles] =
-    useState<IArticle[]>(articles);
+  const [searchedArticles, setSearchedArticles] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   const searchArticles = useMemoizedFn(async () => {
     setSearching(true);
     try {
-      console.time("searchArticles");
-      const result = await searchFTS({
+      const result = await searchContent({
         query: search,
         types: ["article"],
         limit: 10,
+        modelInfo,
       });
-      const searchedArticles = articles.filter((article) =>
-        result.some((item) => item.id === article.id),
-      );
-      setSearchedArticles(searchedArticles);
-      console.timeEnd("searchArticles");
+      setSearchedArticles(result);
     } catch (error) {
       console.error(error);
     } finally {
@@ -77,7 +66,7 @@ const ArticleSelector: React.FC<ArticleSelectorProps> = ({ onSelect }) => {
     },
   });
 
-  const handleArticleClick = useMemoizedFn((article: IArticle) => {
+  const handleArticleClick = useMemoizedFn((article: SearchResult) => {
     onSelect(article);
   });
 
@@ -95,7 +84,7 @@ const ArticleSelector: React.FC<ArticleSelectorProps> = ({ onSelect }) => {
           className={styles.search}
           onDeleteEmpty={() => {
             setSearch("");
-            setSearchedArticles(articles);
+            setSearchedArticles([]);
           }}
         />
       </div>
@@ -139,10 +128,7 @@ const ArticleSelector: React.FC<ArticleSelectorProps> = ({ onSelect }) => {
                     <div className={styles.title}>{article.title}</div>
                     <div className={styles.time}>
                       <span>
-                        创建于：{formatDate(article.create_time, true)}
-                      </span>
-                      <span>
-                        更新于：{formatDate(article.update_time, true)}
+                        更新于：{formatDate(article.updateTime, true)}
                       </span>
                     </div>
                     <ErrorBoundary>
