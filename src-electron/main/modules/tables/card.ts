@@ -34,6 +34,7 @@ export default class CardTable {
         links TEXT,
         content_id INTEGER,
         category TEXT DEFAULT 'permanent',
+        is_top INTEGER DEFAULT 0,
         FOREIGN KEY(content_id) REFERENCES contents(id)
       )
     `;
@@ -51,6 +52,15 @@ export default class CardTable {
         "ALTER TABLE cards ADD COLUMN category TEXT DEFAULT 'permanent'",
       );
       alertStmt.run();
+    }
+
+    // 如果不包含is_top字段，则添加
+    if (!tableInfo.includes("is_top")) {
+      log.info("add is_top column to cards table");
+      const addIsTopColumnStmt = db.prepare(
+        "ALTER TABLE cards ADD COLUMN is_top INTEGER DEFAULT 0",
+      );
+      addIsTopColumnStmt.run();
     }
 
     // 如果不包含content_id字段，则添加
@@ -121,16 +131,17 @@ export default class CardTable {
       category: card.category,
       count: count,
       contentId: card.content_id,
+      isTop: !!card.is_top,
     };
   }
 
   static getAllCards(db: Database.Database) {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, 
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
              ct.content, ct.count 
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
-      ORDER BY c.create_time DESC
+      ORDER BY c.is_top DESC, c.create_time DESC
     `);
     const cards = stmt.all();
     return cards.map((card) => this.parseCard(card));
@@ -141,7 +152,7 @@ export default class CardTable {
     cardId: number | bigint,
   ): ICard | null {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, 
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
              ct.content, ct.count 
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
@@ -159,7 +170,7 @@ export default class CardTable {
 
     const placeholders = cardIds.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, 
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
              ct.content, ct.count 
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
@@ -170,7 +181,7 @@ export default class CardTable {
   }
 
   static createCard(db: Database.Database, card: ICreateCard): ICard {
-    const { tags, links, content, category, count } = card;
+    const { tags, links, content, category, count, isTop } = card;
 
     // 创建content记录
     const contentId = ContentTable.createContent(db, {
@@ -180,7 +191,7 @@ export default class CardTable {
 
     // 创建card记录
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
     const now = Date.now();
     const res = stmt.run(
@@ -190,6 +201,7 @@ export default class CardTable {
       JSON.stringify(links),
       contentId,
       category,
+      isTop ? 1 : 0,
     );
     const createdCardId = res.lastInsertRowid;
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
@@ -206,7 +218,7 @@ export default class CardTable {
     ContentTable.incrementRefCount(db, contentId);
 
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)",
     );
     const now = Date.now();
     const res = stmt.run(
@@ -216,6 +228,7 @@ export default class CardTable {
       JSON.stringify([]),
       contentId,
       "permanent",
+      0,
     );
     const createdCardId = res.lastInsertRowid;
 
@@ -229,7 +242,8 @@ export default class CardTable {
     ...res: any[]
   ): ICard {
     const win: BrowserWindow = res[res.length - 1];
-    const { tags, links, content, category, id, count, contentId } = card;
+    const { tags, links, content, category, id, count, contentId, isTop } =
+      card;
 
     // 更新content记录
     if (contentId) {
@@ -253,10 +267,17 @@ export default class CardTable {
 
     // 更新card记录
     const stmt = db.prepare(
-      "UPDATE cards SET update_time = ?, tags = ?, links = ?, category = ? WHERE id = ?",
+      "UPDATE cards SET update_time = ?, tags = ?, links = ?, category = ?, is_top = ? WHERE id = ?",
     );
     const now = Date.now();
-    stmt.run(now, JSON.stringify(tags), JSON.stringify(links), category, id);
+    stmt.run(
+      now,
+      JSON.stringify(tags),
+      JSON.stringify(links),
+      category,
+      isTop ? 1 : 0,
+      id,
+    );
 
     Operation.insertOperation(db, "card", "update", card.id, now);
 

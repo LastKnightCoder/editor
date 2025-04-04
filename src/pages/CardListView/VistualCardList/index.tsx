@@ -22,6 +22,7 @@ interface VirtualCardListProps {
     card: ICard,
     category: ECardCategory,
   ) => Promise<void>;
+  onToggleCardTop?: (cardId: number) => Promise<void>;
   onCardChange: (card: ICard) => void;
 }
 
@@ -35,6 +36,7 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
       onCardClick,
       onDeleteCard,
       onUpdateCardCategory,
+      onToggleCardTop,
       onCardChange,
     },
     ref,
@@ -119,7 +121,8 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
                     left: 0,
                     width: "100%",
                     transform: `translateY(${virtualItem.start}px)`,
-                    padding: "10px 0", // 添加上下间距
+                    padding: "12px",
+                    boxSizing: "border-box",
                   }}
                 >
                   <CardItem
@@ -129,6 +132,7 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
                     onCardClick={handleCardClick}
                     onDeleteCard={onDeleteCard}
                     onUpdateCardCategory={onUpdateCardCategory}
+                    onToggleCardTop={onToggleCardTop}
                     onCardChange={onCardChange}
                   />
                 </div>
