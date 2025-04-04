@@ -35,11 +35,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   const [selectedItems, setSelectedItems] = useState<SearchResult[]>([]);
 
   const handleSelect = (item: SearchResult) => {
-    // 排除特定ID的内容
-    if (excludeIds.includes(item.id)) {
-      return;
-    }
-
+    // 从handleSelect函数中移除检查，由ContentSelector组件负责禁用排除的项目
     if (!multiple) {
       onSelect(item);
       onCancel();
@@ -79,11 +75,12 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   };
 
   const isItemSelected = (item: SearchResult): boolean => {
-    // 排除特定ID的内容
-    if (excludeIds.includes(item.id)) {
-      return false;
-    }
     return selectedItems.some((i) => i.id === item.id && i.type === item.type);
+  };
+
+  // 判断项目是否被禁用
+  const isItemDisabled = (item: SearchResult): boolean => {
+    return excludeIds.includes(item.id);
   };
 
   return (
@@ -123,6 +120,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
         emptyDescription={emptyDescription}
         showTitle={showTitle}
         isItemSelected={multiple ? isItemSelected : undefined}
+        isItemDisabled={isItemDisabled}
         initialContents={initialContents}
       />
     </Modal>
