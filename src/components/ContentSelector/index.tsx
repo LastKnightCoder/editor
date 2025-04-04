@@ -23,7 +23,10 @@ export interface ContentSelectorProps {
   emptyDescription?: string;
   showTitle?: boolean;
   isItemSelected?: (item: SearchResult) => boolean;
+  initialContents?: SearchResult[];
 }
+
+const defaultInitialContents: SearchResult[] = [];
 
 const ContentSelector: React.FC<ContentSelectorProps> = ({
   onSelect,
@@ -32,17 +35,19 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
   emptyDescription = "无结果",
   showTitle = true,
   isItemSelected,
+  initialContents = defaultInitialContents,
 }) => {
   const { theme } = useTheme();
   const modelInfo = useEmbeddingConfig();
 
   const [search, setSearch] = useState("");
-  const [searchedItems, setSearchedItems] = useState<SearchResult[]>([]);
+  const [searchedItems, setSearchedItems] =
+    useState<SearchResult[]>(initialContents);
   const [searching, setSearching] = useState(false);
 
   const searchItems = useMemoizedFn(async () => {
     if (!search.trim()) {
-      setSearchedItems([]);
+      setSearchedItems(initialContents);
       return;
     }
 
@@ -95,7 +100,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
           className={styles.search}
           onDeleteEmpty={() => {
             setSearch("");
-            setSearchedItems([]);
+            setSearchedItems(initialContents);
           }}
         />
       </div>

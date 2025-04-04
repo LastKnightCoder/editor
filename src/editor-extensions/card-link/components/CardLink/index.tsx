@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, memo } from "react";
 import { Popover } from "antd";
 import { RenderElementProps } from "slate-react";
 
@@ -9,7 +9,7 @@ import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 import styles from "./index.module.less";
 import { getEditorText } from "@/utils";
-import { getAllCards } from "@/commands";
+import { getCardById } from "@/commands";
 import { ICard } from "@/types";
 
 interface ICardLinkProps {
@@ -18,21 +18,17 @@ interface ICardLinkProps {
   children: React.ReactNode;
 }
 
-const CardLink = (props: ICardLinkProps) => {
+const CardLink = memo((props: ICardLinkProps) => {
   const { attributes, children, element } = props;
   const { cardId } = element;
 
-  const [cards, setCards] = useState<ICard[]>([]);
+  const [card, setCard] = useState<ICard | undefined>(undefined);
 
   useEffect(() => {
-    getAllCards().then((cards) => {
-      setCards(cards);
+    getCardById(cardId).then((card) => {
+      setCard(card);
     });
-  }, []);
-
-  const linkCard = useMemo(() => {
-    return cards.find((card) => card.id === cardId);
-  }, [cards, cardId]);
+  }, [cardId]);
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -40,11 +36,11 @@ const CardLink = (props: ICardLinkProps) => {
 
     const { addTab } = useRightSidebarStore.getState();
 
-    if (addTab && linkCard) {
+    if (addTab && card) {
       addTab({
-        id: String(linkCard.id),
+        id: String(card.id),
         type: "card",
-        title: getEditorText(linkCard.content, 10),
+        title: getEditorText(card.content, 10),
       });
     }
   };
@@ -52,7 +48,7 @@ const CardLink = (props: ICardLinkProps) => {
   return (
     <Popover
       trigger={"hover"}
-      content={<CardContent card={linkCard} />}
+      content={<CardContent card={card} />}
       styles={{
         body: {
           padding: 0,
@@ -76,6 +72,6 @@ const CardLink = (props: ICardLinkProps) => {
       </span>
     </Popover>
   );
-};
+});
 
 export default CardLink;

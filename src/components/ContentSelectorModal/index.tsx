@@ -12,8 +12,13 @@ export interface ContentSelectorModalProps {
   emptyDescription?: string;
   showTitle?: boolean;
   multiple?: boolean;
+  excludeIds?: number[];
+  title?: string;
+  initialContents?: SearchResult[];
 }
 
+const defaultExcudeIds: number[] = [];
+const defaultInitialContents: SearchResult[] = [];
 const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   open,
   onCancel,
@@ -23,10 +28,18 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   emptyDescription = "无结果",
   showTitle = true,
   multiple = false,
+  excludeIds = defaultExcudeIds,
+  title,
+  initialContents = defaultInitialContents,
 }) => {
   const [selectedItems, setSelectedItems] = useState<SearchResult[]>([]);
 
   const handleSelect = (item: SearchResult) => {
+    // 排除特定ID的内容
+    if (excludeIds.includes(item.id)) {
+      return;
+    }
+
     if (!multiple) {
       onSelect(item);
       onCancel();
@@ -66,11 +79,16 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   };
 
   const isItemSelected = (item: SearchResult): boolean => {
+    // 排除特定ID的内容
+    if (excludeIds.includes(item.id)) {
+      return false;
+    }
     return selectedItems.some((i) => i.id === item.id && i.type === item.type);
   };
 
   return (
     <Modal
+      title={title}
       open={open}
       onCancel={handleCancel}
       footer={
@@ -105,6 +123,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
         emptyDescription={emptyDescription}
         showTitle={showTitle}
         isItemSelected={multiple ? isItemSelected : undefined}
+        initialContents={initialContents}
       />
     </Modal>
   );
