@@ -6,7 +6,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import { createCard } from "@/commands";
+import { createCard, closeWindow } from "@/commands";
 import { ECardCategory } from "@/types";
 import {
   cardLinkExtension,
@@ -61,8 +61,7 @@ const QuickCard = () => {
       count: getContentLength(content),
     });
     setSaveLoading(false);
-    editorRef.current?.setEditorValue(initValue);
-    setContent(initValue);
+    closeWindow();
   };
 
   if (!isConnected) {
@@ -98,7 +97,7 @@ const QuickCard = () => {
       </div>
       <div className={styles.buttons}>
         <Button onClick={onSave} loading={saveLoading}>
-          保存
+          保存并关闭
         </Button>
       </div>
     </div>

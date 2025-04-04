@@ -145,6 +145,12 @@ export class WindowManager {
         this.createEditorWindow("markdown", { filePath, ...options });
       },
     );
+
+    ipcMain.handle("close-window", (event) => {
+      const sender = event.sender;
+      const win = BrowserWindow.fromWebContents(sender);
+      win?.close();
+    });
   }
 
   // 创建主窗口
