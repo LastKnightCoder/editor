@@ -1,28 +1,38 @@
-import { useMemo, useState, useRef, useContext, useEffect, memo } from "react";
+import { useMemo, useState, useRef, useContext, memo, useEffect } from "react";
 import { BaseSelection, Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { message, Tooltip } from "antd";
 import SVG from "react-inlinesvg";
-import SelectCardModal from "@/components/SelectCardModal";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { EditCardContext } from "@/context";
+import { SearchResult, ICard, IndexType } from "@/types";
 
 import classnames from "classnames";
 import { unwrapCardLink, wrapCardLink } from "../utils";
-
 import card from "@/assets/hovering_bar/card.svg";
+import { IExtension } from "@/components/Editor";
+import { getAllCards } from "@/commands";
 
 import styles from "./index.module.less";
-import { ICard } from "@/types";
-import { getAllCards } from "@/commands";
 
 const LinkHoveringItem = memo(() => {
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openSelectModal, setOpenSelectModal] = useState<boolean>(false);
-  const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
   const { cardId } = useContext(EditCardContext) || {};
-
+  const [extensions, setExtensions] = useState<IExtension[]>([]);
   const [cards, setCards] = useState<ICard[]>([]);
+
+  const editor = useSlate();
+  const selection = useSlateSelection();
+
+  useEffect(() => {
+    import("@/editor-extensions").then(
+      ({ cardLinkExtension, fileAttachmentExtension }) => {
+        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      },
+    );
+  }, []);
 
   useEffect(() => {
     getAllCards().then((cards) => {
@@ -30,8 +40,16 @@ const LinkHoveringItem = memo(() => {
     });
   }, []);
 
-  const editor = useSlate();
-  const selection = useSlateSelection();
+  const initialContents = useMemo(() => {
+    return cards.map((card) => ({
+      id: card.id,
+      type: "card" as IndexType,
+      title: "",
+      content: card.content,
+      source: "fts" as "fts" | "vec-document",
+      updateTime: card.update_time,
+    }));
+  }, [cards]);
 
   const isActive = useMemo(() => {
     if (!selection) {
@@ -62,25 +80,32 @@ const LinkHoveringItem = memo(() => {
 
   const onCancelSelect = () => {
     setOpenSelectModal(false);
-    setSelectedCards([]);
     ReactEditor.focus(editor);
     selectionRef.current && Transforms.select(editor, selectionRef.current);
     selectionRef.current = null;
   };
 
-  const onSelectOk = async (selectedCards: ICard[]) => {
-    if (selectedCards.length === 0) {
+  const onSelectOk = async (selectedResult: SearchResult | SearchResult[]) => {
+    const cardResults = Array.isArray(selectedResult)
+      ? selectedResult
+      : [selectedResult];
+    if (cardResults.length === 0) {
       message.warning("请选择卡片");
       return;
     }
     selectionRef.current && Transforms.select(editor, selectionRef.current);
-    const [{ id }] = selectedCards;
+
+    const [{ id }] = cardResults;
     wrapCardLink(editor, id);
     setOpenSelectModal(false);
-    setSelectedCards([]);
+
     ReactEditor.focus(editor);
     Transforms.collapse(editor, { edge: "end" });
   };
+
+  const excludeIds = useMemo(() => {
+    return cardId ? [cardId] : [];
+  }, [cardId]);
 
   return (
     <div>
@@ -97,15 +122,18 @@ const LinkHoveringItem = memo(() => {
           />
         </div>
       </Tooltip>
-      <SelectCardModal
-        title={"选择关联卡片"}
-        selectedCards={selectedCards}
-        onChange={setSelectedCards}
+      <ContentSelectorModal
+        title="选择关联卡片"
         open={openSelectModal}
-        allCards={cards}
         onCancel={onCancelSelect}
-        onOk={onSelectOk}
-        excludeCardIds={[cardId || -1]}
+        onSelect={onSelectOk}
+        contentType="card"
+        extensions={extensions}
+        emptyDescription="没有可选择的卡片"
+        showTitle={false}
+        multiple={false}
+        excludeIds={excludeIds}
+        initialContents={initialContents}
       />
     </div>
   );

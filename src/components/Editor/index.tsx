@@ -376,3 +376,5 @@ const Index = memo(
 );
 
 export default Index;
+
+export type { IExtension };
