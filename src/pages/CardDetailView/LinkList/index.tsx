@@ -9,18 +9,18 @@ import { ICard } from "@/types";
 import styles from "./index.module.less";
 import { getAllCards } from "@/commands";
 
-interface ILinkTabProps {
+interface ILinkListProps {
   onClickLinkCard: (card: ICard) => void;
-  addLink: (id: number) => Promise<void>;
+  addLinks: (ids: number[]) => Promise<void>;
   removeLink: (id: number) => Promise<void>;
   editingCard: ICard;
   readonly?: boolean;
 }
 
-const LinkTab = (props: ILinkTabProps) => {
+const LinkList = (props: ILinkListProps) => {
   const {
     onClickLinkCard,
-    addLink,
+    addLinks,
     removeLink,
     editingCard,
     readonly = false,
@@ -99,9 +99,7 @@ const LinkTab = (props: ILinkTabProps) => {
           setAddLinkModalOpen(false);
         }}
         onOk={async (selectedCards) => {
-          selectedCards.forEach((card) => {
-            addLink(card.id);
-          });
+          addLinks(selectedCards.map((card) => card.id));
           setAddLinkModalOpen(false);
         }}
         editingCard={editingCard}
@@ -110,4 +108,4 @@ const LinkTab = (props: ILinkTabProps) => {
   );
 };
 
-export default LinkTab;
+export default LinkList;

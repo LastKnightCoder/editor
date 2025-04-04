@@ -186,12 +186,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     };
   });
 
-  const handleContainerResize = useMemoizedFn(
-    (entries: ResizeObserverEntry[]) => {
-      console.log("handleContainerResize", entries);
-      ViewPortTransforms.onContainerResize(board);
-    },
-  );
+  const handleContainerResize = useMemoizedFn(() => {
+    ViewPortTransforms.onContainerResize(board);
+  });
 
   const handleZoomIn = useMemoizedFn(() => {
     ViewPortTransforms.updateZoom(board, Math.max(zoom / 1.1, MIN_ZOOM));
