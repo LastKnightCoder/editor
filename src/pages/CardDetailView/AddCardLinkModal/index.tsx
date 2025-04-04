@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
-import SelectCardModal from "@/components/SelectCardModal";
+import { IExtension } from "@/components/Editor";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
 
-import { ICard } from "@/types";
 import { getAllCards } from "@/commands";
+import { ICard, IndexType, SearchResult } from "@/types";
 
 interface IAddCardLinkModalProps {
   open: boolean;
@@ -16,11 +17,20 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
   const { open, editingCard, onOk, onClose } = props;
 
   const [cards, setCards] = useState<ICard[]>([]);
+  const [extensions, setExtensions] = useState<IExtension[]>([]);
 
   useEffect(() => {
     getAllCards().then((cards) => {
       setCards(cards);
     });
+  }, []);
+
+  useEffect(() => {
+    import("@/editor-extensions").then(
+      ({ cardLinkExtension, fileAttachmentExtension }) => {
+        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      },
+    );
   }, []);
 
   const excludeCardIds = useMemo(() => {
@@ -30,15 +40,29 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
     ) as number[];
   }, [editingCard]);
 
-  const [selectedCards, setSelectedCards] = useState<ICard[]>(() => {
-    if (!editingCard) return [];
-    return editingCard.links
-      .map((id) => cards.find((card) => card.id === id))
-      .filter((card) => !!card) as ICard[];
-  });
+  const initialContents = useMemo(() => {
+    return cards.map((card) => ({
+      id: card.id,
+      type: "card" as IndexType,
+      title: "",
+      content: card.content,
+      source: "fts" as "fts" | "vec-document",
+      updateTime: card.update_time,
+    }));
+  }, [cards]);
 
-  const onCloseModal = () => {
-    onClose();
+  const handleSelect = (selectedResults: SearchResult | SearchResult[]) => {
+    const results = Array.isArray(selectedResults)
+      ? selectedResults
+      : [selectedResults];
+    const selectedCardIds = results.map((result) => result.id);
+    const newSelectedCards = selectedCardIds
+      .map((id) => cards.find((card) => card.id === id))
+      .filter((card): card is ICard => !!card);
+
+    console.log("newSelectedCards", newSelectedCards);
+
+    onOk(newSelectedCards);
   };
 
   if (!open) {
@@ -46,16 +70,16 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
   }
 
   return (
-    <SelectCardModal
+    <ContentSelectorModal
       title={"添加相关卡片"}
-      selectedCards={selectedCards}
-      onChange={setSelectedCards}
       open={open}
-      multiple
-      onOk={onOk}
-      onCancel={onCloseModal}
-      allCards={cards}
-      excludeCardIds={excludeCardIds}
+      onCancel={onClose}
+      onSelect={handleSelect}
+      contentType="card"
+      multiple={true}
+      excludeIds={excludeCardIds}
+      initialContents={initialContents}
+      extensions={extensions}
     />
   );
 };

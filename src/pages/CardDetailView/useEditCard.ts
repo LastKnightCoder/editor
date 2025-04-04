@@ -97,17 +97,23 @@ const useEditCard = (cardId: number | undefined) => {
   });
 
   const onAddLink = useMemoizedFn(async (link: number) => {
-    if (!editingCard || editingCard.links.includes(link)) return;
+    onAddLinks([link]);
+  });
+
+  const onAddLinks = useMemoizedFn(async (links: number[]) => {
+    if (!editingCard) return;
     const newEditingCard = produce(editingCard, (draft) => {
-      draft.links.push(link);
+      draft.links = [...new Set([...draft.links, ...links])];
     });
-    const linkedCard = await getCardById(link);
-    if (linkedCard) {
-      if (linkedCard.links.includes(editingCard.id)) return;
-      const newLinkedCard = produce(linkedCard, (draft) => {
-        draft.links.push(editingCard.id);
-      });
-      await updateCard(newLinkedCard);
+
+    for (const link of links) {
+      const linkedCard = await getCardById(link);
+      if (linkedCard && !linkedCard.links.includes(editingCard.id)) {
+        const newLinkedCard = produce(linkedCard, (draft) => {
+          draft.links.push(editingCard.id);
+        });
+        await updateCard(newLinkedCard);
+      }
     }
     setEditingCard(newEditingCard);
   });
@@ -139,6 +145,7 @@ const useEditCard = (cardId: number | undefined) => {
     onAddLink,
     onRemoveLink,
     onTagChange,
+    onAddLinks,
   };
 };
 

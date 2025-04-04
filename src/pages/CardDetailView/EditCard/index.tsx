@@ -57,7 +57,7 @@ const EditCard = (props: IEditCardProps) => {
     onAddTag,
     onDeleteTag,
     saveCard,
-    onAddLink,
+    onAddLinks,
     onRemoveLink,
   } = useEditCard(cardId);
 
@@ -279,7 +279,7 @@ const EditCard = (props: IEditCardProps) => {
         >
           <LinkList
             onClickLinkCard={handleClickLinkCard}
-            addLink={onAddLink}
+            addLinks={onAddLinks}
             removeLink={onRemoveLink}
             editingCard={editingCard}
             readonly={readonly}
