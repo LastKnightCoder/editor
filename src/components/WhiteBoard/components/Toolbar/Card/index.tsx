@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import SVG from "react-inlinesvg";
 import cardIcon from "@/assets/icons/card.svg";
-import SelectCardModal from "@/components/SelectCardModal";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { getAllCards } from "@/commands";
 import { v4 as getUuid } from "uuid";
 
@@ -11,6 +11,13 @@ import { BoardElement, ECreateBoardElementType } from "../../../types";
 import { BoardUtil, CardUtil } from "../../../utils";
 import { CardElement } from "../../../plugins";
 import { ICard } from "@/types";
+import { IndexType, SearchResult } from "@/types/search";
+import {
+  cardLinkExtension,
+  fileAttachmentExtension,
+} from "@/editor-extensions";
+import { message } from "antd";
+const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
 interface CardProps {
   className?: string;
@@ -30,8 +37,7 @@ const Card = (props: CardProps) => {
   }, []);
 
   const [selectModalOpen, setSelectModalOpen] = useState(false);
-  const [excludeCardIds, setExcludeCardIds] = useState([-1]);
-  const [selectedCards, setSelectedCards] = useState<ICard[]>([]);
+  const [excludeCardIds, setExcludeCardIds] = useState<number[]>([]);
 
   const handleSelectCard = useMemoizedFn(() => {
     const existCards: BoardElement[] = [];
@@ -45,71 +51,94 @@ const Card = (props: CardProps) => {
     board.currentCreateType = ECreateBoardElementType.Card;
   });
 
-  const onSelectOk = useMemoizedFn(async (cards: ICard[]) => {
-    const card = cards[0];
-    const { minX, minY, width, height } = board.viewPort;
-    const center = {
-      x: minX + width / 2,
-      y: minY + height / 2,
-    };
-    const cardWidth = 300;
-    const cardHeight = 300;
-    const element: CardElement = {
-      id: getUuid(),
-      type: "card",
-      cardId: card.id,
-      x: center.x - cardWidth / 2,
-      y: center.y - cardHeight / 2,
-      width: cardWidth,
-      height: cardHeight,
-      resized: true,
-      maxWidth: 300,
-      maxHeight: 300,
-      paddingHeight: 20,
-      paddingWidth: 20,
-      readonly: false,
-      ...CardUtil.getPrevCardStyle(),
-    };
+  const initialContents = useMemo(() => {
+    return cards.map((card) => ({
+      id: card.id,
+      type: "card" as IndexType,
+      title: "",
+      content: card.content,
+      source: "fts" as "fts" | "vec-document",
+      updateTime: card.update_time,
+    }));
+  }, [cards]);
 
-    board.apply([
-      {
-        type: "insert_node",
-        path: [board.children.length],
-        node: element,
-      },
-      {
-        type: "set_selection",
-        properties: board.selection,
-        newProperties: {
-          selectArea: null,
-          selectedElements: [element],
+  const onSelectOk = useMemoizedFn(
+    async (selectedResult: SearchResult | SearchResult[]) => {
+      const results = Array.isArray(selectedResult)
+        ? selectedResult
+        : [selectedResult];
+      if (results.length === 0) {
+        message.error("没有可选择的卡片");
+        return;
+      }
+
+      const result = results[0];
+      const { minX, minY, width, height } = board.viewPort;
+      const center = {
+        x: minX + width / 2,
+        y: minY + height / 2,
+      };
+      const cardWidth = 300;
+      const cardHeight = 300;
+      const element: CardElement = {
+        id: getUuid(),
+        type: "card",
+        cardId: result.id,
+        x: center.x - cardWidth / 2,
+        y: center.y - cardHeight / 2,
+        width: cardWidth,
+        height: cardHeight,
+        resized: true,
+        maxWidth: 300,
+        maxHeight: 300,
+        paddingHeight: 20,
+        paddingWidth: 20,
+        readonly: false,
+        ...CardUtil.getPrevCardStyle(),
+      };
+
+      board.apply([
+        {
+          type: "insert_node",
+          path: [board.children.length],
+          node: element,
         },
-      },
-    ]);
-    setSelectModalOpen(false);
-    setSelectedCards([]);
-    board.currentCreateType = ECreateBoardElementType.None;
-  });
+        {
+          type: "set_selection",
+          properties: board.selection,
+          newProperties: {
+            selectArea: null,
+            selectedElements: [element],
+          },
+        },
+      ]);
+      setSelectModalOpen(false);
+      board.currentCreateType = ECreateBoardElementType.None;
+    },
+  );
 
   const onCancel = useMemoizedFn(() => {
     setSelectModalOpen(false);
-    setSelectedCards([]);
   });
 
   return (
     <div className={className} style={style} onClick={handleSelectCard}>
       <SVG src={cardIcon} />
-      <SelectCardModal
-        title={"选择卡片"}
-        selectedCards={selectedCards}
-        onChange={setSelectedCards}
-        open={selectModalOpen}
-        allCards={cards}
-        multiple={false}
-        onCancel={onCancel}
-        onOk={onSelectOk}
-        excludeCardIds={excludeCardIds}
-      />
+      <div onClick={(e) => e.stopPropagation()}>
+        <ContentSelectorModal
+          title={"选择卡片"}
+          open={selectModalOpen}
+          onCancel={onCancel}
+          onSelect={onSelectOk}
+          contentType="card"
+          extensions={customExtensions}
+          emptyDescription="没有可选择的卡片"
+          showTitle={false}
+          multiple={false}
+          excludeIds={excludeCardIds}
+          initialContents={initialContents}
+        />
+      </div>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Empty } from "antd";
 import { useMemoizedFn } from "ahooks";
+import classnames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import Editor from "@/components/Editor";
@@ -23,6 +24,7 @@ export interface ContentSelectorProps {
   emptyDescription?: string;
   showTitle?: boolean;
   isItemSelected?: (item: SearchResult) => boolean;
+  isItemDisabled?: (item: SearchResult) => boolean;
   initialContents?: SearchResult[];
 }
 
@@ -35,6 +37,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
   emptyDescription = "无结果",
   showTitle = true,
   isItemSelected,
+  isItemDisabled,
   initialContents = defaultInitialContents,
 }) => {
   const { theme } = useTheme();
@@ -83,6 +86,9 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
   });
 
   const handleItemClick = useMemoizedFn((item: SearchResult) => {
+    if (isItemDisabled && isItemDisabled(item)) {
+      return;
+    }
     onSelect(item);
   });
 
@@ -124,6 +130,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
             {virtualizer.getVirtualItems().map((virtualItem) => {
               const item = searchedItems[virtualItem.index];
               const selected = isItemSelected ? isItemSelected(item) : false;
+              const disabled = isItemDisabled ? isItemDisabled(item) : false;
 
               return (
                 <div
@@ -140,7 +147,10 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                   }}
                 >
                   <div
-                    className={`${styles.itemContainer} ${selected ? styles.selected : ""}`}
+                    className={classnames(styles.itemContainer, {
+                      [styles.selected]: selected,
+                      [styles.disabled]: disabled,
+                    })}
                     onClick={handleItemClick.bind(null, item)}
                   >
                     {showTitle && (
