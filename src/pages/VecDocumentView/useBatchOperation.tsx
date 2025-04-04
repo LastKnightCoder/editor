@@ -4,7 +4,7 @@ import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { SearchResult, IndexParams, IndexType } from "@/types";
 import { getMarkdown, batchIndexContent, removeIndex } from "@/utils";
-import useEmbeddingConfig from "./useEmbeddingConfig";
+import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
 interface Params<T> {
   selectedRows: T[];

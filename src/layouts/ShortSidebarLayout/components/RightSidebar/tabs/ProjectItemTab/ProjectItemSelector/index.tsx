@@ -14,13 +14,13 @@ import {
   projectCardListExtension,
 } from "@/editor-extensions";
 
-import { searchFTS } from "@/commands";
 import { SearchOutlined, LoadingOutlined } from "@ant-design/icons";
-import { formatDate } from "@/utils";
+import { formatDate, searchContent } from "@/utils";
 
 import styles from "./index.module.less";
 import { SearchResult } from "@/types/search";
 import useTheme from "@/hooks/useTheme";
+import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
 interface ProjectItemSelectorProps {
   onSelect: (projectItem: SearchResult) => void;
@@ -36,6 +36,7 @@ const ProjectItemSelector: React.FC<ProjectItemSelectorProps> = ({
   onSelect,
 }) => {
   const { theme } = useTheme();
+  const modelInfo = useEmbeddingConfig();
   const [search, setSearch] = useState("");
   const [searchedProjectItems, setSearchedProjectItems] = useState<
     SearchResult[]
@@ -50,14 +51,13 @@ const ProjectItemSelector: React.FC<ProjectItemSelectorProps> = ({
 
     setSearching(true);
     try {
-      console.time("searchProjectItems");
-      const result = await searchFTS({
+      const result = await searchContent({
         query: search,
         types: ["project-item"],
         limit: 10,
+        modelInfo,
       });
       setSearchedProjectItems(result);
-      console.timeEnd("searchProjectItems");
     } catch (error) {
       console.error(error);
     } finally {

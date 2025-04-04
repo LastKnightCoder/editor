@@ -19,7 +19,7 @@ import { Descendant } from "slate";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
-import useEmbeddingConfig from "./useEmbeddingConfig";
+import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 
 const PAGE_SIZE = 20;

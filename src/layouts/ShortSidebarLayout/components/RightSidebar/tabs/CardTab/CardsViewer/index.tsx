@@ -3,7 +3,7 @@ import { Empty, Modal, Tabs, Button } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { getEditorText } from "@/utils";
-import { ICard } from "@/types";
+import { SearchResult } from "@/types";
 
 import { BaseViewerProps } from "../../../types";
 import CardSelector from "../CardSelector";
@@ -68,7 +68,7 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
     },
   );
 
-  const onSelectCard = useMemoizedFn((card: ICard) => {
+  const onSelectCard = useMemoizedFn((card: SearchResult) => {
     setSelectorOpen(false);
     addTab({
       id: String(card.id),

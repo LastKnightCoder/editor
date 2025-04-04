@@ -18,7 +18,7 @@ import { TableRowSelection } from "antd/es/table/interface";
 import useBatchOperation from "./useBatchOperation";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 import { getAllCards } from "@/commands";
-import useEmbeddingConfig from "./useEmbeddingConfig";
+import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 
 const PAGE_SIZE = 20;
 
