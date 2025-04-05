@@ -528,20 +528,16 @@ export default class ProjectTable {
       // 删除关联的content记录（减少引用计数）
       ContentTable.deleteContent(db, itemInfo.contentId);
     }
-
-    const stmt = db.prepare("DELETE FROM project_item WHERE id = ?");
-
-    // 删除全文搜索索引
-    FTSTable.removeIndexByIdAndType(db, id, "project-item");
-    // 删除向量文档索引
-    VecDocumentTable.removeIndexByIdAndType(db, id, "project-item");
-
-    Operation.insertOperation(db, "project-item", "delete", id, Date.now());
-
     // 如果 refType 为 video-note，则删除 video_note 表中的记录
     if (itemInfo.refType === "video-note") {
       VideoNoteTable.deleteVideoNote(db, itemInfo.refId);
     }
+
+    const stmt = db.prepare("DELETE FROM project_item WHERE id = ?");
+
+    FTSTable.removeIndexByIdAndType(db, id, "project-item");
+    VecDocumentTable.removeIndexByIdAndType(db, id, "project-item");
+    Operation.insertOperation(db, "project-item", "delete", id, Date.now());
 
     return stmt.run(id).changes > 0;
   }

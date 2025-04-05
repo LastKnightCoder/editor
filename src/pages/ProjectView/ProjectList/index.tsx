@@ -185,7 +185,6 @@ const Project = () => {
           count: 0,
         };
         const item = await createRootProjectItem(project.id, createProjectItem);
-        console.log("item", item);
         if (item) {
           useProjectsStore.setState({
             activeProjectItemId: item.id,

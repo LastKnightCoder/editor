@@ -54,6 +54,10 @@ export const deleteDocumentItem = async (
   return await invoke("delete-document-item", documentItem.id);
 };
 
+export const tryDeleteDocumentItem = async (id: number): Promise<boolean> => {
+  return await invoke("try-delete-document-item", id);
+};
+
 export const getDocumentItem = async (id: number): Promise<IDocumentItem> => {
   return await invoke("get-document-item", id);
 };
