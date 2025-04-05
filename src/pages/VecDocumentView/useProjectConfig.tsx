@@ -78,9 +78,7 @@ const useProjectConfig = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
     null,
   );
-  const [indexResults, setIndexResults] = useState<
-    [SearchResult[], SearchResult[]]
-  >([[], []]);
+  const [vecResults, setVecResults] = useState<SearchResult[]>([]);
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ExtendedProjectItem[]>([]);
   const [current, setCurrent] = useState(1);
@@ -93,9 +91,6 @@ const useProjectConfig = () => {
     },
   );
   const modelInfo = useEmbeddingConfig();
-
-  // 解构索引结果
-  const [ftsResults, vecResults] = indexResults;
 
   const fetchProjects = useMemoizedFn(async () => {
     try {
@@ -131,7 +126,7 @@ const useProjectConfig = () => {
   const initIndexResults = useMemoizedFn(async () => {
     try {
       const results = await getAllIndexResults("project-item");
-      setIndexResults(results);
+      setVecResults(results);
     } catch (e) {
       console.error("初始化索引结果失败", e);
       throw e;
@@ -205,21 +200,14 @@ const useProjectConfig = () => {
       ): ExtendedProjectItem[] => {
         return items.filter((item) => {
           // 查找索引状态
-          const ftsResult = ftsResults.find(
-            (result) => result.id === item.id && result.type === "project-item",
-          );
-
           const vecResult = vecResults.find(
             (result) => result.id === item.id && result.type === "project-item",
           );
 
           let status;
-          if (!ftsResult && !vecResult) {
+          if (!vecResult) {
             status = "未索引";
-          } else if (
-            (vecResult && item.updateTime !== vecResult.updateTime) ||
-            (ftsResult && item.updateTime !== ftsResult.updateTime)
-          ) {
+          } else if (item.updateTime > vecResult.updateTime) {
             status = "待更新";
           } else {
             status = "已索引";
@@ -243,7 +231,7 @@ const useProjectConfig = () => {
     }
 
     return result;
-  }, [filteredProjectItems, filteredInfo, ftsResults, vecResults]);
+  }, [filteredProjectItems, filteredInfo, vecResults]);
 
   // 分页处理
   const slicedProjectItems = useMemo(() => {
@@ -292,7 +280,7 @@ const useProjectConfig = () => {
       setSelectedRows(originalRows);
     },
     type: "project-item",
-    indexResults,
+    vecResults,
     initIndexResults,
   });
 
@@ -357,23 +345,12 @@ const useProjectConfig = () => {
 
       try {
         // 检查当前索引状态
-        const ftsResult = ftsResults.find(
-          (result) => result.id === record.id && result.type === "project-item",
-        );
-
         const vecResult = vecResults.find(
           (result) => result.id === record.id && result.type === "project-item",
         );
 
-        // 确定需要创建的索引类型
-        const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult || ftsResult.updateTime !== record.updateTime)
-          indexTypes.push("fts");
-        if (!vecResult || vecResult.updateTime !== record.updateTime)
-          indexTypes.push("vec");
-
-        // 如果没有需要创建的索引，直接返回成功
-        if (indexTypes.length === 0) {
+        // 如果已存在且是最新的索引，直接返回成功
+        if (vecResult && vecResult.updateTime === record.updateTime) {
           message.success({ content: "索引已存在", key: messageKey });
           return true;
         }
@@ -383,7 +360,6 @@ const useProjectConfig = () => {
           content: markdown,
           type: "project-item",
           updateTime: record.updateTime,
-          indexTypes,
           modelInfo,
         };
 
@@ -425,54 +401,42 @@ const useProjectConfig = () => {
 
       try {
         // 检查当前索引状态
-        const ftsResult = ftsResults.find(
-          (result) => result.id === record.id && result.type === "project-item",
-        );
-
         const vecResult = vecResults.find(
           (result) => result.id === record.id && result.type === "project-item",
         );
 
-        // 确定需要更新的索引类型
-        const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult || ftsResult.updateTime !== record.updateTime)
-          indexTypes.push("fts");
-        if (!vecResult || vecResult.updateTime !== record.updateTime)
-          indexTypes.push("vec");
+        // 如果没有索引或索引需要更新
+        if (!vecResult || vecResult.updateTime < record.updateTime) {
+          const params: IndexParams = {
+            id: record.id,
+            content: markdown,
+            type: "project-item",
+            updateTime: record.updateTime,
+            modelInfo,
+          };
 
-        // 如果没有需要更新的索引，直接返回成功
-        if (indexTypes.length === 0) {
-          message.success({ content: "索引已是最新", key: messageKey });
-          return true;
-        }
+          const success = await indexContent(params);
 
-        const params: IndexParams = {
-          id: record.id,
-          content: markdown,
-          type: "project-item",
-          updateTime: record.updateTime,
-          indexTypes,
-          modelInfo,
-        };
-
-        const success = await indexContent(params);
-
-        if (success) {
-          try {
-            await initIndexResults();
-            message.success({ content: "索引更新成功", key: messageKey });
-            return true;
-          } catch (error) {
-            console.error("初始化索引结果失败", error);
-            message.error({
-              content: "索引更新成功，但初始化索引结果失败",
-              key: messageKey,
-            });
+          if (success) {
+            try {
+              await initIndexResults();
+              message.success({ content: "索引更新成功", key: messageKey });
+              return true;
+            } catch (error) {
+              console.error("初始化索引结果失败", error);
+              message.error({
+                content: "索引更新成功，但初始化索引结果失败",
+                key: messageKey,
+              });
+              return false;
+            }
+          } else {
+            message.error({ content: "索引更新失败", key: messageKey });
             return false;
           }
         } else {
-          message.error({ content: "索引更新失败", key: messageKey });
-          return false;
+          message.success({ content: "索引已是最新", key: messageKey });
+          return true;
         }
       } catch (error) {
         console.error("更新索引失败", error);
@@ -569,55 +533,24 @@ const useProjectConfig = () => {
       filteredValue: filteredInfo.index_status || null,
       render: (_, record) => {
         // 查找索引状态
-        const ftsResult = ftsResults.find(
-          (result) => result.id === record.id && result.type === "project-item",
-        );
-
         const vecResult = vecResults.find(
           (result) => result.id === record.id && result.type === "project-item",
         );
 
-        // 显示FTS和向量索引状态
-        const renderIndexStatus = () => {
+        // 显示向量索引状态
+        if (vecResult) {
           return (
-            <Flex gap={4}>
-              {ftsResult ? (
-                <Tag
-                  color={
-                    record.updateTime !== ftsResult.updateTime
-                      ? "orange"
-                      : "green"
-                  }
-                >
-                  FTS:{" "}
-                  {record.updateTime !== ftsResult.updateTime
-                    ? "待更新"
-                    : "已索引"}
-                </Tag>
-              ) : (
-                <Tag color="red">FTS: 未索引</Tag>
-              )}
-              {vecResult ? (
-                <Tag
-                  color={
-                    record.updateTime !== vecResult.updateTime
-                      ? "orange"
-                      : "green"
-                  }
-                >
-                  向量:{" "}
-                  {record.updateTime !== vecResult.updateTime
-                    ? "待更新"
-                    : "已索引"}
-                </Tag>
-              ) : (
-                <Tag color="red">向量: 未索引</Tag>
-              )}
-            </Flex>
+            <Tag
+              color={
+                record.updateTime > vecResult.updateTime ? "orange" : "green"
+              }
+            >
+              {record.updateTime > vecResult.updateTime ? "待更新" : "已索引"}
+            </Tag>
           );
-        };
-
-        return renderIndexStatus();
+        } else {
+          return <Tag color="red">未索引</Tag>;
+        }
       },
     },
     {
@@ -628,15 +561,11 @@ const useProjectConfig = () => {
         const isLoading = loadingIds.includes(record.id);
 
         // 查找索引状态
-        const ftsResult = ftsResults.find(
-          (result) => result.id === record.id && result.type === "project-item",
-        );
-
         const vecResult = vecResults.find(
           (result) => result.id === record.id && result.type === "project-item",
         );
 
-        if (!ftsResult && !vecResult) {
+        if (!vecResult) {
           return (
             <Button
               type="link"
@@ -651,12 +580,7 @@ const useProjectConfig = () => {
               创建索引
             </Button>
           );
-        } else if (
-          (ftsResult && !vecResult) ||
-          (!ftsResult && vecResult) ||
-          (vecResult && record.updateTime !== vecResult.updateTime) ||
-          (ftsResult && record.updateTime !== ftsResult.updateTime)
-        ) {
+        } else if (record.updateTime > vecResult.updateTime) {
           return (
             <Button
               type="link"

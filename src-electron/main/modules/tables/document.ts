@@ -9,8 +9,10 @@ import {
 } from "@/types";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
+import { getMarkdown } from "@/utils/markdown.ts";
 import { BrowserWindow } from "electron";
 import { basename } from "node:path";
+import log from "electron-log";
 
 import Operation from "./operation";
 import FTSTable from "./fts";
@@ -147,6 +149,27 @@ export default class DocumentTable {
         "ALTER TABLE document_items DROP COLUMN count",
       );
       dropCountColumnStmt.run();
+    }
+
+    // 为所有文档条目添加 FTS 索引
+    log.info("开始为所有文档条目添加 FTS 索引");
+    const documentItems = this.getAllDocumentItems(db);
+    for (const item of documentItems) {
+      if (!item.content || !item.content.length) continue;
+
+      // 检查是否已有索引或索引是否过期
+      const indexInfo = FTSTable.checkIndexExists(db, item.id, "document-item");
+
+      // 如果索引不存在或已过期，则添加/更新索引
+      if (!indexInfo || indexInfo.updateTime < item.updateTime) {
+        FTSTable.indexContent(db, {
+          id: item.id,
+          content: getMarkdown(item.content),
+          type: "document-item",
+          updateTime: item.updateTime,
+        });
+        log.info(`已为文档条目 ${item.id} 添加/更新 FTS 索引`);
+      }
     }
   }
 
@@ -473,6 +496,16 @@ export default class DocumentTable {
     );
 
     Operation.insertOperation(db, "document-item", "update", item.id, now);
+
+    // 更新 FTS 索引，跳过目录类型的条目
+    if (item.content && item.content.length) {
+      FTSTable.indexContent(db, {
+        id: item.id,
+        content: getMarkdown(item.content),
+        type: "document-item",
+        updateTime: now,
+      });
+    }
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {

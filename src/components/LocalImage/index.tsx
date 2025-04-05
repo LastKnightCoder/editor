@@ -98,6 +98,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
         style={style}
         onClick={onClick}
         onError={onError}
+        loading="lazy"
         {...restProps}
       />
     );

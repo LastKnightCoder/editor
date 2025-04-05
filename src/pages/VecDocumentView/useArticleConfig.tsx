@@ -54,35 +54,23 @@ const useArticleConfig = () => {
     onChange: onSelectChange,
   };
 
-  const [indexResults, setIndexResults] = useState<
-    [SearchResult[], SearchResult[]]
-  >([[], []]);
+  const [vecResults, setVecResults] = useState<SearchResult[]>([]);
   const [current, setCurrent] = useState(1);
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
-
-  // 解构索引结果
-  const [ftsResults, vecResults] = indexResults;
 
   const filteredArticles = useMemo(() => {
     const indexStatusFilterArray = filteredInfo.index_status || [];
 
     const filteredArticles = articles.filter((article) => {
       // 查找索引状态
-      const ftsResult = ftsResults.find(
-        (result) => result.id === article.id && result.type === "article",
-      );
-
       const vecResult = vecResults.find(
         (result) => result.id === article.id && result.type === "article",
       );
 
       let status;
-      if (!ftsResult && !vecResult) {
+      if (!vecResult) {
         status = "未索引";
-      } else if (
-        (vecResult && article.update_time !== vecResult.updateTime) ||
-        (ftsResult && article.update_time !== ftsResult.updateTime)
-      ) {
+      } else if (article.update_time > vecResult.updateTime) {
         status = "待更新";
       } else {
         status = "已索引";
@@ -97,7 +85,7 @@ const useArticleConfig = () => {
     });
 
     return filteredArticles;
-  }, [articles, filteredInfo, ftsResults, vecResults]);
+  }, [articles, filteredInfo, vecResults]);
 
   const slicedArticles = filteredArticles.slice(
     (current - 1) * (pageSize || PAGE_SIZE),
@@ -107,7 +95,7 @@ const useArticleConfig = () => {
   const initIndexResults = useMemoizedFn(async () => {
     try {
       const results = await getAllIndexResults("article");
-      setIndexResults(results);
+      setVecResults(results);
     } catch (e) {
       console.error("初始化索引结果失败", e);
       throw e;
@@ -133,7 +121,7 @@ const useArticleConfig = () => {
     selectedRows,
     setSelectedRows,
     type: "article",
-    indexResults,
+    vecResults,
     initIndexResults,
   });
 
@@ -176,23 +164,12 @@ const useArticleConfig = () => {
 
       try {
         // 检查当前索引状态
-        const ftsResult = ftsResults.find(
-          (result) => result.id === record.id && result.type === "article",
-        );
-
         const vecResult = vecResults.find(
           (result) => result.id === record.id && result.type === "article",
         );
 
-        // 确定需要创建的索引类型
-        const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult || record.update_time !== ftsResult.updateTime)
-          indexTypes.push("fts");
-        if (!vecResult || record.update_time !== vecResult.updateTime)
-          indexTypes.push("vec");
-
-        // 如果没有需要创建的索引，直接返回成功
-        if (indexTypes.length === 0) {
+        // 如果已存在且是最新的索引，直接返回成功
+        if (vecResult && vecResult.updateTime >= record.update_time) {
           message.success({ content: "索引已存在", key: messageKey });
           return true;
         }
@@ -202,7 +179,6 @@ const useArticleConfig = () => {
           content: markdown,
           type: "article",
           updateTime: record.update_time,
-          indexTypes,
           modelInfo,
         };
 
@@ -254,66 +230,48 @@ const useArticleConfig = () => {
 
   const onUpdateEmbedding = useMemoizedFn(
     async (markdown: string, record: IArticle) => {
-      // if (!currentConfig) {
-      //   message.error("未配置OpenAI API密钥");
-      //   return false;
-      // }
-
       setLoadingIds((prev) => [...prev, record.id]);
       const messageKey = `update-index-${record.id}`;
       message.loading({ content: "正在更新索引...", key: messageKey });
 
       try {
-        // const { apiKey, baseUrl } = currentConfig;
-
         // 检查当前索引状态
-        const ftsResult = ftsResults.find(
-          (result) => result.id === record.id && result.type === "article",
-        );
-
         const vecResult = vecResults.find(
           (result) => result.id === record.id && result.type === "article",
         );
 
-        // 确定需要更新的索引类型
-        const indexTypes: ("fts" | "vec")[] = [];
-        if (!ftsResult) indexTypes.push("fts");
-        if (!vecResult || record.update_time > vecResult.updateTime)
-          indexTypes.push("vec");
+        // 如果没有索引或索引需要更新
+        if (!vecResult || record.update_time > vecResult.updateTime) {
+          const params: IndexParams = {
+            id: record.id,
+            content: markdown,
+            type: "article",
+            updateTime: record.update_time,
+            modelInfo,
+          };
 
-        // 如果没有需要更新的索引，直接返回成功
-        if (indexTypes.length === 0) {
-          message.success({ content: "索引已是最新", key: messageKey });
-          return true;
-        }
+          const success = await indexContent(params);
 
-        const params: IndexParams = {
-          id: record.id,
-          content: markdown,
-          type: "article",
-          updateTime: record.update_time,
-          indexTypes,
-          modelInfo,
-        };
-
-        const success = await indexContent(params);
-
-        if (success) {
-          try {
-            await initIndexResults();
-            message.success({ content: "索引更新成功", key: messageKey });
-            return true;
-          } catch (error) {
-            console.error("初始化索引结果失败", error);
-            message.error({
-              content: "索引更新成功，但初始化索引结果失败",
-              key: messageKey,
-            });
+          if (success) {
+            try {
+              await initIndexResults();
+              message.success({ content: "索引更新成功", key: messageKey });
+              return true;
+            } catch (error) {
+              console.error("初始化索引结果失败", error);
+              message.error({
+                content: "索引更新成功，但初始化索引结果失败",
+                key: messageKey,
+              });
+              return false;
+            }
+          } else {
+            message.error({ content: "索引更新失败", key: messageKey });
             return false;
           }
         } else {
-          message.error({ content: "索引更新失败", key: messageKey });
-          return false;
+          message.success({ content: "索引已是最新", key: messageKey });
+          return true;
         }
       } catch (error) {
         console.error("更新索引失败:", error);
@@ -416,55 +374,24 @@ const useArticleConfig = () => {
       filteredValue: filteredInfo.index_status || null,
       render: (_, record) => {
         // 查找索引状态
-        const ftsResult = ftsResults.find(
-          (result) => result.id === record.id && result.type === "article",
-        );
-
         const vecResult = vecResults.find(
           (result) => result.id === record.id && result.type === "article",
         );
 
-        // 显示FTS和向量索引状态
-        const renderIndexStatus = () => {
+        // 显示向量索引状态
+        if (vecResult) {
           return (
-            <Flex gap={4}>
-              {ftsResult ? (
-                <Tag
-                  color={
-                    record.update_time !== ftsResult.updateTime
-                      ? "orange"
-                      : "green"
-                  }
-                >
-                  FTS:{" "}
-                  {record.update_time !== ftsResult.updateTime
-                    ? "待更新"
-                    : "已索引"}
-                </Tag>
-              ) : (
-                <Tag color="red">FTS: 未索引</Tag>
-              )}
-              {vecResult ? (
-                <Tag
-                  color={
-                    record.update_time !== vecResult.updateTime
-                      ? "orange"
-                      : "green"
-                  }
-                >
-                  向量:{" "}
-                  {record.update_time !== vecResult.updateTime
-                    ? "待更新"
-                    : "已索引"}
-                </Tag>
-              ) : (
-                <Tag color="red">向量: 未索引</Tag>
-              )}
-            </Flex>
+            <Tag
+              color={
+                record.update_time > vecResult.updateTime ? "orange" : "green"
+              }
+            >
+              {record.update_time > vecResult.updateTime ? "待更新" : "已索引"}
+            </Tag>
           );
-        };
-
-        return renderIndexStatus();
+        } else {
+          return <Tag color="red">未索引</Tag>;
+        }
       },
     },
     {
@@ -475,15 +402,11 @@ const useArticleConfig = () => {
         const isLoading = loadingIds.includes(record.id);
 
         // 查找索引状态
-        const ftsResult = ftsResults.find(
-          (result) => result.id === record.id && result.type === "article",
-        );
-
         const vecResult = vecResults.find(
           (result) => result.id === record.id && result.type === "article",
         );
 
-        if (!ftsResult && !vecResult) {
+        if (!vecResult) {
           return (
             <Button
               type="link"
@@ -498,12 +421,7 @@ const useArticleConfig = () => {
               创建索引
             </Button>
           );
-        } else if (
-          (ftsResult && !vecResult) ||
-          (!ftsResult && vecResult) ||
-          (vecResult && record.update_time !== vecResult.updateTime) ||
-          (ftsResult && record.update_time !== ftsResult.updateTime)
-        ) {
+        } else if (record.update_time > vecResult.updateTime) {
           return (
             <Button
               type="link"

@@ -8,7 +8,6 @@ import {
   indexVecDocumentContent,
   batchIndexVecDocumentContent,
   removeVecDocumentIndex,
-  getAllFTSResults,
   getAllVecDocumentResults,
   checkFTSIndexStatus,
   checkVecDocumentIndexStatus,
@@ -92,18 +91,15 @@ export const searchContent = async (
  */
 export const getAllIndexResults = async (
   type?: IndexType,
-): Promise<[SearchResult[], SearchResult[]]> => {
+): Promise<SearchResult[]> => {
   try {
     // 并行获取FTS和向量索引结果
-    const [ftsResults, vecResults] = await Promise.all([
-      getAllFTSResults(type),
-      getAllVecDocumentResults(type),
-    ]);
+    const vecResults = await getAllVecDocumentResults(type);
 
-    return [ftsResults || [], vecResults || []];
+    return vecResults;
   } catch (error) {
     console.error("获取索引结果失败:", error);
-    return [[], []];
+    return [];
   }
 };
 
