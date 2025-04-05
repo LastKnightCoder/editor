@@ -10,19 +10,10 @@
   width: 100%;
   display: flex;
   overflow: hidden;
-  --white-board-grid-width: 100%;
-
-  &.showEdit {
-    --white-board-grid-width: 0px;
-
-    .gridContainer {
-      padding: 0;
-    }
-  }
 }
 
 .gridContainer {
-  width: var(--white-board-grid-width);
+  width: 100%;
   height: 100%;
   display: flex;
   flex-wrap: wrap;
@@ -34,11 +25,6 @@
   &::-webkit-scrollbar {
     display: none;
   }
-}
-
-.edit {
-  width: calc(100% - var(--white-board-grid-width));
-  height: 100%;
 }
 
 .titlebar {

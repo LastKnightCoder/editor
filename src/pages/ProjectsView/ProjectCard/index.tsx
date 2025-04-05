@@ -13,7 +13,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import { Project } from "@/types";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
-import EditProjectInfoModal from "@/layouts/components/EditProjectInfoModal";
+import EditProjectInfoModal from "@/pages/ProjectsView/EditProjectInfoModal";
 
 import styles from "./index.module.less";
 

@@ -39,6 +39,7 @@ export default class WhiteboardTable {
       "get-white-board-by-id": this.getWhiteboard.bind(this),
       "get-all-white-boards": this.getAllWhiteboards.bind(this),
       "update-white-board": this.updateWhiteboard.bind(this),
+      "get-whiteboard-by-ids": this.getWhiteboardByIds.bind(this),
     };
   }
 
@@ -147,6 +148,18 @@ export default class WhiteboardTable {
   static getAllWhiteboards(db: Database.Database): WhiteBoard[] {
     const stmt = db.prepare("SELECT * FROM white_boards");
     const whiteboards = stmt.all();
+    return whiteboards.map((wb) => this.parseWhiteboard(wb));
+  }
+
+  static getWhiteboardByIds(
+    db: Database.Database,
+    ids: number[],
+  ): WhiteBoard[] {
+    const placeholders = ids.map(() => "?").join(",");
+    const stmt = db.prepare(
+      `SELECT * FROM white_boards WHERE id IN (${placeholders})`,
+    );
+    const whiteboards = stmt.all(...ids);
     return whiteboards.map((wb) => this.parseWhiteboard(wb));
   }
 }

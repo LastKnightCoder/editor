@@ -62,7 +62,7 @@ const SearchResultItem = memo(
   },
 );
 
-const AISearch = memo(() => {
+const Search = memo(() => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
 
@@ -270,4 +270,4 @@ const AISearch = memo(() => {
   );
 });
 
-export default AISearch;
+export default Search;

@@ -1,13 +1,12 @@
-import { useState, memo, useEffect } from "react";
+import { useState, memo, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { App, Breadcrumb, Flex, FloatButton, Input, Modal } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
-
+import { useMemoizedFn } from "ahooks";
 import For from "@/components/For";
 import WhiteBoardCard from "./WhiteBoardCard";
-import WhiteBoard from "@/layouts/components/EditWhiteBoard";
 
 import { PlusOutlined } from "@ant-design/icons";
 
@@ -20,15 +19,13 @@ import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 const WhiteBoardView = memo(() => {
   const { gridContainerRef, itemWidth, gap } = useGridLayout();
 
-  const { whiteBoards, activeWhiteBoardId, createWhiteBoard, initData } =
-    useWhiteBoardStore(
-      useShallow((state) => ({
-        whiteBoards: state.whiteBoards,
-        activeWhiteBoardId: state.activeWhiteBoardId,
-        createWhiteBoard: state.createWhiteBoard,
-        initData: state.initWhiteBoards,
-      })),
-    );
+  const { whiteBoards, createWhiteBoard, initData } = useWhiteBoardStore(
+    useShallow((state) => ({
+      whiteBoards: state.whiteBoards,
+      createWhiteBoard: state.createWhiteBoard,
+      initData: state.initWhiteBoards,
+    })),
+  );
 
   const isConnected = useDatabaseConnected();
   const active = useSettingStore((state) => state.setting.database.active);
@@ -41,30 +38,32 @@ const WhiteBoardView = memo(() => {
 
   const navigate = useNavigate();
 
-  const showEdit = !!activeWhiteBoardId;
-
   const [createWhiteBoardModalOpen, setCreateWhiteBoardModalOpen] =
     useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const { message } = App.useApp();
 
-  const breadcrumbItems = [
-    {
-      title: "首页",
-      onClick: () => {
-        navigate("/");
+  const breadcrumbItems = useMemo(() => {
+    return [
+      {
+        title: "首页",
+        onClick: () => {
+          navigate("/");
+        },
       },
-    },
-    {
-      title: "白板列表",
-      onClick: () => {
-        useWhiteBoardStore.setState({
-          activeWhiteBoardId: undefined,
-        });
+      {
+        title: "白板列表",
+        onClick: () => {
+          navigate("/white-board/list");
+        },
       },
-    },
-  ];
+    ];
+  }, [navigate]);
+
+  const onClick = useMemoizedFn((whiteBoardId: number) => {
+    navigate(`/white-board/detail/${whiteBoardId}`);
+  });
 
   return (
     <div className={styles.container}>
@@ -80,11 +79,7 @@ const WhiteBoardView = memo(() => {
           }))}
         />
       </Titlebar>
-      <div
-        className={classnames(styles.viewContainer, {
-          [styles.showEdit]: showEdit,
-        })}
-      >
+      <div className={classnames(styles.viewContainer)}>
         <div
           className={styles.gridContainer}
           ref={gridContainerRef}
@@ -99,22 +94,18 @@ const WhiteBoardView = memo(() => {
                 style={{
                   width: itemWidth,
                 }}
+                onClick={onClick.bind(null, whiteBoard.id)}
               />
             )}
           />
         </div>
-        <div className={styles.edit}>
-          <WhiteBoard />
-        </div>
-        {!activeWhiteBoardId && (
-          <FloatButton
-            icon={<PlusOutlined />}
-            tooltip={"新建白板"}
-            onClick={() => {
-              setCreateWhiteBoardModalOpen(true);
-            }}
-          />
-        )}
+        <FloatButton
+          icon={<PlusOutlined />}
+          tooltip={"新建白板"}
+          onClick={() => {
+            setCreateWhiteBoardModalOpen(true);
+          }}
+        />
         <Modal
           closeIcon={null}
           open={createWhiteBoardModalOpen}
@@ -153,9 +144,7 @@ const WhiteBoardView = memo(() => {
             setCreateWhiteBoardModalOpen(false);
             setTitle("");
             setDescription("");
-            useWhiteBoardStore.setState({
-              activeWhiteBoardId: whiteBoard.id,
-            });
+            navigate(`/white-board/detail/${whiteBoard.id}`);
           }}
         >
           <Flex gap={"middle"} vertical>

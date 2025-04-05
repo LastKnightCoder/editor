@@ -4,9 +4,13 @@ import React, {
   useEffect,
   useRef,
   useSyncExternalStore,
-  useState,
 } from "react";
-import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
+import {
+  useMemoizedFn,
+  useCreation,
+  useThrottleFn,
+  useLocalStorageState,
+} from "ahooks";
 import classnames from "classnames";
 import { App } from "antd";
 import { EditOutlined, CloseOutlined } from "@ant-design/icons";
@@ -107,8 +111,13 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const { modal } = App.useApp();
 
-  const [gridVisible, setGridVisible] = useState<boolean>(DEFAULT_GRID_VISIBLE);
-  const [gridSize, setGridSize] = useState<number>(DEFAULT_GRID_SIZE);
+  const [gridVisible, setGridVisible] = useLocalStorageState<boolean>(
+    "gridVisible",
+    { defaultValue: DEFAULT_GRID_VISIBLE },
+  );
+  const [gridSize, setGridSize] = useLocalStorageState<number>("gridSize", {
+    defaultValue: DEFAULT_GRID_SIZE,
+  });
   // 固定内边距值，不需要用户设置
   const FIT_VIEW_PADDING = 50;
 
@@ -498,6 +507,8 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 }}
               >
                 <GridSettings
+                  gridVisible={gridVisible}
+                  gridSize={gridSize}
                   onVisibleChange={handleGridVisibleChange}
                   onSizeChange={handleGridSizeChange}
                 />

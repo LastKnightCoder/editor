@@ -28,6 +28,9 @@ const CardDetailView = loadable(() => import("@/pages/CardDetailView"));
 const ArticleListView = loadable(() => import("@/pages/ArticleListView"));
 const ArticleDetailView = loadable(() => import("@/pages/ArticleDetailView"));
 const WhiteBoardView = loadable(() => import("@/pages/WhiteBoardView"));
+const WhiteboardDetailView = loadable(
+  () => import("@/pages/WhiteboardDetailView"),
+);
 const DocumentsView = loadable(() => import("@/pages/DocumentsView"));
 const DocumentView = loadable(() => import("@/pages/DocumentView"));
 const ProjectsView = loadable(() => import("@/pages/ProjectsView"));
@@ -79,8 +82,12 @@ const routes = [
         element: <DocumentView />,
       },
       {
-        path: "white-boards",
+        path: "white-board/list",
         element: <WhiteBoardView />,
+      },
+      {
+        path: "white-board/detail/:id",
+        element: <WhiteboardDetailView />,
       },
       {
         path: "pdfs/list",

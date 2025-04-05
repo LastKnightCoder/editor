@@ -11,7 +11,6 @@ import {
 
 interface IState {
   whiteBoards: WhiteBoard[];
-  activeWhiteBoardId: number | null;
 }
 
 interface IAction {
@@ -29,7 +28,6 @@ interface IAction {
 
 const useWhiteBoardStore = create<IState & IAction>((set, get) => ({
   whiteBoards: [],
-  activeWhiteBoardId: null,
   initWhiteBoards: async () => {
     const whiteBoards = await getAllWhiteBoards();
     set({

@@ -24,3 +24,9 @@ export const updateWhiteBoard = async (
 export const deleteWhiteBoard = async (id: number): Promise<void> => {
   return invoke("delete-white-board", id);
 };
+
+export const getWhiteboardByIds = async (
+  ids: number[],
+): Promise<WhiteBoard[]> => {
+  return invoke("get-whiteboard-by-ids", ids);
+};
