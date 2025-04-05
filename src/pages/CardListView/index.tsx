@@ -27,7 +27,7 @@ import CreateCard from "./CreateCard";
 import CardPreview from "./CardPreview";
 import If from "@/components/If";
 import PresentationMode from "@/components/PresentationMode";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 
 import { ICard, ECardCategory, ICreateCard } from "@/types";
 import { cardCategoryName } from "@/constants";

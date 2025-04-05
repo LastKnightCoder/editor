@@ -14,7 +14,7 @@ import { Descendant } from "slate";
 import { CreateProject } from "@/types";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 const EMPTY_DESC: Descendant[] = [
   {
     type: "paragraph",

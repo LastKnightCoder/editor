@@ -4,7 +4,7 @@ import { Breadcrumb } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { ICard } from "@/types";
 import EditCard from "./EditCard";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import { getCardById } from "@/commands/card";
 import styles from "./index.module.less";
 

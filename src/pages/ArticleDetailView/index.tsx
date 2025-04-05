@@ -5,7 +5,7 @@ import { RiSlideshowLine } from "react-icons/ri";
 import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";

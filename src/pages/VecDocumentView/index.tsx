@@ -6,7 +6,7 @@ import useTableConfig from "./useTableConfig";
 
 import { useState, memo } from "react";
 import { IndexType } from "@/types";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 
 import styles from "./index.module.less";
 

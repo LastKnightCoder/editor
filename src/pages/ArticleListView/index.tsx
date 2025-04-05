@@ -5,7 +5,7 @@ import { Dropdown, FloatButton, Pagination, Breadcrumb } from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import ArticleCard from "./ArticleCard";
 import styles from "./index.module.less";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { useMemoizedFn } from "ahooks";
 import {

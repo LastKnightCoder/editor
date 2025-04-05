@@ -7,7 +7,7 @@ import styles from "./index.module.less";
 import { useParams } from "react-router-dom";
 import { Breadcrumb, Empty } from "antd";
 import ProjectContext from "./ProjectContext";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 
 const ProjectView = () => {
   const { id } = useParams();

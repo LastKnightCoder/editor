@@ -10,7 +10,7 @@ import { useMemoizedFn } from "ahooks";
 import { Breadcrumb, Button, Calendar, FloatButton, Popover } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { PlusOutlined } from "@ant-design/icons";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import { useNavigate } from "react-router-dom";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";

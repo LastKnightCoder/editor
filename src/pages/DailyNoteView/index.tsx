@@ -9,7 +9,7 @@ import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
 import { DeleteOutlined } from "@ant-design/icons";
 import { SelectInfo } from "antd/es/calendar/generateCalendar";
 import { useNavigate } from "react-router-dom";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 
 import styles from "./index.module.less";
 import For from "@/components/For";

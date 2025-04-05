@@ -21,7 +21,7 @@ import { selectFile, getFileBaseName } from "@/commands";
 import useGridLayout from "@/hooks/useGridLayout";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import { useNavigate } from "react-router-dom";
 
 const PdfView = () => {
