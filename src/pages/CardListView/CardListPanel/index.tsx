@@ -3,7 +3,6 @@ import { ICard, ECardCategory, ICreateCard } from "@/types";
 import VirtualCardList, { VirtualCardListRef } from "../VistualCardList";
 import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
-import useCardsManagementStore from "@/stores/useCardsManagementStore";
 
 export interface CardListPanelRef {
   scrollToTop: () => void;
@@ -15,15 +14,16 @@ interface CardListPanelProps {
   onSelectCategoryChange: (category: ECardCategory) => void;
   onCreateCard: (card: ICreateCard) => Promise<void>;
   onImportMarkdown: () => Promise<void>;
-  onScrollToTop?: () => void; // 通知父组件已经回到顶部，可用于同步其他组件
-  onCardClick?: (card: ICard) => void; // 卡片点击事件回调
+  onCardClick?: (card: ICard) => void;
   onDeleteCard?: (cardId: number) => Promise<void>;
   onUpdateCardCategory?: (
     card: ICard,
     category: ECardCategory,
   ) => Promise<void>;
-  onToggleCardTop?: (cardId: number) => Promise<void>;
+  onToggleCardTop: (cardId: number) => Promise<void>;
   onCardChange: (card: ICard) => void;
+  onShowScrollToTop: (show: boolean) => void;
+  onPresentationMode: (card: ICard) => void;
 }
 
 const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
@@ -35,6 +35,8 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
       onUpdateCardCategory,
       onToggleCardTop,
       onCardChange,
+      onShowScrollToTop,
+      onPresentationMode,
     },
     ref,
   ) => {
@@ -49,30 +51,10 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
 
     const handleScroll = useMemoizedFn((scrollTop: number) => {
       if (scrollTop > 100) {
-        useCardsManagementStore.setState({
-          showScrollToTop: true,
-        });
+        onShowScrollToTop(true);
       } else {
-        useCardsManagementStore.setState({
-          showScrollToTop: false,
-        });
+        onShowScrollToTop(false);
       }
-    });
-
-    const handlePresentationMode = useMemoizedFn(() => {
-      useCardsManagementStore.setState({
-        isPresentation: true,
-      });
-    });
-
-    const handleExitPresentationMode = useMemoizedFn(() => {
-      useCardsManagementStore.setState({
-        isPresentation: false,
-      });
-    });
-
-    const handleCardClick = useMemoizedFn((card: ICard) => {
-      onCardClick?.(card);
     });
 
     return (
@@ -82,9 +64,8 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
             ref={virtualListRef}
             cards={cards}
             onScroll={handleScroll}
-            onPresentationMode={handlePresentationMode}
-            onExitPresentationMode={handleExitPresentationMode}
-            onCardClick={handleCardClick}
+            onPresentationMode={onPresentationMode}
+            onCardClick={onCardClick}
             onDeleteCard={onDeleteCard}
             onUpdateCardCategory={onUpdateCardCategory}
             onToggleCardTop={onToggleCardTop}
