@@ -1,7 +1,7 @@
 import { createHashRouter } from "react-router-dom";
 import loadable from "@loadable/component";
 import HomeView from "@/pages/HomeView";
-import ShortSidebarLayout from "@/layouts/ShortSidebarLayout";
+import ContentLayout from "@/layouts/ContentLayout";
 
 const SettingsPage = loadable(() => import("@/pages/Settings"));
 
@@ -43,7 +43,7 @@ const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
 const routes = [
   {
     path: "/",
-    element: <ShortSidebarLayout />,
+    element: <ContentLayout />,
     children: [
       {
         path: "/",

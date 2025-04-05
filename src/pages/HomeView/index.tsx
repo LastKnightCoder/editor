@@ -25,7 +25,7 @@ import { Line } from "@ant-design/charts";
 import useTheme from "@/hooks/useTheme.ts";
 import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import {
   fileAttachmentExtension,

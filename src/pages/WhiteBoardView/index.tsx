@@ -12,7 +12,7 @@ import { PlusOutlined } from "@ant-design/icons";
 
 import styles from "./index.module.less";
 import useGridLayout from "@/hooks/useGridLayout";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import useSettingStore from "@/stores/useSettingStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 

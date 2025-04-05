@@ -10,7 +10,7 @@ import styles from "./index.module.less";
 import { ICreateDocument } from "@/types";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import DocumentList from "./DocumentList";
 
 const DocumentsView = () => {

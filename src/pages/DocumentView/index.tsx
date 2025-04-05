@@ -3,7 +3,7 @@ import DocumentList from "./DocumentList";
 import EditDocumentItem from "./EditDocumentItem";
 
 import styles from "./index.module.less";
-import Titlebar from "@/layouts/components/Titlebar";
+import Titlebar from "@/components/Titlebar";
 import { Breadcrumb } from "antd";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 
