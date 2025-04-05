@@ -1,16 +1,11 @@
-import { useRef, useEffect } from "react";
-import lightGallery from "lightgallery";
+import { useMemo, useState } from "react";
+import ImageGallery from "@/components/ImageGallery";
 
 import { ImageGalleryItem } from "@/components/Editor/types";
 import LocalImage from "@/components/LocalImage";
 
-import lgThumbnail from "lightgallery/plugins/thumbnail";
-import lgZoom from "lightgallery/plugins/zoom";
-import "lightgallery/css/lightgallery.css";
-import "lightgallery/css/lg-zoom.css";
-import "lightgallery/css/lg-thumbnail.css";
-
 import styles from "./index.module.less";
+import useTheme from "@/hooks/useTheme";
 
 interface IVerticalImageGalleryProps {
   items: ImageGalleryItem[];
@@ -19,34 +14,32 @@ interface IVerticalImageGalleryProps {
 
 const VerticalImageGallery = (props: IVerticalImageGalleryProps) => {
   const { items, columnCount = 3 } = props;
-  const ref = useRef<HTMLDivElement>(null);
+  const [showGallery, setShowGallery] = useState(false);
+  const { theme } = useTheme();
 
-  useEffect(() => {
-    if (!ref.current) return;
-    const galleryInstance = lightGallery(ref.current, {
-      plugins: [lgZoom, lgThumbnail],
-      thumbnail: true,
-      zoomFromOrigin: true,
-    });
-
-    return () => {
-      galleryInstance.destroy();
-    };
+  const images = useMemo(() => {
+    return items.map((item) => item.url);
   }, [items]);
 
   return (
     <div
-      ref={ref}
       className={styles.gridContainer}
       style={{
         columnCount,
       }}
+      onClick={() => setShowGallery(true)}
     >
       {items.map((item) => (
         <div data-src={item.url} key={item.id} className={styles.gridItem}>
           <LocalImage url={item.url} alt={item.desc || ""} />
         </div>
       ))}
+      <ImageGallery
+        images={images}
+        open={showGallery}
+        onClose={() => setShowGallery(false)}
+        theme={theme}
+      />
     </div>
   );
 };
