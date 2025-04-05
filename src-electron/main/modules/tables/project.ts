@@ -12,6 +12,7 @@ import Operation from "./operation";
 import { WhiteBoard } from "@/types";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
+import { getMarkdown } from "@/utils/markdown.ts";
 import { basename } from "node:path";
 import { BrowserWindow } from "electron";
 import FTSTable from "./fts";
@@ -170,6 +171,32 @@ export default class ProjectTable {
       );
       dropCountColumnStmt.run();
     }
+
+    // 为所有项目条目添加 FTS 索引
+    log.info("开始为所有项目条目添加 FTS 索引");
+    const projectItems = this.getAllProjectItems(db);
+    for (const item of projectItems) {
+      // 跳过白板和视频笔记
+      if (item.refType === "white-board" || item.refType === "video-note")
+        continue;
+
+      if (!item.content || !item.content.length) continue;
+
+      // 检查是否已有索引或索引是否过期
+      const indexInfo = FTSTable.checkIndexExists(db, item.id, "project-item");
+
+      // 如果索引不存在或已过期，则添加/更新索引
+      if (!indexInfo || indexInfo.updateTime < item.updateTime) {
+        FTSTable.indexContent(db, {
+          id: item.id,
+          content: getMarkdown(item.content),
+          type: "project-item",
+          updateTime: item.updateTime,
+        });
+        log.info(`已为项目条目 ${item.id} 添加/更新 FTS 索引`);
+      }
+    }
+
     // 删除不在任何项目中的条目
     this.deleteProjectItemsNotInAnyProject(db);
   }
@@ -435,6 +462,21 @@ export default class ProjectTable {
       item.projectItemType || item.projectItemType,
       item.id,
     );
+
+    // 更新 FTS 索引
+    if (
+      item.refType !== "white-board" &&
+      item.refType !== "video-note" &&
+      item.content &&
+      item.content.length
+    ) {
+      FTSTable.indexContent(db, {
+        id: item.id,
+        content: getMarkdown(item.content),
+        type: "project-item",
+        updateTime: now,
+      });
+    }
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {

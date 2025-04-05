@@ -10,7 +10,7 @@ interface Params<T> {
   selectedRows: T[];
   setSelectedRows: React.Dispatch<React.SetStateAction<T[]>>;
   type: string;
-  indexResults: [SearchResult[], SearchResult[]]; // [ftsResults, vecResults]
+  vecResults: SearchResult[];
   initIndexResults: () => Promise<void>;
 }
 
@@ -19,45 +19,29 @@ const useBatchOperation = <
 >(
   params: Params<T>,
 ) => {
-  const {
-    selectedRows,
-    setSelectedRows,
-    type,
-    indexResults,
-    initIndexResults,
-  } = params;
+  const { selectedRows, setSelectedRows, type, vecResults, initIndexResults } =
+    params;
 
   const { message } = App.useApp();
   const modelInfo = useEmbeddingConfig();
 
-  // 解构索引结果
-  const [ftsResults, vecResults] = indexResults;
-
   const [createEmbeddings, updateEmbeddings, deleteEmbeddings] = useMemo(() => {
-    const createEmbddings: T[] = [];
+    const createEmbeddings: T[] = [];
     const updateEmbeddings: T[] = [];
     const deleteEmbeddings: T[] = [];
 
     selectedRows.forEach((item) => {
-      // 查找FTS索引结果
-      const ftsResult = ftsResults.find(
-        (result) => result.id === item.id && result.type === type,
-      );
-
       // 查找向量索引结果
       const vecResult = vecResults.find(
         (result) => result.id === item.id && result.type === type,
       );
 
-      // 如果没有任何索引，则添加到创建列表
-      if (!ftsResult && !vecResult) {
-        createEmbddings.push(item);
+      // 如果没有索引，则添加到创建列表
+      if (!vecResult) {
+        createEmbeddings.push(item);
       }
       // 如果有索引但需要更新
-      else if (
-        (vecResult && item.update_time !== vecResult.updateTime) ||
-        (ftsResult && item.update_time !== ftsResult.updateTime)
-      ) {
+      else if (item.update_time > vecResult.updateTime) {
         updateEmbeddings.push(item);
       }
       // 如果有索引且不需要更新，则添加到删除列表
@@ -66,8 +50,8 @@ const useBatchOperation = <
       }
     });
 
-    return [createEmbddings, updateEmbeddings, deleteEmbeddings];
-  }, [selectedRows, ftsResults, vecResults, type]);
+    return [createEmbeddings, updateEmbeddings, deleteEmbeddings];
+  }, [selectedRows, vecResults, type]);
 
   const [batchCreateOrUpdateTotal, setBatchCreateOrUpdateTotal] = useState(0);
   const [batchCreateOrUpdateSuccess, setBatchCreateOrUpdateSuccess] =
@@ -105,25 +89,11 @@ const useBatchOperation = <
     for (const item of updateEmbeddings) {
       const markdown = getMarkdown(item.content);
 
-      const indexTypes: ("fts" | "vec")[] = [];
-      const ftsResult = ftsResults.find(
-        (result) => result.id === item.id && result.type === type,
-      );
-
-      const vecResult = vecResults.find(
-        (result) => result.id === item.id && result.type === type,
-      );
-      if (!ftsResult || item.update_time !== ftsResult.updateTime)
-        indexTypes.push("fts");
-      if (!vecResult || item.update_time !== vecResult.updateTime)
-        indexTypes.push("vec");
-
       const itemIndexParams: IndexParams = {
         id: item.id,
         content: markdown,
         type: type as IndexType,
         updateTime: item.update_time,
-        indexTypes,
         modelInfo,
       };
 

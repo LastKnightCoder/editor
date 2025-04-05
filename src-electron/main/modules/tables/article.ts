@@ -2,12 +2,15 @@ import Database from "better-sqlite3";
 import { ICreateArticle, IUpdateArticle, IArticle } from "@/types";
 import Operation from "./operation";
 import { getContentLength } from "@/utils/helper.ts";
+import { getMarkdown } from "@/utils/markdown.ts";
 import { basename } from "node:path";
 import { BrowserWindow } from "electron";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
+import log from "electron-log";
+
 export default class ArticleTable {
   static initTable(db: Database.Database) {
     const createTableSql = `
@@ -108,6 +111,27 @@ export default class ArticleTable {
         "ALTER TABLE articles DROP COLUMN count",
       );
       dropCountColumnStmt.run();
+    }
+
+    // 为所有文章添加 FTS 索引
+    log.info("开始为所有文章添加 FTS 索引");
+    const articles = this.getAllArticles(db);
+    for (const article of articles) {
+      if (!article.content || !article.content.length) continue;
+
+      // 检查是否已有索引或索引是否过期
+      const indexInfo = FTSTable.checkIndexExists(db, article.id, "article");
+
+      // 如果索引不存在或已过期，则添加/更新索引
+      if (!indexInfo || indexInfo.updateTime < article.update_time) {
+        FTSTable.indexContent(db, {
+          id: article.id,
+          content: getMarkdown(article.content),
+          type: "article",
+          updateTime: article.update_time,
+        });
+        log.info(`已为文章 ${article.id} 添加/更新 FTS 索引`);
+      }
     }
   }
 
@@ -362,6 +386,16 @@ export default class ArticleTable {
     );
 
     Operation.insertOperation(db, "article", "update", id, now);
+
+    // 更新 FTS 索引
+    if (content && content.length) {
+      FTSTable.indexContent(db, {
+        id: id,
+        content: getMarkdown(content),
+        type: "article",
+        updateTime: now,
+      });
+    }
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {

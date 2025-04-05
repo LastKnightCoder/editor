@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { getContentLength } from "@/utils/helper.ts";
+import { getMarkdown } from "@/utils/markdown.ts";
 import { ICreateCard, IUpdateCard, ICard } from "@/types";
 import Operation from "./operation";
 import { BrowserWindow } from "electron";
@@ -104,6 +105,27 @@ export default class CardTable {
         "ALTER TABLE cards DROP COLUMN count",
       );
       dropCountColumnStmt.run();
+    }
+
+    // 为所有卡片添加 FTS 索引
+    log.info("开始为所有卡片添加 FTS 索引");
+    const cards = this.getAllCards(db);
+    for (const card of cards) {
+      if (!card.content || !card.content.length) continue;
+
+      // 检查是否已有索引或索引是否过期
+      const indexInfo = FTSTable.checkIndexExists(db, card.id, "card");
+
+      // 如果索引不存在或已过期，则添加/更新索引
+      if (!indexInfo || indexInfo.updateTime < card.update_time) {
+        FTSTable.indexContent(db, {
+          id: card.id,
+          content: getMarkdown(card.content),
+          type: "card",
+          updateTime: card.update_time,
+        });
+        log.info(`已为卡片 ${card.id} 添加/更新 FTS 索引`);
+      }
     }
   }
 
@@ -210,6 +232,7 @@ export default class CardTable {
     );
     const createdCardId = res.lastInsertRowid;
     Operation.insertOperation(db, "card", "insert", createdCardId, now);
+
     return this.getCardById(db, createdCardId) as ICard;
   }
 
@@ -286,6 +309,14 @@ export default class CardTable {
 
     Operation.insertOperation(db, "card", "update", card.id, now);
 
+    // 更新 FTS 索引
+    FTSTable.indexContent(db, {
+      id: id,
+      content: getMarkdown(content),
+      type: "card",
+      updateTime: now,
+    });
+
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {
         window.webContents.send("card:updated", {
@@ -322,9 +353,7 @@ export default class CardTable {
     );
     projectItemStmt.run(cardId);
 
-    // 删除全文搜索索引
     FTSTable.removeIndexByIdAndType(db, cardId, "card");
-    // 删除向量文档索引
     VecDocumentTable.removeIndexByIdAndType(db, cardId, "card");
 
     Operation.insertOperation(db, "card", "delete", cardId, Date.now());
