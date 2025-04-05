@@ -141,10 +141,15 @@ export default class ArticleTable {
       }
     }
 
+    // 使用文章和内容表中最大的更新时间
+    const updateTime = article.content_update_time
+      ? Math.max(article.update_time, article.content_update_time)
+      : article.update_time;
+
     return {
       id: article.id,
       create_time: article.create_time,
-      update_time: article.update_time,
+      update_time: updateTime,
       tags: JSON.parse(article.tags),
       title: article.title,
       content: content,
@@ -164,7 +169,7 @@ export default class ArticleTable {
     const stmt = db.prepare(`
       SELECT a.id, a.create_time, a.update_time, a.tags, a.title, a.author, a.links,
              a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
-             c.content, c.count
+             c.content, c.count, c.update_time as content_update_time
       FROM articles a
       LEFT JOIN contents c ON a.content_id = c.id
       WHERE a.is_delete = 0 
@@ -181,7 +186,7 @@ export default class ArticleTable {
     const stmt = db.prepare(`
       SELECT a.id, a.create_time, a.update_time, a.tags, a.title, a.author, a.links,
              a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
-             c.content, c.count
+             c.content, c.count, c.update_time as content_update_time
       FROM articles a
       LEFT JOIN contents c ON a.content_id = c.id
       WHERE a.id = ?
@@ -200,7 +205,7 @@ export default class ArticleTable {
     const stmt = db.prepare(`
       SELECT a.id, a.create_time, a.update_time, a.tags, a.title, a.author, a.links,
              a.banner_bg, a.banner_position, a.is_top, a.is_delete, a.content_id,
-             c.content, c.count
+             c.content, c.count, c.update_time as content_update_time
       FROM articles a
       LEFT JOIN contents c ON a.content_id = c.id
       WHERE a.id IN (${placeholders})

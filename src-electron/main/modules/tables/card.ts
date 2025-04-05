@@ -121,10 +121,15 @@ export default class CardTable {
       }
     }
 
+    // 使用卡片和内容表中最大的更新时间
+    const updateTime = card.content_update_time
+      ? Math.max(card.update_time, card.content_update_time)
+      : card.update_time;
+
     return {
       id: card.id,
       create_time: card.create_time,
-      update_time: card.update_time,
+      update_time: updateTime,
       tags: JSON.parse(card.tags),
       links: JSON.parse(card.links),
       content: content,
@@ -138,7 +143,7 @@ export default class CardTable {
   static getAllCards(db: Database.Database) {
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count 
+             ct.content, ct.count, ct.update_time as content_update_time 
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       ORDER BY c.is_top DESC, c.create_time DESC
@@ -153,7 +158,7 @@ export default class CardTable {
   ): ICard | null {
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count 
+             ct.content, ct.count, ct.update_time as content_update_time 
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       WHERE c.id = ?
@@ -171,7 +176,7 @@ export default class CardTable {
     const placeholders = cardIds.map(() => "?").join(",");
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count 
+             ct.content, ct.count, ct.update_time as content_update_time 
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       WHERE c.id IN (${placeholders})
