@@ -199,7 +199,7 @@ const EditCard = (props: IEditCardProps) => {
         children: (
           <>
             <Tooltip title={"关联图谱"}>
-              <SVG src={graphIcon} />
+              <SVG src={graphIcon} style={{ fill: "currentcolor" }} />
             </Tooltip>
           </>
         ),
