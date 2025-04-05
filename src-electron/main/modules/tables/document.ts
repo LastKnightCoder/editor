@@ -160,6 +160,7 @@ export default class DocumentTable {
       "create-document-item": this.createDocumentItem.bind(this),
       "update-document-item": this.updateDocumentItem.bind(this),
       "delete-document-item": this.deleteDocumentItem.bind(this),
+      "try-delete-document-item": this.tryDeleteDocumentItem.bind(this),
       "get-document-item": this.getDocumentItem.bind(this),
       "get-document-items-by-ids": this.getDocumentItemsByIds.bind(this),
       "get-all-document-items": this.getAllDocumentItems.bind(this),
@@ -684,5 +685,39 @@ export default class DocumentTable {
     return documents.filter((document) => {
       return document.children.some((childId) => parents.includes(childId));
     });
+  }
+
+  static tryDeleteDocumentItem(db: Database.Database, id: number): boolean {
+    //  能删除的条件，没有 parents 并且不在任何 document 的 children 中
+    const documentItem = this.getDocumentItem(db, id);
+    if (documentItem.parents.length > 0) {
+      return false;
+    }
+    // 判断 documentItem 是否在任何 document 的 children 中
+    const documents = this.getAllDocuments(db);
+    for (const document of documents) {
+      if (document.children.includes(id)) {
+        return false;
+      }
+    }
+    // 删除 documentItem
+    this.deleteDocumentItem(db, id);
+
+    // 如果有 children，把 children 的 parents 中的 id 删除，然后递归调用 tryDeleteDocumentItem
+    if (documentItem.children.length > 0) {
+      for (const childId of documentItem.children) {
+        const childDocumentItem = this.getDocumentItem(db, childId);
+        const newParents = childDocumentItem.parents.filter(
+          (parentId) => parentId !== id,
+        );
+        this.updateDocumentItem(db, {
+          ...childDocumentItem,
+          parents: newParents,
+        });
+        this.tryDeleteDocumentItem(db, childId);
+      }
+    }
+
+    return true;
   }
 }

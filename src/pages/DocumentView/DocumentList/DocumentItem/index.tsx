@@ -30,6 +30,7 @@ import {
   isDocumentItemChildOf,
   updateDocumentItem,
   openDocumentItemInNewWindow,
+  tryDeleteDocumentItem,
 } from "@/commands";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import PresentationMode from "@/components/PresentationMode";
@@ -362,11 +363,17 @@ const DocumentItem = (props: IDocumentItemProps) => {
           draft.parents = draft.parents.filter((parent) => parent !== parentId);
           draft.parents = Array.from(new Set(draft.parents));
         });
+
         await updateDocumentItem(toUpdateItem);
-        documentItemEventBus.publishDocumentItemEvent(
-          "document-item:updated",
-          realTimeItem,
-        );
+
+        const deleted = await tryDeleteDocumentItem(toUpdateItem.id);
+        if (!deleted) {
+          documentItemEventBus.publishDocumentItemEvent(
+            "document-item:updated",
+            realTimeItem,
+          );
+        }
+
         const activeDocumentItemId =
           useDocumentsStore.getState().activeDocumentItemId;
         if (!activeDocumentItemId || activeDocumentItemId === realTimeItem.id) {
