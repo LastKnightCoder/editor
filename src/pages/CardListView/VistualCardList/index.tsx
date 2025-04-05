@@ -14,8 +14,7 @@ export interface VirtualCardListRef {
 interface VirtualCardListProps {
   cards: ICard[];
   onScroll?: (scrollTop: number) => void;
-  onPresentationMode: () => void;
-  onExitPresentationMode: () => void;
+  onPresentationMode: (card: ICard) => void;
   onCardClick?: (card: ICard) => void;
   onDeleteCard?: (cardId: number) => Promise<void>;
   onUpdateCardCategory?: (
@@ -32,7 +31,6 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
       cards,
       onScroll,
       onPresentationMode,
-      onExitPresentationMode,
       onCardClick,
       onDeleteCard,
       onUpdateCardCategory,
@@ -128,7 +126,6 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
                   <CardItem
                     card={card}
                     onPresentationMode={onPresentationMode}
-                    onExitPresentationMode={onExitPresentationMode}
                     onCardClick={handleCardClick}
                     onDeleteCard={onDeleteCard}
                     onUpdateCardCategory={onUpdateCardCategory}

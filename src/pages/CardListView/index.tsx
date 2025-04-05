@@ -2,39 +2,46 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMemoizedFn } from "ahooks";
 import { Breadcrumb, Dropdown, MenuProps, FloatButton, App } from "antd";
+import { Descendant } from "slate";
+
 import {
   LoadingOutlined,
   PlusOutlined,
   UnorderedListOutlined,
   UpOutlined,
 } from "@ant-design/icons";
-import { ICard, ECardCategory, ICreateCard } from "@/types";
-import {
-  getAllCards,
-  createCard,
-  deleteCard,
-  updateCard,
-} from "@/commands/card";
-import CardTreePanel from "./CardTreePanel";
-import CardListPanel, { CardListPanelRef } from "./CardListPanel";
-import Titlebar from "@/layouts/components/Titlebar";
-import CardGraph from "@/layouts/components/CardGraph";
-import CreateCard from "./CreateCard";
-import CardPreview from "./CardPreview";
-import styles from "./index.module.less";
-import { cardCategoryName } from "@/constants";
-import { Descendant } from "slate";
-import { readTextFile, selectFile } from "@/commands";
-import { getContentLength, importFromMarkdown } from "@/utils";
 import { PiGraphLight } from "react-icons/pi";
 import { BiCategory } from "react-icons/bi";
+
 import useCardsManagementStore, {
   ViewMode,
 } from "@/stores/useCardsManagementStore";
 import { useShallow } from "zustand/react/shallow";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
+
+import CardTreePanel from "./CardTreePanel";
+import CardListPanel, { CardListPanelRef } from "./CardListPanel";
+import CardGraph from "./CardGraph";
+import CreateCard from "./CreateCard";
+import CardPreview from "./CardPreview";
 import If from "@/components/If";
+import PresentationMode from "@/components/PresentationMode";
+import Titlebar from "@/layouts/components/Titlebar";
+
+import { ICard, ECardCategory, ICreateCard } from "@/types";
+import { cardCategoryName } from "@/constants";
+import { getContentLength, importFromMarkdown } from "@/utils";
+import {
+  getAllCards,
+  createCard,
+  deleteCard,
+  updateCard,
+  readTextFile,
+  selectFile,
+} from "@/commands";
+
+import styles from "./index.module.less";
 
 const CardListView = () => {
   const navigate = useNavigate();
@@ -45,6 +52,7 @@ const CardListView = () => {
     undefined,
   );
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
   const { modal } = App.useApp();
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
@@ -55,16 +63,18 @@ const CardListView = () => {
     activeCardTag,
     selectCategory,
     viewMode,
-    showScrollToTop,
-    isPresentation,
+    presentationCard,
+    startPresentation,
+    stopPresentation,
   } = useCardsManagementStore(
     useShallow((state) => {
       return {
         activeCardTag: state.activeCardTag,
         selectCategory: state.selectCategory,
         viewMode: state.viewMode,
-        showScrollToTop: state.showScrollToTop,
-        isPresentation: state.isPresentation,
+        presentationCard: state.presentationCard,
+        startPresentation: state.startPresentation,
+        stopPresentation: state.stopPresentation,
       };
     }),
   );
@@ -272,22 +282,29 @@ const CardListView = () => {
     }
   });
 
-  const titlebarMenuItems: MenuProps["items"] = [
-    {
-      label: "创建卡片",
-      key: "create-card",
-    },
-    {
-      label: "导入卡片",
-      key: "import-markdown",
-    },
-  ];
+  const handlePresentationMode = useMemoizedFn((card: ICard) => {
+    startPresentation(card);
+  });
 
-  // 面包屑导航
-  const breadcrumbItems = [
-    { title: "首页", path: "/" },
-    { title: "卡片列表", path: "/cards/list" },
-  ];
+  const titlebarMenuItems: MenuProps["items"] = useMemo(() => {
+    return [
+      {
+        label: "创建卡片",
+        key: "create-card",
+      },
+      {
+        label: "导入卡片",
+        key: "import-markdown",
+      },
+    ];
+  }, []);
+
+  const breadcrumbItems = useMemo(() => {
+    return [
+      { title: "首页", path: "/" },
+      { title: "卡片列表", path: "/cards/list" },
+    ];
+  }, []);
 
   if (loading) {
     return (
@@ -335,6 +352,8 @@ const CardListView = () => {
                 onUpdateCardCategory={handleUpdateCardCategory}
                 onToggleCardTop={handleToggleCardTop}
                 onCardChange={handleCardChange}
+                onShowScrollToTop={setShowScrollToTop}
+                onPresentationMode={handlePresentationMode}
               />
             ) : (
               <div className={styles.graphContainer}>
@@ -358,7 +377,15 @@ const CardListView = () => {
               visible={isPreviewVisible}
               onClose={handleClosePreview}
             />
-            <If condition={!isPresentation}>
+            {!!presentationCard && (
+              <PresentationMode
+                content={presentationCard.content}
+                onExit={() => {
+                  stopPresentation();
+                }}
+              />
+            )}
+            <If condition={!presentationCard}>
               <FloatButton.Group
                 style={{
                   position: "absolute",
@@ -366,7 +393,7 @@ const CardListView = () => {
                   bottom: 30,
                 }}
               >
-                <If condition={showScrollToTop}>
+                <If condition={showScrollToTop && viewMode === ViewMode.List}>
                   <FloatButton
                     className={styles.floatButton}
                     icon={<UpOutlined />}
@@ -398,17 +425,16 @@ const CardListView = () => {
                   }
                 ></FloatButton>
                 <FloatButton
-                  tooltip={
-                    viewMode === ViewMode.List ? "前往图谱模式" : "前往列表模式"
-                  }
+                  tooltip={viewMode === ViewMode.List ? "列表模式" : "图谱模式"}
                   icon={
                     viewMode === ViewMode.List ? (
-                      <UnorderedListOutlined />
-                    ) : (
                       <PiGraphLight />
+                    ) : (
+                      <UnorderedListOutlined />
                     )
                   }
                   onClick={() => {
+                    setShowScrollToTop(false);
                     useCardsManagementStore.setState({
                       viewMode:
                         viewMode === ViewMode.List

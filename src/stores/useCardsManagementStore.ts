@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { ECardCategory } from "@/types";
+import { ECardCategory, ICard } from "@/types";
 
 export enum ViewMode {
   List = "list",
@@ -11,22 +11,27 @@ interface IState {
   selectCategory: ECardCategory;
   activeCardTag: string;
   viewMode: ViewMode;
-  showScrollToTop: boolean;
-  isPresentation: boolean;
+  presentationCard: ICard | null;
+}
+
+interface IActions {
+  startPresentation: (card: ICard) => void;
+  stopPresentation: () => void;
 }
 
 const initState: IState = {
   selectCategory: ECardCategory.Permanent,
   activeCardTag: "",
   viewMode: ViewMode.List,
-  showScrollToTop: false,
-  isPresentation: false,
+  presentationCard: null,
 };
 
-const useCardsManagementStore = create<IState>()(
+const useCardsManagementStore = create<IState & IActions>()(
   persist(
-    () => ({
+    (set) => ({
       ...initState,
+      startPresentation: (card) => set({ presentationCard: card }),
+      stopPresentation: () => set({ presentationCard: null }),
     }),
     {
       name: "cards-management",

@@ -1,39 +1,38 @@
+import React, { MouseEvent, useEffect, useMemo, useRef, memo } from "react";
+import { useNavigate } from "react-router-dom";
 import classnames from "classnames";
-import { ECardCategory, ICard } from "@/types";
+import { IoResizeOutline } from "react-icons/io5";
+import { MdMoreHoriz } from "react-icons/md";
+import { AiFillPushpin } from "react-icons/ai";
+import { Dropdown, MenuProps, Tooltip } from "antd";
+import { useCreation, useMemoizedFn } from "ahooks";
 import Editor, { EditorRef } from "@editor/index.tsx";
-import styles from "./index.module.less";
-import React, {
-  MouseEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  memo,
-} from "react";
 import { useShallow } from "zustand/react/shallow";
-import Tags from "@/components/Tags";
-import { formatDate, getEditorText, getMarkdown } from "@/utils";
-import { openCardInNewWindow } from "@/commands";
+
 import {
   cardLinkExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
-import { IoResizeOutline } from "react-icons/io5";
-import { MdMoreHoriz } from "react-icons/md";
-import { AiFillPushpin } from "react-icons/ai";
-import { Dropdown, MenuProps } from "antd";
-import { useCreation, useMemoizedFn } from "ahooks";
-import useSettingStore from "@/stores/useSettingStore.ts";
+
+import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import PresentationMode from "@/components/PresentationMode";
+import {
+  formatDate,
+  getEditorText,
+  getMarkdown,
+  defaultCardEventBus,
+} from "@/utils";
+import { openCardInNewWindow } from "@/commands";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
-import { defaultCardEventBus } from "@/utils";
+import useSettingStore from "@/stores/useSettingStore.ts";
+import { ECardCategory, ICard } from "@/types";
 import { cardCategoryName } from "@/constants";
+
+import styles from "./index.module.less";
 
 interface CardItemProps {
   card: ICard;
-  onPresentationMode?: () => void;
-  onExitPresentationMode?: () => void;
+  onPresentationMode: (card: ICard) => void;
   onCardClick?: (card: ICard) => void;
   onDeleteCard?: (cardId: number) => Promise<void>;
   onUpdateCardCategory?: (
@@ -55,14 +54,14 @@ const CardItem = memo(
       className,
       style,
       onPresentationMode,
-      onExitPresentationMode,
       onCardClick,
       onDeleteCard,
       onUpdateCardCategory,
       onToggleCardTop,
       onCardChange,
     } = props;
-    const [isPresentation, setIsPresentation] = useState(false);
+
+    const navigate = useNavigate();
 
     const editorRef = useRef<EditorRef>(null);
     const cardEventBus = useCreation(
@@ -93,6 +92,20 @@ const CardItem = memo(
       };
     }, [card.id, cardEventBus]);
 
+    const onClick = useMemoizedFn(() => {
+      if (onCardClick) {
+        onCardClick(card);
+      }
+    });
+
+    const stopPropagation = useMemoizedFn((e: MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+    });
+
+    const handlePresentationMode = useMemoizedFn(() => {
+      onPresentationMode(card);
+    });
+
     const moreMenuItems: MenuProps["items"] = useMemo(() => {
       return [
         {
@@ -114,6 +127,11 @@ const CardItem = memo(
         {
           key: "toggle-top",
           label: isTop ? "取消置顶" : "设置置顶",
+        },
+        {
+          key: "presentation-mode",
+          label: "演示模式",
+          onClick: handlePresentationMode,
         },
         {
           key: "delete-card",
@@ -140,21 +158,6 @@ const CardItem = memo(
         },
       ];
     }, [card.category, databaseName, card.id, addTab, card.content, isTop]);
-
-    const onClick = useMemoizedFn(() => {
-      if (onCardClick) {
-        onCardClick(card);
-      }
-    });
-
-    const stopPropagation = useMemoizedFn((e: MouseEvent<HTMLDivElement>) => {
-      e.stopPropagation();
-    });
-
-    const handlePresentationMode = useMemoizedFn(() => {
-      setIsPresentation(true);
-      onPresentationMode?.();
-    });
 
     const handleMoreClick: MenuProps["onClick"] = useMemoizedFn(
       async ({ key }) => {
@@ -184,6 +187,10 @@ const CardItem = memo(
         }
       },
     );
+
+    const handleNavigateToDetail = useMemoizedFn(() => {
+      navigate(`/cards/detail/${card.id}`);
+    });
 
     return (
       <>
@@ -216,9 +223,11 @@ const CardItem = memo(
             <Tags className={styles.tags} tags={tags} showIcon />
           )}
           <div className={styles.actions} onClick={stopPropagation}>
-            <div className={styles.action} onClick={handlePresentationMode}>
-              <IoResizeOutline />
-            </div>
+            <Tooltip title="进入详情">
+              <div className={styles.action} onClick={handleNavigateToDetail}>
+                <IoResizeOutline />
+              </div>
+            </Tooltip>
             <Dropdown
               menu={{
                 items: moreMenuItems,
@@ -231,16 +240,6 @@ const CardItem = memo(
             </Dropdown>
           </div>
         </div>
-
-        {isPresentation && (
-          <PresentationMode
-            content={card.content}
-            onExit={() => {
-              setIsPresentation(false);
-              onExitPresentationMode?.();
-            }}
-          />
-        )}
       </>
     );
   },
