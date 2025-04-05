@@ -1,0 +1,102 @@
+.commentList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.commentForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+
+  .commentInput {
+    resize: none;
+    border-radius: 6px;
+  }
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  align-self: flex-end;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.commentItem {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 8px;
+
+  &.replyItem {
+    margin-top: 12px;
+    margin-left: 16px;
+    padding: 12px;
+    border-radius: 6px;
+  }
+}
+
+.commentHeader {
+  display: flex;
+  align-items: flex-start;
+}
+
+.commentMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.commentAuthor {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.commentDatetime {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.commentContent {
+  font-size: 14px;
+  line-height: 1.5;
+
+  p {
+    margin: 0;
+  }
+}
+
+.commentActions {
+  display: flex;
+  gap: 16px;
+}
+
+.commentAction {
+  margin-right: 8px;
+}
+
+.actionLink {
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.commentChildren {
+  margin-left: 8px;
+}
+
+.replyForm {
+  margin-top: 12px;
+  position: relative;
+}

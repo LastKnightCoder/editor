@@ -24,3 +24,4 @@ export * from "./tabs.ts";
 export * from "./underline.ts";
 export * from "./audio.ts";
 export * from "./video.ts";
+export * from "./comment.ts";

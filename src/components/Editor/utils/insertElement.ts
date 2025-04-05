@@ -658,3 +658,32 @@ export const wrapStyledText = (editor: Editor) => {
     );
   }
 };
+
+export const wrapComment = (editor: Editor) => {
+  const { selection } = editor;
+  const [node] = getCurrentTextNode(editor);
+  if (selection && !Range.isCollapsed(selection) && node.type === "formatted") {
+    const text = Editor.string(editor, selection);
+    editor.deleteBackward("character");
+    Transforms.wrapNodes(
+      editor,
+      {
+        type: "comment",
+        comments: [],
+        uuid: getUuid(),
+        children: [{ type: "formatted", text }],
+        openEdit: true,
+      },
+      {
+        at: selection,
+        split: true,
+      },
+    );
+  }
+};
+
+export const unwrapComment = (editor: Editor) => {
+  Transforms.unwrapNodes(editor, {
+    match: (n) => n.type === "comment",
+  });
+};

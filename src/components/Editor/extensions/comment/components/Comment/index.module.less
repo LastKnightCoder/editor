@@ -1,0 +1,38 @@
+.comment {
+  position: relative;
+  display: inline;
+  cursor: pointer;
+
+  /* 使用类似Highlight组件的red样式 */
+  background-color: rgba(239, 35, 60, 0.14);
+  border-bottom: 2px solid rgb(239, 35, 60);
+
+  /* 鼠标悬停效果 */
+  &:hover {
+    background-color: rgba(239, 35, 60, 0.22);
+  }
+}
+
+.commentIndicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  font-size: 12px;
+  color: rgb(239, 35, 60);
+
+  .commentCount {
+    margin-left: 2px;
+  }
+}
+
+.commentContainer {
+  width: 320px;
+  max-height: 400px;
+  padding: 0 8px;
+  overflow-y: auto;
+
+  /* 隐藏滚动条但保留滚动功能 */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -40,6 +40,7 @@ import { AudioElement } from "./element/audio.ts";
 import { VideoElement } from "./element/video.ts";
 import { AIElement } from "./element/ai.ts";
 import { WhiteboardElement } from "./element/whiteboard.ts";
+import { CommentElement } from "./element/comment.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -78,7 +79,8 @@ export type CustomElement =
   | AudioElement
   | VideoElement
   | AIElement
-  | WhiteboardElement;
+  | WhiteboardElement
+  | CommentElement;
 
 export type InlineElement =
   | FormattedText

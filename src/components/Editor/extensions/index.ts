@@ -13,6 +13,7 @@ import DetailExtension from "./detail";
 import { InlineMathExtension, BlockMathExtension } from "./math";
 import BlockquoteExtension from "./blockquote";
 import LinkExtension from "./link";
+import CommentExtension from "./comment";
 import DivideLineExtension from "./divide-line";
 import MermaidExtension from "./mermaid";
 import { TableExtension, TableRowExtension, TableCellExtension } from "./table";
@@ -49,6 +50,7 @@ export const blockMath = new BlockMathExtension();
 export const blockquote = new BlockquoteExtension();
 export const callout = new CalloutExtension();
 export const link = new LinkExtension();
+export const comment = new CommentExtension();
 export const divideLine = new DivideLineExtension();
 export const mermaid = new MermaidExtension();
 export const htmlBlock = new HtmlBlockExtension();
@@ -92,6 +94,7 @@ export const startExtensions = [
   blockquote,
   callout,
   link,
+  comment,
   divideLine,
   mermaid,
   htmlBlock,
