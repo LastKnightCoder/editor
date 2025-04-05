@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
+import { useNavigate } from "react-router-dom";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
@@ -24,8 +25,8 @@ import styles from "./index.module.less";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditCard from "../useEditCard";
 import StatusBar from "@/components/StatusBar";
-import { LinkOutlined, ReadOutlined } from "@ant-design/icons";
-import { Drawer, Tooltip } from "antd";
+import { LinkOutlined, ReadOutlined, MoreOutlined } from "@ant-design/icons";
+import { Drawer, Tooltip, Dropdown, MenuProps } from "antd";
 import { EditOutlined } from "@ant-design/icons";
 import { MdOutlineCode } from "react-icons/md";
 import { isValid } from "@/components/WhiteBoard/utils";
@@ -34,9 +35,11 @@ import { ICard } from "@/types";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import EditorSourceValue from "@/components/EditorSourceValue";
 import LinkGraph from "@/components/LinkGraph";
-import { getAllCards } from "@/commands";
+import { getAllCards, openCardInNewWindow } from "@/commands";
 import SVG from "react-inlinesvg";
 import graphIcon from "@/assets/icons/graph.svg";
+import PresentationMode from "@/components/PresentationMode";
+import useSettingStore from "@/stores/useSettingStore";
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -47,6 +50,11 @@ interface IEditCardProps {
 
 const EditCard = (props: IEditCardProps) => {
   const { cardId, defaultReadonly = false } = props;
+  const navigate = useNavigate();
+
+  const databaseName = useSettingStore(
+    (state) => state.setting.database.active,
+  );
 
   const {
     initValue,
@@ -73,6 +81,7 @@ const EditCard = (props: IEditCardProps) => {
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
   const [linkListOpen, setLinkListOpen] = useState(false);
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
+  const [presentationMode, setPresentationMode] = useState(false);
 
   useEffect(() => {
     getAllCards().then((res) => {
@@ -223,6 +232,42 @@ const EditCard = (props: IEditCardProps) => {
     });
   });
 
+  const handleMoreMenuClick = useMemoizedFn(({ key }: { key: string }) => {
+    if (!editingCard) return;
+
+    if (key === "presentation") {
+      setPresentationMode(true);
+    } else if (key === "open-window") {
+      openCardInNewWindow(databaseName, editingCard.id);
+      navigate("/cards/list");
+    } else if (key === "open-sidebar") {
+      const { addTab } = useRightSidebarStore.getState();
+      addTab({
+        id: String(editingCard.id),
+        title: getEditorText(editingCard.content, 10),
+        type: "card",
+      });
+      navigate("/cards/list");
+    }
+  });
+
+  const moreMenuItems: MenuProps["items"] = useMemo(() => {
+    return [
+      {
+        key: "presentation",
+        label: "演示模式",
+      },
+      {
+        key: "open-window",
+        label: "窗口打开",
+      },
+      {
+        key: "open-sidebar",
+        label: "侧边打开",
+      },
+    ];
+  }, []);
+
   if (loading) {
     return <div className={styles.loading}>Loading...</div>;
   }
@@ -239,11 +284,22 @@ const EditCard = (props: IEditCardProps) => {
     >
       <div className={styles.editCardContainer}>
         <div className={styles.time}>
-          <div>
-            <span>创建于 {formatDate(editingCard.create_time, true)}</span>
+          <div className={styles.timeInfo}>
+            <div className={styles.createTime}>
+              <span>创建于 {formatDate(editingCard.create_time, true)}</span>
+            </div>
+            <div className={styles.updateTime}>
+              <span>
+                最后修改于 {formatDate(editingCard.update_time, true)}
+              </span>
+            </div>
           </div>
-          <div>
-            <span>最后修改于 {formatDate(editingCard.update_time, true)}</span>
+          <div className={styles.moreActions}>
+            <Dropdown
+              menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}
+            >
+              <MoreOutlined />
+            </Dropdown>
           </div>
         </div>
         <div className={styles.editorContainer}>
@@ -309,6 +365,14 @@ const EditCard = (props: IEditCardProps) => {
           onClose={() => setEditorSourceValueOpen(false)}
           content={editingCard.content}
         />
+        {presentationMode && (
+          <PresentationMode
+            content={editingCard.content}
+            onExit={() => {
+              setPresentationMode(false);
+            }}
+          />
+        )}
       </div>
     </EditCardContext.Provider>
   );
