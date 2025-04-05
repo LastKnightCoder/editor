@@ -79,8 +79,8 @@ export interface RichtextRef {
   setEditorValue: (value: Descendant[]) => void;
 }
 
-const PADDING_WIDTH = 16;
-const PADDING_HEIGHT = 16;
+const PADDING_WIDTH = 20;
+const PADDING_HEIGHT = 20;
 
 const Richtext = forwardRef<RichtextRef, RichTextProps>(
   (props: RichTextProps, ref) => {

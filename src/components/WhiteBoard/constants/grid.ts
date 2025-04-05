@@ -1,7 +1,7 @@
 export const DEFAULT_GRID_SIZE = 100;
 export const DEFAULT_GRID_COLOR = "#ddd";
 export const DEFAULT_GRID_OPACITY = 0.5;
-export const DEFAULT_GRID_VISIBLE = true;
+export const DEFAULT_GRID_VISIBLE = false;
 export const GRID_SIZE_OPTIONS = [
   { value: 25, lable: "极小" },
   { value: 50, lable: "小" },

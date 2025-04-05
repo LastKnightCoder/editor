@@ -1,37 +1,44 @@
-import React, { useState } from "react";
+import React from "react";
 import { Flex, Switch, Select, Popover, Tooltip } from "antd";
+import { useMemoizedFn } from "ahooks";
 import { BorderOutlined } from "@ant-design/icons";
-import {
-  GRID_SIZE_OPTIONS,
-  DEFAULT_GRID_VISIBLE,
-  DEFAULT_GRID_SIZE,
-} from "../../constants";
+import { GRID_SIZE_OPTIONS } from "../../constants";
 import styles from "./index.module.less";
 
 interface GridSettingsProps {
+  gridVisible?: boolean;
+  gridSize?: number;
   onVisibleChange?: (visible: boolean) => void;
   onSizeChange?: (size: number) => void;
 }
 
 const GridSettings: React.FC<GridSettingsProps> = ({
+  gridVisible,
+  gridSize,
   onVisibleChange,
   onSizeChange,
 }) => {
-  const [gridVisible, setGridVisible] = useState<boolean>(DEFAULT_GRID_VISIBLE);
-  const [gridSize, setGridSize] = useState<number>(DEFAULT_GRID_SIZE);
-
-  const handleVisibleChange = (checked: boolean) => {
-    setGridVisible(checked);
+  const handleVisibleChange = useMemoizedFn((checked: boolean) => {
     onVisibleChange?.(checked);
-  };
+  });
 
-  const handleSizeChange = (value: number) => {
-    setGridSize(value);
+  const handleSizeChange = useMemoizedFn((value: number) => {
     onSizeChange?.(value);
-  };
+  });
+
+  const stopPropagation = useMemoizedFn((e: any) => {
+    e.stopPropagation();
+  });
 
   const content = (
-    <Flex vertical gap={8} className={styles.gridSettingsContent}>
+    <Flex
+      vertical
+      gap={8}
+      className={styles.gridSettingsContent}
+      onClick={stopPropagation}
+      onPointerDown={stopPropagation}
+      onDoubleClick={stopPropagation}
+    >
       <Flex align="center" justify="space-between">
         <span>显示网格</span>
         <Switch checked={gridVisible} onChange={handleVisibleChange} />
@@ -65,7 +72,12 @@ const GridSettings: React.FC<GridSettingsProps> = ({
       }}
     >
       <Tooltip title="网格设置">
-        <div className={styles.gridSettingsButton}>
+        <div
+          className={styles.gridSettingsButton}
+          onClick={stopPropagation}
+          onPointerDown={stopPropagation}
+          onDoubleClick={stopPropagation}
+        >
           <BorderOutlined />
         </div>
       </Tooltip>

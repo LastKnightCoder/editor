@@ -21,6 +21,7 @@ interface WhiteBoardCardProps {
   whiteBoard: WhiteBoard;
   className?: string;
   style?: React.CSSProperties;
+  onClick?: () => void;
 }
 
 const { Text, Paragraph } = Typography;
@@ -35,21 +36,19 @@ const defaultSnapshot =
   "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
 
 const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
-  const { whiteBoard, className, style } = props;
+  const { whiteBoard, className, style, onClick } = props;
 
   const { isDark } = useTheme();
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
-  const { activeWhiteBoardId, updateWhiteBoard, deleteWhiteBoard } =
-    useWhiteBoardStore(
-      useShallow((state) => ({
-        activeWhiteBoardId: state.activeWhiteBoardId,
-        updateWhiteBoard: state.updateWhiteBoard,
-        deleteWhiteBoard: state.deleteWhiteBoard,
-      })),
-    );
+  const { updateWhiteBoard, deleteWhiteBoard } = useWhiteBoardStore(
+    useShallow((state) => ({
+      updateWhiteBoard: state.updateWhiteBoard,
+      deleteWhiteBoard: state.deleteWhiteBoard,
+    })),
+  );
 
   const uploadResource = useUploadResource();
 
@@ -102,13 +101,6 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
       },
     });
     setSettingOpen(false);
-  };
-
-  const onClick = () => {
-    useWhiteBoardStore.setState({
-      activeWhiteBoardId:
-        whiteBoard.id === activeWhiteBoardId ? null : whiteBoard.id,
-    });
   };
 
   return (

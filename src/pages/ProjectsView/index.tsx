@@ -6,7 +6,7 @@ import { FloatButton, message, Button, Breadcrumb } from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { FaArchive } from "react-icons/fa";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
-import EditProjectInfoModal from "@/layouts/components/EditProjectInfoModal";
+import EditProjectInfoModal from "./EditProjectInfoModal";
 import ProjectList from "./ProjectList";
 
 import styles from "./index.module.less";

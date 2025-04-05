@@ -25,13 +25,11 @@ const Grid: React.FC<GridProps> = ({
   const viewPort = useViewPort();
   const { minX, minY, width, height, zoom } = viewPort;
 
-  // Calculate grid boundaries based on viewport
   const startX = Math.floor(minX / gridSize) * gridSize;
   const startY = Math.floor(minY / gridSize) * gridSize;
   const endX = Math.ceil((minX + width) / gridSize) * gridSize;
   const endY = Math.ceil((minY + height) / gridSize) * gridSize;
 
-  // Update grid reference lines when viewport changes
   useEffect(() => {
     if (!board || !visible) return;
 

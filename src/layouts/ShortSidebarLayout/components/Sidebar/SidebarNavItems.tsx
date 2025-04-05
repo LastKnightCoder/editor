@@ -115,7 +115,7 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         key: "whiteBoard",
         icon: whiteBoard,
         desc: "白板",
-        path: "/white-boards",
+        path: "/white-board/list",
         enable: module.whiteBoard.enable,
       },
       {
