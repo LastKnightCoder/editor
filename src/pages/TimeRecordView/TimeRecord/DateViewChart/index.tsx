@@ -1,8 +1,11 @@
+import { memo } from "react";
+import { Card, Row } from "antd";
+
 import { ITimeRecord } from "@/types";
+
 import ColumnStatistic from "../ColumnStatistic";
 import PieStatistic from "../PieStatistic";
-import { Card, Col, Row } from "antd";
-import { memo } from "react";
+import ContainerCol from "@/components/ContainerCol";
 
 interface DateViewChartProps {
   timeRecords: ITimeRecord[];
@@ -13,16 +16,14 @@ const DateViewChart = memo((props: DateViewChartProps) => {
 
   return (
     <Row gutter={[16, 16]}>
-      <Col sm={24} md={24} xxl={12}>
-        <Card style={{ height: "100%" }}>
-          <PieStatistic timeRecords={timeRecords} />
-        </Card>
-      </Col>
-      <Col sm={24} md={24} xxl={12}>
+      <ContainerCol forceRefresh md={24} xl={12}>
+        <PieStatistic timeRecords={timeRecords} />
+      </ContainerCol>
+      <ContainerCol forceRefresh md={24} xl={12}>
         <Card style={{ height: "100%" }}>
           <ColumnStatistic timeRecords={timeRecords} />
         </Card>
-      </Col>
+      </ContainerCol>
     </Row>
   );
 });

@@ -8,11 +8,11 @@ import {
   IUpdateDocumentItem,
 } from "@/types";
 import { Descendant } from "slate";
-import Operation from "./operation";
 import { getContentLength } from "@/utils/helper";
 import { BrowserWindow } from "electron";
 import { basename } from "node:path";
 
+import Operation from "./operation";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
@@ -209,6 +209,11 @@ export default class DocumentTable {
       console.error("Error parsing content:", error);
     }
 
+    // 使用文档条目和内容表中最大的更新时间
+    const updateTime = item.content_update_time
+      ? Math.max(item.update_time, item.content_update_time)
+      : item.update_time;
+
     const res = {
       ...item,
       authors: JSON.parse(item.authors || "[]"),
@@ -218,7 +223,7 @@ export default class DocumentTable {
       parents: JSON.parse(item.parents || "[]"),
       isDelete: item.is_delete,
       createTime: item.create_time,
-      updateTime: item.update_time,
+      updateTime: updateTime,
       bannerBg: item.banner_bg,
       isDirectory: item.is_directory,
       isArticle: item.is_article,
@@ -524,7 +529,7 @@ export default class DocumentTable {
 
   static getDocumentItem(db: Database.Database, id: number): IDocumentItem {
     const stmt = db.prepare(`
-      SELECT di.*, c.content, c.count
+      SELECT di.*, c.content, c.count, c.update_time as content_update_time
       FROM document_items di
       LEFT JOIN contents c ON di.content_id = c.id
       WHERE di.id = ?
@@ -541,7 +546,7 @@ export default class DocumentTable {
 
     const placeholders = ids.map(() => "?").join(",");
     const stmt = db.prepare(
-      `SELECT di.*, c.content, c.count
+      `SELECT di.*, c.content, c.count, c.update_time as content_update_time
        FROM document_items di
        LEFT JOIN contents c ON di.content_id = c.id
        WHERE di.id IN (${placeholders})`,
@@ -552,7 +557,7 @@ export default class DocumentTable {
 
   static getAllDocumentItems(db: Database.Database): IDocumentItem[] {
     const stmt = db.prepare(`
-      SELECT di.*, c.content, c.count
+      SELECT di.*, c.content, c.count, c.update_time as content_update_time
       FROM document_items di
       LEFT JOIN contents c ON di.content_id = c.id
     `);

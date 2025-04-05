@@ -230,10 +230,15 @@ export default class ProjectTable {
       }
     }
 
+    // 使用项目条目和内容表中最大的更新时间
+    const updateTime = item.content_update_time
+      ? Math.max(item.update_time, item.content_update_time)
+      : item.update_time;
+
     return {
       id: item.id,
       createTime: item.create_time,
-      updateTime: item.update_time,
+      updateTime: updateTime,
       title: item.title,
       content: content,
       children: JSON.parse(item.children || "[]"),
@@ -543,7 +548,7 @@ export default class ProjectTable {
 
   static getProjectItem(db: Database.Database, id: number): ProjectItem {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
       WHERE pi.id = ?
@@ -558,7 +563,7 @@ export default class ProjectTable {
   ): ProjectItem[] {
     const placeholders = ids.map(() => "?").join(",");
     const stmt = db.prepare(
-      `SELECT pi.*, c.content, c.count
+      `SELECT pi.*, c.content, c.count, c.update_time as content_update_time
        FROM project_item pi
        LEFT JOIN contents c ON pi.content_id = c.id
        WHERE pi.id IN (${placeholders})`,
@@ -573,7 +578,7 @@ export default class ProjectTable {
     refId: number,
   ): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
       WHERE pi.ref_type = ? AND pi.ref_id = ?
@@ -602,7 +607,7 @@ export default class ProjectTable {
     projectId: number,
   ): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
       WHERE json_array_length(pi.projects) = 0
@@ -617,7 +622,7 @@ export default class ProjectTable {
 
   static getProjectItemsNotInAnyProject(db: Database.Database): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
       WHERE json_array_length(pi.projects) = 0
@@ -675,7 +680,7 @@ export default class ProjectTable {
 
   static getAllProjectItems(db: Database.Database): ProjectItem[] {
     const stmt = db.prepare(`
-      SELECT pi.*, c.content, c.count
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
     `);
