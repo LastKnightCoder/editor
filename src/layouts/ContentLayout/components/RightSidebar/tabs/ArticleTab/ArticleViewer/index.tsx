@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Empty } from "antd";
-import { useMemoizedFn, useCreation } from "ahooks";
+import {
+  useMemoizedFn,
+  useCreation,
+  useRafInterval,
+  useDebounceFn,
+  useUnmount,
+} from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 
 import Editor, { EditorRef } from "@editor/index.tsx";
@@ -35,6 +41,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
+  const prevArticle = useRef<IArticle | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const isWindowFocused = useWindowFocus();
 
@@ -48,6 +55,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
     try {
       const fetchedArticle = await findOneArticle(Number(articleId));
       setArticle(fetchedArticle);
+      prevArticle.current = fetchedArticle;
       if (onTitleChange) {
         onTitleChange(fetchedArticle.title);
       }
@@ -70,6 +78,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
       Number(articleId),
       (data) => {
         setArticle(data.article);
+        prevArticle.current = data.article;
         editorRef.current?.setEditorValue(data.article.content);
         titleRef.current?.setValue(data.article.title);
         if (onTitleChange) {
@@ -83,52 +92,68 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
     };
   }, [articleId, onTitleChange, articleEventBus]);
 
-  const handleTitleChange = useMemoizedFn(async (title: string) => {
+  const handleSaveArticle = useMemoizedFn(async () => {
+    if (!article) return null;
+    const changed =
+      JSON.stringify(article) !== JSON.stringify(prevArticle.current);
+    if (!changed) return null;
+    const updatedArticle = await updateArticle(article);
+    prevArticle.current = updatedArticle;
+    setArticle(updatedArticle);
+    return updatedArticle;
+  });
+
+  useRafInterval(async () => {
     if (
       !article ||
-      title === article.title ||
-      !titleRef.current?.isFocus() ||
-      !isWindowFocused
+      !isWindowFocused ||
+      (!titleRef.current?.isFocus() && !editorRef.current?.isFocus())
     )
       return;
-    try {
-      const updatedArticle = await updateArticle({
+    const changed =
+      JSON.stringify(article) !== JSON.stringify(prevArticle.current);
+    if (!changed) return;
+    const updatedArticle = await handleSaveArticle();
+    if (updatedArticle) {
+      articleEventBus.publishArticleEvent("article:updated", updatedArticle);
+    }
+  }, 3000);
+
+  useUnmount(async () => {
+    handleTitleChange.flush();
+    handleContentChange.flush();
+    setTimeout(async () => {
+      const updatedArticle = await handleSaveArticle();
+      if (updatedArticle) {
+        articleEventBus.publishArticleEvent("article:updated", updatedArticle);
+      }
+    }, 200);
+  });
+
+  const { run: handleTitleChange } = useDebounceFn(
+    async (title: string) => {
+      if (!article) return;
+      setArticle({
         ...article,
         title,
       });
-      setArticle(updatedArticle);
-
       if (onTitleChange) {
         onTitleChange(title);
       }
+    },
+    { wait: 200 },
+  );
 
-      articleEventBus.publishArticleEvent("article:updated", updatedArticle);
-    } catch (error) {
-      console.error("Error updating article title:", error);
-    }
-  });
-
-  const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (
-      !article ||
-      !editorRef.current ||
-      !editorRef.current.isFocus() ||
-      !isWindowFocused
-    )
-      return;
-
-    try {
-      const updatedArticle = await updateArticle({
+  const { run: handleContentChange } = useDebounceFn(
+    async (content: Descendant[]) => {
+      if (!article) return;
+      setArticle({
         ...article,
         content,
       });
-      setArticle(updatedArticle);
-
-      articleEventBus.publishArticleEvent("article:updated", updatedArticle);
-    } catch (error) {
-      console.error("Error updating article content:", error);
-    }
-  });
+    },
+    { wait: 200 },
+  );
 
   if (loading) {
     return (

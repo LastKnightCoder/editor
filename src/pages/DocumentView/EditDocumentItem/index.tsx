@@ -28,8 +28,6 @@ import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import EditText, { EditTextHandle } from "@/components/EditText";
-import { Descendant } from "slate";
-import useDocumentsStore from "@/stores/useDocumentsStore";
 
 const extensions = [
   cardLinkExtension,
@@ -37,7 +35,12 @@ const extensions = [
   fileAttachmentExtension,
 ];
 
-const EditDocumentItem = memo(() => {
+interface EditDocumentItemProps {
+  documentItemId: number;
+}
+
+const EditDocumentItem = memo((props: EditDocumentItemProps) => {
+  const { documentItemId } = props;
   const titleRef = useRef<EditTextHandle>(null);
   const editorRef = useRef<EditorRef>(null);
   const [readonly, setReadonly] = useState(false);
@@ -46,9 +49,6 @@ const EditDocumentItem = memo(() => {
     [],
   );
 
-  const activeDocumentItemId = useDocumentsStore(
-    (state) => state.activeDocumentItemId,
-  );
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
   const isWindowFocused = useWindowFocus();
@@ -61,37 +61,29 @@ const EditDocumentItem = memo(() => {
     onTitleChange,
     initValue,
     setDocumentItem,
-  } = useEditDoc(activeDocumentItemId);
+    prevDocument,
+  } = useEditDoc(documentItemId);
 
   const uploadResource = useUploadResource();
 
   useEffect(() => {
-    if (!activeDocumentItemId) return;
+    if (!documentItemId) return;
 
     const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
       "document-item:updated",
-      activeDocumentItemId,
+      documentItemId,
       (data) => {
         editorRef.current?.setEditorValue(data.documentItem.content);
         titleRef.current?.setValue(data.documentItem.title);
         setDocumentItem(data.documentItem);
+        prevDocument.current = data.documentItem;
       },
     );
 
     return () => {
       unsubscribe();
     };
-  }, [activeDocumentItemId, documentItemEventBus, setDocumentItem]);
-
-  const handleOnTitleChange = useMemoizedFn((title: string) => {
-    if (!documentItem || !titleRef.current?.isFocus() || !isWindowFocused)
-      return;
-    onTitleChange(title);
-    documentItemEventBus.publishDocumentItemEvent("document-item:updated", {
-      ...documentItem,
-      title,
-    });
-  });
+  }, [documentItemId, documentItemEventBus, setDocumentItem]);
 
   const handleOnPressEnter = useMemoizedFn(() => {
     if (!documentItem) return;
@@ -99,30 +91,35 @@ const EditDocumentItem = memo(() => {
     editorRef.current?.focus();
   });
 
-  const handleContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!documentItem || !editorRef.current?.isFocus() || !isWindowFocused)
-      return;
-    onContentChange(content);
-    documentItemEventBus.publishDocumentItemEvent("document-item:updated", {
-      ...documentItem,
-      content,
-    });
-  });
-
-  useRafInterval(() => {
+  useRafInterval(async () => {
     if (
       !isWindowFocused ||
       readonly ||
       (!editorRef.current?.isFocus() && !titleRef.current?.isFocus())
     )
       return;
-    saveDocument();
+    const updatedDocumentItem = await saveDocument();
+    if (updatedDocumentItem) {
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
+    }
   }, 3000);
 
   useUnmount(() => {
     if (readonly) return;
     onContentChange.flush();
-    saveDocument();
+    onTitleChange.flush();
+    setTimeout(async () => {
+      const updatedDocumentItem = await saveDocument();
+      if (updatedDocumentItem) {
+        documentItemEventBus.publishDocumentItemEvent(
+          "document-item:updated",
+          updatedDocumentItem,
+        );
+      }
+    }, 200);
   });
 
   const headers: Array<{
@@ -164,7 +161,7 @@ const EditDocumentItem = memo(() => {
             ref={titleRef}
             contentEditable={true}
             defaultValue={documentItem.title}
-            onChange={handleOnTitleChange}
+            onChange={onTitleChange}
             onPressEnter={handleOnPressEnter}
           />
           <div className={styles.time}>
@@ -180,7 +177,7 @@ const EditDocumentItem = memo(() => {
               key={documentItem.id}
               ref={editorRef}
               initValue={initValue}
-              onChange={handleContentChange}
+              onChange={onContentChange}
               readonly={readonly}
               uploadResource={uploadResource}
               extensions={extensions}

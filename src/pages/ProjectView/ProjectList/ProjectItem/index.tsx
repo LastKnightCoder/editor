@@ -12,6 +12,7 @@ import {
   updateProjectItem,
   openProjectItemInNewWindow,
   createVideoNote,
+  deleteProjectItem,
 } from "@/commands";
 
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
@@ -199,18 +200,27 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           if (projectId) {
             await removeRootProjectItem(projectId, projectItemId);
             refreshProject?.();
+            const updatedProjectItem = await getProjectItemById(projectItemId);
+            if (updatedProjectItem.projects.length === 0) {
+              await deleteProjectItem(projectItemId);
+            }
           }
         } else {
           if (parentProjectItemId) {
             await removeChildProjectItem(parentProjectItemId, projectItemId);
             const updatedProjectItem =
               await getProjectItemById(parentProjectItemId);
-            defaultProjectItemEventBus
-              .createEditor()
-              .publishProjectItemEvent(
-                "project-item:updated",
-                updatedProjectItem,
-              );
+            if (updatedProjectItem.projects.length === 0) {
+              await deleteProjectItem(projectItemId);
+              return;
+            } else {
+              defaultProjectItemEventBus
+                .createEditor()
+                .publishProjectItemEvent(
+                  "project-item:updated",
+                  updatedProjectItem,
+                );
+            }
           }
         }
         if (activeProjectItemId === projectItemId) {

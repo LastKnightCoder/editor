@@ -260,15 +260,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
             editorDidMount={(editor: Editor) => {
               editorRef.current = editor;
               onDidMount && onDidMount(editor);
-              // 添加聚焦事件监听
-              editor.on("focus", () => {
-                document.dispatchEvent(new CustomEvent("code-block-focus"));
-              });
-
-              // 添加失焦事件监听
-              editor.on("blur", () => {
-                document.dispatchEvent(new CustomEvent("code-block-blur"));
-              });
             }}
             editorWillUnmount={(editor: Editor) => {
               onWillUnmount && onWillUnmount(editor);

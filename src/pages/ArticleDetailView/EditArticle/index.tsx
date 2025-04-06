@@ -6,6 +6,7 @@ import {
   useThrottleFn,
   useSize,
   useCreation,
+  useUnmount,
 } from "ahooks";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import AddTag from "@/components/AddTag";
@@ -208,68 +209,48 @@ const EditArticle = memo((props: IEditArticleProps) => {
   }, [articleId, articleEventBus]);
 
   const handleOnEditorContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (
-      !editingArticle ||
-      !editorRef.current ||
-      !editorRef.current.isFocus() ||
-      !isWindowFocused
-    )
-      return;
+    if (!editingArticle) return;
     onContentChange(content);
-    articleEventBus.publishArticleEvent("article:updated", {
-      ...editingArticle,
-      content,
-    });
   });
 
   const handleOnTitleChange = useMemoizedFn((title: string) => {
-    if (
-      !editingArticle ||
-      !titleRef.current ||
-      !titleRef.current.isFocus() ||
-      !isWindowFocused
-    )
-      return;
+    if (!editingArticle) return;
     onTitleChange(title);
-    articleEventBus.publishArticleEvent("article:updated", {
-      ...editingArticle,
-      title,
-    });
   });
 
   const handleAddTag = useMemoizedFn((tag: string) => {
     if (!editingArticle || editingArticle.tags.includes(tag)) return;
     onAddTag(tag);
-    articleEventBus.publishArticleEvent("article:updated", {
-      ...editingArticle,
-      tags: [...editingArticle.tags, tag],
-    });
   });
 
   const handleDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingArticle || !editingArticle.tags.includes(tag)) return;
     onDeleteTag(tag);
-    articleEventBus.publishArticleEvent("article:updated", {
-      ...editingArticle,
-      tags: editingArticle.tags.filter((t) => t !== tag),
-    });
   });
 
-  useRafInterval(() => {
+  useRafInterval(async () => {
     if (
       !editingArticle ||
       (!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
       !isWindowFocused
     )
       return;
-    saveArticle();
+    const updatedArticle = await saveArticle();
+    if (updatedArticle) {
+      articleEventBus.publishArticleEvent("article:updated", updatedArticle);
+    }
   }, 3000);
 
-  useEffect(() => {
-    return () => {
-      saveArticle(true);
-    };
-  }, [saveArticle]);
+  useUnmount(async () => {
+    onContentChange.flush();
+    onTitleChange.flush();
+    setTimeout(async () => {
+      const updatedArticle = await saveArticle();
+      if (updatedArticle) {
+        articleEventBus.publishArticleEvent("article:updated", updatedArticle);
+      }
+    }, 200);
+  });
 
   const onClickHeader = useMemoizedFn((index: number) => {
     if (!editorRef.current) return;

@@ -5,25 +5,61 @@ import { useNavigate } from "react-router-dom";
 import EditProjectView from "./EditProjectView";
 import styles from "./index.module.less";
 import { useParams } from "react-router-dom";
-import { Breadcrumb, Empty } from "antd";
+import { Breadcrumb, Empty, Button } from "antd";
 import ProjectContext from "./ProjectContext";
 import Titlebar from "@/components/Titlebar";
+import { useMemo, useState, useEffect } from "react";
+import { Project } from "@/types";
+import { getProjectById } from "@/commands";
+import { LoadingOutlined } from "@ant-design/icons";
 
 const ProjectView = () => {
   const { id } = useParams();
 
   const navigate = useNavigate();
 
-  const breadcrumbItems = [
-    { title: "首页", path: "/" },
-    { title: "项目列表", path: "/projects/list" },
-    { title: `项目详情 #${id}`, path: `/projects/detail/${id}` },
-  ];
+  const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!id) {
+  useEffect(() => {
+    setLoading(true);
+    getProjectById(Number(id))
+      .then((project) => {
+        setProject(project);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [id]);
+
+  const breadcrumbItems = useMemo(() => {
+    if (!project) return [];
+    return [
+      { title: "首页", path: "/" },
+      { title: "项目列表", path: "/projects/list" },
+      { title: project.title, path: `/projects/detail/${project.id}` },
+    ];
+  }, [project]);
+
+  if (loading) {
     return (
-      <div>
-        <Empty description="项目不存在或已被删除" />
+      <div className={styles.loading}>
+        <LoadingOutlined />
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className={styles.empty}>
+        <Empty
+          description="项目不存在或已被删除"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        >
+          <Button type="primary" onClick={() => navigate("/projects/list")}>
+            返回项目列表
+          </Button>
+        </Empty>
       </div>
     );
   }

@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Empty } from "antd";
-import { useCreation, useMemoizedFn } from "ahooks";
+import {
+  useCreation,
+  useMemoizedFn,
+  useDebounceFn,
+  useRafInterval,
+  useUnmount,
+} from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 
 import Editor, { EditorRef } from "@editor/index.tsx";
@@ -44,6 +50,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
+  const prevDocumentItem = useRef<IDocumentItem | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const isWindowFocused = useWindowFocus();
   const fetchDocumentItem = useMemoizedFn(async () => {
@@ -51,6 +58,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
     try {
       const fetchedDocumentItem = await getDocumentItem(Number(documentItemId));
       setDocumentItem(fetchedDocumentItem);
+      prevDocumentItem.current = fetchedDocumentItem;
       if (onTitleChange) {
         onTitleChange(fetchedDocumentItem.title);
       }
@@ -68,6 +76,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
       (data) => {
         editorRef.current?.setEditorValue(data.documentItem.content);
         titleRef.current?.setValue(data.documentItem.title);
+        prevDocumentItem.current = data.documentItem;
         setDocumentItem(data.documentItem);
       },
     );
@@ -82,51 +91,91 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
     }
   }, [documentItemId, fetchDocumentItem, visible, isConnected]);
 
-  const handleTitleChange = useMemoizedFn(async (title: string) => {
-    if (
-      !documentItem ||
-      title === documentItem.title ||
-      !titleRef.current?.isFocus() ||
-      !isWindowFocused
-    )
-      return;
-
-    try {
-      const updatedDocumentItem = await updateDocumentItem({
-        ...documentItem,
-        title,
-      });
-      setDocumentItem(updatedDocumentItem);
-
-      if (onTitleChange) {
-        onTitleChange(title);
-      }
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDocumentItem,
-      );
-    } catch (error) {
-      console.error("Error updating document item title:", error);
-    }
+  const handleSaveDocumentItem = useMemoizedFn(async () => {
+    if (!documentItem) return null;
+    const changed =
+      JSON.stringify(documentItem) !== JSON.stringify(prevDocumentItem.current);
+    if (!changed) return null;
+    const updatedDocumentItem = await updateDocumentItem(documentItem);
+    prevDocumentItem.current = updatedDocumentItem;
+    setDocumentItem(updatedDocumentItem);
+    return updatedDocumentItem;
   });
 
-  const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (!documentItem || !editorRef.current?.isFocus() || !isWindowFocused)
-      return;
+  const { run: handleTitleChange } = useDebounceFn(
+    async (title: string) => {
+      if (
+        !documentItem ||
+        title === documentItem.title ||
+        !titleRef.current?.isFocus() ||
+        !isWindowFocused
+      )
+        return;
 
-    try {
-      const updatedDocumentItem = await updateDocumentItem({
-        ...documentItem,
-        content,
-      });
-      setDocumentItem(updatedDocumentItem);
+      try {
+        setDocumentItem({
+          ...documentItem,
+          title,
+        });
+
+        if (onTitleChange) {
+          onTitleChange(title);
+        }
+      } catch (error) {
+        console.error("Error updating document item title:", error);
+      }
+    },
+    { wait: 200 },
+  );
+
+  const { run: handleContentChange } = useDebounceFn(
+    async (content: Descendant[]) => {
+      if (!documentItem || !editorRef.current?.isFocus() || !isWindowFocused)
+        return;
+
+      try {
+        setDocumentItem({
+          ...documentItem,
+          content,
+        });
+      } catch (error) {
+        console.error("Error updating document item content:", error);
+      }
+    },
+    { wait: 200 },
+  );
+
+  useRafInterval(async () => {
+    if (
+      !documentItem ||
+      !isWindowFocused ||
+      (!titleRef.current?.isFocus() && !editorRef.current?.isFocus())
+    )
+      return;
+    const changed =
+      JSON.stringify(documentItem) !== JSON.stringify(prevDocumentItem.current);
+    if (!changed) return;
+    const updatedDocumentItem = await handleSaveDocumentItem();
+    if (updatedDocumentItem) {
       documentItemEventBus.publishDocumentItemEvent(
         "document-item:updated",
         updatedDocumentItem,
       );
-    } catch (error) {
-      console.error("Error updating document item content:", error);
     }
+  }, 3000);
+
+  useUnmount(async () => {
+    handleTitleChange.flush();
+    handleContentChange.flush();
+    setTimeout(async () => {
+      const updatedDocumentItem = await handleSaveDocumentItem();
+      if (updatedDocumentItem) {
+        documentItemEventBus.publishDocumentItemEvent(
+          "document-item:updated",
+          updatedDocumentItem,
+        );
+      }
+    }, 200);
   });
 
   if (loading) {

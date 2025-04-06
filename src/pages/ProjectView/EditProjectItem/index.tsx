@@ -18,7 +18,6 @@ import {
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 import styles from "./index.module.less";
-import { Descendant } from "slate";
 
 const extensions = [
   cardLinkExtension,
@@ -44,6 +43,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     onContentChange,
     saveProjectItem,
     setProjectItem,
+    prevProjectItem,
   } = useEdit(projectItemId);
 
   const { showOutline, readonly } = useProjectsStore(
@@ -53,19 +53,35 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     })),
   );
 
-  useRafInterval(() => {
+  useRafInterval(async () => {
     if (
       readonly ||
       (!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
       !isWindowFocused
     )
       return;
-    saveProjectItem();
+    const updatedProjectItem = await saveProjectItem();
+    if (updatedProjectItem) {
+      projectItemEventBus.publishProjectItemEvent(
+        "project-item:updated",
+        updatedProjectItem,
+      );
+    }
   }, 3000);
 
-  useUnmount(() => {
+  useUnmount(async () => {
     if (readonly) return;
-    saveProjectItem();
+    onContentChange.flush();
+    onTitleChange.flush();
+    setTimeout(async () => {
+      const updatedProjectItem = await saveProjectItem();
+      if (updatedProjectItem) {
+        projectItemEventBus.publishProjectItemEvent(
+          "project-item:updated",
+          updatedProjectItem,
+        );
+      }
+    }, 200);
   });
 
   const uploadResource = useUploadResource();
@@ -84,6 +100,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       projectItemId,
       (data) => {
         setProjectItem(data.projectItem);
+        prevProjectItem.current = data.projectItem;
         editorRef.current?.setEditorValue(data.projectItem.content);
         titleRef.current?.setValue(data.projectItem.title);
       },
@@ -94,37 +111,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     };
   }, [projectItemId, projectItemEventBus, setProjectItem]);
 
-  const handleOnTitleChange = useMemoizedFn((title: string) => {
-    if (
-      !projectItem ||
-      !titleRef.current ||
-      !titleRef.current.isFocus() ||
-      !isWindowFocused
-    )
-      return;
-    onTitleChange(title);
-    projectItemEventBus.publishProjectItemEvent("project-item:updated", {
-      ...projectItem,
-      title,
-    });
-  });
-
-  const handleOnContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (
-      !projectItem ||
-      !editorRef.current ||
-      !editorRef.current.isFocus() ||
-      !isWindowFocused
-    )
-      return;
-    onContentChange(content);
-    projectItemEventBus.publishProjectItemEvent("project-item:updated", {
-      ...projectItem,
-      content,
-    });
-  });
-
   if (!projectItem) return null;
+
   return (
     <div className={styles.editProjectContainer}>
       <div className={styles.editProject}>
@@ -134,7 +122,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               key={projectItem.id}
               ref={titleRef}
               defaultValue={projectItem.title}
-              onChange={handleOnTitleChange}
+              onChange={onTitleChange}
               contentEditable={!readonly}
               onPressEnter={onPressEnter}
             />
@@ -153,7 +141,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               ref={editorRef}
               initValue={projectItem.content}
               onInit={onInit}
-              onChange={handleOnContentChange}
+              onChange={onContentChange}
               uploadResource={uploadResource}
               readonly={readonly}
               extensions={extensions}

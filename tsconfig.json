@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ESNext"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
     "skipLibCheck": true,
     /* Bundler mode */
@@ -23,27 +19,10 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@quick-card/*": [
-        "./quick-card/*"
-      ],
-      "@quick-time-record/*": [
-        "./quick-time-record/*"
-      ],
-      "@editor/*": [
-        "./src/components/Editor/*"
-      ]
-    },
+      "@/*": ["./src/*"],
+      "@editor/*": ["./src/components/Editor/*"]
+    }
   },
-  "include": [
-    "src",
-    "quick-card",
-    "quick-time-record",
-    "src-electron"
-  ],
-  "exclude": [
-    "demos"
-  ],
+  "include": ["src", "src-electron"],
+  "exclude": ["demos"]
 }
