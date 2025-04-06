@@ -18,7 +18,7 @@ import {
   RenderLeafProps,
 } from "slate-react";
 import { withHistory } from "slate-history";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 
 import { DEFAULT_CARD_CONTENT } from "@/constants";
 import useTheme from "@/hooks/useTheme";
@@ -125,15 +125,13 @@ const Index = memo(
     } = props;
 
     const { theme: systemTheme } = useTheme();
-    const [isCodeBlockFocused, setIsCodeBlockFocused] = useState(false);
-    const [isToolbarAction, setIsToolbarAction] = useState(false);
 
     const finalExtensions = useMemo(() => {
       if (!extensions) return startExtensions;
       return [...startExtensions, ...extensions];
     }, [extensions]);
 
-    const [editor] = useState(() => {
+    const editor = useCreation(() => {
       const extensionPlugins = finalExtensions
         .map((extension) => extension.getPlugins())
         .flat();
@@ -141,7 +139,7 @@ const Index = memo(
         createEditor(),
         defaultPlugins.concat(extensionPlugins),
       );
-    });
+    }, [finalExtensions]);
 
     const hotKeyConfigs = useMemo(() => {
       return finalExtensions
@@ -215,35 +213,6 @@ const Index = memo(
         setIsNormalized(true);
       }
     });
-
-    useEffect(() => {
-      const handleCodeBlockFocus = () => {
-        setIsCodeBlockFocused(true);
-      };
-
-      const handleCodeBlockBlur = () => {
-        setTimeout(() => {
-          setIsCodeBlockFocused(false);
-        }, 10);
-      };
-
-      const handleToolbarAction = () => {
-        setIsToolbarAction(true);
-        setTimeout(() => {
-          setIsToolbarAction(false);
-        }, 100);
-      };
-
-      document.addEventListener("code-block-focus", handleCodeBlockFocus);
-      document.addEventListener("code-block-blur", handleCodeBlockBlur);
-      document.addEventListener("toolbar-action", handleToolbarAction);
-
-      return () => {
-        document.removeEventListener("code-block-focus", handleCodeBlockFocus);
-        document.removeEventListener("code-block-blur", handleCodeBlockBlur);
-        document.removeEventListener("toolbar-action", handleToolbarAction);
-      };
-    }, []);
 
     useImperativeHandle(
       ref,
@@ -351,20 +320,7 @@ const Index = memo(
               }
             }}
             onFocus={onFocus}
-            onBlur={(e) => {
-              const activeElement = document.activeElement;
-              const isEditingCodeBlock =
-                activeElement &&
-                (activeElement.classList.contains("cm-editor") ||
-                  activeElement.closest(".cm-editor") !== null);
-
-              if (isEditingCodeBlock || isCodeBlockFocused || isToolbarAction) {
-                e.preventDefault();
-                return;
-              }
-
-              onBlur && onBlur();
-            }}
+            onBlur={onBlur}
           />
           <ImagesOverview />
           {!readonly && <HoveringToolbar configs={finalHoveringBarConfigs} />}

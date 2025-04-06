@@ -44,10 +44,10 @@ const useEditDoc = (documentItemId: number | null) => {
     setInitValue(documentItem.content);
   }, [documentItemId]);
 
-  const saveDocument = useMemoizedFn(async (saveAnyway = false) => {
+  const saveDocument = useMemoizedFn(async () => {
     const changed =
       JSON.stringify(documentItem) !== JSON.stringify(prevDocument.current);
-    if (!documentItem || !(changed || saveAnyway)) return;
+    if (!documentItem || !changed) return;
     const updatedDoc = await updateDocumentItem(documentItem);
     setDocumentItem(updatedDoc);
     prevDocument.current = updatedDoc;
@@ -58,6 +58,7 @@ const useEditDoc = (documentItemId: number | null) => {
       const article = await findOneArticle(documentItem.articleId);
       articleEventBus.publishArticleEvent("article:updated", article);
     }
+    return updatedDoc;
   });
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
@@ -69,13 +70,16 @@ const useEditDoc = (documentItemId: number | null) => {
     setDocumentItem(newDocumentItem);
   });
 
-  const onTitleChange = useMemoizedFn((title: string) => {
-    if (!documentItem) return;
-    const newDocument = produce(documentItem, (draft) => {
-      draft.title = title;
-    });
-    setDocumentItem(newDocument);
-  });
+  const { run: onTitleChange } = useDebounceFn(
+    (title: string) => {
+      if (!documentItem) return;
+      const newDocument = produce(documentItem, (draft) => {
+        draft.title = title;
+      });
+      setDocumentItem(newDocument);
+    },
+    { wait: 200 },
+  );
 
   const { run: onContentChange } = useDebounceFn(
     (content: Descendant[]) => {
@@ -87,7 +91,7 @@ const useEditDoc = (documentItemId: number | null) => {
       });
       setDocumentItem(newDocument);
     },
-    { wait: 500 },
+    { wait: 200 },
   );
 
   return {
@@ -98,6 +102,7 @@ const useEditDoc = (documentItemId: number | null) => {
     initValue,
     onInit,
     setDocumentItem,
+    prevDocument,
   };
 };
 

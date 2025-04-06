@@ -1,5 +1,11 @@
 import { Descendant } from "slate";
-import { useMemoizedFn, useCreation, useRafInterval } from "ahooks";
+import {
+  useMemoizedFn,
+  useCreation,
+  useRafInterval,
+  useUnmount,
+  useDebounceFn,
+} from "ahooks";
 import { Button, Modal, Tooltip } from "antd";
 import { ExpandOutlined, CloseOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
@@ -44,6 +50,8 @@ const CardPreview = (props: CardPreviewProps) => {
     onAddTag,
     onDeleteTag,
     saveCard,
+    prevCard,
+    setEditingCard,
   } = useEditCard(cardId);
 
   const uploadResource = useUploadResource();
@@ -54,6 +62,8 @@ const CardPreview = (props: CardPreviewProps) => {
         "card:updated",
         editingCard.id,
         (data) => {
+          setEditingCard(data.card);
+          prevCard.current = data.card;
           editorRef.current?.setEditorValue(data.card.content);
         },
       );
@@ -63,55 +73,52 @@ const CardPreview = (props: CardPreviewProps) => {
     }
   }, [cardId, visible, cardEventBus, editingCard]);
 
-  useRafInterval(() => {
-    if (isWindowFocused && editingCard) {
-      saveCard();
+  useRafInterval(async () => {
+    if (isWindowFocused && editingCard && editorRef.current?.isFocus()) {
+      const updatedCard = await saveCard();
+      if (updatedCard) {
+        cardEventBus.publishCardEvent("card:updated", updatedCard);
+      }
     }
   }, 3000);
+
+  useUnmount(async () => {
+    onContentChange.flush();
+    setTimeout(async () => {
+      const updatedCard = await saveCard();
+      if (updatedCard) {
+        cardEventBus.publishCardEvent("card:updated", updatedCard);
+      }
+    }, 200);
+  });
 
   const handleAddTag = useMemoizedFn((tag: string) => {
     if (!editingCard || editingCard.tags.includes(tag)) return;
     onAddTag(tag);
-    if (editingCard) {
-      cardEventBus.publishCardEvent("card:updated", {
-        ...editingCard,
-        tags: [...editingCard.tags, tag],
-      });
-    }
   });
 
   const handleDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingCard || !editingCard.tags.includes(tag)) return;
     onDeleteTag(tag);
-    if (editingCard) {
-      cardEventBus.publishCardEvent("card:updated", {
-        ...editingCard,
-        tags: editingCard.tags.filter((t) => t !== tag),
-      });
-    }
   });
 
   const handleClose = useMemoizedFn(() => {
-    saveCard();
     onClose();
   });
 
   const handleGoToDetail = useMemoizedFn(() => {
     if (editingCard) {
-      saveCard();
       navigate(`/cards/detail/${editingCard.id}`);
     }
   });
 
-  const onChange = useMemoizedFn((value: Descendant[]) => {
-    if (!editingCard || !editorRef.current?.isFocus() || !isWindowFocused)
-      return;
-    onContentChange(value);
-    cardEventBus.publishCardEvent("card:updated", {
-      ...editingCard,
-      content: value,
-    });
-  });
+  const { run: onChange } = useDebounceFn(
+    (value: Descendant[]) => {
+      if (!editingCard) return;
+      onContentChange(value);
+    },
+    { wait: 200 },
+  );
 
   const renderHeader = () => (
     <div className={styles.header}>

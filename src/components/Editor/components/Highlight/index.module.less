@@ -1,38 +1,25 @@
 .highlight {
-  background: var(--comments-background-color);
-  border-bottom: 2px solid var(--comments-border-color);
-
-  //&:hover {
-  //  background-color: var(--hover-color);
-  //}
+  background-image: paint(marker-highlight);
+  --marker-roughness: 0.3;
+  --marker-offset: 1.25em;
 
   &.yellow {
-    --comments-background-color: rgba(255, 212, 0, 0.14);
-    --comments-border-color: rgb(255, 212, 0);
-    --hover-color: rgba(255, 212, 0, 0.42);
+    --marker-color: rgba(255, 212, 0, 0.14);
   }
 
   &.red {
-    --comments-background-color: rgba(239, 35, 60, 0.14);
-    --comments-border-color: rgb(239, 35, 60);
-    --hover-color: rgba(239, 35, 60, 0.42);
+    --marker-color: rgba(239, 35, 60, 0.14);
   }
 
   &.blue {
-    --comments-background-color: rgba(162, 210, 255, 0.14);
-    --comments-border-color: rgb(162, 210, 255);
-    --hover-color: rgba(162, 210, 255, 0.42);
+    --marker-color: rgba(162, 210, 255, 0.14);
   }
 
   &.green {
-    --comments-background-color: rgba(42, 157, 143, 0.14);
-    --comments-border-color: rgb(42, 157, 143);
-    --hover-color: rgba(42, 157, 143, 0.42);
+    --marker-color: rgba(42, 157, 143, 0.14);
   }
 
   &.purple {
-    --comments-background-color: rgba(94, 84, 142, 0.14);
-    --comments-border-color: rgb(94, 84, 142);
-    --hover-color: rgba(94, 84, 142, 0.42);
+    --marker-color: rgba(94, 84, 142, 0.14);
   }
 }

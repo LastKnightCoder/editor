@@ -16,7 +16,6 @@ import {
   updateProjectItem,
   getProjectItemById,
   getProjectById,
-  deleteProjectItem,
 } from "@/commands";
 
 interface IState {
@@ -166,11 +165,6 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     for (const projectId of projectItem.projects) {
       await tryRemoveFromProject(projectItemId, projectId);
     }
-    // 如果 projectItem 的 projects 为空，则删除 projectItem
-    const updatedProjectItem = await getProjectItemById(projectItemId);
-    if (updatedProjectItem.projects.length === 0) {
-      await deleteProjectItem(projectItemId);
-    }
   },
   removeChildProjectItem: async (parentProjectItemId, projectItemId) => {
     const { tryRemoveFromProject } = get();
@@ -189,11 +183,6 @@ const useProjectsStore = create<IState & IActions>((set, get) => ({
     await updateProjectItem(newProjectItem);
     for (const projectId of newProjectItem.projects) {
       await tryRemoveFromProject(projectItemId, projectId);
-    }
-    // 如果 projectItem 的 projects 为空，则删除 projectItem
-    const updatedProjectItem = await getProjectItemById(projectItemId);
-    if (updatedProjectItem.projects.length === 0) {
-      await deleteProjectItem(projectItemId);
     }
   },
   tryRemoveFromProject: async (projectItemId: number, projectId: number) => {

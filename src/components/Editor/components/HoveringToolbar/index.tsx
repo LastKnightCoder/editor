@@ -145,10 +145,6 @@ const HoveringToolbar = memo((props: IHoveringToolbarProps) => {
           onPointerDown={(e) => {
             e.stopPropagation();
           }}
-          onClick={(e) => {
-            document.dispatchEvent(new CustomEvent("toolbar-action"));
-            e.stopPropagation();
-          }}
         >
           {sortedConfigs.map((config) => {
             const { element: Element, id } = config;

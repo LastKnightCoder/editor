@@ -6,7 +6,7 @@ import ReactDOM from "react-dom/client";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 
-import "./init.js";
+import "./init";
 import "./main.less";
 
 import App from "@/App.tsx";

@@ -55,7 +55,12 @@ export const useItemUpdateListener = () => {
     ) => {
       const currentDatabaseName =
         useSettingStore.getState().setting.database.active;
-      if (data.databaseName !== currentDatabaseName) return;
+      console.log("article:updated", data, currentDatabaseName);
+      if (
+        data.databaseName.replace(".db", "") !==
+        currentDatabaseName.replace(".db", "")
+      )
+        return;
       const article = await findOneArticle(data.articleId);
       articleEventBus.publishArticleEvent("article:updated", article);
     };
@@ -66,7 +71,11 @@ export const useItemUpdateListener = () => {
     ) => {
       const currentDatabaseName =
         useSettingStore.getState().setting.database.active;
-      if (data.databaseName !== currentDatabaseName) return;
+      if (
+        data.databaseName.replace(".db", "") !==
+        currentDatabaseName.replace(".db", "")
+      )
+        return;
       const projectItem = await getProjectItemById(data.projectItemId);
       projectItemEventBus.publishProjectItemEvent(
         "project-item:updated",
@@ -80,7 +89,11 @@ export const useItemUpdateListener = () => {
     ) => {
       const currentDatabaseName =
         useSettingStore.getState().setting.database.active;
-      if (data.databaseName !== currentDatabaseName) return;
+      if (
+        data.databaseName.replace(".db", "") !==
+        currentDatabaseName.replace(".db", "")
+      )
+        return;
       const documentItem = await getDocumentItem(data.documentItemId);
       documentItemEventBus.publishDocumentItemEvent(
         "document-item:updated",

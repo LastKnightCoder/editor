@@ -12,7 +12,13 @@ import {
   fileAttachmentExtension,
 } from "@/editor-extensions";
 import { Descendant } from "slate";
-import { useCreation, useMemoizedFn } from "ahooks";
+import {
+  useCreation,
+  useDebounceFn,
+  useMemoizedFn,
+  useRafInterval,
+  useUnmount,
+} from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 import { defaultCardEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
@@ -30,6 +36,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   const [card, setCard] = useState<ICard | null>(null);
   const editorRef = useRef<EditorRef>(null);
   const { visible, isConnected } = useRightSidebarContext();
+  const prevCard = useRef<ICard | null>(null);
 
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
@@ -43,6 +50,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
     getCardById(Number(cardId))
       .then((card) => {
         setCard(card);
+        prevCard.current = card;
       })
       .catch((error) => {
         console.error(error);
@@ -52,7 +60,17 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       });
   }, [cardId, visible, isConnected]);
 
-  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+  const handleSaveCard = useMemoizedFn(async () => {
+    if (!card) return;
+    const changed = JSON.stringify(card) !== JSON.stringify(prevCard.current);
+    if (!changed) return null;
+    const updatedCard = await updateCard(card);
+    prevCard.current = updatedCard;
+    setCard(updatedCard);
+    return updatedCard;
+  });
+
+  useRafInterval(async () => {
     if (
       !card ||
       !editorRef.current ||
@@ -60,19 +78,32 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       !isWindowFocused
     )
       return;
-    updateCard({
-      ...card,
-      content: content,
-    })
-      .then((card) => {
-        setCard(card);
-        onTitleChange(getEditorText(content, 10));
-        cardEventBus.publishCardEvent("card:updated", card);
-      })
-      .catch((error) => {
-        console.error(error);
-      });
+    const updatedCard = await handleSaveCard();
+    if (updatedCard) {
+      cardEventBus.publishCardEvent("card:updated", updatedCard);
+    }
+  }, 3000);
+
+  useUnmount(async () => {
+    onContentChange.flush();
+    setTimeout(async () => {
+      const updatedCard = await handleSaveCard();
+      if (updatedCard) {
+        cardEventBus.publishCardEvent("card:updated", updatedCard);
+      }
+    }, 200);
   });
+
+  const { run: onContentChange } = useDebounceFn(
+    (content: Descendant[]) => {
+      if (!card) return;
+      setCard({
+        ...card,
+        content: content,
+      });
+    },
+    { wait: 200 },
+  );
 
   useEffect(() => {
     const unsubscribe = cardEventBus.subscribeToCardWithId(
@@ -80,6 +111,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       Number(cardId),
       (data) => {
         setCard(data.card);
+        prevCard.current = data.card;
         onTitleChange(getEditorText(data.card.content, 10));
         editorRef.current?.setEditorValue(data.card.content);
       },

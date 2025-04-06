@@ -67,6 +67,8 @@ const EditCard = (props: IEditCardProps) => {
     saveCard,
     onAddLinks,
     onRemoveLink,
+    setEditingCard,
+    prevCard,
   } = useEditCard(cardId);
 
   const isWindowFocused = useWindowFocus();
@@ -101,43 +103,39 @@ const EditCard = (props: IEditCardProps) => {
   }, [cards, editingCard?.links]);
 
   const onChange = useMemoizedFn((value: Descendant[]) => {
-    if (!editingCard || !editorRef.current?.isFocus() || !isWindowFocused)
-      return;
+    if (!editingCard) return;
     onContentChange(value);
-    cardEventBus.publishCardEvent("card:updated", {
-      ...editingCard,
-      content: value,
-    });
   });
 
   const handleAddTag = useMemoizedFn((tag: string) => {
     if (!editingCard || editingCard.tags.includes(tag)) return;
     onAddTag(tag);
-    cardEventBus.publishCardEvent("card:updated", {
-      ...editingCard,
-      tags: [...editingCard.tags, tag],
-    });
   });
 
   const handleDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingCard || !editingCard.tags.includes(tag)) return;
     onDeleteTag(tag);
-    cardEventBus.publishCardEvent("card:updated", {
-      ...editingCard,
-      tags: editingCard.tags.filter((t) => t !== tag),
-    });
   });
   const uploadResource = useUploadResource();
 
-  useRafInterval(() => {
+  useRafInterval(async () => {
     if (!readonly && editorRef.current?.isFocus() && isWindowFocused) {
-      saveCard();
+      const updatedCard = await saveCard();
+      if (updatedCard) {
+        cardEventBus.publishCardEvent("card:updated", updatedCard);
+      }
     }
   }, 3000);
 
-  useUnmount(() => {
+  useUnmount(async () => {
     if (!readonly) {
-      saveCard();
+      onContentChange.flush();
+      setTimeout(async () => {
+        const updatedCard = await saveCard();
+        if (updatedCard) {
+          cardEventBus.publishCardEvent("card:updated", updatedCard);
+        }
+      }, 200);
     }
   });
 
@@ -146,7 +144,8 @@ const EditCard = (props: IEditCardProps) => {
       "card:updated",
       cardId,
       (data) => {
-        // onContentChange(data.card.content);
+        setEditingCard(data.card);
+        prevCard.current = data.card;
         editorRef.current?.setEditorValue(data.card.content);
       },
     );
@@ -154,7 +153,7 @@ const EditCard = (props: IEditCardProps) => {
     return () => {
       unsubscribe();
     };
-  }, [cardId, cardEventBus, onContentChange]);
+  }, [cardId, cardEventBus, setEditingCard]);
 
   const statusBarConfigs = useMemo(() => {
     return [
@@ -231,6 +230,10 @@ const EditCard = (props: IEditCardProps) => {
       type: "card",
     });
   });
+
+  useEffect(() => {
+    console.log("editingCard", editingCard);
+  }, [editingCard]);
 
   const handleMoreMenuClick = useMemoizedFn(({ key }: { key: string }) => {
     if (!editingCard) return;
