@@ -2,13 +2,12 @@ import { useEffect, memo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import isHotkey from "is-hotkey";
-import Editor from "@/components/Editor";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
 import useCommandPanelStore from "@/stores/useCommandPanelStore.ts";
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
-import { Empty, Tag } from "antd";
+import { Empty } from "antd";
 import styles from "./index.module.less";
 import { SearchResult } from "@/types";
 import classnames from "classnames";
@@ -22,45 +21,7 @@ import {
   getProjectItemById,
   getRootDocumentsByDocumentItemId,
 } from "@/commands";
-
-// 搜索结果项组件
-const SearchResultItem = memo(
-  ({
-    result,
-    getRefTypeLabel,
-    getTagColor,
-    handleSearchResultClick,
-  }: {
-    result: SearchResult;
-    getRefTypeLabel: (type: string) => string;
-    getTagColor: (type: string) => string;
-    handleSearchResultClick: (result: SearchResult) => void;
-  }) => {
-    return (
-      <div
-        className={styles.item}
-        onClick={() => handleSearchResultClick(result)}
-      >
-        <div>
-          <Tag
-            color={getTagColor(result.type)}
-            style={{ marginBottom: 12, flexShrink: 0 }}
-          >
-            {getRefTypeLabel(result.type)}
-          </Tag>
-        </div>
-        <Editor
-          style={{
-            flex: 1,
-            overflow: "hidden",
-          }}
-          initValue={result.content.slice(0, 3)}
-          readonly={true}
-        />
-      </div>
-    );
-  },
-);
+import SearchResultItem from "./SearchResultItem";
 
 const Search = memo(() => {
   const { isDark } = useTheme();

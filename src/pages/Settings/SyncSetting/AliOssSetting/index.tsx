@@ -94,7 +94,7 @@ const AliOssSetting = () => {
       </Space>
       <If condition={bucketsInfo.length > 0 || (!!bucket && !!region)}>
         <Flex vertical gap={10}>
-          <Flex gap={10}>
+          <Space>
             <div>Bucket：</div>
             <Space>
               <Select
@@ -107,8 +107,8 @@ const AliOssSetting = () => {
                 value={bucket}
               />
             </Space>
-          </Flex>
-          <Flex gap={10}>
+          </Space>
+          <Space>
             <div>路径：</div>
             <Space>
               <Input
@@ -124,7 +124,7 @@ const AliOssSetting = () => {
                 allowClear
               />
             </Space>
-          </Flex>
+          </Space>
         </Flex>
       </If>
     </Flex>

@@ -8,6 +8,7 @@ import {
   getFileBaseName,
   getSep,
   nodeFetch,
+  getHomeDir,
 } from "@/commands";
 
 // 将远程资源下载到本地
@@ -20,6 +21,7 @@ const LOCAL_RESOURCE_PATH = "resources";
 export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!fileName) {
     fileName = await getFileBaseName(url);
+    // 微信公众号图片，需要特殊处理
     if (url.includes("mmbiz.qpic.cn")) {
       try {
         const urlObj = new URL(url);
@@ -65,6 +67,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   const remoteContent = (await nodeFetch(url, {
     method: "GET",
     responseType: "arraybuffer",
+    // 微信公众号图片，需要特殊处理
     headers: url.startsWith("https://mmbiz.qpic.cn")
       ? {
           Origin: "https://mp.weixin.qq.com",
@@ -89,5 +92,6 @@ export const copyFileToLocal = async (file: File, fileName = file.name) => {
   }
   const resourcePath = resourceDirPath + sep + fileName;
   await writeBinaryFile(resourcePath, new Uint8Array(await file.arrayBuffer()));
-  return resourcePath;
+  const homeDir = await getHomeDir();
+  return resourcePath.replace(homeDir, "~");
 };

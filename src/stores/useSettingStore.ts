@@ -33,6 +33,7 @@ export interface ISetting {
     chineseFont: string;
     englishFont: string;
     fontSize: number;
+    codeFont: string;
   };
   imageBed: {
     active: EImageBed;
@@ -199,6 +200,7 @@ const initialState: IState = {
     fontSetting: {
       chineseFont: "华文楷体",
       englishFont: "American TypeWriter",
+      codeFont: "JetBrains Mono",
       fontSize: 16,
     },
     imageBed: {

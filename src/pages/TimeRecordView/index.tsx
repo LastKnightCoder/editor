@@ -132,6 +132,11 @@ const TimeRecordView = () => {
         onCancel={onEditTimeRecordCancel}
       />
       <FloatButton
+        style={{
+          position: "absolute",
+          bottom: 20,
+          right: 20,
+        }}
         icon={
           <Popover
             open={createPopoverOpen}

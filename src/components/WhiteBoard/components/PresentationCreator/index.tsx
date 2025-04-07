@@ -594,7 +594,6 @@ const PresentationCreator: React.FC = () => {
         />
       </div>
 
-      {/* 现代风格的保存对话框 */}
       {showSaveDialog && (
         <div className={styles.saveDialogOverlay}>
           <div className={styles.saveDialog}>

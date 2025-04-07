@@ -10,6 +10,7 @@ export const slashCommandConfig: IHotKeyConfig[] = [
       if (blockPanelVisible) {
         reset();
         event.preventDefault();
+        event.stopPropagation();
       }
     },
   },

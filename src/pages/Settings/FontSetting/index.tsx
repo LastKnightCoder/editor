@@ -1,4 +1,4 @@
-import { InputNumber, Space, Select } from "antd";
+import { InputNumber, Space, AutoComplete } from "antd";
 import { useMemo, useState } from "react";
 import { useAsyncEffect } from "ahooks";
 import { produce } from "immer";
@@ -45,6 +45,14 @@ const FontSetting = () => {
     );
   };
 
+  const onCodeFontChange = (font: string) => {
+    onFontSettingChange(
+      produce(fontSetting, (draft) => {
+        draft.codeFont = font;
+      }),
+    );
+  };
+
   useAsyncEffect(async () => {
     const fonts = await getAllFonts();
     const filterFonts = fonts
@@ -64,9 +72,10 @@ const FontSetting = () => {
 
   return (
     <div className={styles.settingGroup}>
+      <h2>正文字体</h2>
       <Space>
         <div>中文字体：</div>
-        <Select
+        <AutoComplete
           value={fontSetting.chineseFont}
           style={{
             width: 200,
@@ -79,7 +88,7 @@ const FontSetting = () => {
       </Space>
       <Space>
         <div>英文字体：</div>
-        <Select
+        <AutoComplete
           value={fontSetting.englishFont}
           style={{
             width: 200,
@@ -100,6 +109,20 @@ const FontSetting = () => {
           onChange={(size) => {
             onFontSizeChange(size as number);
           }}
+        />
+      </Space>
+      <h2>代码字体</h2>
+      <Space>
+        <div>代码字体：</div>
+        <AutoComplete
+          value={fontSetting.codeFont}
+          style={{
+            width: 200,
+          }}
+          onChange={(font) => {
+            onCodeFontChange(font as string);
+          }}
+          options={fonts.map((font) => ({ label: font, value: font }))}
         />
       </Space>
     </div>
