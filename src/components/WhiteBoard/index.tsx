@@ -25,7 +25,6 @@ import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
 import { BoardElement, ViewPort, Selection } from "./types";
 import Toolbar from "./components/Toolbar";
 import AttributeSetter from "./components/AttributeSetter";
-import styles from "./index.module.less";
 import PresentationCreator from "./components/PresentationCreator";
 import PresentationMode from "./components/PresentationMode";
 import StatusBar from "./components/StatusBar";
@@ -36,6 +35,8 @@ import {
   useElementsSorting,
   useGridSettings,
 } from "./hooks";
+
+import styles from "./index.module.less";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -297,9 +298,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
             {/* 工具栏 */}
-            {!readonly && !board.presentationManager.isPresentationMode && (
-              <Toolbar />
-            )}
+            {!readonly && <Toolbar />}
 
             {/* 画板内容 */}
             <BoardContent
@@ -315,9 +314,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
             {/* 垂直工具栏 */}
             <div className={styles.verticalBar}>
-              {!readonly && !board.presentationManager.isPresentationMode && (
-                <AttributeSetter />
-              )}
+              {!readonly && <AttributeSetter />}
             </div>
 
             {/* 演示相关组件 */}
@@ -330,7 +327,6 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
               gridVisible={gridVisible}
               gridSize={gridSize}
               zoom={zoom}
-              isPresentationMode={board.presentationManager.isPresentationMode}
               sequences={board.presentationManager.sequences}
               onGridVisibleChange={handleGridVisibleChange}
               onGridSizeChange={handleGridSizeChange}

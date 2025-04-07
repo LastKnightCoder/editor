@@ -2,25 +2,22 @@ import React, { memo, forwardRef } from "react";
 import { Flex, Popover, Tooltip } from "antd";
 import {
   FullscreenOutlined,
-  PlayCircleOutlined,
   MinusOutlined,
   PlusOutlined,
-  EditOutlined,
-  CloseOutlined,
 } from "@ant-design/icons";
 import For from "@/components/For";
-import GridSettings from "../GridSettings";
+import GridSettings from "./GridSettings";
+import PresentationSequenceComponent from "./PresentationSequence";
 import { PresentationSequence } from "../../plugins";
 import { ZOOMS } from "../../constants";
+import { usePresentationState } from "../../hooks";
 import styles from "./index.module.less";
-import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 interface StatusBarProps {
   gridVisible?: boolean;
   gridSize?: number;
   zoom: number;
-  isPresentationMode: boolean;
   sequences: PresentationSequence[];
   onGridVisibleChange: (visible: boolean) => void;
   onGridSizeChange: (size: number) => void;
@@ -39,7 +36,6 @@ const StatusBar = memo(
       gridVisible = false,
       gridSize = 20,
       zoom,
-      isPresentationMode,
       sequences,
       onGridVisibleChange,
       onGridSizeChange,
@@ -52,7 +48,7 @@ const StatusBar = memo(
       onDeleteSequence,
     } = props;
 
-    const { modal } = App.useApp();
+    const { isPresentationMode } = usePresentationState();
 
     const stopPropagation = useMemoizedFn((e: any) => {
       e.stopPropagation();
@@ -98,7 +94,7 @@ const StatusBar = memo(
           trigger={"click"}
           arrow={false}
           content={
-            <Flex vertical gap={4}>
+            <Flex vertical gap={4} className={styles.zoomPopover}>
               <For
                 data={ZOOMS}
                 renderItem={(zoomValue) => (
@@ -120,93 +116,15 @@ const StatusBar = memo(
             },
           }}
         >
-          {Math.round(zoom * 100)}%
+          <div className={styles.zoomText}>{Math.round(zoom * 100)}%</div>
         </Popover>
         <PlusOutlined onClick={onZoomOut} />
-        {sequences.length > 0 && (
-          <Popover
-            trigger={"click"}
-            arrow={false}
-            onOpenChange={(open) => {
-              if (!open) {
-                // 关闭弹窗
-                document.body.click();
-              }
-            }}
-            content={
-              <Flex vertical gap={4}>
-                <For
-                  data={sequences}
-                  renderItem={(sequence) => (
-                    <div
-                      key={sequence.id}
-                      className={styles.zoomItem}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <span
-                        onClick={() => onStartPresentation(sequence.id)}
-                        style={{ flex: 1, cursor: "pointer" }}
-                      >
-                        {sequence.name}
-                      </span>
-                      <Flex gap={12}>
-                        <EditOutlined
-                          style={{ color: "#000" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEditSequence(sequence.id);
-                          }}
-                        />
-                        <CloseOutlined
-                          style={{ color: "#000" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // 删除序列
-                            modal.confirm({
-                              title: "删除序列",
-                              content: "确定删除该序列吗？",
-                              onOk: () => {
-                                onDeleteSequence(sequence.id);
-                              },
-                              okButtonProps: {
-                                danger: true,
-                              },
-                            });
-                          }}
-                        />
-                      </Flex>
-                    </div>
-                  )}
-                />
-              </Flex>
-            }
-            styles={{
-              body: {
-                padding: 4,
-                marginBottom: 12,
-              },
-            }}
-          >
-            <Tooltip title="开始演示">
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 32,
-                  height: 32,
-                  cursor: "pointer",
-                }}
-              >
-                <PlayCircleOutlined />
-              </div>
-            </Tooltip>
-          </Popover>
-        )}
+        <PresentationSequenceComponent
+          sequences={sequences}
+          onStartPresentation={onStartPresentation}
+          onEditSequence={onEditSequence}
+          onDeleteSequence={onDeleteSequence}
+        />
       </Flex>
     );
   }),
