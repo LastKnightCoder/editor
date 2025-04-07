@@ -1,12 +1,12 @@
 import { useEffect, memo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { SELECT_AREA_COLOR } from "../../constants";
-import { useSelection, useBoard } from "../../hooks";
+import { useSelection, useBoard, useArrowMove } from "../../hooks";
 
 const SelectArea = memo(() => {
   const board = useBoard();
   const selection = useSelection();
-
+  const isArrowMoving = useArrowMove();
   const [isMoving, setIsMoving] = useState(false);
 
   const isSelecting = Boolean(
@@ -16,7 +16,7 @@ const SelectArea = memo(() => {
   );
 
   const removeSelect = useMemoizedFn((e: Event) => {
-    if (isSelecting || isMoving) {
+    if (isSelecting || isMoving || isArrowMoving) {
       const selection = window.getSelection();
       if (selection) {
         selection.removeAllRanges();

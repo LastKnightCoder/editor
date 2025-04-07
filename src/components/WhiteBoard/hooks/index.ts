@@ -12,3 +12,8 @@ export { default as useEventHandlers } from "./useEventHandlers";
 export { default as useViewPortControls } from "./useViewPortControls";
 export { default as useElementsSorting } from "./useElementsSorting";
 export { default as useGridSettings } from "./useGridSettings";
+export {
+  useArrowMove,
+  useListenArrowMove,
+  ArrowMoveContext,
+} from "./useArrowMove";

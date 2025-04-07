@@ -7,6 +7,7 @@ import styles from "./index.module.less";
 import { Popover, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useState } from "react";
+import { CardUtil, RichTextUtil } from "@/components/WhiteBoard/utils";
 
 interface RichTextSetterProps {
   element: RichTextElement;
@@ -114,6 +115,18 @@ const RichTextSetter = (props: RichTextSetterProps) => {
       draft.color = color.color;
       draft.theme = color.theme;
     });
+    // @ts-ignore
+    if (element.type === "card") {
+      CardUtil.setLocalStorage("background", color.background);
+      CardUtil.setLocalStorage("topColor", color.topColor);
+      CardUtil.setLocalStorage("color", color.color);
+      CardUtil.setLocalStorage("theme", color.theme);
+    } else if (element.type === "richtext") {
+      RichTextUtil.setLocalStorage("background", color.background);
+      RichTextUtil.setLocalStorage("topColor", color.topColor);
+      RichTextUtil.setLocalStorage("color", color.color);
+      RichTextUtil.setLocalStorage("theme", color.theme);
+    }
     onChange(newElement);
   });
 

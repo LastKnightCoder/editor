@@ -34,6 +34,8 @@ import {
   useEventHandlers,
   useElementsSorting,
   useGridSettings,
+  useListenArrowMove,
+  ArrowMoveContext,
 } from "./hooks";
 
 import styles from "./index.module.less";
@@ -123,6 +125,8 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       readonly,
     );
   }, []);
+
+  const isArrowMoving = useListenArrowMove(board);
 
   // 获取画板数据
   const { children, viewPort, selection } = useSyncExternalStore(
@@ -297,47 +301,49 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       <BoardContext.Provider value={board}>
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
-            {/* 工具栏 */}
-            {!readonly && <Toolbar />}
+            <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
+              {/* 工具栏 */}
+              {!readonly && <Toolbar />}
 
-            {/* 画板内容 */}
-            <BoardContent
-              ref={svgRef}
-              board={board}
-              viewPort={viewPort}
-              centerConnectArrows={centerConnectArrows}
-              noneCenterConnectArrows={noneCenterConnectArrows}
-              gridVisible={gridVisible}
-              gridSize={gridSize}
-              refLines={refLines}
-            />
+              {/* 画板内容 */}
+              <BoardContent
+                ref={svgRef}
+                board={board}
+                viewPort={viewPort}
+                centerConnectArrows={centerConnectArrows}
+                noneCenterConnectArrows={noneCenterConnectArrows}
+                gridVisible={gridVisible}
+                gridSize={gridSize}
+                refLines={refLines}
+              />
 
-            {/* 垂直工具栏 */}
-            <div className={styles.verticalBar}>
-              {!readonly && <AttributeSetter />}
-            </div>
+              {/* 垂直工具栏 */}
+              <div className={styles.verticalBar}>
+                {!readonly && <AttributeSetter />}
+              </div>
 
-            {/* 演示相关组件 */}
-            <PresentationCreator />
-            <PresentationMode />
+              {/* 演示相关组件 */}
+              <PresentationCreator />
+              <PresentationMode />
 
-            {/* 状态栏 */}
-            <StatusBar
-              ref={statusBarRef}
-              gridVisible={gridVisible}
-              gridSize={gridSize}
-              zoom={zoom}
-              sequences={board.presentationManager.sequences}
-              onGridVisibleChange={handleGridVisibleChange}
-              onGridSizeChange={handleGridSizeChange}
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-              onZoomTo={handleZoomTo}
-              onFitElements={handleFitAll}
-              onStartPresentation={handleStartPresentation}
-              onEditSequence={handleEditSequence}
-              onDeleteSequence={handleDeleteSequence}
-            />
+              {/* 状态栏 */}
+              <StatusBar
+                ref={statusBarRef}
+                gridVisible={gridVisible}
+                gridSize={gridSize}
+                zoom={zoom}
+                sequences={board.presentationManager.sequences}
+                onGridVisibleChange={handleGridVisibleChange}
+                onGridSizeChange={handleGridSizeChange}
+                onZoomIn={handleZoomIn}
+                onZoomOut={handleZoomOut}
+                onZoomTo={handleZoomTo}
+                onFitElements={handleFitAll}
+                onStartPresentation={handleStartPresentation}
+                onEditSequence={handleEditSequence}
+                onDeleteSequence={handleDeleteSequence}
+              />
+            </ArrowMoveContext.Provider>
           </ViewPortContext.Provider>
         </SelectionContext.Provider>
       </BoardContext.Provider>
