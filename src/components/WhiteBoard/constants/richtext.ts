@@ -4,3 +4,4 @@ export const DEFAULT_RICHTEXT_COLOR = "inherit";
 export const DEFAULT_RICHTEXT_STROKE = "transparent";
 export const DEFAULT_RICHTEXT_STROKE_WIDTH = 2;
 export const DEFAULT_RICHTEXT_STROKE_OPACITY = 1;
+export const DEFAULT_RICHTEXT_THEME = "light";

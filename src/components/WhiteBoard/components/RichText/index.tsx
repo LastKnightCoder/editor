@@ -31,7 +31,12 @@ import {
 import { Board, BoardElement, EHandlerPosition, Point } from "../../types";
 import { RichTextElement, CommonElement } from "../../plugins";
 import { PointUtil } from "../../utils";
-import { useBoard, useSelectState, useDropArrow } from "../../hooks";
+import {
+  useBoard,
+  useSelectState,
+  useDropArrow,
+  useArrowMove,
+} from "../../hooks";
 
 import styles from "./index.module.less";
 import ArrowConnectPoint from "../ArrowConnectPoint";
@@ -119,6 +124,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     const [initValue] = useState(content);
     const [focus, setFocus] = useState(false);
     const board = useBoard();
+    const isArrowMoving = useArrowMove();
     const [isMoving, setIsMoving] = useState(false);
 
     useImperativeHandle(ref, () => ({
@@ -216,12 +222,19 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
 
     const containerStyle = useMemo(() => {
       return {
-        pointerEvents: isMoving || isSelecting || isSelected ? "none" : "auto",
-        userSelect: isMoving || isSelecting || isSelected ? "none" : "auto",
+        pointerEvents:
+          isArrowMoving || isMoving || isSelecting || isSelected
+            ? "none"
+            : "auto",
+        userSelect:
+          isArrowMoving || isMoving || isSelecting || isSelected
+            ? "none"
+            : "auto",
         background: "transparent",
         color,
+        cursor: isSelected ? "move" : "auto",
       } as React.CSSProperties;
-    }, [isMoving, isSelecting, isSelected, color]);
+    }, [isMoving, isSelecting, isSelected, color, isArrowMoving]);
 
     const handleAutoFocus = useMemoizedFn(() => {
       if (autoFocus) {
@@ -245,6 +258,8 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       paddingWidth,
       paddingHeight,
       focus,
+      isMoving: isMoving || isArrowMoving,
+      isSelected,
     });
     useHandlePointer({
       container: containerRef.current,

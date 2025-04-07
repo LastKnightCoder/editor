@@ -10,6 +10,8 @@ interface UseHandleResizeProps {
   container: HTMLDivElement | null;
   focus: boolean;
   resized: boolean;
+  isMoving: boolean;
+  isSelected: boolean;
 }
 
 const useHandleResize = ({
@@ -21,6 +23,8 @@ const useHandleResize = ({
   paddingWidth,
   paddingHeight,
   focus,
+  isMoving,
+  isSelected,
 }: UseHandleResizeProps) => {
   const { run: handleResize } = useDebounceFn(
     (entries: ResizeObserverEntry[]) => {
@@ -58,8 +62,19 @@ const useHandleResize = ({
       padding: `${paddingHeight}px ${paddingWidth}px`,
       maxWidth,
       maxHeight,
+      cursor: isSelected ? "move" : "auto",
+      pointerEvents: isMoving ? "none" : "auto",
+      userSelect: isMoving || isSelected ? "none" : "auto",
     } as React.CSSProperties;
-  }, [maxWidth, maxHeight, resized, paddingWidth, paddingHeight]);
+  }, [
+    maxWidth,
+    maxHeight,
+    resized,
+    paddingWidth,
+    paddingHeight,
+    isMoving,
+    isSelected,
+  ]);
 
   return {
     handleResize,

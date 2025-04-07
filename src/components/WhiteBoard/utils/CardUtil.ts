@@ -5,6 +5,7 @@ import {
   DEFAULT_CARD_STROKE,
   DEFAULT_CARD_STROKE_WIDTH,
   DEFAULT_CARD_STROKE_OPACITY,
+  DEFAULT_CARD_THEME,
 } from "../constants";
 
 const LOCAL_STORAGE_KEY = "whiteboard-card";
@@ -32,6 +33,9 @@ export class CardUtil {
       DEFAULT_CARD_STROKE_WIDTH) as number;
     const strokeOpacity = (this.getLocalStorage("strokeOpacity") ||
       DEFAULT_CARD_STROKE_OPACITY) as number;
+    const theme = (this.getLocalStorage("theme") || DEFAULT_CARD_THEME) as
+      | "light"
+      | "dark";
 
     return {
       background,
@@ -40,6 +44,7 @@ export class CardUtil {
       stroke,
       strokeWidth,
       strokeOpacity,
+      theme,
     } as const;
   }
 }

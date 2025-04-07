@@ -5,6 +5,7 @@ import {
   DEFAULT_RICHTEXT_STROKE_WIDTH,
   DEFAULT_RICHTEXT_STROKE_OPACITY,
   DEFAULT_RICHTEXT_COLOR,
+  DEFAULT_RICHTEXT_THEME,
 } from "../constants";
 
 const LOCAL_STORAGE_KEY = "whiteboard-richtext";
@@ -33,6 +34,9 @@ export class RichTextUtil {
       DEFAULT_RICHTEXT_TOP_COLOR) as string;
     const color = (this.getLocalStorage("color") ||
       DEFAULT_RICHTEXT_COLOR) as string;
+    const theme = (this.getLocalStorage("theme") || DEFAULT_RICHTEXT_THEME) as
+      | "light"
+      | "dark";
 
     return {
       background,
@@ -41,6 +45,7 @@ export class RichTextUtil {
       strokeWidth,
       strokeOpacity,
       color,
+      theme,
     } as const;
   }
 }
