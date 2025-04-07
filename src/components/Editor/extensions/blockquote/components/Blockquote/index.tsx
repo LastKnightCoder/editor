@@ -25,28 +25,29 @@ const Blockquote: React.FC<PropsWithChildren<IBlockQuoteProps>> = (props) => {
 
   return (
     <div ref={drop} className={styles.container}>
-      <blockquote
-        {...attributes}
-        className={classnames(styles.blockquote, {
-          [styles.dark]: isDark,
-          [styles.dragging]: isDragging,
-          [styles.drop]: isOverCurrent && canDrop,
-          [styles.before]: isBefore,
-          [styles.after]: !isBefore,
-        })}
-      >
-        {children}
-      </blockquote>
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
+      <div {...attributes}>
+        <blockquote
+          className={classnames(styles.blockquote, {
+            [styles.dark]: isDark,
+            [styles.dragging]: isDragging,
+            [styles.drop]: isOverCurrent && canDrop,
+            [styles.before]: isBefore,
+            [styles.after]: !isBefore,
+          })}
+        >
+          {children}
+        </blockquote>
+        <div
+          contentEditable={false}
+          ref={drag}
+          className={classnames(styles.dragHandler, {
+            [styles.canDrag]: canDrag,
+          })}
+        >
+          <MdDragIndicator className={styles.icon} />
+        </div>
+        <AddParagraph element={element} />
       </div>
-      <AddParagraph element={element} />
     </div>
   );
 };

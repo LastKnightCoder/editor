@@ -155,35 +155,37 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         [styles.after]: !isBefore,
       })}
     >
-      <Spin spinning={uploading}>
-        <If condition={!src}>{renderEmpty()}</If>
-        <If condition={!!src}>
-          <LocalVideo
-            width={"100%"}
-            controls
-            src={src}
-            playbackRate={playbackRate}
-          />
-        </If>
-        <div {...attributes}>{children}</div>
-      </Spin>
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
+      <div {...attributes}>
+        <Spin spinning={uploading}>
+          <If condition={!src}>{renderEmpty()}</If>
+          <If condition={!!src}>
+            <LocalVideo
+              width={"100%"}
+              controls
+              src={src}
+              playbackRate={playbackRate}
+            />
+          </If>
+        </Spin>
+        {children}
+        <div
+          contentEditable={false}
+          ref={drag}
+          className={classnames(styles.dragHandler, {
+            [styles.canDrag]: canDrag,
+          })}
+        >
+          <MdDragIndicator className={styles.icon} />
+        </div>
+        <input
+          ref={uploadRef}
+          type={"file"}
+          accept={"video/*"}
+          hidden
+          onChange={handleUploadFileChange}
+        />
+        <AddParagraph element={element} />
       </div>
-      <input
-        ref={uploadRef}
-        type={"file"}
-        accept={"video/*"}
-        hidden
-        onChange={handleUploadFileChange}
-      />
-      <AddParagraph element={element} />
     </div>
   );
 };
