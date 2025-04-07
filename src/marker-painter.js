@@ -1,42 +1,12 @@
 class MarkerPainter {
   static get inputProperties() {
-    return [
-      "--marker-color",
-      "--marker-offset",
-      "font-size",
-      "line-height",
-      "--marker-roughness",
-    ];
+    return ["--marker-color", "font-size", "line-height", "--marker-roughness"];
   }
 
   paint(ctx, geom, props) {
     const fontSize = props.get("font-size").value;
     const lineHeightValue = props.get("line-height");
     const color = props.get("--marker-color").toString();
-
-    // 处理 --marker-offset 的值，支持 em 单位
-    let offset = 20; // 默认值
-    const offsetValue = props.get("--marker-offset");
-    if (typeof offsetValue === "string") {
-      // 字符串情况，尝试解析
-      const offsetStr = offsetValue.toString().trim();
-      if (offsetStr.endsWith("em")) {
-        // 处理 em 单位
-        const emValue = parseFloat(offsetStr.slice(0, -2));
-        if (!isNaN(emValue)) {
-          offset = emValue * fontSize;
-        }
-      } else {
-        // 处理纯数字或 px 单位
-        offset = parseInt(offsetStr) || 20;
-      }
-    } else if (offsetValue instanceof CSSUnitValue) {
-      if (offsetValue.unit === "em") {
-        offset = offsetValue.value * fontSize;
-      } else {
-        offset = offsetValue.value;
-      }
-    }
 
     const roughness =
       parseFloat(props.get("--marker-roughness").toString()) || 0.3;
@@ -51,134 +21,69 @@ class MarkerPainter {
       lineHeight = fontSize * 1.8; // 默认行高
     }
 
-    // 最终高度计算
-    const autoHeight = lineHeight * 0.7;
+    // 计算高亮区域的高度和位置
+    // 确保完全覆盖文字，所以高度比字体大小大，上下都留有足够余量
+    const markerHeight = fontSize * 1.2; // 高亮高度比字体大，确保完全覆盖
 
-    this.drawMarkerPath(ctx, geom, autoHeight, offset, roughness);
-    this.addTexture(ctx, geom, color, roughness, offset, autoHeight);
+    // 计算baseY，使高亮区域完全覆盖文字
+    const textBottom = geom.height; // 文字底部位置
+    const baseY = textBottom; // 高亮底部与文字底部对齐
+    const topY = baseY - markerHeight; // 高亮顶部
+
+    this.drawHighlighterShape(ctx, geom, topY, baseY, roughness, fontSize);
+    this.applyHighlighterEffect(ctx, geom, color, roughness);
   }
 
-  drawMarkerPath(ctx, geom, height, offset, roughness) {
+  drawHighlighterShape(ctx, geom, topY, baseY, roughness, fontSize) {
     ctx.beginPath();
 
-    // 起始点更多随机性
-    const startYOffset = (Math.random() - 0.3) * roughness * 12;
-    const startY = geom.height - offset + startYOffset;
-    // 向左延伸一点，创造更自然的起笔效果
-    const startX = -roughness * 10 - Math.random() * 10;
+    // 放大参数，增加曲线幅度
+    // 根据图片中荧光笔特性设置参数，增大边缘凸起的变化程度
+    const edgeVariation = roughness * 2.0; // 增大边缘凸起变化程度
+    const horizontalBulge = fontSize * 0.15; // 增大荧光笔两端凸起的程度
+
+    // 左上角起点，更明显的向内凹
+    const startX = 0;
+    const startY = topY + edgeVariation * 2.5;
     ctx.moveTo(startX, startY);
 
-    // 在开始处添加更明显的起笔效果（类似钢笔起笔时的弯曲）
-    const entryX1 = startX + 8 + Math.random() * 5;
-    const entryY1 = startY - (8 + Math.random() * 6) * roughness;
-    const entryX2 = entryX1 + 10 + Math.random() * 8;
-    const entryY2 = startY + (4 + Math.random() * 4) * roughness;
-    ctx.bezierCurveTo(
-      startX + 2,
-      startY - roughness * 6,
-      entryX1,
-      entryY1,
-      entryX2,
-      entryY2,
-    );
+    // 上边缘为更明显的弧形，模拟荧光笔压力变化
+    // 上边缘中部更明显地上凸
+    const topMidX = geom.width / 2;
+    const topMidY = topY - edgeVariation * 1.5; // 增大上凸幅度
+    const rightTopX = geom.width;
+    const rightTopY = topY + edgeVariation * 2.5;
 
-    // 控制点的数量，使曲线更自然
-    const segments = Math.max(5, Math.floor(geom.width / 25));
-    const pointGap = (geom.width - entryX2) / segments;
+    // 上边缘使用二次贝塞尔曲线，增大曲率
+    ctx.quadraticCurveTo(topMidX, topMidY, rightTopX, rightTopY);
 
-    // 使用贝塞尔曲线创建更自然的上边缘
-    let prevX = entryX2;
-    let prevY = entryY2;
+    // 右边缘更明显地向外凸
+    const rightMidX = geom.width + horizontalBulge * 1.5;
+    const rightMidY = (topY + baseY) / 2;
+    const rightBottomX = geom.width;
+    const rightBottomY = baseY - edgeVariation * 2.5;
 
-    for (let i = 0; i <= segments; i++) {
-      const x = entryX2 + i * pointGap;
-      // 增加垂直方向的随机变化，使上边缘更加起伏明显
-      const yVariation = (Math.random() - 0.4) * roughness * 15;
-      const xVariation = (Math.random() - 0.5) * roughness * 6;
-      const y = geom.height - offset + yVariation;
+    // 右边缘使用二次贝塞尔曲线，增大曲率
+    ctx.quadraticCurveTo(rightMidX, rightMidY, rightBottomX, rightBottomY);
 
-      // 添加压力变化，使线条宽度不均匀
-      const cp1x =
-        prevX + (x - prevX) / 3 + (Math.random() - 0.5) * roughness * 10;
-      const cp1y = prevY + (Math.random() - 0.5) * roughness * 14;
-      const cp2x = x - (x - prevX) / 3 + (Math.random() - 0.5) * roughness * 10;
-      const cp2y = y + (Math.random() - 0.5) * roughness * 14;
+    // 下边缘为更明显的弧形，中部更明显地下凸
+    const bottomMidX = geom.width / 2;
+    const bottomMidY = baseY + edgeVariation * 1.5; // 增大下凸幅度
+    const leftBottomX = 0;
+    const leftBottomY = baseY - edgeVariation * 2.5;
 
-      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x + xVariation, y);
+    // 下边缘使用二次贝塞尔曲线，增大曲率
+    ctx.quadraticCurveTo(bottomMidX, bottomMidY, leftBottomX, leftBottomY);
 
-      prevX = x + xVariation;
-      prevY = y;
-    }
+    // 左边缘更明显地向外凸
+    const leftMidX = -horizontalBulge * 1.5;
+    const leftMidY = (topY + baseY) / 2;
 
-    // 结尾处添加更明显的收笔效果
-    const endingX = prevX + 15 + Math.random() * 10;
-    const endingY = prevY + (Math.random() - 0.4) * roughness * 15;
-    const endingCp1x = prevX + 6;
-    const endingCp1y = prevY - roughness * 8;
-    const endingCp2x = endingX - 8;
-    const endingCp2y = endingY + roughness * 5;
-
-    ctx.bezierCurveTo(
-      endingCp1x,
-      endingCp1y,
-      endingCp2x,
-      endingCp2y,
-      endingX,
-      endingY,
-    );
-
-    // 将收笔点连接到下边缘
-    const rightEdgeY =
-      geom.height - offset + height + (Math.random() - 0.5) * roughness * 10;
-    ctx.lineTo(endingX, rightEdgeY);
-
-    // 使用贝塞尔曲线创建更自然的下边缘
-    prevX = endingX;
-    prevY = rightEdgeY;
-
-    for (let i = segments; i >= 0; i--) {
-      const x = entryX2 + i * pointGap;
-      // 下边缘的随机变化幅度更大，模拟手写时笔尖压力变化
-      const yVariation = (Math.random() - 0.6) * roughness * 15;
-      const xVariation = (Math.random() - 0.5) * roughness * 6;
-      const y = geom.height - offset + height + yVariation;
-
-      const cp1x =
-        prevX - (prevX - x) / 3 + (Math.random() - 0.5) * roughness * 12;
-      const cp1y = prevY + (Math.random() - 0.5) * roughness * 18;
-      const cp2x = x + (prevX - x) / 3 + (Math.random() - 0.5) * roughness * 12;
-      const cp2y = y + (Math.random() - 0.5) * roughness * 18;
-
-      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x + xVariation, y);
-
-      prevX = x + xVariation;
-      prevY = y;
-    }
-
-    // 结束处添加收笔效果
-    const finalX = startX;
-    const finalY =
-      geom.height - offset + height + (Math.random() - 0.3) * roughness * 12;
-    const finalCp1x = prevX - 12 - Math.random() * 5;
-    const finalCp1y = prevY + roughness * 6;
-    const finalCp2x = finalX + 8;
-    const finalCp2y = finalY - roughness * 8;
-
-    ctx.bezierCurveTo(
-      finalCp1x,
-      finalCp1y,
-      finalCp2x,
-      finalCp2y,
-      finalX,
-      finalY,
-    );
-
-    // 闭合路径
-    ctx.lineTo(startX, startY);
-    ctx.closePath();
+    // 左边缘使用二次贝塞尔曲线闭合路径，增大曲率
+    ctx.quadraticCurveTo(leftMidX, leftMidY, startX, startY);
   }
 
-  addTexture(ctx, geom, color, roughness, offset, height) {
+  applyHighlighterEffect(ctx, geom, color, roughness) {
     const parseColor = (color) => {
       // 统一转换为 RGB 数组
       if (color.startsWith("#")) {
@@ -200,48 +105,78 @@ class MarkerPainter {
     };
 
     const [r, g, b] = parseColor(color);
-    const alphaBase = 0.3 * (1 - roughness); // 粗糙度影响透明度
 
-    // 创建不均匀渐变，模拟墨水密度变化
-    const gradient = ctx.createLinearGradient(0, 0, geom.width, 0);
-    gradient.addColorStop(0, `rgba(${r},${g},${b},${alphaBase + 0.1})`);
-    gradient.addColorStop(
-      0.3,
-      `rgba(${r},${g},${b},${alphaBase + 0.2 + Math.random() * 0.1})`,
-    );
-    gradient.addColorStop(
-      0.7,
-      `rgba(${r},${g},${b},${alphaBase + 0.15 + Math.random() * 0.1})`,
-    );
-    gradient.addColorStop(1, `rgba(${r},${g},${b},${alphaBase + 0.25})`);
+    // 根据图片中荧光笔特性设置透明度和颜色
+    // 明亮有光泽的颜色
+    const baseAlpha = 0.45; // 增加基础透明度使效果更明显
 
+    // 创建从上到下的渐变，接近图中的效果
+    const gradient = ctx.createLinearGradient(0, 0, 0, geom.height);
+
+    // 渐变顶部稍浅
+    gradient.addColorStop(0, `rgba(${r},${g},${b},${baseAlpha * 0.9})`);
+
+    // 渐变中部最深，有光泽感
+    gradient.addColorStop(0.5, `rgba(${r},${g},${b},${baseAlpha * 1.1})`);
+
+    // 渐变底部同样稍浅
+    gradient.addColorStop(1, `rgba(${r},${g},${b},${baseAlpha * 0.9})`);
+
+    // 使用渐变填充
     ctx.fillStyle = gradient;
     ctx.fill();
 
-    // 添加笔触质感
-    ctx.strokeStyle = `rgba(0,0,0,${0.1 * roughness})`;
-    ctx.lineWidth = 0.8;
+    // 添加轻微的边缘线，增强荧光笔效果
+    ctx.strokeStyle = `rgba(${r},${g},${b},${baseAlpha * 1.2})`;
+    ctx.lineWidth = 0.5;
     ctx.stroke();
 
-    // 添加一些随机小斑点模拟墨水不均匀
-    if (roughness > 0.2) {
-      ctx.fillStyle = `rgba(${r},${g},${b},0.1)`;
-      const spotCount = Math.floor((geom.width / 20) * roughness);
+    // 添加轻微的高光反射效果
+    this.addHighlight(ctx, geom, r, g, b);
+  }
 
-      for (let i = 0; i < spotCount; i++) {
-        const x = Math.random() * geom.width;
-        // 如果未提供 offset 和 height，则使用默认值
-        const baseY =
-          offset !== undefined ? geom.height - offset : geom.height - 16;
-        const spotHeight = height !== undefined ? height : 20;
-        const y = baseY + Math.random() * spotHeight;
-        const radius = Math.random() * roughness * 3 + 0.5;
+  addHighlight(ctx, geom, r, g, b) {
+    // 创建高光效果，模拟荧光笔的反光
+    ctx.beginPath();
 
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
+    // 在荧光笔顶部靠左位置添加一个细长的高光反射条
+    const highlightWidth = geom.width * 0.6;
+    const highlightHeight = geom.height * 0.15;
+    const startX = geom.width * 0.1;
+    const startY = geom.height * 0.15;
+
+    // 创建高光形状
+    ctx.moveTo(startX, startY);
+    ctx.bezierCurveTo(
+      startX + highlightWidth * 0.3,
+      startY - highlightHeight * 0.2,
+      startX + highlightWidth * 0.7,
+      startY - highlightHeight * 0.2,
+      startX + highlightWidth,
+      startY + highlightHeight,
+    );
+    ctx.bezierCurveTo(
+      startX + highlightWidth * 0.7,
+      startY + highlightHeight * 1.5,
+      startX + highlightWidth * 0.3,
+      startY + highlightHeight * 1.3,
+      startX,
+      startY,
+    );
+
+    // 使用白色半透明渐变填充高光效果
+    const highlightGradient = ctx.createLinearGradient(
+      startX,
+      startY,
+      startX + highlightWidth * 0.5,
+      startY + highlightHeight,
+    );
+    highlightGradient.addColorStop(0, `rgba(255, 255, 255, 0.12)`);
+    highlightGradient.addColorStop(0.5, `rgba(255, 255, 255, 0.07)`);
+    highlightGradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+
+    ctx.fillStyle = highlightGradient;
+    ctx.fill();
   }
 }
 

@@ -1,7 +1,4 @@
-// import workletURL from "./marker-painter.ts?url";
-import workletCode from "./marker-painter.js?raw";
-const blob = new Blob([workletCode], { type: "application/javascript" });
-CSS.paintWorklet.addModule(URL.createObjectURL(blob));
+import workletURL from "./marker-painter.js?url";
 
 window.global ||= window;
 
@@ -16,4 +13,4 @@ document.addEventListener("keydown", (e: KeyboardEvent) => {
   }
 });
 
-// CSS.paintWorklet.addModule(workletURL);
+CSS.paintWorklet.addModule(workletURL);

@@ -298,47 +298,49 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       suppressContentEditableWarning
       contentEditable={"false"}
     >
-      <Spin spinning={uploading}>
-        <If condition={!!src}>
-          <LocalAudio
-            controls
-            src={src}
-            className={classnames(styles.audio, {
-              [styles.dragging]: isDragging,
-              [styles.drop]: isOverCurrent && canDrop,
-              [styles.before]: isBefore,
-              [styles.after]: !isBefore,
-            })}
-          />
-        </If>
-        <If condition={!src}>{renderNoContent()}</If>
-      </Spin>
-      <div {...attributes}>{children}</div>
-      <div
-        suppressContentEditableWarning
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
-      </div>
-      <input
-        ref={uploadRef}
-        type={"file"}
-        accept={"audio/*"}
-        hidden
-        onChange={handleUploadFileChange}
-      />
-      <If condition={!readOnly}>
-        <div className={styles.actions}>
-          <div onClick={deleteAudio} className={styles.item}>
-            <DeleteOutlined />
-          </div>
+      <div {...attributes}>
+        <Spin spinning={uploading}>
+          <If condition={!!src}>
+            <LocalAudio
+              controls
+              src={src}
+              className={classnames(styles.audio, {
+                [styles.dragging]: isDragging,
+                [styles.drop]: isOverCurrent && canDrop,
+                [styles.before]: isBefore,
+                [styles.after]: !isBefore,
+              })}
+            />
+          </If>
+          <If condition={!src}>{renderNoContent()}</If>
+        </Spin>
+        {children}
+        <div
+          suppressContentEditableWarning
+          contentEditable={false}
+          ref={drag}
+          className={classnames(styles.dragHandler, {
+            [styles.canDrag]: canDrag,
+          })}
+        >
+          <MdDragIndicator className={styles.icon} />
         </div>
-      </If>
-      <AddParagraph element={element} />
+        <input
+          ref={uploadRef}
+          type={"file"}
+          accept={"audio/*"}
+          hidden
+          onChange={handleUploadFileChange}
+        />
+        <If condition={!readOnly}>
+          <div className={styles.actions}>
+            <div onClick={deleteAudio} className={styles.item}>
+              <DeleteOutlined />
+            </div>
+          </div>
+        </If>
+        <AddParagraph element={element} />
+      </div>
     </div>
   );
 };
