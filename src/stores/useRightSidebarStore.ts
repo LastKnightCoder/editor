@@ -70,7 +70,26 @@ const useRightSidebarStore = create<RightSidebarState>()(
               activeTabKey: { ...activeTabKey, [type]: newTabs[type][0].id },
             });
           } else {
-            set({ activeTabKey: { ...activeTabKey, [type]: null } });
+            // 找到下一个有内容的tab
+            const hasTabsContainerKey = Object.keys(newTabs).find(
+              (type) => newTabs[type]?.length > 0,
+            );
+            if (hasTabsContainerKey) {
+              const containerActiveTabKey = hasTabsContainerKey;
+              set({
+                activeTabKey: {
+                  ...activeTabKey,
+                  [hasTabsContainerKey]: newTabs[hasTabsContainerKey][0].id,
+                },
+                containerActiveTabKey,
+              });
+            } else {
+              set({
+                activeTabKey: {},
+                containerActiveTabKey: null,
+                open: false,
+              });
+            }
           }
         }
         set({ tabs: newTabs });

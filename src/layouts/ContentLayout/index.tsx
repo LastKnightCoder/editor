@@ -1,3 +1,5 @@
+import { useEffect, useMemo, memo } from "react";
+import isHotkey from "is-hotkey";
 import { Outlet } from "react-router-dom";
 import classnames from "classnames";
 
@@ -11,12 +13,11 @@ import useInitDatabase from "@/hooks/useInitDatabase.ts";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 
-import styles from "./index.module.less";
-import { useEffect, useMemo } from "react";
-import isHotkey from "is-hotkey";
 import { openMarkdownInNewWindow, selectFile } from "@/commands";
 
-const ShortSidebarLayout = () => {
+import styles from "./index.module.less";
+
+const ShortSidebarLayout = memo(() => {
   useInitDatabase();
 
   useEffect(() => {
@@ -67,6 +68,6 @@ const ShortSidebarLayout = () => {
       <Search />
     </div>
   );
-};
+});
 
 export default ShortSidebarLayout;

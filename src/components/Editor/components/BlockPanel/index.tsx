@@ -5,6 +5,8 @@ import PortalToBody from "@/components/PortalToBody";
 
 import useBlockPanelStore from "../../stores/useBlockPanelStore.ts";
 
+import styles from "./index.module.less";
+
 interface IBlockPanelProps {
   extensions: IExtension[];
 }
@@ -46,7 +48,7 @@ const BlockPanel = memo((props: IBlockPanelProps) => {
 
   return (
     <PortalToBody>
-      <div style={{ position: "fixed", left, top, zIndex: 10 }}>
+      <div className={styles.blockPanel} style={{ left, top }}>
         <List />
       </div>
     </PortalToBody>

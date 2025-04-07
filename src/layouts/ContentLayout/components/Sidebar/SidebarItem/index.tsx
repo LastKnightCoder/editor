@@ -19,7 +19,11 @@ const SidebarItem = memo((props: SidebarItemProps) => {
     props;
 
   return (
-    <Tooltip title={isShortWidth ? label : ""} trigger={"hover"}>
+    <Tooltip
+      title={isShortWidth ? label : ""}
+      trigger={"hover"}
+      placement="right"
+    >
       <div
         className={classnames(styles.itemContainer, className, {
           [styles.active]: active,
