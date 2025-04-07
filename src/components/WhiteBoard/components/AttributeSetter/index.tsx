@@ -3,10 +3,12 @@ import setterConfig from "./setter-config.ts";
 import { useMemoizedFn } from "ahooks";
 import { BoardElement, Operation } from "@/components/WhiteBoard";
 import { PathUtil } from "@/components/WhiteBoard/utils";
-
+import { usePresentationState } from "@/components/WhiteBoard/hooks";
 const AttributeSetter = () => {
   const selection = useSelection();
   const board = useBoard();
+
+  const { isPresentationMode } = usePresentationState();
 
   const onElementChange = useMemoizedFn((newElement: BoardElement) => {
     if (!selection) return;
@@ -30,6 +32,8 @@ const AttributeSetter = () => {
     ];
     board.apply(ops);
   });
+
+  if (isPresentationMode) return null;
 
   if (!selection || selection.selectedElements.length !== 1) return null;
 

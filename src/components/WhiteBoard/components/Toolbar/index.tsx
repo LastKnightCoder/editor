@@ -26,7 +26,7 @@ const Toolbar = memo(() => {
 
   const createBoardElementType = useCreateElementType();
 
-  const { isCreatingSequence } = usePresentationState();
+  const { isCreatingSequence, isPresentationMode } = usePresentationState();
 
   const onClickCreateElement = useMemoizedFn(
     (type: ECreateBoardElementType) => {
@@ -63,6 +63,8 @@ const Toolbar = memo(() => {
   const stopPropagation = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
   });
+
+  if (isPresentationMode) return null;
 
   return (
     <div

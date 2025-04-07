@@ -2,7 +2,7 @@ import React from "react";
 import { Flex, Switch, Select, Popover, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { BorderOutlined } from "@ant-design/icons";
-import { GRID_SIZE_OPTIONS } from "../../constants";
+import { GRID_SIZE_OPTIONS } from "../../../constants";
 import styles from "./index.module.less";
 
 interface GridSettingsProps {

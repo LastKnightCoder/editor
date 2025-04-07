@@ -26,10 +26,12 @@ import usePresentationState from "../../hooks/usePresentationState";
 import { useBoard } from "../../hooks";
 import { ViewPort } from "../../types";
 import { ViewPortTransforms } from "../../transforms/ViewPortTransforms";
+import useTheme from "@/hooks/useTheme";
 
 const PresentationCreator: React.FC = () => {
   const board = useBoard();
   const { message } = App.useApp();
+  const { isDark } = useTheme();
   const [frames, setFrames] = useState<PresentationFrame[]>([]);
   const [currentFrame, setCurrentFrame] = useState<PresentationFrame | null>(
     null,
@@ -430,7 +432,7 @@ const PresentationCreator: React.FC = () => {
 
   return (
     <div
-      className={styles.creatorContainer}
+      className={`${styles.creatorContainer} ${isDark ? styles.dark : ""}`}
       onClick={stopPropagation}
       onPointerDown={stopPropagation}
       onMouseDown={stopPropagation}
@@ -507,25 +509,27 @@ const PresentationCreator: React.FC = () => {
       {previewMode && (
         <div className={styles.previewControls}>
           <Button
-            type="primary"
+            type="text"
             icon={<LeftOutlined />}
             onClick={previewPrev}
             disabled={previewIndex === 0}
+            style={{ color: "white" }}
           />
           <span className={styles.previewCounter}>
             {previewIndex + 1} / {frames.length}
           </span>
           <Button
-            type="primary"
+            type="text"
             icon={<RightOutlined />}
             onClick={previewNext}
             disabled={previewIndex === frames.length - 1}
+            style={{ color: "white" }}
           />
           <Button
-            type="primary"
-            danger
+            type="text"
             icon={<CloseOutlined />}
             onClick={stopPreview}
+            style={{ color: "white" }}
           >
             退出预览
           </Button>

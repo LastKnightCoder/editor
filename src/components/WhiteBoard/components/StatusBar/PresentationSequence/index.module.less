@@ -1,0 +1,50 @@
+.sequenceList {
+  padding: 4px;
+  min-width: 150px;
+}
+
+.sequenceItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--item-common-hover-bg);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.sequenceName {
+  flex: 1;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.sequenceActions {
+  flex-shrink: 0;
+}
+
+.presentationButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--item-common-hover-bg);
+  }
+}
