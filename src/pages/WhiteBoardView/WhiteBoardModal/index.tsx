@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { App, Flex, Input, Modal } from "antd";
-import { WhiteBoard } from "@/types";
 
 interface WhiteBoardModalProps {
   open: boolean;
