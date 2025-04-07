@@ -1,12 +1,13 @@
 import { useState, memo, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import { App, Breadcrumb, Flex, FloatButton, Input, Modal } from "antd";
+import { App, Breadcrumb, FloatButton } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import { useMemoizedFn } from "ahooks";
 import For from "@/components/For";
 import WhiteBoardCard from "./WhiteBoardCard";
+import WhiteBoardModal from "./WhiteBoardModal";
 
 import { PlusOutlined } from "@ant-design/icons";
 
@@ -40,8 +41,6 @@ const WhiteBoardView = memo(() => {
 
   const [createWhiteBoardModalOpen, setCreateWhiteBoardModalOpen] =
     useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const { message } = App.useApp();
 
   const breadcrumbItems = useMemo(() => {
@@ -64,6 +63,34 @@ const WhiteBoardView = memo(() => {
   const onClick = useMemoizedFn((whiteBoardId: number) => {
     navigate(`/white-board/detail/${whiteBoardId}`);
   });
+
+  const handleCreateWhiteBoard = async (title: string, description: string) => {
+    const createWhiteBoardData = {
+      title,
+      description,
+      tags: [],
+      data: {
+        children: [],
+        viewPort: {
+          zoom: 1,
+          minX: 0,
+          minY: 0,
+          width: 0,
+          height: 0,
+        },
+        selection: {
+          selectArea: null,
+          selectedElements: [],
+        },
+      },
+      snapshot: "",
+      isProjectItem: false,
+    };
+
+    const whiteBoard = await createWhiteBoard(createWhiteBoardData);
+    setCreateWhiteBoardModalOpen(false);
+    navigate(`/white-board/detail/${whiteBoard.id}`);
+  };
 
   return (
     <div className={styles.container}>
@@ -106,66 +133,13 @@ const WhiteBoardView = memo(() => {
             setCreateWhiteBoardModalOpen(true);
           }}
         />
-        <Modal
-          closeIcon={null}
+        <WhiteBoardModal
           open={createWhiteBoardModalOpen}
           onCancel={() => setCreateWhiteBoardModalOpen(false)}
-          onOk={async () => {
-            if (!title) {
-              message.error("请输入标题");
-              return;
-            }
-            if (!description) {
-              message.error("请输入描述");
-              return;
-            }
-            const createWhiteBoardData = {
-              title,
-              description,
-              tags: [],
-              data: {
-                children: [],
-                viewPort: {
-                  zoom: 1,
-                  minX: 0,
-                  minY: 0,
-                  width: 0,
-                  height: 0,
-                },
-                selection: {
-                  selectArea: null,
-                  selectedElements: [],
-                },
-              },
-              snapshot: "",
-              isProjectItem: false,
-            };
-            const whiteBoard = await createWhiteBoard(createWhiteBoardData);
-            setCreateWhiteBoardModalOpen(false);
-            setTitle("");
-            setDescription("");
-            navigate(`/white-board/detail/${whiteBoard.id}`);
-          }}
-        >
-          <Flex gap={"middle"} vertical>
-            <Flex gap={"middle"} align={"center"}>
-              <p style={{ flex: "none", margin: 0 }}>标题：</p>
-              <Input
-                placeholder="请输入标题"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </Flex>
-            <Flex gap={"middle"} align={"start"}>
-              <p style={{ flex: "none", margin: 0 }}>描述：</p>
-              <Input.TextArea
-                placeholder="请输入描述"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </Flex>
-          </Flex>
-        </Modal>
+          onOk={handleCreateWhiteBoard}
+          modalTitle="新建白板"
+          okText="创建"
+        />
       </div>
     </div>
   );

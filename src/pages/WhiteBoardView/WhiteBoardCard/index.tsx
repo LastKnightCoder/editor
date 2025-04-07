@@ -1,11 +1,12 @@
 import React, { useRef, useState, memo } from "react";
-import { message, Modal, Popover, Spin, Typography } from "antd";
+import { message, Modal, Dropdown, Spin, Typography } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { MdMoreVert } from "react-icons/md";
 import { CalendarOutlined } from "@ant-design/icons";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
+import type { MenuProps } from "antd";
 
 import useTheme from "@/hooks/useTheme.ts";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
@@ -14,6 +15,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import { WhiteBoard } from "@/types";
 import LocalImage from "@/components/LocalImage";
 import { formatDate } from "@/utils";
+import WhiteBoardModal from "../WhiteBoardModal";
 
 import styles from "./index.module.less";
 
@@ -41,6 +43,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   const { isDark } = useTheme();
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const fileUploadRef = useRef<HTMLInputElement>(null);
 
   const { updateWhiteBoard, deleteWhiteBoard } = useWhiteBoardStore(
@@ -103,52 +106,87 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
     setSettingOpen(false);
   };
 
+  const handleChangeBanner = (
+    e:
+      | React.MouseEvent<HTMLElement, MouseEvent>
+      | React.KeyboardEvent<HTMLElement>,
+  ) => {
+    e.stopPropagation();
+    setSettingOpen(false);
+    fileUploadRef.current?.click();
+  };
+
+  const handleEditWhiteBoard = (
+    e:
+      | React.MouseEvent<HTMLElement, MouseEvent>
+      | React.KeyboardEvent<HTMLElement>,
+  ) => {
+    e.stopPropagation();
+    setSettingOpen(false);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (title: string, description: string) => {
+    const newWhiteBoard = produce(whiteBoard, (draft) => {
+      draft.title = title;
+      draft.description = description;
+    });
+
+    await updateWhiteBoard(newWhiteBoard);
+    setEditModalOpen(false);
+  };
+
+  const dropdownItems: MenuProps["items"] = [
+    {
+      key: "edit",
+      label: <div className={styles.settingItem}>编辑白板</div>,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleEditWhiteBoard(e.domEvent);
+      },
+    },
+    {
+      key: "delete",
+      label: <div className={styles.settingItem}>删除白板</div>,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleDeleteWhiteBoard();
+      },
+    },
+    {
+      key: "change-banner",
+      label: <div className={styles.settingItem}>换背景图</div>,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleChangeBanner(e.domEvent);
+      },
+    },
+  ];
+
   return (
     <Spin spinning={bannerUploading}>
       <div className={cardClassName} style={style}>
         <div className={styles.imageContainer}>
           <LocalImage url={whiteBoard.snapshot || defaultSnapshot} />
           <div className={classnames(styles.operate)}>
-            <Popover
+            <Dropdown
+              menu={{ items: dropdownItems }}
               open={settingOpen}
               onOpenChange={setSettingOpen}
-              placement={"bottomRight"}
-              trigger={"click"}
-              styles={{
-                body: {
-                  padding: 4,
-                },
-              }}
-              content={
-                <div className={styles.settings}>
-                  <div
-                    className={styles.settingItem}
-                    onClick={handleDeleteWhiteBoard}
-                  >
-                    删除白板
-                  </div>
-                  <div
-                    className={styles.settingItem}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSettingOpen(false);
-                      fileUploadRef.current?.click();
-                    }}
-                  >
-                    换背景图
-                  </div>
-                  <input
-                    ref={fileUploadRef}
-                    type={"file"}
-                    accept={"image/*"}
-                    hidden
-                    onChange={handleUploadFileChange}
-                  />
-                </div>
-              }
+              placement="bottomRight"
+              trigger={["hover"]}
             >
-              <MdMoreVert />
-            </Popover>
+              <span onClick={(e) => e.stopPropagation()}>
+                <MdMoreVert />
+              </span>
+            </Dropdown>
+            <input
+              ref={fileUploadRef}
+              type={"file"}
+              accept={"image/*"}
+              hidden
+              onChange={handleUploadFileChange}
+            />
           </div>
         </div>
         <div className={styles.content}>
@@ -172,6 +210,18 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
           </Paragraph>
         </div>
       </div>
+
+      <WhiteBoardModal
+        open={editModalOpen}
+        onCancel={() => setEditModalOpen(false)}
+        onOk={handleEditSubmit}
+        initialData={{
+          title: whiteBoard.title,
+          description: whiteBoard.description,
+        }}
+        modalTitle="编辑白板"
+        okText="保存"
+      />
     </Spin>
   );
 });
