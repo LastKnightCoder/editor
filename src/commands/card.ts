@@ -35,9 +35,22 @@ export async function getCardsGroupByTag(): Promise<Record<string, ICard[]>> {
   return invoke("get-cards-group-by-tag");
 }
 
+export async function getRandomPermanentCards(
+  seed: number,
+  count = 5,
+): Promise<ICard[]> {
+  return invoke("get-random-permanent-cards", { seed, count });
+}
+
 export const openCardInNewWindow = (databaseName: string, cardId: number) => {
   return invoke("open-card-in-new-window", databaseName, cardId, {
     showTitlebar: true,
     isDefaultTop: true,
   });
 };
+
+export async function getRecentTemporaryAndLiteratureCards(
+  count = 10,
+): Promise<ICard[]> {
+  return invoke("get-recent-temp-lit-cards", count);
+}

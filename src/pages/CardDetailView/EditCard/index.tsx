@@ -231,10 +231,6 @@ const EditCard = (props: IEditCardProps) => {
     });
   });
 
-  useEffect(() => {
-    console.log("editingCard", editingCard);
-  }, [editingCard]);
-
   const handleMoreMenuClick = useMemoizedFn(({ key }: { key: string }) => {
     if (!editingCard) return;
 

@@ -22,6 +22,9 @@ export default class CardTable {
       "get-cards-group-by-tag": this.getCardsGroupByTag.bind(this),
       "get-all-cards": this.getAllCards.bind(this),
       "get-card-by-id": this.getCardById.bind(this),
+      "get-random-permanent-cards": this.getRandomPermanentCards.bind(this),
+      "get-recent-temp-lit-cards":
+        this.getRecentTemporaryAndLiteratureCards.bind(this),
     };
   }
 
@@ -388,5 +391,69 @@ export default class CardTable {
     }
 
     return tagsGroupByTag;
+  }
+
+  static getRandomPermanentCards(
+    db: Database.Database,
+    { seed = Date.now(), count = 5 }: { seed: number; count: number },
+  ): ICard[] {
+    // 获取所有永久卡片
+    const stmt = db.prepare(`
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
+             ct.content, ct.count, ct.update_time as content_update_time 
+      FROM cards c
+      LEFT JOIN contents ct ON c.content_id = ct.id
+      WHERE c.category = 'permanent' AND ct.content IS NOT NULL
+    `);
+
+    const allPermanentCards = stmt.all().map((card) => this.parseCard(card));
+
+    if (allPermanentCards.length === 0) {
+      return [];
+    }
+
+    // 使用种子生成伪随机数，种子不变，随机数也不变
+    const random = (max: number, index: number) => {
+      const random = Math.abs(Math.sin(seed + index));
+      return Math.floor(random * max);
+    };
+
+    // 随机选择卡片
+    const result: ICard[] = [];
+    const selectedIndices = new Set<number>();
+
+    // 如果卡片数量不足，则返回所有卡片
+    const targetCount = Math.min(count, allPermanentCards.length);
+
+    let index = 0;
+    while (result.length < targetCount) {
+      const randomIndex = random(allPermanentCards.length, index);
+      if (!selectedIndices.has(randomIndex)) {
+        selectedIndices.add(randomIndex);
+        result.push(allPermanentCards[randomIndex]);
+      }
+      index++;
+    }
+
+    return result;
+  }
+
+  static getRecentTemporaryAndLiteratureCards(
+    db: Database.Database,
+    count = 10,
+  ): ICard[] {
+    // 获取最新的闪念笔记和文献笔记
+    const stmt = db.prepare(`
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
+             ct.content, ct.count, ct.update_time as content_update_time 
+      FROM cards c
+      LEFT JOIN contents ct ON c.content_id = ct.id
+      WHERE (c.category = 'temporary' OR c.category = 'literature') AND ct.content IS NOT NULL
+      ORDER BY c.update_time ASC
+      LIMIT ?
+    `);
+
+    const cards = stmt.all(count);
+    return cards.map((card) => this.parseCard(card));
   }
 }
