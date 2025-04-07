@@ -12,52 +12,6 @@
     margin-bottom: 8px;
   }
 
-  .tabsContainer {
-    position: relative;
-    margin-bottom: 12px;
-  }
-
-  .tabs {
-    display: flex;
-    position: relative;
-    border-bottom: 1px solid var(--line-color);
-    overflow-x: auto;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-
-    .tab {
-      padding: 8px 12px;
-      cursor: pointer;
-      margin-right: 4px;
-      position: relative;
-      transition: all 0.2s;
-      white-space: nowrap;
-      text-align: center;
-
-      &:hover {
-        color: var(--active-text-color);
-      }
-
-      &.active {
-        color: var(--active-text-color);
-        font-weight: 500;
-      }
-    }
-
-    .tabIndicator {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 2px;
-      background-color: var(--active-text-color);
-      z-index: 2;
-      border-radius: 2px 2px 0 0;
-    }
-  }
-
   .content {
     flex: 1;
     overflow: hidden;

@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Button, Empty, List, Popover, Typography } from "antd";
 import { LoadingOutlined, SyncOutlined } from "@ant-design/icons";
-import { useMemoizedFn, useUpdateEffect } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import { useNavigate } from "react-router-dom";
 import { IArticle, ICard, IDocumentItem, ProjectItem } from "@/types";
 import { getLatestOperations } from "@/commands";
@@ -10,7 +10,7 @@ import { getEditorText } from "@/utils";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 import { getRootDocumentsByDocumentItemId } from "@/commands";
-import { motion } from "framer-motion";
+import TabsIndicator, { TabItem } from "@/components/TabsIndicator";
 
 import styles from "./index.module.less";
 
@@ -18,16 +18,10 @@ type ItemType = "cards" | "articles" | "projectItems" | "documentItems";
 
 const LatestUpdate: React.FC = () => {
   const navigate = useNavigate();
-  const tabsRef = useRef<HTMLDivElement>(null);
-  const activeTabRef = useRef<HTMLDivElement>(null);
 
   const [activeTab, setActiveTab] = useState<ItemType>("cards");
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [indicatorStyle, setIndicatorStyle] = useState({
-    left: 0,
-    width: 0,
-  });
   const [latestData, setLatestData] = useState<{
     cards: ICard[];
     articles: IArticle[];
@@ -39,32 +33,6 @@ const LatestUpdate: React.FC = () => {
     projectItems: [],
     documentItems: [],
   });
-
-  const updateIndicatorPosition = () => {
-    if (!activeTabRef.current || !tabsRef.current) return;
-
-    const activeTabElement = activeTabRef.current;
-
-    setIndicatorStyle({
-      left: activeTabElement.offsetLeft,
-      width: activeTabElement.offsetWidth,
-    });
-  };
-
-  useUpdateEffect(() => {
-    updateIndicatorPosition();
-  }, [activeTab]);
-
-  useEffect(() => {
-    // Initial position after DOM is ready
-    setTimeout(updateIndicatorPosition, 0);
-
-    // Update position on resize
-    window.addEventListener("resize", updateIndicatorPosition);
-    return () => {
-      window.removeEventListener("resize", updateIndicatorPosition);
-    };
-  }, []);
 
   const fetchLatestOperations = useMemoizedFn(async () => {
     setLoading(true);
@@ -91,7 +59,7 @@ const LatestUpdate: React.FC = () => {
     }
   });
 
-  const handleTabClick = useMemoizedFn((tab: ItemType) => {
+  const handleTabChange = useMemoizedFn((tab: ItemType) => {
     setActiveTab(tab);
   });
 
@@ -204,7 +172,7 @@ const LatestUpdate: React.FC = () => {
     );
   };
 
-  const tabs = [
+  const tabs: TabItem<ItemType>[] = [
     { key: "cards", label: "卡片" },
     { key: "articles", label: "文章" },
     { key: "projectItems", label: "项目" },
@@ -225,29 +193,11 @@ const LatestUpdate: React.FC = () => {
         />
       </div>
 
-      <div className={styles.tabsContainer}>
-        <div className={styles.tabs} ref={tabsRef}>
-          {tabs.map((tab) => (
-            <div
-              key={tab.key}
-              ref={activeTab === tab.key ? activeTabRef : null}
-              className={`${styles.tab} ${activeTab === tab.key ? styles.active : ""}`}
-              onClick={() => handleTabClick(tab.key as ItemType)}
-            >
-              {tab.label}
-            </div>
-          ))}
-          <motion.div
-            className={styles.tabIndicator}
-            initial={false}
-            animate={{
-              left: indicatorStyle.left,
-              width: indicatorStyle.width,
-            }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-          />
-        </div>
-      </div>
+      <TabsIndicator
+        tabs={tabs}
+        activeTab={activeTab}
+        onChange={handleTabChange}
+      />
 
       <div className={styles.content}>{renderContent()}</div>
     </div>
