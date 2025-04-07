@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { produce } from "immer";
 import classnames from "classnames";
-import { Modal, Popover } from "antd";
+import { Modal, Dropdown, MenuProps } from "antd";
 import EditDocumentModal from "../EditDocumentModal";
 
 import { MdMoreVert } from "react-icons/md";
@@ -25,7 +25,6 @@ const DocumentCard = (props: DocumentCardProps) => {
   const { document, className, style } = props;
 
   const { isDark } = useTheme();
-  const [settingOpen, setSettingOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
 
   const navigate = useNavigate();
@@ -46,7 +45,6 @@ const DocumentCard = (props: DocumentCardProps) => {
       okText: "确定",
       cancelText: "取消",
     });
-    setSettingOpen(false);
   };
 
   const handleTogglePin = async () => {
@@ -54,7 +52,6 @@ const DocumentCard = (props: DocumentCardProps) => {
       draft.isTop = !draft.isTop;
     });
     await updateDocument(newDocument);
-    setSettingOpen(false);
   };
 
   const onClick = () => {
@@ -63,6 +60,30 @@ const DocumentCard = (props: DocumentCardProps) => {
     });
     navigate(`/documents/detail/${document.id}`);
   };
+
+  const items: MenuProps["items"] = [
+    {
+      key: "pin",
+      label: document.isTop ? "取消置顶" : "置顶知识库",
+      onClick: () => {
+        handleTogglePin();
+      },
+    },
+    {
+      key: "edit",
+      label: "编辑知识库",
+      onClick: () => {
+        setEditOpen(true);
+      },
+    },
+    {
+      key: "delete",
+      label: "删除知识库",
+      onClick: () => {
+        handleDeleteDocument();
+      },
+    },
+  ];
 
   return (
     <div
@@ -89,51 +110,9 @@ const DocumentCard = (props: DocumentCardProps) => {
           e.stopPropagation();
         }}
       >
-        <Popover
-          open={settingOpen}
-          onOpenChange={setSettingOpen}
-          placement={"bottomRight"}
-          trigger={"click"}
-          styles={{
-            body: {
-              padding: 4,
-            },
-          }}
-          content={
-            <div className={styles.settings}>
-              <div
-                className={styles.settingItem}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleTogglePin();
-                }}
-              >
-                {document.isTop ? "取消置顶" : "置顶"}
-              </div>
-              <div
-                className={styles.settingItem}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEditOpen(true);
-                  setSettingOpen(false);
-                }}
-              >
-                编辑知识库
-              </div>
-              <div
-                className={styles.settingItem}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteDocument();
-                }}
-              >
-                删除知识库
-              </div>
-            </div>
-          }
-        >
+        <Dropdown menu={{ items }} trigger={["hover"]} placement="bottomRight">
           <MdMoreVert />
-        </Popover>
+        </Dropdown>
       </div>
       <EditDocumentModal
         open={editOpen}
