@@ -10,6 +10,7 @@ import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
 import log from "electron-log";
+import PathUtil from "../../utils/PathUtil";
 
 export default class ArticleTable {
   static initTable(db: Database.Database) {
@@ -131,6 +132,18 @@ export default class ArticleTable {
           updateTime: article.update_time,
         });
         log.info(`已为文章 ${article.id} 添加/更新 FTS 索引`);
+      }
+
+      if (article.bannerBg) {
+        const homeDir = PathUtil.getHomeDir();
+        // 如果是家目录，替换为 ~
+        if (article.bannerBg.startsWith(homeDir)) {
+          article.bannerBg = article.bannerBg.replace(homeDir, "~");
+          const stmt = db.prepare(
+            "UPDATE articles SET banner_bg = ? WHERE id = ?",
+          );
+          stmt.run(article.bannerBg, article.id);
+        }
       }
     }
   }

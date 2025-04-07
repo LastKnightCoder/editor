@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, memo, forwardRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
-import { readBinaryFile, getFileExtension } from "@/commands";
+import { readBinaryFile, getFileExtension, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 
 interface LocalVideoProps {
@@ -59,8 +59,12 @@ const LocalVideo = memo(
           localUrl = await remoteResourceToLocal(src);
         }
 
-        const data = await readBinaryFile(localUrl);
-        const ext = await getFileExtension(localUrl);
+        const homeDir = await getHomeDir();
+        const absolutePath = localUrl.startsWith("~")
+          ? `${homeDir}${localUrl.slice(1)}`
+          : localUrl;
+        const data = await readBinaryFile(absolutePath);
+        const ext = await getFileExtension(absolutePath);
         const blob = new Blob([data], { type: getMimeType(ext) });
         const blobUrl = URL.createObjectURL(blob);
         // 记录当前播放的时间等信息

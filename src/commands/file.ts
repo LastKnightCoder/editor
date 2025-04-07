@@ -7,6 +7,10 @@ export const getEditorDir = async () => {
   return await invoke("get-app-dir");
 };
 
+export const getHomeDir = async () => {
+  return await invoke("get-home-dir");
+};
+
 export const selectFile = async (
   options?: object,
 ): Promise<string[] | null> => {
@@ -71,8 +75,4 @@ export const openMarkdownInNewWindow = async (filePath: string) => {
     showTitlebar: false,
     isDefaultTop: false,
   });
-};
-
-export const formatMarkdown = async (markdown: string): Promise<string> => {
-  return await invoke("format-markdown", markdown);
 };

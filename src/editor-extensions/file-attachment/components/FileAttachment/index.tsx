@@ -69,20 +69,25 @@ const FileAttachment = (props: IFileAttachmentProps) => {
       })}
       contentEditable={false}
     >
-      <div className={styles.fileAttachmentContainer} onClick={handleClickCard}>
-        <div className={styles.fileName}>{fileName}</div>
-        <div className={styles.filePath}>{filePath}</div>
-      </div>
-      <div {...attributes}>{children}</div>
-      <AddParagraph element={element as any} />
-      <div
-        contentEditable={false}
-        ref={drag}
-        className={classnames(styles.dragHandler, {
-          [styles.canDrag]: canDrag,
-        })}
-      >
-        <MdDragIndicator className={styles.icon} />
+      <div {...attributes}>
+        <div
+          className={styles.fileAttachmentContainer}
+          onClick={handleClickCard}
+        >
+          <div className={styles.fileName}>{fileName}</div>
+          <div className={styles.filePath}>{filePath}</div>
+        </div>
+        {children}
+        <AddParagraph element={element as any} />
+        <div
+          contentEditable={false}
+          ref={drag}
+          className={classnames(styles.dragHandler, {
+            [styles.canDrag]: canDrag,
+          })}
+        >
+          <MdDragIndicator className={styles.icon} />
+        </div>
       </div>
     </div>
   );

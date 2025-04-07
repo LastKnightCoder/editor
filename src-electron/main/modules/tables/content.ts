@@ -1,7 +1,11 @@
 import Database from "better-sqlite3";
-import { getContentLength } from "@/utils/helper.ts";
+import { getContentLength, dfs } from "@/utils/helper.ts";
 import { IContent, ICreateContent, IUpdateContent } from "@/types/content";
 import Operation from "./operation";
+import { produce } from "immer";
+import { Descendant } from "slate";
+import PathUtil from "../../utils/PathUtil";
+import log from "electron-log";
 
 export default class ContentTable {
   static getListenEvents() {
@@ -31,13 +35,56 @@ export default class ContentTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    // 检查并添加索引以优化查询
-    const createIndexSql = `
-      CREATE INDEX IF NOT EXISTS idx_contents_update_time ON contents(update_time);
-      CREATE INDEX IF NOT EXISTS idx_contents_create_time ON contents(create_time);
-      CREATE INDEX IF NOT EXISTS idx_contents_ref_count ON contents(ref_count);
-    `;
-    db.exec(createIndexSql);
+    const homePath = PathUtil.getHomeDir();
+    const isHasLocalPath = (node: Descendant) => {
+      if (node.type === "image") {
+        return node.url.startsWith(homePath);
+      } else if (node.type === "image-gallery") {
+        return node.images.some((image) => image.url.startsWith(homePath));
+      } else if (node.type === "video" || node.type === "audio") {
+        return node.src.startsWith(homePath);
+        // @ts-ignore
+      } else if (node.type === "file-attachment") {
+        // @ts-ignore
+        return node.isLocal && node.localFilePath?.startsWith(homePath);
+      }
+      return false;
+    };
+
+    // 获取所有的 content
+    const contents = this.getAllContents(db);
+    // 遍历所有的 content
+    for (const content of contents) {
+      // 使用 immer 修改 content 的 content 字段
+      // dfs 遍历 content.content，收集 type 为 image，video，audio，file-attachment 的 node
+      let hasNode = false;
+      const newContent = produce(content.content, (draft) => {
+        dfs(draft, (node) => {
+          // @ts-ignore
+          if (isHasLocalPath(node)) {
+            hasNode = true;
+            if (node.type === "image") {
+              node.url = node.url.replace(homePath, "~");
+            } else if (node.type === "image-gallery") {
+              node.images.forEach((image) => {
+                image.url = image.url.replace(homePath, "~");
+              });
+            } else if (node.type === "video" || node.type === "audio") {
+              node.src = node.src.replace(homePath, "~");
+              // @ts-ignore
+            } else if (node.type === "file-attachment") {
+              // @ts-ignore
+              node.localFilePath = node.localFilePath.replace(homePath, "~");
+            }
+          }
+        });
+      });
+      // 更新 content 的 content 字段
+      if (hasNode) {
+        log.info(`升级 content ${content.id} 的 content 字段`);
+        this.updateContent(db, content.id, { content: newContent });
+      }
+    }
   }
 
   static parseContent(content: any): IContent {
