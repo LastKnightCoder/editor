@@ -11,6 +11,7 @@ import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSmallComponentSidebarStore from "@/stores/useSmallComponentSidebar";
 import DailyReview from "./components/DailyReview";
 import ToClearCards from "./components/ToClearCards";
+import LatestUpdate from "./components/LatestUpdate";
 
 const SmallComponentSidebar = memo(() => {
   const { open, width } = useSmallComponentSidebarStore(
@@ -44,6 +45,9 @@ const SmallComponentSidebar = memo(() => {
         <Flex vertical gap={16}>
           <Card>
             <ToClearCards />
+          </Card>
+          <Card>
+            <LatestUpdate />
           </Card>
           <Card>
             <DailyReview />
