@@ -1,0 +1,30 @@
+@import "../common.less";
+
+.popoverContent {
+  background: #fff;
+  padding: 0.5em;
+  width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.alignItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.5em;
+  border-radius: 0.25em;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(102, 152, 255, 0.1);
+    color: rgb(102, 152, 255);
+  }
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5em;
+}

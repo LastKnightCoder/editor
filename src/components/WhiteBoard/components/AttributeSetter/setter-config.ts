@@ -2,6 +2,7 @@ import RichTextSetter from "./RichTextSetter";
 import GeometrySetter from "./GeometrySetter";
 import ArrowSetter from "./ArrowSetter";
 import ImageSetter from "./ImageSetter";
+import MultiSelectSetter from "./MultiSelectSetter";
 
 export default {
   richtext: {
@@ -18,5 +19,8 @@ export default {
   },
   image: {
     component: ImageSetter,
+  },
+  multiselect: {
+    component: MultiSelectSetter,
   },
 };
