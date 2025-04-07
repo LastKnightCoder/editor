@@ -1,5 +1,5 @@
 class MarkerPainter {
-  static get inputProperties(): string[] {
+  static get inputProperties() {
     return [
       "--marker-color",
       "--marker-offset",
@@ -9,12 +9,8 @@ class MarkerPainter {
     ];
   }
 
-  paint(
-    ctx: PaintRenderingContext2D,
-    geom: { width: number; height: number },
-    props: Map<string, any>,
-  ): void {
-    const fontSize = (props.get("font-size") as CSSUnitValue).value;
+  paint(ctx, geom, props) {
+    const fontSize = props.get("font-size").value;
     const lineHeightValue = props.get("line-height");
     const color = props.get("--marker-color").toString();
 
@@ -35,7 +31,6 @@ class MarkerPainter {
         offset = parseInt(offsetStr) || 20;
       }
     } else if (offsetValue instanceof CSSUnitValue) {
-      // CSSUnitValue 情况
       if (offsetValue.unit === "em") {
         offset = offsetValue.value * fontSize;
       } else {
@@ -46,7 +41,7 @@ class MarkerPainter {
     const roughness =
       parseFloat(props.get("--marker-roughness").toString()) || 0.3;
 
-    let lineHeight: number;
+    let lineHeight;
     if (lineHeightValue instanceof CSSUnitValue) {
       lineHeight =
         lineHeightValue.unit === "number"
@@ -63,13 +58,7 @@ class MarkerPainter {
     this.addTexture(ctx, geom, color, roughness, offset, autoHeight);
   }
 
-  private drawMarkerPath(
-    ctx: PaintRenderingContext2D,
-    geom: { width: number; height: number },
-    height: number,
-    offset: number,
-    roughness: number,
-  ): void {
+  drawMarkerPath(ctx, geom, height, offset, roughness) {
     ctx.beginPath();
 
     // 起始点更多随机性
@@ -189,15 +178,8 @@ class MarkerPainter {
     ctx.closePath();
   }
 
-  private addTexture(
-    ctx: PaintRenderingContext2D,
-    geom: { width: number; height: number },
-    color: string,
-    roughness: number,
-    offset?: number,
-    height?: number,
-  ): void {
-    const parseColor = (color: string): [number, number, number] => {
+  addTexture(ctx, geom, color, roughness, offset, height) {
+    const parseColor = (color) => {
       // 统一转换为 RGB 数组
       if (color.startsWith("#")) {
         const hex = color.replace("#", "");
@@ -263,5 +245,4 @@ class MarkerPainter {
   }
 }
 
-// @ts-ignore
 registerPaint("marker-highlight", MarkerPainter);

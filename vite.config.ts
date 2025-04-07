@@ -126,6 +126,7 @@ export default defineConfig(({ command }) => {
           },
         },
       },
+      target: "esnext",
     },
   };
 });
