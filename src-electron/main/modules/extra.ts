@@ -1,5 +1,6 @@
 import { ipcMain, shell } from "electron";
 import axios from "axios";
+import { resolve } from "node:path";
 import pkg from "../../../package.json";
 import { Module } from "../types/module";
 
@@ -25,6 +26,10 @@ class Extra implements Module {
         chrome: process.versions.chrome,
         electron: process.versions.electron,
       };
+    });
+
+    ipcMain.handle("resolve-path", (_, path) => {
+      return resolve(path);
     });
   }
 

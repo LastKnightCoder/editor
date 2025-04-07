@@ -11,3 +11,7 @@ export const nodeFetch = async (url: string, options: any) => {
 export const getVersions = async () => {
   return await invoke("get-versions");
 };
+
+export const resolvePath = async (path: string) => {
+  return await invoke("resolve-path", path);
+};

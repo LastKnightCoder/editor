@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol } from "electron";
+import { app, BrowserWindow, protocol, globalShortcut } from "electron";
 import path, { extname } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
@@ -16,7 +16,28 @@ import voiceCopyModule from "./modules/voice-copy";
 import windowManagerModule from "./modules/window-manager";
 import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
-import { globalShortcut } from "electron";
+
+(async (): Promise<void> => {
+  const contextMenu = await import("electron-context-menu");
+  contextMenu.default({
+    showCopyImageAddress: true,
+    showCopyVideoAddress: true,
+    showCopyLink: true,
+    showInspectElement: true,
+    showSearchWithGoogle: false,
+    labels: {
+      copy: "复制",
+      cut: "剪切",
+      paste: "粘贴",
+      copyImage: "复制图片",
+      copyImageAddress: "复制图片地址",
+      copyVideoAddress: "复制视频地址",
+      copyLink: "复制链接",
+      selectAll: "全选",
+      inspect: "检查元素",
+    },
+  });
+})();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

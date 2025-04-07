@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAsyncEffect } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
-import { convertFileSrc } from "@/commands";
+import { convertFileSrc, getHomeDir } from "@/commands";
 
 interface LocalAudioProps {
   src: string;
@@ -27,7 +27,11 @@ const LocalAudio = (props: LocalAudioProps) => {
         const filePath = convertFileSrc(localUrl);
         setPreviewUrl(filePath);
       } else {
-        const filePath = convertFileSrc(src);
+        const homeDir = await getHomeDir();
+        const absolutePath = src.startsWith("~")
+          ? `${homeDir}${src.slice(1)}`
+          : src;
+        const filePath = convertFileSrc(absolutePath);
         setPreviewUrl(filePath);
       }
     } catch (e) {
