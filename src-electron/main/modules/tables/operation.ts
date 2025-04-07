@@ -262,10 +262,10 @@ export default class OperationTable {
     );
 
     return {
-      cards,
-      articles,
-      projectItems,
-      documentItems,
+      cards: cards.sort((a, b) => b.update_time - a.update_time),
+      articles: articles.sort((a, b) => b.update_time - a.update_time),
+      projectItems: projectItems.sort((a, b) => b.updateTime - a.updateTime),
+      documentItems: documentItems.sort((a, b) => b.updateTime - a.updateTime),
     };
   }
 }

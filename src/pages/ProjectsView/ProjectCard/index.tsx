@@ -96,24 +96,24 @@ const ProjectCard = (props: ProjectCardProps) => {
   const menuItems = [
     {
       key: "edit",
-      label: "编辑",
+      label: "编辑项目",
       onClick: () => setEditOpen(true),
     },
     {
       key: "pin",
-      label: project.pinned ? "取消置顶" : "置顶",
+      label: project.pinned ? "取消置顶" : "置顶项目",
       onClick: () =>
         project.pinned ? handleUnpinProject() : handlePinProject(),
     },
     {
       key: "archive",
-      label: project.archived ? "取消归档" : "归档",
+      label: project.archived ? "取消归档" : "归档项目",
       onClick: () =>
         project.archived ? handleUnarchiveProject() : handleArchiveProject(),
     },
     {
       key: "delete",
-      label: "删除",
+      label: "删除项目",
       onClick: handleDeleteProject,
     },
   ];

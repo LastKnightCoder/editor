@@ -24,33 +24,41 @@
     var(--bg-color2),
     transparent 50%
   );
+
   &.right {
     --gradient-angle: 80deg;
   }
+
   &.green {
     --bg-color1: #79dd09;
     --bg-color2: rgba(121, 221, 9, 0.1);
   }
+
   &.blue {
     --bg-color1: #0076bd;
     --bg-color2: rgba(0, 118, 189, 0.1);
   }
+
   &.yellow {
     --bg-color1: #bdbb49;
     --bg-color2: rgba(189, 187, 73, 0.1);
   }
+
   &.red {
     --bg-color1: #bd150b;
     --bg-color2: rgba(189, 21, 11, 0.1);
   }
+
   &.purple {
     --bg-color1: #7d1abd;
     --bg-color2: rgba(125, 26, 189, 0.1);
   }
+
   &.dark {
     --card-bg: #18151f;
     --text-color: #fff;
   }
+
   .content {
     width: 60%;
     height: 100%;
@@ -61,6 +69,7 @@
     gap: 12px;
     overflow: hidden;
     position: relative;
+
     .operate {
       position: absolute;
       top: 10px;
@@ -71,14 +80,17 @@
       align-items: center;
       justify-content: center;
       border-radius: 50%;
+
       &.left {
         left: 10px;
       }
+
       &:hover {
         cursor: pointer;
         background-color: rgba(255, 255, 255, 0.2);
       }
     }
+
     .title {
       max-width: 100%;
       display: block;
@@ -86,46 +98,59 @@
       font-weight: bold;
       color: var(--text-normal);
       user-select: none;
+
       &:hover {
         cursor: pointer;
         color: var(--bg-color1);
       }
     }
+
     .timeAndTags {
       display: flex;
       color: gray;
       font-size: 14px;
       gap: 8px;
+
       .time {
         display: flex;
         align-items: center;
         gap: 4px;
       }
     }
+
+    .editor {
+      pointer-events: none;
+    }
   }
+
   .imageContainer {
     width: 40%;
     height: 100%;
     overflow: hidden;
     flex-shrink: 0;
     position: relative;
+
     img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       transition: transform 0.3s ease-in-out;
       cursor: pointer;
+
       &:hover {
         transform: scale(1.1);
       }
     }
+
     &.right {
       order: 1;
+
       .topStar {
         left: unset;
         right: 10px;
       }
     }
+
     .topStar {
       position: absolute;
       width: 24px;
@@ -151,25 +176,31 @@
     gap: 0;
     --gradient-angle: 40deg;
     box-shadow: 0 1.5px 3px 0 rgb(0 0 0 / 15%);
+
     .content {
       box-sizing: border-box;
       padding: 20px;
       width: 100%;
       height: auto;
       overflow: visible;
+
       .operate {
         top: -140px;
         right: 10px;
+
         &.left {
           left: unset;
         }
       }
     }
+
     .imageContainer {
       width: 100%;
       height: 150px;
+
       &.right {
         order: 0;
+
         .topStar {
           left: 10px;
         }
@@ -182,9 +213,11 @@
   display: flex;
   gap: 10px;
   flex-direction: column;
+
   .settingItem {
     padding: 8px 16px;
     border-radius: 4px;
+
     &:hover {
       background-color: var(--common-hover-bg);
       cursor: pointer;

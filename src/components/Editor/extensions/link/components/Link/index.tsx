@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { Transforms } from "slate";
 import {
   ReactEditor,
@@ -6,19 +6,20 @@ import {
   useReadOnly,
   useSlate,
 } from "slate-react";
-import { Popover, Button, Input, App } from "antd";
+import { Popover, Button, Input, App, Tooltip } from "antd";
 import SVG from "react-inlinesvg";
-import classnames from "classnames";
 
 import unLinkIcon from "@/assets/icons/unlink.svg";
 import copyIcon from "@/assets/icons/copy.svg";
 import editIcon from "@/assets/icons/edit.svg";
+import { TbExternalLink } from "react-icons/tb";
 import { openExternal as openUrl } from "@/commands";
 
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
 import { LinkElement } from "@editor/types";
 
 import styles from "./index.module.less";
+import { useMemoizedFn } from "ahooks";
 
 interface LinkProps {
   attributes: RenderElementProps["attributes"];
@@ -31,7 +32,7 @@ const EditLink: React.FC<{
   onSubmit: (url: string) => void;
   onEditableChange: (editable: boolean) => void;
   unwrapLink: () => void;
-}> = (props) => {
+}> = memo((props) => {
   const { url, onSubmit, editable, onEditableChange, unwrapLink } = props;
   const [inputValue, setInputValue] = useState(url);
   const readOnly = useReadOnly();
@@ -53,21 +54,27 @@ const EditLink: React.FC<{
     return (
       <div className={styles.unEditable}>
         <div className={styles.text}>{url}</div>
-        <SVG className={styles.icon} src={copyIcon} onClick={onCopyUrl} />
+        <Tooltip title="复制链接">
+          <SVG className={styles.icon} src={copyIcon} onClick={onCopyUrl} />
+        </Tooltip>
         {!readOnly && (
           <>
-            <SVG
-              className={styles.icon}
-              src={editIcon}
-              onClick={() => {
-                onEditableChange(true);
-              }}
-            />
-            <SVG
-              className={styles.icon}
-              src={unLinkIcon}
-              onClick={unwrapLink}
-            />
+            <Tooltip title="编辑链接">
+              <SVG
+                className={styles.icon}
+                src={editIcon}
+                onClick={() => {
+                  onEditableChange(true);
+                }}
+              />
+            </Tooltip>
+            <Tooltip title="取消链接">
+              <SVG
+                className={styles.icon}
+                src={unLinkIcon}
+                onClick={unwrapLink}
+              />
+            </Tooltip>
           </>
         )}
       </div>
@@ -106,9 +113,9 @@ const EditLink: React.FC<{
       </div>
     </div>
   );
-};
+});
 
-const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
+const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
   const { attributes, children, element } = props;
   const { url, openEdit = false } = element;
 
@@ -116,22 +123,37 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
   const [open, setOpen] = useState(openEdit);
   const [editable, setEditable] = useState(openEdit);
 
-  const unwrapLink = () => {
+  const unwrapLink = useMemoizedFn(() => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.unwrapNodes(editor, { at: path });
-  };
+  });
 
-  const handleClick = () => {
+  const handleClick = useMemoizedFn(() => {
     openUrl(url).then(() => {
       setOpen(false);
     });
-  };
+  });
 
-  const changeUrl = (url: string) => {
+  const changeUrl = useMemoizedFn((url: string) => {
+    if (!url) {
+      unwrapLink();
+      return;
+    }
     setEditable(false);
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(editor, { openEdit: false, url }, { at: path });
-  };
+    setOpen(false);
+  });
+
+  const handleOpenChange = useMemoizedFn((visible: boolean) => {
+    // 如果关闭的时候 url 为空，则 unwrapLink
+    if (!visible && !url) {
+      unwrapLink();
+      return;
+    }
+    setOpen(visible);
+    setEditable(false);
+  });
 
   return (
     <Popover
@@ -139,10 +161,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
       open={open}
       mouseEnterDelay={0.3}
       mouseLeaveDelay={0.3}
-      onOpenChange={(visible) => {
-        setOpen(visible);
-        setEditable(false);
-      }}
+      onOpenChange={handleOpenChange}
       styles={{
         body: {
           padding: 0,
@@ -160,17 +179,22 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = (props) => {
       arrow={false}
       placement={"bottom"}
     >
-      <span
-        {...attributes}
-        className={classnames(styles.link)}
-        onClick={handleClick}
-      >
+      <span {...attributes} className={styles.link}>
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />
+        <Tooltip title="打开链接">
+          <span
+            className={styles.icon}
+            contentEditable={false}
+            onClick={handleClick}
+          >
+            <TbExternalLink />
+          </span>
+        </Tooltip>
       </span>
     </Popover>
   );
-};
+});
 
 export default Link;

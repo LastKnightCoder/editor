@@ -69,6 +69,30 @@
         font-size: 24px;
         font-weight: bold;
         color: #8c8c8c;
+        position: relative;
+        cursor: pointer;
+
+        .arrow {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          position: absolute;
+          left: -32px;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          transition: background-color 0.3s ease;
+          margin-right: -4px;
+
+          &:hover {
+            background-color: var(--common-hover-bg);
+          }
+
+          &.open {
+            transform: rotate(90deg);
+          }
+        }
 
         .icon {
           font-size: 20px;

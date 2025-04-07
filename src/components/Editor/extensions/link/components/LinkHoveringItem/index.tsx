@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
@@ -12,7 +12,7 @@ import link from "@/assets/hovering_bar/link.svg";
 
 import styles from "./index.module.less";
 
-const LinkHoveringItem = () => {
+const LinkHoveringItem = memo(() => {
   const editor = useSlate();
   const selection = useSlateSelection();
 
@@ -55,6 +55,6 @@ const LinkHoveringItem = () => {
       </div>
     </Tooltip>
   );
-};
+});
 
 export default LinkHoveringItem;

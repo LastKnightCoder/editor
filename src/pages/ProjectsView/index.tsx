@@ -2,9 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
-import { FloatButton, message, Button, Breadcrumb } from "antd";
+import { FloatButton, message, Breadcrumb } from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
-import { FaArchive } from "react-icons/fa";
+import { CaretRightOutlined } from "@ant-design/icons";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import EditProjectInfoModal from "./EditProjectInfoModal";
 import ProjectList from "./ProjectList";
@@ -15,6 +15,8 @@ import { CreateProject } from "@/types";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import Titlebar from "@/components/Titlebar";
+import classNames from "classnames";
+
 const EMPTY_DESC: Descendant[] = [
   {
     type: "paragraph",
@@ -60,9 +62,9 @@ const ProjectsView = () => {
     };
   }, [projects]);
 
-  const handleToggleArchived = (checked: boolean) => {
+  const handleToggleArchived = useMemoizedFn((checked: boolean) => {
     useProjectsStore.setState({ showArchived: checked });
-  };
+  });
 
   const handleCreateProject = useMemoizedFn(
     async (title: string, desc: Descendant[]) => {
@@ -135,19 +137,22 @@ const ProjectsView = () => {
         {archivedProjects.length > 0 && (
           <div className={styles.section}>
             <div className={styles.sectionHeader}>
-              <div className={styles.titleWithIcon}>
-                <FaArchive className={styles.icon} />
+              <div
+                className={styles.titleWithIcon}
+                onClick={() => handleToggleArchived(!showArchived)}
+              >
+                <div
+                  className={classNames(styles.arrow, {
+                    [styles.open]: showArchived,
+                  })}
+                >
+                  <CaretRightOutlined />
+                </div>
                 <span>归档项目</span>
                 <span className={styles.count}>
                   ({archivedProjects.length})
                 </span>
               </div>
-              <Button
-                type="text"
-                onClick={() => handleToggleArchived(!showArchived)}
-              >
-                {showArchived ? "隐藏" : "显示"}
-              </Button>
             </div>
             {showArchived && <ProjectList projects={archivedProjects} />}
           </div>
