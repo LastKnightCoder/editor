@@ -1,25 +1,6 @@
-import React, {
-  memo,
-  useMemo,
-  useEffect,
-  useRef,
-  useSyncExternalStore,
-} from "react";
-import {
-  useMemoizedFn,
-  useCreation,
-  useThrottleFn,
-  useLocalStorageState,
-} from "ahooks";
+import React, { memo, useEffect, useRef, useSyncExternalStore } from "react";
+import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
 import classnames from "classnames";
-import { App } from "antd";
-import { EditOutlined, CloseOutlined } from "@ant-design/icons";
-import {
-  FullscreenOutlined,
-  PlayCircleOutlined,
-  MinusOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
 
 import Board from "./Board";
 import {
@@ -39,36 +20,29 @@ import {
   PresentationSequence,
 } from "./plugins";
 
-import { ViewPortTransforms } from "./transforms";
 import { BoardContext, SelectionContext, ViewPortContext } from "./context";
-import {
-  BOARD_TO_CONTAINER,
-  ARROW_SIZE,
-  ZOOMS,
-  MIN_ZOOM,
-  MAX_ZOOM,
-  DEFAULT_GRID_SIZE,
-  DEFAULT_GRID_VISIBLE,
-} from "./constants";
-import { BoardElement, Events, ViewPort, Selection } from "./types";
+import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
+import { BoardElement, ViewPort, Selection } from "./types";
 import Toolbar from "./components/Toolbar";
-import SelectArea from "./components/SelectArea";
-import GradientLine from "./components/GradientLine";
-import Grid from "./components/Grid";
-import GridSettings from "./components/GridSettings";
 import AttributeSetter from "./components/AttributeSetter";
-import { Flex, Popover, Divider, Tooltip } from "antd";
-import For from "@/components/For";
 import styles from "./index.module.less";
 import PresentationCreator from "./components/PresentationCreator";
 import PresentationMode from "./components/PresentationMode";
+import StatusBar from "./components/StatusBar";
+import BoardContent from "./components/BoardContent";
+import {
+  useViewPortControls,
+  useEventHandlers,
+  useElementsSorting,
+  useGridSettings,
+} from "./hooks";
 
+// 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
 const selectPlugin = new SelectPlugin();
 const movePlugin = new MovePlugin();
 const historyPlugin = new HistoryPlugin();
 const copyPastePlugin = new CopyPastePlugin();
-
 const arrowPlugin = new ArrowPlugin();
 const richTextPlugin = new RichTextPlugin();
 const geometryPlugin = new GeometryPlugin();
@@ -109,23 +83,20 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     onChange,
   } = props;
 
-  const { modal } = App.useApp();
-
-  const [gridVisible, setGridVisible] = useLocalStorageState<boolean>(
-    "gridVisible",
-    { defaultValue: DEFAULT_GRID_VISIBLE },
-  );
-  const [gridSize, setGridSize] = useLocalStorageState<number>("gridSize", {
-    defaultValue: DEFAULT_GRID_SIZE,
-  });
-  // 固定内边距值，不需要用户设置
-  const FIT_VIEW_PADDING = 50;
-
+  // 引用
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const statusBarRef = useRef<HTMLDivElement>(null);
-  const fitViewButtonRef = useRef<HTMLDivElement>(null);
 
+  // 网格设置
+  const {
+    gridVisible,
+    gridSize,
+    handleGridVisibleChange,
+    handleGridSizeChange,
+  } = useGridSettings();
+
+  // 创建画板实例
   const board = useCreation<Board>(() => {
     const plugins = [
       arrowPlugin,
@@ -152,32 +123,61 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     );
   }, []);
 
+  // 获取画板数据
   const { children, viewPort, selection } = useSyncExternalStore(
     board.subscribe,
     board.getSnapshot,
   );
-  const { minX, minY, width, height, zoom } = viewPort;
+  const { zoom } = viewPort;
 
-  const [centerConnectArrows, noneCenterConnectArrows] = useMemo(() => {
-    const isCenterConnectAndNotSelected = (element: BoardElement) => {
-      const isCenterConnectArrow =
-        element.type === "arrow" &&
-        (element.source?.connectId === "center" ||
-          element.target?.connectId === "center");
-      const isSelected = selection.selectedElements.some(
-        (selectedElement) => selectedElement.id === element.id,
-      );
-      return isCenterConnectArrow && !isSelected;
-    };
+  // 对元素进行分组排序
+  const { centerConnectArrows, noneCenterConnectArrows } = useElementsSorting(
+    children,
+    selection,
+  );
 
-    const centerConnectArrows = children.filter(isCenterConnectAndNotSelected);
-    const noneCenterConnectArrows = children.filter(
-      (element) => !isCenterConnectAndNotSelected(element),
-    );
+  // 获取视口控制函数
+  const {
+    handleContainerResize,
+    handleZoomIn,
+    handleZoomOut,
+    handleZoomTo,
+    handleFitElements,
+  } = useViewPortControls(board, zoom);
 
-    return [centerConnectArrows, noneCenterConnectArrows];
-  }, [children, selection]);
+  // 事件处理
+  const {
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleMouseEnter,
+    handleMouseLeave,
+    handleContextMenu,
+    handleClick,
+    handleDblClick,
+    handleOnPointerDown,
+    handleOnPointerMove: nonThrottledHandleOnPointerMove,
+    handleOnPointerUp,
+    handleKeyDown,
+    handleKeyUp,
+    handleGlobalMouseDown,
+    handleGlobalMouseUp,
+    handleOnWheel,
+    handleOnGlobalPointerDown,
+    handleOnGlobalPointerMove,
+    handleOnGlobalPointerUp,
+    handleOnPaste,
+    handleOnCopy,
+    handleOnCut,
+  } = useEventHandlers(board);
 
+  // 节流处理指针移动事件
+  const { run: handleOnPointerMove } = useThrottleFn(
+    nonThrottledHandleOnPointerMove,
+    { wait: 25 },
+  );
+
+  // 监听数据变化
   useEffect(() => {
     const handleChange = () => {
       onChange?.(board.getSnapshot());
@@ -189,91 +189,12 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     };
   }, [board, onChange]);
 
-  const eventHandlerGenerator = useMemoizedFn((eventName: Events) => {
-    return (event: any) => {
-      board[eventName](event);
-    };
-  });
-
-  const handleContainerResize = useMemoizedFn(() => {
-    ViewPortTransforms.onContainerResize(board);
-  });
-
-  const handleZoomIn = useMemoizedFn(() => {
-    ViewPortTransforms.updateZoom(board, Math.max(zoom / 1.1, MIN_ZOOM));
-  });
-
-  const handleZoomOut = useMemoizedFn(() => {
-    ViewPortTransforms.updateZoom(board, Math.min(zoom * 1.1, MAX_ZOOM));
-  });
-
-  // 添加一个新方法，用于处理选中元素或所有元素的全览
-  const handleFitElements = useMemoizedFn(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      // 阻止事件冒泡和默认行为
-      e.stopPropagation();
-      e.preventDefault();
-
-      // 获取当前选中的元素
-      const selectedElements = selection.selectedElements;
-
-      // 确保我们使用的是当前的选中元素
-      if (selectedElements && selectedElements.length > 0) {
-        // 如果有选中的元素，则全览选中的元素
-        ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, [
-          ...selectedElements,
-        ]);
-      } else {
-        // 否则全览所有元素
-        ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
-      }
-    },
-  );
-
-  const handleMouseDown = eventHandlerGenerator("onMouseDown");
-  const handleMouseMove = eventHandlerGenerator("onMouseMove");
-  const handleMouseUp = eventHandlerGenerator("onMouseUp");
-  const handleMouseEnter = eventHandlerGenerator("onMouseEnter");
-  const handleMouseLeave = eventHandlerGenerator("onMouseLeave");
-  const handleContextMenu = eventHandlerGenerator("onContextMenu");
-  const handleClick = eventHandlerGenerator("onClick");
-  const handleDblClick = eventHandlerGenerator("onDblClick");
-  const handleOnPointerDown = eventHandlerGenerator("onPointerDown");
-  const { run: handleOnPointerMove } = useThrottleFn(
-    eventHandlerGenerator("onPointerMove"),
-    { wait: 25 },
-  );
-  const handleOnPointerUp = eventHandlerGenerator("onPointerUp");
-
-  const handleGridVisibleChange = useMemoizedFn((visible: boolean) => {
-    setGridVisible(visible);
-  });
-
-  const handleGridSizeChange = useMemoizedFn((size: number) => {
-    setGridSize(size);
-  });
-
+  // 设置容器，添加和清理事件监听器
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     BOARD_TO_CONTAINER.set(board, container);
-
-    const handleKeyDown = eventHandlerGenerator("onKeyDown");
-    const handleKeyUp = eventHandlerGenerator("onKeyUp");
-    const handleGlobalMouseDown = eventHandlerGenerator("onGlobalMouseDown");
-    const handleGlobalMouseUp = eventHandlerGenerator("onGlobalMouseUp");
-    const handleOnWheel = eventHandlerGenerator("onWheel");
-    const handleOnGlobalPointerDown = eventHandlerGenerator(
-      "onGlobalPointerDown",
-    );
-    const handleOnGlobalPointerMove = eventHandlerGenerator(
-      "onGlobalPointerMove",
-    );
-    const handleOnGlobalPointerUp = eventHandlerGenerator("onGlobalPointerUp");
-    const handleOnPaste = eventHandlerGenerator("onPaste");
-    const handleOnCopy = eventHandlerGenerator("onCopy");
-    const handleOnCut = eventHandlerGenerator("onCut");
 
     document.addEventListener("paste", handleOnPaste);
     document.addEventListener("copy", handleOnCopy);
@@ -285,7 +206,6 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     document.addEventListener("mousedown", handleGlobalMouseDown);
     document.addEventListener("mouseup", handleGlobalMouseUp);
 
-    // 将滚轮事件监听器移到容器上
     container.addEventListener("wheel", handleOnWheel, {
       passive: false,
     });
@@ -297,10 +217,8 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     const observer = new ResizeObserver(handleContainerResize);
     observer.observe(container);
 
-    // 为状态栏和全览按钮添加原生事件监听器
     const statusBar = statusBarRef.current;
 
-    // 定义事件处理函数
     const stopPropagation = (e: Event) => {
       e.stopPropagation();
     };
@@ -330,15 +248,33 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
         statusBar.removeEventListener("mouseup", stopPropagation, true);
       }
 
-      // 确保在组件卸载时清除参考线
       board.clearRefLines();
 
       observer.disconnect();
       board.destroy();
     };
-  }, [board, eventHandlerGenerator, handleContainerResize]);
+  }, [board, handleContainerResize]);
 
-  const lines = board.refLine.matchRefLines(15 / zoom);
+  // 获取参考线
+  const refLines = board.refLine.matchRefLines(15 / zoom);
+
+  // 演示相关处理函数
+  const handleStartPresentation = useMemoizedFn((sequenceId: string) => {
+    board.presentationManager.startPresentationMode(sequenceId);
+  });
+
+  const handleEditSequence = useMemoizedFn((sequenceId: string) => {
+    board.presentationManager.setCurrentSequence(sequenceId);
+  });
+
+  const handleDeleteSequence = useMemoizedFn((sequenceId: string) => {
+    board.presentationManager.deleteSequence(sequenceId);
+  });
+
+  // 全览功能
+  const handleFitAll = useMemoizedFn((e: React.MouseEvent<HTMLDivElement>) => {
+    return handleFitElements(FIT_VIEW_PADDING, true)(e);
+  });
 
   return (
     <div
@@ -360,310 +296,52 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       <BoardContext.Provider value={board}>
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
+            {/* 工具栏 */}
             {!readonly && !board.presentationManager.isPresentationMode && (
               <Toolbar />
             )}
-            <svg
+
+            {/* 画板内容 */}
+            <BoardContent
               ref={svgRef}
-              width={"100%"}
-              height={"100%"}
-              viewBox={`${minX} ${minY} ${width} ${height}`}
-            >
-              <defs>
-                <marker
-                  id={`whiteboard-arrow`}
-                  markerWidth={ARROW_SIZE}
-                  markerHeight={ARROW_SIZE}
-                  // 箭头太细了，盖不住底下的线，向左偏移一点
-                  refX={ARROW_SIZE - 0.5}
-                  refY={ARROW_SIZE / 2}
-                  orient="auto-start-reverse"
-                  markerUnits="strokeWidth"
-                >
-                  <path
-                    d={`M0,0 L2,${ARROW_SIZE / 2} L0,${ARROW_SIZE} L${ARROW_SIZE},${ARROW_SIZE / 2} Z`}
-                    fill={"context-stroke"}
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    stroke={"context-stroke"}
-                  />
-                </marker>
-                {/* 开放式箭头 */}
-                <marker
-                  id={`whiteboard-open-arrow`}
-                  markerWidth={ARROW_SIZE}
-                  markerHeight={ARROW_SIZE}
-                  refX={ARROW_SIZE - 0.5}
-                  refY={ARROW_SIZE / 2}
-                  orient="auto-start-reverse"
-                  markerUnits="strokeWidth"
-                >
-                  <path
-                    d={`M0,0 L${ARROW_SIZE},${ARROW_SIZE / 2} L0,${ARROW_SIZE}`}
-                    fill={"none"}
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    stroke={"context-stroke"}
-                  />
-                </marker>
-                {/* 闭合式箭头 */}
-                <marker
-                  id={`whiteboard-closed-arrow`}
-                  markerWidth={ARROW_SIZE}
-                  markerHeight={ARROW_SIZE}
-                  refX={ARROW_SIZE - 0.5}
-                  refY={ARROW_SIZE / 2}
-                  orient="auto-start-reverse"
-                  markerUnits="strokeWidth"
-                >
-                  <path
-                    d={`M0,0 L${ARROW_SIZE},${ARROW_SIZE / 2} L0,${ARROW_SIZE} Z`}
-                    fill={"context-stroke"}
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    stroke={"context-stroke"}
-                  />
-                </marker>
-                {/* 菱形箭头 */}
-                <marker
-                  id={`whiteboard-diamond`}
-                  markerWidth={ARROW_SIZE}
-                  markerHeight={ARROW_SIZE}
-                  refX={ARROW_SIZE}
-                  refY={ARROW_SIZE / 2}
-                  orient="auto-start-reverse"
-                  markerUnits="strokeWidth"
-                >
-                  <path
-                    d={`M${ARROW_SIZE / 2},0 L${ARROW_SIZE},${ARROW_SIZE / 2} L${ARROW_SIZE / 2},${ARROW_SIZE} L0,${ARROW_SIZE / 2} Z`}
-                    fill={"context-stroke"}
-                    strokeLinejoin="round"
-                    strokeWidth={1}
-                    stroke={"context-stroke"}
-                  />
-                </marker>
-                {/* 圆形箭头 */}
-                <marker
-                  id={`whiteboard-circle`}
-                  markerWidth={ARROW_SIZE}
-                  markerHeight={ARROW_SIZE}
-                  refX={ARROW_SIZE}
-                  refY={ARROW_SIZE / 2}
-                  orient="auto-start-reverse"
-                  markerUnits="strokeWidth"
-                >
-                  <circle
-                    cx={ARROW_SIZE / 2}
-                    cy={ARROW_SIZE / 2}
-                    r={ARROW_SIZE / 2}
-                    fill={"context-stroke"}
-                    stroke={"context-stroke"}
-                  />
-                </marker>
-              </defs>
-              <Grid visible={gridVisible} gridSize={gridSize} />
-              <g>{board.renderElements(centerConnectArrows)}</g>
-              <g>{board.renderElements(noneCenterConnectArrows)}</g>
-              <g>
-                <SelectArea />
-              </g>
-              <g>
-                {lines.map((line) => (
-                  <GradientLine
-                    key={line.key}
-                    gradientId={line.key}
-                    x1={line.x1}
-                    y1={line.y1}
-                    x2={line.x2}
-                    y2={line.y2}
-                    startColor="#43CBFF"
-                    stopColor="#9708CC"
-                    strokeWidth={2 / zoom}
-                    strokeDasharray={`${5 / zoom}, ${5 / zoom}`}
-                  />
-                ))}
-              </g>
-            </svg>
+              board={board}
+              viewPort={viewPort}
+              centerConnectArrows={centerConnectArrows}
+              noneCenterConnectArrows={noneCenterConnectArrows}
+              gridVisible={gridVisible}
+              gridSize={gridSize}
+              refLines={refLines}
+            />
+
+            {/* 垂直工具栏 */}
             <div className={styles.verticalBar}>
               {!readonly && !board.presentationManager.isPresentationMode && (
                 <AttributeSetter />
               )}
             </div>
 
+            {/* 演示相关组件 */}
             <PresentationCreator />
             <PresentationMode />
 
-            {!board.presentationManager.isPresentationMode && (
-              <Flex
-                ref={statusBarRef}
-                className={styles.statusBar}
-                gap={8}
-                align={"center"}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-              >
-                <GridSettings
-                  gridVisible={gridVisible}
-                  gridSize={gridSize}
-                  onVisibleChange={handleGridVisibleChange}
-                  onSizeChange={handleGridSizeChange}
-                />
-                <Divider type="vertical" />
-                <Tooltip title="全览">
-                  <div
-                    ref={fitViewButtonRef}
-                    onClick={handleFitElements}
-                    style={{
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: "2em",
-                      height: "2em",
-                    }}
-                  >
-                    <FullscreenOutlined />
-                  </div>
-                </Tooltip>
-                <Divider type="vertical" />
-                <MinusOutlined onClick={handleZoomIn} />
-                <Popover
-                  trigger={"click"}
-                  arrow={false}
-                  content={
-                    <Flex vertical gap={4}>
-                      <For
-                        data={ZOOMS}
-                        renderItem={(zoomValue) => (
-                          <div
-                            key={zoomValue}
-                            className={styles.zoomItem}
-                            onClick={() => {
-                              ViewPortTransforms.updateZoom(board, zoomValue);
-                            }}
-                          >
-                            {Math.round(zoomValue * 100)}%
-                          </div>
-                        )}
-                      />
-                    </Flex>
-                  }
-                  styles={{
-                    body: {
-                      padding: 4,
-                      marginBottom: 12,
-                    },
-                  }}
-                >
-                  {Math.round(zoom * 100)}%
-                </Popover>
-                <PlusOutlined onClick={handleZoomOut} />
-                {board.presentationManager.sequences.length > 0 && (
-                  <>
-                    <Divider
-                      type="vertical"
-                      style={{ margin: "0 4px", height: "16px" }}
-                    />
-                    <Popover
-                      trigger={"click"}
-                      arrow={false}
-                      onOpenChange={(open) => {
-                        if (!open) {
-                          // 关闭弹窗
-                          document.body.click();
-                        }
-                      }}
-                      content={
-                        <Flex vertical gap={4}>
-                          <For
-                            data={board.presentationManager.sequences}
-                            renderItem={(sequence) => (
-                              <div
-                                key={sequence.id}
-                                className={styles.zoomItem}
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <span
-                                  onClick={() => {
-                                    board.presentationManager.startPresentationMode(
-                                      sequence.id,
-                                    );
-                                  }}
-                                  style={{ flex: 1, cursor: "pointer" }}
-                                >
-                                  {sequence.name}
-                                </span>
-                                <Flex gap={12}>
-                                  <EditOutlined
-                                    style={{ color: "#000" }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // 设置当前序列
-                                      board.presentationManager.setCurrentSequence(
-                                        sequence.id,
-                                      );
-                                    }}
-                                  />
-                                  <CloseOutlined
-                                    style={{ color: "#000" }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // 删除序列
-                                      modal.confirm({
-                                        title: "删除序列",
-                                        content: "确定删除该序列吗？",
-                                        onOk: () => {
-                                          board.presentationManager.deleteSequence(
-                                            sequence.id,
-                                          );
-                                        },
-                                        okButtonProps: {
-                                          danger: true,
-                                        },
-                                      });
-                                    }}
-                                  />
-                                </Flex>
-                              </div>
-                            )}
-                          />
-                        </Flex>
-                      }
-                      styles={{
-                        body: {
-                          padding: 4,
-                          marginBottom: 12,
-                        },
-                      }}
-                    >
-                      <Tooltip title="开始演示">
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: 32,
-                            height: 32,
-                            cursor: "pointer",
-                          }}
-                        >
-                          <PlayCircleOutlined style={{ color: "#000" }} />
-                        </div>
-                      </Tooltip>
-                    </Popover>
-                  </>
-                )}
-                <div />
-              </Flex>
-            )}
+            {/* 状态栏 */}
+            <StatusBar
+              ref={statusBarRef}
+              gridVisible={gridVisible}
+              gridSize={gridSize}
+              zoom={zoom}
+              isPresentationMode={board.presentationManager.isPresentationMode}
+              sequences={board.presentationManager.sequences}
+              onGridVisibleChange={handleGridVisibleChange}
+              onGridSizeChange={handleGridSizeChange}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onZoomTo={handleZoomTo}
+              onFitElements={handleFitAll}
+              onStartPresentation={handleStartPresentation}
+              onEditSequence={handleEditSequence}
+              onDeleteSequence={handleDeleteSequence}
+            />
           </ViewPortContext.Provider>
         </SelectionContext.Provider>
       </BoardContext.Provider>

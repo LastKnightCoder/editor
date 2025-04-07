@@ -1,7 +1,7 @@
 import { useState, memo, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import { App, Breadcrumb, FloatButton } from "antd";
+import { Breadcrumb, FloatButton } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import { useMemoizedFn } from "ahooks";
@@ -41,7 +41,6 @@ const WhiteBoardView = memo(() => {
 
   const [createWhiteBoardModalOpen, setCreateWhiteBoardModalOpen] =
     useState(false);
-  const { message } = App.useApp();
 
   const breadcrumbItems = useMemo(() => {
     return [

@@ -8,3 +8,5 @@ export * from "./richtext";
 export * from "./mind";
 export * from "./viewport";
 export * from "./grid";
+
+export const FIT_VIEW_PADDING = 50;
