@@ -2,7 +2,7 @@ import React, { useEffect, useState, PropsWithChildren } from "react";
 import classnames from "classnames";
 
 import styles from "./index.module.less";
-import { useDebounceFn } from "ahooks";
+import { useThrottleFn } from "ahooks";
 
 interface IWidthResizableProps {
   defaultWidth: number;
@@ -44,7 +44,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     e.preventDefault();
   };
 
-  const { run: handleMouseMove } = useDebounceFn(
+  const { run: handleMouseMove } = useThrottleFn(
     (e: MouseEvent) => {
       if (disableResize) return;
       if (isResizing) {
@@ -64,7 +64,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
         if (onResize) onResize(newWidth);
       }
     },
-    { wait: 20 },
+    { wait: 10 },
   );
 
   const handleMouseUp = () => {

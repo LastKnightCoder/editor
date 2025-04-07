@@ -2,6 +2,7 @@ import { produce } from "immer";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import useChatMessageStore from "./useChatMessageStore";
+import useSmallComponentSidebarStore from "./useSmallComponentSidebar";
 
 export interface TabItem {
   id: string;
@@ -55,6 +56,9 @@ const useRightSidebarStore = create<RightSidebarState>()(
           containerActiveTabKey: type,
         });
         useChatMessageStore.setState({
+          open: false,
+        });
+        useSmallComponentSidebarStore.setState({
           open: false,
         });
       },

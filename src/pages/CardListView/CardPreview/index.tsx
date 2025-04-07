@@ -29,10 +29,11 @@ interface CardPreviewProps {
   cardId: number | undefined;
   visible: boolean;
   onClose: () => void;
+  onGoToDetail?: () => void;
 }
 
 const CardPreview = (props: CardPreviewProps) => {
-  const { cardId, visible, onClose } = props;
+  const { cardId, visible, onClose, onGoToDetail } = props;
   const navigate = useNavigate();
   const editorRef = useRef<EditorRef>(null);
   const cardEventBus = useCreation(
@@ -109,6 +110,7 @@ const CardPreview = (props: CardPreviewProps) => {
   const handleGoToDetail = useMemoizedFn(() => {
     if (editingCard) {
       navigate(`/cards/detail/${editingCard.id}`);
+      onGoToDetail?.();
     }
   });
 

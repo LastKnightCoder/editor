@@ -6,6 +6,8 @@ import classnames from "classnames";
 import Sidebar from "./components/Sidebar";
 import RightSidebar from "./components/RightSidebar";
 import ChatSidebar from "./components/ChatSidebar";
+import SmallComponentSidebar from "./components/SmallComponentSidebar";
+
 import Search from "./components/Search";
 
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
@@ -16,6 +18,7 @@ import useChatMessageStore from "@/stores/useChatMessageStore";
 import { openMarkdownInNewWindow, selectFile } from "@/commands";
 
 import styles from "./index.module.less";
+import useSmallComponentSidebarStore from "@/stores/useSmallComponentSidebar";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
@@ -41,13 +44,19 @@ const ShortSidebarLayout = memo(() => {
 
   const chatSidebarOpen = useChatMessageStore((state) => state.open);
   const rightSidebarOpen = useRightSidebarStore((state) => state.open);
+  const smallComponentSidebarOpen = useSmallComponentSidebarStore(
+    (state) => state.open,
+  );
 
   // 本来不需要计算宽度的，但是不知道为什么 HomeView 会不生效，感觉是 Chrome 的
   const chatWidth = useRightSidebarStore((state) => state.width);
   const rightSidebarWidth = useRightSidebarStore((state) => state.width);
+  const smallComponentSidebarWidth = useSmallComponentSidebarStore(
+    (state) => state.width,
+  );
   const mainContentWidth = useMemo(() => {
-    return `calc(100% - ${chatWidth}px - ${rightSidebarWidth}px)`;
-  }, [chatWidth, rightSidebarWidth]);
+    return `calc(100% - ${chatWidth}px - ${rightSidebarWidth}px - ${smallComponentSidebarWidth}px)`;
+  }, [chatWidth, rightSidebarWidth, smallComponentSidebarWidth]);
 
   return (
     <div className={styles.container}>
@@ -58,11 +67,15 @@ const ShortSidebarLayout = memo(() => {
         </div>
         <div
           className={classnames(styles.rightSidebar, {
-            [styles.hide]: !chatSidebarOpen && !rightSidebarOpen,
+            [styles.hide]:
+              !chatSidebarOpen &&
+              !rightSidebarOpen &&
+              !smallComponentSidebarOpen,
           })}
         >
           <ChatSidebar />
           <RightSidebar />
+          <SmallComponentSidebar />
         </div>
       </div>
       <Search />

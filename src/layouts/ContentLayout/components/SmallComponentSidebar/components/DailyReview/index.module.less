@@ -1,0 +1,66 @@
+.dailyReview {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .content {
+    flex: 1;
+    overflow: hidden;
+
+    .loadingContainer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100px;
+    }
+
+    .cardItem {
+      cursor: pointer;
+      padding: 10px;
+      transition: background-color 0.3s;
+      border-radius: 4px;
+      margin-bottom: 4px;
+
+      &:hover {
+        background-color: var(--ant-color-primary-bg);
+      }
+    }
+  }
+
+  .previewContainer {
+    position: relative;
+  }
+
+  .navButton {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1001;
+    background-color: rgba(0, 0, 0, 0.45);
+    color: white;
+    border: none;
+    height: 36px;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.65);
+      color: white;
+    }
+
+    &.prevButton {
+      left: 24px;
+    }
+
+    &.nextButton {
+      right: 24px;
+    }
+  }
+}
