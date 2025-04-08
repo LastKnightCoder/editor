@@ -201,7 +201,6 @@ export default class QuestionTable {
   }
 
   static getAnswerById(db: Database.Database, id: number): IAnswer | null {
-    console.log("getAnswerById", id);
     const answer = ContentTable.getContentById(db, id);
     return answer;
   }
