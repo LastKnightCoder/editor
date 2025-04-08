@@ -78,8 +78,17 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
     }
   });
 
-  // Find the currently active card to display
-  const activeCard = tabs.find((tab) => String(tab.id) === activeTabKey);
+  const onTitleChange = useMemoizedFn((title: string) => {
+    updateTab({
+      id: String(activeTabKey),
+      type: "card",
+      title,
+    });
+  });
+
+  const activeCard = tabs.find(
+    (tab) => String(tab.id) === String(activeTabKey),
+  );
 
   return (
     <div className={styles.container}>
@@ -99,18 +108,11 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
             showAddButton={true}
             onAdd={handleAddClick}
           />
-
           <div className={styles.tabContent}>
             {activeCard && (
               <CardViewer
                 cardId={String(activeCard.id)}
-                onTitleChange={(title) => {
-                  updateTab({
-                    id: String(activeCard.id),
-                    type: "card",
-                    title,
-                  });
-                }}
+                onTitleChange={onTitleChange}
               />
             )}
           </div>
