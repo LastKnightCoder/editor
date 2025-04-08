@@ -163,6 +163,7 @@ export class WindowManager {
       webPreferences: {
         preload,
         spellcheck: false,
+        webviewTag: true,
       },
       trafficLightPosition: { x: 12, y: 23 },
       // Mac 专属配置
