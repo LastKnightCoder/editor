@@ -13,3 +13,15 @@ export * from "./operation";
 export * from "./statistic";
 export * from "./search";
 export * from "./video-note";
+
+export interface WebviewRef {
+  getTitle: () => string;
+  getURL: () => string;
+  getHTML: () => Promise<string>;
+  reload: () => void;
+  stop: () => void;
+  goBack: () => void;
+  goForward: () => void;
+  canGoBack: () => boolean;
+  canGoForward: () => boolean;
+}

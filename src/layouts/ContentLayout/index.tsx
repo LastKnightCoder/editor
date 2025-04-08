@@ -73,9 +73,9 @@ const ShortSidebarLayout = memo(() => {
               !smallComponentSidebarOpen,
           })}
         >
+          <SmallComponentSidebar />
           <ChatSidebar />
           <RightSidebar />
-          <SmallComponentSidebar />
         </div>
       </div>
       <Search />

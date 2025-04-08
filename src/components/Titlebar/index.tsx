@@ -104,6 +104,13 @@ const Titlebar = memo((props: TitlebarProps) => {
           />
         </TitlebarIcon>
         <TitlebarIcon
+          tip="小组件"
+          onClick={handleOpenSmallComponentSidebar}
+          active={smallComponentSidebarOpen}
+        >
+          <SVG src={smallComponentIcon} />
+        </TitlebarIcon>
+        <TitlebarIcon
           tip="聊天"
           onClick={handleOpenChatSidebar}
           active={chatSidebarOpen}
@@ -116,13 +123,6 @@ const Titlebar = memo((props: TitlebarProps) => {
           active={rightSidebarOpen}
         >
           <SVG src={sidebarRightIcon} />
-        </TitlebarIcon>
-        <TitlebarIcon
-          tip="小组件"
-          onClick={handleOpenSmallComponentSidebar}
-          active={smallComponentSidebarOpen}
-        >
-          <SVG src={smallComponentIcon} />
         </TitlebarIcon>
       </div>
     </div>
