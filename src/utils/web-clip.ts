@@ -34,7 +34,10 @@ export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
   ];
 
   const convertRes: string =
-    (await chatLLM(convertMessages).catch(() => "")) || "";
+    (await chatLLM(convertMessages).catch((e) => {
+      console.error(e);
+      return "";
+    })) || "";
   return convertRes;
 };
 
