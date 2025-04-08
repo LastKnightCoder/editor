@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useMemoizedFn, useSize } from "ahooks";
 import classnames from "classnames";
-import { IoClose } from "react-icons/io5";
-import { IoAddOutline } from "react-icons/io5";
-import { IoEllipsisHorizontal } from "react-icons/io5";
+import {
+  CloseOutlined,
+  EllipsisOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 
@@ -226,7 +228,7 @@ const TabsIndicator = <T extends string = string>({
                 className={styles.closeIcon}
                 onClick={(e) => handleCloseClick(e, tab.key)}
               >
-                <IoClose />
+                <CloseOutlined className={styles.icon} />
               </div>
             )}
           </div>
@@ -253,14 +255,14 @@ const TabsIndicator = <T extends string = string>({
             trigger={["hover"]}
           >
             <div className={styles.moreButton}>
-              <IoEllipsisHorizontal />
+              <EllipsisOutlined className={styles.icon} />
             </div>
           </Dropdown>
         )}
 
         {showAddButton && (
           <div className={styles.addButton} onClick={onAdd}>
-            <IoAddOutline />
+            <PlusOutlined className={styles.icon} />
           </div>
         )}
       </div>

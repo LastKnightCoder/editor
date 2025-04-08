@@ -47,6 +47,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
 
   useEffect(() => {
     if (!visible || !isConnected) return;
+    setLoading(true);
     getCardById(Number(cardId))
       .then((card) => {
         setCard(card);

@@ -79,6 +79,14 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
     },
   );
 
+  const onTitleChange = useMemoizedFn((title: string) => {
+    updateTab({
+      id: String(activeTabKey),
+      type: "article",
+      title,
+    });
+  });
+
   const activeArticle = tabs.find((tab) => String(tab.id) === activeTabKey);
 
   return (
@@ -104,13 +112,7 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
             {activeArticle && (
               <ArticleViewer
                 articleId={String(activeArticle.id)}
-                onTitleChange={(title) => {
-                  updateTab({
-                    id: String(activeArticle.id),
-                    type: "article",
-                    title,
-                  });
-                }}
+                onTitleChange={onTitleChange}
               />
             )}
           </div>
