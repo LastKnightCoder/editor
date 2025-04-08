@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Empty, Tabs, Button } from "antd";
+import { Empty, Button } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { getEditorText } from "@/utils";
@@ -12,11 +12,10 @@ import {
   cardLinkExtension,
   fileAttachmentExtension,
 } from "@/editor-extensions";
+import TabsIndicator from "@/components/TabsIndicator";
 
 import styles from "./index.module.less";
 import If from "@/components/If";
-
-type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const customExtensions = [cardLinkExtension, fileAttachmentExtension];
 
@@ -30,26 +29,12 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
 }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
 
-  const tabsItems = useMemo(() => {
-    return tabs.map((tab) => {
-      return {
-        key: String(tab.id),
-        label: tab.title,
-        children: (
-          <CardViewer
-            cardId={String(tab.id)}
-            onTitleChange={(title) => {
-              updateTab({
-                id: String(tab.id),
-                type: "card",
-                title,
-              });
-            }}
-          />
-        ),
-      };
-    });
-  }, [tabs, updateTab]);
+  const tabItems = useMemo(() => {
+    return tabs.map((tab) => ({
+      key: String(tab.id),
+      label: tab.title,
+    }));
+  }, [tabs]);
 
   const handleTabChange = useMemoizedFn((activeKey: string) => {
     setActiveTabKey({
@@ -60,19 +45,17 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
     });
   });
 
-  const handleEdit = useMemoizedFn(
-    (targetKey: TargetKey, action: "add" | "remove") => {
-      if (action === "add") {
-        setSelectorOpen(true);
-      } else if (action === "remove") {
-        removeTab({
-          id: targetKey as string,
-          type: "card",
-          title: "",
-        });
-      }
-    },
-  );
+  const handleAddClick = useMemoizedFn(() => {
+    setSelectorOpen(true);
+  });
+
+  const handleRemoveTab = useMemoizedFn((tabKey: string) => {
+    removeTab({
+      id: tabKey,
+      type: "card",
+      title: "",
+    });
+  });
 
   const onSelectCard = useMemoizedFn((items: SearchResult | SearchResult[]) => {
     setSelectorOpen(false);
@@ -95,6 +78,9 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
     }
   });
 
+  // Find the currently active card to display
+  const activeCard = tabs.find((tab) => String(tab.id) === activeTabKey);
+
   return (
     <div className={styles.container}>
       <If condition={tabs.length === 0}>
@@ -103,15 +89,32 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
         </Empty>
       </If>
       <If condition={tabs.length > 0}>
-        <Tabs
-          items={tabsItems}
-          activeKey={String(activeTabKey)}
-          onChange={handleTabChange}
-          type="editable-card"
-          onEdit={handleEdit}
-          tabBarGutter={10}
-          animated={true}
-        />
+        <div className={styles.tabsContainer}>
+          <TabsIndicator
+            tabs={tabItems}
+            activeTab={String(activeTabKey)}
+            onChange={handleTabChange}
+            closable={true}
+            onClose={handleRemoveTab}
+            showAddButton={true}
+            onAdd={handleAddClick}
+          />
+
+          <div className={styles.tabContent}>
+            {activeCard && (
+              <CardViewer
+                cardId={String(activeCard.id)}
+                onTitleChange={(title) => {
+                  updateTab({
+                    id: String(activeCard.id),
+                    type: "card",
+                    title,
+                  });
+                }}
+              />
+            )}
+          </div>
+        </div>
       </If>
       <ContentSelectorModal
         open={selectorOpen}

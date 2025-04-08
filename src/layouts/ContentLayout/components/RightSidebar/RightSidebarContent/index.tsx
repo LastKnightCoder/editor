@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
-import { Tabs } from "antd";
 
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { tabRegistry } from "../TabRegistry";
+import TabsIndicator from "@/components/TabsIndicator";
 
 import styles from "./index.module.less";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
@@ -41,52 +41,57 @@ const RightSidebarContent: React.FC = () => {
     return tabRegistry.getAllTabDefinitions();
   }, []);
 
-  const items = useMemo(() => {
-    return allTabDefinitions.map((def) => {
-      const Viewer = def.viewer;
-      return {
-        key: def.type,
-        label: def.title,
-        icon: def.icon,
-        children: (
-          <Viewer
-            type={def.type.toLowerCase()}
-            tabs={tabs[def.type.toLowerCase()] || []}
-            addTab={addTab}
-            removeTab={removeTab}
-            updateTab={updateTab}
-            setActiveTabKey={setActiveTabKey}
-            activeTabKey={activeTabKey[def.type.toLowerCase()]}
-          />
-        ),
-      };
-    });
-  }, [
-    allTabDefinitions,
-    tabs,
-    addTab,
-    removeTab,
-    updateTab,
-    setActiveTabKey,
-    activeTabKey,
-  ]);
+  const tabItems = useMemo(() => {
+    return allTabDefinitions.map((def) => ({
+      key: def.type,
+      label: (
+        <div className={styles.tabLabel}>
+          {def.icon && <span className={styles.tabIcon}>{def.icon}</span>}
+          <span>{def.title}</span>
+        </div>
+      ),
+    }));
+  }, [allTabDefinitions]);
 
   const handleTabChange = useMemoizedFn((value: string) => {
     setContainerActiveTabKey(value);
   });
 
-  if (!isReady) {
-    <div className={styles.loading}>加载中...</div>;
-  }
+  // Find the active tab definition based on current containerActiveTabKey
+  const activeDefinition = allTabDefinitions.find(
+    (def) => def.type === (containerActiveTabKey || allTabDefinitions[0]?.type),
+  );
+
+  const ActiveViewer = activeDefinition?.viewer;
 
   return (
     <div className={styles.container}>
-      <Tabs
-        destroyInactiveTabPane
-        items={items}
-        activeKey={containerActiveTabKey || allTabDefinitions[0]?.type}
-        onChange={handleTabChange}
-      />
+      <div className={styles.tabsWrapper}>
+        <TabsIndicator
+          tabs={tabItems}
+          activeTab={containerActiveTabKey || allTabDefinitions[0]?.type}
+          onChange={handleTabChange}
+          className={styles.tabsIndicator}
+        />
+      </div>
+
+      <div className={styles.tabContent}>
+        {!isReady ? (
+          <div className={styles.loading}>加载中...</div>
+        ) : (
+          ActiveViewer && (
+            <ActiveViewer
+              type={activeDefinition.type.toLowerCase()}
+              tabs={tabs[activeDefinition.type.toLowerCase()] || []}
+              addTab={addTab}
+              removeTab={removeTab}
+              updateTab={updateTab}
+              setActiveTabKey={setActiveTabKey}
+              activeTabKey={activeTabKey[activeDefinition.type.toLowerCase()]}
+            />
+          )
+        )}
+      </div>
     </div>
   );
 };
