@@ -12,6 +12,7 @@ import useSmallComponentSidebarStore from "@/stores/useSmallComponentSidebar";
 import DailyReview from "./components/DailyReview";
 import ToClearCards from "./components/ToClearCards";
 import LatestUpdate from "./components/LatestUpdate";
+import UnansweredQuestions from "./components/UnansweredQuestions";
 
 const SmallComponentSidebar = memo(() => {
   const { open, width } = useSmallComponentSidebarStore(
@@ -42,15 +43,18 @@ const SmallComponentSidebar = memo(() => {
       maxWidth={800}
     >
       <div className={styles.content}>
-        <Flex vertical gap={16}>
+        <Flex vertical gap={16} className={styles.list}>
           <Card>
             <ToClearCards />
+          </Card>
+          <Card>
+            <DailyReview />
           </Card>
           <Card>
             <LatestUpdate />
           </Card>
           <Card>
-            <DailyReview />
+            <UnansweredQuestions />
           </Card>
         </Flex>
       </div>

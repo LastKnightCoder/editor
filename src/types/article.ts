@@ -13,7 +13,7 @@ export interface ICreateArticle {
   count: number;
 }
 
-export interface IUpdateArticle extends Partial<ICreateArticle> {
+export interface IUpdateArticle extends ICreateArticle {
   id: number;
   contentId: number;
 }

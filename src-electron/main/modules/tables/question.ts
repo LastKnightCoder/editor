@@ -110,10 +110,12 @@ export default class QuestionTable {
   }
 
   static getNoAnswerQuestions(db: Database.Database): IQuestion[] {
-    const stmt = db.prepare(
-      "SELECT * FROM questions WHERE json_length(answers) = 0 ORDER BY create_time",
-    );
-    const questions = stmt.all();
+    // 获取所有的问题，没有答案的排在最上面，有答案的排在下面
+    const questions = db
+      .prepare(
+        "SELECT * FROM questions ORDER BY answers = '[]' DESC, create_time",
+      )
+      .all();
     return questions.map((question) => this.parseQuestion(question));
   }
 

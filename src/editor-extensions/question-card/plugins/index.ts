@@ -27,6 +27,7 @@ export const withQuestion = (editor: Editor) => {
     if (
       op.type === "remove_node" &&
       isQuestionElement(op.node) &&
+      // @ts-ignore
       !editor.isResetValue
     ) {
       // @ts-ignore

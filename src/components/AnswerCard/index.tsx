@@ -9,16 +9,16 @@ const { Paragraph } = Typography;
 
 interface AnswerCardProps {
   answer: IAnswer;
-  itemWidth: number;
-  readOnly: boolean;
-  onDeleteAnswer: (answerId: number) => void;
-  onViewAnswer: (answerId: number) => void;
+  itemWidth?: number;
+  readOnly?: boolean;
+  onDeleteAnswer?: (answerId: number) => void;
+  onViewAnswer?: (answerId: number) => void;
 }
 
 const AnswerCard: React.FC<AnswerCardProps> = ({
   answer,
   itemWidth,
-  readOnly,
+  readOnly = false,
   onDeleteAnswer,
   onViewAnswer,
 }) => {
@@ -27,6 +27,8 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
 
   const handleDeleteAnswer = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
+    if (!onDeleteAnswer) return;
+
     modal.confirm({
       title: "删除答案",
       content: "确定删除该答案吗？",
@@ -39,16 +41,27 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     });
   };
 
+  const handleClick = () => {
+    if (onViewAnswer) {
+      onViewAnswer(answer.id);
+    }
+  };
+
   return (
     <Card
       key={answer.id}
-      style={{ width: itemWidth, position: "relative", cursor: "pointer" }}
-      onClick={() => onViewAnswer(answer.id)}
+      style={{
+        width: itemWidth,
+        boxSizing: "border-box",
+        position: "relative",
+        cursor: onViewAnswer ? "pointer" : "default",
+      }}
+      onClick={handleClick}
     >
       <div className={styles.answerContent}>
         <Paragraph ellipsis={{ rows: 6 }}>{answerText}</Paragraph>
       </div>
-      {!readOnly && (
+      {!readOnly && onDeleteAnswer && (
         <div className={styles.btn}>
           <Button
             type="text"
