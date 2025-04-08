@@ -41,6 +41,7 @@ import { VideoElement } from "./element/video.ts";
 import { AIElement } from "./element/ai.ts";
 import { WhiteboardElement } from "./element/whiteboard.ts";
 import { CommentElement } from "./element/comment.ts";
+import { FrontMatterElement } from "./element/front-matter.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -80,7 +81,8 @@ export type CustomElement =
   | VideoElement
   | AIElement
   | WhiteboardElement
-  | CommentElement;
+  | CommentElement
+  | FrontMatterElement;
 
 export type InlineElement =
   | FormattedText

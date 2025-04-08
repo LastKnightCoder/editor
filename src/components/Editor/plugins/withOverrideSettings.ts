@@ -29,6 +29,7 @@ export const withOverrideSettings = (editor: Editor) => {
       "video",
       "ai",
       "whiteboard",
+      "front-matter",
     ];
     return blockTypes.includes(element.type) ? true : isBlock(element);
   };
@@ -48,6 +49,7 @@ export const withOverrideSettings = (editor: Editor) => {
       "audio",
       "video",
       "whiteboard",
+      "front-matter",
     ];
     return voidTypes.includes(element.type) ? true : isVoid(element);
   };

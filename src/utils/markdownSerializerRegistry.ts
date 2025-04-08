@@ -300,6 +300,14 @@ export class MarkdownSerializerRegistry {
         },
       },
     ]);
+
+    this.register({
+      type: "front-matter",
+      isBlock: true,
+      toMarkdown: (node) => {
+        return `---\n${node.value}\n---`;
+      },
+    });
   }
 }
 

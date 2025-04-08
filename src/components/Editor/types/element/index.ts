@@ -25,3 +25,4 @@ export * from "./underline.ts";
 export * from "./audio.ts";
 export * from "./video.ts";
 export * from "./comment.ts";
+export * from "./front-matter.ts";

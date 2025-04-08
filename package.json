@@ -118,6 +118,7 @@
     "react-syntax-highlighter": "^15.6.1",
     "rehype-katex": "^7.0.1",
     "remark-directive": "^3.0.1",
+    "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
@@ -137,6 +138,7 @@
     "vite": "4.3.9",
     "vite-plugin-electron": "^0.29.0",
     "words-count": "^2.0.2",
+    "yaml": "^2.7.1",
     "zustand": "^4.3.8"
   },
   "commitlint": {

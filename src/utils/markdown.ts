@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
+import remarkFrontmatter from "remark-frontmatter";
 import { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
@@ -322,6 +323,17 @@ const markdownToDescendant = (
         },
       ],
     };
+  } else if (node.type === "yaml") {
+    return {
+      type: "front-matter",
+      value: node.value,
+      children: [
+        {
+          type: "formatted",
+          text: "",
+        },
+      ],
+    };
   } else {
     console.log("unknown node", node);
     if (
@@ -355,6 +367,7 @@ export const importFromMarkdown = (markdown: string): Descendant[] => {
     .use(remarkGfm)
     .use(remarkMath)
     .use(remarkDirective)
+    .use(remarkFrontmatter, ["yaml"])
     .parse(markdown);
 
   const editor: Descendant[] = [];
@@ -373,7 +386,7 @@ export const importFromMarkdown = (markdown: string): Descendant[] => {
         paragraph.type = "text";
       }
       const node = markdownToDescendant(child, parent);
-      if (!node) return;
+      if (!node) continue;
       // bold 和 italic 需要展开为 formatted，数组的时候说明是展开
       if (!Array.isArray(node)) {
         result.push(node);
