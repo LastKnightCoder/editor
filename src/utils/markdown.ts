@@ -359,7 +359,10 @@ const markdownToDescendant = (
   }
 };
 
-export const importFromMarkdown = (markdown: string): Descendant[] => {
+export const importFromMarkdown = (
+  markdown: string,
+  ignoreTypes: string[] = [],
+): Descendant[] => {
   const parseResult = unified()
     .use(remarkParse)
     .use(remarkRehype, { allowDangerousHtml: true })
@@ -372,7 +375,12 @@ export const importFromMarkdown = (markdown: string): Descendant[] => {
 
   const editor: Descendant[] = [];
 
-  const dfs = (children: any[], result: Descendant[], parent = null) => {
+  const dfs = (
+    children: any[],
+    result: Descendant[],
+    ignoreTypes: string[] = [],
+    parent: Descendant | null = null,
+  ) => {
     for (const child of children) {
       while (
         child.type === "link" &&
@@ -389,19 +397,23 @@ export const importFromMarkdown = (markdown: string): Descendant[] => {
       if (!node) continue;
       // bold 和 italic 需要展开为 formatted，数组的时候说明是展开
       if (!Array.isArray(node)) {
+        if (ignoreTypes.includes(node.type)) continue;
         result.push(node);
         if (child.children && node.type !== "formatted") {
-          dfs(child.children, node.children, child);
+          dfs(child.children, node.children, ignoreTypes, node);
         }
       } else {
-        result.push(...node);
+        const filteredNode = node.filter(
+          (item) => !ignoreTypes.includes(item.type),
+        );
+        result.push(...filteredNode);
       }
     }
   };
 
   console.log("parseResult", parseResult);
 
-  dfs(parseResult.children, editor);
+  dfs(parseResult.children, editor, ignoreTypes);
 
   let beforeNormalize = editor;
   let afterNormalize = normalizeEditorContent(editor);
