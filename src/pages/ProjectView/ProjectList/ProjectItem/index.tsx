@@ -13,6 +13,7 @@ import {
   openProjectItemInNewWindow,
   createVideoNote,
   deleteProjectItem,
+  nodeFetch,
 } from "@/commands";
 
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
@@ -45,6 +46,8 @@ import {
   FolderOpenTwoTone,
   MoreOutlined,
   PlusOutlined,
+  GlobalOutlined,
+  VideoCameraOutlined,
 } from "@ant-design/icons";
 import {
   getContentLength,
@@ -61,6 +64,20 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { useProjectContext } from "../../ProjectContext";
+
+const extractUrlFromTitle = (title: string): { title: string; url: string } => {
+  const urlRegex = /\[(https?:\/\/[^\]]+)\]$/;
+  const match = title.match(urlRegex);
+
+  if (match && match[1]) {
+    return {
+      title: title.replace(urlRegex, "").trim(),
+      url: match[1],
+    };
+  }
+
+  return { title, url: "" };
+};
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -113,6 +130,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
   const [webVideoUrl, setWebVideoUrl] = useState("");
   const [extensions, setExtensions] = useState<IExtension[]>([]);
+  const [webviewModalOpen, setWebviewModalOpen] = useState(false);
+  const [webviewUrl, setWebviewUrl] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const {
     updateProject,
@@ -438,11 +458,28 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       return [
         {
           key: "remove",
-          label: "删除视频笔记",
+          label: "删除视频",
         },
         {
           key: "edit-title",
           label: "编辑标题",
+        },
+      ].filter(isValid);
+    }
+
+    if (projectItem?.projectItemType === EProjectItemType.WebView) {
+      return [
+        {
+          key: "remove",
+          label: "删除网页",
+        },
+        {
+          key: "edit-title",
+          label: "编辑标题",
+        },
+        {
+          key: "open-in-right-sidebar",
+          label: "右侧打开",
         },
       ].filter(isValid);
     }
@@ -510,11 +547,25 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         if (!projectItem) return;
 
         const { addTab } = useRightSidebarStore.getState();
-        addTab({
-          id: String(projectItem.id),
-          title: projectItem.title || "项目",
-          type: "project-item",
-        });
+
+        if (projectItem.projectItemType === EProjectItemType.WebView) {
+          const { title, url } = extractUrlFromTitle(projectItem.title);
+          if (url) {
+            addTab({
+              id: url,
+              title,
+              type: "webview",
+            });
+          } else {
+            message.error("无法提取 URL");
+          }
+        } else {
+          addTab({
+            id: String(projectItem.id),
+            title: projectItem.title || "项目",
+            type: "project-item",
+          });
+        }
       }
     },
   );
@@ -530,7 +581,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     },
     {
       key: "add-video-note-project-item",
-      label: "添加视频笔记",
+      label: "添加视频",
       children: [
         {
           key: "add-local-video-note-project-item",
@@ -541,6 +592,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           label: "远程视频",
         },
       ],
+    },
+    {
+      key: "add-webview-project-item",
+      label: "添加网页",
     },
     {
       key: "link-card-project-item",
@@ -660,7 +715,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         };
         const item = await createVideoNote(newVideoNote);
         if (!item) {
-          message.error("创建视频笔记失败");
+          message.error("创建视频失败");
           return;
         }
         const fileName = await getFileBaseName(filePath[0], true);
@@ -692,6 +747,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
       } else if (key === "add-remote-video-note-project-item") {
         setWebVideoModalOpen(true);
+      } else if (key === "add-webview-project-item") {
+        setWebviewModalOpen(true);
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -834,6 +891,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   ) : projectItem.projectItemType ===
                     EProjectItemType.WhiteBoard ? (
                     <SVG src={whiteBoardIcon} />
+                  ) : projectItem.projectItemType ===
+                    EProjectItemType.VideoNote ? (
+                    <VideoCameraOutlined />
+                  ) : projectItem.projectItemType ===
+                    EProjectItemType.WebView ? (
+                    <GlobalOutlined />
                   ) : (
                     <FileOutlined />
                   )}
@@ -845,12 +908,28 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 })}
                 key={projectItem.id}
                 ref={titleRef}
-                defaultValue={projectItem.title}
+                defaultValue={
+                  projectItem.projectItemType === EProjectItemType.WebView
+                    ? extractUrlFromTitle(projectItem.title).title
+                    : projectItem.title
+                }
                 contentEditable={titleEditable}
                 onPressEnter={() => {
-                  const textContent =
+                  let textContent =
                     titleRef.current?.getValue() || projectItem?.title;
+
                   setTitleEditable(false);
+
+                  // 如果是 WebView 类型，需要保留原来的 URL
+                  if (
+                    projectItem.projectItemType === EProjectItemType.WebView
+                  ) {
+                    const { url } = extractUrlFromTitle(projectItem.title);
+                    if (url) {
+                      textContent = `${textContent} [${url}]`;
+                    }
+                  }
+
                   if (textContent !== projectItem.title) {
                     // 更新标题
                     updateProjectItem({
@@ -1024,6 +1103,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               key: "web-clip",
               content: "添加成功",
             });
+            setProjectItem(updatedProjectItem);
           } else {
             message.error({
               key: "web-clip",
@@ -1101,6 +1181,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           );
           setWebVideoModalOpen(false);
           setWebVideoUrl("");
+          setProjectItem(updatedProjectItem);
         }}
       >
         <Input
@@ -1108,6 +1189,105 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           value={webVideoUrl}
           onChange={(e) => setWebVideoUrl(e.target.value)}
         />
+      </Modal>
+
+      <Modal
+        open={webviewModalOpen}
+        title={"添加网页"}
+        confirmLoading={loading}
+        onCancel={() => {
+          setWebviewModalOpen(false);
+          setWebviewUrl("");
+        }}
+        onOk={async () => {
+          if (!projectItem || !projectId) {
+            message.error("项目文档尚未加载完成");
+            return;
+          }
+
+          if (!webviewUrl) {
+            message.error("请输入网址");
+            return;
+          }
+
+          setLoading(true);
+
+          try {
+            // 尝试获取网页标题
+            let title = webviewUrl;
+
+            try {
+              // 使用 node-fetch 获取网页元信息
+              const response = await nodeFetch(webviewUrl, {
+                method: "GET",
+                timeout: 5000,
+              });
+
+              // 从 HTML 中提取标题
+              if (typeof response === "string") {
+                const titleMatch = response.match(
+                  /<title[^>]*>([^<]+)<\/title>/i,
+                );
+                if (titleMatch && titleMatch[1]) {
+                  title = titleMatch[1].trim();
+                }
+              }
+            } catch (error) {
+              console.error("获取网页标题失败:", error);
+            }
+
+            const formattedTitle = `${title} [${webviewUrl}]`;
+
+            const createProjectItem: CreateProjectItem = {
+              title: formattedTitle,
+              content: [],
+              children: [],
+              parents: [projectItem.id],
+              projects: [projectId],
+              refType: "",
+              refId: 0,
+              projectItemType: EProjectItemType.WebView,
+              count: 0,
+            };
+
+            const newProjectItem = await createChildProjectItem(
+              projectId,
+              projectItem.id,
+              createProjectItem,
+            );
+
+            if (newProjectItem) {
+              useProjectsStore.setState({
+                activeProjectItemId: newProjectItem.id,
+              });
+            }
+
+            const updatedProjectItem = await getProjectItemById(projectItem.id);
+            projectItemEventBus.publishProjectItemEvent(
+              "project-item:updated",
+              updatedProjectItem,
+            );
+            setProjectItem(updatedProjectItem);
+
+            setWebviewModalOpen(false);
+            setWebviewUrl("");
+          } catch (error) {
+            message.error("添加网页失败");
+            console.error(error);
+          } finally {
+            setLoading(false);
+          }
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Input
+            placeholder="请输入网址，例如 https://www.example.com"
+            prefix={<GlobalOutlined />}
+            value={webviewUrl}
+            onChange={(e) => setWebviewUrl(e.target.value)}
+            autoFocus
+          />
+        </div>
       </Modal>
 
       {isPresentation &&

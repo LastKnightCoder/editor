@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Dropdown, Empty, MenuProps, App, Modal, Input } from "antd";
-import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
+import { HomeOutlined, PlusOutlined, GlobalOutlined } from "@ant-design/icons";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import { useNavigate } from "react-router-dom";
 
@@ -35,6 +35,7 @@ import {
   getAllWhiteBoards,
   getAllCards,
   createVideoNote,
+  nodeFetch,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 
@@ -52,6 +53,9 @@ const Project = () => {
 
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
   const [webVideoUrl, setWebVideoUrl] = useState("");
+
+  const [webviewModalOpen, setWebviewModalOpen] = useState(false);
+  const [webviewUrl, setWebviewUrl] = useState("");
 
   useEffect(() => {
     getAllCards().then((cards) => {
@@ -149,6 +153,10 @@ const Project = () => {
           label: "远程视频",
         },
       ],
+    },
+    {
+      key: "add-webview-project-item",
+      label: "添加网页",
     },
     {
       key: "link-card-project-item",
@@ -282,6 +290,8 @@ const Project = () => {
         });
       } else if (key === "add-remote-video-note-project-item") {
         setWebVideoModalOpen(true);
+      } else if (key === "add-webview-project-item") {
+        setWebviewModalOpen(true);
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {
@@ -451,6 +461,76 @@ const Project = () => {
             placeholder="请输入网址"
             value={webVideoUrl}
             onChange={(e) => setWebVideoUrl(e.target.value)}
+          />
+        </Modal>
+        <Modal
+          open={webviewModalOpen}
+          title="添加网页"
+          onCancel={() => {
+            setWebviewModalOpen(false);
+            setWebviewUrl("");
+          }}
+          onOk={async () => {
+            if (!webviewUrl) {
+              message.error("请输入网址");
+              return;
+            }
+
+            const url = webviewUrl.startsWith("http")
+              ? webviewUrl
+              : `https://${webviewUrl}`;
+
+            let title = url;
+            try {
+              const response = await nodeFetch(url, {
+                method: "GET",
+              });
+
+              if (typeof response === "string") {
+                const titleMatch = response.match(
+                  /<title[^>]*>([^<]+)<\/title>/i,
+                );
+                if (titleMatch && titleMatch[1]) {
+                  title = titleMatch[1].trim();
+                }
+              }
+            } catch (error) {
+              console.error("获取网页标题失败:", error);
+            }
+
+            const createProjectItem: CreateProjectItem = {
+              title: `${title} [${url}]`,
+              content: [],
+              children: [],
+              parents: [],
+              projects: [project.id],
+              refType: "",
+              refId: 0,
+              projectItemType: EProjectItemType.WebView,
+              count: 0,
+            };
+
+            const item = await createRootProjectItem(
+              project.id,
+              createProjectItem,
+            );
+            if (item) {
+              useProjectsStore.setState({
+                activeProjectItemId: item.id,
+              });
+            }
+
+            refresh();
+            setWebviewModalOpen(false);
+            setWebviewUrl("");
+          }}
+        >
+          <Input
+            placeholder="请输入网址"
+            value={webviewUrl}
+            onChange={(e) => setWebviewUrl(e.target.value)}
+            prefix={<GlobalOutlined />}
+            autoFocus
           />
         </Modal>
       </div>

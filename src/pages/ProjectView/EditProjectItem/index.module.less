@@ -2,6 +2,7 @@
   height: 100%;
   width: 100%;
   position: relative;
+
   .editProject {
     width: 100%;
     height: 100%;
@@ -13,10 +14,12 @@
     container-name: editProject;
     container-type: inline-size;
     gap: 40px;
+
     .editorContainer {
       flex: auto;
       position: relative;
       max-width: 720px;
+
       .title {
         font-size: 2.2em;
         font-weight: bold;
@@ -24,6 +27,7 @@
         padding-bottom: 10px;
         border-bottom: 1px solid var(--line-color);
       }
+
       .time {
         margin-bottom: 24px;
         display: flex;
@@ -33,14 +37,17 @@
       }
     }
   }
+
   .statusBar {
     position: absolute;
     bottom: 10px;
     right: 40px;
     display: flex;
+
     align-items: center;
     gap: 8px;
     opacity: 0.8;
+
     .item {
       width: 20px;
       height: 20px;
@@ -48,6 +55,7 @@
       justify-content: center;
       align-items: center;
       cursor: pointer;
+
       .icon {
         font-size: 14px;
         width: 14px;
@@ -63,6 +71,7 @@
       .editorContainer {
         max-width: calc(44.444% + 240px) !important;
       }
+
       .outline {
         max-width: 0;
         border: 0;
@@ -79,6 +88,7 @@
       .editorContainer {
         max-width: calc(100% - 60px) !important;
       }
+
       .outline {
         max-width: 0;
         border: 0;

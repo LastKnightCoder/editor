@@ -7,6 +7,7 @@ import { EProjectItemType, ProjectItem } from "@/types";
 import useProjectsStore from "@/stores/useProjectsStore";
 import VideoNoteView from "../VideoNoteView";
 import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
+import WebViewProjectItemView from "../WebViewProjectItemView";
 import styles from "./index.module.less";
 const EditProjectView = () => {
   const { activeProjectItemId } = useProjectsStore((state) => ({
@@ -48,6 +49,17 @@ const EditProjectView = () => {
     return (
       <div className={styles.container}>
         <WhiteBoardProjectView
+          key={projectItem.id}
+          projectItemId={projectItem.id}
+        />
+      </div>
+    );
+  }
+
+  if (projectItem.projectItemType === EProjectItemType.WebView) {
+    return (
+      <div className={styles.container}>
+        <WebViewProjectItemView
           key={projectItem.id}
           projectItemId={projectItem.id}
         />
