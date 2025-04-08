@@ -4,6 +4,7 @@ export type IndexType = "card" | "article" | "project-item" | "document-item";
 
 export interface SearchResult {
   id: number;
+  contentId: number;
   type: IndexType;
   title: string;
   source: "fts" | "vec-document";

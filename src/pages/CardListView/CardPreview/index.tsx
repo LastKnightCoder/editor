@@ -18,12 +18,17 @@ import { useWindowFocus } from "@/hooks/useWindowFocus";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import { useEffect, useRef } from "react";
 import { formatDate, defaultCardEventBus } from "@/utils";
 import styles from "./index.module.less";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 interface CardPreviewProps {
   cardId: number | undefined;

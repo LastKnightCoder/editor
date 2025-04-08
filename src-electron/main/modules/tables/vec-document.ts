@@ -404,6 +404,7 @@ export default class VecDocumentTable {
         if (details) {
           results.push({
             id: doc.id,
+            contentId: details.contentId,
             type: doc.type as IndexType,
             // @ts-ignore
             title: details.title || "",
@@ -487,6 +488,7 @@ export default class VecDocumentTable {
         results.push({
           id: doc.id,
           type: doc.type as IndexType,
+          contentId: details.contentId,
           // @ts-ignore
           title: details.title || "",
           content: details.content,

@@ -15,6 +15,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import {
   fileAttachmentExtension,
   cardLinkExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 import { IArticle } from "@/types";
@@ -31,7 +32,11 @@ interface ArticleViewerProps {
   onTitleChange?: (title: string) => void;
 }
 
-const customExtensions = [fileAttachmentExtension, cardLinkExtension];
+const customExtensions = [
+  fileAttachmentExtension,
+  cardLinkExtension,
+  questionCardExtension,
+];
 
 const ArticleViewer: React.FC<ArticleViewerProps> = ({
   articleId,

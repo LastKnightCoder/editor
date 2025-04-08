@@ -3,9 +3,8 @@ import { MoreOutlined } from "@ant-design/icons";
 import { Dropdown, App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { MenuProps } from "antd";
-import Webview from "@/components/Webview";
+import Webview, { WebviewRef } from "@/components/Webview";
 import EditText from "@/components/EditText";
-import { WebviewRef } from "@/types";
 import { getProjectItemById, updateProjectItem } from "@/commands";
 import {
   importFromMarkdown,

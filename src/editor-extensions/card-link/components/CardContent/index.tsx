@@ -14,8 +14,16 @@ const CardContent = memo((props: ICardContentProps) => {
 
   useEffect(() => {
     import("@/editor-extensions").then(
-      ({ cardLinkExtension, fileAttachmentExtension }) => {
-        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      ({
+        cardLinkExtension,
+        fileAttachmentExtension,
+        questionCardExtension,
+      }) => {
+        setExtensions([
+          cardLinkExtension,
+          fileAttachmentExtension,
+          questionCardExtension,
+        ]);
       },
     );
   }, []);

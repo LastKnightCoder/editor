@@ -12,6 +12,7 @@ import { useShallow } from "zustand/react/shallow";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 import Tags from "@/components/Tags";
@@ -45,7 +46,11 @@ interface CardItemProps {
   onCardChange: (card: ICard) => void;
 }
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 const CardItem = memo(
   (props: CardItemProps) => {

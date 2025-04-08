@@ -6,8 +6,7 @@ import { PlusOutlined, GlobalOutlined } from "@ant-design/icons";
 
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { RightSidebarContext } from "../../RightSidebarContext";
-import Webview from "@/components/Webview";
-import { WebviewRef } from "@/types";
+import Webview, { WebviewRef } from "@/components/Webview";
 import { nodeFetch } from "@/commands";
 import TabsIndicator from "@/components/TabsIndicator";
 

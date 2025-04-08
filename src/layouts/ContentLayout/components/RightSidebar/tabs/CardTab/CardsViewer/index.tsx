@@ -11,13 +11,18 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import TabsIndicator from "@/components/TabsIndicator";
 
 import styles from "./index.module.less";
 import If from "@/components/If";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 const CardsViewer: React.FC<BaseViewerProps> = ({
   addTab,

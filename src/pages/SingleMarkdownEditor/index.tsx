@@ -12,6 +12,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import { readTextFile, writeTextFile } from "@/commands";
 import {
@@ -36,7 +37,11 @@ import {
 import styles from "./index.module.less";
 import classnames from "classnames";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 const SingleMarkdownEditor = () => {
   const [searchParams] = useSearchParams();

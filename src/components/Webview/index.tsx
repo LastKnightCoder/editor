@@ -6,7 +6,19 @@ import React, {
   CSSProperties,
   memo,
 } from "react";
-import { WebviewRef } from "@/types";
+
+export interface WebviewRef {
+  getTitle: () => string;
+  getURL: () => string;
+  getHTML: () => Promise<string>;
+  reload: () => void;
+  stop: () => void;
+  goBack: () => void;
+  goForward: () => void;
+  canGoBack: () => boolean;
+  canGoForward: () => boolean;
+}
+
 import styles from "./index.module.less";
 
 interface WebviewProps {

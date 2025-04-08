@@ -19,6 +19,7 @@ interface IEditTextProps {
   defaultFocus?: boolean;
   onBlur?: () => void;
   onKeyDown?: (e: KeyboardEvent) => void;
+  isSlateEditor?: boolean;
 }
 
 export type EditTextHandle = {
@@ -46,6 +47,7 @@ const EditText = memo(
       onDeleteEmpty,
       onBlur,
       onKeyDown,
+      isSlateEditor = false,
     } = props;
 
     const [initValue] = useState(defaultValue);
@@ -117,6 +119,14 @@ const EditText = memo(
       selection.removeAllRanges();
       selection.addRange(range);
     });
+
+    useEffect(() => {
+      if (isSlateEditor) {
+        ref.current?.setAttribute("data-slate-editor", "true");
+      } else {
+        ref.current?.removeAttribute("data-slate-editor");
+      }
+    }, [isSlateEditor]);
 
     useEffect(() => {
       if (defaultFocus) {

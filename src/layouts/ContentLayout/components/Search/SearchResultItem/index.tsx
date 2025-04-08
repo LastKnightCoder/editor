@@ -5,6 +5,7 @@ import {
   fileAttachmentExtension,
   projectCardListExtension,
   documentCardListExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import { memo } from "react";
 import { SearchResult } from "@/types";
@@ -16,6 +17,7 @@ const customExtensions = [
   fileAttachmentExtension,
   projectCardListExtension,
   documentCardListExtension,
+  questionCardExtension,
 ];
 
 // 搜索结果项组件

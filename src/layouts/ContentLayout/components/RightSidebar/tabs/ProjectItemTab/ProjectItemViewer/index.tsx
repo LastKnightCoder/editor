@@ -16,6 +16,7 @@ import {
   fileAttachmentExtension,
   cardLinkExtension,
   projectCardListExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 import { ProjectItem } from "@/types/project";
@@ -36,6 +37,7 @@ const customExtensions = [
   fileAttachmentExtension,
   cardLinkExtension,
   projectCardListExtension,
+  questionCardExtension,
 ];
 
 const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({

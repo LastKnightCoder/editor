@@ -10,6 +10,7 @@ import Tags from "@/components/Tags";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import { Descendant } from "slate";
 import {
@@ -24,7 +25,11 @@ import { defaultCardEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 interface CardViewerProps {
   cardId: string;

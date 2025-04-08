@@ -11,6 +11,7 @@ import {
   cardLinkExtension,
   fileAttachmentExtension,
   projectCardListExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import {
   getProjectItemById,
@@ -31,6 +32,7 @@ const customExtensions = [
   cardLinkExtension,
   fileAttachmentExtension,
   projectCardListExtension,
+  questionCardExtension,
 ];
 const editotContextValue = {
   cardId: -1,

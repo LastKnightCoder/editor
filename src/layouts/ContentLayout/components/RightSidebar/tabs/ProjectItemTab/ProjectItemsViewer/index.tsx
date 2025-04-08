@@ -9,6 +9,7 @@ import {
   fileAttachmentExtension,
   cardLinkExtension,
   projectCardListExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import TabsIndicator from "@/components/TabsIndicator";
 
@@ -20,6 +21,7 @@ const customExtensions = [
   fileAttachmentExtension,
   cardLinkExtension,
   projectCardListExtension,
+  questionCardExtension,
 ];
 
 const ProjectItemsViewer: React.FC<BaseViewerProps> = ({

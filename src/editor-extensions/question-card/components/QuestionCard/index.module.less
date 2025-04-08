@@ -1,0 +1,75 @@
+.container {
+  position: relative;
+  width: 100%;
+  @import "@/components/Editor/extensions/drop-common.less";
+  @import "@/components/Editor/extensions/drag-common.less";
+}
+
+.questionCard {
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid var(--line-color);
+  transition:
+    box-shadow 0.3s,
+    border-color 0.3s;
+  overflow: hidden;
+}
+
+.header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.5;
+    outline: none;
+    padding: 4px 0;
+    cursor: text;
+    flex: 1;
+  }
+
+  .addButton {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 50%;
+    &:hover {
+      background-color: var(--common-hover-bg);
+    }
+  }
+}
+
+.answersContainer {
+  padding: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.answerContent {
+  height: 100%;
+  overflow: hidden;
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.newAnswerEditor {
+  min-height: 300px;
+  border-radius: 6px;
+  padding: 16px;
+}

@@ -151,8 +151,16 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
   useEffect(() => {
     import("@/editor-extensions").then(
-      ({ cardLinkExtension, fileAttachmentExtension }) => {
-        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      ({
+        cardLinkExtension,
+        fileAttachmentExtension,
+        questionCardExtension,
+      }) => {
+        setExtensions([
+          cardLinkExtension,
+          fileAttachmentExtension,
+          questionCardExtension,
+        ]);
       },
     );
   }, []);
@@ -545,6 +553,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const initialCardContents = useMemo(() => {
     return cards.map((card) => ({
       id: card.id,
+      contentId: card.contentId,
       type: "card" as IndexType,
       title: "",
       content: card.content,
@@ -556,6 +565,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const initialArticleContents = useMemo(() => {
     return articles.map((article) => ({
       id: article.id,
+      contentId: article.contentId,
       type: "article" as IndexType,
       title: article.title,
       content: article.content,
@@ -567,6 +577,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const initialDocumentItemContents = useMemo(() => {
     return documentItems.map((documentItem) => ({
       id: documentItem.id,
+      contentId: documentItem.contentId,
       type: "document-item" as IndexType,
       title: documentItem.title,
       content: documentItem.content,

@@ -16,6 +16,7 @@ import {
   fileAttachmentExtension,
   cardLinkExtension,
   documentCardListExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 import { IDocumentItem } from "@/types/document";
@@ -36,6 +37,7 @@ const customExtensions = [
   fileAttachmentExtension,
   cardLinkExtension,
   documentCardListExtension,
+  questionCardExtension,
 ];
 
 const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({

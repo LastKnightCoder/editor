@@ -797,8 +797,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   useEffect(() => {
     import("@/editor-extensions").then(
-      ({ cardLinkExtension, fileAttachmentExtension }) => {
-        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      ({
+        cardLinkExtension,
+        fileAttachmentExtension,
+        questionCardExtension,
+      }) => {
+        setExtensions([
+          cardLinkExtension,
+          fileAttachmentExtension,
+          questionCardExtension,
+        ]);
       },
     );
   }, []);
@@ -806,6 +814,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const initialCardContents = useMemo(() => {
     return cards.map((card) => ({
       id: card.id,
+      contentId: card.contentId,
       type: "card" as IndexType,
       title: "",
       content: card.content,

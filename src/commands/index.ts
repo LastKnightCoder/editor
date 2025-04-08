@@ -23,3 +23,5 @@ export * from "./window.ts";
 export * from "./operation.ts";
 export * from "./fts.ts";
 export * from "./video-notes";
+export * from "./question.ts";
+export * from "./content.ts";
