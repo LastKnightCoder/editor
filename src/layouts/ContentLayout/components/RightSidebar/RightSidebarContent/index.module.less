@@ -3,33 +3,33 @@
   margin: 0 20px;
   overflow: hidden;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
 
-  :global {
-    .ant-tabs-nav {
-      height: 60px;
-      box-sizing: border-box;
-    }
+.tabsWrapper {
+  height: 60px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
 
-    .ant-tabs {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
+.tabContent {
+  flex: 1;
+  overflow-y: hidden;
+  height: calc(100% - 60px);
+}
 
-    .ant-tabs-content-holder {
-      overflow-y: hidden;
-      flex: 1;
-    }
+.tabLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
-    .ant-tabs-content {
-      height: 100%;
-    }
-
-    .ant-tabs-tabpane {
-      height: 100%;
-      overflow-y: hidden;
-    }
-  }
+.tabIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .loading {
@@ -37,4 +37,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.tabsIndicator {
+  width: 100%;
 }

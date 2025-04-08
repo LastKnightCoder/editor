@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Empty, Tabs, Button } from "antd";
+import { Empty, Button } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { BaseViewerProps } from "../../../types";
@@ -12,10 +12,9 @@ import {
 
 import If from "@/components/If";
 import { SearchResult } from "@/types";
+import TabsIndicator from "@/components/TabsIndicator";
 
 import styles from "./index.module.less";
-
-type TargetKey = React.MouseEvent | React.KeyboardEvent | string;
 
 const customExtensions = [fileAttachmentExtension, cardLinkExtension];
 
@@ -29,26 +28,12 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
 }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
 
-  const tabsItems = useMemo(() => {
-    return tabs.map((tab) => {
-      return {
-        key: String(tab.id),
-        label: tab.title,
-        children: (
-          <ArticleViewer
-            articleId={String(tab.id)}
-            onTitleChange={(title) => {
-              updateTab({
-                id: String(tab.id),
-                type: "article",
-                title,
-              });
-            }}
-          />
-        ),
-      };
-    });
-  }, [tabs, updateTab]);
+  const tabItems = useMemo(() => {
+    return tabs.map((tab) => ({
+      key: String(tab.id),
+      label: tab.title,
+    }));
+  }, [tabs]);
 
   const handleTabChange = useMemoizedFn((activeKey: string) => {
     setActiveTabKey({
@@ -59,19 +44,17 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
     });
   });
 
-  const handleEdit = useMemoizedFn(
-    (targetKey: TargetKey, action: "add" | "remove") => {
-      if (action === "add") {
-        setSelectorOpen(true);
-      } else if (action === "remove") {
-        removeTab({
-          id: targetKey as string,
-          type: "article",
-          title: "",
-        });
-      }
-    },
-  );
+  const handleAddClick = useMemoizedFn(() => {
+    setSelectorOpen(true);
+  });
+
+  const handleRemoveTab = useMemoizedFn((tabKey: string) => {
+    removeTab({
+      id: tabKey,
+      type: "article",
+      title: "",
+    });
+  });
 
   const onSelectArticle = useMemoizedFn(
     (items: SearchResult | SearchResult[]) => {
@@ -96,6 +79,8 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
     },
   );
 
+  const activeArticle = tabs.find((tab) => String(tab.id) === activeTabKey);
+
   return (
     <div className={styles.container}>
       <If condition={tabs.length === 0}>
@@ -104,15 +89,32 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
         </Empty>
       </If>
       <If condition={tabs.length > 0}>
-        <Tabs
-          items={tabsItems}
-          activeKey={String(activeTabKey)}
-          onChange={handleTabChange}
-          type="editable-card"
-          onEdit={handleEdit}
-          tabBarGutter={10}
-          animated={true}
-        />
+        <div className={styles.tabsContainer}>
+          <TabsIndicator
+            tabs={tabItems}
+            activeTab={String(activeTabKey)}
+            onChange={handleTabChange}
+            closable={true}
+            onClose={handleRemoveTab}
+            showAddButton={true}
+            onAdd={handleAddClick}
+          />
+
+          <div className={styles.tabContent}>
+            {activeArticle && (
+              <ArticleViewer
+                articleId={String(activeArticle.id)}
+                onTitleChange={(title) => {
+                  updateTab({
+                    id: String(activeArticle.id),
+                    type: "article",
+                    title,
+                  });
+                }}
+              />
+            )}
+          </div>
+        </div>
       </If>
       <ContentSelectorModal
         open={selectorOpen}

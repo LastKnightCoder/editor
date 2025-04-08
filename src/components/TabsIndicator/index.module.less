@@ -1,12 +1,23 @@
 .tabsContainer {
   width: 100%;
   margin-bottom: 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .tabs {
   display: flex;
   position: relative;
   border-bottom: 1px solid var(--line-color);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex: 1;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .tab {
@@ -16,12 +27,74 @@
   transition: all 0.2s;
   white-space: nowrap;
   font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 
   &:hover {
     color: var(--active-text-color);
   }
 
   &.active {
+    color: var(--active-text-color);
+  }
+}
+
+.closeIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  opacity: 0.6;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+
+  &:hover {
+    background-color: var(--hover-bg-color, rgba(0, 0, 0, 0.05));
+    opacity: 1;
+  }
+}
+
+.actionsContainer {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.moreButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  position: relative;
+
+  &:hover {
+    background-color: var(--hover-bg-color, rgba(0, 0, 0, 0.05));
+    color: var(--active-text-color);
+  }
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 20px;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+
+  &:hover {
+    background-color: var(--hover-bg-color, rgba(0, 0, 0, 0.05));
     color: var(--active-text-color);
   }
 }
