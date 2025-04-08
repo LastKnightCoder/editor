@@ -1,0 +1,102 @@
+.unansweredQuestions {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.questionCard {
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid var(--line-color);
+  transition:
+    box-shadow 0.3s,
+    border-color 0.3s;
+  overflow: hidden;
+}
+
+.header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.5;
+    outline: none;
+    padding: 4px 0;
+    cursor: text;
+  }
+
+  .addButton {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 50%;
+
+    &:hover {
+      background-color: var(--common-hover-bg);
+    }
+  }
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 350px;
+}
+
+.loadingContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.questionItem {
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}
+
+.answerCount {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-color-secondary);
+}
+
+.emptyContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.showMoreBtn {
+  cursor: pointer;
+  text-align: center;
+  padding: 8px;
+  color: var(--primary-color);
+  transition: all 0.3s;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+}

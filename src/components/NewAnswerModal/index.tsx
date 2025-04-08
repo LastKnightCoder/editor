@@ -1,9 +1,8 @@
-import React, { useRef } from "react";
+import React from "react";
 import { Modal } from "antd";
 import { Descendant } from "slate";
 import classnames from "classnames";
-import Editor, { EditorRef, IExtension } from "@/components/Editor";
-import useTheme from "@/components/Editor/hooks/useTheme.ts";
+import Editor, { IExtension } from "@/components/Editor";
 import styles from "./index.module.less";
 
 interface NewAnswerModalProps {
@@ -13,6 +12,7 @@ interface NewAnswerModalProps {
   onCancel: () => void;
   onOk: () => void;
   onChange: (value: Descendant[]) => void;
+  customTitle?: string;
 }
 
 const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
@@ -22,26 +22,19 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
   onCancel,
   onOk,
   onChange,
+  customTitle = "新建答案",
 }) => {
-  const { isDark } = useTheme();
-  const editorRef = useRef<EditorRef>(null);
-
   return (
     <Modal
-      title="新建答案"
+      title={customTitle}
       open={visible}
       onCancel={onCancel}
       onOk={onOk}
       width={800}
       destroyOnClose
     >
-      <div
-        className={classnames(styles.newAnswerEditor, {
-          [styles.dark]: isDark,
-        })}
-      >
+      <div className={classnames(styles.newAnswerEditor)}>
         <Editor
-          ref={editorRef}
           initValue={defaultContent}
           onChange={onChange}
           readonly={false}

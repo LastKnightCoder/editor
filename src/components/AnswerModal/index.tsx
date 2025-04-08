@@ -5,7 +5,6 @@ import { IAnswer } from "@/types";
 import Editor from "@/components/Editor";
 import { updateContent } from "@/commands";
 import { IExtension } from "@/components/Editor";
-import useTheme from "@/components/Editor/hooks/useTheme.ts";
 import styles from "./index.module.less";
 import { Descendant } from "slate";
 import { useThrottleFn } from "ahooks";
@@ -15,8 +14,9 @@ interface AnswerModalProps {
   selectedAnswer: IAnswer | null;
   extensions: IExtension[];
   onClose: () => void;
-  onAnswerChange: (answer: IAnswer) => void;
-  readOnly: boolean;
+  onAnswerChange?: (answer: IAnswer) => void;
+  readOnly?: boolean;
+  customTitle?: string;
 }
 
 const AnswerModal: React.FC<AnswerModalProps> = ({
@@ -25,13 +25,12 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
   extensions,
   onClose,
   onAnswerChange,
-  readOnly,
+  readOnly = false,
+  customTitle = "答案详情",
 }) => {
-  const { isDark } = useTheme();
-
   const { run: handleAnswerContentChange } = useThrottleFn(
     async (content: Descendant[]) => {
-      if (!selectedAnswer) return;
+      if (!selectedAnswer || !onAnswerChange) return;
       const answer = await updateContent(selectedAnswer.id, content);
       if (answer) {
         onAnswerChange(answer);
@@ -44,18 +43,14 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
 
   return (
     <Modal
-      title="答案详情"
+      title={customTitle}
       open={visible}
       onCancel={onClose}
       footer={null}
       width={800}
       destroyOnClose
     >
-      <div
-        className={classnames(styles.newAnswerEditor, {
-          [styles.dark]: isDark,
-        })}
-      >
+      <div className={classnames(styles.answerEditor)}>
         <Editor
           style={{ maxHeight: 600, overflow: "auto", padding: 20 }}
           readonly={readOnly}

@@ -16,7 +16,6 @@ import {
   deleteAnswer,
   updateQuestion,
 } from "@/commands/question";
-import useGridLayout from "@/hooks/useGridLayout";
 import { IExtension } from "@/components/Editor";
 import { IAnswer, SearchResult } from "@/types";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -24,9 +23,9 @@ import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop";
 import useTheme from "@/components/Editor/hooks/useTheme";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
-import AnswerCard from "./AnswerCard";
-import AnswerModal from "./AnswerModal";
-import NewAnswerModal from "./NewAnswerModal";
+import AnswerCardList from "@/components/AnswerCardList";
+import AnswerModal from "@/components/AnswerModal";
+import NewAnswerModal from "@/components/NewAnswerModal";
 
 import styles from "./index.module.less";
 import { PlusOutlined } from "@ant-design/icons";
@@ -66,12 +65,6 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
       element,
     });
 
-  const { gridContainerRef, itemWidth, gap } = useGridLayout({
-    minWidth: 280,
-    maxWidth: 350,
-    gap: 24,
-  });
-
   useEffect(() => {
     import("@/editor-extensions").then((modules) => {
       const {
@@ -103,7 +96,6 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
 
       if (questionData.answers && questionData.answers.length > 0) {
         const answersData = await getQuestionAnswers(questionId);
-        // console.log("answersData", answersData);
         setAnswers(answersData || []);
         setExcludeContentIds(questionData.answers);
       } else {
@@ -265,24 +257,13 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
                 </div>
               )}
             </div>
-            <div
-              className={styles.answersContainer}
-              style={{ gap }}
-              ref={gridContainerRef}
-            >
-              <>
-                {answers.map((answer) => (
-                  <AnswerCard
-                    key={answer.id}
-                    answer={answer}
-                    itemWidth={itemWidth}
-                    readOnly={readOnly}
-                    onDeleteAnswer={handleDeleteAnswer}
-                    onViewAnswer={handleViewAnswer}
-                  />
-                ))}
-              </>
-            </div>
+
+            <AnswerCardList
+              answers={answers}
+              readOnly={readOnly}
+              onDeleteAnswer={handleDeleteAnswer}
+              onViewAnswer={handleViewAnswer}
+            />
           </div>
           {children}
         </div>
