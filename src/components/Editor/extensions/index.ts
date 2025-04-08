@@ -32,6 +32,7 @@ import AudioExtension from "./audio";
 import VideoExtension from "./video";
 import AIExtension from "./ai";
 import WhiteboardExtension from "./whiteboard";
+import FrontMatterExtension from "./front-matter";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -58,6 +59,7 @@ export const table = new TableExtension();
 export const tableRow = new TableRowExtension();
 export const tableCell = new TableCellExtension();
 export const tikz = new TikzExtension();
+export const frontMatter = new FrontMatterExtension();
 
 export const customBlock = new CustomBlockExtension();
 // export const graphviz = new GraphvizExtension();
@@ -110,4 +112,5 @@ export const startExtensions = [
   audio,
   video,
   whiteboard,
+  frontMatter,
 ];

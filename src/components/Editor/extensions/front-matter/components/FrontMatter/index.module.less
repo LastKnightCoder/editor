@@ -1,0 +1,44 @@
+.frontMatter {
+  margin: 1em 0;
+  padding: 1em;
+  background-color: var(--bg-secondary);
+  border-radius: 0.5em;
+  user-select: none;
+
+  .frontMatterContent {
+    padding: 0;
+  }
+
+  .frontMatterData {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75em;
+  }
+
+  .frontMatterItem {
+    display: flex;
+    align-items: center;
+    font-size: 0.85em;
+  }
+
+  .frontMatterKey {
+    min-width: 7.5em;
+    color: var(--text-secondary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.75em;
+
+    svg {
+      width: 1em;
+      height: 1em;
+      opacity: 0.7;
+    }
+  }
+
+  .frontMatterValue {
+    color: var(--text-primary);
+    word-break: break-word;
+    flex: 1;
+  }
+}
