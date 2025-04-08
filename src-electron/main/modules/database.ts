@@ -20,6 +20,7 @@ import StatisticTable from "./tables/statistic";
 import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import ContentTable from "./tables/content";
+import QuestionTable from "./tables/question";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -58,6 +59,7 @@ class DatabaseModule implements Module {
       StatisticTable,
       FtsTable,
       VideoNoteTable,
+      QuestionTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

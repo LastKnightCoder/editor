@@ -48,6 +48,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         projectCardListExtension,
         cardLinkExtension,
         documentCardListExtension,
+        questionCardExtension,
       } = module;
       setExtensions([
         fileAttachmentExtension,
@@ -55,6 +56,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
         projectCardListExtension,
         cardLinkExtension,
         documentCardListExtension,
+        questionCardExtension,
       ]);
     });
   }, []);

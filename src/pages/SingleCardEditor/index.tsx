@@ -10,6 +10,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import {
   getCardById,
@@ -24,7 +25,11 @@ import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import styles from "./index.module.less";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 const SingleCardEditor = () => {
   const cardEventBus = useCreation(

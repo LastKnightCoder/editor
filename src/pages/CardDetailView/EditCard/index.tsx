@@ -11,6 +11,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
@@ -41,7 +42,11 @@ import graphIcon from "@/assets/icons/graph.svg";
 import PresentationMode from "@/components/PresentationMode";
 import useSettingStore from "@/stores/useSettingStore";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 interface IEditCardProps {
   cardId: number;

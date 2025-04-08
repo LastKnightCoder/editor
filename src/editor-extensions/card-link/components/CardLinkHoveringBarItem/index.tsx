@@ -28,8 +28,16 @@ const LinkHoveringItem = memo(() => {
 
   useEffect(() => {
     import("@/editor-extensions").then(
-      ({ cardLinkExtension, fileAttachmentExtension }) => {
-        setExtensions([cardLinkExtension, fileAttachmentExtension]);
+      ({
+        cardLinkExtension,
+        fileAttachmentExtension,
+        questionCardExtension,
+      }) => {
+        setExtensions([
+          cardLinkExtension,
+          fileAttachmentExtension,
+          questionCardExtension,
+        ]);
       },
     );
   }, []);
@@ -43,6 +51,7 @@ const LinkHoveringItem = memo(() => {
   const initialContents = useMemo(() => {
     return cards.map((card) => ({
       id: card.id,
+      contentId: card.contentId,
       type: "card" as IndexType,
       title: "",
       content: card.content,

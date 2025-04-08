@@ -9,11 +9,16 @@ import Editor, { EditorRef } from "@/components/Editor";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 import styles from "./index.module.less";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 interface ILinkGraphProps {
   cards: ICard[];

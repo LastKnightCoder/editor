@@ -15,6 +15,7 @@ import { Descendant } from "slate";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import { produce } from "immer";
 import { MindUtil, PathUtil } from "@/components/WhiteBoard/utils";
@@ -25,7 +26,11 @@ interface MindNodeProps {
   element: MindNodeElement;
 }
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 const MIND_NODE_MAX_WIDTH = 300;
 
 const MindNode = (props: MindNodeProps) => {

@@ -11,6 +11,7 @@ import {
   cardLinkExtension,
   fileAttachmentExtension,
   documentCardListExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import {
   getDocumentItem,
@@ -31,6 +32,7 @@ const customExtensions = [
   cardLinkExtension,
   fileAttachmentExtension,
   documentCardListExtension,
+  questionCardExtension,
 ];
 const editorContextValue = {
   cardId: -1,

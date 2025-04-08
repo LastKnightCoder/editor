@@ -11,6 +11,7 @@ import { ECardCategory } from "@/types";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 import styles from "./index.module.less";
@@ -18,7 +19,11 @@ import { getContentLength } from "@/utils";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import { LoadingOutlined } from "@ant-design/icons";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 const initValue: Descendant[] = [
   {

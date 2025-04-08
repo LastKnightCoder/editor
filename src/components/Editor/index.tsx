@@ -226,12 +226,18 @@ const Index = memo(
         },
         setEditorValue: (nodes: Descendant[]) => {
           const children = [...editor.children];
-          children.forEach((node) =>
-            editor.apply({ type: "remove_node", path: [0], node }),
-          );
-          nodes.forEach((node, i) =>
-            editor.apply({ type: "insert_node", path: [i], node: node }),
-          );
+          // @ts-ignore
+          editor.resetValue = true;
+          Editor.withoutNormalizing(editor, () => {
+            children.forEach((node) =>
+              editor.apply({ type: "remove_node", path: [0], node }),
+            );
+            nodes.forEach((node, i) =>
+              editor.apply({ type: "insert_node", path: [i], node: node }),
+            );
+          });
+          // @ts-ignore
+          editor.resetValue = false;
           const point = Editor.end(editor, []);
           Transforms.select(editor, point);
         },

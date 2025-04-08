@@ -42,6 +42,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 import styles from "./index.module.less";
@@ -51,7 +52,11 @@ import { Descendant } from "slate";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import classnames from "classnames";
-const extensions = [cardLinkExtension, fileAttachmentExtension];
+const extensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 const OUTLINE_SHOW_WIDTH_THRESHOLD = 1080;
 
 interface IEditArticleProps {

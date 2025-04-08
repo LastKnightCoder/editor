@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Empty } from "antd";
+import { Empty, Flex, Tag } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -100,6 +100,7 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
         </div>
         <EditText
           defaultValue=""
+          defaultFocus
           contentEditable={true}
           onChange={setSearch}
           onPressEnter={searchItems}
@@ -153,9 +154,18 @@ const ContentSelector: React.FC<ContentSelectorProps> = ({
                     })}
                     onClick={handleItemClick.bind(null, item)}
                   >
-                    {showTitle && (
-                      <div className={styles.title}>{item.title}</div>
-                    )}
+                    <Flex
+                      gap={8}
+                      align="center"
+                      className={styles.titleContainer}
+                    >
+                      <div>
+                        <Tag color="blue">{item.type}</Tag>
+                      </div>
+                      {showTitle && (
+                        <div className={styles.title}>{item.title}</div>
+                      )}
+                    </Flex>
                     <div className={styles.time}>
                       <span>更新于：{formatDate(item.updateTime, true)}</span>
                     </div>

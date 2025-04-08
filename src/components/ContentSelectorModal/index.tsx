@@ -13,11 +13,13 @@ export interface ContentSelectorModalProps {
   showTitle?: boolean;
   multiple?: boolean;
   excludeIds?: number[];
+  excludeContentIds?: number[];
   title?: string;
   initialContents?: SearchResult[];
 }
 
 const defaultExcudeIds: number[] = [];
+const defaultExcludeContentIds: number[] = [];
 const defaultInitialContents: SearchResult[] = [];
 const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   open,
@@ -29,6 +31,7 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
   showTitle = true,
   multiple = false,
   excludeIds = defaultExcudeIds,
+  excludeContentIds = defaultExcludeContentIds,
   title,
   initialContents = defaultInitialContents,
 }) => {
@@ -80,7 +83,9 @@ const ContentSelectorModal: React.FC<ContentSelectorModalProps> = ({
 
   // 判断项目是否被禁用
   const isItemDisabled = (item: SearchResult): boolean => {
-    return excludeIds.includes(item.id);
+    return (
+      excludeIds.includes(item.id) || excludeContentIds.includes(item.contentId)
+    );
   };
 
   return (

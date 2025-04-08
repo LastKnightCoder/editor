@@ -32,6 +32,7 @@ import {
   cardLinkExtension,
   projectCardListExtension,
   documentCardListExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 const customExtensions = [
@@ -39,6 +40,7 @@ const customExtensions = [
   cardLinkExtension,
   projectCardListExtension,
   documentCardListExtension,
+  questionCardExtension,
 ];
 
 const HomeView = memo(() => {

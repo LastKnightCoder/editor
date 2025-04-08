@@ -15,9 +15,15 @@ import { IndexType, SearchResult } from "@/types/search";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import { message } from "antd";
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 interface CardProps {
   className?: string;
@@ -54,6 +60,7 @@ const Card = (props: CardProps) => {
   const initialContents = useMemo(() => {
     return cards.map((card) => ({
       id: card.id,
+      contentId: card.contentId,
       type: "card" as IndexType,
       title: "",
       content: card.content,

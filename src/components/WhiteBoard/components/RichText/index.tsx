@@ -12,6 +12,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import Editor, { EditorRef } from "@/components/Editor";
 import If from "@/components/If";
@@ -42,7 +43,11 @@ import styles from "./index.module.less";
 import ArrowConnectPoint from "../ArrowConnectPoint";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 type RichTextNodeType = Omit<RichTextElement, "type"> & any;
 

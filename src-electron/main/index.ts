@@ -16,6 +16,7 @@ import voiceCopyModule from "./modules/voice-copy";
 import windowManagerModule from "./modules/window-manager";
 import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
+import PathUtil from "./utils/PathUtil";
 
 (async (): Promise<void> => {
   const contextMenu = await import("electron-context-menu");
@@ -263,19 +264,22 @@ app.whenReady().then(() => {
         process.platform === "win32" ? 1 : 0,
       );
 
+      const realPath = PathUtil.getFilePath(filePath);
+      log.debug(`真实路径: ${realPath}`);
+
       // 验证文件存在
-      if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-        log.warn(`文件不存在: ${filePath}`);
+      if (!existsSync(realPath) || !statSync(realPath).isFile()) {
+        log.warn(`文件不存在: ${realPath}`);
         return new Response("Not Found", { status: 404 });
       }
 
       // 获取文件信息
-      const stats = statSync(filePath);
+      const stats = statSync(realPath);
       const fileSize = stats.size;
       const rangeHeader = request.headers.get("range") || "";
-      const mimeType = getMimeType(extname(filePath));
+      const mimeType = getMimeType(extname(realPath));
 
-      log.debug(`文件信息 [${filePath}]: 大小=${fileSize}, 类型=${mimeType}`);
+      log.debug(`文件信息 [${realPath}]: 大小=${fileSize}, 类型=${mimeType}`);
 
       // 处理范围请求
       if (
@@ -289,7 +293,7 @@ app.whenReady().then(() => {
         log.debug(`处理范围请求: ${start}-${end}/${fileSize}`);
 
         return streamResponse(
-          filePath,
+          realPath,
           {
             status: 206,
             headers: {
@@ -305,8 +309,8 @@ app.whenReady().then(() => {
       }
 
       // 完整文件请求
-      log.debug(`处理完整文件请求: ${filePath}`);
-      return streamResponse(filePath, {
+      log.debug(`处理完整文件请求: ${realPath}`);
+      return streamResponse(realPath, {
         status: 200,
         headers: {
           "Content-Type": mimeType,

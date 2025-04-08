@@ -22,10 +22,15 @@ import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 const PAGE_SIZE = 20;
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 type OnChange = NonNullable<TableProps<ICard>["onChange"]>;
 type Filters = Parameters<OnChange>[1];

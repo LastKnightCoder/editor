@@ -22,6 +22,7 @@ import {
   cardLinkExtension,
   documentCardListExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 
 import styles from "./index.module.less";
@@ -33,6 +34,7 @@ const extensions = [
   cardLinkExtension,
   documentCardListExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 ];
 
 interface EditDocumentItemProps {

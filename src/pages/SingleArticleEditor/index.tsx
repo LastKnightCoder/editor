@@ -11,6 +11,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import {
   findOneArticle,
@@ -27,7 +28,11 @@ import { IArticle } from "@/types";
 import { defaultArticleEventBus } from "@/utils";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 
-const customExtensions = [cardLinkExtension, fileAttachmentExtension];
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 const SingleArticleEditor = () => {
   const articleEventBus = useCreation(

@@ -14,6 +14,7 @@ import {
   cardLinkExtension,
   fileAttachmentExtension,
   projectCardListExtension,
+  questionCardExtension,
 } from "@/editor-extensions";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 
@@ -23,6 +24,7 @@ const extensions = [
   cardLinkExtension,
   fileAttachmentExtension,
   projectCardListExtension,
+  questionCardExtension,
 ];
 
 const EditProjectItem = (props: { projectItemId: number }) => {

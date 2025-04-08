@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { getContentLength, dfs } from "@/utils/helper.ts";
-import { IContent, ICreateContent, IUpdateContent } from "@/types/content";
+import { IContent, ICreateContent, IUpdateContent } from "@/types";
 import Operation from "./operation";
 import { produce } from "immer";
 import { Descendant } from "slate";
@@ -9,7 +9,9 @@ import log from "electron-log";
 
 export default class ContentTable {
   static getListenEvents() {
-    return {};
+    return {
+      "content:update": this.updateContent.bind(this),
+    };
   }
 
   static initTable(db: Database.Database) {
@@ -156,8 +158,8 @@ export default class ContentTable {
   static updateContent(
     db: Database.Database,
     contentId: number,
-    contentData: Partial<IUpdateContent>,
-  ): void {
+    contentData: Partial<IUpdateContent> & { content: Descendant[] },
+  ): IContent | null {
     const { content, count } = contentData;
 
     const stmt = db.prepare(
@@ -167,6 +169,7 @@ export default class ContentTable {
     const actualCount = count || (content ? getContentLength(content) : 0);
     stmt.run(now, JSON.stringify(content || []), actualCount, contentId);
     Operation.insertOperation(db, "content", "update", contentId, now);
+    return this.getContentById(db, contentId);
   }
 
   static deleteContent(db: Database.Database, contentId: number): number {
