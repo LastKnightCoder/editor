@@ -21,7 +21,11 @@ import useDragAndDrop, {
   EDragPosition,
   IDragItem,
 } from "@/hooks/useDragAndDrop.ts";
-import { defaultDocumentItemEventBus } from "@/utils";
+import {
+  defaultDocumentItemEventBus,
+  downloadMarkdown,
+  getMarkdown,
+} from "@/utils";
 
 import {
   createDocumentItem,
@@ -643,6 +647,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
         label: "删除文档",
       },
       {
+        key: "export-markdown",
+        label: "导出文档",
+      },
+      {
         key: "presentation",
         label: "演示模式",
       },
@@ -662,6 +670,12 @@ const DocumentItem = (props: IDocumentItemProps) => {
     async ({ key }) => {
       if (key === "delete") {
         await onClickDelete();
+      } else if (key === "export-markdown") {
+        if (!item) {
+          return;
+        }
+        const markdown = getMarkdown(item.content);
+        downloadMarkdown(markdown, item.title);
       } else if (key === "presentation") {
         setIsPresentation(true);
       } else if (key === "open-in-new-window") {

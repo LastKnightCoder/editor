@@ -39,3 +39,15 @@
     }
   }
 }
+
+@media print {
+  .list {
+    & > li {
+      list-style: unset;
+
+      &::before {
+        display: none;
+      }
+    }
+  }
+}

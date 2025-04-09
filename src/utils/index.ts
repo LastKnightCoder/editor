@@ -13,3 +13,4 @@ export * from "./markdown.ts";
 export * from "./web-clip.ts";
 export * from "./event-bus";
 export * from "./search";
+export * from "./download";

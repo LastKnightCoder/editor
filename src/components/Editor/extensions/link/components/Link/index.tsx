@@ -155,6 +155,10 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
     setEditable(false);
   });
 
+  const handleClickATag = (e: React.MouseEvent) => {
+    e.preventDefault();
+  };
+
   return (
     <Popover
       trigger={"hover"}
@@ -179,7 +183,12 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
       arrow={false}
       placement={"bottom"}
     >
-      <span {...attributes} className={styles.link}>
+      <a
+        {...attributes}
+        href={url}
+        className={styles.link}
+        onClick={handleClickATag}
+      >
         <InlineChromiumBugfix />
         {children}
         <InlineChromiumBugfix />
@@ -192,7 +201,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
             <TbExternalLink />
           </span>
         </Tooltip>
-      </span>
+      </a>
     </Popover>
   );
 });

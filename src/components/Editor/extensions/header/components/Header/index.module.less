@@ -1,5 +1,19 @@
 .container {
   position: relative;
+  &.hideDecoration {
+    .h1 {
+      border-bottom: none;
+    }
+    .h2::before,
+    .h3::before,
+    .h4::before {
+      display: none;
+    }
+
+    .dragHandler {
+      top: 0;
+    }
+  }
 
   .headerContent {
     display: flex;

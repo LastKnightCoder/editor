@@ -22,6 +22,7 @@ import {
   getEditorText,
   getMarkdown,
   defaultCardEventBus,
+  downloadMarkdown,
 } from "@/utils";
 import { openCardInNewWindow } from "@/commands";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
@@ -177,13 +178,7 @@ const CardItem = memo(
           }
         } else if (key === "export-markdown") {
           const markdown = getMarkdown(card.content);
-          const blob = new Blob([markdown], { type: "text/markdown" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `${card.id}.md`;
-          a.click();
-          URL.revokeObjectURL(url);
+          downloadMarkdown(markdown, String(card.id));
         } else if (Object.keys(cardCategoryName).includes(key)) {
           if (onUpdateCardCategory) {
             await onUpdateCardCategory(card, key as ECardCategory);
