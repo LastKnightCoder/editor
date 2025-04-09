@@ -10,6 +10,8 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "dev:content": "vite --config vite-page.config.ts",
+    "build:content": "cross-env NODE_OPTIONS='--max-old-space-size=8192' tsc && vite build --config vite-page.config.ts",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=8192' tsc && vite build && electron-builder",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --fix",
     "preview": "vite preview",

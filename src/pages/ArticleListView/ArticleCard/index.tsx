@@ -19,7 +19,7 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 
 import { IArticle } from "@/types";
 
-import { formatDate } from "@/utils";
+import { formatDate, getMarkdown, downloadMarkdown } from "@/utils";
 import { useNavigate } from "react-router-dom";
 import styles from "./index.module.less";
 import {
@@ -220,6 +220,14 @@ const ArticleCard = (props: IArticleCardProps) => {
                         onClick: () => {
                           startPresentation(article);
                           setSettingOpen(false);
+                        },
+                      },
+                      {
+                        key: "export",
+                        label: "导出文章",
+                        onClick: () => {
+                          const markdown = getMarkdown(article.content);
+                          downloadMarkdown(markdown, article.title);
                         },
                       },
                       {

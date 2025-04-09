@@ -5,6 +5,7 @@ import styles from "./index.module.less";
 import { HeaderElement } from "@/components/Editor/types";
 import { useHeaderCollapse } from "./hooks";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import useHideHeaderDecoration from "@editor/hooks/useHideHeaderDecoration.ts";
 import { HeaderContent, DragHandle } from "./components";
 
 interface IHeaderProps {
@@ -17,6 +18,8 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
   const { level, collapsed = false } = element;
   const editor = useSlate();
   const path = ReactEditor.findPath(editor, element);
+
+  const hideHeaderDecoration = useHideHeaderDecoration();
 
   // Use the header collapse hook
   const { toggleCollapse } = useHeaderCollapse({
@@ -40,6 +43,7 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
         [styles.before]: isBefore,
         [styles.after]: !isBefore,
         [styles.collapsed]: collapsed,
+        [styles.hideDecoration]: hideHeaderDecoration,
       })}
     >
       <HeaderContent

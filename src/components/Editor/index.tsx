@@ -68,11 +68,13 @@ import classnames from "classnames";
 interface IEditorContext {
   uploadResource?: (file: File) => Promise<string | null>;
   theme?: "light" | "dark";
+  hideHeaderDecoration?: boolean;
 }
 
 export const EditorContext = createContext<IEditorContext>({
   theme: "light",
   uploadResource: undefined,
+  hideHeaderDecoration: false,
 });
 
 export type EditorRef = {
@@ -99,6 +101,7 @@ interface IEditorProps {
   onBlur?: () => void;
   placeHolder?: string;
   theme?: "light" | "dark";
+  hideHeaderDecoration?: boolean;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -122,6 +125,7 @@ const Index = memo(
       onBlur,
       placeHolder,
       theme,
+      hideHeaderDecoration = false,
     } = props;
 
     const { theme: systemTheme } = useTheme();
@@ -278,6 +282,7 @@ const Index = memo(
         value={{
           uploadResource,
           theme: theme || systemTheme,
+          hideHeaderDecoration,
         }}
       >
         <Slate

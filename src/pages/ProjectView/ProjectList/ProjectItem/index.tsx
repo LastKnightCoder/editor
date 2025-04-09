@@ -55,6 +55,8 @@ import {
   importFromMarkdown,
   webClipFromUrl,
   defaultProjectItemEventBus,
+  getMarkdown,
+  downloadMarkdown,
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
@@ -421,6 +423,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           label: "演示模式",
         },
         {
+          key: "export-markdown",
+          label: "导出文档",
+        },
+        {
           key: "open-in-new-window",
           label: "窗口打开",
         },
@@ -528,6 +534,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
       } else if (key === "remove") {
         await onRemoveProjectItem();
+      } else if (key === "export-markdown") {
+        if (!projectItem) return;
+        const markdown = getMarkdown(projectItem.content);
+        downloadMarkdown(markdown, projectItem.title);
       } else if (key === "edit-title") {
         setTitleEditable(true);
         titleRef.current?.setContentEditable(true);
