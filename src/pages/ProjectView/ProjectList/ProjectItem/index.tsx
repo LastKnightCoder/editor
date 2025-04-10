@@ -1275,18 +1275,18 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               createProjectItem,
             );
 
-            if (newProjectItem) {
-              useProjectsStore.setState({
-                activeProjectItemId: newProjectItem.id,
-              });
-            }
-
             const updatedProjectItem = await getProjectItemById(projectItem.id);
             projectItemEventBus.publishProjectItemEvent(
               "project-item:updated",
               updatedProjectItem,
             );
             setProjectItem(updatedProjectItem);
+
+            if (newProjectItem) {
+              useProjectsStore.setState({
+                activeProjectItemId: newProjectItem.id,
+              });
+            }
 
             setWebviewModalOpen(false);
             setWebviewUrl("");
