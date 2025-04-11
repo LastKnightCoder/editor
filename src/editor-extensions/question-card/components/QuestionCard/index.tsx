@@ -235,16 +235,19 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
                 [styles.dark]: isDark,
               })}
             >
-              <EditText
-                defaultValue={realTitle}
-                isSlateEditor
-                ref={titleRef}
-                onChange={handleTitleChange}
-                className={classnames(styles.title, {
-                  [styles.dark]: isDark,
-                })}
-                contentEditable={!readOnly}
-              />
+              <div className={styles.titleContainer}>
+                <div className={styles.titleLabel}>问题：</div>
+                <EditText
+                  defaultValue={realTitle}
+                  isSlateEditor
+                  ref={titleRef}
+                  onChange={handleTitleChange}
+                  className={classnames(styles.title, {
+                    [styles.dark]: isDark,
+                  })}
+                  contentEditable={!readOnly}
+                />
+              </div>
               {!readOnly && (
                 <div className={styles.addButton}>
                   <Dropdown

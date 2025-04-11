@@ -346,7 +346,7 @@ const UnansweredQuestions: React.FC = () => {
             </div>
             <AnswerCardList
               answers={selectedQuestionAnswers}
-              readOnly={false}
+              readOnly={true}
               onDeleteAnswer={handleDeleteAnswer}
               onViewAnswer={handleViewAnswer}
             />
@@ -354,7 +354,6 @@ const UnansweredQuestions: React.FC = () => {
         )}
       </Modal>
 
-      {/* 新建答案模态框 */}
       <NewAnswerModal
         visible={newAnswerModalVisible}
         defaultContent={DEFAULT_CONTENT}
@@ -367,7 +366,6 @@ const UnansweredQuestions: React.FC = () => {
         onChange={handleNewAnswerChange}
       />
 
-      {/* 内容选择器模态框 */}
       <ContentSelectorModal
         open={contentSelectorVisible}
         onCancel={() => setContentSelectorVisible(false)}
@@ -377,7 +375,6 @@ const UnansweredQuestions: React.FC = () => {
         excludeContentIds={excludeContentIds}
       />
 
-      {/* 答案预览模态框 */}
       <AnswerModal
         visible={answerPreviewVisible}
         selectedAnswer={selectedAnswer}

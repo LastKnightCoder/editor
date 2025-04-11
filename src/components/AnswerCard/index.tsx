@@ -1,15 +1,13 @@
-import React from "react";
-import { Button, Typography, Card, App } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
+import React, { useEffect, useState } from "react";
+import { Card, App, Dropdown, MenuItemProps } from "antd";
+import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
 import { IAnswer } from "@/types";
-import { getEditorText } from "@/utils/editor";
-import styles from "./index.module.less";
+import Editor, { IExtension } from "@/components/Editor";
 
-const { Paragraph } = Typography;
+import styles from "./index.module.less";
 
 interface AnswerCardProps {
   answer: IAnswer;
-  itemWidth?: number;
   readOnly?: boolean;
   onDeleteAnswer?: (answerId: number) => void;
   onViewAnswer?: (answerId: number) => void;
@@ -17,16 +15,35 @@ interface AnswerCardProps {
 
 const AnswerCard: React.FC<AnswerCardProps> = ({
   answer,
-  itemWidth,
   readOnly = false,
   onDeleteAnswer,
   onViewAnswer,
 }) => {
-  const answerText = getEditorText(answer.content, 200);
   const { modal } = App.useApp();
 
-  const handleDeleteAnswer = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
+  const [extensions, setExtensions] = useState<IExtension[]>();
+
+  useEffect(() => {
+    import("@/editor-extensions").then(
+      ({
+        cardLinkExtension,
+        fileAttachmentExtension,
+        questionCardExtension,
+        projectCardListExtension,
+        documentCardListExtension,
+      }) => {
+        setExtensions([
+          cardLinkExtension,
+          fileAttachmentExtension,
+          questionCardExtension,
+          projectCardListExtension,
+          documentCardListExtension,
+        ]);
+      },
+    );
+  }, []);
+
+  const handleDeleteAnswer: MenuItemProps["onClick"] = () => {
     if (!onDeleteAnswer) return;
 
     modal.confirm({
@@ -51,26 +68,36 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     <Card
       key={answer.id}
       style={{
-        width: itemWidth,
         boxSizing: "border-box",
         position: "relative",
         cursor: onViewAnswer ? "pointer" : "default",
       }}
-      onClick={handleClick}
     >
-      <div className={styles.answerContent}>
-        <Paragraph ellipsis={{ rows: 6 }}>{answerText}</Paragraph>
+      <div className={styles.answerContent} onClick={handleClick}>
+        <Editor
+          initValue={answer.content.slice(0, 3)}
+          readonly={readOnly}
+          extensions={extensions}
+          className={styles.editor}
+        />
       </div>
-      {!readOnly && onDeleteAnswer && (
-        <div className={styles.btn}>
-          <Button
-            type="text"
-            icon={<DeleteOutlined />}
-            onClick={handleDeleteAnswer}
-          >
-            删除
-          </Button>
-        </div>
+      {!readOnly && (
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: "delete",
+                label: "删除",
+                icon: <DeleteOutlined />,
+                onClick: handleDeleteAnswer,
+              },
+            ],
+          }}
+        >
+          <div className={styles.moreIcon} onClick={(e) => e.stopPropagation()}>
+            <MoreOutlined />
+          </div>
+        </Dropdown>
       )}
     </Card>
   );
