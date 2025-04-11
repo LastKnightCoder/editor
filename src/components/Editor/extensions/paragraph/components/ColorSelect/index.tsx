@@ -1,8 +1,7 @@
-import React, { memo } from "react";
-import { Tooltip } from "antd";
+import { memo } from "react";
 
 import For from "@/components/For";
-
+import ColorSelectItem from "./ColorSelectItem";
 import useTheme from "../../../../hooks/useTheme";
 
 import styles from "./index.module.less";
@@ -46,50 +45,33 @@ const themeColors = [
 ];
 
 interface IColorSelectProps {
-  onClick: (
-    event: React.MouseEvent,
-    lightColor?: string,
-    darkColor?: string,
-  ) => void;
-  open: boolean;
+  onClick: (lightColor?: string, darkColor?: string) => void;
 }
 
 const ColorSelect = memo((props: IColorSelectProps) => {
-  const { onClick, open } = props;
+  const { onClick } = props;
 
   const { isDark } = useTheme();
 
-  if (!open) {
-    return null;
-  }
-
   return (
     <div className={styles.colorSelectContainer}>
-      <Tooltip title={"默认颜色"}>
-        <div
-          className={styles.item}
-          onClick={(e) => {
-            onClick(e, undefined, undefined);
-          }}
-          style={{ color: undefined }}
-        >
-          A
-        </div>
-      </Tooltip>
+      <ColorSelectItem
+        label={"默认颜色"}
+        lightColor={undefined}
+        darkColor={undefined}
+        onClick={onClick}
+        isDark={isDark}
+      />
       <For
         data={themeColors}
         renderItem={(color) => (
-          <Tooltip title={color.label} key={color.label}>
-            <div
-              className={styles.item}
-              onClick={(e) => {
-                onClick(e, color.light, color.dark);
-              }}
-              style={{ color: isDark ? color.dark : color.light }}
-            >
-              A
-            </div>
-          </Tooltip>
+          <ColorSelectItem
+            label={color.label}
+            lightColor={color.light}
+            darkColor={color.dark}
+            onClick={onClick}
+            isDark={isDark}
+          />
         )}
       />
     </div>

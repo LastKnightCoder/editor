@@ -1,5 +1,6 @@
 import { memo } from "react";
 import For from "@/components/For";
+import HighlightSelectItem from "./HighlightSelectItem";
 import styles from "./index.module.less";
 
 const highlightColors = [
@@ -26,41 +27,29 @@ const highlightColors = [
 ];
 
 interface IHighlightSelectProps {
-  onClick: (event: React.MouseEvent, label: string | undefined) => void;
-  open: boolean;
+  onClick: (label: string | undefined) => void;
 }
 
 const HighlightSelect = memo((props: IHighlightSelectProps) => {
-  const { onClick, open } = props;
-
-  if (!open) {
-    return null;
-  }
+  const { onClick } = props;
 
   return (
     <div className={styles.highlightSelectContainer}>
-      <>
-        <div
-          className={styles.item}
-          onClick={(e) => {
-            onClick(e, undefined);
-          }}
-          style={{ backgroundColor: "inherit" }}
-        />
-        <For
-          data={highlightColors}
-          renderItem={({ label, bgColor }) => (
-            <div
-              className={styles.item}
-              onClick={(e) => {
-                onClick(e, label);
-              }}
-              style={{ backgroundColor: bgColor }}
-              key={label}
-            />
-          )}
-        />
-      </>
+      <HighlightSelectItem
+        label={undefined}
+        bgColor={"inherit"}
+        onClick={onClick}
+      />
+      <For
+        data={highlightColors}
+        renderItem={({ label, bgColor }) => (
+          <HighlightSelectItem
+            label={label}
+            bgColor={bgColor}
+            onClick={onClick}
+          />
+        )}
+      />
     </div>
   );
 });
