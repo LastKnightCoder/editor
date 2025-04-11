@@ -426,33 +426,32 @@ export default class ArticleTable {
     // 获取文章信息，以获取contentId
     const articleInfo = this.getArticleById(db, articleId);
 
-    if (articleInfo && articleInfo.contentId) {
-      // 删除关联的content记录（减少引用计数）
-      ContentTable.deleteContent(db, articleInfo.contentId);
-    }
-
     // 标记文章为已删除
     const stmt = db.prepare("UPDATE articles SET is_delete = 1 WHERE id = ?");
     const result = stmt.run(articleId);
 
-    // 设置document-item的isArticle为0
-    const documentItemStmt = db.prepare(
-      "UPDATE document_items SET is_article = 0 WHERE is_article = 1 AND article_id = ?",
-    );
-    documentItemStmt.run(articleId);
+    if (result.changes > 0) {
+      FTSTable.removeIndexByIdAndType(db, articleId, "article");
+      VecDocumentTable.removeIndexByIdAndType(db, articleId, "article");
+      Operation.insertOperation(db, "article", "delete", articleId, Date.now());
 
-    // 设置project_item的ref_type为空
-    const projectItemStmt = db.prepare(
-      "UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?",
-    );
-    projectItemStmt.run(articleId);
+      // 设置document-item的isArticle为0
+      const documentItemStmt = db.prepare(
+        "UPDATE document_items SET is_article = 0 WHERE is_article = 1 AND article_id = ?",
+      );
+      documentItemStmt.run(articleId);
 
-    // 删除全文搜索索引
-    FTSTable.removeIndexByIdAndType(db, articleId, "article");
-    // 删除向量文档索引
-    VecDocumentTable.removeIndexByIdAndType(db, articleId, "article");
+      // 设置project_item的ref_type为空
+      const projectItemStmt = db.prepare(
+        "UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?",
+      );
+      projectItemStmt.run(articleId);
 
-    Operation.insertOperation(db, "article", "delete", articleId, Date.now());
+      if (articleInfo && articleInfo.contentId) {
+        // 删除关联的content记录（减少引用计数）
+        ContentTable.deleteContent(db, articleInfo.contentId);
+      }
+    }
 
     return result.changes;
   }
