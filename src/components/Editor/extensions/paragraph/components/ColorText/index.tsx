@@ -1,8 +1,8 @@
-import { useState, useContext, useEffect, useMemo, useRef, memo } from "react";
+import { useState, useContext, useEffect, useMemo, memo } from "react";
 import { Editor, Range, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
-import { useMemoizedFn, useClickAway } from "ahooks";
-import { Tooltip } from "antd";
+import { useMemoizedFn } from "ahooks";
+import { Tooltip, Popover } from "antd";
 import useTheme from "../../../../hooks/useTheme";
 
 import SVG from "react-inlinesvg";
@@ -22,11 +22,12 @@ const ColorText = memo(() => {
   const selection = useSlateSelection();
   const { isDark } = useTheme();
 
-  const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState<boolean>(false);
+
   const active = useMemo(() => {
     return isMarkActive("color", editor, selection);
   }, [editor, selection]);
+
   const activeColor = useMemo(() => {
     if (!active) return "currentColor";
     const marks = Editor.marks(editor);
@@ -45,14 +46,8 @@ const ColorText = memo(() => {
     }
   }, [isHoveringBarShow]);
 
-  useClickAway(() => {
-    setOpen(false);
-  }, ref);
-
   const handleSelectColor = useMemoizedFn(
-    (event: React.MouseEvent, color?: string, darkColor?: string) => {
-      event.preventDefault();
-      event.stopPropagation();
+    (color?: string, darkColor?: string) => {
       Editor.addMark(editor, "color", color);
       Editor.addMark(editor, "darkColor", darkColor);
       if (selection && !Range.isCollapsed(selection)) {
@@ -63,27 +58,37 @@ const ColorText = memo(() => {
   );
 
   return (
-    <div
-      ref={ref}
-      className={classnames(styles.textContainer, { [styles.active]: active })}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        setOpen(!open);
-      }}
-    >
-      <Tooltip title={"颜色"} trigger={"hover"}>
-        <div className={styles.text}>
-          <SVG
-            src={color}
-            style={{ fill: activeColor }}
-            className={styles.icon}
-          />
-          <BiChevronDown />
+    <Tooltip title={"颜色"} trigger={"hover"}>
+      <Popover
+        open={open}
+        content={<ColorSelect onClick={handleSelectColor} />}
+        placement="bottom"
+        trigger={"hover"}
+        onOpenChange={setOpen}
+        styles={{
+          body: {
+            padding: 0,
+            marginTop: "0.5em",
+          },
+        }}
+        arrow={false}
+      >
+        <div
+          className={classnames(styles.textContainer, {
+            [styles.active]: active,
+          })}
+        >
+          <div className={styles.text}>
+            <SVG
+              src={color}
+              style={{ fill: activeColor }}
+              className={styles.icon}
+            />
+            <BiChevronDown />
+          </div>
         </div>
-      </Tooltip>
-      <ColorSelect open={open} onClick={handleSelectColor} />
-    </div>
+      </Popover>
+    </Tooltip>
   );
 });
 

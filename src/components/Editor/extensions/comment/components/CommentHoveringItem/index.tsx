@@ -39,7 +39,7 @@ const CommentHoveringItem = () => {
   });
 
   return (
-    <Tooltip title={"添加评论"} trigger={"hover"}>
+    <Tooltip title={"批注"} trigger={"hover"}>
       <div
         className={classnames(styles.markTextContainer, {
           [styles.active]: isActive,
