@@ -17,52 +17,8 @@ export default class DailyNoteTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
-    const stmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'daily_notes'",
-    );
-    const tableInfo = (stmt.get() as { sql: string }).sql;
-
-    // 如果不包含content_id字段，则添加
-    if (!tableInfo.includes("content_id")) {
-      // 1. 添加content_id列
-      const addColumnStmt = db.prepare(
-        "ALTER TABLE daily_notes ADD COLUMN content_id INTEGER",
-      );
-      addColumnStmt.run();
-
-      // 2. 获取所有日记
-      const getAllNotesStmt = db.prepare("SELECT * FROM daily_notes");
-      const notes = getAllNotesStmt.all();
-
-      // 3. 为每个日记创建内容表记录，并关联
-      for (const note of notes as any[]) {
-        try {
-          // 创建content记录
-          const content = JSON.parse(note.content as string);
-          const count = getContentLength(content);
-
-          const contentId = ContentTable.createContent(db, {
-            content: content,
-            count: count,
-          });
-
-          // 更新日记的content_id字段
-          const updateNoteStmt = db.prepare(
-            "UPDATE daily_notes SET content_id = ? WHERE id = ?",
-          );
-          updateNoteStmt.run(contentId, note.id);
-        } catch (error) {
-          log.error("迁移daily_notes记录错误:", error, "记录ID:", note.id);
-        }
-      }
-
-      // 完成迁移后，可以选择保留content字段一段时间以确保迁移成功
-      const dropContentColumnStmt = db.prepare(
-        "ALTER TABLE daily_notes DROP COLUMN content",
-      );
-      dropContentColumnStmt.run();
-    }
+  static upgradeTable(_db: Database.Database) {
+    // 不需要升级
   }
 
   static getListenEvents() {

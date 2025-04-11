@@ -7,7 +7,6 @@ import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
 import { chunk } from "llm-chunk";
-import log from "electron-log";
 
 const jieba = Jieba.withDict(dict);
 
@@ -54,36 +53,8 @@ class FTSTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
-    // 当表中存在type, title, chunk_index列时，才执行
-    const stmt = db.prepare("PRAGMA table_info(content_fts)");
-    const columns = stmt.all();
-    const titleColumn = columns.find((col: any) => col.name === "title");
-    const chunkIndexColumn = columns.find(
-      (col: any) => col.name === "chunk_index",
-    );
-    if (!titleColumn || !chunkIndexColumn) return;
-
-    log.info(`开始升级FTS表`);
-
-    db.exec(`
-      CREATE VIRTUAL TABLE content_fts_new 
-      USING fts5(
-        prefixed_id,
-        update_time,
-        content,
-        type,
-      );
-    `);
-
-    db.exec(`
-      INSERT INTO content_fts_new(prefixed_id, update_time, content, type)
-      SELECT prefixed_id, update_time, content, type FROM content_fts;
-    `);
-
-    db.exec(`DROP TABLE content_fts;`);
-
-    db.exec(`ALTER TABLE content_fts_new RENAME TO content_fts;`);
+  static upgradeTable(_db: Database.Database) {
+    // 不需要升级
   }
 
   // 索引内容
