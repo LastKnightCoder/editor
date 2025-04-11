@@ -34,8 +34,10 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignLeft = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const minX = Math.min(...elements.map((el) => el.x));
-    const newElements = elements.map((el) =>
+    const noArrowElements = elements.filter((el) => el.type !== "arrow");
+
+    const minX = Math.min(...noArrowElements.map((el) => el.x));
+    const newElements = noArrowElements.map((el) =>
       el.x === minX
         ? el
         : produce(el, (draft) => {
@@ -50,8 +52,10 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignRight = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const maxRight = Math.max(...elements.map((el) => el.x + el.width));
-    const newElements = elements.map((el) => {
+    const noArrowElements = elements.filter((el) => el.type !== "arrow");
+
+    const maxRight = Math.max(...noArrowElements.map((el) => el.x + el.width));
+    const newElements = noArrowElements.map((el) => {
       const right = el.x + el.width;
       return right === maxRight
         ? el
@@ -67,8 +71,10 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignTop = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const minY = Math.min(...elements.map((el) => el.y));
-    const newElements = elements.map((el) =>
+    const noArrowElements = elements.filter((el) => el.type !== "arrow");
+
+    const minY = Math.min(...noArrowElements.map((el) => el.y));
+    const newElements = noArrowElements.map((el) =>
       el.y === minY
         ? el
         : produce(el, (draft) => {
@@ -83,8 +89,12 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignBottom = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const maxBottom = Math.max(...elements.map((el) => el.y + el.height));
-    const newElements = elements.map((el) => {
+    const noArrowElements = elements.filter((el) => el.type !== "arrow");
+
+    const maxBottom = Math.max(
+      ...noArrowElements.map((el) => el.y + el.height),
+    );
+    const newElements = noArrowElements.map((el) => {
       const bottom = el.y + el.height;
       return bottom === maxBottom
         ? el
@@ -98,17 +108,19 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
 
   // 横向均分，按照 x 排序，均匀分布元素
   const handleDistributeHorizontal = useMemoizedFn(() => {
-    if (elements.length <= 2) return;
+    if (elements.length < 2) return;
+
+    const noArrowElements = elements.filter((el) => el.type !== "arrow");
 
     // 按照x坐标排序
-    const sortedElements = [...elements].sort((a, b) => a.x - b.x);
+    const sortedElements = [...noArrowElements].sort((a, b) => a.x - b.x);
 
     // 获取第一个元素的位置作为起点
     const firstElement = sortedElements[0];
     const leftBound = firstElement.x;
 
     // 创建新元素数组
-    const newElements = [...elements];
+    const newElements = [...sortedElements];
 
     const gap = 24 / zoom;
 
@@ -116,24 +128,17 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
     let currentX = leftBound;
 
     // 重新设置每个元素的位置
-    for (let i = 0; i < sortedElements.length; i++) {
+    for (let i = 1; i < sortedElements.length; i++) {
+      const prevElement = sortedElements[i - 1];
       const element = sortedElements[i];
 
-      // 找到原数组中的元素索引
-      const elementIndex = newElements.findIndex((el) => el.id === element.id);
+      const newElement = produce(element, (draft) => {
+        draft.x = currentX + prevElement.width + gap;
+      });
 
-      if (elementIndex !== -1) {
-        if (i === 0) {
-          // 第一个元素位置保持不变
-          currentX += element.width + gap;
-        } else {
-          // 其他元素依次排列
-          newElements[elementIndex] = produce(element, (draft) => {
-            draft.x = currentX;
-          });
-          currentX += element.width + gap;
-        }
-      }
+      currentX = newElement.x;
+
+      newElements[i] = newElement;
     }
 
     onChange(newElements);
@@ -141,17 +146,21 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
 
   // 纵向均分，按照 y 排序，均匀分布元素
   const handleDistributeVertical = useMemoizedFn(() => {
-    if (elements.length <= 2) return;
+    if (elements.length < 2) return;
+
+    const noArrowElements = elements.filter((el) => el.type !== "arrow");
 
     // 按照y坐标排序
-    const sortedElements = [...elements].sort((a, b) => a.y - b.y);
+    const sortedElements = [...noArrowElements].sort((a, b) => a.y - b.y);
+
+    console.log(sortedElements);
 
     // 获取第一个元素的位置作为起点
     const firstElement = sortedElements[0];
     const topBound = firstElement.y;
 
     // 创建新元素数组
-    const newElements = [...elements];
+    const newElements = [...sortedElements];
 
     const gap = 24 / zoom;
 
@@ -159,24 +168,17 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
     let currentY = topBound;
 
     // 重新设置每个元素的位置
-    for (let i = 0; i < sortedElements.length; i++) {
+    for (let i = 1; i < sortedElements.length; i++) {
+      const prevElement = sortedElements[i - 1];
       const element = sortedElements[i];
 
-      // 找到原数组中的元素索引
-      const elementIndex = newElements.findIndex((el) => el.id === element.id);
+      const newElement = produce(element, (draft) => {
+        draft.y = currentY + prevElement.height + gap;
+      });
 
-      if (elementIndex !== -1) {
-        if (i === 0) {
-          // 第一个元素位置保持不变
-          currentY += element.height + gap;
-        } else {
-          // 其他元素依次排列
-          newElements[elementIndex] = produce(element, (draft) => {
-            draft.y = currentY;
-          });
-          currentY += element.height + gap;
-        }
-      }
+      currentY = newElement.y;
+
+      newElements[i] = newElement;
     }
 
     onChange(newElements);

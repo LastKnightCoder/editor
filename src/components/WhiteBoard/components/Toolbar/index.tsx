@@ -9,6 +9,7 @@ import Image from "./Image";
 import Video from "./Video";
 import Card from "./Card";
 import MindMap from "./MindMap";
+import Webview from "./Webview";
 import { Tooltip } from "antd";
 import { PlayCircleOutlined } from "@ant-design/icons";
 
@@ -106,6 +107,7 @@ const Toolbar = memo(() => {
       />
       <Image className={styles.toolBarItem} />
       <Video className={styles.toolBarItem} />
+      <Webview className={styles.toolBarItem} />
       <Card className={styles.toolBarItem} />
       <Tooltip title="创建演示序列">
         <div

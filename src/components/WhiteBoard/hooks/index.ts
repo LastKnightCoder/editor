@@ -17,3 +17,4 @@ export {
   useListenArrowMove,
   ArrowMoveContext,
 } from "./useArrowMove";
+export { useElementsMoving } from "./useElementsMoving";

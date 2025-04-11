@@ -1,13 +1,13 @@
-import { useEffect, memo, useState } from "react";
+import { useEffect, memo, useContext } from "react";
 import { useMemoizedFn } from "ahooks";
 import { SELECT_AREA_COLOR } from "../../constants";
-import { useSelection, useBoard, useArrowMove } from "../../hooks";
+import { useSelection, useArrowMove } from "../../hooks";
+import { BoardStateContext } from "../../context";
 
 const SelectArea = memo(() => {
-  const board = useBoard();
   const selection = useSelection();
   const isArrowMoving = useArrowMove();
-  const [isMoving, setIsMoving] = useState(false);
+  const { isMoving } = useContext(BoardStateContext);
 
   const isSelecting = Boolean(
     selection &&
@@ -24,22 +24,6 @@ const SelectArea = memo(() => {
       e.preventDefault();
     }
   });
-
-  useEffect(() => {
-    const onMove = () => {
-      setIsMoving(true);
-    };
-    const onMoveEnd = () => {
-      setIsMoving(false);
-    };
-    board.on("element:move", onMove);
-    board.on("element:move-end", onMoveEnd);
-
-    return () => {
-      board.off("element:move", onMove);
-      board.off("element:move-end", onMoveEnd);
-    };
-  }, [board]);
 
   // 在选择的过程中禁止选中文本
   useEffect(() => {
