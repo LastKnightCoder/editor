@@ -10,6 +10,7 @@ import {
   createDocument,
   updateDocument,
   deleteDocument,
+  getDocument,
 } from "@/commands";
 import { produce } from "immer";
 
@@ -25,7 +26,10 @@ interface IActions {
   createDocument: (document: ICreateDocument) => Promise<IDocument>;
   updateDocument: (document: IUpdateDocument) => Promise<IDocument>;
   deleteDocument: (document: IDeleteDocument) => Promise<number>;
-  addDocumentItem: (documentId: number, documentItemId: number) => void;
+  addDocumentItem: (
+    documentId: number,
+    documentItemId: number,
+  ) => Promise<void>;
 }
 
 const initState: IState = {
@@ -64,8 +68,8 @@ const useDocumentsStore = create<IState & IActions>((set, get) => ({
     return res;
   },
   addDocumentItem: async (documentId, documentItemId) => {
-    const { documents, updateDocument } = get();
-    const document = documents.find((item) => item.id === documentId);
+    const { updateDocument } = get();
+    const document = await getDocument(documentId);
     if (!document) return;
     const newDocument = produce(document, (draft) => {
       draft.children.push(documentItemId);

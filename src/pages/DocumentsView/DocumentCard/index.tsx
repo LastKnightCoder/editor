@@ -44,6 +44,9 @@ const DocumentCard = (props: DocumentCardProps) => {
       },
       okText: "确定",
       cancelText: "取消",
+      okButtonProps: {
+        danger: true,
+      },
     });
   };
 

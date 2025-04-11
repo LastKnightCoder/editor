@@ -336,32 +336,34 @@ export default class CardTable {
     // 获取卡片信息，以获取contentId
     const cardInfo = this.getCardById(db, cardId);
 
-    if (cardInfo && cardInfo.contentId) {
-      // 删除关联的content记录（减少引用计数）
-      ContentTable.deleteContent(db, cardInfo.contentId);
-    }
-
     // 删除card记录
     const stmt = db.prepare("DELETE FROM cards WHERE id = ?");
+    const changes = stmt.run(cardId).changes;
 
-    // 设置isCard为0
-    const documentItemStmt = db.prepare(
-      "UPDATE document_items SET is_card = 0 WHERE is_card = 1 AND card_id = ?",
-    );
-    documentItemStmt.run(cardId);
+    if (changes > 0) {
+      FTSTable.removeIndexByIdAndType(db, cardId, "card");
+      VecDocumentTable.removeIndexByIdAndType(db, cardId, "card");
+      Operation.insertOperation(db, "card", "delete", cardId, Date.now());
 
-    // 设置project_item ref_type为空字符串
-    const projectItemStmt = db.prepare(
-      `UPDATE project_item SET ref_type = '' WHERE ref_type = 'card' AND ref_id = ?`,
-    );
-    projectItemStmt.run(cardId);
+      // 设置isCard为0
+      const documentItemStmt = db.prepare(
+        "UPDATE document_items SET is_card = 0 WHERE is_card = 1 AND card_id = ?",
+      );
+      documentItemStmt.run(cardId);
 
-    FTSTable.removeIndexByIdAndType(db, cardId, "card");
-    VecDocumentTable.removeIndexByIdAndType(db, cardId, "card");
+      // 设置project_item ref_type为空字符串
+      const projectItemStmt = db.prepare(
+        `UPDATE project_item SET ref_type = '' WHERE ref_type = 'card' AND ref_id = ?`,
+      );
+      projectItemStmt.run(cardId);
 
-    Operation.insertOperation(db, "card", "delete", cardId, Date.now());
+      if (cardInfo && cardInfo.contentId) {
+        // 删除关联的content记录（减少引用计数）
+        ContentTable.deleteContent(db, cardInfo.contentId);
+      }
+    }
 
-    return stmt.run(cardId).changes;
+    return changes;
   }
 
   static getTagsByCardId(db: Database.Database, cardId: number): string[] {

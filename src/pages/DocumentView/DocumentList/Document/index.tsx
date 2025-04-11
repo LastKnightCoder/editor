@@ -57,7 +57,8 @@ const Document = (props: IDocumentProps) => {
 
   const addNewDocumentItem = useMemoizedFn(async () => {
     const createdItem = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
-    addDocumentItem(document.id, createdItem.id);
+    await addDocumentItem(document.id, createdItem.id);
+    refreshDocument?.();
     return createdItem;
   });
 
@@ -165,10 +166,8 @@ const Document = (props: IDocumentProps) => {
       <div className={styles.divider}></div>
       <If condition={children.length === 0}>
         <div className={styles.empty}>
-          <Empty description="该文档下没有内容" />
-          <Button type="primary" onClick={addNewDocumentItem}>
-            添加文档
-          </Button>
+          <Empty description="该知识库下没有内容" />
+          <Button onClick={addNewDocumentItem}>添加文档</Button>
         </div>
       </If>
       <If condition={children.length > 0}>

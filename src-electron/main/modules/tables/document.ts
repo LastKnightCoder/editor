@@ -354,11 +354,21 @@ export default class DocumentTable {
   }
 
   static deleteDocument(db: Database.Database, id: number): number {
+    const document = this.getDocument(db, id);
     const stmt = db.prepare("DELETE FROM documents WHERE id = ?");
+    const changes = stmt.run(id).changes;
 
-    Operation.insertOperation(db, "document", "delete", id, Date.now());
+    if (changes > 0) {
+      // 删除 document_items 中所有属于该文档的条目
+      const documentItems = this.getDocumentItemsByIds(db, document.children);
+      for (const item of documentItems) {
+        this.tryDeleteDocumentItem(db, item.id);
+      }
 
-    return stmt.run(id).changes;
+      Operation.insertOperation(db, "document", "delete", id, Date.now());
+    }
+
+    return changes;
   }
 
   static getDocument(db: Database.Database, id: number): IDocument {
@@ -544,21 +554,23 @@ export default class DocumentTable {
   static deleteDocumentItem(db: Database.Database, id: number): number {
     // 获取document_item信息，以获取contentId
     const itemInfo = this.getDocumentItem(db, id);
-
-    if (itemInfo && itemInfo.contentId) {
-      // 删除关联的content记录（减少引用计数）
-      ContentTable.deleteContent(db, itemInfo.contentId);
-    }
-
     const stmt = db.prepare("DELETE FROM document_items WHERE id = ?");
+    const changes = stmt.run(id).changes;
 
-    // 删除全文搜索索引
-    FTSTable.removeIndexByIdAndType(db, id, "document-item");
-    // 删除向量文档索引
-    VecDocumentTable.removeIndexByIdAndType(db, id, "document-item");
+    if (changes > 0) {
+      // 删除全文搜索索引
+      FTSTable.removeIndexByIdAndType(db, id, "document-item");
+      // 删除向量文档索引
+      VecDocumentTable.removeIndexByIdAndType(db, id, "document-item");
 
-    Operation.insertOperation(db, "document-item", "delete", id, Date.now());
-    return stmt.run(id).changes;
+      Operation.insertOperation(db, "document-item", "delete", id, Date.now());
+
+      if (itemInfo && itemInfo.contentId) {
+        // 删除关联的content记录（减少引用计数）
+        ContentTable.deleteContent(db, itemInfo.contentId);
+      }
+    }
+    return changes;
   }
 
   static getDocumentItem(db: Database.Database, id: number): IDocumentItem {

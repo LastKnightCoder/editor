@@ -340,6 +340,14 @@ export default class ProjectTable {
 
   static deleteProject(db: Database.Database, id: number): number {
     const stmt = db.prepare("DELETE FROM project WHERE id = ?");
+    // 所有 project_item 的 projects 字段中删除该项目的id
+    const projectItems = this.getProjectItemsByProjectId(db, id);
+    for (const item of projectItems) {
+      item.projects = item.projects.filter((p: number) => p !== id);
+      this.updateProjectItem(db, item);
+    }
+    //  尝试删除无 projects 的 project_item
+    this.deleteProjectItemsNotInAnyProject(db);
     Operation.insertOperation(db, "project", "delete", id, Date.now());
     return stmt.run(id).changes;
   }
@@ -566,22 +574,26 @@ export default class ProjectTable {
     // 获取project_item信息，以获取contentId
     const itemInfo = this.getProjectItem(db, id);
 
-    if (itemInfo && itemInfo.contentId) {
-      // 删除关联的content记录（减少引用计数）
-      ContentTable.deleteContent(db, itemInfo.contentId);
-    }
     // 如果 refType 为 video-note，则删除 video_note 表中的记录
     if (itemInfo.refType === "video-note") {
       VideoNoteTable.deleteVideoNote(db, itemInfo.refId);
     }
 
     const stmt = db.prepare("DELETE FROM project_item WHERE id = ?");
+    const changes = stmt.run(id).changes;
 
-    FTSTable.removeIndexByIdAndType(db, id, "project-item");
-    VecDocumentTable.removeIndexByIdAndType(db, id, "project-item");
-    Operation.insertOperation(db, "project-item", "delete", id, Date.now());
+    if (itemInfo && itemInfo.contentId) {
+      // 删除关联的content记录（减少引用计数）
+      ContentTable.deleteContent(db, itemInfo.contentId);
+    }
 
-    return stmt.run(id).changes > 0;
+    if (changes > 0) {
+      FTSTable.removeIndexByIdAndType(db, id, "project-item");
+      VecDocumentTable.removeIndexByIdAndType(db, id, "project-item");
+      Operation.insertOperation(db, "project-item", "delete", id, Date.now());
+    }
+
+    return changes > 0;
   }
 
   static getProjectItem(db: Database.Database, id: number): ProjectItem {
@@ -593,6 +605,23 @@ export default class ProjectTable {
     `);
     const item = stmt.get(id);
     return this.parseProjectItem(item);
+  }
+
+  static getProjectItemsByProjectId(
+    db: Database.Database,
+    projectId: number,
+  ): ProjectItem[] {
+    const stmt = db.prepare(`
+      SELECT pi.*, c.content, c.count, c.update_time as content_update_time
+      FROM project_item pi
+      LEFT JOIN contents c ON pi.content_id = c.id
+      WHERE 1=1 AND EXISTS (
+        SELECT 1 FROM json_each(pi.projects)
+        WHERE value = ?
+      )
+    `);
+    const items = stmt.all(projectId);
+    return items.map((item) => this.parseProjectItem(item));
   }
 
   static getProjectItemsByIds(
@@ -663,9 +692,10 @@ export default class ProjectTable {
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time
       FROM project_item pi
       LEFT JOIN contents c ON pi.content_id = c.id
-      WHERE json_array_length(pi.projects) = 0
+      WHERE pi.projects = '[]'
     `);
     const items = stmt.all();
+    log.info(`获取不在任何项目中的条目: ${JSON.stringify(items)}`);
     return items.map((item) => this.parseProjectItem(item));
   }
 

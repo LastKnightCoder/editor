@@ -131,7 +131,12 @@ const ProjectsView = () => {
           <div className={styles.sectionHeader}>
             <div className={styles.title}>活跃项目</div>
           </div>
-          <ProjectList projects={activeProjects} />
+          <ProjectList
+            projects={activeProjects}
+            addProject={() => {
+              setCreateOpen(true);
+            }}
+          />
         </div>
 
         {archivedProjects.length > 0 && (

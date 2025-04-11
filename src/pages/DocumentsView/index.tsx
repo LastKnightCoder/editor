@@ -73,7 +73,12 @@ const DocumentsView = () => {
           }))}
         />
       </Titlebar>
-      <DocumentList documents={sortedDocuments} />
+      <DocumentList
+        documents={sortedDocuments}
+        addDocument={() => {
+          setCreateOpen(true);
+        }}
+      />
       <FloatButton
         icon={<PlusOutlined />}
         tooltip={"新建知识库"}
