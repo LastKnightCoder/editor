@@ -7,12 +7,15 @@ import {
   Dropdown,
   MenuProps,
   Flex,
+  Input,
+  App,
 } from "antd";
 import {
   LoadingOutlined,
   SyncOutlined,
   PlusOutlined,
   RightOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { IQuestion, IAnswer } from "@/types";
@@ -23,6 +26,8 @@ import {
   addAnswer,
   deleteAnswer,
   updateQuestion,
+  createQuestion,
+  deleteQuestion,
 } from "@/commands/question";
 import { IExtension } from "@/components/Editor";
 import EditText from "@/components/EditText";
@@ -62,6 +67,10 @@ const UnansweredQuestions: React.FC = () => {
   const [selectedAnswerId, setSelectedAnswerId] = useState<number | null>(null);
   const [answerPreviewVisible, setAnswerPreviewVisible] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [newQuestionModalVisible, setNewQuestionModalVisible] = useState(false);
+  const [newQuestionContent, setNewQuestionContent] = useState("");
+
+  const { message, modal } = App.useApp();
 
   useEffect(() => {
     import("@/editor-extensions").then((modules) => {
@@ -252,6 +261,43 @@ const UnansweredQuestions: React.FC = () => {
     setShowAll((prev) => !prev);
   });
 
+  const handleCreateQuestion = useMemoizedFn(async () => {
+    if (!newQuestionContent.trim()) {
+      message.error("问题内容不能为空");
+      return;
+    }
+
+    try {
+      await createQuestion(newQuestionContent);
+      setNewQuestionModalVisible(false);
+      setNewQuestionContent("");
+      handleRefresh();
+    } catch (error) {
+      console.error("创建问题失败:", error);
+      message.error("创建问题失败");
+    }
+  });
+
+  const handleDeleteQuestion = useMemoizedFn(async (questionId: number) => {
+    modal.confirm({
+      title: "确定要删除这个问题吗？",
+      okText: "确定",
+      cancelText: "取消",
+      okButtonProps: {
+        danger: true,
+      },
+      onOk: async () => {
+        try {
+          await deleteQuestion(questionId);
+          handleRefresh();
+        } catch (error) {
+          console.error("删除问题失败:", error);
+          message.error("删除问题失败");
+        }
+      },
+    });
+  });
+
   useEffect(() => {
     fetchQuestions();
   }, []);
@@ -265,12 +311,19 @@ const UnansweredQuestions: React.FC = () => {
         <Typography.Title level={5} style={{ margin: 0 }}>
           问题
         </Typography.Title>
-        <Button
-          type="text"
-          icon={<SyncOutlined spin={refreshing} />}
-          onClick={handleRefresh}
-          disabled={loading || refreshing}
-        />
+        <div>
+          <Button
+            type="text"
+            icon={<PlusOutlined />}
+            onClick={() => setNewQuestionModalVisible(true)}
+          />
+          <Button
+            type="text"
+            icon={<SyncOutlined spin={refreshing} />}
+            onClick={handleRefresh}
+            disabled={loading || refreshing}
+          />
+        </div>
       </div>
 
       <div className={styles.content}>
@@ -290,8 +343,17 @@ const UnansweredQuestions: React.FC = () => {
                   <Typography.Text ellipsis title={question.questionContent}>
                     {question.questionContent || "空问题"}
                   </Typography.Text>
-                  <div className={styles.answerCount}>
-                    {question.answers.length}
+                  <div className={styles.itemActions}>
+                    <div className={styles.answerCount}>
+                      {question.answers.length}
+                    </div>
+                    <DeleteOutlined
+                      className={styles.deleteIcon}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteQuestion(question.id);
+                      }}
+                    />
                   </div>
                 </List.Item>
               )}
@@ -383,6 +445,24 @@ const UnansweredQuestions: React.FC = () => {
         onAnswerChange={handleAnswerChange}
         readOnly={false}
       />
+
+      <Modal
+        title="添加新问题"
+        open={newQuestionModalVisible}
+        onOk={handleCreateQuestion}
+        onCancel={() => {
+          setNewQuestionModalVisible(false);
+          setNewQuestionContent("");
+        }}
+      >
+        <Input.TextArea
+          placeholder="请输入问题内容"
+          value={newQuestionContent}
+          onChange={(e) => setNewQuestionContent(e.target.value)}
+          rows={4}
+          autoFocus
+        />
+      </Modal>
     </div>
   );
 };
