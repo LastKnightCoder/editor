@@ -167,7 +167,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     handleKeyUp,
     handleGlobalMouseDown,
     handleGlobalMouseUp,
-    handleOnWheel,
+    handleOnWheel: noStopPropagationOnWheel,
     handleOnGlobalPointerDown,
     handleOnGlobalPointerMove,
     handleOnGlobalPointerUp,
@@ -181,6 +181,11 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     nonThrottledHandleOnPointerMove,
     { wait: 25 },
   );
+
+  const handleOnWheel = useMemoizedFn((e: WheelEvent) => {
+    e.stopPropagation();
+    noStopPropagationOnWheel(e);
+  });
 
   // 监听数据变化
   useEffect(() => {
