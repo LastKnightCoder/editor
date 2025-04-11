@@ -2,6 +2,16 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
 }
 
 .questionCard {
@@ -12,38 +22,38 @@
     box-shadow 0.3s,
     border-color 0.3s;
   overflow: hidden;
-}
 
-.header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line-color);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  .title {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 1.5;
-    outline: none;
-    padding: 4px 0;
-    cursor: text;
-  }
-
-  .addButton {
-    flex-shrink: 0;
+  .header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line-color);
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
-    cursor: pointer;
-    border-radius: 50%;
+    justify-content: space-between;
 
-    &:hover {
-      background-color: var(--common-hover-bg);
+    .title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.5;
+      outline: none;
+      padding: 4px 0;
+      cursor: text;
+    }
+
+    .addButton {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 50%;
+
+      &:hover {
+        background-color: var(--common-hover-bg);
+      }
     }
   }
 }
@@ -70,12 +80,29 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-right: 8px;
+}
+
+.itemActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .answerCount {
   flex-shrink: 0;
   font-size: 12px;
-  color: var(--text-color-secondary);
+}
+
+.deleteIcon {
+  font-size: 14px;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    opacity: 1;
+  }
 }
 
 .emptyContainer {
