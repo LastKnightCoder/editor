@@ -22,7 +22,7 @@ import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSideba
 import If from "@/components/If";
 import EditText from "@/components/EditText";
 import type { EditTextHandle } from "@/components/EditText";
-
+import { openExternal } from "@/commands";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
@@ -155,6 +155,19 @@ const ChatSidebar = memo(() => {
   const markdownComponents = useMemo(() => {
     if (!open) return null;
 
+    // 处理链接点击
+    const handleLinkClick = (
+      event: React.MouseEvent<HTMLAnchorElement>,
+      href?: string,
+    ) => {
+      if (href) {
+        event.preventDefault();
+        openExternal(href).catch((err) => {
+          console.error("打开链接失败:", err);
+        });
+      }
+    };
+
     return {
       code(props: any) {
         const { children, className, ...rest } = props;
@@ -179,6 +192,19 @@ const ChatSidebar = memo(() => {
           <code {...rest} className={className}>
             {children}
           </code>
+        );
+      },
+      a: ({ node, children, href, ...props }: any) => {
+        return (
+          <a
+            {...props}
+            href={href}
+            onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>
+              handleLinkClick(e, href)
+            }
+          >
+            {children}
+          </a>
         );
       },
     };
