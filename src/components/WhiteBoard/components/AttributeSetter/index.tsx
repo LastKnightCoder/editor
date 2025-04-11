@@ -44,9 +44,13 @@ const AttributeSetter = () => {
     if (!selection) return;
 
     const ops: Operation[] = [];
+    const selectedElements = selection.selectedElements;
+    const notChangedElements = selectedElements.filter(
+      (el) => !newElements.map((el) => el.id).includes(el.id),
+    );
 
     newElements.forEach((newElement) => {
-      const originalElement = selection.selectedElements.find(
+      const originalElement = selectedElements.find(
         (el) => el.id === newElement.id,
       );
       if (!originalElement) return;
@@ -67,7 +71,7 @@ const AttributeSetter = () => {
       properties: selection,
       newProperties: {
         ...selection,
-        selectedElements: newElements,
+        selectedElements: [...notChangedElements, ...newElements],
       },
     });
     if (ops.length > 0) {
@@ -79,8 +83,16 @@ const AttributeSetter = () => {
 
   if (!selection) return null;
 
+  const noArrowElements = selection.selectedElements.filter(
+    (el) => el.type !== "arrow",
+  );
+
+  if (selection.selectedElements.length > 1 && noArrowElements.length <= 1) {
+    return null;
+  }
+
   // 多选元素的情况
-  if (selection.selectedElements.length > 1) {
+  if (noArrowElements.length > 1) {
     const MultiSelectComponent = setterConfig.multiselect.component;
     return (
       <MultiSelectComponent

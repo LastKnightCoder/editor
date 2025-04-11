@@ -19,8 +19,14 @@ import {
   PresentationPlugin,
   PresentationSequence,
 } from "./plugins";
+import { WebviewPlugin } from "./plugins/WebviewPlugin";
 
-import { BoardContext, SelectionContext, ViewPortContext } from "./context";
+import {
+  BoardContext,
+  SelectionContext,
+  ViewPortContext,
+  BoardStateContext,
+} from "./context";
 import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
 import { BoardElement, ViewPort, Selection } from "./types";
 import Toolbar from "./components/Toolbar";
@@ -36,6 +42,7 @@ import {
   useGridSettings,
   useListenArrowMove,
   ArrowMoveContext,
+  useElementsMoving,
 } from "./hooks";
 
 import styles from "./index.module.less";
@@ -54,6 +61,7 @@ const imagePlugin = new ImagePlugin();
 const videoPlugin = new VideoPlugin();
 const mindPlugin = new MindPlugin();
 const presentationPlugin = new PresentationPlugin();
+const webviewPlugin = new WebviewPlugin();
 
 interface WhiteBoardProps {
   className?: string;
@@ -109,6 +117,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       imagePlugin,
       videoPlugin,
       mindPlugin,
+      webviewPlugin,
       historyPlugin,
       selectPlugin,
       movePlugin,
@@ -127,7 +136,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   }, []);
 
   const isArrowMoving = useListenArrowMove(board);
-
+  const isElementsMoving = useElementsMoving(board);
   // 获取画板数据
   const { children, viewPort, selection } = useSyncExternalStore(
     board.subscribe,
@@ -308,47 +317,51 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
         <SelectionContext.Provider value={selection}>
           <ViewPortContext.Provider value={viewPort}>
             <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
-              {/* 工具栏 */}
-              {!readonly && <Toolbar />}
+              <BoardStateContext.Provider
+                value={{ isMoving: isElementsMoving }}
+              >
+                {/* 工具栏 */}
+                {!readonly && <Toolbar />}
 
-              {/* 画板内容 */}
-              <BoardContent
-                ref={svgRef}
-                board={board}
-                viewPort={viewPort}
-                centerConnectArrows={centerConnectArrows}
-                noneCenterConnectArrows={noneCenterConnectArrows}
-                gridVisible={gridVisible}
-                gridSize={gridSize}
-                refLines={refLines}
-              />
+                {/* 画板内容 */}
+                <BoardContent
+                  ref={svgRef}
+                  board={board}
+                  viewPort={viewPort}
+                  centerConnectArrows={centerConnectArrows}
+                  noneCenterConnectArrows={noneCenterConnectArrows}
+                  gridVisible={gridVisible}
+                  gridSize={gridSize}
+                  refLines={refLines}
+                />
 
-              {/* 垂直工具栏 */}
-              <div className={styles.verticalBar}>
-                {!readonly && <AttributeSetter />}
-              </div>
+                {/* 垂直工具栏 */}
+                <div className={styles.verticalBar}>
+                  {!readonly && <AttributeSetter />}
+                </div>
 
-              {/* 演示相关组件 */}
-              <PresentationCreator />
-              <PresentationMode />
+                {/* 演示相关组件 */}
+                <PresentationCreator />
+                <PresentationMode />
 
-              {/* 状态栏 */}
-              <StatusBar
-                ref={statusBarRef}
-                gridVisible={gridVisible}
-                gridSize={gridSize}
-                zoom={zoom}
-                sequences={board.presentationManager.sequences}
-                onGridVisibleChange={handleGridVisibleChange}
-                onGridSizeChange={handleGridSizeChange}
-                onZoomIn={handleZoomIn}
-                onZoomOut={handleZoomOut}
-                onZoomTo={handleZoomTo}
-                onFitElements={handleFitAll}
-                onStartPresentation={handleStartPresentation}
-                onEditSequence={handleEditSequence}
-                onDeleteSequence={handleDeleteSequence}
-              />
+                {/* 状态栏 */}
+                <StatusBar
+                  ref={statusBarRef}
+                  gridVisible={gridVisible}
+                  gridSize={gridSize}
+                  zoom={zoom}
+                  sequences={board.presentationManager.sequences}
+                  onGridVisibleChange={handleGridVisibleChange}
+                  onGridSizeChange={handleGridSizeChange}
+                  onZoomIn={handleZoomIn}
+                  onZoomOut={handleZoomOut}
+                  onZoomTo={handleZoomTo}
+                  onFitElements={handleFitAll}
+                  onStartPresentation={handleStartPresentation}
+                  onEditSequence={handleEditSequence}
+                  onDeleteSequence={handleDeleteSequence}
+                />
+              </BoardStateContext.Provider>
             </ArrowMoveContext.Provider>
           </ViewPortContext.Provider>
         </SelectionContext.Provider>

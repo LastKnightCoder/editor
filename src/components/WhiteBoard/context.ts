@@ -10,3 +10,9 @@ export const ViewPortContext = createContext<ViewPort>({
   height: 0,
   zoom: 1,
 });
+
+export const BoardStateContext = createContext<{
+  isMoving: boolean;
+}>({
+  isMoving: false,
+});

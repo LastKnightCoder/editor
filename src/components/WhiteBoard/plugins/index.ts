@@ -13,3 +13,4 @@ export * from "./ImagePlugin";
 export * from "./VideoPlugin";
 export * from "./MindPlugin";
 export * from "./PresentationPlugin";
+export * from "./WebviewPlugin";
