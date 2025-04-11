@@ -5,6 +5,7 @@ import { message, Button, Tooltip } from "antd";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import EditorOutline from "@/components/EditorOutline";
 import { Editor as CodeMirrorEditor, EditorChange } from "codemirror";
 import isHotkey from "is-hotkey";
 
@@ -36,6 +37,7 @@ import {
 
 import styles from "./index.module.less";
 import classnames from "classnames";
+import If from "@/components/If";
 
 const customExtensions = [
   cardLinkExtension,
@@ -64,6 +66,11 @@ const SingleMarkdownEditor = () => {
   const uploadResource = useUploadResource();
   const beforeSaveSourceText = useRef("");
   const currentSourceText = useRef("");
+
+  const onClickHeader = useMemoizedFn((index: number) => {
+    if (!editorRef.current) return;
+    editorRef.current.scrollHeaderIntoView(index);
+  });
 
   // 自定义切换主题函数
   const toggleTheme = useMemoizedFn(() => {
@@ -230,36 +237,40 @@ const SingleMarkdownEditor = () => {
       })}
     >
       <div className={styles.editorContainer}>
-        <div
-          className={classnames(styles.sourceEditor, {
-            [styles.hidden]: !isSourceMode,
-          })}
-        >
-          <MarkdownSourceEditor
-            value={currentSourceText.current}
-            onChange={onSourceTextChange}
-            editorDidMount={onSourceEditorDidMount}
-            isDark={isDark}
-            readonly={isReadonly}
-          />
-        </div>
-        <div
-          className={classnames(styles.editor, {
-            [styles.hidden]: isSourceMode,
-          })}
-        >
-          <ErrorBoundary>
-            <Editor
-              ref={editorRef}
-              initValue={content}
-              onChange={onContentChange}
-              extensions={customExtensions}
+        <If condition={isSourceMode}>
+          <div className={styles.sourceEditor}>
+            <MarkdownSourceEditor
+              value={currentSourceText.current}
+              onChange={onSourceTextChange}
+              editorDidMount={onSourceEditorDidMount}
+              isDark={isDark}
               readonly={isReadonly}
-              uploadResource={uploadResource}
-              theme={isDark ? "dark" : "light"}
             />
-          </ErrorBoundary>
-        </div>
+          </div>
+        </If>
+        <If condition={!isSourceMode}>
+          <div className={styles.editor}>
+            <ErrorBoundary>
+              <Editor
+                ref={editorRef}
+                initValue={content}
+                onChange={onContentChange}
+                extensions={customExtensions}
+                readonly={isReadonly}
+                uploadResource={uploadResource}
+                theme={isDark ? "dark" : "light"}
+              />
+            </ErrorBoundary>
+          </div>
+          <div className={styles.outlineContainer}>
+            <EditorOutline
+              className={styles.outline}
+              content={content}
+              show={true}
+              onClickHeader={onClickHeader}
+            />
+          </div>
+        </If>
       </div>
 
       <div className={styles.statusBar}>
