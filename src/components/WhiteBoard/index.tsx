@@ -184,6 +184,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const handleOnWheel = useMemoizedFn((e: WheelEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     noStopPropagationOnWheel(e);
   });
 

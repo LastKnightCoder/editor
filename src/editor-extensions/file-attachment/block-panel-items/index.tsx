@@ -1,6 +1,5 @@
 import { IBlockPanelListItem } from "@/components/Editor/types";
 import SelectFileModal from "../components/SelectFileModal";
-// import { selectFile } from '@/commands'
 import { insertFileAttachment } from "../utils.ts";
 import { Modal } from "antd";
 
@@ -27,12 +26,6 @@ const items: IBlockPanelListItem[] = [
         footer: null,
         maskClosable: true,
       });
-      // const filePath = await selectFile().catch((err) => {
-      //   console.error(err);
-      //   return '';
-      // });
-      // if (!filePath || Array.isArray(filePath)) return;
-      // return insertFileAttachment(editor, filePath);
     },
   },
 ];

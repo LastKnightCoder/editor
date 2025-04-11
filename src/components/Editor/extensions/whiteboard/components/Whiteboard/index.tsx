@@ -1,9 +1,14 @@
 import React, { useState, useRef } from "react";
 import { useReadOnly } from "slate-react";
-import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
+import {
+  MdDragIndicator,
+  MdFullscreen,
+  MdFullscreenExit,
+} from "react-icons/md";
 import { createPortal } from "react-dom";
 import { ReactEditor, useSlate } from "slate-react";
 import { Transforms } from "slate";
+import classnames from "classnames";
 
 import { WhiteboardElement } from "@/components/Editor/types/element/whiteboard.ts";
 import { IExtensionBaseProps } from "@/components/Editor/extensions/types";
@@ -18,7 +23,7 @@ import {
 import styles from "./index.module.less";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { useMemoizedFn } from "ahooks";
-
+import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop";
 type IWhiteboardProps = IExtensionBaseProps<WhiteboardElement>;
 
 interface WhiteboardData {
@@ -36,6 +41,11 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
   const resizeStartYRef = useRef(0);
   const startHeightRef = useRef(0);
   const whiteboardRef = useRef<HTMLDivElement>(null);
+
+  const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
+    useDragAndDrop({
+      element,
+    });
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const noFullscreenWidthRef = useRef(0);
@@ -181,46 +191,23 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
   });
 
   return (
-    <div {...attributes} contentEditable={false}>
-      <div className={styles.whiteboardContainer}>
-        <If condition={!isFullscreen}>
-          <div
-            className={styles.whiteboardWrapper}
-            style={{ height }}
-            ref={whiteboardRef}
-          >
-            <WhiteBoard
-              initData={data.children}
-              initViewPort={data.viewPort}
-              initSelection={data.selection}
-              style={{ width: "100%", height: "100%" }}
-              readonly={editorReadOnly}
-              onChange={handleWhiteboardChange}
-            />
+    <div
+      ref={drop}
+      className={classnames(styles.container, {
+        [styles.isDragging]: isDragging,
+        [styles.isBefore]: isBefore,
+        [styles.isOverCurrent]: isOverCurrent,
+        [styles.canDrop]: canDrop,
+        [styles.canDrag]: canDrag,
+      })}
+    >
+      <div {...attributes}>
+        <div className={styles.whiteboardContainer}>
+          <If condition={!isFullscreen}>
             <div
-              className={styles.resizeHandle}
-              onMouseDown={handleResizeStart}
-            >
-              <div className={styles.resizeIndicator} />
-            </div>
-          </div>
-
-          <div className={styles.fullscreenButton} onClick={toggleFullscreen}>
-            <MdFullscreen size={20} />
-          </div>
-        </If>
-      </div>
-      {children}
-      <AddParagraph element={element} />
-      {isFullscreen &&
-        createPortal(
-          <div
-            className={styles.fullscreenOverlay}
-            onClick={() => setIsFullscreen(false)}
-          >
-            <div
-              className={styles.fullscreenContent}
-              onClick={(e) => e.stopPropagation()}
+              className={styles.whiteboardWrapper}
+              style={{ height }}
+              ref={whiteboardRef}
             >
               <WhiteBoard
                 initData={data.children}
@@ -230,13 +217,56 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
                 readonly={editorReadOnly}
                 onChange={handleWhiteboardChange}
               />
-              <div className={styles.closeButton} onClick={toggleFullscreen}>
-                <MdFullscreenExit size={20} />
+              <div
+                className={styles.resizeHandle}
+                onMouseDown={handleResizeStart}
+              >
+                <div className={styles.resizeIndicator} />
               </div>
             </div>
-          </div>,
-          document.body,
-        )}
+
+            <div className={styles.fullscreenButton} onClick={toggleFullscreen}>
+              <MdFullscreen size={20} />
+            </div>
+          </If>
+        </div>
+        {children}
+        {isFullscreen &&
+          createPortal(
+            <div
+              className={styles.fullscreenOverlay}
+              onClick={() => setIsFullscreen(false)}
+            >
+              <div
+                className={styles.fullscreenContent}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <WhiteBoard
+                  initData={data.children}
+                  initViewPort={data.viewPort}
+                  initSelection={data.selection}
+                  style={{ width: "100%", height: "100%" }}
+                  readonly={editorReadOnly}
+                  onChange={handleWhiteboardChange}
+                />
+                <div className={styles.closeButton} onClick={toggleFullscreen}>
+                  <MdFullscreenExit size={20} />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
+        <AddParagraph element={element} />
+        <div
+          contentEditable={false}
+          ref={drag}
+          className={classnames(styles.dragHandler, {
+            [styles.canDrag]: canDrag,
+          })}
+        >
+          <MdDragIndicator className={styles.icon} />
+        </div>
+      </div>
     </div>
   );
 };
