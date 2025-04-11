@@ -1,7 +1,6 @@
 import Database from "better-sqlite3";
 import { ICreateArticle, IUpdateArticle, IArticle } from "@/types";
 import Operation from "./operation";
-import { getContentLength } from "@/utils/helper.ts";
 import { getMarkdown } from "@/utils/markdown.ts";
 import { basename } from "node:path";
 import { BrowserWindow } from "electron";
@@ -10,7 +9,6 @@ import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
 import log from "electron-log";
-import PathUtil from "../../utils/PathUtil";
 
 export default class ArticleTable {
   static initTable(db: Database.Database) {
@@ -34,86 +32,6 @@ export default class ArticleTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    const stmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'articles'",
-    );
-    const tableInfo = (stmt.get() as { sql: string }).sql;
-    if (!tableInfo.includes("links")) {
-      const alertStmt = db.prepare(
-        "ALTER TABLE articles ADD COLUMN links TEXT",
-      );
-      alertStmt.run();
-    }
-    if (!tableInfo.includes("banner_bg")) {
-      const alertStmt = db.prepare(
-        "ALTER TABLE articles ADD COLUMN banner_bg TEXT DEFAULT ''",
-      );
-      alertStmt.run();
-    }
-    if (!tableInfo.includes("banner_position")) {
-      const alertStmt = db.prepare(
-        "ALTER TABLE articles ADD COLUMN banner_position TEXT DEFAULT 'center'",
-      );
-      alertStmt.run();
-    }
-    if (!tableInfo.includes("is_top")) {
-      const alertStmt = db.prepare(
-        "ALTER TABLE articles ADD COLUMN is_top INTEGER DEFAULT 0",
-      );
-      alertStmt.run();
-    }
-    if (!tableInfo.includes("is_delete")) {
-      const alertStmt = db.prepare(
-        "ALTER TABLE articles ADD COLUMN is_delete INTEGER DEFAULT 0",
-      );
-      alertStmt.run();
-    }
-
-    // 如果不包含content_id字段，则添加
-    if (!tableInfo.includes("content_id")) {
-      // 1. 添加content_id列
-      const addColumnStmt = db.prepare(
-        "ALTER TABLE articles ADD COLUMN content_id INTEGER",
-      );
-      addColumnStmt.run();
-
-      // 2. 获取所有文章
-      const getAllArticlesStmt = db.prepare("SELECT * FROM articles");
-      const articles = getAllArticlesStmt.all();
-
-      // 3. 为每篇文章创建内容表记录，并关联
-      for (const article of articles as any[]) {
-        if (!article.content) continue;
-
-        // 创建content记录
-        const content = JSON.parse(article.content as string);
-        const count = article.count || getContentLength(content);
-
-        const contentId = ContentTable.createContent(db, {
-          content: content,
-          count: count,
-        });
-
-        // 更新文章的content_id字段
-        const updateArticleStmt = db.prepare(
-          "UPDATE articles SET content_id = ? WHERE id = ?",
-        );
-        updateArticleStmt.run(contentId, article.id);
-      }
-
-      // 删除content字段
-      const dropContentColumnStmt = db.prepare(
-        "ALTER TABLE articles DROP COLUMN content",
-      );
-      dropContentColumnStmt.run();
-
-      // 删除count字段
-      const dropCountColumnStmt = db.prepare(
-        "ALTER TABLE articles DROP COLUMN count",
-      );
-      dropCountColumnStmt.run();
-    }
-
     // 为所有文章添加 FTS 索引
     log.info("开始为所有文章添加 FTS 索引");
     const articles = this.getAllArticles(db);
@@ -132,18 +50,6 @@ export default class ArticleTable {
           updateTime: article.update_time,
         });
         log.info(`已为文章 ${article.id} 添加/更新 FTS 索引`);
-      }
-
-      if (article.bannerBg) {
-        const homeDir = PathUtil.getHomeDir();
-        // 如果是家目录，替换为 ~
-        if (article.bannerBg.startsWith(homeDir)) {
-          article.bannerBg = article.bannerBg.replace(homeDir, "~");
-          const stmt = db.prepare(
-            "UPDATE articles SET banner_bg = ? WHERE id = ?",
-          );
-          stmt.run(article.bannerBg, article.id);
-        }
       }
     }
   }

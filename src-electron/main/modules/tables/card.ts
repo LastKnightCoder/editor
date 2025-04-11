@@ -1,5 +1,4 @@
 import Database from "better-sqlite3";
-import { getContentLength } from "@/utils/helper.ts";
 import { getMarkdown } from "@/utils/markdown.ts";
 import { ICreateCard, IUpdateCard, ICard } from "@/types";
 import Operation from "./operation";
@@ -46,70 +45,6 @@ export default class CardTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    const stmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'cards'",
-    );
-    const tableInfo = (stmt.get() as { sql: string }).sql;
-
-    if (!tableInfo.includes("category")) {
-      const alertStmt = db.prepare(
-        "ALTER TABLE cards ADD COLUMN category TEXT DEFAULT 'permanent'",
-      );
-      alertStmt.run();
-    }
-
-    // 如果不包含is_top字段，则添加
-    if (!tableInfo.includes("is_top")) {
-      log.info("add is_top column to cards table");
-      const addIsTopColumnStmt = db.prepare(
-        "ALTER TABLE cards ADD COLUMN is_top INTEGER DEFAULT 0",
-      );
-      addIsTopColumnStmt.run();
-    }
-
-    // 如果不包含content_id字段，则添加
-    if (!tableInfo.includes("content_id")) {
-      log.info("add content_id column to cards table");
-      // 1. 添加content_id列
-      const addColumnStmt = db.prepare(
-        "ALTER TABLE cards ADD COLUMN content_id INTEGER",
-      );
-      addColumnStmt.run();
-
-      // 2. 获取所有卡片
-      const getAllCardsStmt = db.prepare("SELECT * FROM cards");
-      const cards = getAllCardsStmt.all();
-
-      // 3. 为每个卡片创建内容表记录，并关联
-      for (const card of cards as any[]) {
-        // 创建content记录
-        const content = JSON.parse(card.content as string);
-        const count = card.count || getContentLength(content);
-
-        const contentId = ContentTable.createContent(db, {
-          content: content,
-          count: count,
-        });
-
-        // 更新卡片的content_id字段
-        const updateCardStmt = db.prepare(
-          "UPDATE cards SET content_id = ? WHERE id = ?",
-        );
-        updateCardStmt.run(contentId, card.id);
-      }
-
-      // 把 content 和 count 字段从 cards 表中移除
-      const dropContentColumnStmt = db.prepare(
-        "ALTER TABLE cards DROP COLUMN content",
-      );
-      dropContentColumnStmt.run();
-
-      const dropCountColumnStmt = db.prepare(
-        "ALTER TABLE cards DROP COLUMN count",
-      );
-      dropCountColumnStmt.run();
-    }
-
     // 为所有卡片添加 FTS 索引
     log.info("开始为所有卡片添加 FTS 索引");
     const cards = this.getAllCards(db);

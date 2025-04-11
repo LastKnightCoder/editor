@@ -6,7 +6,7 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
-
+import log from "electron-log";
 export default class StatisticTable {
   static initTable(db: Database.Database) {
     db.exec(`
@@ -48,10 +48,15 @@ export default class StatisticTable {
   }
 
   static doStatistic(db: Database.Database) {
-    this.doStatisticByType(db, "card");
-    this.doStatisticByType(db, "article");
-    this.doStatisticByType(db, "project-item");
-    this.doStatisticByType(db, "document-item");
+    try {
+      this.doStatisticByType(db, "card");
+      this.doStatisticByType(db, "article");
+      this.doStatisticByType(db, "project-item");
+      this.doStatisticByType(db, "document-item");
+    } catch (error) {
+      log.error("统计失败", error);
+    }
+
     // 定时任务统计，防止 APP 不关闭，到了凌晨自动统计
     // 计算距离明天零点的时间
     const tomorrow = dayjs().add(1, "day").format("YYYY-MM-DD");

@@ -20,16 +20,8 @@ export default class WhiteboardTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
-    const stmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'white_boards'",
-    );
-    const tableInfo = (stmt.get() as { sql: string }).sql;
-    if (!tableInfo.includes("is_project_item")) {
-      db.exec(
-        `ALTER TABLE white_boards ADD COLUMN is_project_item INTEGER DEFAULT 0`,
-      );
-    }
+  static upgradeTable(_db: Database.Database) {
+    // 不需要升级
   }
 
   static getListenEvents() {
