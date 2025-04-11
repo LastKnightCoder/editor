@@ -13,6 +13,16 @@ import { getRecentTemporaryAndLiteratureCards } from "@/commands/card";
 import CardPreview from "@/pages/CardListView/CardPreview";
 import Editor from "@/components/Editor";
 import { getEditorText } from "@/utils";
+import {
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
 
 import styles from "./index.module.less";
 
@@ -114,18 +124,15 @@ const ToClearCards: React.FC = () => {
                       trigger={"hover"}
                       content={
                         <Editor
+                          key={card.id}
                           initValue={card.content}
                           readonly
-                          style={{
-                            width: 300,
-                            height: 300,
-                            overflow: "auto",
-                            padding: 24,
-                          }}
+                          extensions={customExtensions}
+                          className={styles.editor}
                         />
                       }
                       placement="bottom"
-                      mouseEnterDelay={0.5}
+                      mouseEnterDelay={0.8}
                     >
                       <Typography.Text
                         ellipsis

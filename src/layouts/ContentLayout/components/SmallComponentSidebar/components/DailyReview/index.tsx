@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button, List, Popover, Typography } from "antd";
+import dayjs from "dayjs";
 import { LoadingOutlined, SyncOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { ICard } from "@/types";
@@ -8,8 +9,18 @@ import CardPreview from "@/pages/CardListView/CardPreview";
 import Editor from "@/components/Editor";
 import { getEditorText } from "@/utils";
 
+import {
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+];
+
 import styles from "./index.module.less";
-import dayjs from "dayjs";
 
 const generateSeed = () => {
   return Date.now();
@@ -127,16 +138,12 @@ const DailyReview: React.FC = () => {
                     <Editor
                       initValue={card.content}
                       readonly
-                      style={{
-                        width: 300,
-                        height: 300,
-                        overflow: "auto",
-                        padding: 24,
-                      }}
+                      extensions={customExtensions}
+                      className={styles.editor}
                     />
                   }
                   placement="bottom"
-                  mouseEnterDelay={0.5}
+                  mouseEnterDelay={0.8}
                 >
                   <Typography.Text ellipsis title={getEditorText(card.content)}>
                     {getEditorText(card.content, 40) || "空卡片"}

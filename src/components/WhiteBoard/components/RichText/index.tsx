@@ -16,6 +16,7 @@ import {
 } from "@/editor-extensions";
 import Editor, { EditorRef } from "@/components/Editor";
 import If from "@/components/If";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import ResizeCircle from "../ResizeCircle";
 
 import useHandleResize from "./hooks/useHandleResize";
@@ -356,19 +357,21 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
                 style={{ background: topColor }}
               ></div>
             )}
-            <Editor
-              ref={editorRef}
-              style={editorStyle}
-              className={styles.editor}
-              initValue={initValue}
-              onChange={handleOnContentChange}
-              readonly={readonly}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              uploadResource={uploadResource}
-              extensions={customExtensions}
-              theme={theme}
-            />
+            <ErrorBoundary>
+              <Editor
+                ref={editorRef}
+                style={editorStyle}
+                className={styles.editor}
+                initValue={initValue}
+                onChange={handleOnContentChange}
+                readonly={readonly}
+                onFocus={handleFocus}
+                onBlur={handleBlur}
+                uploadResource={uploadResource}
+                extensions={customExtensions}
+                theme={theme}
+              />
+            </ErrorBoundary>
           </div>
         </foreignObject>
         <If condition={isSelected}>

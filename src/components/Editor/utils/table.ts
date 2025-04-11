@@ -280,21 +280,13 @@ export const deleteColByIndex = (editor: Editor, index: number) => {
 };
 
 export const deletePrevCol = (editor: Editor) => {
-  const { selection } = editor;
   const curCol = getCurrentCol(editor);
   deleteColByIndex(editor, curCol - 1);
-  if (selection) {
-    Transforms.select(editor, selection);
-  }
 };
 
 export const deleteNextCol = (editor: Editor) => {
-  const { selection } = editor;
   const curCol = getCurrentCol(editor);
   deleteColByIndex(editor, curCol + 1);
-  if (selection) {
-    Transforms.select(editor, selection);
-  }
 };
 
 export const deleteCurrentCol = (editor: Editor) => {

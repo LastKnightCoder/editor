@@ -12,6 +12,21 @@ import useDocumentsStore from "@/stores/useDocumentsStore";
 import { getRootDocumentsByDocumentItemId } from "@/commands";
 import TabsIndicator, { TabItem } from "@/components/TabsIndicator";
 
+import {
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  projectCardListExtension,
+  documentCardListExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  cardLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  projectCardListExtension,
+  documentCardListExtension,
+];
+
 import styles from "./index.module.less";
 
 type ItemType = "cards" | "articles" | "projectItems" | "documentItems";
@@ -148,18 +163,15 @@ const LatestUpdate: React.FC = () => {
                 trigger="hover"
                 content={
                   <Editor
+                    key={`${item.type}-${item.id}`}
                     initValue={item.content}
                     readonly
-                    style={{
-                      width: 300,
-                      height: 300,
-                      overflow: "auto",
-                      padding: 24,
-                    }}
+                    extensions={customExtensions}
+                    className={styles.editor}
                   />
                 }
                 placement="bottom"
-                mouseEnterDelay={0.5}
+                mouseEnterDelay={0.8}
               >
                 <Typography.Text ellipsis title={title}>
                   {title || "无标题"}
