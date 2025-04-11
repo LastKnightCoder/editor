@@ -42,6 +42,7 @@ import { AIElement } from "./element/ai.ts";
 import { WhiteboardElement } from "./element/whiteboard.ts";
 import { CommentElement } from "./element/comment.ts";
 import { FrontMatterElement } from "./element/front-matter.ts";
+import { WebviewElement } from "./element/webview.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -82,7 +83,8 @@ export type CustomElement =
   | AIElement
   | WhiteboardElement
   | CommentElement
-  | FrontMatterElement;
+  | FrontMatterElement
+  | WebviewElement;
 
 export type InlineElement =
   | FormattedText

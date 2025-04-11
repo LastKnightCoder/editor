@@ -299,15 +299,21 @@ export class MarkdownSerializerRegistry {
           return `\`\`\`custom-block\n${element.content}\n\`\`\``;
         },
       },
-    ]);
-
-    this.register({
-      type: "front-matter",
-      isBlock: true,
-      toMarkdown: (node) => {
-        return `---\n${node.value}\n---`;
+      {
+        type: "webview",
+        isBlock: true,
+        toMarkdown: (element) => {
+          return `<iframe src="${element.url}" width="100%" height="${element.height}" frameborder="0"></iframe>`;
+        },
       },
-    });
+      {
+        type: "front-matter",
+        isBlock: true,
+        toMarkdown: (node) => {
+          return `---\n${node.value}\n---`;
+        },
+      },
+    ]);
   }
 }
 

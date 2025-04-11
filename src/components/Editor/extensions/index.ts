@@ -33,6 +33,7 @@ import VideoExtension from "./video";
 import AIExtension from "./ai";
 import WhiteboardExtension from "./whiteboard";
 import FrontMatterExtension from "./front-matter";
+import WebviewExtension from "./webview";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -60,6 +61,7 @@ export const tableRow = new TableRowExtension();
 export const tableCell = new TableCellExtension();
 export const tikz = new TikzExtension();
 export const frontMatter = new FrontMatterExtension();
+export const webview = new WebviewExtension();
 
 export const customBlock = new CustomBlockExtension();
 // export const graphviz = new GraphvizExtension();
@@ -113,4 +115,5 @@ export const startExtensions = [
   video,
   whiteboard,
   frontMatter,
+  webview,
 ];

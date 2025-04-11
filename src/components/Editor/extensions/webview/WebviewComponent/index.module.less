@@ -1,0 +1,48 @@
+.container {
+  position: relative;
+  @import "@/components/Editor/extensions/drop-common.less";
+  @import "@/components/Editor/extensions/drag-common.less";
+}
+
+.webviewWrapper {
+  width: 100%;
+  border: 1px solid var(--line-color);
+  border-radius: 0.25em;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.settings {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  width: 2em;
+  height: 2em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  border-radius: 50%;
+  &:hover {
+    background-color: var(--common-hover-bg);
+  }
+}
+
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.25em 0.5em;
+  background-color: var(--primary-bg-color);
+  border-bottom: 1px solid var(--line-color);
+}
+
+.toolButton {
+  cursor: pointer;
+  margin-left: 0.5em;
+  transition: color 0.2s;
+}
+
+.icon {
+  font-size: 1.25em;
+}
