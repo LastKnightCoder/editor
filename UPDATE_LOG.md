@@ -517,3 +517,30 @@
 - fix: 边距等适配字体大小
 - fix: 编辑器内白班内容随编辑器滚动问题
 - fix: 若干 bug 修复
+
+## v0.13.0
+
+- feat: 通过快捷键 mod + n 打卡快捷卡片窗口
+- feat: 窗口缩放功能
+- feat: 搜索重构，全文搜索和向量搜索合并
+- feat: 选择窗口重构，统一所有选择文档的地方为统一组件
+- feat: 卡片置顶功能
+- feat: 白板路由重构
+- feat: 默认进行全文索引，无需手动全文搜索
+- feat: light-gallery 替换为自定义图片预览
+- feat: 编辑器添加批注扩展
+- feat: 高亮背景使用 CSS Houdini 实现
+- feat: 本地文件不写死 home 地址，而是使用 ~，方便跨平台迁移
+- feat: 支持编辑白板信息
+- feat: 白板多元素支持布局
+- feat: 添加小组件功能，支持查看闪念笔记，每日回顾，最近编辑，和未回答问题
+- feat: 编辑器添加问题扩展
+- feat: 优化右侧栏 Tabs 样式
+- feat: Markdown fromt-matter 解析支持
+- feat: 支持 Webview 组件，编辑器添加 Webview 扩展，项目支持 Webview 文档，支持剪藏页面内容，白板支持 Webview 元素
+- feat: 单独窗口支持目录
+- feat: 编辑器支持图片裁剪
+- fix: 时间记录周和月选择修复
+- fix: 窗口聚焦监听收集为一处
+- fix: 编辑器工具栏 hovering bar 样式修复
+- fix: 若干样式和体验 bug 修复
