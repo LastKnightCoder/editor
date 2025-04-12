@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import Editor, { EditorRef } from "@/components/Editor";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
@@ -165,6 +166,11 @@ const SingleDocumentItemEditor = () => {
     editorRef.current?.focus();
   });
 
+  const onClickHeader = useMemoizedFn((index: number) => {
+    if (!editorRef.current) return;
+    editorRef.current.scrollHeaderIntoView(index);
+  });
+
   if (!editingDocumentItem) {
     return <div className={styles.loading}>Loading document item...</div>;
   }
@@ -190,19 +196,29 @@ const SingleDocumentItemEditor = () => {
           contentEditable={true}
         />
       </div>
-      <div className={styles.editor}>
-        <EditCardContext.Provider value={editorContextValue}>
-          <ErrorBoundary>
-            <Editor
-              ref={editorRef}
-              initValue={editingDocumentItem.content}
-              onChange={onContentChange}
-              extensions={customExtensions}
-              readonly={false}
-              uploadResource={uploadResource}
-            />
-          </ErrorBoundary>
-        </EditCardContext.Provider>
+      <div className={styles.editorContainer}>
+        <div className={styles.editor}>
+          <EditCardContext.Provider value={editorContextValue}>
+            <ErrorBoundary>
+              <Editor
+                ref={editorRef}
+                initValue={editingDocumentItem.content}
+                onChange={onContentChange}
+                extensions={customExtensions}
+                readonly={false}
+                uploadResource={uploadResource}
+              />
+            </ErrorBoundary>
+          </EditCardContext.Provider>
+        </div>
+        <div className={styles.outlineContainer}>
+          <EditorOutline
+            className={styles.outline}
+            content={editingDocumentItem.content}
+            show={true}
+            onClickHeader={onClickHeader}
+          />
+        </div>
       </div>
     </div>
   );

@@ -23,6 +23,6 @@
       "@editor/*": ["./src/components/Editor/*"]
     }
   },
-  "include": ["src", "src-electron"],
+  "include": ["src", "src-electron", "profile"],
   "exclude": ["demos"]
 }

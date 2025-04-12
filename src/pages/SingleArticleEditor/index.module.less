@@ -6,6 +6,7 @@
   padding: 24px;
   box-sizing: border-box;
   overflow: hidden;
+  container: article-container / inline-size;
 }
 
 .time {
@@ -25,13 +26,38 @@
   text-align: center;
 }
 
+.editorContainer {
+  flex: 1;
+  width: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  display: flex;
+  padding: 0 40px;
+  border: 20px solid transparent;
+  border-left: none;
+  border-right: none;
+}
+
 .editor {
   flex: 1;
-  overflow: auto;
-  border-radius: 4px;
-  padding: 32px;
+  padding: 40px;
   max-width: 720px;
   margin: 0 auto;
+}
+
+.outlineContainer {
+  width: fit-content;
+  flex-shrink: 0;
+  overflow-y: auto;
+  max-height: 100vh;
+  position: sticky;
+  top: 0;
+
+  .outline {
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 }
 
 .addTag {
@@ -45,4 +71,10 @@
   align-items: center;
   height: 100%;
   font-size: 16px;
+}
+
+@container article-container (max-width: 1280px) {
+  .outlineContainer {
+    display: none;
+  }
 }

@@ -6,6 +6,7 @@ import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
@@ -20,7 +21,7 @@ import {
   closeDatabase,
 } from "@/commands";
 import { formatDate } from "@/utils";
-import { useCreation, useRafInterval, useUnmount } from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
@@ -50,6 +51,11 @@ const SingleArticleEditor = () => {
   const titleRef = useRef<EditTextHandle>(null);
   const prevArticleRef = useRef<IArticle | null>(null);
   const uploadResource = useUploadResource();
+
+  const onClickHeader = useMemoizedFn((index: number) => {
+    if (!editorRef.current) return;
+    editorRef.current.scrollHeaderIntoView(index);
+  });
 
   useEffect(() => {
     if (!databaseName || !articleId) {
@@ -192,23 +198,33 @@ const SingleArticleEditor = () => {
           contentEditable={true}
         />
       </div>
-      <div className={styles.editor}>
-        <EditCardContext.Provider
-          value={{
-            cardId: -1,
-          }}
-        >
-          <ErrorBoundary>
-            <Editor
-              ref={editorRef}
-              initValue={editingArticle.content}
-              onChange={onContentChange}
-              extensions={customExtensions}
-              readonly={false}
-              uploadResource={uploadResource}
-            />
-          </ErrorBoundary>
-        </EditCardContext.Provider>
+      <div className={styles.editorContainer}>
+        <div className={styles.editor}>
+          <EditCardContext.Provider
+            value={{
+              cardId: -1,
+            }}
+          >
+            <ErrorBoundary>
+              <Editor
+                ref={editorRef}
+                initValue={editingArticle.content}
+                onChange={onContentChange}
+                extensions={customExtensions}
+                readonly={false}
+                uploadResource={uploadResource}
+              />
+            </ErrorBoundary>
+          </EditCardContext.Provider>
+        </div>
+        <div className={styles.outlineContainer}>
+          <EditorOutline
+            className={styles.outline}
+            content={editingArticle.content}
+            show={true}
+            onClickHeader={onClickHeader}
+          />
+        </div>
       </div>
       <div className={styles.addTag}>
         <AddTag
