@@ -1,11 +1,11 @@
 import { invoke } from "@/electron";
 import { VideoNote } from "@/types";
 
-export const createVideoNote = async (
-  note: Omit<VideoNote, "id" | "createTime" | "updateTime">,
+export const createEmptyVideoNote = async (
+  metaInfo: VideoNote["metaInfo"],
 ): Promise<VideoNote | null> => {
   try {
-    const result = await invoke("create-video-note", note);
+    const result = await invoke("create-empty-video-note", metaInfo);
     return result;
   } catch (error) {
     console.error(error);
@@ -14,7 +14,9 @@ export const createVideoNote = async (
 };
 
 export const updateVideoNote = async (
-  note: Omit<VideoNote, "createTime" | "updateTime">,
+  note: Omit<VideoNote, "createTime" | "updateTime" | "notes"> & {
+    notes: Omit<VideoNote["notes"][number], "content" | "count">[];
+  },
 ): Promise<VideoNote | null> => {
   try {
     const result = await invoke("update-video-note", note);
@@ -54,5 +56,43 @@ export const getAllVideoNotes = async (): Promise<VideoNote[]> => {
   } catch (error) {
     console.error(error);
     return [];
+  }
+};
+
+export const addSubNote = async (
+  videoNoteId: number,
+  subNote: Omit<VideoNote["notes"][number], "contentId">,
+): Promise<VideoNote["notes"][number] | null> => {
+  try {
+    const result = await invoke("add-sub-note", videoNoteId, subNote);
+    return result;
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
+
+export const deleteSubNote = async (
+  videoNoteId: number,
+  subNoteId: string,
+): Promise<boolean> => {
+  try {
+    const result = await invoke("delete-sub-note", videoNoteId, subNoteId);
+    return result;
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
+export const updateSubNote = async (
+  subNote: VideoNote["notes"][number],
+): Promise<VideoNote["notes"][number] | null> => {
+  try {
+    const result = await invoke("update-sub-note", subNote);
+    return result;
+  } catch (error) {
+    console.error(error);
+    return null;
   }
 };

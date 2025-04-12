@@ -15,7 +15,15 @@ import EditorSectionCard from "../EditorSectionCard";
 import SlideCardList from "../SlideCardList";
 
 const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
-  ({ videoSrc, initialNotes, onNotesChange, uploadResource }) => {
+  ({
+    videoSrc,
+    initialNotes,
+    updateNotes,
+    uploadResource,
+    addSubNote,
+    deleteSubNote,
+    updateSubNote,
+  }) => {
     const theme = useTheme();
     const {
       videoRef,
@@ -43,8 +51,11 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
     } = useVideoNoteBase({
       videoSrc,
       initialNotes,
-      onNotesChange,
       uploadResource,
+      addSubNote,
+      deleteSubNote,
+      updateSubNote,
+      updateNotes,
     });
 
     const { gridContainerRef, itemWidth, gap } = useGridLayout({

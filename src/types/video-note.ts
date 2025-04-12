@@ -26,11 +26,11 @@ export interface VideoNote {
   notes: Array<{
     id: string;
     startTime: number;
+    contentId: number;
     content: Descendant[];
     count: number;
   }>;
   createTime: number;
   updateTime: number;
-  count: number;
   metaInfo: VideoMetaInfo;
 }

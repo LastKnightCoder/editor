@@ -1,6 +1,14 @@
 import Database from "better-sqlite3";
 import { VideoNote } from "@/types";
 import Operation from "./operation";
+import ContentTable from "./content";
+import { produce } from "immer";
+
+interface InnerSubVideoNote {
+  id: string;
+  contentId: number;
+  startTime: number;
+}
 
 export default class VideoNoteTable {
   static initTable(db: Database.Database) {
@@ -8,7 +16,6 @@ export default class VideoNoteTable {
       CREATE TABLE IF NOT EXISTS video_notes (
         id INTEGER PRIMARY KEY,
         notes TEXT NOT NULL,
-        count INTEGER NOT NULL,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         meta_info TEXT NOT NULL
@@ -16,56 +23,186 @@ export default class VideoNoteTable {
     `);
   }
 
-  static upgradeTable(_db: Database.Database) {
-    // TODO: 升级表结构
+  static upgradeTable(db: Database.Database) {
+    const tableInfoStmt = db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'video_notes'",
+    );
+    const tableInfo = (tableInfoStmt.get() as { sql: string }).sql;
+    if (tableInfo.includes("count")) {
+      db.prepare(`ALTER TABLE video_notes DROP COLUMN count`).run();
+    }
+
+    // 读取所有的 notes，把 content, count 存入到 ContentTable 中
+    const stmt = db.prepare(`
+      SELECT id, notes FROM video_notes
+    `);
+    const notes = stmt.all() as {
+      id: number;
+      notes: string;
+    }[];
+    for (const note of notes) {
+      const notesObj: Omit<VideoNote["notes"][number], "contentId">[] =
+        JSON.parse(note.notes);
+      const newNotes = produce(notesObj, (draft) => {
+        for (const noteObj of draft) {
+          // 如果 contentId 存在，则跳过
+          // @ts-ignore
+          if (noteObj.contentId) {
+            continue;
+          }
+          const contentId = ContentTable.createContent(db, {
+            content: noteObj.content,
+            count: noteObj.count,
+          });
+          // @ts-ignore
+          noteObj.contentId = contentId;
+          // @ts-ignore
+          delete noteObj.content;
+          // @ts-ignore
+          delete noteObj.count;
+        }
+      });
+      note.notes = JSON.stringify(newNotes);
+      // 更新 video_notes 表
+      db.prepare(
+        `
+        UPDATE video_notes SET notes = ? WHERE id = ?
+      `,
+      ).run(note.notes, note.id);
+    }
   }
 
   static getListenEvents() {
     return {
-      "create-video-note": this.createVideoNote.bind(this),
+      "create_empty-video-note": this.createEmptyVideoNote.bind(this),
       "update-video-note": this.updateVideoNote.bind(this),
       "delete-video-note": this.deleteVideoNote.bind(this),
       "get-video-note-by-id": this.getVideoNoteById.bind(this),
       "get-all-video-notes": this.getAllVideoNotes.bind(this),
+      "add-sub-note": this.addSubNote.bind(this),
+      "delete-sub-note": this.deleteSubNote.bind(this),
+      "update-sub-note": this.updateSubNote.bind(this),
     };
   }
 
   static parseVideoNote(note: any): VideoNote {
     return {
       id: note.id,
-      notes: JSON.parse(note.notes),
+      notes: note.notes,
       createTime: note.create_time,
       updateTime: note.update_time,
       metaInfo: JSON.parse(note.meta_info),
-      count: note.count,
     };
   }
 
-  static createVideoNote(
+  static createEmptyVideoNote(
     db: Database.Database,
-    note: Omit<VideoNote, "id" | "createTime" | "updateTime">,
+    metaInfo: VideoNote["metaInfo"],
   ): VideoNote {
     const stmt = db.prepare(`
-      INSERT INTO video_notes (notes, create_time, update_time, meta_info, count)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO video_notes (notes, create_time, update_time, meta_info)
+      VALUES (?, ?, ?, ?)
     `);
-
     const now = Date.now();
     const result = stmt.run(
-      JSON.stringify(note.notes),
+      JSON.stringify([]),
       now,
       now,
-      JSON.stringify(note.metaInfo),
-      note.count,
+      JSON.stringify(metaInfo),
     );
-    Operation.insertOperation(
-      db,
-      "video-note",
-      "create",
-      result.lastInsertRowid,
-      Date.now(),
-    );
+
     return this.getVideoNoteById(db, result.lastInsertRowid);
+  }
+
+  static addSubNote(
+    db: Database.Database,
+    videoNoteId: number,
+    subNote: Omit<VideoNote["notes"][number], "contentId">,
+  ): VideoNote["notes"][number] {
+    const originalNotesStmt = db.prepare(`
+      SELECT notes FROM video_notes WHERE id = ?
+    `);
+    const originalNotes = originalNotesStmt.get(videoNoteId) as {
+      notes: string;
+    };
+    const originalNotesObj: Omit<
+      VideoNote["notes"][number],
+      "content" | "count"
+    >[] = JSON.parse(originalNotes.notes);
+    const { id, content, count, startTime } = subNote;
+    const contentId = ContentTable.createContent(db, {
+      content,
+      count,
+    });
+    const innerSubNote: InnerSubVideoNote = {
+      id,
+      contentId,
+      startTime,
+    };
+    originalNotesObj.push(innerSubNote);
+    const newNotes = JSON.stringify(originalNotesObj);
+
+    const updateNotesStmt = db.prepare(`
+      UPDATE video_notes SET notes = ? WHERE id = ?
+    `);
+    updateNotesStmt.run(newNotes, videoNoteId);
+
+    return {
+      id,
+      startTime,
+      contentId,
+      content,
+      count,
+    };
+  }
+
+  static deleteSubNote(
+    db: Database.Database,
+    videoNoteId: number,
+    subNoteId: string,
+  ): boolean {
+    const originalNotesStmt = db.prepare(`
+      SELECT notes FROM video_notes WHERE id = ?
+    `);
+    const originalNotes = originalNotesStmt.get(videoNoteId) as {
+      notes: string;
+    };
+    const originalNotesObj: Omit<
+      VideoNote["notes"][number],
+      "content" | "count"
+    >[] = JSON.parse(originalNotes.notes);
+    const toDelete = originalNotesObj.find((note) => note.id === subNoteId);
+    if (!toDelete) {
+      throw new Error("Sub note not found");
+    }
+    const newNotes = originalNotesObj.filter((note) => note.id !== subNoteId);
+    const updateNotesStmt = db.prepare(`
+      UPDATE video_notes SET notes = ? WHERE id = ?
+    `);
+    updateNotesStmt.run(JSON.stringify(newNotes), videoNoteId);
+    const contentId = toDelete.contentId;
+    ContentTable.deleteContent(db, contentId);
+    return true;
+  }
+
+  static updateSubNote(
+    db: Database.Database,
+    subNote: VideoNote["notes"][number],
+  ): VideoNote["notes"][number] {
+    const { content, count, contentId } = subNote;
+
+    ContentTable.updateContent(db, contentId, {
+      content,
+      count,
+    });
+
+    return {
+      id: subNote.id,
+      startTime: subNote.startTime,
+      contentId,
+      content,
+      count,
+    };
   }
 
   static getVideoNoteById(
@@ -75,7 +212,20 @@ export default class VideoNoteTable {
     const stmt = db.prepare(`
       SELECT * FROM video_notes WHERE id = ?
     `);
-    const note = stmt.get(id);
+    const note = stmt.get(id) as any;
+    const notes = JSON.parse(note.notes);
+    const newNotes = notes.map((note: any) => {
+      const content = ContentTable.getContentById(db, note.contentId);
+      if (!content) {
+        throw new Error("Content not found");
+      }
+      return {
+        ...note,
+        content: content.content,
+        count: content.count,
+      };
+    });
+    note.notes = newNotes;
     return this.parseVideoNote(note);
   }
 
@@ -83,8 +233,24 @@ export default class VideoNoteTable {
     const stmt = db.prepare(`
       SELECT * FROM video_notes
     `);
-    const notes = stmt.all();
-    return notes.map((note) => this.parseVideoNote(note));
+    const allVideoNotes = stmt.all();
+    const newVideoNotes = allVideoNotes.map((videoNote: any) => {
+      const notes = JSON.parse(videoNote.notes);
+      const newNotes = notes.map((note: any) => {
+        const content = ContentTable.getContentById(db, note.contentId);
+        if (!content) {
+          throw new Error("Content not found");
+        }
+        return {
+          ...note,
+          content: content.content,
+          count: content.count,
+        };
+      });
+      videoNote.notes = newNotes;
+      return this.parseVideoNote(videoNote);
+    });
+    return newVideoNotes;
   }
 
   static updateVideoNote(
@@ -93,13 +259,12 @@ export default class VideoNoteTable {
   ): VideoNote {
     const now = Date.now();
     const stmt = db.prepare(`
-      UPDATE video_notes SET notes = ?, update_time = ?, meta_info = ?, count = ? WHERE id = ?
+      UPDATE video_notes SET notes = ?, update_time = ?, meta_info = ? WHERE id = ?
     `);
     stmt.run(
       JSON.stringify(note.notes),
       now,
       JSON.stringify(note.metaInfo),
-      note.count,
       note.id,
     );
     Operation.insertOperation(db, "video-note", "update", note.id, Date.now());
@@ -107,11 +272,16 @@ export default class VideoNoteTable {
   }
 
   static deleteVideoNote(db: Database.Database, id: number): number {
+    const note = this.getVideoNoteById(db, id);
     const stmt = db.prepare(`
       DELETE FROM video_notes WHERE id = ?
     `);
     const result = stmt.run(id);
     Operation.insertOperation(db, "video-note", "delete", id, Date.now());
+    const contentIds = note.notes.map((note: any) => note.contentId);
+    contentIds.forEach((contentId) => {
+      ContentTable.deleteContent(db, contentId);
+    });
     return result.changes;
   }
 }
