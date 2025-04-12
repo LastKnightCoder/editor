@@ -14,16 +14,26 @@ export interface VideoNoteContextType {
 export interface VideoNoteProps {
   videoSrc: string;
   initialNotes?: VideoNoteType["notes"];
-  onNotesChange?: (value: VideoNoteType["notes"]) => void;
-  uploadResource?: (file: File) => Promise<string | null>;
+  updateNotes: (notes: VideoNoteType["notes"]) => Promise<void>;
+  addSubNote: (
+    note: Omit<VideoNoteType["notes"][number], "contentId">,
+  ) => Promise<VideoNoteType["notes"][number] | null>;
+  deleteSubNote: (noteId: string) => Promise<boolean>;
+  updateSubNote: (
+    note: VideoNoteType["notes"][number],
+  ) => Promise<VideoNoteType["notes"][number] | null>;
+  uploadResource: (file: File) => Promise<string | null>;
   theme?: "light" | "dark";
 }
 
 const VideoNote: React.FC<VideoNoteProps> = ({
   videoSrc,
   initialNotes = [],
-  onNotesChange,
+  updateNotes,
   uploadResource,
+  addSubNote,
+  deleteSubNote,
+  updateSubNote,
   theme = "light",
 }) => {
   return (
@@ -32,8 +42,11 @@ const VideoNote: React.FC<VideoNoteProps> = ({
         <SlideLayout
           videoSrc={videoSrc}
           initialNotes={initialNotes}
-          onNotesChange={onNotesChange}
+          updateNotes={updateNotes}
           uploadResource={uploadResource}
+          addSubNote={addSubNote}
+          deleteSubNote={deleteSubNote}
+          updateSubNote={updateSubNote}
         />
       </DndProvider>
     </ThemeContext.Provider>

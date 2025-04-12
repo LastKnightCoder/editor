@@ -20,7 +20,6 @@ import {
   EProjectItemType,
   ICard,
   Project as IProject,
-  VideoNote,
   WhiteBoard,
   IndexType,
   SearchResult,
@@ -39,7 +38,7 @@ import {
   getProjectById,
   getAllWhiteBoards,
   getAllCards,
-  createVideoNote,
+  createEmptyVideoNote,
   nodeFetch,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
@@ -271,18 +270,10 @@ const Project = () => {
           ],
         });
         if (!filePath) return;
-        const newVideoNote: Omit<
-          VideoNote,
-          "id" | "createTime" | "updateTime"
-        > = {
-          notes: [],
-          count: 0,
-          metaInfo: {
-            type: "local",
-            filePath: filePath[0],
-          },
-        };
-        const item = await createVideoNote(newVideoNote);
+        const item = await createEmptyVideoNote({
+          type: "local",
+          filePath: filePath[0],
+        });
         if (!item) {
           message.error("创建视频笔记失败");
           return;
@@ -437,18 +428,10 @@ const Project = () => {
           open={webVideoModalOpen}
           onCancel={() => setWebVideoModalOpen(false)}
           onOk={async () => {
-            const newVideoNote: Omit<
-              VideoNote,
-              "id" | "createTime" | "updateTime"
-            > = {
-              notes: [],
-              count: 0,
-              metaInfo: {
-                type: "remote",
-                url: webVideoUrl,
-              },
-            };
-            const item = await createVideoNote(newVideoNote);
+            const item = await createEmptyVideoNote({
+              type: "remote",
+              url: webVideoUrl,
+            });
             if (!item) {
               message.error("创建视频笔记失败");
               return;

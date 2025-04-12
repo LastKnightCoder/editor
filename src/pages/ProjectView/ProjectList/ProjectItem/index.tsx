@@ -11,7 +11,7 @@ import {
   getProjectItemById,
   updateProjectItem,
   openProjectItemInNewWindow,
-  createVideoNote,
+  createEmptyVideoNote,
   deleteProjectItem,
   nodeFetch,
 } from "@/commands";
@@ -36,7 +36,6 @@ import {
   ICard,
   WhiteBoard,
   type ProjectItem,
-  VideoNote,
   IndexType,
   SearchResult,
 } from "@/types";
@@ -712,18 +711,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           ],
         });
         if (!filePath) return;
-        const newVideoNote: Omit<
-          VideoNote,
-          "id" | "createTime" | "updateTime"
-        > = {
-          notes: [],
-          count: 0,
-          metaInfo: {
-            type: "local",
-            filePath: filePath[0],
-          },
-        };
-        const item = await createVideoNote(newVideoNote);
+        const item = await createEmptyVideoNote({
+          type: "local",
+          filePath: filePath[0],
+        });
         if (!item) {
           message.error("创建视频失败");
           return;
@@ -1156,18 +1147,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             message.error("项目文档尚未加载完成");
             return;
           }
-          const newVideoNote: Omit<
-            VideoNote,
-            "id" | "createTime" | "updateTime"
-          > = {
-            notes: [],
-            count: 0,
-            metaInfo: {
-              type: "remote",
-              url: webVideoUrl,
-            },
-          };
-          const item = await createVideoNote(newVideoNote);
+          const item = await createEmptyVideoNote({
+            type: "remote",
+            url: webVideoUrl,
+          });
           if (!item) {
             message.error("创建视频笔记失败");
             return;

@@ -1,6 +1,7 @@
 import React, { useRef, useMemo, useState } from "react";
 import { Descendant } from "slate";
 import { v4 as uuidv4 } from "uuid";
+import { createContent } from "@/commands";
 import { VideoControllerImpl } from "../VideoController";
 import { createVideoNoteExtensions } from "../extensions";
 import { getContentLength } from "@/utils/helper";
@@ -13,7 +14,14 @@ import { EDITOR_SECTION_DEFAULT_HEIGHT } from "../constants";
 export interface VideoNoteBaseProps {
   videoSrc: string;
   initialNotes?: VideoNoteType["notes"];
-  onNotesChange?: (value: VideoNoteType["notes"]) => void;
+  addSubNote: (
+    note: Omit<VideoNoteType["notes"][number], "contentId">,
+  ) => Promise<VideoNoteType["notes"][number] | null>;
+  deleteSubNote: (noteId: string) => Promise<boolean>;
+  updateSubNote: (
+    note: VideoNoteType["notes"][number],
+  ) => Promise<VideoNoteType["notes"][number] | null>;
+  updateNotes: (notes: VideoNoteType["notes"]) => Promise<void>;
   uploadResource?: (file: File) => Promise<string | null>;
 }
 
@@ -49,8 +57,11 @@ export interface EditorSection {
 
 export const useVideoNoteBase = ({
   initialNotes = [],
-  onNotesChange,
   uploadResource,
+  addSubNote,
+  deleteSubNote,
+  updateSubNote,
+  updateNotes,
 }: VideoNoteBaseProps): VideoNoteBaseReturnProps => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [notes, setNotes] = useState<VideoNoteType["notes"]>(initialNotes);
@@ -92,9 +103,10 @@ export const useVideoNoteBase = ({
     return true;
   }, [selectedNoteIds, notes]);
 
-  const handleAddNote = useMemoizedFn(() => {
-    const newNote = {
-      id: uuidv4(),
+  const handleAddNote = useMemoizedFn(async () => {
+    const id = uuidv4();
+    const newNote = await addSubNote({
+      id,
       startTime: videoController.getCurrentTime(),
       content: [
         {
@@ -106,23 +118,21 @@ export const useVideoNoteBase = ({
             },
           ],
         },
-      ] as Descendant[],
+      ],
       count: 0,
-    };
+    });
+
+    if (!newNote) return;
 
     const updatedNotes = produce(notes, (draft) => {
       draft.push(newNote);
     });
     setNotes(updatedNotes);
 
-    if (onNotesChange) {
-      onNotesChange(updatedNotes);
-    }
-
     if (editorSections.length === 1) {
       setEditorSections([
         {
-          noteId: newNote.id,
+          noteId: id,
           height: EDITOR_SECTION_DEFAULT_HEIGHT,
         },
       ]);
@@ -130,7 +140,7 @@ export const useVideoNoteBase = ({
       setEditorSections((prev) => [
         ...prev,
         {
-          noteId: newNote.id,
+          noteId: id,
           height: EDITOR_SECTION_DEFAULT_HEIGHT,
         },
       ]);
@@ -138,7 +148,18 @@ export const useVideoNoteBase = ({
   });
 
   const handleNoteChange = useMemoizedFn(
-    (noteId: string, content: Descendant[]) => {
+    async (noteId: string, content: Descendant[]) => {
+      const note = notes.find((note) => note.id === noteId);
+      if (!note) return;
+
+      const updatedNote = await updateSubNote({
+        ...note,
+        content,
+        count: getContentLength(content),
+      });
+
+      if (!updatedNote) return;
+
       const updatedNotes = produce(notes, (draft) => {
         const note = draft.find((note) => note.id === noteId);
         if (note) {
@@ -147,10 +168,6 @@ export const useVideoNoteBase = ({
         }
       });
       setNotes(updatedNotes);
-
-      if (onNotesChange) {
-        onNotesChange(updatedNotes);
-      }
     },
   );
 
@@ -180,19 +197,17 @@ export const useVideoNoteBase = ({
     }
   });
 
-  const handleDeleteNote = useMemoizedFn((noteId: string) => {
+  const handleDeleteNote = useMemoizedFn(async (noteId: string) => {
     const updatedNotes = notes.filter((note) => note.id !== noteId);
     setNotes(updatedNotes);
-
-    if (onNotesChange) {
-      onNotesChange(updatedNotes);
-    }
 
     if (editorSections.find((section) => section.noteId === noteId)) {
       setEditorSections((prev) =>
         prev.filter((section) => section.noteId !== noteId),
       );
     }
+
+    await deleteSubNote(noteId);
   });
 
   const handleExitEdit = useMemoizedFn(() => {
@@ -262,7 +277,7 @@ export const useVideoNoteBase = ({
   });
 
   // 批量删除
-  const handleBatchDelete = useMemoizedFn(() => {
+  const handleBatchDelete = useMemoizedFn(async () => {
     if (selectedNoteIds.length === 0) return;
 
     const updatedNotes = notes.filter(
@@ -270,9 +285,11 @@ export const useVideoNoteBase = ({
     );
     setNotes(updatedNotes);
 
-    if (onNotesChange) {
-      onNotesChange(updatedNotes);
-    }
+    await Promise.all(
+      selectedNoteIds.map((noteId) => {
+        return deleteSubNote(noteId);
+      }),
+    );
 
     // 移除已删除笔记的编辑区域
     setEditorSections((prev) =>
@@ -285,7 +302,7 @@ export const useVideoNoteBase = ({
   });
 
   // 合并笔记
-  const handleBatchMerge = useMemoizedFn(() => {
+  const handleBatchMerge = useMemoizedFn(async () => {
     if (selectedNoteIds.length < 2 || !canMergeSelected) return;
 
     // 获取选中的笔记
@@ -293,12 +310,31 @@ export const useVideoNoteBase = ({
       .filter((note) => selectedNoteIds.includes(note.id))
       .sort((a, b) => a.startTime - b.startTime);
 
+    const mergedContent = selectedNotes.flatMap(
+      (note) => note.content,
+    ) as Descendant[];
+    const mergedCount = selectedNotes.reduce(
+      (total, note) => total + note.count,
+      0,
+    );
+
+    const contentId = await createContent(mergedContent, mergedCount);
+
+    if (!contentId) return;
+
+    await Promise.all(
+      selectedNoteIds.map((noteId) => {
+        return deleteSubNote(noteId);
+      }),
+    );
+
     // 创建合并后的新笔记
     const mergedNote = {
       id: uuidv4(),
       startTime: selectedNotes[0].startTime, // 使用最小的startTime
-      content: selectedNotes.flatMap((note) => note.content) as Descendant[],
-      count: selectedNotes.reduce((total, note) => total + note.count, 0),
+      contentId,
+      content: mergedContent,
+      count: mergedCount,
     };
 
     // 找到最大的高度
@@ -329,10 +365,7 @@ export const useVideoNoteBase = ({
     });
 
     setNotes(updatedNotes);
-
-    if (onNotesChange) {
-      onNotesChange(updatedNotes);
-    }
+    updateNotes(updatedNotes);
 
     // 更新编辑区
     const hasSelectedInEditor = editorSections.some((section) =>
@@ -378,10 +411,7 @@ export const useVideoNoteBase = ({
     });
 
     setNotes(updatedNotes);
-
-    if (onNotesChange) {
-      onNotesChange(updatedNotes);
-    }
+    updateNotes(updatedNotes);
   });
 
   return {

@@ -8,6 +8,7 @@ export default class ContentTable {
   static getListenEvents() {
     return {
       "content:update": this.updateContent.bind(this),
+      "content:create": this.createContent.bind(this),
     };
   }
 
