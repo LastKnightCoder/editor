@@ -40,6 +40,7 @@ import {
   getAllCards,
   createEmptyVideoNote,
   nodeFetch,
+  createWhiteBoardContent,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 
@@ -153,6 +154,13 @@ const Project = () => {
     multiple,
   } = useAddRefWhiteBoard(whiteBoards, Number(id));
 
+  const handleOnSelectWhiteboardOk = useMemoizedFn(
+    async (whiteBoards: WhiteBoard[]) => {
+      await onWhiteBoardOk(whiteBoards);
+      refresh();
+    },
+  );
+
   const addMenuItems: MenuProps["items"] = [
     {
       key: "add-project-item",
@@ -213,6 +221,7 @@ const Project = () => {
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: 0,
+          whiteBoardContentId: 0,
         };
         const item = await createRootProjectItem(project.id, createProjectItem);
         if (item) {
@@ -224,10 +233,9 @@ const Project = () => {
           setProject(project);
         });
       } else if (key === "add-white-board-project-item") {
-        const createProjectItem: CreateProjectItem = {
-          title: "新白板",
-          content: [],
-          whiteBoardData: {
+        const whiteBoardContent = await createWhiteBoardContent({
+          name: "新白板",
+          data: {
             children: [],
             viewPort: {
               zoom: 1,
@@ -240,7 +248,13 @@ const Project = () => {
               selectArea: null,
               selectedElements: [],
             },
+            presentationSequences: [],
           },
+        });
+        const createProjectItem: CreateProjectItem = {
+          title: "新白板",
+          content: [],
+          whiteBoardContentId: whiteBoardContent.id,
           children: [],
           parents: [],
           projects: [project.id],
@@ -289,6 +303,7 @@ const Project = () => {
           refId: item.id,
           projectItemType: EProjectItemType.VideoNote,
           count: 0,
+          whiteBoardContentId: 0,
         };
         const projectItem = await createRootProjectItem(
           project.id,
@@ -338,6 +353,7 @@ const Project = () => {
             refId: 0,
             projectItemType: EProjectItemType.Document,
             count: getContentLength(content),
+            whiteBoardContentId: 0,
           });
         }
       }
@@ -420,7 +436,7 @@ const Project = () => {
           open={selectWhiteBoardModalOpen}
           allWhiteBoards={whiteBoards}
           onCancel={onWhiteBoardCancel}
-          onOk={onWhiteBoardOk}
+          onOk={handleOnSelectWhiteboardOk}
           excludeWhiteBoardIds={excludeWhiteBoardIds}
           multiple={multiple}
         />
@@ -446,6 +462,7 @@ const Project = () => {
               refId: item.id,
               projectItemType: EProjectItemType.VideoNote,
               count: 0,
+              whiteBoardContentId: 0,
             };
             const projectItem = await createRootProjectItem(
               project.id,
@@ -514,6 +531,7 @@ const Project = () => {
               refId: 0,
               projectItemType: EProjectItemType.WebView,
               count: 0,
+              whiteBoardContentId: 0,
             };
 
             const item = await createRootProjectItem(

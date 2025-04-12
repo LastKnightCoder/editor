@@ -111,6 +111,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: getContentLength(content),
+          whiteBoardContentId: 0,
         });
 
       if (childProjectItem) {

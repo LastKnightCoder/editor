@@ -9,7 +9,6 @@ import {
   EProjectItemType,
 } from "@/types/project";
 import Operation from "./operation";
-import { WhiteBoard } from "@/types";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -21,6 +20,9 @@ import ContentTable from "./content";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
+import WhiteBoardContentTable from "./white-board-content";
+import WhiteBoardTable from "./whiteboard";
+
 import log from "electron-log";
 
 export default class ProjectTable {
@@ -50,7 +52,7 @@ export default class ProjectTable {
         projects TEXT,
         ref_type TEXT,
         ref_id INTEGER,
-        white_board_data TEXT,
+        white_board_content_id INTEGER DEFAULT 0,
         project_item_type TEXT DEFAULT 'document',
         FOREIGN KEY(content_id) REFERENCES contents(id)
       )
@@ -58,13 +60,61 @@ export default class ProjectTable {
   }
 
   static upgradeTable(db: Database.Database) {
+    const tableInfoStmt = db.prepare(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'project_item'",
+    );
+    const tableInfo = tableInfoStmt.get() as { sql: string };
+    if (!tableInfo.sql.includes("white_board_content_id")) {
+      db.exec(`
+        ALTER TABLE project_item ADD COLUMN white_board_content_id INTEGER
+      `);
+    }
+
     // 为所有项目条目添加 FTS 索引
     log.info("开始为所有项目条目添加 FTS 索引");
     const projectItems = this.getAllProjectItems(db);
     for (const item of projectItems) {
       // 跳过白板和视频笔记
-      if (item.refType === "white-board" || item.refType === "video-note")
-        continue;
+      if (item.refType === "video-note") continue;
+
+      // @ts-ignore
+      if (
+        item.projectItemType === EProjectItemType.WhiteBoard &&
+        item.whiteBoardData &&
+        JSON.stringify(item.whiteBoardData) !== "{}"
+      ) {
+        if (item.refId && item.refType === "white-board") {
+          const whiteboard = WhiteBoardTable.getWhiteboard(db, item.refId);
+          if (whiteboard && whiteboard.whiteBoardContentIds.length > 0) {
+            item.whiteBoardContentId = whiteboard.whiteBoardContentIds[0];
+            WhiteBoardContentTable.incrementRefCount(
+              db,
+              item.whiteBoardContentId,
+            );
+          } else {
+            const whiteboardContent =
+              WhiteBoardContentTable.createWhiteboardContent(db, {
+                // @ts-ignore
+                data: item.whiteBoardData,
+                name: item.title,
+              });
+            item.whiteBoardContentId = whiteboardContent.id;
+          }
+        } else {
+          const whiteboardContent =
+            WhiteBoardContentTable.createWhiteboardContent(db, {
+              // @ts-ignore
+              data: item.whiteBoardData,
+              name: item.title,
+            });
+          item.whiteBoardContentId = whiteboardContent.id;
+        }
+
+        const updateWhiteBoardContentIdStmt = db.prepare(`
+          UPDATE project_item SET white_board_content_id = ? WHERE id = ?
+        `);
+        updateWhiteBoardContentIdStmt.run(item.whiteBoardContentId, item.id);
+      }
 
       if (!item.content || !item.content.length) continue;
 
@@ -83,6 +133,12 @@ export default class ProjectTable {
       }
     }
 
+    // 删除 white-board-data
+    if (tableInfo.sql.includes("white_board_data")) {
+      db.exec(`
+        ALTER TABLE project_item DROP COLUMN white_board_data
+      `);
+    }
     // 删除不在任何项目中的条目
     this.deleteProjectItemsNotInAnyProject(db);
   }
@@ -96,8 +152,6 @@ export default class ProjectTable {
       "get-all-projects": this.getAllProjects.bind(this),
       "create-project-item": this.createProjectItem.bind(this),
       "update-project-item": this.updateProjectItem.bind(this),
-      "update-project-item-whiteboard-data":
-        this.updateProjectItemWhiteBoardData.bind(this),
       "delete-project-item": this.deleteProjectItem.bind(this),
       "get-project-item": this.getProjectItem.bind(this),
       "get-project-items-by-ids": this.getProjectItemsByIds.bind(this),
@@ -159,9 +213,7 @@ export default class ProjectTable {
       projects: JSON.parse(item.projects || "[]"),
       refType: item.ref_type || "",
       refId: item.ref_id || 0,
-      whiteBoardData: item.white_board_data
-        ? JSON.parse(item.white_board_data)
-        : {},
+      whiteBoardContentId: item.white_board_content_id || 0,
       projectItemType: (item.project_item_type ||
         "document") as EProjectItemType,
       count: count,
@@ -272,7 +324,8 @@ export default class ProjectTable {
       ContentTable.incrementRefCount(db, contentId);
     } else if (
       item.refType !== "white-board" &&
-      item.refType !== "video-note"
+      item.refType !== "video-note" &&
+      item.projectItemType === EProjectItemType.Document
     ) {
       // 如果没有引用，且提供了内容，则创建新的内容记录
       contentId = ContentTable.createContent(db, {
@@ -281,9 +334,17 @@ export default class ProjectTable {
       });
     }
 
+    if (
+      item.refType === "white-board" &&
+      item.whiteBoardContentId &&
+      item.projectItemType === EProjectItemType.WhiteBoard
+    ) {
+      WhiteBoardContentTable.incrementRefCount(db, item.whiteBoardContentId);
+    }
+
     const stmt = db.prepare(`
       INSERT INTO project_item
-      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_data, project_item_type)
+      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_content_id, project_item_type)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
@@ -297,7 +358,7 @@ export default class ProjectTable {
       JSON.stringify(item.projects || []),
       item.refType,
       item.refId,
-      JSON.stringify(item.whiteBoardData || {}),
+      item.whiteBoardContentId,
       item.projectItemType,
     );
 
@@ -322,6 +383,7 @@ export default class ProjectTable {
     if (
       item.refType !== "white-board" &&
       item.refType !== "video-note" &&
+      item.projectItemType === EProjectItemType.Document &&
       item.contentId
     ) {
       ContentTable.updateContent(db, item.contentId, {
@@ -339,7 +401,6 @@ export default class ProjectTable {
         projects = ?,
         ref_type = ?,
         ref_id = ?,
-        white_board_data = ?,
         project_item_type = ?
       WHERE id = ?
     `);
@@ -352,7 +413,6 @@ export default class ProjectTable {
       JSON.stringify(item.projects || item.projects),
       item.refType ?? item.refType,
       item.refId ?? item.refId,
-      JSON.stringify(item.whiteBoardData || item.whiteBoardData || {}),
       item.projectItemType || item.projectItemType,
       item.id,
     );
@@ -408,72 +468,34 @@ export default class ProjectTable {
     return this.getProjectItem(db, item.id);
   }
 
-  static updateProjectItemWhiteBoardData(
-    db: Database.Database,
-    id: number,
-    whiteBoardData: WhiteBoard["data"],
-  ): ProjectItem {
-    const stmt = db.prepare(`
-      UPDATE project_item SET
-        update_time = ?,
-        white_board_data = ?
-      WHERE id = ?
-    `);
-    const now = Date.now();
-    stmt.run(now, JSON.stringify(whiteBoardData || {}), id);
-
-    Operation.insertOperation(db, "project_item", "update", id, now);
-
-    const item = this.getProjectItem(db, id);
-
-    if (item.refType === "white-board" && item.refId && item.whiteBoardData) {
-      const whiteBoardStmt = db.prepare(
-        "UPDATE white_boards SET update_time = ?, data = ? WHERE id = ?",
-      );
-      whiteBoardStmt.run(now, JSON.stringify(item.whiteBoardData), item.refId);
-    }
-
-    if (item.refType !== "" && item.refId) {
-      const projectItems = this.getProjectItemByRef(
-        db,
-        item.refType,
-        item.refId,
-      );
-      for (const projectItem of projectItems) {
-        if (projectItem.id !== item.id) {
-          const projectItemStmt = db.prepare(
-            `UPDATE project_item SET update_time = ?, white_board_data = ? WHERE id = ?`,
-          );
-          projectItemStmt.run(
-            now,
-            JSON.stringify(item.whiteBoardData || {}),
-            projectItem.id,
-          );
-        }
-      }
-    }
-
-    return item;
-  }
-
   static deleteProjectItem(db: Database.Database, id: number): boolean {
     // 获取project_item信息，以获取contentId
     const itemInfo = this.getProjectItem(db, id);
 
-    // 如果 refType 为 video-note，则删除 video_note 表中的记录
-    if (itemInfo.refType === "video-note") {
-      VideoNoteTable.deleteVideoNote(db, itemInfo.refId);
-    }
-
     const stmt = db.prepare("DELETE FROM project_item WHERE id = ?");
     const changes = stmt.run(id).changes;
 
-    if (itemInfo && itemInfo.contentId) {
-      // 删除关联的content记录（减少引用计数）
-      ContentTable.deleteContent(db, itemInfo.contentId);
-    }
+    log.info(`删除项目条目数: ${changes}`);
 
     if (changes > 0) {
+      if (itemInfo && itemInfo.contentId) {
+        // 删除关联的content记录（减少引用计数）
+        ContentTable.deleteContent(db, itemInfo.contentId);
+      }
+      if (itemInfo.projectItemType === EProjectItemType.VideoNote) {
+        VideoNoteTable.deleteVideoNote(db, itemInfo.refId);
+      }
+      log.info(`删除白板内容: ${JSON.stringify(itemInfo, null, 2)}`);
+      if (
+        itemInfo.projectItemType === EProjectItemType.WhiteBoard &&
+        itemInfo.whiteBoardContentId
+      ) {
+        WhiteBoardContentTable.deleteWhiteboard(
+          db,
+          itemInfo.whiteBoardContentId,
+        );
+      }
+
       FTSTable.removeIndexByIdAndType(db, id, "project-item");
       VecDocumentTable.removeIndexByIdAndType(db, id, "project-item");
       Operation.insertOperation(db, "project-item", "delete", id, Date.now());

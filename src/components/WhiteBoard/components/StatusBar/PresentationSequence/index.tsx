@@ -6,7 +6,7 @@ import {
   CloseOutlined,
 } from "@ant-design/icons";
 import For from "@/components/For";
-import { PresentationSequence } from "../../../plugins";
+import { PresentationSequence } from "../../../types";
 import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 

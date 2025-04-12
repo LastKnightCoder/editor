@@ -12,11 +12,6 @@ import {
 import { getProjectItemById, getWhiteBoardById } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils";
 
-/**
- * 用于在项目项中添加/关联白板的 hook
- * @param projectItem 当前项目项
- * @returns 白板选择相关的状态和方法
- */
 const useAddRefWhiteBoard = (
   whiteBoards: WhiteBoard[],
   projectId: number,
@@ -74,16 +69,18 @@ const useAddRefWhiteBoard = (
 
       // 获取完整的白板数据
       const fullWhiteBoard = await getWhiteBoardById(whiteBoard.id);
-      if (!fullWhiteBoard) {
+      if (!fullWhiteBoard || fullWhiteBoard.whiteBoardContentIds.length === 0) {
         message.error(`获取白板 ${whiteBoard.title} 数据失败`);
         return;
       }
+
+      const whiteBoardContentId = fullWhiteBoard.whiteBoardContentIds[0];
 
       // 创建项目文档，关联白板
       const createProjectItem: CreateProjectItem = {
         title: fullWhiteBoard.title,
         content: [],
-        whiteBoardData: fullWhiteBoard.data, // 使用原白板的数据
+        whiteBoardContentId, // 使用原白板的数据
         children: [],
         parents: projectItem ? [projectItem.id] : [],
         projects: [projectId],

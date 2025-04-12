@@ -7,7 +7,6 @@ import {
   CreateProjectItem,
   UpdateProjectItem,
 } from "@/types/project";
-import { WhiteBoard } from "@/types";
 
 export const createProject = async (
   project: CreateProject,
@@ -69,17 +68,6 @@ export const updateProjectItem = async (
   item: UpdateProjectItem,
 ): Promise<ProjectItem> => {
   return await invoke("update-project-item", item);
-};
-
-export const updateProjectItemWhiteBoardData = async (
-  id: number,
-  whiteBoardData: WhiteBoard["data"],
-): Promise<ProjectItem> => {
-  return await invoke(
-    "update-project-item-whiteboard-data",
-    id,
-    whiteBoardData,
-  );
 };
 
 export const deleteProjectItem = async (id: number): Promise<number> => {

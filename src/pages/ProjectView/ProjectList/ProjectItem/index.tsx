@@ -14,6 +14,7 @@ import {
   createEmptyVideoNote,
   deleteProjectItem,
   nodeFetch,
+  createWhiteBoardContent,
 } from "@/commands";
 
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
@@ -38,6 +39,7 @@ import {
   type ProjectItem,
   IndexType,
   SearchResult,
+  WhiteBoardContent,
 } from "@/types";
 import { IExtension } from "@/components/Editor";
 import {
@@ -180,6 +182,18 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     onChange: onWhiteBoardChange,
     multiple,
   } = useAddRefWhiteBoard(whiteBoards, projectId, projectItem);
+
+  const handleOnSelectWhiteboardOk = useMemoizedFn(
+    async (whiteBoards: WhiteBoard[]) => {
+      await onWhiteBoardOk(whiteBoards);
+      const updatedProjectItem = await getProjectItemById(projectItemId);
+      setProjectItem(updatedProjectItem);
+      defaultProjectItemEventBus
+        .createEditor()
+        .publishProjectItemEvent("project-item:updated", updatedProjectItem);
+    },
+  );
+
   const { modal } = App.useApp();
   const [isPresentation, setIsPresentation] = useState(false);
 
@@ -229,18 +243,17 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         } else {
           if (parentProjectItemId) {
             await removeChildProjectItem(parentProjectItemId, projectItemId);
-            const updatedProjectItem =
+            const updatedProjectItem = await getProjectItemById(projectItemId);
+            const parentProjectItem =
               await getProjectItemById(parentProjectItemId);
+            defaultProjectItemEventBus
+              .createEditor()
+              .publishProjectItemEvent(
+                "project-item:updated",
+                parentProjectItem,
+              );
             if (updatedProjectItem.projects.length === 0) {
               await deleteProjectItem(projectItemId);
-              return;
-            } else {
-              defaultProjectItemEventBus
-                .createEditor()
-                .publishProjectItemEvent(
-                  "project-item:updated",
-                  updatedProjectItem,
-                );
             }
           }
         }
@@ -500,7 +513,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         if (!projectItem) return;
         if (
           projectItem.projectItemType !== EProjectItemType.WhiteBoard ||
-          !projectItem.whiteBoardData
+          !projectItem.whiteBoardContentId
         )
           return;
         // 已经关联了白板，不能关联新的白板
@@ -509,9 +522,27 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           title: projectItem.title,
           description: projectItem.title,
           tags: [],
-          data: projectItem.whiteBoardData,
+          whiteBoardContentList: [
+            {
+              name: projectItem.title,
+              data: {
+                children: [],
+                viewPort: {
+                  zoom: 1,
+                  minX: 0,
+                  minY: 0,
+                  width: 0,
+                  height: 0,
+                },
+                selection: {
+                  selectArea: null,
+                  selectedElements: [],
+                },
+                presentationSequences: [],
+              },
+            } as Pick<WhiteBoardContent, "data" | "name">,
+          ],
           snapshot: "",
-          isProjectItem: true,
         };
         try {
           const createdWhiteBoard =
@@ -643,6 +674,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: 0,
+          whiteBoardContentId: 0,
         };
         await createChildProjectItem(
           projectId,
@@ -657,10 +689,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         );
       } else if (key === "add-white-board-project-item") {
         if (!projectItemId) return;
-        const createProjectItem: CreateProjectItem = {
-          title: "新白板",
-          content: [],
-          whiteBoardData: {
+        const whiteBoardContent = await createWhiteBoardContent({
+          name: "新白板",
+          data: {
             children: [],
             viewPort: {
               zoom: 1,
@@ -673,7 +704,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               selectArea: null,
               selectedElements: [],
             },
+            presentationSequences: [],
           },
+        });
+        const createProjectItem: CreateProjectItem = {
+          title: "新白板",
+          content: [],
+          whiteBoardContentId: whiteBoardContent.id,
           children: [],
           parents: [projectItemId],
           projects: [],
@@ -730,6 +767,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           refId: item.id,
           projectItemType: EProjectItemType.VideoNote,
           count: 0,
+          whiteBoardContentId: 0,
         };
         const childProjectItem = await createChildProjectItem(
           projectId,
@@ -783,6 +821,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             refId: 0,
             projectItemType: EProjectItemType.Document,
             count: getContentLength(content),
+            whiteBoardContentId: 0,
           });
         }
         const updatedProjectItem = await getProjectItemById(projectItemId);
@@ -1030,7 +1069,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         open={selectWhiteBoardModalOpen}
         allWhiteBoards={whiteBoards}
         onCancel={onWhiteBoardCancel}
-        onOk={onWhiteBoardOk}
+        onOk={handleOnSelectWhiteboardOk}
         excludeWhiteBoardIds={excludeWhiteBoardIds}
         multiple={multiple}
       />
@@ -1093,6 +1132,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               refId: 0,
               projectItemType: EProjectItemType.Document,
               count: 0,
+              whiteBoardContentId: 0,
             };
 
             await createChildProjectItem(
@@ -1165,6 +1205,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             refId: item.id,
             projectItemType: EProjectItemType.VideoNote,
             count: 0,
+            whiteBoardContentId: 0,
           };
           const newProjectItem = await createChildProjectItem(
             projectId,
@@ -1250,6 +1291,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               refId: 0,
               projectItemType: EProjectItemType.WebView,
               count: 0,
+              whiteBoardContentId: 0,
             };
 
             const newProjectItem = await createChildProjectItem(

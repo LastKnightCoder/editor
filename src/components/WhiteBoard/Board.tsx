@@ -3,10 +3,7 @@ import EventEmitter from "eventemitter3";
 import { createDraft, finishDraft, isDraft, current } from "immer";
 import curry from "lodash/curry";
 import RefLineUtil, { Rect } from "./utils/RefLineUtil";
-import {
-  PresentationManager,
-  PresentationSequence,
-} from "./utils/PresentationManager";
+import { PresentationManager } from "./utils/PresentationManager";
 
 import {
   Operation,
@@ -17,6 +14,7 @@ import {
   BoardElement,
   ViewPort,
   ECreateBoardElementType,
+  PresentationSequence,
 } from "./types";
 import { isValid, executeSequence, PathUtil, BoardUtil } from "./utils";
 

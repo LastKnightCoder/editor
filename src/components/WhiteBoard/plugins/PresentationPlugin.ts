@@ -7,11 +7,6 @@ import {
 import { BoardUtil, PointUtil } from "../utils";
 import { SelectTransforms } from "../transforms";
 
-export type {
-  PresentationSequence,
-  PresentationFrame,
-} from "../utils/PresentationManager";
-
 export class PresentationPlugin implements IBoardPlugin {
   name = "presentation-plugin";
 

@@ -21,6 +21,7 @@ import FtsTable from "./tables/fts";
 import VideoNoteTable from "./tables/video-note";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
+import WhiteBoardContentTable from "./tables/white-board-content";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -45,11 +46,12 @@ class DatabaseModule implements Module {
     this.windowToDatabase = new Map();
     this.tables = [
       ContentTable,
+      WhiteBoardContentTable,
+      WhiteboardTable,
       CardTable,
       ArticleTable,
       ProjectTable,
       DocumentTable,
-      WhiteboardTable,
       TimeRecordTable,
       PdfTable,
       DailyNoteTable,

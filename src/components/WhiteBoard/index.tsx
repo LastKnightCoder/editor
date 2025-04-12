@@ -17,7 +17,6 @@ import {
   VideoPlugin,
   MindPlugin,
   PresentationPlugin,
-  PresentationSequence,
 } from "./plugins";
 import { WebviewPlugin } from "./plugins/WebviewPlugin";
 
@@ -28,7 +27,12 @@ import {
   BoardStateContext,
 } from "./context";
 import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "./constants";
-import { BoardElement, ViewPort, Selection } from "./types";
+import {
+  BoardElement,
+  ViewPort,
+  Selection,
+  PresentationSequence,
+} from "./types";
 import Toolbar from "./components/Toolbar";
 import AttributeSetter from "./components/AttributeSetter";
 import PresentationCreator from "./components/PresentationCreator";

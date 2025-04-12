@@ -8,7 +8,9 @@ import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
 import ProjectTable from "./project";
+
 import log from "electron-log";
+
 export default class CardTable {
   static getListenEvents() {
     return {

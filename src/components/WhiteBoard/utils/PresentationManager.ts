@@ -1,23 +1,15 @@
 import { v4 as uuidv4 } from "uuid";
 import EventEmitter from "eventemitter3";
-import { BoardElement, ViewPort, Board } from "../types";
+import {
+  BoardElement,
+  ViewPort,
+  Board,
+  PresentationSequence,
+  PresentationFrame,
+} from "../types";
 import { produce } from "immer";
 import { ViewPortTransforms } from "../transforms/ViewPortTransforms";
 import { BOARD_TO_CONTAINER } from "../constants";
-
-export interface PresentationFrame {
-  id: string;
-  viewPort: ViewPort;
-  elements: string[]; // 存储元素的ID
-}
-
-export interface PresentationSequence {
-  id: string;
-  name: string;
-  frames: PresentationFrame[];
-  createTime: number;
-  updateTime: number;
-}
 
 export class PresentationManager {
   private board: Board;

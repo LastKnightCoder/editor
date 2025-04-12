@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
-import { WhiteBoard } from "@/types";
+import { WhiteBoard, ICreateWhiteBoard } from "@/types";
 import {
   createWhiteBoard,
   updateWhiteBoard,
@@ -15,9 +15,7 @@ interface IState {
 
 interface IAction {
   initWhiteBoards: () => Promise<void>;
-  createWhiteBoard: (
-    whiteBoard: Omit<WhiteBoard, "id" | "createTime" | "updateTime">,
-  ) => Promise<WhiteBoard>;
+  createWhiteBoard: (whiteBoard: ICreateWhiteBoard) => Promise<WhiteBoard>;
   updateWhiteBoard: (
     whiteBoard: Omit<WhiteBoard, "updateTime">,
   ) => Promise<WhiteBoard>;
@@ -34,9 +32,7 @@ const useWhiteBoardStore = create<IState & IAction>((set, get) => ({
       whiteBoards,
     });
   },
-  createWhiteBoard: async (
-    whiteBoard: Omit<WhiteBoard, "id" | "createTime" | "updateTime">,
-  ) => {
+  createWhiteBoard: async (whiteBoard: ICreateWhiteBoard) => {
     const { whiteBoards } = get();
     const newWhiteBoard = await createWhiteBoard(whiteBoard);
     const newWhiteBoards = produce(whiteBoards, (draft) => {

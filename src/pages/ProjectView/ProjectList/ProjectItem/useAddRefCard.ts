@@ -82,6 +82,7 @@ const useAddRefCard = (
       refId: selectCard.id,
       projectItemType: EProjectItemType.Document,
       count: 0,
+      whiteBoardContentId: 0,
     };
 
     let item: ProjectItem | undefined;

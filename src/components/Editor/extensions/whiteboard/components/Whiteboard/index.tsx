@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useReadOnly } from "slate-react";
 import {
   MdDragIndicator,
@@ -18,18 +18,27 @@ import {
   BoardElement,
   ViewPort,
   Selection,
+  PresentationSequence,
 } from "@/components/WhiteBoard/types";
+import {
+  getWhiteBoardContentById,
+  updateWhiteBoardContent,
+} from "@/commands/white-board";
 
 import styles from "./index.module.less";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { useMemoizedFn } from "ahooks";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop";
+import { WhiteBoardContent } from "@/types";
+import { LoadingOutlined } from "@ant-design/icons";
+import { Empty } from "antd";
 type IWhiteboardProps = IExtensionBaseProps<WhiteboardElement>;
 
 interface WhiteboardData {
   children: BoardElement[];
   viewPort: ViewPort;
   selection: Selection;
+  presentationSequences?: PresentationSequence[];
 }
 
 const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
@@ -48,9 +57,23 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
     });
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const noFullscreenWidthRef = useRef(0);
+  const { whiteBoardContentId, height } = element;
 
-  const { data, height } = element;
+  const [whiteBoardContent, setWhiteBoardContent] =
+    useState<WhiteBoardContent | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    getWhiteBoardContentById(whiteBoardContentId)
+      .then((content) => {
+        setWhiteBoardContent(content);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [whiteBoardContentId]);
 
   // 计算视口中心点
   const calculateViewportCenter = useMemoizedFn(
@@ -85,14 +108,13 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
   );
   // 更新白板数据
   const updateWhiteboardData = useMemoizedFn((data: WhiteboardData) => {
-    if (editorReadOnly) return;
+    if (editorReadOnly || !whiteBoardContent) return;
 
-    try {
-      const path = ReactEditor.findPath(editor, element);
-      Transforms.setNodes(editor, { data } as any, { at: path });
-    } catch (error) {
-      console.error("更新白板数据失败:", error);
-    }
+    updateWhiteBoardContent({
+      id: whiteBoardContent.id,
+      name: whiteBoardContent.name,
+      data,
+    });
   });
 
   // 处理白板数据变化
@@ -108,6 +130,8 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
   });
 
   const handleFullscreenChange = useMemoizedFn((isFullscreen: boolean) => {
+    if (!whiteBoardContent) return;
+    const data = whiteBoardContent.data;
     if (isFullscreen) {
       noFullscreenWidthRef.current = data.viewPort.width;
       // 计算当前视口中心
@@ -128,6 +152,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
         children: data.children,
         viewPort: newViewport,
         selection: data.selection,
+        presentationSequences: data.presentationSequences,
       });
     } else {
       // 获取当前的中心坐标
@@ -145,6 +170,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
         children: data.children,
         viewPort: newViewport,
         selection: data.selection,
+        presentationSequences: data.presentationSequences,
       });
     }
     setTimeout(() => {
@@ -190,6 +216,22 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
     document.removeEventListener("mouseup", handleResizeEnd);
   });
 
+  if (loading) {
+    return (
+      <div className={styles.loading} style={{ height }}>
+        <LoadingOutlined />
+      </div>
+    );
+  }
+
+  if (!whiteBoardContent) {
+    return (
+      <div className={styles.empty} style={{ height }}>
+        <Empty description="白板不存在或者被删除" />
+      </div>
+    );
+  }
+
   return (
     <div
       ref={drop}
@@ -210,9 +252,12 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
               ref={whiteboardRef}
             >
               <WhiteBoard
-                initData={data.children}
-                initViewPort={data.viewPort}
-                initSelection={data.selection}
+                initData={whiteBoardContent.data.children}
+                initViewPort={whiteBoardContent.data.viewPort}
+                initSelection={whiteBoardContent.data.selection}
+                initPresentationSequences={
+                  whiteBoardContent.data.presentationSequences
+                }
                 style={{ width: "100%", height: "100%" }}
                 readonly={editorReadOnly}
                 onChange={handleWhiteboardChange}
@@ -242,9 +287,12 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
                 onClick={(e) => e.stopPropagation()}
               >
                 <WhiteBoard
-                  initData={data.children}
-                  initViewPort={data.viewPort}
-                  initSelection={data.selection}
+                  initData={whiteBoardContent.data.children}
+                  initViewPort={whiteBoardContent.data.viewPort}
+                  initSelection={whiteBoardContent.data.selection}
+                  initPresentationSequences={
+                    whiteBoardContent.data.presentationSequences
+                  }
                   style={{ width: "100%", height: "100%" }}
                   readonly={editorReadOnly}
                   onChange={handleWhiteboardChange}

@@ -1,0 +1,40 @@
+.subWhiteBoardItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 32px;
+  border-radius: 4px;
+  margin: 0 4px;
+  background-color: var(--main-bg-color);
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    background-color: var(--sidebar-active-bg);
+  }
+
+  &.active {
+    background-color: var(--active-bg-color);
+    color: var(--active-text-color);
+    .deleteButton {
+      color: var(--active-text-color);
+    }
+  }
+
+  .name {
+    margin-right: 8px;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+  }
+
+  .deleteButton {
+    border: none;
+    background: transparent;
+    padding: 0;
+    font-size: 0.9em;
+  }
+}
