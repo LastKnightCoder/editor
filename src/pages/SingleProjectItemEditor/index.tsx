@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import Editor, { EditorRef } from "@/components/Editor";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
@@ -160,6 +161,11 @@ const SingleProjectItemEditor = () => {
     editorRef.current?.focus();
   });
 
+  const onClickHeader = useMemoizedFn((index: number) => {
+    if (!editorRef.current) return;
+    editorRef.current.scrollHeaderIntoView(index);
+  });
+
   if (!editingProjectItem) {
     return <div className={styles.loading}>Loading project item...</div>;
   }
@@ -185,19 +191,29 @@ const SingleProjectItemEditor = () => {
           contentEditable={true}
         />
       </div>
-      <div className={styles.editor}>
-        <EditCardContext.Provider value={editotContextValue}>
-          <ErrorBoundary>
-            <Editor
-              ref={editorRef}
-              initValue={editingProjectItem.content}
-              onChange={onContentChange}
-              extensions={customExtensions}
-              readonly={false}
-              uploadResource={uploadResource}
-            />
-          </ErrorBoundary>
-        </EditCardContext.Provider>
+      <div className={styles.editorContainer}>
+        <div className={styles.editor}>
+          <EditCardContext.Provider value={editotContextValue}>
+            <ErrorBoundary>
+              <Editor
+                ref={editorRef}
+                initValue={editingProjectItem.content}
+                onChange={onContentChange}
+                extensions={customExtensions}
+                readonly={false}
+                uploadResource={uploadResource}
+              />
+            </ErrorBoundary>
+          </EditCardContext.Provider>
+        </div>
+        <div className={styles.outlineContainer}>
+          <EditorOutline
+            className={styles.outline}
+            content={editingProjectItem.content}
+            show={true}
+            onClickHeader={onClickHeader}
+          />
+        </div>
       </div>
     </div>
   );
