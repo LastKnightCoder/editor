@@ -8,7 +8,7 @@ import {
 import For from "@/components/For";
 import GridSettings from "./GridSettings";
 import PresentationSequenceComponent from "./PresentationSequence";
-import { PresentationSequence } from "../../plugins";
+import { PresentationSequence } from "../../types";
 import { ZOOMS } from "../../constants";
 import { usePresentationState } from "../../hooks";
 import styles from "./index.module.less";

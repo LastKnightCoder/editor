@@ -255,17 +255,15 @@ app.whenReady().then(() => {
 
   protocol.handle("ltoh", async (request) => {
     const startTime = Date.now();
-    log.debug(`协议请求: ${request.url}`);
+    // log.debug(`协议请求: ${request.url}`);
 
     try {
       // 转换URL为文件路径
       const parsedUrl = new URL(request.url);
-      const filePath = parsedUrl.pathname.slice(
-        process.platform === "win32" ? 1 : 0,
-      );
+      const filePath = parsedUrl.pathname.slice(1);
 
       const realPath = PathUtil.getFilePath(filePath);
-      log.debug(`真实路径: ${realPath}`);
+      // log.debug(`真实路径: ${realPath}`);
 
       // 验证文件存在
       if (!existsSync(realPath) || !statSync(realPath).isFile()) {
@@ -279,7 +277,7 @@ app.whenReady().then(() => {
       const rangeHeader = request.headers.get("range") || "";
       const mimeType = getMimeType(extname(realPath));
 
-      log.debug(`文件信息 [${realPath}]: 大小=${fileSize}, 类型=${mimeType}`);
+      // log.debug(`文件信息 [${realPath}]: 大小=${fileSize}, 类型=${mimeType}`);
 
       // 处理范围请求
       if (

@@ -1,8 +1,11 @@
 import Database from "better-sqlite3";
-import { getContentLength } from "@/utils/helper.ts";
+import { dfs, getContentLength } from "@/utils/helper.ts";
 import { IContent, ICreateContent, IUpdateContent } from "@/types";
 import Operation from "./operation";
+import WhiteBoardContentTable from "./white-board-content";
+import log from "electron-log";
 import { Descendant } from "slate";
+import { produce } from "immer";
 
 export default class ContentTable {
   static getListenEvents() {
@@ -34,8 +37,41 @@ export default class ContentTable {
     db.exec(createIndexSql);
   }
 
-  static upgradeTable(_db: Database.Database) {
-    // 表结构升级等
+  static upgradeTable(db: Database.Database) {
+    const contents = this.getAllContents(db);
+    for (const content of contents) {
+      let hasWhiteboard = false;
+      // 遍历卡片内容，如果内容中包含白板，则更新白板内容
+      const newContent = produce(content.content, (draft) => {
+        dfs(draft, (node) => {
+          // @ts-ignore
+          if (node.type === "whiteboard" && node.data) {
+            hasWhiteboard = true;
+            // @ts-ignore
+            const whiteboardData = node.data;
+            const contentId = WhiteBoardContentTable.createWhiteboardContent(
+              db,
+              {
+                data: whiteboardData,
+                name: "白板",
+              },
+            );
+
+            // @ts-ignore
+            node.whiteBoardContentId = contentId;
+            // @ts-ignore
+            delete node.data;
+          }
+        });
+      });
+      if (hasWhiteboard) {
+        log.info(`Migrating data for content ${content.id}:`, newContent);
+        const updateContentStmt = db.prepare(
+          "UPDATE contents SET content = ? WHERE id = ?",
+        );
+        updateContentStmt.run(JSON.stringify(newContent), content.id);
+      }
+    }
   }
 
   static parseContent(content: any): IContent {

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useBoard } from "./useBoard";
 import { useMemoizedFn } from "ahooks";
-import { PresentationSequence } from "../utils/PresentationManager";
+import { PresentationSequence } from "../types";
 
 export interface PresentationState {
   isPresentationMode: boolean;

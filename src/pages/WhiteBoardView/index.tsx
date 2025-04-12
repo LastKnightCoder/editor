@@ -68,22 +68,27 @@ const WhiteBoardView = memo(() => {
       title,
       description,
       tags: [],
-      data: {
-        children: [],
-        viewPort: {
-          zoom: 1,
-          minX: 0,
-          minY: 0,
-          width: 0,
-          height: 0,
+      whiteBoardContentList: [
+        {
+          name: title,
+          data: {
+            children: [],
+            viewPort: {
+              zoom: 1,
+              minX: 0,
+              minY: 0,
+              width: 0,
+              height: 0,
+            },
+            selection: {
+              selectArea: null,
+              selectedElements: [],
+            },
+            presentationSequences: [],
+          },
         },
-        selection: {
-          selectArea: null,
-          selectedElements: [],
-        },
-      },
+      ],
       snapshot: "",
-      isProjectItem: false,
     };
 
     const whiteBoard = await createWhiteBoard(createWhiteBoardData);

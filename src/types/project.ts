@@ -1,5 +1,4 @@
 import { Descendant } from "slate";
-import { WhiteBoard } from "./white-board";
 
 export interface Project {
   id: number;
@@ -33,10 +32,10 @@ export interface ProjectItem {
   projects: number[];
   refType: string;
   refId: number;
-  whiteBoardData?: WhiteBoard["data"];
   projectItemType: EProjectItemType;
   count: number;
   contentId: number;
+  whiteBoardContentId: number;
 }
 
 export type CreateProjectItem = Omit<

@@ -1,4 +1,57 @@
 .contentContainer {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.whiteBoardWrapper {
+  flex: 1;
+  overflow: hidden;
+}
+
+.subWhiteBoardList {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  background-color: var(--second-sidevar-background);
+  // border-top: 1px solid var(--line-color);
+  padding: 0 8px;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: var(--scrollbar-track);
+    border-radius: 4px;
+  }
+
+  .plusButton {
+    min-width: 40px;
+    height: 36px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 4px;
+    background-color: transparent;
+    border: none;
+    color: var(--text-secondary);
+
+    &:hover {
+      background-color: var(--background-tertiary);
+      color: var(--primary-color);
+    }
+  }
 }
