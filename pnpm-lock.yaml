@@ -267,6 +267,9 @@ importers:
       react-icons:
         specifier: ^4.10.1
         version: 4.12.0(react@18.3.1)
+      react-image-crop:
+        specifier: ^11.0.7
+        version: 11.0.7(react@18.3.1)
       react-inlinesvg:
         specifier: ^4.0.5
         version: 4.1.8(react@18.3.1)
@@ -5739,6 +5742,11 @@ packages:
     resolution: {integrity: sha512-IBaDuHiShdZqmfc/TwHu6+d6k2ltNCf3AszxNmjJc1KUfXdEeRJOKyNvLmAHaarhzGmTSVygNdyu8/opXv2gaw==}
     peerDependencies:
       react: '*'
+
+  react-image-crop@11.0.7:
+    resolution: {integrity: sha512-ZciKWHDYzmm366JDL18CbrVyjnjH0ojufGDmScfS4ZUqLHg4nm6ATY+K62C75W4ZRNt4Ii+tX0bSjNk9LQ2xzQ==}
+    peerDependencies:
+      react: '>=16.13.1'
 
   react-inlinesvg@4.1.8:
     resolution: {integrity: sha512-VZHLoK3cZoN8DelBT6zr6w347t4/xsDjYbxDNbjyGzOJrvAIJORJoRVBop6EG/tW3Mpz0rEueS4YyD8WXgI6Tw==}
@@ -13560,6 +13568,10 @@ snapshots:
       react: 18.3.1
 
   react-icons@4.12.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
+  react-image-crop@11.0.7(react@18.3.1):
     dependencies:
       react: 18.3.1
 
