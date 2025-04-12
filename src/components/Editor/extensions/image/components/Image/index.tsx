@@ -1,5 +1,11 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
-import { message, Popover, Spin } from "antd";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { message, Popover, Spin, Modal, Button } from "antd";
 import { Transforms } from "slate";
 import {
   ReactEditor,
@@ -12,7 +18,10 @@ import {
   DeleteOutlined,
   FileImageOutlined,
   FullscreenOutlined,
+  ScissorOutlined,
 } from "@ant-design/icons";
+import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 
@@ -34,7 +43,7 @@ interface IImageProps {
 
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { attributes, children, element } = props;
-  const { url, alt = "", pasteUploading = false } = element;
+  const { url, alt = "", pasteUploading = false, crop, previewUrl } = element;
 
   const { uploadResource } = useContext(EditorContext) || {};
 
@@ -129,6 +138,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       editor,
       {
         url: uploadRes,
+        previewUrl: uploadRes, // 设置预览URL为上传后的URL
       },
       {
         at: path,
@@ -136,6 +146,121 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     );
     setUploading(false);
     event.target.value = "";
+  };
+
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [currentCrop, setCurrentCrop] = useState<Crop>(
+    crop || {
+      unit: "%",
+      width: 30,
+      height: 30,
+      x: 35,
+      y: 35,
+    },
+  );
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // 当url变化时，重置previewUrl
+  useEffect(() => {
+    if (!previewUrl && url) {
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(
+        editor,
+        {
+          previewUrl: url,
+        },
+        {
+          at: path,
+        },
+      );
+    }
+  }, [url, previewUrl, editor, element]);
+
+  const onImageLoad = () => {
+    // 初始时设置裁剪区域为图片中心的30%，如果已有crop则使用已有的
+    if (!crop) {
+      setCurrentCrop({
+        unit: "%",
+        width: 30,
+        height: 30,
+        x: 35,
+        y: 35,
+      });
+    }
+  };
+
+  const cancelCrop = () => {
+    setShowCropModal(false);
+  };
+
+  const confirmCrop = async () => {
+    if (imgRef.current && completedCrop) {
+      // 创建裁剪后的预览图
+      const image = imgRef.current;
+      const canvas = document.createElement("canvas");
+      const scaleX = image.naturalWidth / image.width;
+      const scaleY = image.naturalHeight / image.height;
+      canvas.width = completedCrop.width * scaleX;
+      canvas.height = completedCrop.height * scaleY;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(
+          image,
+          completedCrop.x * scaleX,
+          completedCrop.y * scaleY,
+          completedCrop.width * scaleX,
+          completedCrop.height * scaleY,
+          0,
+          0,
+          canvas.width,
+          canvas.height,
+        );
+
+        // 将裁剪后的图片上传到服务器
+        canvas.toBlob(async (blob) => {
+          if (blob && uploadResource) {
+            setUploading(true);
+            try {
+              // 创建文件对象
+              const file = new File([blob], "cropped.jpg", {
+                type: "image/jpeg",
+              });
+              // 上传裁剪后的图片
+              const uploadRes = await uploadResource(file);
+              if (uploadRes) {
+                const path = ReactEditor.findPath(editor, element);
+                Transforms.setNodes(
+                  editor,
+                  {
+                    crop: currentCrop,
+                    previewUrl: uploadRes, // 使用上传后的URL而不是blob URL
+                  },
+                  {
+                    at: path,
+                  },
+                );
+              } else {
+                message.warning("裁剪图片上传失败");
+              }
+            } catch (error) {
+              console.error("裁剪图片上传失败:", error);
+              message.error("裁剪图片上传失败");
+            } finally {
+              setUploading(false);
+              setShowCropModal(false);
+            }
+          } else {
+            if (!uploadResource) {
+              message.warning("尚未配置任何图床，无法上传裁剪图片");
+            }
+            setShowCropModal(false);
+          }
+        }, "image/jpeg");
+      }
+    } else {
+      setShowCropModal(false);
+    }
   };
 
   const renderUpload = () => {
@@ -178,17 +303,24 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   };
 
   const renderPreview = () => {
+    // 确定显示的图片URL，优先使用previewUrl
+    const displayUrl = previewUrl || url;
+
     return (
       <div className={styles.imageContainer}>
         <LocalImage
           className={styles.image}
-          url={url}
+          url={displayUrl}
           alt={alt}
           onClick={showOverView}
         />
         <div className={styles.actions}>
           <div onClick={showOverView} className={styles.item}>
             <FullscreenOutlined />
+          </div>
+          <div className={styles.divider}></div>
+          <div onClick={() => setShowCropModal(true)} className={styles.item}>
+            <ScissorOutlined />
           </div>
           <div className={styles.divider}></div>
           <div onClick={deleteImage} className={styles.item}>
@@ -233,6 +365,46 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         {children}
         <AddParagraph element={element} />
       </div>
+      <Modal
+        title="裁剪图片"
+        open={showCropModal}
+        onCancel={cancelCrop}
+        confirmLoading={uploading}
+        footer={[
+          <Button key="cancel" onClick={cancelCrop} disabled={uploading}>
+            取消
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            onClick={confirmCrop}
+            loading={uploading}
+          >
+            确认
+          </Button>,
+        ]}
+        width={800}
+      >
+        {url && (
+          <Spin spinning={uploading} tip="正在上传裁剪图片...">
+            <ReactCrop
+              crop={currentCrop}
+              onChange={(c) => setCurrentCrop(c)}
+              onComplete={(c) => setCompletedCrop(c)}
+              aspect={16 / 9}
+              disabled={uploading}
+            >
+              <LocalImage
+                ref={imgRef}
+                url={url} // 裁剪时使用原始URL
+                alt={alt}
+                style={{ maxWidth: "100%" }}
+                onLoad={onImageLoad}
+              />
+            </ReactCrop>
+          </Spin>
+        )}
+      </Modal>
     </div>
   );
 };
