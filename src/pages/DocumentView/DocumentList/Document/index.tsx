@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import { Button, Dropdown, Empty, MenuProps, message } from "antd";
@@ -12,14 +13,16 @@ import {
   getAllCards,
   getAllDocumentItems,
 } from "@/commands";
-
 import { IArticle, ICard, IDocument, IDocumentItem } from "@/types";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { EDragPosition } from "@/hooks/useDragAndDrop.ts";
+import {
+  HomeOutlined,
+  PlusOutlined,
+  MenuFoldOutlined,
+} from "@ant-design/icons";
 
 import styles from "./index.module.less";
-import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
-import { useEffect, useState } from "react";
 
 interface IDocumentProps {
   document: IDocument;
@@ -48,12 +51,20 @@ const Document = (props: IDocumentProps) => {
 
   const navigate = useNavigate();
 
-  const { addDocumentItem, updateDocument } = useDocumentsStore(
-    useShallow((state) => ({
-      addDocumentItem: state.addDocumentItem,
-      updateDocument: state.updateDocument,
-    })),
-  );
+  const { addDocumentItem, updateDocument, activeDocumentItemId } =
+    useDocumentsStore(
+      useShallow((state) => ({
+        addDocumentItem: state.addDocumentItem,
+        updateDocument: state.updateDocument,
+        activeDocumentItemId: state.activeDocumentItemId,
+      })),
+    );
+
+  const onFoldSidebar = useMemoizedFn(() => {
+    useDocumentsStore.setState({
+      hideDocumentItemsList: true,
+    });
+  });
 
   const addNewDocumentItem = useMemoizedFn(async () => {
     const createdItem = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
@@ -151,6 +162,11 @@ const Document = (props: IDocumentProps) => {
           {document.title}
         </div>
         <div className={styles.icons}>
+          {activeDocumentItemId && (
+            <div className={styles.icon} onClick={onFoldSidebar}>
+              <MenuFoldOutlined />
+            </div>
+          )}
           <Dropdown
             menu={{
               items: addMenuItems,

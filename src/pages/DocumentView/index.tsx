@@ -9,7 +9,11 @@ import useDocumentsStore from "@/stores/useDocumentsStore";
 import { useMemo, useState, useEffect } from "react";
 import { IDocument } from "@/types";
 import { getDocument } from "@/commands";
-import { LoadingOutlined } from "@ant-design/icons";
+import { LoadingOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
+import If from "@/components/If";
+import { useMemoizedFn } from "ahooks";
+import classnames from "classnames";
+
 const DocumentView = () => {
   const params = useParams();
 
@@ -22,6 +26,16 @@ const DocumentView = () => {
   const activeDocumentItemId = useDocumentsStore(
     (state) => state.activeDocumentItemId,
   );
+
+  const { hideDocumentItemsList } = useDocumentsStore((state) => ({
+    hideDocumentItemsList: state.hideDocumentItemsList,
+  }));
+
+  const openSidebar = useMemoizedFn(() => {
+    useDocumentsStore.setState({
+      hideDocumentItemsList: false,
+    });
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -74,13 +88,24 @@ const DocumentView = () => {
 
   return (
     <div className={styles.viewContainer}>
-      <div className={styles.sidebar}>
+      <div
+        className={classnames(styles.sidebar, {
+          [styles.hide]: hideDocumentItemsList,
+        })}
+      >
         <DocumentList />
       </div>
       <div className={styles.edit}>
         <Titlebar className={styles.titlebar}>
+          <If condition={hideDocumentItemsList}>
+            <div className={styles.openIndicator} onClick={openSidebar}>
+              <MenuUnfoldOutlined />
+            </div>
+          </If>
           <Breadcrumb
-            className={styles.breadcrumb}
+            className={classnames(styles.breadcrumb, {
+              [styles.showUnfold]: hideDocumentItemsList,
+            })}
             items={breadcrumbItems.map((item) => ({
               title: (
                 <span

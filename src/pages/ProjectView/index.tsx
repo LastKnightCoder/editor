@@ -11,7 +11,10 @@ import Titlebar from "@/components/Titlebar";
 import { useMemo, useState, useEffect } from "react";
 import { Project } from "@/types";
 import { getProjectById } from "@/commands";
-import { LoadingOutlined } from "@ant-design/icons";
+import { LoadingOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
+import useProjectsStore from "@/stores/useProjectsStore";
+import If from "@/components/If";
+import { useMemoizedFn } from "ahooks";
 
 const ProjectView = () => {
   const { id } = useParams();
@@ -20,6 +23,16 @@ const ProjectView = () => {
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const { hideProjectItemList } = useProjectsStore((state) => ({
+    hideProjectItemList: state.hideProjectItemList,
+  }));
+
+  const openSidebar = useMemoizedFn(() => {
+    useProjectsStore.setState({
+      hideProjectItemList: false,
+    });
+  });
 
   useEffect(() => {
     setLoading(true);
@@ -71,13 +84,25 @@ const ProjectView = () => {
       }}
     >
       <div className={classnames(styles.viewContainer)}>
-        <div className={classnames(styles.sidebar)}>
+        <div
+          className={classnames(styles.sidebar, {
+            [styles.hide]: hideProjectItemList,
+          })}
+        >
           <ProjectList />
         </div>
+
         <div className={styles.edit}>
           <Titlebar className={styles.titlebar}>
+            <If condition={hideProjectItemList}>
+              <div className={styles.openIndicator} onClick={openSidebar}>
+                <MenuUnfoldOutlined />
+              </div>
+            </If>
             <Breadcrumb
-              className={classnames(styles.breadcrumb)}
+              className={classnames(styles.breadcrumb, {
+                [styles.showUnfold]: hideProjectItemList,
+              })}
               items={breadcrumbItems.map((item) => ({
                 title: (
                   <span
