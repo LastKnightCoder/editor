@@ -1,7 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { Dropdown, Empty, MenuProps, App, Modal, Input } from "antd";
-import { HomeOutlined, PlusOutlined, GlobalOutlined } from "@ant-design/icons";
+import {
+  HomeOutlined,
+  PlusOutlined,
+  GlobalOutlined,
+  MenuFoldOutlined,
+} from "@ant-design/icons";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import { useNavigate } from "react-router-dom";
 
@@ -42,9 +47,12 @@ import { getContentLength, importFromMarkdown } from "@/utils";
 const Project = () => {
   const { message } = App.useApp();
   const { id } = useParams();
-  const { createRootProjectItem } = useProjectsStore((state) => ({
-    createRootProjectItem: state.createRootProjectItem,
-  }));
+  const { createRootProjectItem, activeProjectItemId } = useProjectsStore(
+    (state) => ({
+      createRootProjectItem: state.createRootProjectItem,
+      activeProjectItemId: state.activeProjectItemId,
+    }),
+  );
 
   const [project, setProject] = useState<IProject | null>(null);
   const [cards, setCards] = useState<ICard[]>([]);
@@ -56,6 +64,12 @@ const Project = () => {
 
   const [webviewModalOpen, setWebviewModalOpen] = useState(false);
   const [webviewUrl, setWebviewUrl] = useState("");
+
+  const onFoldSidebar = useMemoizedFn(() => {
+    useProjectsStore.setState({
+      hideProjectItemList: true,
+    });
+  });
 
   useEffect(() => {
     getAllCards().then((cards) => {
@@ -358,11 +372,11 @@ const Project = () => {
             {project.title}
           </div>
           <div className={styles.icons}>
-            {/* {activeProjectItemId && (
+            {activeProjectItemId && (
               <div className={styles.icon} onClick={onFoldSidebar}>
                 <MenuFoldOutlined />
               </div>
-            )} */}
+            )}
             <Dropdown
               menu={{
                 items: addMenuItems,

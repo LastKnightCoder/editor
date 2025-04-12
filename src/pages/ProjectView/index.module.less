@@ -23,6 +23,18 @@
     flex-direction: column;
     overflow: hidden;
   }
+
+  .openIndicator {
+    height: 60px;
+    width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 40px;
+    cursor: pointer;
+    font-size: 14px;
+    -webkit-app-region: no-drag;
+  }
 }
 
 .titlebar {
@@ -37,6 +49,9 @@
   display: flex;
   align-items: center;
   -webkit-app-region: no-drag;
+  &.showUnfold {
+    padding-left: 0;
+  }
 }
 
 .breadcrumbItem {
