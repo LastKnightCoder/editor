@@ -77,10 +77,11 @@ export default class ProjectTable {
       // 跳过白板和视频笔记
       if (item.refType === "video-note") continue;
 
-      // @ts-ignore
       if (
         item.projectItemType === EProjectItemType.WhiteBoard &&
+        // @ts-ignore
         item.whiteBoardData &&
+        // @ts-ignore
         JSON.stringify(item.whiteBoardData) !== "{}"
       ) {
         if (item.refId && item.refType === "white-board") {
