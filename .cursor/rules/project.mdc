@@ -22,7 +22,7 @@ alwaysApply: true
 - 项目的图标库使用的是 react-icons
 - 在移动和重构时，记得一定删除之前被移动或不需要的内容，比如引用，样式，文件夹，文件等等
 - 类型尽可能不使用 any
-- 所有的组件都需要考虑深色和浅色两种样式，一般通过 CSS 变量控制，在 src/themes 下存在两个样式文件，light.less 和 dark.less，其中定义了浅色和深色的 CSS 变量，如果是全局 CSS 变量就定义在这里，否则定义在组件里面就可以了，antd 的组件不需要，因为统一处理了
+- 所有的组件都需要考虑深色和浅色两种样式，一般通过 CSS 变量控制，在 src/themes 下存在两个样式文件，light.less 和 dark.less，其中定义了浅色和深色的 CSS 变量，如果是全局 CSS 变量就定义在这里，否则定义在组件里面就可以了，antd 的组件不需要，因为统一处理了，在使用 CSS 变量之前需确保该 CSS 变量存在，不要使用不存在的 CSS 变量，如果需要，可以根据浅色和深色环境自行定义，一般使用 [useTheme.ts](mdc:src/hooks/useTheme.ts) 获得当前主题，在容器上添加一个 dark 类，在该类下定义深色模式的 CSS 变量
 - 当文件太长时，你需要考虑拆分组件和 hook
 - 非必须不使用 :global 样式
 - 组件使用 memo 进行性能优化时，不要在最后通过 export default memo(Component) 的方式导出，而是通过 const Component = memo(() => {}) 这样，因为前一种方式对 react-refresh 不友好

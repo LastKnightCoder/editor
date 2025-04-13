@@ -3,6 +3,7 @@ import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "../hooks/usePerformanceMonitor";
 import styles from "./index.module.less";
 import { useDebounce, useCreation } from "ahooks";
+import LazySyntaxHighlighter from "../LazySyntaxHighlighter";
 
 interface MermaidRendererProps {
   code: string;
@@ -75,6 +76,10 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code }) => {
 
   return (
     <div className={styles.mermaidContainer}>
+      <LazySyntaxHighlighter language="mermaid">
+        {debouncedCode}
+      </LazySyntaxHighlighter>
+
       {error ? (
         <div className={styles.mermaidError}>
           <p>Diagram render error:</p>
