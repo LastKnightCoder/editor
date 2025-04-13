@@ -179,8 +179,11 @@ export default class CardTable {
   static createCardFromProjectItem(
     db: Database.Database,
     projectItemId: number,
-  ): ICard {
+  ): ICard | null {
     const projectItem = ProjectTable.getProjectItem(db, projectItemId);
+    if (!projectItem) {
+      return null;
+    }
     const contentId = projectItem.contentId;
 
     ContentTable.incrementRefCount(db, contentId);

@@ -19,6 +19,7 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
     if (projectItemId) {
       getProjectItemById(projectItemId)
         .then((item) => {
+          if (!item) return;
           setProjectItem(item);
           getWhiteBoardContentById(item.whiteBoardContentId)
             .then((content) => {

@@ -14,9 +14,8 @@ import {
 } from "@/utils";
 import { defaultProjectItemEventBus } from "@/utils";
 import { EProjectItemType } from "@/types";
-import { useProjectContext } from "../ProjectContext";
+import { addChildProjectItem } from "@/commands";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
-import useProjectsStore from "@/stores/useProjectsStore";
 
 import styles from "./index.module.less";
 
@@ -40,7 +39,6 @@ const extractUrlFromTitle = (title: string): { title: string; url: string } => {
 
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { projectItemId } = props;
-  const { projectId } = useProjectContext();
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const webviewRef = useRef<WebviewRef>(null);
@@ -49,6 +47,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   useEffect(() => {
     getProjectItemById(projectItemId).then((projectItem) => {
+      if (!projectItem) return;
       const { title: extractedTitle, url: extractedUrl } = extractUrlFromTitle(
         projectItem.title,
       );
@@ -61,13 +60,14 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     if (!value || value === title) return;
 
     const projectItem = await getProjectItemById(projectItemId);
+    if (!projectItem) return;
     const updatedTitle = `${value} [${url}]`;
 
     const updatedProjectItem = await updateProjectItem({
       ...projectItem,
       title: updatedTitle,
     });
-
+    if (!updatedProjectItem) return;
     setTitle(value);
 
     projectItemEventBus.publishProjectItemEvent(
@@ -99,28 +99,27 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       const content = importFromMarkdown(markdown);
 
       const projectItem = await getProjectItemById(projectItemId);
-      const childProjectItem = await useProjectsStore
-        .getState()
-        .createChildProjectItem(projectId, projectItemId, {
+      if (!projectItem) return;
+      const [parentProjectItem, childProjectItem] = await addChildProjectItem(
+        projectItemId,
+        {
           title: `${title} - 剪藏`,
           content,
           children: [],
-          parents: [projectItemId],
-          projects: projectItem.projects,
           refType: "",
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: getContentLength(content),
           whiteBoardContentId: 0,
-        });
+        },
+      );
 
-      if (childProjectItem) {
+      if (childProjectItem && parentProjectItem) {
         message.success("成功剪藏为文档");
 
-        const updatedProjectItem = await getProjectItemById(projectItemId);
         projectItemEventBus.publishProjectItemEvent(
           "project-item:updated",
-          updatedProjectItem,
+          parentProjectItem,
         );
       } else {
         message.error("剪藏失败");

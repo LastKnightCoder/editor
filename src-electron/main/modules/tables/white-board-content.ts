@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { WhiteBoardContent } from "@/types";
 import Operation from "./operation";
+import log from "electron-log";
 
 export default class WhiteboardTable {
   static initTable(db: Database.Database) {
@@ -127,6 +128,7 @@ export default class WhiteboardTable {
     `);
     const refCount = refCountStmt.get(id) as { ref_count: number } | undefined;
     if (refCount && refCount.ref_count <= 0) {
+      log.info(`删除白板内容: ${id}`);
       const deleteStmt = db.prepare(`
         DELETE FROM white_board_contents WHERE id = ?
       `);

@@ -40,6 +40,6 @@ export interface ProjectItem {
 
 export type CreateProjectItem = Omit<
   ProjectItem,
-  "id" | "createTime" | "updateTime" | "contentId"
+  "id" | "createTime" | "updateTime" | "contentId" | "projects" | "parents"
 >;
 export type UpdateProjectItem = Omit<ProjectItem, "createTime" | "updateTime">;

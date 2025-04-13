@@ -83,6 +83,7 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
       const fetchedProjectItem = await getProjectItemById(
         Number(projectItemId),
       );
+      if (!fetchedProjectItem) return;
       setProjectItem(fetchedProjectItem);
       if (onTitleChange) {
         onTitleChange(fetchedProjectItem.title);

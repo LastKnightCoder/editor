@@ -53,6 +53,7 @@ const useEdit = (projectItemId: number) => {
     if (!changed) return;
 
     const updatedProjectItem = await updateProjectItem(projectItem);
+    if (!updatedProjectItem) return;
 
     setProjectItem(updatedProjectItem);
     prevProjectItem.current = updatedProjectItem;

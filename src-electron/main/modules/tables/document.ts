@@ -70,32 +70,32 @@ export default class DocumentTable {
     const documentTableInfo = documentTableInfoStmt.get() as { sql: string };
 
     // 删除 authors tags links banner_bg icon is_delete 字段
-    if (!documentTableInfo.sql.includes("authors TEXT")) {
+    if (documentTableInfo.sql.includes("authors TEXT")) {
       db.exec(`ALTER TABLE documents DROP COLUMN authors`);
       log.info("已为 documents 表删除 authors 字段");
     }
 
-    if (!documentTableInfo.sql.includes("tags TEXT")) {
+    if (documentTableInfo.sql.includes("tags TEXT")) {
       db.exec(`ALTER TABLE documents DROP COLUMN tags`);
       log.info("已为 documents 表删除 tags 字段");
     }
 
-    if (!documentTableInfo.sql.includes("links TEXT")) {
+    if (documentTableInfo.sql.includes("links TEXT")) {
       db.exec(`ALTER TABLE documents DROP COLUMN links`);
       log.info("已为 documents 表删除 links 字段");
     }
 
-    if (!documentTableInfo.sql.includes("banner_bg TEXT")) {
+    if (documentTableInfo.sql.includes("banner_bg TEXT")) {
       db.exec(`ALTER TABLE documents DROP COLUMN banner_bg`);
       log.info("已为 documents 表删除 banner_bg 字段");
     }
 
-    if (!documentTableInfo.sql.includes("icon TEXT")) {
+    if (documentTableInfo.sql.includes("icon TEXT")) {
       db.exec(`ALTER TABLE documents DROP COLUMN icon`);
       log.info("已为 documents 表删除 icon 字段");
     }
 
-    if (!documentTableInfo.sql.includes("is_delete INTEGER")) {
+    if (documentTableInfo.sql.includes("is_delete INTEGER")) {
       db.exec(`ALTER TABLE documents DROP COLUMN is_delete`);
       log.info("已为 documents 表删除 is_delete 字段");
     }

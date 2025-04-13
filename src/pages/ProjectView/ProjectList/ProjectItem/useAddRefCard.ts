@@ -5,14 +5,14 @@ import {
   ICard,
   ProjectItem,
 } from "@/types";
-import useProjectsStore from "@/stores/useProjectsStore";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { App } from "antd";
 import { produce } from "immer";
 import {
-  getProjectItemById,
   updateProjectItem,
   createCardFromProjectItem,
+  addRootProjectItem,
+  addChildProjectItem,
 } from "@/commands";
 import { defaultProjectItemEventBus, defaultCardEventBus } from "@/utils";
 
@@ -30,13 +30,6 @@ const useAddRefCard = (
 
   const { message } = App.useApp();
 
-  const { createChildProjectItem, createRootProjectItem } = useProjectsStore(
-    (state) => ({
-      createChildProjectItem: state.createChildProjectItem,
-      createRootProjectItem: state.createRootProjectItem,
-    }),
-  );
-
   const excludeCardIds = useMemo(() => {
     if (!projectItem) return [];
     return [projectItem.refId];
@@ -50,6 +43,7 @@ const useAddRefCard = (
         draft.refType = "card";
       });
       const updatedProjectItem = await updateProjectItem(newProjectItem);
+      if (!updatedProjectItem) return;
       projectItemEventBus.publishProjectItemEvent(
         "project-item:updated",
         updatedProjectItem,
@@ -76,8 +70,6 @@ const useAddRefCard = (
       title: "新文档",
       content: selectCard.content,
       children: [],
-      parents: projectItem ? [projectItem.id] : [],
-      projects: [projectId],
       refType: "card",
       refId: selectCard.id,
       projectItemType: EProjectItemType.Document,
@@ -85,30 +77,14 @@ const useAddRefCard = (
       whiteBoardContentId: 0,
     };
 
-    let item: ProjectItem | undefined;
-    if (projectItem) {
-      item = await createChildProjectItem(
-        projectId,
-        projectItem.id,
-        createProjectItem,
-      );
-    } else {
-      item = await createRootProjectItem(projectId, createProjectItem);
-    }
-
-    if (projectItem) {
-      const updatedProjectItem = await getProjectItemById(projectItem.id);
-      projectItemEventBus.publishProjectItemEvent(
-        "project-item:updated",
-        updatedProjectItem,
-      );
-    }
-
     setSelectCardModalOpen(false);
-    if (item) {
-      useProjectsStore.setState({
-        activeProjectItemId: item.id,
-      });
+
+    if (projectItem) {
+      const res = await addChildProjectItem(projectItem.id, createProjectItem);
+      return res;
+    } else {
+      const res = await addRootProjectItem(projectId, createProjectItem);
+      return res;
     }
   });
 

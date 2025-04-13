@@ -204,8 +204,11 @@ export default class ArticleTable {
   static createArticleFromProjectItem(
     db: Database.Database,
     projectItemId: number,
-  ): IArticle {
+  ): IArticle | null {
     const projectItem = ProjectTable.getProjectItem(db, projectItemId);
+    if (!projectItem) {
+      return null;
+    }
     const contentId = projectItem.contentId;
     const title = projectItem.title;
 
