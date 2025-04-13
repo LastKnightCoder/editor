@@ -59,6 +59,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
     setLoading(true);
     try {
       const fetchedDocumentItem = await getDocumentItem(Number(documentItemId));
+      if (!fetchedDocumentItem) return;
       setDocumentItem(fetchedDocumentItem);
       prevDocumentItem.current = fetchedDocumentItem;
       if (onTitleChange) {

@@ -28,13 +28,14 @@ import {
 } from "@/utils";
 
 import {
-  createDocumentItem,
   getDocumentItem,
   getDocumentItemAllParents,
   isDocumentItemChildOf,
   updateDocumentItem,
   openDocumentItemInNewWindow,
-  tryDeleteDocumentItem,
+  removeChildDocumentItem,
+  addChildDocumentItem,
+  addRefChildDocumentItem,
 } from "@/commands";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import PresentationMode from "@/components/PresentationMode";
@@ -53,10 +54,14 @@ import styles from "./index.module.less";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 interface IDocumentItemProps {
+  documentId: number;
   itemId: number;
   parentId: number;
   isRoot?: boolean;
-  onParentDeleteChild: (id: number) => Promise<void>;
+  onParentDeleteChild: (
+    id: number,
+    notDelete?: boolean,
+  ) => Promise<IDocumentItem | null>;
   onParentAddChild: (
     id: number,
     targetId: number,
@@ -77,6 +82,7 @@ interface IDocumentItemProps {
 
 const DocumentItem = (props: IDocumentItemProps) => {
   const {
+    documentId,
     itemId,
     path,
     parentId,
@@ -207,6 +213,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
         draft.parents = Array.from(new Set(draft.parents));
       });
       const updatedDragItem = await updateDocumentItem(toUpdateItem);
+      if (!updatedDragItem) return;
       defaultDocumentItemEventBus
         .createEditor()
         .publishDocumentItemEvent("document-item:updated", updatedDragItem);
@@ -214,7 +221,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
   );
 
   const onDragEnd = useMemoizedFn(async (dragItem: IDragItem) => {
-    await onParentDeleteChild(dragItem.itemId);
+    await onParentDeleteChild(dragItem.itemId, true);
   });
 
   const {
@@ -240,23 +247,22 @@ const DocumentItem = (props: IDocumentItemProps) => {
     if (!item) {
       return;
     }
-    const createdDocumentItem = await createDocumentItem({
-      ...DEFAULT_CREATE_DOCUMENT_ITEM,
-      parents: [item.id],
-    });
-    const newItem = produce(item, (draft) => {
-      draft.children.push(createdDocumentItem.id);
-    });
-    const updatedDoc = await updateDocumentItem(newItem);
+    const res = await addChildDocumentItem(
+      item.id,
+      DEFAULT_CREATE_DOCUMENT_ITEM,
+    );
+    if (!res) return;
+    const [parentDocumentItem, createdDocumentItem] = res;
+    if (!parentDocumentItem || !createdDocumentItem) return;
+    setItem(parentDocumentItem);
     documentItemEventBus.publishDocumentItemEvent(
       "document-item:updated",
-      updatedDoc,
+      parentDocumentItem,
     );
-    setItem(updatedDoc);
 
-    useDocumentsStore.setState({
-      activeDocumentItemId: createdDocumentItem.id,
-    });
+    // useDocumentsStore.setState({
+    //   activeDocumentItemId: createdDocumentItem.id,
+    // });
   });
 
   // 拖拽移动到当前 item 的上方或下方，或者移动到当前 item 的内部
@@ -287,6 +293,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
       }
 
       const updatedDoc = await updateDocumentItem(newItem);
+      if (!updatedDoc) return;
       setItem(updatedDoc);
       documentItemEventBus.publishDocumentItemEvent(
         "document-item:updated",
@@ -295,20 +302,28 @@ const DocumentItem = (props: IDocumentItemProps) => {
     },
   );
 
-  const onRemoveDocumentItem = useMemoizedFn(async (id: number) => {
-    if (!item) {
-      return;
-    }
-    const newItem = produce(item, (draft) => {
-      draft.children = draft.children.filter((childId) => childId !== id);
-    });
-    const updatedDoc = await updateDocumentItem(newItem);
-    setItem(updatedDoc);
-    documentItemEventBus.publishDocumentItemEvent(
-      "document-item:updated",
-      updatedDoc,
-    );
-  });
+  const onRemoveDocumentItem = useMemoizedFn(
+    async (id: number, notDelete?: boolean) => {
+      if (!item) {
+        return null;
+      }
+      const res = await removeChildDocumentItem(
+        documentId,
+        item.id,
+        id,
+        notDelete,
+      );
+      if (!res) return null;
+      const [parentDocumentItem, removedDocumentItem] = res;
+      if (!parentDocumentItem || !removedDocumentItem) return null;
+      setItem(parentDocumentItem);
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        parentDocumentItem,
+      );
+      return removedDocumentItem;
+    },
+  );
 
   // 处理同级别子元素的移动，此时 position 绝对不可能是 EDragPosition.Inside
   const onMoveDocumentItem = useMemoizedFn(
@@ -341,6 +356,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
         }
       });
       const updatedDoc = await updateDocumentItem(newItem);
+      if (!updatedDoc) return;
       setItem(updatedDoc);
       documentItemEventBus.publishDocumentItemEvent(
         "document-item:updated",
@@ -349,46 +365,20 @@ const DocumentItem = (props: IDocumentItemProps) => {
     },
   );
 
-  // 不是真的删除，只是从其父文档的 children 中删除，其内容还在数据库中，也能被搜索到
   const onClickDelete = useMemoizedFn(async () => {
     if (!item) return;
-    const realTimeItem = await getDocumentItem(item.id);
-    if (!realTimeItem) return;
-    setItem(realTimeItem);
     modal.confirm({
       title: "是否删除文档",
       content:
-        realTimeItem.children.length > 0
+        item.children.length > 0
           ? "该文档下包含多篇子文档，是否删除"
           : "删除后无法恢复",
       onOk: async () => {
-        await onParentDeleteChild(realTimeItem.id);
-        const parentDocumentItem = await getDocumentItem(parentId);
-        defaultDocumentItemEventBus
-          .createEditor()
-          .publishDocumentItemEvent(
-            "document-item:updated",
-            parentDocumentItem,
-          );
-
-        const toUpdateItem = produce(realTimeItem, (draft) => {
-          draft.parents = draft.parents.filter((parent) => parent !== parentId);
-          draft.parents = Array.from(new Set(draft.parents));
-        });
-
-        await updateDocumentItem(toUpdateItem);
-
-        const deleted = await tryDeleteDocumentItem(toUpdateItem.id);
-        if (!deleted) {
-          documentItemEventBus.publishDocumentItemEvent(
-            "document-item:updated",
-            realTimeItem,
-          );
-        }
+        await onParentDeleteChild(item.id);
 
         const activeDocumentItemId =
           useDocumentsStore.getState().activeDocumentItemId;
-        if (!activeDocumentItemId || activeDocumentItemId === realTimeItem.id) {
+        if (!activeDocumentItemId || activeDocumentItemId === item.id) {
           useDocumentsStore.setState({
             activeDocumentItemId: null,
           });
@@ -400,7 +390,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
         // 判断所有的孩子以及子孙是否包含 activeDocumentItem，如果包含需要将 activeDocumentItem 设置为 null
         const isChildOf = await isDocumentItemChildOf(
           activeDocumentItemId,
-          realTimeItem.id,
+          item.id,
         );
         if (isChildOf) {
           useDocumentsStore.setState({
@@ -424,22 +414,21 @@ const DocumentItem = (props: IDocumentItemProps) => {
     if (!item) {
       return;
     }
-    const createdDocumentItem = await createDocumentItem({
+    const res = await addChildDocumentItem(item.id, {
       ...DEFAULT_CREATE_DOCUMENT_ITEM,
       isCard: true,
       cardId: selectedCards[0].id,
       content: selectedCards[0].content,
-      parents: [item.id],
     });
-    const newItem = produce(item, (draft) => {
-      draft.children.push(createdDocumentItem.id);
-    });
-    const updatedDoc = await updateDocumentItem(newItem);
-    setItem(updatedDoc);
+    if (!res) return;
+    const [parentDocumentItem, createdDocumentItem] = res;
+    if (!parentDocumentItem || !createdDocumentItem) return;
+    setItem(parentDocumentItem);
     documentItemEventBus.publishDocumentItemEvent(
       "document-item:updated",
-      updatedDoc,
+      parentDocumentItem,
     );
+
     setFolderOpen(true);
     setSelectCardModalOpen(false);
 
@@ -459,22 +448,20 @@ const DocumentItem = (props: IDocumentItemProps) => {
       if (!item) {
         return;
       }
-      const createdDocumentItem = await createDocumentItem({
+      const res = await addChildDocumentItem(item.id, {
         ...DEFAULT_CREATE_DOCUMENT_ITEM,
         isArticle: true,
         articleId: selectedArticles[0].id,
         title: selectedArticles[0].title,
         content: selectedArticles[0].content,
-        parents: [item.id],
       });
-      const newItem = produce(item, (draft) => {
-        draft.children.push(createdDocumentItem.id);
-      });
-      const updatedDoc = await updateDocumentItem(newItem);
-      setItem(updatedDoc);
+      if (!res) return;
+      const [parentDocumentItem, createdDocumentItem] = res;
+      if (!parentDocumentItem || !createdDocumentItem) return;
+      setItem(parentDocumentItem);
       documentItemEventBus.publishDocumentItemEvent(
         "document-item:updated",
-        updatedDoc,
+        parentDocumentItem,
       );
       setFolderOpen(true);
       setSelectArticleModalOpen(false);
@@ -508,40 +495,39 @@ const DocumentItem = (props: IDocumentItemProps) => {
         message.warning("选择的文档已经在当前文档的子文档中");
         return;
       }
-      // 将他们添加到 children 中
-      const newItem = produce(item, (draft) => {
-        draft.children.push(...selectedDocumentItems.map((item) => item.id));
-      });
-      const updatedDoc = await updateDocumentItem(newItem);
-      setItem(updatedDoc);
-      documentItemEventBus.publishDocumentItemEvent(
-        "document-item:updated",
-        updatedDoc,
-      );
-      // 为这些项的 parents 添加此文档的 id
-      const toUpdateItems = selectedDocumentItems.map((selectDocumentItem) => {
-        return produce(selectDocumentItem, (draft) => {
-          draft.parents.push(item.id);
-          draft.parents = Array.from(new Set(draft.parents));
-        });
+
+      let updatedParentDocumentItem: IDocumentItem;
+      selectedDocumentItems.forEach(async (selectedDocumentItem) => {
+        const res = await addRefChildDocumentItem(
+          item.id,
+          selectedDocumentItem.id,
+        );
+        if (!res) return;
+        const [parentDocumentItem, createdDocumentItem] = res;
+        if (!parentDocumentItem || !createdDocumentItem) return;
+        defaultDocumentItemEventBus
+          .createEditor()
+          .publishDocumentItemEvent(
+            "document-item:updated",
+            createdDocumentItem,
+          );
+        updatedParentDocumentItem = parentDocumentItem;
+
+        setItem(updatedParentDocumentItem);
+        documentItemEventBus.publishDocumentItemEvent(
+          "document-item:updated",
+          updatedParentDocumentItem,
+        );
       });
 
       setFolderOpen(true);
       setSelectDocumentItemModalOpen(false);
 
-      const updatedItems = await Promise.all(
-        toUpdateItems.map((toUpdateItem) => updateDocumentItem(toUpdateItem)),
-      );
       // 设置 activeItem 为第一个
-      const activeItem = updatedItems[0];
+      const activeItem = selectedDocumentItems[0];
       if (!activeItem) return;
       useDocumentsStore.setState({
         activeDocumentItemId: activeItem.id,
-      });
-      updatedItems.forEach((updatedItem) => {
-        defaultDocumentItemEventBus
-          .createEditor()
-          .publishDocumentItemEvent("document-item:updated", updatedItem);
       });
     },
   );
@@ -844,6 +830,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
           {item.children.map((id, index) => (
             <DocumentItem
               key={id}
+              documentId={documentId}
               itemId={id}
               parentId={item.id}
               onParentDeleteChild={onRemoveDocumentItem}

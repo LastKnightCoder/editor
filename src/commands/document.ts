@@ -36,15 +36,73 @@ export const getAllDocuments = async (): Promise<IDocument[]> => {
   return await invoke("get-all-documents");
 };
 
-export const createDocumentItem = async (
+export const addRootDocumentItem = async (
+  documentId: number,
   documentItem: ICreateDocumentItem,
-): Promise<IDocumentItem> => {
-  return await invoke("create-document-item", documentItem);
+): Promise<[IDocument, IDocumentItem | null] | null> => {
+  return await invoke("add-root-document-item", documentId, documentItem);
+};
+
+export const addChildDocumentItem = async (
+  parentDocumentItemId: number,
+  documentItem: ICreateDocumentItem,
+): Promise<[IDocumentItem | null, IDocumentItem | null] | null> => {
+  return await invoke(
+    "add-child-document-item",
+    parentDocumentItemId,
+    documentItem,
+  );
+};
+
+export const addRefRootDocumentItem = async (
+  documentId: number,
+  documentItemId: number,
+): Promise<[IDocument, IDocumentItem | null] | null> => {
+  return await invoke("add-ref-root-document-item", documentId, documentItemId);
+};
+
+export const addRefChildDocumentItem = async (
+  parentDocumentItemId: number,
+  documentItemId: number,
+): Promise<[IDocumentItem | null, IDocumentItem | null] | null> => {
+  return await invoke(
+    "add-ref-child-document-item",
+    parentDocumentItemId,
+    documentItemId,
+  );
+};
+
+export const removeRootDocumentItem = async (
+  documentId: number,
+  documentItemId: number,
+  notDelete?: boolean,
+): Promise<[IDocument, IDocumentItem | null] | null> => {
+  return await invoke(
+    "remove-root-document-item",
+    documentId,
+    documentItemId,
+    notDelete,
+  );
+};
+
+export const removeChildDocumentItem = async (
+  documentId: number,
+  parentDocumentItemId: number,
+  documentItemId: number,
+  notDelete?: boolean,
+): Promise<[IDocumentItem | null, IDocumentItem | null] | null> => {
+  return await invoke(
+    "remove-child-document-item",
+    documentId,
+    parentDocumentItemId,
+    documentItemId,
+    notDelete,
+  );
 };
 
 export const updateDocumentItem = async (
   updateDoc: IUpdateDocumentItem,
-): Promise<IDocumentItem> => {
+): Promise<IDocumentItem | null> => {
   return await invoke("update-document-item", updateDoc);
 };
 
@@ -54,11 +112,9 @@ export const deleteDocumentItem = async (
   return await invoke("delete-document-item", documentItem.id);
 };
 
-export const tryDeleteDocumentItem = async (id: number): Promise<boolean> => {
-  return await invoke("try-delete-document-item", id);
-};
-
-export const getDocumentItem = async (id: number): Promise<IDocumentItem> => {
+export const getDocumentItem = async (
+  id: number,
+): Promise<IDocumentItem | null> => {
   return await invoke("get-document-item", id);
 };
 
