@@ -39,6 +39,7 @@ const useEditDoc = (documentItemId: number | null) => {
   useAsyncEffect(async () => {
     if (!documentItemId) return;
     const documentItem = await getDocumentItem(documentItemId);
+    if (!documentItem) return;
     setDocumentItem(documentItem);
     prevDocument.current = documentItem;
     setInitValue(documentItem.content);

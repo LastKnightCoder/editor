@@ -95,6 +95,7 @@ export const useItemUpdateListener = () => {
       )
         return;
       const documentItem = await getDocumentItem(data.documentItemId);
+      if (!documentItem) return;
       documentItemEventBus.publishDocumentItemEvent(
         "document-item:updated",
         documentItem,

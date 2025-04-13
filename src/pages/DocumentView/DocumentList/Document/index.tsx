@@ -8,10 +8,12 @@ import DocumentItem from "../DocumentItem";
 import If from "@/components/If";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import {
-  createDocumentItem,
+  getDocument,
   getAllArticles,
   getAllCards,
   getAllDocumentItems,
+  addRootDocumentItem,
+  removeRootDocumentItem,
 } from "@/commands";
 import { IArticle, ICard, IDocument, IDocumentItem } from "@/types";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
@@ -25,19 +27,21 @@ import {
 import styles from "./index.module.less";
 
 interface IDocumentProps {
-  document: IDocument;
-  refreshDocument?: () => void;
+  documentId: number;
 }
 
 const Document = (props: IDocumentProps) => {
-  const { document, refreshDocument } = props;
-  const { children } = document;
+  const { documentId } = props;
 
   const [cards, setCards] = useState<ICard[]>([]);
+  const [document, setDocument] = useState<IDocument | null>(null);
   const [articles, setArticles] = useState<IArticle[]>([]);
   const [documentItems, setDocumentItemss] = useState<IDocumentItem[]>([]);
 
   useEffect(() => {
+    getDocument(documentId).then((document) => {
+      setDocument(document);
+    });
     getAllCards().then((cards) => {
       setCards(cards);
     });
@@ -51,14 +55,12 @@ const Document = (props: IDocumentProps) => {
 
   const navigate = useNavigate();
 
-  const { addDocumentItem, updateDocument, activeDocumentItemId } =
-    useDocumentsStore(
-      useShallow((state) => ({
-        addDocumentItem: state.addDocumentItem,
-        updateDocument: state.updateDocument,
-        activeDocumentItemId: state.activeDocumentItemId,
-      })),
-    );
+  const { updateDocument, activeDocumentItemId } = useDocumentsStore(
+    useShallow((state) => ({
+      updateDocument: state.updateDocument,
+      activeDocumentItemId: state.activeDocumentItemId,
+    })),
+  );
 
   const onFoldSidebar = useMemoizedFn(() => {
     useDocumentsStore.setState({
@@ -67,14 +69,20 @@ const Document = (props: IDocumentProps) => {
   });
 
   const addNewDocumentItem = useMemoizedFn(async () => {
-    const createdItem = await createDocumentItem(DEFAULT_CREATE_DOCUMENT_ITEM);
-    await addDocumentItem(document.id, createdItem.id);
-    refreshDocument?.();
+    if (!document) return null;
+    const res = await addRootDocumentItem(
+      document.id,
+      DEFAULT_CREATE_DOCUMENT_ITEM,
+    );
+    if (!res) return null;
+    const [updatedDocument, createdItem] = res;
+    setDocument(updatedDocument);
     return createdItem;
   });
 
   const onAddDocumentItemWithPosition = useMemoizedFn(
     async (id: number, targetId: number, position: EDragPosition) => {
+      if (!document) return;
       const targetIndex = document.children.findIndex(
         (childId) => childId === targetId,
       );
@@ -87,8 +95,8 @@ const Document = (props: IDocumentProps) => {
           position === EDragPosition.Top ? targetIndex : targetIndex + 1;
         draft.children.splice(spliceIndex, 0, id);
       });
-      await updateDocument(newDocument);
-      refreshDocument?.();
+      const updatedDocument = await updateDocument(newDocument);
+      setDocument(updatedDocument);
     },
   );
 
@@ -102,6 +110,7 @@ const Document = (props: IDocumentProps) => {
   const handleAddMenuClick = useMemoizedFn(async ({ key }: { key: string }) => {
     if (key === "add-document-item") {
       const item = await addNewDocumentItem();
+      if (!item) return;
       useDocumentsStore.setState({
         activeDocumentItemId: item.id,
       });
@@ -110,6 +119,7 @@ const Document = (props: IDocumentProps) => {
 
   const onMoveDocumentItem = useMemoizedFn(
     async (sourceId: number, targetId: number, position: EDragPosition) => {
+      if (!document) return;
       const sourceIndex = document.children.findIndex(
         (childId) => childId === sourceId,
       );
@@ -133,18 +143,27 @@ const Document = (props: IDocumentProps) => {
           draft.children.splice(spliceIndex, 0, sourceId);
         }
       });
-      await updateDocument(newDocument);
-      refreshDocument?.();
+      const updatedDocument = await updateDocument(newDocument);
+      setDocument(updatedDocument);
     },
   );
 
-  const onRemoveDocumentItem = useMemoizedFn(async (id: number) => {
-    const newDocument = produce(document, (draft) => {
-      draft.children = draft.children.filter((childId) => childId !== id);
-    });
-    await updateDocument(newDocument);
-    refreshDocument?.();
-  });
+  const onRemoveDocumentItem = useMemoizedFn(
+    async (id: number, notDelete?: boolean) => {
+      if (!document) return null;
+      const res = await removeRootDocumentItem(document.id, id, notDelete);
+      if (!res) return null;
+      const [updatedDocument, removedDocumentItem] = res;
+      setDocument(updatedDocument);
+      return removedDocumentItem;
+    },
+  );
+
+  if (!document) {
+    return <Empty description="知识库不存在或者已被删除" />;
+  }
+
+  const { children } = document;
 
   return (
     <div className={styles.documentContainer}>
@@ -191,6 +210,7 @@ const Document = (props: IDocumentProps) => {
           {children.map((itemId, index) => (
             <DocumentItem
               key={itemId}
+              documentId={documentId}
               path={[index]}
               parentChildren={children}
               onParentDeleteChild={onRemoveDocumentItem}

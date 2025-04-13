@@ -102,14 +102,8 @@ const DocumentsView = () => {
             title,
             desc,
             content: [],
-            tags: [],
-            links: [],
             children: [],
-            authors: [],
-            icon: "",
-            bannerBg: "",
             isTop: false,
-            isDelete: false,
           };
           const createdDocument = await createDocument(newDocument);
           setCreateOpen(false);
