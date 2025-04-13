@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "../hooks/usePerformanceMonitor";
+import { BiCopy } from "react-icons/bi";
+import styles from "./index.module.less";
 
 interface LazySyntaxHighlighterProps {
   language: string;
@@ -17,6 +19,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
   const [SyntaxHighlighter, setSyntaxHighlighter] = useState<any>(null);
   const [theme, setTheme] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const perf = measurePerformance("syntax-highlighter-load");
@@ -49,6 +52,18 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
     };
   }, [isDark]);
 
+  const handleCopyCode = () => {
+    navigator.clipboard
+      .writeText(children)
+      .then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      })
+      .catch((err) => {
+        console.error("Failed to copy code:", err);
+      });
+  };
+
   if (isLoading) {
     return <pre className="loading-syntax">Loading code...</pre>;
   }
@@ -60,16 +75,26 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
   const normalizedLanguage = language === "js" ? "javascript" : language;
 
   return (
-    <SyntaxHighlighter
-      language={normalizedLanguage}
-      style={theme}
-      customStyle={{ margin: 0, borderRadius: "4px" }}
-      showLineNumbers={true}
-      wrapLines={true}
-      {...rest}
-    >
-      {children}
-    </SyntaxHighlighter>
+    <div className={styles.syntaxContainer}>
+      <button
+        className={styles.copyButton}
+        onClick={handleCopyCode}
+        title="Copy code"
+      >
+        <BiCopy />
+        {isCopied && <span className={styles.copyTooltip}>已复制!</span>}
+      </button>
+      <SyntaxHighlighter
+        language={normalizedLanguage}
+        style={theme}
+        customStyle={{ margin: 0, borderRadius: "4px" }}
+        showLineNumbers={true}
+        wrapLines={true}
+        {...rest}
+      >
+        {children}
+      </SyntaxHighlighter>
+    </div>
   );
 };
 
