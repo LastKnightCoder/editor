@@ -12,9 +12,11 @@ import {
   updateProjectItem,
   openProjectItemInNewWindow,
   createEmptyVideoNote,
-  deleteProjectItem,
   nodeFetch,
   createWhiteBoardContent,
+  addChildProjectItem,
+  removeRootProjectItem,
+  removeChildProjectItem,
 } from "@/commands";
 
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
@@ -137,18 +139,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [webviewUrl, setWebviewUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const {
-    updateProject,
-    activeProjectItemId,
-    removeChildProjectItem,
-    removeRootProjectItem,
-    createChildProjectItem,
-  } = useProjectsStore((state) => ({
+  const { updateProject, activeProjectItemId } = useProjectsStore((state) => ({
     updateProject: state.updateProject,
     activeProjectItemId: state.activeProjectItemId,
-    removeRootProjectItem: state.removeRootProjectItem,
-    removeChildProjectItem: state.removeChildProjectItem,
-    createChildProjectItem: state.createChildProjectItem,
   }));
 
   useEffect(() => {
@@ -185,12 +178,17 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const handleOnSelectWhiteboardOk = useMemoizedFn(
     async (whiteBoards: WhiteBoard[]) => {
-      await onWhiteBoardOk(whiteBoards);
-      const updatedProjectItem = await getProjectItemById(projectItemId);
-      setProjectItem(updatedProjectItem);
-      defaultProjectItemEventBus
-        .createEditor()
-        .publishProjectItemEvent("project-item:updated", updatedProjectItem);
+      const res = await onWhiteBoardOk(whiteBoards);
+      if (res) {
+        const [parentProjectItem] = res;
+        if (parentProjectItem) {
+          setProjectItem(parentProjectItem as ProjectItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            parentProjectItem as ProjectItem,
+          );
+        }
+      }
     },
   );
 
@@ -199,7 +197,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const refresh = useMemoizedFn((projectItemId) => {
     getProjectItemById(projectItemId).then((projectItem) => {
-      setProjectItem(projectItem);
+      if (projectItem) {
+        setProjectItem(projectItem);
+      }
     });
   });
 
@@ -235,25 +235,20 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           if (projectId) {
             await removeRootProjectItem(projectId, projectItemId);
             refreshProject?.();
-            const updatedProjectItem = await getProjectItemById(projectItemId);
-            if (updatedProjectItem.projects.length === 0) {
-              await deleteProjectItem(projectItemId);
-            }
           }
         } else {
           if (parentProjectItemId) {
-            await removeChildProjectItem(parentProjectItemId, projectItemId);
-            const updatedProjectItem = await getProjectItemById(projectItemId);
-            const parentProjectItem =
-              await getProjectItemById(parentProjectItemId);
-            defaultProjectItemEventBus
-              .createEditor()
-              .publishProjectItemEvent(
+            const [parentProjectItem] = await removeChildProjectItem(
+              projectId,
+              parentProjectItemId,
+              projectItemId,
+            );
+            if (parentProjectItem) {
+              setProjectItem(parentProjectItem);
+              projectItemEventBus.publishProjectItemEvent(
                 "project-item:updated",
                 parentProjectItem,
               );
-            if (updatedProjectItem.projects.length === 0) {
-              await deleteProjectItem(projectItemId);
             }
           }
         }
@@ -289,12 +284,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         });
         if (dragIsRoot) {
           if (projectId) {
-            await removeRootProjectItem(projectId, dragId);
+            await removeRootProjectItem(projectId, dragId, true);
             refreshProject?.();
           }
         } else {
           if (dragParentId) {
-            await removeChildProjectItem(dragParentId, dragId);
+            await removeChildProjectItem(projectId, dragParentId, dragId, true);
             needRefreshId.push(dragParentId);
           }
         }
@@ -389,6 +384,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
         for (const refreshId of [...new Set(needRefreshId)]) {
           const updatedProjectItem = await getProjectItemById(refreshId);
+          if (!updatedProjectItem) continue;
           defaultProjectItemEventBus
             .createEditor()
             .publishProjectItemEvent(
@@ -507,6 +503,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     async ({ key }) => {
       if (key === "to-card") {
         const projectItem = await getProjectItemById(projectItemId);
+        if (!projectItem) return;
         await buildCardFromProjectItem(projectItem);
         message.success("成功建立卡片");
       } else if (key === "to-white-board") {
@@ -553,6 +550,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             draft.refType = "white-board";
           });
           const updatedProjectItem = await updateProjectItem(newProjectItem);
+          if (!updatedProjectItem) return;
           projectItemEventBus.publishProjectItemEvent(
             "project-item:updated",
             updatedProjectItem,
@@ -668,25 +666,23 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             },
           ],
           children: [],
-          parents: [projectItemId],
-          projects: [],
           refType: "",
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: 0,
           whiteBoardContentId: 0,
         };
-        await createChildProjectItem(
-          projectId,
+        const [parentProjectItem] = await addChildProjectItem(
           projectItemId,
           createProjectItem,
         );
-        const updatedProjectItem = await getProjectItemById(projectItemId);
-        setProjectItem(updatedProjectItem);
-        projectItemEventBus.publishProjectItemEvent(
-          "project-item:updated",
-          updatedProjectItem,
-        );
+        if (parentProjectItem) {
+          setProjectItem(parentProjectItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            parentProjectItem,
+          );
+        }
       } else if (key === "add-white-board-project-item") {
         if (!projectItemId) return;
         const whiteBoardContent = await createWhiteBoardContent({
@@ -712,31 +708,23 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           content: [],
           whiteBoardContentId: whiteBoardContent.id,
           children: [],
-          parents: [projectItemId],
-          projects: [],
           refType: "",
           refId: 0,
           projectItemType: EProjectItemType.WhiteBoard,
           count: 0,
         };
-        const childProjectItem = await createChildProjectItem(
-          projectId,
+        const [parentProjectItem] = await addChildProjectItem(
           projectItemId,
           createProjectItem,
         );
-        const updatedProjectItem = await getProjectItemById(projectItemId);
-        projectItemEventBus.publishProjectItemEvent(
-          "project-item:updated",
-          updatedProjectItem,
-        );
-        setProjectItem(updatedProjectItem);
-        if (childProjectItem) {
-          useProjectsStore.setState({
-            activeProjectItemId: childProjectItem.id,
-          });
+        if (parentProjectItem) {
+          setProjectItem(parentProjectItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            parentProjectItem,
+          );
         }
       } else if (key === "add-local-video-note-project-item") {
-        // 选择视频文件
         // 选择视频文件
         const filePath = await selectFile({
           properties: ["openFile"],
@@ -761,28 +749,22 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           title: fileName,
           content: [],
           children: [],
-          parents: [],
-          projects: [projectId],
           refType: "video-note",
           refId: item.id,
           projectItemType: EProjectItemType.VideoNote,
           count: 0,
           whiteBoardContentId: 0,
         };
-        const childProjectItem = await createChildProjectItem(
-          projectId,
+        const [parentProjectItem] = await addChildProjectItem(
           projectItemId,
           createProjectItem,
         );
-        const updatedProjectItem = await getProjectItemById(projectItemId);
-        projectItemEventBus.publishProjectItemEvent(
-          "project-item:updated",
-          updatedProjectItem,
-        );
-        if (childProjectItem) {
-          useProjectsStore.setState({
-            activeProjectItemId: childProjectItem.id,
-          });
+        if (parentProjectItem) {
+          setProjectItem(parentProjectItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            parentProjectItem,
+          );
         }
       } else if (key === "add-remote-video-note-project-item") {
         setWebVideoModalOpen(true);
@@ -811,24 +793,24 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           const markdown = await readTextFile(path);
           const content = importFromMarkdown(markdown, ["yaml"]);
           const fileName = await getFileBaseName(path, true);
-          await createChildProjectItem(projectId, projectItem.id, {
+          const [parentProjectItem] = await addChildProjectItem(projectItemId, {
             title: fileName,
             content,
             children: [],
-            parents: [projectItem.id],
-            projects: [],
             refType: "",
             refId: 0,
             projectItemType: EProjectItemType.Document,
             count: getContentLength(content),
             whiteBoardContentId: 0,
           });
+          if (parentProjectItem) {
+            setProjectItem(parentProjectItem);
+            projectItemEventBus.publishProjectItemEvent(
+              "project-item:updated",
+              parentProjectItem,
+            );
+          }
         }
-        const updatedProjectItem = await getProjectItemById(projectItemId);
-        projectItemEventBus.publishProjectItemEvent(
-          "project-item:updated",
-          updatedProjectItem,
-        );
       } else if (key === "add-web-project-item") {
         setWebClipModalOpen(true);
       }
@@ -874,7 +856,17 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       .map((id) => cards.find((card) => card.id === id))
       .filter((card): card is ICard => !!card);
 
-    await onCardOk(newSelectedCards);
+    const res = await onCardOk(newSelectedCards);
+    if (res) {
+      const [parentProjectItem] = res;
+      if (parentProjectItem) {
+        setProjectItem(parentProjectItem as ProjectItem);
+        projectItemEventBus.publishProjectItemEvent(
+          "project-item:updated",
+          parentProjectItem as ProjectItem,
+        );
+      }
+    }
   };
 
   if (!projectItem) return null;
@@ -985,6 +977,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                       ...projectItem,
                       title: textContent,
                     }).then((newProjectItem) => {
+                      if (!newProjectItem) return;
                       setProjectItem(newProjectItem);
                       setTitleEditable(false);
                       titleRef.current?.setContentEditable(false);
@@ -1045,6 +1038,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   cards={cards}
                   whiteBoards={whiteBoards}
                   onOpenChange={onChildOpenChange}
+                  refreshProject={refreshProject}
                 />
               )}
             />
@@ -1126,8 +1120,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               title,
               content: res.value,
               children: [],
-              parents: [projectItem.id],
-              projects: [projectId],
               refType: "",
               refId: 0,
               projectItemType: EProjectItemType.Document,
@@ -1135,16 +1127,17 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               whiteBoardContentId: 0,
             };
 
-            await createChildProjectItem(
-              projectId,
+            const [parentProjectItem] = await addChildProjectItem(
               projectItem.id,
               createProjectItem,
             );
-            const updatedProjectItem = await getProjectItemById(projectItem.id);
-            projectItemEventBus.publishProjectItemEvent(
-              "project-item:updated",
-              updatedProjectItem,
-            );
+            if (parentProjectItem) {
+              setProjectItem(parentProjectItem);
+              projectItemEventBus.publishProjectItemEvent(
+                "project-item:updated",
+                parentProjectItem,
+              );
+            }
 
             setWebClip("");
             setWebClipModalOpen(false);
@@ -1153,7 +1146,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               key: "web-clip",
               content: "添加成功",
             });
-            setProjectItem(updatedProjectItem);
           } else {
             message.error({
               key: "web-clip",
@@ -1199,32 +1191,25 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             title: webVideoUrl,
             content: [],
             children: [],
-            parents: [],
-            projects: [projectId],
             refType: "video-note",
             refId: item.id,
             projectItemType: EProjectItemType.VideoNote,
             count: 0,
             whiteBoardContentId: 0,
           };
-          const newProjectItem = await createChildProjectItem(
-            projectId,
+          const [parentProjectItem] = await addChildProjectItem(
             projectItem.id,
             createProjectItem,
           );
-          if (newProjectItem) {
-            useProjectsStore.setState({
-              activeProjectItemId: newProjectItem.id,
-            });
+          if (parentProjectItem) {
+            setProjectItem(parentProjectItem);
+            projectItemEventBus.publishProjectItemEvent(
+              "project-item:updated",
+              parentProjectItem,
+            );
           }
-          const updatedProjectItem = await getProjectItemById(projectItem.id);
-          projectItemEventBus.publishProjectItemEvent(
-            "project-item:updated",
-            updatedProjectItem,
-          );
           setWebVideoModalOpen(false);
           setWebVideoUrl("");
-          setProjectItem(updatedProjectItem);
         }}
       >
         <Input
@@ -1285,8 +1270,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               title: formattedTitle,
               content: [],
               children: [],
-              parents: [projectItem.id],
-              projects: [projectId],
               refType: "",
               refId: 0,
               projectItemType: EProjectItemType.WebView,
@@ -1294,23 +1277,17 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               whiteBoardContentId: 0,
             };
 
-            const newProjectItem = await createChildProjectItem(
-              projectId,
+            const [parentProjectItem] = await addChildProjectItem(
               projectItem.id,
               createProjectItem,
             );
 
-            const updatedProjectItem = await getProjectItemById(projectItem.id);
-            projectItemEventBus.publishProjectItemEvent(
-              "project-item:updated",
-              updatedProjectItem,
-            );
-            setProjectItem(updatedProjectItem);
-
-            if (newProjectItem) {
-              useProjectsStore.setState({
-                activeProjectItemId: newProjectItem.id,
-              });
+            if (parentProjectItem) {
+              setProjectItem(parentProjectItem);
+              projectItemEventBus.publishProjectItemEvent(
+                "project-item:updated",
+                parentProjectItem,
+              );
             }
 
             setWebviewModalOpen(false);

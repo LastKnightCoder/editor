@@ -77,6 +77,7 @@ export const useItemUpdateListener = () => {
       )
         return;
       const projectItem = await getProjectItemById(data.projectItemId);
+      if (!projectItem) return;
       projectItemEventBus.publishProjectItemEvent(
         "project-item:updated",
         projectItem,

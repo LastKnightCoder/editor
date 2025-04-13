@@ -41,18 +41,16 @@ import {
   createEmptyVideoNote,
   nodeFetch,
   createWhiteBoardContent,
+  addRootProjectItem,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 
 const Project = () => {
   const { message } = App.useApp();
   const { id } = useParams();
-  const { createRootProjectItem, activeProjectItemId } = useProjectsStore(
-    (state) => ({
-      createRootProjectItem: state.createRootProjectItem,
-      activeProjectItemId: state.activeProjectItemId,
-    }),
-  );
+  const { activeProjectItemId } = useProjectsStore((state) => ({
+    activeProjectItemId: state.activeProjectItemId,
+  }));
 
   const [project, setProject] = useState<IProject | null>(null);
   const [cards, setCards] = useState<ICard[]>([]);
@@ -97,9 +95,13 @@ const Project = () => {
   }, []);
 
   const refresh = useMemoizedFn(() => {
-    getProjectById(Number(id)).then((res) => {
-      setProject(res);
-    });
+    getProjectById(Number(id))
+      .then((res) => {
+        setProject(res);
+      })
+      .catch((e) => {
+        console.error(e);
+      });
   });
 
   useEffect(() => {
@@ -139,8 +141,10 @@ const Project = () => {
       .map((id) => cards.find((card) => card.id === id))
       .filter((card): card is ICard => !!card);
 
-    await onCardOk(newSelectedCards);
-    refresh();
+    const res = await onCardOk(newSelectedCards);
+    if (res && res[0]) {
+      setProject(res[0] as IProject);
+    }
   };
 
   const {
@@ -156,8 +160,10 @@ const Project = () => {
 
   const handleOnSelectWhiteboardOk = useMemoizedFn(
     async (whiteBoards: WhiteBoard[]) => {
-      await onWhiteBoardOk(whiteBoards);
-      refresh();
+      const res = await onWhiteBoardOk(whiteBoards);
+      if (res && res[0]) {
+        setProject(res[0] as IProject);
+      }
     },
   );
 
@@ -215,23 +221,22 @@ const Project = () => {
             },
           ],
           children: [],
-          parents: [],
-          projects: [project.id],
           refType: "",
           refId: 0,
           projectItemType: EProjectItemType.Document,
           count: 0,
           whiteBoardContentId: 0,
         };
-        const item = await createRootProjectItem(project.id, createProjectItem);
+        const [newProject, item] = await addRootProjectItem(
+          project.id,
+          createProjectItem,
+        );
         if (item) {
           useProjectsStore.setState({
             activeProjectItemId: item.id,
           });
         }
-        getProjectById(project.id).then((project) => {
-          setProject(project);
-        });
+        setProject(newProject);
       } else if (key === "add-white-board-project-item") {
         const whiteBoardContent = await createWhiteBoardContent({
           name: "新白板",
@@ -256,22 +261,21 @@ const Project = () => {
           content: [],
           whiteBoardContentId: whiteBoardContent.id,
           children: [],
-          parents: [],
-          projects: [project.id],
           refType: "",
           refId: 0,
           projectItemType: EProjectItemType.WhiteBoard,
           count: 0,
         };
-        const item = await createRootProjectItem(project.id, createProjectItem);
+        const [newProject, item] = await addRootProjectItem(
+          project.id,
+          createProjectItem,
+        );
         if (item) {
           useProjectsStore.setState({
             activeProjectItemId: item.id,
           });
         }
-        getProjectById(project.id).then((project) => {
-          setProject(project);
-        });
+        setProject(newProject);
       } else if (key === "add-local-video-note-project-item") {
         // 选择视频文件
         const filePath = await selectFile({
@@ -297,15 +301,13 @@ const Project = () => {
           title: fileName,
           content: [],
           children: [],
-          parents: [],
-          projects: [project.id],
           refType: "video-note",
           refId: item.id,
           projectItemType: EProjectItemType.VideoNote,
           count: 0,
           whiteBoardContentId: 0,
         };
-        const projectItem = await createRootProjectItem(
+        const [newProject, projectItem] = await addRootProjectItem(
           project.id,
           createProjectItem,
         );
@@ -314,9 +316,7 @@ const Project = () => {
             activeProjectItemId: projectItem.id,
           });
         }
-        getProjectById(project.id).then((project) => {
-          setProject(project);
-        });
+        setProject(newProject);
       } else if (key === "add-remote-video-note-project-item") {
         setWebVideoModalOpen(true);
       } else if (key === "add-webview-project-item") {
@@ -343,18 +343,22 @@ const Project = () => {
           const markdown = await readTextFile(path);
           const content = importFromMarkdown(markdown, ["yaml"]);
           const fileName = await getFileBaseName(path, true);
-          await createRootProjectItem(project.id, {
+          const [newProject, item] = await addRootProjectItem(project.id, {
             title: fileName,
             content,
             children: [],
-            parents: [],
-            projects: [project.id],
             refType: "",
             refId: 0,
             projectItemType: EProjectItemType.Document,
             count: getContentLength(content),
             whiteBoardContentId: 0,
           });
+          if (item) {
+            useProjectsStore.setState({
+              activeProjectItemId: item.id,
+            });
+          }
+          setProject(newProject);
         }
       }
     },
@@ -456,15 +460,13 @@ const Project = () => {
               title: webVideoUrl,
               content: [],
               children: [],
-              parents: [],
-              projects: [project.id],
               refType: "video-note",
               refId: item.id,
               projectItemType: EProjectItemType.VideoNote,
               count: 0,
               whiteBoardContentId: 0,
             };
-            const projectItem = await createRootProjectItem(
+            const [newProject, projectItem] = await addRootProjectItem(
               project.id,
               createProjectItem,
             );
@@ -473,9 +475,7 @@ const Project = () => {
                 activeProjectItemId: projectItem.id,
               });
             }
-            getProjectById(project.id).then((project) => {
-              setProject(project);
-            });
+            setProject(newProject);
             setWebVideoModalOpen(false);
             setWebVideoUrl("");
           }}
@@ -525,8 +525,6 @@ const Project = () => {
               title: `${title} [${url}]`,
               content: [],
               children: [],
-              parents: [],
-              projects: [project.id],
               refType: "",
               refId: 0,
               projectItemType: EProjectItemType.WebView,
@@ -534,7 +532,7 @@ const Project = () => {
               whiteBoardContentId: 0,
             };
 
-            const item = await createRootProjectItem(
+            const [newProject, item] = await addRootProjectItem(
               project.id,
               createProjectItem,
             );
@@ -543,8 +541,8 @@ const Project = () => {
                 activeProjectItemId: item.id,
               });
             }
+            setProject(newProject);
 
-            refresh();
             setWebviewModalOpen(false);
             setWebviewUrl("");
           }}

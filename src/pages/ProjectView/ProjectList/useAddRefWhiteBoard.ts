@@ -1,16 +1,18 @@
 import { useState } from "react";
-import { useCreation, useMemoizedFn } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import { message } from "antd";
 
-import useProjectsStore from "@/stores/useProjectsStore";
 import {
   CreateProjectItem,
   EProjectItemType,
   ProjectItem,
   WhiteBoard,
 } from "@/types";
-import { getProjectItemById, getWhiteBoardById } from "@/commands";
-import { defaultProjectItemEventBus } from "@/utils";
+import {
+  getWhiteBoardById,
+  addRootProjectItem,
+  addChildProjectItem,
+} from "@/commands";
 
 const useAddRefWhiteBoard = (
   whiteBoards: WhiteBoard[],
@@ -21,18 +23,6 @@ const useAddRefWhiteBoard = (
     useState(false);
   const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<WhiteBoard[]>(
     [],
-  );
-
-  const projectItemEventBus = useCreation(
-    () => defaultProjectItemEventBus.createEditor(),
-    [],
-  );
-
-  const { createChildProjectItem, createRootProjectItem } = useProjectsStore(
-    (state) => ({
-      createChildProjectItem: state.createChildProjectItem,
-      createRootProjectItem: state.createRootProjectItem,
-    }),
   );
 
   // 获取已经排除的白板ID（已经关联的白板）
@@ -82,40 +72,17 @@ const useAddRefWhiteBoard = (
         content: [],
         whiteBoardContentId, // 使用原白板的数据
         children: [],
-        parents: projectItem ? [projectItem.id] : [],
-        projects: [projectId],
         refType: "white-board",
         refId: fullWhiteBoard.id,
         projectItemType: EProjectItemType.WhiteBoard,
         count: 0,
       };
 
-      let item: ProjectItem | undefined;
-      if (projectItem) {
-        item = await createChildProjectItem(
-          projectId,
-          projectItem.id,
-          createProjectItem,
-        );
-      } else {
-        item = await createRootProjectItem(projectId, createProjectItem);
-      }
-
-      if (projectItem) {
-        const updatedProjectItem = await getProjectItemById(projectItem.id);
-        projectItemEventBus.publishProjectItemEvent(
-          "project-item:updated",
-          updatedProjectItem,
-        );
-      }
-
-      message.success("关联白板成功");
       setSelectWhiteBoardModalOpen(false);
-
-      if (item) {
-        useProjectsStore.setState({
-          activeProjectItemId: item.id,
-        });
+      if (projectItem) {
+        return await addChildProjectItem(projectItem.id, createProjectItem);
+      } else {
+        return await addRootProjectItem(projectId, createProjectItem);
       }
     } catch (e) {
       console.error(e);
