@@ -21,7 +21,7 @@ import {
 
 import { formatDate, defaultDocumentItemEventBus } from "@/utils";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   documentCardListExtension,
   fileAttachmentExtension,
   questionCardExtension,
@@ -33,7 +33,7 @@ import { EditCardContext } from "@/context.ts";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
 const extensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   documentCardListExtension,
   fileAttachmentExtension,
   questionCardExtension,

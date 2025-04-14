@@ -10,7 +10,7 @@ import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -45,7 +45,7 @@ import ArrowConnectPoint from "../ArrowConnectPoint";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

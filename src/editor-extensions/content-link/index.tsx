@@ -3,19 +3,22 @@ import { RenderElementProps } from "slate-react";
 import Base from "@/components/Editor/extensions/base.ts";
 import IExtension from "@/components/Editor/extensions/types.ts";
 import { InlineElement } from "@/components/Editor/types";
-import CardLink from "./components/CardLink";
+import ContentLink from "./components/ContentLink";
 
 import { withSetting, normalize } from "./plugins";
 import hoveringBarConfigs from "./hovering-bar-configs";
 
-export interface CardLinkElement {
-  type: "card-link";
-  cardId: number;
+export interface ContentLinkElement {
+  type: "content-link";
+  refId: number;
+  contentId: number;
+  contentType: string;
+  contentTitle: string;
   children: InlineElement[];
 }
 
-class CardLinkExtension extends Base implements IExtension {
-  type = "card-link";
+class ContentLinkExtension extends Base implements IExtension {
+  type = "content-link";
 
   override getPlugins() {
     return [withSetting, normalize];
@@ -29,14 +32,14 @@ class CardLinkExtension extends Base implements IExtension {
     const { attributes, children, element } = props;
 
     return (
-      <CardLink
+      <ContentLink
         attributes={attributes}
-        element={element as unknown as CardLinkElement}
+        element={element as unknown as ContentLinkElement}
       >
         {children}
-      </CardLink>
+      </ContentLink>
     );
   }
 }
 
-export default CardLinkExtension;
+export default ContentLinkExtension;

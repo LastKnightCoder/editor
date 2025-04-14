@@ -9,7 +9,7 @@ import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   documentCardListExtension,
   questionCardExtension,
@@ -31,7 +31,7 @@ import { IDocumentItem } from "@/types";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   documentCardListExtension,
   questionCardExtension,

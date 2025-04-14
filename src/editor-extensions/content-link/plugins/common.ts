@@ -5,7 +5,7 @@ export const withSetting = (editor: Editor) => {
 
   editor.isInline = (element) => {
     // @ts-ignore
-    return element.type === "card-link" ? true : isInline(element);
+    return element.type === "content-link" ? true : isInline(element);
   };
 
   return editor;

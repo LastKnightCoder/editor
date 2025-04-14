@@ -29,7 +29,7 @@ import Titlebar from "@/components/Titlebar";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import {
   fileAttachmentExtension,
-  cardLinkExtension,
+  contentLinkExtension,
   projectCardListExtension,
   documentCardListExtension,
   questionCardExtension,
@@ -37,7 +37,7 @@ import {
 
 const customExtensions = [
   fileAttachmentExtension,
-  cardLinkExtension,
+  contentLinkExtension,
   projectCardListExtension,
   documentCardListExtension,
   questionCardExtension,

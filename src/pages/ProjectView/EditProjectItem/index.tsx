@@ -12,7 +12,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   projectCardListExtension,
   questionCardExtension,
@@ -23,7 +23,7 @@ import useEditContent from "@/hooks/useEditContent";
 import styles from "./index.module.less";
 
 const extensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   projectCardListExtension,
   questionCardExtension,

@@ -1,7 +1,7 @@
 import Editor from "@/components/Editor";
 import { Tag } from "antd";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   projectCardListExtension,
   documentCardListExtension,
@@ -13,7 +13,7 @@ import { SearchResult } from "@/types";
 import styles from "./index.module.less";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   projectCardListExtension,
   documentCardListExtension,

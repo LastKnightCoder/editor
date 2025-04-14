@@ -10,7 +10,7 @@ import useEditCard from "@/pages/CardDetailView/useEditCard";
 import useUploadResource from "@/hooks/useUploadResource";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -20,7 +20,7 @@ import useEditContent from "@/hooks/useEditContent";
 import styles from "./index.module.less";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

@@ -2,33 +2,33 @@ import React, { useEffect, useState, memo } from "react";
 import { Popover } from "antd";
 import { RenderElementProps } from "slate-react";
 
-import { CardLinkElement } from "@/editor-extensions/card-link";
+import { ContentLinkElement } from "@/editor-extensions/content-link";
 import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
-import CardContent from "../CardContent";
+import Content from "../Content";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 import styles from "./index.module.less";
 import { getEditorText } from "@/utils";
-import { getCardById } from "@/commands";
-import { ICard } from "@/types";
+import { getContentById } from "@/commands";
+import { IContent } from "@/types";
 
-interface ICardLinkProps {
+interface IContentLinkProps {
   attributes: RenderElementProps["attributes"];
-  element: CardLinkElement;
+  element: ContentLinkElement;
   children: React.ReactNode;
 }
 
-const CardLink = memo((props: ICardLinkProps) => {
+const ContentLink = memo((props: IContentLinkProps) => {
   const { attributes, children, element } = props;
-  const { cardId } = element;
+  const { contentId, contentType, contentTitle, refId } = element;
 
-  const [card, setCard] = useState<ICard | undefined>(undefined);
+  const [content, setContent] = useState<IContent | null>(null);
 
   useEffect(() => {
-    getCardById(cardId).then((card) => {
-      setCard(card);
+    getContentById(contentId).then((content) => {
+      setContent(content);
     });
-  }, [cardId]);
+  }, [contentId]);
 
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -36,11 +36,11 @@ const CardLink = memo((props: ICardLinkProps) => {
 
     const { addTab } = useRightSidebarStore.getState();
 
-    if (addTab && card) {
+    if (addTab && content) {
       addTab({
-        id: String(card.id),
-        type: "card",
-        title: getEditorText(card.content, 10),
+        id: String(refId),
+        type: contentType,
+        title: contentTitle || getEditorText(content.content, 10),
       });
     }
   };
@@ -48,7 +48,7 @@ const CardLink = memo((props: ICardLinkProps) => {
   return (
     <Popover
       trigger={"hover"}
-      content={<CardContent card={card} />}
+      content={<Content content={content} />}
       styles={{
         body: {
           padding: 0,
@@ -63,7 +63,7 @@ const CardLink = memo((props: ICardLinkProps) => {
     >
       <span
         onClick={handleCardClick}
-        className={styles.cardLinkContainer}
+        className={styles.contentLinkContainer}
         {...attributes}
       >
         <InlineChromiumBugfix />
@@ -74,4 +74,4 @@ const CardLink = memo((props: ICardLinkProps) => {
   );
 });
 
-export default CardLink;
+export default ContentLink;

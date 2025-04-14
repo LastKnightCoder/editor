@@ -47,9 +47,8 @@ import {
   IndexType,
   SearchResult,
 } from "@/types";
-import { IExtension } from "@/components/Editor";
 import useSettingStore from "@/stores/useSettingStore";
-
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import styles from "./index.module.less";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
@@ -113,12 +112,13 @@ const DocumentItem = (props: IDocumentItemProps) => {
     },
   );
   const [isPresentation, setIsPresentation] = useState(false);
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
   const { modal } = App.useApp();
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
   );
+
+  const extensions = useDynamicExtensions();
 
   const activeDocumentItemId = useDocumentsStore(
     useShallow((state) => state.activeDocumentItemId),
@@ -158,22 +158,6 @@ const DocumentItem = (props: IDocumentItemProps) => {
       unsubscribe();
     };
   }, [itemId, documentItemEventBus]);
-
-  useEffect(() => {
-    import("@/editor-extensions").then(
-      ({
-        cardLinkExtension,
-        fileAttachmentExtension,
-        questionCardExtension,
-      }) => {
-        setExtensions([
-          cardLinkExtension,
-          fileAttachmentExtension,
-          questionCardExtension,
-        ]);
-      },
-    );
-  }, []);
 
   const onDrop = useMemoizedFn(
     async (dragItem: IDragItem, dragPosition: EDragPosition) => {

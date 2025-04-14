@@ -1,80 +1,44 @@
-import { useMemo, useState, useRef, useContext, memo, useEffect } from "react";
+import { useMemo, useState, useRef, useContext, memo } from "react";
 import { BaseSelection, Editor, Transforms } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { message, Tooltip } from "antd";
 import SVG from "react-inlinesvg";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import { EditCardContext } from "@/context";
-import { SearchResult, ICard, IndexType } from "@/types";
+import { EditContentContext } from "@/context";
+import { SearchResult } from "@/types";
 
 import classnames from "classnames";
-import { unwrapCardLink, wrapCardLink } from "../utils";
+import { unwrapContentLink, wrapContentLink } from "../utils";
 import card from "@/assets/hovering_bar/card.svg";
-import { IExtension } from "@/components/Editor";
-import { getAllCards } from "@/commands";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 import styles from "./index.module.less";
 
 const LinkHoveringItem = memo(() => {
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openSelectModal, setOpenSelectModal] = useState<boolean>(false);
-  const { cardId } = useContext(EditCardContext) || {};
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
-  const [cards, setCards] = useState<ICard[]>([]);
+  const { contentId } = useContext(EditContentContext) || {};
+  const extensions = useDynamicExtensions();
 
   const editor = useSlate();
   const selection = useSlateSelection();
-
-  useEffect(() => {
-    import("@/editor-extensions").then(
-      ({
-        cardLinkExtension,
-        fileAttachmentExtension,
-        questionCardExtension,
-      }) => {
-        setExtensions([
-          cardLinkExtension,
-          fileAttachmentExtension,
-          questionCardExtension,
-        ]);
-      },
-    );
-  }, []);
-
-  useEffect(() => {
-    getAllCards().then((cards) => {
-      setCards(cards);
-    });
-  }, []);
-
-  const initialContents = useMemo(() => {
-    return cards.map((card) => ({
-      id: card.id,
-      contentId: card.contentId,
-      type: "card" as IndexType,
-      title: "",
-      content: card.content,
-      source: "fts" as "fts" | "vec-document",
-      updateTime: card.update_time,
-    }));
-  }, [cards]);
 
   const isActive = useMemo(() => {
     if (!selection) {
       return false;
     }
-    const [cardLink] = Editor.nodes(editor, {
-      // @ts-ignore 外部扩展，没有定义 card-link
-      match: (n) => !Editor.isEditor(n) && n.type === "card-link",
+    const [contentLink] = Editor.nodes(editor, {
+      // @ts-ignore 外部扩展，没有定义 content-link
+      match: (n) => !Editor.isEditor(n) && n.type === "content-link",
     });
-    return !!cardLink;
+    return !!contentLink;
   }, [editor, selection]);
 
   const handleClick = useMemoizedFn((event: React.MouseEvent) => {
     try {
       if (isActive) {
-        unwrapCardLink(editor);
+        unwrapContentLink(editor);
         return;
       }
       setOpenSelectModal(true);
@@ -99,26 +63,26 @@ const LinkHoveringItem = memo(() => {
       ? selectedResult
       : [selectedResult];
     if (cardResults.length === 0) {
-      message.warning("请选择卡片");
+      message.warning("请选择内容");
       return;
     }
     selectionRef.current && Transforms.select(editor, selectionRef.current);
 
-    const [{ id }] = cardResults;
-    wrapCardLink(editor, id);
+    const [{ contentId, type, title, id }] = cardResults;
+    wrapContentLink(editor, contentId, type, title, id);
     setOpenSelectModal(false);
 
     ReactEditor.focus(editor);
     Transforms.collapse(editor, { edge: "end" });
   };
 
-  const excludeIds = useMemo(() => {
-    return cardId ? [cardId] : [];
-  }, [cardId]);
+  const excludeContentIds = useMemo(() => {
+    return contentId ? [contentId] : [];
+  }, [contentId]);
 
   return (
     <div>
-      <Tooltip title={"关联卡片"} trigger={"hover"}>
+      <Tooltip title={"关联内容"} trigger={"hover"}>
         <div
           className={classnames(styles.markTextContainer, {
             [styles.active]: isActive,
@@ -132,17 +96,16 @@ const LinkHoveringItem = memo(() => {
         </div>
       </Tooltip>
       <ContentSelectorModal
-        title="选择关联卡片"
+        title="选择关联内容"
         open={openSelectModal}
         onCancel={onCancelSelect}
         onSelect={onSelectOk}
-        contentType="card"
+        contentType={["card", "article", "project-item", "document-item"]}
         extensions={extensions}
-        emptyDescription="没有可选择的卡片"
+        emptyDescription="没有可选择的内容"
         showTitle={false}
         multiple={false}
-        excludeIds={excludeIds}
-        initialContents={initialContents}
+        excludeContentIds={excludeContentIds}
       />
     </div>
   );

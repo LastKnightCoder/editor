@@ -9,7 +9,7 @@ import useUploadResource from "@/hooks/useUploadResource.ts";
 import { createCard, closeWindow } from "@/commands";
 import { ECardCategory } from "@/types";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -20,7 +20,7 @@ import useInitDatabase from "@/hooks/useInitDatabase";
 import { LoadingOutlined } from "@ant-design/icons";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

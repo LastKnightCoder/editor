@@ -10,7 +10,7 @@ import Editor, { EditorRef } from "@editor/index.tsx";
 import { useShallow } from "zustand/react/shallow";
 
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -48,7 +48,7 @@ interface CardItemProps {
 }
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

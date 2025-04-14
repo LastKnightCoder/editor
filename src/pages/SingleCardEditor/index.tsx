@@ -8,7 +8,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -27,7 +27,7 @@ import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

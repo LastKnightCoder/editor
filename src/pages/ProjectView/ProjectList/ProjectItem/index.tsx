@@ -43,7 +43,6 @@ import {
   SearchResult,
   WhiteBoardContent,
 } from "@/types";
-import { IExtension } from "@/components/Editor";
 import {
   FileOutlined,
   FolderOpenTwoTone,
@@ -69,6 +68,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { useProjectContext } from "../../ProjectContext";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 const extractUrlFromTitle = (title: string): { title: string; url: string } => {
   const urlRegex = /\[(https?:\/\/[^\]]+)\]$/;
@@ -134,7 +134,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   );
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
   const [webVideoUrl, setWebVideoUrl] = useState("");
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
   const [webviewModalOpen, setWebviewModalOpen] = useState(false);
   const [webviewUrl, setWebviewUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -817,21 +816,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     },
   );
 
-  useEffect(() => {
-    import("@/editor-extensions").then(
-      ({
-        cardLinkExtension,
-        fileAttachmentExtension,
-        questionCardExtension,
-      }) => {
-        setExtensions([
-          cardLinkExtension,
-          fileAttachmentExtension,
-          questionCardExtension,
-        ]);
-      },
-    );
-  }, []);
+  const extensions = useDynamicExtensions();
 
   const initialCardContents = useMemo(() => {
     return cards.map((card) => ({

@@ -1,15 +1,21 @@
 import { Editor, Transforms, Element, Range } from "slate";
 import { getCurrentTextNode } from "@/components/Editor/utils";
 
-export const unwrapCardLink = (editor: Editor) => {
+export const unwrapContentLink = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
     match: (n) =>
       // @ts-ignore
-      !Editor.isEditor(n) && Element.isElement(n) && n.type === "card-link",
+      !Editor.isEditor(n) && Element.isElement(n) && n.type === "content-link",
   });
 };
 
-export const wrapCardLink = (editor: Editor, cardId: number) => {
+export const wrapContentLink = (
+  editor: Editor,
+  contentId: number,
+  contentType: string,
+  contentTitle: string,
+  refId: number,
+) => {
   const { selection } = editor;
   const [node] = getCurrentTextNode(editor);
   if (selection && !Range.isCollapsed(selection) && node.type === "formatted") {
@@ -24,8 +30,11 @@ export const wrapCardLink = (editor: Editor, cardId: number) => {
       editor,
       {
         // @ts-ignore
-        type: "card-link",
-        cardId,
+        type: "content-link",
+        contentId,
+        contentType,
+        contentTitle,
+        refId,
         children: [
           {
             type: "formatted",

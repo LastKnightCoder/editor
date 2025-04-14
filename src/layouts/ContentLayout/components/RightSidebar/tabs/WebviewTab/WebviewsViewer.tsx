@@ -129,11 +129,7 @@ const WebviewsViewer: React.FC = () => {
         description="暂无网页"
         className={styles.emptyContainer}
       >
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleAddWebview}
-        >
+        <Button icon={<PlusOutlined />} onClick={handleAddWebview}>
           添加网页
         </Button>
       </Empty>
@@ -153,9 +149,6 @@ const WebviewsViewer: React.FC = () => {
         <div className={styles.tabContent}>
           {activeKey && tabs.length > 0 && (
             <div className={styles.webviewContainer}>
-              {/* <iframe 
-                src={activeKey} 
-                className={styles.webview}></iframe> */}
               <Webview
                 ref={webviewRef}
                 src={activeKey}

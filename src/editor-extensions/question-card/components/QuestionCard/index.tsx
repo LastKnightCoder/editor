@@ -16,7 +16,6 @@ import {
   deleteAnswer,
   updateQuestion,
 } from "@/commands/question";
-import { IExtension } from "@/components/Editor";
 import { IAnswer, SearchResult } from "@/types";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop";
@@ -30,7 +29,7 @@ import NewAnswerModal from "@/components/NewAnswerModal";
 import styles from "./index.module.less";
 import { PlusOutlined } from "@ant-design/icons";
 import { MenuProps, Dropdown } from "antd";
-
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 const DEFAULT_CONTENT: Descendant[] = [
   {
     type: "paragraph",
@@ -53,8 +52,8 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   const [newAnswerModalVisible, setNewAnswerModalVisible] = useState(false);
   const [newAnswerContent, setNewAnswerContent] =
     useState<Descendant[]>(DEFAULT_CONTENT);
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
   const [excludeContentIds, setExcludeContentIds] = useState<number[]>([]);
+  const extensions = useDynamicExtensions();
 
   const { questionId } = element;
 
@@ -64,25 +63,6 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
       // @ts-ignore
       element,
     });
-
-  useEffect(() => {
-    import("@/editor-extensions").then((modules) => {
-      const {
-        cardLinkExtension,
-        fileAttachmentExtension,
-        documentCardListExtension,
-        projectCardListExtension,
-        questionCardExtension,
-      } = modules;
-      setExtensions([
-        cardLinkExtension,
-        fileAttachmentExtension,
-        documentCardListExtension,
-        projectCardListExtension,
-        questionCardExtension,
-      ]);
-    });
-  }, []);
 
   // 获取问题和答案
   const fetchQuestion = useMemoizedFn(async () => {

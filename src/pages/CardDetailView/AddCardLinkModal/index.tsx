@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { IExtension } from "@/components/Editor";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { getAllCards } from "@/commands";
 import { ICard, IndexType, SearchResult } from "@/types";
 
@@ -17,7 +16,6 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
   const { open, editingCard, onOk, onClose } = props;
 
   const [cards, setCards] = useState<ICard[]>([]);
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
 
   useEffect(() => {
     getAllCards().then((cards) => {
@@ -25,21 +23,7 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
     });
   }, []);
 
-  useEffect(() => {
-    import("@/editor-extensions").then(
-      ({
-        cardLinkExtension,
-        fileAttachmentExtension,
-        questionCardExtension,
-      }) => {
-        setExtensions([
-          cardLinkExtension,
-          fileAttachmentExtension,
-          questionCardExtension,
-        ]);
-      },
-    );
-  }, []);
+  const extensions = useDynamicExtensions();
 
   const excludeCardIds = useMemo(() => {
     if (!editingCard) return [];

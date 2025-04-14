@@ -20,14 +20,14 @@ import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 import { getAllCards } from "@/commands";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
 
 const PAGE_SIZE = 20;
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

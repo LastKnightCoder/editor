@@ -24,7 +24,6 @@ import {
   IndexType,
   SearchResult,
 } from "@/types";
-import { IExtension } from "@/components/Editor";
 import { useMemoizedFn } from "ahooks";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
@@ -44,6 +43,7 @@ import {
   addRootProjectItem,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 const Project = () => {
   const { message } = App.useApp();
@@ -55,7 +55,6 @@ const Project = () => {
   const [project, setProject] = useState<IProject | null>(null);
   const [cards, setCards] = useState<ICard[]>([]);
   const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
 
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
   const [webVideoUrl, setWebVideoUrl] = useState("");
@@ -78,21 +77,7 @@ const Project = () => {
     });
   }, []);
 
-  useEffect(() => {
-    import("@/editor-extensions").then(
-      ({
-        cardLinkExtension,
-        fileAttachmentExtension,
-        questionCardExtension,
-      }) => {
-        setExtensions([
-          cardLinkExtension,
-          fileAttachmentExtension,
-          questionCardExtension,
-        ]);
-      },
-    );
-  }, []);
+  const extensions = useDynamicExtensions();
 
   const refresh = useMemoizedFn(() => {
     getProjectById(Number(id))
