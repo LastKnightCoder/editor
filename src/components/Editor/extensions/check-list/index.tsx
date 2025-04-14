@@ -11,6 +11,7 @@ import CheckListItem from "./components/CheckListItem";
 import { insertBreak, deleteBackward, withNormalize } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import hotkeys from "./hotkeys";
+import { createBlockElementPlugin } from "../../utils";
 
 import Base from "../base";
 import IExtension from "../types.ts";
@@ -23,7 +24,7 @@ export class CheckListExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [withNormalize];
+    return [withNormalize, createBlockElementPlugin(this.type)];
   }
 
   override toMarkdown(_element: Element, children: string): string {
@@ -44,7 +45,7 @@ export class CheckListItemExtension extends Base implements IExtension {
   type = "check-list-item";
 
   override getPlugins() {
-    return [insertBreak, deleteBackward];
+    return [insertBreak, deleteBackward, createBlockElementPlugin(this.type)];
   }
 
   override getHotkeyConfigs() {

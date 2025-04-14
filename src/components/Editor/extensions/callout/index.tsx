@@ -6,6 +6,7 @@ import blockPanelItems from "./blockPanelItems";
 import Callout from "./components/Callout";
 import { DEFAULT_TITLE } from "./constants.ts";
 import { deleteFirstLineCallout, quit, withNormalize } from "./plugins";
+import { createBlockElementPlugin } from "../../utils";
 
 import Base from "../base.ts";
 import IExtension from "../types.ts";
@@ -14,7 +15,12 @@ class CalloutExtension extends Base implements IExtension {
   type = "callout";
 
   override getPlugins() {
-    return [deleteFirstLineCallout, quit, withNormalize];
+    return [
+      deleteFirstLineCallout,
+      quit,
+      withNormalize,
+      createBlockElementPlugin(this.type),
+    ];
   }
 
   override getBlockPanelItems() {

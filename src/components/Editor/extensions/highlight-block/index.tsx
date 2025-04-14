@@ -8,7 +8,7 @@ import { HighlightBlockElement } from "@/components/Editor/types";
 
 import blockPanelItems from "./block-panel-items";
 import { quit, withNormalize } from "./plugins";
-
+import { createBlockElementPlugin } from "../../utils";
 class HighlightBlockExtension extends Base implements IExtension {
   type = "highlight-block";
 
@@ -17,7 +17,7 @@ class HighlightBlockExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [quit, withNormalize];
+    return [quit, withNormalize, createBlockElementPlugin(this.type)];
   }
 
   override toMarkdown(element: Element, children: string): string {

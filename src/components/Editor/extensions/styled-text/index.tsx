@@ -7,6 +7,7 @@ import { Element } from "slate";
 
 import StyledText from "./components/StyledText";
 import hoveringBarConfigs from "./hovering-bar-configs";
+import { createInlineElementPlugin } from "../../utils";
 
 class StyledTextExtension extends Base implements IExtension {
   override type = "styled-text";
@@ -17,6 +18,10 @@ class StyledTextExtension extends Base implements IExtension {
 
   override toMarkdown(_element: Element, children: string): string {
     return children;
+  }
+
+  override getPlugins() {
+    return [createInlineElementPlugin(this.type)];
   }
 
   render(props: RenderElementProps) {

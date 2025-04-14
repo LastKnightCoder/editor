@@ -6,6 +6,7 @@ import { UnderlineElement } from "@/components/Editor/types";
 
 import Base from "../base.ts";
 import IExtension from "../types.ts";
+import { createInlineElementPlugin } from "../../utils";
 
 import hoveringBarConfigs from "./hovering-bar-configs";
 
@@ -18,6 +19,10 @@ class UnderlineExtension extends Base implements IExtension {
 
   override toMarkdown(_element: Element, children: string): string {
     return `<u>${children}</u>`;
+  }
+
+  override getPlugins() {
+    return [createInlineElementPlugin(this.type)];
   }
 
   render(props: RenderElementProps) {

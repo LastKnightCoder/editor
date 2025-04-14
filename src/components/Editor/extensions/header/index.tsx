@@ -10,11 +10,16 @@ import Header from "./components/Header";
 import { insertBreak, deleteBackward, markdownSyntax } from "./plugins";
 import headerHotKeys from "./hotkeys";
 import blockPanelItems from "./blockPanelItems";
-
+import { createBlockElementPlugin } from "../../utils";
 class HeaderExtension extends Base implements IExtension {
   type = "header";
   override getPlugins() {
-    return [insertBreak, deleteBackward, markdownSyntax];
+    return [
+      insertBreak,
+      deleteBackward,
+      markdownSyntax,
+      createBlockElementPlugin(this.type),
+    ];
   }
 
   override getBlockPanelItems() {

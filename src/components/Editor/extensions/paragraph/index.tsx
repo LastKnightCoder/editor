@@ -9,9 +9,8 @@ import Base from "../base";
 import IExtension from "../types";
 import { inlineCode, normalizeParagraph } from "./plugins";
 import hoveringBarElements from "./hovering-bar-configs";
-
+import { createBlockElementPlugin } from "../../utils";
 // 缓存插件和悬浮栏元素，避免每次实例化都重新创建
-const plugins = [inlineCode, normalizeParagraph];
 const hoveringElements = hoveringBarElements;
 
 // 创建一个 memo 化的渲染器组件
@@ -33,7 +32,11 @@ class ParagraphExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return plugins;
+    return [
+      inlineCode,
+      normalizeParagraph,
+      createBlockElementPlugin(this.type),
+    ];
   }
 
   override getHoveringBarElements() {

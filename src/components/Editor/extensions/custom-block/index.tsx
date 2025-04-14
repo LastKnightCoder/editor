@@ -6,6 +6,7 @@ import { RenderElementProps } from "slate-react";
 
 import Base from "../base.ts";
 import IExtension from "../types.ts";
+import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 
 import blockPanelItems from "./block-panel-items";
 import { deleteBackward } from "./plugins";
@@ -20,7 +21,11 @@ class CustomBlockExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [deleteBackward];
+    return [
+      deleteBackward,
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   override toMarkdown(element: Element): string {

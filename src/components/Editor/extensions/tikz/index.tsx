@@ -6,7 +6,7 @@ import { TikzElement } from "@/components/Editor/types";
 
 import Base from "../base.ts";
 import IExtension from "../types.ts";
-
+import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import blockPanelItems from "./block-panel-items";
 
 const Tikz = loadable(() => import("./components/Tikz"));
@@ -16,6 +16,13 @@ class TikzExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override getPlugins() {
+    return [
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   override toMarkdown(element: Element): string {

@@ -6,7 +6,7 @@ import { HTMLBlockElement } from "@/components/Editor/types";
 
 import Base from "../base.ts";
 import IExtension from "../types.ts";
-
+import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import blockPanelItems from "./block-panel-items";
 
 class HtmlBlockExtension extends Base implements IExtension {
@@ -14,6 +14,13 @@ class HtmlBlockExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override getPlugins() {
+    return [
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   override toMarkdown(element: Element): string {

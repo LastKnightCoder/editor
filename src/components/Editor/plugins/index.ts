@@ -1,2 +1,2 @@
-export * from "./withOverrideSettings";
 export * from "./withSlashCommands";
+export * from "./withNormalize";
