@@ -25,7 +25,6 @@ const CardTreePanel = memo(
 
     // 使用useMemo将tree转换为优化的组件列表，只在必要时更新
     const tagItemList = useMemo(() => {
-      console.log(memoizedTree);
       if (memoizedTree.length === 0) {
         return (
           <div className={styles.empty}>

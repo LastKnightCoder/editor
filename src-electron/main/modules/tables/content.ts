@@ -10,6 +10,8 @@ import { BrowserWindow } from "electron";
 import Operation from "./operation";
 import WhiteBoardContentTable from "./white-board-content";
 import CardTable from "./card";
+import QuestionTable from "./question";
+
 export default class ContentTable {
   static getListenEvents() {
     return {
@@ -213,6 +215,27 @@ export default class ContentTable {
     if (result && result.ref_count <= 0) {
       const deleteStmt = db.prepare("DELETE FROM contents WHERE id = ?");
       Operation.insertOperation(db, "content", "delete", contentId, Date.now());
+      // 删除白板内容
+      const content = this.getContentById(db, contentId);
+      const whiteBoardContentId: number[] = [];
+      const questionId: number[] = [];
+      dfs(content?.content || [], (node) => {
+        if (node.type === "whiteboard" && node.whiteBoardContentId) {
+          whiteBoardContentId.push(node.whiteBoardContentId);
+        }
+        // @ts-ignore
+        if (node.type === "question" && node.questionId) {
+          // @ts-ignore
+          questionId.push(node.questionId);
+        }
+      });
+      whiteBoardContentId.forEach((id) => {
+        WhiteBoardContentTable.deleteWhiteboard(db, id);
+      });
+      questionId.forEach((id) => {
+        QuestionTable.deleteQuestion(db, id);
+      });
+
       return deleteStmt.run(contentId).changes;
     }
 

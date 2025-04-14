@@ -224,7 +224,7 @@ const Index = memo(
         setEditorValue: (nodes: Descendant[]) => {
           const children = [...editor.children];
           // @ts-ignore
-          editor.resetValue = true;
+          editor.isResetValue = true;
           Editor.withoutNormalizing(editor, () => {
             children.forEach((node) =>
               editor.apply({ type: "remove_node", path: [0], node }),
@@ -234,7 +234,7 @@ const Index = memo(
             );
           });
           // @ts-ignore
-          editor.resetValue = false;
+          editor.isResetValue = false;
           const point = Editor.end(editor, []);
           Transforms.select(editor, point);
         },
