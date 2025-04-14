@@ -11,13 +11,14 @@ interface ITitlebarIconProps {
   style?: React.CSSProperties;
   onClick?: () => void;
   active?: boolean;
+  placement?: "top" | "bottom" | "left" | "right";
 }
 
 const TitlebarIcon = (props: ITitlebarIconProps) => {
-  const { tip, children, className, style, onClick, active } = props;
+  const { tip, children, className, style, onClick, active, placement } = props;
 
   return (
-    <Tooltip title={tip} trigger={"hover"}>
+    <Tooltip title={tip} trigger={"hover"} placement={placement}>
       <div
         className={classnames(
           styles.icon,

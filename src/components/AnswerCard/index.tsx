@@ -1,15 +1,17 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Card, App, Dropdown, MenuItemProps } from "antd";
+import { useMemoizedFn } from "ahooks";
+
 import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
 import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
+
 import Editor, { EditorRef } from "@/components/Editor";
 import useEditContent from "@/hooks/useEditContent";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { isContentIsCard, buildCardFromContent } from "@/commands/card";
 
 import styles from "./index.module.less";
-import { useMemoizedFn } from "ahooks";
 interface AnswerCardProps {
   answer: IAnswer;
   readOnly?: boolean;
