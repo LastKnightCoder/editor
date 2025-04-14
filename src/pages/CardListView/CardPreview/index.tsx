@@ -1,12 +1,6 @@
-import { Descendant } from "slate";
-import {
-  useMemoizedFn,
-  useCreation,
-  useRafInterval,
-  useUnmount,
-  useDebounceFn,
-} from "ahooks";
+import { useMemoizedFn, useCreation, useRafInterval, useUnmount } from "ahooks";
 import { Button, Modal, Tooltip } from "antd";
+import { Descendant } from "slate";
 import { ExpandOutlined, CloseOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import Editor, { EditorRef } from "@/components/Editor";
@@ -22,6 +16,7 @@ import {
 } from "@/editor-extensions";
 import { useEffect, useRef } from "react";
 import { formatDate, defaultCardEventBus } from "@/utils";
+import useEditContent from "@/hooks/useEditContent";
 import styles from "./index.module.less";
 
 const customExtensions = [
@@ -51,16 +46,22 @@ const CardPreview = (props: CardPreviewProps) => {
     initValue,
     loading,
     editingCard,
-    onInit,
-    onContentChange,
+    onContentChange: onContentChangeFromEditCard,
     onAddTag,
     onDeleteTag,
     saveCard,
     prevCard,
     setEditingCard,
+    onInit,
   } = useEditCard(cardId);
 
   const uploadResource = useUploadResource();
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingCard?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
 
   useEffect(() => {
     if (visible && editingCard) {
@@ -70,7 +71,6 @@ const CardPreview = (props: CardPreviewProps) => {
         (data) => {
           setEditingCard(data.card);
           prevCard.current = data.card;
-          editorRef.current?.setEditorValue(data.card.content);
         },
       );
       return () => {
@@ -89,13 +89,19 @@ const CardPreview = (props: CardPreviewProps) => {
   }, 3000);
 
   useUnmount(async () => {
-    onContentChange.flush();
     setTimeout(async () => {
       const updatedCard = await saveCard();
       if (updatedCard) {
         cardEventBus.publishCardEvent("card:updated", updatedCard);
       }
     }, 200);
+  });
+
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(content);
+    }
+    onContentChangeFromEditCard(content);
   });
 
   const handleAddTag = useMemoizedFn((tag: string) => {
@@ -118,14 +124,6 @@ const CardPreview = (props: CardPreviewProps) => {
       onGoToDetail?.();
     }
   });
-
-  const { run: onChange } = useDebounceFn(
-    (value: Descendant[]) => {
-      if (!editingCard) return;
-      onContentChange(value);
-    },
-    { wait: 200 },
-  );
 
   const renderHeader = () => (
     <div className={styles.header}>
@@ -187,7 +185,7 @@ const CardPreview = (props: CardPreviewProps) => {
                   ref={editorRef}
                   onInit={onInit}
                   initValue={initValue}
-                  onChange={onChange}
+                  onChange={onContentChange}
                   extensions={customExtensions}
                   uploadResource={uploadResource}
                   readonly={false}

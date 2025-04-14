@@ -418,18 +418,6 @@ export default class ProjectTable {
   ): ProjectItem | null {
     const win = res[res.length - 1];
 
-    if (
-      item.refType !== "white-board" &&
-      item.refType !== "video-note" &&
-      item.projectItemType === EProjectItemType.Document &&
-      item.contentId
-    ) {
-      ContentTable.updateContent(db, item.contentId, {
-        content: item.content,
-        count: item.count || getContentLength(item.content),
-      });
-    }
-
     const stmt = db.prepare(`
       UPDATE project_item SET
         update_time = ?,
@@ -454,21 +442,6 @@ export default class ProjectTable {
       item.projectItemType || item.projectItemType,
       item.id,
     );
-
-    // 更新 FTS 索引
-    if (
-      item.refType !== "white-board" &&
-      item.refType !== "video-note" &&
-      item.content &&
-      item.content.length
-    ) {
-      FTSTable.indexContent(db, {
-        id: item.id,
-        content: getMarkdown(item.content),
-        type: "project-item",
-        updateTime: now,
-      });
-    }
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {

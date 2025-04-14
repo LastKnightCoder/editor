@@ -42,4 +42,7 @@ export type CreateProjectItem = Omit<
   ProjectItem,
   "id" | "createTime" | "updateTime" | "contentId" | "projects" | "parents"
 >;
-export type UpdateProjectItem = Omit<ProjectItem, "createTime" | "updateTime">;
+export type UpdateProjectItem = Omit<
+  ProjectItem,
+  "createTime" | "updateTime" | "content" | "count"
+>;

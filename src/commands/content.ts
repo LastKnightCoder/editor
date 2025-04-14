@@ -20,3 +20,9 @@ export const updateContent = async (
     content,
   });
 };
+
+export const getContentById = async (
+  contentId: number,
+): Promise<IContent | null> => {
+  return await invoke("content:get-by-id", contentId);
+};

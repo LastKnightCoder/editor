@@ -1,12 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Empty } from "antd";
-import {
-  useCreation,
-  useMemoizedFn,
-  useDebounceFn,
-  useUnmount,
-  useRafInterval,
-} from "ahooks";
+import { useCreation, useMemoizedFn, useUnmount, useRafInterval } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 
 import Editor, { EditorRef } from "@editor/index.tsx";
@@ -22,6 +16,7 @@ import {
 import { ProjectItem } from "@/types/project";
 import { getProjectItemById, updateProjectItem } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils";
+import useEditContent from "@/hooks/useEditContent";
 import { Descendant } from "slate";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
@@ -51,6 +46,12 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   const prevProjectItem = useRef<ProjectItem | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const isWindowFocused = useWindowFocus();
+  const { throttleHandleEditorContentChange } = useEditContent(
+    projectItem?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
 
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
@@ -64,7 +65,6 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
       (data) => {
         setProjectItem(data.projectItem);
         prevProjectItem.current = data.projectItem;
-        editorRef.current?.setEditorValue(data.projectItem.content);
         titleRef.current?.setValue(data.projectItem.title);
         if (onTitleChange) {
           onTitleChange(data.projectItem.title);
@@ -102,33 +102,36 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
     }
   }, [projectItemId, fetchProjectItem, visible, isConnected]);
 
-  const { run: handleTitleChange } = useDebounceFn(
-    async (title: string) => {
-      if (!projectItem) return;
-      const changed =
-        JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
-      if (!changed) return;
+  const handleTitleChange = useMemoizedFn(async (title: string) => {
+    if (!projectItem) return;
 
-      try {
-        setProjectItem({
-          ...projectItem,
-          title,
-        });
+    try {
+      setProjectItem({
+        ...projectItem,
+        title,
+      });
 
-        if (onTitleChange) {
-          onTitleChange(title);
-        }
-      } catch (error) {
-        console.error("Error updating project item title:", error);
+      if (onTitleChange) {
+        onTitleChange(title);
       }
-    },
-    { wait: 200 },
-  );
+    } catch (error) {
+      console.error("Error updating project item title:", error);
+    }
+  });
 
   const handleSaveProjectItem = useMemoizedFn(async () => {
     if (!projectItem) return null;
     const changed =
-      JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
+      JSON.stringify({
+        ...projectItem,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevProjectItem.current,
+        content: undefined,
+        count: undefined,
+      });
     if (!changed) return null;
     const updatedProjectItem = await updateProjectItem(projectItem);
     prevProjectItem.current = updatedProjectItem;
@@ -136,32 +139,29 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
     return updatedProjectItem;
   });
 
-  const { run: handleContentChange } = useDebounceFn(
-    async (content: Descendant[]) => {
-      if (!projectItem) return;
+  const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
+    if (!projectItem) return;
 
-      try {
-        setProjectItem({
-          ...projectItem,
-          content,
-        });
-      } catch (error) {
-        console.error("Error updating project item content:", error);
-      }
-    },
-    { wait: 200 },
-  );
+    try {
+      setProjectItem({
+        ...projectItem,
+        content,
+      });
+    } catch (error) {
+      console.error("Error updating project item content:", error);
+    }
+  });
+
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(content);
+    }
+    handleContentChange(content);
+  });
 
   useRafInterval(async () => {
-    if (
-      !projectItem ||
-      !isWindowFocused ||
-      (!titleRef.current?.isFocus() && !editorRef.current?.isFocus())
-    )
+    if (!projectItem || !isWindowFocused || !titleRef.current?.isFocus())
       return;
-    const changed =
-      JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
-    if (!changed) return;
     const updatedProjectItem = await handleSaveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent(
@@ -172,17 +172,14 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   }, 3000);
 
   useUnmount(async () => {
-    handleTitleChange.flush();
-    handleContentChange.flush();
-    setTimeout(async () => {
-      const updatedProjectItem = await handleSaveProjectItem();
-      if (updatedProjectItem) {
-        projectItemEventBus.publishProjectItemEvent(
-          "project-item:updated",
-          updatedProjectItem,
-        );
-      }
-    }, 200);
+    throttleHandleEditorContentChange.flush();
+    const updatedProjectItem = await handleSaveProjectItem();
+    if (updatedProjectItem) {
+      projectItemEventBus.publishProjectItemEvent(
+        "project-item:updated",
+        updatedProjectItem,
+      );
+    }
   });
 
   if (loading) {
@@ -216,7 +213,7 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
         <Editor
           ref={editorRef}
           initValue={projectItem.content}
-          onChange={handleContentChange}
+          onChange={onContentChange}
           readonly={false}
           extensions={customExtensions}
         />

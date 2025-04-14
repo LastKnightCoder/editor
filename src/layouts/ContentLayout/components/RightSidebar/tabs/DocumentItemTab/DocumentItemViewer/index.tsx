@@ -1,12 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Empty } from "antd";
-import {
-  useCreation,
-  useMemoizedFn,
-  useDebounceFn,
-  useRafInterval,
-  useUnmount,
-} from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 
 import Editor, { EditorRef } from "@editor/index.tsx";
@@ -25,6 +19,7 @@ import { Descendant } from "slate";
 import { defaultDocumentItemEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
 
 import styles from "./index.module.less";
 
@@ -72,12 +67,18 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
     }
   });
 
+  const { throttleHandleEditorContentChange } = useEditContent(
+    documentItem?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
+
   useEffect(() => {
     const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
       "document-item:updated",
       Number(documentItemId),
       (data) => {
-        editorRef.current?.setEditorValue(data.documentItem.content);
         titleRef.current?.setValue(data.documentItem.title);
         prevDocumentItem.current = data.documentItem;
         setDocumentItem(data.documentItem);
@@ -97,7 +98,16 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   const handleSaveDocumentItem = useMemoizedFn(async () => {
     if (!documentItem) return null;
     const changed =
-      JSON.stringify(documentItem) !== JSON.stringify(prevDocumentItem.current);
+      JSON.stringify({
+        ...documentItem,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevDocumentItem.current,
+        content: undefined,
+        count: undefined,
+      });
     if (!changed) return null;
     const updatedDocumentItem = await updateDocumentItem(documentItem);
     prevDocumentItem.current = updatedDocumentItem;
@@ -105,59 +115,53 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
     return updatedDocumentItem;
   });
 
-  const { run: handleTitleChange } = useDebounceFn(
-    async (title: string) => {
-      if (
-        !documentItem ||
-        title === documentItem.title ||
-        !titleRef.current?.isFocus() ||
-        !isWindowFocused
-      )
-        return;
-
-      try {
-        setDocumentItem({
-          ...documentItem,
-          title,
-        });
-
-        if (onTitleChange) {
-          onTitleChange(title);
-        }
-      } catch (error) {
-        console.error("Error updating document item title:", error);
-      }
-    },
-    { wait: 200 },
-  );
-
-  const { run: handleContentChange } = useDebounceFn(
-    async (content: Descendant[]) => {
-      if (!documentItem || !editorRef.current?.isFocus() || !isWindowFocused)
-        return;
-
-      try {
-        setDocumentItem({
-          ...documentItem,
-          content,
-        });
-      } catch (error) {
-        console.error("Error updating document item content:", error);
-      }
-    },
-    { wait: 200 },
-  );
-
-  useRafInterval(async () => {
+  const handleTitleChange = useMemoizedFn(async (title: string) => {
     if (
       !documentItem ||
-      !isWindowFocused ||
-      (!titleRef.current?.isFocus() && !editorRef.current?.isFocus())
+      title === documentItem.title ||
+      !titleRef.current?.isFocus() ||
+      !isWindowFocused
     )
       return;
-    const changed =
-      JSON.stringify(documentItem) !== JSON.stringify(prevDocumentItem.current);
-    if (!changed) return;
+
+    try {
+      setDocumentItem({
+        ...documentItem,
+        title,
+      });
+
+      if (onTitleChange) {
+        onTitleChange(title);
+      }
+    } catch (error) {
+      console.error("Error updating document item title:", error);
+    }
+  });
+
+  const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
+    if (!documentItem || !editorRef.current?.isFocus() || !isWindowFocused)
+      return;
+
+    try {
+      setDocumentItem({
+        ...documentItem,
+        content,
+      });
+    } catch (error) {
+      console.error("Error updating document item content:", error);
+    }
+  });
+
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(content);
+    }
+    handleContentChange(content);
+  });
+
+  useRafInterval(async () => {
+    if (!documentItem || !isWindowFocused || !titleRef.current?.isFocus())
+      return;
     const updatedDocumentItem = await handleSaveDocumentItem();
     if (updatedDocumentItem) {
       documentItemEventBus.publishDocumentItemEvent(
@@ -168,17 +172,14 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   }, 3000);
 
   useUnmount(async () => {
-    handleTitleChange.flush();
-    handleContentChange.flush();
-    setTimeout(async () => {
-      const updatedDocumentItem = await handleSaveDocumentItem();
-      if (updatedDocumentItem) {
-        documentItemEventBus.publishDocumentItemEvent(
-          "document-item:updated",
-          updatedDocumentItem,
-        );
-      }
-    }, 200);
+    throttleHandleEditorContentChange.flush();
+    const updatedDocumentItem = await handleSaveDocumentItem();
+    if (updatedDocumentItem) {
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
+    }
   });
 
   if (loading) {
@@ -212,7 +213,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
         <Editor
           ref={editorRef}
           initValue={documentItem.content}
-          onChange={handleContentChange}
+          onChange={onContentChange}
           readonly={false}
           extensions={customExtensions}
         />

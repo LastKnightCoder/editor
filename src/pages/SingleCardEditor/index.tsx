@@ -24,6 +24,7 @@ import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
   cardLinkExtension,
@@ -47,12 +48,18 @@ const SingleCardEditor = () => {
   const uploadResource = useUploadResource();
   const prevCardRef = useRef<ICard | null>(null);
 
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingCard?.contentId,
+    (data) => {
+      editorRef.current?.setEditorValue(data);
+    },
+  );
+
   useEffect(() => {
     const unsubscribe = cardEventBus.subscribeToCardWithId(
       "card:updated",
       cardId,
       (data) => {
-        editorRef.current?.setEditorValue(data.card.content);
         setEditingCard(data.card);
       },
     );
@@ -86,13 +93,19 @@ const SingleCardEditor = () => {
     };
   }, [databaseName, cardId]);
 
-  const onContentChange = useMemoizedFn((value: Descendant[]) => {
-    if (!editingCard || !editorRef.current?.isFocus() || !isWindowFocused)
-      return;
+  const onCardContentChange = useMemoizedFn((value: Descendant[]) => {
+    if (!editingCard) return;
     setEditingCard({
       ...editingCard,
       content: value,
     });
+  });
+
+  const onContentChange = useMemoizedFn((value: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(value);
+    }
+    onCardContentChange(value);
   });
 
   const onAddTag = useMemoizedFn((tag: string) => {
@@ -117,15 +130,20 @@ const SingleCardEditor = () => {
     });
   });
 
-  const saveCard = useMemoizedFn(async (forceSave = false) => {
+  const saveCard = useMemoizedFn(async () => {
     if (!editingCard) return;
     const changed =
-      JSON.stringify(editingCard) !== JSON.stringify(prevCardRef.current);
-    if (
-      (!editorRef.current?.isFocus() || !isWindowFocused || !changed) &&
-      !forceSave
-    )
-      return;
+      JSON.stringify({
+        ...editingCard,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevCardRef.current,
+        content: undefined,
+        count: undefined,
+      });
+    if (!isWindowFocused || !changed) return;
 
     try {
       const updatedCard = await updateCard(editingCard);
@@ -141,7 +159,8 @@ const SingleCardEditor = () => {
   }, 3000);
 
   useUnmount(() => {
-    saveCard(true);
+    throttleHandleEditorContentChange.flush();
+    saveCard();
   });
 
   if (!editingCard) {

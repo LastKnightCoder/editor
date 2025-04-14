@@ -728,10 +728,8 @@ export default class DocumentTable {
   ): IDocumentItem | null {
     const win = res[res.length - 1];
 
-    ContentTable.updateContent(db, item.contentId, {
-      content: item.content,
-      count: item.count || getContentLength(item.content),
-    });
+    const currentDocumentItem = this.getDocumentItem(db, item.id);
+    if (!currentDocumentItem) return null;
 
     const stmt = db.prepare(`
       UPDATE document_items SET
@@ -765,16 +763,6 @@ export default class DocumentTable {
     );
 
     Operation.insertOperation(db, "document-item", "update", item.id, now);
-
-    // 更新 FTS 索引，跳过目录类型的条目
-    if (item.content && item.content.length) {
-      FTSTable.indexContent(db, {
-        id: item.id,
-        content: getMarkdown(item.content),
-        type: "document-item",
-        updateTime: now,
-      });
-    }
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {

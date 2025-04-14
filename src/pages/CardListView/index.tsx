@@ -172,12 +172,6 @@ const CardListView = () => {
     }
   });
 
-  const handleCardChange = useMemoizedFn((card: ICard) => {
-    setCards((prevCards) =>
-      prevCards.map((c) => (c.id === card.id ? card : c)),
-    );
-  });
-
   const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
     try {
       modal.confirm({
@@ -351,7 +345,6 @@ const CardListView = () => {
                 onDeleteCard={handleDeleteCard}
                 onUpdateCardCategory={handleUpdateCardCategory}
                 onToggleCardTop={handleToggleCardTop}
-                onCardChange={handleCardChange}
                 onShowScrollToTop={setShowScrollToTop}
                 onPresentationMode={handlePresentationMode}
               />

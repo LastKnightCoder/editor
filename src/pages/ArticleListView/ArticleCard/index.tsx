@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 import { Dropdown, message, Modal, Spin, Typography } from "antd";
@@ -31,6 +31,7 @@ import {
 import useSettingStore from "@/stores/useSettingStore";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
+import useEditContent from "@/hooks/useEditContent";
 
 const { Text } = Typography;
 
@@ -90,18 +91,9 @@ const ArticleCard = (props: IArticleCardProps) => {
     })),
   );
 
-  useEffect(() => {
-    const unsubscribe = articleEventBus.subscribeToArticleWithId(
-      "article:updated",
-      article.id,
-      (data) => {
-        editorRef.current?.setEditorValue(data.article.content.slice(0, 1));
-      },
-    );
-    return () => {
-      unsubscribe();
-    };
-  }, [articleEventBus, article.id]);
+  useEditContent(article.contentId, (content) => {
+    editorRef.current?.setEditorValue(content.slice(0, 1));
+  });
 
   const currentDatabaseName = useSettingStore(
     useShallow((state) => state.setting.database.active),

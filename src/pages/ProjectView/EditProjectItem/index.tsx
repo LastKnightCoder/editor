@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Descendant } from "slate";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import useEdit from "./useEdit";
@@ -17,6 +18,7 @@ import {
   questionCardExtension,
 } from "@/editor-extensions";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
 
 import styles from "./index.module.less";
 
@@ -42,11 +44,18 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     projectItem,
     onInit,
     onTitleChange,
-    onContentChange,
+    onContentChange: onContentChangeFromEditProjectItem,
     saveProjectItem,
     setProjectItem,
     prevProjectItem,
   } = useEdit(projectItemId);
+
+  const { throttleHandleEditorContentChange } = useEditContent(
+    projectItem?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
 
   const { showOutline, readonly } = useProjectsStore(
     useShallow((state) => ({
@@ -56,12 +65,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   );
 
   useRafInterval(async () => {
-    if (
-      readonly ||
-      (!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
-      !isWindowFocused
-    )
-      return;
+    if (readonly || !titleRef.current?.isFocus() || !isWindowFocused) return;
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent(
@@ -73,17 +77,21 @@ const EditProjectItem = (props: { projectItemId: number }) => {
 
   useUnmount(async () => {
     if (readonly) return;
-    onContentChange.flush();
-    onTitleChange.flush();
-    setTimeout(async () => {
-      const updatedProjectItem = await saveProjectItem();
-      if (updatedProjectItem) {
-        projectItemEventBus.publishProjectItemEvent(
-          "project-item:updated",
-          updatedProjectItem,
-        );
-      }
-    }, 200);
+    throttleHandleEditorContentChange.flush();
+    const updatedProjectItem = await saveProjectItem();
+    if (updatedProjectItem) {
+      projectItemEventBus.publishProjectItemEvent(
+        "project-item:updated",
+        updatedProjectItem,
+      );
+    }
+  });
+
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(content);
+    }
+    onContentChangeFromEditProjectItem(content);
   });
 
   const uploadResource = useUploadResource();
@@ -103,7 +111,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       (data) => {
         setProjectItem(data.projectItem);
         prevProjectItem.current = data.projectItem;
-        editorRef.current?.setEditorValue(data.projectItem.content);
         titleRef.current?.setValue(data.projectItem.title);
       },
     );

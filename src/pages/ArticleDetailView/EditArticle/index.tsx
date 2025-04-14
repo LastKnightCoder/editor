@@ -39,6 +39,7 @@ import { HeaderElement } from "@editor/types";
 
 import useEditArticle from "@/hooks/useEditArticle.ts";
 import useUploadResource from "@/hooks/useUploadResource.ts";
+import useEditContent from "@/hooks/useEditContent";
 import {
   cardLinkExtension,
   fileAttachmentExtension,
@@ -71,7 +72,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const {
     initValue,
     editingArticle,
-    onContentChange,
+    onContentChange: onContentChangeFromEditArticle,
     onInit,
     onDeleteTag,
     onAddTag,
@@ -195,6 +196,20 @@ const EditArticle = memo((props: IEditArticleProps) => {
     };
   }, [handleContentResize, headers]);
 
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingArticle?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
+
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus() && !readonly) {
+      throttleHandleEditorContentChange(content);
+    }
+    onContentChangeFromEditArticle(content);
+  });
+
   useEffect(() => {
     if (!articleId) return;
 
@@ -203,7 +218,6 @@ const EditArticle = memo((props: IEditArticleProps) => {
       articleId,
       (data) => {
         setEditingArticle(data.article);
-        editorRef.current?.setEditorValue(data.article.content);
         titleRef.current?.setValue(data.article.title);
       },
     );
@@ -234,27 +248,19 @@ const EditArticle = memo((props: IEditArticleProps) => {
   });
 
   useRafInterval(async () => {
-    if (
-      !editingArticle ||
-      (!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
-      !isWindowFocused
-    )
+    if (!editingArticle || !titleRef.current?.isFocus() || !isWindowFocused)
       return;
     const updatedArticle = await saveArticle();
     if (updatedArticle) {
       articleEventBus.publishArticleEvent("article:updated", updatedArticle);
     }
-  }, 3000);
+  }, 2000);
 
   useUnmount(async () => {
-    onContentChange.flush();
-    onTitleChange.flush();
-    setTimeout(async () => {
-      const updatedArticle = await saveArticle();
-      if (updatedArticle) {
-        articleEventBus.publishArticleEvent("article:updated", updatedArticle);
-      }
-    }, 200);
+    const updatedArticle = await saveArticle();
+    if (updatedArticle) {
+      articleEventBus.publishArticleEvent("article:updated", updatedArticle);
+    }
   });
 
   const onClickHeader = useMemoizedFn((index: number) => {

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, App, Dropdown, MenuItemProps } from "antd";
 import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
 import { IAnswer } from "@/types";
-import Editor, { IExtension } from "@/components/Editor";
+import Editor, { IExtension, EditorRef } from "@/components/Editor";
+import useEditContent from "@/hooks/useEditContent";
 
 import styles from "./index.module.less";
 
@@ -11,6 +12,7 @@ interface AnswerCardProps {
   readOnly?: boolean;
   onDeleteAnswer?: (answerId: number) => void;
   onViewAnswer?: (answerId: number) => void;
+  contentId?: number;
 }
 
 const AnswerCard: React.FC<AnswerCardProps> = ({
@@ -18,10 +20,16 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   readOnly = false,
   onDeleteAnswer,
   onViewAnswer,
+  contentId,
 }) => {
   const { modal } = App.useApp();
 
   const [extensions, setExtensions] = useState<IExtension[]>();
+  const editorRef = useRef<EditorRef>(null);
+
+  useEditContent(contentId, (data) => {
+    editorRef.current?.setEditorValue(data.slice(0, 3));
+  });
 
   useEffect(() => {
     import("@/editor-extensions").then(

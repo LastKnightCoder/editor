@@ -48,6 +48,6 @@ export type ICreateDocumentItem = Omit<
 
 export type IUpdateDocumentItem = Omit<
   IDocumentItem,
-  "createTime" | "updateTime"
+  "createTime" | "updateTime" | "content" | "count"
 >;
 export type IDeleteDocumentItem = Pick<IDocumentItem, "id">;

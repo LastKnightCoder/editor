@@ -5,12 +5,14 @@ import {
   findOneArticle,
   getProjectItemById,
   getDocumentItem,
+  getContentById,
 } from "@/commands";
 import {
   defaultCardEventBus,
   defaultArticleEventBus,
   defaultProjectItemEventBus,
   defaultDocumentItemEventBus,
+  defaultContentEventBus,
 } from "@/utils";
 import { on, off } from "@/electron";
 import { useCreation } from "ahooks";
@@ -30,6 +32,10 @@ export const useItemUpdateListener = () => {
   );
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
+    [],
+  );
+  const contentEventBus = useCreation(
+    () => defaultContentEventBus.createEditor(),
     [],
   );
 
@@ -103,20 +109,39 @@ export const useItemUpdateListener = () => {
       );
     };
 
+    const handleContentUpdated = async (
+      _e: any,
+      data: { contentId: number; databaseName: string },
+    ) => {
+      const currentDatabaseName =
+        useSettingStore.getState().setting.database.active;
+      if (
+        data.databaseName.replace(".db", "") !==
+        currentDatabaseName.replace(".db", "")
+      )
+        return;
+      const content = await getContentById(data.contentId);
+      if (!content) return;
+      contentEventBus.publishContentEvent("content:updated", content);
+    };
+
     on("card:updated", handleCardUpdated);
     on("article:updated", handleArticleUpdated);
     on("project-item:updated", handleProjectItemUpdated);
     on("document-item:updated", handleDocumentItemUpdated);
+    on("content:updated", handleContentUpdated);
     return () => {
       off("card:updated", handleCardUpdated);
       off("article:updated", handleArticleUpdated);
       off("project-item:updated", handleProjectItemUpdated);
       off("document-item:updated", handleDocumentItemUpdated);
+      off("content:updated", handleContentUpdated);
     };
   }, [
     cardEventBus,
     articleEventBus,
     projectItemEventBus,
     documentItemEventBus,
+    contentEventBus,
   ]);
 };

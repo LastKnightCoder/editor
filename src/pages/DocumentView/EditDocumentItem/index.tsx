@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useMemo, memo } from "react";
 import { Tooltip } from "antd";
+import { Descendant } from "slate";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import classnames from "classnames";
 
@@ -9,6 +10,7 @@ import EditorSourceValue from "@/components/EditorSourceValue";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useEditDoc from "./useEditDoc";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
 import {
@@ -59,12 +61,19 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     documentItem,
     saveDocument,
     onInit,
-    onContentChange,
+    onContentChange: onContentChangeFromEditDoc,
     onTitleChange,
     initValue,
     setDocumentItem,
     prevDocument,
   } = useEditDoc(documentItemId);
+
+  const { throttleHandleEditorContentChange } = useEditContent(
+    documentItem?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
 
   const uploadResource = useUploadResource();
 
@@ -75,7 +84,6 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
       "document-item:updated",
       documentItemId,
       (data) => {
-        editorRef.current?.setEditorValue(data.documentItem.content);
         titleRef.current?.setValue(data.documentItem.title);
         setDocumentItem(data.documentItem);
         prevDocument.current = data.documentItem;
@@ -94,12 +102,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   });
 
   useRafInterval(async () => {
-    if (
-      !isWindowFocused ||
-      readonly ||
-      (!editorRef.current?.isFocus() && !titleRef.current?.isFocus())
-    )
-      return;
+    if (!isWindowFocused || readonly || !titleRef.current?.isFocus()) return;
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
       documentItemEventBus.publishDocumentItemEvent(
@@ -109,19 +112,23 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     }
   }, 3000);
 
-  useUnmount(() => {
+  useUnmount(async () => {
     if (readonly) return;
-    onContentChange.flush();
-    onTitleChange.flush();
-    setTimeout(async () => {
-      const updatedDocumentItem = await saveDocument();
-      if (updatedDocumentItem) {
-        documentItemEventBus.publishDocumentItemEvent(
-          "document-item:updated",
-          updatedDocumentItem,
-        );
-      }
-    }, 200);
+    throttleHandleEditorContentChange.flush();
+    const updatedDocumentItem = await saveDocument();
+    if (updatedDocumentItem) {
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
+    }
+  });
+
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus() && !readonly) {
+      throttleHandleEditorContentChange(content);
+    }
+    onContentChangeFromEditDoc(content);
   });
 
   const headers: Array<{

@@ -213,28 +213,7 @@ export default class CardTable {
     ...res: any[]
   ): ICard {
     const win: BrowserWindow = res[res.length - 1];
-    const { tags, links, content, category, id, count, contentId, isTop } =
-      card;
-
-    // 更新content记录
-    if (contentId) {
-      ContentTable.updateContent(db, contentId, {
-        content: content,
-        count: count,
-      });
-    } else {
-      // 如果没有contentId，创建一个新的
-      const newContentId = ContentTable.createContent(db, {
-        content: content,
-        count: count,
-      });
-
-      // 更新卡片的contentId
-      const updateContentIdStmt = db.prepare(
-        "UPDATE cards SET content_id = ? WHERE id = ?",
-      );
-      updateContentIdStmt.run(newContentId, id);
-    }
+    const { tags, links, category, id, isTop } = card;
 
     // 更新card记录
     const stmt = db.prepare(
@@ -251,14 +230,6 @@ export default class CardTable {
     );
 
     Operation.insertOperation(db, "card", "update", card.id, now);
-
-    // 更新 FTS 索引
-    FTSTable.indexContent(db, {
-      id: id,
-      content: getMarkdown(content),
-      type: "card",
-      updateTime: now,
-    });
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {
