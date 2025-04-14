@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { WhiteBoardContent } from "@/types";
 import Operation from "./operation";
-import log from "electron-log";
+// import log from "electron-log";
 
 export default class WhiteboardTable {
   static initTable(db: Database.Database) {
@@ -15,10 +15,18 @@ export default class WhiteboardTable {
         ref_count INTEGER DEFAULT 0
       )
     `);
+    this.deleteWhiteBoardContentWhenRefCountIsZero(db);
   }
 
   static upgradeTable(_db: Database.Database) {
     // 不需要升级
+  }
+
+  static deleteWhiteBoardContentWhenRefCountIsZero(db: Database.Database) {
+    const stmt = db.prepare(`
+      DELETE FROM white_board_contents WHERE ref_count <= 0
+    `);
+    stmt.run();
   }
 
   static getListenEvents() {
@@ -123,24 +131,26 @@ export default class WhiteboardTable {
     `);
     stmt.run(id);
     // 如果 ref_count 为 0，则删除
-    const refCountStmt = db.prepare(`
-      SELECT ref_count FROM white_board_contents WHERE id = ?
-    `);
-    const refCount = refCountStmt.get(id) as { ref_count: number } | undefined;
-    if (refCount && refCount.ref_count <= 0) {
-      log.info(`删除白板内容: ${id}`);
-      const deleteStmt = db.prepare(`
-        DELETE FROM white_board_contents WHERE id = ?
-      `);
-      Operation.insertOperation(
-        db,
-        "whiteboard-content",
-        "delete",
-        id,
-        Date.now(),
-      );
-      return deleteStmt.run(id).changes;
-    }
+    // 在这里不删，因为白板可能作为编辑器的块，删除后撤回无法恢复数据
+    // 每次启动时统一删除，这样撤回是可以恢复数据，下次打开没法撤回是合理的
+    // const refCountStmt = db.prepare(`
+    //   SELECT ref_count FROM white_board_contents WHERE id = ?
+    // `);
+    // const refCount = refCountStmt.get(id) as { ref_count: number } | undefined;
+    // if (refCount && refCount.ref_count <= 0) {
+    //   log.info(`删除白板内容: ${id}`);
+    //   const deleteStmt = db.prepare(`
+    //     DELETE FROM white_board_contents WHERE id = ?
+    //   `);
+    //   Operation.insertOperation(
+    //     db,
+    //     "whiteboard-content",
+    //     "delete",
+    //     id,
+    //     Date.now(),
+    //   );
+    //   return deleteStmt.run(id).changes;
+    // }
     return 0;
   }
 
