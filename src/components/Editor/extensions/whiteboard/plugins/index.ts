@@ -2,15 +2,7 @@ import { Editor } from "slate";
 import { deleteWhiteBoardContent } from "@/commands/white-board";
 
 export const withSetting = (editor: Editor) => {
-  const { isVoid, isInline, apply } = editor;
-
-  editor.isVoid = (element: any) => {
-    return element.type === "whiteboard" ? true : isVoid(element);
-  };
-
-  editor.isInline = (element: any) => {
-    return element.type === "whiteboard" ? false : isInline(element);
-  };
+  const { apply } = editor;
 
   editor.apply = (op) => {
     // @ts-ignore

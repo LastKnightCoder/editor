@@ -6,6 +6,11 @@ import BlockMath from "./components/BlockMath";
 
 import Base from "../base";
 import IExtension from "../types.ts";
+import {
+  createBlockElementPlugin,
+  createInlineElementPlugin,
+  createVoidElementPlugin,
+} from "../../utils";
 
 import { inlineShortcut, blockShortcut } from "./hotkeys";
 import blockPanelItems from "./block-panel-items";
@@ -20,6 +25,13 @@ export class InlineMathExtension extends Base implements IExtension {
 
   override getHoveringBarElements() {
     return hoveringBarConfigs;
+  }
+
+  override getPlugins() {
+    return [
+      createInlineElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   override getBlockPanelItems() {
@@ -48,6 +60,14 @@ export class InlineMathExtension extends Base implements IExtension {
 
 export class BlockMathExtension extends Base {
   type = "block-math";
+
+  override getPlugins() {
+    return [
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
+  }
+
   override getHotkeyConfigs() {
     return [...blockShortcut];
   }

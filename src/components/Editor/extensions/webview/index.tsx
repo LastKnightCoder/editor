@@ -6,12 +6,20 @@ import { WebviewElement } from "../../types";
 
 import WebviewComponent from "./WebviewComponent";
 import blockPanelItems from "./block-panel-items";
+import { createVoidElementPlugin, createBlockElementPlugin } from "../../utils";
 
 class WebviewExtension extends Base implements IExtension {
   type = "webview";
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override getPlugins() {
+    return [
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   toMarkdown(element: Element): string {

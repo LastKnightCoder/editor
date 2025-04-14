@@ -18,6 +18,7 @@ import {
   deleteBackward,
   normalizeItem,
 } from "./plugins";
+import { createBlockElementPlugin } from "../../utils";
 
 export class MultiColumnsContainerExtension extends Base implements IExtension {
   type = "multi-column-container";
@@ -27,7 +28,7 @@ export class MultiColumnsContainerExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [normalizeColumnLayout];
+    return [normalizeColumnLayout, createBlockElementPlugin(this.type)];
   }
 
   override toMarkdown(_element: Element, children: string): string {
@@ -56,7 +57,7 @@ export class MultiColumnItemExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [deleteBackward, normalizeItem];
+    return [deleteBackward, normalizeItem, createBlockElementPlugin(this.type)];
   }
 
   override toMarkdown(_element: Element, children: string): string {

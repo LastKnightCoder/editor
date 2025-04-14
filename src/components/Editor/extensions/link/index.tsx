@@ -8,6 +8,7 @@ import { LinkElement } from "@/components/Editor/types";
 
 import hotkeys from "./hotkeys";
 import hoveringBarConfigs from "./hovering-bar-configs";
+import { createInlineElementPlugin } from "../../utils";
 
 class LinkExtension extends Base implements IExtension {
   type = "link";
@@ -18,6 +19,10 @@ class LinkExtension extends Base implements IExtension {
 
   override getHoveringBarElements() {
     return hoveringBarConfigs;
+  }
+
+  override getPlugins() {
+    return [createInlineElementPlugin(this.type)];
   }
 
   override toMarkdown(element: Element, children: string): string {

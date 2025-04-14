@@ -7,12 +7,16 @@ import VideoComponent from "./components/VideoComponent";
 import { pasteVideo } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import { Element } from "slate";
-
+import { createVoidElementPlugin, createBlockElementPlugin } from "../../utils";
 class VideoExtension extends Base implements IExtension {
   type = "video";
 
   override getPlugins() {
-    return [pasteVideo];
+    return [
+      pasteVideo,
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   override getBlockPanelItems() {

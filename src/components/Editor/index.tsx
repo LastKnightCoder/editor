@@ -3,7 +3,6 @@ import {
   useEffect,
   forwardRef,
   useImperativeHandle,
-  useCallback,
   useMemo,
   memo,
   createContext,
@@ -29,10 +28,7 @@ import {
   Plugin,
   elementToMarkdown,
 } from "./utils";
-import {
-  withOverrideSettings,
-  withSlashCommands,
-} from "@/components/Editor/plugins";
+import { withSlashCommands, withNormalize } from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
 import hotkeys from "./hotkeys";
@@ -107,7 +103,7 @@ interface IEditorProps {
 const defaultPlugins: Plugin[] = [
   withReact,
   withHistory,
-  withOverrideSettings,
+  withNormalize,
   withSlashCommands,
 ];
 
@@ -162,25 +158,22 @@ const Index = memo(
       return configs;
     }, [finalExtensions, hoveringBarConfigs]);
 
-    const renderElement = useCallback(
-      (props: RenderElementProps) => {
-        const { type } = props.element;
-        const extension = finalExtensions.find(
-          (extension) => extension.type === type,
-        );
-        if (extension) {
-          return extension.render(props);
-        }
-        return (
-          <p contentEditable={false} {...props}>
-            无法识别的类型 {type} {props.children}
-          </p>
-        );
-      },
-      [finalExtensions],
-    );
+    const renderElement = useMemoizedFn((props: RenderElementProps) => {
+      const { type } = props.element;
+      const extension = finalExtensions.find(
+        (extension) => extension.type === type,
+      );
+      if (extension) {
+        return extension.render(props);
+      }
+      return (
+        <span contentEditable={false} {...props}>
+          无法识别的类型 {type} {props.children}
+        </span>
+      );
+    });
 
-    const renderLeaf = useCallback((props: RenderLeafProps) => {
+    const renderLeaf = useMemoizedFn((props: RenderLeafProps) => {
       {
         const { attributes, children, leaf } = props;
         return (
@@ -189,7 +182,7 @@ const Index = memo(
           </FormattedText>
         );
       }
-    }, []);
+    });
 
     const [isNormalized, setIsNormalized] = useState(false);
     const [isInit, setIsInit] = useState(false);
@@ -289,6 +282,7 @@ const Index = memo(
           editor={editor}
           initialValue={initValue}
           onChange={handleOnChange}
+          key={finalExtensions.map((extension) => extension.type).join("-")}
         >
           <Editable
             className={classnames(

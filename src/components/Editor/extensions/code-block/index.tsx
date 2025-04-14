@@ -8,6 +8,7 @@ import { CodeBlockElement } from "@/components/Editor/types";
 
 import Base from "../base.ts";
 import IExtension from "../types.ts";
+import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 
 import { deleteBackward, markdownSyntax } from "./plugins";
 import hotkeys from "./hotkeys";
@@ -21,7 +22,12 @@ class CodeBlockExtension extends Base implements IExtension {
   override type = "code-block";
 
   override getPlugins() {
-    return [deleteBackward, markdownSyntax];
+    return [
+      deleteBackward,
+      markdownSyntax,
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   override getHotkeyConfigs() {

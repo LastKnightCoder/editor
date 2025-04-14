@@ -15,6 +15,7 @@ import TableCell from "./components/TableCell";
 import { insertBreak, deleteBackward } from "./plugins";
 import hotkeys from "./hotkeys";
 import blockPanelItems from "./block-panel-items";
+import { createBlockElementPlugin } from "../../utils";
 
 import Base from "../base";
 import IExtension from "../types.ts";
@@ -24,6 +25,10 @@ export class TableExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override getPlugins() {
+    return [createBlockElementPlugin(this.type)];
   }
 
   override toMarkdown(_element: Element, children: string): string {
@@ -49,6 +54,10 @@ export class TableRowExtension extends Base implements IExtension {
     return `| ${children.split("\n").join("")}`.trim();
   }
 
+  override getPlugins() {
+    return [createBlockElementPlugin(this.type)];
+  }
+
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
@@ -63,7 +72,7 @@ export class TableCellExtension extends Base implements IExtension {
   type = "table-cell";
 
   override getPlugins() {
-    return [insertBreak, deleteBackward];
+    return [insertBreak, deleteBackward, createBlockElementPlugin(this.type)];
   }
 
   override getHotkeyConfigs() {

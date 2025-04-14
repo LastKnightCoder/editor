@@ -6,12 +6,19 @@ import IExtension from "@/components/Editor/extensions/types.ts";
 import { ImageGalleryElement } from "@/components/Editor/types";
 
 import blockPanelItems from "./block-panel-items";
-
+import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 class ImageGalleryExtension extends Base implements IExtension {
   type = "image-gallery";
 
   override getBlockPanelItems() {
     return blockPanelItems;
+  }
+
+  override getPlugins() {
+    return [
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   override toMarkdown(element: Element): string {

@@ -3,12 +3,19 @@ import { RenderElementProps } from "slate-react";
 import { FrontMatterElement } from "@/components/Editor/types";
 
 import FrontMatter from "./components/FrontMatter";
-
+import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import IExtension from "../types.ts";
 import Base from "../base.ts";
 
 class FrontMatterExtension extends Base implements IExtension {
   type = "front-matter";
+
+  override getPlugins() {
+    return [
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
+  }
 
   override toMarkdown(element: Element): string {
     const { value } = element as FrontMatterElement;

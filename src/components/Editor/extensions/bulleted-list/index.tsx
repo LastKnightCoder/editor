@@ -5,6 +5,7 @@ import { BulletedListElement } from "@/components/Editor/types";
 import BulletedList from "./components/BulletedList";
 import { markdownSyntax, withNormalize } from "./plugins";
 import blockPanelItems from "./block-panle-items";
+import { createBlockElementPlugin } from "../../utils";
 
 import Base from "../base.ts";
 import IExtension from "../types.ts";
@@ -13,7 +14,7 @@ class BulletedListExtension extends Base implements IExtension {
   type = "bulleted-list";
 
   override getPlugins() {
-    return [markdownSyntax, withNormalize];
+    return [markdownSyntax, withNormalize, createBlockElementPlugin(this.type)];
   }
 
   override getBlockPanelItems() {

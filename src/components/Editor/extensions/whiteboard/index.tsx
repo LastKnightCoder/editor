@@ -6,7 +6,7 @@ import Whiteboard from "./components/Whiteboard";
 import { WhiteboardElement } from "@/components/Editor/types/element/whiteboard.ts";
 import { withSetting } from "./plugins";
 import blockPanelItems from "./block-panel-items";
-
+import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 class WhiteboardExtension extends Base implements IExtension {
   type = "whiteboard";
 
@@ -15,7 +15,11 @@ class WhiteboardExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [withSetting];
+    return [
+      withSetting,
+      createBlockElementPlugin(this.type),
+      createVoidElementPlugin(this.type),
+    ];
   }
 
   render(props: RenderElementProps) {

@@ -5,6 +5,7 @@ import { DetailElement } from "@/components/Editor/types";
 import Detail from "./components/Detail";
 import { deleteBackward, quit, withNormalize } from "./plugins";
 import blockPanelItems from "./block-panel-items";
+import { createBlockElementPlugin } from "../../utils";
 
 import Base from "../base.ts";
 import IExtension from "../types.ts";
@@ -12,7 +13,12 @@ import IExtension from "../types.ts";
 class DetailExtension extends Base implements IExtension {
   type = "detail";
   override getPlugins() {
-    return [deleteBackward, quit, withNormalize];
+    return [
+      deleteBackward,
+      quit,
+      withNormalize,
+      createBlockElementPlugin(this.type),
+    ];
   }
 
   override getBlockPanelItems() {

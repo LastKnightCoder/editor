@@ -7,11 +7,16 @@ import hotKeyConfigs from "./hotkeys";
 import Base from "../base.ts";
 import IExtension from "../types.ts";
 import { ListItemElement } from "@/components/Editor/types";
-
+import { createBlockElementPlugin } from "../../utils";
 class ListItemExtension extends Base implements IExtension {
   type = "list-item";
   override getPlugins() {
-    return [deleteBackward, insertBreak, withNormalize];
+    return [
+      deleteBackward,
+      insertBreak,
+      withNormalize,
+      createBlockElementPlugin(this.type),
+    ];
   }
 
   override getHotkeyConfigs() {
