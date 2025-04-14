@@ -5,21 +5,18 @@ import { Breadcrumb, FloatButton, Empty, Button } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import { useMemoizedFn } from "ahooks";
-import For from "@/components/For";
-import WhiteBoardCard from "./WhiteBoardCard";
 import WhiteBoardModal from "./WhiteBoardModal";
+import WhiteBoardList from "./WhiteBoardList";
 
 import { PlusOutlined } from "@ant-design/icons";
 
-import styles from "./index.module.less";
-import useGridLayout from "@/hooks/useGridLayout";
 import Titlebar from "@/components/Titlebar";
 import useSettingStore from "@/stores/useSettingStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 
-const WhiteBoardView = memo(() => {
-  const { gridContainerRef, itemWidth, gap } = useGridLayout();
+import styles from "./index.module.less";
 
+const WhiteBoardView = memo(() => {
   const { whiteBoards, createWhiteBoard, initData } = useWhiteBoardStore(
     useShallow((state) => ({
       whiteBoards: state.whiteBoards,
@@ -98,7 +95,7 @@ const WhiteBoardView = memo(() => {
 
   if (whiteBoards.length === 0) {
     return (
-      <div ref={gridContainerRef} className={styles.empty}>
+      <div className={styles.empty}>
         <Empty description="暂无白板">
           <Button onClick={() => setCreateWhiteBoardModalOpen(true)}>
             新建白板
@@ -130,25 +127,7 @@ const WhiteBoardView = memo(() => {
         />
       </Titlebar>
       <div className={classnames(styles.viewContainer)}>
-        <div
-          className={styles.gridContainer}
-          ref={gridContainerRef}
-          style={{ gap }}
-        >
-          <For
-            data={whiteBoards}
-            renderItem={(whiteBoard) => (
-              <WhiteBoardCard
-                key={whiteBoard.id}
-                whiteBoard={whiteBoard}
-                style={{
-                  width: itemWidth,
-                }}
-                onClick={onClick.bind(null, whiteBoard.id)}
-              />
-            )}
-          />
-        </div>
+        <WhiteBoardList whiteBoards={whiteBoards} onClick={onClick} />
         <FloatButton
           icon={<PlusOutlined />}
           tooltip={"新建白板"}

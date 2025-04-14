@@ -123,7 +123,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
     if (updatedArticle) {
       articleEventBus.publishArticleEvent("article:updated", updatedArticle);
     }
-  }, 3000);
+  }, 500);
 
   useUnmount(async () => {
     throttleHandleEditorContentChange.flush();

@@ -169,7 +169,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
         updatedDocumentItem,
       );
     }
-  }, 3000);
+  }, 500);
 
   useUnmount(async () => {
     throttleHandleEditorContentChange.flush();

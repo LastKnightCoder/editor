@@ -200,7 +200,7 @@ const SingleMarkdownEditor = () => {
   useRafInterval(() => {
     if (error) return;
     saveMarkdownFile();
-  }, 3000);
+  }, 500);
 
   // 窗口关闭时保存
   useUnmount(() => {

@@ -169,7 +169,7 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
         updatedProjectItem,
       );
     }
-  }, 3000);
+  }, 500);
 
   useUnmount(async () => {
     throttleHandleEditorContentChange.flush();

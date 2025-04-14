@@ -51,7 +51,7 @@ const Card = memo((props: CardProps) => {
 
   useRafInterval(() => {
     saveCard();
-  }, 3000);
+  }, 500);
 
   useUnmount(() => {
     saveCard();

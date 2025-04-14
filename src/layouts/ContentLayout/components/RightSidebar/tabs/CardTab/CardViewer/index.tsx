@@ -94,7 +94,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
     if (updatedCard) {
       cardEventBus.publishCardEvent("card:updated", updatedCard);
     }
-  }, 3000);
+  }, 500);
 
   useUnmount(async () => {
     throttleHandleEditorContentChange.flush();

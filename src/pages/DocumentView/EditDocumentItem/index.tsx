@@ -110,7 +110,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
         updatedDocumentItem,
       );
     }
-  }, 3000);
+  }, 500);
 
   useUnmount(async () => {
     if (readonly) return;

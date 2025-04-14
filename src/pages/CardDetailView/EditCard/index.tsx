@@ -139,7 +139,7 @@ const EditCard = (props: IEditCardProps) => {
         cardEventBus.publishCardEvent("card:updated", updatedCard);
       }
     }
-  }, 3000);
+  }, 500);
 
   useUnmount(async () => {
     if (!readonly) {
