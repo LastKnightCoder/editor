@@ -107,14 +107,17 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
     },
   );
   // 更新白板数据
-  const updateWhiteboardData = useMemoizedFn((data: WhiteboardData) => {
+  const updateWhiteboardData = useMemoizedFn(async (data: WhiteboardData) => {
     if (editorReadOnly || !whiteBoardContent) return;
 
-    updateWhiteBoardContent({
+    const res = await updateWhiteBoardContent({
       id: whiteBoardContent.id,
       name: whiteBoardContent.name,
       data,
     });
+    if (res) {
+      setWhiteBoardContent(res);
+    }
   });
 
   // 处理白板数据变化
@@ -129,54 +132,56 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
     handleFullscreenChange(!isFullscreen);
   });
 
-  const handleFullscreenChange = useMemoizedFn((isFullscreen: boolean) => {
-    if (!whiteBoardContent) return;
-    const data = whiteBoardContent.data;
-    if (isFullscreen) {
-      noFullscreenWidthRef.current = data.viewPort.width;
-      // 计算当前视口中心
-      const { centerX, centerY } = calculateViewportCenter(data.viewPort);
-      // 获取新的视口大小
-      const containerWidth = window.innerWidth * 0.9;
-      const containerHeight = window.innerHeight * 0.9;
-      // 创建新的视口
-      const newViewport = createViewportFromCenter(
-        centerX,
-        centerY,
-        containerWidth,
-        containerHeight,
-        data.viewPort.zoom,
-      );
-      // 更新白板数据
-      updateWhiteboardData({
-        children: data.children,
-        viewPort: newViewport,
-        selection: data.selection,
-        presentationSequences: data.presentationSequences,
-      });
-    } else {
-      // 获取当前的中心坐标
-      const { centerX, centerY } = calculateViewportCenter(data.viewPort);
-      // 创建新的视口
-      const newViewport = createViewportFromCenter(
-        centerX,
-        centerY,
-        noFullscreenWidthRef.current,
-        height,
-        data.viewPort.zoom,
-      );
-      // 更新白板数据
-      updateWhiteboardData({
-        children: data.children,
-        viewPort: newViewport,
-        selection: data.selection,
-        presentationSequences: data.presentationSequences,
-      });
-    }
-    setTimeout(() => {
-      setIsFullscreen(isFullscreen);
-    }, 20);
-  });
+  const handleFullscreenChange = useMemoizedFn(
+    async (isFullscreen: boolean) => {
+      if (!whiteBoardContent) return;
+      const data = whiteBoardContent.data;
+      if (isFullscreen) {
+        noFullscreenWidthRef.current = data.viewPort.width;
+        // 计算当前视口中心
+        const { centerX, centerY } = calculateViewportCenter(data.viewPort);
+        // 获取新的视口大小
+        const containerWidth = window.innerWidth * 0.9;
+        const containerHeight = window.innerHeight * 0.9;
+        // 创建新的视口
+        const newViewport = createViewportFromCenter(
+          centerX,
+          centerY,
+          containerWidth,
+          containerHeight,
+          data.viewPort.zoom,
+        );
+        // 更新白板数据
+        await updateWhiteboardData({
+          children: data.children,
+          viewPort: newViewport,
+          selection: data.selection,
+          presentationSequences: data.presentationSequences,
+        });
+      } else {
+        // 获取当前的中心坐标
+        const { centerX, centerY } = calculateViewportCenter(data.viewPort);
+        // 创建新的视口
+        const newViewport = createViewportFromCenter(
+          centerX,
+          centerY,
+          noFullscreenWidthRef.current,
+          height,
+          data.viewPort.zoom,
+        );
+        // 更新白板数据
+        await updateWhiteboardData({
+          children: data.children,
+          viewPort: newViewport,
+          selection: data.selection,
+          presentationSequences: data.presentationSequences,
+        });
+      }
+      setTimeout(() => {
+        setIsFullscreen(isFullscreen);
+      }, 20);
+    },
+  );
 
   // 更新白板高度
   const updateWhiteboardHeight = useMemoizedFn((height: number) => {
@@ -226,7 +231,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
 
   if (!whiteBoardContent) {
     return (
-      <div className={styles.empty} style={{ height }}>
+      <div className={styles.empty} style={{ height }} contentEditable={false}>
         <Empty description="白板不存在或者被删除" />
       </div>
     );
@@ -250,6 +255,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
               className={styles.whiteboardWrapper}
               style={{ height }}
               ref={whiteboardRef}
+              contentEditable={false}
             >
               <WhiteBoard
                 initData={whiteBoardContent.data.children}
@@ -258,8 +264,8 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = (
                 initPresentationSequences={
                   whiteBoardContent.data.presentationSequences
                 }
-                style={{ width: "100%", height: "100%" }}
-                readonly={editorReadOnly}
+                style={{ width: "100%", height: "100%", pointerEvents: "none" }}
+                readonly={true}
                 onChange={handleWhiteboardChange}
               />
               <div

@@ -21,7 +21,6 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
 import WhiteBoardContentTable from "./white-board-content";
-import WhiteBoardTable from "./whiteboard";
 
 import log from "electron-log";
 
@@ -59,67 +58,10 @@ export default class ProjectTable {
   }
 
   static upgradeTable(db: Database.Database) {
-    // 取消 content_id 的外键约束，修改为 content_id INTEGER DEFAULT 0
-    // 先判断是否存在外键约束
-    this.migrateProjectItemTable(db);
-
-    const tableInfoStmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'project_item'",
-    );
-    const tableInfo = tableInfoStmt.get() as { sql: string };
-    if (!tableInfo.sql.includes("white_board_content_id")) {
-      db.exec(`
-        ALTER TABLE project_item ADD COLUMN white_board_content_id INTEGER
-      `);
-    }
-
     // 为所有项目条目添加 FTS 索引
     log.info("开始为所有项目条目添加 FTS 索引");
     const projectItems = this.getAllProjectItems(db);
     for (const item of projectItems) {
-      // 跳过白板和视频笔记
-      if (item.refType === "video-note") continue;
-
-      if (
-        item.projectItemType === EProjectItemType.WhiteBoard &&
-        // @ts-ignore
-        item.whiteBoardData &&
-        // @ts-ignore
-        JSON.stringify(item.whiteBoardData) !== "{}"
-      ) {
-        if (item.refId && item.refType === "white-board") {
-          const whiteboard = WhiteBoardTable.getWhiteboard(db, item.refId);
-          if (whiteboard && whiteboard.whiteBoardContentIds.length > 0) {
-            item.whiteBoardContentId = whiteboard.whiteBoardContentIds[0];
-            WhiteBoardContentTable.incrementRefCount(
-              db,
-              item.whiteBoardContentId,
-            );
-          } else {
-            const whiteboardContent =
-              WhiteBoardContentTable.createWhiteboardContent(db, {
-                // @ts-ignore
-                data: item.whiteBoardData,
-                name: item.title,
-              });
-            item.whiteBoardContentId = whiteboardContent.id;
-          }
-        } else {
-          const whiteboardContent =
-            WhiteBoardContentTable.createWhiteboardContent(db, {
-              // @ts-ignore
-              data: item.whiteBoardData,
-              name: item.title,
-            });
-          item.whiteBoardContentId = whiteboardContent.id;
-        }
-
-        const updateWhiteBoardContentIdStmt = db.prepare(`
-          UPDATE project_item SET white_board_content_id = ? WHERE id = ?
-        `);
-        updateWhiteBoardContentIdStmt.run(item.whiteBoardContentId, item.id);
-      }
-
       if (!item.content || !item.content.length) continue;
 
       // 检查是否已有索引或索引是否过期
@@ -136,85 +78,8 @@ export default class ProjectTable {
         log.info(`已为项目条目 ${item.id} 添加/更新 FTS 索引`);
       }
     }
-
-    // 删除 white-board-data
-    if (tableInfo.sql.includes("white_board_data")) {
-      db.exec(`
-        ALTER TABLE project_item DROP COLUMN white_board_data
-      `);
-    }
     // 删除不在任何项目中的条目
     this.deleteProjectItemsNotInAnyProject(db);
-  }
-
-  static migrateProjectItemTable(db: Database.Database) {
-    // 检查表结构中是否存在外键约束
-    const tableInfoStmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'project_item'",
-    );
-    const tableInfo = tableInfoStmt.get() as { sql: string };
-
-    // 如果表定义中包含外键约束关系，则进行迁移
-    if (
-      tableInfo &&
-      tableInfo.sql &&
-      tableInfo.sql.includes("FOREIGN KEY(content_id)")
-    ) {
-      log.info("开始迁移 project_item 表，移除 content_id 的外键约束");
-
-      // 开始事务并关闭外键约束
-      db.exec("BEGIN TRANSACTION;");
-      db.exec("PRAGMA foreign_keys = OFF;");
-
-      // 创建新表结构，不包含外键约束
-      db.exec(`
-        CREATE TABLE project_item_new (
-          id INTEGER PRIMARY KEY,
-          create_time INTEGER NOT NULL,
-          update_time INTEGER NOT NULL,
-          title TEXT NOT NULL,
-          content_id INTEGER DEFAULT 0,
-          children TEXT,
-          parents TEXT,
-          projects TEXT,
-          ref_type TEXT,
-          ref_id INTEGER,
-          white_board_content_id INTEGER DEFAULT 0,
-          project_item_type TEXT DEFAULT 'document'
-        )
-      `);
-
-      // 迁移数据
-      db.exec(`
-        INSERT INTO project_item_new
-        SELECT 
-          id, 
-          create_time,
-          update_time,
-          title,
-          content_id,
-          children,
-          parents,
-          projects,
-          ref_type,
-          ref_id,
-          white_board_content_id,
-          project_item_type
-        FROM project_item
-      `);
-
-      // 替换表
-      db.exec("DROP TABLE project_item;");
-      db.exec("ALTER TABLE project_item_new RENAME TO project_item;");
-
-      // 完成事务
-      db.exec("PRAGMA foreign_keys = ON;");
-      db.exec("COMMIT;");
-
-      log.info("project_item 表迁移完成，已移除 content_id 的外键约束");
-    } else {
-      log.info("project_item 表不存在外键约束或已经迁移过，跳过迁移步骤");
-    }
   }
 
   static getListenEvents() {
