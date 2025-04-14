@@ -121,6 +121,7 @@ const Titlebar = memo((props: TitlebarProps) => {
           tip="右侧栏"
           onClick={handleOpenRightSidebar}
           active={rightSidebarOpen}
+          placement="left"
         >
           <SVG src={sidebarRightIcon} />
         </TitlebarIcon>
