@@ -111,6 +111,8 @@ class DatabaseModule implements Module {
 
     for (const table of this.tables) {
       table.initTable(database);
+    }
+    for (const table of this.tables) {
       table.upgradeTable(database);
     }
 
