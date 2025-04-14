@@ -98,7 +98,7 @@ const WhiteBoardView = memo(() => {
 
   if (whiteBoards.length === 0) {
     return (
-      <div className={styles.empty}>
+      <div ref={gridContainerRef} className={styles.empty}>
         <Empty description="暂无白板">
           <Button onClick={() => setCreateWhiteBoardModalOpen(true)}>
             新建白板
