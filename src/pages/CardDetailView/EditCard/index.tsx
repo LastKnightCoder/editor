@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Descendant } from "slate";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { useNavigate } from "react-router-dom";
 
@@ -13,6 +12,7 @@ import {
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
+import { Descendant } from "slate";
 import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
 import {
@@ -41,6 +41,7 @@ import SVG from "react-inlinesvg";
 import graphIcon from "@/assets/icons/graph.svg";
 import PresentationMode from "@/components/PresentationMode";
 import useSettingStore from "@/stores/useSettingStore";
+import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
   cardLinkExtension,
@@ -62,11 +63,11 @@ const EditCard = (props: IEditCardProps) => {
   );
 
   const {
+    onInit,
     initValue,
     loading,
     editingCard,
-    onInit,
-    onContentChange,
+    onContentChange: onContentChangeFromEditCard,
     onAddTag,
     onDeleteTag,
     saveCard,
@@ -77,6 +78,12 @@ const EditCard = (props: IEditCardProps) => {
   } = useEditCard(cardId);
 
   const isWindowFocused = useWindowFocus();
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingCard?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
 
   const editorRef = useRef<EditorRef>(null);
   const cardEventBus = useCreation(
@@ -89,6 +96,13 @@ const EditCard = (props: IEditCardProps) => {
   const [linkListOpen, setLinkListOpen] = useState(false);
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
+
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus() && !readonly) {
+      throttleHandleEditorContentChange(content);
+    }
+    onContentChangeFromEditCard(content);
+  });
 
   useEffect(() => {
     getAllCards().then((res) => {
@@ -106,11 +120,6 @@ const EditCard = (props: IEditCardProps) => {
     const links = getAllLinkedCards(editingCard, cards);
     return links;
   }, [cards, editingCard?.links]);
-
-  const onChange = useMemoizedFn((value: Descendant[]) => {
-    if (!editingCard) return;
-    onContentChange(value);
-  });
 
   const handleAddTag = useMemoizedFn((tag: string) => {
     if (!editingCard || editingCard.tags.includes(tag)) return;
@@ -134,13 +143,11 @@ const EditCard = (props: IEditCardProps) => {
 
   useUnmount(async () => {
     if (!readonly) {
-      onContentChange.flush();
-      setTimeout(async () => {
-        const updatedCard = await saveCard();
-        if (updatedCard) {
-          cardEventBus.publishCardEvent("card:updated", updatedCard);
-        }
-      }, 200);
+      throttleHandleEditorContentChange.flush();
+      const updatedCard = await saveCard();
+      if (updatedCard) {
+        cardEventBus.publishCardEvent("card:updated", updatedCard);
+      }
     }
   });
 
@@ -151,7 +158,6 @@ const EditCard = (props: IEditCardProps) => {
       (data) => {
         setEditingCard(data.card);
         prevCard.current = data.card;
-        editorRef.current?.setEditorValue(data.card.content);
       },
     );
 
@@ -314,7 +320,7 @@ const EditCard = (props: IEditCardProps) => {
                 ref={editorRef}
                 onInit={onInit}
                 initValue={initValue}
-                onChange={onChange}
+                onChange={onContentChange}
                 extensions={customExtensions}
                 readonly={readonly}
                 uploadResource={uploadResource}

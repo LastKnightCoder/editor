@@ -6,12 +6,7 @@ import {
   updateDocumentItem,
 } from "@/commands";
 import { useRef, useState } from "react";
-import {
-  useAsyncEffect,
-  useCreation,
-  useDebounceFn,
-  useMemoizedFn,
-} from "ahooks";
+import { useAsyncEffect, useCreation, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { Descendant, Editor } from "slate";
 import { getContentLength } from "@/utils";
@@ -47,11 +42,21 @@ const useEditDoc = (documentItemId: number | null) => {
 
   const saveDocument = useMemoizedFn(async () => {
     const changed =
-      JSON.stringify(documentItem) !== JSON.stringify(prevDocument.current);
+      JSON.stringify({
+        ...documentItem,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevDocument.current,
+        content: undefined,
+        count: undefined,
+      });
     if (!documentItem || !changed) return;
     const updatedDoc = await updateDocumentItem(documentItem);
     setDocumentItem(updatedDoc);
     prevDocument.current = updatedDoc;
+
     if (documentItem.isCard && documentItem.cardId) {
       const card = await getCardById(documentItem.cardId);
       cardEventBus.publishCardEvent("card:updated", card);
@@ -59,6 +64,7 @@ const useEditDoc = (documentItemId: number | null) => {
       const article = await findOneArticle(documentItem.articleId);
       articleEventBus.publishArticleEvent("article:updated", article);
     }
+
     return updatedDoc;
   });
 
@@ -71,29 +77,23 @@ const useEditDoc = (documentItemId: number | null) => {
     setDocumentItem(newDocumentItem);
   });
 
-  const { run: onTitleChange } = useDebounceFn(
-    (title: string) => {
-      if (!documentItem) return;
-      const newDocument = produce(documentItem, (draft) => {
-        draft.title = title;
-      });
-      setDocumentItem(newDocument);
-    },
-    { wait: 200 },
-  );
+  const onTitleChange = useMemoizedFn((title: string) => {
+    if (!documentItem) return;
+    const newDocument = produce(documentItem, (draft) => {
+      draft.title = title;
+    });
+    setDocumentItem(newDocument);
+  });
 
-  const { run: onContentChange } = useDebounceFn(
-    (content: Descendant[]) => {
-      if (!documentItem) return;
-      const wordsCount = getContentLength(content);
-      const newDocument = produce(documentItem, (draft) => {
-        draft.content = content;
-        draft.count = wordsCount;
-      });
-      setDocumentItem(newDocument);
-    },
-    { wait: 200 },
-  );
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!documentItem) return;
+    const wordsCount = getContentLength(content);
+    const newDocument = produce(documentItem, (draft) => {
+      draft.content = content;
+      draft.count = wordsCount;
+    });
+    setDocumentItem(newDocument);
+  });
 
   return {
     onTitleChange,

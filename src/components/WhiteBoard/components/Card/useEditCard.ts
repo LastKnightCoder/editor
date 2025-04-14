@@ -27,12 +27,10 @@ const useEditCard = (cardId: number) => {
   const saveCard = useMemoizedFn(() => {
     if (!editingCard) return;
     if (!editingCard || !prevCard.current) return;
-    const content = editingCard.content;
     const links = editingCard.links;
     const tags = editingCard.tags;
 
     const cardChanged =
-      JSON.stringify(content) !== JSON.stringify(prevCard.current.content) ||
       JSON.stringify(links) !== JSON.stringify(prevCard.current.links) ||
       JSON.stringify(tags) !== JSON.stringify(prevCard.current.tags);
 

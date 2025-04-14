@@ -6,12 +6,15 @@ import WhiteBoardContentTable from "./white-board-content";
 import log from "electron-log";
 import { Descendant } from "slate";
 import { produce } from "immer";
+import { basename } from "node:path";
+import { BrowserWindow } from "electron";
 
 export default class ContentTable {
   static getListenEvents() {
     return {
       "content:update": this.updateContent.bind(this),
       "content:create": this.createContent.bind(this),
+      "content:get-by-id": this.getContentById.bind(this),
     };
   }
 
@@ -144,6 +147,7 @@ export default class ContentTable {
     db: Database.Database,
     contentId: number,
     contentData: Partial<IUpdateContent> & { content: Descendant[] },
+    win: BrowserWindow,
   ): IContent | null {
     const { content, count } = contentData;
 
@@ -154,6 +158,14 @@ export default class ContentTable {
     const actualCount = count || (content ? getContentLength(content) : 0);
     stmt.run(now, JSON.stringify(content || []), actualCount, contentId);
     Operation.insertOperation(db, "content", "update", contentId, now);
+    BrowserWindow.getAllWindows().forEach((window) => {
+      if (window !== win && !window.isDestroyed()) {
+        window.webContents.send("content:updated", {
+          databaseName: basename(db.name),
+          contentId,
+        });
+      }
+    });
     return this.getContentById(db, contentId);
   }
 

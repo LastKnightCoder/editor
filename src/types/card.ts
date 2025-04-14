@@ -24,7 +24,10 @@ export type ICreateCard = Omit<
   ICard,
   "id" | "create_time" | "update_time" | "contentId"
 >;
-export type IUpdateCard = Omit<ICard, "create_time" | "update_time">;
+export type IUpdateCard = Omit<
+  ICard,
+  "create_time" | "update_time" | "content" | "count"
+>;
 
 export interface ICardTree {
   tag: string;

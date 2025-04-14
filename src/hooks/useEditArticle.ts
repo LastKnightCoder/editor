@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useAsyncEffect, useDebounceFn, useMemoizedFn } from "ahooks";
+import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
 
@@ -46,29 +46,23 @@ const useEditArticle = (articleId?: number) => {
     setEditingArticle(newEditingArticle);
   });
 
-  const { run: onContentChange } = useDebounceFn(
-    (content: Descendant[]) => {
-      if (!editingArticle) return;
-      const wordsCount = getContentLength(content);
-      const newEditingArticle = produce(editingArticle, (draft) => {
-        draft.content = content;
-        draft.count = wordsCount;
-      });
-      setEditingArticle(newEditingArticle);
-    },
-    { wait: 200 },
-  );
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!editingArticle) return;
+    const wordsCount = getContentLength(content);
+    const newEditingArticle = produce(editingArticle, (draft) => {
+      draft.content = content;
+      draft.count = wordsCount;
+    });
+    setEditingArticle(newEditingArticle);
+  });
 
-  const { run: onTitleChange } = useDebounceFn(
-    (title: string) => {
-      if (!editingArticle) return;
-      const newEditingArticle = produce(editingArticle, (draft) => {
-        draft.title = title;
-      });
-      setEditingArticle(newEditingArticle);
-    },
-    { wait: 200 },
-  );
+  const onTitleChange = useMemoizedFn((title: string) => {
+    if (!editingArticle) return;
+    const newEditingArticle = produce(editingArticle, (draft) => {
+      draft.title = title;
+    });
+    setEditingArticle(newEditingArticle);
+  });
 
   const onAddTag = useMemoizedFn((tag: string) => {
     if (!editingArticle || editingArticle.tags.includes(tag)) return;
@@ -97,7 +91,16 @@ const useEditArticle = (articleId?: number) => {
   const saveArticle = useMemoizedFn(async () => {
     if (!editingArticle) return null;
     const changed =
-      JSON.stringify(editingArticle) !== JSON.stringify(prevArticle.current);
+      JSON.stringify({
+        ...editingArticle,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevArticle.current,
+        content: undefined,
+        count: undefined,
+      });
     if (!changed) return null;
     const newEditingArticle = await updateArticle(editingArticle);
     prevArticle.current = newEditingArticle;

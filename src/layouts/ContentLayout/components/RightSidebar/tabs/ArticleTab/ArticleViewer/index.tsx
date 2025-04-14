@@ -1,12 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Empty } from "antd";
-import {
-  useMemoizedFn,
-  useCreation,
-  useRafInterval,
-  useDebounceFn,
-  useUnmount,
-} from "ahooks";
+import { useMemoizedFn, useCreation, useRafInterval, useUnmount } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 
 import Editor, { EditorRef } from "@editor/index.tsx";
@@ -26,6 +20,7 @@ import { useRightSidebarContext } from "../../../RightSidebarContext";
 
 import styles from "./index.module.less";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
 
 interface ArticleViewerProps {
   articleId: string;
@@ -49,6 +44,12 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   const prevArticle = useRef<IArticle | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const isWindowFocused = useWindowFocus();
+  const { throttleHandleEditorContentChange } = useEditContent(
+    article?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
 
   const articleEventBus = useCreation(
     () => defaultArticleEventBus.createEditor(),
@@ -84,7 +85,6 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
       (data) => {
         setArticle(data.article);
         prevArticle.current = data.article;
-        editorRef.current?.setEditorValue(data.article.content);
         titleRef.current?.setValue(data.article.title);
         if (onTitleChange) {
           onTitleChange(data.article.title);
@@ -100,7 +100,16 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   const handleSaveArticle = useMemoizedFn(async () => {
     if (!article) return null;
     const changed =
-      JSON.stringify(article) !== JSON.stringify(prevArticle.current);
+      JSON.stringify({
+        ...article,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevArticle.current,
+        content: undefined,
+        count: undefined,
+      });
     if (!changed) return null;
     const updatedArticle = await updateArticle(article);
     prevArticle.current = updatedArticle;
@@ -109,15 +118,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   });
 
   useRafInterval(async () => {
-    if (
-      !article ||
-      !isWindowFocused ||
-      (!titleRef.current?.isFocus() && !editorRef.current?.isFocus())
-    )
-      return;
-    const changed =
-      JSON.stringify(article) !== JSON.stringify(prevArticle.current);
-    if (!changed) return;
+    if (!article || !isWindowFocused || !titleRef.current?.isFocus()) return;
     const updatedArticle = await handleSaveArticle();
     if (updatedArticle) {
       articleEventBus.publishArticleEvent("article:updated", updatedArticle);
@@ -125,40 +126,29 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   }, 3000);
 
   useUnmount(async () => {
-    handleTitleChange.flush();
-    handleContentChange.flush();
-    setTimeout(async () => {
-      const updatedArticle = await handleSaveArticle();
-      if (updatedArticle) {
-        articleEventBus.publishArticleEvent("article:updated", updatedArticle);
-      }
-    }, 200);
+    throttleHandleEditorContentChange.flush();
+    const updatedArticle = await handleSaveArticle();
+    if (updatedArticle) {
+      articleEventBus.publishArticleEvent("article:updated", updatedArticle);
+    }
   });
 
-  const { run: handleTitleChange } = useDebounceFn(
-    async (title: string) => {
-      if (!article) return;
-      setArticle({
-        ...article,
-        title,
-      });
-      if (onTitleChange) {
-        onTitleChange(title);
-      }
-    },
-    { wait: 200 },
-  );
+  const handleTitleChange = useMemoizedFn(async (title: string) => {
+    if (!article) return;
+    setArticle({
+      ...article,
+      title,
+    });
+    if (onTitleChange) {
+      onTitleChange(title);
+    }
+  });
 
-  const { run: handleContentChange } = useDebounceFn(
-    async (content: Descendant[]) => {
-      if (!article) return;
-      setArticle({
-        ...article,
-        content,
-      });
-    },
-    { wait: 200 },
-  );
+  const handleContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(content);
+    }
+  });
 
   if (loading) {
     return (

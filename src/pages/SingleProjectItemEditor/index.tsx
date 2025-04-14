@@ -21,14 +21,14 @@ import {
   updateProjectItem,
 } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils/event-bus";
-import { formatDate, getContentLength } from "@/utils";
+import { formatDate } from "@/utils";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
 import { ProjectItem } from "@/types";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
-
+import useEditContent from "@/hooks/useEditContent";
 const customExtensions = [
   cardLinkExtension,
   fileAttachmentExtension,
@@ -57,13 +57,19 @@ const SingleProjectItemEditor = () => {
   const uploadResource = useUploadResource();
   const prevProjectItemRef = useRef<ProjectItem | null>(null);
 
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingProjectItem?.contentId,
+    (data) => {
+      editorRef.current?.setEditorValue(data);
+    },
+  );
+
   useEffect(() => {
     const unsubscribe = projectItemEventBus.subscribeToProjectItemWithId(
       "project-item:updated",
       projectItemId,
       (data) => {
         setEditingProjectItem(data.projectItem);
-        editorRef.current?.setEditorValue(data.projectItem.content);
         titleRef.current?.setValue(data.projectItem.title);
       },
     );
@@ -97,13 +103,8 @@ const SingleProjectItemEditor = () => {
     };
   }, [databaseName, projectItemId]);
 
-  const onContentChange = useMemoizedFn((value: Descendant[]) => {
-    if (
-      !editingProjectItem ||
-      !editorRef.current?.isFocus() ||
-      !isWindowFocused
-    )
-      return;
+  const onProjectItemContentChange = useMemoizedFn((value: Descendant[]) => {
+    if (!editingProjectItem) return;
     const newProjectItem = {
       ...editingProjectItem,
       content: value,
@@ -112,8 +113,7 @@ const SingleProjectItemEditor = () => {
   });
 
   const onTitleChange = useMemoizedFn((value: string) => {
-    if (!editingProjectItem || !titleRef.current?.isFocus() || !isWindowFocused)
-      return;
+    if (!editingProjectItem) return;
     const newProjectItem = {
       ...editingProjectItem,
       title: value,
@@ -121,26 +121,24 @@ const SingleProjectItemEditor = () => {
     setEditingProjectItem(newProjectItem);
   });
 
-  const saveProjectItem = useMemoizedFn(async (forceSave = false) => {
+  const saveProjectItem = useMemoizedFn(async () => {
     if (!editingProjectItem) return;
 
     const changed =
-      JSON.stringify(editingProjectItem) !==
-      JSON.stringify(prevProjectItemRef.current);
-    if (
-      ((!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
-        !isWindowFocused ||
-        !changed) &&
-      !forceSave
-    )
-      return;
+      JSON.stringify({
+        ...editingProjectItem,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevProjectItemRef.current,
+        content: undefined,
+        count: undefined,
+      });
+    if (!titleRef.current?.isFocus() || !isWindowFocused || !changed) return;
 
     try {
-      const wordsCount = getContentLength(editingProjectItem.content);
-      const updatedProjectItem = await updateProjectItem({
-        ...editingProjectItem,
-        count: wordsCount,
-      });
+      const updatedProjectItem = await updateProjectItem(editingProjectItem);
 
       setEditingProjectItem(updatedProjectItem);
       prevProjectItemRef.current = updatedProjectItem;
@@ -149,12 +147,20 @@ const SingleProjectItemEditor = () => {
     }
   });
 
+  const onContentChange = useMemoizedFn((value: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(value);
+    }
+    onProjectItemContentChange(value);
+  });
+
   useRafInterval(() => {
     saveProjectItem();
   }, 3000);
 
   useUnmount(() => {
-    saveProjectItem(true);
+    throttleHandleEditorContentChange.flush();
+    saveProjectItem();
   });
 
   const onPressEnter = useMemoizedFn(() => {

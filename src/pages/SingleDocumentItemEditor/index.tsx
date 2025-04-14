@@ -21,8 +21,9 @@ import {
   closeDatabase,
 } from "@/commands";
 import { defaultDocumentItemEventBus } from "@/utils/event-bus";
-import { formatDate, getContentLength } from "@/utils";
+import { formatDate } from "@/utils";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
+import useEditContent from "@/hooks/useEditContent";
 
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
@@ -57,13 +58,19 @@ const SingleDocumentItemEditor = () => {
   const uploadResource = useUploadResource();
   const prevDocumentItemRef = useRef<IDocumentItem | null>(null);
 
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingDocumentItem?.contentId,
+    (data) => {
+      editorRef.current?.setEditorValue(data);
+    },
+  );
+
   useEffect(() => {
     const unsubscribe = documentItemEventBus.subscribeToDocumentItemWithId(
       "document-item:updated",
       documentItemId,
       (data) => {
         setEditingDocumentItem(data.documentItem);
-        editorRef.current?.setEditorValue(data.documentItem.content);
         titleRef.current?.setValue(data.documentItem.title);
       },
     );
@@ -97,13 +104,8 @@ const SingleDocumentItemEditor = () => {
     };
   }, [databaseName, documentItemId]);
 
-  const onContentChange = useMemoizedFn((value: Descendant[]) => {
-    if (
-      !editingDocumentItem ||
-      !editorRef.current?.isFocus() ||
-      !isWindowFocused
-    )
-      return;
+  const onDocumentItemContentChange = useMemoizedFn((value: Descendant[]) => {
+    if (!editingDocumentItem) return;
     const newDocumentItem = {
       ...editingDocumentItem,
       content: value,
@@ -112,12 +114,7 @@ const SingleDocumentItemEditor = () => {
   });
 
   const onTitleChange = useMemoizedFn((value: string) => {
-    if (
-      !editingDocumentItem ||
-      !titleRef.current?.isFocus() ||
-      !isWindowFocused
-    )
-      return;
+    if (!editingDocumentItem) return;
 
     const newDocumentItem = {
       ...editingDocumentItem,
@@ -126,26 +123,24 @@ const SingleDocumentItemEditor = () => {
     setEditingDocumentItem(newDocumentItem);
   });
 
-  const saveDocumentItem = useMemoizedFn(async (forceSave = false) => {
+  const saveDocumentItem = useMemoizedFn(async () => {
     if (!editingDocumentItem) return;
 
     const changed =
-      JSON.stringify(editingDocumentItem) !==
-      JSON.stringify(prevDocumentItemRef.current);
-    if (
-      ((!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
-        !isWindowFocused ||
-        !changed) &&
-      !forceSave
-    )
-      return;
+      JSON.stringify({
+        ...editingDocumentItem,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevDocumentItemRef.current,
+        content: undefined,
+        count: undefined,
+      });
+    if (!titleRef.current?.isFocus() || !isWindowFocused || !changed) return;
 
     try {
-      const wordsCount = getContentLength(editingDocumentItem.content);
-      const updatedDocumentItem = await updateDocumentItem({
-        ...editingDocumentItem,
-        count: wordsCount,
-      });
+      const updatedDocumentItem = await updateDocumentItem(editingDocumentItem);
 
       setEditingDocumentItem(updatedDocumentItem);
       prevDocumentItemRef.current = updatedDocumentItem;
@@ -154,12 +149,20 @@ const SingleDocumentItemEditor = () => {
     }
   });
 
+  const onContentChange = useMemoizedFn((value: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(value);
+    }
+    onDocumentItemContentChange(value);
+  });
+
   useRafInterval(() => {
     saveDocumentItem();
   }, 3000);
 
   useUnmount(() => {
-    saveDocumentItem(true);
+    throttleHandleEditorContentChange.flush();
+    saveDocumentItem();
   });
 
   const onPressEnter = useMemoizedFn(() => {

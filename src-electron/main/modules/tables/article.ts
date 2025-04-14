@@ -244,13 +244,11 @@ export default class ArticleTable {
     const {
       tags,
       title,
-      content,
       id,
       bannerBg,
       bannerPosition,
       isTop,
       isDelete,
-      count,
       contentId,
     } = article;
     const win = res[res.length - 1];
@@ -258,38 +256,6 @@ export default class ArticleTable {
 
     // 获取当前的article信息
     const currentArticle = this.getArticleById(db, id);
-
-    // 处理内容更新
-    let newContentId = contentId || currentArticle.contentId;
-
-    if (contentId) {
-      // 如果提供了新的contentId，使用新的contentId
-      // 并减少旧contentId的引用计数
-      if (currentArticle.contentId !== contentId) {
-        if (currentArticle.contentId) {
-          ContentTable.deleteContent(db, currentArticle.contentId);
-        }
-        ContentTable.incrementRefCount(db, contentId);
-      } else {
-        // 更新现有内容
-        ContentTable.updateContent(db, contentId, {
-          content: content,
-          count: count,
-        });
-      }
-    } else if (currentArticle.contentId) {
-      // 更新现有内容
-      ContentTable.updateContent(db, currentArticle.contentId, {
-        content: content,
-        count: count,
-      });
-    } else {
-      // 创建新内容
-      newContentId = ContentTable.createContent(db, {
-        content: content,
-        count: count,
-      });
-    }
 
     // 更新article记录
     const stmt = db.prepare(
@@ -299,7 +265,7 @@ export default class ArticleTable {
       now,
       JSON.stringify(tags || currentArticle.tags),
       title || currentArticle.title,
-      newContentId,
+      contentId,
       bannerBg || currentArticle.bannerBg,
       bannerPosition || currentArticle.bannerPosition,
       Number(isTop ?? currentArticle.isTop),
@@ -308,16 +274,6 @@ export default class ArticleTable {
     );
 
     Operation.insertOperation(db, "article", "update", id, now);
-
-    // 更新 FTS 索引
-    if (content && content.length) {
-      FTSTable.indexContent(db, {
-        id: id,
-        content: getMarkdown(content),
-        type: "article",
-        updateTime: now,
-      });
-    }
 
     BrowserWindow.getAllWindows().forEach((window) => {
       if (window !== win && !window.isDestroyed()) {

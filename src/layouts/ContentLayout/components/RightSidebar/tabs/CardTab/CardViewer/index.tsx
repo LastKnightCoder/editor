@@ -1,6 +1,7 @@
 import { getCardById, updateCard } from "@/commands";
 import { ICard } from "@/types";
 import { Empty } from "antd";
+import { Descendant } from "slate";
 import { useState, useEffect, memo, useRef } from "react";
 import styles from "./index.module.less";
 import { formatDate, getEditorText } from "@/utils";
@@ -12,18 +13,12 @@ import {
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
-import { Descendant } from "slate";
-import {
-  useCreation,
-  useDebounceFn,
-  useMemoizedFn,
-  useRafInterval,
-  useUnmount,
-} from "ahooks";
+import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 import { defaultCardEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
   cardLinkExtension,
@@ -48,6 +43,14 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
     [],
   );
 
+  const { throttleHandleEditorContentChange } = useEditContent(
+    card?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+      onTitleChange(getEditorText(content, 10));
+    },
+  );
+
   const isWindowFocused = useWindowFocus();
 
   useEffect(() => {
@@ -68,7 +71,17 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
 
   const handleSaveCard = useMemoizedFn(async () => {
     if (!card) return;
-    const changed = JSON.stringify(card) !== JSON.stringify(prevCard.current);
+    const changed =
+      JSON.stringify({
+        ...card,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevCard.current,
+        content: undefined,
+        count: undefined,
+      });
     if (!changed) return null;
     const updatedCard = await updateCard(card);
     prevCard.current = updatedCard;
@@ -77,13 +90,6 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   });
 
   useRafInterval(async () => {
-    if (
-      !card ||
-      !editorRef.current ||
-      !editorRef.current.isFocus() ||
-      !isWindowFocused
-    )
-      return;
     const updatedCard = await handleSaveCard();
     if (updatedCard) {
       cardEventBus.publishCardEvent("card:updated", updatedCard);
@@ -91,25 +97,19 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   }, 3000);
 
   useUnmount(async () => {
-    onContentChange.flush();
-    setTimeout(async () => {
-      const updatedCard = await handleSaveCard();
-      if (updatedCard) {
-        cardEventBus.publishCardEvent("card:updated", updatedCard);
-      }
-    }, 200);
+    throttleHandleEditorContentChange.flush();
+    const updatedCard = await handleSaveCard();
+    if (updatedCard) {
+      cardEventBus.publishCardEvent("card:updated", updatedCard);
+    }
   });
 
-  const { run: onContentChange } = useDebounceFn(
-    (content: Descendant[]) => {
-      if (!card) return;
-      setCard({
-        ...card,
-        content: content,
-      });
-    },
-    { wait: 200 },
-  );
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(content);
+    }
+    onTitleChange(getEditorText(content, 10));
+  });
 
   useEffect(() => {
     const unsubscribe = cardEventBus.subscribeToCardWithId(
@@ -118,8 +118,6 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       (data) => {
         setCard(data.card);
         prevCard.current = data.card;
-        onTitleChange(getEditorText(data.card.content, 10));
-        editorRef.current?.setEditorValue(data.card.content);
       },
     );
 

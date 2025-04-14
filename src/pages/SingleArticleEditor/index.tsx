@@ -28,6 +28,7 @@ import { EditCardContext } from "@/context";
 import { IArticle } from "@/types";
 import { defaultArticleEventBus } from "@/utils";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
   cardLinkExtension,
@@ -51,6 +52,13 @@ const SingleArticleEditor = () => {
   const titleRef = useRef<EditTextHandle>(null);
   const prevArticleRef = useRef<IArticle | null>(null);
   const uploadResource = useUploadResource();
+
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingArticle?.contentId,
+    (content) => {
+      editorRef.current?.setEditorValue(content);
+    },
+  );
 
   const onClickHeader = useMemoizedFn((index: number) => {
     if (!editorRef.current) return;
@@ -87,7 +95,6 @@ const SingleArticleEditor = () => {
       articleId,
       (data) => {
         setEditingArticle(data.article);
-        editorRef.current?.setEditorValue(data.article.content);
         titleRef.current?.setValue(data.article.title);
       },
     );
@@ -97,33 +104,21 @@ const SingleArticleEditor = () => {
     };
   }, [articleId, articleEventBus]);
 
-  const onContentChange = (value: Descendant[]) => {
-    if (
-      !editingArticle ||
-      !editorRef.current ||
-      !editorRef.current.isFocus() ||
-      !isWindowFocused
-    )
-      return;
+  const handleArticleContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!editingArticle) return;
     setEditingArticle({
       ...editingArticle,
-      content: value,
+      content,
     });
-  };
+  });
 
-  const onTitleChange = (value: string) => {
-    if (
-      !editingArticle ||
-      !titleRef.current ||
-      !titleRef.current.isFocus() ||
-      !isWindowFocused
-    )
-      return;
+  const onTitleChange = useMemoizedFn((value: string) => {
+    if (!editingArticle) return;
     setEditingArticle({
       ...editingArticle,
       title: value,
     });
-  };
+  });
 
   const onAddTag = (tag: string) => {
     if (!editingArticle) return;
@@ -144,17 +139,28 @@ const SingleArticleEditor = () => {
     });
   };
 
-  const saveArticle = async (forceSave = false) => {
-    if (!editingArticle) return;
-    const changed =
-      JSON.stringify(editingArticle) !== JSON.stringify(prevArticleRef.current);
-    if (
-      ((!editorRef.current?.isFocus() && !titleRef.current?.isFocus()) ||
-        !isWindowFocused ||
-        !changed) &&
-      !forceSave
-    )
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (isWindowFocused && editorRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(content);
+    }
+    handleArticleContentChange(content);
+  });
+
+  const saveArticle = useMemoizedFn(async () => {
+    if (!editingArticle || !titleRef.current?.isFocus() || !isWindowFocused)
       return;
+    const changed =
+      JSON.stringify({
+        ...editingArticle,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevArticleRef.current,
+        content: undefined,
+        count: undefined,
+      });
+    if (!changed) return;
 
     try {
       const updatedArticle = await updateArticle(editingArticle);
@@ -163,14 +169,15 @@ const SingleArticleEditor = () => {
     } catch (error) {
       console.error("Failed to save article:", error);
     }
-  };
+  });
 
   useRafInterval(() => {
     saveArticle();
   }, 3000);
 
   useUnmount(() => {
-    saveArticle(true);
+    throttleHandleEditorContentChange.flush();
+    saveArticle();
   });
 
   if (!editingArticle) {

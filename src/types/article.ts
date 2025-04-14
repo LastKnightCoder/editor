@@ -13,7 +13,8 @@ export interface ICreateArticle {
   count: number;
 }
 
-export interface IUpdateArticle extends ICreateArticle {
+export interface IUpdateArticle
+  extends Omit<ICreateArticle, "content" | "count"> {
   id: number;
   contentId: number;
 }

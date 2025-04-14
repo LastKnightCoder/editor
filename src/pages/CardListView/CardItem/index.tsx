@@ -1,4 +1,4 @@
-import React, { MouseEvent, useEffect, useMemo, useRef, memo } from "react";
+import React, { MouseEvent, useMemo, useRef, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import classnames from "classnames";
 import { IoResizeOutline } from "react-icons/io5";
@@ -29,6 +29,7 @@ import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { ECardCategory, ICard } from "@/types";
 import { cardCategoryName } from "@/constants";
+import useEditContent from "@/hooks/useEditContent";
 
 import styles from "./index.module.less";
 
@@ -44,7 +45,6 @@ interface CardItemProps {
   onToggleCardTop?: (cardId: number) => Promise<void>;
   className?: string;
   style?: React.CSSProperties;
-  onCardChange: (card: ICard) => void;
 }
 
 const customExtensions = [
@@ -64,7 +64,6 @@ const CardItem = memo(
       onDeleteCard,
       onUpdateCardCategory,
       onToggleCardTop,
-      onCardChange,
     } = props;
 
     const navigate = useNavigate();
@@ -81,22 +80,11 @@ const CardItem = memo(
       useShallow((state) => state.setting.database.active),
     );
 
-    const { content, tags, isTop } = card;
+    const { content, tags, isTop, contentId } = card;
 
-    useEffect(() => {
-      const unsubscribe = cardEventBus.subscribeToCardWithId(
-        "card:updated",
-        card.id,
-        (data) => {
-          editorRef.current?.setEditorValue(data.card.content.slice(0, 3));
-          onCardChange(data.card);
-        },
-      );
-
-      return () => {
-        unsubscribe();
-      };
-    }, [card.id, cardEventBus]);
+    useEditContent(contentId, (content) => {
+      editorRef.current?.setEditorValue(content.slice(0, 3));
+    });
 
     const onClick = useMemoizedFn(() => {
       if (onCardClick) {

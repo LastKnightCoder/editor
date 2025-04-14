@@ -4,6 +4,7 @@ import Operation from "./operation";
 import ContentTable from "./content";
 import { getContentLength } from "@/utils/helper.ts";
 import log from "electron-log";
+import { BrowserWindow } from "electron";
 
 export default class DailyNoteTable {
   static initTable(db: Database.Database) {
@@ -83,16 +84,22 @@ export default class DailyNoteTable {
   static updateDailyNote(
     db: Database.Database,
     note: Omit<DailyNote, "date">,
+    win: BrowserWindow,
   ): DailyNote {
     // 获取现有记录
     const existingNote = this.getDailyNoteById(db, note.id);
 
     if (existingNote.contentId) {
       // 更新现有content记录
-      ContentTable.updateContent(db, existingNote.contentId, {
-        content: note.content,
-        count: getContentLength(note.content),
-      });
+      ContentTable.updateContent(
+        db,
+        existingNote.contentId,
+        {
+          content: note.content,
+          count: getContentLength(note.content),
+        },
+        win,
+      );
     } else {
       // 创建新的content记录
       const contentId = ContentTable.createContent(db, {

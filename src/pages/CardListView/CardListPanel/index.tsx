@@ -21,7 +21,6 @@ interface CardListPanelProps {
     category: ECardCategory,
   ) => Promise<void>;
   onToggleCardTop: (cardId: number) => Promise<void>;
-  onCardChange: (card: ICard) => void;
   onShowScrollToTop: (show: boolean) => void;
   onPresentationMode: (card: ICard) => void;
 }
@@ -34,7 +33,6 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
       onDeleteCard,
       onUpdateCardCategory,
       onToggleCardTop,
-      onCardChange,
       onShowScrollToTop,
       onPresentationMode,
     },
@@ -69,7 +67,6 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
             onDeleteCard={onDeleteCard}
             onUpdateCardCategory={onUpdateCardCategory}
             onToggleCardTop={onToggleCardTop}
-            onCardChange={onCardChange}
           />
         </div>
       </div>

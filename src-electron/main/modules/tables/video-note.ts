@@ -3,6 +3,7 @@ import { VideoNote } from "@/types";
 import Operation from "./operation";
 import ContentTable from "./content";
 import { produce } from "immer";
+import { BrowserWindow } from "electron";
 
 interface InnerSubVideoNote {
   id: string;
@@ -188,13 +189,19 @@ export default class VideoNoteTable {
   static updateSubNote(
     db: Database.Database,
     subNote: VideoNote["notes"][number],
+    win: BrowserWindow,
   ): VideoNote["notes"][number] {
     const { content, count, contentId } = subNote;
 
-    ContentTable.updateContent(db, contentId, {
-      content,
-      count,
-    });
+    ContentTable.updateContent(
+      db,
+      contentId,
+      {
+        content,
+        count,
+      },
+      win,
+    );
 
     return {
       id: subNote.id,

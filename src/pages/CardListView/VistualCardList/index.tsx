@@ -22,7 +22,6 @@ interface VirtualCardListProps {
     category: ECardCategory,
   ) => Promise<void>;
   onToggleCardTop?: (cardId: number) => Promise<void>;
-  onCardChange: (card: ICard) => void;
 }
 
 const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
@@ -35,7 +34,6 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
       onDeleteCard,
       onUpdateCardCategory,
       onToggleCardTop,
-      onCardChange,
     },
     ref,
   ) => {
@@ -130,7 +128,6 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
                     onDeleteCard={onDeleteCard}
                     onUpdateCardCategory={onUpdateCardCategory}
                     onToggleCardTop={onToggleCardTop}
-                    onCardChange={onCardChange}
                   />
                 </div>
               );

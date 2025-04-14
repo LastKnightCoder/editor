@@ -1,12 +1,11 @@
 import { Descendant, Editor } from "slate";
 import { useState, useRef } from "react";
-import { useAsyncEffect, useDebounceFn, useMemoizedFn } from "ahooks";
+import { useAsyncEffect, useMemoizedFn, useThrottleFn } from "ahooks";
 import { produce } from "immer";
 
 import { ICard } from "@/types";
-import { getContentLength } from "@/utils";
 import { getCardById, updateCard } from "@/commands";
-
+import { getContentLength } from "@/utils";
 const useEditCard = (cardId: number | undefined) => {
   const [loading, setLoading] = useState(false);
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
@@ -37,8 +36,18 @@ const useEditCard = (cardId: number | undefined) => {
   const saveCard = useMemoizedFn(async () => {
     if (!editingCard) return null;
 
+    // 不比较 content 和 count
     const cardChanged =
-      JSON.stringify(editingCard) !== JSON.stringify(prevCard.current);
+      JSON.stringify({
+        ...editingCard,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevCard.current,
+        content: undefined,
+        count: undefined,
+      });
 
     if (!cardChanged) return null;
 
@@ -47,29 +56,6 @@ const useEditCard = (cardId: number | undefined) => {
     setEditingCard(updatedCard);
     return updatedCard;
   });
-
-  const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
-    if (!editor) return;
-    const wordsCount = getContentLength(content);
-    const newEditingCard = produce(editingCard, (draft) => {
-      if (!draft) return;
-      draft.count = wordsCount;
-    });
-    setEditingCard(newEditingCard);
-  });
-
-  const { run: onContentChange } = useDebounceFn(
-    (content: Descendant[]) => {
-      const wordsCount = getContentLength(content);
-      const newEditingCard = produce(editingCard, (draft) => {
-        if (!draft) return;
-        draft.content = content;
-        draft.count = wordsCount;
-      });
-      setEditingCard(newEditingCard);
-    },
-    { wait: 200 },
-  );
 
   const onAddTag = useMemoizedFn((tag: string) => {
     if (!editingCard || editingCard.tags.includes(tag)) return;
@@ -87,12 +73,29 @@ const useEditCard = (cardId: number | undefined) => {
     setEditingCard(newEditingCard);
   });
 
+  const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
+    if (!editor || !editingCard) return;
+    const newEditingCard = produce(editingCard, (draft) => {
+      draft.content = content;
+      draft.count = getContentLength(content);
+    });
+    setEditingCard(newEditingCard);
+  });
+
+  const { run: onContentChange } = useThrottleFn((content: Descendant[]) => {
+    if (!editingCard) return;
+    const newEditingCard = produce(editingCard, (draft) => {
+      draft.content = content;
+      draft.count = getContentLength(content);
+    });
+    setEditingCard(newEditingCard);
+  });
+
   const onTagChange = useMemoizedFn((tags: string[]) => {
     if (!editingCard) return;
     const newEditingCard = produce(editingCard, (draft) => {
       draft.tags = tags;
     });
-    console.log("newEditingCard", newEditingCard);
     setEditingCard(newEditingCard);
   });
 
@@ -137,9 +140,9 @@ const useEditCard = (cardId: number | undefined) => {
     initValue,
     loading,
     editingCard,
-    saveCard,
-    onInit,
     onContentChange,
+    onInit,
+    saveCard,
     onAddTag,
     onDeleteTag,
     onAddLink,

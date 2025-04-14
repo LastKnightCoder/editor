@@ -1,14 +1,13 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Modal } from "antd";
 import classnames from "classnames";
 import { IAnswer } from "@/types";
-import Editor from "@/components/Editor";
-import { updateContent } from "@/commands";
-import { IExtension } from "@/components/Editor";
+import Editor, { IExtension, EditorRef } from "@/components/Editor";
 import styles from "./index.module.less";
 import { Descendant } from "slate";
-import { useThrottleFn } from "ahooks";
-
+import { useMemoizedFn, useUnmount } from "ahooks";
+import useEditContent from "@/hooks/useEditContent";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 interface AnswerModalProps {
   visible: boolean;
   selectedAnswer: IAnswer | null;
@@ -28,16 +27,31 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
   readOnly = false,
   customTitle = "答案详情",
 }) => {
-  const { run: handleAnswerContentChange } = useThrottleFn(
-    async (content: Descendant[]) => {
-      if (!selectedAnswer || !onAnswerChange) return;
-      const answer = await updateContent(selectedAnswer.id, content);
-      if (answer) {
-        onAnswerChange(answer);
-      }
+  const editorRef = useRef<EditorRef>(null);
+  const { throttleHandleEditorContentChange } = useEditContent(
+    selectedAnswer?.id,
+    (data) => {
+      editorRef.current?.setEditorValue(data);
     },
-    { wait: 1000 },
   );
+
+  const isWindowFocused = useWindowFocus();
+
+  const handleAnswerContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!selectedAnswer || !isWindowFocused || !editorRef.current?.isFocus()) {
+      return;
+    }
+    throttleHandleEditorContentChange(content);
+    const newAnswer = {
+      ...selectedAnswer,
+      content,
+    };
+    onAnswerChange?.(newAnswer);
+  });
+
+  useUnmount(() => {
+    throttleHandleEditorContentChange.flush();
+  });
 
   if (!selectedAnswer) return null;
 
@@ -53,6 +67,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       <div className={classnames(styles.answerEditor)}>
         <Editor
           style={{ maxHeight: 600, overflow: "auto", padding: 20 }}
+          ref={editorRef}
           readonly={readOnly}
           initValue={selectedAnswer.content}
           extensions={extensions}

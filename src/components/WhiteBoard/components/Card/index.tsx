@@ -1,13 +1,14 @@
 import useEditCard from "./useEditCard.ts";
 import { Skeleton } from "antd";
-import { useCreation, useRafInterval, useUnmount } from "ahooks";
-import { memo, useEffect, useRef } from "react";
+import { useRafInterval, useUnmount } from "ahooks";
+import { memo, useRef } from "react";
 
 import RichText, { RichtextRef } from "../RichText";
 import { CardElement, CommonElement } from "../../plugins";
 import { EHandlerPosition, Point, Board } from "../../types";
 import { Descendant } from "slate";
-import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus.ts";
+import useEditContent from "@/hooks/useEditContent";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 interface CardProps {
   element: CardElement;
@@ -40,11 +41,8 @@ const Card = memo((props: CardProps) => {
   const { element, onEditorSizeChange, onResizeStart, onResizeEnd, onResize } =
     props;
 
+  const isWindowFocused = useWindowFocus();
   const richtextRef = useRef<RichtextRef>(null);
-  const cardEventBus = useCreation(
-    () => defaultCardEventBus.createEditor(),
-    [],
-  );
 
   const { cardId, width, height } = element;
 
@@ -59,31 +57,22 @@ const Card = memo((props: CardProps) => {
     saveCard();
   });
 
-  useEffect(() => {
-    const unsubscribe = cardEventBus.subscribeToCardWithId(
-      "card:updated",
-      cardId,
-      (data) => {
-        richtextRef.current?.setEditorValue(data.card.content);
-      },
-    );
-
-    return () => {
-      unsubscribe();
-    };
-  }, [cardId, cardEventBus]);
+  const { throttleHandleEditorContentChange } = useEditContent(
+    editingCard?.contentId,
+    (data) => {
+      richtextRef.current?.setEditorValue(data);
+    },
+  );
 
   const handleOnContentChange = (
     _board: Board,
     _element: CardElement,
     value: Descendant[],
   ) => {
-    if (!richtextRef.current?.isFocus() || !editingCard) return;
     onContentChange(value);
-    cardEventBus.publishCardEvent("card:updated", {
-      ...editingCard,
-      content: value,
-    });
+    if (isWindowFocused && richtextRef.current?.isFocus()) {
+      throttleHandleEditorContentChange(value);
+    }
   };
 
   if (loading) {

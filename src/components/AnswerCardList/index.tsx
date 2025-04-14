@@ -35,6 +35,7 @@ const AnswerCardList: React.FC<AnswerCardListProps> = ({
           readOnly={readOnly}
           onDeleteAnswer={onDeleteAnswer}
           onViewAnswer={onViewAnswer}
+          contentId={answer.id}
         />
       ))}
     </div>

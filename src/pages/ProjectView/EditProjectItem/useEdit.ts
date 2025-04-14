@@ -1,6 +1,6 @@
 import { ProjectItem } from "@/types";
 import { useEffect, useRef, useState } from "react";
-import { useCreation, useDebounceFn, useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import {
   getCardById,
   findOneArticle,
@@ -49,7 +49,16 @@ const useEdit = (projectItemId: number) => {
     if (!projectItem || dragging) return;
 
     const changed =
-      JSON.stringify(projectItem) !== JSON.stringify(prevProjectItem.current);
+      JSON.stringify({
+        ...projectItem,
+        content: undefined,
+        count: undefined,
+      }) !==
+      JSON.stringify({
+        ...prevProjectItem.current,
+        content: undefined,
+        count: undefined,
+      });
     if (!changed) return;
 
     const updatedProjectItem = await updateProjectItem(projectItem);
@@ -77,29 +86,23 @@ const useEdit = (projectItemId: number) => {
     setProjectItem(newProjectItem);
   });
 
-  const { run: onContentChange } = useDebounceFn(
-    (content: Descendant[]) => {
-      if (!projectItem) return;
-      const wordsCount = getContentLength(content);
-      const newProjectItem = produce(projectItem, (draft) => {
-        draft.content = content;
-        draft.count = wordsCount;
-      });
-      setProjectItem(newProjectItem);
-    },
-    { wait: 200 },
-  );
+  const onContentChange = useMemoizedFn((content: Descendant[]) => {
+    if (!projectItem) return;
+    const wordsCount = getContentLength(content);
+    const newProjectItem = produce(projectItem, (draft) => {
+      draft.content = content;
+      draft.count = wordsCount;
+    });
+    setProjectItem(newProjectItem);
+  });
 
-  const { run: onTitleChange } = useDebounceFn(
-    (title: string) => {
-      if (!projectItem) return;
-      const newProjectItem = produce(projectItem, (draft) => {
-        draft.title = title;
-      });
-      setProjectItem(newProjectItem);
-    },
-    { wait: 200 },
-  );
+  const onTitleChange = useMemoizedFn((title: string) => {
+    if (!projectItem) return;
+    const newProjectItem = produce(projectItem, (draft) => {
+      draft.title = title;
+    });
+    setProjectItem(newProjectItem);
+  });
 
   return {
     projectItem,
