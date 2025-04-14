@@ -258,7 +258,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
     if (updatedArticle) {
       articleEventBus.publishArticleEvent("article:updated", updatedArticle);
     }
-  }, 2000);
+  }, 500);
 
   useUnmount(async () => {
     const updatedArticle = await saveArticle();

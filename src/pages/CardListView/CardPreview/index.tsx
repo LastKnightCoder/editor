@@ -86,7 +86,7 @@ const CardPreview = (props: CardPreviewProps) => {
         cardEventBus.publishCardEvent("card:updated", updatedCard);
       }
     }
-  }, 3000);
+  }, 500);
 
   useUnmount(async () => {
     setTimeout(async () => {

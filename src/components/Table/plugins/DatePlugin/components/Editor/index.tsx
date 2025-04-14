@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect, memo } from "react";
+import React, { useEffect, memo } from "react";
+import { DatePicker } from "antd";
 import { CellValue, ColumnDef } from "../../../../types";
-import { parseDate, formatDateForInput } from "../../utils/dateUtils";
+import dayjs from "dayjs";
+import useTheme from "../../../../../../hooks/useTheme";
 import styles from "./index.module.less";
 
 /**
@@ -16,25 +18,22 @@ interface DateEditorProps {
 
 const DateEditor: React.FC<DateEditorProps> = memo(
   ({ value, onCellValueChange, onBlur }) => {
-    // 为输入字段格式化日期为YYYY-MM-DD
-    const initialDate = formatDateForInput(value as Date | string | null);
-    const [inputValue, setInputValue] = useState(initialDate);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const { isDark } = useTheme();
+    const dateValue = value ? dayjs(value as string | Date) : null;
 
-    // 挂载时聚焦输入框
+    // 挂载时聚焦日期选择器
     useEffect(() => {
-      inputRef.current?.focus();
-      inputRef.current?.select();
+      const pickerInput = document.querySelector(
+        `.${styles.editor} .ant-picker-input input`,
+      );
+      if (pickerInput) {
+        (pickerInput as HTMLElement).focus();
+      }
     }, []);
 
-    // 处理输入变化
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = e.target.value;
-      setInputValue(newValue);
-
-      // 解析日期并更新（如果有效）
-      const parsedDate = parseDate(newValue);
-      onCellValueChange(parsedDate);
+    // 处理日期变更
+    const handleChange = (date: dayjs.Dayjs | null) => {
+      onCellValueChange(date ? date.toDate() : null);
     };
 
     // 处理键盘事件
@@ -48,15 +47,18 @@ const DateEditor: React.FC<DateEditorProps> = memo(
     };
 
     return (
-      <input
-        ref={inputRef}
-        type="date"
-        value={inputValue}
-        onChange={handleChange}
-        onBlur={onBlur}
-        onKeyDown={handleKeyDown}
-        className={styles.editor}
-      />
+      <div className={`${styles.editor} ${isDark ? "dark" : ""}`}>
+        <DatePicker
+          value={dateValue}
+          onChange={handleChange}
+          onBlur={onBlur}
+          onKeyDown={handleKeyDown}
+          allowClear
+          format="YYYY-MM-DD"
+          inputReadOnly={false}
+          autoFocus
+        />
+      </div>
     );
   },
 );

@@ -38,7 +38,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
 
   useRafInterval(() => {
     saveSubWhiteBoard();
-  }, 3000);
+  }, 500);
 
   useEffect(() => {
     return () => {

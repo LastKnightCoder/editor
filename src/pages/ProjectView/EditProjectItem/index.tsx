@@ -73,7 +73,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
         updatedProjectItem,
       );
     }
-  }, 3000);
+  }, 500);
 
   useUnmount(async () => {
     if (readonly) return;

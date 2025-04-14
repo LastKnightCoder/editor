@@ -156,7 +156,7 @@ const SingleProjectItemEditor = () => {
 
   useRafInterval(() => {
     saveProjectItem();
-  }, 3000);
+  }, 500);
 
   useUnmount(() => {
     throttleHandleEditorContentChange.flush();

@@ -156,7 +156,7 @@ const SingleCardEditor = () => {
 
   useRafInterval(() => {
     saveCard();
-  }, 3000);
+  }, 500);
 
   useUnmount(() => {
     throttleHandleEditorContentChange.flush();

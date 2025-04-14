@@ -158,7 +158,7 @@ const SingleDocumentItemEditor = () => {
 
   useRafInterval(() => {
     saveDocumentItem();
-  }, 3000);
+  }, 500);
 
   useUnmount(() => {
     throttleHandleEditorContentChange.flush();

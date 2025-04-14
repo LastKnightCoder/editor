@@ -173,7 +173,7 @@ const SingleArticleEditor = () => {
 
   useRafInterval(() => {
     saveArticle();
-  }, 3000);
+  }, 500);
 
   useUnmount(() => {
     throttleHandleEditorContentChange.flush();
