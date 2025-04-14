@@ -2,7 +2,6 @@ import Database from "better-sqlite3";
 import { VideoNote } from "@/types";
 import Operation from "./operation";
 import ContentTable from "./content";
-import { produce } from "immer";
 import { BrowserWindow } from "electron";
 
 interface InnerSubVideoNote {
@@ -24,53 +23,8 @@ export default class VideoNoteTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
-    const tableInfoStmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'video_notes'",
-    );
-    const tableInfo = (tableInfoStmt.get() as { sql: string }).sql;
-    if (tableInfo.includes("count")) {
-      db.prepare(`ALTER TABLE video_notes DROP COLUMN count`).run();
-    }
-
-    // 读取所有的 notes，把 content, count 存入到 ContentTable 中
-    const stmt = db.prepare(`
-      SELECT id, notes FROM video_notes
-    `);
-    const notes = stmt.all() as {
-      id: number;
-      notes: string;
-    }[];
-    for (const note of notes) {
-      const notesObj: Omit<VideoNote["notes"][number], "contentId">[] =
-        JSON.parse(note.notes);
-      const newNotes = produce(notesObj, (draft) => {
-        for (const noteObj of draft) {
-          // 如果 contentId 存在，则跳过
-          // @ts-ignore
-          if (noteObj.contentId) {
-            continue;
-          }
-          const contentId = ContentTable.createContent(db, {
-            content: noteObj.content,
-            count: noteObj.count,
-          });
-          // @ts-ignore
-          noteObj.contentId = contentId;
-          // @ts-ignore
-          delete noteObj.content;
-          // @ts-ignore
-          delete noteObj.count;
-        }
-      });
-      note.notes = JSON.stringify(newNotes);
-      // 更新 video_notes 表
-      db.prepare(
-        `
-        UPDATE video_notes SET notes = ? WHERE id = ?
-      `,
-      ).run(note.notes, note.id);
-    }
+  static upgradeTable(_db: Database.Database) {
+    // TODO 升级表结构
   }
 
   static getListenEvents() {

@@ -3,7 +3,6 @@ import { WhiteBoard, WhiteBoardContent } from "@/types";
 import Operation from "./operation";
 import Project from "./project";
 import WhiteBoardContentTable from "./white-board-content";
-import log from "electron-log";
 export default class WhiteboardTable {
   static initTable(db: Database.Database) {
     db.exec(`
@@ -20,84 +19,8 @@ export default class WhiteboardTable {
     `);
   }
 
-  static upgradeTable(db: Database.Database) {
-    // 检查表结构中是否有 data 字段
-    const tableInfoStmt = db.prepare(
-      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'white_boards'",
-    );
-    const tableInfo = (tableInfoStmt.get() as { sql: string }).sql;
-
-    if (tableInfo.includes("is_project_item")) {
-      db.exec(`
-        ALTER TABLE white_boards DROP COLUMN is_project_item
-      `);
-    }
-
-    if (tableInfo.includes("presentation_sequences")) {
-      db.exec(`
-        ALTER TABLE white_boards DROP COLUMN presentation_sequences
-      `);
-    }
-
-    if (!tableInfo.includes("white_board_content_ids")) {
-      db.exec(`
-        ALTER TABLE white_boards ADD COLUMN white_board_content_ids TEXT DEFAULT '[]'
-      `);
-    }
-
-    if (!tableInfo.includes("data")) {
-      return;
-    }
-
-    // 读取所有白板，将 data 字段数据迁移到 white-board-content 表中
-    const stmt = db.prepare(`
-      SELECT id, data, title, white_board_content_ids FROM white_boards
-    `);
-    const whiteboards = stmt.all() as {
-      id: number;
-      data: string;
-      title: string;
-      white_board_content_ids: string;
-    }[];
-
-    for (const whiteboard of whiteboards) {
-      // 跳过没有数据的白板
-      if (!whiteboard.data) continue;
-
-      try {
-        const data = JSON.parse(whiteboard.data);
-        const name = whiteboard.title;
-        log.debug(`Migrating data for whiteboard name: ${name}`);
-        const contentIds = JSON.parse(
-          whiteboard.white_board_content_ids || "[]",
-        );
-
-        // 创建新的 white-board-content 记录
-        const contentId = WhiteBoardContentTable.createWhiteboardContent(db, {
-          data,
-          name,
-        }).id;
-
-        // 将新创建的 content id 添加到 white_board_content_ids 中
-        contentIds.push(contentId);
-
-        // 更新白板的 white_board_content_ids 字段
-        const updateStmt = db.prepare(`
-          UPDATE white_boards SET white_board_content_ids = ? WHERE id = ?
-        `);
-        updateStmt.run(JSON.stringify(contentIds), whiteboard.id);
-      } catch (error) {
-        log.error(
-          `Failed to migrate data for whiteboard ${whiteboard.id}:`,
-          error,
-        );
-      }
-    }
-
-    // 删除 data 字段
-    db.exec(`
-      ALTER TABLE white_boards DROP COLUMN data
-    `);
+  static upgradeTable(_db: Database.Database) {
+    // TODO 升级表结构
   }
 
   static getListenEvents() {
