@@ -96,6 +96,10 @@ const EditArticle = memo((props: IEditArticleProps) => {
     (state) => state.hideArticleList,
   );
 
+  useEffect(() => {
+    editorRef.current?.focus();
+  }, [defaultReadonly]);
+
   const uploadResource = useUploadResource();
 
   const headers: Array<{

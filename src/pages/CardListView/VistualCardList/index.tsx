@@ -94,7 +94,9 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
     return (
       <div className={styles.list} ref={listRef}>
         <If condition={cards.length === 0}>
-          <Empty description={"暂无卡片"} />
+          <div className={styles.empty}>
+            <Empty description={"暂无卡片"} />
+          </div>
         </If>
         <If condition={cards.length > 0}>
           <div

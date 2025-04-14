@@ -50,10 +50,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
 
     const editor = useSlate();
 
-    const path = useMemo(
-      () => ReactEditor.findPath(editor, element),
-      [editor, element],
-    );
+    const path = ReactEditor.findPath(editor, element);
 
     const isLast = useMemo(
       () => path.length === 1 && editor.children.length - 1 === path[0],

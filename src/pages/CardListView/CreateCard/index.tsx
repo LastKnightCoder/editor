@@ -97,6 +97,7 @@ const CreateCard = memo((props: CreateCardProps) => {
           <div className={classnames(styles.container, className)}>
             <div className={styles.editorWrapper}>
               <Editor
+                className={styles.editor}
                 ref={editorRef}
                 initValue={content || DEFAULT_CONTENT}
                 readonly={false}

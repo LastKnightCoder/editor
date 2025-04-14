@@ -97,7 +97,7 @@ const ArticleDetailView = () => {
             />
           </Titlebar>
           <div className={styles.editContainer}>
-            <EditArticle articleId={articleId} />
+            <EditArticle defaultReadonly={readonly} articleId={articleId} />
           </div>
         </div>
       </div>

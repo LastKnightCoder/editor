@@ -132,7 +132,7 @@ export default class ArticleTable {
              c.content, c.count, c.update_time as content_update_time
       FROM articles a
       LEFT JOIN contents c ON a.content_id = c.id
-      WHERE a.id = ?
+      WHERE a.id = ? AND a.is_delete = 0
     `);
     const article = stmt.get(articleId);
     return this.parseArticle(article);
@@ -151,7 +151,7 @@ export default class ArticleTable {
              c.content, c.count, c.update_time as content_update_time
       FROM articles a
       LEFT JOIN contents c ON a.content_id = c.id
-      WHERE a.id IN (${placeholders})
+      WHERE a.id IN (${placeholders}) AND a.is_delete = 0
     `);
     const articles = stmt.all(articleIds);
     return articles.map((article) => this.parseArticle(article));
@@ -291,8 +291,7 @@ export default class ArticleTable {
     // 获取文章信息，以获取contentId
     const articleInfo = this.getArticleById(db, articleId);
 
-    // 标记文章为已删除
-    const stmt = db.prepare("UPDATE articles SET is_delete = 1 WHERE id = ?");
+    const stmt = db.prepare("DELETE FROM articles WHERE id = ?");
     const result = stmt.run(articleId);
 
     if (result.changes > 0) {
@@ -300,13 +299,11 @@ export default class ArticleTable {
       VecDocumentTable.removeIndexByIdAndType(db, articleId, "article");
       Operation.insertOperation(db, "article", "delete", articleId, Date.now());
 
-      // 设置document-item的isArticle为0
       const documentItemStmt = db.prepare(
         "UPDATE document_items SET is_article = 0 WHERE is_article = 1 AND article_id = ?",
       );
       documentItemStmt.run(articleId);
 
-      // 设置project_item的ref_type为空
       const projectItemStmt = db.prepare(
         "UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?",
       );

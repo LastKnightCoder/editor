@@ -4,7 +4,7 @@ import TagItem from "@/components/TagItem";
 import useCardTree from "@/hooks/useCardTree";
 import styles from "./index.module.less";
 import { ICard } from "@/types";
-
+import { Empty } from "antd";
 interface CardTreePanelProps {
   cards: ICard[];
   activeCardTag: string;
@@ -25,6 +25,15 @@ const CardTreePanel = memo(
 
     // 使用useMemo将tree转换为优化的组件列表，只在必要时更新
     const tagItemList = useMemo(() => {
+      console.log(memoizedTree);
+      if (memoizedTree.length === 0) {
+        return (
+          <div className={styles.empty}>
+            <Empty description="暂无标签" />
+          </div>
+        );
+      }
+
       return memoizedTree.map((card) => (
         <TagItem
           key={card.tag}

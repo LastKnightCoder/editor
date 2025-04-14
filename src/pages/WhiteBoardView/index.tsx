@@ -1,7 +1,7 @@
 import { useState, memo, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
-import { Breadcrumb, FloatButton } from "antd";
+import { Breadcrumb, FloatButton, Empty, Button } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import { useMemoizedFn } from "ahooks";
@@ -95,6 +95,25 @@ const WhiteBoardView = memo(() => {
     setCreateWhiteBoardModalOpen(false);
     navigate(`/white-board/detail/${whiteBoard.id}`);
   };
+
+  if (whiteBoards.length === 0) {
+    return (
+      <div className={styles.empty}>
+        <Empty description="暂无白板">
+          <Button onClick={() => setCreateWhiteBoardModalOpen(true)}>
+            新建白板
+          </Button>
+        </Empty>
+        <WhiteBoardModal
+          open={createWhiteBoardModalOpen}
+          onCancel={() => setCreateWhiteBoardModalOpen(false)}
+          onOk={handleCreateWhiteBoard}
+          modalTitle="新建白板"
+          okText="创建"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
