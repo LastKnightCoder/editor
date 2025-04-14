@@ -1,7 +1,14 @@
 import { useState, memo, useEffect, useMemo } from "react";
 import For from "@/components/For";
 import { useNavigate } from "react-router-dom";
-import { Dropdown, FloatButton, Pagination, Breadcrumb } from "antd";
+import {
+  Dropdown,
+  FloatButton,
+  Pagination,
+  Breadcrumb,
+  Empty,
+  Button,
+} from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import ArticleCard from "./ArticleCard";
 import styles from "./index.module.less";
@@ -77,7 +84,7 @@ const ArticleListView = memo(() => {
     });
 
     // 创建后跳转到编辑页
-    navigate(`/articles/detail/${article.id}?readonly=true`);
+    navigate(`/articles/detail/${article.id}?readonly=false`);
   });
 
   const handleImportMarkdown = useMemoizedFn(async () => {
@@ -152,6 +159,16 @@ const ArticleListView = memo(() => {
     return (
       <div className={styles.loading}>
         <LoadingOutlined spin />
+      </div>
+    );
+  }
+
+  if (showArticles.length === 0) {
+    return (
+      <div className={styles.empty}>
+        <Empty description="暂无文章">
+          <Button onClick={handleAddNewArticle}>创建文章</Button>
+        </Empty>
       </div>
     );
   }

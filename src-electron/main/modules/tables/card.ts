@@ -397,6 +397,8 @@ export default class CardTable {
       0,
     );
     const cardId = res.lastInsertRowid;
+    ContentTable.incrementRefCount(db, contentId);
+    Operation.insertOperation(db, "card", "insert", cardId, now);
     return this.getCardById(db, cardId) as ICard;
   }
 }

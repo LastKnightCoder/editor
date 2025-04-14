@@ -24,12 +24,17 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
     onAddSubWhiteBoard,
     onDeleteSubWhiteBoard,
     changeSubWhiteBoard,
+    onUpdateSubWhiteBoardName,
   } = useEditWhiteBoard(whiteBoardId);
   const { message } = App.useApp();
 
   const [addSubWhiteBoardModalOpen, setAddSubWhiteBoardModalOpen] =
     useState(false);
   const [modalName, setModalName] = useState("");
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<IWhiteBoardContent | null>(null);
+  const [editName, setEditName] = useState("");
 
   useRafInterval(() => {
     saveSubWhiteBoard();
@@ -66,6 +71,24 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
     onAddSubWhiteBoard(modalName, emptyWhiteBoardData);
     setAddSubWhiteBoardModalOpen(false);
     setModalName("");
+  };
+
+  const handleEditSubWhiteBoard = (item: IWhiteBoardContent) => {
+    setEditItem(item);
+    setEditName(item.name);
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editItem) return;
+    if (!editName) {
+      message.error("请输入子白板名称");
+      return;
+    }
+    onUpdateSubWhiteBoardName(editItem.id, editName);
+    setEditModalOpen(false);
+    setEditItem(null);
+    setEditName("");
   };
 
   if (loading) {
@@ -107,6 +130,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
             isActive={activeSubWhiteBoard.id === item.id}
             onItemClick={changeSubWhiteBoard}
             onDelete={onDeleteSubWhiteBoard}
+            onEdit={handleEditSubWhiteBoard}
           />
         ))}
         <PlusOutlined
@@ -121,11 +145,28 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           setModalName("");
         }}
         onOk={() => handleAddSubWhiteBoard()}
+        title="新建子白板"
       >
         <Input
           placeholder="请输入子白板名称"
           value={modalName}
           onChange={(e) => setModalName(e.target.value)}
+        />
+      </Modal>
+      <Modal
+        open={editModalOpen}
+        onCancel={() => {
+          setEditModalOpen(false);
+          setEditItem(null);
+          setEditName("");
+        }}
+        onOk={handleSaveEdit}
+        title="编辑子白板"
+      >
+        <Input
+          placeholder="请输入子白板名称"
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
         />
       </Modal>
     </div>

@@ -17,7 +17,9 @@
   &.active {
     background-color: var(--active-bg-color);
     color: var(--active-text-color);
-    .deleteButton {
+
+    .deleteButton,
+    .editButton {
       color: var(--active-text-color);
     }
   }
@@ -31,10 +33,18 @@
     max-width: 100px;
   }
 
-  .deleteButton {
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .deleteButton,
+  .editButton {
     border: none;
     background: transparent;
     padding: 0;
-    font-size: 0.9em;
+    font-size: 0.7em;
+    cursor: pointer;
   }
 }

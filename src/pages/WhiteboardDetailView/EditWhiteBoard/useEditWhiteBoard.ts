@@ -109,6 +109,38 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
     setWhiteBoard(newWhiteBoard);
   });
 
+  const onUpdateSubWhiteBoardName = useMemoizedFn(
+    async (id: number, name: string) => {
+      if (!whiteBoard) return;
+
+      // 先保存当前的白板
+      await saveSubWhiteBoard();
+
+      // 找到要更新的白板
+      const targetWhiteBoard = whiteBoard.whiteBoardContentList.find(
+        (item) => item.id === id,
+      );
+
+      if (!targetWhiteBoard) return;
+
+      // 更新名称
+      const updatedWhiteBoard = await updateSubWhiteBoard(
+        id,
+        name,
+        targetWhiteBoard.data,
+      );
+
+      // 如果当前活动的白板就是被修改的白板，更新活动白板
+      if (activeSubWhiteBoard && activeSubWhiteBoard.id === id) {
+        setActiveSubWhiteBoard(updatedWhiteBoard);
+      }
+
+      // 刷新白板列表
+      const newWhiteBoard = await getWhiteBoardById(whiteBoardId);
+      setWhiteBoard(newWhiteBoard);
+    },
+  );
+
   return {
     whiteBoard,
     activeSubWhiteBoard,
@@ -118,6 +150,7 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
     onAddSubWhiteBoard,
     onDeleteSubWhiteBoard,
     changeSubWhiteBoard,
+    onUpdateSubWhiteBoardName,
   };
 };
 

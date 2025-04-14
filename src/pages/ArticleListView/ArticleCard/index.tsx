@@ -154,7 +154,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   });
 
   const handleClickArticle = useMemoizedFn(() => {
-    navigate(`/articles/detail/${article.id}`);
+    navigate(`/articles/detail/${article.id}?readonly=true`);
   });
 
   const handleEdit = () => {
