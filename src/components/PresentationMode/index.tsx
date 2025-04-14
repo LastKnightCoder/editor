@@ -14,7 +14,7 @@ import useKeyboardNavigation from "./hooks/useKeyboardNavigation";
 import useTemporaryMessage from "./hooks/useTemporaryMessage";
 import useHelpModal from "./hooks/useHelpModal";
 import styles from "./index.module.less";
-import IExtension from "../Editor/extensions/types";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 // 主演示模式组件
 interface PresentationModeProps {
@@ -35,31 +35,10 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   const [showCloseIcon, setShowCloseIcon] = useState(false);
   const scrollbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
+  const extensions = useDynamicExtensions();
 
   // 使用帮助弹窗hook
   const { showHelp, closeHelp, toggleHelp } = useHelpModal();
-
-  useEffect(() => {
-    import("@/editor-extensions").then((module) => {
-      const {
-        fileAttachmentExtension,
-        dailySummaryExtension,
-        projectCardListExtension,
-        cardLinkExtension,
-        documentCardListExtension,
-        questionCardExtension,
-      } = module;
-      setExtensions([
-        fileAttachmentExtension,
-        dailySummaryExtension,
-        projectCardListExtension,
-        cardLinkExtension,
-        documentCardListExtension,
-        questionCardExtension,
-      ]);
-    });
-  }, []);
 
   // 从设置中获取暗黑模式状态和切换方法
   const { darkMode, onDarkModeChange } = useSettingStore((state) => ({

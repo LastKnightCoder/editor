@@ -41,7 +41,7 @@ import useEditArticle from "@/hooks/useEditArticle.ts";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useEditContent from "@/hooks/useEditContent";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -54,7 +54,7 @@ import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import classnames from "classnames";
 const extensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

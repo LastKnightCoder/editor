@@ -14,12 +14,12 @@ import CardPreview from "@/pages/CardListView/CardPreview";
 import Editor from "@/components/Editor";
 import { getEditorText } from "@/utils";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

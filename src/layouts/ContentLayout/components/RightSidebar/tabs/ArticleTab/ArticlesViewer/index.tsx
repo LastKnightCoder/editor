@@ -7,7 +7,7 @@ import ArticleViewer from "../ArticleViewer";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import {
   fileAttachmentExtension,
-  cardLinkExtension,
+  contentLinkExtension,
   questionCardExtension,
 } from "@/editor-extensions";
 
@@ -19,7 +19,7 @@ import styles from "./index.module.less";
 
 const customExtensions = [
   fileAttachmentExtension,
-  cardLinkExtension,
+  contentLinkExtension,
   questionCardExtension,
 ];
 

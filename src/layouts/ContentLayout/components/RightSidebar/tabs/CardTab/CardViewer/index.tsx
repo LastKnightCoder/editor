@@ -9,7 +9,7 @@ import Editor, { EditorRef } from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Tags from "@/components/Tags";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -21,7 +21,7 @@ import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

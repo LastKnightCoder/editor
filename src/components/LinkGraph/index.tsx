@@ -7,7 +7,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import { ICard } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -15,7 +15,7 @@ import {
 import styles from "./index.module.less";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

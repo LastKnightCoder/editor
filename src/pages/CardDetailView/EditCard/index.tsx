@@ -8,7 +8,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -44,7 +44,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

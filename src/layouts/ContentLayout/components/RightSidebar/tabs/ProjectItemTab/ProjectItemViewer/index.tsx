@@ -8,7 +8,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 
 import {
   fileAttachmentExtension,
-  cardLinkExtension,
+  contentLinkExtension,
   projectCardListExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -30,7 +30,7 @@ interface ProjectItemViewerProps {
 
 const customExtensions = [
   fileAttachmentExtension,
-  cardLinkExtension,
+  contentLinkExtension,
   projectCardListExtension,
   questionCardExtension,
 ];

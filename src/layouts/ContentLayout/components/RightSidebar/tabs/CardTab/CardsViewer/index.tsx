@@ -9,7 +9,7 @@ import { BaseViewerProps } from "../../../types";
 import CardViewer from "../CardViewer";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -19,7 +19,7 @@ import styles from "./index.module.less";
 import If from "@/components/If";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

@@ -1,12 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef } from "react";
 import { Card, App, Dropdown, MenuItemProps } from "antd";
 import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
 import { IAnswer } from "@/types";
-import Editor, { IExtension, EditorRef } from "@/components/Editor";
+import Editor, { EditorRef } from "@/components/Editor";
 import useEditContent from "@/hooks/useEditContent";
 
 import styles from "./index.module.less";
-
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 interface AnswerCardProps {
   answer: IAnswer;
   readOnly?: boolean;
@@ -24,32 +24,12 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
 }) => {
   const { modal } = App.useApp();
 
-  const [extensions, setExtensions] = useState<IExtension[]>();
   const editorRef = useRef<EditorRef>(null);
+  const extensions = useDynamicExtensions();
 
   useEditContent(contentId, (data) => {
     editorRef.current?.setEditorValue(data.slice(0, 3));
   });
-
-  useEffect(() => {
-    import("@/editor-extensions").then(
-      ({
-        cardLinkExtension,
-        fileAttachmentExtension,
-        questionCardExtension,
-        projectCardListExtension,
-        documentCardListExtension,
-      }) => {
-        setExtensions([
-          cardLinkExtension,
-          fileAttachmentExtension,
-          questionCardExtension,
-          projectCardListExtension,
-          documentCardListExtension,
-        ]);
-      },
-    );
-  }, []);
 
   const handleDeleteAnswer: MenuItemProps["onClick"] = () => {
     if (!onDeleteAnswer) return;

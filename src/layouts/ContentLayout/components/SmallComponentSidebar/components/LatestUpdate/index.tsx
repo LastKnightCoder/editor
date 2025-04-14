@@ -13,14 +13,14 @@ import { getRootDocumentsByDocumentItemId } from "@/commands";
 import TabsIndicator, { TabItem } from "@/components/TabsIndicator";
 
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
   projectCardListExtension,
   documentCardListExtension,
 } from "@/editor-extensions";
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
   projectCardListExtension,

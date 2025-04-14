@@ -13,7 +13,7 @@ import { useMemoizedFn } from "ahooks";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { Descendant } from "slate";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -27,7 +27,7 @@ interface MindNodeProps {
 }
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

@@ -13,14 +13,14 @@ import { CardElement } from "../../../plugins";
 import { ICard } from "@/types";
 import { IndexType, SearchResult } from "@/types/search";
 import {
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
 import { message } from "antd";
 
 const customExtensions = [
-  cardLinkExtension,
+  contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];

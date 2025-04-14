@@ -7,7 +7,7 @@ import ProjectItemViewer from "../ProjectItemViewer";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import {
   fileAttachmentExtension,
-  cardLinkExtension,
+  contentLinkExtension,
   projectCardListExtension,
   questionCardExtension,
 } from "@/editor-extensions";
@@ -19,7 +19,7 @@ import { SearchResult } from "@/types/search";
 
 const customExtensions = [
   fileAttachmentExtension,
-  cardLinkExtension,
+  contentLinkExtension,
   projectCardListExtension,
   questionCardExtension,
 ];

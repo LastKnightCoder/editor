@@ -1,14 +1,15 @@
 import Database from "better-sqlite3";
 import { dfs, getContentLength } from "@/utils/helper.ts";
 import { IContent, ICreateContent, IUpdateContent } from "@/types";
-import Operation from "./operation";
-import WhiteBoardContentTable from "./white-board-content";
 import log from "electron-log";
 import { Descendant } from "slate";
 import { produce } from "immer";
 import { basename } from "node:path";
 import { BrowserWindow } from "electron";
 
+import Operation from "./operation";
+import WhiteBoardContentTable from "./white-board-content";
+import CardTable from "./card";
 export default class ContentTable {
   static getListenEvents() {
     return {
@@ -44,6 +45,7 @@ export default class ContentTable {
     const contents = this.getAllContents(db);
     for (const content of contents) {
       let hasWhiteboard = false;
+      let hasCardLink = false;
       // 遍历卡片内容，如果内容中包含白板，则更新白板内容
       const newContent = produce(content.content, (draft) => {
         dfs(draft, (node) => {
@@ -65,9 +67,32 @@ export default class ContentTable {
             // @ts-ignore
             delete node.data;
           }
+          // @ts-ignore
+          if (node.type === "card-link") {
+            // @ts-ignore
+            const cardId = node.cardId;
+            const card = CardTable.getCardById(db, cardId);
+            if (!card) return;
+
+            hasCardLink = true;
+
+            // @ts-ignore
+            node.refId = card.id;
+            // @ts-ignore
+            node.type = "content-link";
+            // @ts-ignore
+            node.contentType = "card";
+            // @ts-ignore
+            node.contentTitle = "";
+            // @ts-ignore
+            node.contentId = card.contentId;
+
+            // @ts-ignore
+            delete node.cardId;
+          }
         });
       });
-      if (hasWhiteboard) {
+      if (hasWhiteboard || hasCardLink) {
         log.info(`Migrating data for content ${content.id}:`, newContent);
         const updateContentStmt = db.prepare(
           "UPDATE contents SET content = ? WHERE id = ?",

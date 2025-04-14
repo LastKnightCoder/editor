@@ -29,7 +29,6 @@ import {
   createQuestion,
   deleteQuestion,
 } from "@/commands/question";
-import { IExtension } from "@/components/Editor";
 import EditText from "@/components/EditText";
 import AnswerCardList from "@/components/AnswerCardList";
 import NewAnswerModal from "@/components/NewAnswerModal";
@@ -37,6 +36,7 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { Descendant } from "slate";
 import { SearchResult } from "@/types";
 import AnswerModal from "@/components/AnswerModal";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 import styles from "./index.module.less";
 
@@ -58,7 +58,6 @@ const UnansweredQuestions: React.FC = () => {
     IAnswer[]
   >([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [extensions, setExtensions] = useState<IExtension[]>([]);
   const [newAnswerModalVisible, setNewAnswerModalVisible] = useState(false);
   const [contentSelectorVisible, setContentSelectorVisible] = useState(false);
   const [newAnswerContent, setNewAnswerContent] =
@@ -71,25 +70,7 @@ const UnansweredQuestions: React.FC = () => {
   const [newQuestionContent, setNewQuestionContent] = useState("");
 
   const { message, modal } = App.useApp();
-
-  useEffect(() => {
-    import("@/editor-extensions").then((modules) => {
-      const {
-        cardLinkExtension,
-        fileAttachmentExtension,
-        documentCardListExtension,
-        projectCardListExtension,
-        questionCardExtension,
-      } = modules;
-      setExtensions([
-        cardLinkExtension,
-        fileAttachmentExtension,
-        documentCardListExtension,
-        projectCardListExtension,
-        questionCardExtension,
-      ]);
-    });
-  }, []);
+  const extensions = useDynamicExtensions();
 
   const fetchQuestions = useMemoizedFn(async () => {
     setLoading(true);
