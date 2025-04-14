@@ -60,9 +60,6 @@
 
 .content {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: 350px;
 }
 
 .loadingContainer {
@@ -87,6 +84,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: 8px;
 }
 
 .answerCount {
@@ -113,13 +111,9 @@
 }
 
 .showMoreBtn {
-  cursor: pointer;
   text-align: center;
-  padding: 8px;
-  color: var(--primary-color);
-  transition: all 0.3s;
-
-  &:hover {
-    background-color: rgba(0, 0, 0, 0.03);
-  }
+  margin-top: 8px;
+  font-size: 12px;
+  color: #1677ff;
+  cursor: pointer;
 }

@@ -54,3 +54,11 @@ export async function getRecentTemporaryAndLiteratureCards(
 ): Promise<ICard[]> {
   return invoke("get-recent-temp-lit-cards", count);
 }
+
+export async function isContentIsCard(contentId: number): Promise<boolean> {
+  return invoke("is-content-is-card", contentId);
+}
+
+export async function buildCardFromContent(contentId: number): Promise<ICard> {
+  return invoke("build-card-from-content", contentId);
+}

@@ -1,12 +1,15 @@
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Card, App, Dropdown, MenuItemProps } from "antd";
 import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
+import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
 import useEditContent from "@/hooks/useEditContent";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import { isContentIsCard, buildCardFromContent } from "@/commands/card";
 
 import styles from "./index.module.less";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import { useMemoizedFn } from "ahooks";
 interface AnswerCardProps {
   answer: IAnswer;
   readOnly?: boolean;
@@ -22,16 +25,25 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   onViewAnswer,
   contentId,
 }) => {
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
 
   const editorRef = useRef<EditorRef>(null);
   const extensions = useDynamicExtensions();
+  const [isCard, setIsCard] = useState(false);
+
+  useEffect(() => {
+    if (contentId) {
+      isContentIsCard(contentId).then((res) => {
+        setIsCard(res);
+      });
+    }
+  }, [contentId]);
 
   useEditContent(contentId, (data) => {
     editorRef.current?.setEditorValue(data.slice(0, 3));
   });
 
-  const handleDeleteAnswer: MenuItemProps["onClick"] = () => {
+  const handleDeleteAnswer: MenuItemProps["onClick"] = useMemoizedFn(() => {
     if (!onDeleteAnswer) return;
 
     modal.confirm({
@@ -42,15 +54,52 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
       okButtonProps: {
         danger: true,
       },
-      onOk: () => onDeleteAnswer(answer.id),
+      onOk: () => {
+        onDeleteAnswer(answer.id);
+        message.success("删除成功");
+      },
     });
-  };
+  });
 
-  const handleClick = () => {
+  const handleBuildCard: MenuItemProps["onClick"] = useMemoizedFn(() => {
+    if (!contentId) return;
+
+    buildCardFromContent(contentId).then((card) => {
+      if (card) {
+        setIsCard(true);
+        message.success("创建卡片成功");
+      } else {
+        message.error("创建卡片失败");
+      }
+    });
+  });
+
+  const handleClick = useMemoizedFn(() => {
     if (onViewAnswer) {
       onViewAnswer(answer.id);
     }
-  };
+  });
+
+  const items = useMemo(() => {
+    return [
+      !readOnly
+        ? {
+            key: "delete",
+            label: "删除答案",
+            icon: <DeleteOutlined />,
+            onClick: handleDeleteAnswer,
+          }
+        : null,
+      !isCard
+        ? {
+            key: "build-card",
+            label: "创建卡片",
+            icon: <BsCardText />,
+            onClick: handleBuildCard,
+          }
+        : null,
+    ].filter((val) => val !== null);
+  }, [isCard]);
 
   return (
     <Card
@@ -69,17 +118,10 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
           className={styles.editor}
         />
       </div>
-      {!readOnly && (
+      {items.length > 0 && (
         <Dropdown
           menu={{
-            items: [
-              {
-                key: "delete",
-                label: "删除",
-                icon: <DeleteOutlined />,
-                onClick: handleDeleteAnswer,
-              },
-            ],
+            items,
           }}
         >
           <div className={styles.moreIcon} onClick={(e) => e.stopPropagation()}>
