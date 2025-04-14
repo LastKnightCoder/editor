@@ -344,7 +344,7 @@ const UnansweredQuestions: React.FC = () => {
             {hasMoreQuestions && (
               <div className={styles.showMoreBtn} onClick={toggleShowAll}>
                 {showAll ? "收起" : "查看更多"}{" "}
-                <RightOutlined rotate={showAll ? 90 : 0} />
+                <RightOutlined rotate={showAll ? -90 : 0} />
               </div>
             )}
           </>

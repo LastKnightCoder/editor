@@ -26,6 +26,8 @@ export default class CardTable {
       "get-random-permanent-cards": this.getRandomPermanentCards.bind(this),
       "get-recent-temp-lit-cards":
         this.getRecentTemporaryAndLiteratureCards.bind(this),
+      "is-content-is-card": this.isContentIsCard.bind(this),
+      "build-card-from-content": this.buildCardFromContent.bind(this),
     };
   }
 
@@ -368,5 +370,33 @@ export default class CardTable {
 
     const cards = stmt.all(count);
     return cards.map((card) => this.parseCard(card));
+  }
+
+  static isContentIsCard(db: Database.Database, contentId: number): boolean {
+    const stmt = db.prepare("SELECT id FROM cards WHERE content_id = ?");
+    const result = stmt.get(contentId);
+    return !!result;
+  }
+
+  static buildCardFromContent(db: Database.Database, contentId: number): ICard {
+    const isContentIsCard = this.isContentIsCard(db, contentId);
+    if (isContentIsCard) {
+      return this.getCardById(db, contentId) as ICard;
+    }
+    const insertStmt = db.prepare(
+      "INSERT INTO cards (create_time, update_time, tags, links, content_id, category, is_top) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    );
+    const now = Date.now();
+    const res = insertStmt.run(
+      now,
+      now,
+      JSON.stringify([]),
+      JSON.stringify([]),
+      contentId,
+      "permanent",
+      0,
+    );
+    const cardId = res.lastInsertRowid;
+    return this.getCardById(db, cardId) as ICard;
   }
 }
