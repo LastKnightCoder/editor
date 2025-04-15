@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu } from "electron";
+import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import log from "electron-log";
@@ -8,12 +8,113 @@ let windowManager: any = null;
 
 export const init = async (winManager: any, preloadPath: string) => {
   windowManager = winManager;
-  createTray(preloadPath);
+
+  // macOS 使用 Dock 和状态栏图标
+  if (process.platform === "darwin") {
+    createDockMenu();
+    createMacOSStatusBarIcon(preloadPath);
+  } else {
+    // 其他平台使用系统托盘
+    createTray(preloadPath);
+  }
+
   return {
     updateTrayMenu,
     destroyTray,
   };
 };
+
+// 创建 macOS 状态栏图标
+function createMacOSStatusBarIcon(preloadPath: string) {
+  // 获取图标路径
+  const iconPath = getMacOSStatusBarIconPath(preloadPath);
+
+  // 创建较小的状态栏图标
+  const image = nativeImage.createFromPath(iconPath);
+  const resizedImage = image.resize({ width: 18, height: 18 });
+
+  // 创建状态栏图标
+  tray = new Tray(resizedImage);
+  tray.setToolTip("笔记应用");
+
+  // 设置菜单
+  updateTrayMenu();
+
+  log.info("已创建 macOS 状态栏图标");
+}
+
+// 获取 macOS 状态栏图标路径
+function getMacOSStatusBarIconPath(preloadPath: string) {
+  // 首选模板图标，macOS 状态栏建议使用模板图标
+  const templateIconPath = path.join(
+    app.isPackaged
+      ? process.resourcesPath
+      : path.join(process.env.APP_ROOT || "", "build"),
+    "icon-template.png",
+  );
+
+  // 检查模板图标是否存在
+  if (existsSync(templateIconPath)) {
+    return templateIconPath;
+  }
+
+  // 使用标准图标作为备选
+  const standardIconPath = path.join(
+    app.isPackaged
+      ? process.resourcesPath
+      : path.join(process.env.APP_ROOT || "", "build"),
+    "icon.png",
+  );
+
+  // 检查标准图标是否存在
+  if (existsSync(standardIconPath)) {
+    return standardIconPath;
+  }
+
+  // 尝试备用路径
+  const alternativeIconPath = path.join(
+    path.dirname(preloadPath),
+    "../../build",
+    "icon.png",
+  );
+
+  if (existsSync(alternativeIconPath)) {
+    return alternativeIconPath;
+  }
+
+  log.error("无法找到状态栏图标文件");
+  return "";
+}
+
+// 创建 macOS Dock 菜单
+function createDockMenu() {
+  const dockMenu = Menu.buildFromTemplate([
+    {
+      label: "打开新窗口",
+      click: () => {
+        log.info("从Dock菜单打开新窗口");
+        if (windowManager) {
+          windowManager.createMainWindow();
+        }
+      },
+    },
+    {
+      label: "打开笔记应用",
+      click: () => {
+        const mainWindow = BrowserWindow.getAllWindows()[0];
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+        } else if (windowManager) {
+          windowManager.createMainWindow();
+        }
+      },
+    },
+  ]);
+
+  app.dock?.setMenu(dockMenu);
+}
 
 // 创建系统托盘
 function createTray(preloadPath: string) {
