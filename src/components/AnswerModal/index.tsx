@@ -63,6 +63,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       footer={null}
       width={800}
       destroyOnClose
+      keyboard={false}
     >
       <div className={classnames(styles.answerEditor)}>
         <Editor

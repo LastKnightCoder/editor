@@ -172,6 +172,7 @@ const CardPreview = (props: CardPreviewProps) => {
         },
       }}
       destroyOnClose
+      keyboard={false}
     >
       {loading ? (
         <div className={styles.loading}>加载中...</div>
