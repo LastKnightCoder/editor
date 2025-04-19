@@ -115,7 +115,7 @@ export default class StreamFetch extends EventEmitter {
       headers,
       responseType: "stream",
       maxRedirects: 3,
-      timeout: 3000,
+      timeout: 60 * 1000,
     };
 
     if (body && ["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
