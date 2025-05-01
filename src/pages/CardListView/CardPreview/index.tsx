@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useMemoizedFn, useCreation, useRafInterval, useUnmount } from "ahooks";
 import { Button, Modal, Tooltip } from "antd";
 import { Descendant } from "slate";
@@ -9,14 +10,15 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditCard from "@/pages/CardDetailView/useEditCard";
 import useUploadResource from "@/hooks/useUploadResource";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
+
 import {
   contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
-import { useEffect, useRef } from "react";
 import { formatDate, defaultCardEventBus } from "@/utils";
-import useEditContent from "@/hooks/useEditContent";
+
 import styles from "./index.module.less";
 
 const customExtensions = [
@@ -80,7 +82,7 @@ const CardPreview = (props: CardPreviewProps) => {
   }, [cardId, visible, cardEventBus, editingCard]);
 
   useRafInterval(async () => {
-    if (isWindowFocused && editingCard && editorRef.current?.isFocus()) {
+    if (isWindowFocused && editingCard) {
       const updatedCard = await saveCard();
       if (updatedCard) {
         cardEventBus.publishCardEvent("card:updated", updatedCard);
@@ -89,12 +91,10 @@ const CardPreview = (props: CardPreviewProps) => {
   }, 500);
 
   useUnmount(async () => {
-    setTimeout(async () => {
-      const updatedCard = await saveCard();
-      if (updatedCard) {
-        cardEventBus.publishCardEvent("card:updated", updatedCard);
-      }
-    }, 200);
+    const updatedCard = await saveCard();
+    if (updatedCard) {
+      cardEventBus.publishCardEvent("card:updated", updatedCard);
+    }
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {

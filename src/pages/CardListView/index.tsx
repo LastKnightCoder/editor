@@ -39,6 +39,7 @@ import {
   updateCard,
   readTextFile,
   selectFile,
+  getCardById,
 } from "@/commands";
 
 import styles from "./index.module.less";
@@ -141,9 +142,20 @@ const CardListView = () => {
     setIsPreviewVisible(true);
   });
 
-  const handleClosePreview = useMemoizedFn(() => {
+  const handleClosePreview = useMemoizedFn(async () => {
     setIsPreviewVisible(false);
     setPreviewCardId(undefined);
+    if (previewCardId) {
+      const updatedPreviewCard = await getCardById(previewCardId);
+      if (updatedPreviewCard) {
+        // 更新 cards
+        setCards((prevCards) =>
+          prevCards.map((c) =>
+            c.id === updatedPreviewCard.id ? updatedPreviewCard : c,
+          ),
+        );
+      }
+    }
   });
 
   const handleImportMarkdown = useMemoizedFn(async () => {

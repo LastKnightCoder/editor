@@ -44,7 +44,7 @@ const useEditContent = (
   const { run: throttleHandleEditorContentChange } = useThrottleFn(
     handleEditorContentChange,
     {
-      wait: 1000,
+      wait: 300,
     },
   );
 
