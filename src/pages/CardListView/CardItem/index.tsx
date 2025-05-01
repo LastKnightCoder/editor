@@ -235,7 +235,9 @@ const CardItem = memo(
     return (
       prevProps.card.id === nextProps.card.id &&
       prevProps.card.update_time === nextProps.card.update_time &&
-      prevProps.card.isTop === nextProps.card.isTop
+      prevProps.card.isTop === nextProps.card.isTop &&
+      JSON.stringify(prevProps.card.tags) ===
+        JSON.stringify(nextProps.card.tags)
     );
   },
 );

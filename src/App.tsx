@@ -4,15 +4,18 @@ import zhCN from "antd/locale/zh_CN";
 import { RouterProvider } from "react-router-dom";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
+
 import useTheme from "@/hooks/useTheme.ts";
 import useSyncFont from "@/hooks/useSyncFont.ts";
 import useSyncTheme from "@/hooks/useSyncTheme";
-import { router } from "@/router.tsx";
 import { useItemUpdateListener } from "@/hooks/useItemUpdateListener";
 import useSyncSetting from "@/hooks/useSyncSetting";
 import { WindowFocusContext } from "@/hooks/useWindowFocus";
 
 import { on, off } from "@/electron";
+
+import { router } from "@/router.tsx";
+
 const Application = () => {
   const { isDark } = useTheme();
 
