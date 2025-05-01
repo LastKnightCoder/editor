@@ -84,7 +84,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
 
   const items = useMemo(() => {
     return [
-      !readOnly
+      onDeleteAnswer
         ? {
             key: "delete",
             label: "删除答案",

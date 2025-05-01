@@ -32,6 +32,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
       onOk={onOk}
       width={800}
       destroyOnClose
+      keyboard={false}
     >
       <div className={classnames(styles.newAnswerEditor)}>
         <Editor

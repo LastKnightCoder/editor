@@ -28,7 +28,7 @@ import {
   updateQuestion,
   createQuestion,
   deleteQuestion,
-} from "@/commands/question";
+} from "@/commands";
 import EditText from "@/components/EditText";
 import AnswerCardList from "@/components/AnswerCardList";
 import NewAnswerModal from "@/components/NewAnswerModal";
@@ -122,7 +122,13 @@ const UnansweredQuestions: React.FC = () => {
   const handleDeleteAnswer = useMemoizedFn(async (answerId: number) => {
     if (!selectedQuestion) return;
     try {
-      await deleteAnswer(selectedQuestion.id, answerId);
+      const newQuestion = await deleteAnswer(selectedQuestion.id, answerId);
+      // 更新 questions
+      setQuestions((prevQuestions) =>
+        prevQuestions.map((q) =>
+          q.id === selectedQuestion.id ? newQuestion : q,
+        ),
+      );
       // 重新获取问题答案
       const answers = await getQuestionAnswers(selectedQuestion.id);
       setSelectedQuestionAnswers(answers);
@@ -180,10 +186,16 @@ const UnansweredQuestions: React.FC = () => {
       }
 
       const answer = await createAnswer(newAnswerContent);
-      await addAnswer(selectedQuestion.id, {
+      const newQuestion = await addAnswer(selectedQuestion.id, {
         contentId: answer.id,
         content: answer.content,
       });
+      // 更新 questions
+      setQuestions((prevQuestions) =>
+        prevQuestions.map((q) =>
+          q.id === selectedQuestion.id ? newQuestion : q,
+        ),
+      );
 
       // 重新获取问题答案
       const answers = await getQuestionAnswers(selectedQuestion.id);
@@ -431,6 +443,7 @@ const UnansweredQuestions: React.FC = () => {
         title="添加新问题"
         open={newQuestionModalVisible}
         onOk={handleCreateQuestion}
+        keyboard={false}
         onCancel={() => {
           setNewQuestionModalVisible(false);
           setNewQuestionContent("");
