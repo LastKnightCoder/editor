@@ -17,6 +17,11 @@ export class ViewPortPlugin implements IBoardPlugin {
   lastWheelTime = 0;
   lastMoveTime = 0;
 
+  // 方向键移动视口相关属性
+  arrowKeyMoveInterval: number | null = null;
+  currentArrowKey: string | null = null;
+  isPreciseMode = false;
+
   onPointerDown(e: PointerEvent, board: Board) {
     if (board.presentationManager.isPresentationMode) return;
     // 右键
@@ -116,7 +121,88 @@ export class ViewPortPlugin implements IBoardPlugin {
     }
   }
 
+  // 处理方向键移动视口
+  handleViewPortArrowNavigation(board: Board, key: string) {
+    if (board.presentationManager.isPresentationMode) return;
+
+    const moveDistance = this.isPreciseMode ? 1 : 5;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    switch (key) {
+      case "ArrowUp":
+        offsetY = -moveDistance;
+        break;
+      case "ArrowDown":
+        offsetY = moveDistance;
+        break;
+      case "ArrowLeft":
+        offsetX = -moveDistance;
+        break;
+      case "ArrowRight":
+        offsetX = moveDistance;
+        break;
+    }
+
+    ViewPortTransforms.moveViewPort(
+      board,
+      board.viewPort.minX + offsetX,
+      board.viewPort.minY + offsetY,
+    );
+  }
+
+  // 开始持续移动视口
+  startContinuousViewPortMove(board: Board, key: string) {
+    if (board.presentationManager.isPresentationMode) return;
+
+    // 停止之前的移动
+    this.stopContinuousViewPortMove();
+
+    this.currentArrowKey = key;
+    // 立即执行一次移动
+    this.handleViewPortArrowNavigation(board, key);
+
+    // 设置定时器持续移动
+    this.arrowKeyMoveInterval = window.setInterval(() => {
+      if (this.currentArrowKey) {
+        this.handleViewPortArrowNavigation(board, this.currentArrowKey);
+      }
+    }, 60);
+  }
+
+  // 停止持续移动
+  stopContinuousViewPortMove() {
+    if (this.arrowKeyMoveInterval !== null) {
+      clearInterval(this.arrowKeyMoveInterval);
+      this.arrowKeyMoveInterval = null;
+      this.currentArrowKey = null;
+    }
+  }
+
   onKeyDown(e: KeyboardEvent, board: Board) {
+    // 检测精确模式 (alt/option键)
+    if (e.altKey && !this.isPreciseMode) {
+      this.isPreciseMode = true;
+    }
+
+    // 处理方向键移动视口 - 仅当没有选中元素时
+    if (
+      ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) &&
+      board.selection.selectedElements.length === 0
+    ) {
+      // 阻止默认行为（避免页面滚动）
+      e.preventDefault();
+
+      // 如果是新的方向键或者没有正在进行的移动，开始新的持续移动
+      if (
+        this.currentArrowKey !== e.key ||
+        this.arrowKeyMoveInterval === null
+      ) {
+        this.startContinuousViewPortMove(board, e.key);
+      }
+      return;
+    }
+
     if (isHotkey("mod+=", e)) {
       const newZoom = Math.min(board.viewPort.zoom * 1.1, 10);
       ViewPortTransforms.updateZoom(board, newZoom);
@@ -160,6 +246,18 @@ export class ViewPortPlugin implements IBoardPlugin {
         // 否则全览所有元素
         ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
       }
+    }
+  }
+
+  onKeyUp(e: KeyboardEvent) {
+    // 检测精确模式结束
+    if (!e.altKey && this.isPreciseMode) {
+      this.isPreciseMode = false;
+    }
+
+    // 如果释放的是当前激活的方向键，停止持续移动
+    if (this.currentArrowKey === e.key) {
+      this.stopContinuousViewPortMove();
     }
   }
 }
