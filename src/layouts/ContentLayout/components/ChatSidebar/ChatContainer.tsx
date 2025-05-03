@@ -113,7 +113,6 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
         content: "...",
       };
 
-      // Prepare messages for the API
       const sendMessages = [
         currentChat.messages[0], // System Prompt
         ...currentChat.messages
@@ -153,7 +152,6 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
             });
 
             const updatedChatMessage = await updateChatMessage(newCurrentChat);
-            editTextRef.current?.focusEnd();
 
             // 确保消息结束时滚动到底部
             scrollToBottom();
@@ -188,6 +186,9 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
             console.error(error);
           } finally {
             setSendLoading(false);
+            setTimeout(() => {
+              editTextRef.current?.focusEnd();
+            }, 100);
           }
           perf.end();
         },
@@ -229,10 +230,13 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
         onError: () => {
           updateCurrentChat(currentChat);
           setSendLoading(false);
-          editTextRef.current?.setValue(userContent);
-          editTextRef.current?.focusEnd();
+
           message.error("请求失败");
           perf.end();
+          setTimeout(() => {
+            editTextRef.current?.setValue(userContent);
+            editTextRef.current?.focusEnd();
+          }, 100);
         },
       });
     });
