@@ -20,6 +20,7 @@ import {
   ITabsContent,
   AudioElement,
   VideoElement,
+  HTMLInlineElement,
 } from "../types";
 import { EGalleryMode, EStyledColor } from "../constants";
 import { codeBlockMap } from "../extensions/code-block";
@@ -684,6 +685,23 @@ export const wrapComment = (editor: Editor) => {
 
 export const unwrapComment = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) => n.type === "comment",
+    match: (n) => Element.isElement(n) && n.type === "comment",
   });
+};
+
+export const insertInlineHtmlElement = (
+  editor: Editor,
+  html: string,
+  openEdit?: boolean,
+) => {
+  if (!editor.selection) return;
+
+  const inlineHtml: HTMLInlineElement = {
+    type: "html-inline",
+    html,
+    openEdit,
+    children: [{ type: "formatted", text: "" }],
+  };
+
+  Transforms.insertNodes(editor, inlineHtml);
 };

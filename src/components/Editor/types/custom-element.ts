@@ -28,6 +28,7 @@ import { BlockquoteElement } from "./element/block-quote.ts";
 import { GraphvizElement } from "./element/graphviz.ts";
 import { CustomBlockElement } from "./element/custom-block.ts";
 import { HTMLBlockElement } from "./element/html-block.ts";
+import { HTMLInlineElement } from "./element/html-inline.ts";
 import { DivideLineElement } from "./element/divide-line.ts";
 import {
   MultiColumnItemElement,
@@ -84,14 +85,16 @@ export type CustomElement =
   | WhiteboardElement
   | CommentElement
   | FrontMatterElement
-  | WebviewElement;
+  | WebviewElement
+  | HTMLInlineElement;
 
 export type InlineElement =
   | FormattedText
   | LinkElement
   | InlineMathElement
   | UnderlineElement
-  | StyledTextElement;
+  | StyledTextElement
+  | HTMLInlineElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>;

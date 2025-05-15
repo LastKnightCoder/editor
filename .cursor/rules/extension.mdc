@@ -1,0 +1,67 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 编辑器扩展开发规则
+
+## 类型定义
+
+1. 在 `src/components/Editor/types/element` 目录下创建元素的类型定义文件
+   - 文件命名应与元素功能相关，如 `html.ts`
+   - 需要引入必要的基础类型，如 `FormattedText`
+   - 确保定义包含 `type` 和 `children` 字段
+
+2. 更新类型导出
+   - 在 `src/components/Editor/types/element/index.ts` 中导出新类型
+   - 在 `src/components/Editor/types/custom-element.ts` 中导入新类型
+   - 将新类型添加到 `CustomElement` 类型联合中
+   - 如果是行内元素，还需添加到 `InlineElement` 类型联合中
+
+## 组件实现
+
+1. 创建组件目录结构
+   - 在 `src/components/Editor/extensions/{扩展名}/components/{组件名}` 下创建
+   - 目录包含 `index.tsx` 和 `index.module.less` 文件
+
+2. 组件实现规范
+   - 行内元素需使用 `InlineChromiumBugfix` 组件修复光标问题
+   - 使用 `useSlate` 获取编辑器实例
+   - 组件应接收 `attributes`、`element` 和 `children` 参数
+   - 确保组件内部样式通过 CSS Module 引入
+
+## 扩展类实现
+
+1. 在 `src/components/Editor/extensions/{扩展名}/index.tsx` 下创建扩展类
+   - 继承 `Base` 类并实现 `IExtension` 接口
+   - 定义唯一的 `type` 属性
+
+2. 实现必要的重载方法
+   - `getPlugins()`: 返回扩展需要的插件列表
+   - `render()`: 渲染扩展组件
+   - `toMarkdown()`: 定义 Markdown 转换规则
+   - 可选实现 `getHotkeyConfigs()`、`getHoveringBarElements()`、`getBlockPanelItems()` 等方法
+
+## 工具函数更新
+
+1. 更新 `src/components/Editor/utils/element.ts` 中的工具函数
+   - 在 `isInlineElementEmpty()` 中处理新元素类型
+   - 在 `isInlineElement()` 中添加新元素类型判断
+
+2. 更新 `src/utils/editor.tsx` 中的文本提取函数
+   - 在 `getInlineElementText()` 中添加新元素的文本提取逻辑
+
+3. 更新 `src/utils/markdown.ts` 和 `src/utils/markdownSerializerRegistry.ts` 中的工具函数
+   - 在 `registerDefaultSerializers()` 中实现 Markdown 导出
+   - 在 `markdownToDescendant()` 中实现解析 Markdown
+
+4. 在 `src/components/Editor/utils/insertElement.ts` 添加新的插入元素的函数
+   - 所有插入元素的方法都在该文件中定义，仿照其他元素的插入方式
+
+## 注意事项
+
+1. 组件应考虑深色和浅色两种主题
+2. 使用 `memo`、`useMemo` 和 `useMemoizedFn` 对组件进行性能优化
+3. 保持与项目已有的扩展实现风格一致
+4. 不可变数据流使用 `immer` 处理
+5. 组件过长时考虑拆分成子组件和 hook
