@@ -133,6 +133,12 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        type: "html-inline",
+        toMarkdown: (element) => {
+          return element.html || "";
+        },
+      },
+      {
         type: "bulleted-list",
         isBlock: true,
         toMarkdown: (_element, childrenStr) => {

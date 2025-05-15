@@ -63,6 +63,10 @@ const getParagraphContent = (
           );
         case "inline-math":
           return <Katex tex={node.tex} key={index} inline />;
+        case "html-inline":
+          return (
+            <span dangerouslySetInnerHTML={{ __html: node.html }} key={index} />
+          );
         case "underline":
           return (
             <Typography.Text key={index} underline>
@@ -180,6 +184,8 @@ export const getInlineElementText = (element: InlineElement): string => {
       return element.children?.[0].text;
     case "inline-math":
       return element.tex;
+    case "html-inline":
+      return element.html;
     case "underline":
       return element.children?.[0].text;
     case "styled-text":

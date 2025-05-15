@@ -103,12 +103,10 @@ const markdownToDescendant = (
     };
   } else if (node.type === "html") {
     if (node.htmlType === "inline") {
-      // @ts-ignore
       return {
-        // TODO 实现内联 HTML 类型
-        // @ts-ignore
         type: "html-inline",
         html: node.value,
+        openEdit: false,
         children: [
           {
             type: "formatted",

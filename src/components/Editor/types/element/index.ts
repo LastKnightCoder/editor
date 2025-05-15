@@ -15,6 +15,7 @@ export * from "./detail.ts";
 export * from "./block-quote.ts";
 export * from "./link.ts";
 export * from "./html-block.ts";
+export * from "./html-inline.ts";
 export * from "./graphviz.ts";
 export * from "./custom-block.ts";
 export * from "./divide-line.ts";
