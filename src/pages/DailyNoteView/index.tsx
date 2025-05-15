@@ -91,6 +91,7 @@ const DailyNoteView = () => {
           data={notes}
           renderItem={(dailyNote) => (
             <div
+              key={dailyNote.contentId}
               className={styles.cellDailyNote}
               onClick={() => {
                 useDailyNoteStore.setState({
