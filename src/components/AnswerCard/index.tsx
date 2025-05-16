@@ -5,13 +5,14 @@ import { useMemoizedFn } from "ahooks";
 import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
 import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
-
+import { defaultCardEventBus } from "@/utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import useEditContent from "@/hooks/useEditContent";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { isContentIsCard, buildCardFromContent } from "@/commands/card";
 
 import styles from "./index.module.less";
+
 interface AnswerCardProps {
   answer: IAnswer;
   readOnly?: boolean;
@@ -69,6 +70,9 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     buildCardFromContent(contentId).then((card) => {
       if (card) {
         setIsCard(true);
+        defaultCardEventBus
+          .createEditor()
+          .publishCardEvent("card:created", card);
         message.success("创建卡片成功");
       } else {
         message.error("创建卡片失败");
@@ -114,6 +118,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     >
       <div className={styles.answerContent} onClick={handleClick}>
         <Editor
+          ref={editorRef}
           initValue={answer.content.slice(0, 3)}
           readonly={readOnly}
           extensions={extensions}

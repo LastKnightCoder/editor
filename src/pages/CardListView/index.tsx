@@ -31,7 +31,11 @@ import Titlebar from "@/components/Titlebar";
 
 import { ICard, ECardCategory, ICreateCard } from "@/types";
 import { cardCategoryName } from "@/constants";
-import { getContentLength, importFromMarkdown } from "@/utils";
+import {
+  getContentLength,
+  importFromMarkdown,
+  defaultCardEventBus,
+} from "@/utils";
 import {
   getAllCards,
   createCard,
@@ -57,6 +61,12 @@ const CardListView = () => {
   const { modal } = App.useApp();
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
+
+  useEffect(() => {
+    defaultCardEventBus.subscribe("card:created", (data) => {
+      setCards((prevCards) => [data.card, ...prevCards]);
+    });
+  }, []);
 
   const cardListRef = useRef<CardListPanelRef>(null);
 
