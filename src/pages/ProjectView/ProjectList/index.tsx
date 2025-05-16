@@ -326,7 +326,11 @@ const Project = () => {
         if (!filePath) return;
         for (const path of filePath) {
           const markdown = await readTextFile(path);
-          const content = importFromMarkdown(markdown, ["yaml"]);
+          const content = importFromMarkdown(markdown, [
+            "yaml",
+            "footnoteDefinition",
+            "footnoteReference",
+          ]);
           const fileName = await getFileBaseName(path, true);
           const [newProject, item] = await addRootProjectItem(project.id, {
             title: fileName,

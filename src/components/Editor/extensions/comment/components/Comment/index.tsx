@@ -17,7 +17,7 @@ import {
 } from "@/components/Editor/types";
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
 import { CommentList, CommentForm } from "../CommentList";
-import { unwrapComment } from "@/components/Editor/utils";
+import { unwrapComment } from "@editor/utils";
 
 import styles from "./index.module.less";
 
@@ -182,7 +182,8 @@ const Comment: React.FC<CommentProps> = (props) => {
 
     // 当关闭弹窗且没有评论时，删除整个评论节点
     if (!visible && comments.length === 0) {
-      unwrapComment(editor);
+      const path = ReactEditor.findPath(editor, element);
+      unwrapComment(editor, path);
     }
   };
 

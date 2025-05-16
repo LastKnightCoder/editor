@@ -13,13 +13,15 @@ import {
   questionCardExtension,
 } from "@/editor-extensions";
 import { Descendant } from "slate";
-import { formatDate } from "@/utils/time.ts";
 import { EditCardContext } from "@/context";
 import {
   defaultCardEventBus,
+  downloadMarkdown,
   getAllLinkedCards,
   getEditorText,
   getInlineLinks,
+  getMarkdown,
+  formatDate,
 } from "@/utils";
 
 import styles from "./index.module.less";
@@ -258,6 +260,9 @@ const EditCard = (props: IEditCardProps) => {
         type: "card",
       });
       navigate("/cards/list");
+    } else if (key === "export-markdown") {
+      const markdown = getMarkdown(editingCard.content);
+      downloadMarkdown(markdown, String(editingCard.id));
     }
   });
 
@@ -274,6 +279,10 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "open-sidebar",
         label: "侧边打开",
+      },
+      {
+        key: "export-markdown",
+        label: "导出卡片",
       },
     ];
   }, []);

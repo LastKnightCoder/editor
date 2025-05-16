@@ -12,7 +12,11 @@ import { importFromMarkdown } from "@/utils";
 // @ts-ignore
 import styles from "./index.module.less";
 
-const profile = importFromMarkdown(profileRaw);
+const profile = importFromMarkdown(profileRaw, [
+  "yaml",
+  "footnoteDefinition",
+  "footnoteReference",
+]);
 
 const Profile = () => {
   const editorRef = useRef<EditorRef>(null);

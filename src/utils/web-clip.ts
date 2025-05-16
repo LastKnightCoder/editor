@@ -55,7 +55,11 @@ export const webClipFromUrl = async (url: string): Promise<WebClipResult> => {
       error: "AI Return Error",
     };
 
-  const content = importFromMarkdown(convertRes);
+  const content = importFromMarkdown(convertRes, [
+    "yaml",
+    "footnoteDefinition",
+    "footnoteReference",
+  ]);
 
   return {
     result: true,

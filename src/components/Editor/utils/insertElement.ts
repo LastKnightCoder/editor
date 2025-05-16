@@ -710,9 +710,10 @@ export const wrapComment = (editor: Editor) => {
   }
 };
 
-export const unwrapComment = (editor: Editor) => {
+export const unwrapComment = (editor: Editor, path?: Path) => {
   Transforms.unwrapNodes(editor, {
     match: (n) => Element.isElement(n) && n.type === "comment",
+    at: path,
   });
 };
 
