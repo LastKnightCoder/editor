@@ -1,18 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { useNavigate } from "react-router-dom";
+import { Descendant } from "slate";
+import {
+  LinkOutlined,
+  ReadOutlined,
+  MoreOutlined,
+  EditOutlined,
+} from "@ant-design/icons";
+import { Drawer, Tooltip, Dropdown, MenuProps, App } from "antd";
+import SVG from "react-inlinesvg";
+import { MdOutlineCode } from "react-icons/md";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import EditorSourceValue from "@/components/EditorSourceValue";
+import LinkGraph from "@/components/LinkGraph";
+import PresentationMode from "@/components/PresentationMode";
+import StatusBar from "@/components/StatusBar";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
+import { useWindowFocus } from "@/hooks/useWindowFocus";
+import useEditContent from "@/hooks/useEditContent";
+
+import useRightSidebarStore from "@/stores/useRightSidebarStore";
+import useSettingStore from "@/stores/useSettingStore";
+
 import {
   contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
-import { Descendant } from "slate";
 import { EditCardContext } from "@/context";
 import {
   defaultCardEventBus,
@@ -23,27 +42,15 @@ import {
   getMarkdown,
   formatDate,
 } from "@/utils";
+import { ICard } from "@/types";
+import { deleteCard, getAllCards, openCardInNewWindow } from "@/commands";
+import graphIcon from "@/assets/icons/graph.svg";
+
+import useEditCard from "../useEditCard";
+import LinkList from "../LinkList";
+import { isValid } from "@/components/WhiteBoard/utils";
 
 import styles from "./index.module.less";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
-import useEditCard from "../useEditCard";
-import StatusBar from "@/components/StatusBar";
-import { LinkOutlined, ReadOutlined, MoreOutlined } from "@ant-design/icons";
-import { Drawer, Tooltip, Dropdown, MenuProps } from "antd";
-import { EditOutlined } from "@ant-design/icons";
-import { MdOutlineCode } from "react-icons/md";
-import { isValid } from "@/components/WhiteBoard/utils";
-import LinkList from "../LinkList";
-import { ICard } from "@/types";
-import useRightSidebarStore from "@/stores/useRightSidebarStore";
-import EditorSourceValue from "@/components/EditorSourceValue";
-import LinkGraph from "@/components/LinkGraph";
-import { getAllCards, openCardInNewWindow } from "@/commands";
-import SVG from "react-inlinesvg";
-import graphIcon from "@/assets/icons/graph.svg";
-import PresentationMode from "@/components/PresentationMode";
-import useSettingStore from "@/stores/useSettingStore";
-import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
   contentLinkExtension,
@@ -59,7 +66,7 @@ interface IEditCardProps {
 const EditCard = (props: IEditCardProps) => {
   const { cardId, defaultReadonly = false } = props;
   const navigate = useNavigate();
-
+  const { modal } = App.useApp();
   const databaseName = useSettingStore(
     (state) => state.setting.database.active,
   );
@@ -104,6 +111,26 @@ const EditCard = (props: IEditCardProps) => {
       throttleHandleEditorContentChange(content);
     }
     onContentChangeFromEditCard(content);
+  });
+
+  const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
+    try {
+      modal.confirm({
+        title: "删除卡片",
+        content: "确定要删除该卡片吗？",
+        okText: "确定",
+        cancelText: "取消",
+        okButtonProps: {
+          danger: true,
+        },
+        onOk: async () => {
+          await deleteCard(cardId);
+          navigate("/cards/list");
+        },
+      });
+    } catch (error) {
+      console.error("删除卡片失败", error);
+    }
   });
 
   useEffect(() => {
@@ -263,6 +290,8 @@ const EditCard = (props: IEditCardProps) => {
     } else if (key === "export-markdown") {
       const markdown = getMarkdown(editingCard.content);
       downloadMarkdown(markdown, String(editingCard.id));
+    } else if (key === "delete-card") {
+      handleDeleteCard(editingCard.id);
     }
   });
 
@@ -283,6 +312,10 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "export-markdown",
         label: "导出卡片",
+      },
+      {
+        key: "delete-card",
+        label: "删除卡片",
       },
     ];
   }, []);
