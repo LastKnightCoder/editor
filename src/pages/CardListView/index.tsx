@@ -171,7 +171,11 @@ const CardListView = () => {
     if (!filePath) return;
     for (const path of filePath) {
       const markdown = await readTextFile(path);
-      const content = importFromMarkdown(markdown, ["yaml"]);
+      const content = importFromMarkdown(markdown, [
+        "yaml",
+        "footnoteDefinition",
+        "footnoteReference",
+      ]);
       const newCard: ICreateCard = {
         content,
         tags: [],

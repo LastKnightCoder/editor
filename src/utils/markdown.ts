@@ -8,6 +8,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
+import { HTMLBlockElement, ImageElement } from "@editor/types";
 
 export {
   markdownSerializerRegistry,
@@ -148,7 +149,7 @@ const markdownToDescendant = (
           },
         ],
       };
-    } else if (node.lang?.trim?.() === "mermaid") {
+    } else if (node.lang?.trim?.()?.toLowerCase?.() === "mermaid") {
       return {
         type: "mermaid",
         chart: node.value,
@@ -159,7 +160,7 @@ const markdownToDescendant = (
           },
         ],
       };
-    } else if (node.lang?.trim?.() === "tikz") {
+    } else if (node.lang?.trim?.()?.toLowerCase?.() === "tikz") {
       return {
         type: "tikz",
         content: node.value,
@@ -173,7 +174,7 @@ const markdownToDescendant = (
     }
     return {
       type: "code-block",
-      language: node.lang || "",
+      language: node.lang?.trim?.()?.toUpperCase?.() || "",
       code: node.value,
       uuid: uuid(),
       children: [
@@ -400,7 +401,6 @@ export const importFromMarkdown = (
     astNodes: any[],
     slateResultArray: Descendant[],
     ignoreTypes: string[] = [],
-    _currentSlateParent: Descendant | null = null,
     parentAstNodeForChildren: any | null = null,
   ) => {
     for (const astChildNode of astNodes) {
@@ -415,6 +415,7 @@ export const importFromMarkdown = (
         const paragraph = astChildNode.children[index];
         paragraph.type = "text";
       }
+      if (ignoreTypes.includes(astChildNode.type)) continue;
       const slateNode = markdownToDescendant(
         astChildNode,
         parentAstNodeForChildren,
@@ -422,29 +423,24 @@ export const importFromMarkdown = (
       );
       if (!slateNode) continue;
       if (!Array.isArray(slateNode)) {
-        if (ignoreTypes.includes(slateNode.type)) continue;
         slateResultArray.push(slateNode);
         if (astChildNode.children && slateNode.type !== "formatted") {
           dfs(
             astChildNode.children,
             slateNode.children,
             ignoreTypes,
-            slateNode,
             astChildNode,
           );
         }
       } else {
-        const filteredNode = slateNode.filter(
-          (item) => !ignoreTypes.includes(item.type),
-        );
-        slateResultArray.push(...filteredNode);
+        slateResultArray.push(...slateNode);
       }
     }
   };
 
   console.log("parseResult", parseResult);
 
-  dfs(parseResult.children, editor, ignoreTypes, null, parseResult);
+  dfs(parseResult.children, editor, ignoreTypes, parseResult);
 
   let beforeNormalize = editor;
   let afterNormalize = normalizeEditorContent(editor);
@@ -493,18 +489,42 @@ const normalizeEditorContent = (
         );
       }
     } else if (element.type === "paragraph") {
-      // 找到所有的 image，提出来
-      const imageElements: Descendant[] = element.children.filter(
-        (child) => (child as any).type === "image",
-      );
-      result.push(...imageElements);
-      element.children = element.children.filter(
-        (child) => (child as any).type !== "image",
-      );
+      // 把 image 都变为 inline-image
+      // 把 html-block 变为 html-inline
+      element.children = element.children.map((child) => {
+        // @ts-ignore
+        if (child.type === "image") {
+          return {
+            type: "inline-image",
+            url: (child as ImageElement).url,
+            alt: (child as ImageElement).alt,
+            uuid: (child as ImageElement).uuid || uuid(),
+            children: [
+              {
+                type: "formatted",
+                text: "",
+              },
+            ],
+          };
+        }
+        // @ts-ignore
+        if (child.type === "html-block") {
+          return {
+            type: "html-inline",
+            html: (child as HTMLBlockElement).html,
+            children: [
+              {
+                type: "formatted",
+                text: "",
+              },
+            ],
+          };
+        }
+        return child;
+      });
       if (element.children.length === 0) {
         continue;
       }
-      // @ts-ignore
     } else if (
       parent &&
       element.type === "divide-line" &&
@@ -516,6 +536,7 @@ const normalizeEditorContent = (
     if (element.type !== "formatted" && element.children) {
       element.children = normalizeEditorContent(element.children, [], element);
     }
+
     result.push(element);
   }
   return result;

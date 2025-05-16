@@ -96,7 +96,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         return;
       }
 
-      const content = importFromMarkdown(markdown);
+      const content = importFromMarkdown(markdown, [
+        "yaml",
+        "footnoteDefinition",
+        "footnoteReference",
+      ]);
 
       const projectItem = await getProjectItemById(projectItemId);
       if (!projectItem) return;
