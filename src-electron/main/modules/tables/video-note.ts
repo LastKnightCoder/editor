@@ -29,7 +29,7 @@ export default class VideoNoteTable {
 
   static getListenEvents() {
     return {
-      "create_empty-video-note": this.createEmptyVideoNote.bind(this),
+      "create-empty-video-note": this.createEmptyVideoNote.bind(this),
       "update-video-note": this.updateVideoNote.bind(this),
       "delete-video-note": this.deleteVideoNote.bind(this),
       "get-video-note-by-id": this.getVideoNoteById.bind(this),
