@@ -21,7 +21,6 @@ import {
   closeDatabase,
 } from "@/commands";
 import { defaultDocumentItemEventBus } from "@/utils/event-bus";
-import { formatDate } from "@/utils";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import useEditContent from "@/hooks/useEditContent";
 
@@ -180,16 +179,6 @@ const SingleDocumentItemEditor = () => {
 
   return (
     <div className={styles.singleDocumentItemEditorContainer}>
-      <div className={styles.time}>
-        <div>
-          <span>创建于 {formatDate(editingDocumentItem.createTime, true)}</span>
-        </div>
-        <div>
-          <span>
-            最后修改于 {formatDate(editingDocumentItem.updateTime, true)}
-          </span>
-        </div>
-      </div>
       <div className={styles.title}>
         <EditText
           ref={titleRef}
@@ -200,10 +189,11 @@ const SingleDocumentItemEditor = () => {
         />
       </div>
       <div className={styles.editorContainer}>
-        <div className={styles.editor}>
+        <div className={styles.contentEditor}>
           <EditCardContext.Provider value={editorContextValue}>
             <ErrorBoundary>
               <Editor
+                className={styles.editor}
                 ref={editorRef}
                 initValue={editingDocumentItem.content}
                 onChange={onContentChange}
@@ -213,14 +203,14 @@ const SingleDocumentItemEditor = () => {
               />
             </ErrorBoundary>
           </EditCardContext.Provider>
-        </div>
-        <div className={styles.outlineContainer}>
-          <EditorOutline
-            className={styles.outline}
-            content={editingDocumentItem.content}
-            show={true}
-            onClickHeader={onClickHeader}
-          />
+          <div className={styles.outlineContainer}>
+            <EditorOutline
+              className={styles.outline}
+              content={editingDocumentItem.content}
+              show={true}
+              onClickHeader={onClickHeader}
+            />
+          </div>
         </div>
       </div>
     </div>

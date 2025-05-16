@@ -21,7 +21,6 @@ import {
   updateProjectItem,
 } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils/event-bus";
-import { formatDate } from "@/utils";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
@@ -178,16 +177,6 @@ const SingleProjectItemEditor = () => {
 
   return (
     <div className={styles.singleProjectItemEditorContainer}>
-      <div className={styles.time}>
-        <div>
-          <span>创建于 {formatDate(editingProjectItem.createTime, true)}</span>
-        </div>
-        <div>
-          <span>
-            最后修改于 {formatDate(editingProjectItem.updateTime, true)}
-          </span>
-        </div>
-      </div>
       <div className={styles.title}>
         <EditText
           ref={titleRef}
@@ -198,10 +187,11 @@ const SingleProjectItemEditor = () => {
         />
       </div>
       <div className={styles.editorContainer}>
-        <div className={styles.editor}>
+        <div className={styles.contentEditor}>
           <EditCardContext.Provider value={editotContextValue}>
             <ErrorBoundary>
               <Editor
+                className={styles.editor}
                 ref={editorRef}
                 initValue={editingProjectItem.content}
                 onChange={onContentChange}
@@ -211,14 +201,14 @@ const SingleProjectItemEditor = () => {
               />
             </ErrorBoundary>
           </EditCardContext.Provider>
-        </div>
-        <div className={styles.outlineContainer}>
-          <EditorOutline
-            className={styles.outline}
-            content={editingProjectItem.content}
-            show={true}
-            onClickHeader={onClickHeader}
-          />
+          <div className={styles.outlineContainer}>
+            <EditorOutline
+              className={styles.outline}
+              content={editingProjectItem.content}
+              show={true}
+              onClickHeader={onClickHeader}
+            />
+          </div>
         </div>
       </div>
     </div>

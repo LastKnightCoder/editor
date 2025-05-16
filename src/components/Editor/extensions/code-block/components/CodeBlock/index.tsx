@@ -8,7 +8,7 @@ import {
 } from "slate-react";
 import classnames from "classnames";
 import { Editor, EditorChange } from "codemirror";
-import { message } from "antd";
+import { App } from "antd";
 import isHotkey from "is-hotkey";
 import { MdFullscreenExit } from "react-icons/md";
 import { CodeBlockElement } from "@/components/Editor/types";
@@ -73,6 +73,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   const [isFullscreen, setIsFullscreen] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const fullscreenEditorRef = useRef<Editor | null>(null);
+  const { message } = App.useApp();
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
