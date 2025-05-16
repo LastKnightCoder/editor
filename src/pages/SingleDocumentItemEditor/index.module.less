@@ -9,15 +9,6 @@
   container: document-item-container / inline-size;
 }
 
-.time {
-  margin-bottom: 16px;
-  display: flex;
-  gap: 10px;
-  opacity: 0.8;
-  font-size: 0.9em;
-  flex-shrink: 0;
-}
-
 .title {
   margin: 24px 0;
   flex-shrink: 0;
@@ -31,29 +22,32 @@
   width: 100%;
   overflow-y: auto;
   box-sizing: border-box;
-  display: flex;
-  padding: 0 40px;
   border: 20px solid transparent;
-  border-left: none;
-  border-right: none;
+}
+
+.contentEditor {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  margin: 0 auto;
 }
 
 .editor {
   flex: 1;
-  padding: 40px;
   max-width: 720px;
-  margin: 0 auto;
+  padding: 0 40px;
 }
 
 .outlineContainer {
   width: fit-content;
   flex-shrink: 0;
   overflow-y: auto;
-  max-height: 100vh;
+  max-height: calc(100vh - 300px);
   position: sticky;
   top: 0;
 
   .outline {
+    border: none;
     &::-webkit-scrollbar {
       display: none;
     }

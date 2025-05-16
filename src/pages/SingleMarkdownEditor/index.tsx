@@ -95,7 +95,10 @@ const SingleMarkdownEditor = () => {
       // 从编辑模式切换到源码模式
       const markdownText = getMarkdown(content);
       currentSourceText.current = markdownText;
-      if (!sourceEditorRef.current) return;
+      if (!sourceEditorRef.current) {
+        console.error("源码编辑器未初始化");
+        return;
+      }
       sourceEditorRef.current.setValue(markdownText);
       setTimeout(() => {
         if (!sourceEditorRef.current) return;
@@ -246,21 +249,24 @@ const SingleMarkdownEditor = () => {
       })}
     >
       <div className={styles.editorContainer}>
-        <If condition={isSourceMode}>
-          <div className={styles.sourceEditor}>
-            <MarkdownSourceEditor
-              value={currentSourceText.current}
-              onChange={onSourceTextChange}
-              editorDidMount={onSourceEditorDidMount}
-              isDark={isDark}
-              readonly={isReadonly}
-            />
-          </div>
-        </If>
+        <div
+          className={classnames(styles.sourceEditor, {
+            [styles.hidden]: !isSourceMode,
+          })}
+        >
+          <MarkdownSourceEditor
+            value={currentSourceText.current}
+            onChange={onSourceTextChange}
+            editorDidMount={onSourceEditorDidMount}
+            isDark={isDark}
+            readonly={isReadonly}
+          />
+        </div>
         <If condition={!isSourceMode}>
-          <div className={styles.editor}>
+          <div className={styles.contentEditor}>
             <ErrorBoundary>
               <Editor
+                className={styles.editor}
                 ref={editorRef}
                 initValue={content}
                 onChange={onContentChange}
@@ -270,14 +276,14 @@ const SingleMarkdownEditor = () => {
                 theme={isDark ? "dark" : "light"}
               />
             </ErrorBoundary>
-          </div>
-          <div className={styles.outlineContainer}>
-            <EditorOutline
-              className={styles.outline}
-              content={content}
-              show={true}
-              onClickHeader={onClickHeader}
-            />
+            <div className={styles.outlineContainer}>
+              <EditorOutline
+                className={styles.outline}
+                content={content}
+                show={true}
+                onClickHeader={onClickHeader}
+              />
+            </div>
           </div>
         </If>
       </div>

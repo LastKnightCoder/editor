@@ -20,7 +20,6 @@ import {
   connectDatabaseByName,
   closeDatabase,
 } from "@/commands";
-import { formatDate } from "@/utils";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
@@ -186,14 +185,6 @@ const SingleArticleEditor = () => {
 
   return (
     <div className={styles.singleArticleEditorContainer}>
-      <div className={styles.time}>
-        <div>
-          <span>创建于 {formatDate(editingArticle.create_time, true)}</span>
-        </div>
-        <div>
-          <span>最后修改于 {formatDate(editingArticle.update_time, true)}</span>
-        </div>
-      </div>
       <div className={styles.title}>
         <EditText
           ref={titleRef}
@@ -206,7 +197,7 @@ const SingleArticleEditor = () => {
         />
       </div>
       <div className={styles.editorContainer}>
-        <div className={styles.editor}>
+        <div className={styles.contentEditor}>
           <EditCardContext.Provider
             value={{
               cardId: -1,
@@ -214,6 +205,7 @@ const SingleArticleEditor = () => {
           >
             <ErrorBoundary>
               <Editor
+                className={styles.editor}
                 ref={editorRef}
                 initValue={editingArticle.content}
                 onChange={onContentChange}
@@ -223,14 +215,14 @@ const SingleArticleEditor = () => {
               />
             </ErrorBoundary>
           </EditCardContext.Provider>
-        </div>
-        <div className={styles.outlineContainer}>
-          <EditorOutline
-            className={styles.outline}
-            content={editingArticle.content}
-            show={true}
-            onClickHeader={onClickHeader}
-          />
+          <div className={styles.outlineContainer}>
+            <EditorOutline
+              className={styles.outline}
+              content={editingArticle.content}
+              show={true}
+              onClickHeader={onClickHeader}
+            />
+          </div>
         </div>
       </div>
       <div className={styles.addTag}>

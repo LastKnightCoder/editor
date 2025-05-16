@@ -4,19 +4,18 @@ import { markdownSerializerRegistry } from "./markdownSerializerRegistry";
 
 export const getMarkdown = (value: Descendant[]): string => {
   return value
-    .map((element) => {
+    .map((element, index) => {
       const isBlockElement = markdownSerializerRegistry.isBlock(
         element as CustomElement,
       );
       const str = elementToMarkdown(element as CustomElement, null);
+      const isLast = index === value.length - 1;
       if (str) {
-        return isBlockElement ? `${str}\n\n` : str;
+        return isBlockElement ? `${str}${isLast ? "\n" : "\n\n"}` : str;
       }
       return "";
     })
-    .join("")
-    .trim()
-    .concat("\n");
+    .join("");
 };
 
 export const leafToMarkdown = (leaf: FormattedText): string => {
@@ -46,20 +45,23 @@ export const elementToMarkdown = (
   parentElement: CustomElement | null,
 ): string => {
   const { type, children } = element;
+  const isList =
+    type === "bulleted-list" ||
+    type === "numbered-list" ||
+    type === "check-list";
+
   const childrenStr = children
     .map((node, index) => {
       if (node.type === "formatted") {
         return leafToMarkdown(node);
       } else {
         const isLast = index === children.length - 1;
-        // list-item 里面都是块级元素，会自己进行换行
-        const isList =
-          node.type === "list-item" ||
-          node.type === "bulleted-list" ||
-          node.type === "numbered-list";
+
         let tail = "";
         if (markdownSerializerRegistry.isBlock(node)) {
-          if (isLast || isList) {
+          if (isLast) {
+            tail = "";
+          } else if (isList) {
             tail = "\n";
           } else {
             tail = "\n\n";
