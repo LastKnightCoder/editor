@@ -218,14 +218,13 @@ export class CommandParser {
       this.commands.length > 0
     ) {
       if (this.commands.length === 0) {
-        yield new Promise<Command>((resolve) => {
+        yield new Promise<Command | null>((resolve) => {
           const interval = setInterval(() => {
             if (this.commands.length > 0) {
               clearInterval(interval);
               resolve(this.commands.shift()!);
             } else if (this.isFinished) {
               clearInterval(interval);
-              // @ts-ignore
               resolve(null);
             }
           }, 50);
