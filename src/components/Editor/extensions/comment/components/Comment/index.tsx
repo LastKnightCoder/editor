@@ -191,38 +191,36 @@ const Comment: React.FC<CommentProps> = (props) => {
       <InlineChromiumBugfix />
       {children}
       <InlineChromiumBugfix />
-      {comments.length > 0 && (
-        <Popover
-          trigger="click"
-          open={open}
-          onOpenChange={handlePopoverVisibilityChange}
-          content={
-            <div className={styles.commentContainer}>
-              <CommentList
-                comments={comments}
-                elementPath={commentPath}
-                onDelete={handleDeleteComment}
-                onEdit={handleEditComment}
-                onReply={handleReplyComment}
-                readOnly={readOnly}
-              />
-              {!readOnly && <CommentForm onSubmit={handleAddComment} />}
-            </div>
-          }
-          placement="bottom"
-          arrow={false}
-          styles={{
-            body: {
-              padding: 20,
-            },
-          }}
-        >
-          <span className={styles.commentIndicator} contentEditable={false}>
-            <MessageOutlined />
-            <span className={styles.commentCount}>{totalCommentsCount}</span>
-          </span>
-        </Popover>
-      )}
+      <Popover
+        trigger="click"
+        open={open}
+        onOpenChange={handlePopoverVisibilityChange}
+        content={
+          <div className={styles.commentContainer}>
+            <CommentList
+              comments={comments}
+              elementPath={commentPath}
+              onDelete={handleDeleteComment}
+              onEdit={handleEditComment}
+              onReply={handleReplyComment}
+              readOnly={readOnly}
+            />
+            {!readOnly && <CommentForm onSubmit={handleAddComment} />}
+          </div>
+        }
+        placement="bottom"
+        arrow={false}
+        styles={{
+          body: {
+            padding: 20,
+          },
+        }}
+      >
+        <span className={styles.commentIndicator} contentEditable={false}>
+          <MessageOutlined />
+          <span className={styles.commentCount}>{totalCommentsCount}</span>
+        </span>
+      </Popover>
     </span>
   );
 };

@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useMemoizedFn } from "ahooks";
+import { useRef, useState } from "react";
 
 export type ResizeDirection = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -17,6 +18,7 @@ interface UseImageResizeOptions {
   maxHeight?: number;
   aspectRatio?: number;
   onResizeEnd?: (size: Size) => void;
+  onSizeChange?: (size: Size) => void;
   readonly?: boolean;
   keepAspectRatio?: boolean;
 }
@@ -29,13 +31,15 @@ export function useImageResize({
   maxHeight = Infinity,
   aspectRatio,
   onResizeEnd,
+  onSizeChange,
   readonly = false,
   keepAspectRatio = true,
 }: UseImageResizeOptions) {
   const [size, setSize] = useState<Size>(initialSize);
   const [isResizing, setIsResizing] = useState(false);
+  const sizeRef = useRef<Size>(initialSize);
 
-  const handleResizeStart = useCallback(
+  const handleResizeStart = useMemoizedFn(
     (e: React.PointerEvent, direction: ResizeDirection) => {
       if (readonly) return;
 
@@ -93,6 +97,17 @@ export function useImageResize({
           width: newWidth,
           height: newHeight,
         });
+        sizeRef.current = {
+          width: newWidth,
+          height: newHeight,
+        };
+
+        if (onSizeChange) {
+          onSizeChange({
+            width: newWidth,
+            height: newHeight,
+          });
+        }
       };
 
       const handlePointerUp = (upEvent: PointerEvent) => {
@@ -104,8 +119,8 @@ export function useImageResize({
         (e.target as HTMLElement).releasePointerCapture(e.pointerId);
 
         // 调用调整结束回调
-        if (onResizeEnd && size.width && size.height) {
-          onResizeEnd(size);
+        if (onResizeEnd && sizeRef.current.width && sizeRef.current.height) {
+          onResizeEnd(sizeRef.current);
         }
 
         document.removeEventListener("pointermove", handlePointerMove);
@@ -115,17 +130,6 @@ export function useImageResize({
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
     },
-    [
-      size,
-      aspectRatio,
-      minWidth,
-      maxWidth,
-      minHeight,
-      maxHeight,
-      onResizeEnd,
-      readonly,
-      keepAspectRatio,
-    ],
   );
 
   return {

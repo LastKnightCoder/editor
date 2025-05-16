@@ -1,5 +1,10 @@
-import React, { memo, useCallback, useState, useRef, useEffect } from "react";
-import { RenderElementProps, useSlate, useReadOnly } from "slate-react";
+import React, { memo, useState, useRef, useEffect } from "react";
+import {
+  RenderElementProps,
+  useSlate,
+  useReadOnly,
+  ReactEditor,
+} from "slate-react";
 import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
 import { InlineImageElement } from "@/components/Editor/types";
 import ImageUploader from "@/components/Editor/components/ImageUploader";
@@ -49,31 +54,19 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
   }, []);
 
   // 更新元素的尺寸属性
-  const updateElementSize = useCallback(
+  const updateElementSize = useMemoizedFn(
     (widthValue?: number, heightValue?: number) => {
       if (typeof widthValue !== "number" || typeof heightValue !== "number")
         return;
 
-      const nodeEntries = Array.from(
-        Editor.nodes(editor, {
-          at: [],
-          match: (n: any) =>
-            SlateElement.isElement(n) &&
-            n.type === "inline-image" &&
-            n.uuid === uuid,
-        }),
-      );
+      const path = ReactEditor.findPath(editor, element);
 
-      if (nodeEntries.length > 0) {
-        const nodeEntry = nodeEntries[0] as NodeEntry<InlineImageElement>;
-        Transforms.setNodes(
-          editor,
-          { width: widthValue, height: heightValue },
-          { at: nodeEntry[1] },
-        );
-      }
+      Transforms.setNodes(
+        editor,
+        { width: widthValue, height: heightValue },
+        { at: path },
+      );
     },
-    [editor, uuid],
   );
 
   // 图片加载完成后获取原始尺寸
@@ -91,7 +84,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
       // 如果没有指定尺寸，使用原始尺寸
       if (!width && !height) {
         const editorWidth =
-          containerRef.current?.closest('[contenteditable="true"]')
+          containerRef.current?.closest('[data-slate-editor="true"]')
             ?.clientWidth || 0;
         // 处理 DPR 缩放
         const dpr = window.devicePixelRatio || 1;
