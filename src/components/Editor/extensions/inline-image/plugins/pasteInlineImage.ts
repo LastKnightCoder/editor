@@ -1,18 +1,18 @@
 import { Editor } from "slate";
-import { insertImage } from "@/components/Editor/utils";
+import { insertInlineImage } from "@/components/Editor/utils/insertElement";
 import { handlePasteImage } from "@/components/Editor/utils/pasteImage";
 
-export const pasteImage = (editor: Editor) => {
+export const pasteInlineImagePlugin = (editor: Editor) => {
   const { insertData } = editor;
 
   editor.insertData = async (data: DataTransfer) => {
-    const insertBlockImageFn = (editor: Editor, url: string, uuid: string) => {
-      return insertImage(editor, { url, uuid, pasteUploading: true });
+    const insertBlockImageFn = () => {
+      return undefined;
     };
 
-    const insertInlineImageFn = () => {
-      // 空实现，块级图片插件不处理行内图片
-      return false;
+    const insertInlineImageFn = (editor: Editor, url: string, uuid: string) => {
+      insertInlineImage(editor, { url, uuid });
+      return true;
     };
 
     const handled = await handlePasteImage(

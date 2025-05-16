@@ -8,6 +8,7 @@ import {
   TableElement,
   TableRowElement,
   TableCellElement,
+  FormattedText,
 } from "../types";
 import { Element, isEditor, Node, Editor, Path } from "slate";
 import { ReactEditor } from "slate-react";
@@ -51,7 +52,9 @@ export const getPreviousSiblingNode = (editor: Editor, node: Node) => {
   return Editor.node(editor, preSiblingPath);
 };
 
-export const isInlineElementEmpty = (element: InlineElement) => {
+export const isInlineElementEmpty = (
+  element: InlineElement | FormattedText,
+) => {
   if (element.type === "link") {
     return element.children.length === 1 && element.children[0].text === "";
   }
@@ -64,12 +67,17 @@ export const isInlineElementEmpty = (element: InlineElement) => {
   if (element.type === "underline") {
     return element.children.length === 1 && element.children[0].text === "";
   }
-
   if (element.type === "styled-text") {
     return element.children.length === 1 && element.children[0].text === "";
   }
+  if (element.type === "inline-image") {
+    return !element.url;
+  }
+  if ("text" in element) {
+    return (element as any).text === "";
+  }
 
-  return element.text === "";
+  return false;
 };
 
 export const isTableElementEmpty = (element: TableElement) => {
@@ -127,7 +135,7 @@ export const isBlockElementEmpty = (element: BlockElement): boolean => {
   }
 };
 
-export const isInlineElement = (element: Element) => {
+export const isInlineElement = (element: Element): element is InlineElement => {
   const { type } = element;
 
   return (
@@ -135,6 +143,7 @@ export const isInlineElement = (element: Element) => {
     type === "link" ||
     type === "underline" ||
     type === "html-inline" ||
-    type === "styled-text"
+    type === "styled-text" ||
+    type === "inline-image"
   );
 };

@@ -104,6 +104,14 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        type: "inline-image",
+        isBlock: false,
+        toMarkdown: (element) => {
+          const alt = element.alt || "";
+          return `![${alt}](${element.url})`;
+        },
+      },
+      {
         type: "image-gallery",
         isBlock: true,
         toMarkdown: (element) => {

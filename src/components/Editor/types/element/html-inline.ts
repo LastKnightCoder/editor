@@ -1,8 +1,8 @@
-import { FormattedText } from "../text.ts";
+import { Descendant } from "slate";
 
 export interface HTMLInlineElement {
   type: "html-inline";
   html: string;
   openEdit?: boolean;
-  children: FormattedText[];
+  children: Descendant[];
 }

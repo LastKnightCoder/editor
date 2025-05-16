@@ -1,8 +1,9 @@
 import { InlineElement } from "../custom-element.ts";
+import { FormattedText } from "../text.ts";
 
 export interface TableCellElement {
   type: "table-cell";
-  children: InlineElement[];
+  children: Array<InlineElement | FormattedText>;
 }
 
 export interface TableRowElement {

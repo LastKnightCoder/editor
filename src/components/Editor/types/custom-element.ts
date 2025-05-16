@@ -44,6 +44,7 @@ import { WhiteboardElement } from "./element/whiteboard.ts";
 import { CommentElement } from "./element/comment.ts";
 import { FrontMatterElement } from "./element/front-matter.ts";
 import { WebviewElement } from "./element/webview.ts";
+import { InlineImageElement } from "./element/inline-image.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -86,15 +87,16 @@ export type CustomElement =
   | CommentElement
   | FrontMatterElement
   | WebviewElement
-  | HTMLInlineElement;
+  | HTMLInlineElement
+  | InlineImageElement;
 
 export type InlineElement =
-  | FormattedText
   | LinkElement
   | InlineMathElement
   | UnderlineElement
   | StyledTextElement
-  | HTMLInlineElement;
+  | HTMLInlineElement
+  | InlineImageElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>;

@@ -21,6 +21,7 @@ import {
   AudioElement,
   VideoElement,
   HTMLInlineElement,
+  InlineImageElement,
 } from "../types";
 import { EGalleryMode, EStyledColor } from "../constants";
 import { codeBlockMap } from "../extensions/code-block";
@@ -125,6 +126,7 @@ export const insertDetails = (editor: Editor) => {
 interface ImageParams {
   url: string;
   alt?: string;
+  uuid?: string;
   pasteUploading?: boolean;
 }
 
@@ -132,6 +134,7 @@ export const insertImage = (editor: Editor, params: ImageParams) => {
   const image: ImageElement = {
     type: "image",
     ...params,
+    uuid: params.uuid || getUuid(),
     children: [{ type: "formatted", text: "" }],
   };
   return setOrInsertNode(editor, image);
@@ -174,6 +177,30 @@ export const insertVideo = (editor: Editor, params: VideoParams) => {
     ],
   };
   return setOrInsertNode(editor, video);
+};
+
+interface InlineImageParams {
+  url: string;
+  alt?: string;
+  uuid?: string;
+}
+
+export const insertInlineImage = (
+  editor: Editor,
+  params: InlineImageParams,
+) => {
+  const inlineImage: InlineImageElement = {
+    type: "inline-image",
+    ...params,
+    uuid: params.uuid || getUuid(),
+    children: [{ type: "formatted", text: "" }],
+  };
+
+  if (editor.selection) {
+    Transforms.insertNodes(editor, inlineImage);
+  } else {
+    Transforms.insertNodes(editor, inlineImage, { at: Editor.end(editor, []) });
+  }
 };
 
 export const insertBulletList = (editor: Editor) => {

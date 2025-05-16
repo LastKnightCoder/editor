@@ -12,7 +12,7 @@ alwaysApply: true
 ## 代码规范
 
 - 包管理器使用 pnpm，因为是 electron 项目，尽量使用 -D 下载包
-- 使用中文注释，只在关键节点注释，非重要逻辑不注释
+- 使用**中文**注释，只在关键节点注释，非重要逻辑不注释
 - 数据管理使用 zustand，不可变数据流使用 immer
 - electron 数据存储使用 sqlite
 - 所有的类型声明在 src/types 文件夹
@@ -26,6 +26,7 @@ alwaysApply: true
 - 当文件太长时，你需要考虑拆分组件和 hook
 - 非必须不使用 :global 样式
 - 组件使用 memo 进行性能优化时，不要在最后通过 export default memo(Component) 的方式导出，而是通过 const Component = memo(() => {}) 这样，因为前一种方式对 react-refresh 不友好
+- 使用 classnames 库处理多类名
 
 ## 数据库
 
