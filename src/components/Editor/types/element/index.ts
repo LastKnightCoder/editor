@@ -11,6 +11,7 @@ export * from "./tikz.ts";
 export * from "./math.ts";
 export * from "./table.ts";
 export * from "./image.ts";
+export * from "./inline-image.ts";
 export * from "./detail.ts";
 export * from "./block-quote.ts";
 export * from "./link.ts";

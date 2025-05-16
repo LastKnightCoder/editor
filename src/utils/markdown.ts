@@ -88,7 +88,8 @@ function processBuffer(buffer: any[]) {
 
 const markdownToDescendant = (
   node: any,
-  parent: any,
+  parentAstNode: any,
+  astChildrenOfParent: any[],
 ): Descendant | Descendant[] | null => {
   if (node.type === "heading") {
     return {
@@ -242,17 +243,39 @@ const markdownToDescendant = (
       ],
     };
   } else if (node.type === "image") {
-    return {
-      type: "image",
-      url: node.url,
-      alt: node.alt,
-      children: [
-        {
-          type: "formatted",
-          text: "",
-        },
-      ],
-    };
+    const isOnlyChildInParagraph =
+      parentAstNode &&
+      parentAstNode.type === "paragraph" &&
+      astChildrenOfParent &&
+      astChildrenOfParent.length === 1 &&
+      astChildrenOfParent[0] === node;
+
+    if (isOnlyChildInParagraph) {
+      return {
+        type: "image",
+        url: node.url,
+        alt: node.alt,
+        children: [
+          {
+            type: "formatted",
+            text: "",
+          },
+        ],
+      };
+    } else {
+      return {
+        type: "inline-image",
+        url: node.url,
+        alt: node.alt,
+        uuid: uuid(),
+        children: [
+          {
+            type: "formatted",
+            text: "",
+          },
+        ],
+      };
+    }
   } else if (node.type === "link") {
     return {
       type: "link",
@@ -335,10 +358,10 @@ const markdownToDescendant = (
   } else {
     console.log("unknown node", node);
     if (
-      parent &&
-      (parent.type === "paragraph" ||
-        parent.type === "link" ||
-        parent.type === "heading")
+      parentAstNode &&
+      (parentAstNode.type === "paragraph" ||
+        parentAstNode.type === "link" ||
+        parentAstNode.type === "heading")
     ) {
       return {
         type: "formatted",
@@ -374,44 +397,54 @@ export const importFromMarkdown = (
   const editor: Descendant[] = [];
 
   const dfs = (
-    children: any[],
-    result: Descendant[],
+    astNodes: any[],
+    slateResultArray: Descendant[],
     ignoreTypes: string[] = [],
-    parent: Descendant | null = null,
+    _currentSlateParent: Descendant | null = null,
+    parentAstNodeForChildren: any | null = null,
   ) => {
-    for (const child of children) {
+    for (const astChildNode of astNodes) {
       while (
-        child.type === "link" &&
-        child.children &&
-        child.children.some((c: any) => c.type === "html")
+        astChildNode.type === "link" &&
+        astChildNode.children &&
+        astChildNode.children.some((c: any) => c.type === "html")
       ) {
-        const index = child.children.findIndex(
+        const index = astChildNode.children.findIndex(
           (child: any) => child.type === "html",
         );
-        const paragraph = child.children[index];
+        const paragraph = astChildNode.children[index];
         paragraph.type = "text";
       }
-      const node = markdownToDescendant(child, parent);
-      if (!node) continue;
-      // bold 和 italic 需要展开为 formatted，数组的时候说明是展开
-      if (!Array.isArray(node)) {
-        if (ignoreTypes.includes(node.type)) continue;
-        result.push(node);
-        if (child.children && node.type !== "formatted") {
-          dfs(child.children, node.children, ignoreTypes, node);
+      const slateNode = markdownToDescendant(
+        astChildNode,
+        parentAstNodeForChildren,
+        astNodes,
+      );
+      if (!slateNode) continue;
+      if (!Array.isArray(slateNode)) {
+        if (ignoreTypes.includes(slateNode.type)) continue;
+        slateResultArray.push(slateNode);
+        if (astChildNode.children && slateNode.type !== "formatted") {
+          dfs(
+            astChildNode.children,
+            slateNode.children,
+            ignoreTypes,
+            slateNode,
+            astChildNode,
+          );
         }
       } else {
-        const filteredNode = node.filter(
+        const filteredNode = slateNode.filter(
           (item) => !ignoreTypes.includes(item.type),
         );
-        result.push(...filteredNode);
+        slateResultArray.push(...filteredNode);
       }
     }
   };
 
   console.log("parseResult", parseResult);
 
-  dfs(parseResult.children, editor, ignoreTypes);
+  dfs(parseResult.children, editor, ignoreTypes, null, parseResult);
 
   let beforeNormalize = editor;
   let afterNormalize = normalizeEditorContent(editor);

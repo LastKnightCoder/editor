@@ -28,7 +28,11 @@ import {
   Plugin,
   elementToMarkdown,
 } from "./utils";
-import { withSlashCommands, withNormalize } from "@/components/Editor/plugins";
+import {
+  withSlashCommands,
+  withNormalize,
+  withUploadResource,
+} from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
 
 import hotkeys from "./hotkeys";
@@ -135,11 +139,16 @@ const Index = memo(
       const extensionPlugins = finalExtensions
         .map((extension) => extension.getPlugins())
         .flat();
-      return applyPlugin(
-        createEditor(),
-        defaultPlugins.concat(extensionPlugins),
-      );
-    }, [finalExtensions]);
+
+      // Apply the default plugins first
+      let processedEditor = applyPlugin(createEditor(), defaultPlugins);
+
+      // Then apply withUploadResource separately since it's a function that returns a plugin
+      processedEditor = withUploadResource(uploadResource)(processedEditor);
+
+      // Finally apply extension plugins
+      return applyPlugin(processedEditor, extensionPlugins);
+    }, [finalExtensions, uploadResource]);
 
     const hotKeyConfigs = useMemo(() => {
       return finalExtensions
@@ -209,7 +218,7 @@ const Index = memo(
         Editor.normalize(editor, { force: true });
         setIsNormalized(true);
       }
-    });
+    }, [isNormalized, editor]);
 
     useImperativeHandle(
       ref,

@@ -1,53 +1,31 @@
-import { Editor, Transforms } from "slate";
+import { Editor } from "slate";
 import { insertImage } from "@/components/Editor/utils";
-import { uploadResource } from "@/hooks/useUploadResource.ts";
-import { message } from "antd";
+import { handlePasteImage } from "@/components/Editor/utils/pasteImage";
 
 export const pasteImage = (editor: Editor) => {
   const { insertData } = editor;
 
   editor.insertData = async (data: DataTransfer) => {
-    const { files } = data;
-    if (files && files.length > 0) {
-      const file = files[0];
-      const [mime] = file.type.split("/");
-      if (mime !== "image") {
-        insertData(data);
-        return;
-      }
-      const insertPath = insertImage(editor, {
-        url: "",
-        pasteUploading: true,
-      });
-      if (!insertPath) {
-        return;
-      }
-      const url = await uploadResource(file);
-      if (!url) {
-        message.error("上传失败");
-        Transforms.setNodes(
-          editor,
-          {
-            pasteUploading: false,
-          },
-          {
-            at: insertPath,
-          },
-        );
-        return;
-      }
-      Transforms.setNodes(
-        editor,
-        {
-          url,
-          pasteUploading: false,
-        },
-        {
-          at: insertPath,
-        },
-      );
+    const insertBlockImageFn = (editor: Editor, url: string, uuid: string) => {
+      return insertImage(editor, { url, uuid, pasteUploading: true });
+    };
+
+    const insertInlineImageFn = () => {
+      // 空实现，块级图片插件不处理行内图片
+      return false;
+    };
+
+    const handled = await handlePasteImage(
+      editor,
+      data,
+      insertBlockImageFn,
+      insertInlineImageFn,
+    );
+
+    if (handled) {
       return;
     }
+
     insertData(data);
   };
 

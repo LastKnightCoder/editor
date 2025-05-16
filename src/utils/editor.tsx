@@ -11,6 +11,7 @@ import { Typography } from "antd";
 import Katex from "@/components/Katex";
 import { wordsCount } from "words-count";
 import { StyledTextColorStyle } from "@editor/constants";
+import LocalImage from "@/components/LocalImage";
 
 export const getEditorTextValue = (
   value: Descendant[],
@@ -40,7 +41,7 @@ const getParagraphContent = (
   paragraph: ParagraphElement,
 ): Array<JSX.Element> => {
   return paragraph.children
-    .map((node, index) => {
+    .map((node, index): JSX.Element | undefined => {
       switch (node.type) {
         case "formatted":
           return (
@@ -67,6 +68,12 @@ const getParagraphContent = (
           return (
             <span dangerouslySetInnerHTML={{ __html: node.html }} key={index} />
           );
+        case "inline-image":
+          return (
+            <span style={{ display: "inline-block" }} key={index}>
+              <LocalImage src={node.url} alt={node.alt} />
+            </span>
+          );
         case "underline":
           return (
             <Typography.Text key={index} underline>
@@ -88,9 +95,11 @@ const getParagraphContent = (
               {node.children?.[0].text}
             </Typography.Text>
           );
+        default:
+          return undefined;
       }
     })
-    .filter(Boolean);
+    .filter((element): element is JSX.Element => Boolean(element));
 };
 
 export const getEditorText = (value: Descendant[], maxLength = 20): string => {
@@ -176,7 +185,9 @@ export const getEditorTextLength = (
   );
 };
 
-export const getInlineElementText = (element: InlineElement): string => {
+export const getInlineElementText = (
+  element: InlineElement | FormattedText,
+): string => {
   switch (element.type) {
     case "formatted":
       return element.text;
@@ -190,7 +201,11 @@ export const getInlineElementText = (element: InlineElement): string => {
       return element.children?.[0].text;
     case "styled-text":
       return element.children?.[0].text;
+    case "inline-image":
+      return element.alt || "[Image]";
     default:
+      // const _exhaustiveCheck: never = element;
+      // console.log(_exhaustiveCheck);
       return "";
   }
 };

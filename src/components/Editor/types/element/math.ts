@@ -1,10 +1,9 @@
-import { FormattedText } from "../text.ts";
 import { Descendant } from "slate";
 
 export interface InlineMathElement {
   type: "inline-math";
   tex: string;
-  children: FormattedText[];
+  children: Descendant[];
 }
 
 export interface BlockMathElement {

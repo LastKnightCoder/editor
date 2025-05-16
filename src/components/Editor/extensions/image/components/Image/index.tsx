@@ -1,11 +1,5 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { message, Popover, Spin, Modal, Button } from "antd";
+import React, { useEffect, useRef, useState } from "react";
+import { message, Spin, Modal, Button } from "antd";
 import { Transforms } from "slate";
 import {
   ReactEditor,
@@ -13,10 +7,8 @@ import {
   useSlate,
   useReadOnly,
 } from "slate-react";
-import { useClickAway } from "ahooks";
 import {
   DeleteOutlined,
-  FileImageOutlined,
   FullscreenOutlined,
   ScissorOutlined,
 } from "@ant-design/icons";
@@ -24,6 +16,7 @@ import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import { useUploadResource } from "@/components/Editor/hooks/useUploadResource";
 
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { useImagesOverviewStore } from "@/components/Editor/stores";
@@ -31,10 +24,9 @@ import { ImageElement } from "@/components/Editor/types";
 import LocalImage from "@/components/LocalImage";
 
 import styles from "./index.module.less";
-import UploadTab from "../UploadTab";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
-import { EditorContext } from "@editor/index.tsx";
+import ImageUploader from "@/components/Editor/components/ImageUploader";
 
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
@@ -45,7 +37,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { attributes, children, element } = props;
   const { url, alt = "", pasteUploading = false, crop, previewUrl } = element;
 
-  const { uploadResource } = useContext(EditorContext) || {};
+  const uploadResource = useUploadResource();
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -53,9 +45,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     });
 
   const [uploading, setUploading] = useState(false);
-  const fileUploadRef = useRef<HTMLInputElement>(null);
-  const [showUploadTab, setShowUploadTab] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -63,10 +52,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { showImageOverview } = useImagesOverviewStore((state) => ({
     showImageOverview: state.showImageOverview,
   }));
-
-  useClickAway(() => {
-    setShowUploadTab(false);
-  }, popoverRef);
 
   const showOverView = () => {
     showImageOverview(element, editor);
@@ -93,15 +78,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     );
   };
 
-  const upload = useCallback(() => {
-    if (fileUploadRef.current) {
-      setShowUploadTab(false);
-      fileUploadRef.current.click();
-    }
-  }, []);
-
   const setLink = (url: string) => {
-    setShowUploadTab(false);
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(
       editor,
@@ -112,40 +89,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         at: path,
       },
     );
-  };
-
-  const handleUploadFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const files = event.target.files;
-    if (!files) {
-      event.target.value = "";
-      return;
-    }
-    if (!uploadResource) {
-      message.warning("尚未配置任何图床，无法上传图片");
-      return null;
-    }
-    const path = ReactEditor.findPath(editor, element);
-    const file = files[0];
-    const uploadRes = await uploadResource(file);
-    if (!uploadRes) {
-      setUploading(false);
-      event.target.value = "";
-      return;
-    }
-    Transforms.setNodes(
-      editor,
-      {
-        url: uploadRes,
-        previewUrl: uploadRes, // 设置预览URL为上传后的URL
-      },
-      {
-        at: path,
-      },
-    );
-    setUploading(false);
-    event.target.value = "";
   };
 
   const [showCropModal, setShowCropModal] = useState(false);
@@ -161,7 +104,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // 当url变化时，重置previewUrl
   useEffect(() => {
     if (!previewUrl && url) {
       const path = ReactEditor.findPath(editor, element);
@@ -178,7 +120,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   }, [url, previewUrl, editor, element]);
 
   const onImageLoad = () => {
-    // 初始时设置裁剪区域为图片中心的30%，如果已有crop则使用已有的
     if (!crop) {
       setCurrentCrop({
         unit: "%",
@@ -196,7 +137,6 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const confirmCrop = async () => {
     if (imgRef.current && completedCrop) {
-      // 创建裁剪后的预览图
       const image = imgRef.current;
       const canvas = document.createElement("canvas");
       const scaleX = image.naturalWidth / image.width;
@@ -217,16 +157,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           canvas.height,
         );
 
-        // 将裁剪后的图片上传到服务器
         canvas.toBlob(async (blob) => {
           if (blob && uploadResource) {
             setUploading(true);
             try {
-              // 创建文件对象
               const file = new File([blob], "cropped.jpg", {
                 type: "image/jpeg",
               });
-              // 上传裁剪后的图片
               const uploadRes = await uploadResource(file);
               if (uploadRes) {
                 const path = ReactEditor.findPath(editor, element);
@@ -234,7 +171,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
                   editor,
                   {
                     crop: currentCrop,
-                    previewUrl: uploadRes, // 使用上传后的URL而不是blob URL
+                    previewUrl: uploadRes,
                   },
                   {
                     at: path,
@@ -264,46 +201,23 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   };
 
   const renderUpload = () => {
+    if (readOnly) {
+      return null;
+    }
     return (
-      <div ref={popoverRef} className={styles.uploadContainer}>
-        <Spin spinning={uploading || pasteUploading}>
-          <Popover
-            placement={"bottom"}
-            open={showUploadTab}
-            content={<UploadTab uploadImage={upload} setLink={setLink} />}
-            getPopupContainer={(target) => target.parentNode as HTMLElement}
-          >
-            <div
-              className={styles.content}
-              onClick={() => {
-                setShowUploadTab(true);
-              }}
-            >
-              <div>
-                <FileImageOutlined style={{ fontSize: "32px" }} />
-              </div>
-              <div className={styles.uploadText}>上传图片</div>
-              <input
-                ref={fileUploadRef}
-                type={"file"}
-                accept={"image/*"}
-                style={{ display: "none" }}
-                onChange={handleUploadFileChange}
-              />
-            </div>
-          </Popover>
-        </Spin>
-        <div className={styles.actions}>
-          <div onClick={deleteImage} className={styles.item}>
-            <DeleteOutlined />
-          </div>
-        </div>
+      <div className={styles.imageUploadContainer}>
+        <ImageUploader
+          loading={uploading || pasteUploading}
+          onUploadSuccess={(url) => {
+            setLink(url);
+          }}
+          uploadResource={uploadResource}
+        />
       </div>
     );
   };
 
   const renderPreview = () => {
-    // 确定显示的图片URL，优先使用previewUrl
     const displayUrl = previewUrl || url;
 
     return (
@@ -396,7 +310,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             >
               <LocalImage
                 ref={imgRef}
-                url={url} // 裁剪时使用原始URL
+                url={url}
                 alt={alt}
                 style={{ maxWidth: "100%" }}
                 onLoad={onImageLoad}

@@ -5,7 +5,5 @@ export interface VideoElement {
   src: string;
   playbackRate?: number;
   uploading?: boolean;
-  // width?: number;
-  // height?: number;
   children: Descendant[];
 }

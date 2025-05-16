@@ -5,6 +5,7 @@ export interface ImageElement {
   type: "image";
   url: string;
   alt?: string;
+  uuid?: string;
   pasteUploading?: boolean;
   crop?: Crop;
   previewUrl?: string;
