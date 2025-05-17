@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { Descendant } from "slate";
 import { updateContent } from "@/commands";
 import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
-import { defaultContentEventBus, ContentEventData } from "@/utils";
+import {
+  defaultContentEventBus,
+  ContentEventData,
+  getContentLength,
+} from "@/utils";
 
 const useEditContent = (
   contentId: number | undefined,
@@ -13,11 +17,13 @@ const useEditContent = (
     [],
   );
   const [content, setContent] = useState<Descendant[]>([]);
+  const [count, setCount] = useState<number>(0);
 
   const handleSubscribeContentUpdate = useMemoizedFn(
     (data: ContentEventData) => {
       onContentChange(data.content.content);
       setContent(data.content.content);
+      setCount(getContentLength(data.content.content));
     },
   );
 
@@ -37,6 +43,7 @@ const useEditContent = (
       const updatedContent = await updateContent(contentId, content);
       if (!updatedContent) return;
       setContent(updatedContent.content);
+      setCount(updatedContent.count);
       contentEditor.publishContentEvent("content:updated", updatedContent);
     },
   );
@@ -52,6 +59,7 @@ const useEditContent = (
     handleEditorContentChange,
     throttleHandleEditorContentChange,
     content,
+    count,
   };
 };
 

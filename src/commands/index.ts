@@ -25,3 +25,4 @@ export * from "./fts.ts";
 export * from "./video-notes";
 export * from "./question.ts";
 export * from "./content.ts";
+export * from "./journal";

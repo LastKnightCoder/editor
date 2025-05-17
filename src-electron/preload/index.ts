@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from "electron";
-// import * as process from "node:process";
 
 contextBridge.exposeInMainWorld("electron", {
   invoke: (channel: string, ...args: any[]) => {

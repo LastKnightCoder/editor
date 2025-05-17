@@ -168,6 +168,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         enable: module.dailyNote.enable,
       },
       {
+        key: "journal",
+        icon: daily,
+        desc: "日志",
+        path: "/journals",
+        enable: module.dailyNote.enable,
+      },
+      {
         key: "timeRecord",
         icon: timeRecord,
         desc: "时间统计",

@@ -22,6 +22,7 @@ import VideoNoteTable from "./tables/video-note";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
 import WhiteBoardContentTable from "./tables/white-board-content";
+import JournalTable from "./tables/journal";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -62,6 +63,7 @@ class DatabaseModule implements Module {
       FtsTable,
       VideoNoteTable,
       QuestionTable,
+      JournalTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(
@@ -157,7 +159,11 @@ class DatabaseModule implements Module {
           const database = this.createDatabase(name);
           this.databases.set(name, database);
 
-          this.forceCheckpoint(name);
+          try {
+            this.forceCheckpoint(name);
+          } catch (e) {
+            log.error(e);
+          }
         }
 
         const sender = event.sender;

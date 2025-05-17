@@ -39,6 +39,7 @@ const PdfView = loadable(() => import("@/pages/PdfView"));
 const DailyNoteView = loadable(() => import("@/pages/DailyNoteView"));
 const TimeRecordView = loadable(() => import("@/pages/TimeRecordView"));
 const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
+const JournalView = loadable(() => import("@/pages/JournalView"));
 
 const routes = [
   {
@@ -96,6 +97,10 @@ const routes = [
       {
         path: "dailies",
         element: <DailyNoteView />,
+      },
+      {
+        path: "journals",
+        element: <JournalView />,
       },
       {
         path: "time-records",
