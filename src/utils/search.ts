@@ -31,6 +31,9 @@ export const searchContent = async (
         : Promise.resolve([]),
     ]);
 
+    console.log("ftsResults", ftsResults);
+    console.log("vecResults", vecResults);
+
     const ftsResultsArray = ftsResults || [];
     const vecResultsArray = vecResults || [];
 

@@ -17,6 +17,7 @@ import { ProjectItem } from "@/types/project";
 import { getProjectItemById, updateProjectItem } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils";
 import useEditContent from "@/hooks/useEditContent";
+import useUploadResource from "@/hooks/useUploadResource";
 import { Descendant } from "slate";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
@@ -46,6 +47,7 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   const prevProjectItem = useRef<ProjectItem | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const isWindowFocused = useWindowFocus();
+  const uploadResource = useUploadResource();
   const { throttleHandleEditorContentChange } = useEditContent(
     projectItem?.contentId,
     (content) => {
@@ -215,6 +217,7 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
           initValue={projectItem.content}
           onChange={onContentChange}
           readonly={false}
+          uploadResource={uploadResource}
           extensions={customExtensions}
         />
       </div>

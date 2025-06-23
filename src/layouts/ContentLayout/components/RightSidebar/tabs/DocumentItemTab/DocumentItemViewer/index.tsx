@@ -20,6 +20,7 @@ import { defaultDocumentItemEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
+import useUploadResource from "@/hooks/useUploadResource";
 
 import styles from "./index.module.less";
 
@@ -50,6 +51,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   const prevDocumentItem = useRef<IDocumentItem | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const isWindowFocused = useWindowFocus();
+  const uploadResource = useUploadResource();
   const fetchDocumentItem = useMemoizedFn(async () => {
     setLoading(true);
     try {
@@ -215,6 +217,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
           initValue={documentItem.content}
           onChange={onContentChange}
           readonly={false}
+          uploadResource={uploadResource}
           extensions={customExtensions}
         />
       </div>
