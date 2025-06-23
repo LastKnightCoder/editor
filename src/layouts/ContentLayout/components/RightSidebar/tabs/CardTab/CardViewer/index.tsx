@@ -19,6 +19,7 @@ import { defaultCardEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
+import useUploadResource from "@/hooks/useUploadResource";
 
 const customExtensions = [
   contentLinkExtension,
@@ -37,6 +38,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   const editorRef = useRef<EditorRef>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const prevCard = useRef<ICard | null>(null);
+  const uploadResource = useUploadResource();
 
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
@@ -152,6 +154,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
           extensions={customExtensions}
           onChange={onContentChange}
           readonly={false}
+          uploadResource={uploadResource}
         />
       </ErrorBoundary>
       {card.tags.length > 0 && (

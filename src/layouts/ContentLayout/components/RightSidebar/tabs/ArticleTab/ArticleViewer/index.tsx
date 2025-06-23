@@ -21,6 +21,7 @@ import { useRightSidebarContext } from "../../../RightSidebarContext";
 import styles from "./index.module.less";
 import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
+import useUploadResource from "@/hooks/useUploadResource";
 
 interface ArticleViewerProps {
   articleId: string;
@@ -44,6 +45,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   const prevArticle = useRef<IArticle | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const isWindowFocused = useWindowFocus();
+  const uploadResource = useUploadResource();
   const { throttleHandleEditorContentChange } = useEditContent(
     article?.contentId,
     (content) => {
@@ -183,6 +185,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
           initValue={article.content}
           onChange={handleContentChange}
           readonly={false}
+          uploadResource={uploadResource}
           extensions={customExtensions}
         />
       </div>

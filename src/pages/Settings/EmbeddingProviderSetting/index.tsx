@@ -1,7 +1,7 @@
 import { Divider, App } from "antd";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { useState } from "react";
-import { produce } from "immer";
+import { createDraft, finishDraft, produce } from "immer";
 import { v4 as getUuid } from "uuid";
 import { clearVecDocumentTable, initVecDocumentTable } from "@/commands";
 import { ConfigTable, ModelTable, ConfigModal, ModelModal } from "./components";
@@ -17,7 +17,7 @@ const EmbeddingProviderSetting = () => {
   const [initialModelData, setInitialModelData] = useState<ModelItem | null>(
     null,
   );
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
 
   const { currentConfig } = useSettingStore((state) => {
     const settings = state.setting.embeddingProvider;
@@ -92,94 +92,77 @@ const EmbeddingProviderSetting = () => {
     setModelAddOpen(true);
   };
 
-  const onAddModelFinish = (data: ModelFormData) => {
+  const onAddModelFinish = async (data: ModelFormData) => {
     if (!data.name || !data.description) {
       message.warning("请填写完整");
       return;
     }
 
-    useSettingStore.setState(
-      produce((draft) => {
-        const currentConfig = draft.setting.embeddingProvider.configs.find(
-          (item: ConfigItem) =>
-            item.id === draft.setting.embeddingProvider.currentConfigId,
-        );
-        if (currentConfig) {
-          if (!currentConfig.models) {
-            currentConfig.models = [];
-          }
+    const draft = createDraft(useSettingStore.getState());
+    const currentConfig = draft.setting.embeddingProvider.configs.find(
+      (item: ConfigItem) =>
+        item.id === draft.setting.embeddingProvider.currentConfigId,
+    );
+    if (currentConfig) {
+      if (!currentConfig.models) {
+        currentConfig.models = [];
+      }
 
-          if (modelAction === "create") {
-            currentConfig.models.push({
+      if (modelAction === "create") {
+        currentConfig.models.push({
+          name: data.name,
+          description: data.description,
+          contextLength: data.contextLength,
+          features: data.features,
+          distance: data.distance,
+        });
+      } else {
+        const modelIndex = currentConfig.models.findIndex(
+          (item: ModelItem) => item.name === initialModelData?.name,
+        );
+        if (modelIndex !== -1) {
+          // contextLength 是否和之前的不同，如果不同，则需要删掉重建
+          const prevContextLength =
+            currentConfig.models[modelIndex].contextLength;
+          if (prevContextLength !== data.contextLength) {
+            try {
+              // 清除现有向量数据
+              await clearVecDocumentTable();
+
+              await initVecDocumentTable(data.contextLength);
+
+              // 更新模型名称
+              currentConfig.models[modelIndex] = {
+                name: data.name,
+                description: data.description,
+                contextLength: data.contextLength,
+                features: data.features,
+                distance: data.distance,
+              };
+            } catch (error) {
+              console.error("向量数据库重置失败:", error);
+              message.error("向量数据库重置失败，请重试");
+            }
+          } else {
+            currentConfig.models[modelIndex] = {
               name: data.name,
               description: data.description,
               contextLength: data.contextLength,
               features: data.features,
-              distace: data.distance,
-            });
-          } else {
-            // Edit existing model
-            const modelIndex = currentConfig.models.findIndex(
-              (item: ModelItem) => item.name === initialModelData?.name,
-            );
-            if (modelIndex !== -1) {
-              // contextLength 是否和之前的不同，如果不同，则需要删掉重建
-              const prevContextLength =
-                currentConfig.models[modelIndex].contextLength;
-              if (prevContextLength !== data.contextLength) {
-                modal.confirm({
-                  title: "切换嵌入模型",
-                  content:
-                    "不同的嵌入模型不能共用，之前的嵌入数据将会被删除，是否继续？",
-                  okText: "确认",
-                  cancelText: "取消",
-                  okButtonProps: {
-                    danger: true,
-                  },
-                  onOk: async () => {
-                    try {
-                      // 清除现有向量数据
-                      await clearVecDocumentTable();
-
-                      await initVecDocumentTable(data.contextLength);
-
-                      // 更新模型名称
-                      currentConfig.models[modelIndex] = {
-                        name: data.name,
-                        description: data.description,
-                        contextLength: data.contextLength,
-                        features: data.features,
-                        distance: data.distance,
-                      };
-                    } catch (error) {
-                      console.error("向量数据库重置失败:", error);
-                      modal.error({
-                        title: "错误",
-                        content: "向量数据库重置失败，请重试",
-                      });
-                    }
-                  },
-                });
-              } else {
-                currentConfig.models[modelIndex] = {
-                  name: data.name,
-                  description: data.description,
-                  contextLength: data.contextLength,
-                  features: data.features,
-                  distance: data.distance,
-                };
-              }
-              if (
-                initialModelData?.name !== data.name &&
-                currentConfig.currentModel === initialModelData?.name
-              ) {
-                currentConfig.currentModel = data.name;
-              }
-            }
+              distance: data.distance,
+            };
+          }
+          if (
+            initialModelData?.name !== data.name &&
+            currentConfig.currentModel === initialModelData?.name
+          ) {
+            currentConfig.currentModel = data.name;
           }
         }
-      }),
-    );
+      }
+    }
+
+    useSettingStore.setState(finishDraft(draft));
     setModelAddOpen(false);
     setInitialModelData(null);
   };
