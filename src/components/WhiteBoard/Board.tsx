@@ -314,10 +314,20 @@ class Board {
     if (this.isDestroyed) return;
     if (ops.length === 0) return;
 
+    // 第一步：过滤无效操作（包括祖先-子孙关系过滤），保留原始操作用于历史记录
+    const validOps = PathUtil.filterValidOperations(ops);
+    if (validOps.length === 0) return;
+
+    // 第二步：对有效操作进行排序，确保正确的执行顺序
+    const sortedOps = PathUtil.sortOperationsForExecution(validOps);
+
+    // 第三步：转换排序后的操作路径用于执行
+    const transformedOps = PathUtil.transformValidOperations(sortedOps);
+
     const changedElements = [];
     const removedElements = [];
     try {
-      for (const op of ops) {
+      for (const op of transformedOps) {
         if (op.type === "set_node") {
           if (this.readonly) return;
           if (!isDraft(this.children)) {
@@ -433,7 +443,8 @@ class Board {
       }
 
       if (updateHistory) {
-        this.undos.push(ops);
+        // 保存过滤和排序后的操作到历史记录
+        this.undos.push(sortedOps);
         if (this.undos.length > 100) {
           this.undos.shift();
         }
@@ -514,6 +525,8 @@ class Board {
     const inverseOps = undo
       .map((item) => BoardUtil.inverseOperation(item))
       .reverse();
+
+    // 直接应用撤销操作，排序在 apply 方法中统一处理
     this.apply(inverseOps, false);
     this.redos.push(undo);
   }

@@ -205,10 +205,19 @@ export class SelectPlugin implements IBoardPlugin {
       const otherElements = selectedElements.filter(
         (element) => element.type !== "mind-node",
       );
-      const ops = BoardUtil.getBatchRemoveNodesOps(board, [
-        ...otherElements,
-        ...toDeleteRoots,
-      ]);
+      // 创建删除操作，现在不需要预先计算路径了，apply 方法会自动处理路径转换
+      const deleteElements = [...otherElements, ...toDeleteRoots];
+      const ops: Operation[] = [];
+      for (const element of deleteElements) {
+        const path = PathUtil.getPathByElement(board, element);
+        if (path) {
+          ops.push({
+            type: "remove_node",
+            path,
+            node: element,
+          });
+        }
+      }
 
       const finalOps = [...mindOps, ...ops];
 
