@@ -1,5 +1,5 @@
 import { Board, BoardElement, IBoardPlugin, Operation, Point } from "../types";
-import { BoardUtil } from "@/components/WhiteBoard/utils";
+import { PathUtil } from "@/components/WhiteBoard/utils";
 import { SelectTransforms } from "@/components/WhiteBoard/transforms";
 import { v4 as getUuid } from "uuid";
 
@@ -59,7 +59,20 @@ export class CopyPastePlugin implements IBoardPlugin {
   onCut(e: ClipboardEvent, board: Board) {
     const selectedElements = board.selection.selectedElements;
     if (selectedElements.length === 0) return;
-    const ops = BoardUtil.getBatchRemoveNodesOps(board, selectedElements);
+
+    // 创建删除操作，现在不需要预先计算路径了，apply 方法会自动处理路径转换
+    const ops: Operation[] = [];
+    for (const element of selectedElements) {
+      const path = PathUtil.getPathByElement(board, element);
+      if (path) {
+        ops.push({
+          type: "remove_node",
+          path,
+          node: element,
+        });
+      }
+    }
+
     board.apply(ops);
     this.onCopy(e, board);
     SelectTransforms.updateSelectArea(board, {
