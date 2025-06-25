@@ -16,7 +16,8 @@ import {
   ECreateBoardElementType,
   PresentationSequence,
 } from "./types";
-import { isValid, executeSequence, PathUtil, BoardUtil } from "./utils";
+import { isValid, executeSequence, BoardUtil } from "./utils";
+import BoardOperations from "./utils/BoardOperations";
 
 const boardFlag = Symbol("board");
 
@@ -314,167 +315,113 @@ class Board {
     if (this.isDestroyed) return;
     if (ops.length === 0) return;
 
-    // 第一步：过滤无效操作（包括祖先-子孙关系过滤），保留原始操作用于历史记录
-    const validOps = PathUtil.filterValidOperations(ops);
-    if (validOps.length === 0) return;
+    // 使用抽离的核心逻辑进行操作应用
+    const result = BoardOperations.applyOperations(
+      {
+        children: this.children,
+        viewPort: this.viewPort,
+        selection: this.selection,
+      },
+      ops,
+      {
+        readonly: this.readonly,
+      },
+    );
 
-    // 第二步：对有效操作进行排序，确保正确的执行顺序
-    const sortedOps = PathUtil.sortOperationsForExecution(validOps);
+    const { data, metadata } = result;
 
-    // 第三步：转换排序后的操作路径用于执行
-    const transformedOps = PathUtil.transformValidOperations(sortedOps);
+    // 如果没有变化，直接返回
+    if (!metadata.hasChanges) {
+      return;
+    }
 
-    const changedElements = [];
-    const removedElements = [];
+    // 更新Board状态（使用immer）
+    let changed = false;
+
+    // 更新children
+    if (JSON.stringify(this.children) !== JSON.stringify(data.children)) {
+      if (!isDraft(this.children)) {
+        this.children = createDraft(this.children);
+      }
+      // 替换整个children数组
+      this.children.splice(0, this.children.length, ...data.children);
+      changed = true;
+    }
+
+    // 更新viewPort
+    if (
+      data.viewPort &&
+      JSON.stringify(this.viewPort) !== JSON.stringify(data.viewPort)
+    ) {
+      this.viewPort = createDraft(this.viewPort);
+      Object.keys(this.viewPort).forEach((key) => delete this.viewPort[key]);
+      Object.assign(this.viewPort, data.viewPort);
+      changed = true;
+      // 视口变化时清除参考线
+      this.clearRefLines();
+    }
+
+    // 更新selection
+    if (
+      data.selection &&
+      JSON.stringify(this.selection) !== JSON.stringify(data.selection)
+    ) {
+      this.selection = createDraft(this.selection);
+      Object.keys(this.selection).forEach((key) => delete this.selection[key]);
+      Object.assign(this.selection, data.selection);
+      changed = true;
+    }
+
+    // 更新参考线
+    metadata.changedElements.forEach((element) => {
+      if (element.type !== "arrow") {
+        this.refLine.addRefRect({
+          key: element.id,
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+        });
+      }
+    });
+
+    metadata.removedElements.forEach((element) => {
+      if (element.type !== "arrow") {
+        this.refLine.removeRefRect(element.id);
+      }
+    });
+
+    // 更新历史记录
+    if (updateHistory) {
+      // 获取预处理后的操作用于历史记录
+      const processedOps = BoardOperations.preprocessOperations(ops);
+      this.undos.push(processedOps);
+      if (this.undos.length > 100) {
+        this.undos.shift();
+      }
+      this.redos = [];
+    }
+
+    // 发出事件并完成draft
     try {
-      for (const op of transformedOps) {
-        if (op.type === "set_node") {
-          if (this.readonly) return;
-          if (!isDraft(this.children)) {
-            this.children = createDraft(this.children);
-          }
-          const { path, newProperties, properties } = op;
-          const node = PathUtil.getElementByPath(this, path);
-          for (const key in newProperties) {
-            const value = newProperties[key];
-
-            if (value === null) {
-              delete node[key];
-            } else {
-              node[key] = value;
-            }
-          }
-
-          for (const key in properties) {
-            if (!Object.prototype.hasOwnProperty.call(newProperties, key)) {
-              delete node[key];
-            }
-          }
-          const currentNode = current(node);
-          changedElements.push(currentNode);
-          if (currentNode.type !== "arrow") {
-            this.refLine.addRefRect({
-              key: currentNode.id,
-              x: currentNode.x,
-              y: currentNode.y,
-              width: currentNode.width,
-              height: currentNode.height,
-            });
-          }
-        } else if (op.type === "insert_node") {
-          if (this.readonly) return;
-          if (!isDraft(this.children)) {
-            this.children = createDraft(this.children);
-          }
-          const { path, node } = op;
-          const parent = PathUtil.getParentByPath(this, path);
-          if (!parent) return;
-
-          const index = path[path.length - 1];
-          if (parent.children && parent.children.length >= index) {
-            parent.children.splice(index, 0, node);
-          } else {
-            console.error("insert_node error: index out of range", {
-              path,
-              index,
-              parent,
-            });
-          }
-          if (node.type !== "arrow") {
-            this.refLine.addRefRect({
-              key: node.id,
-              x: node.x,
-              y: node.y,
-              width: node.width,
-              height: node.height,
-            });
-          }
-        } else if (op.type === "remove_node") {
-          if (this.readonly) return;
-          if (!isDraft(this.children)) {
-            this.children = createDraft(this.children);
-          }
-          const { path, node } = op;
-          const parent = PathUtil.getParentByPath(this, path);
-          if (!parent) return;
-
-          const index = path[path.length - 1];
-          if (parent.children && parent.children.length > index) {
-            removedElements.push(current(parent.children[index]));
-            parent.children.splice(index, 1);
-          } else {
-            console.error("insert_node error: index out of range", {
-              path,
-              index,
-              parent,
-            });
-          }
-          if (node.type !== "arrow") {
-            this.refLine.removeRefRect(node.id);
-          }
-        } else if (op.type === "set_viewport") {
-          this.viewPort = createDraft(this.viewPort);
-          const { newProperties } = op;
-          for (const key in newProperties) {
-            const value = newProperties[key];
-
-            if (value == null) {
-              delete this.viewPort[key];
-            } else {
-              this.viewPort[key] = value;
-            }
-          }
-          // 视口变化时清除参考线
-          this.clearRefLines();
-        } else if (op.type === "set_selection") {
-          if (this.readonly) return;
-          this.selection = createDraft(this.selection);
-          const { newProperties } = op;
-          for (const key in newProperties) {
-            const value = newProperties[key];
-
-            if (value == null) {
-              delete this.selection[key];
-            } else {
-              this.selection[key] = value;
-            }
-          }
-        }
-      }
-
-      if (updateHistory) {
-        // 保存过滤和排序后的操作到历史记录
-        this.undos.push(sortedOps);
-        if (this.undos.length > 100) {
-          this.undos.shift();
-        }
-        this.redos = [];
-      }
-    } catch (e) {
-      console.error("e", e);
-    } finally {
-      let changed = false;
       if (isDraft(this.children)) {
-        changed = true;
         this.children = finishDraft(this.children);
         this.emit("onValueChange", this.children);
       }
       if (isDraft(this.viewPort)) {
-        changed = true;
         this.viewPort = finishDraft(this.viewPort);
         this.emit("onViewPortChange", this.viewPort);
       }
       if (isDraft(this.selection)) {
-        changed = true;
         this.selection = finishDraft(this.selection);
         this.emit("onSelectionChange", this.selection);
       }
 
-      if (changedElements.length > 0) {
-        this.emit("element:change", changedElements);
+      if (metadata.changedElements.length > 0) {
+        this.emit("element:change", metadata.changedElements);
       }
-      if (removedElements.length > 0) {
-        this.emit("element:remove", removedElements);
+      if (metadata.removedElements.length > 0) {
+        this.emit("element:remove", metadata.removedElements);
       }
 
       if (changed) {
@@ -486,6 +433,8 @@ class Board {
         };
         this.emit("change");
       }
+    } catch (e) {
+      console.error("Board apply error:", e);
     }
   }
 
