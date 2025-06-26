@@ -45,6 +45,7 @@ class Board {
   public undos: Array<Operation[]>;
   public redos: Array<Operation[]>;
   public isEditingElements: string[] = [];
+  private lastUndoTimestamp = 0; // 记录上次创建新 undo entry 的时间戳
   private snapshot: {
     children: BoardElement[];
     viewPort: ViewPort;
@@ -401,7 +402,22 @@ class Board {
       // 存储预处理后的操作用于历史记录
       // 这些是经过路径转换验证的、实际执行过的操作
       const processedOps = BoardOperations.preprocessOperations(ops);
-      this.undos.push(processedOps);
+      console.log("processedOps", processedOps);
+
+      const currentTimestamp = Date.now();
+      const timeDiff = currentTimestamp - this.lastUndoTimestamp;
+
+      // 如果距离上次创建新 undo entry 小于 1 秒，且 undos 不为空，则合并到最后一个 undo entry
+      if (timeDiff < 1000 && this.undos.length > 0) {
+        // 将操作添加到最后一个 undo entry
+        const lastUndoEntry = this.undos[this.undos.length - 1];
+        lastUndoEntry.push(...processedOps);
+      } else {
+        // 创建新的 undo entry
+        this.undos.push(processedOps);
+        this.lastUndoTimestamp = currentTimestamp;
+      }
+
       if (this.undos.length > 100) {
         this.undos.shift();
       }
@@ -480,6 +496,8 @@ class Board {
     const inverseOps = undo
       .map((item) => BoardUtil.inverseOperation(item))
       .reverse();
+
+    console.log("inverseOps", inverseOps);
 
     // 跳过路径转换：undo存储的是已经转换过的操作，反转后直接应用
     this.apply(inverseOps, false, true);

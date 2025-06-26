@@ -28,6 +28,7 @@ export class BoardOperations {
       skipViewPortOperations?: boolean;
       skipSelectionOperations?: boolean;
       skipPathTransform?: boolean;
+      skipPreprocessing?: boolean;
     } = {},
   ): {
     data: {
@@ -46,6 +47,7 @@ export class BoardOperations {
       skipViewPortOperations = false,
       skipSelectionOperations = false,
       skipPathTransform = false,
+      skipPreprocessing = false,
     } = options;
 
     // 深克隆输入数据以避免副作用
@@ -70,24 +72,32 @@ export class BoardOperations {
       return { data: result, metadata };
     }
 
-    // 第一步：过滤无效操作
-    const validOps = PathUtil.filterValidOperations(operations);
-    if (validOps.length === 0) {
-      return { data: result, metadata };
+    // 预处理步骤：根据 skipPreprocessing 选项决定是否进行过滤和排序
+    let processedOps: Operation[];
+
+    if (skipPreprocessing) {
+      // 跳过所有预处理，直接使用原始操作
+      processedOps = operations;
+    } else {
+      // 第一步：过滤无效操作
+      const validOps = PathUtil.filterValidOperations(operations);
+      if (validOps.length === 0) {
+        return { data: result, metadata };
+      }
+
+      // 第二步：简化排序（只对插入操作按深度排序）
+      const sortedOps = PathUtil.sortOperationsForExecution(validOps);
+
+      // 第三步：根据skipPathTransform选项决定是否进行路径转换
+      processedOps = skipPathTransform
+        ? sortedOps
+        : PathUtil.transformValidOperations(sortedOps);
     }
-
-    // 第二步：简化排序（只对插入操作按深度排序）
-    const sortedOps = PathUtil.sortOperationsForExecution(validOps);
-
-    // 第三步：根据skipPathTransform选项决定是否进行路径转换
-    const transformedOps = skipPathTransform
-      ? sortedOps
-      : PathUtil.transformValidOperations(sortedOps);
 
     const board = { children: result.children };
 
     try {
-      for (const op of transformedOps) {
+      for (const op of processedOps) {
         if (op.type === "set_node") {
           if (readonly) continue;
 
@@ -366,12 +376,36 @@ export class BoardOperations {
   static applyToChildren(
     children: BoardElement[],
     operations: Operation[],
+    options: {
+      readonly?: boolean;
+      skipViewPortOperations?: boolean;
+      skipSelectionOperations?: boolean;
+      skipPathTransform?: boolean;
+      skipPreprocessing?: boolean;
+    } = {},
   ): BoardElement[] {
-    // diff 生成的操作需要跳过路径转换
     const result = this.applyOperations({ children }, operations, {
       skipViewPortOperations: true,
       skipSelectionOperations: true,
-      skipPathTransform: true, // 关键：跳过路径转换
+      ...options,
+    });
+
+    return result.data.children;
+  }
+
+  /**
+   * 专门用于应用 diff 算法生成的操作
+   * 这些操作已经经过预处理，需要按原始顺序直接执行
+   */
+  static applyDiffOperations(
+    children: BoardElement[],
+    operations: Operation[],
+  ): BoardElement[] {
+    const result = this.applyOperations({ children }, operations, {
+      skipViewPortOperations: true,
+      skipSelectionOperations: true,
+      skipPathTransform: true,
+      skipPreprocessing: true,
     });
 
     return result.data.children;

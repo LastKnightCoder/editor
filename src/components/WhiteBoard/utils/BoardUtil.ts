@@ -62,10 +62,6 @@ export class BoardUtil {
     }
   }
 
-  // 缓存机制：存储重复比较的结果
-  private static _diffCache = new Map<string, Operation[]>();
-  private static _maxCacheSize = 1000;
-
   /**
    * diff 算法 - 生成基于目标状态的操作序列
    * @param oldChildren 旧的子节点数组
@@ -78,22 +74,15 @@ export class BoardUtil {
     newChildren: BoardElement[],
     basePath: number[] = [],
   ): Operation[] {
-    // 缓存检查
-    const cacheKey = this.generateCacheKey(oldChildren, newChildren, basePath);
-    if (this._diffCache.has(cacheKey)) {
-      return this._diffCache.get(cacheKey) || [];
-    }
     const ops: Operation[] = [];
 
     // 快速路径：相同引用直接返回空数组
     if (oldChildren === newChildren) {
-      this.setCacheValue(cacheKey, ops);
       return ops;
     }
 
     // 快速路径：都为空数组
     if (oldChildren.length === 0 && newChildren.length === 0) {
-      this.setCacheValue(cacheKey, ops);
       return ops;
     }
 
@@ -101,9 +90,7 @@ export class BoardUtil {
     const oldMap = this.createElementMap(oldChildren);
     const newMap = this.createElementMap(newChildren);
 
-    // 简化的diff算法：生成基于目标状态的操作序列
-    // 这些操作需要跳过路径转换，直接执行
-    // 核心思路：按正确的执行顺序生成操作
+    // 优化后的diff算法：正确处理操作顺序，避免路径冲突
 
     // 第一步：处理属性修改操作 (set_node)
     // 使用目标状态的索引，因为元素位置可能发生变化
@@ -135,43 +122,41 @@ export class BoardUtil {
       }
     }
 
-    // 第二步：删除操作 - 使用原始索引，按降序删除
+    // 第二步：收集需要删除和移动的元素
     const toDelete = [];
+    const toMove = [];
+
     for (const [id, { element, index }] of Array.from(oldMap)) {
       if (!newMap.has(id)) {
+        // 元素被删除
         toDelete.push({ element, index });
-      }
-    }
-    toDelete.sort((a, b) => b.index - a.index); // 降序，从后往前删除
-    for (const { element, index } of toDelete) {
-      ops.push({
-        type: "remove_node",
-        path: [...basePath, index], // 使用原始索引
-        node: element,
-      });
-    }
-
-    // 第三步：移动操作 - 先删除需要移动的元素
-    const moveElements = [];
-    for (const [id, { element: newElement, index: targetIndex }] of Array.from(
-      newMap,
-    )) {
-      if (oldMap.has(id)) {
-        const { index: oldIndex } = oldMap.get(id)!;
-        if (oldIndex !== targetIndex) {
-          moveElements.push({
+      } else {
+        // 检查是否需要移动
+        const { index: targetIndex } = newMap.get(id)!;
+        if (index !== targetIndex) {
+          toMove.push({
             id,
-            element: newElement,
-            oldIndex,
+            element,
+            oldIndex: index,
             targetIndex,
           });
         }
       }
     }
 
-    // 删除需要移动的元素（按原始索引降序）
-    moveElements.sort((a, b) => b.oldIndex - a.oldIndex);
-    for (const { element, oldIndex } of moveElements) {
+    // 第三步：删除操作 - 按降序删除，避免索引变化影响
+    toDelete.sort((a, b) => b.index - a.index);
+    for (const { element, index } of toDelete) {
+      ops.push({
+        type: "remove_node",
+        path: [...basePath, index],
+        node: element,
+      });
+    }
+
+    // 第四步：移动操作 - 先删除后插入
+    toMove.sort((a, b) => b.oldIndex - a.oldIndex); // 按原始索引降序删除
+    for (const { element, oldIndex } of toMove) {
       ops.push({
         type: "remove_node",
         path: [...basePath, oldIndex],
@@ -179,7 +164,7 @@ export class BoardUtil {
       });
     }
 
-    // 第四步：插入操作 - 使用目标状态索引，按正确顺序插入
+    // 第五步：插入操作（包括新增和移动的元素）
     const allInsertions = [];
 
     // 新增元素
@@ -196,7 +181,7 @@ export class BoardUtil {
     }
 
     // 移动的元素
-    for (const { element, targetIndex } of moveElements) {
+    for (const { element, targetIndex } of toMove) {
       allInsertions.push({
         element,
         targetIndex,
@@ -207,7 +192,7 @@ export class BoardUtil {
     // 按目标位置排序，确保插入顺序正确
     allInsertions.sort((a, b) => a.targetIndex - b.targetIndex);
 
-    // 生成插入操作 - 直接使用目标状态索引
+    // 生成插入操作
     for (const { element, targetIndex } of allInsertions) {
       ops.push({
         type: "insert_node",
@@ -218,9 +203,6 @@ export class BoardUtil {
 
     // 批量优化：合并连续的同类操作
     const optimizedOps = this.optimizeOperations(ops);
-
-    // 缓存结果
-    this.setCacheValue(cacheKey, optimizedOps);
 
     return optimizedOps;
   }
@@ -303,41 +285,6 @@ export class BoardUtil {
     }
 
     return true;
-  }
-
-  /**
-   * 生成缓存键
-   */
-  private static generateCacheKey(
-    oldChildren: BoardElement[],
-    newChildren: BoardElement[],
-    basePath: number[],
-  ): string {
-    const oldHash = this.hashArray(oldChildren);
-    const newHash = this.hashArray(newChildren);
-    const pathStr = basePath.join(",");
-    return `${oldHash}:${newHash}:${pathStr}`;
-  }
-
-  /**
-   * 计算数组哈希值
-   */
-  private static hashArray(elements: BoardElement[]): string {
-    return elements.map((el) => `${el.id}:${el.type}`).join("|");
-  }
-
-  /**
-   * 设置缓存值
-   */
-  private static setCacheValue(key: string, value: Operation[]): void {
-    if (this._diffCache.size >= this._maxCacheSize) {
-      // 清理一半缓存
-      const keys = Array.from(this._diffCache.keys());
-      keys.slice(0, Math.floor(keys.length / 2)).forEach((k) => {
-        this._diffCache.delete(k);
-      });
-    }
-    this._diffCache.set(key, value);
   }
 
   /**
@@ -478,8 +425,8 @@ export class BoardUtil {
       return JSON.parse(JSON.stringify(children));
     }
 
-    // 使用抽离出来的Board.tsx真实逻辑
-    return BoardOperations.applyToChildren(children, operations);
+    // 使用专门的 diff 操作应用方法
+    return BoardOperations.applyDiffOperations(children, operations);
   }
 
   static inverseOperation = (op: Operation): Operation => {

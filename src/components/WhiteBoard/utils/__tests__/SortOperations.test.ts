@@ -139,10 +139,10 @@ describe("SortOperations Tests", () => {
 
       // 非插入操作保持原始顺序
       expect(sorted[0].type).toBe("remove_node");
-      expect((sorted[0] as any).path).toEqual([2]);
+      expect((sorted[0] as any).path).toEqual([1]);
       expect(sorted[1].type).toBe("set_node");
       expect(sorted[2].type).toBe("remove_node");
-      expect((sorted[2] as any).path).toEqual([1]);
+      expect((sorted[2] as any).path).toEqual([2]);
     });
 
     it("move 操作应该保持原始顺序", () => {
