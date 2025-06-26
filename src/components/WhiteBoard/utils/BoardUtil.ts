@@ -1,7 +1,6 @@
 import { BoardElement, Operation } from "../types";
 import Board from "../Board";
 import BoardOperations from "./BoardOperations";
-import PathUtil from "./PathUtil";
 
 export class BoardUtil {
   static isBoard(value: unknown): value is Board {
@@ -68,28 +67,13 @@ export class BoardUtil {
   private static _maxCacheSize = 1000;
 
   /**
-   * 比较两个 children 数组，生成操作列表使得 apply 这些操作后可以从 oldChildren 变换到 newChildren
+   * diff 算法 - 生成基于目标状态的操作序列
    * @param oldChildren 旧的子节点数组
    * @param newChildren 新的子节点数组
    * @param basePath 基础路径，默认为空数组
-   * @returns 操作列表
+   * @returns 操作列表（基于目标状态的路径，需要跳过路径转换）
    */
   static diff(
-    oldChildren: BoardElement[],
-    newChildren: BoardElement[],
-    basePath: number[] = [],
-  ): Operation[] {
-    return this.diffOptimized(oldChildren, newChildren, basePath);
-  }
-
-  /**
-   * 优化版的 diff 算法，支持 Move 操作、批量优化、缓存机制
-   * @param oldChildren 旧的子节点数组
-   * @param newChildren 新的子节点数组
-   * @param basePath 基础路径，默认为空数组
-   * @returns 操作列表
-   */
-  static diffOptimized(
     oldChildren: BoardElement[],
     newChildren: BoardElement[],
     basePath: number[] = [],
@@ -117,13 +101,18 @@ export class BoardUtil {
     const oldMap = this.createElementMap(oldChildren);
     const newMap = this.createElementMap(newChildren);
 
-    // 第一步：处理修改操作 (set_node) 和位置变化检测
+    // 简化的diff算法：生成基于目标状态的操作序列
+    // 这些操作需要跳过路径转换，直接执行
+    // 核心思路：按正确的执行顺序生成操作
+
+    // 第一步：处理属性修改操作 (set_node)
+    // 使用目标状态的索引，因为元素位置可能发生变化
     for (const [id, { element: newElement, index: newIndex }] of Array.from(
       newMap,
     )) {
       if (oldMap.has(id)) {
-        const { element: oldElement, index: oldIndex } = oldMap.get(id)!;
-        const path = [...basePath, newIndex];
+        const { element: oldElement } = oldMap.get(id)!;
+        const path = [...basePath, newIndex]; // 使用目标状态索引
 
         // 比较元素属性，生成修改操作
         const changes = this.getElementChanges(oldElement, newElement);
@@ -140,54 +129,91 @@ export class BoardUtil {
         if (oldElement.children || newElement.children) {
           const oldChildrenArray = oldElement.children || [];
           const newChildrenArray = newElement.children || [];
-          const childOps = this.diffOptimized(
-            oldChildrenArray,
-            newChildrenArray,
-            path,
-          );
+          const childOps = this.diff(oldChildrenArray, newChildrenArray, path);
           ops.push(...childOps);
         }
       }
     }
 
-    // 优化：检测位置变化并生成 Move 操作
-    const positionChanges = this.detectPositionChanges(oldMap, newMap);
-
-    // 优化：使用 Move 操作代替删除+插入（更高效）
-    if (positionChanges.length > 0) {
-      this.generateMoveOperations(positionChanges, basePath, ops);
-    }
-
-    // 第二步：处理真正的删除操作 (remove_node) - 只删除不存在于新数组中的元素
+    // 第二步：删除操作 - 使用原始索引，按降序删除
     const toDelete = [];
-    const positionChangedIds = new Set(positionChanges.map((p) => p.id));
-
     for (const [id, { element, index }] of Array.from(oldMap)) {
-      if (!newMap.has(id) && !positionChangedIds.has(id)) {
+      if (!newMap.has(id)) {
         toDelete.push({ element, index });
       }
     }
-    // 按索引降序排列，从后往前删除
-    toDelete.sort((a, b) => b.index - a.index);
+    toDelete.sort((a, b) => b.index - a.index); // 降序，从后往前删除
     for (const { element, index } of toDelete) {
       ops.push({
         type: "remove_node",
-        path: [...basePath, index],
+        path: [...basePath, index], // 使用原始索引
         node: element,
       });
     }
 
-    // 第三步：处理真正的插入操作 (insert_node) - 只插入新增的元素
-    for (const [id, { element: newElement, index: newIndex }] of Array.from(
+    // 第三步：移动操作 - 先删除需要移动的元素
+    const moveElements = [];
+    for (const [id, { element: newElement, index: targetIndex }] of Array.from(
       newMap,
     )) {
-      if (!oldMap.has(id) && !positionChangedIds.has(id)) {
-        ops.push({
-          type: "insert_node",
-          path: [...basePath, newIndex],
-          node: newElement,
+      if (oldMap.has(id)) {
+        const { index: oldIndex } = oldMap.get(id)!;
+        if (oldIndex !== targetIndex) {
+          moveElements.push({
+            id,
+            element: newElement,
+            oldIndex,
+            targetIndex,
+          });
+        }
+      }
+    }
+
+    // 删除需要移动的元素（按原始索引降序）
+    moveElements.sort((a, b) => b.oldIndex - a.oldIndex);
+    for (const { element, oldIndex } of moveElements) {
+      ops.push({
+        type: "remove_node",
+        path: [...basePath, oldIndex],
+        node: element,
+      });
+    }
+
+    // 第四步：插入操作 - 使用目标状态索引，按正确顺序插入
+    const allInsertions = [];
+
+    // 新增元素
+    for (const [id, { element: newElement, index: targetIndex }] of Array.from(
+      newMap,
+    )) {
+      if (!oldMap.has(id)) {
+        allInsertions.push({
+          element: newElement,
+          targetIndex,
+          isNew: true,
         });
       }
+    }
+
+    // 移动的元素
+    for (const { element, targetIndex } of moveElements) {
+      allInsertions.push({
+        element,
+        targetIndex,
+        isNew: false,
+      });
+    }
+
+    // 按目标位置排序，确保插入顺序正确
+    allInsertions.sort((a, b) => a.targetIndex - b.targetIndex);
+
+    // 生成插入操作 - 直接使用目标状态索引
+    for (const { element, targetIndex } of allInsertions) {
+      ops.push({
+        type: "insert_node",
+        path: [...basePath, targetIndex],
+        node: element,
+      });
     }
 
     // 批量优化：合并连续的同类操作
@@ -325,63 +351,6 @@ export class BoardUtil {
       map.set(elements[i].id, { element: elements[i], index: i });
     }
     return map;
-  }
-
-  /**
-   * 检测位置变化
-   */
-  private static detectPositionChanges(
-    oldMap: Map<string, { element: BoardElement; index: number }>,
-    newMap: Map<string, { element: BoardElement; index: number }>,
-  ): Array<{
-    id: string;
-    element: BoardElement;
-    oldIndex: number;
-    newIndex: number;
-  }> {
-    const changes = [];
-    for (const [id, { element: newElement, index: newIndex }] of newMap) {
-      if (oldMap.has(id)) {
-        const { index: oldIndex } = oldMap.get(id)!;
-        if (oldIndex !== newIndex) {
-          changes.push({
-            id,
-            element: newElement,
-            oldIndex,
-            newIndex,
-          });
-        }
-      }
-    }
-    return changes;
-  }
-
-  /**
-   * 生成移动操作
-   */
-  private static generateMoveOperations(
-    positionChanges: Array<{
-      id: string;
-      element: BoardElement;
-      oldIndex: number;
-      newIndex: number;
-    }>,
-    basePath: number[],
-    ops: Operation[],
-  ): void {
-    // 按照旧索引排序，避免索引冲突
-    const sortedChanges = positionChanges.sort(
-      (a, b) => a.oldIndex - b.oldIndex,
-    );
-
-    for (const { element, oldIndex, newIndex } of sortedChanges) {
-      ops.push({
-        type: "move_node",
-        path: [...basePath, oldIndex],
-        newPath: [...basePath, newIndex],
-        node: element,
-      } as Operation);
-    }
   }
 
   /**
@@ -523,6 +492,16 @@ export class BoardUtil {
         return { ...op, type: "insert_node" };
       }
 
+      case "move_node": {
+        // Move操作的逆操作是反向移动
+        const moveOp = op as Extract<Operation, { type: "move_node" }>;
+        return {
+          ...moveOp,
+          path: moveOp.newPath,
+          newPath: moveOp.path,
+        };
+      }
+
       case "set_node": {
         const { properties, newProperties } = op;
         return { ...op, properties: newProperties, newProperties: properties };
@@ -554,6 +533,16 @@ export class BoardUtil {
             newProperties: properties,
           };
         }
+      }
+
+      case "set_theme": {
+        const { properties, newProperties } = op;
+        return { ...op, properties: newProperties, newProperties: properties };
+      }
+
+      case "set_moving": {
+        const { properties, newProperties } = op;
+        return { ...op, properties: newProperties, newProperties: properties };
       }
 
       default: {

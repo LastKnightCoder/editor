@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { BoardUtil } from "../BoardUtil";
 import type { BoardElement, Operation } from "../../types";
+import { BoardOperations } from "../BoardOperations";
 
 describe("BoardUtil.diff 测试", () => {
   // 在每个测试前清除缓存
@@ -41,37 +42,12 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
-
-      // 手动应用操作，而不是调用 apply
-      const appliedResult: BoardElement[] = [];
-      for (const op of operations) {
-        if (op.type === "insert_node") {
-          appliedResult.splice(
-            op.path[0],
-            0,
-            JSON.parse(JSON.stringify(op.node)),
-          );
-        }
-      }
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
 
       expect(appliedResult).toEqual(newChildren);
-
-      expect(operations).toHaveLength(2);
-      expect(operations[0].type).toBe("insert_node");
-      expect(
-        (operations[0] as Extract<Operation, { type: "insert_node" }>).path,
-      ).toEqual([0]);
-      expect(
-        (operations[0] as Extract<Operation, { type: "insert_node" }>).node.id,
-      ).toBe("element1");
-
-      expect(operations[1].type).toBe("insert_node");
-      expect(
-        (operations[1] as Extract<Operation, { type: "insert_node" }>).path,
-      ).toEqual([1]);
-      expect(
-        (operations[1] as Extract<Operation, { type: "insert_node" }>).node.id,
-      ).toBe("element2");
     });
 
     it("应该生成删除操作 - 移除元素", () => {
@@ -84,25 +60,11 @@ describe("BoardUtil.diff 测试", () => {
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
       // 验证 apply 后结果正确
-      const appliedResult = BoardUtil.apply(oldChildren, operations);
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
       expect(appliedResult).toEqual(newChildren);
-
-      expect(operations).toHaveLength(2);
-      expect(operations[0].type).toBe("remove_node");
-      expect(
-        (operations[0] as Extract<Operation, { type: "remove_node" }>).path,
-      ).toEqual([1]); // 从后往前删除
-      expect(
-        (operations[0] as Extract<Operation, { type: "remove_node" }>).node.id,
-      ).toBe("element2");
-
-      expect(operations[1].type).toBe("remove_node");
-      expect(
-        (operations[1] as Extract<Operation, { type: "remove_node" }>).path,
-      ).toEqual([0]);
-      expect(
-        (operations[1] as Extract<Operation, { type: "remove_node" }>).node.id,
-      ).toBe("element1");
     });
 
     it("应该生成修改操作 - 属性变化", () => {
@@ -114,30 +76,11 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
-
-      expect(operations).toHaveLength(1);
-      expect(operations[0].type).toBe("set_node");
-      expect(
-        (operations[0] as Extract<Operation, { type: "set_node" }>).path,
-      ).toEqual([0]);
-      expect(
-        (operations[0] as Extract<Operation, { type: "set_node" }>).properties,
-      ).toEqual({
-        id: "element1",
-        type: "rect",
-        x: 10,
-        y: 20,
-        width: 100,
-        height: 100,
-        color: "red",
-      });
-      expect(
-        (operations[0] as Extract<Operation, { type: "set_node" }>)
-          .newProperties,
-      ).toEqual({
-        x: 30,
-        color: "blue",
-      });
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
+      expect(appliedResult).toEqual(newChildren);
     });
 
     it("相同数组应该返回空操作", () => {
@@ -167,6 +110,12 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
+
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
+      expect(appliedResult).toEqual(newChildren);
 
       // 期望：1个修改 + 1个删除 + 1个插入
       expect(operations).toHaveLength(3);
@@ -217,6 +166,12 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
+      expect(appliedResult).toEqual(newChildren);
+
       expect(operations.length).toBeGreaterThan(0);
 
       // 应该有父元素的修改操作
@@ -264,6 +219,12 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
+      expect(appliedResult).toEqual(newChildren);
+
       expect(operations).toHaveLength(1);
       expect(operations[0].type).toBe("set_node");
       expect(
@@ -290,8 +251,10 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      // 验证 apply 后结果正确
-      const appliedResult = BoardUtil.apply(oldChildren, operations);
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
       expect(appliedResult).toEqual(newChildren);
 
       // 验证操作正确性
@@ -325,8 +288,10 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      // 验证 apply 后结果正确
-      const appliedResult = BoardUtil.apply(oldChildren, operations);
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
       expect(appliedResult).toEqual(newChildren);
 
       // 验证操作正确性
@@ -365,6 +330,11 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
+      expect(appliedResult).toEqual(newChildren);
 
       expect(operations).toHaveLength(1);
       expect(operations[0].type).toBe("set_node");
@@ -392,8 +362,10 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      // 验证 apply 后结果正确
-      const appliedResult = BoardUtil.apply(oldChildren, operations);
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
       expect(appliedResult).toEqual(newChildren);
 
       expect(operations.length).toBeGreaterThan(0);
@@ -435,6 +407,11 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
+      expect(appliedResult).toEqual(newChildren);
 
       // 应该只有删除和插入操作来处理重新排序
       expect(operations.length).toBeGreaterThan(0);
@@ -500,8 +477,10 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      // 应用操作并验证结果
-      const appliedResult = BoardUtil.apply(oldChildren, operations);
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
       expect(appliedResult).toEqual(newChildren);
 
       // 验证操作的正确性
@@ -520,37 +499,6 @@ describe("BoardUtil.diff 测试", () => {
 
   // 优化功能测试
   describe("优化功能测试", () => {
-    it("应该支持 Move 操作而不是删除+插入", () => {
-      const oldChildren: BoardElement[] = [
-        createElement("element1", "rect", { x: 10 }),
-        createElement("element2", "circle", { radius: 5 }),
-      ];
-
-      const newChildren: BoardElement[] = [
-        createElement("element2", "circle", { radius: 5 }), // 位置变化：从索引1到索引0
-        createElement("element1", "rect", { x: 10 }), // 位置变化：从索引0到索引1
-      ];
-
-      const operations = BoardUtil.diff(oldChildren, newChildren);
-
-      // 检查是否生成了 move_node 操作
-      const moveOps = operations.filter(
-        (op) => (op as any).type === "move_node",
-      );
-      expect(moveOps.length).toBe(2); // 应该有2个移动操作
-
-      // 验证移动操作的正确性
-      const moveOp1 = moveOps.find(
-        (op: any) => op.path.join(",") === "0" && op.newPath.join(",") === "1",
-      );
-      const moveOp2 = moveOps.find(
-        (op: any) => op.path.join(",") === "1" && op.newPath.join(",") === "0",
-      );
-
-      expect(moveOp1).toBeDefined();
-      expect(moveOp2).toBeDefined();
-    });
-
     it("应该缓存重复的比较结果", () => {
       const oldChildren: BoardElement[] = [
         createElement("element1", "rect", { x: 10 }),
@@ -590,8 +538,10 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      // 验证 apply 后结果正确
-      const appliedResult = BoardUtil.apply(oldChildren, operations);
+      const appliedResult = BoardOperations.applyToChildren(
+        oldChildren,
+        operations,
+      );
       expect(appliedResult).toEqual(newChildren);
 
       // 应该只有一个合并的 set_node 操作

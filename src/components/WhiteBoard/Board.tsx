@@ -1,6 +1,6 @@
 import React from "react";
 import EventEmitter from "eventemitter3";
-import { createDraft, finishDraft, isDraft, current } from "immer";
+import { createDraft, finishDraft, isDraft } from "immer";
 import curry from "lodash/curry";
 import RefLineUtil, { Rect } from "./utils/RefLineUtil";
 import { PresentationManager } from "./utils/PresentationManager";
@@ -307,7 +307,11 @@ class Board {
     });
   }
 
-  apply(ops: Operation | Operation[], updateHistory = true) {
+  apply(
+    ops: Operation | Operation[],
+    updateHistory = true,
+    skipPathTransform = false,
+  ) {
     if (!Array.isArray(ops)) {
       ops = [ops];
     }
@@ -325,6 +329,7 @@ class Board {
       ops,
       {
         readonly: this.readonly,
+        skipPathTransform,
       },
     );
 
@@ -393,7 +398,8 @@ class Board {
 
     // 更新历史记录
     if (updateHistory) {
-      // 获取预处理后的操作用于历史记录
+      // 存储预处理后的操作用于历史记录
+      // 这些是经过路径转换验证的、实际执行过的操作
       const processedOps = BoardOperations.preprocessOperations(ops);
       this.undos.push(processedOps);
       if (this.undos.length > 100) {
@@ -475,8 +481,8 @@ class Board {
       .map((item) => BoardUtil.inverseOperation(item))
       .reverse();
 
-    // 直接应用撤销操作，排序在 apply 方法中统一处理
-    this.apply(inverseOps, false);
+    // 跳过路径转换：undo存储的是已经转换过的操作，反转后直接应用
+    this.apply(inverseOps, false, true);
     this.redos.push(undo);
   }
 
@@ -485,7 +491,8 @@ class Board {
     if (this.redos.length === 0) return;
     const redo = this.redos.pop();
     if (!redo) return;
-    this.apply(redo, false);
+    // 跳过路径转换：redo是已经转换过的操作，直接应用
+    this.apply(redo, false, true);
     this.undos.push(redo);
   }
 

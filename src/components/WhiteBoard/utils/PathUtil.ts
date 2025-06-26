@@ -97,6 +97,15 @@ export class PathUtil {
       return path;
     }
 
+    // 删除操作的祖先路径检查
+    if (operation.type === "remove_node") {
+      // 检查操作路径是否是目标路径的祖先
+      if (this.isAncestorPath(opPath, path)) {
+        // 祖先被删除，目标路径无效
+        return null;
+      }
+    }
+
     // Move操作的特殊处理
     if (operation.type === "move_node" && operation.newPath) {
       // 检查源路径和目标路径是否都与当前路径同级
@@ -135,18 +144,15 @@ export class PathUtil {
             );
           }
         } else if (sourceIndex > targetIndex) {
-          // 向前移动：两个影响区间
+          // 向前移动：只有 [target, source) 区间的元素受影响
           if (currentIndex >= targetIndex && currentIndex < sourceIndex) {
             newPath[lastIndex] = currentIndex + 1;
             console.log(
               `向前移动-插入影响：${JSON.stringify(path)} -> ${JSON.stringify(newPath)}`,
             );
-          } else if (currentIndex > sourceIndex) {
-            newPath[lastIndex] = currentIndex - 1;
-            console.log(
-              `向前移动-删除影响：${JSON.stringify(path)} -> ${JSON.stringify(newPath)}`,
-            );
           }
+          // 注意：向前移动时，source之后的元素（currentIndex > sourceIndex）不受影响
+          // 因为元素是先删除再插入，删除和插入发生在source之前
         }
 
         console.log(
@@ -455,147 +461,236 @@ export class PathUtil {
   }
 
   /**
-   * 对过滤后的操作进行排序，确保正确的执行顺序
-   * - 插入操作：按深度从浅到深，确保父节点先于子节点插入
-   * - 删除操作：按深度从深到浅，同层按索引从大到小，为撤销时的正确顺序做准备
+   * 简化的操作排序：只保证基本的执行顺序
+   * 插入操作需要按深度排序，确保父元素先于子元素创建
    */
   static sortOperationsForExecution(operations: Operation[]): Operation[] {
-    const insertOps: Operation[] = [];
-    const removeOps: Operation[] = [];
-    const setOps: Operation[] = [];
-    const otherOps: Operation[] = [];
+    // 分离插入操作和其他操作，保持相对位置信息
+    const operationsWithIndex = operations.map((op, index) => ({
+      op,
+      originalIndex: index,
+    }));
+    const insertOps = operationsWithIndex.filter(
+      (item) => item.op.type === "insert_node",
+    );
+    const otherOps = operationsWithIndex.filter(
+      (item) => item.op.type !== "insert_node",
+    );
 
-    // 操作分类
-    for (const op of operations) {
-      if (op.type === "insert_node") {
-        insertOps.push(op);
-      } else if (op.type === "remove_node") {
-        removeOps.push(op);
-      } else if (op.type === "set_node") {
-        setOps.push(op);
-      } else {
-        otherOps.push(op);
-      }
-    }
-
-    // 对插入操作排序：父节点先于子节点插入（深度从浅到深）
+    // 对插入操作按深度排序（浅→深）
     insertOps.sort((a, b) => {
-      const pathA = (a as any).path;
-      const pathB = (b as any).path;
-
-      if (pathA.length !== pathB.length) {
-        return pathA.length - pathB.length; // 浅层优先
-      }
-
-      for (let i = 0; i < pathA.length; i++) {
-        if (pathA[i] !== pathB[i]) {
-          return pathA[i] - pathB[i];
-        }
-      }
-
-      return 0;
+      const pathA = (a.op as any).path;
+      const pathB = (b.op as any).path;
+      return pathA.length - pathB.length; // 浅→深
     });
 
-    // 对删除操作排序：为撤销时的正确顺序做准备（深层优先，同层大索引优先）
-    removeOps.sort((a, b) => {
-      const pathA = (a as any).path;
-      const pathB = (b as any).path;
-
-      // 深度优先（深层先删除）
-      if (pathA.length !== pathB.length) {
-        return pathB.length - pathA.length;
-      }
-
-      // 同层内按索引倒序（大索引先删除）
-      for (let i = 0; i < pathA.length; i++) {
-        if (pathA[i] !== pathB[i]) {
-          return pathB[i] - pathA[i];
-        }
-      }
-
-      return 0;
-    });
-
-    // 对设置操作排序：父节点先于子节点设置（深度从浅到深）
-    setOps.sort((a, b) => {
-      const pathA = (a as any).path;
-      const pathB = (b as any).path;
-
-      if (pathA.length !== pathB.length) {
-        return pathA.length - pathB.length;
-      }
-
-      for (let i = 0; i < pathA.length; i++) {
-        if (pathA[i] !== pathB[i]) {
-          return pathA[i] - pathB[i];
-        }
-      }
-
-      return 0;
-    });
-
-    // 返回排序后的操作：其他操作 -> 插入操作 -> 设置操作 -> 删除操作
-    return [...otherOps, ...insertOps, ...setOps, ...removeOps];
-  }
-
-  /**
-   * 转换有效操作的路径
-   * 用于执行时的路径调整
-   */
-  static transformValidOperations(operations: Operation[]): Operation[] {
+    // 重新合并操作，插入操作按新顺序，其他操作保持原位置
     const result: Operation[] = [];
+    let insertIndex = 0;
+    let otherIndex = 0;
 
     for (let i = 0; i < operations.length; i++) {
-      const currentOp = operations[i];
-      let transformedOp = { ...currentOp };
-
-      // 根据之前的操作转换当前操作的路径
-      for (let j = 0; j < result.length; j++) {
-        const previousOp = result[j];
-
-        // 转换主要路径
-        if (
-          transformedOp &&
-          (transformedOp.type === "insert_node" ||
-            transformedOp.type === "remove_node" ||
-            transformedOp.type === "move_node" ||
-            transformedOp.type === "set_node")
-        ) {
-          const newPath = this.transformPath(transformedOp.path, previousOp);
-          if (newPath === null) {
-            // 如果路径无效（比如父元素被删除），跳过此操作
-            transformedOp = null as any;
-            break;
-          }
-          transformedOp.path = newPath;
+      if (operations[i].type === "insert_node") {
+        // 插入位置应该放入排序后的插入操作
+        if (insertIndex < insertOps.length) {
+          result.push(insertOps[insertIndex].op);
+          insertIndex++;
         }
-
-        // 对于move操作，还需要转换目标路径
-        if (
-          transformedOp &&
-          transformedOp.type === "move_node" &&
-          transformedOp.newPath
-        ) {
-          const newTargetPath = this.transformPath(
-            transformedOp.newPath,
-            previousOp,
-          );
-          if (newTargetPath === null) {
-            // 如果目标路径无效，跳过此操作
-            transformedOp = null as any;
-            break;
-          }
-          transformedOp.newPath = newTargetPath;
+      } else {
+        // 非插入操作保持原始顺序
+        if (otherIndex < otherOps.length) {
+          result.push(otherOps[otherIndex].op);
+          otherIndex++;
         }
-      }
-
-      // 只有有效的操作才添加到结果中
-      if (transformedOp) {
-        result.push(transformedOp);
       }
     }
 
     return result;
+  }
+
+  /**
+   * 转换有效操作：基于原始操作路径计算累积影响，避免转换链式误差
+   */
+  static transformValidOperations(operations: Operation[]): Operation[] {
+    if (operations.length === 0) {
+      return operations;
+    }
+
+    // 为每个操作计算基于原始状态的路径转换
+    const result: Operation[] = [];
+
+    for (let i = 0; i < operations.length; i++) {
+      const currentOp = { ...operations[i] };
+
+      if (this.operationHasPath(currentOp)) {
+        // 计算前序操作（使用原始路径）对当前操作的累积影响
+        const originalPath = (currentOp as any).path;
+        const transformedPath = this.calculateCumulativePathTransform(
+          originalPath,
+          operations.slice(0, i), // 使用原始操作，不是已转换的操作
+        );
+
+        if (transformedPath === null) {
+          // 路径无效，跳过这个操作
+          continue;
+        }
+
+        (currentOp as any).path = transformedPath;
+      }
+
+      // 处理move操作的目标路径
+      if (currentOp.type === "move_node" && (currentOp as any).newPath) {
+        const originalNewPath = (currentOp as any).newPath;
+        const transformedNewPath = this.calculateCumulativePathTransform(
+          originalNewPath,
+          operations.slice(0, i),
+        );
+
+        if (transformedNewPath === null) {
+          continue;
+        }
+
+        (currentOp as any).newPath = transformedNewPath;
+      }
+
+      result.push(currentOp);
+    }
+
+    return result;
+  }
+
+  /**
+   * 计算一系列操作对目标路径的累积影响
+   * 基于原始操作路径，按执行顺序计算影响
+   */
+  private static calculateCumulativePathTransform(
+    targetPath: Path,
+    precedingOps: Operation[],
+  ): Path | null {
+    let currentPath = [...targetPath];
+
+    // 按执行顺序处理每个前序操作
+    for (const op of precedingOps) {
+      if (!this.operationHasPath(op)) {
+        continue;
+      }
+
+      const opPath = (op as any).path;
+
+      // 检查这个操作是否会影响当前路径
+      if (this.pathWouldBeAffected(currentPath, op.type, opPath)) {
+        const newPath = this.applyDirectTransform(currentPath, op.type, opPath);
+        if (newPath === null) {
+          return null; // 路径被删除
+        }
+        currentPath = newPath;
+      }
+    }
+
+    return currentPath;
+  }
+
+  /**
+   * 检查路径是否会被特定操作影响
+   */
+  private static pathWouldBeAffected(
+    targetPath: Path,
+    opType: string,
+    opPath: Path,
+  ): boolean {
+    // 只检查顶层路径（白板的直接子元素）
+    if (targetPath.length !== 1 || opPath.length !== 1) {
+      return false;
+    }
+
+    const targetIndex = targetPath[0];
+    const opIndex = opPath[0];
+
+    switch (opType) {
+      case "insert_node":
+        // 修复：插入操作只影响同级的后续位置，但不包括相等位置
+        // 原因：基于原始状态的两个操作，如果都要插入到相同或相近位置，
+        // 应该按照它们在操作序列中的顺序执行，而不是相互影响路径
+        return targetIndex > opIndex;
+
+      case "remove_node":
+        // 删除影响：同级后续位置前移（不包括被删除的位置本身）
+        return targetIndex > opIndex;
+
+      case "set_node":
+        // set操作不影响路径结构
+        return false;
+
+      case "move_node":
+        // move操作的删除阶段影响
+        return targetIndex === opIndex || targetIndex > opIndex;
+
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * 直接应用单个操作对路径的影响
+   */
+  private static applyDirectTransform(
+    targetPath: Path,
+    opType: string,
+    opPath: Path,
+  ): Path | null {
+    // 只处理顶层路径
+    if (targetPath.length !== 1 || opPath.length !== 1) {
+      return targetPath;
+    }
+
+    const targetIndex = targetPath[0];
+    const opIndex = opPath[0];
+
+    switch (opType) {
+      case "insert_node":
+        // 插入操作：同级后续位置+1
+        if (targetIndex >= opIndex) {
+          return [targetIndex + 1];
+        }
+        return targetPath;
+
+      case "remove_node":
+        // 删除操作：同级后续位置前移
+        if (targetIndex > opIndex) {
+          return [targetIndex - 1];
+        }
+        return targetPath;
+
+      case "set_node":
+        // set操作不影响路径
+        return targetPath;
+
+      case "move_node":
+        // move操作的删除阶段
+        if (targetIndex === opIndex) {
+          return null;
+        }
+        if (targetIndex > opIndex) {
+          return [targetIndex - 1];
+        }
+        return targetPath;
+
+      default:
+        return targetPath;
+    }
+  }
+
+  /**
+   * 检查操作是否有路径需要转换
+   */
+  private static operationHasPath(operation: Operation): boolean {
+    return (
+      operation &&
+      (operation.type === "insert_node" ||
+        operation.type === "remove_node" ||
+        operation.type === "move_node" ||
+        operation.type === "set_node")
+    );
   }
 }
 
