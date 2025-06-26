@@ -228,21 +228,21 @@ describe("BoardOperations 测试", () => {
     it("应该处理 set_viewport 操作", () => {
       const data = {
         children: [] as BoardElement[],
-        viewPort: { zoom: 1, offsetX: 0, offsetY: 0 },
+        viewPort: { minX: 0, minY: 0, width: 100, height: 100, zoom: 1 },
       };
 
       const operations: Operation[] = [
         {
           type: "set_viewport",
           properties: { zoom: 1 },
-          newProperties: { zoom: 1.5, offsetX: 100 },
+          newProperties: { zoom: 1.5, minX: 100 },
         },
       ];
 
       const result = BoardOperations.applyOperations(data, operations);
 
       expect(result.data.viewPort!.zoom).toBe(1.5);
-      expect(result.data.viewPort!.offsetX).toBe(100);
+      expect(result.data.viewPort!.minX).toBe(100);
       expect(result.metadata.hasChanges).toBe(true);
     });
 
@@ -252,17 +252,29 @@ describe("BoardOperations 测试", () => {
         selection: { selectedElements: [], selectArea: null },
       };
 
+      const testElement = {
+        id: "element1",
+        type: "circle",
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+      } as BoardElement;
+
       const operations: Operation[] = [
         {
           type: "set_selection",
           properties: { selectedElements: [] },
-          newProperties: { selectedElements: ["element1"], mode: "select" },
+          newProperties: {
+            selectedElements: [testElement],
+            mode: "select",
+          },
         },
       ];
 
       const result = BoardOperations.applyOperations(data, operations);
 
-      expect(result.data.selection!.selectedElements).toEqual(["element1"]);
+      expect(result.data.selection!.selectedElements).toEqual([testElement]);
       expect((result.data.selection as any).mode).toBe("select");
       expect(result.metadata.hasChanges).toBe(true);
     });
@@ -270,8 +282,8 @@ describe("BoardOperations 测试", () => {
     it("应该跳过 viewPort 和 selection 操作当设置了 skip 选项", () => {
       const data = {
         children: [] as BoardElement[],
-        viewPort: { zoom: 1 },
-        selection: { selectedElements: [] },
+        viewPort: { zoom: 1, minX: 0, minY: 0, width: 100, height: 100 },
+        selection: { selectedElements: [], selectArea: null },
       };
 
       const operations: Operation[] = [
@@ -283,7 +295,18 @@ describe("BoardOperations 测试", () => {
         {
           type: "set_selection",
           properties: {},
-          newProperties: { selectedElements: ["element1"] },
+          newProperties: {
+            selectedElements: [
+              {
+                id: "element2",
+                type: "circle",
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 100,
+              },
+            ],
+          },
         },
       ];
 

@@ -1,13 +1,5 @@
-import { BoardElement, Operation, Board } from "../types";
+import { Board, BoardElement, Operation } from "../types";
 import PathUtil from "./PathUtil";
-
-/**
- * MockBoard类型，用于模拟Board结构
- * 仅包含必要的children属性，用于操作处理
- */
-interface MockBoard {
-  children: BoardElement[];
-}
 
 /**
  * BoardOperations - 白板操作核心逻辑
@@ -27,20 +19,21 @@ export class BoardOperations {
   static applyOperations(
     data: {
       children: BoardElement[];
-      viewPort?: Record<string, unknown>;
-      selection?: Record<string, unknown>;
+      viewPort?: Board["viewPort"];
+      selection?: Board["selection"];
     },
     operations: Operation[],
     options: {
       readonly?: boolean;
       skipViewPortOperations?: boolean;
       skipSelectionOperations?: boolean;
+      skipPathTransform?: boolean;
     } = {},
   ): {
     data: {
       children: BoardElement[];
-      viewPort?: Record<string, unknown>;
-      selection?: Record<string, unknown>;
+      viewPort?: Board["viewPort"];
+      selection?: Board["selection"];
     };
     metadata: {
       changedElements: BoardElement[];
@@ -52,6 +45,7 @@ export class BoardOperations {
       readonly = false,
       skipViewPortOperations = false,
       skipSelectionOperations = false,
+      skipPathTransform = false,
     } = options;
 
     // 深克隆输入数据以避免副作用
@@ -82,31 +76,29 @@ export class BoardOperations {
       return { data: result, metadata };
     }
 
-    // 第二步：对有效操作进行排序
+    // 第二步：简化排序（只对插入操作按深度排序）
     const sortedOps = PathUtil.sortOperationsForExecution(validOps);
 
-    // 第三步：转换排序后的操作路径
-    const transformedOps = PathUtil.transformValidOperations(sortedOps);
+    // 第三步：根据skipPathTransform选项决定是否进行路径转换
+    const transformedOps = skipPathTransform
+      ? sortedOps
+      : PathUtil.transformValidOperations(sortedOps);
 
-    // 创建模拟的Board结构用于路径操作
-    const mockBoard: MockBoard = { children: result.children };
+    const board = { children: result.children };
 
     try {
       for (const op of transformedOps) {
         if (op.type === "set_node") {
           if (readonly) continue;
 
-          const { path, newProperties, properties } = op;
+          const { path, newProperties } = op;
           // 使用getElement替代getElementByPath，避免Board类型问题
           const pathCopy = [...path];
           const firstIndex = pathCopy.shift();
-          if (
-            firstIndex === undefined ||
-            firstIndex >= mockBoard.children.length
-          )
+          if (firstIndex === undefined || firstIndex >= board.children.length)
             continue;
 
-          let node = mockBoard.children[firstIndex];
+          let node = board.children[firstIndex];
           for (const idx of pathCopy) {
             if (!node.children || idx >= node.children.length) {
               continue;
@@ -126,8 +118,6 @@ export class BoardOperations {
             }
           }
 
-          // 不删除原来的属性，只更新新属性中指定要修改的
-
           metadata.changedElements.push(node);
           metadata.hasChanges = true;
         } else if (op.type === "insert_node") {
@@ -138,18 +128,14 @@ export class BoardOperations {
           if (path.length === 1) {
             // 顶层插入
             const index = path[0];
-            if (index <= mockBoard.children.length) {
-              mockBoard.children.splice(
-                index,
-                0,
-                JSON.parse(JSON.stringify(node)),
-              );
+            if (index <= board.children.length) {
+              board.children.splice(index, 0, JSON.parse(JSON.stringify(node)));
               metadata.hasChanges = true;
             } else {
               console.error("insert_node error: index out of range", {
                 path,
                 index,
-                parent: mockBoard,
+                parent: board,
               });
             }
           } else {
@@ -160,13 +146,10 @@ export class BoardOperations {
             // 使用getElement获取父节点
             const pathCopy = [...parentPath];
             const firstIndex = pathCopy.shift();
-            if (
-              firstIndex === undefined ||
-              firstIndex >= mockBoard.children.length
-            )
+            if (firstIndex === undefined || firstIndex >= board.children.length)
               continue;
 
-            let parent = mockBoard.children[firstIndex];
+            let parent = board.children[firstIndex];
             for (const idx of pathCopy) {
               if (!parent.children || idx >= parent.children.length) {
                 parent = null as unknown as BoardElement;
@@ -204,10 +187,10 @@ export class BoardOperations {
           if (path.length === 1) {
             // 顶层删除
             const index = path[0];
-            if (index < mockBoard.children.length) {
-              const removedElement = mockBoard.children[index];
+            if (index < board.children.length) {
+              const removedElement = board.children[index];
               metadata.removedElements.push(removedElement);
-              mockBoard.children.splice(index, 1);
+              board.children.splice(index, 1);
               metadata.hasChanges = true;
             }
           } else {
@@ -218,13 +201,10 @@ export class BoardOperations {
             // 使用getElement获取父节点
             const pathCopy = [...parentPath];
             const firstIndex = pathCopy.shift();
-            if (
-              firstIndex === undefined ||
-              firstIndex >= mockBoard.children.length
-            )
+            if (firstIndex === undefined || firstIndex >= board.children.length)
               continue;
 
-            let parent = mockBoard.children[firstIndex];
+            let parent = board.children[firstIndex];
             for (const idx of pathCopy) {
               if (!parent.children || idx >= parent.children.length) {
                 parent = null as unknown as BoardElement;
@@ -241,6 +221,104 @@ export class BoardOperations {
               metadata.removedElements.push(removedElement);
               parent.children.splice(removeIndex, 1);
               metadata.hasChanges = true;
+            }
+          }
+        } else if (op.type === "move_node") {
+          if (readonly) continue;
+
+          const { path, newPath } = op as Extract<
+            Operation,
+            { type: "move_node" }
+          >;
+
+          // Move操作实现：先删除源位置的元素，再插入到目标位置
+          let elementToMove: BoardElement | null = null;
+
+          // 第一步：从源位置删除元素
+          if (path.length === 1) {
+            // 顶层移动
+            const sourceIndex = path[0];
+            if (sourceIndex < board.children.length) {
+              elementToMove = board.children[sourceIndex];
+              board.children.splice(sourceIndex, 1);
+            }
+          } else {
+            // 子节点移动
+            const sourceParentPath = path.slice(0, -1);
+            const sourceIndex = path[path.length - 1];
+
+            // 获取源父节点
+            const pathCopy = [...sourceParentPath];
+            const firstIndex = pathCopy.shift();
+            if (
+              firstIndex !== undefined &&
+              firstIndex < board.children.length
+            ) {
+              let sourceParent = board.children[firstIndex];
+              for (const idx of pathCopy) {
+                if (
+                  !sourceParent.children ||
+                  idx >= sourceParent.children.length
+                ) {
+                  sourceParent = null as unknown as BoardElement;
+                  break;
+                }
+                sourceParent = sourceParent.children[idx];
+              }
+
+              if (
+                sourceParent?.children &&
+                sourceIndex < sourceParent.children.length
+              ) {
+                elementToMove = sourceParent.children[sourceIndex];
+                sourceParent.children.splice(sourceIndex, 1);
+              }
+            }
+          }
+
+          // 第二步：插入到目标位置
+          if (elementToMove) {
+            if (newPath.length === 1) {
+              // 顶层插入
+              const targetIndex = newPath[0];
+              if (targetIndex <= board.children.length) {
+                board.children.splice(targetIndex, 0, elementToMove);
+                metadata.hasChanges = true;
+              }
+            } else {
+              // 子节点插入
+              const targetParentPath = newPath.slice(0, -1);
+              const targetIndex = newPath[newPath.length - 1];
+
+              // 获取目标父节点
+              const pathCopy = [...targetParentPath];
+              const firstIndex = pathCopy.shift();
+              if (
+                firstIndex !== undefined &&
+                firstIndex < board.children.length
+              ) {
+                let targetParent = board.children[firstIndex];
+                for (const idx of pathCopy) {
+                  if (
+                    !targetParent.children ||
+                    idx >= targetParent.children.length
+                  ) {
+                    targetParent = null as unknown as BoardElement;
+                    break;
+                  }
+                  targetParent = targetParent.children[idx];
+                }
+
+                if (targetParent) {
+                  if (!targetParent.children) {
+                    targetParent.children = [];
+                  }
+                  if (targetIndex <= targetParent.children.length) {
+                    targetParent.children.splice(targetIndex, 0, elementToMove);
+                    metadata.hasChanges = true;
+                  }
+                }
+              }
             }
           }
         } else if (op.type === "set_viewport") {
@@ -280,17 +358,20 @@ export class BoardOperations {
   }
 
   /**
-   * 简化版本：仅应用到children数组（用于BoardUtil.apply）
+   * 简化的应用操作到子节点数组的方法（纯函数）
+   * @param children 原始子节点数组
+   * @param operations 操作列表
+   * @returns 新的子节点数组
    */
   static applyToChildren(
     children: BoardElement[],
     operations: Operation[],
-    options: { readonly?: boolean } = {},
   ): BoardElement[] {
+    // diff 生成的操作需要跳过路径转换
     const result = this.applyOperations({ children }, operations, {
-      ...options,
       skipViewPortOperations: true,
       skipSelectionOperations: true,
+      skipPathTransform: true, // 关键：跳过路径转换
     });
 
     return result.data.children;
@@ -307,13 +388,357 @@ export class BoardOperations {
     const validOps = PathUtil.filterValidOperations(operations);
     if (validOps.length === 0) return [];
 
-    // 第二步：排序
+    // 第二步：简化排序（只对插入操作按深度排序）
     const sortedOps = PathUtil.sortOperationsForExecution(validOps);
 
     // 第三步：路径转换
-    const transformedOps = PathUtil.transformValidOperations(sortedOps);
+    // 检查是否有操作标记了skipPathTransform
+    const hasSkipTransformFlag = sortedOps.some(
+      (op) => (op as any).skipPathTransform,
+    );
+
+    const transformedOps = hasSkipTransformFlag
+      ? sortedOps.map((op) => {
+          // 移除标记，返回干净的操作
+          const { skipPathTransform, ...cleanOp } = op as any;
+          return cleanOp;
+        })
+      : PathUtil.transformValidOperations(sortedOps);
 
     return transformedOps;
+  }
+
+  /**
+   * 专门用于undo/redo的应用方法：不进行路径转换
+   *
+   * 这个方法用于应用已经经过路径转换验证的操作（如从历史记录中取出的操作）
+   * 不进行路径转换，避免二次转换导致的错误
+   */
+  static applyUndoOperations(
+    data: {
+      children: BoardElement[];
+      viewPort?: Board["viewPort"];
+      selection?: Board["selection"];
+    },
+    operations: Operation[],
+    options: {
+      readonly?: boolean;
+      skipViewPortOperations?: boolean;
+      skipSelectionOperations?: boolean;
+    } = {},
+  ): {
+    data: {
+      children: BoardElement[];
+      viewPort?: Board["viewPort"];
+      selection?: Board["selection"];
+    };
+    metadata: {
+      changedElements: BoardElement[];
+      removedElements: BoardElement[];
+      hasChanges: boolean;
+    };
+  } {
+    const {
+      readonly = false,
+      skipViewPortOperations = false,
+      skipSelectionOperations = false,
+    } = options;
+
+    // 深克隆输入数据以避免副作用
+    const result = {
+      children: JSON.parse(JSON.stringify(data.children)),
+      viewPort: data.viewPort
+        ? JSON.parse(JSON.stringify(data.viewPort))
+        : undefined,
+      selection: data.selection
+        ? JSON.parse(JSON.stringify(data.selection))
+        : undefined,
+    };
+
+    // 元数据收集
+    const metadata = {
+      changedElements: [] as BoardElement[],
+      removedElements: [] as BoardElement[],
+      hasChanges: false,
+    };
+
+    if (operations.length === 0) {
+      return { data: result, metadata };
+    }
+
+    // 直接应用操作，不进行任何路径转换
+    // 因为这些操作已经是经过转换验证的
+    const board = { children: result.children };
+
+    try {
+      for (const op of operations) {
+        if (op.type === "set_node") {
+          if (readonly) continue;
+
+          const { path, newProperties } = op;
+          // 使用getElement替代getElementByPath，避免Board类型问题
+          const pathCopy = [...path];
+          const firstIndex = pathCopy.shift();
+          if (firstIndex === undefined || firstIndex >= board.children.length)
+            continue;
+
+          let node = board.children[firstIndex];
+          for (const idx of pathCopy) {
+            if (!node.children || idx >= node.children.length) {
+              continue;
+            }
+            node = node.children[idx];
+          }
+
+          if (!node) continue;
+
+          // 应用新属性
+          for (const key in newProperties) {
+            const value = newProperties[key];
+            if (value === null) {
+              delete node[key];
+            } else {
+              node[key] = value;
+            }
+          }
+
+          metadata.changedElements.push(node);
+          metadata.hasChanges = true;
+        } else if (op.type === "insert_node") {
+          if (readonly) continue;
+
+          const { path, node } = op;
+          // 手动处理路径以获取父节点
+          if (path.length === 1) {
+            // 顶层插入
+            const index = path[0];
+            if (index <= board.children.length) {
+              board.children.splice(index, 0, JSON.parse(JSON.stringify(node)));
+              metadata.hasChanges = true;
+            } else {
+              console.error("undo insert_node error: index out of range", {
+                path,
+                index,
+                parent: board,
+              });
+            }
+          } else {
+            // 子节点插入
+            const parentPath = path.slice(0, -1);
+            const insertIndex = path[path.length - 1];
+
+            // 使用getElement获取父节点
+            const pathCopy = [...parentPath];
+            const firstIndex = pathCopy.shift();
+            if (firstIndex === undefined || firstIndex >= board.children.length)
+              continue;
+
+            let parent = board.children[firstIndex];
+            for (const idx of pathCopy) {
+              if (!parent.children || idx >= parent.children.length) {
+                parent = null as unknown as BoardElement;
+                break;
+              }
+              parent = parent.children[idx];
+            }
+
+            if (!parent) continue;
+            if (!parent.children) {
+              parent.children = [];
+            }
+
+            // 插入节点
+            if (insertIndex <= parent.children.length) {
+              parent.children.splice(
+                insertIndex,
+                0,
+                JSON.parse(JSON.stringify(node)),
+              );
+              metadata.hasChanges = true;
+            } else {
+              console.error("undo insert_node error: index out of range", {
+                path,
+                index: insertIndex,
+                parent,
+              });
+            }
+          }
+        } else if (op.type === "remove_node") {
+          if (readonly) continue;
+
+          const { path } = op;
+          // 手动处理路径以获取父节点
+          if (path.length === 1) {
+            // 顶层删除
+            const index = path[0];
+            if (index < board.children.length) {
+              const removedElement = board.children[index];
+              metadata.removedElements.push(removedElement);
+              board.children.splice(index, 1);
+              metadata.hasChanges = true;
+            }
+          } else {
+            // 子节点删除
+            const parentPath = path.slice(0, -1);
+            const removeIndex = path[path.length - 1];
+
+            // 使用getElement获取父节点
+            const pathCopy = [...parentPath];
+            const firstIndex = pathCopy.shift();
+            if (firstIndex === undefined || firstIndex >= board.children.length)
+              continue;
+
+            let parent = board.children[firstIndex];
+            for (const idx of pathCopy) {
+              if (!parent.children || idx >= parent.children.length) {
+                parent = null as unknown as BoardElement;
+                break;
+              }
+              parent = parent.children[idx];
+            }
+
+            if (!parent || !parent.children) continue;
+
+            // 删除节点
+            if (removeIndex < parent.children.length) {
+              const removedElement = parent.children[removeIndex];
+              metadata.removedElements.push(removedElement);
+              parent.children.splice(removeIndex, 1);
+              metadata.hasChanges = true;
+            }
+          }
+        } else if (op.type === "move_node") {
+          if (readonly) continue;
+
+          const { path, newPath } = op as Extract<
+            Operation,
+            { type: "move_node" }
+          >;
+
+          // Move操作实现：先删除源位置的元素，再插入到目标位置
+          let elementToMove: BoardElement | null = null;
+
+          // 第一步：从源位置删除元素
+          if (path.length === 1) {
+            // 顶层移动
+            const sourceIndex = path[0];
+            if (sourceIndex < board.children.length) {
+              elementToMove = board.children[sourceIndex];
+              board.children.splice(sourceIndex, 1);
+            }
+          } else {
+            // 子节点移动
+            const sourceParentPath = path.slice(0, -1);
+            const sourceIndex = path[path.length - 1];
+
+            // 获取源父节点
+            const pathCopy = [...sourceParentPath];
+            const firstIndex = pathCopy.shift();
+            if (
+              firstIndex !== undefined &&
+              firstIndex < board.children.length
+            ) {
+              let sourceParent = board.children[firstIndex];
+              for (const idx of pathCopy) {
+                if (
+                  !sourceParent.children ||
+                  idx >= sourceParent.children.length
+                ) {
+                  sourceParent = null as unknown as BoardElement;
+                  break;
+                }
+                sourceParent = sourceParent.children[idx];
+              }
+
+              if (
+                sourceParent?.children &&
+                sourceIndex < sourceParent.children.length
+              ) {
+                elementToMove = sourceParent.children[sourceIndex];
+                sourceParent.children.splice(sourceIndex, 1);
+              }
+            }
+          }
+
+          // 第二步：插入到目标位置
+          if (elementToMove) {
+            if (newPath.length === 1) {
+              // 顶层插入
+              const targetIndex = newPath[0];
+              if (targetIndex <= board.children.length) {
+                board.children.splice(targetIndex, 0, elementToMove);
+                metadata.hasChanges = true;
+              }
+            } else {
+              // 子节点插入
+              const targetParentPath = newPath.slice(0, -1);
+              const targetIndex = newPath[newPath.length - 1];
+
+              // 获取目标父节点
+              const pathCopy = [...targetParentPath];
+              const firstIndex = pathCopy.shift();
+              if (
+                firstIndex !== undefined &&
+                firstIndex < board.children.length
+              ) {
+                let targetParent = board.children[firstIndex];
+                for (const idx of pathCopy) {
+                  if (
+                    !targetParent.children ||
+                    idx >= targetParent.children.length
+                  ) {
+                    targetParent = null as unknown as BoardElement;
+                    break;
+                  }
+                  targetParent = targetParent.children[idx];
+                }
+
+                if (targetParent) {
+                  if (!targetParent.children) {
+                    targetParent.children = [];
+                  }
+                  if (targetIndex <= targetParent.children.length) {
+                    targetParent.children.splice(targetIndex, 0, elementToMove);
+                    metadata.hasChanges = true;
+                  }
+                }
+              }
+            }
+          }
+        } else if (op.type === "set_viewport") {
+          if (skipViewPortOperations || !result.viewPort) continue;
+
+          const { newProperties } = op;
+          for (const key in newProperties) {
+            const value = newProperties[key];
+            if (value == null) {
+              delete result.viewPort[key];
+            } else {
+              result.viewPort[key] = value;
+            }
+          }
+          metadata.hasChanges = true;
+        } else if (op.type === "set_selection") {
+          if (readonly || skipSelectionOperations || !result.selection)
+            continue;
+
+          const { newProperties } = op;
+          for (const key in newProperties) {
+            const value = newProperties[key];
+            if (value == null) {
+              delete result.selection[key];
+            } else {
+              result.selection[key] = value;
+            }
+          }
+          metadata.hasChanges = true;
+        }
+      }
+    } catch (e) {
+      console.error("Apply undo operations error:", e);
+    }
+
+    return { data: result, metadata };
   }
 }
 

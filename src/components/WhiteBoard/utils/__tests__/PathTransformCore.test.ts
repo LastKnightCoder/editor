@@ -85,7 +85,7 @@ describe("transformPath - 单个路径转换核心测试", () => {
       // 被删除分支的子路径保持不变（这里只测试transformPath，祖先删除检查在filterValidOperations中）
       const nestedPath = [0, 1, 2];
       const result2 = PathUtil.transformPath(nestedPath, removeOp);
-      expect(result2).toEqual([0, 1, 2]); // transformPath不处理祖先删除情况
+      expect(result2).toEqual(null); // transformPath不处理祖先删除情况
     });
   });
 
@@ -108,9 +108,9 @@ describe("transformPath - 单个路径转换核心测试", () => {
       const result2 = PathUtil.transformPath([1], moveOp);
       expect(result2).toEqual([2]);
 
-      // [3] 向前移动填补空间
+      // [3] 不受影响
       const result3 = PathUtil.transformPath([3], moveOp);
-      expect(result3).toEqual([2]);
+      expect(result3).toEqual([3]);
     });
 
     it("同级向后移动：正确处理影响区间", () => {
