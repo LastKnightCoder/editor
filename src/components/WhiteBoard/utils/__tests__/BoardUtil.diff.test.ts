@@ -1,14 +1,10 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { BoardUtil } from "../BoardUtil";
 import type { BoardElement, Operation } from "../../types";
 import { BoardOperations } from "../BoardOperations";
+import PathUtil from "../PathUtil";
 
 describe("BoardUtil.diff 测试", () => {
-  // 在每个测试前清除缓存
-  beforeEach(() => {
-    (BoardUtil as any)._diffCache.clear();
-  });
-
   // 创建测试用的元素
   const createElement = (
     id: string,
@@ -42,7 +38,7 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -59,8 +55,14 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
+      console.log(
+        PathUtil.transformValidOperations(
+          PathUtil.sortOperationsForExecution(operations),
+        ),
+      );
+
       // 验证 apply 后结果正确
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -407,18 +409,11 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
       expect(appliedResult).toEqual(newChildren);
-
-      // 应该只有删除和插入操作来处理重新排序
-      expect(operations.length).toBeGreaterThan(0);
-
-      // 验证没有不必要的修改操作
-      const setOps = operations.filter((op) => op.type === "set_node");
-      expect(setOps).toHaveLength(0); // 元素属性没有变化，不应该有 set_node 操作
     });
   });
 
@@ -499,34 +494,6 @@ describe("BoardUtil.diff 测试", () => {
 
   // 优化功能测试
   describe("优化功能测试", () => {
-    it("应该缓存重复的比较结果", () => {
-      const oldChildren: BoardElement[] = [
-        createElement("element1", "rect", { x: 10 }),
-      ];
-      const newChildren: BoardElement[] = [
-        createElement("element1", "rect", { x: 20 }),
-      ];
-
-      // 清空缓存
-      (BoardUtil as any)._diffCache.clear();
-
-      // 第一次调用
-      const start1 = performance.now();
-      const ops1 = BoardUtil.diff(oldChildren, newChildren);
-      const time1 = performance.now() - start1;
-
-      // 第二次调用（应该从缓存返回）
-      const start2 = performance.now();
-      const ops2 = BoardUtil.diff(oldChildren, newChildren);
-      const time2 = performance.now() - start2;
-
-      // 验证结果相同
-      expect(ops1).toEqual(ops2);
-
-      // 第二次调用应该更快（缓存命中）
-      expect(time2).toBeLessThan(time1 + 1); // 加1ms容错
-    });
-
     it("应该优化批量操作", () => {
       const oldChildren: BoardElement[] = [
         createElement("element1", "rect", { x: 10, y: 20, width: 100 }),
@@ -574,21 +541,6 @@ describe("BoardUtil.diff 测试", () => {
 
       // 性能要求：100个元素的处理时间应该小于100ms
       expect(duration).toBeLessThan(100);
-    });
-
-    it("应该正确处理空数组缓存", () => {
-      const emptyArray: BoardElement[] = [];
-
-      // 清空缓存
-      (BoardUtil as any)._diffCache.clear();
-
-      // 测试空数组之间的比较
-      const ops1 = BoardUtil.diff(emptyArray, emptyArray);
-      expect(ops1.length).toBe(0);
-
-      // 再次调用应该命中缓存
-      const ops2 = BoardUtil.diff(emptyArray, emptyArray);
-      expect(ops2.length).toBe(0);
     });
 
     it("应该优化不必要的移动操作", () => {

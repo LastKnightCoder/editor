@@ -427,5 +427,66 @@ describe("BoardOperations 测试", () => {
       // 应该不会插入元素，原数据保持不变
       expect(result).toEqual(children);
     });
+
+    it("应该正确处理连续删除所有元素的操作", () => {
+      const children: BoardElement[] = [
+        { id: "element1", type: "rect", x: 0, y: 0, width: 100, height: 100 },
+        { id: "element2", type: "circle", x: 0, y: 0, width: 100, height: 100 },
+      ];
+
+      // 模拟 BoardUtil.diff 生成的删除操作序列
+      // 这种序列会生成两个路径都是 [0] 的删除操作
+      const operations: Operation[] = [
+        {
+          type: "remove_node",
+          path: [0], // 删除第一个元素
+          node: children[0],
+        },
+        {
+          type: "remove_node",
+          path: [0], // 删除第二个元素（现在位于索引 0）
+          node: children[1],
+        },
+      ];
+
+      const result = BoardOperations.applyToChildren(children, operations);
+
+      // 应该正确删除所有元素，结果为空数组
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+
+    it("应该正确处理连续删除操作的顺序变化", () => {
+      const children: BoardElement[] = [
+        { id: "element1", type: "rect", x: 0, y: 0, width: 100, height: 100 },
+        { id: "element2", type: "circle", x: 0, y: 0, width: 100, height: 100 },
+        { id: "element3", type: "text", x: 0, y: 0, width: 100, height: 100 },
+      ];
+
+      // 删除所有三个元素，都使用路径 [0]
+      const operations: Operation[] = [
+        {
+          type: "remove_node",
+          path: [0],
+          node: children[0],
+        },
+        {
+          type: "remove_node",
+          path: [0],
+          node: children[1],
+        },
+        {
+          type: "remove_node",
+          path: [0],
+          node: children[2],
+        },
+      ];
+
+      const result = BoardOperations.applyToChildren(children, operations);
+
+      // 应该正确删除所有元素
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
   });
 });

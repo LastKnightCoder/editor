@@ -1,4 +1,5 @@
-import { BoardElement, Board, Operation } from "../types";
+import { InsertNodeOperation } from "slate";
+import { BoardElement, Board, Operation, RemoveNodeOperation } from "../types";
 import BoardUtil from "./BoardUtil.ts";
 
 export type Path = number[];
@@ -473,20 +474,40 @@ export class PathUtil {
     const insertOps = operationsWithIndex.filter(
       (item) => item.op.type === "insert_node",
     );
+    const removeOps = operationsWithIndex.filter(
+      (item) => item.op.type === "remove_node",
+    );
     const otherOps = operationsWithIndex.filter(
-      (item) => item.op.type !== "insert_node",
+      (item) =>
+        item.op.type !== "insert_node" && item.op.type !== "remove_node",
     );
 
     // 对插入操作按深度排序（浅→深）
     insertOps.sort((a, b) => {
-      const pathA = (a.op as any).path;
-      const pathB = (b.op as any).path;
-      return pathA.length - pathB.length; // 浅→深
+      const pathA = (a.op as InsertNodeOperation).path;
+      const pathB = (b.op as InsertNodeOperation).path;
+      if (pathA.length !== pathB.length) {
+        return pathA.length - pathB.length;
+      }
+      // 如果长度相同，那么小的在前面
+      return a.originalIndex - b.originalIndex;
     });
 
-    // 重新合并操作，插入操作按新顺序，其他操作保持原位置
+    // 删除操作的顺序和 insert 相反
+    removeOps.sort((a, b) => {
+      const pathA = (a.op as RemoveNodeOperation).path;
+      const pathB = (b.op as RemoveNodeOperation).path;
+      if (pathA.length !== pathB.length) {
+        return pathB.length - pathA.length;
+      }
+      // 如果长度相同，那么小的在前面
+      return b.originalIndex - a.originalIndex;
+    });
+
+    // 重新合并操作，插入和删除操作按新顺序，其他操作保持原位置
     const result: Operation[] = [];
     let insertIndex = 0;
+    let removeIndex = 0;
     let otherIndex = 0;
 
     for (let i = 0; i < operations.length; i++) {
@@ -496,8 +517,14 @@ export class PathUtil {
           result.push(insertOps[insertIndex].op);
           insertIndex++;
         }
+      } else if (operations[i].type === "remove_node") {
+        // 删除位置应该放入排序后的删除操作
+        if (removeIndex < removeOps.length) {
+          result.push(removeOps[removeIndex].op);
+          removeIndex++;
+        }
       } else {
-        // 非插入操作保持原始顺序
+        // 非插入和删除操作保持原始顺序
         if (otherIndex < otherOps.length) {
           result.push(otherOps[otherIndex].op);
           otherIndex++;
