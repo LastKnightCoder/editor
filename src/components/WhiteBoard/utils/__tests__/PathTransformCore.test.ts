@@ -175,6 +175,85 @@ describe("transformPath - 单个路径转换核心测试", () => {
     });
   });
 
+  describe("删除和插入路径冲突场景", () => {
+    it("相同路径的删除和插入：删除不影响插入", () => {
+      const removeOp: Operation = {
+        type: "remove_node",
+        path: [0],
+        node: { id: "removed", type: "shape" },
+      };
+
+      // 相同路径的插入操作不应该受删除操作影响
+      const insertPath = [0];
+      const result = PathUtil.transformPath(
+        insertPath,
+        removeOp,
+        "insert_node",
+      );
+      expect(result).toEqual([0]); // 应该保持原路径，不受删除影响
+    });
+
+    it("相同路径的删除和插入：多层路径场景", () => {
+      const removeOp: Operation = {
+        type: "remove_node",
+        path: [1, 2],
+        node: { id: "removed", type: "shape" },
+      };
+
+      // 相同路径的插入操作不应该受删除操作影响
+      const insertPath = [1, 2];
+      const result = PathUtil.transformPath(
+        insertPath,
+        removeOp,
+        "insert_node",
+      );
+      expect(result).toEqual([1, 2]); // 应该保持原路径
+    });
+
+    it("删除操作后续路径正确调整：避免负数索引", () => {
+      const removeOp: Operation = {
+        type: "remove_node",
+        path: [1],
+        node: { id: "removed", type: "shape" },
+      };
+
+      // 位置0不受影响
+      const result0 = PathUtil.transformPath([0], removeOp);
+      expect(result0).toEqual([0]);
+
+      // 位置1（被删除位置）应该返回null而不是负数
+      const result1 = PathUtil.transformPath([1], removeOp);
+      expect(result1).toEqual(null);
+
+      // 位置2应该调整为1
+      const result2 = PathUtil.transformPath([2], removeOp);
+      expect(result2).toEqual([1]);
+    });
+
+    it("批量操作中删除和插入的组合：确保路径转换正确", () => {
+      // 模拟批量操作场景：先删除[0]，再插入[0]
+      const operations: Operation[] = [
+        {
+          type: "remove_node",
+          path: [0],
+          node: { id: "removed", type: "shape" },
+        },
+        {
+          type: "insert_node",
+          path: [0],
+          node: { id: "new", type: "shape" },
+        },
+      ];
+
+      // 第二个操作（插入[0]）不应该受第一个操作（删除[0]）影响
+      const insertPath = [0];
+      const firstOp = operations[0];
+
+      const result = PathUtil.transformPath(insertPath, firstOp, "insert_node");
+      expect(result).toEqual([0]); // 插入到相同位置应该保持不变
+    });
+  });
+
   describe("其他操作类型", () => {
     it("设置操作：不影响路径", () => {
       const setOp: Operation = {

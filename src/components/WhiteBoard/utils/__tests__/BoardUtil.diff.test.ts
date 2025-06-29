@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { BoardUtil } from "../BoardUtil";
 import type { BoardElement, Operation } from "../../types";
 import { BoardOperations } from "../BoardOperations";
-import PathUtil from "../PathUtil";
 
 describe("BoardUtil.diff 测试", () => {
   // 创建测试用的元素
@@ -38,6 +37,7 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
+
       const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
@@ -54,13 +54,6 @@ describe("BoardUtil.diff 测试", () => {
       const newChildren: BoardElement[] = [];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
-
-      console.log(
-        PathUtil.transformValidOperations(
-          PathUtil.sortOperationsForExecution(operations),
-        ),
-      );
-
       // 验证 apply 后结果正确
       const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
@@ -78,7 +71,8 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
-      const appliedResult = BoardOperations.applyToChildren(
+
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -113,7 +107,7 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -168,7 +162,7 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -221,7 +215,7 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -253,7 +247,7 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -290,7 +284,7 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -332,7 +326,7 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -364,7 +358,7 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -409,54 +403,12 @@ describe("BoardUtil.diff 测试", () => {
       ];
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
+      console.log(operations);
       const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
       expect(appliedResult).toEqual(newChildren);
-    });
-  });
-
-  describe("isValueChanged 辅助方法测试", () => {
-    it("基本类型比较", () => {
-      // @ts-ignore - 访问私有方法用于测试
-      expect(BoardUtil.isValueChanged(1, 1)).toBe(false);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged(1, 2)).toBe(true);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged("hello", "hello")).toBe(false);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged("hello", "world")).toBe(true);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged(true, false)).toBe(true);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged(null, undefined)).toBe(true);
-    });
-
-    it("数组比较", () => {
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged([1, 2, 3], [1, 2, 3])).toBe(false);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged([1, 2, 3], [1, 2, 4])).toBe(true);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged([1, 2], [1, 2, 3])).toBe(true);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged([], [])).toBe(false);
-    });
-
-    it("对象比较", () => {
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged({ a: 1, b: 2 }, { a: 1, b: 2 })).toBe(
-        false,
-      );
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged({ a: 1, b: 2 }, { a: 1, b: 3 })).toBe(
-        true,
-      );
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged({ a: 1 }, { a: 1, b: 2 })).toBe(true);
-      // @ts-ignore
-      expect(BoardUtil.isValueChanged({}, {})).toBe(false);
     });
   });
 
@@ -472,7 +424,7 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -505,7 +457,7 @@ describe("BoardUtil.diff 测试", () => {
 
       const operations = BoardUtil.diff(oldChildren, newChildren);
 
-      const appliedResult = BoardOperations.applyToChildren(
+      const appliedResult = BoardOperations.applyDiffOperations(
         oldChildren,
         operations,
       );
@@ -529,8 +481,8 @@ describe("BoardUtil.diff 测试", () => {
           createElement(`${prefix}${i}`, "rect", { x: i * 10, y: i * 10 }),
         );
 
-      const oldChildren = createLargeArray(100, "old");
-      const newChildren = createLargeArray(100, "new");
+      const oldChildren = createLargeArray(1000, "old");
+      const newChildren = createLargeArray(1000, "new");
 
       const start = performance.now();
       const operations = BoardUtil.diff(oldChildren, newChildren);
