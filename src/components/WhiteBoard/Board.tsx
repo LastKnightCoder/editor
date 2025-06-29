@@ -402,7 +402,6 @@ class Board {
       // 存储预处理后的操作用于历史记录
       // 这些是经过路径转换验证的、实际执行过的操作
       const processedOps = BoardOperations.preprocessOperations(ops);
-      console.log("processedOps", processedOps);
 
       const currentTimestamp = Date.now();
       const timeDiff = currentTimestamp - this.lastUndoTimestamp;
@@ -496,8 +495,6 @@ class Board {
     const inverseOps = undo
       .map((item) => BoardUtil.inverseOperation(item))
       .reverse();
-
-    console.log("inverseOps", inverseOps);
 
     // 跳过路径转换：undo存储的是已经转换过的操作，反转后直接应用
     this.apply(inverseOps, false, true);

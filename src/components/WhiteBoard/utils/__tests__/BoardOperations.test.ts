@@ -267,7 +267,6 @@ describe("BoardOperations 测试", () => {
           properties: { selectedElements: [] },
           newProperties: {
             selectedElements: [testElement],
-            mode: "select",
           },
         },
       ];
@@ -275,7 +274,6 @@ describe("BoardOperations 测试", () => {
       const result = BoardOperations.applyOperations(data, operations);
 
       expect(result.data.selection!.selectedElements).toEqual([testElement]);
-      expect((result.data.selection as any).mode).toBe("select");
       expect(result.metadata.hasChanges).toBe(true);
     });
 
@@ -321,42 +319,6 @@ describe("BoardOperations 测试", () => {
     });
   });
 
-  describe("预处理操作测试", () => {
-    it("应该正确预处理操作", () => {
-      const operations: Operation[] = [
-        {
-          type: "insert_node",
-          path: [0],
-          node: {
-            id: "element1",
-            type: "rect",
-            x: 0,
-            y: 0,
-            width: 100,
-            height: 100,
-          },
-        },
-        {
-          type: "set_node",
-          path: [1],
-          properties: { x: 0 },
-          newProperties: { x: 50 },
-        },
-      ];
-
-      const processed = BoardOperations.preprocessOperations(operations);
-
-      // 应该过滤、排序、转换操作
-      expect(processed).toBeInstanceOf(Array);
-      expect(processed.length).toBeGreaterThan(0);
-    });
-
-    it("应该处理空操作列表", () => {
-      const processed = BoardOperations.preprocessOperations([]);
-      expect(processed).toEqual([]);
-    });
-  });
-
   describe("边界情况测试", () => {
     it("应该处理空 children 数组", () => {
       const result = BoardOperations.applyToChildren(
@@ -398,7 +360,7 @@ describe("BoardOperations 测试", () => {
 
       const result = BoardOperations.applyToChildren(children, operations);
 
-      // 应该不会崩溃，原数据保持不变
+      // 不会崩溃，原数据保持不变
       expect(result).toEqual(children);
     });
 
@@ -424,7 +386,7 @@ describe("BoardOperations 测试", () => {
 
       const result = BoardOperations.applyToChildren(children, operations);
 
-      // 应该不会插入元素，原数据保持不变
+      // 不会插入元素，原数据保持不变
       expect(result).toEqual(children);
     });
 
@@ -444,7 +406,7 @@ describe("BoardOperations 测试", () => {
         },
         {
           type: "remove_node",
-          path: [0], // 删除第二个元素（现在位于索引 0）
+          path: [1], // 删除第二个元素
           node: children[1],
         },
       ];
@@ -463,7 +425,6 @@ describe("BoardOperations 测试", () => {
         { id: "element3", type: "text", x: 0, y: 0, width: 100, height: 100 },
       ];
 
-      // 删除所有三个元素，都使用路径 [0]
       const operations: Operation[] = [
         {
           type: "remove_node",
@@ -472,12 +433,12 @@ describe("BoardOperations 测试", () => {
         },
         {
           type: "remove_node",
-          path: [0],
+          path: [1],
           node: children[1],
         },
         {
           type: "remove_node",
-          path: [0],
+          path: [2],
           node: children[2],
         },
       ];

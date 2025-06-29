@@ -69,8 +69,15 @@ export class PathUtil {
   /**
    * 根据已执行的操作转换路径
    * 这是解决批量操作中路径失效问题的核心方法
+   * @param path 要转换的路径
+   * @param operation 已执行的操作
+   * @param targetOpType 目标路径所属的操作类型（可选）
    */
-  static transformPath(path: Path, operation: Operation): Path | null {
+  static transformPath(
+    path: Path,
+    operation: Operation,
+    targetOpType?: string,
+  ): Path | null {
     // 只有特定类型的操作才有 path 属性
     if (
       operation.type !== "insert_node" &&
@@ -115,10 +122,6 @@ export class PathUtil {
         this.areSiblingPaths(path, operation.newPath)
       ) {
         // 同级原子性Move操作
-        console.log(
-          `Move操作调试（同级）: path=${JSON.stringify(path)}, opPath=${JSON.stringify(opPath)}, newPath=${JSON.stringify(operation.newPath)}`,
-        );
-
         const newPath = [...path];
         const lastIndex = path.length - 1;
         const sourceIndex = opPath[lastIndex];
@@ -127,7 +130,6 @@ export class PathUtil {
 
         // 被移动的元素本身：应该返回目标位置
         if (currentIndex === sourceIndex) {
-          console.log(`被移动的元素本身，返回目标位置`);
           return operation.newPath.slice(); // 返回目标位置
         }
 
@@ -140,25 +142,16 @@ export class PathUtil {
           // 向后移动：(source, target] 区间的元素向前移动一位
           if (currentIndex > sourceIndex && currentIndex <= targetIndex) {
             newPath[lastIndex] = currentIndex - 1;
-            console.log(
-              `向后移动影响：${JSON.stringify(path)} -> ${JSON.stringify(newPath)}`,
-            );
           }
         } else if (sourceIndex > targetIndex) {
           // 向前移动：只有 [target, source) 区间的元素受影响
           if (currentIndex >= targetIndex && currentIndex < sourceIndex) {
             newPath[lastIndex] = currentIndex + 1;
-            console.log(
-              `向前移动-插入影响：${JSON.stringify(path)} -> ${JSON.stringify(newPath)}`,
-            );
           }
           // 注意：向前移动时，source之后的元素（currentIndex > sourceIndex）不受影响
           // 因为元素是先删除再插入，删除和插入发生在source之前
         }
 
-        console.log(
-          `Move操作最终结果: ${JSON.stringify(path)} -> ${JSON.stringify(newPath)}`,
-        );
         return newPath;
       }
       // 如果不是同级的Move操作，继续到下面的跨级处理逻辑
@@ -179,6 +172,10 @@ export class PathUtil {
       } else if (operation.type === "remove_node") {
         // 删除操作
         if (path[lastIndex] === opPath[lastIndex]) {
+          // 特殊情况：如果目标是插入操作且路径相同，删除不影响插入
+          if (targetOpType === "insert_node") {
+            return path; // 保持原路径不变
+          }
           // 被删除的元素本身
           return null;
         } else if (path[lastIndex] > opPath[lastIndex]) {
@@ -219,6 +216,16 @@ export class PathUtil {
       } else if (operation.type === "remove_node") {
         // 删除操作：检查影响
         if (
+          path.length > affectedDepth &&
+          path[affectedDepth] === opPath[affectedDepth] &&
+          this.pathsEqual(path, opPath)
+        ) {
+          // 特殊情况：如果目标是插入操作且完整路径相同，删除不影响插入
+          if (targetOpType === "insert_node") {
+            return path; // 保持原路径不变
+          }
+          return null; // 路径被删除
+        } else if (
           path.length > affectedDepth &&
           path[affectedDepth] > opPath[affectedDepth]
         ) {
@@ -371,13 +378,19 @@ export class PathUtil {
    * 过滤掉无效的操作（父元素被删除等）
    * 包括祖先-子孙关系过滤：删除祖先时自动过滤子孙删除操作
    * 返回过滤后的原始操作，用于保存到历史记录
+   *
+   * 性能优化：使用Set和Map加速路径查找和比较
    */
   static filterValidOperations(operations: Operation[]): Operation[] {
-    // 第一步：预先收集所有删除操作的路径
+    // 第一步：预先收集所有删除和插入操作的路径
     const allDeletedPaths: Path[] = [];
+    const allInsertedPaths: Path[] = [];
+
     for (const op of operations) {
       if (op.type === "remove_node") {
         allDeletedPaths.push(op.path);
+      } else if (op.type === "insert_node") {
+        allInsertedPaths.push(op.path);
       }
     }
 
@@ -385,17 +398,31 @@ export class PathUtil {
     const filteredDeletePaths =
       this.filterAncestorDescendantPaths(allDeletedPaths);
 
+    // 第三步：检查是否存在"删除后又插入"的路径（使用Set优化性能）
+    const insertedPathSet = new Set(
+      allInsertedPaths.map((path) => JSON.stringify(path)),
+    );
+    const reinsertedPaths = filteredDeletePaths.filter((deletedPath) =>
+      insertedPathSet.has(JSON.stringify(deletedPath)),
+    );
+
+    // 创建快速查找集合，避免重复的路径比较
+    const reinsertedPathSet = new Set(
+      reinsertedPaths.map((path) => JSON.stringify(path)),
+    );
+    const filteredDeletePathSet = new Set(
+      filteredDeletePaths.map((path) => JSON.stringify(path)),
+    );
+
     const validOps: Operation[] = [];
 
-    // 第三步：根据过滤后的删除路径过滤其他操作
+    // 第四步：根据过滤后的删除路径过滤其他操作
     for (const op of operations) {
       let isValid = true;
 
       if (op.type === "remove_node") {
-        // 只保留过滤后的删除操作
-        if (
-          !filteredDeletePaths.some((path) => this.pathsEqual(path, op.path))
-        ) {
+        // 只保留过滤后的删除操作（使用Set快速查找）
+        if (!filteredDeletePathSet.has(JSON.stringify(op.path))) {
           isValid = false;
         }
       } else if (op.type === "insert_node") {
@@ -415,8 +442,10 @@ export class PathUtil {
           isValid = false;
         }
       } else if (op.type === "set_node") {
-        // 检查设置操作的目标路径是否将要被删除
-        if (this.isPathDeleted(op.path, filteredDeletePaths)) {
+        // 特殊处理：如果路径被删除后又被重新插入，则set_node操作仍然有效（使用Set快速查找）
+        const pathStr = JSON.stringify(op.path);
+        const isReinserted = reinsertedPathSet.has(pathStr);
+        if (!isReinserted && this.isPathDeleted(op.path, filteredDeletePaths)) {
           isValid = false;
         }
       }
@@ -537,6 +566,7 @@ export class PathUtil {
 
   /**
    * 转换有效操作：基于原始操作路径计算累积影响，避免转换链式误差
+   * 性能优化：缓存路径变换结果，避免重复计算
    */
   static transformValidOperations(operations: Operation[]): Operation[] {
     if (operations.length === 0) {
@@ -546,16 +576,30 @@ export class PathUtil {
     // 为每个操作计算基于原始状态的路径转换
     const result: Operation[] = [];
 
+    // 性能优化：缓存相同前序操作集合的路径变换结果
+    const transformCache = new Map<string, Path | null>();
+
     for (let i = 0; i < operations.length; i++) {
       const currentOp = { ...operations[i] };
 
       if (this.operationHasPath(currentOp)) {
         // 计算前序操作（使用原始路径）对当前操作的累积影响
         const originalPath = (currentOp as any).path;
-        const transformedPath = this.calculateCumulativePathTransform(
-          originalPath,
-          operations.slice(0, i), // 使用原始操作，不是已转换的操作
-        );
+
+        // 使用缓存键避免重复计算
+        const cacheKey = `${JSON.stringify(originalPath)}-${currentOp.type}-${i}`;
+        let transformedPath: Path | null;
+
+        if (transformCache.has(cacheKey)) {
+          transformedPath = transformCache.get(cacheKey)!;
+        } else {
+          transformedPath = this.calculateCumulativePathTransform(
+            originalPath,
+            operations.slice(0, i), // 使用原始操作，不是已转换的操作
+            currentOp.type, // 传递当前操作类型
+          );
+          transformCache.set(cacheKey, transformedPath);
+        }
 
         if (transformedPath === null) {
           // 路径无效，跳过这个操作
@@ -568,10 +612,21 @@ export class PathUtil {
       // 处理move操作的目标路径
       if (currentOp.type === "move_node" && (currentOp as any).newPath) {
         const originalNewPath = (currentOp as any).newPath;
-        const transformedNewPath = this.calculateCumulativePathTransform(
-          originalNewPath,
-          operations.slice(0, i),
-        );
+
+        // 使用缓存键避免重复计算
+        const newPathCacheKey = `${JSON.stringify(originalNewPath)}-move_target-${i}`;
+        let transformedNewPath: Path | null;
+
+        if (transformCache.has(newPathCacheKey)) {
+          transformedNewPath = transformCache.get(newPathCacheKey)!;
+        } else {
+          transformedNewPath = this.calculateCumulativePathTransform(
+            originalNewPath,
+            operations.slice(0, i),
+            "move_target", // move操作的目标路径
+          );
+          transformCache.set(newPathCacheKey, transformedNewPath);
+        }
 
         if (transformedNewPath === null) {
           continue;
@@ -589,10 +644,14 @@ export class PathUtil {
   /**
    * 计算一系列操作对目标路径的累积影响
    * 基于原始操作路径，按执行顺序计算影响
+   * @param targetPath 目标路径
+   * @param precedingOps 前序操作列表
+   * @param targetOpType 目标路径所属的操作类型（可选）
    */
   private static calculateCumulativePathTransform(
     targetPath: Path,
     precedingOps: Operation[],
+    targetOpType?: string,
   ): Path | null {
     let currentPath = [...targetPath];
 
@@ -606,7 +665,12 @@ export class PathUtil {
 
       // 检查这个操作是否会影响当前路径
       if (this.pathWouldBeAffected(currentPath, op.type, opPath)) {
-        const newPath = this.applyDirectTransform(currentPath, op.type, opPath);
+        const newPath = this.applyDirectTransform(
+          currentPath,
+          op.type,
+          opPath,
+          targetOpType,
+        );
         if (newPath === null) {
           return null; // 路径被删除
         }
@@ -659,11 +723,16 @@ export class PathUtil {
 
   /**
    * 直接应用单个操作对路径的影响
+   * @param targetPath 目标路径
+   * @param opType 操作类型
+   * @param opPath 操作路径
+   * @param targetOpType 目标路径所属的操作类型（可选）
    */
   private static applyDirectTransform(
     targetPath: Path,
     opType: string,
     opPath: Path,
+    targetOpType?: string,
   ): Path | null {
     // 只处理顶层路径
     if (targetPath.length !== 1 || opPath.length !== 1) {
@@ -683,7 +752,13 @@ export class PathUtil {
 
       case "remove_node":
         // 删除操作：同级后续位置前移
-        if (targetIndex > opIndex) {
+        if (targetIndex === opIndex) {
+          // 特殊情况：如果目标是插入操作且路径相同，删除不影响插入
+          if (targetOpType === "insert_node") {
+            return targetPath; // 保持原路径不变
+          }
+          return null; // 路径被删除
+        } else if (targetIndex > opIndex) {
           return [targetIndex - 1];
         }
         return targetPath;
