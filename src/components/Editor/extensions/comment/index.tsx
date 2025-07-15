@@ -2,7 +2,6 @@ import IExtension from "../types.ts";
 import Base from "../base.ts";
 import Comment from "./components/Comment";
 
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { CommentElement } from "@/components/Editor/types";
 import { createInlineElementPlugin } from "../../utils";
@@ -23,14 +22,6 @@ class CommentExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [createInlineElementPlugin(this.type)];
-  }
-
-  override toMarkdown(element: Element, children: string): string {
-    const { comments } = element as CommentElement;
-    const commentsText = comments
-      .map((c) => `[comment: ${c.content}]`)
-      .join(" ");
-    return `${children} ${commentsText}`;
   }
 
   render(props: RenderElementProps) {

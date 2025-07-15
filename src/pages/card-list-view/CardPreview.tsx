@@ -9,7 +9,6 @@ import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditCard from "@/pages/CardDetailView/useEditCard";
 import useUploadResource from "@/hooks/useUploadResource";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 
 import {
@@ -40,7 +39,6 @@ const CardPreview = (props: CardPreviewProps) => {
     () => defaultCardEventBus.createEditor(),
     [],
   );
-  const isWindowFocused = useWindowFocus();
 
   const {
     initValue,
@@ -80,7 +78,7 @@ const CardPreview = (props: CardPreviewProps) => {
   }, [cardId, visible, cardEventBus, editingCard]);
 
   useRafInterval(async () => {
-    if (isWindowFocused && editingCard) {
+    if (editingCard) {
       const updatedCard = await saveCard();
       if (updatedCard) {
         cardEventBus.publishCardEvent("card:updated", updatedCard);
@@ -96,9 +94,7 @@ const CardPreview = (props: CardPreviewProps) => {
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(content);
-    }
+    throttleHandleEditorContentChange(content);
     onContentChangeFromEditCard(content);
   });
 

@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { InlineMathElement, BlockMathElement } from "@/components/Editor/types";
 import InlineMath from "./components/InlineMath";
@@ -38,13 +37,6 @@ export class InlineMathExtension extends Base implements IExtension {
     return blockPanelItems;
   }
 
-  override toMarkdown(element: Element): string {
-    const inlineMathElement = element as InlineMathElement;
-    const { tex } = inlineMathElement;
-
-    return `$${tex}$`;
-  }
-
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
@@ -70,11 +62,6 @@ export class BlockMathExtension extends Base {
 
   override getHotkeyConfigs() {
     return [...blockShortcut];
-  }
-
-  override toMarkdown(element: Element): string {
-    const blockMathElement = element as BlockMathElement;
-    return `$$\n${blockMathElement.tex}\n$$`;
   }
 
   render(props: RenderElementProps) {

@@ -1,4 +1,11 @@
-import React, { useEffect, useRef, useState, lazy, Suspense } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  lazy,
+  Suspense,
+  useMemo,
+} from "react";
 import { Transforms, Editor as SlateEditor } from "slate";
 import {
   ReactEditor,
@@ -7,7 +14,7 @@ import {
   useReadOnly,
 } from "slate-react";
 import classnames from "classnames";
-import { Editor, EditorChange } from "codemirror";
+import { Editor, EditorChange, EditorConfiguration } from "codemirror";
 import { App } from "antd";
 import isHotkey from "is-hotkey";
 import { MdFullscreenExit } from "react-icons/md";
@@ -33,7 +40,6 @@ const FullscreenCodeEditorLazy = lazy(() => import("./FullscreenCodeEditor"));
 
 interface ICodeBlockProps {
   attributes: RenderElementProps["attributes"];
-  onChange?: (code: string) => void;
   element: CodeBlockElement;
   onDidMount?: (editor: Editor) => void;
   onWillUnmount?: (editor: Editor) => void;
@@ -61,8 +67,7 @@ const aliases = {
 const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   props,
 ) => {
-  const { onChange, children, element, onDidMount, onWillUnmount, attributes } =
-    props;
+  const { children, element, onDidMount, onWillUnmount, attributes } = props;
   const { code: defaultCode, language, uuid } = element;
   const [code, setCode] = useState(defaultCode);
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
@@ -81,10 +86,26 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     });
 
   useEffect(() => {
-    // @ts-ignore
-    const alias: string = aliases[language] || language;
+    if (editorRef.current && editorRef.current.getValue() !== defaultCode) {
+      editorRef.current.setValue(defaultCode);
+      editorRef.current.refresh();
+      setCode(defaultCode);
+    }
+    if (
+      fullscreenEditorRef.current &&
+      fullscreenEditorRef.current.getValue() !== defaultCode
+    ) {
+      fullscreenEditorRef.current.setValue(defaultCode);
+      fullscreenEditorRef.current.refresh();
+      setCode(defaultCode);
+    }
+  }, [defaultCode]);
+
+  useEffect(() => {
+    const alias =
+      aliases[language?.toLowerCase() as keyof typeof aliases] || language;
     const languageConfig = LANGUAGES.find(
-      (lang) => lang.name.toLowerCase() === alias.toLowerCase(),
+      (lang) => lang.name.toLowerCase() === alias?.toLowerCase(),
     );
     if (!languageConfig) {
       return;
@@ -96,7 +117,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     (_editor: Editor, _change: EditorChange, code: string) => {
       const path = ReactEditor.findPath(slateEditor, element);
       Transforms.setNodes(slateEditor, { code }, { at: path });
-      onChange && onChange(code);
     },
   );
 
@@ -205,24 +225,36 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     },
   );
 
-  const editorOptions = {
-    inputStyle: "textarea",
-    mode: langConfig?.mime || langConfig?.mode || "text/plain",
-    theme: isDark ? "blackboard" : "one-light",
-    scrollbarStyle: "null",
-    viewportMargin: Infinity,
-    lineWrapping: false,
-    smartIndent: true,
-    extraKeys: {
-      "Shift-Tab": "indentLess",
-    },
-    readOnly: readOnly || (canDrop && isOverCurrent),
-    indentUnit: 2,
-    tabSize: 2,
-    cursorHeight: 1,
-    autoCloseBrackets: true,
-    tabindex: -1,
-  };
+  const editorOptions = useMemo(() => {
+    return {
+      inputStyle: "textarea",
+      mode: langConfig?.mime || langConfig?.mode || "text/plain",
+      theme: isDark ? "blackboard" : "one-light",
+      scrollbarStyle: "null",
+      viewportMargin: Infinity,
+      lineWrapping: false,
+      smartIndent: true,
+      extraKeys: {
+        "Shift-Tab": "indentLess",
+      },
+      readOnly: readOnly || (canDrop && isOverCurrent),
+      indentUnit: 2,
+      tabSize: 2,
+      cursorHeight: 1,
+      autoCloseBrackets: true,
+      tabindex: -1,
+    } as EditorConfiguration;
+  }, [langConfig, isDark, readOnly, canDrop, isOverCurrent]);
+
+  const onEditorDidMount = useMemoizedFn((editor: Editor) => {
+    editorRef.current = editor;
+    onDidMount && onDidMount(editor);
+  });
+
+  const onEditorWillUnmount = useMemoizedFn((editor: Editor) => {
+    onWillUnmount && onWillUnmount(editor);
+    editorRef.current = null;
+  });
 
   return (
     <div
@@ -258,14 +290,8 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
             className={styles.CodeMirrorContainer}
             onChange={handleOnChange}
             onKeyDown={handleOnKeyDown}
-            editorDidMount={(editor: Editor) => {
-              editorRef.current = editor;
-              onDidMount && onDidMount(editor);
-            }}
-            editorWillUnmount={(editor: Editor) => {
-              onWillUnmount && onWillUnmount(editor);
-              editorRef.current = null;
-            }}
+            editorDidMount={onEditorDidMount}
+            editorWillUnmount={onEditorWillUnmount}
           />
         </Suspense>
         <AddParagraph element={element} ref={addParagraphRef} />

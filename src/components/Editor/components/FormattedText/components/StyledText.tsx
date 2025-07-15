@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { RenderLeafProps } from "slate-react";
 
 interface StyledTextProps {
@@ -7,9 +7,11 @@ interface StyledTextProps {
   textDecoration: string;
   color?: string;
   attributes: RenderLeafProps["attributes"];
-  onDragStart: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent) => void;
 }
+
+const preventDefault = (e: React.DragEvent) => {
+  e.preventDefault();
+};
 
 const StyledText = memo(
   ({
@@ -18,19 +20,21 @@ const StyledText = memo(
     textDecoration,
     color,
     attributes,
-    onDragStart,
-    onDrop,
   }: StyledTextProps) => {
+    const style = useMemo(() => {
+      return {
+        textDecoration,
+        color,
+      };
+    }, [textDecoration, color]);
+
     return (
       <span
         {...attributes}
         className={className}
-        style={{
-          textDecoration,
-          color,
-        }}
-        onDragStart={onDragStart}
-        onDrop={onDrop}
+        style={style}
+        onDragStart={preventDefault}
+        onDrop={preventDefault}
       >
         {children}
       </span>

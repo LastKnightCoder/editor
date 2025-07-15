@@ -26,8 +26,8 @@ import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
 import { ProjectItem } from "@/types";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
+
 const customExtensions = [
   contentLinkExtension,
   fileAttachmentExtension,
@@ -47,7 +47,6 @@ const SingleProjectItemEditor = () => {
   const projectItemId = Number(searchParams.get("projectItemId"));
   const databaseName = searchParams.get("databaseName");
 
-  const isWindowFocused = useWindowFocus();
   const titleRef = useRef<EditTextHandle>(null);
   const [editingProjectItem, setEditingProjectItem] =
     useState<ProjectItem | null>(null);
@@ -134,7 +133,7 @@ const SingleProjectItemEditor = () => {
         content: undefined,
         count: undefined,
       });
-    if (!titleRef.current?.isFocus() || !isWindowFocused || !changed) return;
+    if (!changed) return;
 
     try {
       const updatedProjectItem = await updateProjectItem(editingProjectItem);
@@ -147,9 +146,7 @@ const SingleProjectItemEditor = () => {
   });
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(value);
-    }
+    throttleHandleEditorContentChange(value);
     onProjectItemContentChange(value);
   });
 

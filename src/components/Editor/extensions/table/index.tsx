@@ -1,7 +1,4 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
-import { trim } from "lodash";
-import { markdownTable } from "markdown-table";
 
 import {
   TableElement,
@@ -31,12 +28,6 @@ export class TableExtension extends Base implements IExtension {
     return [createBlockElementPlugin(this.type)];
   }
 
-  override toMarkdown(_element: Element, children: string): string {
-    const rows = children.split("\n");
-    const data = rows.filter(trim).map((row) => row.split("|").filter(trim));
-    return markdownTable(data);
-  }
-
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (
@@ -49,10 +40,6 @@ export class TableExtension extends Base implements IExtension {
 
 export class TableRowExtension extends Base implements IExtension {
   type = "table-row";
-
-  override toMarkdown(_element: Element, children: string): string {
-    return `| ${children.split("\n").join("")}`.trim();
-  }
 
   override getPlugins() {
     return [createBlockElementPlugin(this.type)];
@@ -77,10 +64,6 @@ export class TableCellExtension extends Base implements IExtension {
 
   override getHotkeyConfigs() {
     return hotkeys;
-  }
-
-  override toMarkdown(_element: Element, children: string): string {
-    return `${children} | `;
   }
 
   render(props: RenderElementProps) {

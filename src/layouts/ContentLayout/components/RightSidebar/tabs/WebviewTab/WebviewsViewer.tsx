@@ -2,7 +2,7 @@ import React, { useContext, useRef, useState, useMemo } from "react";
 import { Empty, Input, Button, Modal, Form, message } from "antd";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
-import { PlusOutlined, GlobalOutlined } from "@ant-design/icons";
+import { GlobalOutlined } from "@ant-design/icons";
 
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { RightSidebarContext } from "../../RightSidebarContext";
@@ -124,14 +124,8 @@ const WebviewsViewer: React.FC = () => {
     );
   } else if (!tabs || tabs.length === 0) {
     content = (
-      <Empty
-        image={Empty.PRESENTED_IMAGE_SIMPLE}
-        description="暂无网页"
-        className={styles.emptyContainer}
-      >
-        <Button icon={<PlusOutlined />} onClick={handleAddWebview}>
-          添加网页
-        </Button>
+      <Empty description="暂无网页" className={styles.emptyContainer}>
+        <Button onClick={handleAddWebview}>添加网页</Button>
       </Empty>
     );
   } else {

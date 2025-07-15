@@ -7,7 +7,6 @@ import styles from "./index.module.less";
 import { formatDate, getEditorText } from "@/utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import Tags from "@/components/Tags";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -17,9 +16,10 @@ import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 import { defaultCardEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 import useUploadResource from "@/hooks/useUploadResource";
+import AddTag from "@/components/AddTag";
+import { produce } from "immer";
 
 const customExtensions = [
   contentLinkExtension,
@@ -52,8 +52,6 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
       onTitleChange(getEditorText(content, 10));
     },
   );
-
-  const isWindowFocused = useWindowFocus();
 
   useEffect(() => {
     if (!visible || !isConnected) return;
@@ -107,10 +105,24 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(content);
-    }
+    throttleHandleEditorContentChange(content);
     onTitleChange(getEditorText(content, 10));
+  });
+
+  const handleAddTag = useMemoizedFn((tag: string) => {
+    if (!card) return;
+    if (card.tags.includes(tag)) return;
+    const updatedCard = produce(card, (draft) => {
+      draft.tags.push(tag);
+    });
+    setCard(updatedCard);
+  });
+  const handleDeleteTag = useMemoizedFn((tag: string) => {
+    if (!card) return;
+    const updatedCard = produce(card, (draft) => {
+      draft.tags = draft.tags.filter((t) => t !== tag);
+    });
+    setCard(updatedCard);
   });
 
   useEffect(() => {
@@ -157,9 +169,12 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
           uploadResource={uploadResource}
         />
       </ErrorBoundary>
-      {card.tags.length > 0 && (
-        <Tags className={styles.tags} tags={card.tags} showIcon />
-      )}
+      <AddTag
+        tags={card.tags}
+        addTag={handleAddTag}
+        removeTag={handleDeleteTag}
+        readonly={false}
+      />
     </div>
   );
 });

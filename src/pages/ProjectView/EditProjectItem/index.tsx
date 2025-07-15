@@ -17,7 +17,6 @@ import {
   projectCardListExtension,
   questionCardExtension,
 } from "@/editor-extensions";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 
 import styles from "./index.module.less";
@@ -37,8 +36,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     () => defaultProjectItemEventBus.createEditor(),
     [],
   );
-
-  const isWindowFocused = useWindowFocus();
 
   const {
     projectItem,
@@ -65,7 +62,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   );
 
   useRafInterval(async () => {
-    if (readonly || !isWindowFocused) return;
+    if (readonly) return;
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent(
@@ -88,9 +85,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(content);
-    }
+    throttleHandleEditorContentChange(content);
     onContentChangeFromEditProjectItem(content);
   });
 

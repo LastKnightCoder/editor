@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 
 import loadable from "@loadable/component";
@@ -23,11 +22,6 @@ class TikzExtension extends Base implements IExtension {
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  override toMarkdown(element: Element): string {
-    const { content } = element as TikzElement;
-    return `\`\`\`tikz\n${content}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {

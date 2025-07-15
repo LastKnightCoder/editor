@@ -23,7 +23,6 @@ import { formatDate, defaultCardEventBus } from "@/utils";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
@@ -41,7 +40,6 @@ const SingleCardEditor = () => {
   const cardId = Number(searchParams.get("cardId"));
   const databaseName = searchParams.get("databaseName");
 
-  const isWindowFocused = useWindowFocus();
   const [editingCard, setEditingCard] = useState<ICard | null>(null);
 
   const editorRef = useRef<EditorRef>(null);
@@ -61,6 +59,7 @@ const SingleCardEditor = () => {
       cardId,
       (data) => {
         setEditingCard(data.card);
+        prevCardRef.current = data.card;
       },
     );
 
@@ -102,9 +101,7 @@ const SingleCardEditor = () => {
   });
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(value);
-    }
+    throttleHandleEditorContentChange(value);
     onCardContentChange(value);
   });
 
@@ -143,7 +140,7 @@ const SingleCardEditor = () => {
         content: undefined,
         count: undefined,
       });
-    if (!isWindowFocused || !changed) return;
+    if (!changed) return;
 
     try {
       const updatedCard = await updateCard(editingCard);

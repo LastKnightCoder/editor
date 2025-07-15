@@ -1,0 +1,97 @@
+/* Callout 组件的 CSS 变量定义 */
+
+/* 浅色主题 */
+.callout,
+.callout-type-dropdown {
+  --callout-tip-border: #009400;
+  --callout-info-border: #4cb3d4;
+  --callout-warning-border: #e6a700;
+  --callout-danger-border: #e13238;
+  --callout-note-border: #d4d5d8;
+
+  --callout-tip-bg: #e6ffe6;
+  --callout-info-bg: #eef9fd;
+  --callout-warning-bg: #fff8e6;
+  --callout-danger-bg: #ffebec;
+  --callout-note-bg: #fdfdfe;
+
+  --callout-tip-text: #003100;
+  --callout-info-text: #193c47;
+  --callout-warning-text: #4d3800;
+  --callout-danger-text: #4b1113;
+  --callout-note-text: #474748;
+}
+
+/* 深色主题 */
+.callout.dark,
+.callout-type-dropdown.dark {
+  --callout-tip-border: #009400;
+  --callout-info-border: #4cb3d4;
+  --callout-warning-border: #e6a700;
+  --callout-danger-border: #e13238;
+  --callout-note-border: #d4d5d8;
+
+  --callout-tip-bg: #003100;
+  --callout-info-bg: #193c47;
+  --callout-warning-bg: #4d3800;
+  --callout-danger-bg: #4b1113;
+  --callout-note-bg: #474748;
+
+  --callout-tip-text: #e6ffe6;
+  --callout-info-text: #eef9fd;
+  --callout-warning-text: #fff8e6;
+  --callout-danger-text: #ffebec;
+  --callout-note-text: #fdfdfe;
+}
+
+/* 各类型的样式类 */
+.callout.callout-tip {
+  --callout-border-color: var(--callout-tip-border);
+  --callout-bg-color: var(--callout-tip-bg);
+  --callout-text-color: var(--callout-tip-text);
+  --callout-icon-url: url("@/assets/icons/tip.svg");
+}
+
+.callout.callout-info {
+  --callout-border-color: var(--callout-info-border);
+  --callout-bg-color: var(--callout-info-bg);
+  --callout-text-color: var(--callout-info-text);
+  --callout-icon-url: url("@/assets/icons/info.svg");
+}
+
+.callout.callout-warning {
+  --callout-border-color: var(--callout-warning-border);
+  --callout-bg-color: var(--callout-warning-bg);
+  --callout-text-color: var(--callout-warning-text);
+  --callout-icon-url: url("@/assets/icons/warning.svg");
+}
+
+.callout.callout-danger {
+  --callout-border-color: var(--callout-danger-border);
+  --callout-bg-color: var(--callout-danger-bg);
+  --callout-text-color: var(--callout-danger-text);
+  --callout-icon-url: url("@/assets/icons/danger.svg");
+}
+
+.callout.callout-note {
+  --callout-border-color: var(--callout-note-border);
+  --callout-bg-color: var(--callout-note-bg);
+  --callout-text-color: var(--callout-note-text);
+  --callout-icon-url: url("@/assets/icons/note.svg");
+}
+
+/* 图标样式 */
+.callout p[data-icon-url]::before {
+  background-image: var(--callout-icon-url);
+}
+
+.callout-type-dropdown {
+  .ant-dropdown-menu {
+    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+
+  &.dark .ant-dropdown-menu {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+}

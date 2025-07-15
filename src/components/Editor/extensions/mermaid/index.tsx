@@ -4,7 +4,6 @@ import { MermaidElement } from "@/components/Editor/types";
 import Base from "../base";
 import IExtension from "../types.ts";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 
 import blockPanelItems from "./block-panel-items";
@@ -22,11 +21,6 @@ class MermaidExtension extends Base implements IExtension {
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  override toMarkdown(element: Element): string {
-    const { chart } = element as MermaidElement;
-    return `\`\`\`mermaid\n${chart}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {

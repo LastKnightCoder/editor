@@ -16,9 +16,10 @@ import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import { CalloutElement, CalloutType } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 
-import { DEFAULT_TITLE } from "../../constants.ts";
-import styles from "./index.module.less";
+import { DEFAULT_TITLE } from "../constants.ts";
 import { useMemoizedFn } from "ahooks";
+
+import "./callout.less";
 
 interface ICalloutProps {
   attributes: RenderElementProps["attributes"];
@@ -80,11 +81,16 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
       disabled: type === calloutType,
       label: (
         <div
-          className={classnames("callout-type-item", type, {
-            disabled: type === calloutType,
+          className={classnames("flex items-center gap-2", {
+            "cursor-not-allowed opacity-50": type === calloutType,
           })}
         >
-          <div className="color-indicator" />
+          <div
+            className="w-4 h-4 rounded"
+            style={{
+              backgroundColor: `var(--callout-${type}-border)`,
+            }}
+          />
           {DEFAULT_TITLE[type as CalloutType]}
         </div>
       ),
@@ -96,23 +102,36 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   }, [calloutType]);
 
   return (
-    <div ref={drop} className={styles.container}>
+    <div ref={drop} className="relative group">
       <div {...attributes}>
         <div
-          className={classnames(styles.callout, styles[calloutType], {
-            [styles.dragging]: isDragging,
-            [styles.drop]: isOverCurrent && canDrop,
-            [styles.before]: isBefore,
-            [styles.after]: !isBefore,
-            [styles.dark]: isDark,
-          })}
+          className={classnames(
+            "callout relative p-[0.5em] pl-[1em] rounded-[0.5em] border-l-[0.25em]",
+            `callout-${calloutType}`,
+            {
+              dark: isDark,
+              dragging: isDragging || (isOverCurrent && canDrop),
+              before: isOverCurrent && canDrop && isBefore,
+              after: isOverCurrent && canDrop && !isBefore,
+            },
+          )}
+          style={{
+            borderLeftColor: "var(--callout-border-color)",
+            backgroundColor: "var(--callout-bg-color)",
+            color: "var(--callout-text-color)",
+          }}
         >
           <div contentEditable={false} style={{ userSelect: "none" }}>
             <p
               data-slate-editor
               ref={titleRef}
               onBlur={handleTitleBlur}
-              className={styles.title}
+              className={classnames(
+                "font-semibold relative pl-[1.5em] mt-[0.625em] mb-[1em] leading-tight",
+                "before:content-[''] before:absolute before:w-[1.25em] before:h-[1.25em] before:left-0 before:bg-no-repeat before:bg-left",
+                "text-[var(--callout-text-color)]",
+              )}
+              data-icon-url="var(--callout-icon-url)"
               // @ts-ignore
               contentEditable={!readOnly ? "plaintext-only" : false}
               suppressContentEditableWarning
@@ -136,11 +155,11 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
             <div
               contentEditable={false}
               ref={drag}
-              className={classnames(styles.dragHandler, {
-                [styles.canDrag]: canDrag,
+              className={classnames("dragHandler", {
+                canDrag: canDrag,
               })}
             >
-              <MdDragIndicator className={styles.icon} />
+              <MdDragIndicator className="icon" />
             </div>
           </Dropdown>
         )}

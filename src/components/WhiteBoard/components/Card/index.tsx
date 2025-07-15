@@ -8,7 +8,6 @@ import { CardElement, CommonElement } from "../../plugins";
 import { EHandlerPosition, Point, Board } from "../../types";
 import { Descendant } from "slate";
 import useEditContent from "@/hooks/useEditContent";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 interface CardProps {
   element: CardElement;
@@ -41,7 +40,6 @@ const Card = memo((props: CardProps) => {
   const { element, onEditorSizeChange, onResizeStart, onResizeEnd, onResize } =
     props;
 
-  const isWindowFocused = useWindowFocus();
   const richtextRef = useRef<RichtextRef>(null);
 
   const { cardId, width, height } = element;
@@ -70,9 +68,7 @@ const Card = memo((props: CardProps) => {
     value: Descendant[],
   ) => {
     onContentChange(value);
-    if (isWindowFocused && richtextRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(value);
-    }
+    throttleHandleEditorContentChange(value);
   };
 
   if (loading) {

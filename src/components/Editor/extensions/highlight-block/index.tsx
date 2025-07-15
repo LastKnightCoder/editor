@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 
 import HighlightBlock from "./components/HighlightBlock";
@@ -18,10 +17,6 @@ class HighlightBlockExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [quit, withNormalize, createBlockElementPlugin(this.type)];
-  }
-
-  override toMarkdown(element: Element, children: string): string {
-    return `:::highlight-block{color=${(element as HighlightBlockElement).color}${(element as HighlightBlockElement).color}\n${children}\n:::`;
   }
 
   render(props: RenderElementProps) {

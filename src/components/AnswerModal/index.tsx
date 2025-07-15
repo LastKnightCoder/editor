@@ -7,7 +7,7 @@ import styles from "./index.module.less";
 import { Descendant } from "slate";
 import { useMemoizedFn, useUnmount } from "ahooks";
 import useEditContent from "@/hooks/useEditContent";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
+
 interface AnswerModalProps {
   visible: boolean;
   selectedAnswer: IAnswer | null;
@@ -35,10 +35,8 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     },
   );
 
-  const isWindowFocused = useWindowFocus();
-
   const handleAnswerContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!selectedAnswer || !isWindowFocused || !editorRef.current?.isFocus()) {
+    if (!selectedAnswer) {
       return;
     }
     throttleHandleEditorContentChange(content);

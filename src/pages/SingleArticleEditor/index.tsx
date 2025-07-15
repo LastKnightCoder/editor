@@ -26,7 +26,6 @@ import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
 import { IArticle } from "@/types";
 import { defaultArticleEventBus } from "@/utils";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 
 const customExtensions = [
@@ -45,7 +44,6 @@ const SingleArticleEditor = () => {
   const databaseName = searchParams.get("databaseName");
 
   const [editingArticle, setEditingArticle] = useState<IArticle | null>(null);
-  const isWindowFocused = useWindowFocus();
 
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
@@ -139,15 +137,12 @@ const SingleArticleEditor = () => {
   };
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(content);
-    }
+    throttleHandleEditorContentChange(content);
     handleArticleContentChange(content);
   });
 
   const saveArticle = useMemoizedFn(async () => {
-    if (!editingArticle || !titleRef.current?.isFocus() || !isWindowFocused)
-      return;
+    if (!editingArticle) return;
     const changed =
       JSON.stringify({
         ...editingArticle,

@@ -9,7 +9,6 @@ import EditorSourceValue from "@/components/EditorSourceValue";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useEditDoc from "./useEditDoc";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
@@ -55,7 +54,6 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
 
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
-  const isWindowFocused = useWindowFocus();
 
   const {
     documentItem,
@@ -110,7 +108,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   });
 
   useRafInterval(async () => {
-    if (!isWindowFocused || readonly) return;
+    if (readonly) return;
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
       documentItemEventBus.publishDocumentItemEvent(
@@ -133,7 +131,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus() && !readonly) {
+    if (!readonly) {
       throttleHandleEditorContentChange(content);
     }
     onContentChangeFromEditDoc(content);

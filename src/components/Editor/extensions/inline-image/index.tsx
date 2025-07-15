@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { InlineImageElement } from "@/components/Editor/types";
 import {
@@ -24,11 +23,6 @@ class InlineImageExtension extends Base implements IExtension {
       createInlineElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  override toMarkdown(element: Element): string {
-    const { url, alt } = element as InlineImageElement;
-    return `![${alt || ""}](${url})`;
   }
 
   render(props: RenderElementProps) {
