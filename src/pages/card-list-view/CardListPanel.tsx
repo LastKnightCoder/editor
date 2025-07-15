@@ -1,7 +1,6 @@
 import { useRef, forwardRef, useImperativeHandle } from "react";
-import { ICard, ECardCategory, ICreateCard } from "@/types";
-import VirtualCardList, { VirtualCardListRef } from "../VistualCardList";
-import styles from "./index.module.less";
+import { ICard, ECardCategory } from "@/types";
+import VirtualCardList, { VirtualCardListRef } from "./VistualCardList";
 import { useMemoizedFn } from "ahooks";
 
 export interface CardListPanelRef {
@@ -10,10 +9,6 @@ export interface CardListPanelRef {
 
 interface CardListPanelProps {
   cards: ICard[];
-  selectCategory: ECardCategory;
-  onSelectCategoryChange: (category: ECardCategory) => void;
-  onCreateCard: (card: ICreateCard) => Promise<void>;
-  onImportMarkdown: () => Promise<void>;
   onCardClick?: (card: ICard) => void;
   onDeleteCard?: (cardId: number) => Promise<void>;
   onUpdateCardCategory?: (
@@ -56,8 +51,8 @@ const CardListPanel = forwardRef<CardListPanelRef, CardListPanelProps>(
     });
 
     return (
-      <div className={styles.cardContainer}>
-        <div className={styles.cardList}>
+      <div className="flex-1 min-w-0 relative overflow-hidden">
+        <div className="px-10 pb-5 h-full max-w-[800px] mx-auto overflow-auto">
           <VirtualCardList
             ref={virtualListRef}
             cards={cards}

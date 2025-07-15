@@ -1,10 +1,11 @@
-import { useMemoizedFn, useCreation } from "ahooks";
+import { useMemoizedFn, useCreation, useLocalStorageState } from "ahooks";
 import { memo, useMemo } from "react";
 import TagItem from "@/components/TagItem";
 import useCardTree from "@/hooks/useCardTree";
-import styles from "./index.module.less";
+import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { ICard } from "@/types";
 import { Empty } from "antd";
+
 interface CardTreePanelProps {
   cards: ICard[];
   activeCardTag: string;
@@ -15,9 +16,17 @@ const CardTreePanel = memo(
   ({ cards, activeCardTag, onClickTag }: CardTreePanelProps) => {
     const { cardTree } = useCardTree(cards);
 
+    const [width, setWidth] = useLocalStorageState("card-tree-width", {
+      defaultValue: 300,
+    });
+
     // 使用useMemoizedFn缓存回调函数，防止每次渲染创建新函数
     const handleClickTag = useMemoizedFn((tag: string) => {
       onClickTag(tag);
+    });
+
+    const handleWidthChange = useMemoizedFn((newWidth: number) => {
+      setWidth(newWidth);
     });
 
     // 使用useCreation只有cardTree实际变化时才会重新计算
@@ -27,7 +36,7 @@ const CardTreePanel = memo(
     const tagItemList = useMemo(() => {
       if (memoizedTree.length === 0) {
         return (
-          <div className={styles.empty}>
+          <div className="flex justify-center items-center h-full">
             <Empty description="暂无标签" />
           </div>
         );
@@ -43,7 +52,22 @@ const CardTreePanel = memo(
       ));
     }, [memoizedTree, activeCardTag, handleClickTag]);
 
-    return <div className={styles.cardTree}>{tagItemList}</div>;
+    return (
+      <ResizableAndHideableSidebar
+        side="right"
+        width={width || 300}
+        onWidthChange={handleWidthChange}
+        open={true}
+        disableResize={false}
+        className="h-full"
+        minWidth={200}
+        maxWidth={400}
+      >
+        <div className="bg-[var(--second-sidevar-background)] border-[20px] border-transparent box-border transition-all duration-300 w-full h-full overflow-auto [&::-webkit-scrollbar]:hidden">
+          {tagItemList}
+        </div>
+      </ResizableAndHideableSidebar>
+    );
   },
 );
 

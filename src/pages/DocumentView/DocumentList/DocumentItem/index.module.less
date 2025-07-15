@@ -8,16 +8,19 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 30px;
     padding: 4px 8px;
     border-radius: 8px;
     cursor: pointer;
     border: 1px solid transparent;
 
-    &.active {
-      background-color: var(--sidebar-active-bg);
-      //color: var(--active-text-color);
-    }
+    // &.active {
+    //   background-color: var(--sidebar-active-bg);
+    // }
+
+    // &:hover:not(.active) {
+    //   // @apply bg-green-500;
+    //   background-color: var(--color-green-500);
+    // }
 
     &.top {
       &::before {
@@ -64,10 +67,6 @@
     &.inside {
       border: 1px dashed var(--active-text-color);
       background-color: var(--active-bg-color);
-    }
-
-    &:hover:not(.active) {
-      background-color: var(--common-hover-bg);
     }
 
     .titleContainer {

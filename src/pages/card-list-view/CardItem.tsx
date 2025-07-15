@@ -31,8 +31,6 @@ import { ECardCategory, ICard } from "@/types";
 import { cardCategoryName } from "@/constants";
 import useEditContent from "@/hooks/useEditContent";
 
-import styles from "./index.module.less";
-
 interface CardItemProps {
   card: ICard;
   onPresentationMode: (card: ICard) => void;
@@ -183,36 +181,43 @@ const CardItem = memo(
     return (
       <>
         <div
-          className={classnames(styles.itemContainer, className, {
-            [styles.isTop]: isTop,
-          })}
+          className={classnames(
+            "p-5 border border-[var(--line-color)] rounded-lg relative hover:cursor-pointer",
+            isTop &&
+              "bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/30",
+            className,
+          )}
           style={style}
           onClick={onClick}
         >
           {isTop && (
-            <div className={styles.topFlag}>
-              <AiFillPushpin />
+            <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white shadow-md">
+              <AiFillPushpin className="text-base" />
             </div>
           )}
-          <div className={styles.time}>
+          <div className="mb-5 flex text-xs gap-2.5 text-gray-500">
             <span>创建于：{formatDate(card.create_time, true)}</span>
             <span>更新于：{formatDate(card.update_time, true)}</span>
           </div>
           <ErrorBoundary>
             <Editor
               ref={editorRef}
-              className={styles.content}
+              className="max-h-75 overflow-hidden pointer-events-none"
               readonly={true}
               initValue={content.slice(0, 3)}
               extensions={customExtensions}
             />
           </ErrorBoundary>
-          {tags.length > 0 && (
-            <Tags className={styles.tags} tags={tags} showIcon />
-          )}
-          <div className={styles.actions} onClick={stopPropagation}>
+          {tags.length > 0 && <Tags className="mt-5" tags={tags} showIcon />}
+          <div
+            className="absolute top-4 right-4 flex justify-end gap-2"
+            onClick={stopPropagation}
+          >
             <Tooltip title="进入详情">
-              <div className={styles.action} onClick={handleNavigateToDetail}>
+              <div
+                className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[var(--common-hover-bg)]"
+                onClick={handleNavigateToDetail}
+              >
                 <IoResizeOutline />
               </div>
             </Tooltip>
@@ -222,7 +227,7 @@ const CardItem = memo(
                 onClick: handleMoreClick,
               }}
             >
-              <div className={styles.action}>
+              <div className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-[var(--common-hover-bg)]">
                 <MdMoreHoriz />
               </div>
             </Dropdown>

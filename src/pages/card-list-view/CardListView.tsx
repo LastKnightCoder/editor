@@ -46,7 +46,10 @@ import {
   getCardById,
 } from "@/commands";
 
-import styles from "./index.module.less";
+const categoryWithAll = {
+  all: "全部笔记",
+  ...cardCategoryName,
+};
 
 const CardListView = () => {
   const navigate = useNavigate();
@@ -122,14 +125,6 @@ const CardListView = () => {
     }
   }, [fetchCards, isConnected, database]);
 
-  const handleSelectCategoryChange = useMemoizedFn(
-    (category: ECardCategory) => {
-      useCardsManagementStore.setState({
-        selectCategory: category,
-      });
-    },
-  );
-
   const handleClickTag = useMemoizedFn((tag: string) => {
     useCardsManagementStore.setState({
       activeCardTag: tag === activeCardTag ? "" : tag,
@@ -190,7 +185,10 @@ const CardListView = () => {
         content,
         tags: [],
         links: [],
-        category: selectCategory,
+        category:
+          selectCategory === ("all" as unknown as ECardCategory)
+            ? ECardCategory.Temporary
+            : selectCategory,
         count: getContentLength(content),
         isTop: false,
       };
@@ -260,7 +258,10 @@ const CardListView = () => {
         content,
         tags,
         links: [],
-        category: selectCategory,
+        category:
+          selectCategory === ("all" as unknown as ECardCategory)
+            ? ECardCategory.Temporary
+            : selectCategory,
         count: 0,
         isTop: false,
       };
@@ -272,7 +273,10 @@ const CardListView = () => {
   const filterCards = useMemoizedFn(
     (cards: ICard[], selectCategory: ECardCategory, activeCardTag: string) => {
       const cardWithCategory = cards.filter((card) => {
-        return card.category === selectCategory;
+        return (
+          card.category === selectCategory ||
+          selectCategory === ("all" as unknown as ECardCategory)
+        );
       });
 
       if (!activeCardTag) return cardWithCategory;
@@ -328,29 +332,29 @@ const CardListView = () => {
 
   if (loading) {
     return (
-      <div className={styles.loading}>
+      <div className="flex justify-center items-center h-full w-full">
         <LoadingOutlined style={{ fontSize: 24 }} spin />
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <div className={styles.list}>
-        <div className={styles.cards}>
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      <div className="flex flex-col h-full w-full overflow-hidden">
+        <div className="flex h-full w-full overflow-hidden">
           <CardTreePanel
             cards={sortedCards}
             activeCardTag={activeCardTag}
             onClickTag={handleClickTag}
           />
-          <div className={styles.rightContent}>
-            <Titlebar className={styles.titlebar}>
+          <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden relative">
+            <Titlebar className="h-15 flex-shrink-0">
               <Breadcrumb
-                className={styles.breadcrumb}
+                className="h-15 pl-10! flex items-center app-region-no-drag"
                 items={breadcrumbItems.map((item) => ({
                   title: (
                     <span
-                      className={styles.breadcrumbItem}
+                      className="cursor-pointer transition-all duration-300 ease-in-out p-1 rounded hover:bg-[var(--common-hover-bg)]"
                       onClick={() => navigate(item.path)}
                     >
                       {item.title}
@@ -363,10 +367,6 @@ const CardListView = () => {
               <CardListPanel
                 ref={cardListRef}
                 cards={filteredCards}
-                selectCategory={selectCategory}
-                onSelectCategoryChange={handleSelectCategoryChange}
-                onCreateCard={handleCreateCard}
-                onImportMarkdown={handleImportMarkdown}
                 onCardClick={handleCardClick}
                 onDeleteCard={handleDeleteCard}
                 onUpdateCardCategory={handleUpdateCardCategory}
@@ -375,17 +375,16 @@ const CardListView = () => {
                 onPresentationMode={handlePresentationMode}
               />
             ) : (
-              <div className={styles.graphContainer}>
+              <div className="flex-1 min-w-0 flex h-full overflow-hidden relative">
                 <CardGraph
                   cards={sortedCards}
                   onClickCard={handleCardClick}
-                  className={styles.cardGraph}
+                  className="w-full h-full"
                   currentCardIds={filteredCards.map((card) => card.id)}
                 />
               </div>
             )}
             <CreateCard
-              className={styles.createCard}
               visible={isCreatingCard}
               onSave={handleSaveCard}
               onCancel={() => setIsCreatingCard(false)}
@@ -414,7 +413,6 @@ const CardListView = () => {
               >
                 <If condition={showScrollToTop && viewMode === ViewMode.List}>
                   <FloatButton
-                    className={styles.floatButton}
                     icon={<UpOutlined />}
                     tooltip={"回到顶部"}
                     onClick={() => {
@@ -427,8 +425,8 @@ const CardListView = () => {
                     <Dropdown
                       trigger={["hover"]}
                       menu={{
-                        items: Object.keys(cardCategoryName).map((key) => ({
-                          label: cardCategoryName[key as ECardCategory],
+                        items: Object.keys(categoryWithAll).map((key) => ({
+                          label: categoryWithAll[key as ECardCategory],
                           key: key,
                           disabled: selectCategory === (key as ECardCategory),
                         })),

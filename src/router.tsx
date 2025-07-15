@@ -23,7 +23,9 @@ const SingleMarkdownEditor = loadable(
 
 const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
 
-const CardListView = loadable(() => import("@/pages/CardListView"));
+const CardListView = loadable(
+  () => import("@/pages/card-list-view/CardListView"),
+);
 const CardDetailView = loadable(() => import("@/pages/CardDetailView"));
 const ArticleListView = loadable(() => import("@/pages/ArticleListView"));
 const ArticleDetailView = loadable(() => import("@/pages/ArticleDetailView"));

@@ -18,7 +18,6 @@ import { openExternal as openUrl } from "@/commands";
 import InlineChromiumBugfix from "@editor/components/InlineChromiumBugFix";
 import { LinkElement } from "@editor/types";
 
-import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 
 interface LinkProps {
@@ -52,16 +51,34 @@ const EditLink: React.FC<{
 
   if (!editable) {
     return (
-      <div className={styles.unEditable}>
-        <div className={styles.text}>{url}</div>
+      <div
+        className={
+          "flex h-[2.5em] items-center max-w-[20em] gap-[0.75em] p-[0.5em] rounded-[0.5em] text-gray-500"
+        }
+      >
+        <div
+          className={
+            "flex min-w-0 whitespace-nowrap overflow-hidden text-ellipsis"
+          }
+        >
+          {url}
+        </div>
         <Tooltip title="复制链接">
-          <SVG className={styles.icon} src={copyIcon} onClick={onCopyUrl} />
+          <SVG
+            className={
+              "inline-block w-[1em] h-[1em] align-[0.1em] fill-current cursor-pointer flex-none"
+            }
+            src={copyIcon}
+            onClick={onCopyUrl}
+          />
         </Tooltip>
         {!readOnly && (
           <>
             <Tooltip title="编辑链接">
               <SVG
-                className={styles.icon}
+                className={
+                  "inline-block w-[1em] h-[1em] align-[0.1em] fill-current cursor-pointer flex-none"
+                }
                 src={editIcon}
                 onClick={() => {
                   onEditableChange(true);
@@ -70,7 +87,9 @@ const EditLink: React.FC<{
             </Tooltip>
             <Tooltip title="取消链接">
               <SVG
-                className={styles.icon}
+                className={
+                  "inline-block w-[1em] h-[1em] align-[0.1em] fill-current cursor-pointer flex-none"
+                }
                 src={unLinkIcon}
                 onClick={unwrapLink}
               />
@@ -82,11 +101,11 @@ const EditLink: React.FC<{
   }
 
   return (
-    <div className={styles.editContainer}>
-      <div className={styles.inputArea}>
-        <div className={styles.label}>链接地址：</div>
+    <div className={"p-[0.75em] w-[24em] flex flex-col gap-[1em]"}>
+      <div className={"flex items-center gap-[0.75em]"}>
+        <div className={"flex-none"}>链接地址：</div>
         <Input
-          className={styles.input}
+          className={"flex min-w-0"}
           value={inputValue}
           placeholder="请输入链接地址"
           onChange={(e) => {
@@ -94,7 +113,7 @@ const EditLink: React.FC<{
           }}
         />
       </div>
-      <div className={styles.btnGroups}>
+      <div className={"flex gap-[0.75em] justify-end"}>
         <Button
           onClick={() => {
             onEditableChange(false);
@@ -186,7 +205,9 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
       <a
         {...attributes}
         href={url}
-        className={styles.link}
+        className={
+          "text-gray-500! border-b-[1px] border-dashed border-gray-500 cursor-pointer hover:text-gray-500!"
+        }
         onClick={handleClickATag}
       >
         <InlineChromiumBugfix />
@@ -194,11 +215,11 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
         <InlineChromiumBugfix />
         <Tooltip title="打开链接">
           <span
-            className={styles.icon}
+            className={"ml-[0.25em] inline-block w-[1em] h-[1em] align-[0.1em]"}
             contentEditable={false}
             onClick={handleClick}
           >
-            <TbExternalLink />
+            <TbExternalLink className="inline" />
           </span>
         </Tooltip>
       </a>

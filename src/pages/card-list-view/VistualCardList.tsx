@@ -3,9 +3,8 @@ import { Empty } from "antd";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
 import If from "@/components/If";
-import CardItem from "../CardItem";
+import CardItem from "./CardItem";
 import { ICard, ECardCategory } from "@/types";
-import styles from "./index.module.less";
 
 export interface VirtualCardListRef {
   scrollToTop: () => void;
@@ -92,9 +91,12 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
     });
 
     return (
-      <div className={styles.list} ref={listRef}>
+      <div
+        className="border-b-[20px] border-transparent box-border flex flex-col overflow-y-auto h-[calc(100%-60px)] [&::-webkit-scrollbar]:hidden"
+        ref={listRef}
+      >
         <If condition={cards.length === 0}>
-          <div className={styles.empty}>
+          <div className="flex justify-center items-center h-full">
             <Empty description={"暂无卡片"} />
           </div>
         </If>

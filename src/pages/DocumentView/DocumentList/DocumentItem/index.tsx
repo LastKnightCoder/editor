@@ -724,7 +724,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
           drop(node);
         }}
         className={classnames(styles.header, {
-          [styles.active]: activeDocumentItemId === item.id,
+          "bg-blue-200/30": activeDocumentItemId === item.id,
+          "hover:bg-blue-200/30": activeDocumentItemId !== item.id,
           [styles.top]: isOver && canDrop && dragPosition === EDragPosition.Top,
           [styles.bottom]:
             isOver && canDrop && dragPosition === EDragPosition.Bottom,

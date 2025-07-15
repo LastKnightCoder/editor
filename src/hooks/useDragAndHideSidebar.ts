@@ -23,7 +23,8 @@ const useDragAndHideSidebar = <T extends HTMLElement>({
         width,
         duration: 0.3,
         onUpdate: () => {
-          onWidthChange?.(width, ref.current!.offsetWidth);
+          if (!ref.current) return;
+          onWidthChange?.(width, ref.current.offsetWidth);
         },
       });
     } else {
@@ -31,7 +32,8 @@ const useDragAndHideSidebar = <T extends HTMLElement>({
         width: 0,
         duration: firstOpen.current ? 0 : 0.3,
         onUpdate: () => {
-          onWidthChange?.(width, ref.current!.offsetWidth);
+          if (!ref.current) return;
+          onWidthChange?.(width, ref.current.offsetWidth);
         },
       });
     }

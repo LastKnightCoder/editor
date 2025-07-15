@@ -21,14 +21,12 @@ const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
 
   const hideHeaderDecoration = useHideHeaderDecoration();
 
-  // Use the header collapse hook
   const { toggleCollapse } = useHeaderCollapse({
     editor,
     element,
     path,
   });
 
-  // Use the drag and drop hook
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,

@@ -874,7 +874,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             drop(node);
           }}
           className={classnames(styles.header, {
-            [styles.active]: activeProjectItemId === projectItem.id,
+            "bg-blue-200/30": activeProjectItemId === projectItem.id,
+            "hover:bg-blue-200/30": activeProjectItemId !== projectItem.id,
             [styles.top]:
               isOver && canDrop && dragPosition === EDragPosition.Top,
             [styles.bottom]:
