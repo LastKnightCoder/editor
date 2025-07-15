@@ -1,9 +1,7 @@
 import { useRef, useEffect } from "react";
 import mermaid from "mermaid";
-import { defaultMermaidConfig } from "../MermaidChart/config.ts";
 import { useCreation } from "ahooks";
-
-mermaid.initialize(defaultMermaidConfig);
+import useTheme from "@/components/Editor/hooks/useTheme";
 
 interface IMermaidProps {
   chart: string;
@@ -11,6 +9,7 @@ interface IMermaidProps {
 
 const Mermaid = (props: IMermaidProps) => {
   const { chart } = props;
+  const { isDark } = useTheme();
   const ref = useRef<HTMLDivElement>(null);
 
   const mermaidId = useCreation(() => {
@@ -18,6 +17,13 @@ const Mermaid = (props: IMermaidProps) => {
   }, []);
 
   useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: isDark ? "dark" : "default",
+      securityLevel: "loose",
+      fontFamily: "monospace",
+    });
+
     mermaid
       .render(mermaidId, chart)
       .then(({ svg }) => {
@@ -30,7 +36,7 @@ const Mermaid = (props: IMermaidProps) => {
           ref.current.innerHTML = e;
         }
       });
-  }, [chart, mermaidId]);
+  }, [chart, mermaidId, isDark]);
 
   return (
     <>
