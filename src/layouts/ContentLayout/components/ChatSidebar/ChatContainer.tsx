@@ -1,4 +1,11 @@
-import React, { useRef, useMemo, memo, useEffect } from "react";
+import React, {
+  useRef,
+  useMemo,
+  memo,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import { App, Button } from "antd";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
@@ -12,8 +19,6 @@ import MessageItem from "./MessageItem";
 import { ChatMessage, Message } from "@/types";
 import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 import useChatLLM, { chatWithGPT35 } from "@/hooks/useChatLLM";
-
-import styles from "./index.module.less";
 
 interface ChatContainerProps {
   currentChat: ChatMessage;
@@ -44,6 +49,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
 
     const editTextRef = useRef<EditTextHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
+    const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
 
     const visibleMessages = useMemo(() => {
       return currentChat.messages.filter(
@@ -51,15 +57,45 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
       );
     }, [currentChat]);
 
+    // 检查是否滚动到底部
+    const isScrolledToBottom = useCallback(() => {
+      if (!messagesRef.current) return true;
+      const { scrollTop, scrollHeight, clientHeight } = messagesRef.current;
+      // 允许10px的误差
+      return scrollTop + clientHeight >= scrollHeight - 10;
+    }, []);
+
     // 优化的滚动到底部函数
     const scrollToBottom = useMemoizedFn(() => {
       if (!messagesRef.current || visibleMessages.length === 0) return;
-      setTimeout(() => {
-        if (messagesRef.current) {
-          messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-        }
-      }, 10);
+      if (!isAutoScrollEnabled) return;
+      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
     });
+
+    // 处理滚动事件
+    const handleScroll = useMemoizedFn(() => {
+      if (!messagesRef.current) return;
+
+      const isAtBottom = isScrolledToBottom();
+
+      // 如果用户滚动到了底部，重新启用自动滚动
+      if (isAtBottom) {
+        setIsAutoScrollEnabled(true);
+      } else {
+        // 如果用户向上滚动，禁用自动滚动
+        setIsAutoScrollEnabled(false);
+      }
+    });
+
+    useEffect(() => {
+      const messagesContainer = messagesRef.current;
+      if (!messagesContainer) return;
+
+      messagesContainer.addEventListener("scroll", handleScroll);
+      return () => {
+        messagesContainer.removeEventListener("scroll", handleScroll);
+      };
+    }, [handleScroll]);
 
     // 初始加载时滚动到底部
     useEffect(() => {
@@ -69,9 +105,8 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
       }, 100);
     }, [currentChat.id, scrollToBottom]);
 
-    // 在消息列表变化时滚动到底部
+    // 在消息列表变化时滚动到底部（仅在自动滚动启用时）
     useEffect(() => {
-      // 如果消息数量增加，滚动到底部
       if (visibleMessages.length > 0) {
         setTimeout(() => {
           scrollToBottom();
@@ -79,7 +114,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
       }
     }, [visibleMessages.length, scrollToBottom]);
 
-    // 监听消息内容变化
+    // 监听消息内容变化（仅在自动滚动启用时）
     useEffect(() => {
       if (visibleMessages.length > 0) {
         const lastMessage = visibleMessages[visibleMessages.length - 1];
@@ -130,7 +165,8 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
         messages: [...currentChat.messages, newMessage, responseMessage],
       });
 
-      // 添加新消息后立即滚动到底部
+      // 添加新消息后立即滚动到底部（重置自动滚动）
+      setIsAutoScrollEnabled(true);
       setTimeout(() => {
         if (messagesRef.current) {
           messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
@@ -153,7 +189,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
 
             const updatedChatMessage = await updateChatMessage(newCurrentChat);
 
-            // 确保消息结束时滚动到底部
+            // 确保消息结束时滚动到底部（如果自动滚动启用）
             scrollToBottom();
 
             try {
@@ -204,7 +240,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
           });
           updateCurrentChat(newCurrentChat);
 
-          // 更新内容时滚动到底部
+          // 更新内容时滚动到底部（如果自动滚动启用）
           setTimeout(() => {
             scrollToBottom();
           }, 0);
@@ -221,7 +257,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
           });
           updateCurrentChat(newCurrentChat);
 
-          // 推理内容更新时滚动到底部
+          // 推理内容更新时滚动到底部（如果自动滚动启用）
           setTimeout(() => {
             scrollToBottom();
           }, 0);
@@ -243,14 +279,14 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
 
     return (
       <>
-        <div className={styles.messages} ref={messagesRef}>
+        <div
+          className="relative border-t-[12px] border-b-[12px] border-transparent px-6 py-3 flex-1 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
+          ref={messagesRef}
+        >
           {visibleMessages.length > 0 && (
-            <div className={styles.messagesList}>
+            <div className="flex flex-col gap-6 overflow-y-auto">
               {visibleMessages.map((message, index) => (
-                <div
-                  key={`${message.role}-${index}`}
-                  className={styles.messageWrapper}
-                >
+                <div key={`${message.role}-${index}`} className="py-3">
                   <MessageItem
                     message={message}
                     isDark={isDark}
@@ -263,15 +299,15 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
           )}
         </div>
 
-        <div className={styles.input}>
+        <div className="mt-3 mb-3 flex-none px-6 py-3 rounded-3xl box-border bg-[var(--main-bg-color)] min-h-[36px] flex items-center">
           <EditText
-            className={styles.inputContent}
+            className="flex-1 min-w-0"
             contentEditable={!sendLoading}
             ref={editTextRef}
             onPressEnter={sendMessage}
           />
           <Button
-            className={styles.btn}
+            className="flex-none ml-3"
             loading={sendLoading}
             onClick={sendMessage}
           >
