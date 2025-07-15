@@ -7,7 +7,7 @@ import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 import { RenderElementProps } from "slate-react";
 
 import blockPanelItems from "./block-panel-items";
-const MermaidChart = loadable(() => import("./components/MermaidChart"));
+const MermaidChart = loadable(() => import("./components/MermaidChart.tsx"));
 
 class MermaidExtension extends Base implements IExtension {
   type = "mermaid";

@@ -1,21 +1,15 @@
 import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
-import Mermaid from "../Mermaid";
-import { defaultMermaidConfig } from "./config";
+import Mermaid from "./Mermaid";
 
 import { MermaidElement } from "@/components/Editor/types";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
-
-import styles from "./index.module.less";
-import mermaid from "mermaid";
 
 interface MermaidProps {
   attributes: RenderElementProps["attributes"];
   element: MermaidElement;
 }
-
-mermaid.initialize(defaultMermaidConfig);
 
 const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
   const { attributes, element, children } = props;
@@ -24,7 +18,10 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
 
   const renderEmpty = () => {
     return (
-      <div contentEditable={false} className={styles.empty}>
+      <div
+        contentEditable={false}
+        className="flex items-center justify-center h-14 text-gray-400 cursor-pointer select-none"
+      >
         点击编辑图表
       </div>
     );
@@ -39,7 +36,7 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
   };
 
   return (
-    <div {...attributes} className={styles.mermaid}>
+    <div {...attributes} className="mt-2.5 cursor-pointer">
       <div contentEditable={false}>
         <PreviewWithEditor
           mode={"mermaid"}
