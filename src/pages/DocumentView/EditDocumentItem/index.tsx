@@ -95,14 +95,11 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     };
   }, [documentItemId, documentItemEventBus, setDocumentItem]);
 
-  const handleOnPressEnter = useMemoizedFn(() => {
+  const handleOnPressEnter = useMemoizedFn(async () => {
     if (!documentItem) return;
     titleRef.current?.blur();
     editorRef.current?.focus();
-  });
-
-  useRafInterval(async () => {
-    if (!isWindowFocused || readonly || !titleRef.current?.isFocus()) return;
+    // 保存文档
     const updatedDocumentItem = await saveDocument();
     if (updatedDocumentItem) {
       documentItemEventBus.publishDocumentItemEvent(
@@ -110,7 +107,18 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
         updatedDocumentItem,
       );
     }
-  }, 500);
+  });
+
+  useRafInterval(async () => {
+    if (!isWindowFocused || readonly) return;
+    const updatedDocumentItem = await saveDocument();
+    if (updatedDocumentItem) {
+      documentItemEventBus.publishDocumentItemEvent(
+        "document-item:updated",
+        updatedDocumentItem,
+      );
+    }
+  }, 1000);
 
   useUnmount(async () => {
     if (readonly) return;

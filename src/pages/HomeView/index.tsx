@@ -280,10 +280,10 @@ const HomeView = memo(() => {
                           initValue={card.content}
                           extensions={customExtensions}
                           style={{
-                            maxWidth: 300,
-                            maxHeight: 200,
+                            maxWidth: 600,
+                            maxHeight: 400,
                             overflow: "auto",
-                            padding: 12,
+                            padding: 20,
                           }}
                         />
                       }
@@ -318,10 +318,10 @@ const HomeView = memo(() => {
                           initValue={article.content}
                           extensions={customExtensions}
                           style={{
-                            maxWidth: 300,
-                            maxHeight: 200,
+                            maxWidth: 600,
+                            maxHeight: 400,
                             overflow: "auto",
-                            padding: 12,
+                            padding: 20,
                           }}
                         />
                       }
@@ -356,10 +356,10 @@ const HomeView = memo(() => {
                           extensions={customExtensions}
                           initValue={projectItem.content}
                           style={{
-                            maxWidth: 300,
-                            maxHeight: 200,
+                            maxWidth: 600,
+                            maxHeight: 400,
                             overflow: "auto",
-                            padding: 12,
+                            padding: 20,
                           }}
                         />
                       }
@@ -400,10 +400,10 @@ const HomeView = memo(() => {
                           extensions={customExtensions}
                           initValue={documentItem.content}
                           style={{
-                            maxWidth: 300,
-                            maxHeight: 200,
+                            maxWidth: 600,
+                            maxHeight: 400,
                             overflow: "auto",
-                            padding: 12,
+                            padding: 20,
                           }}
                         />
                       }

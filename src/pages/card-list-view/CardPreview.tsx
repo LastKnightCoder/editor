@@ -19,8 +19,6 @@ import {
 } from "@/editor-extensions";
 import { formatDate, defaultCardEventBus } from "@/utils";
 
-import styles from "./index.module.less";
-
 const customExtensions = [
   contentLinkExtension,
   fileAttachmentExtension,
@@ -126,8 +124,8 @@ const CardPreview = (props: CardPreviewProps) => {
   });
 
   const renderHeader = () => (
-    <div className={styles.header}>
-      <div className={styles.time}>
+    <div className="w-full flex justify-between items-center">
+      <div className="flex text-xs gap-2.5 text-gray-500">
         {editingCard && (
           <>
             <div>
@@ -142,7 +140,7 @@ const CardPreview = (props: CardPreviewProps) => {
           </>
         )}
       </div>
-      <div className={styles.actions}>
+      <div className="flex items-center gap-2">
         <Tooltip title="前往详情">
           <Button
             type="text"
@@ -164,22 +162,33 @@ const CardPreview = (props: CardPreviewProps) => {
       onCancel={handleClose}
       footer={null}
       closable={false}
-      className={styles.cardPreviewModal}
       width={800}
       styles={{
+        header: {
+          marginBottom: 0,
+          padding: "0 12px 12px 24px",
+          borderBottom: "1px solid var(--border-color)",
+        },
+        content: {
+          overflow: "hidden",
+        },
         body: {
           padding: "0 24px 24px",
+          maxHeight: "70vh",
+          overflow: "auto",
         },
       }}
       destroyOnClose
       keyboard={false}
     >
       {loading ? (
-        <div className={styles.loading}>加载中...</div>
+        <div className="flex justify-center items-center h-75 text-[length:var(--font-size)]">
+          加载中...
+        </div>
       ) : (
         editingCard && (
-          <div className={styles.cardPreviewContainer}>
-            <div className={styles.editorContainer}>
+          <div className="flex flex-col gap-3">
+            <div className="min-h-50 text-[length:var(--font-size)]">
               <ErrorBoundary>
                 <Editor
                   key={editingCard.id}
@@ -193,7 +202,7 @@ const CardPreview = (props: CardPreviewProps) => {
                 />
               </ErrorBoundary>
             </div>
-            <div className={styles.tagsContainer}>
+            <div className="flex items-center">
               <AddTag
                 tags={editingCard.tags}
                 addTag={handleAddTag}

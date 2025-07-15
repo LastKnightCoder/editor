@@ -1,25 +1,12 @@
-import styles from "./index.module.less";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import AddTag from "@/components/AddTag";
 import { memo, useEffect, useRef } from "react";
-import classnames from "classnames";
 import { Button } from "antd";
 import PortalToBody from "@/components/PortalToBody";
 import useTheme from "@/hooks/useTheme";
-
-const DEFAULT_CONTENT = [
-  {
-    type: "paragraph",
-    children: [
-      {
-        type: "formatted",
-        text: "",
-      },
-    ],
-  },
-] as Descendant[];
+import { DEFAULT_CARD_CONTENT } from "@/constants";
 
 interface CreateCardProps {
   className?: string;
@@ -36,7 +23,7 @@ const CreateCard = memo((props: CreateCardProps) => {
   const [content, setContent] = useLocalStorageState<Descendant[]>(
     "card-edit-content",
     {
-      defaultValue: DEFAULT_CONTENT,
+      defaultValue: DEFAULT_CARD_CONTENT,
     },
   );
   const [tags, setTags] = useLocalStorageState<string[]>("card-edit-tags", {
@@ -62,16 +49,16 @@ const CreateCard = memo((props: CreateCardProps) => {
   const onSaveCard = useMemoizedFn(
     async (content: Descendant[], tags: string[]) => {
       await onSave(content, tags);
-      setContent(DEFAULT_CONTENT);
+      setContent(DEFAULT_CARD_CONTENT);
       setTags([]);
-      editorRef.current?.setEditorValue(DEFAULT_CONTENT);
+      editorRef.current?.setEditorValue(DEFAULT_CARD_CONTENT);
     },
   );
 
   const onCancelSaveCard = () => {
-    setContent(DEFAULT_CONTENT);
+    setContent(DEFAULT_CARD_CONTENT);
     setTags([]);
-    editorRef.current?.setEditorValue(DEFAULT_CONTENT);
+    editorRef.current?.setEditorValue(DEFAULT_CARD_CONTENT);
     onCancel();
   };
 
@@ -87,35 +74,41 @@ const CreateCard = memo((props: CreateCardProps) => {
 
   return (
     <PortalToBody>
-      <div className={styles.modalOverlay} onClick={handleOverlayClick}>
+      <div
+        className="fixed inset-0 w-full h-full flex items-center justify-center z-[1000] bg-black/40 backdrop-blur-sm p-5"
+        onClick={handleOverlayClick}
+      >
         <div
-          className={classnames(
-            styles.modalContainer,
-            isDark ? styles.darkTheme : styles.lightTheme,
-          )}
+          className={`relative w-4/5 max-w-[720px] min-h-[400px] max-h-[90vh] rounded-xl p-5 animate-[fadeIn_0.3s_ease] overflow-auto flex flex-col ${
+            isDark
+              ? "bg-[rgba(30,30,30,0.7)] backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-[rgba(86,84,84,0.5)]"
+              : "bg-white backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.1)]"
+          }`}
         >
-          <div className={classnames(styles.container, className)}>
-            <div className={styles.editorWrapper}>
+          <div
+            className={`flex-1 p-5 rounded-lg flex flex-col ${className || ""}`}
+          >
+            <div className="flex-1 min-h-[250px] rounded-md overflow-hidden">
               <Editor
-                className={styles.editor}
+                className="p-5"
                 ref={editorRef}
-                initValue={content || DEFAULT_CONTENT}
+                initValue={content || DEFAULT_CARD_CONTENT}
                 readonly={false}
                 onChange={setContent}
               />
             </div>
-            <div className={styles.save}>
+            <div className="mt-3 flex justify-between items-center">
               <AddTag
                 tags={tags || []}
                 addTag={onAddTag}
                 removeTag={onRemoveTag}
               />
-              <div className={styles.buttons}>
+              <div className="flex gap-2">
                 <Button onClick={onCancelSaveCard}>取消</Button>
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onSaveCard(content || DEFAULT_CONTENT, tags || []);
+                    onSaveCard(content || DEFAULT_CARD_CONTENT, tags || []);
                   }}
                 >
                   保存

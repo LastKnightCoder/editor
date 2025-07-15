@@ -29,6 +29,7 @@
   "dependencies": {
     "@electron/rebuild": "^3.7.1",
     "@node-rs/jieba": "^2.0.1",
+    "@tailwindcss/postcss": "^4.1.11",
     "ali-oss": "^6.22.0",
     "axios": "^1.4.0",
     "better-sqlite3": "^11.8.1",
@@ -38,7 +39,9 @@
     "fs-extra": "^11.3.0",
     "llm-chunk": "^0.0.1",
     "openai": "^4.80.1",
-    "sqlite-vec": "0.1.7-alpha.2"
+    "prettier-plugin-tailwindcss": "^0.6.14",
+    "sqlite-vec": "0.1.7-alpha.2",
+    "tailwindcss": "^4.1.11"
   },
   "devDependencies": {
     "@actions/github": "^6.0.0",

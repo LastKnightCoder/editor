@@ -10,7 +10,7 @@ import { useMemoizedFn } from "ahooks";
 import dayjs from "dayjs";
 import { ICard } from "@/types";
 import { getRecentTemporaryAndLiteratureCards } from "@/commands/card";
-import CardPreview from "@/pages/CardListView/CardPreview";
+import CardPreview from "@/pages/card-list-view/CardPreview";
 import Editor from "@/components/Editor";
 import { getEditorText } from "@/utils";
 import {

@@ -1,6 +1,6 @@
 import IExtension from "../types.ts";
 import Base from "../base.ts";
-import Link from "./components/Link";
+import Link from "./components/Link.tsx";
 
 import { Element } from "slate";
 import { RenderElementProps } from "slate-react";

@@ -5,7 +5,7 @@ import { LoadingOutlined, SyncOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { ICard } from "@/types";
 import { getRandomPermanentCards } from "@/commands/card";
-import CardPreview from "@/pages/CardListView/CardPreview";
+import CardPreview from "@/pages/card-list-view/CardPreview";
 import Editor from "@/components/Editor";
 import { getEditorText } from "@/utils";
 

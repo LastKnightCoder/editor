@@ -65,7 +65,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   );
 
   useRafInterval(async () => {
-    if (readonly || !titleRef.current?.isFocus() || !isWindowFocused) return;
+    if (readonly || !isWindowFocused) return;
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent(
@@ -73,7 +73,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
         updatedProjectItem,
       );
     }
-  }, 100);
+  }, 1000);
 
   useUnmount(async () => {
     if (readonly) return;
@@ -100,8 +100,17 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     editorRef.current?.scrollHeaderIntoView(index);
   });
 
-  const onPressEnter = useMemoizedFn(() => {
+  const onPressEnter = useMemoizedFn(async () => {
+    titleRef.current?.blur();
     editorRef.current?.focus();
+    // 保存项目
+    const updatedProjectItem = await saveProjectItem();
+    if (updatedProjectItem) {
+      projectItemEventBus.publishProjectItemEvent(
+        "project-item:updated",
+        updatedProjectItem,
+      );
+    }
   });
 
   useEffect(() => {
