@@ -216,10 +216,10 @@ const Index = memo(
           // @ts-ignore
           editor.isResetValue = true;
           Editor.withoutNormalizing(editor, () => {
-            // @ts-ignore
             updateNodeRecursively(
               editor,
               editor,
+              // @ts-ignore
               {
                 // @ts-ignore
                 children: nodes,
