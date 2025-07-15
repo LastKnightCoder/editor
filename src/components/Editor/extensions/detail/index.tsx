@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { DetailElement } from "@/components/Editor/types";
 
@@ -23,13 +22,6 @@ class DetailExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
-  }
-
-  toMarkdown(element: Element, children: string): string {
-    const detailEle = element as unknown as DetailElement;
-    const { title } = detailEle;
-
-    return `::: detail ${title}\n${children}\n:::`;
   }
 
   render(props: RenderElementProps) {

@@ -1,10 +1,10 @@
 import React, { memo } from "react";
 import { UnControlled as CodeMirrorEditor } from "react-codemirror2";
-import { Editor, EditorChange } from "codemirror";
+import { Editor, EditorChange, EditorConfiguration } from "codemirror";
 
 interface CodeEditorProps {
   value: string;
-  options: any;
+  options: EditorConfiguration;
   className: string;
   onChange: (editor: Editor, change: EditorChange, code: string) => void;
   onKeyDown: (editor: Editor, event: KeyboardEvent) => void;

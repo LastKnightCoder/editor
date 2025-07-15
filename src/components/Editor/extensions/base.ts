@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import IExtension from "./types.ts";
 import { Plugin } from "../utils/plugin.ts";
 import {
@@ -22,9 +21,5 @@ export default class Base implements Omit<IExtension, "render"> {
 
   getHoveringBarElements() {
     return [] as IConfigItem[];
-  }
-
-  toMarkdown(_element: Element, children: string, _parentElement: Element) {
-    return children;
   }
 }

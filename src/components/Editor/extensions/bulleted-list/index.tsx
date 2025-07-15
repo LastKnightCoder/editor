@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { BulletedListElement } from "@/components/Editor/types";
 
@@ -21,9 +20,6 @@ class BulletedListExtension extends Base implements IExtension {
     return blockPanelItems;
   }
 
-  override toMarkdown(_element: Element, children: string) {
-    return children;
-  }
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
     return (

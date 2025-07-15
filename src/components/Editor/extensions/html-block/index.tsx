@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import HTMLBlock from "./components/HTMLBlock";
 
@@ -21,13 +20,6 @@ class HtmlBlockExtension extends Base implements IExtension {
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  override toMarkdown(element: Element): string {
-    const htmlBlockElement = element as HTMLBlockElement;
-    const { html } = htmlBlockElement;
-
-    return html;
   }
 
   render(props: RenderElementProps) {

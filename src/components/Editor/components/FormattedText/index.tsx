@@ -31,7 +31,7 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
 
   const { isDark } = useTheme();
 
-  // 使用自定义Hook计算文本装饰
+  // 使用自定义 Hook 计算文本装饰
   const textDecorations = useTextDecorations(underline, strikethrough);
 
   // 计算类名
@@ -42,15 +42,6 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
       [styles.padding]: true,
     });
   }, [bold, italic]);
-
-  // 处理拖拽事件
-  const handleDragStart = useMemoizedFn((e: React.DragEvent) => {
-    e.preventDefault();
-  });
-
-  const handleDrop = useMemoizedFn((e: React.DragEvent) => {
-    e.preventDefault();
-  });
 
   // 渲染内容，嵌套包装组件
   const renderContent = useMemoizedFn(() => {
@@ -74,8 +65,6 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
       className={className}
       textDecoration={textDecorations}
       color={isDark ? darkColor : color}
-      onDragStart={handleDragStart}
-      onDrop={handleDrop}
     >
       {renderContent()}
     </StyledText>

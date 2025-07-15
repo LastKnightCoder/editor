@@ -2,8 +2,10 @@ import React, { useMemo, useState } from "react";
 import { Empty, Button } from "antd";
 import { useMemoizedFn } from "ahooks";
 
-import { getEditorText } from "@/utils";
-import { SearchResult } from "@/types";
+import { defaultCardEventBus, getEditorText } from "@/utils";
+import { createCard } from "@/commands";
+import { DEFAULT_CARD_CONTENT } from "@/constants";
+import { ECardCategory, SearchResult } from "@/types";
 
 import { BaseViewerProps } from "../../../types";
 import CardViewer from "../CardViewer";
@@ -91,6 +93,24 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
     });
   });
 
+  const handleCreateCard = useMemoizedFn(async () => {
+    // 创建一张新卡片，并添加到当前标签页
+    const card = await createCard({
+      content: DEFAULT_CARD_CONTENT,
+      tags: [],
+      links: [],
+      category: ECardCategory.Temporary,
+      count: 0,
+      isTop: false,
+    });
+    defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
+    addTab({
+      id: String(card.id),
+      type: "card",
+      title: "暂无内容",
+    });
+  });
+
   const activeCard = tabs.find(
     (tab) => String(tab.id) === String(activeTabKey),
   );
@@ -98,8 +118,14 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
   return (
     <div className={styles.container}>
       <If condition={tabs.length === 0}>
-        <Empty description="暂无卡片" className={styles.empty}>
-          <Button onClick={() => setSelectorOpen(true)}>选择卡片</Button>
+        <Empty
+          description="暂无卡片"
+          className="flex flex-col items-center justify-center h-full"
+        >
+          <div className="flex gap-2">
+            <Button onClick={() => setSelectorOpen(true)}>选择卡片</Button>
+            <Button onClick={handleCreateCard}>创建卡片</Button>
+          </div>
         </Empty>
       </If>
       <If condition={tabs.length > 0}>

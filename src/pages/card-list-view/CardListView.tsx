@@ -66,9 +66,27 @@ const CardListView = () => {
   const database = useSettingStore((state) => state.setting.database.active);
 
   useEffect(() => {
-    defaultCardEventBus.subscribe("card:created", (data) => {
-      setCards((prevCards) => [data.card, ...prevCards]);
-    });
+    const unsubscribeCreated = defaultCardEventBus.subscribe(
+      "card:created",
+      (data) => {
+        if (cards.find((c) => c.id === data.card.id)) return;
+        setCards((prevCards) => [data.card, ...prevCards]);
+      },
+    );
+    const unsubscribeUpdated = defaultCardEventBus.subscribe(
+      "card:updated",
+      (data) => {
+        const updatedCard = data.card;
+        setCards((prevCards) =>
+          prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
+        );
+      },
+    );
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeUpdated();
+    };
   }, []);
 
   const cardListRef = useRef<CardListPanelRef>(null);
@@ -137,6 +155,9 @@ const CardListView = () => {
     try {
       const newCard = await createCard(card);
       setCards((prevCards) => [newCard, ...prevCards]);
+      defaultCardEventBus
+        .createEditor()
+        .publishCardEvent("card:created", newCard);
     } catch (error) {
       console.error("Failed to create card:", error);
     }

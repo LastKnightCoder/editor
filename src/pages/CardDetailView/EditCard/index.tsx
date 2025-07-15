@@ -21,7 +21,6 @@ import PresentationMode from "@/components/PresentationMode";
 import StatusBar from "@/components/StatusBar";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
@@ -86,7 +85,6 @@ const EditCard = (props: IEditCardProps) => {
     prevCard,
   } = useEditCard(cardId);
 
-  const isWindowFocused = useWindowFocus();
   const { throttleHandleEditorContentChange } = useEditContent(
     editingCard?.contentId,
     (content) => {
@@ -107,7 +105,7 @@ const EditCard = (props: IEditCardProps) => {
   const [presentationMode, setPresentationMode] = useState(false);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus() && !readonly) {
+    if (!readonly) {
       throttleHandleEditorContentChange(content);
     }
     onContentChangeFromEditCard(content);
@@ -162,7 +160,7 @@ const EditCard = (props: IEditCardProps) => {
   const uploadResource = useUploadResource();
 
   useRafInterval(async () => {
-    if (!readonly && editorRef.current?.isFocus() && isWindowFocused) {
+    if (!readonly) {
       const updatedCard = await saveCard();
       if (updatedCard) {
         cardEventBus.publishCardEvent("card:updated", updatedCard);

@@ -1,5 +1,4 @@
 import { RenderElementProps } from "slate-react";
-import { Element } from "slate";
 import Base from "../base";
 import IExtension from "../types";
 import { WebviewElement } from "../../types";
@@ -20,12 +19,6 @@ class WebviewExtension extends Base implements IExtension {
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  toMarkdown(element: Element): string {
-    const webviewElement = element as unknown as WebviewElement;
-    const { url, height } = webviewElement;
-    return `<iframe src="${url}" width="100%" height="${height}" frameborder="0"></iframe>`;
   }
 
   render(props: RenderElementProps) {

@@ -1,10 +1,8 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { CalloutElement } from "@/components/Editor/types";
 
 import blockPanelItems from "./blockPanelItems";
-import Callout from "./components/Callout";
-import { DEFAULT_TITLE } from "./constants.ts";
+import Callout from "./components/Callout.tsx";
 import { deleteFirstLineCallout, quit, withNormalize } from "./plugins";
 import { createBlockElementPlugin } from "../../utils";
 
@@ -25,13 +23,6 @@ class CalloutExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
-  }
-
-  override toMarkdown(element: Element, children: string): string {
-    const calloutEle = element as unknown as CalloutElement;
-    const { calloutType } = calloutEle;
-
-    return `:::${calloutType}{title=${calloutEle.title || DEFAULT_TITLE[calloutType]}}\n${children}:::`;
   }
 
   render(props: RenderElementProps) {

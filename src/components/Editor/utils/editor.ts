@@ -7,6 +7,7 @@ import {
   NodeMatch,
   NodeEntry,
   Path,
+  Descendant,
 } from "slate";
 import {
   isElementNode,
@@ -225,4 +226,85 @@ export const isLastChild = (editor: Editor, node: Node) => {
   const parent = Editor.parent(editor, path);
   if (!parent) return false;
   return path[path.length - 1] === parent[0].children.length - 1;
+};
+
+export const updateNodeRecursively = (
+  editor: Editor,
+  oldNode: Node,
+  newNode: Node,
+  path: number[],
+): void => {
+  // 如果类型相同，更新节点属性
+  if (oldNode.type === newNode.type) {
+    // 更新节点属性（排除 children）
+    const {
+      children: _oldChildren,
+      type: oldType,
+      ...oldNodeProperties
+    } = oldNode as any;
+    const {
+      children: _newChildren,
+      type: newType,
+      ...nodeProperties
+    } = newNode as any;
+
+    const oldChildren = _oldChildren || [];
+    const newChildren = _newChildren || [];
+
+    if (
+      !Editor.isEditor(oldNode) &&
+      JSON.stringify(oldNodeProperties) !== JSON.stringify(nodeProperties)
+    ) {
+      // 不能通过 apply 设置 text 属性，如果是文本节点并且 text 发生了变化，选中文本，调用 insertText
+      if (
+        oldType === "formatted" &&
+        oldNodeProperties.text !== nodeProperties.text
+      ) {
+        const text = oldNodeProperties.text;
+        Transforms.select(editor, {
+          anchor: {
+            path,
+            offset: 0,
+          },
+          focus: {
+            path,
+            offset: text.length,
+          },
+        });
+        editor.insertText(nodeProperties.text as string);
+        delete oldNodeProperties.text;
+        delete nodeProperties.text;
+      }
+      if (Object.keys(nodeProperties).length > 0) {
+        // console.log("updateNodeRecursively", oldNodeProperties, nodeProperties, path);
+        Transforms.setNodes(editor, nodeProperties, { at: path });
+        Transforms.select(editor, Editor.end(editor, path));
+      }
+    }
+
+    (newChildren as Descendant[]).forEach(
+      (newChild: Descendant, index: number) => {
+        const childPath = [...path, index];
+        if (index < oldChildren.length) {
+          const oldChild = oldChildren[index];
+          updateNodeRecursively(editor, oldChild, newChild, childPath);
+        } else {
+          Transforms.insertNodes(editor, newChild, { at: childPath });
+          Transforms.select(editor, Editor.end(editor, childPath));
+        }
+      },
+    );
+
+    // 删除多余的旧子节点
+    if (oldChildren.length > newChildren.length) {
+      for (let i = oldChildren.length - 1; i >= newChildren.length; i--) {
+        Transforms.removeNodes(editor, { at: [...path, newChildren.length] });
+      }
+    }
+  } else {
+    // 类型不同，替换整个节点
+    Transforms.removeNodes(editor, { at: path });
+    Transforms.insertNodes(editor, newNode, { at: path });
+    Transforms.select(editor, Editor.end(editor, path));
+  }
 };

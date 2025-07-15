@@ -18,7 +18,6 @@ import { getDocumentItem, updateDocumentItem } from "@/commands";
 import { Descendant } from "slate";
 import { defaultDocumentItemEventBus } from "@/utils";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 import useUploadResource from "@/hooks/useUploadResource";
 
@@ -50,7 +49,6 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   const titleRef = useRef<EditTextHandle>(null);
   const prevDocumentItem = useRef<IDocumentItem | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
-  const isWindowFocused = useWindowFocus();
   const uploadResource = useUploadResource();
   const fetchDocumentItem = useMemoizedFn(async () => {
     setLoading(true);
@@ -118,13 +116,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   });
 
   const handleTitleChange = useMemoizedFn(async (title: string) => {
-    if (
-      !documentItem ||
-      title === documentItem.title ||
-      !titleRef.current?.isFocus() ||
-      !isWindowFocused
-    )
-      return;
+    if (!documentItem || title === documentItem.title) return;
 
     try {
       setDocumentItem({
@@ -141,8 +133,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   });
 
   const handleContentChange = useMemoizedFn(async (content: Descendant[]) => {
-    if (!documentItem || !editorRef.current?.isFocus() || !isWindowFocused)
-      return;
+    if (!documentItem) return;
 
     try {
       setDocumentItem({
@@ -155,15 +146,12 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(content);
-    }
+    throttleHandleEditorContentChange(content);
     handleContentChange(content);
   });
 
   useRafInterval(async () => {
-    if (!documentItem || !isWindowFocused || !titleRef.current?.isFocus())
-      return;
+    if (!documentItem) return;
     const updatedDocumentItem = await handleSaveDocumentItem();
     if (updatedDocumentItem) {
       documentItemEventBus.publishDocumentItemEvent(

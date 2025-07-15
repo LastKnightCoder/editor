@@ -86,7 +86,6 @@ interface RichTextProps {
 }
 
 export interface RichtextRef {
-  isFocus: () => boolean;
   setEditorValue: (value: Descendant[]) => void;
 }
 
@@ -134,7 +133,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     const [isMoving, setIsMoving] = useState(false);
 
     useImperativeHandle(ref, () => ({
-      isFocus: () => editorRef.current?.isFocus() || false,
       setEditorValue: (value: Descendant[]) => {
         editorRef.current?.setEditorValue(value);
       },

@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { FrontMatterElement } from "@/components/Editor/types";
 
@@ -15,11 +14,6 @@ class FrontMatterExtension extends Base implements IExtension {
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  override toMarkdown(element: Element): string {
-    const { value } = element as FrontMatterElement;
-    return `---\n${value}\n---`;
   }
 
   render(props: RenderElementProps) {

@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { ParagraphElement } from "@/components/Editor/types";
 import React from "react";
@@ -26,10 +25,6 @@ const MemoizedParagraphRenderer = React.memo(
 
 class ParagraphExtension extends Base implements IExtension {
   override type = "paragraph";
-
-  override toMarkdown(_element: Element, children: string): string {
-    return children;
-  }
 
   override getPlugins() {
     return [

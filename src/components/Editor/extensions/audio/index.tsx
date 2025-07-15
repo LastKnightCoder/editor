@@ -1,6 +1,6 @@
 import Base from "../base.ts";
 import IExtension from "../types.ts";
-import { AudioElement, CustomElement } from "@/components/Editor/types";
+import { AudioElement } from "@/components/Editor/types";
 import { RenderElementProps } from "slate-react";
 import Audio from "./components/Audio";
 import { pasteAudio } from "./plugins";
@@ -20,11 +20,6 @@ class AudioExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
-  }
-
-  override toMarkdown(element: CustomElement): string {
-    const { src } = element as AudioElement;
-    return `<audio src="${src}" controls></audio>`;
   }
 
   render(props: RenderElementProps) {

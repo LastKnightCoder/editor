@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { Plugin } from "../utils";
 import {
@@ -15,11 +14,6 @@ export default interface IExtension {
   getHotkeyConfigs: () => IHotKeyConfig[];
   getBlockPanelItems: () => IBlockPanelListItem[];
   getHoveringBarElements: () => IConfigItem[];
-  toMarkdown: (
-    element: Element,
-    children: string,
-    parentElement: Element,
-  ) => string;
 }
 
 export interface IExtensionBaseProps<T> {

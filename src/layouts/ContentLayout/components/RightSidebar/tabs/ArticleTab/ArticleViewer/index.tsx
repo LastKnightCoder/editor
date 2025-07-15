@@ -19,7 +19,6 @@ import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
 
 import styles from "./index.module.less";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useEditContent from "@/hooks/useEditContent";
 import useUploadResource from "@/hooks/useUploadResource";
 
@@ -44,7 +43,6 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   const titleRef = useRef<EditTextHandle>(null);
   const prevArticle = useRef<IArticle | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
-  const isWindowFocused = useWindowFocus();
   const uploadResource = useUploadResource();
   const { throttleHandleEditorContentChange } = useEditContent(
     article?.contentId,
@@ -120,7 +118,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   });
 
   useRafInterval(async () => {
-    if (!article || !isWindowFocused || !titleRef.current?.isFocus()) return;
+    if (!article) return;
     const updatedArticle = await handleSaveArticle();
     if (updatedArticle) {
       articleEventBus.publishArticleEvent("article:updated", updatedArticle);
@@ -147,9 +145,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   });
 
   const handleContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(content);
-    }
+    throttleHandleEditorContentChange(content);
   });
 
   if (loading) {

@@ -20,7 +20,6 @@ import useEditContent from "@/hooks/useEditContent";
 import useUploadResource from "@/hooks/useUploadResource";
 import { Descendant } from "slate";
 import { useRightSidebarContext } from "../../../RightSidebarContext";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 import styles from "./index.module.less";
 
@@ -46,7 +45,6 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   const editorRef = useRef<EditorRef>(null);
   const prevProjectItem = useRef<ProjectItem | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
-  const isWindowFocused = useWindowFocus();
   const uploadResource = useUploadResource();
   const { throttleHandleEditorContentChange } = useEditContent(
     projectItem?.contentId,
@@ -155,15 +153,12 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(content);
-    }
+    throttleHandleEditorContentChange(content);
     handleContentChange(content);
   });
 
   useRafInterval(async () => {
-    if (!projectItem || !isWindowFocused || !titleRef.current?.isFocus())
-      return;
+    if (!projectItem) return;
     const updatedProjectItem = await handleSaveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent(

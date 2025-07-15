@@ -14,7 +14,7 @@ import ArticleCard from "./ArticleCard";
 import styles from "./index.module.less";
 import Titlebar from "@/components/Titlebar";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import {
   createArticle,
   getFileBaseName,
@@ -25,7 +25,11 @@ import {
   updateArticleIsTop,
   deleteArticle,
 } from "@/commands";
-import { getContentLength, importFromMarkdown } from "@/utils";
+import {
+  defaultArticleEventBus,
+  getContentLength,
+  importFromMarkdown,
+} from "@/utils";
 import { IArticle } from "@/types";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import PresentationMode from "@/components/PresentationMode";
@@ -38,6 +42,11 @@ const ArticleListView = memo(() => {
   const [articles, setArticles] = useState<IArticle[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const articleEventBus = useCreation(
+    () => defaultArticleEventBus.createEditor(),
+    [],
+  );
+
   const isArticlePresentation = useArticleManagementStore(
     (state) => state.isArticlePresentation,
   );
@@ -47,6 +56,32 @@ const ArticleListView = memo(() => {
 
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
+
+  useEffect(() => {
+    const unsubscribeCreated = defaultArticleEventBus.subscribe(
+      "article:created",
+      (data) => {
+        if (articles.find((article) => article.id === data.article.id)) return;
+        setArticles((prevArticles) => [data.article, ...prevArticles]);
+      },
+    );
+    const unsubscribeUpdated = defaultArticleEventBus.subscribe(
+      "article:updated",
+      (data) => {
+        const updatedArticle = data.article;
+        setArticles((prevArticles) =>
+          prevArticles.map((article) =>
+            article.id === updatedArticle.id ? updatedArticle : article,
+          ),
+        );
+      },
+    );
+
+    return () => {
+      unsubscribeCreated();
+      unsubscribeUpdated();
+    };
+  }, []);
 
   useEffect(() => {
     if (isConnected && database) {
@@ -82,6 +117,10 @@ const ArticleListView = memo(() => {
       isDelete: false,
       count: 0,
     });
+
+    setArticles((prevArticles) => [article, ...prevArticles]);
+
+    articleEventBus.publishArticleEvent("article:created", article);
 
     // 创建后跳转到编辑页
     navigate(`/articles/detail/${article.id}?readonly=false`);

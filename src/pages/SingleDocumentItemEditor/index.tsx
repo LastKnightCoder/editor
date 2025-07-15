@@ -27,7 +27,6 @@ import useEditContent from "@/hooks/useEditContent";
 import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
 import { IDocumentItem } from "@/types";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 
 const customExtensions = [
   contentLinkExtension,
@@ -48,7 +47,6 @@ const SingleDocumentItemEditor = () => {
   const documentItemId = Number(searchParams.get("documentItemId"));
   const databaseName = searchParams.get("databaseName");
 
-  const isWindowFocused = useWindowFocus();
   const titleRef = useRef<EditTextHandle>(null);
   const [editingDocumentItem, setEditingDocumentItem] =
     useState<IDocumentItem | null>(null);
@@ -136,7 +134,7 @@ const SingleDocumentItemEditor = () => {
         content: undefined,
         count: undefined,
       });
-    if (!titleRef.current?.isFocus() || !isWindowFocused || !changed) return;
+    if (!changed) return;
 
     try {
       const updatedDocumentItem = await updateDocumentItem(editingDocumentItem);
@@ -149,9 +147,7 @@ const SingleDocumentItemEditor = () => {
   });
 
   const onContentChange = useMemoizedFn((value: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus()) {
-      throttleHandleEditorContentChange(value);
-    }
+    throttleHandleEditorContentChange(value);
     onDocumentItemContentChange(value);
   });
 

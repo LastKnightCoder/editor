@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 
 import Underline from "./components/Underline";
@@ -15,10 +14,6 @@ class UnderlineExtension extends Base implements IExtension {
 
   override getHoveringBarElements() {
     return hoveringBarConfigs;
-  }
-
-  override toMarkdown(_element: Element, children: string): string {
-    return `<u>${children}</u>`;
   }
 
   override getPlugins() {

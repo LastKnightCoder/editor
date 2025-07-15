@@ -6,7 +6,6 @@ import { VideoElement } from "../../types";
 import VideoComponent from "./components/VideoComponent";
 import { pasteVideo } from "./plugins";
 import blockPanelItems from "./block-panel-items";
-import { Element } from "slate";
 import { createVoidElementPlugin, createBlockElementPlugin } from "../../utils";
 class VideoExtension extends Base implements IExtension {
   type = "video";
@@ -21,11 +20,6 @@ class VideoExtension extends Base implements IExtension {
 
   override getBlockPanelItems() {
     return blockPanelItems;
-  }
-
-  toMarkdown(element: Element): string {
-    const { src } = element as VideoElement;
-    return `<video src=${src} controls></video>`;
   }
 
   render(props: RenderElementProps) {

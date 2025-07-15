@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import loadable from "@loadable/component";
 import { CustomBlockElement } from "@/components/Editor/types";
 
@@ -26,13 +25,6 @@ class CustomBlockExtension extends Base implements IExtension {
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  override toMarkdown(element: Element): string {
-    const customBlockEle = element as unknown as CustomBlockElement;
-    const { content } = customBlockEle;
-
-    return `\`\`\`custom-block\n${content}\n\`\`\``;
   }
 
   render(props: RenderElementProps) {

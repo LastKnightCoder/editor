@@ -24,10 +24,6 @@ class DivideLineExtension extends Base implements IExtension {
     return blockPanelItems;
   }
 
-  override toMarkdown() {
-    return "---";
-  }
-
   render(props: RenderElementProps) {
     const { attributes, children, element } = props;
     return (

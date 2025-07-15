@@ -2,7 +2,6 @@ import IExtension from "../types.ts";
 import Base from "../base.ts";
 import Link from "./components/Link.tsx";
 
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { LinkElement } from "@/components/Editor/types";
 
@@ -23,12 +22,6 @@ class LinkExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [createInlineElementPlugin(this.type)];
-  }
-
-  override toMarkdown(element: Element, children: string): string {
-    const { url } = element as LinkElement;
-
-    return `[${children}](${url})`;
   }
 
   render(props: RenderElementProps) {

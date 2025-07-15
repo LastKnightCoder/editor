@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import { HTMLInlineElement } from "@/components/Editor/types";
 import InlineHtml from "./components/InlineHtml";
@@ -23,12 +22,6 @@ class InlineHtmlExtension extends Base implements IExtension {
       createInlineElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  override toMarkdown(element: Element): string {
-    const inlineHtmlElement = element as HTMLInlineElement;
-    const { html } = inlineHtmlElement;
-    return `${html}`;
   }
 
   render(props: RenderElementProps) {

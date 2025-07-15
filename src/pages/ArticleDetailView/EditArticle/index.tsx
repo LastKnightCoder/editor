@@ -50,7 +50,6 @@ import styles from "./index.module.less";
 import { EditCardContext } from "@/context.ts";
 import { produce } from "immer";
 import { Descendant } from "slate";
-import { useWindowFocus } from "@/hooks/useWindowFocus";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import classnames from "classnames";
 const extensions = [
@@ -67,7 +66,6 @@ interface IEditArticleProps {
 
 const EditArticle = memo((props: IEditArticleProps) => {
   const { articleId, defaultReadonly = true } = props;
-  const isWindowFocused = useWindowFocus();
 
   const {
     initValue,
@@ -208,7 +206,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   );
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (isWindowFocused && editorRef.current?.isFocus() && !readonly) {
+    if (!readonly) {
       throttleHandleEditorContentChange(content);
     }
     onContentChangeFromEditArticle(content);
@@ -252,8 +250,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   });
 
   useRafInterval(async () => {
-    if (!editingArticle || !titleRef.current?.isFocus() || !isWindowFocused)
-      return;
+    if (!editingArticle) return;
     const updatedArticle = await saveArticle();
     if (updatedArticle) {
       articleEventBus.publishArticleEvent("article:updated", updatedArticle);

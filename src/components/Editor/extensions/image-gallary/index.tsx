@@ -1,4 +1,3 @@
-import { Element } from "slate";
 import { RenderElementProps } from "slate-react";
 import ImageGallery from "./components/ImageGallery";
 import Base from "@/components/Editor/extensions/base.ts";
@@ -19,12 +18,6 @@ class ImageGalleryExtension extends Base implements IExtension {
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),
     ];
-  }
-
-  override toMarkdown(element: Element): string {
-    const { images } = element as ImageGalleryElement;
-
-    return images.map((image) => `![](${image.url})`).join("\n");
   }
 
   render(props: RenderElementProps) {

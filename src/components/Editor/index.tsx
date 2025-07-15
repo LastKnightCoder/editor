@@ -4,10 +4,12 @@ import {
   forwardRef,
   useImperativeHandle,
   useMemo,
+  useRef,
   memo,
   createContext,
 } from "react";
-import { createEditor, Descendant, Editor, Transforms, Element } from "slate";
+import classnames from "classnames";
+import { createEditor, Descendant, Editor, Transforms } from "slate";
 import {
   Slate,
   Editable,
@@ -26,7 +28,7 @@ import {
   applyPlugin,
   registerHotKey,
   Plugin,
-  elementToMarkdown,
+  updateNodeRecursively,
 } from "./utils";
 import {
   withSlashCommands,
@@ -34,6 +36,7 @@ import {
   withUploadResource,
 } from "@/components/Editor/plugins";
 import IExtension from "@/components/Editor/extensions/types.ts";
+import { pluginOptimizer } from "./utils/PluginOptimizer";
 
 import hotkeys from "./hotkeys";
 import ImagesOverview from "./components/ImagesOverview";
@@ -62,8 +65,10 @@ import "codemirror/addon/edit/closebrackets.js";
 import "codemirror/lib/codemirror.css";
 import "codemirror/theme/blackboard.css";
 import { IConfigItem } from "@/components/Editor/types";
+
+import "./extensions/drag-common.less";
+import "./extensions/drop-common.less";
 import styles from "./index.module.less";
-import classnames from "classnames";
 
 interface IEditorContext {
   uploadResource?: (file: File) => Promise<string | null>;
@@ -83,7 +88,6 @@ export type EditorRef = {
   getEditor: () => Editor;
   scrollHeaderIntoView: (index: number) => void;
   isFocus: () => boolean;
-  toMarkdown: () => string;
   deselect: () => void;
 };
 
@@ -102,6 +106,7 @@ interface IEditorProps {
   placeHolder?: string;
   theme?: "light" | "dark";
   hideHeaderDecoration?: boolean;
+  disableStartExtensions?: boolean;
 }
 
 const defaultPlugins: Plugin[] = [
@@ -126,52 +131,46 @@ const Index = memo(
       placeHolder,
       theme,
       hideHeaderDecoration = false,
+      disableStartExtensions = false,
     } = props;
 
     const { theme: systemTheme } = useTheme();
+    const currentValue = useRef<Descendant[]>(initValue);
 
-    const finalExtensions = useMemo(() => {
-      if (!extensions) return startExtensions;
-      return [...startExtensions, ...extensions];
-    }, [extensions]);
+    const finalExtensions: IExtension[] = useMemo(() => {
+      if (!extensions) return disableStartExtensions ? [] : startExtensions;
+      return disableStartExtensions
+        ? extensions
+        : [...startExtensions, ...extensions];
+    }, [extensions, disableStartExtensions]);
 
-    const editor = useCreation(() => {
-      const extensionPlugins = finalExtensions
-        .map((extension) => extension.getPlugins())
-        .flat();
-
-      // Apply the default plugins first
-      let processedEditor = applyPlugin(createEditor(), defaultPlugins);
-
-      // Then apply withUploadResource separately since it's a function that returns a plugin
-      processedEditor = withUploadResource(uploadResource)(processedEditor);
-
-      // Finally apply extension plugins
-      return applyPlugin(processedEditor, extensionPlugins);
-    }, [finalExtensions, uploadResource]);
-
-    const hotKeyConfigs = useMemo(() => {
-      return finalExtensions
-        .map((extension) => extension.getHotkeyConfigs())
-        .flat()
-        .concat(hotkeys);
+    const optimizedExtensionData = useMemo(() => {
+      return pluginOptimizer.optimizeExtensions(finalExtensions);
     }, [finalExtensions]);
 
+    const editor = useCreation(() => {
+      let processedEditor = applyPlugin(createEditor(), defaultPlugins);
+
+      processedEditor = withUploadResource(uploadResource)(processedEditor);
+
+      return applyPlugin(processedEditor, optimizedExtensionData.plugins);
+    }, [optimizedExtensionData.plugins, uploadResource]);
+
+    const hotKeyConfigs = useMemo(() => {
+      return [...optimizedExtensionData.hotkeyConfigs, ...hotkeys];
+    }, [optimizedExtensionData.hotkeyConfigs]);
+
     const finalHoveringBarConfigs = useMemo(() => {
-      const configs = finalExtensions
-        .map((extension) => extension.getHoveringBarElements())
-        .flat();
+      const configs = [...optimizedExtensionData.hoveringBarElements];
       if (hoveringBarConfigs) {
         return configs.concat(hoveringBarConfigs);
       }
       return configs;
-    }, [finalExtensions, hoveringBarConfigs]);
+    }, [optimizedExtensionData.hoveringBarElements, hoveringBarConfigs]);
 
     const renderElement = useMemoizedFn((props: RenderElementProps) => {
       const { type } = props.element;
-      const extension = finalExtensions.find(
-        (extension) => extension.type === type,
-      );
+      const extension = pluginOptimizer.getExtension(type);
       if (extension) {
         return extension.render(props);
       }
@@ -196,23 +195,6 @@ const Index = memo(
     const [isNormalized, setIsNormalized] = useState(false);
     const [isInit, setIsInit] = useState(false);
 
-    const toMarkdown = useMemoizedFn((content: Descendant[]) => {
-      return content
-        .map((element) => {
-          const isBlock = editor.isBlock(element as Element);
-          const str = elementToMarkdown(
-            editor,
-            element as Element,
-            editor as Element,
-            finalExtensions,
-          );
-          return isBlock ? `${str}\n\n` : str;
-        })
-        .join("")
-        .trim()
-        .concat("\n");
-    });
-
     useEffect(() => {
       if (!isNormalized) {
         Editor.normalize(editor, { force: true });
@@ -231,26 +213,27 @@ const Index = memo(
           ReactEditor.deselect(editor);
         },
         setEditorValue: (nodes: Descendant[]) => {
-          const children = [...editor.children];
           // @ts-ignore
           editor.isResetValue = true;
           Editor.withoutNormalizing(editor, () => {
-            children.forEach((node) =>
-              editor.apply({ type: "remove_node", path: [0], node }),
-            );
-            nodes.forEach((node, i) =>
-              editor.apply({ type: "insert_node", path: [i], node: node }),
+            // @ts-ignore
+            updateNodeRecursively(
+              editor,
+              editor,
+              {
+                // @ts-ignore
+                children: nodes,
+              },
+              [],
             );
           });
           // @ts-ignore
           editor.isResetValue = false;
-          const point = Editor.end(editor, []);
-          Transforms.select(editor, point);
         },
         getEditor: () => editor,
         scrollHeaderIntoView: (index: number) => {
           const headers = editor.children.filter(
-            (node) => node.type === "header",
+            (node: any) => node.type === "header",
           );
           const header = headers[index];
           if (!header) return;
@@ -262,14 +245,14 @@ const Index = memo(
         isFocus: () => {
           return ReactEditor.isFocused(editor);
         },
-        toMarkdown: () => {
-          return toMarkdown(editor.children);
-        },
       }),
-      [editor, toMarkdown],
+      [editor],
     );
 
     const handleOnChange = (value: Descendant[]) => {
+      if (JSON.stringify(currentValue.current) === JSON.stringify(value))
+        return;
+      currentValue.current = value;
       onChange && onChange(value, editor);
     };
 
@@ -291,7 +274,9 @@ const Index = memo(
           editor={editor}
           initialValue={initValue}
           onChange={handleOnChange}
-          key={finalExtensions.map((extension) => extension.type).join("-")}
+          key={finalExtensions
+            .map((extension: IExtension) => extension.type)
+            .join("-")}
         >
           <Editable
             className={classnames(

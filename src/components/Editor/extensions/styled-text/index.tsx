@@ -3,7 +3,6 @@ import { RenderElementProps } from "slate-react";
 import Base from "@editor/extensions/base.ts";
 import { IConfigItem, StyledTextElement } from "@editor/types";
 import IExtension from "@editor/extensions/types.ts";
-import { Element } from "slate";
 
 import StyledText from "./components/StyledText";
 import hoveringBarConfigs from "./hovering-bar-configs";
@@ -14,10 +13,6 @@ class StyledTextExtension extends Base implements IExtension {
 
   override getHoveringBarElements(): IConfigItem[] {
     return hoveringBarConfigs;
-  }
-
-  override toMarkdown(_element: Element, children: string): string {
-    return children;
   }
 
   override getPlugins() {
