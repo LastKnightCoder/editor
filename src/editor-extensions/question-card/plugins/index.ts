@@ -2,9 +2,9 @@ import { Editor, Node } from "slate";
 import { deleteQuestion } from "@/commands/question";
 import { QuestionElement } from "..";
 
-// @ts-ignore
 export const isQuestionElement = (
   element: Node,
+  // @ts-ignore
 ): element is QuestionElement => {
   // @ts-ignore
   return element.type === "question";
