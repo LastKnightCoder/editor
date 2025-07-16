@@ -19,4 +19,6 @@ export interface MindNodeElement {
   border: string;
   textColor: string;
   defaultFocus?: boolean;
+  // 是否折叠子节点
+  isFold?: boolean;
 }
