@@ -210,3 +210,8 @@ pnpm test:ui          # Interactive UI
 2. Add route in `src/router.tsx`
 3. Create store in `src/stores/` if needed
 4. Add navigation/menu items as appropriate
+
+## Code Style Guidelines
+
+- 使用箭头函数
+- 在结束之前使用 npm run lint 检查类型错误和没有使用到的变量、未使用的函数参数，如果存在则删除

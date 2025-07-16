@@ -7,7 +7,11 @@ import {
   Range,
   Transforms,
 } from "slate";
-import { ParagraphElement } from "@/components/Editor/types";
+import {
+  NumberedListElement,
+  BulletedListElement,
+  ParagraphElement,
+} from "@/components/Editor/types";
 
 // 是否在段落的开头按下的空格
 export const isAtFirst = (editor: Editor, text: string) => {
@@ -132,6 +136,55 @@ export const hitEmptyOrInlineChild = (
       );
     }
     return true;
+  }
+
+  return false;
+};
+
+/**
+ * 合并连续的相同类型列表
+ * @param editor Slate 编辑器实例
+ * @param node BulletedListElement | NumberedListElement
+ * @param path 当前列表节点的路径
+ * @returns 如果合并成功返回 true，否则返回 false
+ */
+export const mergeConsecutiveLists = (
+  editor: Editor,
+  node: BulletedListElement | NumberedListElement,
+  path: number[],
+): boolean => {
+  const parent = Editor.parent(editor, path)[0];
+  console.log("parent", parent);
+  if (!parent || parent.type === "formatted") return false;
+
+  const siblings = parent.children;
+  const nodeIndex = path[path.length - 1];
+
+  // 检查前一个节点是否是相同类型的列表
+  if (nodeIndex > 0) {
+    const prevSibling = siblings[nodeIndex - 1];
+    if (SlateElement.isElement(prevSibling) && prevSibling.type === node.type) {
+      const prevList = prevSibling;
+      const currentList = node;
+
+      // 将当前列表的所有 list-item 移动到前一个列表的末尾
+      const itemsToMove = [...currentList.children];
+      const insertIndex = prevList.children.length;
+
+      itemsToMove.forEach((_, index) => {
+        Transforms.moveNodes(editor, {
+          at: [...path, index],
+          to: [...path.slice(0, -1), nodeIndex - 1, insertIndex + index],
+        });
+      });
+
+      // 删除当前空列表
+      Transforms.removeNodes(editor, {
+        at: path,
+      });
+
+      return true;
+    }
   }
 
   return false;

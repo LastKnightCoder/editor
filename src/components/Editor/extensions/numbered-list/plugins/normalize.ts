@@ -1,15 +1,15 @@
 import { Editor, Transforms } from "slate";
 import { mergeConsecutiveLists } from "@/components/Editor/extensions/utils";
-import { BulletedListElement } from "@/components/Editor/types";
+import { NumberedListElement } from "@/components/Editor/types";
 
 export const withNormalize = (editor: Editor) => {
   const { normalizeNode } = editor;
 
   editor.normalizeNode = ([node, path]) => {
-    if (node.type !== "bulleted-list") {
+    if (node.type !== "numbered-list") {
       return normalizeNode([node, path]);
     }
-    const listElement = node as BulletedListElement;
+    const listElement = node as NumberedListElement;
 
     // 首先尝试合并连续的相同类型列表
     if (mergeConsecutiveLists(editor, listElement, path)) {
