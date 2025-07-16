@@ -154,7 +154,6 @@ export const mergeConsecutiveLists = (
   path: number[],
 ): boolean => {
   const parent = Editor.parent(editor, path)[0];
-  console.log("parent", parent);
   if (!parent || parent.type === "formatted") return false;
 
   const siblings = parent.children;

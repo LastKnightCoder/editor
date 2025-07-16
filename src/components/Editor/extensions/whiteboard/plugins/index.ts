@@ -11,7 +11,6 @@ export const withSetting = (editor: Editor) => {
     if (
       op.type === "insert_node" &&
       op.node.type === "whiteboard" &&
-      // @ts-ignore
       !editor.isResetValue
     ) {
       // 如果是新建白板，则不恢复引用数
@@ -28,7 +27,6 @@ export const withSetting = (editor: Editor) => {
     if (
       op.type === "remove_node" &&
       op.node.type === "whiteboard" &&
-      // @ts-ignore
       !editor.isResetValue
     ) {
       // @ts-ignore

@@ -213,7 +213,6 @@ const Index = memo(
           ReactEditor.deselect(editor);
         },
         setEditorValue: (nodes: Descendant[]) => {
-          // @ts-ignore
           editor.isResetValue = true;
           Editor.withoutNormalizing(editor, () => {
             updateNodeRecursively(
@@ -227,7 +226,6 @@ const Index = memo(
               [],
             );
           });
-          // @ts-ignore
           editor.isResetValue = false;
         },
         getEditor: () => editor,

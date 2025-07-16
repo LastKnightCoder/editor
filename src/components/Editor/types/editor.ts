@@ -5,9 +5,13 @@ import { CustomElement, CustomText } from "./custom-element.ts";
 
 export type CustomField = {
   type: string;
+  isResetValue: boolean;
 };
 
-type CustomEditor = BaseEditor & ReactEditor & HistoryEditor & CustomField;
+export type CustomEditor = BaseEditor &
+  ReactEditor &
+  HistoryEditor &
+  CustomField;
 
 declare module "slate" {
   interface CustomTypes {
