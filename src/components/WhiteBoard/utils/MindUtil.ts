@@ -22,44 +22,62 @@ export class MindUtil {
 
   static layout(node: MindNodeElement): MindNodeElement {
     return produce(node, (draft) => {
-      this.dfs(draft, {
-        before: (node, parent) => {
-          if (parent) {
-            node.x = parent.x + parent.width + MARGIN_X;
-          }
+      // First pass: calculate x-coordinates and actual heights
+      this.dfs(
+        draft,
+        {
+          before: (node, parent) => {
+            if (parent) {
+              node.x = parent.x + parent.width + MARGIN_X;
+            }
+          },
+          after: (node) => {
+            // Only process visible children (not folded)
+            const visibleChildren = node.isFold ? [] : node.children;
+            if (visibleChildren.length > 0) {
+              node.childrenHeight =
+                visibleChildren.reduce((pre, cur) => {
+                  return pre + cur.actualHeight;
+                }, 0) +
+                (visibleChildren.length - 1) * (MARGIN_Y[node.level + 1] || 8);
+              node.actualHeight = Math.max(node.childrenHeight, node.height);
+            } else {
+              node.actualHeight = node.height;
+              node.childrenHeight = 0;
+            }
+          },
         },
-        after: (node) => {
-          if (node.children.length > 0) {
-            node.childrenHeight =
-              node.children.reduce((pre, cur) => {
+        null,
+        0,
+        true,
+      ); // Use skipFolded=true
+
+      // Second pass: calculate y-coordinates
+      this.dfs(
+        draft,
+        {
+          before: (node, parent, index) => {
+            if (!parent) return;
+
+            // Only consider visible siblings for positioning
+            const parentVisibleChildren = parent.isFold ? [] : parent.children;
+            const beforeSiblings =
+              index > 0 ? parentVisibleChildren.slice(0, index) : [];
+            const siblingsHeight =
+              beforeSiblings.reduce((pre, cur) => {
                 return pre + cur.actualHeight;
               }, 0) +
-              (node.children.length - 1) * (MARGIN_Y[node.level + 1] || 8);
-            node.actualHeight = Math.max(node.childrenHeight, node.height);
-          } else {
-            node.actualHeight = node.height;
-            node.childrenHeight = 0;
-          }
+              beforeSiblings.length * (MARGIN_Y[node.level] || 8);
+            const baseY =
+              parent.y + parent.height / 2 - parent.childrenHeight / 2;
+            const childrenTop = baseY + siblingsHeight;
+            node.y = childrenTop + (node.actualHeight - node.height) / 2;
+          },
         },
-      });
-
-      this.dfs(draft, {
-        before: (node, parent, index) => {
-          if (!parent) return;
-
-          const beforeSiblings =
-            index > 0 ? parent.children.slice(0, index) : [];
-          const siblingsHeight =
-            beforeSiblings.reduce((pre, cur) => {
-              return pre + cur.actualHeight;
-            }, 0) +
-            beforeSiblings.length * (MARGIN_Y[node.level] || 8);
-          const baseY =
-            parent.y + parent.height / 2 - parent.childrenHeight / 2;
-          const childrenTop = baseY + siblingsHeight;
-          node.y = childrenTop + (node.actualHeight - node.height) / 2;
-        },
-      });
+        null,
+        0,
+        true,
+      ); // Use skipFolded=true
     });
   }
 
@@ -82,19 +100,23 @@ export class MindUtil {
     },
     parent: MindNodeElement | null = null,
     index = 0,
+    skipFolded = false,
   ) {
     before?.(node, parent, index);
-    node.children.forEach((child, index) => {
-      this.dfs(
-        child,
-        {
-          before,
-          after,
-        },
-        node,
-        index,
-      );
-    });
+    if (!(skipFolded && node.isFold)) {
+      node.children.forEach((child, index) => {
+        this.dfs(
+          child,
+          {
+            before,
+            after,
+          },
+          node,
+          index,
+          skipFolded,
+        );
+      });
+    }
     after?.(node, parent, index);
   }
 
@@ -194,6 +216,7 @@ export class MindUtil {
             border: "transparent",
             children: [],
             defaultFocus: true,
+            isFold: false,
           };
 
           if (afterNode) {
@@ -253,6 +276,7 @@ export class MindUtil {
             border: "transparent",
             children: [],
             defaultFocus: true,
+            isFold: false,
           };
           if (beforeNode) {
             const index = current.children.findIndex(
@@ -320,6 +344,88 @@ export class MindUtil {
               current.children.splice(childIndex, 1);
             }
           });
+        },
+      });
+    });
+    return this.layout(newRoot);
+  }
+
+  static getChildrenByNode(node: MindNodeElement) {
+    const children: MindNodeElement[] = [];
+    this.dfs(
+      node,
+      {
+        before: (current) => {
+          if (current === node) return;
+          children.push(current);
+        },
+      },
+      null,
+      0,
+      false,
+    ); // Don't skip folded nodes for counting
+    return children;
+  }
+
+  static moveNodeUp(
+    root: MindNodeElement,
+    node: MindNodeElement,
+  ): MindNodeElement | null {
+    const parent = this.getParent(root, node);
+    if (!parent) return null;
+
+    const currentIndex = parent.children.findIndex(
+      (child) => child.id === node.id,
+    );
+    if (currentIndex <= 0) return null;
+
+    const newRoot = produce(root, (draft) => {
+      this.dfs(draft, {
+        before: (current) => {
+          if (current.id === parent.id) {
+            const [movedNode] = current.children.splice(currentIndex, 1);
+            current.children.splice(currentIndex - 1, 0, movedNode);
+          }
+        },
+      });
+    });
+    return this.layout(newRoot);
+  }
+
+  static moveNodeDown(
+    root: MindNodeElement,
+    node: MindNodeElement,
+  ): MindNodeElement | null {
+    const parent = this.getParent(root, node);
+    if (!parent) return null;
+
+    const currentIndex = parent.children.findIndex(
+      (child) => child.id === node.id,
+    );
+    if (currentIndex === -1 || currentIndex >= parent.children.length - 1)
+      return null; // Already last or not found
+
+    const newRoot = produce(root, (draft) => {
+      this.dfs(draft, {
+        before: (current) => {
+          if (current.id === parent.id) {
+            const [movedNode] = current.children.splice(currentIndex, 1);
+            current.children.splice(currentIndex + 1, 0, movedNode);
+          }
+        },
+      });
+    });
+
+    return this.layout(newRoot);
+  }
+
+  static toggleFold(root: MindNodeElement, node: MindNodeElement) {
+    const newRoot = produce(root, (draft) => {
+      this.dfs(draft, {
+        before: (current) => {
+          if (current.id === node.id) {
+            current.isFold = !current.isFold;
+          }
         },
       });
     });

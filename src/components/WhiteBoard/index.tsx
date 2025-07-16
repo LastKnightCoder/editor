@@ -141,6 +141,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const isArrowMoving = useListenArrowMove(board);
   const isElementsMoving = useElementsMoving(board);
+
   // 获取画板数据
   const { children, viewPort, selection } = useSyncExternalStore(
     board.subscribe,

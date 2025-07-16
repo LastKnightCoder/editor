@@ -48,87 +48,90 @@ export class SelectPlugin implements IBoardPlugin {
           : [],
     });
   }
+
   onPointerMove(e: PointerEvent, board: Board) {
-    if (this.startPoint) {
-      const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
-      if (!endPoint) {
-        return;
-      }
+    if (!this.startPoint) return;
 
-      if (
-        !this.moved &&
-        (Math.abs(endPoint.x - this.startPoint.x) > 3 ||
-          Math.abs(endPoint.y - this.startPoint.y) > 3)
-      ) {
-        this.moved = true;
-      }
-
-      // 选中的情况，要么是移动元素，要么是点选，在鼠标抬起时处理点选，移动元素在 MovePlugin 中
-      if (this.hitElements && this.hitElements.length > 0) return;
-
-      const selectArea = {
-        anchor: this.startPoint,
-        focus: endPoint,
-      };
-
-      const selectedElements: BoardElement[] = [];
-      BoardUtil.dfs(board, (node) => {
-        if (board.isElementSelected(node, selectArea)) {
-          selectedElements.push(node);
-        }
-      });
-
-      SelectTransforms.updateSelectArea(board, {
-        selectArea,
-        selectedElements,
-      });
+    const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
+    if (!endPoint) {
+      return;
     }
+
+    if (
+      !this.moved &&
+      Math.hypot(
+        endPoint.x - this.startPoint.x,
+        endPoint.y - this.startPoint.y,
+      ) > 5
+    ) {
+      this.moved = true;
+    }
+
+    // 选中的情况，要么是移动元素，要么是点选，在鼠标抬起时处理点选，移动元素在 MovePlugin 中
+    if (this.hitElements && this.hitElements.length > 0) return;
+
+    const selectArea = {
+      anchor: this.startPoint,
+      focus: endPoint,
+    };
+
+    const selectedElements: BoardElement[] = [];
+    BoardUtil.dfs(board, (node) => {
+      if (board.isElementSelected(node, selectArea)) {
+        selectedElements.push(node);
+      }
+    });
+
+    SelectTransforms.updateSelectArea(board, {
+      selectArea,
+      selectedElements,
+    });
   }
   onGlobalPointerUp(e: PointerEvent, board: Board) {
-    if (this.startPoint) {
-      let selectedElements: BoardElement[] = board.selection.selectedElements;
+    if (!this.startPoint) return;
 
-      const isMultiSelect = e.ctrlKey || e.metaKey;
+    let selectedElements: BoardElement[] = board.selection.selectedElements;
 
-      if (!this.moved && this.hitElements && this.hitElements.length > 0) {
-        const clickedElement = this.hitElements[this.hitElements.length - 1];
+    const isMultiSelect = e.ctrlKey || e.metaKey;
 
-        if (isMultiSelect) {
-          // 多选模式下，如果点击的元素已经在选中列表中，则移除它；否则添加它
-          const existingIndex = selectedElements.findIndex(
-            (el) => el.id === clickedElement.id,
-          );
+    if (!this.moved && this.hitElements && this.hitElements.length > 0) {
+      const clickedElement = this.hitElements[this.hitElements.length - 1];
 
-          if (existingIndex >= 0) {
-            // 元素已存在，移除它
-            selectedElements = [
-              ...selectedElements.slice(0, existingIndex),
-              ...selectedElements.slice(existingIndex + 1),
-            ];
-          } else {
-            // 元素不存在，添加它
-            selectedElements = [...selectedElements, clickedElement];
-          }
+      if (isMultiSelect) {
+        // 多选模式下，如果点击的元素已经在选中列表中，则移除它；否则添加它
+        const existingIndex = selectedElements.findIndex(
+          (el) => el.id === clickedElement.id,
+        );
+
+        if (existingIndex >= 0) {
+          // 元素已存在，移除它
+          selectedElements = [
+            ...selectedElements.slice(0, existingIndex),
+            ...selectedElements.slice(existingIndex + 1),
+          ];
         } else {
-          // 非多选模式，只选中当前点击的元素
-          selectedElements = [clickedElement];
+          // 元素不存在，添加它
+          selectedElements = [...selectedElements, clickedElement];
         }
+      } else {
+        // 非多选模式，只选中当前点击的元素
+        selectedElements = [clickedElement];
       }
-
-      // 确保选择区域被清除
-      SelectTransforms.updateSelectArea(board, {
-        selectArea: null,
-        selectedElements,
-      });
-
-      // 确保参考线被清除
-      board.clearRefLines();
-
-      // 重置状态
-      this.startPoint = null;
-      this.moved = false;
-      this.hitElements = null;
     }
+
+    // 确保选择区域被清除
+    SelectTransforms.updateSelectArea(board, {
+      selectArea: null,
+      selectedElements,
+    });
+
+    // 确保参考线被清除
+    board.clearRefLines();
+
+    // 重置状态
+    this.startPoint = null;
+    this.moved = false;
+    this.hitElements = null;
   }
   onKeyDown(e: KeyboardEvent, board: Board) {
     // 实现mod+a全选功能
@@ -225,12 +228,6 @@ export class SelectPlugin implements IBoardPlugin {
       SelectTransforms.updateSelectArea(board, {
         selectArea: null,
         selectedElements: [],
-      });
-
-      // 确保参考线被清除
-      board.refLine.setCurrent({
-        rects: [],
-        lines: [],
       });
     }
   }

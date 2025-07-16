@@ -50,6 +50,10 @@ export class MovePlugin implements IBoardPlugin {
         (selectedElement) => selectedElement.id === element.id,
       ),
     );
+    // 如果有选中元素，并且点击到其中之一，则移动所有选中的元素
+    // 否则没有选中元素，但是有点击到元素，则移动选中的元素，
+    //    经过广度优先遍历，选最后一个是最上面的
+    // 否则没有选中元素，也没有点击到元素，则不移动任何元素
     if (selectedElements.length > 0 && isHitSelected) {
       this.moveElements = selectedElements;
     } else if (hitElements.length > 0) {
@@ -77,14 +81,12 @@ export class MovePlugin implements IBoardPlugin {
     }
   }
 
+  // 这里需要处理吸附后元素位置问题
   getUpdatedInfo(e: PointerEvent, board: Board) {
     let movedElements: BoardElement[] = [];
 
     if (!this.moveElements || !this.startPoint) {
-      board.refLine.setCurrent({
-        rects: [],
-        lines: [],
-      });
+      board.clearRefLines();
       return {
         movedElements,
       };
@@ -92,10 +94,7 @@ export class MovePlugin implements IBoardPlugin {
 
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint) {
-      board.refLine.setCurrent({
-        rects: [],
-        lines: [],
-      });
+      board.clearRefLines();
       return {
         movedElements,
       };
@@ -107,24 +106,11 @@ export class MovePlugin implements IBoardPlugin {
     this.moveElements.forEach((element) => {
       const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
-        const path = PathUtil.getPathByElement(board, movedElement);
-        if (!path) return;
         movedElements.push(movedElement);
-        if (
-          movedElement.type === "mind-node" &&
-          MindUtil.isRoot(movedElement as MindNodeElement)
-        ) {
-          // 把所有的子节点都移动的元素中
-          MindUtil.dfs(movedElement as MindNodeElement, {
-            before: (node: MindNodeElement) => {
-              if (MindUtil.isRoot(node)) return;
-              movedElements.push(node);
-            },
-          });
-        }
       }
     });
 
+    // 更新正在移动的元素，这些元素的边界不会显示为参考线
     const currentMoved: Rect[] = movedElements
       .map((me) => {
         if (me.type === "arrow") return;
@@ -139,17 +125,30 @@ export class MovePlugin implements IBoardPlugin {
       .filter(isValid);
     board.refLine.setCurrentRects(currentMoved);
 
+    // 按下 altKey 表示不吸附
+    const isAdsorb = !e.altKey;
+
+    // 获取吸附后的元素的位置
     const newCurrent = board.refLine.getUpdateCurrent(
-      !e.altKey,
+      isAdsorb,
       5 / board.viewPort.zoom,
     );
-    if (!e.altKey) {
-      // 根据 newCurrent 更新 movedElements
+
+    // 如果使用吸附，则根据吸附的结果 newCurrent 更新 movedElements
+    if (isAdsorb) {
       movedElements = movedElements
         .map((me) => {
-          if (me.type === "arrow" || me.type === "mind-node") return me;
+          // 箭头不参与吸附
+          if (me.type === "arrow") return me;
           const rect = newCurrent.rects.find((rect) => rect.key === me.id);
           if (!rect) return;
+          if (me.type === "mind-node") {
+            if (!MindUtil.isRoot(me as MindNodeElement)) return;
+            // 只有根节点参与吸附，并且需要整体调整
+            const diffX = rect.x - me.x;
+            const diffY = rect.y - me.y;
+            return MindUtil.moveAll(me as MindNodeElement, diffX, diffY);
+          }
           return {
             ...me,
             x: rect.x,
@@ -206,9 +205,6 @@ export class MovePlugin implements IBoardPlugin {
     if (operations.length > 0) {
       board.apply(operations, false);
     }
-    movedElements.forEach((me) => {
-      board.refLine.removeRefRect(me.id);
-    });
     board.emit("element:move", movedElements);
   }
 
@@ -220,8 +216,6 @@ export class MovePlugin implements IBoardPlugin {
       !this.moveElements ||
       board.presentationManager.isPresentationMode
     ) {
-      // 即使没有移动元素或起始点，也要清除参考线
-      board.clearRefLines();
       board.emit("element:move-end");
       this.moveElements = null;
       this.startPoint = null;
@@ -231,10 +225,7 @@ export class MovePlugin implements IBoardPlugin {
 
     if (!this.isMoved) {
       // 如果没有移动，也要清除参考线
-      board.refLine.setCurrent({
-        rects: [],
-        lines: [],
-      });
+      board.clearRefLines();
       board.emit("element:move-end");
       this.moveElements = null;
       this.startPoint = null;
@@ -271,10 +262,7 @@ export class MovePlugin implements IBoardPlugin {
     }
 
     // 确保清除参考线
-    board.refLine.setCurrent({
-      rects: [],
-      lines: [],
-    });
+    board.clearRefLines();
 
     if (operations.length > 0) {
       board.apply(operations);

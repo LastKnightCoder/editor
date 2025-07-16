@@ -15,8 +15,10 @@ import {
   ViewPort,
   ECreateBoardElementType,
   PresentationSequence,
+  MindNodeElement,
 } from "./types";
-import { isValid, executeSequence, BoardUtil } from "./utils";
+import { isValid, executeSequence, BoardUtil, MindUtil } from "./utils";
+
 import BoardOperations from "./utils/BoardOperations";
 
 const boardFlag = Symbol("board");
@@ -380,7 +382,11 @@ class Board {
 
     // 更新参考线
     metadata.changedElements.forEach((element) => {
-      if (element.type !== "arrow") {
+      if (
+        element.type !== "arrow" &&
+        (element.type !== "mind-node" ||
+          MindUtil.isRoot(element as MindNodeElement))
+      ) {
         this.refLine.addRefRect({
           key: element.id,
           x: element.x,
@@ -471,9 +477,16 @@ class Board {
     const { children } = element;
     const plugin = this.plugins.find((plugin) => plugin.name === element.type);
     if (!plugin) return null;
+
+    // Filter children for mind-node type when folded
+    let visibleChildren = children;
+    if (element.type === "mind-node" && (element as MindNodeElement).isFold) {
+      visibleChildren = [];
+    }
+
     return plugin.render?.(this, {
       element,
-      children: this.renderElements(children).filter(isValid),
+      children: this.renderElements(visibleChildren).filter(isValid),
     });
   }
 
@@ -540,7 +553,12 @@ class Board {
         this.selection.selectedElements.some((ele) => ele.id === element.id)
       )
         return;
-      if (element.type === "arrow") return;
+      if (
+        element.type === "arrow" ||
+        (element.type === "mind-node" &&
+          !MindUtil.isRoot(element as MindNodeElement))
+      )
+        return;
       rects.push({
         key: element.id,
         x: element.x,
