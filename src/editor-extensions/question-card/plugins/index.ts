@@ -1,13 +1,17 @@
 import { Editor, Node } from "slate";
 import { deleteQuestion } from "@/commands/question";
+import { QuestionElement } from "..";
 
-export const isQuestionElement = (element: Node): boolean => {
+// @ts-ignore
+export const isQuestionElement = (
+  element: Node,
+): element is QuestionElement => {
   // @ts-ignore
   return element.type === "question";
 };
 
 export const withQuestion = (editor: Editor) => {
-  const { isVoid, isInline, apply } = editor;
+  const { isVoid, apply, isBlock } = editor;
 
   // 标记为 void 元素，不可编辑
   editor.isVoid = (element) => {
@@ -15,19 +19,16 @@ export const withQuestion = (editor: Editor) => {
     return element.type === "question" || isVoid(element);
   };
 
-  // 标记为块级元素
-  editor.isInline = (element) => {
+  editor.isBlock = (element) => {
     // @ts-ignore
-    return element.type !== "question" && isInline(element);
+    return element.type === "question" || isBlock(element);
   };
 
   // 删除问题节点的时候，删除问题卡片
   editor.apply = (op) => {
-    // @ts-ignore
     if (
       op.type === "remove_node" &&
       isQuestionElement(op.node) &&
-      // @ts-ignore
       !editor.isResetValue
     ) {
       // @ts-ignore
