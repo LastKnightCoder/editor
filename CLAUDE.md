@@ -50,7 +50,7 @@ pnpm updater          # Update app
 
 ### Key Directories
 
-```
+```bash
 src/                    # React frontend
 ├── components/         # Reusable React components
 ├── pages/             # Route-based page components
@@ -96,32 +96,6 @@ src-electron/          # Electron main process
 4. **Commands**: Add API methods in `src/commands/`
 5. **UI**: Create React components in appropriate page/view
 6. **Editor**: Add extensions if needed in `src/components/Editor/extensions/`
-
-### Common Patterns
-
-```typescript
-// IPC communication
-const result = await ipcRenderer.invoke("command-name", data);
-
-// State management
-const useStore = create<Store>((set, get) => ({
-  items: [],
-  loadItems: async () => {
-    const items = await command.getAll();
-    set({ items });
-  },
-}));
-
-// Content loading
-const [content, setContent] = useState();
-useEffect(() => {
-  const loadContent = async () => {
-    const content = await contentCommand.getById(id);
-    setContent(content);
-  };
-  loadContent();
-}, [id]);
-```
 
 ## Editor System
 
@@ -213,5 +187,5 @@ pnpm test:ui          # Interactive UI
 
 ## Code Style Guidelines
 
-- 使用箭头函数
-- 在结束之前使用 npm run lint 检查类型错误和没有使用到的变量、未使用的函数参数，如果存在则删除
+- Use arrow functions.
+- Before finishing, run `npm run lint` to check for type errors, unused variables, and unused function parameters. If there are unused variables, remove them (you can pass parameters to only check the files you modified).
