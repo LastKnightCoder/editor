@@ -26,7 +26,7 @@ class PluginOptimizer {
   private markdownCache = new Map<string, string>();
 
   private constructor() {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    console.log("PluginOptimizer constructor");
   }
 
   static getInstance(): PluginOptimizer {
