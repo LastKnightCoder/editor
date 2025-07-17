@@ -17,8 +17,8 @@ import {
   VideoPlugin,
   MindPlugin,
   PresentationPlugin,
+  WebviewPlugin,
 } from "./plugins";
-import { WebviewPlugin } from "./plugins/WebviewPlugin";
 
 import {
   BoardContext,
