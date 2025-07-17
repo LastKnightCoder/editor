@@ -536,7 +536,7 @@
 - feat: 添加小组件功能，支持查看闪念笔记，每日回顾，最近编辑，和未回答问题
 - feat: 编辑器添加问题扩展
 - feat: 优化右侧栏 Tabs 样式
-- feat: Markdown fromt-matter 解析支持
+- feat: Markdown front-matter 解析支持
 - feat: 支持 Webview 组件，编辑器添加 Webview 扩展，项目支持 Webview 文档，支持剪藏页面内容，白板支持 Webview 元素
 - feat: 单独窗口支持目录
 - feat: 编辑器支持图片裁剪
