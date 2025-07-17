@@ -18,6 +18,7 @@ import {
   MindPlugin,
   PresentationPlugin,
   WebviewPlugin,
+  FramePlugin,
 } from "./plugins";
 
 import {
@@ -66,6 +67,7 @@ const videoPlugin = new VideoPlugin();
 const mindPlugin = new MindPlugin();
 const presentationPlugin = new PresentationPlugin();
 const webviewPlugin = new WebviewPlugin();
+const framePlugin = new FramePlugin();
 
 interface WhiteBoardProps {
   className?: string;
@@ -122,6 +124,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       videoPlugin,
       mindPlugin,
       webviewPlugin,
+      framePlugin,
       historyPlugin,
       selectPlugin,
       movePlugin,

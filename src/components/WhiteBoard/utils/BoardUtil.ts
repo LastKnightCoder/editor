@@ -497,6 +497,41 @@ export class BoardUtil {
       }
     }
   };
+
+  static getParent(board: Board, element: BoardElement): BoardElement | null {
+    let parent: BoardElement | null = null;
+
+    this.dfs(
+      board,
+      (node) => {
+        if (
+          node.children?.some((child) => child.id === element.id) &&
+          !parent
+        ) {
+          parent = node;
+          return true;
+        }
+      },
+      true,
+    );
+
+    return parent;
+  }
+
+  static getElementById(board: Board, id: string): BoardElement | null {
+    let element: BoardElement | null = null;
+    this.dfs(
+      board,
+      (node) => {
+        if (node.id === id) {
+          element = node;
+          return true;
+        }
+      },
+      true,
+    );
+    return element;
+  }
 }
 
 export default BoardUtil;

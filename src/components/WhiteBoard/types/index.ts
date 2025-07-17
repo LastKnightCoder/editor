@@ -11,3 +11,4 @@ export * from "./video.ts";
 export * from "./mind.ts";
 export * from "./webview.ts";
 export * from "./presentation.ts";
+export * from "./frame.ts";
