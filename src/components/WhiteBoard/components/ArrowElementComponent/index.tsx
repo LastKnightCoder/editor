@@ -48,32 +48,14 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
       const path = PathUtil.getPathByElement(board, element);
       if (!path) return;
 
-      const undos = board.undos;
-      let updateHistory = true;
       const op: Operation = {
         type: "set_node",
         path,
         properties: element,
         newProperties: newElement,
       };
-      // 取消箭头绑定的操作和删除元素的操作放到一个 undo 里面，这样恢复时可以一起恢复，不用按两下 Ctrl + Z
-      if (undos.length > 0) {
-        const lastBatch = undos[undos.length - 1];
-        if (lastBatch.length > 0) {
-          const lastOp = lastBatch[lastBatch.length - 1];
-          const { type } = lastOp;
-          if (
-            type === "remove_node" &&
-            (lastOp.node.id === sourceBindElement?.id ||
-              lastOp.node.id === targetBindElement?.id)
-          ) {
-            lastBatch.push(op);
-            updateHistory = false;
-          }
-        }
-      }
 
-      board.apply([op], updateHistory);
+      board.apply(op);
     }
   });
 

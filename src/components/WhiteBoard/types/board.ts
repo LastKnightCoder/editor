@@ -13,6 +13,7 @@ export enum ECreateBoardElementType {
   Card = "card",
   MindMap = "mindMap",
   Webview = "webview",
+  Frame = "frame",
 }
 
 export interface BoardElement {

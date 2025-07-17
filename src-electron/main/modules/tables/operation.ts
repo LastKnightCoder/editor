@@ -246,7 +246,7 @@ export default class OperationTable {
 
     const projectItemIds = this.getLatestOperationByContentType(
       db,
-      "project_item",
+      "project-item",
       number,
     );
     const projectItems = ProjectTable.getProjectItemsByIds(db, projectItemIds);

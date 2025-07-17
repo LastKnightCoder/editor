@@ -5,12 +5,15 @@ import {
   Selection,
   EHandlerPosition,
   Point,
+  FrameElement,
 } from "../types";
 import {
   isRectIntersect,
   selectAreaToRect,
   getResizedBBox,
   PathUtil,
+  BoardUtil,
+  FrameUtil,
 } from "../utils";
 import { SelectTransforms } from "../transforms";
 
@@ -238,14 +241,37 @@ export abstract class CommonPlugin implements IBoardPlugin {
       selectArea: null,
       selectedElements: [newElement],
     });
+
+    return newElement;
   }
 
   protected onResizeEnd(board: Board) {
-    this.originResizeElement = null;
-    board.refLine.setCurrent({
-      rects: [],
-      lines: [],
-    });
+    if (!this.originResizeElement) return;
+    // 获取当前元素的 parent，如果 parent 是 frame，则需要更新 frame 的 bounds
+    const parent = BoardUtil.getParent(board, this.originResizeElement);
+    if (parent && parent.type === "frame") {
+      const frame = parent as FrameElement;
+      const newBounds = FrameUtil.calculateFrameBounds(frame);
+      const framePath = PathUtil.getPathByElement(board, frame);
+      if (framePath) {
+        board.apply([
+          {
+            type: "set_node",
+            path: framePath,
+            properties: frame,
+            newProperties: {
+              ...frame,
+              ...newBounds,
+            },
+          },
+        ]);
+      }
+      this.originResizeElement = null;
+      board.refLine.setCurrent({
+        rects: [],
+        lines: [],
+      });
+    }
   }
 }
 

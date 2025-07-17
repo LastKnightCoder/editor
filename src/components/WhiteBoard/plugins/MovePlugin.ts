@@ -5,6 +5,7 @@ import {
   IBoardPlugin,
   MindNodeElement,
   Operation,
+  FrameElement,
 } from "../types";
 import {
   BoardUtil,
@@ -13,6 +14,7 @@ import {
   isValid,
   Rect,
   MindUtil,
+  FrameUtil,
 } from "../utils";
 
 export class MovePlugin implements IBoardPlugin {
@@ -50,6 +52,10 @@ export class MovePlugin implements IBoardPlugin {
         (selectedElement) => selectedElement.id === element.id,
       ),
     );
+    // 如果有选中元素，并且点击到其中之一，则移动所有选中的元素
+    // 否则没有选中元素，但是有点击到元素，则移动选中的元素，
+    //    经过广度优先遍历，选最后一个是最上面的
+    // 否则没有选中元素，也没有点击到元素，则不移动任何元素
     if (selectedElements.length > 0 && isHitSelected) {
       this.moveElements = selectedElements;
     } else if (hitElements.length > 0) {
@@ -60,6 +66,21 @@ export class MovePlugin implements IBoardPlugin {
 
     this.isHitSelected = isHitSelected;
     const isMultiSelect = e.ctrlKey || e.metaKey;
+
+    // 找到所有的 frame 元素，如果 frame 元素的 children 中包含移动的元素
+    // 把这些 children 从 this.moveElements 中移除
+    if (this.moveElements && this.moveElements.length > 1) {
+      const frameElements = this.moveElements.filter(
+        (el) => el.type === "frame",
+      ) as FrameElement[];
+      frameElements.forEach((frame) => {
+        this.moveElements =
+          this.moveElements?.filter(
+            (el) =>
+              !frame.children.some((child: BoardElement) => child.id === el.id),
+          ) || null;
+      });
+    }
 
     // 多选情况下交给 SelectPlugin 处理
     if (this.moveElements && !isMultiSelect) {
@@ -77,14 +98,12 @@ export class MovePlugin implements IBoardPlugin {
     }
   }
 
+  // 这里需要处理吸附后元素位置问题
   getUpdatedInfo(e: PointerEvent, board: Board) {
     let movedElements: BoardElement[] = [];
 
     if (!this.moveElements || !this.startPoint) {
-      board.refLine.setCurrent({
-        rects: [],
-        lines: [],
-      });
+      board.clearRefLines();
       return {
         movedElements,
       };
@@ -92,10 +111,7 @@ export class MovePlugin implements IBoardPlugin {
 
     const endPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!endPoint) {
-      board.refLine.setCurrent({
-        rects: [],
-        lines: [],
-      });
+      board.clearRefLines();
       return {
         movedElements,
       };
@@ -107,24 +123,11 @@ export class MovePlugin implements IBoardPlugin {
     this.moveElements.forEach((element) => {
       const movedElement = board.moveElement(element, offsetX, offsetY);
       if (movedElement) {
-        const path = PathUtil.getPathByElement(board, movedElement);
-        if (!path) return;
         movedElements.push(movedElement);
-        if (
-          movedElement.type === "mind-node" &&
-          MindUtil.isRoot(movedElement as MindNodeElement)
-        ) {
-          // 把所有的子节点都移动的元素中
-          MindUtil.dfs(movedElement as MindNodeElement, {
-            before: (node: MindNodeElement) => {
-              if (MindUtil.isRoot(node)) return;
-              movedElements.push(node);
-            },
-          });
-        }
       }
     });
 
+    // 更新正在移动的元素，这些元素的边界不会显示为参考线
     const currentMoved: Rect[] = movedElements
       .map((me) => {
         if (me.type === "arrow") return;
@@ -137,19 +140,50 @@ export class MovePlugin implements IBoardPlugin {
         };
       })
       .filter(isValid);
-    board.refLine.setCurrentRects(currentMoved);
+    const frames = movedElements.filter(
+      (el) => el.type === "frame",
+    ) as FrameElement[];
+    const frameChildren = frames
+      .map((frame) => FrameUtil.getAllChildren(frame))
+      .flat()
+      .map((ele) => {
+        if (ele.type === "arrow") return;
+        return {
+          key: ele.id,
+          x: ele.x,
+          y: ele.y,
+          width: ele.width,
+          height: ele.height,
+        };
+      })
+      .filter(isValid);
 
+    board.refLine.setCurrentRects([...currentMoved, ...frameChildren]);
+
+    // 按下 altKey 表示不吸附
+    const isAdsorb = !e.altKey;
+
+    // 获取吸附后的元素的位置
     const newCurrent = board.refLine.getUpdateCurrent(
-      !e.altKey,
+      isAdsorb,
       5 / board.viewPort.zoom,
     );
-    if (!e.altKey) {
-      // 根据 newCurrent 更新 movedElements
+
+    // 如果使用吸附，则根据吸附的结果 newCurrent 更新 movedElements
+    if (isAdsorb) {
       movedElements = movedElements
         .map((me) => {
-          if (me.type === "arrow" || me.type === "mind-node") return me;
+          // 箭头不参与吸附
+          if (me.type === "arrow") return me;
           const rect = newCurrent.rects.find((rect) => rect.key === me.id);
           if (!rect) return;
+          if (me.type === "mind-node") {
+            if (!MindUtil.isRoot(me as MindNodeElement)) return;
+            // 只有根节点参与吸附，并且需要整体调整
+            const diffX = rect.x - me.x;
+            const diffY = rect.y - me.y;
+            return MindUtil.moveAll(me as MindNodeElement, diffX, diffY);
+          }
           return {
             ...me,
             x: rect.x,
@@ -206,9 +240,10 @@ export class MovePlugin implements IBoardPlugin {
     if (operations.length > 0) {
       board.apply(operations, false);
     }
-    movedElements.forEach((me) => {
-      board.refLine.removeRefRect(me.id);
-    });
+
+    // 处理Frame拖拽检测
+    this.handleFrameDragDetection(board, movedElements);
+
     board.emit("element:move", movedElements);
   }
 
@@ -220,8 +255,6 @@ export class MovePlugin implements IBoardPlugin {
       !this.moveElements ||
       board.presentationManager.isPresentationMode
     ) {
-      // 即使没有移动元素或起始点，也要清除参考线
-      board.clearRefLines();
       board.emit("element:move-end");
       this.moveElements = null;
       this.startPoint = null;
@@ -231,10 +264,7 @@ export class MovePlugin implements IBoardPlugin {
 
     if (!this.isMoved) {
       // 如果没有移动，也要清除参考线
-      board.refLine.setCurrent({
-        rects: [],
-        lines: [],
-      });
+      board.clearRefLines();
       board.emit("element:move-end");
       this.moveElements = null;
       this.startPoint = null;
@@ -271,14 +301,14 @@ export class MovePlugin implements IBoardPlugin {
     }
 
     // 确保清除参考线
-    board.refLine.setCurrent({
-      rects: [],
-      lines: [],
-    });
+    board.clearRefLines();
 
     if (operations.length > 0) {
       board.apply(operations);
     }
+
+    this.handleFrameDragDetection(board, movedElements, true);
+    this.clearAllFrameChildMoveIn(board);
 
     board.emit("element:move-end");
     this.moveElements = null;
@@ -445,6 +475,191 @@ export class MovePlugin implements IBoardPlugin {
 
       // 移动结束时触发事件
       board.emit("element:move-end");
+    }
+  }
+
+  // 处理Frame拖拽检测
+  private handleFrameDragDetection(
+    board: Board,
+    movedElements: BoardElement[],
+    resizeFrame = false,
+  ) {
+    if (!movedElements || movedElements.length === 0) return;
+
+    const frames = board.children.filter(
+      (el) => el.type === "frame",
+    ) as FrameElement[];
+
+    if (frames.length === 0) return;
+
+    // 检测元素是否进入或离开Frame
+    const operations: Operation[] = [];
+    movedElements.forEach((element) => {
+      // 跳过Frame元素本身
+      if (element.type === "frame") return;
+
+      let targetFrame: FrameElement | null = null;
+      let currentFrame: FrameElement | null = null;
+
+      // 找到元素当前所在的Frame
+      for (const frame of frames) {
+        if (FrameUtil.isChildInFrame(frame, element)) {
+          currentFrame = frame;
+          break;
+        }
+      }
+
+      // 找到元素现在应该进入的Frame
+      for (const frame of frames) {
+        if (
+          FrameUtil.isElementInFrame(element, frame, frame.containmentPolicy)
+        ) {
+          targetFrame = frame;
+          break;
+        }
+      }
+
+      // 如果目标Frame发生变化，更新Frame的children
+      if (currentFrame !== targetFrame) {
+        // 从当前Frame中移除
+        if (currentFrame) {
+          const currentFramePath = PathUtil.getPathByElement(
+            board,
+            currentFrame,
+          );
+          if (currentFramePath) {
+            const newChildren = currentFrame.children.filter(
+              (child: BoardElement) => child.id !== element.id,
+            );
+
+            let newProperties = {
+              ...currentFrame,
+              children: newChildren,
+              isChildMoveIn: false,
+            };
+            if (resizeFrame) {
+              const newBounds = FrameUtil.calculateFrameBounds(
+                currentFrame,
+                newChildren,
+              );
+              newProperties = {
+                ...newProperties,
+                ...newBounds,
+              };
+            }
+
+            operations.push({
+              type: "set_node",
+              path: currentFramePath,
+              properties: currentFrame,
+              newProperties,
+            });
+          }
+        }
+
+        // 添加到目标Frame
+        if (targetFrame) {
+          const targetFramePath = PathUtil.getPathByElement(board, targetFrame);
+          if (targetFramePath) {
+            const newChildren = [...targetFrame.children, element];
+            let newProperties = {
+              ...targetFrame,
+              children: newChildren,
+              isChildMoveIn: true,
+            };
+            if (resizeFrame) {
+              const newBounds = FrameUtil.calculateFrameBounds(
+                targetFrame,
+                newChildren,
+              );
+              newProperties = {
+                ...newProperties,
+                ...newBounds,
+              };
+            }
+            operations.push({
+              type: "set_node",
+              path: targetFramePath,
+              properties: targetFrame,
+              newProperties,
+            });
+          }
+        }
+
+        if (!currentFrame && targetFrame) {
+          const elementPath = PathUtil.getPathByElement(board, element);
+          if (elementPath) {
+            operations.push({
+              type: "remove_node",
+              path: elementPath,
+              node: element,
+            });
+          }
+        }
+
+        if (currentFrame && !targetFrame) {
+          // 如果元素没有在任何Frame中，则移动到 board 的根节点
+          operations.push({
+            type: "insert_node",
+            path: [board.children.length],
+            node: element,
+          });
+        }
+      } else if (currentFrame) {
+        let newProperties = {
+          ...currentFrame,
+          isChildMoveIn: true,
+        };
+        if (resizeFrame) {
+          const newBounds = FrameUtil.calculateFrameBounds(
+            currentFrame,
+            currentFrame.children,
+          );
+          newProperties = {
+            ...newProperties,
+            ...newBounds,
+          };
+        }
+
+        const currentFramePath = PathUtil.getPathByElement(board, currentFrame);
+        if (currentFramePath) {
+          operations.push({
+            type: "set_node",
+            path: currentFramePath,
+            properties: currentFrame,
+            newProperties,
+          });
+        }
+      }
+    });
+
+    if (operations.length > 0) {
+      board.apply(operations, false);
+    }
+  }
+
+  private clearAllFrameChildMoveIn(board: Board) {
+    const frames = board.children.filter(
+      (el) => el.type === "frame",
+    ) as FrameElement[];
+    const ops = frames
+      .map((frame) => {
+        if (!frame.isChildMoveIn) return;
+        const path = PathUtil.getPathByElement(board, frame);
+        if (!path) return;
+        return {
+          type: "set_node",
+          path,
+          properties: frame,
+          newProperties: {
+            ...frame,
+            isChildMoveIn: false,
+          },
+        } as Operation;
+      })
+      .filter(isValid);
+    if (ops.length > 0) {
+      board.apply(ops, false);
     }
   }
 }
