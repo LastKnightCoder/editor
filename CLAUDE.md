@@ -76,7 +76,9 @@ src-electron/          # Electron main process
 - **documents**: Hierarchical document structure
 - **projects**: Project management with task organization
 - **daily_notes**: Daily journaling
-- **whiteboard**: Interactive whiteboard data
+- **whiteboard**: Interactive whiteboard data (stores metadata)
+- **white_boards**: Whiteboard metadata (id, title, description, tags, snapshot)
+- **white_board_contents**: Actual whiteboard data (id, name, data JSON, ref_count)
 - **vec_document**: Vector embeddings for semantic search
 
 ### Data Strategy
@@ -113,6 +115,57 @@ src-electron/          # Electron main process
 - **Content reuse**: Reference existing content blocks
 - **Rich media**: Images, PDFs, videos, whiteboards
 - **AI integration**: Content generation and assistance
+
+## Whiteboard System
+
+### Overview
+
+The whiteboard system is a sophisticated interactive SVG-based canvas for visual thinking, diagramming, and presentation creation. It operates both as a standalone feature and as embeddable content within the rich text editor.
+
+### Architecture
+
+- **Plugin-based Design**: Modular architecture with dedicated plugins for each element type
+- **Event-Driven**: Real-time updates via EventEmitter
+- **Immutability**: Immer-based state management with draft modifications
+- **MVC Pattern**: Clear separation of data, presentation, and control
+
+### Data Structure
+
+- **Board Elements**: JSON-serializable objects with type-specific properties
+- **Viewport Management**: Infinite canvas with zoom/pan support
+- **Presentation System**: Multi-sequence, frame-based presentations
+
+### Element Types
+
+- **Geometry**: Rectangles, circles, lines with full styling
+- **Arrows**: Straight/curved connectors with anchor points
+- **Rich Text**: Formatted text blocks with editor integration
+- **Cards**: Knowledge base-linked note cards
+- **Media**: Images, videos, web content embedding
+- **Mind Maps**: Hierarchical node-based diagrams
+
+### Key Features
+
+- **Real-time Sync**: Changes reflect across all windows
+- **Infinite Canvas**: Unlimited workspace with viewport management
+- **Presentation Mode**: Full-screen presentations with frame navigation
+- **Grouping System**: Element grouping and batch operations
+- **Snap-to-Grid**: Configurable alignment and grid system
+- **Undo/Redo**: 100-step history with state snapshots
+- **Export**: PNG/JPG snapshots, JSON data export
+
+### File Structure
+
+```bash
+src/components/WhiteBoard/
+├── Board.tsx                 # Core board controller
+├── plugins/                  # Element type handlers (15+ plugins)
+├── components/               # UI components (toolbar, panels)
+├── hooks/                    # React hooks for board operations
+├── utils/                    # Utility functions
+├── transforms/               # Data transformation logic
+└── types/                    # TypeScript definitions
+```
 
 ## Testing Strategy
 
@@ -170,6 +223,15 @@ pnpm test:ui          # Interactive UI
 3. Create command handler in `src/commands/`
 4. Add UI components in appropriate page directory
 5. Update editor extensions if needed
+
+### Creating New Whiteboard Element Type
+
+1. Create plugin in `src/components/WhiteBoard/plugins/`
+2. Define element interface in `src/components/WhiteBoard/types/`
+3. Add rendering logic in plugin file
+4. Register plugin in `Board.tsx`
+5. Add toolbar button in `Toolbar` component
+6. Handle serialization/deserialization in transforms
 
 ### Creating New Editor Extension
 

@@ -153,8 +153,6 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
     // 按照y坐标排序
     const sortedElements = [...noArrowElements].sort((a, b) => a.y - b.y);
 
-    console.log(sortedElements);
-
     // 获取第一个元素的位置作为起点
     const firstElement = sortedElements[0];
     const topBound = firstElement.y;

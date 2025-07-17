@@ -47,6 +47,7 @@ const MindNode = (props: MindNodeProps) => {
     textColor,
     border,
     defaultFocus,
+    isFold,
   } = element;
 
   const board = useBoard();
@@ -222,6 +223,30 @@ const MindNode = (props: MindNodeProps) => {
     }
   });
 
+  const handleToggleFold = useMemoizedFn((e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const root = MindUtil.getRoot(board, element);
+    if (!root) {
+      console.error("MindNode: Root is not found");
+      return;
+    }
+
+    const newRoot = MindUtil.toggleFold(root, element);
+    const rootPath = PathUtil.getPathByElement(board, newRoot);
+    if (!rootPath) return;
+
+    board.apply([
+      {
+        type: "set_node",
+        path: rootPath,
+        properties: root,
+        newProperties: newRoot,
+      },
+    ]);
+  });
+
   const { handleKeyDown } = useMindNodeKeyboardNavigation(
     board,
     element,
@@ -240,13 +265,30 @@ const MindNode = (props: MindNodeProps) => {
   }, [handleKeyDown]);
 
   const childLeftMiddlePoints = useMemo(() => {
+    if (isFold) {
+      if (element.children.length === 0) {
+        return [];
+      }
+      return [
+        {
+          x: element.x + element.width + 10,
+          y: element.y + element.height / 2,
+        },
+      ];
+    }
     return element.children.map((child) => {
       return {
         x: child.x,
         y: child.y + child.height / 2,
       };
     });
-  }, [element]);
+  }, [element, isFold]);
+
+  const hasChildren = element.children.length > 0;
+  const totalDescendants =
+    element.children.length > 0
+      ? MindUtil.getChildrenByNode(element).length
+      : 0;
 
   return (
     <g>
@@ -334,6 +376,40 @@ const MindNode = (props: MindNodeProps) => {
           />
         );
       })}
+
+      <If condition={hasChildren}>
+        <g
+          onClick={handleToggleFold}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          <circle
+            cx={element.x + element.width + 10}
+            cy={element.y + element.height / 2}
+            r={8}
+            fill={
+              MIND_LINE_COLORS[element.level - (1 % MIND_LINE_COLORS.length)]
+            }
+          />
+          <text
+            x={element.x + element.width + 10}
+            y={element.y + element.height / 2 + (isFold ? 1 : 0)}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={10}
+            fontWeight="bold"
+            fill={"white"}
+            style={{ userSelect: "none" }}
+          >
+            {isFold ? `${totalDescendants}` : "-"}
+          </text>
+        </g>
+      </If>
     </g>
   );
 };

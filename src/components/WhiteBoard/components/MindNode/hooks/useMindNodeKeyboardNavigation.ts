@@ -329,8 +329,60 @@ const handleEnterEditMode: KeyHandler = ({ setIsEditing, editor, board }) => {
   }
 };
 
+/**
+ * 向上移动节点位置 (Mod+ArrowUp)
+ */
+const handleMoveNodeUp: KeyHandler = ({ board, element }) => {
+  if (MindUtil.isRoot(element)) return;
+
+  const oldRoot = MindUtil.getRoot(board, element);
+  if (!oldRoot) return;
+
+  const newRoot = MindUtil.moveNodeUp(oldRoot, element);
+  if (!newRoot) return;
+
+  const rootPath = PathUtil.getPathByElement(board, oldRoot);
+  if (!rootPath) return;
+
+  board.apply([
+    {
+      type: "set_node",
+      path: rootPath,
+      properties: oldRoot,
+      newProperties: newRoot,
+    },
+  ]);
+};
+
+/**
+ * 向下移动节点位置 (Mod+ArrowDown)
+ */
+const handleMoveNodeDown: KeyHandler = ({ board, element }) => {
+  if (MindUtil.isRoot(element)) return; // Root node cannot be moved
+
+  const oldRoot = MindUtil.getRoot(board, element);
+  if (!oldRoot) return;
+
+  const newRoot = MindUtil.moveNodeDown(oldRoot, element);
+  if (!newRoot) return; // Already last or no parent
+
+  const rootPath = PathUtil.getPathByElement(board, oldRoot);
+  if (!rootPath) return;
+
+  board.apply([
+    {
+      type: "set_node",
+      path: rootPath,
+      properties: oldRoot,
+      newProperties: newRoot,
+    },
+  ]);
+};
+
 // 非编辑状态下的快捷键配置
 const NON_EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
+  "mod+arrowup": handleMoveNodeUp,
+  "mod+arrowdown": handleMoveNodeDown,
   tab: handleAddChild,
   enter: handleAddSibling,
   "shift+enter": handleAddSiblingBefore,

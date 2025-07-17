@@ -17,8 +17,9 @@ import {
   VideoPlugin,
   MindPlugin,
   PresentationPlugin,
+  WebviewPlugin,
+  FramePlugin,
 } from "./plugins";
-import { WebviewPlugin } from "./plugins/WebviewPlugin";
 
 import {
   BoardContext,
@@ -66,6 +67,7 @@ const videoPlugin = new VideoPlugin();
 const mindPlugin = new MindPlugin();
 const presentationPlugin = new PresentationPlugin();
 const webviewPlugin = new WebviewPlugin();
+const framePlugin = new FramePlugin();
 
 interface WhiteBoardProps {
   className?: string;
@@ -122,6 +124,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       videoPlugin,
       mindPlugin,
       webviewPlugin,
+      framePlugin,
       historyPlugin,
       selectPlugin,
       movePlugin,
@@ -141,6 +144,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const isArrowMoving = useListenArrowMove(board);
   const isElementsMoving = useElementsMoving(board);
+
   // 获取画板数据
   const { children, viewPort, selection } = useSyncExternalStore(
     board.subscribe,

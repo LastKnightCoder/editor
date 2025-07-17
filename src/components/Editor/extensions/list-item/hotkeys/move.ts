@@ -9,7 +9,7 @@ import {
 
 export const move: IHotKeyConfig[] = [
   {
-    hotKey: "Alt+ArrowUp",
+    hotKey: "Mod+ArrowUp",
     action: (editor, event) => {
       const [listItemMatch] = Editor.nodes(editor, {
         match: (n) => n.type === "list-item",
@@ -51,7 +51,7 @@ export const move: IHotKeyConfig[] = [
     },
   },
   {
-    hotKey: "Alt+ArrowDown",
+    hotKey: "Mod+ArrowDown",
     action: (editor, event) => {
       const [listItemMatch] = Editor.nodes(editor, {
         match: (n) => n.type === "list-item",
