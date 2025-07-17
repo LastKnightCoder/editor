@@ -82,8 +82,9 @@ const Webview = (props: WebviewProps) => {
           </Button>,
         ]}
       >
-        <div style={{ marginTop: "16px" }}>
+        <div className="mt-5">
           <Input
+            className="h-12"
             placeholder="请输入URL (例如: https://www.google.com)"
             value={url}
             onChange={handleUrlChange}
