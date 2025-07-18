@@ -85,17 +85,27 @@ interface WhiteBoardProps {
   }) => void;
 }
 
+const DEFAULT_PRESENTATION_SEQUENCES: PresentationSequence[] = [];
+const DEFAULT_VIEW_PORT: ViewPort = {
+  minX: 0,
+  minY: 0,
+  width: 0,
+  height: 0,
+  zoom: 1,
+};
+const DEFAULT_SELECTION: Selection = {
+  selectArea: null,
+  selectedElements: [] as BoardElement[],
+};
+
 const WhiteBoard = memo((props: WhiteBoardProps) => {
   const {
     className,
     style,
     initData,
-    initViewPort = { minX: 0, minY: 0, width: 0, height: 0, zoom: 1 },
-    initSelection = {
-      selectArea: null,
-      selectedElements: [] as BoardElement[],
-    },
-    initPresentationSequences = [],
+    initViewPort = DEFAULT_VIEW_PORT,
+    initSelection = DEFAULT_SELECTION,
+    initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
     readonly,
     onChange,
   } = props;

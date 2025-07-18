@@ -44,7 +44,6 @@ export const useCreateFrame = () => {
         const diffL = Math.hypot(diffX, diffY);
         if (diffL * zoom > 5) {
           isMoved.current = true;
-          board.emit("frame-create:start");
         }
       }
 
@@ -233,7 +232,6 @@ export const useCreateFrame = () => {
 
       if (isMoved.current) {
         board.currentCreateType = ECreateBoardElementType.None;
-        board.emit("frame-create:end");
       }
       startPoint.current = null;
       isMoved.current = false;
