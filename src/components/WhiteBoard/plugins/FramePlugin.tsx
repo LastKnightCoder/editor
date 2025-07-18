@@ -45,11 +45,14 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       ),
     );
 
+    if (Object.keys(updatedFrame).length === 0) return;
+
     const ops: Operation[] = [];
 
     const newElementsInArea = board.children.filter(
       (boardElement: BoardElement) => {
-        if (boardElement.type === "frame") return false;
+        if (boardElement.type === "frame" || boardElement.type === "arrow")
+          return false;
 
         const parent = BoardUtil.getParent(board, boardElement);
         if (parent && parent.type === "frame") return false;
@@ -135,9 +138,8 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     { element, children }: { element: FrameElement; children?: any },
   ) {
     return (
-      <g>
+      <g key={element.id}>
         <Frame
-          key={element.id}
           element={element}
           onResize={this.onResize.bind(this)}
           onResizeStart={this.onResizeStart.bind(this)}

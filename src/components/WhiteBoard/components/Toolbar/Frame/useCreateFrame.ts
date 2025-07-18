@@ -44,6 +44,7 @@ export const useCreateFrame = () => {
         const diffL = Math.hypot(diffX, diffY);
         if (diffL * zoom > 5) {
           isMoved.current = true;
+          board.emit("frame-create:start");
         }
       }
 
@@ -63,7 +64,8 @@ export const useCreateFrame = () => {
         // 检查是否有元素被框住
         const elementsInArea = board.children.filter(
           (element: BoardElement) => {
-            if (element.type === "frame") return false;
+            if (element.type === "frame" || element.type === "arrow")
+              return false;
 
             const parent = BoardUtil.getParent(board, element);
             if (parent && parent.type === "frame") return false;
@@ -103,7 +105,8 @@ export const useCreateFrame = () => {
         // 新增的元素
         const newElementsInArea = board.children.filter(
           (element: BoardElement) => {
-            if (element.type === "frame") return false;
+            if (element.type === "frame" || element.type === "arrow")
+              return false;
 
             // 已经在 frame 中不能被移进去
             const parent = BoardUtil.getParent(board, element);
@@ -158,7 +161,6 @@ export const useCreateFrame = () => {
         // 需要重新更新 path
         const newPath = PathUtil.getPathByElement(board, updatedFrame);
         if (!newPath) {
-          console.error("创建 Frame，newPath 不存在");
           return;
         }
         createdFramePath.current = newPath;
@@ -231,6 +233,7 @@ export const useCreateFrame = () => {
 
       if (isMoved.current) {
         board.currentCreateType = ECreateBoardElementType.None;
+        board.emit("frame-create:end");
       }
       startPoint.current = null;
       isMoved.current = false;

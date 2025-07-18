@@ -38,6 +38,7 @@ import {
   useSelectState,
   useDropArrow,
   useArrowMove,
+  useFrameCreateState,
 } from "../../hooks";
 
 import styles from "./index.module.less";
@@ -130,6 +131,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     const [focus, setFocus] = useState(false);
     const board = useBoard();
     const isArrowMoving = useArrowMove();
+    const { isFrameCreating } = useFrameCreateState();
     const [isMoving, setIsMoving] = useState(false);
 
     useImperativeHandle(ref, () => ({
@@ -227,18 +229,33 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     const containerStyle = useMemo(() => {
       return {
         pointerEvents:
-          isArrowMoving || isMoving || isSelecting || isSelected
+          isArrowMoving ||
+          isMoving ||
+          isSelecting ||
+          isSelected ||
+          isFrameCreating
             ? "none"
             : "auto",
         userSelect:
-          isArrowMoving || isMoving || isSelecting || isSelected
+          isArrowMoving ||
+          isMoving ||
+          isSelecting ||
+          isSelected ||
+          isFrameCreating
             ? "none"
             : "auto",
         background: "transparent",
         color,
         cursor: isSelected ? "move" : "auto",
       } as React.CSSProperties;
-    }, [isMoving, isSelecting, isSelected, color, isArrowMoving]);
+    }, [
+      isMoving,
+      isSelecting,
+      isSelected,
+      color,
+      isArrowMoving,
+      isFrameCreating,
+    ]);
 
     const handleAutoFocus = useMemoizedFn(() => {
       if (autoFocus) {

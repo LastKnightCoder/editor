@@ -1,6 +1,12 @@
 import { produce } from "immer";
 import { v4 as getUuid } from "uuid";
-import { BoardElement, FrameElement, FRAME_DEFAULT_STYLES } from "../types";
+import {
+  BoardElement,
+  FrameElement,
+  FRAME_DEFAULT_STYLES,
+  Operation,
+  Board,
+} from "../types";
 import { isRectIntersect, getRectIntersectionArea, PathUtil } from "./index";
 
 const LOCAL_STORAGE_KEY = "whiteboard-frame";
@@ -226,6 +232,43 @@ export class FrameUtil {
   }
 
   /**
+   * 计算 Frame 的边界，使得 Frame 能够完全包含所有子元素
+   */
+  static calculateFrameFitBounds(
+    frame: FrameElement,
+    children: BoardElement[] = frame.children,
+  ) {
+    if (children.length === 0) {
+      return {
+        x: frame.x,
+        y: frame.y,
+        width: Math.max(frame.minWidth, frame.width),
+        height: Math.max(frame.minHeight, frame.height),
+      };
+    }
+
+    // 计算所有子元素的边界
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    children.forEach((child: BoardElement) => {
+      minX = Math.min(minX, child.x);
+      minY = Math.min(minY, child.y);
+      maxX = Math.max(maxX, child.x + (child.width || 0));
+      maxY = Math.max(maxY, child.y + (child.height || 0));
+    });
+
+    return {
+      x: minX - frame.padding,
+      y: minY - frame.padding,
+      width: maxX - minX + 2 * frame.padding,
+      height: maxY - minY + 2 * frame.padding,
+    };
+  }
+
+  /**
    * 调整Frame大小以适应所有子元素
    */
   static resizeToFitChildren(board: any, frame: FrameElement) {
@@ -367,5 +410,28 @@ export class FrameUtil {
     });
 
     return hasChild;
+  }
+
+  static unwrapFrame(board: Board, frame: FrameElement) {
+    const path = PathUtil.getPathByElement(board, frame);
+    if (!path) return false;
+
+    const ops: Operation[] = [];
+    frame.children.forEach((child) => {
+      ops.push({
+        type: "insert_node",
+        path: [board.children.length],
+        node: child,
+      });
+    });
+    ops.push({
+      type: "remove_node",
+      path,
+      node: frame,
+    });
+
+    board.apply(ops);
+
+    return true;
   }
 }

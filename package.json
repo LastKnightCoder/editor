@@ -148,6 +148,7 @@
     "uuid": "^9.0.1",
     "vite": "4.3.9",
     "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-svgr": "^4.3.0",
     "vitest": "^3.2.4",
     "vitest-canvas-mock": "^0.3.3",
     "words-count": "^2.0.2",

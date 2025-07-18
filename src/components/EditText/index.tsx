@@ -9,6 +9,7 @@ import React, {
 import { useMemoizedFn, useMutationObserver } from "ahooks";
 
 interface IEditTextProps {
+  id?: string;
   className?: string;
   style?: React.CSSProperties;
   defaultValue?: string;
@@ -37,6 +38,7 @@ export type EditTextHandle = {
 const EditText = memo(
   forwardRef<EditTextHandle, IEditTextProps>((props, editTextRef) => {
     const {
+      id,
       className,
       style,
       defaultValue,
@@ -202,6 +204,7 @@ const EditText = memo(
 
     return (
       <div
+        id={id}
         ref={ref}
         className={className}
         style={style}
