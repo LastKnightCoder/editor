@@ -2,7 +2,7 @@ import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 import BoardUtil from "./BoardUtil.ts";
 import { Board, MindNodeElement, MindDragTarget } from "../types";
-import { MIND_COLORS, MIND_LINE_COLORS } from "../constants";
+import { MIND_COLORS } from "../constants";
 
 const MARGIN_X = 36;
 
@@ -24,22 +24,66 @@ export class MindUtil {
         {
           before: (node, parent) => {
             if (parent) {
-              node.x = parent.x + parent.width + MARGIN_X;
+              if (node.level > 2) {
+                node.direction = parent.direction;
+              }
+              // 根据 direction 计算 x 坐标
+              if (node.direction === "left") {
+                node.x = parent.x - node.width - MARGIN_X;
+              } else {
+                node.x = parent.x + parent.width + MARGIN_X;
+              }
             }
           },
           after: (node) => {
-            // Only process visible children (not folded)
-            const visibleChildren = node.isFold ? [] : node.children;
+            // 根据折叠状态过滤可见子节点
+            const leftChildren = node.children.filter(
+              (child) => child.direction === "left",
+            );
+            const rightChildren = node.children.filter(
+              (child) => child.direction === "right",
+            );
+
+            const visibleLeftChildren = node.isLeftFold ? [] : leftChildren;
+            const visibleRightChildren = node.isRightFold ? [] : rightChildren;
+            const visibleChildren = [
+              ...visibleLeftChildren,
+              ...visibleRightChildren,
+            ];
+
             if (visibleChildren.length > 0) {
-              node.childrenHeight =
-                visibleChildren.reduce((pre, cur) => {
-                  return pre + cur.actualHeight;
-                }, 0) +
-                (visibleChildren.length - 1) * (MARGIN_Y[node.level + 1] || 8);
+              const leftHeight =
+                visibleLeftChildren.length > 0
+                  ? visibleLeftChildren.reduce(
+                      (pre, cur) => pre + cur.actualHeight,
+                      0,
+                    ) +
+                    (visibleLeftChildren.length - 1) *
+                      (MARGIN_Y[node.level + 1] || 8)
+                  : 0;
+
+              const rightHeight =
+                visibleRightChildren.length > 0
+                  ? visibleRightChildren.reduce(
+                      (pre, cur) => pre + cur.actualHeight,
+                      0,
+                    ) +
+                    (visibleRightChildren.length - 1) *
+                      (MARGIN_Y[node.level + 1] || 8)
+                  : 0;
+
+              // 存储左右两边的高度，用于独立布局
+              node.leftChildrenHeight = leftHeight;
+              node.rightChildrenHeight = rightHeight;
+
+              // 取左右两边的最大高度作为总的子节点高度（用于计算 actualHeight）
+              node.childrenHeight = Math.max(leftHeight, rightHeight);
               node.actualHeight = Math.max(node.childrenHeight, node.height);
             } else {
               node.actualHeight = node.height;
               node.childrenHeight = 0;
+              node.leftChildrenHeight = 0;
+              node.rightChildrenHeight = 0;
             }
           },
         },
@@ -51,20 +95,52 @@ export class MindUtil {
       this.dfs(
         draft,
         {
-          before: (node, parent, index) => {
+          before: (node, parent) => {
             if (!parent) return;
 
-            // Only consider visible siblings for positioning
-            const parentVisibleChildren = parent.isFold ? [] : parent.children;
-            const beforeSiblings =
-              index > 0 ? parentVisibleChildren.slice(0, index) : [];
+            // 根据父节点的折叠状态和节点方向计算可见的兄弟节点
+            const isNodeLeftDirection = node.direction === "left";
+            const isParentFoldThisDirection = isNodeLeftDirection
+              ? parent.isLeftFold
+              : parent.isRightFold;
+
+            if (isParentFoldThisDirection) return; // 如果父节点折叠了这个方向，则此节点不可见
+
+            const parentVisibleChildren = parent.children.filter((child) => {
+              const isChildLeftDirection = child.direction === "left";
+              const isParentFoldChildDirection = isChildLeftDirection
+                ? parent.isLeftFold
+                : parent.isRightFold;
+              return !isParentFoldChildDirection;
+            });
+
+            // 只考虑相同 direction 的兄弟节点
+            const sameDirectionSiblings = parentVisibleChildren.filter(
+              (child) => child.direction === node.direction,
+            );
+            const currentIndexInSameDirection = sameDirectionSiblings.findIndex(
+              (child) => child.id === node.id,
+            );
+
+            const beforeSiblingsInSameDirection =
+              currentIndexInSameDirection > 0
+                ? sameDirectionSiblings.slice(0, currentIndexInSameDirection)
+                : [];
+
             const siblingsHeight =
-              beforeSiblings.reduce((pre, cur) => {
+              beforeSiblingsInSameDirection.reduce((pre, cur) => {
                 return pre + cur.actualHeight;
               }, 0) +
-              beforeSiblings.length * (MARGIN_Y[node.level] || 8);
+              beforeSiblingsInSameDirection.length *
+                (MARGIN_Y[node.level] || 8);
+
+            // 根据节点方向使用对应的 childrenHeight 来计算 baseY
+            const relevantChildrenHeight = isNodeLeftDirection
+              ? parent.leftChildrenHeight
+              : parent.rightChildrenHeight;
+
             const baseY =
-              parent.y + parent.height / 2 - parent.childrenHeight / 2;
+              parent.y + parent.height / 2 - relevantChildrenHeight / 2;
             const childrenTop = baseY + siblingsHeight;
             node.y = childrenTop + (node.actualHeight - node.height) / 2;
           },
@@ -72,7 +148,7 @@ export class MindUtil {
         null,
         0,
         true,
-      ); // Use skipFolded=true
+      );
     });
   }
 
@@ -98,8 +174,19 @@ export class MindUtil {
     skipFolded = false,
   ) {
     before?.(node, parent, index);
-    if (!(skipFolded && node.isFold)) {
-      node.children.forEach((child, index) => {
+    if (!skipFolded || (!node.isLeftFold && !node.isRightFold)) {
+      // 如果不跳过折叠节点，或者节点没有完全折叠，则遍历子节点
+      const childrenToVisit = skipFolded
+        ? node.children.filter((child) => {
+            const isChildLeftDirection = child.direction === "left";
+            const isFoldInThisDirection = isChildLeftDirection
+              ? node.isLeftFold
+              : node.isRightFold;
+            return !isFoldInThisDirection;
+          })
+        : node.children;
+
+      childrenToVisit.forEach((child, index) => {
         this.dfs(
           child,
           {
@@ -180,7 +267,7 @@ export class MindUtil {
   ) {
     const newRoot = produce(root, (draft) => {
       this.dfs(draft, {
-        before: (current) => {
+        before: (current, parent) => {
           if (node.id !== current.id) return;
 
           const child: MindNodeElement = newChild || {
@@ -194,7 +281,15 @@ export class MindUtil {
             actualHeight: 48,
             level: current.level + 1,
             childrenHeight: 0,
-            direction: "right",
+            leftChildrenHeight: 0,
+            rightChildrenHeight: 0,
+            // 如果有 afterNode，说明是添加兄弟节点，应该继承 afterNode 的 direction
+            // 否则根据父节点层级决定 direction
+            direction: afterNode
+              ? afterNode.direction
+              : current.level === 1
+                ? "right"
+                : parent?.direction || "right",
             text: [
               {
                 type: "paragraph",
@@ -207,11 +302,12 @@ export class MindUtil {
               },
             ],
             ...(MIND_COLORS[current.level] ||
-              MIND_COLORS[MIND_LINE_COLORS.length - 1]),
+              MIND_COLORS[MIND_COLORS.length - 1]),
             border: "transparent",
             children: [],
             defaultFocus: true,
-            isFold: false,
+            isLeftFold: false,
+            isRightFold: false,
           };
 
           if (afterNode) {
@@ -241,7 +337,7 @@ export class MindUtil {
   ) {
     const newRoot = produce(root, (draft) => {
       this.dfs(draft, {
-        before: (current) => {
+        before: (current, parent) => {
           if (node.id !== current.id) return;
           const child: MindNodeElement = newChild || {
             id: uuid(),
@@ -254,7 +350,15 @@ export class MindUtil {
             actualHeight: 48,
             level: current.level + 1,
             childrenHeight: 0,
-            direction: "right",
+            leftChildrenHeight: 0,
+            rightChildrenHeight: 0,
+            // 如果有 beforeNode，说明是添加兄弟节点，应该继承 beforeNode 的 direction
+            // 否则根据父节点层级决定 direction
+            direction: beforeNode
+              ? beforeNode.direction
+              : current.level === 1
+                ? "right"
+                : parent?.direction || "right",
             text: [
               {
                 type: "paragraph",
@@ -271,7 +375,8 @@ export class MindUtil {
             border: "transparent",
             children: [],
             defaultFocus: true,
-            isFold: false,
+            isLeftFold: false,
+            isRightFold: false,
           };
           if (beforeNode) {
             const index = current.children.findIndex(
@@ -414,12 +519,20 @@ export class MindUtil {
     return this.layout(newRoot);
   }
 
-  static toggleFold(root: MindNodeElement, node: MindNodeElement) {
+  static toggleFold(
+    root: MindNodeElement,
+    node: MindNodeElement,
+    direction: "left" | "right",
+  ) {
     const newRoot = produce(root, (draft) => {
       this.dfs(draft, {
         before: (current) => {
           if (current.id === node.id) {
-            current.isFold = !current.isFold;
+            if (direction === "left") {
+              current.isLeftFold = !current.isLeftFold;
+            } else {
+              current.isRightFold = !current.isRightFold;
+            }
           }
         },
       });

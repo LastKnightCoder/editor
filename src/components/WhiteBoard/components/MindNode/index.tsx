@@ -47,7 +47,8 @@ const MindNode = (props: MindNodeProps) => {
     textColor,
     border,
     defaultFocus,
-    isFold,
+    isLeftFold,
+    isRightFold,
   } = element;
 
   const board = useBoard();
@@ -223,29 +224,31 @@ const MindNode = (props: MindNodeProps) => {
     }
   });
 
-  const handleToggleFold = useMemoizedFn((e: MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+  const handleToggleFold = useMemoizedFn(
+    (e: MouseEvent, direction: "left" | "right") => {
+      e.stopPropagation();
+      e.preventDefault();
 
-    const root = MindUtil.getRoot(board, element);
-    if (!root) {
-      console.error("MindNode: Root is not found");
-      return;
-    }
+      const root = MindUtil.getRoot(board, element);
+      if (!root) {
+        console.error("MindNode: Root is not found");
+        return;
+      }
 
-    const newRoot = MindUtil.toggleFold(root, element);
-    const rootPath = PathUtil.getPathByElement(board, newRoot);
-    if (!rootPath) return;
+      const newRoot = MindUtil.toggleFold(root, element, direction);
+      const rootPath = PathUtil.getPathByElement(board, newRoot);
+      if (!rootPath) return;
 
-    board.apply([
-      {
-        type: "set_node",
-        path: rootPath,
-        properties: root,
-        newProperties: newRoot,
-      },
-    ]);
-  });
+      board.apply([
+        {
+          type: "set_node",
+          path: rootPath,
+          properties: root,
+          newProperties: newRoot,
+        },
+      ]);
+    },
+  );
 
   const { handleKeyDown } = useMindNodeKeyboardNavigation(
     board,
@@ -264,11 +267,34 @@ const MindNode = (props: MindNodeProps) => {
     };
   }, [handleKeyDown]);
 
-  const childLeftMiddlePoints = useMemo(() => {
-    if (isFold) {
-      if (element.children.length === 0) {
-        return [];
-      }
+  const leftChildPoints = useMemo(() => {
+    const leftChildren = element.children.filter(
+      (child) => child.direction === "left",
+    );
+    const visibleLeftChildren = isLeftFold ? [] : leftChildren;
+
+    if (isLeftFold && leftChildren.length > 0) {
+      return [
+        {
+          x: element.x - 10,
+          y: element.y + element.height / 2,
+        },
+      ];
+    }
+
+    return visibleLeftChildren.map((child) => ({
+      x: child.x + child.width,
+      y: child.y + child.height / 2,
+    }));
+  }, [element, isLeftFold]);
+
+  const rightChildPoints = useMemo(() => {
+    const rightChildren = element.children.filter(
+      (child) => child.direction === "right",
+    );
+    const visibleRightChildren = isRightFold ? [] : rightChildren;
+
+    if (isRightFold && rightChildren.length > 0) {
       return [
         {
           x: element.x + element.width + 10,
@@ -276,18 +302,39 @@ const MindNode = (props: MindNodeProps) => {
         },
       ];
     }
-    return element.children.map((child) => {
-      return {
-        x: child.x,
-        y: child.y + child.height / 2,
-      };
-    });
-  }, [element, isFold]);
 
-  const hasChildren = element.children.length > 0;
-  const totalDescendants =
-    element.children.length > 0
-      ? MindUtil.getChildrenByNode(element).length
+    return visibleRightChildren.map((child) => ({
+      x: child.x,
+      y: child.y + child.height / 2,
+    }));
+  }, [element, isRightFold]);
+
+  const leftChildren = element.children.filter(
+    (child) => child.direction === "left",
+  );
+  const rightChildren = element.children.filter(
+    (child) => child.direction === "right",
+  );
+
+  const hasLeftChildren = leftChildren.length > 0;
+  const hasRightChildren = rightChildren.length > 0;
+
+  const leftDescendants =
+    leftChildren.length > 0
+      ? leftChildren.reduce(
+          (total, child) =>
+            total + MindUtil.getChildrenByNode(child).length + 1,
+          0,
+        )
+      : 0;
+
+  const rightDescendants =
+    rightChildren.length > 0
+      ? rightChildren.reduce(
+          (total, child) =>
+            total + MindUtil.getChildrenByNode(child).length + 1,
+          0,
+        )
       : 0;
 
   return (
@@ -352,10 +399,11 @@ const MindNode = (props: MindNodeProps) => {
         </div>
       </foreignObject>
 
-      {childLeftMiddlePoints.map((point, index) => {
+      {/* 左侧子节点连线 */}
+      {leftChildPoints.map((point, index) => {
         return (
           <CurveArrow
-            key={index}
+            key={`left-${index}`}
             sourceMarker={EMarkerType.None}
             targetMarker={EMarkerType.None}
             lineColor={
@@ -364,7 +412,7 @@ const MindNode = (props: MindNodeProps) => {
             lineWidth={2}
             points={[
               {
-                x: element.x + element.width,
+                x: element.x, // 从父节点左侧引出
                 y: element.y + element.height / 2,
               },
               {
@@ -377,9 +425,71 @@ const MindNode = (props: MindNodeProps) => {
         );
       })}
 
-      <If condition={hasChildren}>
+      {/* 右侧子节点连线 */}
+      {rightChildPoints.map((point, index) => {
+        return (
+          <CurveArrow
+            key={`right-${index}`}
+            sourceMarker={EMarkerType.None}
+            targetMarker={EMarkerType.None}
+            lineColor={
+              MIND_LINE_COLORS[element.level - (1 % MIND_LINE_COLORS.length)]
+            }
+            lineWidth={2}
+            points={[
+              {
+                x: element.x + element.width, // 从父节点右侧引出
+                y: element.y + element.height / 2,
+              },
+              {
+                x: point.x,
+                y: point.y,
+              },
+            ]}
+            forceVertical
+          />
+        );
+      })}
+
+      {/* 左侧折叠指示器 */}
+      <If condition={hasLeftChildren}>
         <g
-          onClick={handleToggleFold}
+          onClick={(e) => handleToggleFold(e, "left")}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          <circle
+            cx={element.x - 10}
+            cy={element.y + element.height / 2}
+            r={8}
+            fill={
+              MIND_LINE_COLORS[element.level - (1 % MIND_LINE_COLORS.length)]
+            }
+          />
+          <text
+            x={element.x - 10}
+            y={element.y + element.height / 2 + (isLeftFold ? 1 : 0)}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={10}
+            fontWeight="bold"
+            fill={"white"}
+            style={{ userSelect: "none" }}
+          >
+            {isLeftFold ? `${leftDescendants}` : "-"}
+          </text>
+        </g>
+      </If>
+
+      {/* 右侧折叠指示器 */}
+      <If condition={hasRightChildren}>
+        <g
+          onClick={(e) => handleToggleFold(e, "right")}
           onDoubleClick={(e) => {
             e.stopPropagation();
           }}
@@ -398,7 +508,7 @@ const MindNode = (props: MindNodeProps) => {
           />
           <text
             x={element.x + element.width + 10}
-            y={element.y + element.height / 2 + (isFold ? 1 : 0)}
+            y={element.y + element.height / 2 + (isRightFold ? 1 : 0)}
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize={10}
@@ -406,7 +516,7 @@ const MindNode = (props: MindNodeProps) => {
             fill={"white"}
             style={{ userSelect: "none" }}
           >
-            {isFold ? `${totalDescendants}` : "-"}
+            {isRightFold ? `${rightDescendants}` : "-"}
           </text>
         </g>
       </If>

@@ -369,8 +369,15 @@ export class FrameUtil {
   ) {
     before?.(frame, parent, index);
     frame.children?.forEach((child, index) => {
-      before?.(child, frame, index);
-      after?.(child, frame, index);
+      this.dfs(
+        child,
+        {
+          before,
+          after,
+        },
+        frame,
+        index,
+      );
     });
     after?.(frame, parent, index);
   }

@@ -3,6 +3,7 @@ import isHotkey from "is-hotkey";
 import { Board, MindNodeElement } from "../../../types";
 import { MindUtil, PathUtil } from "../../../utils";
 import { EditorRef } from "@/components/Editor";
+import { produce } from "immer";
 
 // 定义快捷键处理器类型
 type KeyHandler = (params: {
@@ -185,14 +186,18 @@ const handleNavigateUp: KeyHandler = ({ board, element }) => {
   const parent = MindUtil.getParent(oldRoot, element);
   if (!parent) return;
 
-  // 获取当前节点在父节点的子节点列表中的索引
-  const currentIndex = parent.children.findIndex(
+  // 只考虑相同 direction 的兄弟节点
+  const sameDirectionSiblings = parent.children.filter(
+    (child) => child.direction === element.direction,
+  );
+
+  const currentIndex = sameDirectionSiblings.findIndex(
     (child) => child.id === element.id,
   );
 
-  // 如果有上一个兄弟节点，选择它
+  // 如果有上一个相同方向的兄弟节点，选择它
   if (currentIndex > 0) {
-    const prevSibling = parent.children[currentIndex - 1];
+    const prevSibling = sameDirectionSiblings[currentIndex - 1];
     board.apply({
       type: "set_selection",
       properties: board.selection,
@@ -225,14 +230,18 @@ const handleNavigateDown: KeyHandler = ({ board, element }) => {
   const parent = MindUtil.getParent(oldRoot, element);
   if (!parent) return;
 
-  // 获取当前节点在父节点的子节点列表中的索引
-  const currentIndex = parent.children.findIndex(
+  // 只考虑相同 direction 的兄弟节点
+  const sameDirectionSiblings = parent.children.filter(
+    (child) => child.direction === element.direction,
+  );
+
+  const currentIndex = sameDirectionSiblings.findIndex(
     (child) => child.id === element.id,
   );
 
-  // 如果有下一个兄弟节点，选择它
-  if (currentIndex < parent.children.length - 1) {
-    const nextSibling = parent.children[currentIndex + 1];
+  // 如果有下一个相同方向的兄弟节点，选择它
+  if (currentIndex < sameDirectionSiblings.length - 1) {
+    const nextSibling = sameDirectionSiblings[currentIndex + 1];
     board.apply({
       type: "set_selection",
       properties: board.selection,
@@ -242,14 +251,17 @@ const handleNavigateDown: KeyHandler = ({ board, element }) => {
       },
     });
   } else if (!MindUtil.isRoot(parent)) {
-    // 如果没有下一个兄弟节点，尝试导航到父节点的下一个兄弟节点
+    // 如果没有下一个兄弟节点，尝试导航到父节点的下一个相同方向的兄弟节点
     const grandParent = MindUtil.getParent(oldRoot, parent);
     if (grandParent) {
-      const parentIndex = grandParent.children.findIndex(
+      const parentSameDirectionSiblings = grandParent.children.filter(
+        (child) => child.direction === parent.direction,
+      );
+      const parentIndex = parentSameDirectionSiblings.findIndex(
         (child) => child.id === parent.id,
       );
-      if (parentIndex < grandParent.children.length - 1) {
-        const parentNextSibling = grandParent.children[parentIndex + 1];
+      if (parentIndex < parentSameDirectionSiblings.length - 1) {
+        const parentNextSibling = parentSameDirectionSiblings[parentIndex + 1];
         board.apply({
           type: "set_selection",
           properties: board.selection,
@@ -270,18 +282,33 @@ const handleNavigateLeft: KeyHandler = ({ board, element }) => {
   const oldRoot = MindUtil.getRoot(board, element);
   if (!oldRoot) return;
 
-  // 如果当前节点不是根节点，选择父节点
-  if (!MindUtil.isRoot(element)) {
-    const parent = MindUtil.getParent(oldRoot, element);
-    if (parent) {
+  if (element.direction === "left") {
+    // 对于左侧节点，按左键应该选择子节点
+    if (element.children.length > 0) {
+      const firstChild = element.children[0];
       board.apply({
         type: "set_selection",
         properties: board.selection,
         newProperties: {
           selectArea: null,
-          selectedElements: [parent],
+          selectedElements: [firstChild],
         },
       });
+    }
+  } else {
+    // 对于右侧节点，按左键应该选择父节点
+    if (!MindUtil.isRoot(element)) {
+      const parent = MindUtil.getParent(oldRoot, element);
+      if (parent) {
+        board.apply({
+          type: "set_selection",
+          properties: board.selection,
+          newProperties: {
+            selectArea: null,
+            selectedElements: [parent],
+          },
+        });
+      }
     }
   }
 };
@@ -290,17 +317,37 @@ const handleNavigateLeft: KeyHandler = ({ board, element }) => {
  * 向右导航 (ArrowRight键)
  */
 const handleNavigateRight: KeyHandler = ({ board, element }) => {
-  // 如果有子节点，选择第一个子节点
-  if (element.children.length > 0) {
-    const firstChild = element.children[0];
-    board.apply({
-      type: "set_selection",
-      properties: board.selection,
-      newProperties: {
-        selectArea: null,
-        selectedElements: [firstChild],
-      },
-    });
+  const oldRoot = MindUtil.getRoot(board, element);
+  if (!oldRoot) return;
+
+  if (element.direction === "right") {
+    // 对于右侧节点，按右键应该选择子节点
+    if (element.children.length > 0) {
+      const firstChild = element.children[0];
+      board.apply({
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: {
+          selectArea: null,
+          selectedElements: [firstChild],
+        },
+      });
+    }
+  } else {
+    // 对于左侧节点，按右键应该选择父节点
+    if (!MindUtil.isRoot(element)) {
+      const parent = MindUtil.getParent(oldRoot, element);
+      if (parent) {
+        board.apply({
+          type: "set_selection",
+          properties: board.selection,
+          newProperties: {
+            selectArea: null,
+            selectedElements: [parent],
+          },
+        });
+      }
+    }
   }
 };
 
@@ -379,10 +426,51 @@ const handleMoveNodeDown: KeyHandler = ({ board, element }) => {
   ]);
 };
 
+/**
+ * 切换方向 (Ctrl+ArrowLeft / Ctrl+ArrowRight)
+ */
+const handleToggleDirection =
+  (dir: "left" | "right"): KeyHandler =>
+  ({ board, element }) => {
+    if (element.level !== 2) return;
+    if (element.direction === dir) return;
+    const oldRoot = MindUtil.getRoot(board, element);
+    if (!oldRoot) return;
+    // 找到当前节点并修改 direction
+    const changeedDirectionRoot = produce(oldRoot, (draft) => {
+      const node = MindUtil.findNodeInTree(draft, element.id);
+      if (node) node.direction = dir;
+    });
+    const newRoot = MindUtil.layout(changeedDirectionRoot);
+    if (!newRoot) return;
+    const rootPath = PathUtil.getPathByElement(board, oldRoot);
+    if (!rootPath) return;
+    board.apply([
+      {
+        type: "set_node",
+        path: rootPath,
+        properties: oldRoot,
+        newProperties: newRoot,
+      },
+      {
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: {
+          selectArea: null,
+          selectedElements: [
+            MindUtil.findNodeInTree(newRoot, element.id) || element,
+          ],
+        },
+      },
+    ]);
+  };
+
 // 非编辑状态下的快捷键配置
 const NON_EDITING_KEYBOARD_CONFIG: KeyboardConfig = {
   "mod+arrowup": handleMoveNodeUp,
   "mod+arrowdown": handleMoveNodeDown,
+  "mod+arrowleft": handleToggleDirection("left"),
+  "mod+arrowright": handleToggleDirection("right"),
   tab: handleAddChild,
   enter: handleAddSibling,
   "shift+enter": handleAddSiblingBefore,
