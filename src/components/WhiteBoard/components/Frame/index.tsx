@@ -10,7 +10,6 @@ import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import If from "@/components/If";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
-import styles from "./index.module.less";
 import {
   SELECT_RECT_STROKE,
   SELECT_RECT_STROKE_WIDTH,
@@ -161,6 +160,7 @@ const Frame = memo(
     return (
       <g ref={frameRef}>
         <rect
+          className="cursor-move"
           x={x}
           y={y}
           width={width}
@@ -171,7 +171,6 @@ const Frame = memo(
           strokeDasharray={isChildMoveIn ? "8 8" : "0"}
           rx={borderRadius}
           ry={borderRadius}
-          className={styles.frame}
           onClick={handleFrameClick}
           onDoubleClick={handleFrameDoubleClick}
         />
@@ -180,6 +179,7 @@ const Frame = memo(
         <If condition={isFrameSelected}>
           <g>
             <rect
+              className="pointer-events-none"
               x={x}
               y={y}
               width={width}
@@ -187,7 +187,6 @@ const Frame = memo(
               fillOpacity={SELECT_RECT_FILL_OPACITY}
               stroke={SELECT_RECT_STROKE}
               strokeWidth={SELECT_RECT_STROKE_WIDTH}
-              style={{ pointerEvents: "none" }}
             />
             {Object.entries(resizePoints).map(([position, point]) => (
               <ResizeCircle
@@ -217,21 +216,15 @@ const Frame = memo(
         </If>
 
         {/* 标题区域 */}
-        <foreignObject
-          x={x}
-          y={titleY}
-          width={width}
-          height={titleHeight}
-          className={styles.titleContainer}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-          }}
-          onWheel={(e) => {
-            e.stopPropagation();
-          }}
-        >
+        <foreignObject x={x} y={titleY} width={width} height={titleHeight}>
           <div
-            className={styles.titleWrapper}
+            className="w-fit flex items-center h-full pointer-events-auto"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+            }}
+            onWheel={(e) => {
+              e.stopPropagation();
+            }}
             onDoubleClick={(e) => {
               e.stopPropagation();
               setIsEditingTitle(true);
@@ -241,9 +234,10 @@ const Frame = memo(
             }}
           >
             <EditText
+              id={`frame-title-${element.id}`}
               ref={titleRef}
               defaultValue={title || "Frame"}
-              className={styles.titleText}
+              className="text-sm font-medium text-white px-2 py-1 rounded-lg cursor-pointer select-none min-w-5 text-center h-full flex items-center w-fit outline-none hover:opacity-90"
               style={{
                 background: borderColor,
               }}

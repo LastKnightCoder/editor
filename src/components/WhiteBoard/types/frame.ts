@@ -39,7 +39,7 @@ export const FRAME_DEFAULT_STYLES: FrameStyle[] = [
     borderRadius: 8,
   },
   {
-    backgroundColor: "rgba(253, 224, 71, 0.15)", // 柠檬黄
+    backgroundColor: "rgba(253, 224, 71, 0.15)",
     borderColor: "#fde047",
     borderWidth: 2,
     borderRadius: 8,

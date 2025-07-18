@@ -1,10 +1,14 @@
 import { memo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Popover, Tooltip } from "antd";
-import { MdOutlineColorLens } from "react-icons/md";
+import { MdOutlineColorLens, MdOutlineFitScreen } from "react-icons/md";
+import { LuPackageOpen } from "react-icons/lu";
 import { produce } from "immer";
+
 import { FrameElement, FRAME_DEFAULT_STYLES } from "../../../types";
+import { useBoard } from "../../../hooks";
 import { FrameUtil } from "../../../utils";
+
 import styles from "./index.module.less";
 
 interface FrameSetterProps {
@@ -15,6 +19,7 @@ interface FrameSetterProps {
 const FrameSetter = memo((props: FrameSetterProps) => {
   const { element, onChange } = props;
   const [styleOpen, setStyleOpen] = useState(false);
+  const board = useBoard();
 
   // 找到当前元素对应的样式索引
   const currentStyleIndex = FRAME_DEFAULT_STYLES.findIndex(
@@ -51,6 +56,21 @@ const FrameSetter = memo((props: FrameSetterProps) => {
   const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
     e.stopPropagation();
     e.nativeEvent.stopImmediatePropagation();
+  });
+
+  const handleFitContent = useMemoizedFn(() => {
+    const newBounds = FrameUtil.calculateFrameFitBounds(element);
+    const newElement = produce(element, (draft) => {
+      draft.x = newBounds.x;
+      draft.y = newBounds.y;
+      draft.width = newBounds.width;
+      draft.height = newBounds.height;
+    });
+    onChange(newElement);
+  });
+
+  const handleUnwrapFrame = useMemoizedFn(() => {
+    FrameUtil.unwrapFrame(board, element);
   });
 
   const styleContent = (
@@ -100,12 +120,22 @@ const FrameSetter = memo((props: FrameSetterProps) => {
         placement={"right"}
         arrow={false}
       >
-        <Tooltip title={"选择样式"} trigger={"hover"} placement={"left"}>
+        <Tooltip title={"选择样式"} trigger={"hover"} placement={"right"}>
           <div className={styles.item}>
             <MdOutlineColorLens />
           </div>
         </Tooltip>
       </Popover>
+      <Tooltip title={"适应内容"} trigger={"hover"} placement={"right"}>
+        <div className={styles.item} onClick={handleFitContent}>
+          <MdOutlineFitScreen />
+        </div>
+      </Tooltip>
+      <Tooltip title={"解散 Frame"} trigger={"hover"} placement={"right"}>
+        <div className={styles.item} onClick={handleUnwrapFrame}>
+          <LuPackageOpen />
+        </div>
+      </Tooltip>
     </div>
   );
 });

@@ -14,6 +14,8 @@ import {
   PathUtil,
   BoardUtil,
   FrameUtil,
+  Rect,
+  isValid,
 } from "../utils";
 import { SelectTransforms } from "../transforms";
 
@@ -210,23 +212,50 @@ export abstract class CommonPlugin implements IBoardPlugin {
     const path = PathUtil.getPathByElement(board, newElement);
     if (!path) return;
 
+    let childRects: Rect[] = [];
+    if (newElement.type === "frame") {
+      childRects = (newElement as FrameElement).children
+        .map((child) => {
+          if (
+            "x" in child &&
+            "y" in child &&
+            "width" in child &&
+            "height" in child
+          ) {
+            return {
+              key: child.id,
+              x: child.x,
+              y: child.y,
+              width: child.width,
+              height: child.height,
+            };
+          }
+          return null;
+        })
+        .filter(isValid) as Rect[];
+    }
     board.refLine.setCurrentRects([
       {
         key: newElement.id,
         ...newBBox,
       },
+      ...childRects,
     ]);
-    const updateElement = board.refLine.getUpdateCurrent(
+    const updateElements = board.refLine.getUpdateCurrent(
       isAdsorb,
       5 / board.viewPort.zoom,
       true,
       position,
     );
-    board.refLine.setCurrent(updateElement);
-    newElement.x = updateElement.rects[0].x;
-    newElement.y = updateElement.rects[0].y;
-    newElement.width = updateElement.rects[0].width;
-    newElement.height = updateElement.rects[0].height;
+    board.refLine.setCurrent(updateElements);
+    const updateElement = updateElements.rects.find(
+      (element) => element.key === newElement.id,
+    );
+    if (!updateElement) return;
+    newElement.x = updateElement.x;
+    newElement.y = updateElement.y;
+    newElement.width = updateElement.width;
+    newElement.height = updateElement.height;
     board.apply(
       {
         type: "set_node",

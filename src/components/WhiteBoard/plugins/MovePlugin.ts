@@ -496,7 +496,7 @@ export class MovePlugin implements IBoardPlugin {
     const operations: Operation[] = [];
     movedElements.forEach((element) => {
       // 跳过Frame元素本身
-      if (element.type === "frame") return;
+      if (element.type === "frame" || element.type === "arrow") return;
 
       let targetFrame: FrameElement | null = null;
       let currentFrame: FrameElement | null = null;
