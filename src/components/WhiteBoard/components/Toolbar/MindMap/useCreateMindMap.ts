@@ -32,6 +32,8 @@ const useCreateMindMap = () => {
       height: 48,
       actualHeight: 48,
       level: 1,
+      leftChildrenHeight: 0,
+      rightChildrenHeight: 0,
       childrenHeight: 0,
       direction: "right",
       text: [
@@ -50,6 +52,8 @@ const useCreateMindMap = () => {
       border: "transparent",
       children: [],
       defaultFocus: true,
+      isLeftFold: false,
+      isRightFold: false,
     };
 
     board.apply({
