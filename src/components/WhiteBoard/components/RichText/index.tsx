@@ -30,7 +30,13 @@ import {
   ARROW_CONNECT_POINT_RADIUS,
   ARROW_CONNECT_POINT_FILL,
 } from "../../constants";
-import { Board, BoardElement, EHandlerPosition, Point } from "../../types";
+import {
+  Board,
+  BoardElement,
+  ECreateBoardElementType,
+  EHandlerPosition,
+  Point,
+} from "../../types";
 import { RichTextElement, CommonElement } from "../../plugins";
 import { PointUtil } from "../../utils";
 import {
@@ -38,7 +44,7 @@ import {
   useSelectState,
   useDropArrow,
   useArrowMove,
-  useFrameCreateState,
+  useCreateElementType,
 } from "../../hooks";
 
 import styles from "./index.module.less";
@@ -131,8 +137,11 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
     const [focus, setFocus] = useState(false);
     const board = useBoard();
     const isArrowMoving = useArrowMove();
-    const { isFrameCreating } = useFrameCreateState();
+    const createBoardElementType = useCreateElementType();
     const [isMoving, setIsMoving] = useState(false);
+
+    const isCreatingElement =
+      createBoardElementType !== ECreateBoardElementType.None;
 
     useImperativeHandle(ref, () => ({
       setEditorValue: (value: Descendant[]) => {
@@ -233,7 +242,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
           isMoving ||
           isSelecting ||
           isSelected ||
-          isFrameCreating
+          isCreatingElement
             ? "none"
             : "auto",
         userSelect:
@@ -241,7 +250,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
           isMoving ||
           isSelecting ||
           isSelected ||
-          isFrameCreating
+          isCreatingElement
             ? "none"
             : "auto",
         background: "transparent",
@@ -254,7 +263,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       isSelected,
       color,
       isArrowMoving,
-      isFrameCreating,
+      isCreatingElement,
     ]);
 
     const handleAutoFocus = useMemoizedFn(() => {

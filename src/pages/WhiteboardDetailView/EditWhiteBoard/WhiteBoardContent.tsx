@@ -2,10 +2,10 @@ import WhiteBoard from "@/components/WhiteBoard";
 import useEditWhiteBoard from "./useEditWhiteBoard";
 import { useEffect, useState } from "react";
 import { useRafInterval } from "ahooks";
-import { Empty, Skeleton, App, Input, Modal } from "antd";
+import { Empty, App, Input, Modal } from "antd";
 import { WhiteBoardContent as IWhiteBoardContent } from "@/types";
 import styles from "./index.module.less";
-import { PlusOutlined } from "@ant-design/icons";
+import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import SubWhiteBoardItem from "./SubWhiteBoardItem";
 
 interface WhiteBoardContentProps {
@@ -38,7 +38,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
 
   useRafInterval(() => {
     saveSubWhiteBoard();
-  }, 500);
+  }, 3000);
 
   useEffect(() => {
     return () => {
@@ -93,8 +93,8 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
 
   if (loading) {
     return (
-      <div style={{ width: "100%", height: "100%" }}>
-        <Skeleton active />
+      <div className="w-full h-full flex justify-center items-center">
+        <LoadingOutlined className="text-2xl" />
       </div>
     );
   }
@@ -112,12 +112,12 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
       <div className={styles.whiteBoardWrapper}>
         <WhiteBoard
           key={activeSubWhiteBoard.id}
-          style={{ width: "100%", height: "100%" }}
+          className="w-full h-full"
           initData={activeSubWhiteBoard.data.children}
           initViewPort={activeSubWhiteBoard.data.viewPort}
           initSelection={activeSubWhiteBoard.data.selection}
           initPresentationSequences={
-            activeSubWhiteBoard.data.presentationSequences || []
+            activeSubWhiteBoard.data.presentationSequences
           }
           onChange={onSubWhiteBoardContentChange}
         />

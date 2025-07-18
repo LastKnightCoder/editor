@@ -201,21 +201,22 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
         }
       }
       if (isHotkey("enter", event) && !isFullscreen) {
-        // 所在最后一行，且最后一行为空行，删除最后一行，并且聚焦到下一行
+        // 所在最后一行，且最后一行和前一行为空行，删除最后两行，并且创建下一个段落
         const cursor = editor.getCursor();
         const line = editor.getLine(cursor.line);
         const lineCount = editor.lineCount();
-        if (cursor.line === lineCount - 1 && line === "") {
-          event.preventDefault();
+        if (cursor.line === lineCount - 1 && line === "" && lineCount > 2) {
+          const prevLine = editor.getLine(cursor.line - 1);
           // 只处理超过一行的情况
-          if (lineCount !== 1) {
+          if (prevLine === "") {
+            event.preventDefault();
             const doc = editor.getDoc();
-            const previousLine = cursor.line - 1;
-            const previousLineLength = doc.getLine(previousLine).length;
-            const from = { line: previousLine, ch: previousLineLength };
+            const prepreLine = cursor.line - 2;
+            const prepreLineLength = doc.getLine(prepreLine).length;
+            const from = { line: prepreLine, ch: prepreLineLength };
             const to = { line: cursor.line, ch: cursor.ch };
             doc.replaceRange("", from, to);
-            doc.setCursor({ line: previousLine, ch: previousLineLength });
+            doc.setCursor({ line: prepreLine, ch: prepreLineLength });
             if (addParagraphRef.current) {
               addParagraphRef.current.addParagraph();
             }

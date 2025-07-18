@@ -18,4 +18,3 @@ export {
   ArrowMoveContext,
 } from "./useArrowMove";
 export { useElementsMoving } from "./useElementsMoving";
-export { useFrameCreateState } from "./useFrameCreateState";
