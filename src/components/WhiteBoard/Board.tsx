@@ -480,8 +480,18 @@ class Board {
 
     // Filter children for mind-node type when folded
     let visibleChildren = children;
-    if (element.type === "mind-node" && (element as MindNodeElement).isFold) {
-      visibleChildren = [];
+    if (element.type === "mind-node") {
+      const mindNode = element as MindNodeElement;
+      // 过滤掉被折叠方向的子节点
+      visibleChildren = children?.filter((child) => {
+        if (child.type !== "mind-node") return true;
+        const childMindNode = child as MindNodeElement;
+        const isChildLeftDirection = childMindNode.direction === "left";
+        const isParentFoldThisDirection = isChildLeftDirection
+          ? mindNode.isLeftFold
+          : mindNode.isRightFold;
+        return !isParentFoldThisDirection;
+      });
     }
 
     return plugin.render?.(this, {

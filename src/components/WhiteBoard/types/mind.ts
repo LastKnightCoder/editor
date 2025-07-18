@@ -13,14 +13,16 @@ export interface MindNodeElement {
   level: number;
   children: MindNodeElement[];
   childrenHeight: number;
+  leftChildrenHeight: number;
+  rightChildrenHeight: number;
   direction: "left" | "right";
   text: Descendant[];
   background: string;
   border: string;
   textColor: string;
   defaultFocus?: boolean;
-  // 是否折叠子节点
-  isFold?: boolean;
+  isRightFold?: boolean;
+  isLeftFold?: boolean;
 }
 
 export interface MindDragTarget {
