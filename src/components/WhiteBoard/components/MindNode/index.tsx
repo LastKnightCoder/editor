@@ -1,26 +1,27 @@
-import Editor, { EditorRef } from "@editor/index.tsx";
-import If from "@/components/If";
-
-import { BoardElement, EMarkerType, MindNodeElement } from "../../types";
-import { useBoard, useSelectState } from "../../hooks";
-import {
-  MIND_LINE_COLORS,
-  SELECT_RECT_FILL_OPACITY,
-  SELECT_RECT_STROKE,
-} from "../../constants";
 import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useMemoizedFn } from "ahooks";
-import useHandleResize from "./hooks/useHandleResize.ts";
-import { Descendant } from "slate";
+import Editor, { EditorRef } from "@editor/index.tsx";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
+import If from "@/components/If";
+
+import { useMemoizedFn } from "ahooks";
+import { Descendant } from "slate";
 import { produce } from "immer";
-import { MindUtil, PathUtil } from "@/components/WhiteBoard/utils";
-import CurveArrow from "@/components/WhiteBoard/components/Arrow/CurveArrow.tsx";
+
+import CurveArrow from "../../components/Arrow/CurveArrow";
+import { useBoard, useSelectState } from "../../hooks";
+import { MindUtil, PathUtil } from "../../utils";
+import {
+  MIND_LINE_COLORS,
+  SELECT_RECT_FILL_OPACITY,
+  SELECT_RECT_STROKE,
+} from "../../constants";
+import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
+import { BoardElement, EMarkerType, MindNodeElement } from "../../types";
 
 interface MindNodeProps {
   element: MindNodeElement;
@@ -373,17 +374,22 @@ const MindNode = (props: MindNodeProps) => {
           onPointerDown={handlePointerDown}
         >
           <div
-            className="absolute left-0 top-0 w-full h-full bg-transparent border-1 border-transparent rounded-4 box-border z-[-1]"
+            className="absolute left-0 top-0 rounded-4 box-border z-[-1]"
             style={{
               background: background || "transparent",
               border: `1px solid ${border || "transparent"}`,
+              width,
+              height,
             }}
           />
           <Editor
             ref={editorRef}
             initValue={text}
             readonly={!isEditing}
-            className="width-fit max-w-[300px] p-2 box-border"
+            className="w-fit p-4 box-border"
+            style={{
+              maxWidth: MIND_NODE_MAX_WIDTH,
+            }}
             onChange={onContentChange}
             onBlur={handleBlur}
             extensions={customExtensions}
@@ -471,7 +477,7 @@ const MindNode = (props: MindNodeProps) => {
             fontSize={10}
             fontWeight="bold"
             fill={"white"}
-            className="user-select-none"
+            className="select-none"
           >
             {isLeftFold ? `${leftDescendants}` : "-"}
           </text>
@@ -497,16 +503,17 @@ const MindNode = (props: MindNodeProps) => {
             fill={
               MIND_LINE_COLORS[element.level - (1 % MIND_LINE_COLORS.length)]
             }
+            className="relative"
           />
           <text
             x={element.x + element.width + 10}
-            y={element.y + element.height / 2 + (isRightFold ? 1 : 0)}
+            y={element.y + element.height / 2}
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize={10}
             fontWeight="bold"
             fill={"white"}
-            className="user-select-none"
+            className="select-none"
           >
             {isRightFold ? `${rightDescendants}` : "-"}
           </text>
