@@ -49,6 +49,7 @@ const MindNode = (props: MindNodeProps) => {
     defaultFocus,
     isLeftFold,
     isRightFold,
+    direction,
   } = element;
 
   const board = useBoard();
@@ -88,6 +89,11 @@ const MindNode = (props: MindNodeProps) => {
 
   const handleEditorResize = useMemoizedFn((width: number, height: number) => {
     const newElement = produce(element, (draft) => {
+      // 对于左侧节点，在编辑时需要调整 x 位置使其向左扩展
+      if (direction === "left" && isEditing) {
+        const widthDiff = width - element.width;
+        draft.x = element.x - widthDiff;
+      }
       draft.width = width;
       draft.height = height;
     });
@@ -357,9 +363,7 @@ const MindNode = (props: MindNodeProps) => {
         y={y}
         width={isEditing ? MIND_NODE_MAX_WIDTH : width}
         height={height}
-        style={{
-          overflow: "visible",
-        }}
+        className="overflow-visible"
       >
         <div
           style={containerStyle}
@@ -369,29 +373,17 @@ const MindNode = (props: MindNodeProps) => {
           onPointerDown={handlePointerDown}
         >
           <div
+            className="absolute left-0 top-0 w-full h-full bg-transparent border-1 border-transparent rounded-4 box-border z-[-1]"
             style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width,
-              height,
               background: background || "transparent",
               border: `1px solid ${border || "transparent"}`,
-              borderRadius: 4,
-              zIndex: -1,
-              boxSizing: "border-box",
             }}
           />
           <Editor
             ref={editorRef}
             initValue={text}
             readonly={!isEditing}
-            style={{
-              width: "fit-content",
-              maxWidth: MIND_NODE_MAX_WIDTH,
-              padding: "10px 14px",
-              boxSizing: "border-box",
-            }}
+            className="width-fit max-w-[300px] p-2 box-border"
             onChange={onContentChange}
             onBlur={handleBlur}
             extensions={customExtensions}
@@ -461,7 +453,7 @@ const MindNode = (props: MindNodeProps) => {
           onPointerDown={(e) => {
             e.stopPropagation();
           }}
-          style={{ cursor: "pointer" }}
+          className="cursor-pointer"
         >
           <circle
             cx={element.x - 10}
@@ -479,7 +471,7 @@ const MindNode = (props: MindNodeProps) => {
             fontSize={10}
             fontWeight="bold"
             fill={"white"}
-            style={{ userSelect: "none" }}
+            className="user-select-none"
           >
             {isLeftFold ? `${leftDescendants}` : "-"}
           </text>
@@ -496,7 +488,7 @@ const MindNode = (props: MindNodeProps) => {
           onPointerDown={(e) => {
             e.stopPropagation();
           }}
-          style={{ cursor: "pointer" }}
+          className="cursor-pointer"
         >
           <circle
             cx={element.x + element.width + 10}
@@ -514,7 +506,7 @@ const MindNode = (props: MindNodeProps) => {
             fontSize={10}
             fontWeight="bold"
             fill={"white"}
-            style={{ userSelect: "none" }}
+            className="user-select-none"
           >
             {isRightFold ? `${rightDescendants}` : "-"}
           </text>

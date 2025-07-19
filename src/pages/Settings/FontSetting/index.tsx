@@ -6,8 +6,6 @@ import { produce } from "immer";
 import { getAllFonts } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore.ts";
 
-import styles from "./index.module.less";
-
 const FontSetting = () => {
   const { setting, onFontSettingChange } = useSettingStore((state) => ({
     setOpen: state.setSettingModalOpen,
@@ -71,15 +69,13 @@ const FontSetting = () => {
   }, []);
 
   return (
-    <div className={styles.settingGroup}>
-      <h2>正文字体</h2>
+    <div className="flex flex-col gap-[10px]">
+      <h2 className="mb-5 text-2xl font-bold">正文字体</h2>
       <Space>
         <div>中文字体：</div>
         <AutoComplete
+          className="w-[200px]"
           value={fontSetting.chineseFont}
-          style={{
-            width: 200,
-          }}
           onChange={(font) => {
             onChineseFontChange(font as string);
           }}
@@ -89,10 +85,8 @@ const FontSetting = () => {
       <Space>
         <div>英文字体：</div>
         <AutoComplete
+          className="w-[200px]"
           value={fontSetting.englishFont}
-          style={{
-            width: 200,
-          }}
           onChange={(font) => {
             onEnglishFontChange(font as string);
           }}
@@ -111,7 +105,7 @@ const FontSetting = () => {
           }}
         />
       </Space>
-      <h2>代码字体</h2>
+      <h2 className="my-5 text-2xl font-bold">代码字体</h2>
       <Space>
         <div>代码字体：</div>
         <AutoComplete

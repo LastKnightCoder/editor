@@ -1,9 +1,18 @@
-import { useBoard, useSelection } from "@/components/WhiteBoard/hooks";
-import setterConfig from "./setter-config.ts";
 import { useMemoizedFn } from "ahooks";
-import { BoardElement, Operation } from "@/components/WhiteBoard";
-import { PathUtil } from "@/components/WhiteBoard/utils";
-import { usePresentationState } from "@/components/WhiteBoard/hooks";
+import {
+  useBoard,
+  useSelection,
+  usePresentationState,
+} from "@/components/WhiteBoard/hooks";
+import {
+  BoardElement,
+  MindNodeElement,
+  Operation,
+  FrameElement,
+} from "@/components/WhiteBoard/types";
+import { FrameUtil, MindUtil, PathUtil } from "@/components/WhiteBoard/utils";
+import setterConfig from "./setter-config.ts";
+
 const AttributeSetter = () => {
   const selection = useSelection();
   const board = useBoard();
@@ -83,20 +92,27 @@ const AttributeSetter = () => {
 
   if (!selection) return null;
 
-  const noArrowElements = selection.selectedElements.filter(
-    (el) => el.type !== "arrow",
+  const frames = selection.selectedElements.filter((el) => el.type === "frame");
+
+  const validElements = selection.selectedElements.filter(
+    (el) =>
+      el.type !== "arrow" &&
+      (el.type !== "mind-node" || MindUtil.isRoot(el as MindNodeElement)) &&
+      !frames.some((frame) =>
+        FrameUtil.isChildInFrame(frame as FrameElement, el),
+      ),
   );
 
-  if (selection.selectedElements.length > 1 && noArrowElements.length <= 1) {
+  if (selection.selectedElements.length > 1 && validElements.length <= 1) {
     return null;
   }
 
   // 多选元素的情况
-  if (noArrowElements.length > 1) {
+  if (validElements.length > 1) {
     const MultiSelectComponent = setterConfig.multiselect.component;
     return (
       <MultiSelectComponent
-        elements={selection.selectedElements}
+        elements={validElements}
         onChange={onMultiElementsChange}
       />
     );

@@ -1,6 +1,5 @@
 import { Card, Statistic, Row, Col, Popover } from "antd";
 import { useShallow } from "zustand/react/shallow";
-import styles from "./index.module.less";
 import { useEffect, useState, memo } from "react";
 import {
   getAllDocumentItems,
@@ -150,14 +149,14 @@ const HomeView = memo(() => {
   }, [isConnected, active, initData]);
 
   return (
-    <div className={styles.container}>
-      <Titlebar className={styles.titlebar}>
+    <div className="w-full h-full flex flex-col box-border overflow-y-hidden">
+      <Titlebar className="w-full h-[60px] flex-shrink-0">
         <div />
       </Titlebar>
-      <div className={styles.content}>
-        <h2>数据总览</h2>
+      <div className="flex-1 w-full overflow-y-auto border-[24px] border-transparent border-t-0 box-border [&::-webkit-scrollbar]:hidden">
+        <h2 className="mb-5 text-2xl font-bold">数据总览</h2>
         <CalendarHeatmap
-          className={styles.calendar}
+          className="p-3 mb-3"
           data={operationData}
           year={dayjs().format("YYYY")}
           renderTooltip={(date) => {
@@ -216,7 +215,7 @@ const HomeView = memo(() => {
         </Row>
         {notesLineData.length > 4 && (
           <>
-            <h2>数据趋势</h2>
+            <h2 className="my-5 text-2xl font-bold">数据趋势</h2>
             <Row gutter={[16, 16]}>
               <ContainerCol forceRefresh md={24} lg={12} xl={12} xxl={12}>
                 <Card title={"笔记数量"}>
@@ -263,11 +262,11 @@ const HomeView = memo(() => {
             </Row>
           </>
         )}
-        <h2>最近编辑</h2>
+        <h2 className="my-5 text-2xl font-bold">最近编辑</h2>
         <Row gutter={[16, 16]} align={"stretch"}>
           <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
             <Card title={"卡片"} style={{ height: "100%" }}>
-              <div className={styles.list}>
+              <div className="flex flex-col gap-2">
                 <For
                   data={latestOperations.cards}
                   renderItem={(card) => (
@@ -279,17 +278,12 @@ const HomeView = memo(() => {
                           readonly
                           initValue={card.content}
                           extensions={customExtensions}
-                          style={{
-                            maxWidth: 600,
-                            maxHeight: 400,
-                            overflow: "auto",
-                            padding: 20,
-                          }}
+                          className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
                       }
                     >
                       <div
-                        className={styles.item}
+                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={card.id}
                         onClick={() => {
                           navigate(`/cards/detail/${card.id}`);
@@ -305,7 +299,7 @@ const HomeView = memo(() => {
           </ContainerCol>
           <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
             <Card title={"文章"} style={{ height: "100%" }}>
-              <div className={styles.list}>
+              <div className="flex flex-col gap-2">
                 <For
                   data={latestOperations.articles}
                   renderItem={(article) => (
@@ -317,17 +311,12 @@ const HomeView = memo(() => {
                           readonly
                           initValue={article.content}
                           extensions={customExtensions}
-                          style={{
-                            maxWidth: 600,
-                            maxHeight: 400,
-                            overflow: "auto",
-                            padding: 20,
-                          }}
+                          className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
                       }
                     >
                       <div
-                        className={styles.item}
+                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={article.id}
                         onClick={() => {
                           navigate("/articles/detail/" + article.id);
@@ -343,7 +332,7 @@ const HomeView = memo(() => {
           </ContainerCol>
           <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
             <Card title={"项目"} style={{ height: "100%" }}>
-              <div className={styles.list}>
+              <div className="flex flex-col gap-2">
                 <For
                   data={latestOperations.projectItems}
                   renderItem={(projectItem) => (
@@ -355,17 +344,12 @@ const HomeView = memo(() => {
                           readonly
                           extensions={customExtensions}
                           initValue={projectItem.content}
-                          style={{
-                            maxWidth: 600,
-                            maxHeight: 400,
-                            overflow: "auto",
-                            padding: 20,
-                          }}
+                          className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
                       }
                     >
                       <div
-                        className={styles.item}
+                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={projectItem.id}
                         onClick={() => {
                           if (projectItem.projects.length === 0) return;
@@ -387,7 +371,7 @@ const HomeView = memo(() => {
           </ContainerCol>
           <ContainerCol xs={24} md={12} lg={12} xl={8} xxl={6}>
             <Card title={"知识库"} style={{ height: "100%" }}>
-              <div className={styles.list}>
+              <div className="flex flex-col gap-2">
                 <For
                   data={latestOperations.documentItems}
                   renderItem={(documentItem) => (
@@ -399,17 +383,12 @@ const HomeView = memo(() => {
                           readonly
                           extensions={customExtensions}
                           initValue={documentItem.content}
-                          style={{
-                            maxWidth: 600,
-                            maxHeight: 400,
-                            overflow: "auto",
-                            padding: 20,
-                          }}
+                          className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
                       }
                     >
                       <div
-                        className={styles.item}
+                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={documentItem.id}
                         onClick={async () => {
                           const documents =
