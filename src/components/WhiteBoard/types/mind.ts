@@ -28,4 +28,5 @@ export interface MindNodeElement {
 export interface MindDragTarget {
   node: MindNodeElement;
   insertIndex?: number;
+  direction: "left" | "right";
 }

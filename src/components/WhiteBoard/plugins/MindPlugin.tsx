@@ -354,6 +354,7 @@ export class MindPlugin implements IBoardPlugin {
       draggedNode,
       target.node,
       finalInsertIndex,
+      target.direction,
     );
     newTargetRoot = MindUtil.layout(newTargetRoot);
 

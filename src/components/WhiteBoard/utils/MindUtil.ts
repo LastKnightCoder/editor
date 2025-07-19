@@ -550,9 +550,7 @@ export class MindUtil {
   static calculateDistanceToDirectionEdge(
     draggedNode: MindNodeElement,
     candidateParent: MindNodeElement,
-  ): number {
-    const direction = candidateParent.direction || "right";
-
+  ): { distance: number; direction: "left" | "right" } {
     // 计算拖拽节点的中心 Y 坐标
     const draggedMidY = draggedNode.y + draggedNode.height / 2;
 
@@ -566,17 +564,36 @@ export class MindUtil {
 
     // 如果不在 Y 范围内，返回无穷大
     if (!isInYRange) {
-      return Infinity;
+      return { distance: Infinity, direction: "right" };
     }
 
-    // 在 Y 范围内，只计算 X 方向的距离
+    // 如果是 root 节点，计算离两侧的距离，取最近的 direction
+    if (this.isRoot(candidateParent)) {
+      const parentRightEdgeX = candidateParent.x + candidateParent.width;
+      const draggedLeftEdgeX = draggedNode.x;
+      const rightDistance = Math.abs(draggedLeftEdgeX - parentRightEdgeX);
+
+      const parentLeftEdgeX = candidateParent.x;
+      const draggedRightEdgeX = draggedNode.x + draggedNode.width;
+      const leftDistance = Math.abs(draggedRightEdgeX - parentLeftEdgeX);
+
+      if (rightDistance <= leftDistance) {
+        return { distance: rightDistance, direction: "right" };
+      } else {
+        return { distance: leftDistance, direction: "left" };
+      }
+    }
+
+    // 非 root 节点，根据节点的 direction 计算距离
+    const direction = candidateParent.direction || "right";
+
     switch (direction) {
       case "right": {
         const parentRightEdgeX = candidateParent.x + candidateParent.width;
         const draggedLeftEdgeX = draggedNode.x;
         const rightDistance = Math.abs(draggedLeftEdgeX - parentRightEdgeX);
 
-        return rightDistance;
+        return { distance: rightDistance, direction };
       }
 
       case "left": {
@@ -584,11 +601,11 @@ export class MindUtil {
         const draggedRightEdgeX = draggedNode.x + draggedNode.width;
         const leftDistance = Math.abs(draggedRightEdgeX - parentLeftEdgeX);
 
-        return leftDistance;
+        return { distance: leftDistance, direction };
       }
       default: {
         console.error("direction is not right or left", direction);
-        return Infinity;
+        return { distance: Infinity, direction: "right" };
       }
     }
   }
@@ -601,6 +618,7 @@ export class MindUtil {
     newDirection: "left" | "right",
     parentLevel: number,
   ) {
+    // 本应该取 parentLevel + 1，但是 level 是从 1 开始计数的，因此要减一，取 parentLevel
     const colors =
       MIND_COLORS[parentLevel] || MIND_COLORS[MIND_COLORS.length - 1];
     node.direction = newDirection;
@@ -642,6 +660,7 @@ export class MindUtil {
   ): MindDragTarget | null {
     let nearestParent: MindNodeElement | null = null;
     let minDistance = Infinity;
+    let nearestDirection: "left" | "right" = "right";
 
     // 距离阈值：超过此距离认为拖拽到空白区域
     const DISTANCE_THRESHOLD = 20;
@@ -663,11 +682,15 @@ export class MindUtil {
       }
 
       // 根据节点边缘计算连接距离
-      const distance = this.calculateDistanceToDirectionEdge(dragNode, node);
+      const { distance, direction } = this.calculateDistanceToDirectionEdge(
+        dragNode,
+        node,
+      );
 
       if (distance < minDistance) {
         minDistance = distance;
         nearestParent = node;
+        nearestDirection = direction;
       }
     });
 
@@ -677,12 +700,13 @@ export class MindUtil {
     }
 
     // 第二步：确定在该父节点的哪个位置插入
-    return this.calculateInsertPosition(nearestParent, point);
+    return this.calculateInsertPosition(nearestParent, point, nearestDirection);
   }
 
   static calculateInsertPosition(
     parentNode: MindNodeElement,
     mousePoint: { x: number; y: number },
+    direction: "left" | "right",
   ): MindDragTarget {
     const children = parentNode.children;
 
@@ -691,29 +715,67 @@ export class MindUtil {
       return {
         node: parentNode,
         insertIndex: 0,
+        direction,
+      };
+    }
+
+    // 找出同侧的兄弟节点
+    const sameDirectionSiblings = children.filter(
+      (child) => child.direction === direction,
+    );
+
+    // 如果没有同方向的子节点，直接插入到该方向的第一个位置
+    if (sameDirectionSiblings.length === 0) {
+      // 找到该方向在 children 数组中的第一个位置
+      const firstIndexInDirection = children.findIndex(
+        (child) => child.direction === direction,
+      );
+      const insertIndex =
+        firstIndexInDirection === -1 ? children.length : firstIndexInDirection;
+
+      return {
+        node: parentNode,
+        insertIndex,
+        direction,
       };
     }
 
     // 查找应该插入的位置
     let insertIndex = children.length; // 默认插入到最后
 
-    // 使用鼠标位置来计算插入位置，而不是拖拽节点的存储位置
+    // 使用鼠标位置来计算插入位置
     const dragMouseY = mousePoint.y;
 
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      const childCenterY = child.y + child.height / 2;
+    // 只比较同方向的兄弟节点
+    for (let i = 0; i < sameDirectionSiblings.length; i++) {
+      const sibling = sameDirectionSiblings[i];
+      const siblingCenterY = sibling.y + sibling.height / 2;
 
-      if (dragMouseY < childCenterY) {
-        // 鼠标在这个子节点上方，应该插入在它之前
-        insertIndex = i;
+      if (dragMouseY < siblingCenterY) {
+        // 鼠标在这个兄弟节点上方，应该插入在它之前
+        // 需要找到这个兄弟节点在原始 children 数组中的索引
+        const originalIndex = children.findIndex(
+          (child) => child.id === sibling.id,
+        );
+        insertIndex = originalIndex;
         break;
       }
+    }
+
+    // 如果鼠标在所有同方向兄弟节点下方，插入到最后一个同方向兄弟节点之后
+    if (insertIndex === children.length) {
+      const lastSibling =
+        sameDirectionSiblings[sameDirectionSiblings.length - 1];
+      const lastSiblingIndex = children.findIndex(
+        (child) => child.id === lastSibling.id,
+      );
+      insertIndex = lastSiblingIndex + 1;
     }
 
     return {
       node: parentNode,
       insertIndex,
+      direction,
     };
   }
 
@@ -723,6 +785,7 @@ export class MindUtil {
     nodeToMove: MindNodeElement,
     newParent: MindNodeElement,
     insertIndex: number,
+    direction: "left" | "right",
   ): MindNodeElement {
     return produce(targetRoot, (draft) => {
       if (sourceRoot.id === targetRoot.id) {
@@ -741,7 +804,7 @@ export class MindUtil {
       const movedNode = produce(nodeToMove, (draft) => {
         this.updateNodeDirectionAndLevel(
           draft,
-          targetParentNode.direction || "right",
+          direction,
           targetParentNode.level,
         );
       });
@@ -760,6 +823,7 @@ export class MindUtil {
     nodeToMove: MindNodeElement,
     targetParent: MindNodeElement,
     insertIndex: number,
+    direction: "left" | "right",
   ): MindNodeElement {
     return produce(targetRoot, (draft) => {
       // 如果是同一树，先移除源节点
@@ -783,7 +847,7 @@ export class MindUtil {
       const movedNode = produce(nodeToMove, (draft) => {
         this.updateNodeDirectionAndLevel(
           draft,
-          targetParentNode.direction || "right",
+          direction,
           targetParentNode.level,
         );
       });
