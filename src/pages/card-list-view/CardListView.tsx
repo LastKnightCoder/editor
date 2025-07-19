@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import { Breadcrumb, Dropdown, MenuProps, FloatButton, App } from "antd";
 import { Descendant } from "slate";
 
@@ -65,18 +65,23 @@ const CardListView = () => {
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
 
+  const cardEventBus = useCreation(() => {
+    return defaultCardEventBus.createEditor();
+  }, []);
+
   useEffect(() => {
-    const unsubscribeCreated = defaultCardEventBus.subscribe(
+    const unsubscribeCreated = cardEventBus.subscribeToOtherEditors(
       "card:created",
       (data) => {
         if (cards.find((c) => c.id === data.card.id)) return;
         setCards((prevCards) => [data.card, ...prevCards]);
       },
     );
-    const unsubscribeUpdated = defaultCardEventBus.subscribe(
+    const unsubscribeUpdated = cardEventBus.subscribeToOtherEditors(
       "card:updated",
       (data) => {
         const updatedCard = data.card;
+        console.log("updatedCard", updatedCard);
         setCards((prevCards) =>
           prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
         );
@@ -155,9 +160,7 @@ const CardListView = () => {
     try {
       const newCard = await createCard(card);
       setCards((prevCards) => [newCard, ...prevCards]);
-      defaultCardEventBus
-        .createEditor()
-        .publishCardEvent("card:created", newCard);
+      cardEventBus.publishCardEvent("card:created", newCard);
     } catch (error) {
       console.error("Failed to create card:", error);
     }
@@ -180,6 +183,7 @@ const CardListView = () => {
             c.id === updatedPreviewCard.id ? updatedPreviewCard : c,
           ),
         );
+        cardEventBus.publishCardEvent("card:updated", updatedPreviewCard);
       }
     }
   });
@@ -249,6 +253,7 @@ const CardListView = () => {
         setCards((prevCards) =>
           prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
         );
+        cardEventBus.publishCardEvent("card:updated", updatedCard);
       } catch (error) {
         console.error("Failed to update card category:", error);
       }
@@ -268,6 +273,7 @@ const CardListView = () => {
       setCards((prevCards) =>
         prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
       );
+      cardEventBus.publishCardEvent("card:updated", updatedCard);
     } catch (error) {
       console.error("Failed to toggle card top:", error);
     }

@@ -409,7 +409,8 @@ export class FrameUtil {
   static isChildInFrame(frame: FrameElement, child: BoardElement): boolean {
     let hasChild = false;
     this.dfs(frame, {
-      after: (element) => {
+      before: (element) => {
+        if (child.id === frame.id) return;
         if (element.id === child.id) {
           hasChild = true;
         }

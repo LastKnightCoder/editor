@@ -94,7 +94,7 @@ const SyncSetting = () => {
 
   return (
     <div className={styles.syncSetting}>
-      <h2>数据检查</h2>
+      <h2 className="mb-5 text-2xl font-bold">数据检查</h2>
       <div className={styles.version}>
         <div>本地版本：{currentVersion}</div>
         <div>远程版本：{remoteVersion}</div>
@@ -111,7 +111,7 @@ const SyncSetting = () => {
           检查
         </Button>
       </div>
-      <h2 style={{ marginTop: 20 }}>数据同步设置</h2>
+      <h2 className="my-5 text-2xl font-bold">数据同步设置</h2>
       <Tabs
         className={styles.settingTabs}
         activeKey={activeKey}

@@ -5,7 +5,7 @@ import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
 import { AiFillPushpin } from "react-icons/ai";
 import { Dropdown, MenuProps, Tooltip } from "antd";
-import { useCreation, useMemoizedFn } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import { useShallow } from "zustand/react/shallow";
 
@@ -21,7 +21,6 @@ import {
   formatDate,
   getEditorText,
   getMarkdown,
-  defaultCardEventBus,
   downloadMarkdown,
 } from "@/utils";
 import { openCardInNewWindow } from "@/commands";
@@ -67,10 +66,6 @@ const CardItem = memo(
     const navigate = useNavigate();
 
     const editorRef = useRef<EditorRef>(null);
-    const cardEventBus = useCreation(
-      () => defaultCardEventBus.createEditor(),
-      [],
-    );
 
     const addTab = useRightSidebarStore((state) => state.addTab);
 
@@ -160,7 +155,6 @@ const CardItem = memo(
         } else if (key === "toggle-top") {
           if (onToggleCardTop) {
             await onToggleCardTop(card.id);
-            cardEventBus.publishCardEvent("card:updated", card);
           }
         } else if (key === "export-markdown") {
           const markdown = getMarkdown(card.content);
@@ -168,7 +162,6 @@ const CardItem = memo(
         } else if (Object.keys(cardCategoryName).includes(key)) {
           if (onUpdateCardCategory) {
             await onUpdateCardCategory(card, key as ECardCategory);
-            cardEventBus.publishCardEvent("card:updated", card);
           }
         }
       },

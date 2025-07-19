@@ -1,7 +1,6 @@
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "antd";
-import { produce } from "immer";
 import {
   MdAlignHorizontalLeft,
   MdAlignHorizontalRight,
@@ -11,7 +10,8 @@ import {
   MdHeight,
 } from "react-icons/md";
 import { BoardElement } from "@/components/WhiteBoard";
-import { useViewPort } from "@/components/WhiteBoard/hooks";
+import { useViewPort, useBoard } from "@/components/WhiteBoard/hooks";
+import { isValid } from "@/components/WhiteBoard/utils";
 
 import styles from "./index.module.less";
 
@@ -24,6 +24,7 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const { elements, onChange } = props;
 
   const { zoom } = useViewPort();
+  const board = useBoard();
 
   const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
     e.stopPropagation();
@@ -34,16 +35,14 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignLeft = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const noArrowElements = elements.filter((el) => el.type !== "arrow");
-
-    const minX = Math.min(...noArrowElements.map((el) => el.x));
-    const newElements = noArrowElements.map((el) =>
-      el.x === minX
-        ? el
-        : produce(el, (draft) => {
-            draft.x = minX;
-          }),
-    );
+    const minX = Math.min(...elements.map((el) => el.x));
+    const newElements = elements
+      .map((el) => {
+        const diffX = minX - el.x;
+        const newElement = board.moveElement(el, diffX, 0);
+        return newElement;
+      })
+      .filter(isValid);
 
     onChange(newElements);
   });
@@ -52,17 +51,15 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignRight = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const noArrowElements = elements.filter((el) => el.type !== "arrow");
-
-    const maxRight = Math.max(...noArrowElements.map((el) => el.x + el.width));
-    const newElements = noArrowElements.map((el) => {
-      const right = el.x + el.width;
-      return right === maxRight
-        ? el
-        : produce(el, (draft) => {
-            draft.x = maxRight - draft.width;
-          });
-    });
+    const maxRight = Math.max(...elements.map((el) => el.x + el.width));
+    console.log(maxRight, elements);
+    const newElements = elements
+      .map((el) => {
+        const diffX = maxRight - el.x - el.width;
+        const newElement = board.moveElement(el, diffX, 0);
+        return newElement;
+      })
+      .filter(isValid);
 
     onChange(newElements);
   });
@@ -71,16 +68,14 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignTop = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const noArrowElements = elements.filter((el) => el.type !== "arrow");
-
-    const minY = Math.min(...noArrowElements.map((el) => el.y));
-    const newElements = noArrowElements.map((el) =>
-      el.y === minY
-        ? el
-        : produce(el, (draft) => {
-            draft.y = minY;
-          }),
-    );
+    const minY = Math.min(...elements.map((el) => el.y));
+    const newElements = elements
+      .map((el) => {
+        const diffY = minY - el.y;
+        const newElement = board.moveElement(el, 0, diffY);
+        return newElement;
+      })
+      .filter(isValid);
 
     onChange(newElements);
   });
@@ -89,19 +84,14 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignBottom = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const noArrowElements = elements.filter((el) => el.type !== "arrow");
-
-    const maxBottom = Math.max(
-      ...noArrowElements.map((el) => el.y + el.height),
-    );
-    const newElements = noArrowElements.map((el) => {
-      const bottom = el.y + el.height;
-      return bottom === maxBottom
-        ? el
-        : produce(el, (draft) => {
-            draft.y = maxBottom - draft.height;
-          });
-    });
+    const maxBottom = Math.max(...elements.map((el) => el.y + el.height));
+    const newElements = elements
+      .map((el) => {
+        const diffY = maxBottom - el.y - el.height;
+        const newElement = board.moveElement(el, 0, diffY);
+        return newElement;
+      })
+      .filter(isValid);
 
     onChange(newElements);
   });
@@ -110,10 +100,8 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleDistributeHorizontal = useMemoizedFn(() => {
     if (elements.length < 2) return;
 
-    const noArrowElements = elements.filter((el) => el.type !== "arrow");
-
     // 按照x坐标排序
-    const sortedElements = [...noArrowElements].sort((a, b) => a.x - b.x);
+    const sortedElements = [...elements].sort((a, b) => a.x - b.x);
 
     // 获取第一个元素的位置作为起点
     const firstElement = sortedElements[0];
@@ -132,9 +120,10 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
       const prevElement = sortedElements[i - 1];
       const element = sortedElements[i];
 
-      const newElement = produce(element, (draft) => {
-        draft.x = currentX + prevElement.width + gap;
-      });
+      const diffX = currentX + prevElement.width + gap - element.x;
+
+      const newElement = board.moveElement(element, diffX, 0);
+      if (!newElement) continue;
 
       currentX = newElement.x;
 
@@ -148,10 +137,8 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleDistributeVertical = useMemoizedFn(() => {
     if (elements.length < 2) return;
 
-    const noArrowElements = elements.filter((el) => el.type !== "arrow");
-
     // 按照y坐标排序
-    const sortedElements = [...noArrowElements].sort((a, b) => a.y - b.y);
+    const sortedElements = [...elements].sort((a, b) => a.y - b.y);
 
     // 获取第一个元素的位置作为起点
     const firstElement = sortedElements[0];
@@ -170,9 +157,10 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
       const prevElement = sortedElements[i - 1];
       const element = sortedElements[i];
 
-      const newElement = produce(element, (draft) => {
-        draft.y = currentY + prevElement.height + gap;
-      });
+      const diffY = currentY + prevElement.height + gap - element.y;
+
+      const newElement = board.moveElement(element, 0, diffY);
+      if (!newElement) continue;
 
       currentY = newElement.y;
 
