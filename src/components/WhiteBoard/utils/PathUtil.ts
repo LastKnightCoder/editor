@@ -358,17 +358,26 @@ export class PathUtil {
   }
 
   /**
-   * 检查路径是否被删除（或其祖先路径被删除）
+   * 检查路径是否在指定操作索引之后被删除（或其祖先路径被删除）
+   * 这个方法考虑操作的执行顺序
    */
-  private static isPathDeleted(path: Path, deletedPaths: Path[]): boolean {
+  private static isPathDeletedBeforeIndex(
+    path: Path,
+    operations: Operation[],
+    currentIndex: number,
+  ): boolean {
     if (path.length === 0) return false; // 根路径不会被删除
 
-    for (const deletedPath of deletedPaths) {
-      if (
-        this.isAncestorPath(deletedPath, path) ||
-        this.pathsEqual(deletedPath, path)
-      ) {
-        return true;
+    // 只检查当前操作之后的删除操作
+    for (let i = 0; i < currentIndex; i++) {
+      const op = operations[i];
+      if (op.type === "remove_node") {
+        if (
+          this.isAncestorPath(op.path, path) ||
+          this.pathsEqual(op.path, path)
+        ) {
+          return true;
+        }
       }
     }
     return false;
@@ -377,6 +386,7 @@ export class PathUtil {
   /**
    * 过滤掉无效的操作（父元素被删除等）
    * 包括祖先-子孙关系过滤：删除祖先时自动过滤子孙删除操作
+   * 考虑操作顺序：对于move_node，如果先move再删除，则move操作有效
    * 返回过滤后的原始操作，用于保存到历史记录
    *
    * 性能优化：使用Set和Map加速路径查找和比较
@@ -416,36 +426,36 @@ export class PathUtil {
 
     const validOps: Operation[] = [];
 
-    // 第四步：根据过滤后的删除路径过滤其他操作
-    for (const op of operations) {
+    // 第四步：根据过滤后的删除路径过滤其他操作，考虑操作顺序
+    for (let i = 0; i < operations.length; i++) {
+      const op = operations[i];
       let isValid = true;
 
       if (op.type === "remove_node") {
-        // 只保留过滤后的删除操作（使用Set快速查找）
         if (!filteredDeletePathSet.has(JSON.stringify(op.path))) {
           isValid = false;
         }
       } else if (op.type === "insert_node") {
-        // 检查插入位置的父路径是否将要被删除
         const parentPath = op.path.slice(0, -1);
-        if (this.isPathDeleted(parentPath, filteredDeletePaths)) {
+        if (this.isPathDeletedBeforeIndex(parentPath, operations, i)) {
           isValid = false;
         }
       } else if (op.type === "move_node" && op.newPath) {
-        // 检查源路径是否将要被删除
-        if (this.isPathDeleted(op.path, filteredDeletePaths)) {
+        if (this.isPathDeletedBeforeIndex(op.path, operations, i)) {
           isValid = false;
         }
-        // 检查目标父路径是否将要被删除
         const targetParentPath = op.newPath.slice(0, -1);
-        if (this.isPathDeleted(targetParentPath, filteredDeletePaths)) {
+        if (this.isPathDeletedBeforeIndex(targetParentPath, operations, i)) {
           isValid = false;
         }
       } else if (op.type === "set_node") {
         // 特殊处理：如果路径被删除后又被重新插入，则set_node操作仍然有效（使用Set快速查找）
         const pathStr = JSON.stringify(op.path);
         const isReinserted = reinsertedPathSet.has(pathStr);
-        if (!isReinserted && this.isPathDeleted(op.path, filteredDeletePaths)) {
+        if (
+          !isReinserted &&
+          this.isPathDeletedBeforeIndex(op.path, operations, i)
+        ) {
           isValid = false;
         }
       }
@@ -623,7 +633,7 @@ export class PathUtil {
           transformedNewPath = this.calculateCumulativePathTransform(
             originalNewPath,
             operations.slice(0, i),
-            "move_target", // move操作的目标路径
+            currentOp.type,
           );
           transformCache.set(newPathCacheKey, transformedNewPath);
         }
@@ -689,36 +699,84 @@ export class PathUtil {
     opType: string,
     opPath: Path,
   ): boolean {
-    // 只检查顶层路径（白板的直接子元素）
-    if (targetPath.length !== 1 || opPath.length !== 1) {
-      return false;
+    // 检查顶层路径（白板的直接子元素）
+    if (targetPath.length === 1 && opPath.length === 1) {
+      const targetIndex = targetPath[0];
+      const opIndex = opPath[0];
+
+      switch (opType) {
+        case "insert_node":
+          return targetIndex > opIndex;
+        case "remove_node":
+          return targetIndex > opIndex;
+        case "set_node":
+          return false;
+        case "move_node":
+          return targetIndex === opIndex || targetIndex > opIndex;
+        default:
+          return false;
+      }
     }
 
-    const targetIndex = targetPath[0];
-    const opIndex = opPath[0];
+    // 检查同层级同深度的影响：例如 [0, 0] 和 [0, 1]
+    if (targetPath.length === opPath.length && targetPath.length > 1) {
+      // 检查除了最后一个索引外，其他部分是否相同
+      let sameParent = true;
+      for (let i = 0; i < targetPath.length - 1; i++) {
+        if (targetPath[i] !== opPath[i]) {
+          sameParent = false;
+          break;
+        }
+      }
 
-    switch (opType) {
-      case "insert_node":
-        // 修复：插入操作只影响同级的后续位置，但不包括相等位置
-        // 原因：基于原始状态的两个操作，如果都要插入到相同或相近位置，
-        // 应该按照它们在操作序列中的顺序执行，而不是相互影响路径
-        return targetIndex > opIndex;
+      if (sameParent) {
+        // 同父级的兄弟节点，检查最后一层的影响
+        const lastIndex = targetPath.length - 1;
+        const targetIndex = targetPath[lastIndex];
+        const opIndex = opPath[lastIndex];
 
-      case "remove_node":
-        // 删除影响：同级后续位置前移（不包括被删除的位置本身）
-        return targetIndex > opIndex;
-
-      case "set_node":
-        // set操作不影响路径结构
-        return false;
-
-      case "move_node":
-        // move操作的删除阶段影响
-        return targetIndex === opIndex || targetIndex > opIndex;
-
-      default:
-        return false;
+        switch (opType) {
+          case "insert_node":
+            return targetIndex > opIndex;
+          case "remove_node":
+            return targetIndex > opIndex;
+          case "set_node":
+            return false;
+          case "move_node":
+            return targetIndex === opIndex || targetIndex > opIndex;
+          default:
+            return false;
+        }
+      }
     }
+
+    // 检查跨层级影响：上层操作对下层路径的影响
+    if (targetPath.length > 1 && opPath.length < targetPath.length) {
+      // 检查操作路径是否是目标路径的前缀
+      for (let i = 0; i < opPath.length; i++) {
+        if (targetPath[i] !== opPath[i]) {
+          // 如果在某个层级不匹配，检查是否是同级影响
+          if (i === opPath.length - 1) {
+            // 最后一层，检查同级影响
+            switch (opType) {
+              case "remove_node":
+                return targetPath[i] > opPath[i];
+              case "insert_node":
+                return targetPath[i] >= opPath[i];
+              case "move_node":
+                return targetPath[i] === opPath[i] || targetPath[i] > opPath[i];
+              default:
+                return false;
+            }
+          }
+          return false;
+        }
+      }
+      // 如果操作路径是目标路径的完整前缀，则不影响（除非是删除操作）
+      return opType === "remove_node";
+    }
+
+    return false;
   }
 
   /**
@@ -734,52 +792,140 @@ export class PathUtil {
     opPath: Path,
     targetOpType?: string,
   ): Path | null {
-    // 只处理顶层路径
-    if (targetPath.length !== 1 || opPath.length !== 1) {
-      return targetPath;
-    }
+    // 处理顶层路径
+    if (targetPath.length === 1 && opPath.length === 1) {
+      const targetIndex = targetPath[0];
+      const opIndex = opPath[0];
 
-    const targetIndex = targetPath[0];
-    const opIndex = opPath[0];
-
-    switch (opType) {
-      case "insert_node":
-        // 插入操作：同级后续位置+1
-        if (targetIndex >= opIndex) {
-          return [targetIndex + 1];
-        }
-        return targetPath;
-
-      case "remove_node":
-        // 删除操作：同级后续位置前移
-        if (targetIndex === opIndex) {
-          // 特殊情况：如果目标是插入操作且路径相同，删除不影响插入
-          if (targetOpType === "insert_node") {
-            return targetPath; // 保持原路径不变
+      switch (opType) {
+        case "insert_node":
+          if (targetIndex >= opIndex) {
+            return [targetIndex + 1];
           }
-          return null; // 路径被删除
-        } else if (targetIndex > opIndex) {
-          return [targetIndex - 1];
-        }
-        return targetPath;
-
-      case "set_node":
-        // set操作不影响路径
-        return targetPath;
-
-      case "move_node":
-        // move操作的删除阶段
-        if (targetIndex === opIndex) {
-          return null;
-        }
-        if (targetIndex > opIndex) {
-          return [targetIndex - 1];
-        }
-        return targetPath;
-
-      default:
-        return targetPath;
+          return targetPath;
+        case "remove_node":
+          if (targetIndex === opIndex) {
+            if (targetOpType === "insert_node") {
+              return targetPath;
+            }
+            return null;
+          } else if (targetIndex > opIndex) {
+            return [targetIndex - 1];
+          }
+          return targetPath;
+        case "set_node":
+          return targetPath;
+        case "move_node":
+          if (targetIndex === opIndex) {
+            // 对于 move 操作，如果两个操作都尝试移动同一位置的元素，
+            // 第二个操作应该被视为无效，但我们不应该完全删除它，
+            // 而是让它尝试移动一个不存在的元素（这会在执行时被忽略）
+            // 为了保持操作的完整性，我们标记这种情况
+            return null;
+          }
+          if (targetIndex > opIndex) {
+            return [targetIndex - 1];
+          }
+          return targetPath;
+        default:
+          return targetPath;
+      }
     }
+
+    // 处理同层级同深度的影响：例如 [0, 0] 和 [0, 1]
+    if (targetPath.length === opPath.length && targetPath.length > 1) {
+      // 检查除了最后一个索引外，其他部分是否相同
+      let sameParent = true;
+      for (let i = 0; i < targetPath.length - 1; i++) {
+        if (targetPath[i] !== opPath[i]) {
+          sameParent = false;
+          break;
+        }
+      }
+
+      if (sameParent) {
+        const newPath = [...targetPath];
+        const lastIndex = targetPath.length - 1;
+        const targetIndex = targetPath[lastIndex];
+        const opIndex = opPath[lastIndex];
+
+        switch (opType) {
+          case "insert_node":
+            if (targetIndex >= opIndex) {
+              newPath[lastIndex] = targetIndex + 1;
+            }
+            return newPath;
+          case "remove_node":
+            if (targetIndex === opIndex) {
+              if (targetOpType === "insert_node") {
+                return targetPath;
+              }
+              return null;
+            } else if (targetIndex > opIndex) {
+              newPath[lastIndex] = targetIndex - 1;
+            }
+            return newPath;
+          case "set_node":
+            return targetPath;
+          case "move_node":
+            if (targetIndex === opIndex) {
+              return null;
+            }
+            if (targetIndex > opIndex) {
+              newPath[lastIndex] = targetIndex - 1;
+            }
+            return newPath;
+          default:
+            return targetPath;
+        }
+      }
+    }
+
+    // 处理跨层级影响
+    if (targetPath.length > 1 && opPath.length < targetPath.length) {
+      const newPath = [...targetPath];
+      const affectedDepth = opPath.length - 1;
+
+      // 检查是否是前缀匹配的跨层级影响
+      let isPrefix = true;
+      for (let i = 0; i < opPath.length - 1; i++) {
+        if (targetPath[i] !== opPath[i]) {
+          isPrefix = false;
+          break;
+        }
+      }
+
+      if (isPrefix) {
+        const targetIndex = targetPath[affectedDepth];
+        const opIndex = opPath[affectedDepth];
+
+        switch (opType) {
+          case "insert_node":
+            if (targetIndex >= opIndex) {
+              newPath[affectedDepth] = targetIndex + 1;
+            }
+            return newPath;
+          case "remove_node":
+            if (targetIndex === opIndex) {
+              return null; // 祖先被删除
+            } else if (targetIndex > opIndex) {
+              newPath[affectedDepth] = targetIndex - 1;
+            }
+            return newPath;
+          case "move_node":
+            if (targetIndex === opIndex) {
+              return null; // 祖先被移动，当前路径失效
+            } else if (targetIndex > opIndex) {
+              newPath[affectedDepth] = targetIndex - 1;
+            }
+            return newPath;
+          default:
+            return targetPath;
+        }
+      }
+    }
+
+    return targetPath;
   }
 
   /**

@@ -61,42 +61,41 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       },
     );
 
-    newElementsInArea.forEach((boardElement) => {
-      const path = PathUtil.getPathByElement(board, boardElement);
-      if (!path) return;
-      ops.push({
-        type: "remove_node",
-        path,
-        node: boardElement,
-      });
-    });
-
+    // 处理移出 frame 的元素 - 使用 move_node 从 frame.children 移动到 board.children
     const outChildren = element.children.filter((child) => {
       return !FrameUtil.isElementInFrame(child, updatedFrame);
     });
 
     outChildren.forEach((child) => {
+      const oldPath = PathUtil.getPathByElement(board, child);
+      if (!oldPath) return;
+
+      // 新路径：移动到 board.children 的末尾
+      const newPath = [board.children.length];
+
       ops.push({
-        type: "insert_node",
-        path: [board.children.length],
-        node: child,
+        type: "move_node",
+        path: oldPath,
+        newPath,
       });
     });
-
-    updatedFrame.children = element.children.filter((child) => {
-      return !outChildren.some((outChild) => outChild.id === child.id);
-    });
-    updatedFrame.children = [...updatedFrame.children, ...newElementsInArea];
 
     const framePath = PathUtil.getPathByElement(board, element);
-    if (framePath) {
+    if (!framePath) return;
+
+    // 处理新进入 frame 的元素 - 使用 move_node 从 board.children 移动到 frame.children
+    newElementsInArea.forEach((boardElement) => {
+      const oldPath = PathUtil.getPathByElement(board, boardElement);
+      if (!oldPath) return;
+
+      const newPath = [...framePath, element.children.length];
+
       ops.push({
-        type: "set_node",
-        path: framePath,
-        properties: element,
-        newProperties: updatedFrame,
+        type: "move_node",
+        path: oldPath,
+        newPath,
       });
-    }
+    });
 
     if (ops.length > 0) {
       board.apply(ops, false);

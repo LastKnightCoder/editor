@@ -115,27 +115,39 @@ export const useCreateFrame = () => {
           },
         );
 
-        // 新增的元素，如果被框住，且之前不在 Frame，删除（应该说是移动到了这个 Frame 中）
-        newElementsInArea.forEach((element) => {
-          const path = PathUtil.getPathByElement(board, element);
-          if (!path) return;
-          ops.push({
-            type: "remove_node",
-            path,
-            node: element,
-          });
-        });
-
-        // 由于调整，之前在 Frame 中的元素可能被移出去了
+        // 处理移出 frame 的元素 - 使用 move_node 从 frame.children 移动到 board.children
         const outChildren = updatedFrame.children.filter((child) => {
           return !FrameUtil.isElementInFrame(child, updatedFrame);
         });
 
         outChildren.forEach((child) => {
+          const oldPath = PathUtil.getPathByElement(board, child);
+          if (!oldPath) return;
+
+          const newPath = [board.children.length];
+
           ops.push({
-            type: "insert_node",
-            path: [board.children.length],
-            node: child,
+            type: "move_node",
+            path: oldPath,
+            newPath,
+          });
+        });
+
+        // 处理新进入 frame 的元素 - 使用 move_node 从 board.children 移动到 frame.children
+        const framePath = createdFramePath.current;
+        if (!framePath) return;
+
+        newElementsInArea.forEach((element) => {
+          const oldPath = PathUtil.getPathByElement(board, element);
+          if (!oldPath) return;
+          if (!createdFrame.current) return;
+
+          const newPath = [...framePath, createdFrame.current.children.length];
+
+          ops.push({
+            type: "move_node",
+            path: oldPath,
+            newPath,
           });
         });
 
@@ -155,8 +167,8 @@ export const useCreateFrame = () => {
         });
 
         board.apply(ops, false);
-
         createdFrame.current = updatedFrame;
+
         // 需要重新更新 path
         const newPath = PathUtil.getPathByElement(board, updatedFrame);
         if (!newPath) {

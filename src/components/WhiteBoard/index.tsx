@@ -152,6 +152,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     );
   }, []);
 
+  // @ts-ignore
+  // window.board = board;
+
   const isArrowMoving = useListenArrowMove(board);
   const isElementsMoving = useElementsMoving(board);
 

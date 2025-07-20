@@ -1,4 +1,5 @@
 import { Board, BoardElement, Operation } from "../types";
+import BoardUtil from "./BoardUtil";
 import PathUtil from "./PathUtil";
 
 /**
@@ -128,7 +129,10 @@ export class BoardOperations {
             }
           }
 
-          metadata.changedElements.push(node);
+          // 有的时候会通过 set_node 修改子元素，无法区分修改了哪些，暂时全部认为更新了
+          BoardUtil.dfs(node, (child) => {
+            metadata.changedElements.push(child);
+          });
           metadata.hasChanges = true;
         } else if (op.type === "insert_node") {
           if (readonly) continue;
@@ -138,6 +142,12 @@ export class BoardOperations {
           if (path.length === 1) {
             // 顶层插入
             const index = path[0];
+
+            // 检查数组是否可扩展，如果不可扩展则创建新的副本
+            if (!Object.isExtensible(board.children)) {
+              board.children = [...board.children];
+            }
+
             if (index <= board.children.length) {
               board.children.splice(index, 0, JSON.parse(JSON.stringify(node)));
               metadata.hasChanges = true;
@@ -171,6 +181,11 @@ export class BoardOperations {
             if (!parent) continue;
             if (!parent.children) {
               parent.children = [];
+            }
+
+            // 检查数组是否可扩展，如果不可扩展则创建新的副本
+            if (!Object.isExtensible(parent.children)) {
+              parent.children = [...parent.children];
             }
 
             // 插入节点
@@ -229,6 +244,9 @@ export class BoardOperations {
             if (removeIndex < parent.children.length) {
               const removedElement = parent.children[removeIndex];
               metadata.removedElements.push(removedElement);
+              if (!Object.isExtensible(parent.children)) {
+                parent.children = [...parent.children];
+              }
               parent.children.splice(removeIndex, 1);
               metadata.hasChanges = true;
             }
@@ -280,6 +298,9 @@ export class BoardOperations {
                 sourceParent?.children &&
                 sourceIndex < sourceParent.children.length
               ) {
+                if (!Object.isExtensible(sourceParent.children)) {
+                  sourceParent.children = [...sourceParent.children];
+                }
                 elementToMove = sourceParent.children[sourceIndex];
                 sourceParent.children.splice(sourceIndex, 1);
               }
@@ -291,6 +312,12 @@ export class BoardOperations {
             if (newPath.length === 1) {
               // 顶层插入
               const targetIndex = newPath[0];
+
+              // 检查数组是否可扩展，如果不可扩展则创建新的副本
+              if (!Object.isExtensible(board.children)) {
+                board.children = [...board.children];
+              }
+
               if (targetIndex <= board.children.length) {
                 board.children.splice(targetIndex, 0, elementToMove);
                 metadata.hasChanges = true;
@@ -323,6 +350,12 @@ export class BoardOperations {
                   if (!targetParent.children) {
                     targetParent.children = [];
                   }
+
+                  // 检查数组是否可扩展，如果不可扩展则创建新的副本
+                  if (!Object.isExtensible(targetParent.children)) {
+                    targetParent.children = [...targetParent.children];
+                  }
+
                   if (targetIndex <= targetParent.children.length) {
                     targetParent.children.splice(targetIndex, 0, elementToMove);
                     metadata.hasChanges = true;

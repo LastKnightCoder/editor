@@ -970,7 +970,7 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
         {
           type: "insert_node",
-          path: [0, 1], // 插入到group1的children中位置1
+          path: [0, 0], // 插入到group1的children中位置1
           node: initialState[1],
         },
         // 4. 修改组的属性
