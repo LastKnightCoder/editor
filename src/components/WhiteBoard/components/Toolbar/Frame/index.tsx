@@ -28,7 +28,7 @@ const Frame = memo(({ className }: FrameProps) => {
   });
 
   return (
-    <Tooltip title="创建 Frame">
+    <Tooltip title="Frame">
       <div
         className={classnames(className, styles.toolBarItem, {
           [styles.active]:

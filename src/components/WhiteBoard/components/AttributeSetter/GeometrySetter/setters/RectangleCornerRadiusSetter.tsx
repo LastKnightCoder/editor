@@ -1,7 +1,7 @@
 import React from "react";
 import { GeometrySetterComponentProps } from "../IGeometrySetter";
 import { BaseGeometrySetter } from "../BaseGeometrySetter";
-import { Popover, Tooltip, Slider } from "antd";
+import { Popover, Tooltip, Slider, ConfigProvider, theme } from "antd";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 import styles from "./setters.module.less";
@@ -32,20 +32,27 @@ const RectangleCornerRadiusSetterComponent: React.FC<
       styles={{
         body: {
           padding: 12,
-          marginLeft: 12,
+          marginLeft: 24,
           width: 200,
+          backgroundColor: "white",
         },
       }}
       content={
-        <div>
-          <Slider
-            min={0}
-            max={50}
-            step={1}
-            value={cornerRadius}
-            onChange={handleCornerRadiusChange}
-            tooltip={{ formatter: (value) => `${value}px` }}
-          />
+        <div className="text-black">
+          <ConfigProvider
+            theme={{
+              algorithm: theme.defaultAlgorithm,
+            }}
+          >
+            <Slider
+              min={0}
+              max={50}
+              step={1}
+              value={cornerRadius}
+              onChange={handleCornerRadiusChange}
+              tooltip={{ formatter: (value) => `${value}px` }}
+            />
+          </ConfigProvider>
         </div>
       }
     >

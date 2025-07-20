@@ -57,6 +57,8 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       styles={{
         body: {
           marginLeft: 24,
+          backgroundColor: "white",
+          padding: 8,
         },
       }}
       content={
@@ -75,7 +77,7 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
         </div>
       }
     >
-      <Tooltip title={"对齐"} placement={"left"}>
+      <Tooltip title={"文字对齐"} placement={"left"}>
         <div className={styles.item}>
           <MdOutlineFormatAlignJustify />
         </div>

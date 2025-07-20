@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import SVG from "react-inlinesvg";
-import { App } from "antd";
+import { App, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
 import imageIcon from "@/assets/white-board/image.svg";
 
@@ -37,22 +37,24 @@ const Image = (props: ImageProps) => {
   );
 
   return (
-    <div
-      className={className}
-      style={style}
-      onClick={() => {
-        imageInputRef.current?.click();
-      }}
-    >
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={handleAddImage}
-      />
-      <SVG src={imageIcon} />
-    </div>
+    <Tooltip title="图片">
+      <div
+        className={className}
+        style={style}
+        onClick={() => {
+          imageInputRef.current?.click();
+        }}
+      >
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={handleAddImage}
+        />
+        <SVG src={imageIcon} />
+      </div>
+    </Tooltip>
   );
 };
 

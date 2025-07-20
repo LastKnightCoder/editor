@@ -5,6 +5,7 @@ import { useMemoizedFn } from "ahooks";
 import useCreateArrow from "./useCreateArrow";
 import { useCreateElementType, useBoard } from "../../../hooks";
 import { ECreateBoardElementType } from "../../../types";
+import { Tooltip } from "antd";
 
 interface ArrowProps {
   className?: string;
@@ -28,9 +29,11 @@ const Arrow = memo((props: ArrowProps) => {
   });
 
   return (
-    <div className={className} style={style} onClick={onClickCreateElement}>
-      <SVG src={straightArrowIcon} />
-    </div>
+    <Tooltip title="箭头">
+      <div className={className} style={style} onClick={onClickCreateElement}>
+        <SVG src={straightArrowIcon} />
+      </div>
+    </Tooltip>
   );
 });
 

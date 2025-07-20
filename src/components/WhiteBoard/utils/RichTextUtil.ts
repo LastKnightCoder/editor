@@ -11,7 +11,11 @@ import {
 const LOCAL_STORAGE_KEY = "whiteboard-richtext";
 
 export class RichTextUtil {
-  static setLocalStorage(key: string, value: string) {
+  static setLocalStorage(key: string, value: string | undefined) {
+    if (!value) {
+      localStorage.removeItem(`${LOCAL_STORAGE_KEY}-${key}`);
+      return;
+    }
     const realKey = `${LOCAL_STORAGE_KEY}-${key}`;
     localStorage.setItem(realKey, value);
   }

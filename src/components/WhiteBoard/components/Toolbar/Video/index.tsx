@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import SVG from "react-inlinesvg";
-import { App } from "antd";
+import { App, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
 import videoIcon from "@/assets/white-board/video.svg";
 
@@ -37,22 +37,24 @@ const Video = (props: ImageProps) => {
   );
 
   return (
-    <div
-      className={className}
-      style={style}
-      onClick={() => {
-        videoInputRef.current?.click();
-      }}
-    >
-      <input
-        ref={videoInputRef}
-        type="file"
-        accept="video/*"
-        hidden
-        onChange={handleAddVideo}
-      />
-      <SVG src={videoIcon} />
-    </div>
+    <Tooltip title="视频">
+      <div
+        className={className}
+        style={style}
+        onClick={() => {
+          videoInputRef.current?.click();
+        }}
+      >
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept="video/*"
+          hidden
+          onChange={handleAddVideo}
+        />
+        <SVG src={videoIcon} />
+      </div>
+    </Tooltip>
   );
 };
 

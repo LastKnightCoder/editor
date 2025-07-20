@@ -1,5 +1,5 @@
 import { memo, useState } from "react";
-import { Popover } from "antd";
+import { Popover, Tooltip } from "antd";
 import SVG from "react-inlinesvg";
 import { useMemoizedFn } from "ahooks";
 
@@ -86,21 +86,23 @@ const Geometry = memo((props: GeometryProps) => {
         },
       }}
     >
-      <div
-        className={className}
-        style={style}
-        onClick={() => {
-          if (createElementType === ECreateBoardElementType.Geometry) {
-            setPopoverOpen(false);
-            board.currentCreateType = ECreateBoardElementType.None;
-          } else {
-            board.currentCreateType = ECreateBoardElementType.Geometry;
-            setPopoverOpen(true);
-          }
-        }}
-      >
-        <SVG src={geometryIcon} />
-      </div>
+      <Tooltip title="形状">
+        <div
+          className={className}
+          style={style}
+          onClick={() => {
+            if (createElementType === ECreateBoardElementType.Geometry) {
+              setPopoverOpen(false);
+              board.currentCreateType = ECreateBoardElementType.None;
+            } else {
+              board.currentCreateType = ECreateBoardElementType.Geometry;
+              setPopoverOpen(true);
+            }
+          }}
+        >
+          <SVG src={geometryIcon} />
+        </div>
+      </Tooltip>
     </Popover>
   );
 });

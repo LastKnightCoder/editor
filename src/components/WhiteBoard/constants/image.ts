@@ -14,7 +14,7 @@ export enum EDescriptionAlignment {
 export const IMAGE_DESCRIPTION_HEIGHT = 24;
 
 // 描述区域内边距
-export const IMAGE_DESCRIPTION_PADDING = "4px 0px";
+export const IMAGE_DESCRIPTION_PADDING = "4px 8px";
 
 // 描述区域与图片的间距
 export const IMAGE_DESCRIPTION_MARGIN = 8;
@@ -38,4 +38,4 @@ export const DEFAULT_DESCRIPTION_POSITION = EDescriptionPosition.BOTTOM;
 export const DEFAULT_DESCRIPTION_ALIGNMENT = EDescriptionAlignment.CENTER;
 
 // 默认描述字体大小
-export const DEFAULT_DESCRIPTION_FONT_SIZE = 12;
+export const DEFAULT_DESCRIPTION_FONT_SIZE = 10;
