@@ -96,43 +96,41 @@ export class CopyPastePlugin implements IBoardPlugin {
         x: minX + width / 2,
         y: minY + height / 2,
       };
+
+      // 收集所有需要替换的ID映射，包括子元素
       const idMaps = new Map<string, string>();
+      this.collectAllIds(elements, idMaps);
+
       const pastedElements = elements.map((element) => {
-        const newId = getUuid();
-        idMaps.set(element.id, newId);
-        element.id = newId;
-        if (typeof element.x === "number" && typeof element.y === "number") {
+        // 更新元素位置并替换所有ID引用
+        const updatedElement = this.updateElementIds(element, idMaps);
+
+        if (
+          typeof updatedElement.x === "number" &&
+          typeof updatedElement.y === "number"
+        ) {
           return {
-            ...element,
-            x: element.x + center.x,
-            y: element.y + center.y,
+            ...updatedElement,
+            x: updatedElement.x + center.x,
+            y: updatedElement.y + center.y,
           };
-        } else if (element.type === "arrow") {
-          element.points = element.points.map((point: Point) => {
+        } else if (updatedElement.type === "arrow") {
+          updatedElement.points = updatedElement.points.map((point: Point) => {
             return {
               x: point.x + center.x,
               y: point.y + center.y,
             };
           });
-          return element;
+          return updatedElement;
         } else {
-          return element;
+          return updatedElement;
         }
       });
-      let index = 0;
+
       const childrenLength = board.children.length;
       const ops: Operation[] = [];
       for (const element of pastedElements) {
-        const path = [childrenLength + index++];
-        if (element.type === "arrow") {
-          // 重新绑定 bindId
-          if (element.source.bindId) {
-            element.source.bindId = idMaps.get(element.source.bindId);
-          }
-          if (element.target.bindId) {
-            element.target.bindId = idMaps.get(element.target.bindId);
-          }
-        }
+        const path = [childrenLength];
         ops.push({
           type: "insert_node",
           path,
@@ -146,5 +144,56 @@ export class CopyPastePlugin implements IBoardPlugin {
       console.error(e);
       return;
     }
+  }
+
+  /**
+   * 递归收集所有元素的ID，包括children中的元素
+   */
+  private collectAllIds(elements: BoardElement[], idMaps: Map<string, string>) {
+    for (const element of elements) {
+      // 为当前元素生成新ID
+      const newId = getUuid();
+      idMaps.set(element.id, newId);
+
+      // 递归处理children
+      if (element.children && element.children.length > 0) {
+        this.collectAllIds(element.children, idMaps);
+      }
+    }
+  }
+
+  /**
+   * 递归更新元素及其children的所有ID引用
+   */
+  private updateElementIds(
+    element: BoardElement,
+    idMaps: Map<string, string>,
+  ): BoardElement {
+    // 更新当前元素的ID
+    const updatedElement = { ...element };
+    updatedElement.id = idMaps.get(element.id) || element.id;
+
+    // 处理arrow类型的bindId引用
+    if (updatedElement.type === "arrow") {
+      if (updatedElement.source.bindId) {
+        updatedElement.source.bindId =
+          idMaps.get(updatedElement.source.bindId) ||
+          updatedElement.source.bindId;
+      }
+      if (updatedElement.target.bindId) {
+        updatedElement.target.bindId =
+          idMaps.get(updatedElement.target.bindId) ||
+          updatedElement.target.bindId;
+      }
+    }
+
+    // 递归处理children
+    if (updatedElement.children && updatedElement.children.length > 0) {
+      updatedElement.children = updatedElement.children.map((child) =>
+        this.updateElementIds(child, idMaps),
+      );
+    }
+
+    return updatedElement;
   }
 }
