@@ -89,17 +89,19 @@ const Toolbar = memo(() => {
             createBoardElementType === ECreateBoardElementType.StraightArrow,
         })}
       />
-      <div
-        className={classnames(styles.toolBarItem, {
-          [styles.active]:
-            createBoardElementType === ECreateBoardElementType.Text,
-        })}
-        onClick={() => {
-          onClickCreateElement(ECreateBoardElementType.Text);
-        }}
-      >
-        <SVG src={textIcon} />
-      </div>
+      <Tooltip title="富文本">
+        <div
+          className={classnames(styles.toolBarItem, {
+            [styles.active]:
+              createBoardElementType === ECreateBoardElementType.Text,
+          })}
+          onClick={() => {
+            onClickCreateElement(ECreateBoardElementType.Text);
+          }}
+        >
+          <SVG src={textIcon} />
+        </div>
+      </Tooltip>
       <MindMap
         className={classnames(styles.toolBarItem, {
           [styles.active]:
@@ -111,7 +113,7 @@ const Toolbar = memo(() => {
       <Webview className={styles.toolBarItem} />
       <Card className={styles.toolBarItem} />
       <Frame className={styles.toolBarItem} />
-      <Tooltip title="创建演示序列">
+      <Tooltip title="演示序列">
         <div
           className={classnames(styles.toolBarItem, {
             [styles.active]: isCreatingSequence,

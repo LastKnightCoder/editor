@@ -9,15 +9,16 @@
   width: fit-content;
   box-sizing: border-box;
   gap: 0.75em;
-  grid-template-columns: repeat(3, 1.5em);
+  grid-template-columns: repeat(3, 2em);
   grid-template-rows: auto;
 
   .item {
     padding: 0.25em;
-    width: 1.5em;
-    height: 1.5em;
+    width: 2em;
+    height: 2em;
     cursor: pointer;
     border-radius: 0.25em;
+    box-sizing: content-box;
 
     &.active {
       color: rgb(102, 152, 255);

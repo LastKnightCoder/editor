@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Input, Modal, Button } from "antd";
+import { Input, Modal, Button, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
 import SVG from "react-inlinesvg";
@@ -65,9 +65,11 @@ const Webview = (props: WebviewProps) => {
 
   return (
     <>
-      <div className={className} style={style} onClick={handleAddWebview}>
-        <SVG src={webviewIcon} />
-      </div>
+      <Tooltip title="网页视图">
+        <div className={className} style={style} onClick={handleAddWebview}>
+          <SVG src={webviewIcon} />
+        </div>
+      </Tooltip>
 
       <Modal
         title="添加网页视图"

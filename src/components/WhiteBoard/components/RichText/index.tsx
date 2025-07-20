@@ -291,6 +291,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       isMoving: isMoving || isArrowMoving,
       isSelected,
     });
+
     useHandlePointer({
       container: containerRef.current,
       paddingWidth,

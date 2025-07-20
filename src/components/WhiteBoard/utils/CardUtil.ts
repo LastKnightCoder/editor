@@ -11,7 +11,11 @@ import {
 const LOCAL_STORAGE_KEY = "whiteboard-card";
 
 export class CardUtil {
-  static setLocalStorage(key: string, value: string) {
+  static setLocalStorage(key: string, value: string | undefined) {
+    if (!value) {
+      localStorage.removeItem(`${LOCAL_STORAGE_KEY}-${key}`);
+      return;
+    }
     const realKey = `${LOCAL_STORAGE_KEY}-${key}`;
     localStorage.setItem(realKey, value);
   }
@@ -35,7 +39,8 @@ export class CardUtil {
       DEFAULT_CARD_STROKE_OPACITY) as number;
     const theme = (this.getLocalStorage("theme") || DEFAULT_CARD_THEME) as
       | "light"
-      | "dark";
+      | "dark"
+      | undefined;
 
     return {
       background,

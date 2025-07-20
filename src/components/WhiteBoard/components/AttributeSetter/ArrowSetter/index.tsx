@@ -1,6 +1,6 @@
 import styles from "./index.module.less";
 import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
-import { Popover, Tooltip, Switch, Slider } from "antd";
+import { Popover, Tooltip, Switch, Slider, ConfigProvider, theme } from "antd";
 import { produce } from "immer";
 import Arrow from "../../Arrow";
 import { ColorResult, BlockPicker } from "react-color";
@@ -170,6 +170,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         styles={{
           body: {
             marginLeft: 24,
+            background: "white",
           },
         }}
         content={
@@ -202,7 +203,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
           </div>
         }
       >
-        <Tooltip title={"线型"}>
+        <Tooltip title={"线型"} placement={"left"}>
           <div className={styles.item}>
             <svg width={16} height={16} viewBox={"0 0 16 16"}>
               <Arrow
@@ -228,6 +229,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         styles={{
           body: {
             marginLeft: 24,
+            background: "white",
           },
         }}
         content={
@@ -260,7 +262,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
           </div>
         }
       >
-        <Tooltip title={"起点箭头"}>
+        <Tooltip title={"起点箭头"} placement={"left"}>
           <div className={styles.item}>
             <svg width={16} height={16} viewBox={"0 0 16 16"}>
               <Arrow
@@ -286,6 +288,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         styles={{
           body: {
             marginLeft: 24,
+            background: "white",
           },
         }}
         content={
@@ -318,7 +321,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
           </div>
         }
       >
-        <Tooltip title={"终点箭头"}>
+        <Tooltip title={"终点箭头"} placement={"left"}>
           <div className={styles.item}>
             <svg width={16} height={16} viewBox={"0 0 16 16"}>
               <Arrow
@@ -374,6 +377,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         styles={{
           body: {
             marginLeft: 24,
+            background: "white",
           },
         }}
         content={
@@ -404,7 +408,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
           </div>
         }
       >
-        <Tooltip title={"粗细"}>
+        <Tooltip title={"粗细"} placement={"left"}>
           <div className={styles.item}>
             <BsBorderWidth />
           </div>
@@ -421,10 +425,11 @@ const ArrowSetter = (props: ArrowSetterProps) => {
             padding: 12,
             marginLeft: 24,
             width: 200,
+            background: "white",
           },
         }}
         content={
-          <div>
+          <div className="text-black">
             <div
               style={{
                 display: "flex",
@@ -443,20 +448,26 @@ const ArrowSetter = (props: ArrowSetterProps) => {
             {element.sketchEnabled && (
               <div>
                 <span>粗糙度</span>
-                <Slider
-                  min={0.1}
-                  max={3}
-                  step={0.1}
-                  value={element.roughness || 1}
-                  onChange={onRoughnessChange}
-                  tooltip={{ formatter: (value) => `${value}` }}
-                />
+                <ConfigProvider
+                  theme={{
+                    algorithm: theme.defaultAlgorithm,
+                  }}
+                >
+                  <Slider
+                    min={0.1}
+                    max={3}
+                    step={0.1}
+                    value={element.roughness || 1}
+                    onChange={onRoughnessChange}
+                    tooltip={{ formatter: (value) => `${value}` }}
+                  />
+                </ConfigProvider>
               </div>
             )}
           </div>
         }
       >
-        <Tooltip title={"草图风格"}>
+        <Tooltip title={"草图风格"} placement={"left"}>
           <div className={styles.item}>
             <PiPencilLineDuotone />
           </div>

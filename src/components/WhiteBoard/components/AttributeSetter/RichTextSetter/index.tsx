@@ -1,14 +1,14 @@
 import { RichTextElement } from "@/components/WhiteBoard/plugins";
 import { MdOutlineColorLens } from "react-icons/md";
 import { CgArrowsShrinkH, CgArrowsShrinkV } from "react-icons/cg";
+import { MdOutlinePadding } from "react-icons/md";
 import { produce } from "immer";
 
 import styles from "./index.module.less";
-import { Popover, Tooltip } from "antd";
+import { Popover, Tooltip, Slider, ConfigProvider, theme } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useState } from "react";
 import { CardUtil, RichTextUtil } from "@/components/WhiteBoard/utils";
-
 interface RichTextSetterProps {
   element: RichTextElement;
   onChange: (element: RichTextElement) => void;
@@ -18,16 +18,70 @@ interface ColorConfig {
   background: string;
   topColor: string;
   color: string;
-  theme: "light" | "dark";
+  theme?: "light" | "dark";
 }
 
-const colors: ColorConfig[] = [
+const noBackgroundColors: ColorConfig[] = [
+  {
+    background: "transparent",
+    topColor: "transparent",
+    color: "currentColor",
+  },
+];
+
+const pureColors: ColorConfig[] = [
   {
     background: "#fff",
     topColor: "transparent",
     color: "rgb(38, 38, 40)",
     theme: "light",
   },
+  {
+    background: "#000",
+    topColor: "transparent",
+    color: "#fff",
+    theme: "dark",
+  },
+  // 红橙黄绿蓝靛紫
+  {
+    background: "#FF6A63",
+    topColor: "transparent",
+    color: "#fff",
+    theme: "light",
+  },
+  {
+    background: "#FFA02C",
+    topColor: "transparent",
+    color: "#fff",
+    theme: "light",
+  },
+  {
+    background: "#F4D63B",
+    topColor: "transparent",
+    color: "#fff",
+    theme: "light",
+  },
+  {
+    background: "#24B079",
+    topColor: "transparent",
+    color: "#fff",
+    theme: "light",
+  },
+  {
+    background: "#865CC2",
+    topColor: "transparent",
+    color: "#fff",
+    theme: "light",
+  },
+  {
+    background: "#3F71FB",
+    topColor: "transparent",
+    color: "#fff",
+    theme: "light",
+  },
+];
+
+const gradientColors: ColorConfig[] = [
   {
     background: "linear-gradient(314.36deg, #3E4347 7.01%, #848C9C 124.82%)",
     topColor: "transparent",
@@ -71,6 +125,9 @@ const colors: ColorConfig[] = [
     color: "rgb(38, 38, 40)",
     theme: "light",
   },
+];
+
+const topColors: ColorConfig[] = [
   {
     background: "#fff",
     topColor: "#F7CE66",
@@ -107,6 +164,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
   const { element, onChange } = props;
 
   const [selectColorOpen, setSelectColorOpen] = useState(false);
+  const [selectPaddingOpen, setSelectPaddingOpen] = useState(false);
 
   const handleOnSelectColor = useMemoizedFn((color: ColorConfig) => {
     const newElement = produce(element, (draft) => {
@@ -127,6 +185,20 @@ const RichTextSetter = (props: RichTextSetterProps) => {
       RichTextUtil.setLocalStorage("color", color.color);
       RichTextUtil.setLocalStorage("theme", color.theme);
     }
+    onChange(newElement);
+  });
+
+  const handlePaddingWidthChange = useMemoizedFn((value: number) => {
+    const newElement = produce(element, (draft) => {
+      draft.paddingWidth = value;
+    });
+    onChange(newElement);
+  });
+
+  const handlePaddingHeightChange = useMemoizedFn((value: number) => {
+    const newElement = produce(element, (draft) => {
+      draft.paddingHeight = value;
+    });
     onChange(newElement);
   });
 
@@ -192,24 +264,100 @@ const RichTextSetter = (props: RichTextSetterProps) => {
           body: {
             padding: 0,
             marginLeft: 24,
+            backgroundColor: "white",
           },
         }}
         trigger={"click"}
         content={
-          <div className={styles.colorSelectContainer}>
-            {colors.map((color) => (
-              <div
-                key={`${color.background}-${color.topColor}-${color.color}`}
-                className={styles.colorItem}
-                style={{ background: color.background }}
-                onClick={() => handleOnSelectColor(color)}
-              >
-                <div
-                  className={styles.topColor}
-                  style={{ background: color.topColor }}
-                ></div>
+          <div className="flex flex-col gap-4 max-w-[200px] py-5 px-3 text-black">
+            <div>
+              <h3 className="mb-2 text-sm font-bold">透明背景</h3>
+              <div className="flex flex-wrap gap-2">
+                {noBackgroundColors.map((color) => (
+                  <div
+                    key={`${color.background}-${color.topColor}-${color.color}`}
+                    className={
+                      "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
+                    }
+                    style={{ background: color.background }}
+                    onClick={() => handleOnSelectColor(color)}
+                  >
+                    <div
+                      className={
+                        "absolute top-0 left-0 w-full h-2 rounded-t-sm"
+                      }
+                      style={{ background: color.topColor }}
+                    ></div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-bold">纯色背景</h3>
+              <div className="flex flex-wrap gap-2">
+                {pureColors.map((color) => (
+                  <div
+                    key={`${color.background}-${color.topColor}-${color.color}`}
+                    className={
+                      "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
+                    }
+                    style={{ background: color.background }}
+                    onClick={() => handleOnSelectColor(color)}
+                  >
+                    <div
+                      className={
+                        "absolute top-0 left-0 w-full h-2 rounded-t-sm"
+                      }
+                      style={{ background: color.topColor }}
+                    ></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-bold">渐变背景</h3>
+              <div className="flex flex-wrap gap-2">
+                {gradientColors.map((color) => (
+                  <div
+                    key={`${color.background}-${color.topColor}-${color.color}`}
+                    className={
+                      "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
+                    }
+                    style={{ background: color.background }}
+                    onClick={() => handleOnSelectColor(color)}
+                  >
+                    <div
+                      className={
+                        "absolute top-0 left-0 w-full h-2 rounded-t-sm"
+                      }
+                      style={{ background: color.topColor }}
+                    ></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-2 text-sm font-bold">顶部背景</h3>
+              <div className="flex flex-wrap gap-2">
+                {topColors.map((color) => (
+                  <div
+                    key={`${color.background}-${color.topColor}-${color.color}`}
+                    className={
+                      "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
+                    }
+                    style={{ background: color.background }}
+                    onClick={() => handleOnSelectColor(color)}
+                  >
+                    <div
+                      className={
+                        "absolute top-0 left-0 w-full h-2 rounded-t-sm"
+                      }
+                      style={{ background: color.topColor }}
+                    ></div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         }
         placement={"right"}
@@ -218,6 +366,65 @@ const RichTextSetter = (props: RichTextSetterProps) => {
         <Tooltip title={"背景颜色"} trigger={"hover"} placement={"left"}>
           <div className={styles.item}>
             <MdOutlineColorLens />
+          </div>
+        </Tooltip>
+      </Popover>
+      <Popover
+        open={selectPaddingOpen}
+        onOpenChange={setSelectPaddingOpen}
+        styles={{
+          body: {
+            padding: 12,
+            marginLeft: 12,
+            width: 200,
+            backgroundColor: "white",
+          },
+        }}
+        trigger={"click"}
+        content={
+          <div className="flex flex-col gap-4 text-black">
+            <div>
+              <div className="mb-2 text-sm font-medium">水平内边距</div>
+              <ConfigProvider
+                theme={{
+                  algorithm: theme.defaultAlgorithm,
+                }}
+              >
+                <Slider
+                  min={0}
+                  max={40}
+                  step={1}
+                  value={element.paddingWidth || 16}
+                  onChange={handlePaddingWidthChange}
+                  tooltip={{ formatter: (value) => `${value}px` }}
+                />
+              </ConfigProvider>
+            </div>
+            <div>
+              <div className="mb-2 text-sm font-medium">垂直内边距</div>
+              <ConfigProvider
+                theme={{
+                  algorithm: theme.defaultAlgorithm,
+                }}
+              >
+                <Slider
+                  min={0}
+                  max={40}
+                  step={1}
+                  value={element.paddingHeight || 16}
+                  onChange={handlePaddingHeightChange}
+                  tooltip={{ formatter: (value) => `${value}px` }}
+                />
+              </ConfigProvider>
+            </div>
+          </div>
+        }
+        placement={"right"}
+        arrow={false}
+      >
+        <Tooltip title={"内边距"} placement={"left"}>
+          <div className={styles.item}>
+            <MdOutlinePadding />
           </div>
         </Tooltip>
       </Popover>

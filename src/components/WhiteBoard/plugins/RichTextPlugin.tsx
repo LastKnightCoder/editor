@@ -75,7 +75,7 @@ export class RichTextPlugin extends CommonPlugin {
         },
       ],
       paddingWidth: 16,
-      paddingHeight: 8,
+      paddingHeight: 16,
       autoFocus: true,
       ...RichTextUtil.getPrevRichtextStyle(),
     };

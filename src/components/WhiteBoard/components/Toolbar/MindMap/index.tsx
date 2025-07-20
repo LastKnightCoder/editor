@@ -1,6 +1,7 @@
 import React from "react";
 import { RiMindMap } from "react-icons/ri";
 import { useMemoizedFn } from "ahooks";
+import { Tooltip } from "antd";
 
 import useCreateMindMap from "./useCreateMindMap.ts";
 import { useBoard, useCreateElementType } from "../../../hooks";
@@ -28,9 +29,11 @@ const MindMap = (props: MindMapProps) => {
   });
 
   return (
-    <div className={className} style={style} onClick={onClickCreateElement}>
-      <RiMindMap />
-    </div>
+    <Tooltip title="思维导图">
+      <div className={className} style={style} onClick={onClickCreateElement}>
+        <RiMindMap />
+      </div>
+    </Tooltip>
   );
 };
 

@@ -1,11 +1,9 @@
 import { memo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Popover, Tooltip } from "antd";
-import { BlockPicker } from "react-color";
-import { MdOutlineColorLens } from "react-icons/md";
+import { MdOutlineColorLens, MdOutlineTextFields } from "react-icons/md";
 import { CgAlignLeft, CgAlignCenter, CgAlignRight } from "react-icons/cg";
 import { BiSolidUpArrow, BiSolidDownArrow } from "react-icons/bi";
-import { TbTextSize } from "react-icons/tb";
 import { produce } from "immer";
 import { ImageElement } from "../../../types";
 import {
@@ -20,12 +18,62 @@ interface ImageSetterProps {
   onChange: (element: ImageElement) => void;
 }
 
+interface DescriptionColor {
+  backgroundColor: string;
+  borderColor: string;
+  color: string;
+}
+
+const DESCRIPTION_COLORS: DescriptionColor[] = [
+  {
+    backgroundColor: "transparent",
+    borderColor: "transparent",
+    color: "currentColor",
+  },
+  {
+    backgroundColor: "rgba(59, 130, 246, 0.1)",
+    borderColor: "#3b82f6",
+    color: "#000",
+  },
+  {
+    backgroundColor: "rgba(16, 185, 129, 0.1)",
+    borderColor: "#10b981",
+    color: "#000",
+  },
+  {
+    backgroundColor: "rgba(253, 224, 71, 0.15)",
+    borderColor: "#fde047",
+    color: "#000",
+  },
+  {
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
+    borderColor: "#f59e0b",
+    color: "#000",
+  },
+  {
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    borderColor: "#ef4444",
+    color: "#000",
+  },
+  {
+    backgroundColor: "rgba(139, 92, 246, 0.1)",
+    borderColor: "#8b5cf6",
+    color: "#000",
+  },
+  {
+    backgroundColor: "rgba(107, 114, 128, 0.1)",
+    borderColor: "#6b7280",
+    color: "#000",
+  },
+];
+
 const ImageSetter = memo((props: ImageSetterProps) => {
   const { element, onChange } = props;
+
+  const { showDescription = false } = element;
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [positionPopoverVisible, setPositionPopoverVisible] = useState(false);
   const [alignmentPopoverVisible, setAlignmentPopoverVisible] = useState(false);
-  const [fontSizePopoverVisible, setFontSizePopoverVisible] = useState(false);
 
   const handlePositionChange = useMemoizedFn(
     (position: EDescriptionPosition) => {
@@ -47,26 +95,24 @@ const ImageSetter = memo((props: ImageSetterProps) => {
     },
   );
 
-  const handleColorChange = useMemoizedFn((color: any) => {
+  const handleOnSelectColor = useMemoizedFn((color: DescriptionColor) => {
     const newElement = produce(element, (draft) => {
       if (!draft.descriptionStyle) {
         draft.descriptionStyle = {};
       }
-      draft.descriptionStyle.color = color.hex;
+      draft.descriptionStyle.backgroundColor = color.backgroundColor;
+      draft.descriptionStyle.borderColor = color.borderColor;
+      draft.descriptionStyle.color = color.color;
     });
     onChange(newElement);
     setColorPickerVisible(false);
   });
 
-  const handleFontSizeChange = useMemoizedFn((fontSize: number) => {
+  const handleToggleDescriptionChange = useMemoizedFn(() => {
     const newElement = produce(element, (draft) => {
-      if (!draft.descriptionStyle) {
-        draft.descriptionStyle = {};
-      }
-      draft.descriptionStyle.fontSize = fontSize;
+      draft.showDescription = !draft.showDescription;
     });
     onChange(newElement);
-    setFontSizePopoverVisible(false);
   });
 
   const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
@@ -131,38 +177,24 @@ const ImageSetter = memo((props: ImageSetterProps) => {
     </div>
   );
 
-  const fontSizeContent = (
-    <div
-      className={styles.popoverContent}
-      onClick={stopPropagation}
-      onPointerDown={stopPropagation}
-      onPointerUp={stopPropagation}
-      onWheel={stopPropagation}
-    >
-      {[12, 14, 16, 18, 20].map((size) => (
-        <div
-          key={size}
-          className={styles.fontSizeItem}
-          onClick={() => handleFontSizeChange(size)}
-        >
-          <span style={{ fontSize: `${size}px` }}>{size}</span>
-        </div>
-      ))}
-    </div>
-  );
-
   const colorContent = (
     <div
       onClick={stopPropagation}
       onPointerDown={stopPropagation}
       onPointerUp={stopPropagation}
       onWheel={stopPropagation}
+      className="flex flex-wrap gap-2 p-4"
     >
-      <BlockPicker
-        color={element.descriptionStyle?.color}
-        onChange={handleColorChange}
-        triangle="hide"
-      />
+      {DESCRIPTION_COLORS.map((color) => (
+        <div
+          key={`${color.backgroundColor}`}
+          className={
+            "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
+          }
+          style={{ background: color.backgroundColor }}
+          onClick={() => handleOnSelectColor(color)}
+        ></div>
+      ))}
     </div>
   );
 
@@ -173,103 +205,90 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       onWheel={stopPropagation}
       className={styles.container}
     >
-      <Popover
-        open={positionPopoverVisible}
-        onOpenChange={setPositionPopoverVisible}
-        styles={{
-          body: {
-            padding: 0,
-            marginLeft: 24,
-          },
-        }}
-        trigger={"click"}
-        content={positionContent}
-        placement={"right"}
-        arrow={false}
+      <Tooltip
+        title={!showDescription ? "显示描述" : "隐藏描述"}
+        trigger={"hover"}
+        placement={"left"}
       >
-        <Tooltip title={"描述位置"} trigger={"hover"} placement={"left"}>
-          <div className={styles.item}>
-            {element.descriptionPosition === EDescriptionPosition.TOP ? (
-              <BiSolidUpArrow />
-            ) : (
-              <BiSolidDownArrow />
-            )}
-          </div>
-        </Tooltip>
-      </Popover>
+        <div className={styles.item} onClick={handleToggleDescriptionChange}>
+          <MdOutlineTextFields />
+        </div>
+      </Tooltip>
+      {showDescription && (
+        <>
+          <Popover
+            open={positionPopoverVisible}
+            onOpenChange={setPositionPopoverVisible}
+            styles={{
+              body: {
+                padding: 0,
+                marginLeft: 24,
+              },
+            }}
+            trigger={"click"}
+            content={positionContent}
+            placement={"right"}
+            arrow={false}
+          >
+            <Tooltip title={"描述位置"} trigger={"hover"} placement={"left"}>
+              <div className={styles.item}>
+                {element.descriptionPosition === EDescriptionPosition.TOP ? (
+                  <BiSolidUpArrow />
+                ) : (
+                  <BiSolidDownArrow />
+                )}
+              </div>
+            </Tooltip>
+          </Popover>
 
-      <Popover
-        open={alignmentPopoverVisible}
-        onOpenChange={setAlignmentPopoverVisible}
-        styles={{
-          body: {
-            padding: 0,
-            marginLeft: 24,
-          },
-        }}
-        trigger={"click"}
-        content={alignmentContent}
-        placement={"right"}
-        arrow={false}
-      >
-        <Tooltip title={"文本对齐"} trigger={"hover"} placement={"left"}>
-          <div className={styles.item}>
-            {element.descriptionAlignment === EDescriptionAlignment.LEFT && (
-              <CgAlignLeft />
-            )}
-            {element.descriptionAlignment === EDescriptionAlignment.CENTER && (
-              <CgAlignCenter />
-            )}
-            {element.descriptionAlignment === EDescriptionAlignment.RIGHT && (
-              <CgAlignRight />
-            )}
-          </div>
-        </Tooltip>
-      </Popover>
+          <Popover
+            open={alignmentPopoverVisible}
+            onOpenChange={setAlignmentPopoverVisible}
+            styles={{
+              body: {
+                padding: 0,
+                marginLeft: 24,
+              },
+            }}
+            trigger={"click"}
+            content={alignmentContent}
+            placement={"right"}
+            arrow={false}
+          >
+            <Tooltip title={"文本对齐"} trigger={"hover"} placement={"left"}>
+              <div className={styles.item}>
+                {element.descriptionAlignment ===
+                  EDescriptionAlignment.LEFT && <CgAlignLeft />}
+                {element.descriptionAlignment ===
+                  EDescriptionAlignment.CENTER && <CgAlignCenter />}
+                {element.descriptionAlignment ===
+                  EDescriptionAlignment.RIGHT && <CgAlignRight />}
+              </div>
+            </Tooltip>
+          </Popover>
 
-      <Popover
-        open={fontSizePopoverVisible}
-        onOpenChange={setFontSizePopoverVisible}
-        styles={{
-          body: {
-            padding: 0,
-            marginLeft: 24,
-          },
-        }}
-        trigger={"click"}
-        content={fontSizeContent}
-        placement={"right"}
-        arrow={false}
-      >
-        <Tooltip title={"字体大小"} trigger={"hover"} placement={"left"}>
-          <div className={styles.item}>
-            <TbTextSize />
-          </div>
-        </Tooltip>
-      </Popover>
-
-      <Popover
-        open={colorPickerVisible}
-        onOpenChange={setColorPickerVisible}
-        styles={{
-          body: {
-            padding: 0,
-            marginLeft: 24,
-          },
-        }}
-        trigger={"click"}
-        content={colorContent}
-        placement={"right"}
-        arrow={false}
-      >
-        <Tooltip title={"文字颜色"} trigger={"hover"} placement={"left"}>
-          <div className={styles.item}>
-            <MdOutlineColorLens
-              style={{ color: element.descriptionStyle?.color }}
-            />
-          </div>
-        </Tooltip>
-      </Popover>
+          <Popover
+            open={colorPickerVisible}
+            onOpenChange={setColorPickerVisible}
+            styles={{
+              body: {
+                padding: 0,
+                marginLeft: 24,
+              },
+            }}
+            trigger={"click"}
+            content={colorContent}
+            placement={"right"}
+            arrow={false}
+          >
+            <Tooltip title={"背景颜色"} trigger={"hover"} placement={"left"}>
+              <div className={styles.item}>
+                <MdOutlineColorLens />
+              </div>
+            </Tooltip>
+          </Popover>
+        </>
+      )}
     </div>
   );
 });

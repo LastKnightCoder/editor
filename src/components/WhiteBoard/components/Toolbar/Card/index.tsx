@@ -17,7 +17,7 @@ import {
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
-import { message } from "antd";
+import { message, Tooltip } from "antd";
 
 const customExtensions = [
   contentLinkExtension,
@@ -129,8 +129,12 @@ const Card = (props: CardProps) => {
   });
 
   return (
-    <div className={className} style={style} onClick={handleSelectCard}>
-      <SVG src={cardIcon} />
+    <div>
+      <Tooltip title="卡片">
+        <div className={className} style={style} onClick={handleSelectCard}>
+          <SVG src={cardIcon} />
+        </div>
+      </Tooltip>
       <div onClick={(e) => e.stopPropagation()}>
         <ContentSelectorModal
           title={"选择卡片"}

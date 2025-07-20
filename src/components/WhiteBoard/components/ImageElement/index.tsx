@@ -70,6 +70,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     width,
     height,
     src,
+    showDescription = false,
     description = DEFAULT_DESCRIPTION,
     descriptionPosition = DEFAULT_DESCRIPTION_POSITION,
     descriptionAlignment = DEFAULT_DESCRIPTION_ALIGNMENT,
@@ -165,9 +166,15 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
   });
 
   const handleDescriptionPressEnter = useMemoizedFn(() => {
+    console.log("handleDescriptionPressEnter");
     setIsEditingDescription(false);
     saveDescription();
   });
+
+  // const handleDescriptionBlur = useMemoizedFn(() => {
+  //   setIsEditingDescription(false);
+  //   saveDescription();
+  // });
 
   const saveDescription = useMemoizedFn(() => {
     if (tempDescription !== description) {
@@ -200,16 +207,17 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     }
   });
 
-  const handleWheel = useMemoizedFn((e: React.WheelEvent) => {
-    // 阻止滚动冒泡
+  const stopPropagation = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
   });
 
-  useEffect(() => {
-    if (!isEditingDescription && editTextRef.current) {
-      saveDescription();
-    }
-  }, [isEditingDescription, saveDescription]);
+  const handleDoubleClickDescription = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditingDescription(true);
+    // 这里提前设置为 true，这样才能 focus，通过 React 状态同步就晚了
+    editTextRef.current?.setContentEditable(true);
+    editTextRef.current?.focusEnd();
+  });
 
   if (isConverting) {
     return null;
@@ -223,6 +231,11 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
   // 获取描述文字大小
   const descriptionFontSize =
     element.descriptionStyle?.fontSize || DEFAULT_DESCRIPTION_FONT_SIZE;
+
+  const descriptionBackgroundColor =
+    element.descriptionStyle?.backgroundColor || "transparent";
+  const descriptionBorderColor =
+    element.descriptionStyle?.borderColor || "transparent";
 
   // 计算描述区域高度 - 根据字体大小动态调整
   const descriptionHeight = Math.max(
@@ -243,12 +256,15 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     padding: IMAGE_DESCRIPTION_PADDING,
     lineHeight: "1.4",
     overflow: "hidden",
+    backgroundColor: descriptionBackgroundColor,
+    borderColor: descriptionBorderColor,
+    borderWidth: 2,
+    borderRadius: 8,
   };
 
   return (
     <>
-      {/* 图片描述区域 - 上方 */}
-      {descriptionPosition === EDescriptionPosition.TOP && (
+      {showDescription && (
         <foreignObject
           x={x}
           y={descriptionY}
@@ -258,63 +274,45 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
             userSelect: "none",
             pointerEvents: "auto",
           }}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-          }}
-          onPointerUp={(e) => {
-            e.stopPropagation();
-          }}
-          onWheel={handleWheel}
+          onPointerDown={stopPropagation}
+          onPointerUp={stopPropagation}
+          onWheel={stopPropagation}
+          onDoubleClick={stopPropagation}
         >
           <div
-            className={styles.descriptionContainer}
+            className={classnames(styles.descriptionContainer, {
+              [styles[descriptionAlignment]]: true,
+            })}
             onClick={handleDescriptionClick}
             onKeyDown={handleKeyDown}
+            onDoubleClick={handleDoubleClickDescription}
           >
-            {isEditingDescription ? (
-              <EditText
-                ref={editTextRef}
-                defaultValue={tempDescription}
-                onChange={handleDescriptionChange}
-                onPressEnter={handleDescriptionPressEnter}
-                contentEditable={true}
-                defaultFocus={true}
-                className={classnames(
-                  styles.descriptionText,
-                  styles[descriptionAlignment],
-                  {
-                    [styles.noContent]: !description,
-                  },
-                )}
-                style={descriptionTextStyle}
-                onBlur={() => {
-                  setIsEditingDescription(false);
-                }}
-              />
-            ) : (
-              <div
-                className={classnames(
-                  styles.descriptionText,
-                  styles[descriptionAlignment],
-                  {
-                    [styles.noContent]: !description,
-                  },
-                )}
-                style={descriptionTextStyle}
-              >
-                {description ||
-                  (isSelected ? (
-                    <span className={styles.placeholder}>
-                      {IMAGE_DESCRIPTION_PLACEHOLDER}
-                    </span>
-                  ) : null)}
-              </div>
+            <EditText
+              ref={editTextRef}
+              defaultValue={tempDescription}
+              onChange={handleDescriptionChange}
+              onPressEnter={handleDescriptionPressEnter}
+              contentEditable={isEditingDescription}
+              defaultFocus={isEditingDescription}
+              className={classnames(
+                styles.descriptionText,
+                styles[descriptionAlignment],
+                {
+                  "hidden!": !isEditingDescription && !description.trim(),
+                },
+              )}
+              style={descriptionTextStyle}
+              onBlur={handleDescriptionPressEnter}
+            />
+            {!isEditingDescription && !description.trim() && (
+              <span style={descriptionTextStyle}>
+                {IMAGE_DESCRIPTION_PLACEHOLDER}
+              </span>
             )}
           </div>
         </foreignObject>
       )}
 
-      {/* 图片区域 */}
       <foreignObject
         x={x}
         y={y}
@@ -330,78 +328,11 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           width={width}
           height={height}
           alt={""}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-          }}
+          onDoubleClick={stopPropagation}
           draggable={false}
-          style={{
-            objectFit: "contain",
-            objectPosition: "center",
-            userSelect: "none",
-          }}
+          className="object-contain select-none object-center"
         />
       </foreignObject>
-
-      {/* 图片描述区域 - 下方 */}
-      {descriptionPosition === EDescriptionPosition.BOTTOM && (
-        <foreignObject
-          x={x}
-          y={descriptionY}
-          width={width}
-          height={descriptionHeight}
-          style={{
-            userSelect: "none",
-            pointerEvents: "auto",
-          }}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-          }}
-          onPointerUp={(e) => {
-            e.stopPropagation();
-          }}
-          onWheel={handleWheel}
-        >
-          <div
-            className={styles.descriptionContainer}
-            onClick={handleDescriptionClick}
-            onKeyDown={handleKeyDown}
-          >
-            {isEditingDescription ? (
-              <EditText
-                ref={editTextRef}
-                defaultValue={tempDescription}
-                onChange={handleDescriptionChange}
-                onPressEnter={handleDescriptionPressEnter}
-                contentEditable={true}
-                defaultFocus={true}
-                className={classnames(
-                  styles.descriptionText,
-                  styles[descriptionAlignment],
-                )}
-                style={descriptionTextStyle}
-                onBlur={() => {
-                  setIsEditingDescription(false);
-                }}
-              />
-            ) : (
-              <div
-                className={classnames(
-                  styles.descriptionText,
-                  styles[descriptionAlignment],
-                )}
-                style={descriptionTextStyle}
-              >
-                {description ||
-                  (isSelected ? (
-                    <span className={styles.placeholder}>
-                      {IMAGE_DESCRIPTION_PLACEHOLDER}
-                    </span>
-                  ) : null)}
-              </div>
-            )}
-          </div>
-        </foreignObject>
-      )}
 
       <If condition={isSelected}>
         <g>
