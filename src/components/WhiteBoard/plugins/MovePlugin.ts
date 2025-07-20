@@ -275,17 +275,23 @@ export class MovePlugin implements IBoardPlugin {
     const { movedElements } = this.getUpdatedInfo(e, board);
 
     const operations: Operation[] = [];
+
+    this.handleFrameDragDetection(board, movedElements, true);
+    this.clearAllFrameChildMoveIn(board);
+
     movedElements.forEach((movedElement) => {
       const element = this.moveElements?.find(
         (element) => element.id === movedElement.id,
       );
       const path = PathUtil.getPathByElement(board, movedElement);
       if (!path || !element) return;
+      const newestElement = PathUtil.getElementByPath(board, path);
+      if (!newestElement) return;
       operations.push({
         type: "set_node",
         path,
         properties: element,
-        newProperties: movedElement,
+        newProperties: newestElement,
       });
     });
 
@@ -294,7 +300,15 @@ export class MovePlugin implements IBoardPlugin {
         type: "set_selection",
         properties: board.selection,
         newProperties: {
-          selectedElements: movedElements,
+          selectedElements: movedElements
+            .map((me) => {
+              const path = PathUtil.getPathByElement(board, me);
+              if (!path) return;
+              const newestMe = PathUtil.getElementByPath(board, path);
+              if (!newestMe) return;
+              return newestMe;
+            })
+            .filter(isValid),
         },
       });
       this.isHitSelected = false;
@@ -306,9 +320,6 @@ export class MovePlugin implements IBoardPlugin {
     if (operations.length > 0) {
       board.apply(operations);
     }
-
-    this.handleFrameDragDetection(board, movedElements, true);
-    this.clearAllFrameChildMoveIn(board);
 
     board.emit("element:move-end");
     this.moveElements = null;
@@ -492,8 +503,13 @@ export class MovePlugin implements IBoardPlugin {
 
     if (frames.length === 0) return;
 
-    // 检测元素是否进入或离开Frame
-    const operations: Operation[] = [];
+    const moveInfos: Array<{
+      element: BoardElement;
+      currentFrame: FrameElement | null;
+      targetFrame: FrameElement | null;
+    }> = [];
+
+    // 批量收集所有元素的移动信息
     movedElements.forEach((element) => {
       // 跳过Frame元素本身
       if (element.type === "frame" || element.type === "arrow") return;
@@ -519,122 +535,137 @@ export class MovePlugin implements IBoardPlugin {
         }
       }
 
-      // 如果目标Frame发生变化，更新Frame的children
+      moveInfos.push({
+        element,
+        currentFrame,
+        targetFrame,
+      });
+    });
+
+    // 按Frame分组计算最终状态
+    const frameUpdates = new Map<
+      string,
+      {
+        frame: FrameElement;
+        finalChildren: BoardElement[];
+        hasChildMoveIn: boolean;
+      }
+    >();
+
+    // 初始化所有涉及的Frame的初始状态
+    frames.forEach((frame) => {
+      frameUpdates.set(frame.id, {
+        frame,
+        finalChildren: [...frame.children],
+        hasChildMoveIn: false,
+      });
+    });
+
+    // 处理所有移动操作，计算每个Frame的最终children状态
+    const elementMoveOperations: Operation[] = [];
+
+    moveInfos.forEach(({ element, currentFrame, targetFrame }) => {
+      // 如果Frame发生变化
       if (currentFrame !== targetFrame) {
-        // 从当前Frame中移除
+        // 从源Frame中移除
         if (currentFrame) {
-          const currentFramePath = PathUtil.getPathByElement(
-            board,
-            currentFrame,
-          );
-          if (currentFramePath) {
-            const newChildren = currentFrame.children.filter(
+          const frameUpdate = frameUpdates.get(currentFrame.id);
+          if (frameUpdate) {
+            frameUpdate.finalChildren = frameUpdate.finalChildren.filter(
               (child: BoardElement) => child.id !== element.id,
             );
-
-            let newProperties = {
-              ...currentFrame,
-              children: newChildren,
-              isChildMoveIn: false,
-            };
-            if (resizeFrame) {
-              const newBounds = FrameUtil.calculateFrameBounds(
-                currentFrame,
-                newChildren,
-              );
-              newProperties = {
-                ...newProperties,
-                ...newBounds,
-              };
-            }
-
-            operations.push({
-              type: "set_node",
-              path: currentFramePath,
-              properties: currentFrame,
-              newProperties,
-            });
           }
         }
 
         // 添加到目标Frame
         if (targetFrame) {
+          const frameUpdate = frameUpdates.get(targetFrame.id);
+          if (frameUpdate) {
+            frameUpdate.finalChildren.push(element);
+            frameUpdate.hasChildMoveIn = true;
+          }
+        }
+
+        // 生成元素移动操作
+        const oldPath = PathUtil.getPathByElement(board, element);
+        let newPath: number[] | null = null;
+
+        if (targetFrame) {
           const targetFramePath = PathUtil.getPathByElement(board, targetFrame);
           if (targetFramePath) {
-            const newChildren = [...targetFrame.children, element];
-            let newProperties = {
-              ...targetFrame,
-              children: newChildren,
-              isChildMoveIn: true,
-            };
-            if (resizeFrame) {
-              const newBounds = FrameUtil.calculateFrameBounds(
-                targetFrame,
-                newChildren,
-              );
-              newProperties = {
-                ...newProperties,
-                ...newBounds,
-              };
-            }
-            operations.push({
-              type: "set_node",
-              path: targetFramePath,
-              properties: targetFrame,
-              newProperties,
-            });
+            newPath = [...targetFramePath, targetFrame.children.length];
           }
+        } else {
+          newPath = [board.children.length];
         }
 
-        if (!currentFrame && targetFrame) {
-          const elementPath = PathUtil.getPathByElement(board, element);
-          if (elementPath) {
-            operations.push({
-              type: "remove_node",
-              path: elementPath,
-              node: element,
-            });
-          }
-        }
-
-        if (currentFrame && !targetFrame) {
-          // 如果元素没有在任何Frame中，则移动到 board 的根节点
-          operations.push({
-            type: "insert_node",
-            path: [board.children.length],
-            node: element,
+        if (oldPath && newPath) {
+          elementMoveOperations.push({
+            type: "move_node",
+            path: oldPath,
+            newPath,
           });
         }
       } else if (currentFrame) {
-        let newProperties = {
-          ...currentFrame,
-          isChildMoveIn: true,
-        };
-        if (resizeFrame) {
-          const newBounds = FrameUtil.calculateFrameBounds(
-            currentFrame,
-            currentFrame.children,
-          );
-          newProperties = {
-            ...newProperties,
-            ...newBounds,
-          };
-        }
-
-        const currentFramePath = PathUtil.getPathByElement(board, currentFrame);
-        if (currentFramePath) {
-          operations.push({
-            type: "set_node",
-            path: currentFramePath,
-            properties: currentFrame,
-            newProperties,
-          });
+        // 元素仍在当前Frame中，标记为有移动
+        const frameUpdate = frameUpdates.get(currentFrame.id);
+        if (frameUpdate) {
+          frameUpdate.hasChildMoveIn = true;
         }
       }
     });
 
-    if (operations.length > 0) {
-      board.apply(operations, false);
+    // 生成Frame更新操作
+    const frameUpdateOperations: Operation[] = [];
+
+    frameUpdates.forEach(({ frame, finalChildren, hasChildMoveIn }) => {
+      const framePath = PathUtil.getPathByElement(board, frame);
+      if (!framePath) return;
+
+      let newProperties = {
+        ...frame,
+        isChildMoveIn: hasChildMoveIn,
+        // children: finalChildren,
+      };
+
+      // 如果children发生了变化或需要调整大小，重新计算边界
+      const childrenChanged =
+        finalChildren.length !== frame.children.length ||
+        !finalChildren.every(
+          (child, index) => frame.children[index]?.id === child.id,
+        );
+
+      if (resizeFrame && (childrenChanged || hasChildMoveIn)) {
+        const newBounds = FrameUtil.calculateFrameBounds(frame, finalChildren);
+        newProperties = {
+          ...newProperties,
+          ...newBounds,
+        };
+      }
+
+      // 只有当属性确实发生变化时才添加操作
+      const hasPropertyChange =
+        newProperties.isChildMoveIn !== frame.isChildMoveIn ||
+        newProperties.x !== frame.x ||
+        newProperties.y !== frame.y ||
+        newProperties.width !== frame.width ||
+        newProperties.height !== frame.height;
+
+      if (hasPropertyChange) {
+        frameUpdateOperations.push({
+          type: "set_node",
+          path: framePath,
+          properties: frame,
+          newProperties,
+        });
+      }
+    });
+
+    // 合并所有操作：先更新Frame，再移动元素
+    const allOperations = [...frameUpdateOperations, ...elementMoveOperations];
+
+    if (allOperations.length > 0) {
+      board.apply(allOperations, false);
     }
   }
 

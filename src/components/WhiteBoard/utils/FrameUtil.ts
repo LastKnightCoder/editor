@@ -421,21 +421,36 @@ export class FrameUtil {
   }
 
   static unwrapFrame(board: Board, frame: FrameElement) {
+    const ops: Operation[] = [];
+
+    // 使用 move_node 将 frame 的子元素移动到 board.children
+    frame.children.forEach((child) => {
+      const oldPath = PathUtil.getPathByElement(board, child);
+      if (!oldPath) return;
+
+      // 新路径：移动到 board.children 的末尾
+      const newPath = [board.children.length];
+      console.log("oldPath", oldPath, "newPath", newPath);
+
+      ops.push({
+        type: "move_node",
+        path: oldPath,
+        newPath,
+      });
+    });
+
     const path = PathUtil.getPathByElement(board, frame);
     if (!path) return false;
 
-    const ops: Operation[] = [];
-    frame.children.forEach((child) => {
-      ops.push({
-        type: "insert_node",
-        path: [board.children.length],
-        node: child,
-      });
-    });
+    // 删除 frame 本身
     ops.push({
       type: "remove_node",
       path,
-      node: frame,
+      node: {
+        ...frame,
+        // 清空 children，保证 undo 时不会重复添加
+        children: [],
+      },
     });
 
     board.apply(ops);
