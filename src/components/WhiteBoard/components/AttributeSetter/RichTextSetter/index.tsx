@@ -217,8 +217,8 @@ const RichTextSetter = (props: RichTextSetterProps) => {
     // 获取滚动高度
     const scrollHeight = editor.scrollHeight;
     const newElement = produce(element, (draft) => {
-      draft.height = scrollHeight;
-      draft.maxHeight = Math.max(scrollHeight, 3000);
+      draft.height = Math.ceil(scrollHeight);
+      draft.maxHeight = Math.max(Math.ceil(scrollHeight), 3000);
       // 如果宽度大于300，则不进行调整
       draft.resized =
         Math.round(element.width) !== richTextContainer.scrollWidth;
@@ -239,8 +239,8 @@ const RichTextSetter = (props: RichTextSetterProps) => {
     editor.style.width = "fit-content";
 
     const newElement = produce(element, (draft) => {
-      draft.width = editor.scrollWidth;
-      draft.maxWidth = Math.max(editor.scrollWidth, 300);
+      draft.width = Math.ceil(editor.scrollWidth);
+      draft.maxWidth = Math.max(Math.ceil(editor.scrollWidth), 300);
       draft.resized =
         Math.round(element.height) !== richTextContainer.scrollHeight;
     });

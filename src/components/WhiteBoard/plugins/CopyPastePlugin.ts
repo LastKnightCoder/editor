@@ -117,7 +117,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       });
 
       board.apply(ops);
-      ViewPortTransforms.centerElements(board, elements);
+      ViewPortTransforms.centerElementsIfNotInViewPort(board, elements);
 
       e.preventDefault();
       e.stopImmediatePropagation();

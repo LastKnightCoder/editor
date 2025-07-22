@@ -348,4 +348,67 @@ export class ViewPortTransforms {
       );
     }
   }
+
+  static centerElementsIfNotInViewPort(board: Board, elements: BoardElement[]) {
+    if (elements.length === 0) return;
+
+    // 计算元素的边界
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    elements.forEach((element) => {
+      if (
+        "x" in element &&
+        "y" in element &&
+        "width" in element &&
+        "height" in element
+      ) {
+        const { x, y, width, height } = element;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + width);
+        maxY = Math.max(maxY, y + height);
+      }
+
+      if (element.type === "arrow" && element.points) {
+        element.points.forEach((point: { x: number; y: number }) => {
+          minX = Math.min(minX, point.x);
+          minY = Math.min(minY, point.y);
+          maxX = Math.max(maxX, point.x);
+          maxY = Math.max(maxY, point.y);
+        });
+      }
+    });
+
+    // 如果没有找到有效的边界，则返回
+    if (
+      minX === Infinity ||
+      minY === Infinity ||
+      maxX === -Infinity ||
+      maxY === -Infinity
+    ) {
+      return;
+    }
+
+    // 获取当前视口边界
+    const viewPort = board.viewPort;
+    const viewPortMinX = viewPort.minX;
+    const viewPortMinY = viewPort.minY;
+    const viewPortMaxX = viewPort.minX + viewPort.width;
+    const viewPortMaxY = viewPort.minY + viewPort.height;
+
+    // 判断元素是否完全在视口中
+    const isFullyInViewPort =
+      minX >= viewPortMinX &&
+      minY >= viewPortMinY &&
+      maxX <= viewPortMaxX &&
+      maxY <= viewPortMaxY;
+
+    // 如果不是完全在视口中，则调用 centerElements 居中元素
+    if (!isFullyInViewPort) {
+      this.centerElements(board, elements);
+    }
+  }
 }

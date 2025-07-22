@@ -32,8 +32,8 @@ const useHandleResize = ({
       const entry = entries[0];
       const { blockSize, inlineSize } = entry.borderBoxSize[0];
       handleOnEditorSizeChange(
-        Math.min(maxWidth, inlineSize),
-        Math.min(maxHeight, blockSize),
+        Math.min(maxWidth, Math.ceil(inlineSize)),
+        Math.min(maxHeight, Math.ceil(blockSize)),
       );
     },
     { wait: 40 },
