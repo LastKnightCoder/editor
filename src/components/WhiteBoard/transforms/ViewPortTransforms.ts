@@ -231,4 +231,121 @@ export class ViewPortTransforms {
       minY: point[1] * (1 / zoom - 1 / newZoom) + minY,
     };
   }
+
+  static centerElements(
+    board: Board,
+    elements: BoardElement[],
+    options: { animate: boolean; duration: number; padding: number } = {
+      animate: true,
+      duration: 300,
+      padding: 50,
+    },
+  ) {
+    const container = BOARD_TO_CONTAINER.get(board);
+    if (!container) return;
+
+    if (elements.length === 0) return;
+
+    // 计算元素的边界
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    elements.forEach((element) => {
+      if (
+        "x" in element &&
+        "y" in element &&
+        "width" in element &&
+        "height" in element
+      ) {
+        const { x, y, width, height } = element;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + width);
+        maxY = Math.max(maxY, y + height);
+      }
+
+      if (element.type === "arrow" && element.points) {
+        element.points.forEach((point: { x: number; y: number }) => {
+          minX = Math.min(minX, point.x);
+          minY = Math.min(minY, point.y);
+          maxX = Math.max(maxX, point.x);
+          maxY = Math.max(maxY, point.y);
+        });
+      }
+    });
+
+    // 如果没有找到有效的边界，则返回
+    if (
+      minX === Infinity ||
+      minY === Infinity ||
+      maxX === -Infinity ||
+      maxY === -Infinity
+    ) {
+      return;
+    }
+
+    const elementsWidth = maxX - minX;
+    const elementsHeight = maxY - minY;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+
+    // 当前视口的实际显示尺寸
+    const currentViewportWidth = containerWidth / board.viewPort.zoom;
+    const currentViewportHeight = containerHeight / board.viewPort.zoom;
+
+    // 判断是否需要缩放
+    const needScaling =
+      elementsWidth + options.padding * 2 > currentViewportWidth ||
+      elementsHeight + options.padding * 2 > currentViewportHeight;
+
+    let newViewport: ViewPort;
+
+    if (needScaling) {
+      // 需要缩放：计算合适的缩放比例并居中
+      const scaleX = containerWidth / (elementsWidth + options.padding * 2);
+      const scaleY = containerHeight / (elementsHeight + options.padding * 2);
+      const zoom = Math.min(scaleX, scaleY);
+
+      newViewport = {
+        zoom,
+        width: containerWidth / zoom,
+        height: containerHeight / zoom,
+        minX: (minX + maxX) / 2 - containerWidth / zoom / 2,
+        minY: (minY + maxY) / 2 - containerHeight / zoom / 2,
+      };
+    } else {
+      // 不需要缩放：保持当前缩放级别，只移动到中心
+      const zoom = board.viewPort.zoom;
+
+      newViewport = {
+        zoom,
+        width: currentViewportWidth,
+        height: currentViewportHeight,
+        minX: (minX + maxX) / 2 - currentViewportWidth / 2,
+        minY: (minY + maxY) / 2 - currentViewportHeight / 2,
+      };
+    }
+
+    if (options.animate) {
+      // 使用动画效果
+      this.animateToViewport(
+        board,
+        board.viewPort,
+        newViewport,
+        options.duration,
+      );
+    } else {
+      // 直接应用新视图，无动画
+      board.apply(
+        {
+          type: "set_viewport",
+          properties: board.viewPort,
+          newProperties: newViewport,
+        },
+        false,
+      );
+    }
+  }
 }

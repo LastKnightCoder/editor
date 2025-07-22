@@ -1,6 +1,9 @@
 import { Board, BoardElement, IBoardPlugin, Operation, Point } from "../types";
 import { isValid, PathUtil } from "@/components/WhiteBoard/utils";
-import { SelectTransforms } from "@/components/WhiteBoard/transforms";
+import {
+  SelectTransforms,
+  ViewPortTransforms,
+} from "@/components/WhiteBoard/transforms";
 import { v4 as getUuid } from "uuid";
 
 export class CopyPastePlugin implements IBoardPlugin {
@@ -114,6 +117,8 @@ export class CopyPastePlugin implements IBoardPlugin {
       });
 
       board.apply(ops);
+      ViewPortTransforms.centerElements(board, elements);
+
       e.preventDefault();
       e.stopImmediatePropagation();
     } catch (e) {
