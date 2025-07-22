@@ -112,6 +112,10 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
           newestFrame as FrameElement,
         );
         const framePath = PathUtil.getPathByElement(board, frame);
+        const newFrame = {
+          ...newestFrame,
+          ...newBounds,
+        };
 
         if (framePath) {
           board.apply([
@@ -119,9 +123,14 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
               type: "set_node",
               path: framePath,
               properties: newestFrame,
+              newProperties: newFrame,
+            },
+            {
+              type: "set_selection",
+              properties: board.selection,
               newProperties: {
-                ...newestFrame,
-                ...newBounds,
+                selectedElements: [newFrame],
+                selectArea: null,
               },
             },
           ]);

@@ -581,6 +581,13 @@ export class MovePlugin implements IBoardPlugin {
         if (targetFrame) {
           const frameUpdate = frameUpdates.get(targetFrame.id);
           if (frameUpdate) {
+            if (
+              frameUpdate.finalChildren.find((child) => child.id === element.id)
+            ) {
+              frameUpdate.finalChildren = frameUpdate.finalChildren.filter(
+                (child) => child.id !== element.id,
+              );
+            }
             frameUpdate.finalChildren.push(element);
             frameUpdate.hasChildMoveIn = true;
           }
