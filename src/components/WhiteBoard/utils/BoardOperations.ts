@@ -103,7 +103,6 @@ export class BoardOperations {
           if (readonly) continue;
 
           const { path, newProperties } = op;
-          // 使用getElement替代getElementByPath，避免Board类型问题
           const pathCopy = [...path];
           const firstIndex = pathCopy.shift();
           if (firstIndex === undefined || firstIndex >= board.children.length)
@@ -122,11 +121,7 @@ export class BoardOperations {
           // 应用新属性
           for (const key in newProperties) {
             const value = newProperties[key];
-            if (value === null) {
-              delete node[key];
-            } else {
-              node[key] = value;
-            }
+            node[key] = value;
           }
 
           // 有的时候会通过 set_node 修改子元素，无法区分修改了哪些，暂时全部认为更新了
@@ -259,7 +254,58 @@ export class BoardOperations {
             { type: "move_node" }
           >;
 
-          // Move操作实现：先删除源位置的元素，再插入到目标位置
+          /**
+           * 修复：处理移动操作中的索引调整问题
+           *
+           * 问题：在数组移动操作中，先删除源元素再插入目标位置会导致索引偏移
+           * 场景1：同层级移动 [1] → [4]，删除后目标位置变成 [3]
+           * 场景2：跨层级移动 [3] → [4,0]，删除后父级位置变成 [3,0]
+           */
+          const adjustedNewPath = [...newPath];
+
+          // 检查是否为同层级移动
+          const isSameLevel =
+            path.length === newPath.length &&
+            path.slice(0, -1).every((val, idx) => val === newPath[idx]);
+
+          if (isSameLevel) {
+            // 同层级移动：调整目标索引
+            const sourceIndex = path[path.length - 1];
+            const targetIndex = newPath[newPath.length - 1];
+
+            // 如果源索引小于目标索引，删除源元素后目标索引需要减1
+            if (sourceIndex < targetIndex) {
+              adjustedNewPath[adjustedNewPath.length - 1] = targetIndex - 1;
+            }
+          } else {
+            // 跨层级移动：调整受影响的父级索引
+            // 逐层检查源路径是否影响目标路径中的父级索引
+            for (let i = 0; i < adjustedNewPath.length - 1; i++) {
+              // 构建当前层级的路径片段进行比较
+              const currentLevelPath = path.slice(0, i + 1);
+              const targetLevelPath = adjustedNewPath.slice(0, i + 1);
+
+              // 检查当前层级是否为同级操作
+              if (currentLevelPath.length === targetLevelPath.length) {
+                const areSameParent = currentLevelPath
+                  .slice(0, -1)
+                  .every((val, idx) => val === targetLevelPath[idx]);
+
+                if (areSameParent) {
+                  const sourceIdx =
+                    currentLevelPath[currentLevelPath.length - 1];
+                  const targetIdx = targetLevelPath[targetLevelPath.length - 1];
+
+                  // 如果源索引小于目标索引，目标索引需要减1
+                  if (sourceIdx < targetIdx) {
+                    adjustedNewPath[i] = targetIdx - 1;
+                  }
+                }
+              }
+            }
+          }
+
+          // Move操作实现：先删除源位置的元素，再插入到调整后的目标位置
           let elementToMove: BoardElement | null = null;
 
           // 第一步：从源位置删除元素
@@ -307,11 +353,11 @@ export class BoardOperations {
             }
           }
 
-          // 第二步：插入到目标位置
+          // 第二步：插入到调整后的目标位置
           if (elementToMove) {
-            if (newPath.length === 1) {
+            if (adjustedNewPath.length === 1) {
               // 顶层插入
-              const targetIndex = newPath[0];
+              const targetIndex = adjustedNewPath[0];
 
               // 检查数组是否可扩展，如果不可扩展则创建新的副本
               if (!Object.isExtensible(board.children)) {
@@ -324,8 +370,8 @@ export class BoardOperations {
               }
             } else {
               // 子节点插入
-              const targetParentPath = newPath.slice(0, -1);
-              const targetIndex = newPath[newPath.length - 1];
+              const targetParentPath = adjustedNewPath.slice(0, -1);
+              const targetIndex = adjustedNewPath[adjustedNewPath.length - 1];
 
               // 获取目标父节点
               const pathCopy = [...targetParentPath];
