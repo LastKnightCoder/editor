@@ -70,6 +70,18 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
       activeSubWhiteBoard.data,
     );
     setActiveSubWhiteBoard(newSubWhiteBoard);
+    // 更新 whiteboar.whiteBoardContentList
+    const newWhiteBoard = produce(whiteBoard, (draft) => {
+      const index = draft.whiteBoardContentList.findIndex(
+        (item) => item.id === activeSubWhiteBoard.id,
+      );
+      if (index === -1) {
+        draft.whiteBoardContentList.push(newSubWhiteBoard);
+      } else {
+        draft.whiteBoardContentList[index] = newSubWhiteBoard;
+      }
+    });
+    setWhiteBoard(newWhiteBoard);
     changed.current = false;
   });
 
