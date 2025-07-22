@@ -1,5 +1,5 @@
 import { Board, BoardElement, IBoardPlugin, Operation, Point } from "../types";
-import { PathUtil } from "@/components/WhiteBoard/utils";
+import { isValid, PathUtil } from "@/components/WhiteBoard/utils";
 import { SelectTransforms } from "@/components/WhiteBoard/transforms";
 import { v4 as getUuid } from "uuid";
 
@@ -22,35 +22,28 @@ export class CopyPastePlugin implements IBoardPlugin {
       JSON.stringify(selectedElements),
     );
 
-    const { minX, minY, width, height } = board.viewPort;
-    const center = {
-      x: minX + width / 2,
-      y: minY + height / 2,
-    };
-
     const data = {
       source: "editor-white-board",
-      elements: copiedElements.map((element) => {
-        // 把 x y 相对于当前中心
-        if (typeof element.x === "number" && typeof element.y === "number") {
-          return {
-            ...element,
-            x: element.x - center.x,
-            y: element.y - center.y,
-          };
-        } else if (element.type === "arrow") {
-          element.points = element.points.map((point: Point) => {
-            return {
-              x: point.x - center.x,
-              y: point.y - center.y,
-            };
-          });
-          return element;
-        } else {
-          return element;
-        }
-      }),
+      elements: copiedElements
+        .map((element) => {
+          // 把 x y 相对于当前中心
+          if (typeof element.x === "number" && typeof element.y === "number") {
+            return board.moveElement(element, 20, 20);
+          } else if (element.type === "arrow") {
+            element.points = element.points.map((point: Point) => {
+              return {
+                x: point.x + 20,
+                y: point.y + 20,
+              };
+            });
+            return element;
+          } else {
+            return element;
+          }
+        })
+        .filter(isValid),
     };
+
     e.clipboardData?.setData("application/json", JSON.stringify(data));
     e.preventDefault();
     e.stopImmediatePropagation();
@@ -90,46 +83,19 @@ export class CopyPastePlugin implements IBoardPlugin {
       if (dataObj.source !== "editor-white-board") return;
       // 获取粘贴板的元素
       const elements: BoardElement[] = dataObj.elements;
-      // 获取当前鼠标的位置
-      const { minX, minY, width, height } = board.viewPort;
-      const center = {
-        x: minX + width / 2,
-        y: minY + height / 2,
-      };
 
       // 收集所有需要替换的ID映射，包括子元素
       const idMaps = new Map<string, string>();
       this.collectAllIds(elements, idMaps);
 
-      const pastedElements = elements.map((element) => {
+      elements.forEach((element) => {
         // 更新元素位置并替换所有ID引用
-        const updatedElement = this.updateElementIds(element, idMaps);
-
-        if (
-          typeof updatedElement.x === "number" &&
-          typeof updatedElement.y === "number"
-        ) {
-          return {
-            ...updatedElement,
-            x: updatedElement.x + center.x,
-            y: updatedElement.y + center.y,
-          };
-        } else if (updatedElement.type === "arrow") {
-          updatedElement.points = updatedElement.points.map((point: Point) => {
-            return {
-              x: point.x + center.x,
-              y: point.y + center.y,
-            };
-          });
-          return updatedElement;
-        } else {
-          return updatedElement;
-        }
+        this.updateElementIds(element, idMaps);
       });
 
       const childrenLength = board.children.length;
       const ops: Operation[] = [];
-      for (const element of pastedElements) {
+      for (const element of elements) {
         const path = [childrenLength];
         ops.push({
           type: "insert_node",
@@ -137,6 +103,16 @@ export class CopyPastePlugin implements IBoardPlugin {
           node: element,
         });
       }
+
+      ops.push({
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: {
+          selectedElements: elements,
+          selectArea: null,
+        },
+      });
+
       board.apply(ops);
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -154,6 +130,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       // 为当前元素生成新ID
       const newId = getUuid();
       idMaps.set(element.id, newId);
+      element.id = newId;
 
       // 递归处理children
       if (element.children && element.children.length > 0) {
