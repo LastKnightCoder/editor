@@ -33,37 +33,37 @@ const DESCRIPTION_COLORS: DescriptionColor[] = [
   {
     backgroundColor: "rgba(59, 130, 246, 0.1)",
     borderColor: "#3b82f6",
-    color: "#000",
+    color: "currentColor",
   },
   {
     backgroundColor: "rgba(16, 185, 129, 0.1)",
     borderColor: "#10b981",
-    color: "#000",
+    color: "currentColor",
   },
   {
     backgroundColor: "rgba(253, 224, 71, 0.15)",
     borderColor: "#fde047",
-    color: "#000",
+    color: "currentColor",
   },
   {
     backgroundColor: "rgba(245, 158, 11, 0.1)",
     borderColor: "#f59e0b",
-    color: "#000",
+    color: "currentColor",
   },
   {
     backgroundColor: "rgba(239, 68, 68, 0.1)",
     borderColor: "#ef4444",
-    color: "#000",
+    color: "currentColor",
   },
   {
     backgroundColor: "rgba(139, 92, 246, 0.1)",
     borderColor: "#8b5cf6",
-    color: "#000",
+    color: "currentColor",
   },
   {
     backgroundColor: "rgba(107, 114, 128, 0.1)",
     borderColor: "#6b7280",
-    color: "#000",
+    color: "currentColor",
   },
 ];
 
@@ -188,10 +188,12 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       {DESCRIPTION_COLORS.map((color) => (
         <div
           key={`${color.backgroundColor}`}
-          className={
-            "w-4 h-4 rounded-sm cursor-pointer relative border border-gray-200"
-          }
-          style={{ background: color.backgroundColor }}
+          className={"w-4 h-4 rounded-sm cursor-pointer relative border-[2px]"}
+          style={{
+            background: color.backgroundColor,
+            borderColor:
+              color.borderColor !== "transparent" ? color.borderColor : "gray",
+          }}
           onClick={() => handleOnSelectColor(color)}
         ></div>
       ))}
@@ -223,6 +225,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
               body: {
                 padding: 0,
                 marginLeft: 24,
+                backgroundColor: "white",
               },
             }}
             trigger={"click"}
@@ -248,6 +251,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
               body: {
                 padding: 0,
                 marginLeft: 24,
+                backgroundColor: "white",
               },
             }}
             trigger={"click"}
@@ -274,6 +278,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
               body: {
                 padding: 0,
                 marginLeft: 24,
+                backgroundColor: "white",
               },
             }}
             trigger={"click"}
