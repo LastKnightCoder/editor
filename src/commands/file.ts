@@ -66,7 +66,11 @@ export const removeFile = async (filePath: string): Promise<void> => {
   return await invoke("remove-file", filePath);
 };
 
-export const convertFileSrc = (filePath: string): string => {
+export const convertFileSrc = async (filePath: string): Promise<string> => {
+  const appDir = await getEditorDir();
+  if (filePath.startsWith(appDir)) {
+    return filePath.replace(appDir, "http://localhost:24678");
+  }
   return `ltoh:///${filePath}`;
 };
 
@@ -75,4 +79,8 @@ export const openMarkdownInNewWindow = async (filePath: string) => {
     showTitlebar: false,
     isDefaultTop: false,
   });
+};
+
+export const generateCacheKey = async (url: string): Promise<string> => {
+  return await invoke("generate-cache-key", url);
 };

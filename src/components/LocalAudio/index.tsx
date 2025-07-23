@@ -24,14 +24,14 @@ const LocalAudio = (props: LocalAudioProps) => {
 
       if (src.startsWith("http")) {
         const localUrl = await remoteResourceToLocal(src);
-        const filePath = convertFileSrc(localUrl);
+        const filePath = await convertFileSrc(localUrl);
         setPreviewUrl(filePath);
       } else {
         const homeDir = await getHomeDir();
         const absolutePath = src.startsWith("~")
           ? `${homeDir}${src.slice(1)}`
           : src;
-        const filePath = convertFileSrc(absolutePath);
+        const filePath = await convertFileSrc(absolutePath);
         setPreviewUrl(filePath);
       }
     } catch (e) {

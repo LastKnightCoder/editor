@@ -70,14 +70,14 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
 
         if (cdnUrl.startsWith("http")) {
           const localUrl = await remoteResourceToLocal(cdnUrl);
-          const filePath = convertFileSrc(localUrl);
+          const filePath = await convertFileSrc(localUrl);
           setPreviewUrl(filePath);
         } else {
           const homeDir = await getHomeDir();
           const absolutePath = cdnUrl.startsWith("~")
             ? `${homeDir}${cdnUrl.slice(1)}`
             : cdnUrl;
-          const filePath = convertFileSrc(absolutePath);
+          const filePath = await convertFileSrc(absolutePath);
           console.log("filePath", filePath);
           setPreviewUrl(filePath);
         }

@@ -16,6 +16,7 @@ import voiceCopyModule from "./modules/voice-copy";
 import windowManagerModule from "./modules/window-manager";
 import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
+import staticServerModule from "./modules/static-server";
 import PathUtil from "./utils/PathUtil";
 
 (async (): Promise<void> => {
@@ -109,7 +110,7 @@ if (!gotTheLock) {
   app.quit();
 } else {
   // 监听第二个实例启动时传入的参数
-  app.on("second-instance", (_event, commandLine, _workingDirectory) => {
+  app.on("second-instance", (_event, commandLine) => {
     // 如果用户尝试打开第二个实例，我们应该聚焦到第一个实例的窗口
     if (windowManager) {
       const mainWindow = BrowserWindow.getAllWindows()[0];
@@ -184,6 +185,7 @@ const initModules = async () => {
       fileModule.init(),
       extraModule.init(),
       voiceCopyModule.init(),
+      staticServerModule.init(),
     ]);
 
     // 初始化窗口管理器
