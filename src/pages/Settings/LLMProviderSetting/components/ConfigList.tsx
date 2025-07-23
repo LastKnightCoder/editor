@@ -1,5 +1,5 @@
 import useSettingStore from "@/stores/useSettingStore.ts";
-import { Button, Card, List, App, Tag, Typography, Space } from "antd";
+import { Button, Card, List, App } from "antd";
 import { produce } from "immer";
 import { ConfigItem } from "../types";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
