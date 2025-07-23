@@ -11,7 +11,6 @@ import {
   UsageSettings,
 } from "./components";
 import { ConfigFormData, ConfigItem, ModelFormData, ModelItem } from "./types";
-import styles from "./index.module.less";
 
 const LLMProviderSetting = () => {
   const [action, setAction] = useState<"create" | "edit">();
@@ -143,9 +142,9 @@ const LLMProviderSetting = () => {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.topContainer}>
-        <div className={styles.leftPanel}>
+    <div className="flex flex-col h-full gap-4">
+      <div className={"flex gap-4"}>
+        <div className="w-[320px] shrink-0">
           <ConfigList
             onAddConfig={onAddConfig}
             onEditConfig={onEditConfig}
@@ -154,7 +153,7 @@ const LLMProviderSetting = () => {
           />
         </div>
 
-        <div className={styles.rightPanel}>
+        <div className="flex-1 min-w-0">
           {selectedConfigId ? (
             <ModelDetails
               onAddModel={onAddModel}
@@ -163,7 +162,7 @@ const LLMProviderSetting = () => {
               onEditConfig={onEditConfig}
             />
           ) : (
-            <Card className={styles.emptyCard}>
+            <Card className="h-full flex items-center justify-center">
               <Empty
                 description="请选择一个配置来查看详情"
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -173,9 +172,7 @@ const LLMProviderSetting = () => {
         </div>
       </div>
 
-      <div className={styles.bottomPanel}>
-        <UsageSettings />
-      </div>
+      <UsageSettings />
 
       <ConfigModal
         action={action}

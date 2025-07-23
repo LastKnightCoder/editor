@@ -55,7 +55,7 @@ export const chatStreamInner = (
 
   const { apiKey, baseUrl } = providerConfig;
   const { name: modelName } = modelConfig;
-  const chatPath = `${baseUrl}/chat/completions`;
+  const chatPath = `${baseUrl}${baseUrl.endsWith("/") ? "" : "/"}chat/completions`;
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -65,7 +65,7 @@ export const chatStreamInner = (
     messages,
     stream: true,
     model: modelName,
-    temperature: 1,
+    temperature: 0.3,
     presence_penalty: 0,
     frequency_penalty: 0,
     top_p: 1,

@@ -53,7 +53,7 @@ const ConfigList = ({
   return (
     <Card
       title="LLM 配置"
-      className={styles.configCard}
+      className={"h-full"}
       extra={
         <Button
           type="text"
@@ -100,14 +100,6 @@ const ConfigList = ({
             ]}
           >
             <List.Item.Meta
-              title={
-                <Space>
-                  <Typography.Text strong>{config.name}</Typography.Text>
-                  {config.id === selectedConfigId && (
-                    <Tag color="blue">已选中</Tag>
-                  )}
-                </Space>
-              }
               description={
                 <div className={styles.configDescription}>
                   <div>API Key: ********</div>
