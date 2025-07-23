@@ -18,7 +18,9 @@ import MessageItem from "./MessageItem";
 
 import { ChatMessage, Message } from "@/types";
 import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
-import useChatLLM, { chatWithGPT35 } from "@/hooks/useChatLLM";
+import useChatLLM from "@/hooks/useChatLLM";
+import useLLMConfig from "@/hooks/useLLMConfig";
+import { chat } from "@/commands";
 
 interface ChatContainerProps {
   currentChat: ChatMessage;
@@ -46,6 +48,12 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
   }) => {
     const { message } = App.useApp();
     const { chatLLMStream } = useChatLLM();
+    const { providerConfig: chatProviderConfig, modelConfig: chatModelConfig } =
+      useLLMConfig("chat");
+    const {
+      providerConfig: titleProviderConfig,
+      modelConfig: titleModelConfig,
+    } = useLLMConfig("titleSummary");
 
     const editTextRef = useRef<EditTextHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -175,8 +183,14 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
 
       editTextRef.current.clear();
 
-      chatLLMStream(sendMessages, {
-        onFinish: async (content, reasoning_content) => {
+      if (!chatProviderConfig || !chatModelConfig) {
+        message.error("请先在设置中配置对话功能的大模型");
+        setSendLoading(false);
+        return;
+      }
+
+      chatLLMStream(chatProviderConfig, chatModelConfig, sendMessages, {
+        onFinish: async (content: string, reasoning_content: string) => {
           try {
             const newCurrentChat = produce(currentChat, (draft) => {
               draft.messages.push(newMessage);
@@ -193,26 +207,33 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
             scrollToBottom();
 
             try {
-              const newTitle = await chatWithGPT35([
-                {
-                  role: Role.System,
-                  content: SUMMARY_TITLE_PROMPT,
-                },
-                ...updatedChatMessage.messages
-                  .slice(1)
-                  .slice(-10)
-                  .map((message) => ({
-                    content: message.content,
-                    role: message.role,
-                  })),
-              ]);
+              if (titleProviderConfig && titleModelConfig) {
+                const newTitle = await chat(
+                  titleProviderConfig.apiKey,
+                  titleProviderConfig.baseUrl,
+                  titleModelConfig.name,
+                  [
+                    {
+                      role: Role.System,
+                      content: SUMMARY_TITLE_PROMPT,
+                    },
+                    ...updatedChatMessage.messages
+                      .slice(1)
+                      .slice(-10)
+                      .map((message) => ({
+                        content: message.content,
+                        role: message.role,
+                      })),
+                  ],
+                );
 
-              if (newTitle) {
-                const updateChat = produce(updatedChatMessage, (draft) => {
-                  draft.title = newTitle.slice(0, 20);
-                });
-                await updateChatMessage(updateChat);
-                titleRef.current?.setValue(newTitle.slice(0, 20));
+                if (newTitle) {
+                  const updateChat = produce(updatedChatMessage, (draft) => {
+                    draft.title = newTitle.slice(0, 20);
+                  });
+                  await updateChatMessage(updateChat);
+                  titleRef.current?.setValue(newTitle.slice(0, 20));
+                }
               }
             } catch (e) {
               console.error("Failed to generate title:", e);
@@ -229,7 +250,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
           perf.end();
         },
 
-        onUpdate: (full, _inc, reasoningText) => {
+        onUpdate: (full: string, _inc: string, reasoningText?: string) => {
           const newCurrentChat = produce(currentChat, (draft) => {
             draft.messages.push(newMessage);
             draft.messages.push({
@@ -246,7 +267,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
           }, 0);
         },
 
-        onReasoning: (full) => {
+        onReasoning: (full: string) => {
           const newCurrentChat = produce(currentChat, (draft) => {
             draft.messages.push(newMessage);
             draft.messages.push({

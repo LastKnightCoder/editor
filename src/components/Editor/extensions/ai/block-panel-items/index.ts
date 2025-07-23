@@ -7,6 +7,7 @@ import {
   insertNumberedList,
 } from "@editor/utils";
 import { chatLLMStream } from "@/hooks/useChatLLM.ts";
+import useSettingStore from "@/stores/useSettingStore";
 import { CommandParser, getMarkdown } from "@/utils";
 import { CONTINUE_WRITE_PROMPT_TEMPLATE, Role } from "@/constants";
 import { Editor, NodeEntry, Path, Transforms } from "slate";
@@ -28,8 +29,36 @@ const items: IBlockPanelListItem[] = [
 
       const parser = new CommandParser();
 
+      // 获取AI续写功能的配置
+      const { llmConfigs, llmUsageSettings } =
+        useSettingStore.getState().setting;
+      const usageConfig = llmUsageSettings.aiContinueWrite;
+
+      if (!usageConfig) {
+        console.error("AI续写功能未配置LLM");
+        return;
+      }
+
+      const providerConfig = llmConfigs.find(
+        (config) => config.id === usageConfig.providerId,
+      );
+      if (!providerConfig) {
+        console.error("找不到AI续写功能的provider配置");
+        return;
+      }
+
+      const modelConfig = providerConfig.models?.find(
+        (model) => model.name === usageConfig.modelName,
+      );
+      if (!modelConfig) {
+        console.error("找不到AI续写功能的model配置");
+        return;
+      }
+
       // 开始续写
       chatLLMStream(
+        providerConfig,
+        modelConfig,
         [
           {
             role: Role.System,

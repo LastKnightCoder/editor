@@ -1,11 +1,8 @@
-import useSettingStore, {
-  ELLMProvider,
-  ISetting,
-} from "@/stores/useSettingStore.ts";
 import { Message } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import { message } from "antd";
 import { chat, stream } from "@/commands";
+import type { ProviderConfig, ModelConfig } from "@/types/llm";
 
 interface IChatStreamOptions {
   onFinish: (content: string, reasoning_content: string, res: Response) => void;
@@ -19,55 +16,46 @@ interface IChatStreamOptions {
   onController?: (controller: AbortController) => void;
 }
 
-const getCurrentConfig = (llmProviders: ISetting["llmProviders"]) => {
-  let currentConfig = null;
-  if (llmProviders.currentProvider === ELLMProvider.OPENAI) {
-    const currentConfigId = llmProviders[ELLMProvider.OPENAI].currentConfigId;
-    if (!currentConfigId) return currentConfig;
-    currentConfig = llmProviders[ELLMProvider.OPENAI].configs.find(
-      (config) => config.id === currentConfigId,
-    );
-  } else if (llmProviders.currentProvider === ELLMProvider.OTHER) {
-    const currentConfigId = llmProviders[ELLMProvider.OTHER].currentConfigId;
-    if (!currentConfigId) return currentConfig;
-    currentConfig = llmProviders[ELLMProvider.OTHER].configs.find(
-      (config) => config.id === currentConfigId,
-    );
-  }
-  return currentConfig;
-};
-
 const chatInner = async (
-  llmProviders: ISetting["llmProviders"],
+  providerConfig: ProviderConfig,
+  modelConfig: ModelConfig,
   messages: Message[],
 ) => {
-  const currentConfig = getCurrentConfig(llmProviders);
-  if (!currentConfig) {
-    message.error("未添加或未启动大模型配置");
+  if (!providerConfig) {
+    message.error("未提供大模型配置");
     return null;
   }
 
-  const { apiKey, baseUrl, currentModel } = currentConfig;
-  if (!currentModel) {
-    message.error("未添加或未启动具体模型");
+  if (!modelConfig) {
+    message.error("未提供具体模型配置");
     return null;
   }
-  return await chat(apiKey, baseUrl, currentModel, messages);
+
+  const { apiKey, baseUrl } = providerConfig;
+  const { name: modelName } = modelConfig;
+
+  return await chat(apiKey, baseUrl, modelName, messages);
 };
 
 export const chatStreamInner = (
-  llmProviders: ISetting["llmProviders"],
+  providerConfig: ProviderConfig,
+  modelConfig: ModelConfig,
   messages: Message[],
   options: IChatStreamOptions,
 ) => {
-  const currentConfig = getCurrentConfig(llmProviders);
-  if (!currentConfig) {
+  if (!providerConfig) {
     options.onError?.(new Error("无法获取到当前 LLM 配置"));
     return;
   }
 
-  const { apiKey, baseUrl, currentModel } = currentConfig;
-  const chatPath = `${baseUrl}chat/completions`;
+  if (!modelConfig) {
+    options.onError?.(new Error("无法获取到当前模型配置"));
+    return;
+  }
+
+  const { apiKey, baseUrl } = providerConfig;
+  const { name: modelName } = modelConfig;
+  const chatPath = `${baseUrl}/chat/completions`;
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -76,7 +64,7 @@ export const chatStreamInner = (
   const requestPayload = {
     messages,
     stream: true,
-    model: currentModel,
+    model: modelName,
     temperature: 1,
     presence_penalty: 0,
     frequency_penalty: 0,
@@ -104,17 +92,24 @@ export const chatStreamInner = (
 };
 
 const useChatLLM = () => {
-  const { llmProviders } = useSettingStore((state) => ({
-    llmProviders: state.setting.llmProviders,
-  }));
-
-  const chatLLM = useMemoizedFn(async (messages: Message[]) => {
-    return await chatInner(llmProviders, messages);
-  });
+  const chatLLM = useMemoizedFn(
+    async (
+      providerConfig: ProviderConfig,
+      modelConfig: ModelConfig,
+      messages: Message[],
+    ) => {
+      return await chatInner(providerConfig, modelConfig, messages);
+    },
+  );
 
   const chatLLMStream = useMemoizedFn(
-    (messages: Message[], options: IChatStreamOptions) => {
-      return chatStreamInner(llmProviders, messages, options);
+    (
+      providerConfig: ProviderConfig,
+      modelConfig: ModelConfig,
+      messages: Message[],
+      options: IChatStreamOptions,
+    ) => {
+      return chatStreamInner(providerConfig, modelConfig, messages, options);
     },
   );
 
@@ -124,28 +119,21 @@ const useChatLLM = () => {
   };
 };
 
-export const chatLLM = async (messages: Message[]) => {
-  const llmProviders = useSettingStore.getState().setting.llmProviders;
-  return await chatInner(llmProviders, messages);
+export const chatLLM = async (
+  providerConfig: ProviderConfig,
+  modelConfig: ModelConfig,
+  messages: Message[],
+) => {
+  return await chatInner(providerConfig, modelConfig, messages);
 };
 
 export const chatLLMStream = (
+  providerConfig: ProviderConfig,
+  modelConfig: ModelConfig,
   messages: Message[],
   options: IChatStreamOptions,
 ) => {
-  const llmProviders = useSettingStore.getState().setting.llmProviders;
-  chatStreamInner(llmProviders, messages, options);
-};
-
-export const chatWithGPT35 = async (messages: Message[]) => {
-  const llmProviders = useSettingStore.getState().setting.llmProviders;
-  const configId = llmProviders[ELLMProvider.OPENAI].currentConfigId;
-  const currentConfig = llmProviders[ELLMProvider.OPENAI].configs.find(
-    (config) => config.id === configId,
-  );
-  if (!currentConfig) return null;
-  const { apiKey, baseUrl } = currentConfig;
-  return await chat(apiKey, baseUrl, "gpt-3.5-turbo", messages);
+  chatStreamInner(providerConfig, modelConfig, messages, options);
 };
 
 export default useChatLLM;
