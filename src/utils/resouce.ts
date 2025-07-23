@@ -9,6 +9,7 @@ import {
   getSep,
   nodeFetch,
   getHomeDir,
+  generateCacheKey,
 } from "@/commands";
 
 // 将远程资源下载到本地
@@ -17,6 +18,13 @@ import {
 const REMOTE_RESOURCE_CONFIG_NAME = "remote_local_map.json";
 const REMOTE_RESOURCE_PATH = "remote-resources";
 const LOCAL_RESOURCE_PATH = "resources";
+
+export const getFileExtension = async (url: string): Promise<string> => {
+  const urlObj = new URL(url);
+  const pathname = urlObj.pathname;
+  const [, ext] = pathname.split(".");
+  return ext;
+};
 
 export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   if (!fileName) {
@@ -76,7 +84,10 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
       : undefined,
   })) as unknown as ArrayBuffer;
 
-  const resourcePath = resourceDirPath + sep + fileName;
+  const ext = await getFileExtension(url);
+  const cacheKey = await generateCacheKey(url);
+  const resourcePath =
+    resourceDirPath + sep + cacheKey + (ext ? "." + ext : "");
   await writeBinaryFile(resourcePath, new Uint8Array(remoteContent));
   configObj[url] = resourcePath;
   await writeTextFile(configPath, JSON.stringify(configObj));
@@ -90,7 +101,10 @@ export const copyFileToLocal = async (file: File, fileName = file.name) => {
   if (!(await pathExists(resourceDirPath))) {
     await createDir(resourceDirPath);
   }
-  const resourcePath = resourceDirPath + sep + fileName;
+  const cacheKey = await generateCacheKey(fileName);
+  const ext = await getFileExtension(fileName);
+  const resourcePath =
+    resourceDirPath + sep + cacheKey + (ext ? "." + ext : "");
   await writeBinaryFile(resourcePath, new Uint8Array(await file.arrayBuffer()));
   const homeDir = await getHomeDir();
   return resourcePath.replace(homeDir, "~");

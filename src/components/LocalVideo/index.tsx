@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState, memo, forwardRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
-import { readBinaryFile, getFileExtension, getHomeDir } from "@/commands";
+import {
+  readBinaryFile,
+  getFileExtension,
+  getHomeDir,
+  getEditorDir,
+  convertFileSrc,
+} from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 
 interface LocalVideoProps {
@@ -36,7 +42,7 @@ const LocalVideo = memo(
     const playStatus = useRef(false);
 
     // Get the video element, prioritizing the forwarded ref if it exists
-    const getVideoElement = () => {
+    const getVideoElement = useMemoizedFn(() => {
       if (typeof ref === "function") {
         return null; // Can't access the current value of a callback ref
       } else if (ref && ref.current) {
@@ -44,7 +50,7 @@ const LocalVideo = memo(
       } else {
         return innerRef.current;
       }
-    };
+    });
 
     useAsyncEffect(async () => {
       let localUrl = src;
@@ -63,17 +69,25 @@ const LocalVideo = memo(
         const absolutePath = localUrl.startsWith("~")
           ? `${homeDir}${localUrl.slice(1)}`
           : localUrl;
-        const data = await readBinaryFile(absolutePath);
-        const ext = await getFileExtension(absolutePath);
-        const blob = new Blob([data], { type: getMimeType(ext) });
-        const blobUrl = URL.createObjectURL(blob);
+        const appDir = await getEditorDir();
+
+        let videoUrl;
+        if (absolutePath.startsWith(appDir)) {
+          videoUrl = await convertFileSrc(absolutePath);
+        } else {
+          const data = await readBinaryFile(absolutePath);
+          const ext = await getFileExtension(absolutePath);
+          const blob = new Blob([data], { type: getMimeType(ext) });
+          videoUrl = URL.createObjectURL(blob);
+        }
+
         // 记录当前播放的时间等信息
         const videoElement = getVideoElement();
         if (videoElement) {
           currentTime.current = videoElement.currentTime;
           playStatus.current = !videoElement.paused;
         }
-        setPreviewUrl(blobUrl);
+        setPreviewUrl(videoUrl);
       } catch {
         setPreviewUrl(src);
       } finally {
@@ -90,10 +104,11 @@ const LocalVideo = memo(
           videoElement.play().then();
         }
       }
-    }, [previewUrl]);
+    }, [previewUrl, getVideoElement]);
 
     const handleOnError = useMemoizedFn(
       (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+        console.log("handleOnError", previewUrl);
         setPreviewUrl(src);
         // @ts-ignore
         const errorCode = e.target.error?.code as string;

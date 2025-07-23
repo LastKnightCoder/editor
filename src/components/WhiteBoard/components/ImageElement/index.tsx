@@ -89,10 +89,10 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     try {
       if (src.startsWith("http")) {
         const localUrl = await remoteResourceToLocal(src);
-        const filePath = convertFileSrc(localUrl);
+        const filePath = await convertFileSrc(localUrl);
         setPreviewUrl(filePath);
       } else {
-        const filePath = convertFileSrc(src);
+        const filePath = await convertFileSrc(src);
         setPreviewUrl(filePath);
       }
     } catch (e) {

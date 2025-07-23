@@ -4,6 +4,7 @@ import { exec } from "node:child_process";
 import { getFonts } from "font-list";
 import PathUtil from "../utils/PathUtil";
 import { Module } from "../types/module";
+import crypto from "node:crypto";
 
 class ResourceModule implements Module {
   name = "resource";
@@ -38,6 +39,10 @@ class ResourceModule implements Module {
 
     ipcMain.handle("get-all-fonts", () => {
       return this.getAllFonts();
+    });
+
+    ipcMain.handle("generate-cache-key", async (_, url: string) => {
+      return this.generateCacheKey(url);
     });
   }
 
@@ -82,6 +87,10 @@ class ResourceModule implements Module {
     return getFonts({
       disableQuoting: true,
     });
+  }
+
+  generateCacheKey(url: string) {
+    return crypto.createHash("md5").update(url).digest("hex");
   }
 }
 
