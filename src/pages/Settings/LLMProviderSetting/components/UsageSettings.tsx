@@ -84,11 +84,6 @@ const UsageSettings = () => {
                       <Option key={config.id} value={config.id}>
                         <div>
                           <div>{config.name}</div>
-                          <Text type="secondary" style={{ fontSize: 12 }}>
-                            {config.models?.length > 0
-                              ? `${config.models.length} 个模型可用`
-                              : "暂无模型"}
-                          </Text>
                         </div>
                       </Option>
                     ))}
@@ -106,10 +101,7 @@ const UsageSettings = () => {
                       {availableModels.map((model) => (
                         <Option key={model.name} value={model.name}>
                           <div>
-                            <div>{model.name}</div>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                              {model.description}
-                            </Text>
+                            {model.name}/{model.description}
                           </div>
                         </Option>
                       ))}

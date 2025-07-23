@@ -122,15 +122,10 @@ const ModelDetails = ({
       </Card>
 
       <Card
-        className={styles.modelsCard}
+        className="flex flex-col gap-4 max-h-[320px] overflow-y-auto"
         title="模型列表"
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={onAddModel}
-            size="small"
-          >
+          <Button icon={<PlusOutlined />} onClick={onAddModel}>
             添加模型
           </Button>
         }

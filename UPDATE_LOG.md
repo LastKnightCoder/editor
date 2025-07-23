@@ -577,6 +577,8 @@
 ## v0.13.3
 
 - feat: 元素粘贴优化
+- feat: 使用 express 静态服务器，支持视频流式传输
+- feat: 取消 OpenAI 的特殊地位
 - fix: 支持拖拽到根节点的左侧
 - fix: 拖拽元素到 Frame 上时会丢失箭头关系
 - fix: 解散 Frame 时撤销状态不对
