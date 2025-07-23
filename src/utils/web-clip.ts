@@ -22,6 +22,32 @@ export const getContentHTML = (html: string): string => {
 };
 
 export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
+  // 需要从全局store获取webClip功能的配置
+  const { getState } = (await import("@/stores/useSettingStore")).default;
+  const { llmConfigs, llmUsageSettings } = getState().setting;
+
+  const usageConfig = llmUsageSettings.webClip;
+  if (!usageConfig) {
+    console.error("webClip功能未配置LLM");
+    return "";
+  }
+
+  const providerConfig = llmConfigs.find(
+    (config) => config.id === usageConfig.providerId,
+  );
+  if (!providerConfig) {
+    console.error("找不到webClip功能的provider配置");
+    return "";
+  }
+
+  const modelConfig = providerConfig.models?.find(
+    (model) => model.name === usageConfig.modelName,
+  );
+  if (!modelConfig) {
+    console.error("找不到webClip功能的model配置");
+    return "";
+  }
+
   const convertMessages: Message[] = [
     {
       role: Role.System,
@@ -34,7 +60,7 @@ export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
   ];
 
   const convertRes: string =
-    (await chatLLM(convertMessages).catch((e) => {
+    (await chatLLM(providerConfig, modelConfig, convertMessages).catch((e) => {
       console.error(e);
       return "";
     })) || "";

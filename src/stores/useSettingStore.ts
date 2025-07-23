@@ -15,10 +15,7 @@ export enum ESync {
   AliOSS = "aliOSS",
 }
 
-export enum ELLMProvider {
-  OPENAI = "openai",
-  OTHER = "other",
-}
+import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
 
 interface DoubaoVoiceCopyConfig {
   accessToken: string;
@@ -27,6 +24,8 @@ interface DoubaoVoiceCopyConfig {
   token: string;
   currentSpeakerId: string;
 }
+
+export type { ProviderConfig, ModelConfig, LLMUsageConfig };
 
 export interface ISetting {
   fontSetting: {
@@ -118,46 +117,12 @@ export interface ISetting {
     currentModel: string;
     doubao: DoubaoVoiceCopyConfig;
   };
-  llmProviders: {
-    currentProvider: ELLMProvider;
-    [ELLMProvider.OPENAI]: {
-      currentConfigId: string;
-      configs: Array<{
-        id: string;
-        name: string;
-        apiKey: string;
-        baseUrl: string;
-        currentModel: string;
-        models: Array<{
-          name: string;
-          description: string;
-          features: {
-            online: boolean;
-            thinking: boolean;
-            multimodal: boolean;
-          };
-        }>;
-      }>;
-    };
-    [ELLMProvider.OTHER]: {
-      currentConfigId: string;
-      configs: Array<{
-        id: string;
-        name: string;
-        apiKey: string;
-        baseUrl: string;
-        currentModel: string;
-        models: Array<{
-          name: string;
-          description: string;
-          features: {
-            online: boolean;
-            thinking: boolean;
-            multimodal: boolean;
-          };
-        }>;
-      }>;
-    };
+  llmConfigs: ProviderConfig[];
+  llmUsageSettings: {
+    chat: LLMUsageConfig | null;
+    titleSummary: LLMUsageConfig | null;
+    aiContinueWrite: LLMUsageConfig | null;
+    webClip: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -191,6 +156,10 @@ interface IActions {
   setSettingModalOpen: (open: boolean) => void;
   onFontSettingChange: (fontSetting: ISetting["fontSetting"]) => void;
   onDarkModeChange: (darkMode: boolean) => void;
+  updateLLMUsageSetting: (
+    feature: keyof ISetting["llmUsageSettings"],
+    config: LLMUsageConfig | null,
+  ) => void;
 }
 
 const initialState: IState = {
@@ -293,16 +262,12 @@ const initialState: IState = {
         currentSpeakerId: "",
       },
     },
-    llmProviders: {
-      currentProvider: ELLMProvider.OPENAI,
-      [ELLMProvider.OPENAI]: {
-        currentConfigId: "",
-        configs: [],
-      },
-      [ELLMProvider.OTHER]: {
-        currentConfigId: "",
-        configs: [],
-      },
+    llmConfigs: [],
+    llmUsageSettings: {
+      chat: null,
+      titleSummary: null,
+      aiContinueWrite: null,
+      webClip: null,
     },
     embeddingProvider: {
       currentConfigId: "",
@@ -318,6 +283,42 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     const setting = await getSetting();
     try {
       const parsedSetting = JSON.parse(setting);
+
+      // 数据迁移：从 llmProviders 迁移到 llmConfigs
+      if (parsedSetting.llmProviders && !parsedSetting.llmConfigs) {
+        const llmConfigs: ISetting["llmConfigs"] = [];
+
+        // 迁移 OPENAI 配置
+        if (parsedSetting.llmProviders.openai?.configs) {
+          parsedSetting.llmProviders.openai.configs.forEach((config: any) => {
+            llmConfigs.push({
+              id: config.id,
+              name: config.name,
+              apiKey: config.apiKey,
+              baseUrl: config.baseUrl,
+              models: config.models,
+            });
+          });
+        }
+
+        // 迁移 OTHER 配置
+        if (parsedSetting.llmProviders.other?.configs) {
+          parsedSetting.llmProviders.other.configs.forEach((config: any) => {
+            llmConfigs.push({
+              id: config.id,
+              name: config.name,
+              apiKey: config.apiKey,
+              baseUrl: config.baseUrl,
+              models: config.models,
+            });
+          });
+        }
+
+        parsedSetting.llmConfigs = llmConfigs;
+        // 删除旧数据
+        delete parsedSetting.llmProviders;
+      }
+
       const newSetting = cloneDeep(initialState.setting);
       merge(newSetting, parsedSetting);
       set({
@@ -347,6 +348,14 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.darkMode = darkMode;
+      }),
+    });
+  },
+  updateLLMUsageSetting: (feature, config) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.llmUsageSettings[feature] = config;
       }),
     });
   },
