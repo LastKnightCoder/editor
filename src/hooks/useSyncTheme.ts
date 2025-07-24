@@ -8,6 +8,7 @@ const useSyncTheme = () => {
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 };
 

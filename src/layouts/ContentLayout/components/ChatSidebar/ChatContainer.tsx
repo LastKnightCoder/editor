@@ -453,6 +453,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
             modelSelectItems={modelSelectItems}
             onModelSelect={handleModelSelect}
             currentModelName={chatModelConfig?.name}
+            isSupportMultiModal={chatModelConfig?.features?.multimodal}
           />
         </div>
       </>

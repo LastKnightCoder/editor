@@ -5,6 +5,8 @@ import React, {
   useImperativeHandle,
 } from "react";
 import { Button, Upload, Modal, Input, message, Dropdown, Tooltip } from "antd";
+import type { TextAreaRef } from "antd/es/input/TextArea";
+
 import {
   PictureOutlined,
   LinkOutlined,
@@ -37,6 +39,7 @@ interface ChatInputAreaProps {
   modelSelectItems?: any[];
   onModelSelect?: ({ key }: { key: string }) => void;
   currentModelName?: string;
+  isSupportMultiModal?: boolean;
 }
 
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
@@ -52,6 +55,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       modelSelectItems = [],
       onModelSelect,
       currentModelName,
+      isSupportMultiModal = false,
     },
     ref,
   ) => {
@@ -59,7 +63,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [images, setImages] = useState<string[]>([]);
     const [urlModalVisible, setUrlModalVisible] = useState(false);
     const [urlInput, setUrlInput] = useState("");
-    const textAreaRef = useRef<any>(null);
+
+    const textAreaRef = useRef<TextAreaRef>(null);
 
     useImperativeHandle(ref, () => ({
       getValue: (): MessageContent[] => {
@@ -85,10 +90,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         setTextContent(content);
       },
       focusEnd: () => {
-        if (textAreaRef.current) {
-          textAreaRef.current.focus();
+        if (textAreaRef.current?.resizableTextArea?.textArea) {
+          const textArea = textAreaRef.current.resizableTextArea
+            .textArea as HTMLTextAreaElement;
+          textArea.focus();
           const length = textContent.length;
-          textAreaRef.current.setSelectionRange(length, length);
+          textArea.setSelectionRange(length, length);
         }
       },
     }));
@@ -214,34 +221,37 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               </Tooltip>
             )}
             {/* 图片上传 */}
-            <Tooltip title="上传图片">
-              <Upload
-                accept="image/png, image/jpeg, image/webp"
-                showUploadList={false}
-                beforeUpload={handleFileUpload}
-                disabled={!contentEditable}
-              >
-                <Button
-                  type="text"
-                  icon={<PictureOutlined />}
-                  size="small"
-                  disabled={!contentEditable}
-                  className={styles.toolbarButton}
-                />
-              </Upload>
-            </Tooltip>
+            {isSupportMultiModal && (
+              <>
+                <Tooltip title="上传图片">
+                  <Upload
+                    accept="image/png, image/jpeg, image/webp"
+                    showUploadList={false}
+                    beforeUpload={handleFileUpload}
+                    disabled={!contentEditable}
+                  >
+                    <Button
+                      type="text"
+                      icon={<PictureOutlined />}
+                      size="small"
+                      disabled={!contentEditable}
+                      className={styles.toolbarButton}
+                    />
+                  </Upload>
+                </Tooltip>
 
-            {/* 图片链接 */}
-            <Tooltip title="添加图片链接">
-              <Button
-                type="text"
-                icon={<LinkOutlined />}
-                size="small"
-                disabled={!contentEditable}
-                onClick={() => setUrlModalVisible(true)}
-                className={styles.toolbarButton}
-              />
-            </Tooltip>
+                <Tooltip title="添加图片链接">
+                  <Button
+                    type="text"
+                    icon={<LinkOutlined />}
+                    size="small"
+                    disabled={!contentEditable}
+                    onClick={() => setUrlModalVisible(true)}
+                    className={styles.toolbarButton}
+                  />
+                </Tooltip>
+              </>
+            )}
           </div>
 
           {/* 发送按钮 */}
