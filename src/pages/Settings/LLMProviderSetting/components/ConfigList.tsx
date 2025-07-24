@@ -3,7 +3,6 @@ import { Button, Card, List, App } from "antd";
 import { produce } from "immer";
 import { ConfigItem } from "../types";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
-import styles from "./ConfigList.module.less";
 
 interface ConfigListProps {
   onAddConfig: () => void;
@@ -53,25 +52,28 @@ const ConfigList = ({
   return (
     <Card
       title="LLM 配置"
-      className={"h-full"}
+      className="h-full border-none shadow-none bg-white dark:bg-gray-800"
       extra={
         <Button
           type="text"
           icon={<PlusOutlined />}
           onClick={onAddConfig}
           size="small"
+          className="text-blue-500 hover:text-blue-700"
         >
           添加
         </Button>
       }
     >
       <List
-        className={styles.configList}
+        className="overflow-y-auto"
         dataSource={configs}
         renderItem={(config) => (
           <List.Item
-            className={`${styles.configItem} ${
-              config.id === selectedConfigId ? styles.selected : ""
+            className={`cursor-pointer rounded-md px-3! py-2 mb-2 flex items-center transition-colors border-none! ${
+              config.id === selectedConfigId
+                ? "bg-blue-100 dark:bg-blue-900"
+                : "hover:bg-gray-100 dark:hover:bg-gray-700"
             }`}
             onClick={() => handleItemClick(config)}
             actions={[
@@ -79,6 +81,7 @@ const ConfigList = ({
                 key="edit"
                 type="text"
                 size="small"
+                className="text-gray-500 hover:text-blue-500"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEditConfig(config);
@@ -92,6 +95,7 @@ const ConfigList = ({
                 danger
                 size="small"
                 icon={<DeleteOutlined />}
+                className="text-red-500 hover:text-red-700"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDeleteConfig(config.id);
@@ -101,10 +105,11 @@ const ConfigList = ({
           >
             <List.Item.Meta
               description={
-                <div className={styles.configDescription}>
-                  <div>API Key: ********</div>
-                  <div className={styles.baseUrl}>{config.baseUrl}</div>
-                  <div className={styles.modelCount}>
+                <div className="flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-300">
+                  <div className="font-medium text-gray-800 dark:text-gray-100 text-base">
+                    {config.name}
+                  </div>
+                  <div className="text-xs text-gray-400 dark:text-gray-400">
                     {config.models?.length || 0} 个模型
                   </div>
                 </div>
