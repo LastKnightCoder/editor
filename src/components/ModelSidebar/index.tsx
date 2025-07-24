@@ -25,7 +25,6 @@ import { ChatMessage } from "@/types/chat-message";
 import { ResponseMessage } from "@/types";
 import { Role } from "@/constants";
 import ChatModal from "./ChatModal";
-import styles from "./index.module.less";
 
 const { Title } = Typography;
 
@@ -33,12 +32,14 @@ interface ModelSidebarProps {
   visible: boolean;
   onChatSelect?: (chatId: number) => void;
   selectedChatId?: number;
+  onCreateChat?: () => void;
 }
 
 const ModelSidebar: React.FC<ModelSidebarProps> = ({
   visible,
   onChatSelect,
   selectedChatId,
+  onCreateChat,
 }) => {
   const { message: messageApi } = App.useApp();
 
@@ -78,13 +79,6 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   const sortedChats = useMemo(() => {
     return [...chats].sort((a, b) => b.updateTime - a.updateTime);
   }, [chats]);
-
-  // 新建对话
-  const handleAddChat = () => {
-    setChatAction("create");
-    setEditingChat(null);
-    setChatModalVisible(true);
-  };
 
   // 编辑对话
   const handleEditChat = (chat: ChatMessage) => {
@@ -154,17 +148,39 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
     return (
       <List.Item
         key={chat.id}
-        className={classnames(styles.chatItem, {
-          [styles.selected]: isSelected,
-        })}
+        className={classnames(
+          "cursor-pointer rounded-lg p-3 mb-2 border border-gray-200 dark:border-gray-700 transition-all duration-200 ease-in-out group",
+          "hover:bg-slate-100 dark:hover:bg-slate-700",
+          {
+            "bg-slate-200 dark:bg-slate-900": isSelected,
+            "bg-white dark:bg-stone-900": !isSelected,
+          },
+        )}
         onClick={() => onChatSelect?.(chat.id)}
       >
-        <div className={styles.chatInfo}>
-          <div className={styles.chatTitle}>{chat.title}</div>
-          <div className={styles.chatMeta}>
-            <ClockCircleOutlined className={styles.timeIcon} />
-            <span className={styles.chatTime}>{formattedTime}</span>
-            <Space size="small" className={styles.chatActions}>
+        <div className="w-full">
+          <div
+            className={classnames(
+              "font-medium text-sm leading-tight mb-1.5 overflow-hidden text-ellipsis whitespace-nowrap max-w-full",
+            )}
+          >
+            {chat.title}
+          </div>
+          <div className="flex items-center justify-between text-xs text-black dark:text-white">
+            <div className="flex items-center flex-1">
+              <ClockCircleOutlined className={classnames("mr-1 text-xs")} />
+              <span className={classnames("text-xs")}>{formattedTime}</span>
+            </div>
+            <Space
+              size="small"
+              className={classnames(
+                "opacity-0 transition-opacity duration-200",
+                "group-hover:opacity-100",
+                {
+                  "opacity-100": isSelected,
+                },
+              )}
+            >
               <Tooltip title="编辑">
                 <Button
                   type="text"
@@ -201,33 +217,36 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
 
   return (
     <div
-      className={classnames(styles.sidebar, {
-        [styles.visible]: visible,
-      })}
+      className={classnames(
+        "absolute left-0 top-0 h-full w-[300px] max-w-[80%] bg-white dark:bg-stone-800",
+        "transform transition-transform duration-300 ease-in-out z-50 overflow-hidden",
+        {
+          "translate-x-0": visible,
+          "-translate-x-full": !visible,
+        },
+      )}
     >
-      <div className={styles.sidebarContent}>
-        <div className={styles.sidebarHeader}>
-          <div className={styles.titleSection}>
-            <MessageOutlined className={styles.headerIcon} />
-            <Title level={4} style={{ margin: 0 }}>
+      <div className="h-full flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-500 flex justify-between items-center min-h-15">
+          <div className="flex items-center gap-2 flex-1">
+            <MessageOutlined className="text-blue-500 text-base" />
+            <Title level={4} className="m-0 text-gray-900 mb-0!">
               对话列表
             </Title>
           </div>
-          <div className={styles.headerActions}>
+          <div className="flex items-center gap-2">
             <Tooltip title="新建对话">
               <Button
-                type="primary"
                 size="small"
                 icon={<PlusOutlined />}
-                onClick={handleAddChat}
-              >
-                新建对话
-              </Button>
+                onClick={onCreateChat}
+                className="border-none! bg-transparent! hover:bg-gray-100! dark:hover:bg-gray-700! hover:text-black! dark:hover:text-white!"
+              />
             </Tooltip>
           </div>
         </div>
 
-        <div className={styles.chatsList}>
+        <div className="flex-1 overflow-y-auto p-2 px-4">
           <List
             size="small"
             dataSource={sortedChats}

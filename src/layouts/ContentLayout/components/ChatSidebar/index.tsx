@@ -10,7 +10,11 @@ import {
   useRef,
   useEffect,
 } from "react";
-import { LoadingOutlined } from "@ant-design/icons";
+import {
+  LoadingOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+} from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
@@ -20,7 +24,6 @@ import type { EditTextHandle } from "@/components/EditText";
 import ModelSidebar from "@/components/ModelSidebar";
 import { openExternal } from "@/commands";
 
-import styles from "./index.module.less";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
@@ -35,6 +38,21 @@ import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 
 const ChatContainer = lazy(() => import("./ChatContainer"));
+
+const DEFAULT_CHAT = {
+  id: 0,
+  createTime: Date.now(),
+  updateTime: Date.now(),
+  messages: [
+    {
+      role: Role.System,
+      content:
+        "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+      reasoning_content: "",
+    },
+  ],
+  title: "新对话",
+};
 
 const ChatSidebar = memo(() => {
   const { isDark } = useTheme();
@@ -83,7 +101,6 @@ const ChatSidebar = memo(() => {
   const [sendLoading, setSendLoading] = useState(false);
 
   const onCreateNewMessage = useMemoizedFn(async () => {
-    const perf = measurePerformance("createNewMessage");
     const messages: ResponseMessage[] = [
       {
         role: Role.System,
@@ -102,7 +119,6 @@ const ChatSidebar = memo(() => {
     } finally {
       setCreateMessageLoading(false);
     }
-    perf.end();
   });
 
   const onTitleChange = useMemoizedFn(async (title: string) => {
@@ -122,11 +138,17 @@ const ChatSidebar = memo(() => {
   // 处理对话选择
   const handleChatSelect = useMemoizedFn((chatId: number) => {
     useChatMessageStore.setState({ currentChatId: chatId });
+    setModelSidebarVisible(false);
   });
 
   // 切换对话列表侧边栏
   const toggleModelSidebar = useMemoizedFn(() => {
     setModelSidebarVisible(!modelSidebarVisible);
+  });
+
+  const onCreateChat = useMemoizedFn(async () => {
+    await onCreateNewMessage();
+    setModelSidebarVisible(false);
   });
 
   // 只有在侧边栏打开时才需要渲染Markdown组件
@@ -190,7 +212,7 @@ const ChatSidebar = memo(() => {
 
   return (
     <ResizableAndHideableSidebar
-      className={styles.rightSidebar}
+      className="relative box-border flex-none h-full"
       width={width}
       open={open}
       onWidthChange={(width) => {
@@ -202,14 +224,14 @@ const ChatSidebar = memo(() => {
       disableResize={!open}
     >
       <MarkdownProvider isDark={isDark} isVisible={open}>
-        <div className={styles.wrapContainer}>
+        <div className="h-full bg-[var(--primary-bg-color)] box-border">
           <div
-            className={classnames(styles.innerContainer, {
-              [styles.dark]: isDark,
+            className={classnames("box-border p-4 h-full flex flex-col", {
+              "bg-[#29292f]": isDark,
             })}
           >
-            <div className={styles.header}>
-              <div className={styles.title}>
+            <div className="flex justify-between items-center">
+              <div className="font-bold flex-1">
                 {currentChat && (
                   <EditText
                     key={currentChat.id}
@@ -220,13 +242,16 @@ const ChatSidebar = memo(() => {
                   />
                 )}
               </div>
-              <div className={styles.headerActions}>
+              <div className="ml-2 flex-none">
                 <button
-                  className={styles.chatListButton}
+                  className="px-3 py-2 rounded-md cursor-pointer text-base transition-all duration-200 ease-in-out flex items-center justify-center hover:text-black"
                   onClick={toggleModelSidebar}
-                  title="对话列表"
                 >
-                  💬
+                  {modelSidebarVisible ? (
+                    <MenuFoldOutlined />
+                  ) : (
+                    <MenuUnfoldOutlined />
+                  )}
                 </button>
               </div>
             </div>
@@ -235,28 +260,13 @@ const ChatSidebar = memo(() => {
               open && (
                 <Suspense
                   fallback={
-                    <div className={styles.loading}>
+                    <div className="flex items-center justify-center h-full">
                       <LoadingOutlined />
                     </div>
                   }
                 >
                   <ChatContainer
-                    currentChat={
-                      currentChat || {
-                        id: 0,
-                        createTime: Date.now(),
-                        updateTime: Date.now(),
-                        messages: [
-                          {
-                            role: Role.System,
-                            content:
-                              "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
-                            reasoning_content: "",
-                          },
-                        ],
-                        title: "新对话",
-                      }
-                    }
+                    currentChat={currentChat || DEFAULT_CHAT}
                     isDark={isDark}
                     markdownComponents={markdownComponents}
                     isVisible={open}
@@ -273,12 +283,14 @@ const ChatSidebar = memo(() => {
           </div>
         </div>
 
-        {/* 对话列表侧边栏 */}
-        <ModelSidebar
-          visible={modelSidebarVisible}
-          onChatSelect={handleChatSelect}
-          selectedChatId={currentChatId || undefined}
-        />
+        {open && (
+          <ModelSidebar
+            visible={modelSidebarVisible}
+            onChatSelect={handleChatSelect}
+            selectedChatId={currentChatId || undefined}
+            onCreateChat={onCreateChat}
+          />
+        )}
       </MarkdownProvider>
     </ResizableAndHideableSidebar>
   );
