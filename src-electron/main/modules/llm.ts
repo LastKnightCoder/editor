@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
 import OpenAI from "openai";
 import { chunk } from "llm-chunk";
-import { Message } from "@/types";
+import { RequestMessage } from "@/types";
 import { Module } from "../types/module";
 
 class LLMModule implements Module {
@@ -34,7 +34,7 @@ class LLMModule implements Module {
         apiKey: string,
         baseUrl: string,
         model: string,
-        messages: Message[],
+        messages: RequestMessage[],
       ) => {
         return this.chat(apiKey, baseUrl, model, messages);
       },
@@ -73,17 +73,64 @@ class LLMModule implements Module {
     apiKey: string,
     baseUrl: string,
     model: string,
-    messages: Message[],
+    messages: RequestMessage[],
   ): Promise<string | null> {
     const client = new OpenAI({
       apiKey,
       baseURL: baseUrl,
     });
 
+    // 直接转换为 OpenAI 格式，无需复杂判断
+    const openAIMessages: any[] = messages.map((message) => {
+      const role = message.role;
+
+      if (typeof message.content === "string") {
+        return {
+          role,
+          content: message.content,
+        };
+      }
+
+      // 只有一个文本内容时使用简单格式
+      if (message.content.length === 1 && message.content[0].type === "text") {
+        return {
+          role,
+          content: message.content[0].text,
+        };
+      }
+
+      // 多模态内容格式
+      const content = message.content.map((item) => {
+        if (item.type === "text") {
+          return {
+            type: "text" as const,
+            text: item.text,
+          };
+        } else if (item.type === "image") {
+          return {
+            type: "image_url" as const,
+            image_url: {
+              url: item.image,
+            },
+          };
+        }
+        // 文件类型暂时转为文本处理
+        return {
+          type: "text" as const,
+          text: `[文件: ${item.file}]`,
+        };
+      });
+
+      return {
+        role,
+        content,
+      };
+    });
+
     const res = await client.chat.completions.create({
       model,
-      messages,
-      temperature: 0,
+      messages: openAIMessages,
+      temperature: 0.3,
       n: 1,
       top_p: 0,
       stream: false,

@@ -1,4 +1,4 @@
-import { Message } from "@/types";
+import { RequestMessage } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import { message } from "antd";
 import { chat, stream } from "@/commands";
@@ -19,7 +19,7 @@ interface IChatStreamOptions {
 const chatInner = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
-  messages: Message[],
+  messages: RequestMessage[],
 ) => {
   if (!providerConfig) {
     message.error("未提供大模型配置");
@@ -40,7 +40,7 @@ const chatInner = async (
 export const chatStreamInner = (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
-  messages: Message[],
+  messages: RequestMessage[],
   options: IChatStreamOptions,
 ) => {
   if (!providerConfig) {
@@ -61,8 +61,49 @@ export const chatStreamInner = (
     Accept: "application/json",
     Authorization: `Bearer ${apiKey}`,
   };
+
+  // 转换消息格式用于流式请求
+  const streamMessages = messages.map((msg) => {
+    if (typeof msg.content === "string") {
+      return {
+        role: msg.role,
+        content: msg.content,
+      };
+    }
+
+    // 只有一个文本内容时使用简单格式
+    if (msg.content?.length === 1 && msg.content[0].type === "text") {
+      return {
+        role: msg.role,
+        content: msg.content[0].text,
+      };
+    }
+
+    // 多模态内容格式
+    return {
+      role: msg.role,
+      content: msg.content
+        .map((item) => {
+          if (item.type === "text") {
+            return {
+              type: "text",
+              text: item.text,
+            };
+          } else if (item.type === "image") {
+            return {
+              type: "image_url",
+              image_url: {
+                url: item.image,
+              },
+            };
+          }
+        })
+        .filter(Boolean),
+    };
+  });
+
   const requestPayload = {
-    messages,
+    messages: streamMessages,
     stream: true,
     model: modelName,
     temperature: 0.3,
@@ -96,7 +137,7 @@ const useChatLLM = () => {
     async (
       providerConfig: ProviderConfig,
       modelConfig: ModelConfig,
-      messages: Message[],
+      messages: RequestMessage[],
     ) => {
       return await chatInner(providerConfig, modelConfig, messages);
     },
@@ -106,7 +147,7 @@ const useChatLLM = () => {
     (
       providerConfig: ProviderConfig,
       modelConfig: ModelConfig,
-      messages: Message[],
+      messages: RequestMessage[],
       options: IChatStreamOptions,
     ) => {
       return chatStreamInner(providerConfig, modelConfig, messages, options);
@@ -122,7 +163,7 @@ const useChatLLM = () => {
 export const chatLLM = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
-  messages: Message[],
+  messages: RequestMessage[],
 ) => {
   return await chatInner(providerConfig, modelConfig, messages);
 };
@@ -130,7 +171,7 @@ export const chatLLM = async (
 export const chatLLMStream = (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
-  messages: Message[],
+  messages: RequestMessage[],
   options: IChatStreamOptions,
 ) => {
   chatStreamInner(providerConfig, modelConfig, messages, options);

@@ -1,9 +1,9 @@
-import { Message } from "@/types";
+import { ChatSessionMessage } from "@/types";
 
 export interface ChatMessage {
   id: number;
   createTime: number;
   updateTime: number;
-  messages: Message[];
+  messages: ChatSessionMessage[];
   title: string;
 }

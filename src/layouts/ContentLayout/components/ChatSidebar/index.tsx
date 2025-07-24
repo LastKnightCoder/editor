@@ -1,4 +1,4 @@
-import { App, Button, Select } from "antd";
+import { App } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
 import {
@@ -10,19 +10,16 @@ import {
   useRef,
   useEffect,
 } from "react";
-import {
-  DeleteOutlined,
-  LoadingOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
+import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import "katex/dist/katex.min.css";
 
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import If from "@/components/If";
 import EditText from "@/components/EditText";
 import type { EditTextHandle } from "@/components/EditText";
 import { openExternal } from "@/commands";
+
+import styles from "./index.module.less";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
@@ -31,10 +28,8 @@ import MermaidRenderer from "./MermaidRenderer";
 import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
 import { MarkdownProvider } from "./MarkdownContext";
 
-import { Message } from "@/types";
+import { ResponseMessage } from "@/types";
 import { Role } from "@/constants";
-
-import styles from "./index.module.less";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 
@@ -42,7 +37,7 @@ const ChatContainer = lazy(() => import("./ChatContainer"));
 
 const ChatSidebar = memo(() => {
   const { isDark } = useTheme();
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
 
   const database = useSettingStore((state) => state.setting.database.active);
@@ -56,7 +51,6 @@ const ChatSidebar = memo(() => {
     chats,
     createChatMessage,
     updateChatMessage,
-    deleteChatMessage,
     updateCurrentChat,
   } = useChatMessageStore(
     useShallow((state) => ({
@@ -67,7 +61,6 @@ const ChatSidebar = memo(() => {
       chats: state.chats,
       createChatMessage: state.createChatMessage,
       updateChatMessage: state.updateChatMessage,
-      deleteChatMessage: state.deleteChatMessage,
       updateCurrentChat: state.updateCurrentChat,
     })),
   );
@@ -87,7 +80,7 @@ const ChatSidebar = memo(() => {
 
   const onCreateNewMessage = useMemoizedFn(async () => {
     const perf = measurePerformance("createNewMessage");
-    const messages: Message[] = [
+    const messages: ResponseMessage[] = [
       {
         role: Role.System,
         content:
@@ -106,35 +99,6 @@ const ChatSidebar = memo(() => {
       setCreateMessageLoading(false);
     }
     perf.end();
-  });
-
-  const onDeleteMessage = useMemoizedFn(() => {
-    if (!currentChat) return;
-
-    modal.confirm({
-      title: "确定删除此对话吗？",
-      content: "此操作将永久删除该对话，是否继续？",
-      okButtonProps: { danger: true },
-      okText: "删除",
-      cancelText: "取消",
-      onOk: async () => {
-        const perf = measurePerformance("deleteMessage");
-        try {
-          await deleteChatMessage(currentChat.id);
-        } catch (error) {
-          message.error("Failed to delete chat");
-          console.error(error);
-        }
-        perf.end();
-      },
-    });
-  });
-
-  const handleSelectChange = useMemoizedFn((id: number) => {
-    const chat = chats.find((chat) => chat.id === id);
-    if (chat) {
-      useChatMessageStore.setState({ currentChatId: chat.id });
-    }
   });
 
   const onTitleChange = useMemoizedFn(async (title: string) => {
@@ -242,61 +206,47 @@ const ChatSidebar = memo(() => {
                   />
                 )}
               </div>
-              <div className={styles.operations}>
-                <Button
-                  disabled={sendLoading || createMessageLoading}
-                  icon={<PlusOutlined />}
-                  onClick={onCreateNewMessage}
-                >
-                  新建对话
-                </Button>
-                <If condition={!!currentChat}>
-                  <Button
-                    danger
-                    disabled={sendLoading || createMessageLoading}
-                    icon={<DeleteOutlined />}
-                    onClick={onDeleteMessage}
-                  >
-                    删除对话
-                  </Button>
-                </If>
-                {chats.length > 0 && (
-                  <Select
-                    style={{
-                      minWidth: 120,
-                    }}
-                    value={currentChat?.id}
-                    onChange={handleSelectChange}
-                    options={chats.map((chat) => ({
-                      label: chat.title,
-                      value: chat.id,
-                    }))}
-                  />
-                )}
-              </div>
             </div>
 
-            {currentChat && open && (
-              <Suspense
-                fallback={
-                  <div className={styles.loading}>
-                    <LoadingOutlined />
-                  </div>
-                }
-              >
-                <ChatContainer
-                  currentChat={currentChat}
-                  isDark={isDark}
-                  markdownComponents={markdownComponents}
-                  isVisible={open}
-                  updateChatMessage={updateChatMessage}
-                  updateCurrentChat={updateCurrentChat}
-                  sendLoading={sendLoading}
-                  setSendLoading={setSendLoading}
-                  titleRef={editTitleRef}
-                />
-              </Suspense>
-            )}
+            {(currentChat || (!currentChat && !createMessageLoading)) &&
+              open && (
+                <Suspense
+                  fallback={
+                    <div className={styles.loading}>
+                      <LoadingOutlined />
+                    </div>
+                  }
+                >
+                  <ChatContainer
+                    currentChat={
+                      currentChat || {
+                        id: 0,
+                        createTime: Date.now(),
+                        updateTime: Date.now(),
+                        messages: [
+                          {
+                            role: Role.System,
+                            content:
+                              "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+                            reasoning_content: "",
+                          },
+                        ],
+                        title: "新对话",
+                      }
+                    }
+                    isDark={isDark}
+                    markdownComponents={markdownComponents}
+                    isVisible={open}
+                    updateChatMessage={updateChatMessage}
+                    updateCurrentChat={updateCurrentChat}
+                    sendLoading={sendLoading}
+                    setSendLoading={setSendLoading}
+                    titleRef={editTitleRef}
+                    onCreateNewMessage={onCreateNewMessage}
+                    createMessageLoading={createMessageLoading}
+                  />
+                </Suspense>
+              )}
           </div>
         </div>
       </MarkdownProvider>
