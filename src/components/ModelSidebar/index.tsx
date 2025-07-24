@@ -41,7 +41,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   selectedChatId,
   onCreateChat,
 }) => {
-  const { message: messageApi } = App.useApp();
+  const { message: messageApi, modal } = App.useApp();
 
   // 对话相关状态
   const [chatModalVisible, setChatModalVisible] = useState(false);
@@ -89,13 +89,16 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
 
   // 删除对话
   const handleDeleteChat = async (chatId: number) => {
-    try {
-      await deleteChatMessage(chatId);
-      messageApi.success("对话删除成功");
-    } catch (error) {
-      messageApi.error("删除对话失败");
-      console.error(error);
-    }
+    modal.confirm({
+      title: "确定删除这个对话吗？",
+      okButtonProps: {
+        danger: true,
+      },
+      onOk: async () => {
+        await deleteChatMessage(chatId);
+        messageApi.success("对话删除成功");
+      },
+    });
   };
 
   // 处理对话弹窗提交
@@ -192,22 +195,18 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
                   }}
                 />
               </Tooltip>
-              <Popconfirm
-                title="确定删除这个对话吗？"
-                onConfirm={() => handleDeleteChat(chat.id)}
-                okText="确定"
-                cancelText="取消"
-              >
-                <Tooltip title="删除">
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    danger
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                </Tooltip>
-              </Popconfirm>
+              <Tooltip title="删除">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  danger
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteChat(chat.id);
+                  }}
+                />
+              </Tooltip>
             </Space>
           </div>
         </div>

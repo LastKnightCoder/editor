@@ -10,14 +10,14 @@ import type { TextAreaRef } from "antd/es/input/TextArea";
 import {
   PictureOutlined,
   LinkOutlined,
-  DeleteOutlined,
   WechatWorkOutlined,
   SettingOutlined,
   SendOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import classnames from "classnames";
 import { MessageContent } from "@/types/llm";
-import styles from "./index.module.less";
+import PortalToBody from "../PortalToBody";
 
 const { TextArea } = Input;
 
@@ -63,6 +63,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [images, setImages] = useState<string[]>([]);
     const [urlModalVisible, setUrlModalVisible] = useState(false);
     const [urlInput, setUrlInput] = useState("");
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     const textAreaRef = useRef<TextAreaRef>(null);
 
@@ -146,22 +147,20 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     };
 
     return (
-      <div className={classnames(styles.container, className)}>
+      <div className={classnames("flex flex-col p-2", className)}>
         {/* 图片预览区域 */}
         {images.length > 0 && (
-          <div className={styles.imagesPreview}>
+          <div className="flex flex-wrap gap-2 mb-2">
             {images.map((image, index) => (
-              <div key={index} className={styles.imagePreviewItem}>
+              <div key={index} className="relative w-12 h-12 group/image">
                 <img
                   src={image}
                   alt={`预览 ${index + 1}`}
-                  className={styles.previewImage}
+                  className="w-12 h-12 object-cover rounded-lg border border-gray-200 cursor-zoom-in"
+                  onClick={() => setPreviewImage(image)}
                 />
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  className={styles.deleteButton}
+                <CloseOutlined
+                  className="w-4 h-4 absolute top-1 right-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200 rounded-full p-1 text-white! hover:bg-gray-500! cursor-pointer"
                   onClick={() => removeImage(index)}
                 />
               </div>
@@ -170,7 +169,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         )}
 
         {/* 输入区域 */}
-        <div className={styles.inputArea}>
+        <div className="mb-2">
           <TextArea
             ref={textAreaRef}
             value={textContent}
@@ -179,24 +178,25 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             placeholder={placeholder}
             autoSize={{ minRows: 1, maxRows: 6 }}
             disabled={!contentEditable}
-            className={styles.textArea}
+            className="w-full resize-none border-none focus:ring-0 focus:border-blue-400 bg-transparent text-base px-0!"
             variant="borderless"
           />
         </div>
 
         {/* 工具栏 */}
-        <div className={styles.toolbar}>
-          <div className={styles.leftActions}>
+        <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center gap-1.5">
             {/* 新建对话 */}
             {onCreateNewMessage && (
               <Tooltip title="新建对话">
                 <Button
+                  type="text"
                   size="small"
                   icon={<WechatWorkOutlined />}
                   onClick={onCreateNewMessage}
                   loading={createMessageLoading}
                   disabled={sendLoading}
-                  className={styles.toolbarButton}
+                  className="!p-1 bg-none! border-none! hover:!bg-gray-100!"
                 />
               </Tooltip>
             )}
@@ -213,9 +213,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   disabled={sendLoading}
                 >
                   <Button
+                    type="text"
                     size="small"
                     icon={<SettingOutlined />}
-                    className={styles.toolbarButton}
+                    className="!p-1 bg-none! border-none! hover:!bg-gray-100!"
                   />
                 </Dropdown>
               </Tooltip>
@@ -235,7 +236,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                       icon={<PictureOutlined />}
                       size="small"
                       disabled={!contentEditable}
-                      className={styles.toolbarButton}
+                      className="!p-1 !rounded hover:!bg-gray-100"
                     />
                   </Upload>
                 </Tooltip>
@@ -247,7 +248,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                     size="small"
                     disabled={!contentEditable}
                     onClick={() => setUrlModalVisible(true)}
-                    className={styles.toolbarButton}
+                    className="!p-1 !rounded hover:!bg-gray-100"
                   />
                 </Tooltip>
               </>
@@ -255,13 +256,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           </div>
 
           {/* 发送按钮 */}
-          <div className={styles.rightActions}>
+          <div>
             <Button
               size="small"
               loading={sendLoading}
               onClick={onPressEnter}
               icon={<SendOutlined />}
-              className={classnames(styles.toolbarButton, styles.sendButton)}
+              className="p-1 rounded border-none!"
             />
           </div>
         </div>
@@ -285,6 +286,25 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             onPressEnter={handleUrlSubmit}
           />
         </Modal>
+        <PortalToBody>
+          {previewImage && (
+            <div
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center cursor-zoom-out"
+              onClick={() => setPreviewImage(null)}
+            >
+              <div className="absolute inset-0 bg-black bg-opacity-50 -z-1" />
+              <img
+                src={previewImage}
+                alt="预览"
+                className="max-w-full max-h-full"
+              />
+              <CloseOutlined
+                className="w-5 h-5 absolute top-4 right-4 duration-200 rounded-full p-1 cursor-pointer text-white! hover:bg-gray-500!"
+                onClick={() => setPreviewImage(null)}
+              />
+            </div>
+          )}
+        </PortalToBody>
       </div>
     );
   },
