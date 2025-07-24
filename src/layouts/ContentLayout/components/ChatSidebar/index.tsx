@@ -17,6 +17,7 @@ import "katex/dist/katex.min.css";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import EditText from "@/components/EditText";
 import type { EditTextHandle } from "@/components/EditText";
+import ModelSidebar from "@/components/ModelSidebar";
 import { openExternal } from "@/commands";
 
 import styles from "./index.module.less";
@@ -64,6 +65,9 @@ const ChatSidebar = memo(() => {
       updateCurrentChat: state.updateCurrentChat,
     })),
   );
+
+  // 添加 ModelSidebar 可见性状态
+  const [modelSidebarVisible, setModelSidebarVisible] = useState(false);
 
   useEffect(() => {
     if (isConnected) {
@@ -113,6 +117,16 @@ const ChatSidebar = memo(() => {
       console.error(error);
     }
     perf.end();
+  });
+
+  // 处理对话选择
+  const handleChatSelect = useMemoizedFn((chatId: number) => {
+    useChatMessageStore.setState({ currentChatId: chatId });
+  });
+
+  // 切换对话列表侧边栏
+  const toggleModelSidebar = useMemoizedFn(() => {
+    setModelSidebarVisible(!modelSidebarVisible);
   });
 
   // 只有在侧边栏打开时才需要渲染Markdown组件
@@ -206,6 +220,15 @@ const ChatSidebar = memo(() => {
                   />
                 )}
               </div>
+              <div className={styles.headerActions}>
+                <button
+                  className={styles.chatListButton}
+                  onClick={toggleModelSidebar}
+                  title="对话列表"
+                >
+                  💬
+                </button>
+              </div>
             </div>
 
             {(currentChat || (!currentChat && !createMessageLoading)) &&
@@ -249,6 +272,13 @@ const ChatSidebar = memo(() => {
               )}
           </div>
         </div>
+
+        {/* 对话列表侧边栏 */}
+        <ModelSidebar
+          visible={modelSidebarVisible}
+          onChatSelect={handleChatSelect}
+          selectedChatId={currentChatId || undefined}
+        />
       </MarkdownProvider>
     </ResizableAndHideableSidebar>
   );
