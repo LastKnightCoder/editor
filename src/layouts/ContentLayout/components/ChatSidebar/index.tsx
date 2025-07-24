@@ -36,6 +36,7 @@ import { ResponseMessage } from "@/types";
 import { Role } from "@/constants";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
+import type { ChatContainerHandle } from "./ChatContainer";
 
 const ChatContainer = lazy(() => import("./ChatContainer"));
 
@@ -58,6 +59,7 @@ const ChatSidebar = memo(() => {
   const { isDark } = useTheme();
   const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
+  const chatContainerRef = useRef<ChatContainerHandle>(null);
 
   const database = useSettingStore((state) => state.setting.database.active);
   const isConnected = useDatabaseConnected();
@@ -137,6 +139,7 @@ const ChatSidebar = memo(() => {
 
   // 处理对话选择
   const handleChatSelect = useMemoizedFn((chatId: number) => {
+    chatContainerRef.current?.scrollToTop();
     useChatMessageStore.setState({ currentChatId: chatId });
     setModelSidebarVisible(false);
   });
@@ -266,6 +269,7 @@ const ChatSidebar = memo(() => {
                   }
                 >
                   <ChatContainer
+                    ref={chatContainerRef}
                     currentChat={currentChat || DEFAULT_CHAT}
                     isDark={isDark}
                     markdownComponents={markdownComponents}

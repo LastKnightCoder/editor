@@ -49,7 +49,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
   if (isUser) {
     // 用户消息是 RequestMessage
     const userMessage = message as RequestMessage;
-    console.log(userMessage);
     displayContent = getTextContent(userMessage);
     images = getImageContent(userMessage);
   } else {

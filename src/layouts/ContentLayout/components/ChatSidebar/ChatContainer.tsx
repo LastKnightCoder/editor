@@ -5,6 +5,8 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  forwardRef,
+  useImperativeHandle,
 } from "react";
 import { App } from "antd";
 import { produce } from "immer";
@@ -38,20 +40,27 @@ interface ChatContainerProps {
   createMessageLoading: boolean;
 }
 
-const ChatContainer: React.FC<ChatContainerProps> = memo(
-  ({
-    currentChat,
-    isDark,
-    markdownComponents,
-    isVisible,
-    updateChatMessage,
-    updateCurrentChat,
-    sendLoading,
-    setSendLoading,
-    titleRef,
-    onCreateNewMessage,
-    createMessageLoading,
-  }) => {
+export type ChatContainerHandle = {
+  scrollToTop: () => void;
+};
+
+const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
+  (
+    {
+      currentChat,
+      isDark,
+      markdownComponents,
+      isVisible,
+      updateChatMessage,
+      updateCurrentChat,
+      sendLoading,
+      setSendLoading,
+      titleRef,
+      onCreateNewMessage,
+      createMessageLoading,
+    },
+    ref,
+  ) => {
     const { message } = App.useApp();
     const { chatLLMStream } = useChatLLM();
     const { providerConfig: chatProviderConfig, modelConfig: chatModelConfig } =
@@ -66,6 +75,14 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
     const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+
+    useImperativeHandle(ref, () => ({
+      scrollToTop: () => {
+        if (messagesRef.current) {
+          messagesRef.current.scrollTop = 0;
+        }
+      },
+    }));
 
     const onSelectModel = useMemoizedFn(
       (providerId: string, modelName: string) => {
@@ -463,4 +480,4 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
 
 ChatContainer.displayName = "ChatContainer";
 
-export default ChatContainer;
+export default memo(ChatContainer);
