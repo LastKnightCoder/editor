@@ -1,11 +1,11 @@
 import { invoke } from "@/electron";
-import { Message } from "@/types";
+import { RequestMessage } from "@/types";
 
 export const chat = async (
   apiKey: string,
   baseUrl: string,
   model: string,
-  messages: Message[],
+  messages: RequestMessage[],
 ) => {
   return await invoke("chat-openai", apiKey, baseUrl, model, messages);
 };

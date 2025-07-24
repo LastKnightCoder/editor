@@ -24,6 +24,26 @@
     color: #454a52;
   }
 
+  .imagesContainer {
+    margin: 0 0 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .messageImage {
+    max-width: 300px;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+
+    &:hover {
+      transform: scale(1.02);
+    }
+  }
+
   &.dark {
     background: #323233;
 

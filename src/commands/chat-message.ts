@@ -1,8 +1,8 @@
 import { invoke } from "@/electron";
-import { Message, ChatMessage } from "@/types";
+import { ChatMessage, ChatSessionMessage } from "@/types";
 
 export const createChatMessage = (
-  messages: Message[],
+  messages: ChatSessionMessage[],
   title = "新对话",
 ): Promise<ChatMessage> => {
   return invoke("create-chat-message", messages, title);

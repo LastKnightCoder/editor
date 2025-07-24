@@ -6,21 +6,23 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { App, Button } from "antd";
+import { App } from "antd";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 
-import EditText from "@/components/EditText";
-import type { EditTextHandle } from "@/components/EditText";
+import ChatInputArea from "@/components/ChatInputArea";
+import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
 
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
 
-import { ChatMessage, Message } from "@/types";
+import { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
 import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
-import { chat } from "@/commands";
+import { chat, createChatMessage } from "@/commands";
+import useSettingStore from "@/stores/useSettingStore";
+import type { EditTextHandle } from "@/components/EditText";
 
 interface ChatContainerProps {
   currentChat: ChatMessage;
@@ -32,6 +34,8 @@ interface ChatContainerProps {
   sendLoading: boolean;
   setSendLoading: (loading: boolean) => void;
   titleRef: React.RefObject<EditTextHandle>;
+  onCreateNewMessage: () => void;
+  createMessageLoading: boolean;
 }
 
 const ChatContainer: React.FC<ChatContainerProps> = memo(
@@ -45,6 +49,8 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
     sendLoading,
     setSendLoading,
     titleRef,
+    onCreateNewMessage,
+    createMessageLoading,
   }) => {
     const { message } = App.useApp();
     const { chatLLMStream } = useChatLLM();
@@ -55,9 +61,62 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
       modelConfig: titleModelConfig,
     } = useLLMConfig("titleSummary");
 
-    const editTextRef = useRef<EditTextHandle>(null);
+    const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
+
+    const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
     const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+
+    const onSelectModel = useMemoizedFn(
+      (providerId: string, modelName: string) => {
+        useSettingStore.setState(
+          produce((draft) => {
+            draft.setting.llmUsageSettings.chat.providerId = providerId;
+            draft.setting.llmUsageSettings.chat.modelName = modelName;
+          }),
+        );
+      },
+    );
+
+    // 模型选择菜单
+    const modelSelectItems = useMemo(() => {
+      return llmConfigs.map((provider) => ({
+        key: provider.id,
+        label: provider.name,
+        children: provider.models.map((model) => ({
+          key: `${provider.id}::${model.name}`,
+          label: (
+            <div>
+              <div>{model.name}</div>
+              <div style={{ fontSize: "12px", color: "#999" }}>
+                {model.description}
+              </div>
+            </div>
+          ),
+        })),
+      }));
+    }, [llmConfigs]);
+
+    // 处理模型选择
+    const handleModelSelect = useMemoizedFn(({ key }: { key: string }) => {
+      const [providerId, modelName] = key.split("::");
+
+      onSelectModel(providerId, modelName);
+
+      // 更新全局配置
+      useSettingStore.setState(
+        produce((draft) => {
+          if (!draft.setting.llmUsageSettings.chat) {
+            draft.setting.llmUsageSettings.chat = {
+              providerId: "",
+              modelName: "",
+            };
+          }
+          draft.setting.llmUsageSettings.chat.providerId = providerId;
+          draft.setting.llmUsageSettings.chat.modelName = modelName;
+        }),
+      );
+    });
 
     const visibleMessages = useMemo(() => {
       return currentChat.messages.filter(
@@ -136,7 +195,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
       if (!editTextRef.current) return;
 
       const userContent = editTextRef.current.getValue();
-      if (!userContent) {
+      if (!userContent || userContent.length === 0) {
         message.warning("请输入内容");
         return;
       }
@@ -146,31 +205,75 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
 
       scrollToBottom();
 
-      const newMessage: Message = {
+      const newMessage: RequestMessage = {
         role: Role.User,
         content: userContent,
       };
 
-      const responseMessage: Message = {
+      const responseMessage: ResponseMessage = {
         role: Role.Assistant,
         content: "...",
       };
 
-      const sendMessages = [
-        currentChat.messages[0], // System Prompt
-        ...currentChat.messages
+      // 如果当前没有真实的对话（id为0），则先创建一个新对话
+      let actualCurrentChat = currentChat;
+      if (currentChat.id === 0) {
+        try {
+          const systemMessage: ResponseMessage = {
+            role: Role.System,
+            content:
+              "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+          };
+
+          const newChatMessages = [systemMessage];
+          actualCurrentChat = await createChatMessage(newChatMessages);
+        } catch (error) {
+          message.error("创建新对话失败");
+          setSendLoading(false);
+          return;
+        }
+      }
+
+      // 准备发送的消息（只包含 RequestMessage）
+      const systemMessage: RequestMessage = {
+        role: actualCurrentChat.messages[0]?.role || Role.System,
+        content:
+          actualCurrentChat.messages[0]?.role === Role.System
+            ? (actualCurrentChat.messages[0] as ResponseMessage).content
+              ? [
+                  {
+                    type: "text",
+                    text: (actualCurrentChat.messages[0] as ResponseMessage)
+                      .content,
+                  },
+                ]
+              : [{ type: "text", text: "" }]
+            : [{ type: "text", text: "" }],
+      };
+
+      const sendMessages: RequestMessage[] = [
+        systemMessage,
+        ...actualCurrentChat.messages
           .slice(1)
           .slice(-10)
-          .map((message) => ({
-            content: message.content,
-            role: message.role,
-          })),
+          .map((message): RequestMessage => {
+            if (message.role === Role.User) {
+              return message as RequestMessage;
+            } else {
+              // 将 ResponseMessage 转换为 RequestMessage 格式
+              const responseMsg = message as ResponseMessage;
+              return {
+                role: message.role,
+                content: [{ type: "text", text: responseMsg.content }],
+              };
+            }
+          }),
         newMessage,
       ];
 
       updateCurrentChat({
-        ...currentChat,
-        messages: [...currentChat.messages, newMessage, responseMessage],
+        ...actualCurrentChat,
+        messages: [...actualCurrentChat.messages, newMessage, responseMessage],
       });
 
       // 添加新消息后立即滚动到底部（重置自动滚动）
@@ -192,13 +295,13 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
       chatLLMStream(chatProviderConfig, chatModelConfig, sendMessages, {
         onFinish: async (content: string, reasoning_content: string) => {
           try {
-            const newCurrentChat = produce(currentChat, (draft) => {
+            const newCurrentChat = produce(actualCurrentChat, (draft) => {
               draft.messages.push(newMessage);
               draft.messages.push({
                 role: Role.Assistant,
                 content,
                 reasoning_content,
-              });
+              } as ResponseMessage);
             });
 
             const updatedChatMessage = await updateChatMessage(newCurrentChat);
@@ -208,6 +311,25 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
 
             try {
               if (titleProviderConfig && titleModelConfig) {
+                // 为标题生成准备消息
+                const titleMessages: RequestMessage[] =
+                  updatedChatMessage.messages
+                    .slice(1)
+                    .slice(-10)
+                    .map((message): RequestMessage => {
+                      if (message.role === Role.User) {
+                        return message as RequestMessage;
+                      } else {
+                        const responseMsg = message as ResponseMessage;
+                        return {
+                          role: message.role,
+                          content: [
+                            { type: "text", text: responseMsg.content },
+                          ],
+                        };
+                      }
+                    });
+
                 const newTitle = await chat(
                   titleProviderConfig.apiKey,
                   titleProviderConfig.baseUrl,
@@ -215,15 +337,9 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
                   [
                     {
                       role: Role.System,
-                      content: SUMMARY_TITLE_PROMPT,
+                      content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
                     },
-                    ...updatedChatMessage.messages
-                      .slice(1)
-                      .slice(-10)
-                      .map((message) => ({
-                        content: message.content,
-                        role: message.role,
-                      })),
+                    ...titleMessages,
                   ],
                 );
 
@@ -251,13 +367,13 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
         },
 
         onUpdate: (full: string, _inc: string, reasoningText?: string) => {
-          const newCurrentChat = produce(currentChat, (draft) => {
+          const newCurrentChat = produce(actualCurrentChat, (draft) => {
             draft.messages.push(newMessage);
             draft.messages.push({
               role: Role.Assistant,
               reasoning_content: reasoningText,
               content: full,
-            });
+            } as ResponseMessage);
           });
           updateCurrentChat(newCurrentChat);
 
@@ -268,13 +384,13 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
         },
 
         onReasoning: (full: string) => {
-          const newCurrentChat = produce(currentChat, (draft) => {
+          const newCurrentChat = produce(actualCurrentChat, (draft) => {
             draft.messages.push(newMessage);
             draft.messages.push({
               role: Role.Assistant,
               content: "",
               reasoning_content: full,
-            });
+            } as ResponseMessage);
           });
           updateCurrentChat(newCurrentChat);
 
@@ -285,13 +401,18 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
         },
 
         onError: () => {
-          updateCurrentChat(currentChat);
+          updateCurrentChat(actualCurrentChat);
           setSendLoading(false);
 
           message.error("请求失败");
           perf.end();
           setTimeout(() => {
-            editTextRef.current?.setValue(userContent);
+            // 从消息内容中提取文本用于恢复
+            const textContent = userContent
+              .filter((item) => item.type === "text")
+              .map((item) => item.text)
+              .join("\n");
+            editTextRef.current?.setValue(textContent);
             editTextRef.current?.focusEnd();
           }, 100);
         },
@@ -320,20 +441,19 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
           )}
         </div>
 
-        <div className="mt-3 mb-3 flex-none px-6 py-3 rounded-3xl box-border bg-[var(--main-bg-color)] min-h-[36px] flex items-center">
-          <EditText
+        <div className="mt-3 flex-none px-3 py-3 box-border bg-[var(--main-bg-color)] rounded-3xl">
+          <ChatInputArea
             className="flex-1 min-w-0"
             contentEditable={!sendLoading}
             ref={editTextRef}
             onPressEnter={sendMessage}
+            sendLoading={sendLoading}
+            createMessageLoading={createMessageLoading}
+            onCreateNewMessage={onCreateNewMessage}
+            modelSelectItems={modelSelectItems}
+            onModelSelect={handleModelSelect}
+            currentModelName={chatModelConfig?.name}
           />
-          <Button
-            className="flex-none ml-3"
-            loading={sendLoading}
-            onClick={sendMessage}
-          >
-            确定
-          </Button>
         </div>
       </>
     );

@@ -1,0 +1,145 @@
+.sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 100vh;
+  width: 360px;
+  background: var(--main-bg-color);
+  border-left: 1px solid var(--border-color);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  overflow: hidden;
+
+  &.visible {
+    transform: translateX(0);
+  }
+
+  &.collapsed {
+    width: 60px;
+  }
+}
+
+.drawer {
+  .ant-drawer-body {
+    padding: 0;
+  }
+}
+
+.sidebarContent {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarHeader {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 60px;
+}
+
+.collapsedHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.providersList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.providerCard {
+  margin-bottom: 12px;
+
+  &.selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color);
+  }
+
+  &.collapsed {
+    .ant-card-head {
+      padding: 8px;
+      min-height: auto;
+    }
+  }
+}
+
+.providerHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+
+  .providerIcon {
+    color: var(--primary-color);
+    font-size: 16px;
+  }
+
+  .ant-typography {
+    flex: 1;
+    margin: 0;
+  }
+}
+
+.modelItem {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: var(--hover-bg-color);
+  }
+
+  &.selected {
+    background-color: var(--primary-color);
+    color: white;
+
+    .modelName,
+    .modelDescription {
+      color: white;
+    }
+
+    .ant-tag {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+  }
+}
+
+.modelInfo {
+  width: 100%;
+}
+
+.modelName {
+  font-weight: 500;
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.modelDescription {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+
+.modelFeatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+
+  .ant-tag {
+    margin: 0;
+    font-size: 10px;
+    line-height: 1.2;
+    padding: 1px 4px;
+  }
+}
