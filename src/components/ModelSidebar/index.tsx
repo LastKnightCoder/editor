@@ -6,6 +6,7 @@ import {
   PlusOutlined,
   MessageOutlined,
   ClockCircleOutlined,
+  MenuFoldOutlined,
 } from "@ant-design/icons";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
@@ -25,6 +26,7 @@ interface ModelSidebarProps {
   onChatSelect?: (chatId: number) => void;
   selectedChatId?: number;
   onCreateChat?: () => void;
+  onClose?: () => void;
 }
 
 const ModelSidebar: React.FC<ModelSidebarProps> = ({
@@ -32,6 +34,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   onChatSelect,
   selectedChatId,
   onCreateChat,
+  onClose,
 }) => {
   const { message: messageApi, modal } = App.useApp();
 
@@ -209,7 +212,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
   return (
     <div
       className={classnames(
-        "absolute left-0 top-0 h-full w-[300px] max-w-[80%] bg-white dark:bg-stone-800",
+        "absolute left-0 top-0 h-full w-[300px] max-w-[80%] bg-white dark:bg-stone-800 border-l border-gray-200 dark:border-gray-600",
         "transform transition-transform duration-300 ease-in-out z-50 overflow-hidden",
         {
           "translate-x-0": visible,
@@ -226,6 +229,12 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
             </Title>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              size="small"
+              icon={<MenuFoldOutlined />}
+              className="border-none! bg-transparent! hover:bg-gray-100! dark:hover:bg-gray-700! hover:text-black! dark:hover:text-white!"
+              onClick={onClose}
+            />
             <Tooltip title="新建对话">
               <Button
                 size="small"
