@@ -1,5 +1,5 @@
 import { nodeFetch } from "@/commands";
-import { Message } from "@/types";
+import { RequestMessage } from "@/types";
 import { CONVERT_PROMPT, Role } from "@/constants";
 import { chatLLM } from "@/hooks/useChatLLM.ts";
 import { Descendant } from "slate";
@@ -48,14 +48,24 @@ export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
     return "";
   }
 
-  const convertMessages: Message[] = [
+  const convertMessages: RequestMessage[] = [
     {
       role: Role.System,
-      content: CONVERT_PROMPT,
+      content: [
+        {
+          type: "text",
+          text: CONVERT_PROMPT,
+        },
+      ],
     },
     {
       role: Role.User,
-      content: html,
+      content: [
+        {
+          type: "text",
+          text: html,
+        },
+      ],
     },
   ];
 

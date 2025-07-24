@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { Message, ChatMessage } from "@/types";
+import { ChatSessionMessage, ChatMessage } from "@/types";
 
 export default class ChatMessageTable {
   static initTable(db: Database.Database) {
@@ -41,7 +41,7 @@ export default class ChatMessageTable {
 
   static createChatMessage(
     db: Database.Database,
-    messages: Message[],
+    messages: ChatSessionMessage[],
     title: string,
   ): ChatMessage {
     const stmt = db.prepare(
