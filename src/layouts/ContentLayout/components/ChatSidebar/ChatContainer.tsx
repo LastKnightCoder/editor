@@ -10,7 +10,7 @@ import React, {
 } from "react";
 import { App } from "antd";
 import { produce } from "immer";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 
 import ChatInputArea from "@/components/ChatInputArea";
 import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
@@ -18,14 +18,21 @@ import type { ChatInputAreaHandle } from "@/components/ChatInputArea";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
 
-import { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
+import {
+  ChatMessage,
+  RequestMessage,
+  ResponseMessage,
+  KnowledgeOptions,
+} from "@/types";
 import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
+import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import { chat, createChatMessage } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import type { EditTextHandle } from "@/components/EditText";
-
+import { InfoCircleOutlined } from "@ant-design/icons";
+import classNames from "classnames";
 interface ChatContainerProps {
   currentChat: ChatMessage;
   isDark: boolean;
@@ -71,6 +78,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     } = useLLMConfig("titleSummary");
 
     const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
+    const embeddingModelInfo = useEmbeddingConfig();
+
+    const [ragEnabled, setRagEnabled] = useLocalStorageState("ragEnabled", {
+      defaultValue: false,
+    });
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -309,131 +321,147 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return;
       }
 
-      chatLLMStream(chatProviderConfig, chatModelConfig, sendMessages, {
-        onFinish: async (content: string, reasoning_content: string) => {
-          try {
+      const knowledgeOptions: KnowledgeOptions | undefined =
+        ragEnabled && embeddingModelInfo
+          ? {
+              enable: true,
+              modelInfo: embeddingModelInfo,
+              limit: 5,
+            }
+          : undefined;
+
+      chatLLMStream(
+        chatProviderConfig,
+        chatModelConfig,
+        sendMessages,
+        {
+          onFinish: async (content: string, reasoning_content: string) => {
+            try {
+              const newCurrentChat = produce(actualCurrentChat, (draft) => {
+                draft.messages.push(newMessage);
+                draft.messages.push({
+                  role: Role.Assistant,
+                  content,
+                  reasoning_content,
+                } as ResponseMessage);
+              });
+
+              const updatedChatMessage =
+                await updateChatMessage(newCurrentChat);
+
+              // 确保消息结束时滚动到底部（如果自动滚动启用）
+              scrollToBottom();
+
+              try {
+                if (titleProviderConfig && titleModelConfig) {
+                  // 为标题生成准备消息
+                  const titleMessages: RequestMessage[] =
+                    updatedChatMessage.messages
+                      .slice(1)
+                      .slice(-10)
+                      .map((message): RequestMessage => {
+                        if (message.role === Role.User) {
+                          return message as RequestMessage;
+                        } else {
+                          const responseMsg = message as ResponseMessage;
+                          return {
+                            role: message.role,
+                            content: [
+                              { type: "text", text: responseMsg.content },
+                            ],
+                          };
+                        }
+                      });
+
+                  const newTitle = await chat(
+                    titleProviderConfig.apiKey,
+                    titleProviderConfig.baseUrl,
+                    titleModelConfig.name,
+                    [
+                      {
+                        role: Role.System,
+                        content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
+                      },
+                      ...titleMessages,
+                    ],
+                  );
+
+                  if (newTitle) {
+                    const updateChat = produce(updatedChatMessage, (draft) => {
+                      draft.title = newTitle.slice(0, 20);
+                    });
+                    await updateChatMessage(updateChat);
+                    titleRef.current?.setValue(newTitle.slice(0, 20));
+                  }
+                }
+              } catch (e) {
+                console.error("Failed to generate title:", e);
+              }
+            } catch (error) {
+              message.error("Failed to update chat");
+              console.error(error);
+            } finally {
+              setSendLoading(false);
+              setTimeout(() => {
+                editTextRef.current?.focusEnd();
+              }, 100);
+            }
+            perf.end();
+          },
+
+          onUpdate: (full: string, _inc: string, reasoningText?: string) => {
             const newCurrentChat = produce(actualCurrentChat, (draft) => {
               draft.messages.push(newMessage);
               draft.messages.push({
                 role: Role.Assistant,
-                content,
-                reasoning_content,
+                reasoning_content: reasoningText,
+                content: full,
               } as ResponseMessage);
             });
+            updateCurrentChat(newCurrentChat);
 
-            const updatedChatMessage = await updateChatMessage(newCurrentChat);
-
-            // 确保消息结束时滚动到底部（如果自动滚动启用）
-            scrollToBottom();
-
-            try {
-              if (titleProviderConfig && titleModelConfig) {
-                // 为标题生成准备消息
-                const titleMessages: RequestMessage[] =
-                  updatedChatMessage.messages
-                    .slice(1)
-                    .slice(-10)
-                    .map((message): RequestMessage => {
-                      if (message.role === Role.User) {
-                        return message as RequestMessage;
-                      } else {
-                        const responseMsg = message as ResponseMessage;
-                        return {
-                          role: message.role,
-                          content: [
-                            { type: "text", text: responseMsg.content },
-                          ],
-                        };
-                      }
-                    });
-
-                const newTitle = await chat(
-                  titleProviderConfig.apiKey,
-                  titleProviderConfig.baseUrl,
-                  titleModelConfig.name,
-                  [
-                    {
-                      role: Role.System,
-                      content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
-                    },
-                    ...titleMessages,
-                  ],
-                );
-
-                if (newTitle) {
-                  const updateChat = produce(updatedChatMessage, (draft) => {
-                    draft.title = newTitle.slice(0, 20);
-                  });
-                  await updateChatMessage(updateChat);
-                  titleRef.current?.setValue(newTitle.slice(0, 20));
-                }
-              }
-            } catch (e) {
-              console.error("Failed to generate title:", e);
-            }
-          } catch (error) {
-            message.error("Failed to update chat");
-            console.error(error);
-          } finally {
-            setSendLoading(false);
+            // 更新内容时滚动到底部（如果自动滚动启用）
             setTimeout(() => {
+              scrollToBottom();
+            }, 0);
+          },
+
+          onReasoning: (full: string) => {
+            const newCurrentChat = produce(actualCurrentChat, (draft) => {
+              draft.messages.push(newMessage);
+              draft.messages.push({
+                role: Role.Assistant,
+                content: "",
+                reasoning_content: full,
+              } as ResponseMessage);
+            });
+            updateCurrentChat(newCurrentChat);
+
+            // 推理内容更新时滚动到底部（如果自动滚动启用）
+            setTimeout(() => {
+              scrollToBottom();
+            }, 0);
+          },
+
+          onError: () => {
+            updateCurrentChat(actualCurrentChat);
+            setSendLoading(false);
+
+            message.error("请求失败");
+            perf.end();
+            setTimeout(() => {
+              // 从消息内容中提取文本用于恢复
+              const textContent = userContent
+                .filter((item) => item.type === "text")
+                .map((item) => item.text)
+                .join("\n");
+              editTextRef.current?.setValue(textContent);
               editTextRef.current?.focusEnd();
             }, 100);
-          }
-          perf.end();
+          },
         },
-
-        onUpdate: (full: string, _inc: string, reasoningText?: string) => {
-          const newCurrentChat = produce(actualCurrentChat, (draft) => {
-            draft.messages.push(newMessage);
-            draft.messages.push({
-              role: Role.Assistant,
-              reasoning_content: reasoningText,
-              content: full,
-            } as ResponseMessage);
-          });
-          updateCurrentChat(newCurrentChat);
-
-          // 更新内容时滚动到底部（如果自动滚动启用）
-          setTimeout(() => {
-            scrollToBottom();
-          }, 0);
-        },
-
-        onReasoning: (full: string) => {
-          const newCurrentChat = produce(actualCurrentChat, (draft) => {
-            draft.messages.push(newMessage);
-            draft.messages.push({
-              role: Role.Assistant,
-              content: "",
-              reasoning_content: full,
-            } as ResponseMessage);
-          });
-          updateCurrentChat(newCurrentChat);
-
-          // 推理内容更新时滚动到底部（如果自动滚动启用）
-          setTimeout(() => {
-            scrollToBottom();
-          }, 0);
-        },
-
-        onError: () => {
-          updateCurrentChat(actualCurrentChat);
-          setSendLoading(false);
-
-          message.error("请求失败");
-          perf.end();
-          setTimeout(() => {
-            // 从消息内容中提取文本用于恢复
-            const textContent = userContent
-              .filter((item) => item.type === "text")
-              .map((item) => item.text)
-              .join("\n");
-            editTextRef.current?.setValue(textContent);
-            editTextRef.current?.focusEnd();
-          }, 100);
-        },
-      });
+        knowledgeOptions,
+      );
     });
 
     return (
@@ -457,6 +485,26 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             </div>
           )}
         </div>
+
+        {embeddingModelInfo && (
+          <div className="flex-none">
+            <div
+              className={classNames(
+                "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
+                {
+                  "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                    ragEnabled,
+                  "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
+                    !ragEnabled,
+                },
+              )}
+              onClick={() => setRagEnabled(!ragEnabled)}
+            >
+              <InfoCircleOutlined />
+              知识库增强
+            </div>
+          </div>
+        )}
 
         <div className="mt-3 flex-none px-3 py-3 box-border bg-[var(--main-bg-color)] rounded-3xl">
           <ChatInputArea

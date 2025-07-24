@@ -1,7 +1,8 @@
-import { RequestMessage } from "@/types";
+import { RequestMessage, KnowledgeOptions } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import { message } from "antd";
 import { chat, stream } from "@/commands";
+import { performRAGEnhancement } from "@/utils/rag-helper";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 
 interface IChatStreamOptions {
@@ -20,6 +21,7 @@ const chatInner = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
   messages: RequestMessage[],
+  knowledgeOptions?: KnowledgeOptions,
 ) => {
   if (!providerConfig) {
     message.error("未提供大模型配置");
@@ -34,14 +36,28 @@ const chatInner = async (
   const { apiKey, baseUrl } = providerConfig;
   const { name: modelName } = modelConfig;
 
-  return await chat(apiKey, baseUrl, modelName, messages);
+  let finalMessages = [...messages];
+
+  // 如果启用了知识库功能，进行 RAG 处理
+  if (knowledgeOptions?.enable && messages.length > 0) {
+    try {
+      finalMessages = await performRAGEnhancement(messages, knowledgeOptions);
+    } catch (error) {
+      console.error("RAG 搜索失败:", error);
+      // 如果搜索失败，继续正常的聊天流程
+    }
+  }
+
+  // 使用普通聊天，传入处理后的消息
+  return await chat(apiKey, baseUrl, modelName, finalMessages);
 };
 
-export const chatStreamInner = (
+export const chatStreamInner = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
   messages: RequestMessage[],
   options: IChatStreamOptions,
+  knowledgeOptions?: KnowledgeOptions,
 ) => {
   if (!providerConfig) {
     options.onError?.(new Error("无法获取到当前 LLM 配置"));
@@ -62,8 +78,20 @@ export const chatStreamInner = (
     Authorization: `Bearer ${apiKey}`,
   };
 
+  let finalMessages = [...messages];
+
+  // 如果启用了知识库功能，进行 RAG 处理
+  if (knowledgeOptions?.enable && messages.length > 0) {
+    try {
+      finalMessages = await performRAGEnhancement(messages, knowledgeOptions);
+    } catch (error) {
+      console.error("RAG 搜索失败:", error);
+      // 如果搜索失败，继续正常的流式请求
+    }
+  }
+
   // 转换消息格式用于流式请求
-  const streamMessages = messages.map((msg) => {
+  const streamMessages = finalMessages.map((msg) => {
     if (typeof msg.content === "string") {
       return {
         role: msg.role,
@@ -102,6 +130,8 @@ export const chatStreamInner = (
     };
   });
 
+  console.log(streamMessages);
+
   const requestPayload = {
     messages: streamMessages,
     stream: true,
@@ -138,8 +168,14 @@ const useChatLLM = () => {
       providerConfig: ProviderConfig,
       modelConfig: ModelConfig,
       messages: RequestMessage[],
+      knowledgeOptions?: KnowledgeOptions,
     ) => {
-      return await chatInner(providerConfig, modelConfig, messages);
+      return await chatInner(
+        providerConfig,
+        modelConfig,
+        messages,
+        knowledgeOptions,
+      );
     },
   );
 
@@ -149,8 +185,15 @@ const useChatLLM = () => {
       modelConfig: ModelConfig,
       messages: RequestMessage[],
       options: IChatStreamOptions,
+      knowledgeOptions?: KnowledgeOptions,
     ) => {
-      return chatStreamInner(providerConfig, modelConfig, messages, options);
+      return chatStreamInner(
+        providerConfig,
+        modelConfig,
+        messages,
+        options,
+        knowledgeOptions,
+      );
     },
   );
 
@@ -164,8 +207,14 @@ export const chatLLM = async (
   providerConfig: ProviderConfig,
   modelConfig: ModelConfig,
   messages: RequestMessage[],
+  knowledgeOptions?: KnowledgeOptions,
 ) => {
-  return await chatInner(providerConfig, modelConfig, messages);
+  return await chatInner(
+    providerConfig,
+    modelConfig,
+    messages,
+    knowledgeOptions,
+  );
 };
 
 export const chatLLMStream = (
@@ -173,8 +222,15 @@ export const chatLLMStream = (
   modelConfig: ModelConfig,
   messages: RequestMessage[],
   options: IChatStreamOptions,
+  knowledgeOptions?: KnowledgeOptions,
 ) => {
-  chatStreamInner(providerConfig, modelConfig, messages, options);
+  chatStreamInner(
+    providerConfig,
+    modelConfig,
+    messages,
+    options,
+    knowledgeOptions,
+  );
 };
 
 export default useChatLLM;

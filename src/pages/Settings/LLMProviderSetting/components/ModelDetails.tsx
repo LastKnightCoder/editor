@@ -2,8 +2,12 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 import { Button, Card, List, App, Tag, Typography, Space, Empty } from "antd";
 import { produce } from "immer";
 import { ModelItem, ConfigItem } from "../types";
-import { EditOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
-import styles from "./ModelDetails.module.less";
+import {
+  EditOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  CopyOutlined,
+} from "@ant-design/icons";
 
 interface ModelDetailsProps {
   onAddModel: () => void;
@@ -24,7 +28,7 @@ const ModelDetails = ({
     };
   });
 
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
 
   const onDeleteModel = (name: string) => {
     modal.confirm({
@@ -49,6 +53,13 @@ const ModelDetails = ({
         );
       },
     });
+  };
+
+  const onCopyApiKey = () => {
+    if (config) {
+      navigator.clipboard.writeText(config.apiKey);
+      message.success("API Key 已复制到剪贴板");
+    }
   };
 
   const renderFeatureTags = (features: ModelItem["features"]) => {
@@ -86,9 +97,9 @@ const ModelDetails = ({
   }
 
   return (
-    <div className={styles.container}>
+    <div className="flex flex-col gap-4">
       <Card
-        className={styles.configCard}
+        className="!mb-4 border border-gray-200"
         title={
           <Space>
             <Typography.Title level={4} style={{ margin: 0 }}>
@@ -99,33 +110,42 @@ const ModelDetails = ({
               icon={<EditOutlined />}
               size="small"
               onClick={() => onEditConfig(config)}
+              className="text-blue-500 hover:text-blue-700"
             >
               编辑配置
             </Button>
           </Space>
         }
       >
-        <div className={styles.configInfo}>
-          <div className={styles.infoItem}>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
             <Typography.Text type="secondary">Base URL:</Typography.Text>
-            <Typography.Text code className={styles.configValue}>
+            <Typography.Text className="text-gray-800">
               {config.baseUrl}
             </Typography.Text>
           </div>
-          <div className={styles.infoItem}>
+          <div className="flex items-center gap-2">
             <Typography.Text type="secondary">API Key:</Typography.Text>
-            <Typography.Text code className={styles.configValue}>
+            <Typography.Text className="text-gray-800">
               ********
             </Typography.Text>
+            <CopyOutlined
+              onClick={onCopyApiKey}
+              className="cursor-pointer hover:text-blue-500"
+            />
           </div>
         </div>
       </Card>
 
       <Card
-        className="flex flex-col gap-4 max-h-[320px] overflow-y-auto"
+        className="flex flex-col gap-4 border border-gray-200"
         title="模型列表"
         extra={
-          <Button icon={<PlusOutlined />} onClick={onAddModel}>
+          <Button
+            icon={<PlusOutlined />}
+            onClick={onAddModel}
+            className="text-green-600 hover:text-green-800"
+          >
             添加模型
           </Button>
         }
@@ -133,15 +153,17 @@ const ModelDetails = ({
         {config.models && config.models.length > 0 ? (
           <List
             dataSource={config.models}
+            className="overflow-y-auto pr-2! max-h-[250px] border-b border-b-[20px] border-b-transparent"
             renderItem={(model) => (
               <List.Item
-                className={styles.modelItem}
+                className="flex items-center border-b border-gray-100 py-2 px-0 hover:bg-gray-50 transition"
                 actions={[
                   <Button
                     key="edit"
                     type="text"
                     size="small"
                     onClick={() => onEditModel(model)}
+                    className="text-blue-500 hover:text-blue-700"
                   >
                     编辑
                   </Button>,
@@ -152,15 +174,16 @@ const ModelDetails = ({
                     size="small"
                     icon={<DeleteOutlined />}
                     onClick={() => onDeleteModel(model.name)}
+                    className="hover:text-red-600"
                   />,
                 ]}
               >
                 <List.Item.Meta
                   title={<Typography.Text strong>{model.name}</Typography.Text>}
                   description={
-                    <div className={styles.modelDescription}>
+                    <div className="flex flex-col gap-1">
                       <div>{model.description}</div>
-                      <div className={styles.features}>
+                      <div className="flex gap-2 flex-wrap">
                         {renderFeatureTags(model.features)}
                       </div>
                     </div>

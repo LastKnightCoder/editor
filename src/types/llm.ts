@@ -52,3 +52,25 @@ export interface LLMUsageConfig {
   providerId: string;
   modelName: string;
 }
+
+// RAG 知识库选项
+export interface KnowledgeOptions {
+  enable: boolean;
+  modelInfo?: {
+    key: string;
+    model: string;
+    baseUrl: string;
+    distance: number;
+  };
+  limit: number;
+}
+
+// RAG 配置选项
+export interface RAGConfig {
+  enabled: boolean;
+  searchLimit: number;
+  embeddingProvider?: {
+    id: string;
+    modelName: string;
+  };
+}

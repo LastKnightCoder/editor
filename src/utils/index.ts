@@ -14,3 +14,6 @@ export * from "./web-clip.ts";
 export * from "./event-bus";
 export * from "./search";
 export * from "./download";
+export * from "./rag-helper";
+export * from "./remark-document-reference";
+export * from "./reference-parser";
