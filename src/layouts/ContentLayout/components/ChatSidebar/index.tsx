@@ -234,18 +234,7 @@ const ChatSidebar = memo(() => {
             })}
           >
             <div className="flex justify-between items-center">
-              <div className="font-bold flex-1">
-                {currentChat && (
-                  <EditText
-                    key={currentChat.id}
-                    ref={editTitleRef}
-                    defaultValue={currentChat.title}
-                    onChange={onTitleChange}
-                    contentEditable={!sendLoading}
-                  />
-                )}
-              </div>
-              <div className="ml-2 flex-none">
+              <div className="font-bold flex-1 flex items-center gap-2">
                 <button
                   className="px-3 py-2 rounded-md cursor-pointer text-base transition-all duration-200 ease-in-out flex items-center justify-center hover:text-black"
                   onClick={toggleModelSidebar}
@@ -256,6 +245,15 @@ const ChatSidebar = memo(() => {
                     <MenuUnfoldOutlined />
                   )}
                 </button>
+                {currentChat && (
+                  <EditText
+                    key={currentChat.id}
+                    ref={editTitleRef}
+                    defaultValue={currentChat.title}
+                    onChange={onTitleChange}
+                    contentEditable={!sendLoading}
+                  />
+                )}
               </div>
             </div>
 
@@ -293,6 +291,7 @@ const ChatSidebar = memo(() => {
             onChatSelect={handleChatSelect}
             selectedChatId={currentChatId || undefined}
             onCreateChat={onCreateChat}
+            onClose={() => setModelSidebarVisible(false)}
           />
         )}
       </MarkdownProvider>
