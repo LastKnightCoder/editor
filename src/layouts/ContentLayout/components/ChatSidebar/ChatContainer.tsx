@@ -83,7 +83,7 @@ const ChatContainer: React.FC<ChatContainerProps> = memo(
       return llmConfigs.map((provider) => ({
         key: provider.id,
         label: provider.name,
-        children: provider.models.map((model) => ({
+        children: provider.models?.map((model) => ({
           key: `${provider.id}::${model.name}`,
           label: (
             <div>
