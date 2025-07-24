@@ -62,11 +62,21 @@ const items: IBlockPanelListItem[] = [
         [
           {
             role: Role.System,
-            content: CONTINUE_WRITE_PROMPT_TEMPLATE,
+            content: [
+              {
+                type: "text",
+                text: CONTINUE_WRITE_PROMPT_TEMPLATE,
+              },
+            ],
           },
           {
             role: Role.User,
-            content: getMarkdown(editor.children),
+            content: [
+              {
+                type: "text",
+                text: getMarkdown(editor.children),
+              },
+            ],
           },
         ],
         {
