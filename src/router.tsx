@@ -37,7 +37,8 @@ const DocumentsView = loadable(() => import("@/pages/DocumentsView"));
 const DocumentView = loadable(() => import("@/pages/DocumentView"));
 const ProjectsView = loadable(() => import("@/pages/ProjectsView"));
 const ProjectView = loadable(() => import("@/pages/ProjectView"));
-const PdfView = loadable(() => import("@/pages/PdfView"));
+const PdfListView = loadable(() => import("@/pages/PdfView/PdfListView"));
+const PdfDetailView = loadable(() => import("@/pages/PdfView/PdfDetailView"));
 const DailyNoteView = loadable(() => import("@/pages/DailyNoteView"));
 const TimeRecordView = loadable(() => import("@/pages/TimeRecordView"));
 const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
@@ -93,7 +94,11 @@ const routes = [
       },
       {
         path: "pdfs/list",
-        element: <PdfView />,
+        element: <PdfListView />,
+      },
+      {
+        path: "pdfs/detail/:id",
+        element: <PdfDetailView />,
       },
       {
         path: "dailies",
