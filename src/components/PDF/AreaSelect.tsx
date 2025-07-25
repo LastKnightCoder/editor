@@ -79,15 +79,12 @@ const AreaSelect = (props: AreaSelectProps) => {
   return (
     <PortalToBody>
       <div
+        className="fixed border-2 border-red-500 bg-red-500/30 z-9999"
         style={{
-          position: "fixed",
           left: start.x,
           top: start.y,
           width: end.x - start.x,
           height: end.y - start.y,
-          backgroundColor: "rgba(255, 0, 0, 0.3)",
-          border: "2px solid rgba(255, 0, 0, 0.6)",
-          zIndex: 9999,
         }}
       />
     </PortalToBody>

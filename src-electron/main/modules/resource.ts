@@ -1,7 +1,8 @@
 import { ipcMain, dialog } from "electron";
-import { basename, parse, extname } from "node:path";
+import { basename, parse, extname, join } from "node:path";
 import { exec } from "node:child_process";
 import { getFonts } from "font-list";
+import { promises as fs } from "node:fs";
 import PathUtil from "../utils/PathUtil";
 import { Module } from "../types/module";
 import crypto from "node:crypto";
@@ -43,6 +44,26 @@ class ResourceModule implements Module {
 
     ipcMain.handle("generate-cache-key", async (_, url: string) => {
       return this.generateCacheKey(url);
+    });
+
+    // PDF缓存相关方法
+    ipcMain.handle(
+      "write-cache-file",
+      async (_, filePath: string, data: any) => {
+        return this.writeCacheFile(filePath, data);
+      },
+    );
+
+    ipcMain.handle("read-cache-file", async (_, filePath: string) => {
+      return this.readCacheFile(filePath);
+    });
+
+    ipcMain.handle("cache-file-exists", async (_, filePath: string) => {
+      return this.cacheFileExists(filePath);
+    });
+
+    ipcMain.handle("delete-cache-file", async (_, filePath: string) => {
+      return this.deleteCacheFile(filePath);
     });
   }
 
@@ -91,6 +112,76 @@ class ResourceModule implements Module {
 
   generateCacheKey(url: string) {
     return crypto.createHash("md5").update(url).digest("hex");
+  }
+
+  // 获取缓存目录路径
+  private getCacheDir() {
+    return join(PathUtil.getAppDir(), "cache");
+  }
+
+  // 确保缓存目录存在
+  private async ensureCacheDir() {
+    const cacheDir = this.getCacheDir();
+    try {
+      await fs.access(cacheDir);
+    } catch {
+      await fs.mkdir(cacheDir, { recursive: true });
+    }
+    return cacheDir;
+  }
+
+  // 写入缓存文件
+  async writeCacheFile(filePath: string, data: any): Promise<void> {
+    try {
+      const cacheDir = await this.ensureCacheDir();
+      const fullPath = join(cacheDir, filePath);
+
+      // 确保父目录存在
+      const parentDir = join(fullPath, "..");
+      await fs.mkdir(parentDir, { recursive: true });
+
+      await fs.writeFile(fullPath, JSON.stringify(data), "utf-8");
+    } catch (error) {
+      console.error("写入缓存文件失败:", error);
+      throw error;
+    }
+  }
+
+  // 读取缓存文件
+  async readCacheFile(filePath: string): Promise<any | null> {
+    try {
+      const cacheDir = this.getCacheDir();
+      const fullPath = join(cacheDir, filePath);
+      const data = await fs.readFile(fullPath, "utf-8");
+      return JSON.parse(data);
+    } catch (error) {
+      // 文件不存在或读取失败
+      return null;
+    }
+  }
+
+  // 检查缓存文件是否存在
+  async cacheFileExists(filePath: string): Promise<boolean> {
+    try {
+      const cacheDir = this.getCacheDir();
+      const fullPath = join(cacheDir, filePath);
+      await fs.access(fullPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  // 删除缓存文件
+  async deleteCacheFile(filePath: string): Promise<void> {
+    try {
+      const cacheDir = this.getCacheDir();
+      const fullPath = join(cacheDir, filePath);
+      await fs.unlink(fullPath);
+    } catch (error) {
+      // 文件不存在或删除失败，忽略错误
+      console.warn("删除缓存文件失败:", error);
+    }
   }
 }
 

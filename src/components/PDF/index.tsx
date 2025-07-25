@@ -5,8 +5,9 @@ import "pdfjs-dist/web/pdf_viewer.css";
 import "pdfjs-dist/build/pdf.worker.min.mjs";
 import { addPdfHighlight, getPdfHighlights, readBinaryFile } from "@/commands";
 import HighlightManager from "./HighlightManager.tsx";
-import AreaSelect from "./AreaSelect";
+import AreaSelect from "./AreaSelect.tsx";
 import useMouseSelection from "./useMouseSelection.ts";
+import PDFSidebar from "./Sidebar.tsx";
 import {
   optimizeClientRects,
   transformToPercentRect,
@@ -19,14 +20,20 @@ import {
   EHighlightTextStyle,
   EHighlightType,
   Pdf,
+  PdfHighlight,
   Rect,
   RectPercentWithPageNumber,
 } from "@/types";
 import { remoteResourceToLocal } from "@/utils";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Button, Flex, message, Result, Spin } from "antd";
-import { ZoomInOutlined, ZoomOutOutlined } from "@ant-design/icons";
+import {
+  ZoomInOutlined,
+  ZoomOutOutlined,
+  MenuOutlined,
+} from "@ant-design/icons";
 import If from "@/components/If";
+import classNames from "classnames";
 
 interface PDFViewerProps {
   pdf: Pdf;
@@ -47,7 +54,43 @@ const PDFViewer = (props: PDFViewerProps) => {
   const [pdfLoadingStatus, setPdfLoadingStatus] = useState(PAGE_STATUS.LOADING);
   const highlightManager = useRef<HighlightManager | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const flexContainerRef = useRef<HTMLDivElement>(null); // 获取外层flex容器的引用
   const [currentScale, setCurrentScale] = useState(1);
+  const [showSidebar, setShowSidebar] = useLocalStorageState<boolean>(
+    `pdf-sidebar-show`,
+    { defaultValue: true },
+  );
+  const [pdfDocument, setPdfDocument] = useState<any>(null);
+  const [highlights, setHighlights] = useState<PdfHighlight[]>([]);
+  const [originalPageWidth, setOriginalPageWidth] = useState<number>(0); // 缓存原始页面宽度
+
+  // 简单的scale计算函数：容器宽度 / PDF页面宽度
+  const calculateAutoFitScale = useMemoizedFn(() => {
+    if (
+      !autoFitWidth ||
+      !originalPageWidth ||
+      !flexContainerRef.current ||
+      !highlightManager.current?.viewer
+    ) {
+      return;
+    }
+
+    const fitPadding = 20;
+    const containerWidth = flexContainerRef.current.clientWidth;
+    const availableWidth = containerWidth - 2 * fitPadding;
+    const scale = availableWidth / originalPageWidth;
+
+    console.log("计算scale:", {
+      containerWidth,
+      availableWidth,
+      originalPageWidth,
+      scale,
+      showSidebar,
+    });
+
+    highlightManager.current.viewer.currentScaleValue = String(scale);
+    setCurrentScale(highlightManager.current.viewer.currentScale);
+  });
 
   const onAreaSelectStart = useMemoizedFn(() => {
     highlightManager.current?.setTextLayerSelectable(false);
@@ -84,7 +127,7 @@ const PDFViewer = (props: PDFViewerProps) => {
       highlightManager.current.renderHighlights(pageNum);
     });
   });
-  const [currentPageNum, setCurrentPageNum] = useLocalStorageState(
+  const [currentPageNum, setCurrentPageNum] = useLocalStorageState<number>(
     `pdf-${pdf.id}:current-page-num`,
     {
       defaultValue: 1,
@@ -171,14 +214,19 @@ const PDFViewer = (props: PDFViewerProps) => {
       getLoadUrl(isLocal, filePath, remoteUrl),
       getPdfHighlights(id),
     ])
-      .then(([arrayBuffer, highlights]) => {
+      .then(([arrayBuffer, highlightsData]) => {
         pdfjs
           .getDocument(arrayBuffer)
-          .promise.then((pdf) => {
+          .promise.then((pdfDoc) => {
             if (!pdfContainerRef.current) return;
             if (highlightManager.current) {
               highlightManager.current.unmount();
             }
+
+            // 设置PDF文档和高亮数据
+            setPdfDocument(pdfDoc);
+            setHighlights(highlightsData);
+
             const eventBus = new pdfjsViewer.EventBus();
             const linkService = new pdfjsViewer.PDFLinkService({
               eventBus,
@@ -192,21 +240,26 @@ const PDFViewer = (props: PDFViewerProps) => {
               removePageBorders: true,
               enableHWA: true,
             });
-            linkService.setDocument(pdf);
+            linkService.setDocument(pdfDoc);
             linkService.setViewer(viewer);
-            viewer.setDocument(pdf);
+            viewer.setDocument(pdfDoc);
 
             const handlePageRendered = () => {
               viewer.currentPageNumber = currentPageNum || 1;
 
+              // 缓存原始页面宽度（在任何缩放之前）
+              const viewport = viewer.getPageView(0);
+              if (viewport && !originalPageWidth) {
+                // 获取 scale=1 时的原始页面宽度
+                const originalWidth = viewport.viewport.width;
+                setOriginalPageWidth(originalWidth);
+              }
+
               if (autoFitWidth) {
-                const fitPadding = 20;
-                const viewport = viewer.getPageView(0);
-                const scale =
-                  (viewer.container.clientWidth - 2 * fitPadding) /
-                  viewport.width;
-                viewer.currentScaleValue = String(scale);
-                setCurrentScale(viewer.currentScale);
+                // 等待DOM布局完成后计算scale
+                setTimeout(() => {
+                  calculateAutoFitScale();
+                }, 100);
               }
 
               viewer.eventBus.off("pagerendered", handlePageRendered);
@@ -222,9 +275,12 @@ const PDFViewer = (props: PDFViewerProps) => {
             );
 
             highlightManager.current = new HighlightManager(
-              pdf,
+              pdfDoc,
               viewer,
-              highlights,
+              highlightsData,
+              (updatedHighlights) => {
+                setHighlights(updatedHighlights);
+              },
             );
             setPdfLoadingStatus(PAGE_STATUS.SUCCESS);
             setCurrentScale(viewer.currentScale);
@@ -240,99 +296,137 @@ const PDFViewer = (props: PDFViewerProps) => {
       });
   });
 
+  // 处理页面跳转
+  const handlePageChange = useMemoizedFn((pageNum: number) => {
+    if (highlightManager.current?.viewer) {
+      highlightManager.current.viewer.currentPageNumber = pageNum;
+      setCurrentPageNum(pageNum);
+    }
+  });
+
+  // 处理高亮点击
+  const handleHighlightClick = useMemoizedFn((highlight: PdfHighlight) => {
+    if (highlightManager.current?.viewer) {
+      // 跳转到对应页面
+      highlightManager.current.viewer.currentPageNumber = highlight.pageNum;
+      setCurrentPageNum(highlight.pageNum);
+
+      // 滚动到高亮位置
+      setTimeout(() => {
+        const highlightEl = document.querySelector(
+          `[data-highlight-id="${highlight.id}"]`,
+        );
+        if (highlightEl) {
+          highlightEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 100);
+    }
+  });
+
+  // 当侧边栏显示状态改变时，重新计算 autoFitWidth 的 scale
+  useEffect(() => {
+    if (pdfLoadingStatus === PAGE_STATUS.SUCCESS) {
+      // 等待DOM布局完成后重新计算scale
+      setTimeout(() => {
+        calculateAutoFitScale();
+      }, 100);
+    }
+  }, [showSidebar, calculateAutoFitScale, pdfLoadingStatus]);
+
   useEffect(() => {
     setPdfLoadingStatus(PAGE_STATUS.LOADING);
+    setOriginalPageWidth(0); // 重置缓存的原始页面宽度
     handleLoadPdf(pdf);
 
     return () => {
       if (highlightManager.current) {
         highlightManager.current.unmount();
       }
+      setOriginalPageWidth(0); // 清理时重置
     };
   }, [handleLoadPdf, pdf]);
 
   return (
-    <>
-      <div
-        className={className}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          overflowY: "auto",
-          ...style,
-        }}
-        ref={pdfContainerRef}
-      >
-        <div className={"pdfViewer"}></div>
-        <AreaSelect
-          onSelectStart={onAreaSelectStart}
-          onSelectFinish={onAreaSelectEnd}
+    <div
+      className={classNames("w-full h-full overflow-hidden flex", className)}
+      style={style}
+    >
+      {/* 侧边栏 */}
+      <If condition={!!showSidebar && pdfLoadingStatus === PAGE_STATUS.SUCCESS}>
+        <PDFSidebar
+          pdf={pdf}
+          pdfDocument={pdfDocument}
+          highlights={highlights}
+          currentPageNum={currentPageNum ?? 1}
+          onPageChange={handlePageChange}
+          onHighlightClick={handleHighlightClick}
         />
-        <If condition={pdfLoadingStatus === PAGE_STATUS.LOADING}>
-          <Spin
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%)",
-            }}
-            spinning={PAGE_STATUS.LOADING === pdfLoadingStatus}
+      </If>
+
+      <div className="flex-1 min-w-0 relative" ref={flexContainerRef}>
+        <div
+          className={classNames(
+            "absolute top-0 left-0 right-0 bottom-0 overflow-y-auto",
+          )}
+          ref={pdfContainerRef}
+        >
+          <div className={"pdfViewer"}></div>
+          <AreaSelect
+            onSelectStart={onAreaSelectStart}
+            onSelectFinish={onAreaSelectEnd}
           />
+          <If condition={pdfLoadingStatus === PAGE_STATUS.LOADING}>
+            <Spin
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+              spinning={PAGE_STATUS.LOADING === pdfLoadingStatus}
+            />
+          </If>
+        </div>
+        <If condition={pdfLoadingStatus === PAGE_STATUS.SUCCESS}>
+          <Flex
+            className="h-10 absolute left-1/2 -translate-x-1/2 bottom-16 z-3 bg-black/50 text-white rounded-lg p-4!"
+            gap={"middle"}
+            align={"center"}
+          >
+            <MenuOutlined
+              className="cursor-pointer"
+              onClick={() => setShowSidebar(!showSidebar)}
+            />
+            <ZoomInOutlined
+              className="cursor-pointer"
+              onClick={() => {
+                if (!highlightManager.current) return;
+                const currentScale =
+                  highlightManager.current.viewer.currentScale;
+                highlightManager.current.viewer.currentScaleValue = String(
+                  (currentScale * 1.1).toFixed(2),
+                );
+                setCurrentScale(highlightManager.current.viewer.currentScale);
+              }}
+            />
+            <div className="h-10 leading-10 text-lg select-none">
+              {currentScale.toFixed(2)}
+            </div>
+            <ZoomOutOutlined
+              onClick={() => {
+                if (!highlightManager.current) return;
+                const currentScale =
+                  highlightManager.current.viewer.currentScale;
+                highlightManager.current.viewer.currentScaleValue = String(
+                  (currentScale / 1.1).toFixed(2),
+                );
+                setCurrentScale(highlightManager.current.viewer.currentScale);
+              }}
+            />
+          </Flex>
         </If>
       </div>
-      <If condition={pdfLoadingStatus === PAGE_STATUS.SUCCESS}>
-        <Flex
-          style={{
-            position: "absolute",
-            left: "50%",
-            transform: "translateX(-50%)",
-            height: 40,
-            boxSizing: "border-box",
-            borderRadius: 8,
-            bottom: 60,
-            zIndex: 3,
-            background: "rgba(0, 0, 0, 0.5)",
-            color: "#fff",
-            padding: 8,
-          }}
-          gap={"middle"}
-          align={"center"}
-        >
-          <ZoomInOutlined
-            onClick={() => {
-              if (!highlightManager.current) return;
-              const currentScale = highlightManager.current.viewer.currentScale;
-              highlightManager.current.viewer.currentScaleValue = String(
-                (currentScale * 1.1).toFixed(2),
-              );
-              setCurrentScale(highlightManager.current.viewer.currentScale);
-            }}
-          />
-          <div
-            style={{
-              height: 24,
-              lineHeight: "24px",
-              fontSize: 16,
-              userSelect: "none",
-            }}
-          >
-            {currentScale.toFixed(2)}
-          </div>
-          <ZoomOutOutlined
-            onClick={() => {
-              if (!highlightManager.current) return;
-              const currentScale = highlightManager.current.viewer.currentScale;
-              highlightManager.current.viewer.currentScaleValue = String(
-                (currentScale / 1.1).toFixed(2),
-              );
-              setCurrentScale(highlightManager.current.viewer.currentScale);
-            }}
-          />
-        </Flex>
-      </If>
+      {/* 错误状态 */}
       <If condition={pdfLoadingStatus === PAGE_STATUS.ERROR}>
         <Result
           status={"error"}
@@ -349,9 +443,15 @@ const PDFViewer = (props: PDFViewerProps) => {
               重新加载
             </Button>
           }
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
         />
       </If>
-    </>
+    </div>
   );
 };
 
