@@ -597,4 +597,6 @@
 - feat: 支持 RAG 知识库增强
 - feat: 设置页添加标题栏
 - feat: 添加 emoji 扩展
+- feat: PDF 分解为列表页和详情页
+- feat: 自动清理一个月没更新的闪念卡片
 - fix: HTML Block 不正确的上间距
