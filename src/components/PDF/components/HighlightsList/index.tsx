@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { List, Typography, Empty } from "antd";
+import { Typography, Empty } from "antd";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PdfHighlight } from "@/types";
 
