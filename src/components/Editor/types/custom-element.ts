@@ -45,6 +45,7 @@ import { CommentElement } from "./element/comment.ts";
 import { FrontMatterElement } from "./element/front-matter.ts";
 import { WebviewElement } from "./element/webview.ts";
 import { InlineImageElement } from "./element/inline-image.ts";
+import { EmojiElement } from "./element/emoji.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -88,7 +89,8 @@ export type CustomElement =
   | FrontMatterElement
   | WebviewElement
   | HTMLInlineElement
-  | InlineImageElement;
+  | InlineImageElement
+  | EmojiElement;
 
 export type InlineElement =
   | LinkElement
@@ -96,7 +98,8 @@ export type InlineElement =
   | UnderlineElement
   | StyledTextElement
   | HTMLInlineElement
-  | InlineImageElement;
+  | InlineImageElement
+  | EmojiElement;
 
 export type CustomText = FormattedText;
 export type BlockElement = Exclude<CustomElement, InlineElement>;

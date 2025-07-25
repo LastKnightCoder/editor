@@ -29,3 +29,4 @@ export * from "./video.ts";
 export * from "./comment.ts";
 export * from "./front-matter.ts";
 export * from "./webview.ts";
+export * from "./emoji.ts";
