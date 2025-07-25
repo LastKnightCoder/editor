@@ -15,6 +15,7 @@ interface IAction {
   ) => Promise<Pdf>;
   updatePdf: (pdf: Pdf) => Promise<Pdf>;
   removePdf: (id: number) => Promise<number>;
+  setActivePdf: (pdf: Pdf | null) => void;
 }
 
 const usePdfsStore = create<IState & IAction>((set, get) => ({
@@ -60,6 +61,11 @@ const usePdfsStore = create<IState & IAction>((set, get) => ({
       pdfs: newPdfs,
     });
     return id;
+  },
+  setActivePdf: (pdf: Pdf | null) => {
+    set({
+      activePdf: pdf,
+    });
   },
 }));
 
