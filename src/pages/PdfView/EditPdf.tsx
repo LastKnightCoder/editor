@@ -1,15 +1,15 @@
 import PDFViewer from "@/components/PDF";
-import usePdfsStore from "@/stores/usePdfsStore.ts";
+import { Pdf } from "@/types";
 import { Flex } from "antd";
-import { useShallow } from "zustand/react/shallow";
-const PdfContent = () => {
-  const { activePdf } = usePdfsStore(
-    useShallow((state) => ({
-      activePdf: state.activePdf,
-    })),
-  );
 
-  if (!activePdf) return null;
+interface PdfContentProps {
+  pdf: Pdf;
+}
+
+const PdfContent = (props: PdfContentProps) => {
+  const { pdf } = props;
+
+  if (!pdf) return null;
 
   return (
     <Flex style={{ height: "100%", width: "100%" }} vertical gap={0}>
@@ -23,7 +23,7 @@ const PdfContent = () => {
             border: "20px solid transparent",
           }}
         >
-          <PDFViewer key={activePdf.id} pdf={activePdf} />
+          <PDFViewer key={pdf.id} pdf={pdf} />
         </div>
       </Flex>
     </Flex>

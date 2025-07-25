@@ -14,19 +14,16 @@ import {
 } from "antd";
 import { PlusOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useShallow } from "zustand/react/shallow";
-import classnames from "classnames";
 
 import Titlebar from "@/components/Titlebar";
 import { selectFile, getFileBaseName } from "@/commands";
-import useGridLayout from "@/hooks/useGridLayout";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import usePdfsStore from "@/stores/usePdfsStore";
-import PdfCard from "../PdfCard";
+import PdfCard from "./PdfCard";
 
 const PdfListView = memo(() => {
   const navigate = useNavigate();
-  const { gridContainerRef, itemWidth, gap } = useGridLayout();
   const [loading, setLoading] = useState(false);
 
   const isConnected = useDatabaseConnected();
@@ -162,7 +159,7 @@ const PdfListView = memo(() => {
     <div className="w-full h-full flex flex-col">
       <Titlebar className="w-full h-15 flex-shrink-0">
         <Breadcrumb
-          className="h-15 pl-10 flex items-center app-region-no-drag"
+          className="h-15 pl-10! flex items-center app-region-no-drag"
           items={breadcrumbItems.map((item) => ({
             title: (
               <span
@@ -175,25 +172,25 @@ const PdfListView = memo(() => {
           }))}
         />
       </Titlebar>
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 min-h-0 overflow-hidden relative px-10 py-5 flex">
         {pdfs.length === 0 ? (
           <div className="w-full h-full flex items-center justify-center">
             <Empty description="暂无PDF文件" />
           </div>
         ) : (
           <div
-            ref={gridContainerRef}
-            className="flex flex-wrap w-full h-full overflow-y-auto box-border"
-            style={{ gap, alignContent: "flex-start", padding: "20px 40px" }}
+            className="flex-1 min-w-0 h-full overflow-y-auto scrollbar-hide box-border"
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+              gap: 20,
+              alignContent: "flex-start",
+            }}
           >
             <For
               data={pdfs}
               renderItem={(pdf) => (
-                <PdfCard
-                  pdf={pdf}
-                  key={pdf.id}
-                  style={{ width: itemWidth, height: 200 }}
-                />
+                <PdfCard pdf={pdf} key={pdf.id} style={{ height: 200 }} />
               )}
             />
           </div>
