@@ -594,5 +594,7 @@
 - feat: 去掉 OpenAI 的特殊地位，根据功能选择模型
 - feat: 对话 UI 优化
 - feat: 支持多模态对话
-- feat: 支持知识库增强
+- feat: 支持 RAG 知识库增强
 - feat: 设置页添加标题栏
+- feat: 添加 emoji 扩展
+- fix: HTML Block 不正确的上间距
