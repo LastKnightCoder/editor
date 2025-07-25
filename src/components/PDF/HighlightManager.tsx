@@ -15,21 +15,28 @@ class HighlightManager {
   highlightLayers: Map<number, HighlightLayer>;
   handleTextLayerRendered: (event: any) => void;
   handlePageChanging: (event: any) => void;
+  onHighlightUpdate?: (highlights: PdfHighlight[]) => void;
 
   constructor(
     pdfDocument: PDFDocumentProxy,
     viewer: PDFViewer,
     highlights: PdfHighlight[],
+    onHighlightUpdate?: (highlights: PdfHighlight[]) => void,
   ) {
     this.pdfDocument = pdfDocument;
     this.viewer = viewer;
+    this.onHighlightUpdate = onHighlightUpdate;
     const numPages = this.pdfDocument.numPages;
     this.highlights = new Map();
     for (let i = 1; i <= numPages; i++) {
       this.highlights.set(i, []);
     }
     highlights.forEach((highlight) => {
-      this.addHighlight(highlight.pageNum, highlight);
+      // 初始化时直接添加，不触发回调
+      const pageHighlights = this.highlights.get(highlight.pageNum);
+      if (pageHighlights) {
+        pageHighlights.push(highlight);
+      }
     });
     this.handleTextLayerRendered = this._handleTextLayerRendered.bind(this);
     this.handlePageChanging = this._handlePageChanging.bind(this);
@@ -114,6 +121,7 @@ class HighlightManager {
     const highlights = this.highlights.get(pageNumber);
     if (highlights) {
       highlights.push(highlight);
+      this.notifyHighlightUpdate();
     }
   }
 
@@ -126,6 +134,7 @@ class HighlightManager {
       if (index !== -1) {
         highlights.splice(index, 1);
         removePdfHighlight(highlightId).then();
+        this.notifyHighlightUpdate();
       }
     }
   }
@@ -143,7 +152,23 @@ class HighlightManager {
       if (index !== -1) {
         highlights[index] = highlight;
         updatePdfHighlight(highlight).then();
+        this.notifyHighlightUpdate();
       }
+    }
+  }
+
+  getAllHighlights(): PdfHighlight[] {
+    const allHighlights: PdfHighlight[] = [];
+    for (const highlights of this.highlights.values()) {
+      allHighlights.push(...highlights);
+    }
+    return allHighlights;
+  }
+
+  private notifyHighlightUpdate() {
+    if (this.onHighlightUpdate) {
+      const allHighlights = this.getAllHighlights();
+      this.onHighlightUpdate(allHighlights);
     }
   }
 
