@@ -4,9 +4,9 @@ import { insertCustomBlock } from "@/components/Editor/utils";
 const items: IBlockPanelListItem[] = [
   {
     icon: "custom",
-    title: "自定义",
-    keywords: ["custom", "自定义", "react", "zidingyi"],
-    description: "自定义",
+    title: "React 组件",
+    keywords: ["React", "组件", "custom", "自定义", "react", "zidingyi"],
+    description: "React 组件",
     onClick: (editor) => {
       insertCustomBlock(editor);
     },
