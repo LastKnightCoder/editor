@@ -2,7 +2,7 @@ import { produce } from "immer";
 import React from "react";
 import Tips from "./Tips";
 
-import { Modal } from "antd";
+import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { PdfHighlight, EHighlightColor, EHighlightTextStyle } from "@/types";
 
@@ -29,6 +29,8 @@ const HighlightTips = (props: HighlightProps) => {
     style,
   } = props;
 
+  const { modal } = App.useApp();
+
   const onNotesChange = useMemoizedFn((notes: PdfHighlight["notes"]) => {
     const newHighlight = produce(highlight, (draft) => {
       draft.notes = notes;
@@ -53,7 +55,7 @@ const HighlightTips = (props: HighlightProps) => {
   );
 
   const onRemove = () => {
-    Modal.confirm({
+    modal.confirm({
       title: "确定删除此高亮吗？",
       onOk: () => {
         removeHighlight?.();

@@ -33,7 +33,7 @@ const useGridLayout = (options: UseGridLayoutOptions = {}) => {
       setItemWidth(itemWidth);
       setColumnsCount(n);
     },
-    { wait: 100 },
+    { wait: 25 },
   );
 
   useEffect(() => {

@@ -63,14 +63,21 @@ const PdfCard = (props: PdfCardProps) => {
   return (
     <div
       className={classnames(
-        "flex gap-4 flex-col p-8 shadow-md rounded-2xl transition-all duration-200 ease-in-out cursor-pointer bg-gradient-to-br from-purple-100 to-transparent relative box-border",
+        "flex gap-4 flex-col p-8 shadow-md rounded-2xl transition-all duration-200 ease-in-out cursor-pointer relative box-border",
         {
-          "bg-gray-900 shadow-lg": isDark,
+          "bg-[#18151f] shadow-lg": isDark,
           "p-4 gap-2": compact,
         },
         className,
       )}
-      style={style}
+      style={{
+        backgroundImage: `linear-gradient(
+          -30deg,
+          rgba(125, 26, 189, 0.1),
+          transparent 50%
+        )`,
+        ...style,
+      }}
     >
       <div
         className={classnames(
