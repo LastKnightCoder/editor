@@ -323,6 +323,12 @@ export class MarkdownSerializerRegistry {
           return `---\n${node.value}\n---`;
         },
       },
+      {
+        type: "emoji",
+        toMarkdown: (element) => {
+          return `:${element.nativeEmoji || element.emoji}:`;
+        },
+      },
     ]);
   }
 }
