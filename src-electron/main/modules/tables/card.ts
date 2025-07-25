@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { getMarkdown } from "@/utils/markdown.ts";
-import { ICreateCard, IUpdateCard, ICard } from "@/types";
+import { ICreateCard, IUpdateCard, ICard, ECardCategory } from "@/types";
 import Operation from "./operation";
 import { BrowserWindow } from "electron";
 import { basename } from "node:path";
@@ -52,8 +52,19 @@ export default class CardTable {
     // 为所有卡片添加 FTS 索引
     log.info("开始为所有卡片添加 FTS 索引");
     const cards = this.getAllCards(db);
+    const now = Date.now();
+    const ONE_MONTH = 30 * 24 * 60 * 60 * 1000;
     for (const card of cards) {
       if (!card.content || !card.content.length) continue;
+
+      // 检查并删除过期的临时卡片
+      if (
+        card.category === ECardCategory.Temporary &&
+        now - card.update_time > ONE_MONTH
+      ) {
+        log.info(`删除过期临时卡片: ${card.id}`);
+        this.deleteCard(db, card.id);
+      }
 
       // 检查是否已有索引或索引是否过期
       const indexInfo = FTSTable.checkIndexExists(db, card.id, "card");
