@@ -1,4 +1,4 @@
-import React, { MouseEvent, useMemo, useRef, memo } from "react";
+import React, { MouseEvent, useMemo, useRef, memo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import classnames from "classnames";
 import { IoResizeOutline } from "react-icons/io5";
@@ -17,6 +17,7 @@ import {
 
 import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ContentExportModal from "@/components/ContentExportModal";
 import {
   formatDate,
   getEditorText,
@@ -66,6 +67,7 @@ const CardItem = memo(
     const navigate = useNavigate();
 
     const editorRef = useRef<EditorRef>(null);
+    const [exportModalOpen, setExportModalOpen] = useState(false);
 
     const addTab = useRightSidebarStore((state) => state.addTab);
 
@@ -132,6 +134,10 @@ const CardItem = memo(
               key: "export-markdown",
               label: "Markdown",
             },
+            {
+              key: "export-image",
+              label: "图片",
+            },
           ],
         },
         {
@@ -159,6 +165,8 @@ const CardItem = memo(
         } else if (key === "export-markdown") {
           const markdown = getMarkdown(card.content);
           downloadMarkdown(markdown, String(card.id));
+        } else if (key === "export-image") {
+          setExportModalOpen(true);
         } else if (Object.keys(cardCategoryName).includes(key)) {
           if (onUpdateCardCategory) {
             await onUpdateCardCategory(card, key as ECardCategory);
@@ -226,6 +234,12 @@ const CardItem = memo(
             </Dropdown>
           </div>
         </div>
+
+        <ContentExportModal
+          open={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          content={card.content}
+        />
       </>
     );
   },

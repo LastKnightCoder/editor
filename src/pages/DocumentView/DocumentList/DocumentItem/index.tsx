@@ -39,6 +39,7 @@ import {
 } from "@/commands";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import PresentationMode from "@/components/PresentationMode";
+import ContentExportModal from "@/components/ContentExportModal";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import {
   IArticle,
@@ -112,6 +113,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     },
   );
   const [isPresentation, setIsPresentation] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const { modal } = App.useApp();
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
@@ -617,8 +619,18 @@ const DocumentItem = (props: IDocumentItemProps) => {
         label: "删除文档",
       },
       {
-        key: "export-markdown",
+        key: "export",
         label: "导出文档",
+        children: [
+          {
+            key: "export-markdown",
+            label: "Markdown",
+          },
+          {
+            key: "export-image",
+            label: "图片",
+          },
+        ],
       },
       {
         key: "presentation",
@@ -646,6 +658,8 @@ const DocumentItem = (props: IDocumentItemProps) => {
         }
         const markdown = getMarkdown(item.content);
         downloadMarkdown(markdown, item.title);
+      } else if (key === "export-image") {
+        setExportModalOpen(true);
       } else if (key === "presentation") {
         setIsPresentation(true);
       } else if (key === "open-in-new-window") {
@@ -875,6 +889,13 @@ const DocumentItem = (props: IDocumentItemProps) => {
           }}
         />
       )}
+
+      <ContentExportModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        content={item?.content || []}
+        title={item?.title || "文档"}
+      />
     </div>
   );
 };

@@ -11,6 +11,7 @@ import LocalImage from "@/components/LocalImage";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import Tags from "@/components/Tags";
 import If from "@/components/If";
+import ContentExportModal from "@/components/ContentExportModal";
 
 import { useCreation, useMemoizedFn } from "ahooks";
 import useTheme from "@/hooks/useTheme.ts";
@@ -75,6 +76,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   const navigate = useNavigate();
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const editorRef = useRef<EditorRef>(null);
 
   const uploadResource = useUploadResource();
@@ -217,10 +219,25 @@ const ArticleCard = (props: IArticleCardProps) => {
                       {
                         key: "export",
                         label: "导出文章",
-                        onClick: () => {
-                          const markdown = getMarkdown(article.content);
-                          downloadMarkdown(markdown, article.title);
-                        },
+                        children: [
+                          {
+                            key: "export-markdown",
+                            label: "Markdown",
+                            onClick: () => {
+                              const markdown = getMarkdown(article.content);
+                              downloadMarkdown(markdown, article.title);
+                              setSettingOpen(false);
+                            },
+                          },
+                          {
+                            key: "export-image",
+                            label: "图片",
+                            onClick: () => {
+                              setExportModalOpen(true);
+                              setSettingOpen(false);
+                            },
+                          },
+                        ],
                       },
                       {
                         key: "delete-article",
@@ -290,6 +307,13 @@ const ArticleCard = (props: IArticleCardProps) => {
           </div>
         </div>
       </Spin>
+
+      <ContentExportModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        content={article.content}
+        title={article.title}
+      />
     </div>
   );
 };

@@ -20,7 +20,7 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = (props) => {
     return (
       <div
         contentEditable={false}
-        className="flex items-center justify-center h-14 text-gray-400 cursor-pointer select-none"
+        className="flex items-center justify-center h-14 text-[#99A1AF] cursor-pointer select-none"
       >
         点击编辑图表
       </div>

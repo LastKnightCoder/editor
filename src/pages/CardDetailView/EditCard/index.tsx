@@ -19,6 +19,7 @@ import EditorSourceValue from "@/components/EditorSourceValue";
 import LinkGraph from "@/components/LinkGraph";
 import PresentationMode from "@/components/PresentationMode";
 import StatusBar from "@/components/StatusBar";
+import ContentExportModal from "@/components/ContentExportModal";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useEditContent from "@/hooks/useEditContent";
@@ -103,6 +104,7 @@ const EditCard = (props: IEditCardProps) => {
   const [linkListOpen, setLinkListOpen] = useState(false);
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!readonly) {
@@ -288,6 +290,8 @@ const EditCard = (props: IEditCardProps) => {
     } else if (key === "export-markdown") {
       const markdown = getMarkdown(editingCard.content);
       downloadMarkdown(markdown, String(editingCard.id));
+    } else if (key === "export-image") {
+      setExportModalOpen(true);
     } else if (key === "delete-card") {
       handleDeleteCard(editingCard.id);
     }
@@ -308,8 +312,18 @@ const EditCard = (props: IEditCardProps) => {
         label: "侧边打开",
       },
       {
-        key: "export-markdown",
+        key: "export",
         label: "导出卡片",
+        children: [
+          {
+            key: "export-markdown",
+            label: "Markdown",
+          },
+          {
+            key: "export-image",
+            label: "图片",
+          },
+        ],
       },
       {
         key: "delete-card",
@@ -423,6 +437,11 @@ const EditCard = (props: IEditCardProps) => {
             }}
           />
         )}
+        <ContentExportModal
+          open={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          content={editingCard.content}
+        />
       </div>
     </EditCardContext.Provider>
   );
