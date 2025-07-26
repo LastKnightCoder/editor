@@ -1,6 +1,5 @@
 import { Card, Select, Typography, Space } from "antd";
 import useSettingStore from "@/stores/useSettingStore";
-import styles from "./UsageSettings.module.less";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -53,8 +52,8 @@ const UsageSettings = () => {
   };
 
   return (
-    <Card title="功能使用设置" className={styles.usageCard}>
-      <div className={styles.settingsContainer}>
+    <Card title="功能使用设置" className="mb-0">
+      <div className="flex flex-col gap-6">
         {Object.entries(featureNames).map(([featureKey, featureName]) => {
           const feature = featureKey as keyof typeof llmUsageSettings;
           const currentConfig = llmUsageSettings[feature];
@@ -63,9 +62,14 @@ const UsageSettings = () => {
             : [];
 
           return (
-            <div key={feature} className={styles.settingItem}>
-              <div className={styles.settingLabel}>
-                <Title level={5}>{featureName}</Title>
+            <div
+              key={feature}
+              className="border border-gray-100 rounded-lg p-4 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 transition-all duration-200"
+            >
+              <div className="mb-3">
+                <Title level={5} className="!mb-1">
+                  {featureName}
+                </Title>
                 <Text type="secondary">为此功能选择使用的大模型配置</Text>
               </div>
 
