@@ -9,15 +9,6 @@ export const transformToRelativeRect = (rect: Rect, pageRect: Rect) => {
   };
 };
 
-export const transformToAbsoluteRect = (rect: Rect, pageRect: Rect) => {
-  return {
-    left: rect.left + pageRect.left,
-    top: rect.top + pageRect.top,
-    width: rect.width,
-    height: rect.height,
-  };
-};
-
 export const transformToPercentRect = (
   rect: Rect,
   pageRect: Rect,

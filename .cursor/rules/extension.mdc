@@ -22,13 +22,11 @@ alwaysApply: false
 
 1. 创建组件目录结构
    - 在 `src/components/Editor/extensions/{扩展名}/components/{组件名}` 下创建
-   - 目录包含 `index.tsx` 和 `index.module.less` 文件
 
 2. 组件实现规范
    - 行内元素需使用 `InlineChromiumBugfix` 组件修复光标问题
    - 使用 `useSlate` 获取编辑器实例
    - 组件应接收 `attributes`、`element` 和 `children` 参数
-   - 确保组件内部样式通过 CSS Module 引入
 
 ## 扩展类实现
 

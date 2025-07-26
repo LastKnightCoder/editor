@@ -27,10 +27,6 @@ export interface Rect {
   height: number;
 }
 
-export interface RectWithPageNumber extends Rect {
-  pageNumber: number;
-}
-
 export interface RectPercent {
   top: string;
   left: string;
@@ -40,6 +36,14 @@ export interface RectPercent {
 
 export interface RectPercentWithPageNumber extends RectPercent {
   pageNum: number;
+}
+
+// 基于文本索引的选择范围
+export interface TextSelectionRange {
+  beginIndex: number;
+  beginOffset: number;
+  endIndex: number;
+  endOffset: number;
 }
 
 export interface Note {
@@ -66,8 +70,8 @@ export interface PdfHighlight {
   pdfId: number;
   color: EHighlightColor;
   highlightType: EHighlightType;
-  rects: Array<RectPercentWithPageNumber>;
   boundingClientRect: RectPercentWithPageNumber;
+  textSelection?: TextSelectionRange;
   highlightTextStyle: EHighlightTextStyle;
   pageNum: number;
   content: string;

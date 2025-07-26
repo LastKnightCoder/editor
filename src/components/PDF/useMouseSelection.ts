@@ -28,7 +28,8 @@ const useMouseSelection = (options: IUseMouseSelection) => {
     // 是否在 textLayer 上按下鼠标
     if (e.target.closest(".page")) {
       canSelect.current = true;
-      setStart(e.target.getBoundingClientRect());
+      const start = e.target.getBoundingClientRect();
+      setStart(start);
     }
 
     document.addEventListener("mouseup", handleMouseUp);

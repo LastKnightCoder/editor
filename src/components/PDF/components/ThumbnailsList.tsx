@@ -29,7 +29,10 @@ const ThumbnailsList: React.FC<ThumbnailsListProps> = ({
   });
 
   return (
-    <div ref={parentRef} className="h-full overflow-auto p-2">
+    <div
+      ref={parentRef}
+      className="h-full overflow-auto p-2 bg-white dark:bg-gray-900"
+    >
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -58,12 +61,12 @@ const ThumbnailsList: React.FC<ThumbnailsListProps> = ({
                   className={classNames(
                     "flex flex-col items-center p-2 border-2 rounded-lg cursor-pointer transition-all duration-200",
                     isActive
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-transparent hover:bg-gray-100 hover:border-gray-300",
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-400"
+                      : "border-transparent hover:bg-gray-100 hover:border-gray-300 dark:hover:bg-gray-800 dark:hover:border-gray-600",
                   )}
                   onClick={() => onPageChange(thumbnail.pageNum)}
                 >
-                  <div className="w-[120px] h-[150px] flex items-center justify-center rounded overflow-hidden bg-white border border-gray-200">
+                  <div className="w-[120px] h-[150px] flex items-center justify-center rounded overflow-hidden bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-700">
                     {thumbnail.canvas || thumbnail.dataURL ? (
                       <img
                         src={thumbnail.dataURL || thumbnail.canvas?.toDataURL()}
@@ -71,12 +74,12 @@ const ThumbnailsList: React.FC<ThumbnailsListProps> = ({
                         className="max-w-full max-h-full object-contain"
                       />
                     ) : (
-                      <div className="text-xs text-gray-400 text-center">
+                      <div className="text-xs text-gray-400 dark:text-gray-500 text-center">
                         加载失败
                       </div>
                     )}
                   </div>
-                  <div className="mt-1.5 text-xs text-gray-600 text-center">
+                  <div className="mt-1.5 text-xs text-gray-600 dark:text-gray-300 text-center">
                     第 {thumbnail.pageNum} 页
                   </div>
                 </div>

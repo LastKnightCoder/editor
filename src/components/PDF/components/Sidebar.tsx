@@ -8,9 +8,9 @@ import {
 import { PdfHighlight } from "@/types";
 import classNames from "classnames";
 import TabsIndicator from "@/components/TabsIndicator";
-import ThumbnailsList from "./components/ThumbnailsList";
-import OutlineList from "./components/OutlineList";
-import HighlightsList from "./components/HighlightsList";
+import ThumbnailsList from "./ThumbnailsList";
+import OutlineList from "./OutlineList";
+import HighlightsList from "./HighlightsList";
 import {
   loadThumbnailsFromCache,
   saveThumbnailsToCache,
@@ -25,6 +25,8 @@ interface PDFSidebarProps {
   currentPageNum: number;
   onPageChange: (pageNum: number) => void;
   onHighlightClick: (highlight: PdfHighlight) => void;
+  onHighlightDelete?: (highlightId: number) => void;
+  onHighlightUpdate?: (highlight: PdfHighlight) => void;
   className?: string;
 }
 
@@ -48,6 +50,8 @@ const PDFSidebar: React.FC<PDFSidebarProps> = ({
   currentPageNum,
   onPageChange,
   onHighlightClick,
+  onHighlightDelete,
+  onHighlightUpdate,
   className,
 }) => {
   const [activeTab, setActiveTab] = useState("thumbnails");
@@ -225,6 +229,8 @@ const PDFSidebar: React.FC<PDFSidebarProps> = ({
         <HighlightsList
           highlights={highlights}
           onHighlightClick={onHighlightClick}
+          onHighlightDelete={onHighlightDelete}
+          onHighlightUpdate={onHighlightUpdate}
         />
       );
     }
