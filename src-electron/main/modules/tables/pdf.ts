@@ -26,19 +26,36 @@ export default class PdfTable {
         pdf_id INTEGER NOT NULL,
         color TEXT NOT NULL,
         highlight_type TEXT NOT NULL,
-        rects TEXT NOT NULL,
         bounding_client_rect TEXT NOT NULL,
         highlight_text_style TEXT NOT NULL,
         page_num INTEGER NOT NULL,
         content TEXT NOT NULL,
         image TEXT NOT NULL,
-        notes TEXT NOT NULL
+        notes TEXT NOT NULL,
+        text_selection TEXT
       )
     `);
   }
 
-  static upgradeTable(_db: Database.Database) {
-    // TODO 暂无升级
+  static upgradeTable(db: Database.Database) {
+    const tableInfo = db.prepare("PRAGMA table_info(pdf_highlights)").all();
+
+    // 检查是否存在 text_selection 列，如果不存在则添加
+    const hasTextSelectionColumn = tableInfo.some(
+      (column: any) => column.name === "text_selection",
+    );
+    if (!hasTextSelectionColumn) {
+      db.exec(`ALTER TABLE pdf_highlights ADD COLUMN text_selection TEXT`);
+      console.log("Added text_selection column to pdf_highlights table");
+    }
+
+    const hasRectsColumn = tableInfo.some(
+      (column: any) => column.name === "rects",
+    );
+    // 如果 rects 列存在，则删除
+    if (hasRectsColumn) {
+      db.exec(`ALTER TABLE pdf_highlights DROP COLUMN rects`);
+    }
   }
 
   static getListenEvents() {
@@ -72,9 +89,11 @@ export default class PdfTable {
   static parsePdfHighlight(highlight: any): PdfHighlight {
     return {
       ...highlight,
-      rects: JSON.parse(highlight.rects),
       boundingClientRect: JSON.parse(highlight.bounding_client_rect),
       notes: JSON.parse(highlight.notes),
+      textSelection: highlight.text_selection
+        ? JSON.parse(highlight.text_selection)
+        : undefined,
       createTime: highlight.create_time,
       updateTime: highlight.update_time,
       pdfId: highlight.pdf_id,
@@ -162,8 +181,8 @@ export default class PdfTable {
   ): PdfHighlight {
     const stmt = db.prepare(`
       INSERT INTO pdf_highlights
-      (pdf_id, color, highlight_type, rects, bounding_client_rect, 
-       highlight_text_style, page_num, content, image, notes, create_time, update_time)
+      (pdf_id, color, highlight_type, bounding_client_rect, highlight_text_style, 
+       page_num, content, image, notes, text_selection, create_time, update_time)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
@@ -171,13 +190,13 @@ export default class PdfTable {
       highlight.pdfId,
       highlight.color,
       highlight.highlightType,
-      JSON.stringify(highlight.rects),
       JSON.stringify(highlight.boundingClientRect),
       highlight.highlightTextStyle,
       highlight.pageNum,
       highlight.content,
       highlight.image,
       JSON.stringify(highlight.notes),
+      highlight.textSelection ? JSON.stringify(highlight.textSelection) : null,
       now,
       now,
     );
@@ -202,13 +221,13 @@ export default class PdfTable {
         pdf_id = ?,
         color = ?,
         highlight_type = ?,
-        rects = ?,
         bounding_client_rect = ?,
         highlight_text_style = ?,
         page_num = ?,
         content = ?,
         image = ?,
         notes = ?,
+        text_selection = ?,
         update_time = ?
       WHERE id = ?
     `);
@@ -217,13 +236,13 @@ export default class PdfTable {
       highlight.pdfId,
       highlight.color,
       highlight.highlightType,
-      JSON.stringify(highlight.rects),
       JSON.stringify(highlight.boundingClientRect),
       highlight.highlightTextStyle,
       highlight.pageNum,
       highlight.content,
       highlight.image,
       JSON.stringify(highlight.notes),
+      highlight.textSelection ? JSON.stringify(highlight.textSelection) : null,
       now,
       highlight.id,
     );

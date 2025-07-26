@@ -5,15 +5,12 @@ import "pdfjs-dist/web/pdf_viewer.css";
 import "pdfjs-dist/build/pdf.worker.min.mjs";
 import { addPdfHighlight, getPdfHighlights, readBinaryFile } from "@/commands";
 import HighlightManager from "./HighlightManager.tsx";
-import AreaSelect from "./AreaSelect.tsx";
 import useMouseSelection from "./useMouseSelection.ts";
-import PDFSidebar from "./Sidebar.tsx";
 import {
-  optimizeClientRects,
-  transformToPercentRect,
   transformToRelativePercentRect,
-  transformToRelativeRect,
+  getTextSelectionRangeFromSelection,
 } from "./utils";
+import { uploadResource } from "@/hooks/useUploadResource";
 import "./index.css";
 import {
   EHighlightColor,
@@ -22,7 +19,6 @@ import {
   Pdf,
   PdfHighlight,
   Rect,
-  RectPercentWithPageNumber,
 } from "@/types";
 import { remoteResourceToLocal } from "@/utils";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
@@ -34,6 +30,8 @@ import {
 } from "@ant-design/icons";
 import If from "@/components/If";
 import classNames from "classnames";
+import { AreaSelect, Sidebar as PDFSidebar } from "./components";
+import html2canvas from "html2canvas";
 
 interface PDFViewerProps {
   pdf: Pdf;
@@ -63,7 +61,6 @@ const PDFViewer = (props: PDFViewerProps) => {
   const [pdfDocument, setPdfDocument] = useState<any>(null);
   const [highlights, setHighlights] = useState<PdfHighlight[]>([]);
   const [originalPageWidth, setOriginalPageWidth] = useState<number>(0); // 缓存原始页面宽度
-
   // 简单的scale计算函数：容器宽度 / PDF页面宽度
   const calculateAutoFitScale = useMemoizedFn(() => {
     if (
@@ -80,14 +77,6 @@ const PDFViewer = (props: PDFViewerProps) => {
     const availableWidth = containerWidth - 2 * fitPadding;
     const scale = availableWidth / originalPageWidth;
 
-    console.log("计算scale:", {
-      containerWidth,
-      availableWidth,
-      originalPageWidth,
-      scale,
-      showSidebar,
-    });
-
     highlightManager.current.viewer.currentScaleValue = String(scale);
     setCurrentScale(highlightManager.current.viewer.currentScale);
   });
@@ -96,12 +85,44 @@ const PDFViewer = (props: PDFViewerProps) => {
     highlightManager.current?.setTextLayerSelectable(false);
   });
 
-  const onAreaSelectEnd = useMemoizedFn((rect: Rect, pageNum) => {
+  const onAreaSelectEnd = useMemoizedFn(async (rect: Rect, pageNum) => {
     if (!highlightManager.current) return;
 
     highlightManager.current.setTextLayerSelectable(true);
     const pageRect = highlightManager.current.getPageRect(pageNum);
     if (!pageRect) return;
+
+    // 获取区域截图
+    let imageUrl = "";
+    try {
+      const pageElement = document.querySelector(
+        `.pdfViewer .page[data-page-number="${pageNum}"]`,
+      ) as HTMLElement;
+
+      if (pageElement) {
+        // 创建截图
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        if (ctx) {
+          // 设置画布大小为选择区域大小
+          canvas.width = rect.width;
+          canvas.height = rect.height;
+
+          // 使用 html2canvas 或类似库来截图选择区域
+          // 这里先用一个临时的实现
+          const imageBlob = await captureAreaAsBlob(pageElement, rect);
+          if (imageBlob) {
+            const file = new File([imageBlob], `area-${Date.now()}.png`, {
+              type: "image/png",
+            });
+            imageUrl = (await uploadResource(file)) || "";
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to capture area screenshot:", error);
+    }
 
     addPdfHighlight({
       pdfId: pdf.id,
@@ -109,14 +130,13 @@ const PDFViewer = (props: PDFViewerProps) => {
         ...transformToRelativePercentRect(rect, pageRect),
         pageNum,
       },
-      rects: [] as RectPercentWithPageNumber[],
       color: EHighlightColor.Red,
       highlightTextStyle: EHighlightTextStyle.Highlight,
       highlightType: EHighlightType.Area,
       pageNum,
       notes: [],
       content: "",
-      image: "",
+      image: imageUrl,
     }).then((highlight) => {
       if (!highlightManager.current) return;
       const layer = highlightManager.current.getOrCreateHighlightLayer(pageNum);
@@ -127,6 +147,78 @@ const PDFViewer = (props: PDFViewerProps) => {
       highlightManager.current.renderHighlights(pageNum);
     });
   });
+
+  // 使用 html2canvas 实现真正的区域截图
+  const captureAreaAsBlob = async (
+    pageElement: HTMLElement,
+    rect: Rect,
+  ): Promise<Blob | null> => {
+    try {
+      const devicePixelRatio = window.devicePixelRatio || 1;
+
+      // 使用 html2canvas 截图整个页面
+      const canvas = await html2canvas(pageElement, {
+        useCORS: true,
+        allowTaint: false,
+        scale: devicePixelRatio, // 考虑设备像素比，避免模糊
+        backgroundColor: "#ffffff", // 设置白色背景，避免透明或红色背景
+        logging: false, // 禁用日志
+        removeContainer: false,
+        foreignObjectRendering: false,
+      });
+
+      // 创建一个新的 canvas 来裁剪选择区域
+      const croppedCanvas = document.createElement("canvas");
+      const ctx = croppedCanvas.getContext("2d");
+
+      if (!ctx) return null;
+
+      // 设置裁剪后的 canvas 大小，考虑设备像素比
+      const scaledWidth = rect.width * devicePixelRatio;
+      const scaledHeight = rect.height * devicePixelRatio;
+      croppedCanvas.width = scaledWidth;
+      croppedCanvas.height = scaledHeight;
+
+      // 获取页面元素的位置信息
+      const pageRect = pageElement.getBoundingClientRect();
+
+      // 计算在页面内的相对位置，考虑设备像素比
+      const relativeX = (rect.left - pageRect.left) * devicePixelRatio;
+      const relativeY = (rect.top - pageRect.top) * devicePixelRatio;
+
+      // 设置高质量的图像渲染
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      // 裁剪并绘制选择区域
+      ctx.drawImage(
+        canvas,
+        relativeX,
+        relativeY,
+        scaledWidth,
+        scaledHeight, // 源区域
+        0,
+        0,
+        scaledWidth,
+        scaledHeight, // 目标区域
+      );
+
+      // 转换为 Blob，使用高质量设置
+      return new Promise((resolve) => {
+        croppedCanvas.toBlob(
+          (blob) => {
+            resolve(blob);
+          },
+          "image/png",
+          1.0,
+        ); // 使用最高质量的 PNG
+      });
+    } catch (error) {
+      console.error("Error capturing area with html2canvas:", error);
+      return null;
+    }
+  };
+
   const [currentPageNum, setCurrentPageNum] = useLocalStorageState<number>(
     `pdf-${pdf.id}:current-page-num`,
     {
@@ -152,46 +244,52 @@ const PDFViewer = (props: PDFViewerProps) => {
           startPage.dataset.pageNumber === endPage.dataset.pageNumber
         ) {
           const pageNum = Number(startPage.dataset.pageNumber);
-          const rects = range.getClientRects();
-          const boundClientRect = range.getBoundingClientRect();
-          const pageRect = startPage.getBoundingClientRect();
-          let relativeRects: any[] = Array.from(rects)
-            .map((rect) => {
-              return {
-                ...transformToRelativeRect(rect, pageRect),
+          const selectedText = selection
+            .toString()
+            .trim()
+            .replaceAll("\n", " ");
+
+          // 使用新的基于文本索引的选择方式
+          const textSelection = getTextSelectionRangeFromSelection(
+            startPage,
+            range,
+          );
+
+          if (textSelection && selectedText) {
+            // 使用文本索引方式创建标注
+            addPdfHighlight({
+              boundingClientRect: {
+                ...transformToRelativePercentRect(
+                  boundClientRect,
+                  startPage.getBoundingClientRect(),
+                ),
                 pageNum,
-              };
-            })
-            .filter((rect) => rect.width > 0);
-          relativeRects = optimizeClientRects(relativeRects);
-          relativeRects = relativeRects.map((rect) => ({
-            ...transformToPercentRect(rect, pageRect),
-            pageNum,
-          }));
-          addPdfHighlight({
-            boundingClientRect: {
-              ...transformToRelativePercentRect(boundClientRect, pageRect),
+              },
+              pdfId: pdf.id,
+              textSelection: textSelection, // 使用新的文本选择数据
+              color: EHighlightColor.Pink,
+              highlightTextStyle: EHighlightTextStyle.Highlight,
+              highlightType: EHighlightType.Text,
               pageNum,
-            },
-            pdfId: pdf.id,
-            rects: relativeRects,
-            color: EHighlightColor.Pink,
-            highlightTextStyle: EHighlightTextStyle.Highlight,
-            highlightType: EHighlightType.Text,
-            pageNum,
-            notes: [],
-            content: "",
-            image: "",
-          }).then((highlight) => {
-            if (!highlightManager.current) return;
-            const layer =
-              highlightManager.current.getOrCreateHighlightLayer(pageNum);
-            if (!layer) {
-              message.error("高亮层初始化失败，添加高亮失败");
-            }
-            highlightManager.current.addHighlight(pageNum, highlight);
-            highlightManager.current.renderHighlights(pageNum);
-          });
+              notes: [],
+              content: selectedText,
+              image: "",
+            }).then((highlight) => {
+              if (!highlightManager.current) return;
+              const layer =
+                highlightManager.current.getOrCreateHighlightLayer(pageNum);
+              if (!layer) {
+                message.error("高亮层初始化失败，添加高亮失败");
+              }
+              highlightManager.current.addHighlight(pageNum, highlight);
+              highlightManager.current.renderHighlights(pageNum);
+              setTimeout(() => {
+                if (highlightManager.current) {
+                  highlightManager.current.clickHighlight(highlight.id);
+                }
+              }, 50);
+            });
+          }
         }
       }
     },
@@ -307,21 +405,39 @@ const PDFViewer = (props: PDFViewerProps) => {
   // 处理高亮点击
   const handleHighlightClick = useMemoizedFn((highlight: PdfHighlight) => {
     if (highlightManager.current?.viewer) {
-      // 跳转到对应页面
-      highlightManager.current.viewer.currentPageNumber = highlight.pageNum;
-      setCurrentPageNum(highlight.pageNum);
-
       // 滚动到高亮位置
-      setTimeout(() => {
-        const highlightEl = document.querySelector(
-          `[data-highlight-id="${highlight.id}"]`,
-        );
-        if (highlightEl) {
-          highlightEl.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
-      }, 100);
+      highlightManager.current.scrollIntoHighlight(highlight.id);
     }
   });
+
+  const handleHighlightDelete = useMemoizedFn((highlightId: number) => {
+    if (highlightManager.current) {
+      for (const [
+        pageNum,
+        pageHighlights,
+      ] of highlightManager.current.highlights.entries()) {
+        const highlightIndex = pageHighlights.findIndex(
+          (h) => h.id === highlightId,
+        );
+        if (highlightIndex !== -1) {
+          highlightManager.current.removeHighlight(pageNum, highlightId);
+          break;
+        }
+      }
+    }
+  });
+
+  const handleHighlightUpdate = useMemoizedFn(
+    (updatedHighlight: PdfHighlight) => {
+      if (highlightManager.current) {
+        highlightManager.current.updateHighlight(
+          updatedHighlight.pageNum,
+          updatedHighlight.id,
+          updatedHighlight,
+        );
+      }
+    },
+  );
 
   // 当侧边栏显示状态改变时，重新计算 autoFitWidth 的 scale
   useEffect(() => {
@@ -360,6 +476,8 @@ const PDFViewer = (props: PDFViewerProps) => {
           currentPageNum={currentPageNum ?? 1}
           onPageChange={handlePageChange}
           onHighlightClick={handleHighlightClick}
+          onHighlightDelete={handleHighlightDelete}
+          onHighlightUpdate={handleHighlightUpdate}
         />
       </If>
 
@@ -389,7 +507,7 @@ const PDFViewer = (props: PDFViewerProps) => {
         </div>
         <If condition={pdfLoadingStatus === PAGE_STATUS.SUCCESS}>
           <Flex
-            className="h-10 absolute left-1/2 -translate-x-1/2 bottom-16 z-3 bg-black/50 text-white rounded-lg p-4!"
+            className="h-12 absolute left-1/2 -translate-x-1/2 bottom-16 z-3 bg-black/80 text-white rounded-lg px-4! py-6 z-100"
             gap={"middle"}
             align={"center"}
           >
@@ -409,7 +527,7 @@ const PDFViewer = (props: PDFViewerProps) => {
                 setCurrentScale(highlightManager.current.viewer.currentScale);
               }}
             />
-            <div className="h-10 leading-10 text-lg select-none">
+            <div className="leading-10 text-lg select-none">
               {currentScale.toFixed(2)}
             </div>
             <ZoomOutOutlined

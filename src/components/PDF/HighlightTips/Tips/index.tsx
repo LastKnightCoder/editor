@@ -160,9 +160,6 @@ const Tips = (props: TipsProps) => {
                       onClick={() => onSelectTextStyle?.(item.type)}
                       className={classnames(styles.styleItem)}
                       style={{
-                        border: item.active
-                          ? `2px solid ${colors[activeColor]}`
-                          : "2px solid transparent",
                         color: item.active ? colors[activeColor] : "gray",
                       }}
                     >

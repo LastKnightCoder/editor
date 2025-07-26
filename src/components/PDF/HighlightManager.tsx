@@ -1,5 +1,6 @@
 import { PDFDocumentProxy } from "pdfjs-dist";
 import { PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
+import React from "react";
 import ReactDOM from "react-dom/client";
 import { HighlightLayer } from "./types.ts";
 
@@ -7,6 +8,8 @@ import HighlightNode from "./HighlightNode";
 import For from "@/components/For";
 import { PdfHighlight } from "@/types";
 import { updatePdfHighlight, removePdfHighlight } from "@/commands";
+import { addDataIdxToTextLayer, restoreSelectionFromTextRange } from "./utils";
+import { HighlightNodeRef } from "./HighlightNode";
 
 class HighlightManager {
   pdfDocument: PDFDocumentProxy;
@@ -16,6 +19,10 @@ class HighlightManager {
   handleTextLayerRendered: (event: any) => void;
   handlePageChanging: (event: any) => void;
   onHighlightUpdate?: (highlights: PdfHighlight[]) => void;
+  highlightRefs: Map<
+    number,
+    ReturnType<typeof React.createRef<HighlightNodeRef>>
+  >;
 
   constructor(
     pdfDocument: PDFDocumentProxy,
@@ -41,6 +48,16 @@ class HighlightManager {
     this.handleTextLayerRendered = this._handleTextLayerRendered.bind(this);
     this.handlePageChanging = this._handlePageChanging.bind(this);
     this.highlightLayers = new Map();
+    this.highlightRefs = new Map();
+    // 为所有的 highlight 节点添加 ref
+    this.highlights.forEach((highlights) => {
+      highlights.forEach((highlight) => {
+        this.highlightRefs.set(
+          highlight.id,
+          React.createRef<HighlightNodeRef>(),
+        );
+      });
+    });
     this.mount();
   }
 
@@ -93,7 +110,17 @@ class HighlightManager {
     }
   }
 
-  private _handleTextLayerRendered() {
+  private _handleTextLayerRendered(event: any) {
+    const { pageNumber } = event;
+
+    // 为文本层添加 data-idx 属性
+    const pageElement = document.querySelector(
+      `.pdfViewer .page[data-page-number="${pageNumber}"]`,
+    ) as HTMLElement;
+    if (pageElement) {
+      addDataIdxToTextLayer(pageElement);
+    }
+
     const numPages = this.pdfDocument.numPages;
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
       const highlightLayer = this.highlightLayers.get(pageNum);
@@ -117,10 +144,25 @@ class HighlightManager {
     }
   }
 
+  getTextRangeFromHighlight(highlight: PdfHighlight): Range | null {
+    if (highlight.highlightType !== "text" || !highlight.textSelection) {
+      return null;
+    }
+
+    const pageElement = document.querySelector(
+      `.pdfViewer .page[data-page-number="${highlight.pageNum}"]`,
+    ) as HTMLElement;
+
+    if (!pageElement) return null;
+
+    return restoreSelectionFromTextRange(pageElement, highlight.textSelection);
+  }
+
   addHighlight(pageNumber: number, highlight: PdfHighlight) {
     const highlights = this.highlights.get(pageNumber);
     if (highlights) {
       highlights.push(highlight);
+      this.highlightRefs.set(highlight.id, React.createRef<HighlightNodeRef>());
       this.notifyHighlightUpdate();
     }
   }
@@ -134,6 +176,7 @@ class HighlightManager {
       if (index !== -1) {
         highlights.splice(index, 1);
         removePdfHighlight(highlightId).then();
+        this.highlightRefs.delete(highlightId);
         this.notifyHighlightUpdate();
       }
     }
@@ -156,6 +199,21 @@ class HighlightManager {
       }
     }
   }
+
+  clickHighlight = (highlightId: number) => {
+    const ref = this.highlightRefs.get(highlightId);
+    console.log("clickHighlight", highlightId, ref);
+    if (ref?.current) {
+      ref.current.onClickHighlight();
+    }
+  };
+
+  scrollIntoHighlight = (highlightId: number) => {
+    const ref = this.highlightRefs.get(highlightId);
+    if (ref?.current) {
+      ref.current.scrollIntoView();
+    }
+  };
 
   getAllHighlights(): PdfHighlight[] {
     const allHighlights: PdfHighlight[] = [];
@@ -197,11 +255,13 @@ class HighlightManager {
     const highlightLayer = this.highlightLayers.get(pageNumber);
     if (!highlightLayer) return;
     const { root } = highlightLayer;
+
     root.render(
       <For
         data={highlights}
         renderItem={(highlight) => (
           <HighlightNode
+            ref={this.highlightRefs.get(highlight.id)}
             highlight={highlight}
             key={highlight.id}
             onHighlightChange={(highlight) => {
