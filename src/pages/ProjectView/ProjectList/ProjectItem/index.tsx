@@ -66,6 +66,7 @@ import styles from "./index.module.less";
 import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
+import ContentExportModal from "@/components/ContentExportModal";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { useProjectContext } from "../../ProjectContext";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
@@ -137,6 +138,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [webviewModalOpen, setWebviewModalOpen] = useState(false);
   const [webviewUrl, setWebviewUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   const { updateProject, activeProjectItemId } = useProjectsStore((state) => ({
     updateProject: state.updateProject,
@@ -430,8 +432,18 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           label: "演示模式",
         },
         {
-          key: "export-markdown",
+          key: "export",
           label: "导出文档",
+          children: [
+            {
+              key: "export-markdown",
+              label: "Markdown",
+            },
+            {
+              key: "export-image",
+              label: "图片",
+            },
+          ],
         },
         {
           key: "open-in-new-window",
@@ -565,6 +577,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         if (!projectItem) return;
         const markdown = getMarkdown(projectItem.content);
         downloadMarkdown(markdown, projectItem.title);
+      } else if (key === "export-image") {
+        setExportModalOpen(true);
       } else if (key === "edit-title") {
         setTitleEditable(true);
         titleRef.current?.setContentEditable(true);
@@ -1311,6 +1325,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             }}
           />
         )}
+
+      <ContentExportModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        content={projectItem?.content || []}
+        title={projectItem?.title || "项目文档"}
+      />
     </>
   );
 });

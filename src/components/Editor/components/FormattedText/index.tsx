@@ -25,9 +25,11 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
     highlight,
     code,
     strikethrough,
-    color,
-    darkColor = color,
+    color = "#000",
+    darkColor = "#fff",
   } = leaf;
+
+  console.log(leaf);
 
   const { isDark } = useTheme();
 

@@ -12,7 +12,21 @@ class StaticServerModule implements Module {
 
   async init() {
     const appDir = PathUtil.getAppDir();
-    this.app.use(Express.static(appDir));
+    this.app.use(
+      Express.static(appDir, {
+        setHeaders: (res) => {
+          res.setHeader("Access-Control-Allow-Origin", "*");
+          res.setHeader(
+            "Access-Control-Allow-Methods",
+            "GET, POST, PUT, DELETE, OPTIONS",
+          );
+          res.setHeader(
+            "Access-Control-Allow-Headers",
+            "Content-Type, Authorization",
+          );
+        },
+      }),
+    );
     this.app.listen(24678, () => {
       console.log("Static server is running on port 24678");
     });

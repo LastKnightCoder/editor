@@ -53,7 +53,7 @@ const EditLink: React.FC<{
     return (
       <div
         className={
-          "flex h-[2.5em] items-center max-w-[20em] gap-[0.75em] p-[0.5em] rounded-[0.5em] text-gray-500"
+          "flex h-[2.5em] items-center max-w-[20em] gap-[0.75em] p-[0.5em] rounded-[0.5em] text-[#6A7282]"
         }
       >
         <div
@@ -206,7 +206,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
         {...attributes}
         href={url}
         className={
-          "text-gray-500! border-b-[1px] border-dashed border-gray-500 cursor-pointer hover:text-gray-500!"
+          "text-[#6A7282]! border-b-[1px] border-dashed border-[#6A7282] cursor-pointer"
         }
         onClick={handleClickATag}
       >

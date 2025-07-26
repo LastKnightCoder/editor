@@ -4,6 +4,7 @@ import { Flex, Popover } from "antd";
 import styles from "./index.module.less";
 import For from "@/components/For";
 import React, { useState } from "react";
+import useTheme from "../../../../hooks/useTheme";
 
 interface SelectLanguageProps {
   value: string;
@@ -58,6 +59,7 @@ const languages = [
 
 const SelectLanguage = (props: SelectLanguageProps) => {
   const { value, onChange, className, style = {}, readonly } = props;
+  const { isDark } = useTheme();
 
   const [open, setOpen] = useState(false);
 
@@ -76,6 +78,7 @@ const SelectLanguage = (props: SelectLanguageProps) => {
       styles={{
         body: {
           padding: 4,
+          color: isDark ? "#fff" : "#000",
         },
       }}
       arrow={false}
@@ -95,6 +98,9 @@ const SelectLanguage = (props: SelectLanguageProps) => {
                     onChange(item.value);
                     setOpen(false);
                   }}
+                  style={{
+                    color: isDark ? "#fff" : "#000",
+                  }}
                 >
                   {item.label}
                 </div>
@@ -105,7 +111,10 @@ const SelectLanguage = (props: SelectLanguageProps) => {
       }
     >
       <div
-        style={style}
+        style={{
+          ...style,
+          color: isDark ? "#fff" : "#000",
+        }}
         className={classnames(styles.selectLanguage, className, {
           [styles.disable]: readonly,
         })}
