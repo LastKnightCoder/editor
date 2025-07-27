@@ -98,7 +98,6 @@ export const streamFetch = async (
       headers,
       body,
     });
-    console.log(res);
     const {
       request_id,
       status,

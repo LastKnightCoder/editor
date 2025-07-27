@@ -25,7 +25,6 @@ const Emoji = memo((props: IExtensionBaseProps<EmojiElement>) => {
   const onEmojiSelect = (emojiData: any) => {
     if (readonly) return;
     const path = ReactEditor.findPath(editor, element);
-    console.log(emojiData);
     Transforms.setNodes(
       editor,
       {

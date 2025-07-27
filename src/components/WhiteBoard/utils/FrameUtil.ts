@@ -430,7 +430,6 @@ export class FrameUtil {
 
       // 新路径：移动到 board.children 的末尾
       const newPath = [board.children.length];
-      console.log("oldPath", oldPath, "newPath", newPath);
 
       ops.push({
         type: "move_node",

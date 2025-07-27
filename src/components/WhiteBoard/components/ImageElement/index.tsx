@@ -166,15 +166,9 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
   });
 
   const handleDescriptionPressEnter = useMemoizedFn(() => {
-    console.log("handleDescriptionPressEnter");
     setIsEditingDescription(false);
     saveDescription();
   });
-
-  // const handleDescriptionBlur = useMemoizedFn(() => {
-  //   setIsEditingDescription(false);
-  //   saveDescription();
-  // });
 
   const saveDescription = useMemoizedFn(() => {
     if (tempDescription !== description) {

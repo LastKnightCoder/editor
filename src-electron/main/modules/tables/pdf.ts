@@ -46,7 +46,6 @@ export default class PdfTable {
     );
     if (!hasTextSelectionColumn) {
       db.exec(`ALTER TABLE pdf_highlights ADD COLUMN text_selection TEXT`);
-      console.log("Added text_selection column to pdf_highlights table");
     }
 
     const hasRectsColumn = tableInfo.some(

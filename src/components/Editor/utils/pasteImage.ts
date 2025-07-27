@@ -60,7 +60,6 @@ export async function handlePasteImage(
       );
       return true;
     } else {
-      console.log("insertInlineImage", editor.selection);
       const insertInlineImageResult = insertInlineImage(editor, "", uuid);
       if (!insertInlineImageResult) {
         return false;

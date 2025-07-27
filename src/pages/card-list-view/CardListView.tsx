@@ -81,7 +81,6 @@ const CardListView = () => {
       "card:updated",
       (data) => {
         const updatedCard = data.card;
-        console.log("updatedCard", updatedCard);
         setCards((prevCards) =>
           prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
         );

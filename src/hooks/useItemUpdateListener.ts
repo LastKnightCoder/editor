@@ -61,7 +61,6 @@ export const useItemUpdateListener = () => {
     ) => {
       const currentDatabaseName =
         useSettingStore.getState().setting.database.active;
-      console.log("article:updated", data, currentDatabaseName);
       if (
         data.databaseName.replace(".db", "") !==
         currentDatabaseName.replace(".db", "")

@@ -276,7 +276,6 @@ export const updateNodeRecursively = (
         delete nodeProperties.text;
       }
       if (Object.keys(nodeProperties).length > 0) {
-        // console.log("updateNodeRecursively", oldNodeProperties, nodeProperties, path);
         Transforms.setNodes(editor, nodeProperties, { at: path });
         Transforms.select(editor, Editor.end(editor, path));
       }

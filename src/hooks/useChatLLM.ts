@@ -130,8 +130,6 @@ export const chatStreamInner = async (
     };
   });
 
-  console.log(streamMessages);
-
   const requestPayload = {
     messages: streamMessages,
     stream: true,

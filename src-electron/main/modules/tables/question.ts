@@ -90,7 +90,6 @@ export default class QuestionTable {
     const stmt = db.prepare(
       "UPDATE questions SET update_time = ?, question_content = ? WHERE id = ?",
     );
-    console.log("updateQuestion", questionId, question);
     stmt.run(Date.now(), question, questionId);
     return this.getQuestionById(db, questionId) as IQuestion;
   }

@@ -108,7 +108,6 @@ const LocalVideo = memo(
 
     const handleOnError = useMemoizedFn(
       (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-        console.log("handleOnError", previewUrl);
         setPreviewUrl(src);
         // @ts-ignore
         const errorCode = e.target.error?.code as string;

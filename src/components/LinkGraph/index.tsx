@@ -231,7 +231,6 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       graph.current.render();
 
       graph.current.once("afterlayout", () => {
-        console.log("afterlayout");
         setIsAfterLayout(true);
       });
 
