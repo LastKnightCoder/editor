@@ -38,14 +38,12 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   // 处理文档引用点击
   const handleReferenceClick = useCallback(
     async (id: number, type: string) => {
-      console.log(id, type);
       if (type === "card") {
         navigate(`/cards/detail/${id}`);
       } else if (type === "article") {
         navigate(`/articles/detail/${id}`);
       } else if (type === "project-item") {
         const projectItem = await getProjectItemById(id);
-        console.log(projectItem);
         if (!projectItem) return;
         const projectId = projectItem.projects[0];
         if (!projectId) return;
@@ -57,7 +55,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         });
       } else if (type === "document-item") {
         const documentItem = await getDocumentItem(id);
-        console.log(documentItem);
         if (!documentItem) return;
         const documents = await getRootDocumentsByDocumentItemId(
           documentItem.id,

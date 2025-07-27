@@ -378,7 +378,6 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
                           background: preset.background,
                         }}
                         onClick={() => {
-                          console.log(preset);
                           handleSelectConfig(preset);
                         }}
                       >

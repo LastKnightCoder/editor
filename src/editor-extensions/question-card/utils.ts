@@ -6,7 +6,6 @@ export const createQuestionNode = async (editor: Editor) => {
   try {
     // 创建一个新的问题
     const question = await createQuestion("新问题");
-    console.log("question", question);
     const questionId = question.id;
 
     setOrInsertNode(editor, {

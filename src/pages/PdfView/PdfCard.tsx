@@ -6,6 +6,8 @@ import { useNavigate } from "react-router-dom";
 import { MdMoreVert } from "react-icons/md";
 import useTheme from "@/hooks/useTheme.ts";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
+import useUploadResource from "@/hooks/useUploadResource.ts";
+import { readBinaryFile } from "@/commands";
 import { Pdf } from "@/types";
 
 interface PdfCardProps {
@@ -19,13 +21,15 @@ const PdfCard = (props: PdfCardProps) => {
   const { className, style, pdf, compact = false } = props;
 
   const navigate = useNavigate();
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
   const { isDark } = useTheme();
   const [settingOpen, setSettingOpen] = useState(false);
+  const uploadResource = useUploadResource();
 
-  const { removePdf, activePdf } = usePdfsStore((state) => ({
+  const { removePdf, activePdf, updatePdf } = usePdfsStore((state) => ({
     removePdf: state.removePdf,
     activePdf: state.activePdf,
+    updatePdf: state.updatePdf,
   }));
 
   const onRemovePdf = () => {
@@ -45,6 +49,47 @@ const PdfCard = (props: PdfCardProps) => {
       okButtonProps: {
         danger: true,
       },
+    });
+  };
+
+  const onUploadPdf = () => {
+    modal.confirm({
+      title: "上传PDF",
+      content: "确定要将此PDF文件上传到云端吗？上传成功后将变为远程资源。",
+      onOk: async () => {
+        try {
+          message.loading({
+            key: "uploading-pdf",
+            content: "正在上传文件...",
+            duration: 0,
+          });
+
+          // 读取本地文件内容
+          const fileContent = await readBinaryFile(pdf.filePath);
+          const file = new File([fileContent], pdf.fileName, {
+            type: "application/pdf",
+          });
+
+          const uploadedUrl = await uploadResource(file);
+          if (uploadedUrl) {
+            // 上传成功，更新PDF记录
+            await updatePdf({
+              ...pdf,
+              isLocal: false,
+              remoteUrl: uploadedUrl,
+              filePath: "", // 清空本地路径
+            });
+            message.success({ key: "uploading-pdf", content: "文件上传成功" });
+          } else {
+            message.error({ key: "uploading-pdf", content: "文件上传失败" });
+          }
+        } catch (error) {
+          console.error("上传文件失败:", error);
+          message.error({ key: "uploading-pdf", content: "文件上传失败" });
+        }
+      },
+      cancelText: "取消",
+      okText: "确定上传",
     });
   };
 
@@ -111,6 +156,17 @@ const PdfCard = (props: PdfCardProps) => {
           }}
           content={
             <div className="flex gap-2.5 flex-col">
+              {pdf.isLocal && (
+                <div
+                  className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                  onClick={() => {
+                    setSettingOpen(false);
+                    onUploadPdf();
+                  }}
+                >
+                  上传资源
+                </div>
+              )}
               <div
                 className="px-4 py-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                 onClick={onRemovePdf}

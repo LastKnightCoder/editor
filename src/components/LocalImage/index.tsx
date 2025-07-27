@@ -78,7 +78,6 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
             ? `${homeDir}${cdnUrl.slice(1)}`
             : cdnUrl;
           const filePath = await convertFileSrc(absolutePath);
-          console.log("filePath", filePath);
           setPreviewUrl(filePath);
         }
       } catch (e) {

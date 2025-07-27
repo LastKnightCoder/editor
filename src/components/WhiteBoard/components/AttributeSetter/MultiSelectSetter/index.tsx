@@ -52,7 +52,6 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
     if (elements.length <= 1) return;
 
     const maxRight = Math.max(...elements.map((el) => el.x + el.width));
-    console.log(maxRight, elements);
     const newElements = elements
       .map((el) => {
         const diffX = maxRight - el.x - el.width;

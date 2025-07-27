@@ -11,20 +11,34 @@ import {
   FloatButton,
   Breadcrumb,
   Empty,
+  Checkbox,
 } from "antd";
 import { PlusOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useShallow } from "zustand/react/shallow";
+import { useLocalStorageState } from "ahooks";
 
 import Titlebar from "@/components/Titlebar";
-import { selectFile, getFileBaseName } from "@/commands";
+import {
+  selectFile,
+  getFileBaseName,
+  getEditorDir,
+  getSep,
+  createDir,
+  pathExists,
+  writeBinaryFile,
+  readBinaryFile,
+} from "@/commands";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import usePdfsStore from "@/stores/usePdfsStore";
+import useUploadResource from "@/hooks/useUploadResource";
+import { v4 as uuid } from "uuid";
 import PdfCard from "./PdfCard";
 
 const PdfListView = memo(() => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const uploadResource = useUploadResource();
 
   const isConnected = useDatabaseConnected();
   const active = useSettingStore((state) => state.setting.database.active);
@@ -50,6 +64,36 @@ const PdfListView = memo(() => {
   const [remoteUrl, setRemoteUrl] = useState("");
   const [remoteFileName, setRemoteFileName] = useState("");
 
+  // 添加上传选项状态和持久化
+  const [shouldUpload, setShouldUpload] = useLocalStorageState(
+    "pdf-upload-option",
+    {
+      defaultValue: false,
+    },
+  );
+
+  // 复制文件到 resources 目录的函数
+  const copyFileToResources = async (file: File, fileName = file.name) => {
+    const editorPath = await getEditorDir();
+    const sep = await getSep();
+    const resourceDirPath = editorPath + sep + "resources";
+    if (!(await pathExists(resourceDirPath))) {
+      await createDir(resourceDirPath);
+    }
+
+    const all = fileName.split(".");
+    const other = all.slice(0, all.length - 1);
+    const extension = all[all.length - 1];
+    const objectName = other.join(".") + "_" + uuid() + "." + extension;
+
+    const resourcePath = resourceDirPath + sep + objectName;
+    await writeBinaryFile(
+      resourcePath,
+      new Uint8Array(await file.arrayBuffer()),
+    );
+    return resourcePath;
+  };
+
   const onClickAddPdf = () => {
     setAddPdfOpen(true);
   };
@@ -69,12 +113,73 @@ const PdfListView = memo(() => {
       ],
     });
     if (!filePath || filePath.length > 1) return;
+
     const fileName = await getFileBaseName(filePath[0]);
+
+    let finalFilePath = filePath[0];
+    let isLocal = true;
+    let remoteUrl = "";
+
+    if (shouldUpload) {
+      // 上传文件
+      try {
+        message.loading({
+          key: "uploading-pdf",
+          content: "正在上传文件...",
+          duration: 0,
+        });
+
+        // 读取文件内容并创建 File 对象
+        const fileContent = await readBinaryFile(filePath[0]);
+        const file = new File([fileContent], fileName, {
+          type: "application/pdf",
+        });
+
+        const uploadedUrl = await uploadResource(file);
+        if (uploadedUrl) {
+          finalFilePath = "";
+          isLocal = false;
+          remoteUrl = uploadedUrl;
+          message.success({ key: "uploading-pdf", content: "文件上传成功" });
+        } else {
+          message.error({
+            key: "uploading-pdf",
+            content: "文件上传失败，将保存为本地文件",
+          });
+          // 上传失败，复制到本地 resources 目录
+          const fileContentForLocal = await readBinaryFile(filePath[0]);
+          const fileForLocal = new File([fileContentForLocal], fileName, {
+            type: "application/pdf",
+          });
+          finalFilePath = await copyFileToResources(fileForLocal, fileName);
+        }
+      } catch (error) {
+        console.error("上传文件失败:", error);
+        message.error({
+          key: "uploading-pdf",
+          content: "文件上传失败，将保存为本地文件",
+        });
+        // 上传失败，复制到本地 resources 目录
+        const fileContentForLocal = await readBinaryFile(filePath[0]);
+        const fileForLocal = new File([fileContentForLocal], fileName, {
+          type: "application/pdf",
+        });
+        finalFilePath = await copyFileToResources(fileForLocal, fileName);
+      }
+    } else {
+      // 不上传，复制到本地 resources 目录
+      const fileContentForLocal = await readBinaryFile(filePath[0]);
+      const fileForLocal = new File([fileContentForLocal], fileName, {
+        type: "application/pdf",
+      });
+      finalFilePath = await copyFileToResources(fileForLocal, fileName);
+    }
+
     await createPdf({
       fileName,
-      filePath: filePath[0],
-      isLocal: true,
-      remoteUrl: "",
+      filePath: finalFilePath,
+      isLocal,
+      remoteUrl,
       tags: [],
       category: "",
     });
@@ -103,7 +208,17 @@ const PdfListView = memo(() => {
     {
       key: "local",
       label: "本地",
-      children: <Button onClick={onSelectFile}>选择文件</Button>,
+      children: (
+        <Flex gap={"middle"} vertical>
+          <Checkbox
+            checked={shouldUpload}
+            onChange={(e) => setShouldUpload(e.target.checked)}
+          >
+            上传到云端（会根据设置中的图床配置上传）
+          </Checkbox>
+          <Button onClick={onSelectFile}>选择文件</Button>
+        </Flex>
+      ),
     },
     {
       key: "remote",

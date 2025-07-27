@@ -39,7 +39,6 @@ const WebviewsViewer: React.FC = () => {
   }, [tabs]);
 
   const handleAddWebview = useMemoizedFn(() => {
-    console.log("handleAddWebview called, setting modal visible");
     setIsModalVisible(true);
   });
 
@@ -112,7 +111,6 @@ const WebviewsViewer: React.FC = () => {
 
   // 创建直接的回调函数避免闭包问题
   const onTabsAddClick = () => {
-    console.log("onTabsAddClick called");
     setIsModalVisible(true);
   };
 

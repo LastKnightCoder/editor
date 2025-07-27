@@ -202,7 +202,6 @@ class HighlightManager {
 
   clickHighlight = (highlightId: number) => {
     const ref = this.highlightRefs.get(highlightId);
-    console.log("clickHighlight", highlightId, ref);
     if (ref?.current) {
       ref.current.onClickHighlight();
     }

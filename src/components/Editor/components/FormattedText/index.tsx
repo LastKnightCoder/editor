@@ -29,8 +29,6 @@ const FormattedText: React.FC<IFormattedTextProps> = memo((props) => {
     darkColor = "#fff",
   } = leaf;
 
-  console.log(leaf);
-
   const { isDark } = useTheme();
 
   // 使用自定义 Hook 计算文本装饰

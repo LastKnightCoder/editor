@@ -124,7 +124,6 @@ export function getTextSelectionRangeFromSelection(
     endOffset,
   };
 
-  console.log("Text selection range:", result);
   return result;
 }
 
@@ -258,14 +257,11 @@ export function getHighlightRectsFromTextSelection(
   textSelection: TextSelectionRange,
 ): Rect[] {
   const range = restoreSelectionFromTextRange(pageEl, textSelection);
-  console.log("range", range);
   if (!range) return [];
 
   try {
     const clientRects = range.getClientRects();
     const pageRect = pageEl.getBoundingClientRect();
-
-    console.log("clientRects", clientRects);
 
     const rects: Rect[] = [];
 
