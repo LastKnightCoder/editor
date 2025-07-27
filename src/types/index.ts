@@ -15,3 +15,4 @@ export * from "./search";
 export * from "./video-note";
 export * from "./question";
 export * from "./content";
+export * from "./goal";

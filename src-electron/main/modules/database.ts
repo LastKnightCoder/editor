@@ -22,6 +22,9 @@ import VideoNoteTable from "./tables/video-note";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
 import WhiteBoardContentTable from "./tables/white-board-content";
+import GoalTable from "./tables/goal";
+import GoalItemTable from "./tables/goal-item";
+import GoalProgressEntryTable from "./tables/goal-progress-entry";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -62,6 +65,9 @@ class DatabaseModule implements Module {
       FtsTable,
       VideoNoteTable,
       QuestionTable,
+      GoalTable,
+      GoalItemTable,
+      GoalProgressEntryTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

@@ -16,6 +16,7 @@ import timeRecord from "@/assets/icons/time-record.svg";
 import whiteBoard from "@/assets/icons/white-board.svg";
 import pdf from "@/assets/icons/pdf.svg";
 import vecDatabase from "@/assets/icons/vec-database.svg";
+import goal from "@/assets/icons/goal.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -173,6 +174,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "时间统计",
         path: "/time-records",
         enable: module.timeRecord.enable,
+      },
+      {
+        key: "goal",
+        icon: goal,
+        desc: "进度管理",
+        path: "/goals",
+        enable: module.goal.enable,
       },
     ].filter((item) => item.enable);
   }, [module]);
