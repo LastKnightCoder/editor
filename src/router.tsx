@@ -42,6 +42,9 @@ const PdfDetailView = loadable(() => import("@/pages/PdfView/PdfDetailView"));
 const DailyNoteView = loadable(() => import("@/pages/DailyNoteView"));
 const TimeRecordView = loadable(() => import("@/pages/TimeRecordView"));
 const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
+const GoalManagementView = loadable(
+  () => import("@/pages/GoalView/GoalManagementView"),
+);
 
 const routes = [
   {
@@ -111,6 +114,10 @@ const routes = [
       {
         path: "vec-documents",
         element: <VecDocumentView />,
+      },
+      {
+        path: "goals",
+        element: <GoalManagementView />,
       },
       {
         path: "settings",

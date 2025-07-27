@@ -111,6 +111,10 @@ export interface ISetting {
       enable: boolean;
       name: "索引数据库";
     };
+    goal: {
+      enable: boolean;
+      name: "进度管理";
+    };
   };
   darkMode: boolean;
   textToSpeech: {
@@ -250,6 +254,10 @@ const initialState: IState = {
       vecDocuments: {
         enable: true,
         name: "索引数据库",
+      },
+      goal: {
+        enable: true,
+        name: "进度管理",
       },
     },
     textToSpeech: {
