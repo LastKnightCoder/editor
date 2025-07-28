@@ -191,7 +191,7 @@ const GoalDetailPanel = memo(
         return [
           {
             key: "addProgress",
-            label: "添加进度记录",
+            label: "添加进度",
             onClick: () => onAddProgress(item.id, item.type),
           },
           {
@@ -208,7 +208,7 @@ const GoalDetailPanel = memo(
         return [
           {
             key: "addProgress",
-            label: "添加进度记录",
+            label: "添加进度",
             onClick: () => onAddProgress(item.id, item.type),
           },
           ...baseItems,
@@ -380,7 +380,7 @@ const GoalDetailPanel = memo(
         console.log("设置展开的节点 keys:", allKeys);
         setExpandedKeys(allKeys);
       }
-    }, [selectedGoal?.id]);
+    }, [selectedGoal]);
 
     if (!selectedGoal) {
       return (
