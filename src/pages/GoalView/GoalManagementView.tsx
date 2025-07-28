@@ -273,7 +273,7 @@ const GoalManagementView = memo(() => {
       loadGoalDetail(selectedGoal!.id);
     } catch (error) {
       console.error("Failed to add progress:", error);
-      message.error("添加进度记录失败");
+      message.error("添加进度失败");
     }
   };
 

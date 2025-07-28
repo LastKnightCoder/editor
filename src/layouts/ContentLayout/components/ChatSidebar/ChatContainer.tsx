@@ -88,6 +88,18 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const messagesRef = useRef<HTMLDivElement>(null);
     const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
 
+    // 跟踪实际使用的聊天对象，解决新建对话时的状态同步问题
+    const actualChatRef = useRef<ChatMessage>(currentChat);
+
+    // 强制更新计数器，用于触发visibleMessages重新计算
+    const [updateCounter, setUpdateCounter] = useState(0);
+
+    // 当 currentChat prop 变化时更新 ref
+    useEffect(() => {
+      actualChatRef.current = currentChat;
+      setUpdateCounter((prev) => prev + 1);
+    }, [currentChat]);
+
     useImperativeHandle(ref, () => ({
       scrollToTop: () => {
         if (messagesRef.current) {
@@ -148,10 +160,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     });
 
     const visibleMessages = useMemo(() => {
-      return currentChat.messages.filter(
+      return actualChatRef.current.messages.filter(
         (message) => message.role !== Role.System,
       );
-    }, [currentChat]);
+    }, [updateCounter]);
 
     // 检查是否滚动到底部
     const isScrolledToBottom = useCallback(() => {
@@ -256,6 +268,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
           const newChatMessages = [systemMessage];
           actualCurrentChat = await createChatMessage(newChatMessages);
+
+          // 立即更新ref，确保UI使用新创建的对话
+          actualChatRef.current = actualCurrentChat;
+          setUpdateCounter((prev) => prev + 1);
         } catch (error) {
           message.error("创建新对话失败");
           setSendLoading(false);
@@ -300,10 +316,17 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         newMessage,
       ];
 
-      updateCurrentChat({
+      // 立即添加用户消息和初始的助手回复到状态中
+      const chatWithNewMessages = {
         ...actualCurrentChat,
         messages: [...actualCurrentChat.messages, newMessage, responseMessage],
-      });
+      };
+
+      // 更新当前聊天状态
+      actualCurrentChat = chatWithNewMessages;
+      actualChatRef.current = chatWithNewMessages;
+      setUpdateCounter((prev) => prev + 1);
+      updateCurrentChat(chatWithNewMessages);
 
       // 添加新消息后立即滚动到底部（重置自动滚动）
       setIsAutoScrollEnabled(true);
@@ -410,15 +433,29 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           },
 
           onUpdate: (full: string, _inc: string, reasoningText?: string) => {
-            const newCurrentChat = produce(actualCurrentChat, (draft) => {
-              draft.messages.push(newMessage);
-              draft.messages.push({
-                role: Role.Assistant,
-                reasoning_content: reasoningText,
-                content: full,
-              } as ResponseMessage);
+            // 基于当前实际聊天对象进行更新
+            const updatedChat = produce(actualCurrentChat, (draft) => {
+              // 找到最后一条助手消息并更新其内容
+              const lastMessageIndex = draft.messages.length - 1;
+              if (
+                lastMessageIndex >= 0 &&
+                draft.messages[lastMessageIndex].role === Role.Assistant
+              ) {
+                const lastMessage = draft.messages[
+                  lastMessageIndex
+                ] as ResponseMessage;
+                lastMessage.content = full;
+                if (reasoningText) {
+                  lastMessage.reasoning_content = reasoningText;
+                }
+              }
             });
-            updateCurrentChat(newCurrentChat);
+
+            // 更新状态和ref
+            actualCurrentChat = updatedChat;
+            actualChatRef.current = updatedChat;
+            setUpdateCounter((prev) => prev + 1);
+            updateCurrentChat(updatedChat);
 
             // 更新内容时滚动到底部（如果自动滚动启用）
             setTimeout(() => {
@@ -427,15 +464,29 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           },
 
           onReasoning: (full: string) => {
-            const newCurrentChat = produce(actualCurrentChat, (draft) => {
-              draft.messages.push(newMessage);
-              draft.messages.push({
-                role: Role.Assistant,
-                content: "",
-                reasoning_content: full,
-              } as ResponseMessage);
+            // 基于当前实际聊天对象进行更新
+            const updatedChat = produce(actualCurrentChat, (draft) => {
+              // 找到最后一条助手消息并更新其推理内容
+              const lastMessageIndex = draft.messages.length - 1;
+              if (
+                lastMessageIndex >= 0 &&
+                draft.messages[lastMessageIndex].role === Role.Assistant
+              ) {
+                const lastMessage = draft.messages[
+                  lastMessageIndex
+                ] as ResponseMessage;
+                lastMessage.reasoning_content = full;
+                if (!lastMessage.content) {
+                  lastMessage.content = "";
+                }
+              }
             });
-            updateCurrentChat(newCurrentChat);
+
+            // 更新状态和ref
+            actualCurrentChat = updatedChat;
+            actualChatRef.current = updatedChat;
+            setUpdateCounter((prev) => prev + 1);
+            updateCurrentChat(updatedChat);
 
             // 推理内容更新时滚动到底部（如果自动滚动启用）
             setTimeout(() => {

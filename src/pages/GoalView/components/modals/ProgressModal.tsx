@@ -18,9 +18,7 @@ const ProgressModal = memo(
   ({ visible, itemType, onCancel, onSubmit, form }: ProgressModalProps) => {
     return (
       <Modal
-        title={
-          itemType === EGoalItemType.Milestone ? "添加进度记录" : "添加进度记录"
-        }
+        title={"添加进度"}
         open={visible}
         onCancel={onCancel}
         footer={null}
