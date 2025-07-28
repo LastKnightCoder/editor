@@ -1,10 +1,15 @@
 import Database from "better-sqlite3";
-import { IGoalProgressEntry, ICreateGoalProgressEntry } from "@/types";
+import {
+  IGoalProgressEntry,
+  ICreateGoalProgressEntry,
+  IUpdateGoalProgressEntry,
+} from "@/types";
 
 export default class GoalProgressEntryTable {
   static getListenEvents() {
     return {
       "create-goal-progress-entry": this.createGoalProgressEntry.bind(this),
+      "update-goal-progress-entry": this.updateGoalProgressEntry.bind(this),
       "delete-goal-progress-entry": this.deleteGoalProgressEntry.bind(this),
       "get-goal-progress-entry-by-id": this.getGoalProgressEntryById.bind(this),
       "get-goal-progress-entries-by-goal-item-id":
@@ -55,6 +60,51 @@ export default class GoalProgressEntryTable {
       return this.getGoalProgressEntryById(db, Number(result.lastInsertRowid));
     } else {
       throw new Error("Failed to create goal progress entry");
+    }
+  }
+
+  static updateGoalProgressEntry(
+    db: Database.Database,
+    entryData: IUpdateGoalProgressEntry,
+  ): IGoalProgressEntry {
+    const { id, title, description, progress_delta } = entryData;
+
+    // 构建动态更新语句
+    const updateFields: string[] = [];
+    const values: any[] = [];
+
+    if (title !== undefined) {
+      updateFields.push("title = ?");
+      values.push(title);
+    }
+    if (description !== undefined) {
+      updateFields.push("description = ?");
+      values.push(description);
+    }
+    if (progress_delta !== undefined) {
+      updateFields.push("progress_delta = ?");
+      values.push(progress_delta);
+    }
+
+    if (updateFields.length === 0) {
+      // 如果没有字段需要更新，直接返回当前记录
+      return this.getGoalProgressEntryById(db, id);
+    }
+
+    const updateSql = `
+      UPDATE goal_progress_entries 
+      SET ${updateFields.join(", ")} 
+      WHERE id = ?
+    `;
+    values.push(id);
+
+    const stmt = db.prepare(updateSql);
+    const result = stmt.run(...values);
+
+    if (result.changes > 0) {
+      return this.getGoalProgressEntryById(db, id);
+    } else {
+      throw new Error(`Failed to update goal progress entry with id ${id}`);
     }
   }
 

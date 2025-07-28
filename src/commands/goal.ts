@@ -8,6 +8,7 @@ import {
   ICreateGoalItem,
   IUpdateGoalItem,
   ICreateGoalProgressEntry,
+  IUpdateGoalProgressEntry,
   EGoalStatus,
   IGoalWithItems,
   IGoalItemTree,
@@ -80,6 +81,12 @@ export async function createGoalProgressEntry(
   entryData: ICreateGoalProgressEntry,
 ): Promise<IGoalProgressEntry> {
   return invoke("create-goal-progress-entry", entryData);
+}
+
+export async function updateGoalProgressEntry(
+  entryData: IUpdateGoalProgressEntry,
+): Promise<IGoalProgressEntry> {
+  return invoke("update-goal-progress-entry", entryData);
 }
 
 export async function deleteGoalProgressEntry(id: number): Promise<boolean> {

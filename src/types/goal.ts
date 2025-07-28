@@ -71,6 +71,9 @@ export type ICreateGoalProgressEntry = Omit<
   IGoalProgressEntry,
   "id" | "create_time"
 >;
+export type IUpdateGoalProgressEntry = Partial<
+  Omit<IGoalProgressEntry, "id" | "create_time">
+> & { id: number };
 
 // 树状结构的目标项
 export interface IGoalItemTree extends IGoalItem {
