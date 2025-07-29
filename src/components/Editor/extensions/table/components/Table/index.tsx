@@ -26,6 +26,7 @@ import {
   deletePrevRow,
   deleteNextCol,
   deletePrevCol,
+  safeExecuteTableOperation,
 } from "@/components/Editor/utils";
 
 import { TableElement } from "@/components/Editor/types";
@@ -63,25 +64,35 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
   }, [editor, selection]);
 
   const deleteTable = useCallback(() => {
-    // 将 table 转为 paragraph
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.delete(editor, { at: path });
-    Transforms.insertNodes(
-      editor,
-      {
-        type: "paragraph",
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      },
-      {
-        at: path,
-        select: true,
-      },
-    );
+    try {
+      // 将 table 转为 paragraph
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.delete(editor, { at: path });
+      Transforms.insertNodes(
+        editor,
+        {
+          type: "paragraph",
+          children: [
+            {
+              type: "formatted",
+              text: "",
+            },
+          ],
+        },
+        {
+          at: path,
+          select: true,
+        },
+      );
+    } catch (error) {
+      console.error("删除表格时发生错误:", error);
+      // 如果删除失败，尝试简单的聚焦恢复
+      try {
+        ReactEditor.focus(editor);
+      } catch (focusError) {
+        console.error("删除表格后聚焦失败:", focusError);
+      }
+    }
   }, [editor, element]);
 
   const items = useMemo(() => {
@@ -93,25 +104,53 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
       {
         content: <ActionItem icon={<BiChevronDown />} text={"向下插入行"} />,
         onClick: () => {
-          insertRowAfter(editor);
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              insertRowAfter(editor);
+              ReactEditor.focus(editor);
+            },
+            "向下插入行",
+          );
         },
       },
       {
         content: <ActionItem icon={<BiChevronUp />} text={"向上插入行"} />,
         onClick: () => {
-          insertRowBefore(editor);
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              insertRowBefore(editor);
+              ReactEditor.focus(editor);
+            },
+            "向上插入行",
+          );
         },
       },
       {
         content: <ActionItem icon={<BiChevronLeft />} text={"向左插入列"} />,
         onClick: () => {
-          insertColLeft(editor);
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              insertColLeft(editor);
+              ReactEditor.focus(editor);
+            },
+            "向左插入列",
+          );
         },
       },
       {
         content: <ActionItem icon={<BiChevronRight />} text={"向右插入列"} />,
         onClick: () => {
-          insertColRight(editor);
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              insertColRight(editor);
+              ReactEditor.focus(editor);
+            },
+            "向右插入列",
+          );
         },
       },
       {
@@ -121,25 +160,53 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
       {
         content: <ActionItem icon={<BiChevronDown />} text={"删除下一行"} />,
         onClick: () => {
-          deleteNextRow(editor);
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              deleteNextRow(editor);
+              ReactEditor.focus(editor);
+            },
+            "删除下一行",
+          );
         },
       },
       {
         content: <ActionItem icon={<BiChevronUp />} text={"删除上一行"} />,
         onClick: () => {
-          deletePrevRow(editor);
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              deletePrevRow(editor);
+              ReactEditor.focus(editor);
+            },
+            "删除上一行",
+          );
         },
       },
       {
         content: <ActionItem icon={<BiChevronLeft />} text={"删除左一列"} />,
         onClick: () => {
-          deletePrevCol(editor);
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              deletePrevCol(editor);
+              ReactEditor.focus(editor);
+            },
+            "删除左一列",
+          );
         },
       },
       {
         content: <ActionItem icon={<BiChevronRight />} text={"删除右一列"} />,
         onClick: () => {
-          deleteNextCol(editor);
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              deleteNextCol(editor);
+              ReactEditor.focus(editor);
+            },
+            "删除右一列",
+          );
         },
       },
       {
@@ -148,7 +215,16 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
       },
       {
         content: <ActionItem icon={<BiTable />} text={"删除表格"} />,
-        onClick: deleteTable,
+        onClick: () => {
+          safeExecuteTableOperation(
+            editor,
+            () => {
+              deleteTable();
+              ReactEditor.focus(editor);
+            },
+            "删除表格",
+          );
+        },
       },
     ];
   }, [editor, deleteTable]);
@@ -188,7 +264,16 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
           </Popover>
           <div
             className={classnames(styles.delete, styles.item)}
-            onClick={deleteTable}
+            onClick={() => {
+              safeExecuteTableOperation(
+                editor,
+                () => {
+                  deleteTable();
+                  ReactEditor.focus(editor);
+                },
+                "删除表格",
+              );
+            }}
           >
             <DeleteOutlined />
           </div>
