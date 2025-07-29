@@ -117,7 +117,15 @@ const GoalDetailPanel = memo(
 
       const config = typeConfig[type];
       return (
-        <Tag color={config.color} icon={config.icon}>
+        <Tag
+          color={config.color}
+          icon={config.icon}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
           {config.label}
         </Tag>
       );
