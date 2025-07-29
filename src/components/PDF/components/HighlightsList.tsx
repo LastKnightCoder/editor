@@ -8,10 +8,15 @@ import {
   Modal,
   message,
 } from "antd";
-import { DeleteOutlined, MoreOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  MoreOutlined,
+  CommentOutlined,
+} from "@ant-design/icons";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { PdfHighlight, EHighlightType, EHighlightColor } from "@/types";
 import { removePdfHighlight } from "@/commands/pdf";
+import { getEditorText } from "@/utils/editor";
 
 const { Text } = Typography;
 
@@ -61,6 +66,7 @@ const HighlightsList: React.FC<HighlightsListProps> = ({
     },
     [onHighlightDelete],
   );
+
   // 右键菜单选项
   const getContextMenuItems = (highlight: PdfHighlight) => [
     {
@@ -74,6 +80,34 @@ const HighlightsList: React.FC<HighlightsListProps> = ({
       },
     },
   ];
+
+  // 获取显示内容
+  const getDisplayContent = (highlight: PdfHighlight) => {
+    if (highlight.highlightType === EHighlightType.Comment) {
+      // 评论类型，从notes中获取内容
+      if (highlight.notes && highlight.notes.length > 0) {
+        return getEditorText(highlight.notes[0].note, 100);
+      }
+      return "无评论内容";
+    } else {
+      // 文本和区域类型，使用content字段
+      return highlight.content;
+    }
+  };
+
+  // 获取类型显示文本
+  const getTypeText = (type: EHighlightType) => {
+    switch (type) {
+      case EHighlightType.Text:
+        return "文本";
+      case EHighlightType.Area:
+        return "区域";
+      case EHighlightType.Comment:
+        return "评论";
+      default:
+        return "未知";
+    }
+  };
 
   if (highlights.length === 0) {
     return (
@@ -95,6 +129,7 @@ const HighlightsList: React.FC<HighlightsListProps> = ({
         >
           {virtualizer.getVirtualItems().map((virtualItem) => {
             const highlight = highlights[virtualItem.index];
+            const displayContent = getDisplayContent(highlight);
 
             return (
               <div
@@ -116,11 +151,23 @@ const HighlightsList: React.FC<HighlightsListProps> = ({
                     className="flex items-start gap-3 cursor-pointer p-2"
                     onClick={() => onHighlightClick(highlight)}
                   >
+                    {/* 评论类型显示评论图标 */}
+                    {highlight.highlightType === EHighlightType.Comment && (
+                      <div className="flex-shrink-0 mt-1">
+                        <CommentOutlined
+                          style={{
+                            color: "#1890ff",
+                            fontSize: "14px",
+                          }}
+                        />
+                      </div>
+                    )}
+
                     <div className="flex-1 overflow-hidden">
                       {highlight.highlightType === EHighlightType.Area &&
                         highlight.image && (
                           <div
-                            className="flex-shrink-0"
+                            className="flex-shrink-0 mb-2"
                             onClick={(e) => {
                               e.stopPropagation();
                             }}
@@ -136,16 +183,14 @@ const HighlightsList: React.FC<HighlightsListProps> = ({
                             />
                           </div>
                         )}
-                      {highlight.content && (
+                      {displayContent && (
                         <div className="text-sm leading-6 mb-1 text-gray-800 dark:text-gray-200 line-clamp-3">
-                          {highlight.content}
+                          {displayContent}
                         </div>
                       )}
                       <Text className="text-xs text-gray-500 dark:text-gray-400">
                         第 {highlight.pageNum} 页 •{" "}
-                        {highlight.highlightType === EHighlightType.Area
-                          ? "区域"
-                          : "文本"}
+                        {getTypeText(highlight.highlightType)}
                       </Text>
                     </div>
 

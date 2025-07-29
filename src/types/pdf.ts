@@ -3,6 +3,7 @@ import { Descendant } from "slate";
 export enum EHighlightType {
   Text = "text",
   Area = "area",
+  Comment = "comment",
 }
 
 export enum EHighlightTextStyle {

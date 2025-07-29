@@ -30,6 +30,7 @@ const NoteEditView = (props: NoteEditViewProps) => {
         initValue={content.current}
         readonly={false}
         onChange={onContentChange}
+        theme="light"
       />
       <div className={styles.buttons}>
         <Button onClick={onCancel}>取消</Button>
