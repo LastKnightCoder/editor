@@ -94,6 +94,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     // 强制更新计数器，用于触发visibleMessages重新计算
     const [updateCounter, setUpdateCounter] = useState(0);
 
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     // 当 currentChat prop 变化时更新 ref
     useEffect(() => {
       actualChatRef.current = currentChat;
@@ -192,6 +194,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       } else {
         // 如果用户向上滚动，禁用自动滚动
         setIsAutoScrollEnabled(false);
+      }
+    });
+
+    // 停止流式请求
+    const stopStreaming = useMemoizedFn(() => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
       }
     });
 
@@ -425,6 +435,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               console.error(error);
             } finally {
               setSendLoading(false);
+              abortControllerRef.current = null;
               setTimeout(() => {
                 editTextRef.current?.focusEnd();
               }, 100);
@@ -497,6 +508,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           onError: () => {
             updateCurrentChat(actualCurrentChat);
             setSendLoading(false);
+            abortControllerRef.current = null;
 
             message.error("请求失败");
             perf.end();
@@ -509,6 +521,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               editTextRef.current?.setValue(textContent);
               editTextRef.current?.focusEnd();
             }, 100);
+          },
+
+          onController: (controller: AbortController) => {
+            abortControllerRef.current = controller;
           },
         },
         knowledgeOptions,
@@ -558,19 +574,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         )}
 
         <div className="mt-3 flex-none px-3 py-3 box-border bg-[var(--main-bg-color)] rounded-3xl">
-          <ChatInputArea
-            className="flex-1 min-w-0"
-            contentEditable={!sendLoading}
-            ref={editTextRef}
-            onPressEnter={sendMessage}
-            sendLoading={sendLoading}
-            createMessageLoading={createMessageLoading}
-            onCreateNewMessage={onCreateNewMessage}
-            modelSelectItems={modelSelectItems}
-            onModelSelect={handleModelSelect}
-            currentModelName={chatModelConfig?.name}
-            isSupportMultiModal={chatModelConfig?.features?.multimodal}
-          />
+          <div className="flex items-end gap-2">
+            <div className="flex-1 min-w-0">
+              <ChatInputArea
+                className="flex-1 min-w-0"
+                contentEditable={!sendLoading}
+                ref={editTextRef}
+                onPressEnter={sendMessage}
+                onStop={stopStreaming}
+                sendLoading={sendLoading}
+                createMessageLoading={createMessageLoading}
+                onCreateNewMessage={onCreateNewMessage}
+                modelSelectItems={modelSelectItems}
+                onModelSelect={handleModelSelect}
+                currentModelName={chatModelConfig?.name}
+                isSupportMultiModal={chatModelConfig?.features?.multimodal}
+              />
+            </div>
+          </div>
         </div>
       </>
     );

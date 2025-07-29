@@ -24,6 +24,7 @@ export default class StreamFetch extends EventEmitter {
   private static instance: StreamFetch;
   private static requestLock = Promise.resolve();
   private static senders = new Map<number, WebContents>();
+  private static activeRequests = new Map<number, AbortController>();
 
   private constructor() {
     super();
@@ -63,6 +64,22 @@ export default class StreamFetch extends EventEmitter {
       },
     );
 
+    ipcMain.handle(
+      "stream-fetch-cancel",
+      async (_event, { requestId }: { requestId: number }) => {
+        const abortController = StreamFetch.activeRequests.get(requestId);
+        if (abortController) {
+          abortController.abort("Request cancelled by user");
+          StreamFetch.activeRequests.delete(requestId);
+
+          const sender = StreamFetch.senders.get(requestId);
+          if (sender) {
+            StreamFetch.senders.delete(requestId);
+          }
+        }
+      },
+    );
+
     streamFetch.on("chunk", (payload: ChunkPayload) => {
       const { requestId } = payload;
       if (StreamFetch.senders.has(requestId)) {
@@ -77,6 +94,7 @@ export default class StreamFetch extends EventEmitter {
         sender.send("stream-response", payload);
         StreamFetch.senders.delete(requestId);
       }
+      StreamFetch.activeRequests.delete(requestId);
     });
 
     streamFetch.on(
@@ -91,6 +109,7 @@ export default class StreamFetch extends EventEmitter {
           sender.send("stream-response", { requestId, status: 0 });
           StreamFetch.senders.delete(requestId);
         }
+        StreamFetch.activeRequests.delete(requestId);
       },
     );
   }
@@ -109,6 +128,9 @@ export default class StreamFetch extends EventEmitter {
     body: any,
     requestId: number,
   ): Promise<StreamResponse> {
+    const abortController = new AbortController();
+    StreamFetch.activeRequests.set(requestId, abortController);
+
     const config: AxiosRequestConfig = {
       method,
       url,
@@ -116,6 +138,7 @@ export default class StreamFetch extends EventEmitter {
       responseType: "stream",
       maxRedirects: 3,
       timeout: 60 * 1000,
+      signal: abortController.signal,
     };
 
     if (body && ["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
@@ -145,6 +168,8 @@ export default class StreamFetch extends EventEmitter {
 
       return streamResponse;
     } catch (error) {
+      StreamFetch.activeRequests.delete(requestId);
+
       if (axios.isAxiosError(error)) {
         const status = error.response?.status || 599;
         const statusText = error.response?.statusText || "Error";
@@ -163,7 +188,22 @@ export default class StreamFetch extends EventEmitter {
           statusText,
           headers,
         };
+      } else if (error instanceof Error && error.message.includes("aborted")) {
+        this.emit("end", {
+          requestId,
+          status: 0,
+        });
+        return {
+          requestId,
+          status: 0,
+          statusText: "Request cancelled by user",
+          headers: {},
+        };
       } else {
+        this.emit("error", {
+          requestId,
+          error: new Error((error as Error)?.message || "Unknown error"),
+        });
         return {
           requestId,
           status: 599,
