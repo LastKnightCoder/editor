@@ -102,6 +102,303 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       setUpdateCounter((prev) => prev + 1);
     }, [currentChat]);
 
+    // 抽离的公共方法：处理消息发送逻辑
+    const processMessageSending = useMemoizedFn(
+      async (
+        userMessage: RequestMessage,
+        shouldClearInput = true,
+        shouldCreateNewChat = true,
+      ) => {
+        const perf = measurePerformance("sendMessage");
+        setSendLoading(true);
+
+        scrollToBottom();
+
+        const responseMessage: ResponseMessage = {
+          role: Role.Assistant,
+          content: "...",
+        };
+
+        // 如果当前没有真实的对话（id为0），则先创建一个新对话
+        let actualCurrentChat = actualChatRef.current;
+        if (shouldCreateNewChat && actualCurrentChat.id === 0) {
+          try {
+            const systemMessage: ResponseMessage = {
+              role: Role.System,
+              content:
+                "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+            };
+
+            const newChatMessages = [systemMessage];
+            actualCurrentChat = await createChatMessage(newChatMessages);
+
+            // 立即更新ref，确保UI使用新创建的对话
+            actualChatRef.current = actualCurrentChat;
+            setUpdateCounter((prev) => prev + 1);
+          } catch (error) {
+            message.error("创建新对话失败");
+            setSendLoading(false);
+            return;
+          }
+        }
+
+        // 准备发送的消息（只包含 RequestMessage）
+        const systemMessage: RequestMessage = {
+          role: actualCurrentChat.messages[0]?.role || Role.System,
+          content:
+            actualCurrentChat.messages[0]?.role === Role.System
+              ? (actualCurrentChat.messages[0] as ResponseMessage).content
+                ? [
+                    {
+                      type: "text",
+                      text: (actualCurrentChat.messages[0] as ResponseMessage)
+                        .content,
+                    },
+                  ]
+                : [{ type: "text", text: "" }]
+              : [{ type: "text", text: "" }],
+        };
+
+        const sendMessages: RequestMessage[] = [
+          systemMessage,
+          ...actualCurrentChat.messages
+            .slice(1)
+            .slice(-10)
+            .map((message): RequestMessage => {
+              if (message.role === Role.User) {
+                return message as RequestMessage;
+              } else {
+                // 将 ResponseMessage 转换为 RequestMessage 格式
+                const responseMsg = message as ResponseMessage;
+                return {
+                  role: message.role,
+                  content: [{ type: "text", text: responseMsg.content }],
+                };
+              }
+            }),
+          userMessage,
+        ];
+
+        // 立即添加用户消息和初始的助手回复到状态中
+        const chatWithNewMessages = {
+          ...actualCurrentChat,
+          messages: [
+            ...actualCurrentChat.messages,
+            userMessage,
+            responseMessage,
+          ],
+        };
+
+        // 更新当前聊天状态
+        actualCurrentChat = chatWithNewMessages;
+        actualChatRef.current = chatWithNewMessages;
+        setUpdateCounter((prev) => prev + 1);
+        updateCurrentChat(chatWithNewMessages);
+
+        // 添加新消息后立即滚动到底部（重置自动滚动）
+        setIsAutoScrollEnabled(true);
+        setTimeout(() => {
+          if (messagesRef.current) {
+            messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+          }
+        }, 0);
+
+        if (shouldClearInput) {
+          editTextRef.current?.clear();
+        }
+
+        if (!chatProviderConfig || !chatModelConfig) {
+          message.error("请先在设置中配置对话功能的大模型");
+          setSendLoading(false);
+          return;
+        }
+
+        const knowledgeOptions: KnowledgeOptions | undefined =
+          ragEnabled && embeddingModelInfo
+            ? {
+                enable: true,
+                modelInfo: embeddingModelInfo,
+                limit: 5,
+              }
+            : undefined;
+
+        chatLLMStream(
+          chatProviderConfig,
+          chatModelConfig,
+          sendMessages,
+          {
+            onFinish: async (content: string, reasoning_content: string) => {
+              try {
+                const newCurrentChat = produce(actualCurrentChat, (draft) => {
+                  draft.messages.push({
+                    role: Role.Assistant,
+                    content,
+                    reasoning_content,
+                  } as ResponseMessage);
+                });
+
+                const updatedChatMessage =
+                  await updateChatMessage(newCurrentChat);
+
+                // 确保消息结束时滚动到底部（如果自动滚动启用）
+                scrollToBottom();
+
+                try {
+                  if (titleProviderConfig && titleModelConfig) {
+                    // 为标题生成准备消息
+                    const titleMessages: RequestMessage[] =
+                      updatedChatMessage.messages
+                        .slice(1)
+                        .slice(-10)
+                        .map((message): RequestMessage => {
+                          if (message.role === Role.User) {
+                            return message as RequestMessage;
+                          } else {
+                            const responseMsg = message as ResponseMessage;
+                            return {
+                              role: message.role,
+                              content: [
+                                { type: "text", text: responseMsg.content },
+                              ],
+                            };
+                          }
+                        });
+
+                    const newTitle = await chat(
+                      titleProviderConfig.apiKey,
+                      titleProviderConfig.baseUrl,
+                      titleModelConfig.name,
+                      [
+                        {
+                          role: Role.System,
+                          content: [
+                            { type: "text", text: SUMMARY_TITLE_PROMPT },
+                          ],
+                        },
+                        ...titleMessages,
+                      ],
+                    );
+
+                    if (newTitle) {
+                      const updateChat = produce(
+                        updatedChatMessage,
+                        (draft) => {
+                          draft.title = newTitle.slice(0, 20);
+                        },
+                      );
+                      await updateChatMessage(updateChat);
+                      titleRef.current?.setValue(newTitle.slice(0, 20));
+                    }
+                  }
+                } catch (e) {
+                  console.error("Failed to generate title:", e);
+                }
+              } catch (error) {
+                message.error("Failed to update chat");
+                console.error(error);
+              } finally {
+                setSendLoading(false);
+                abortControllerRef.current = null;
+                if (shouldClearInput) {
+                  setTimeout(() => {
+                    editTextRef.current?.focusEnd();
+                  }, 100);
+                }
+              }
+              perf.end();
+            },
+
+            onUpdate: (full: string, _inc: string, reasoningText?: string) => {
+              // 基于当前实际聊天对象进行更新
+              const updatedChat = produce(actualCurrentChat, (draft) => {
+                // 找到最后一条助手消息并更新其内容
+                const lastMessageIndex = draft.messages.length - 1;
+                if (
+                  lastMessageIndex >= 0 &&
+                  draft.messages[lastMessageIndex].role === Role.Assistant
+                ) {
+                  const lastMessage = draft.messages[
+                    lastMessageIndex
+                  ] as ResponseMessage;
+                  lastMessage.content = full;
+                  if (reasoningText) {
+                    lastMessage.reasoning_content = reasoningText;
+                  }
+                }
+              });
+
+              // 更新状态和ref
+              actualCurrentChat = updatedChat;
+              actualChatRef.current = updatedChat;
+              setUpdateCounter((prev) => prev + 1);
+              updateCurrentChat(updatedChat);
+
+              // 更新内容时滚动到底部（如果自动滚动启用）
+              setTimeout(() => {
+                scrollToBottom();
+              }, 0);
+            },
+
+            onReasoning: (full: string) => {
+              // 基于当前实际聊天对象进行更新
+              const updatedChat = produce(actualCurrentChat, (draft) => {
+                // 找到最后一条助手消息并更新其推理内容
+                const lastMessageIndex = draft.messages.length - 1;
+                if (
+                  lastMessageIndex >= 0 &&
+                  draft.messages[lastMessageIndex].role === Role.Assistant
+                ) {
+                  const lastMessage = draft.messages[
+                    lastMessageIndex
+                  ] as ResponseMessage;
+                  lastMessage.reasoning_content = full;
+                  if (!lastMessage.content) {
+                    lastMessage.content = "";
+                  }
+                }
+              });
+
+              // 更新状态和ref
+              actualCurrentChat = updatedChat;
+              actualChatRef.current = updatedChat;
+              setUpdateCounter((prev) => prev + 1);
+              updateCurrentChat(updatedChat);
+
+              // 推理内容更新时滚动到底部（如果自动滚动启用）
+              setTimeout(() => {
+                scrollToBottom();
+              }, 0);
+            },
+
+            onError: () => {
+              updateCurrentChat(actualCurrentChat);
+              setSendLoading(false);
+              abortControllerRef.current = null;
+
+              message.error("请求失败");
+              perf.end();
+              if (shouldClearInput) {
+                setTimeout(() => {
+                  // 从消息内容中提取文本用于恢复
+                  const textContent = userMessage.content
+                    .filter((item) => item.type === "text")
+                    .map((item) => item.text)
+                    .join("\n");
+                  editTextRef.current?.setValue(textContent);
+                  editTextRef.current?.focusEnd();
+                }, 100);
+              }
+            },
+
+            onController: (controller: AbortController) => {
+              abortControllerRef.current = controller;
+            },
+          },
+          knowledgeOptions,
+        );
+      },
+    );
+
     useImperativeHandle(ref, () => ({
       scrollToTop: () => {
         if (messagesRef.current) {
@@ -251,285 +548,60 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return;
       }
 
-      const perf = measurePerformance("sendMessage");
-      setSendLoading(true);
-
-      scrollToBottom();
-
       const newMessage: RequestMessage = {
         role: Role.User,
         content: userContent,
       };
 
-      const responseMessage: ResponseMessage = {
-        role: Role.Assistant,
-        content: "...",
-      };
+      await processMessageSending(newMessage, true, true);
+    });
 
-      // 如果当前没有真实的对话（id为0），则先创建一个新对话
-      let actualCurrentChat = currentChat;
-      if (currentChat.id === 0) {
-        try {
-          const systemMessage: ResponseMessage = {
-            role: Role.System,
-            content:
-              "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
-          };
+    // 删除消息
+    const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
+      try {
+        const updatedChat = produce(actualChatRef.current, (draft) => {
+          // 过滤掉要删除的消息（需要加上系统消息的偏移）
+          const actualIndex = messageIndex + 1; // +1 因为跳过了系统消息
+          draft.messages = draft.messages.filter(
+            (_, index) => index !== actualIndex,
+          );
+        });
 
-          const newChatMessages = [systemMessage];
-          actualCurrentChat = await createChatMessage(newChatMessages);
+        await updateChatMessage(updatedChat);
+        actualChatRef.current = updatedChat;
+        setUpdateCounter((prev) => prev + 1);
+        updateCurrentChat(updatedChat);
+        message.success("消息已删除");
+      } catch (error) {
+        message.error("删除消息失败");
+        console.error("Delete message error:", error);
+      }
+    });
 
-          // 立即更新ref，确保UI使用新创建的对话
-          actualChatRef.current = actualCurrentChat;
-          setUpdateCounter((prev) => prev + 1);
-        } catch (error) {
-          message.error("创建新对话失败");
-          setSendLoading(false);
+    // 重新生成消息
+    const handleRegenerateMessage = useMemoizedFn(
+      async (messageIndex: number) => {
+        const actualIndex = messageIndex + 1; // +1 因为跳过了系统消息
+        const targetMessage = actualChatRef.current.messages[actualIndex];
+        if (!targetMessage || targetMessage.role !== Role.User) {
+          message.warning("只能重新生成用户消息");
           return;
         }
-      }
 
-      // 准备发送的消息（只包含 RequestMessage）
-      const systemMessage: RequestMessage = {
-        role: actualCurrentChat.messages[0]?.role || Role.System,
-        content:
-          actualCurrentChat.messages[0]?.role === Role.System
-            ? (actualCurrentChat.messages[0] as ResponseMessage).content
-              ? [
-                  {
-                    type: "text",
-                    text: (actualCurrentChat.messages[0] as ResponseMessage)
-                      .content,
-                  },
-                ]
-              : [{ type: "text", text: "" }]
-            : [{ type: "text", text: "" }],
-      };
+        // 删除目标消息之后的所有消息（包括目标消息本身）
+        const updatedChat = produce(actualChatRef.current, (draft) => {
+          draft.messages = draft.messages.slice(0, actualIndex);
+        });
 
-      const sendMessages: RequestMessage[] = [
-        systemMessage,
-        ...actualCurrentChat.messages
-          .slice(1)
-          .slice(-10)
-          .map((message): RequestMessage => {
-            if (message.role === Role.User) {
-              return message as RequestMessage;
-            } else {
-              // 将 ResponseMessage 转换为 RequestMessage 格式
-              const responseMsg = message as ResponseMessage;
-              return {
-                role: message.role,
-                content: [{ type: "text", text: responseMsg.content }],
-              };
-            }
-          }),
-        newMessage,
-      ];
+        actualChatRef.current = updatedChat;
+        setUpdateCounter((prev) => prev + 1);
+        updateCurrentChat(updatedChat);
 
-      // 立即添加用户消息和初始的助手回复到状态中
-      const chatWithNewMessages = {
-        ...actualCurrentChat,
-        messages: [...actualCurrentChat.messages, newMessage, responseMessage],
-      };
-
-      // 更新当前聊天状态
-      actualCurrentChat = chatWithNewMessages;
-      actualChatRef.current = chatWithNewMessages;
-      setUpdateCounter((prev) => prev + 1);
-      updateCurrentChat(chatWithNewMessages);
-
-      // 添加新消息后立即滚动到底部（重置自动滚动）
-      setIsAutoScrollEnabled(true);
-      setTimeout(() => {
-        if (messagesRef.current) {
-          messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-        }
-      }, 0);
-
-      editTextRef.current.clear();
-
-      if (!chatProviderConfig || !chatModelConfig) {
-        message.error("请先在设置中配置对话功能的大模型");
-        setSendLoading(false);
-        return;
-      }
-
-      const knowledgeOptions: KnowledgeOptions | undefined =
-        ragEnabled && embeddingModelInfo
-          ? {
-              enable: true,
-              modelInfo: embeddingModelInfo,
-              limit: 5,
-            }
-          : undefined;
-
-      chatLLMStream(
-        chatProviderConfig,
-        chatModelConfig,
-        sendMessages,
-        {
-          onFinish: async (content: string, reasoning_content: string) => {
-            try {
-              const newCurrentChat = produce(actualCurrentChat, (draft) => {
-                draft.messages.push(newMessage);
-                draft.messages.push({
-                  role: Role.Assistant,
-                  content,
-                  reasoning_content,
-                } as ResponseMessage);
-              });
-
-              const updatedChatMessage =
-                await updateChatMessage(newCurrentChat);
-
-              // 确保消息结束时滚动到底部（如果自动滚动启用）
-              scrollToBottom();
-
-              try {
-                if (titleProviderConfig && titleModelConfig) {
-                  // 为标题生成准备消息
-                  const titleMessages: RequestMessage[] =
-                    updatedChatMessage.messages
-                      .slice(1)
-                      .slice(-10)
-                      .map((message): RequestMessage => {
-                        if (message.role === Role.User) {
-                          return message as RequestMessage;
-                        } else {
-                          const responseMsg = message as ResponseMessage;
-                          return {
-                            role: message.role,
-                            content: [
-                              { type: "text", text: responseMsg.content },
-                            ],
-                          };
-                        }
-                      });
-
-                  const newTitle = await chat(
-                    titleProviderConfig.apiKey,
-                    titleProviderConfig.baseUrl,
-                    titleModelConfig.name,
-                    [
-                      {
-                        role: Role.System,
-                        content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
-                      },
-                      ...titleMessages,
-                    ],
-                  );
-
-                  if (newTitle) {
-                    const updateChat = produce(updatedChatMessage, (draft) => {
-                      draft.title = newTitle.slice(0, 20);
-                    });
-                    await updateChatMessage(updateChat);
-                    titleRef.current?.setValue(newTitle.slice(0, 20));
-                  }
-                }
-              } catch (e) {
-                console.error("Failed to generate title:", e);
-              }
-            } catch (error) {
-              message.error("Failed to update chat");
-              console.error(error);
-            } finally {
-              setSendLoading(false);
-              abortControllerRef.current = null;
-              setTimeout(() => {
-                editTextRef.current?.focusEnd();
-              }, 100);
-            }
-            perf.end();
-          },
-
-          onUpdate: (full: string, _inc: string, reasoningText?: string) => {
-            // 基于当前实际聊天对象进行更新
-            const updatedChat = produce(actualCurrentChat, (draft) => {
-              // 找到最后一条助手消息并更新其内容
-              const lastMessageIndex = draft.messages.length - 1;
-              if (
-                lastMessageIndex >= 0 &&
-                draft.messages[lastMessageIndex].role === Role.Assistant
-              ) {
-                const lastMessage = draft.messages[
-                  lastMessageIndex
-                ] as ResponseMessage;
-                lastMessage.content = full;
-                if (reasoningText) {
-                  lastMessage.reasoning_content = reasoningText;
-                }
-              }
-            });
-
-            // 更新状态和ref
-            actualCurrentChat = updatedChat;
-            actualChatRef.current = updatedChat;
-            setUpdateCounter((prev) => prev + 1);
-            updateCurrentChat(updatedChat);
-
-            // 更新内容时滚动到底部（如果自动滚动启用）
-            setTimeout(() => {
-              scrollToBottom();
-            }, 0);
-          },
-
-          onReasoning: (full: string) => {
-            // 基于当前实际聊天对象进行更新
-            const updatedChat = produce(actualCurrentChat, (draft) => {
-              // 找到最后一条助手消息并更新其推理内容
-              const lastMessageIndex = draft.messages.length - 1;
-              if (
-                lastMessageIndex >= 0 &&
-                draft.messages[lastMessageIndex].role === Role.Assistant
-              ) {
-                const lastMessage = draft.messages[
-                  lastMessageIndex
-                ] as ResponseMessage;
-                lastMessage.reasoning_content = full;
-                if (!lastMessage.content) {
-                  lastMessage.content = "";
-                }
-              }
-            });
-
-            // 更新状态和ref
-            actualCurrentChat = updatedChat;
-            actualChatRef.current = updatedChat;
-            setUpdateCounter((prev) => prev + 1);
-            updateCurrentChat(updatedChat);
-
-            // 推理内容更新时滚动到底部（如果自动滚动启用）
-            setTimeout(() => {
-              scrollToBottom();
-            }, 0);
-          },
-
-          onError: () => {
-            updateCurrentChat(actualCurrentChat);
-            setSendLoading(false);
-            abortControllerRef.current = null;
-
-            message.error("请求失败");
-            perf.end();
-            setTimeout(() => {
-              // 从消息内容中提取文本用于恢复
-              const textContent = userContent
-                .filter((item) => item.type === "text")
-                .map((item) => item.text)
-                .join("\n");
-              editTextRef.current?.setValue(textContent);
-              editTextRef.current?.focusEnd();
-            }, 100);
-          },
-
-          onController: (controller: AbortController) => {
-            abortControllerRef.current = controller;
-          },
-        },
-        knowledgeOptions,
-      );
-    });
+        // 直接调用公共方法发送消息
+        const userMessage = targetMessage as RequestMessage;
+        await processMessageSending(userMessage, false, false);
+      },
+    );
 
     return (
       <>
@@ -546,6 +618,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     isDark={isDark}
                     markdownComponents={markdownComponents}
                     isVisible={isVisible}
+                    messageIndex={index}
+                    onDeleteMessage={handleDeleteMessage}
+                    onRegenerateMessage={handleRegenerateMessage}
                   />
                 </div>
               ))}
