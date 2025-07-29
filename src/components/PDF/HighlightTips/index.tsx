@@ -8,7 +8,7 @@ import { PdfHighlight, EHighlightColor, EHighlightTextStyle } from "@/types";
 
 interface HighlightProps {
   open: boolean;
-  arrowDirection?: "left" | "right" | "top" | "bottom";
+  arrowDirection: "left" | "right" | "top" | "bottom";
   highlight: PdfHighlight;
   onHighlightChange?: (highlight: PdfHighlight) => void;
   removeHighlight?: () => void;

@@ -1,6 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
+import { CommentOutlined } from "@ant-design/icons";
 
 import For from "@/components/For";
 import If from "@/components/If";
@@ -35,6 +36,63 @@ const HighlightNode = forwardRef<HighlightNodeRef, HighlightProps>(
     const [textHighlightRects, setTextHighlightRects] = useState<Rect[]>([]);
 
     const { color, boundingClientRect } = highlight;
+
+    // 动态计算 Tips 面板的位置
+    const getTipsPosition = useMemoizedFn(() => {
+      const left = parseFloat(boundingClientRect.left);
+      const top = parseFloat(boundingClientRect.top);
+      const width = parseFloat(boundingClientRect.width);
+      const height = parseFloat(boundingClientRect.height);
+
+      // 计算高亮区域的中心点
+      const centerX = left + width / 2;
+      const centerY = top + height / 2;
+
+      let tipsLeft = "";
+      let tipsTop = "";
+      let transform = "";
+      let arrowDirection: "left" | "right" | "top" | "bottom" = "left";
+
+      // 根据位置决定 Tips 面板的位置
+      if (centerX > 65) {
+        // 右侧区域，Tips 在左侧
+        tipsLeft = `calc(${transformPercent(boundingClientRect.left)}% - 20px)`;
+        tipsTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height) / 2}%)`;
+        transform = "translate(-100%, -50%)";
+        arrowDirection = "right";
+      } else if (centerX < 35) {
+        // 左侧区域，Tips 在右侧
+        tipsLeft = `calc(${transformPercent(boundingClientRect.left) + transformPercent(boundingClientRect.width)}% + 20px)`;
+        tipsTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height) / 2}%)`;
+        transform = "translate(0%, -50%)";
+        arrowDirection = "left";
+      } else {
+        // 中间区域，考虑垂直位置
+        if (centerY > 75) {
+          // 下方区域，Tips 在上方
+          tipsLeft = `calc(${transformPercent(boundingClientRect.left) + transformPercent(boundingClientRect.width) / 2}%)`;
+          tipsTop = `calc(${transformPercent(boundingClientRect.top)}% - 20px)`;
+          transform = "translate(-50%, -100%)";
+          arrowDirection = "bottom";
+        } else if (centerY < 25) {
+          // 上方区域，Tips 在下方
+          tipsLeft = `calc(${transformPercent(boundingClientRect.left) + transformPercent(boundingClientRect.width) / 2}%)`;
+          tipsTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height)}% + 20px)`;
+          transform = "translate(-50%, 0%)";
+          arrowDirection = "top";
+        } else {
+          // 中间位置，默认使用右侧
+          tipsLeft = `calc(${transformPercent(boundingClientRect.left) + transformPercent(boundingClientRect.width)}% + 20px)`;
+          tipsTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height) / 2}%)`;
+          transform = "translate(0%, -50%)";
+          arrowDirection = "left";
+        }
+      }
+
+      return { tipsLeft, tipsTop, transform, arrowDirection };
+    });
+
+    const { tipsLeft, tipsTop, transform, arrowDirection } = getTipsPosition();
 
     const onClickHighlight = useMemoizedFn(() => {
       setTipsOpen(!tipsOpen);
@@ -81,9 +139,6 @@ const HighlightNode = forwardRef<HighlightNodeRef, HighlightProps>(
         setTextHighlightRects([]);
       }
     }, [highlight]);
-
-    const highlightTipLeft = `calc(${transformPercent(boundingClientRect.left)}% + 20px)`;
-    const highlightTipTop = `calc(${transformPercent(boundingClientRect.top) + transformPercent(boundingClientRect.height)}% + 100px)`;
 
     return (
       <>
@@ -136,6 +191,33 @@ const HighlightNode = forwardRef<HighlightNodeRef, HighlightProps>(
             onClick={onClickHighlight}
           />
         </If>
+
+        {/* 评论高亮 */}
+        <If condition={highlight.highlightType === EHighlightType.Comment}>
+          <div
+            className={classnames(
+              styles[HIGHLIGHT_COLOR_CLASS_NAMES[color]],
+              styles.commentIcon,
+            )}
+            style={{
+              position: "absolute",
+              left: boundingClientRect.left,
+              top: boundingClientRect.top,
+              cursor: "pointer",
+              pointerEvents: "auto",
+            }}
+            onClick={onClickHighlight}
+          >
+            <CommentOutlined
+              style={{
+                fontSize: "16px",
+                padding: "2px",
+                borderRadius: "50%",
+              }}
+            />
+          </div>
+        </If>
+
         <div
           data-highlight-tip-id={highlight.id}
           style={{
@@ -152,18 +234,18 @@ const HighlightNode = forwardRef<HighlightNodeRef, HighlightProps>(
         <HighlightTips
           style={{
             position: "absolute",
-            left: highlightTipLeft,
-            top: highlightTipTop,
+            left: tipsLeft,
+            top: tipsTop,
             pointerEvents: "auto",
-            transform: "translate(0%, -50%)",
+            transform: transform,
             zIndex: 100,
           }}
-          arrowDirection={"left"}
           open={tipsOpen}
           highlight={highlight}
           onHighlightChange={onHighlightChange}
           removeHighlight={onRemoveHighlight}
           onClose={onCloseTip}
+          arrowDirection={arrowDirection}
         />
       </>
     );

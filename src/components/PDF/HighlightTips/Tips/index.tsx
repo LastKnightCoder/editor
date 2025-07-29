@@ -200,6 +200,7 @@ const Tips = (props: TipsProps) => {
                         key={note.id}
                         initValue={note.note}
                         readonly
+                        theme="light"
                       />
                       <div className={styles.editorIcons}>
                         <div

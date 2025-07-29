@@ -1,0 +1,137 @@
+.commentContainer {
+  width: 380px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e1e8ed;
+  overflow: hidden;
+  cursor: auto !important; /* 强制覆盖父容器的crosshair */
+  position: absolute; /* 确保可以拖拽 */
+}
+
+.commentContainer * {
+  cursor: auto !important; /* 确保所有子元素都使用正确的光标 */
+}
+
+.header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #e1e8ed;
+  background: #fafbfc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move !important; /* 头部可以拖拽 */
+}
+
+.header:hover {
+  background: #f0f2f5;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.title::before {
+  content: "💬";
+  font-size: 16px;
+}
+
+.dragHandle {
+  color: #999;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: move !important;
+  padding: 2px 4px;
+  border-radius: 2px;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.dragHandle:hover {
+  color: #666;
+  background: #e6f7ff;
+}
+
+.editorWrapper {
+  margin: 16px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px solid #e1e8ed;
+}
+
+.editor {
+  min-height: 120px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  cursor: text !important; /* 编辑器应该显示文本光标 */
+}
+
+.editor * {
+  cursor: text !important; /* 编辑器内的所有元素都显示文本光标 */
+}
+
+.editor > [class*="container"]:last-child > p {
+  margin-bottom: 0;
+}
+
+.editorWrapper:focus-within {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  background: #fafbfc;
+}
+
+.cancelButton {
+  height: 32px !important;
+  padding: 0 16px !important;
+  border-radius: 4px !important;
+  background: #ffffff !important;
+  border: 1px solid #d9d9d9 !important;
+  color: #333 !important;
+  font-weight: 400 !important;
+  transition: all 0.2s !important;
+  cursor: pointer !important; /* 按钮应该显示指针光标 */
+}
+
+.cancelButton:hover {
+  border-color: #40a9ff !important;
+  color: #40a9ff !important;
+  background: #ffffff !important;
+  cursor: pointer !important;
+}
+
+.confirmButton {
+  height: 32px !important;
+  padding: 0 16px !important;
+  border-radius: 4px !important;
+  background: #1890ff !important;
+  border: 1px solid #1890ff !important;
+  color: white !important;
+  font-weight: 400 !important;
+  transition: all 0.2s !important;
+  cursor: pointer !important; /* 按钮应该显示指针光标 */
+}
+
+.confirmButton:hover {
+  background: #40a9ff !important;
+  border-color: #40a9ff !important;
+  color: white !important;
+  cursor: pointer !important;
+}

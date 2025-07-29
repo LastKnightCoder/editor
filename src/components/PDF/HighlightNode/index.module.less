@@ -1,32 +1,33 @@
+.pdf-highlight-red {
+  --highlight-color: rgba(255, 0, 0, 0.3);
+  --underline-color: rgba(255, 0, 0, 0.6);
+}
+.pdf-highlight-blue {
+  --highlight-color: rgba(0, 0, 255, 0.3);
+  --underline-color: rgba(0, 0, 255, 0.6);
+}
+.pdf-highlight-green {
+  --highlight-color: rgba(0, 255, 0, 0.3);
+  --underline-color: rgba(0, 255, 0, 0.6);
+}
+.pdf-highlight-yellow {
+  --highlight-color: rgba(255, 255, 0, 0.3);
+  --underline-color: rgba(255, 255, 0, 0.7);
+}
+.pdf-highlight-purple {
+  --highlight-color: rgba(128, 0, 128, 0.3);
+  --underline-color: rgba(128, 0, 128, 0.6);
+}
+.pdf-highlight-pink {
+  --highlight-color: rgba(255, 192, 203, 0.3);
+  --underline-color: rgba(255, 192, 203, 0.6);
+}
+.pdf-highlight-orange {
+  --highlight-color: rgba(255, 165, 0, 0.3);
+  --underline-color: rgba(255, 165, 0, 0.6);
+}
+
 .highlightRect {
-  &.pdf-highlight-red {
-    --highlight-color: rgba(255, 0, 0, 0.3);
-    --underline-color: rgba(255, 0, 0, 0.6);
-  }
-  &.pdf-highlight-blue {
-    --highlight-color: rgba(0, 0, 255, 0.3);
-    --underline-color: rgba(0, 0, 255, 0.6);
-  }
-  &.pdf-highlight-green {
-    --highlight-color: rgba(0, 255, 0, 0.3);
-    --underline-color: rgba(0, 255, 0, 0.6);
-  }
-  &.pdf-highlight-yellow {
-    --highlight-color: rgba(255, 255, 0, 0.3);
-    --underline-color: rgba(255, 255, 0, 0.7);
-  }
-  &.pdf-highlight-purple {
-    --highlight-color: rgba(128, 0, 128, 0.3);
-    --underline-color: rgba(128, 0, 128, 0.6);
-  }
-  &.pdf-highlight-pink {
-    --highlight-color: rgba(255, 192, 203, 0.3);
-    --underline-color: rgba(255, 192, 203, 0.6);
-  }
-  &.pdf-highlight-orange {
-    --highlight-color: rgba(255, 165, 0, 0.3);
-    --underline-color: rgba(255, 165, 0, 0.6);
-  }
   &.highlight {
     background-color: var(--highlight-color);
   }
@@ -58,4 +59,14 @@
     background-color: var(--highlight-color);
     border: 2px solid var(--underline-color);
   }
+}
+
+.commentIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  transition: all 0.2s ease;
+  color: var(--highlight-color);
 }
