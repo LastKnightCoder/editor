@@ -60,9 +60,9 @@ export const streamFetch = async (
         return;
       }
       if (chunk) {
-        writer.ready.then(() => {
+        if (!closed) {
           writer.write(new Uint8Array(chunk));
-        });
+        }
       } else if (status === 0) {
         close();
       }
@@ -76,8 +76,19 @@ export const streamFetch = async (
     });
   };
 
+  const handleAbort = async () => {
+    const rid = await requestIdPromise;
+    if (rid) {
+      try {
+        await invoke("stream-fetch-cancel", { requestId: rid });
+      } catch (error) {
+        console.error("Failed to cancel stream request:", error);
+      }
+    }
+  };
+
   if (signal) {
-    signal.addEventListener("abort", () => close());
+    signal.addEventListener("abort", handleAbort);
   }
 
   // 2. listen response multi times, and write to Response.body

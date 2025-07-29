@@ -14,6 +14,7 @@ import {
   SettingOutlined,
   SendOutlined,
   CloseOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import classnames from "classnames";
 import { MessageContent } from "@/types/llm";
@@ -32,6 +33,7 @@ interface ChatInputAreaProps {
   className?: string;
   contentEditable?: boolean;
   onPressEnter?: () => void;
+  onStop?: () => void;
   placeholder?: string;
   sendLoading?: boolean;
   createMessageLoading?: boolean;
@@ -48,6 +50,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       className,
       contentEditable = true,
       onPressEnter,
+      onStop,
       placeholder = "输入消息...",
       sendLoading = false,
       createMessageLoading = false,
@@ -255,15 +258,24 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             )}
           </div>
 
-          {/* 发送按钮 */}
+          {/* 发送/停止按钮 */}
           <div>
-            <Button
-              size="small"
-              loading={sendLoading}
-              onClick={onPressEnter}
-              icon={<SendOutlined />}
-              className="p-1 rounded border-none!"
-            />
+            {sendLoading ? (
+              <Button
+                size="small"
+                onClick={onStop}
+                icon={<StopOutlined />}
+                className="p-1 rounded border-none! text-gray-500! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20!"
+                title="停止生成"
+              />
+            ) : (
+              <Button
+                size="small"
+                onClick={onPressEnter}
+                icon={<SendOutlined />}
+                className="p-1 rounded border-none!"
+              />
+            )}
           </div>
         </div>
 
