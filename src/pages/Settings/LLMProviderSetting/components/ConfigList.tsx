@@ -72,7 +72,7 @@ const ConfigList = ({
           <List.Item
             className={`cursor-pointer rounded-md px-3! py-2 mb-2 flex items-center transition-colors border-none! ${
               config.id === selectedConfigId
-                ? "bg-blue-100 dark:bg-blue-900"
+                ? "bg-gray-100 dark:bg-gray-900/70"
                 : "hover:bg-gray-100 dark:hover:bg-gray-700"
             }`}
             onClick={() => handleItemClick(config)}

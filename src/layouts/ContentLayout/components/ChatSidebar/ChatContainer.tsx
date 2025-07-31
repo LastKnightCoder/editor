@@ -227,18 +227,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           chatModelConfig,
           sendMessages,
           {
-            onFinish: async (content: string, reasoning_content: string) => {
+            onFinish: async () => {
               try {
-                const newCurrentChat = produce(actualCurrentChat, (draft) => {
-                  draft.messages.push({
-                    role: Role.Assistant,
-                    content,
-                    reasoning_content,
-                  } as ResponseMessage);
-                });
-
                 const updatedChatMessage =
-                  await updateChatMessage(newCurrentChat);
+                  await updateChatMessage(actualCurrentChat);
+                updateCurrentChat(updatedChatMessage);
 
                 // 确保消息结束时滚动到底部（如果自动滚动启用）
                 scrollToBottom();
@@ -287,6 +280,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         },
                       );
                       await updateChatMessage(updateChat);
+                      updateCurrentChat(updateChat);
                       titleRef.current?.setValue(newTitle.slice(0, 20));
                     }
                   }
