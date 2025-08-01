@@ -2,17 +2,14 @@
 .overviewContainer {
   position: relative;
   width: 100%;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
   border: 40px solid transparent;
   padding-right: 20px;
   border-right: 20px solid transparent;
-  // border-top: 40px solid transparent;
-  // border-bottom: 40px solid transparent;
-  // padding: 0 40px;
   box-sizing: border-box;
   overflow-y: auto;
-  align-content: flex-start;
   z-index: 2;
   backdrop-filter: blur(10px);
   background-color: rgba(var(--main-bg-color-rgb), 0.7);
@@ -29,7 +26,7 @@
 
 .overviewSlide {
   position: relative;
-  height: 220px;
+  height: 160px;
   background-color: var(--main-bg-color);
   border-radius: 8px;
   overflow: hidden;

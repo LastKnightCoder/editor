@@ -12,7 +12,7 @@ interface DraggableSlideCardProps {
   formatTime: (time: number) => string;
   onClick: (id: string) => void;
   onDelete: (id: string) => void;
-  style: React.CSSProperties;
+  style?: React.CSSProperties;
   isSelectionMode: boolean;
   isSelected: boolean;
   onSelect: (id: string) => void;

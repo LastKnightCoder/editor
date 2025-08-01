@@ -1,6 +1,5 @@
 import For from "@/components/For";
 import { memo } from "react";
-import useGridLayout from "@/hooks/useGridLayout";
 import { WhiteBoard } from "@/types";
 import WhiteBoardCard from "../WhiteBoardCard";
 
@@ -13,23 +12,15 @@ interface WhiteBoardListProps {
 
 const WhiteBoardList = memo((props: WhiteBoardListProps) => {
   const { whiteBoards, onClick } = props;
-  const { gap, itemWidth, gridContainerRef } = useGridLayout();
 
   return (
-    <div
-      className={styles.gridContainer}
-      ref={gridContainerRef}
-      style={{ gap }}
-    >
+    <div className={styles.gridContainer}>
       <For
         data={whiteBoards}
         renderItem={(whiteBoard) => (
           <WhiteBoardCard
             key={whiteBoard.id}
             whiteBoard={whiteBoard}
-            style={{
-              width: itemWidth,
-            }}
             onClick={onClick.bind(null, whiteBoard.id)}
           />
         )}
