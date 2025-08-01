@@ -1,10 +1,9 @@
-import React, { memo } from "react";
+import React, { memo, useRef } from "react";
 import { Button } from "antd";
 import LocalVideo from "@/components/LocalVideo";
 import classnames from "classnames";
 import { useDrop } from "react-dnd";
 import "react-resizable/css/styles.css";
-import useGridLayout from "@/hooks/useGridLayout";
 
 import styles from "./index.module.less";
 
@@ -25,6 +24,7 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
     updateSubNote,
   }) => {
     const theme = useTheme();
+    const gridContainerRef = useRef<HTMLDivElement>(null);
     const {
       videoRef,
       notes,
@@ -56,11 +56,6 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
       deleteSubNote,
       updateSubNote,
       updateNotes,
-    });
-
-    const { gridContainerRef, itemWidth, gap } = useGridLayout({
-      minWidth: 180,
-      maxWidth: 240,
     });
 
     const [{ isOver, canDrop }, drop] = useDrop(
@@ -114,8 +109,6 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
             handleBatchMerge={handleBatchMerge}
             canMergeSelected={canMergeSelected}
             gridContainerRef={gridContainerRef}
-            itemWidth={itemWidth}
-            gap={gap}
             handleMoveNote={handleMoveNote}
           />
         </div>

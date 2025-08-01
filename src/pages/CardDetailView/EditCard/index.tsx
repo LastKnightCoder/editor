@@ -105,13 +105,21 @@ const EditCard = (props: IEditCardProps) => {
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!readonly) {
       throttleHandleEditorContentChange(content);
     }
     onContentChangeFromEditCard(content);
+    setUpdateTime(Date.now());
   });
+
+  useEffect(() => {
+    if (editingCard?.update_time) {
+      setUpdateTime(editingCard?.update_time);
+    }
+  }, [editingCard?.update_time]);
 
   const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
     try {
@@ -354,7 +362,8 @@ const EditCard = (props: IEditCardProps) => {
             </div>
             <div className={styles.updateTime}>
               <span>
-                最后修改于 {formatDate(editingCard.update_time, true)}
+                最后修改于{" "}
+                {formatDate(updateTime || editingCard.update_time, true)}
               </span>
             </div>
           </div>

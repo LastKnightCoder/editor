@@ -1,8 +1,7 @@
 import { Descendant } from "slate";
 import Editor from "@/components/Editor";
 import styles from "./index.module.less";
-import { useEffect } from "react";
-import useGridLayout from "@/hooks/useGridLayout";
+import { useEffect, useRef, useState } from "react";
 import classnames from "classnames";
 
 // 全览模式组件
@@ -21,7 +20,28 @@ const OverviewMode = ({
   extensions: any[];
   isExiting?: boolean;
 }) => {
-  const { gridContainerRef, itemWidth, gap, columnsCount } = useGridLayout();
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+  const [columnsCount, setColumnsCount] = useState(0);
+
+  // 计算列数用于键盘导航
+  useEffect(() => {
+    const calculateColumns = () => {
+      if (!gridContainerRef.current) return;
+
+      const containerWidth = gridContainerRef.current.offsetWidth;
+      const minItemWidth = 200; // 对应CSS grid的minmax(200px, 1fr)
+      const gap = 20;
+
+      // 计算方法与CSS grid的repeat(auto-fill, minmax(200px, 1fr))保持一致
+      const columns = Math.floor((containerWidth + gap) / (minItemWidth + gap));
+      setColumnsCount(Math.max(1, columns));
+    };
+
+    calculateColumns();
+    window.addEventListener("resize", calculateColumns);
+
+    return () => window.removeEventListener("resize", calculateColumns);
+  }, []);
 
   // 使用键盘导航
   useEffect(() => {
@@ -81,7 +101,6 @@ const OverviewMode = ({
       className={classnames(styles.overviewContainer, {
         [styles.overviewExiting]: isExiting,
       })}
-      style={{ gap }}
     >
       {slides.map((slide, index) => (
         <div
@@ -90,7 +109,6 @@ const OverviewMode = ({
             [styles.active]: index === selectedSlide,
           })}
           onClick={() => onEnterSlide(index)}
-          style={{ width: `${itemWidth}px` }}
         >
           <div className={styles.overviewSlideContent}>
             <Editor
