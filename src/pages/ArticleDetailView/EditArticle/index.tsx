@@ -52,6 +52,7 @@ import { produce } from "immer";
 import { Descendant } from "slate";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import classnames from "classnames";
+import ErrorBoundary from "@/components/ErrorBoundary";
 const extensions = [
   contentLinkExtension,
   fileAttachmentExtension,
@@ -356,16 +357,18 @@ const EditArticle = memo((props: IEditArticleProps) => {
               cardId: -1,
             }}
           >
-            <Editor
-              key={editingArticle.id}
-              ref={editorRef}
-              initValue={initValue}
-              onInit={onInit}
-              extensions={extensions}
-              onChange={handleOnEditorContentChange}
-              uploadResource={uploadResource}
-              readonly={readonly}
-            />
+            <ErrorBoundary>
+              <Editor
+                key={editingArticle.id}
+                ref={editorRef}
+                initValue={initValue}
+                onInit={onInit}
+                extensions={extensions}
+                onChange={handleOnEditorContentChange}
+                uploadResource={uploadResource}
+                readonly={readonly}
+              />
+            </ErrorBoundary>
           </EditCardContext.Provider>
           <AddTag
             style={{ marginTop: 20 }}

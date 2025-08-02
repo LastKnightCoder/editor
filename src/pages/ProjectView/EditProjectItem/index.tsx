@@ -9,6 +9,7 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import EditText, { EditTextHandle } from "@/components/EditText";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import {
@@ -149,16 +150,18 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               cardId: -1,
             }}
           >
-            <Editor
-              key={projectItem.id}
-              ref={editorRef}
-              initValue={projectItem.content}
-              onInit={onInit}
-              onChange={onContentChange}
-              uploadResource={uploadResource}
-              readonly={readonly}
-              extensions={extensions}
-            />
+            <ErrorBoundary>
+              <Editor
+                key={projectItem.id}
+                ref={editorRef}
+                initValue={projectItem.content}
+                onInit={onInit}
+                onChange={onContentChange}
+                uploadResource={uploadResource}
+                readonly={readonly}
+                extensions={extensions}
+              />
+            </ErrorBoundary>
           </EditCardContext.Provider>
         </div>
         <EditorOutline

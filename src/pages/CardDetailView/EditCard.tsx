@@ -46,17 +46,18 @@ import { ICard } from "@/types";
 import { deleteCard, getAllCards, openCardInNewWindow } from "@/commands";
 import graphIcon from "@/assets/icons/graph.svg";
 
-import useEditCard from "../useEditCard";
-import LinkList from "../LinkList";
+import useEditCard from "./useEditCard";
+import LinkList from "./LinkList";
 import { isValid } from "@/components/WhiteBoard/utils";
-
-import styles from "./index.module.less";
 
 const customExtensions = [
   contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 ];
+
+const minFitViewPadding = [40];
+const maxFitViewPadding = [80];
 
 interface IEditCardProps {
   cardId: number;
@@ -156,7 +157,7 @@ const EditCard = (props: IEditCardProps) => {
     if (!editingCard) return [];
     const links = getAllLinkedCards(editingCard, cards);
     return links;
-  }, [cards, editingCard?.links]);
+  }, [cards, editingCard]);
 
   const handleAddTag = useMemoizedFn((tag: string) => {
     if (!editingCard || editingCard.tags.includes(tag)) return;
@@ -259,7 +260,7 @@ const EditCard = (props: IEditCardProps) => {
         children: (
           <>
             <Tooltip title={"源码"}>
-              <MdOutlineCode className={styles.icon} />
+              <MdOutlineCode className="text-base" />
             </Tooltip>
           </>
         ),
@@ -341,7 +342,11 @@ const EditCard = (props: IEditCardProps) => {
   }, []);
 
   if (loading) {
-    return <div className={styles.loading}>Loading...</div>;
+    return (
+      <div className="w-full h-full flex justify-center items-center">
+        Loading...
+      </div>
+    );
   }
 
   if (!editingCard) {
@@ -354,20 +359,20 @@ const EditCard = (props: IEditCardProps) => {
         cardId: editingCard.id,
       }}
     >
-      <div className={styles.editCardContainer}>
-        <div className={styles.time}>
-          <div className={styles.timeInfo}>
-            <div className={styles.createTime}>
+      <div className="relative mx-auto w-full h-full flex flex-col">
+        <div className="mb-6 flex opacity-80 text-sm flex-shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border justify-between">
+          <div className="flex-1 flex gap-2.5">
+            <div>
               <span>创建于 {formatDate(editingCard.create_time, true)}</span>
             </div>
-            <div className={styles.updateTime}>
+            <div>
               <span>
                 最后修改于{" "}
                 {formatDate(updateTime || editingCard.update_time, true)}
               </span>
             </div>
           </div>
-          <div className={styles.moreActions}>
+          <div className="flex items-center cursor-pointer ml-auto hover:opacity-70">
             <Dropdown
               menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}
             >
@@ -375,8 +380,8 @@ const EditCard = (props: IEditCardProps) => {
             </Dropdown>
           </div>
         </div>
-        <div className={styles.editorContainer}>
-          <div className={styles.editor}>
+        <div className="flex-1 w-full overflow-auto">
+          <div className="w-full px-5 box-border mx-auto max-w-[min(100%,800px)]">
             <ErrorBoundary>
               <Editor
                 key={editingCard.id}
@@ -391,7 +396,7 @@ const EditCard = (props: IEditCardProps) => {
             </ErrorBoundary>
           </div>
         </div>
-        <div className={styles.addTag}>
+        <div className="mt-4 flex-shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border">
           <AddTag
             tags={editingCard.tags}
             addTag={handleAddTag}
@@ -399,7 +404,10 @@ const EditCard = (props: IEditCardProps) => {
             readonly={readonly}
           />
         </div>
-        <StatusBar className={styles.statusBar} configs={statusBarConfigs} />
+        <StatusBar
+          className="h-[30px] flex items-center justify-between absolute bottom-5 right-9"
+          configs={statusBarConfigs}
+        />
         <Drawer
           title="关联列表"
           open={linkListOpen}
@@ -422,11 +430,14 @@ const EditCard = (props: IEditCardProps) => {
         >
           <LinkGraph
             key={editingCard.id}
-            cards={allLinkedCards}
+            initCards={allLinkedCards}
             currentCardIds={[editingCard.id]}
             cardWidth={360}
             getCardLinks={getCardLinks}
-            fitView={allLinkedCards.length > 20}
+            fitView={true}
+            fitViewPadding={
+              allLinkedCards.length > 20 ? maxFitViewPadding : minFitViewPadding
+            }
             style={{
               height: "calc(100vh - 105px)",
             }}

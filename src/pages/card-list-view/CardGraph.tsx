@@ -11,7 +11,7 @@ interface CardGraphProps {
   className?: string;
   style?: React.CSSProperties;
   onClickCard?: (card: ICard) => void;
-  cards: ICard[];
+  initCards: ICard[];
   fitView?: boolean;
   fitViewPadding?: number[];
   currentCardIds?: number[];
@@ -22,7 +22,7 @@ const CardGraph = memo((props: CardGraphProps) => {
     className,
     style,
     onClickCard,
-    cards,
+    initCards,
     fitView,
     fitViewPadding,
     currentCardIds = defaultCurrentCardIds,
@@ -36,7 +36,7 @@ const CardGraph = memo((props: CardGraphProps) => {
   return (
     <LinkGraph
       className={className}
-      cards={cards}
+      initCards={initCards}
       style={style}
       getCardLinks={getCardLinks}
       onClickCard={onClickCard}

@@ -403,7 +403,7 @@ const CardListView = () => {
             ) : (
               <div className="flex-1 min-w-0 flex h-full overflow-hidden relative">
                 <CardGraph
-                  cards={sortedCards}
+                  initCards={sortedCards}
                   onClickCard={handleCardClick}
                   className="w-full h-full"
                   currentCardIds={filteredCards.map((card) => card.id)}
