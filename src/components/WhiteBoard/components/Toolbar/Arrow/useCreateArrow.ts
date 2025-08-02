@@ -71,6 +71,8 @@ export const useCreateArrow = () => {
           points: [startPoint.current, currentPoint.current],
           lineWidth: 2,
           lineColor: "#36282b",
+          dashed: false,
+          dashArray: [5, 5],
         };
         createdArrow.current = createArrow;
         createdArrowPath.current = [board.children.length];

@@ -22,6 +22,10 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
     target,
     sketchEnabled,
     roughness,
+    dashed,
+    dashArray,
+    animated,
+    animationSpeed,
   } = element;
 
   const board = useBoard();
@@ -145,6 +149,10 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
         targetConnectId={target.connectId}
         sketchEnabled={sketchEnabled}
         roughness={roughness}
+        dashed={dashed}
+        dashArray={dashArray}
+        animated={animated}
+        animationSpeed={animationSpeed}
       />
       <If condition={isSelected}>
         {points.map((point, index) => (

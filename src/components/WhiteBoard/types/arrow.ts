@@ -32,6 +32,10 @@ export interface ArrowElement extends BoardElement {
   lineWidth: number;
   sketchEnabled?: boolean;
   roughness?: number;
+  dashed?: boolean;
+  dashArray?: number[];
+  animated?: boolean;
+  animationSpeed?: number; // 流动速度，1-10
 }
 
 export interface GetArrowPathParams {
