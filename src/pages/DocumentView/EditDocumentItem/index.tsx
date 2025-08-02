@@ -30,6 +30,7 @@ import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import EditText, { EditTextHandle } from "@/components/EditText";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const extensions = [
   contentLinkExtension,
@@ -188,16 +189,18 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
               cardId: -1,
             }}
           >
-            <Editor
-              key={documentItem.id}
-              ref={editorRef}
-              initValue={initValue}
-              onChange={onContentChange}
-              readonly={readonly}
-              uploadResource={uploadResource}
-              extensions={extensions}
-              onInit={onInit}
-            />
+            <ErrorBoundary>
+              <Editor
+                key={documentItem.id}
+                ref={editorRef}
+                initValue={initValue}
+                onChange={onContentChange}
+                readonly={readonly}
+                uploadResource={uploadResource}
+                extensions={extensions}
+                onInit={onInit}
+              />
+            </ErrorBoundary>
           </EditCardContext.Provider>
         </div>
         <EditorOutline

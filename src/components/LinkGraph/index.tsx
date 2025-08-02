@@ -1,27 +1,18 @@
 import { Graph, IG6GraphEvent } from "@antv/g6";
-import { useEffect, useMemo, useRef, useState, memo } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 
+import { getCardById } from "@/commands";
 import useTheme from "@/hooks/useTheme.ts";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { ICard } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
 
 import styles from "./index.module.less";
 
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
-
 interface ILinkGraphProps {
-  cards: ICard[];
+  initCards: ICard[];
   getCardLinks?: (card: ICard) => number[];
   className?: string;
   style?: React.CSSProperties;
@@ -35,17 +26,18 @@ interface ILinkGraphProps {
 }
 
 const defaultFitViewPadding = [40];
+const defaultGetCardLinks = (card: ICard) => card.links;
 
 const LinkGraph = memo((props: ILinkGraphProps) => {
   const {
     className,
     style,
-    cards,
+    initCards,
     cardWidth,
     cardMaxHeight,
     cardFontSize,
     currentCardIds,
-    getCardLinks = (card) => card.links,
+    getCardLinks = defaultGetCardLinks,
     fitView = true,
     fitViewPadding = defaultFitViewPadding,
     onClickCard,
@@ -56,6 +48,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   const resizeObserverRef = useRef<ResizeObserver>();
   const graph = useRef<Graph>();
   const editorRef = useRef<EditorRef>(null);
+  const initCardsRef = useRef<ICard[]>(initCards);
   const prevSize = useRef<{ width: number; height: number }>({
     width: 0,
     height: 0,
@@ -69,13 +62,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   });
   const [activeId, setActiveId] = useState<number>(-1);
   const { isDark } = useTheme();
-
-  const content = useMemo(() => {
-    if (cards.length === 0 || activeId === -1) return undefined;
-    const activeCard = cards.find((card) => card.id === activeId);
-    if (!activeCard) return undefined;
-    return activeCard.content;
-  }, [activeId, cards]);
+  const extensions = useDynamicExtensions();
 
   const handleNodeMouseEnter = useMemoizedFn((evt: IG6GraphEvent) => {
     const { item } = evt;
@@ -108,6 +95,11 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       setShow(true);
       setPosition({ x: x - left + 10, y: y - top + 10 });
       setActiveId(Number(id));
+      getCardById(Number(id)).then((card) => {
+        if (editorRef.current) {
+          editorRef.current.setEditorValue(card.content);
+        }
+      });
     }, 500);
   });
 
@@ -116,12 +108,19 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   });
 
   const handleNodeClick = useMemoizedFn((evt: IG6GraphEvent) => {
-    if (!ref.current || !isAfterLayout || !graph.current) return;
+    if (
+      !ref.current ||
+      !isAfterLayout ||
+      !graph.current ||
+      !initCardsRef.current
+    ) {
+      return;
+    }
     const { item } = evt;
     if (!item) return;
     const { id } = item.getModel();
     if (onClickCard) {
-      const card = cards.find((card) => card.id === Number(id));
+      const card = initCardsRef.current.find((card) => card.id === Number(id));
       if (card) {
         onClickCard(card);
       }
@@ -143,16 +142,10 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     });
   });
 
-  useEffect(() => {
-    if (!editorRef.current || !content) {
-      return;
-    }
-    editorRef.current.setEditorValue(content);
-  }, [content]);
-
   const handleInitialize = useMemoizedFn(
     (cards: ICard[], isDark: boolean, fitViewPadding) => {
       if (!ref.current) return;
+      setIsAfterLayout(false);
       const width = ref.current.clientWidth;
       const height = ref.current.clientHeight;
       if (graph.current) {
@@ -260,14 +253,13 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   );
 
   useEffect(() => {
-    setIsAfterLayout(false);
-    handleInitialize(cards, isDark, fitViewPadding);
+    handleInitialize(initCardsRef.current, isDark, fitViewPadding);
 
     return () => {
       if (graph.current) graph.current.destroy();
       graph.current = undefined;
     };
-  }, [handleInitialize, isDark, cards, fitViewPadding]);
+  }, [handleInitialize, isDark, fitViewPadding]);
 
   useEffect(() => {
     handleCurrentCardIdsChange(currentCardIds, isAfterLayout);
@@ -355,11 +347,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             fontSize: cardFontSize,
           }}
         >
-          <Editor
-            ref={editorRef}
-            readonly={true}
-            extensions={customExtensions}
-          />
+          <Editor ref={editorRef} readonly={true} extensions={extensions} />
         </div>
       )}
     </div>
