@@ -614,6 +614,7 @@
 - feat: 目标管理 UI 优化
 - feat: PDF 支持评论标注
 - feat: 表格修改后自动聚焦
+- feat: 添加箭头虚线和动画效果
 - optimize: useGridLayout 修改为 grid 布局，速度更快
 - fix: PDF 笔记位置修复
 - fix: 对话未创建时 UI 不渲染问题修复
