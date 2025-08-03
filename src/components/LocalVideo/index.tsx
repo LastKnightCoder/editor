@@ -40,6 +40,7 @@ const LocalVideo = memo(
     const innerRef = useRef<HTMLVideoElement>(null);
     const currentTime = useRef(0);
     const playStatus = useRef(false);
+    const currentMethod = useRef("default");
 
     // Get the video element, prioritizing the forwarded ref if it exists
     const getVideoElement = useMemoizedFn(() => {
@@ -57,7 +58,11 @@ const LocalVideo = memo(
       try {
         console.time("localVideo");
         // 如果是 base64 或 blob url，直接使用
-        if (src.startsWith("data:") || src.startsWith("blob:")) {
+        if (
+          src.startsWith("data:") ||
+          src.startsWith("blob:") ||
+          src.startsWith("http://localhost")
+        ) {
           return;
         }
 
@@ -69,16 +74,19 @@ const LocalVideo = memo(
         const absolutePath = localUrl.startsWith("~")
           ? `${homeDir}${localUrl.slice(1)}`
           : localUrl;
+        console.log("absolutePath", absolutePath);
         const appDir = await getEditorDir();
 
         let videoUrl;
         if (absolutePath.startsWith(appDir)) {
           videoUrl = await convertFileSrc(absolutePath);
+          currentMethod.current = "localhost";
         } else {
           const data = await readBinaryFile(absolutePath);
           const ext = await getFileExtension(absolutePath);
           const blob = new Blob([data], { type: getMimeType(ext) });
           videoUrl = URL.createObjectURL(blob);
+          currentMethod.current = "read-file";
         }
 
         // 记录当前播放的时间等信息
@@ -107,8 +115,7 @@ const LocalVideo = memo(
     }, [previewUrl, getVideoElement]);
 
     const handleOnError = useMemoizedFn(
-      (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-        setPreviewUrl(src);
+      async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
         // @ts-ignore
         const errorCode = e.target.error?.code as string;
         const errorMessage: string =
@@ -120,6 +127,33 @@ const LocalVideo = memo(
           }[errorCode] || "未知错误";
 
         console.error("视频错误:", errorMessage);
+
+        if (currentMethod.current === "localhost") {
+          let localUrl = src;
+
+          if (src.startsWith("http")) {
+            localUrl = await remoteResourceToLocal(src);
+          }
+
+          const homeDir = await getHomeDir();
+          const absolutePath = localUrl.startsWith("~")
+            ? `${homeDir}${localUrl.slice(1)}`
+            : localUrl;
+          const data = await readBinaryFile(absolutePath);
+          const ext = await getFileExtension(absolutePath);
+          const blob = new Blob([data], { type: getMimeType(ext) });
+          const videoUrl = URL.createObjectURL(blob);
+          setPreviewUrl(videoUrl);
+
+          currentMethod.current = "read-file";
+
+          return;
+        } else if (currentMethod.current === "read-file") {
+          setPreviewUrl(src);
+          currentMethod.current = "default";
+        } else {
+          return;
+        }
       },
     );
 
@@ -131,6 +165,7 @@ const LocalVideo = memo(
         ref={videoRef}
         onError={handleOnError}
         src={previewUrl}
+        crossOrigin="anonymous"
         {...rest}
       />
     );

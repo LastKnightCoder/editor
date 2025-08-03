@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { VideoNote as VideoNoteType } from "@/types";
 import SlideLayout from "./layouts/SlideLayout";
 import { ThemeContext } from "./ThemeContext";
@@ -26,31 +26,35 @@ export interface VideoNoteProps {
   theme?: "light" | "dark";
 }
 
-const VideoNote: React.FC<VideoNoteProps> = ({
-  videoSrc,
-  initialNotes = [],
-  updateNotes,
-  uploadResource,
-  addSubNote,
-  deleteSubNote,
-  updateSubNote,
-  theme = "light",
-}) => {
-  return (
-    <ThemeContext.Provider value={theme}>
-      <DndProvider backend={HTML5Backend}>
-        <SlideLayout
-          videoSrc={videoSrc}
-          initialNotes={initialNotes}
-          updateNotes={updateNotes}
-          uploadResource={uploadResource}
-          addSubNote={addSubNote}
-          deleteSubNote={deleteSubNote}
-          updateSubNote={updateSubNote}
-        />
-      </DndProvider>
-    </ThemeContext.Provider>
-  );
-};
+const VideoNote: React.FC<VideoNoteProps> = memo(
+  ({
+    videoSrc,
+    initialNotes = [],
+    updateNotes,
+    uploadResource,
+    addSubNote,
+    deleteSubNote,
+    updateSubNote,
+    theme = "light",
+  }) => {
+    return (
+      <ThemeContext.Provider value={theme}>
+        <DndProvider backend={HTML5Backend}>
+          <SlideLayout
+            videoSrc={videoSrc}
+            initialNotes={initialNotes}
+            updateNotes={updateNotes}
+            uploadResource={uploadResource}
+            addSubNote={addSubNote}
+            deleteSubNote={deleteSubNote}
+            updateSubNote={updateSubNote}
+          />
+        </DndProvider>
+      </ThemeContext.Provider>
+    );
+  },
+);
+
+VideoNote.displayName = "VideoNote";
 
 export default VideoNote;

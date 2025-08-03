@@ -1,7 +1,17 @@
 import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
 import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
-import { App, Dropdown, Input, MenuProps, message, Modal, Tooltip } from "antd";
+import {
+  App,
+  Dropdown,
+  Input,
+  MenuProps,
+  message,
+  Modal,
+  Tooltip,
+  Select,
+  Tag,
+} from "antd";
 import { produce } from "immer";
 import {
   getFileBaseName,
@@ -50,6 +60,7 @@ import {
   PlusOutlined,
   GlobalOutlined,
   VideoCameraOutlined,
+  LoadingOutlined,
 } from "@ant-design/icons";
 import {
   getContentLength,
@@ -70,6 +81,14 @@ import ContentExportModal from "@/components/ContentExportModal";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { useProjectContext } from "../../ProjectContext";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  isBilibiliUrl,
+  quickCheckBilibiliUrl,
+  getVideoInfoByUrl,
+  getQualityInfo,
+  getQualityOptions,
+  BilibiliVideoQuality,
+} from "@/utils/bilibili";
 
 const extractUrlFromTitle = (title: string): { title: string; url: string } => {
   const urlRegex = /\[(https?:\/\/[^\]]+)\]$/;
@@ -137,6 +156,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [webVideoUrl, setWebVideoUrl] = useState("");
   const [webviewModalOpen, setWebviewModalOpen] = useState(false);
   const [webviewUrl, setWebviewUrl] = useState("");
+  const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
+  const [bilibiliUrl, setBilibiliUrl] = useState("");
+  const [bilibiliLoading, setBilibiliLoading] = useState(false);
+  const [bilibiliQualityOptions, setBilibiliQualityOptions] = useState<
+    Array<{
+      label: string;
+      value: number;
+      needLogin?: boolean;
+      needVip?: boolean;
+    }>
+  >([]);
+  const [selectedQuality, setSelectedQuality] = useState<number>(
+    BilibiliVideoQuality.HD_1080P,
+  ); // 默认 1080P
+  const [qualityLoading, setQualityLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
@@ -195,6 +229,114 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const { modal } = App.useApp();
   const [isPresentation, setIsPresentation] = useState(false);
+
+  // 防抖获取质量选项
+  const [debounceTimeoutId, setDebounceTimeoutId] =
+    useState<NodeJS.Timeout | null>(null);
+
+  // 获取 Bilibili 视频的可用清晰度选项
+  const fetchBilibiliQualityOptions = useMemoizedFn(async (url: string) => {
+    if (!url.trim() || !isBilibiliUrl(url)) {
+      setBilibiliQualityOptions([]);
+      return;
+    }
+
+    // 如果已经在加载，则不重复请求
+    if (qualityLoading) return;
+
+    setQualityLoading(true);
+    try {
+      const setting = useSettingStore.getState().setting;
+      const credentials = setting.integration.bilibili.credentials;
+
+      // 先获取视频信息以获得 cid
+      const videoInfo = await getVideoInfoByUrl(url, credentials);
+
+      // 获取可用清晰度信息
+      const qualityInfo = await getQualityInfo(
+        videoInfo.cid,
+        videoInfo.bvid,
+        credentials,
+      );
+
+      // 转换为选项格式
+      const options = getQualityOptions(qualityInfo.accept_quality);
+      setBilibiliQualityOptions(options);
+
+      // 设置默认选择的清晰度
+      const hasLogin = !!credentials.SESSDATA;
+      const hasVip =
+        !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
+
+      let defaultQuality: number;
+      if (hasVip) {
+        defaultQuality = options[0]?.value || BilibiliVideoQuality.HD_1080P;
+      } else if (hasLogin) {
+        const maxQuality = Math.max(
+          ...options
+            .filter((opt) => opt.value <= BilibiliVideoQuality.HD_1080P)
+            .map((opt) => opt.value),
+        );
+        defaultQuality = maxQuality || BilibiliVideoQuality.HD_720P;
+      } else {
+        const maxQuality = Math.max(
+          ...options
+            .filter((opt) => opt.value <= BilibiliVideoQuality.HD_720P)
+            .map((opt) => opt.value),
+        );
+        defaultQuality = maxQuality || BilibiliVideoQuality.CLEAR_480P;
+      }
+
+      setSelectedQuality(defaultQuality);
+    } catch (error) {
+      console.error("获取清晰度选项失败:", error);
+      setBilibiliQualityOptions([
+        { label: "480P 清晰", value: BilibiliVideoQuality.CLEAR_480P },
+        { label: "720P 高清", value: BilibiliVideoQuality.HD_720P },
+        {
+          label: "1080P 高清",
+          value: BilibiliVideoQuality.HD_1080P,
+          needLogin: true,
+        },
+      ]);
+      setSelectedQuality(BilibiliVideoQuality.HD_720P);
+    } finally {
+      setQualityLoading(false);
+    }
+  });
+
+  // 处理输入变化的防抖逻辑
+  const handleBilibiliUrlChange = useMemoizedFn((url: string) => {
+    setBilibiliUrl(url);
+
+    // 清除之前的防抖定时器
+    if (debounceTimeoutId) {
+      clearTimeout(debounceTimeoutId);
+    }
+
+    if (!url.trim()) {
+      setBilibiliQualityOptions([]);
+      return;
+    }
+
+    // 设置新的防抖定时器
+    const timeoutId = setTimeout(() => {
+      if (isBilibiliUrl(url)) {
+        fetchBilibiliQualityOptions(url);
+      }
+    }, 800); // 防抖：800ms 后执行
+
+    setDebounceTimeoutId(timeoutId);
+  });
+
+  // 清理防抖定时器
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutId) {
+        clearTimeout(debounceTimeoutId);
+      }
+    };
+  }, [debounceTimeoutId]);
 
   const refresh = useMemoizedFn((projectItemId) => {
     getProjectItemById(projectItemId).then((projectItem) => {
@@ -642,6 +784,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           key: "add-remote-video-note-project-item",
           label: "远程视频",
         },
+        {
+          key: "add-bilibili-video-note-project-item",
+          label: "Bilibili 视频",
+        },
       ],
     },
     {
@@ -781,6 +927,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
       } else if (key === "add-remote-video-note-project-item") {
         setWebVideoModalOpen(true);
+      } else if (key === "add-bilibili-video-note-project-item") {
+        setBilibiliModalOpen(true);
       } else if (key === "add-webview-project-item") {
         setWebviewModalOpen(true);
       } else if (key === "link-card-project-item") {
@@ -1312,6 +1460,165 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             onChange={(e) => setWebviewUrl(e.target.value)}
             autoFocus
           />
+        </div>
+      </Modal>
+
+      <Modal
+        open={bilibiliModalOpen}
+        title="添加 Bilibili 视频笔记"
+        onCancel={() => {
+          setBilibiliModalOpen(false);
+          setBilibiliUrl("");
+          setBilibiliLoading(false);
+          setBilibiliQualityOptions([]);
+          setSelectedQuality(BilibiliVideoQuality.HD_1080P);
+          setQualityLoading(false);
+          // 清理防抖定时器
+          if (debounceTimeoutId) {
+            clearTimeout(debounceTimeoutId);
+            setDebounceTimeoutId(null);
+          }
+        }}
+        confirmLoading={bilibiliLoading}
+        onOk={async () => {
+          if (!bilibiliUrl.trim()) {
+            message.error("请输入 Bilibili 视频链接");
+            return;
+          }
+
+          if (!isBilibiliUrl(bilibiliUrl)) {
+            message.error("请输入有效的 Bilibili 视频链接");
+            return;
+          }
+
+          setBilibiliLoading(true);
+
+          try {
+            // 快速检查 URL 有效性
+            const urlCheck = await quickCheckBilibiliUrl(bilibiliUrl);
+            if (!urlCheck.isValid) {
+              message.error(urlCheck.error || "无效的 Bilibili 链接");
+              return;
+            }
+
+            // 创建 Bilibili 视频笔记
+            const item = await createEmptyVideoNote({
+              type: "bilibili",
+              bvid: urlCheck.bvid || "",
+              cid: "", // 将在播放时获取
+              quality: selectedQuality, // 用户选择的清晰度
+            });
+
+            if (!item) {
+              message.error("创建视频笔记失败");
+              return;
+            }
+
+            const createProjectItem: CreateProjectItem = {
+              title: urlCheck.title || `Bilibili 视频 - ${urlCheck.bvid}`,
+              content: [],
+              children: [],
+              refType: "video-note",
+              refId: item.id,
+              projectItemType: EProjectItemType.VideoNote,
+              count: 0,
+              whiteBoardContentId: 0,
+            };
+
+            const [parentProjectItem] = await addChildProjectItem(
+              projectItemId,
+              createProjectItem,
+            );
+
+            if (parentProjectItem) {
+              setProjectItem(parentProjectItem);
+              projectItemEventBus.publishProjectItemEvent(
+                "project-item:updated",
+                parentProjectItem,
+              );
+            }
+
+            setBilibiliModalOpen(false);
+            setBilibiliUrl("");
+            setBilibiliQualityOptions([]);
+            setSelectedQuality(BilibiliVideoQuality.HD_1080P);
+            // 清理防抖定时器
+            if (debounceTimeoutId) {
+              clearTimeout(debounceTimeoutId);
+              setDebounceTimeoutId(null);
+            }
+            message.success("Bilibili 视频笔记添加成功！");
+          } catch (error) {
+            console.error("添加 Bilibili 视频失败:", error);
+            message.error("添加 Bilibili 视频失败，请检查链接是否正确");
+          } finally {
+            setBilibiliLoading(false);
+          }
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Input
+            placeholder="请输入 Bilibili 视频链接 (如: https://www.bilibili.com/video/BV...)"
+            value={bilibiliUrl}
+            onChange={(e) => handleBilibiliUrlChange(e.target.value)}
+            suffix={qualityLoading ? <LoadingOutlined /> : undefined}
+            autoFocus
+          />
+          {qualityLoading && (
+            <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+              正在获取可用清晰度选项...
+            </div>
+          )}
+        </div>
+
+        {/* 清晰度选择器 */}
+        {bilibiliQualityOptions.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
+              选择清晰度:
+              {qualityLoading && <LoadingOutlined style={{ marginLeft: 8 }} />}
+            </div>
+            <Select
+              value={selectedQuality}
+              onChange={setSelectedQuality}
+              style={{ width: "100%" }}
+              placeholder="选择清晰度"
+              loading={qualityLoading}
+              disabled={qualityLoading}
+            >
+              {bilibiliQualityOptions.map((option) => (
+                <Select.Option key={option.value} value={option.value}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span>{option.label}</span>
+                    <div>
+                      {option.needVip && <Tag color="gold">大会员</Tag>}
+                      {option.needLogin && !option.needVip && (
+                        <Tag color="blue">需登录</Tag>
+                      )}
+                    </div>
+                  </div>
+                </Select.Option>
+              ))}
+            </Select>
+            <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+              * 高清晰度可能需要登录或大会员权限
+            </div>
+          </div>
+        )}
+
+        <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+          <p>支持的链接格式：</p>
+          <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
+            <li>普通视频: https://www.bilibili.com/video/BV...</li>
+            <li>番剧: https://www.bilibili.com/bangumi/play/ss...</li>
+            <li>分集: https://www.bilibili.com/bangumi/play/ep...</li>
+          </ul>
         </div>
       </Modal>
 

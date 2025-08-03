@@ -147,6 +147,21 @@ export interface ISetting {
       }>;
     }>;
   };
+  integration: {
+    bilibili: {
+      enabled: boolean;
+      credentials: {
+        SESSDATA: string;
+        bfe_id?: string;
+      };
+      userInfo: {
+        name: string;
+        avatar: string;
+        isLogin: boolean;
+        vipStatus: number; // 0: 普通成员，1：大会员
+      };
+    };
+  };
 }
 
 interface IState {
@@ -164,6 +179,13 @@ interface IActions {
     feature: keyof ISetting["llmUsageSettings"],
     config: LLMUsageConfig | null,
   ) => void;
+  updateBilibiliCredentials: (
+    credentials: ISetting["integration"]["bilibili"]["credentials"],
+  ) => void;
+  updateBilibiliUserInfo: (
+    userInfo: ISetting["integration"]["bilibili"]["userInfo"],
+  ) => void;
+  setBilibiliEnabled: (enabled: boolean) => void;
 }
 
 const initialState: IState = {
@@ -281,6 +303,21 @@ const initialState: IState = {
       currentConfigId: "",
       configs: [],
     },
+    integration: {
+      bilibili: {
+        enabled: false,
+        credentials: {
+          SESSDATA: "",
+          bfe_id: "",
+        },
+        userInfo: {
+          name: "",
+          avatar: "",
+          isLogin: false,
+          vipStatus: 0,
+        },
+      },
+    },
   },
   settingModalOpen: false,
 };
@@ -364,6 +401,30 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.llmUsageSettings[feature] = config;
+      }),
+    });
+  },
+  updateBilibiliCredentials: (credentials) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.bilibili.credentials = credentials;
+      }),
+    });
+  },
+  updateBilibiliUserInfo: (userInfo) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.bilibili.userInfo = userInfo;
+      }),
+    });
+  },
+  setBilibiliEnabled: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.bilibili.enabled = enabled;
       }),
     });
   },

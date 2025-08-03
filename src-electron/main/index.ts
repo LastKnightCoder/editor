@@ -17,6 +17,7 @@ import windowManagerModule from "./modules/window-manager";
 import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
 import staticServerModule from "./modules/static-server";
+import bilibiliCacheModule from "./modules/bilibili-cache";
 import PathUtil from "./utils/PathUtil";
 
 (async (): Promise<void> => {
@@ -186,6 +187,7 @@ const initModules = async () => {
       extraModule.init(),
       voiceCopyModule.init(),
       staticServerModule.init(),
+      bilibiliCacheModule.init(),
     ]);
 
     // 初始化窗口管理器

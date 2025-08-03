@@ -163,23 +163,25 @@ export const mergeConsecutiveLists = (
   if (nodeIndex > 0) {
     const prevSibling = siblings[nodeIndex - 1];
     if (SlateElement.isElement(prevSibling) && prevSibling.type === node.type) {
-      const prevList = prevSibling;
-      const currentList = node;
+      Editor.withoutNormalizing(editor, () => {
+        const prevList = prevSibling;
+        const currentList = node;
 
-      // 将当前列表的所有 list-item 移动到前一个列表的末尾
-      const itemsToMove = [...currentList.children];
-      const insertIndex = prevList.children.length;
+        // 将当前列表的所有 list-item 移动到前一个列表的末尾
+        const itemsToMove = [...currentList.children];
+        const insertIndex = prevList.children.length;
 
-      itemsToMove.forEach((_, index) => {
-        Transforms.moveNodes(editor, {
-          at: [...path, index],
-          to: [...path.slice(0, -1), nodeIndex - 1, insertIndex + index],
+        itemsToMove.forEach((_, index) => {
+          Transforms.moveNodes(editor, {
+            at: [...path, 0],
+            to: [...path.slice(0, -1), nodeIndex - 1, insertIndex + index],
+          });
         });
-      });
 
-      // 删除当前空列表
-      Transforms.removeNodes(editor, {
-        at: path,
+        // 删除当前空列表
+        Transforms.removeNodes(editor, {
+          at: path,
+        });
       });
 
       return true;

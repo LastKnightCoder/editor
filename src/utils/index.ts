@@ -17,3 +17,4 @@ export * from "./download";
 export * from "./rag-helper";
 export * from "./remark-document-reference";
 export * from "./reference-parser";
+export * from "./bilibili-cache";
