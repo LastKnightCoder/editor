@@ -63,7 +63,8 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
         if (
           !cdnUrl ||
           cdnUrl.startsWith("data:") ||
-          cdnUrl.startsWith("blob:")
+          cdnUrl.startsWith("blob:") ||
+          cdnUrl.startsWith("http://localhost")
         ) {
           return;
         }

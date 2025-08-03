@@ -34,12 +34,29 @@ class Extra implements Module {
   }
 
   nodeFetch(url: string, options: any) {
-    return axios
-      .request({
-        url,
-        ...options,
-      })
-      .then((res) => res.data);
+    const newOptions = { ...options };
+    if (options.form) {
+      newOptions.body = Object.entries(options.form)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("&");
+      newOptions.method = "POST";
+      newOptions.headers = {
+        ...newOptions.headers,
+        "Content-Type": "application/x-www-form-urlencoded",
+      };
+      delete newOptions.form;
+    }
+
+    const response = axios.request({
+      url,
+      ...newOptions,
+    });
+
+    if (options.isRaw) {
+      return response;
+    }
+
+    return response.then((res) => res.data);
   }
 }
 

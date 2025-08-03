@@ -1,19 +1,20 @@
 import { Descendant } from "slate";
 
-interface LocalVideoMetaInfo {
+export interface LocalVideoMetaInfo {
   type: "local";
   filePath: string;
 }
 
-interface RemoteVideoMetaInfo {
+export interface RemoteVideoMetaInfo {
   type: "remote";
   url: string;
 }
 
-interface BiliBiliVideoMetaInfo {
+export interface BiliBiliVideoMetaInfo {
   type: "bilibili";
   bvid: string;
   cid: string;
+  quality?: number; // 用户选择的清晰度，默认使用 80 (1080P)
 }
 
 type VideoMetaInfo =
