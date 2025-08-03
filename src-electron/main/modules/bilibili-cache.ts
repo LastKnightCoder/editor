@@ -3,12 +3,10 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as crypto from "crypto";
 import ffmpeg from "fluent-ffmpeg";
-// import * as ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
+import ffmpegStatic from "ffmpeg-static";
 import fetch from "node-fetch";
 import PathUtil from "../utils/PathUtil";
-
-// 设置 FFmpeg 路径
-// ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+import log from "electron-log";
 
 // 缓存配置
 const BILIBILI_CACHE_DIR = "bilibili-cache";
@@ -62,6 +60,7 @@ interface BilibiliProgressEvent {
   videoTotal?: number;
   audioTotal?: number;
   totalSize?: number;
+  type?: string;
 }
 
 /**
@@ -181,6 +180,7 @@ async function downloadFile(
           progress: totalSize > 0 ? (downloadedSize / totalSize) * 100 : 0,
           message: `正在下载${downloadType === "video" ? "视频" : "音频"}...`,
           totalSize,
+          type: downloadType,
         };
 
         if (downloadType === "video") {
@@ -327,6 +327,7 @@ async function cacheBilibiliVideo(
         videoDownloaded: 0,
         audioDownloaded: 0,
         totalSize: 0,
+        type: "video",
       });
     }
 
@@ -535,7 +536,13 @@ async function listBilibiliCache(): Promise<BilibiliCacheEntry[]> {
  * 初始化 Bilibili 缓存模块
  */
 export async function init(): Promise<void> {
-  console.log("正在初始化 Bilibili 缓存模块...");
+  // 设置 FFmpeg 路径
+  if (ffmpegStatic) {
+    log.log("ffmpeg static path", ffmpegStatic);
+    ffmpeg.setFfmpegPath(ffmpegStatic);
+  }
+
+  log.log("正在初始化 Bilibili 缓存模块...");
 
   // 确保缓存目录存在
   await getCacheDir();

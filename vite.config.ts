@@ -7,6 +7,7 @@ import pkg from "./package.json";
 import fs from "fs-extra";
 
 import * as path from "path";
+import { platform } from "node:os";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => {
@@ -73,6 +74,22 @@ export default defineConfig(({ command }) => {
                         "node_modules/@node-rs/jieba/idf.txt",
                         "dist-electron/main/idf.txt", // 确保输出到这里
                       );
+                    },
+                  },
+                  {
+                    name: "ffmpeg",
+                    closeBundle() {
+                      if (platform() === "win32") {
+                        fs.copySync(
+                          "node_modules/ffmpeg-static/ffmpeg.exe",
+                          "dist-electron/main/ffmpeg.exe",
+                        );
+                      } else if (platform() === "darwin") {
+                        fs.copySync(
+                          "node_modules/ffmpeg-static/ffmpeg",
+                          "dist-electron/main/ffmpeg",
+                        );
+                      }
                     },
                   },
                 ],

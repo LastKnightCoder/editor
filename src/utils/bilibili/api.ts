@@ -299,8 +299,18 @@ export async function getPlayUrl(
     // 首先选择可用的音频流
     let audioStream = await selectAvailableStream(sortedAudios);
     if (!audioStream) {
-      console.warn("未找到可用的音频流，使用第一个作为备选");
-      audioStream = sortedAudios[0];
+      console.warn("未找到可用的音频流，尝试使用备选地址");
+      const backUpUrls = dash.audio
+        .map((a) =>
+          (a.backupUrl || []).map((bu) => ({ id: a.id, baseUrl: bu })),
+        )
+        .flat()
+        .filter(Boolean);
+      audioStream = await selectAvailableStream(backUpUrls);
+      if (!audioStream) {
+        console.warn("未找到可用音频流，使用第一个作为备选");
+        audioStream = sortedAudios[0];
+      }
     }
 
     // 查找匹配指定质量的视频流
