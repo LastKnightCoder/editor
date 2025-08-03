@@ -183,6 +183,7 @@ export interface BilibiliPlayInfoApiData {
       baseUrl: string;
       bandwidth: number;
       codecs: string;
+      backupUrl?: string[];
     }>;
   };
 }

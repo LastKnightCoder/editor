@@ -18,6 +18,7 @@ export interface StreamProgress {
   audioDownloaded?: number;
   videoTotal?: number;
   audioTotal?: number;
+  type?: string;
 }
 
 export interface UseBilibiliVideoResult {
@@ -122,6 +123,34 @@ export function useBilibiliVideo(
             videoTotal: progress.videoTotal,
             audioTotal: progress.audioTotal,
           };
+
+          if (progress.stage === "downloading") {
+            if (progress.type === "video") {
+              setStreamProgress((prev) => {
+                if (!prev) {
+                  return streamProgress;
+                }
+                return {
+                  ...prev,
+                  videoDownloaded: progress.videoDownloaded,
+                  videoTotal: progress.videoTotal,
+                };
+              });
+              return;
+            } else if (progress.type === "audio") {
+              setStreamProgress((prev) => {
+                if (!prev) {
+                  return streamProgress;
+                }
+                return {
+                  ...prev,
+                  audioDownloaded: progress.audioDownloaded,
+                  audioTotal: progress.audioTotal,
+                };
+              });
+              return;
+            }
+          }
 
           setStreamProgress(streamProgress);
         },

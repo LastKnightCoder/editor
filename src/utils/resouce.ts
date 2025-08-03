@@ -20,8 +20,14 @@ const REMOTE_RESOURCE_PATH = "remote-resources";
 const LOCAL_RESOURCE_PATH = "resources";
 
 export const getFileExtension = async (url: string): Promise<string> => {
-  const urlObj = new URL(url);
-  const pathname = urlObj.pathname;
+  let pathname = url;
+  try {
+    const urlObj = new URL(url);
+    pathname = urlObj.pathname;
+  } catch (e) {
+    console.log(e);
+  }
+
   const [, ext] = pathname.split(".");
   return ext;
 };
