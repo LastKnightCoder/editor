@@ -1057,7 +1057,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             });
           }}
         >
-          <Tooltip title={projectItem.title} trigger={"hover"}>
+          <Tooltip
+            title={
+              projectItem.projectItemType === EProjectItemType.WebView
+                ? extractUrlFromTitle(projectItem.title).title
+                : projectItem.title
+            }
+            trigger={"hover"}
+          >
             <div className={styles.titleContainer}>
               <Tooltip
                 title={
@@ -1124,7 +1131,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   }
 
                   if (textContent !== projectItem.title) {
-                    // 更新标题
                     updateProjectItem({
                       ...projectItem,
                       title: textContent,
