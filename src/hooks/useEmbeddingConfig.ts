@@ -21,6 +21,7 @@ const useEmbeddingConfig = () => {
     key: currentConfig.apiKey,
     model: currentModel.name,
     distance: currentModel.distance,
+    dimensions: currentModel.contextLength,
   };
 };
 

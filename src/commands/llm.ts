@@ -6,6 +6,9 @@ export const chat = async (
   baseUrl: string,
   model: string,
   messages: RequestMessage[],
+  options?: {
+    enableThinking?: boolean;
+  },
 ) => {
-  return await invoke("chat-openai", apiKey, baseUrl, model, messages);
+  return await invoke("chat-openai", apiKey, baseUrl, model, messages, options);
 };

@@ -146,6 +146,7 @@ export default class VecDocumentTable {
         const res = await client.embeddings.create({
           model: modelInfo.model,
           input: chunkText,
+          dimensions: modelInfo.dimensions,
         });
 
         const embedding = res.data[0].embedding;
@@ -228,6 +229,7 @@ export default class VecDocumentTable {
       const res = await client.embeddings.create({
         model: modelInfo.model,
         input: query,
+        dimensions: modelInfo.dimensions,
       });
 
       const queryEmbedding = res.data[0].embedding;
