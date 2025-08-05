@@ -58,6 +58,7 @@ const useCommandPanelStore = create<ICommandPanelState & ICommandPanelActions>(
                   baseUrl: currentEmbeddingConfig.baseUrl,
                   model: currentEmbeddingModel.name,
                   distance: currentEmbeddingModel.distance,
+                  dimensions: currentEmbeddingModel.contextLength,
                 }
               : undefined,
         };

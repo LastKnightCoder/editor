@@ -17,7 +17,12 @@ export interface IndexParams {
   content: string;
   type: IndexType;
   updateTime: number;
-  modelInfo?: { key: string; model: string; baseUrl: string };
+  modelInfo?: {
+    key: string;
+    model: string;
+    baseUrl: string;
+    dimensions: number;
+  };
   indexTypes?: ("fts" | "vec")[];
 }
 
@@ -25,5 +30,11 @@ export interface SearchParams {
   query: string;
   types?: IndexType[];
   limit?: number;
-  modelInfo?: { key: string; model: string; baseUrl: string; distance: number };
+  modelInfo?: {
+    key: string;
+    model: string;
+    baseUrl: string;
+    distance: number;
+    dimensions: number;
+  };
 }

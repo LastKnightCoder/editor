@@ -32,6 +32,7 @@ import { chat, createChatMessage } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { InfoCircleOutlined } from "@ant-design/icons";
+import { LuBrain } from "react-icons/lu";
 import classNames from "classnames";
 interface ChatContainerProps {
   currentChat: ChatMessage;
@@ -83,6 +84,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const [ragEnabled, setRagEnabled] = useLocalStorageState("ragEnabled", {
       defaultValue: false,
     });
+
+    const [enableThinking, setEnableThinking] = useLocalStorageState(
+      "enableThinking",
+      {
+        defaultValue: chatModelConfig?.features?.thinking ?? false,
+      },
+    );
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -227,6 +235,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           chatModelConfig,
           sendMessages,
           {
+            enableThinking: chatModelConfig.features?.thinking
+              ? enableThinking
+              : undefined,
             onFinish: async () => {
               try {
                 const updatedChatMessage =
@@ -623,7 +634,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         </div>
 
         {embeddingModelInfo && (
-          <div className="flex-none">
+          <div className="flex-none flex items-center gap-2 flex-wrap">
+            {chatModelConfig?.features?.thinking && (
+              <div
+                className={classNames(
+                  "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
+                  {
+                    "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                      enableThinking,
+                    "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
+                      !enableThinking,
+                  },
+                )}
+                onClick={() => setEnableThinking(!enableThinking)}
+              >
+                <LuBrain />
+                思考
+              </div>
+            )}
             <div
               className={classNames(
                 "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
