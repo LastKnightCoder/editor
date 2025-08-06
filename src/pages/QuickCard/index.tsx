@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Descendant } from "slate";
-import { Button } from "antd";
+import { Button, App } from "antd";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Editor, { EditorRef } from "@/components/Editor";
@@ -39,6 +39,7 @@ const QuickCard = () => {
 
   const uploadResource = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
+  const { message } = App.useApp();
 
   const [content, setContent] = useState(initValue);
   const [tags, setTags] = useState<string[]>([]);
@@ -54,6 +55,15 @@ const QuickCard = () => {
 
   const onDeleteTag = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
+  };
+
+  const onEditTag = (oldTag: string, newTag: string) => {
+    if (!newTag || newTag === oldTag) return;
+    if (tags.includes(newTag)) {
+      message.warning("标签已存在");
+      return;
+    }
+    setTags(tags.map((tag) => (tag === oldTag ? newTag : tag)));
   };
 
   const onSave = async () => {
@@ -98,6 +108,7 @@ const QuickCard = () => {
           tags={tags}
           addTag={onAddTag}
           removeTag={onDeleteTag}
+          editTag={onEditTag}
           readonly={false}
         />
       </div>

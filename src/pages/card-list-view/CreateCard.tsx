@@ -3,7 +3,7 @@ import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import AddTag from "@/components/AddTag";
 import { memo, useEffect, useRef } from "react";
-import { Button } from "antd";
+import { Button, App } from "antd";
 import PortalToBody from "@/components/PortalToBody";
 import useTheme from "@/hooks/useTheme";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
@@ -19,6 +19,7 @@ const CreateCard = memo((props: CreateCardProps) => {
   const { className, onSave, onCancel, visible } = props;
   const editorRef = useRef<EditorRef>(null);
   const { isDark } = useTheme();
+  const { message } = App.useApp();
 
   const [content, setContent] = useLocalStorageState<Descendant[]>(
     "card-edit-content",
@@ -44,6 +45,16 @@ const CreateCard = memo((props: CreateCardProps) => {
 
   const onRemoveTag = (tag: string) => {
     setTags((tags || []).filter((t) => t !== tag));
+  };
+
+  const onEditTag = (oldTag: string, newTag: string) => {
+    if (!newTag || newTag === oldTag) return;
+    const currentTags = tags || [];
+    if (currentTags.includes(newTag)) {
+      message.warning("标签已存在");
+      return;
+    }
+    setTags(currentTags.map((tag) => (tag === oldTag ? newTag : tag)));
   };
 
   const onSaveCard = useMemoizedFn(
@@ -102,6 +113,7 @@ const CreateCard = memo((props: CreateCardProps) => {
                 tags={tags || []}
                 addTag={onAddTag}
                 removeTag={onRemoveTag}
+                editTag={onEditTag}
               />
               <div className="flex gap-2">
                 <Button onClick={onCancelSaveCard}>取消</Button>
