@@ -17,6 +17,9 @@ interface ITagProps {
   onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
   className?: string;
   style?: React.CSSProperties;
+  isEditing?: boolean;
+  editRef?: React.RefObject<HTMLDivElement>;
+  onEditBlur?: () => void;
 }
 
 const Tag = (props: ITagProps) => {
@@ -31,6 +34,9 @@ const Tag = (props: ITagProps) => {
     onClick,
     className,
     style,
+    isEditing,
+    editRef,
+    onEditBlur,
   } = props;
 
   const { isDark } = useTheme();
@@ -49,7 +55,21 @@ const Tag = (props: ITagProps) => {
       {showIcon && (icon || <TagOutlined />)}
       <div className={styles.tag}>
         {showSharp ? "#" : ""}
-        {tag}
+        {isEditing ? (
+          <div
+            ref={editRef}
+            contentEditable={true}
+            suppressContentEditableWarning
+            onBlur={onEditBlur}
+            style={{
+              outline: "none",
+              minWidth: "1em",
+              display: "inline-block",
+            }}
+          />
+        ) : (
+          tag
+        )}
       </div>
       {closable && (
         <div className={styles.close} onClick={onClose}>

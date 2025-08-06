@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useMemoizedFn, useCreation, useRafInterval, useUnmount } from "ahooks";
-import { Button, Modal, Tooltip } from "antd";
+import { Button, Modal, Tooltip, App } from "antd";
 import { Descendant } from "slate";
 import { ExpandOutlined, CloseOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
@@ -35,6 +35,7 @@ const CardPreview = (props: CardPreviewProps) => {
   const { cardId, visible, onClose, onGoToDetail } = props;
   const navigate = useNavigate();
   const editorRef = useRef<EditorRef>(null);
+  const { message } = App.useApp();
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
     [],
@@ -47,6 +48,7 @@ const CardPreview = (props: CardPreviewProps) => {
     onContentChange: onContentChangeFromEditCard,
     onAddTag,
     onDeleteTag,
+    onTagChange,
     saveCard,
     prevCard,
     setEditingCard,
@@ -106,6 +108,19 @@ const CardPreview = (props: CardPreviewProps) => {
   const handleDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingCard || !editingCard.tags.includes(tag)) return;
     onDeleteTag(tag);
+  });
+
+  const handleEditTag = useMemoizedFn((oldTag: string, newTag: string) => {
+    if (!editingCard || !newTag || newTag === oldTag) return;
+    if (editingCard.tags.includes(newTag)) {
+      message.warning("标签已存在");
+      return;
+    }
+    // 直接替换标签，保持顺序
+    const newTags = editingCard.tags.map((tag) =>
+      tag === oldTag ? newTag : tag,
+    );
+    onTagChange(newTags);
   });
 
   const handleClose = useMemoizedFn(() => {
@@ -203,6 +218,7 @@ const CardPreview = (props: CardPreviewProps) => {
                 tags={editingCard.tags}
                 addTag={handleAddTag}
                 removeTag={handleDeleteTag}
+                editTag={handleEditTag}
               />
             </div>
           </div>

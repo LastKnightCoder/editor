@@ -67,7 +67,7 @@ interface IEditCardProps {
 const EditCard = (props: IEditCardProps) => {
   const { cardId, defaultReadonly = false } = props;
   const navigate = useNavigate();
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
   const databaseName = useSettingStore(
     (state) => state.setting.database.active,
   );
@@ -80,6 +80,7 @@ const EditCard = (props: IEditCardProps) => {
     onContentChange: onContentChangeFromEditCard,
     onAddTag,
     onDeleteTag,
+    onTagChange,
     saveCard,
     onAddLinks,
     onRemoveLink,
@@ -167,6 +168,19 @@ const EditCard = (props: IEditCardProps) => {
   const handleDeleteTag = useMemoizedFn((tag: string) => {
     if (!editingCard || !editingCard.tags.includes(tag)) return;
     onDeleteTag(tag);
+  });
+
+  const handleEditTag = useMemoizedFn((oldTag: string, newTag: string) => {
+    if (!editingCard || !newTag || newTag === oldTag) return;
+    if (editingCard.tags.includes(newTag)) {
+      message.warning("标签已存在");
+      return;
+    }
+    // 直接替换标签，保持顺序
+    const newTags = editingCard.tags.map((tag) =>
+      tag === oldTag ? newTag : tag,
+    );
+    onTagChange(newTags);
   });
   const uploadResource = useUploadResource();
 
@@ -401,6 +415,7 @@ const EditCard = (props: IEditCardProps) => {
             tags={editingCard.tags}
             addTag={handleAddTag}
             removeTag={handleDeleteTag}
+            editTag={handleEditTag}
             readonly={readonly}
           />
         </div>
