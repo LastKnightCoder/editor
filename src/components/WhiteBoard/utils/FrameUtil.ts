@@ -8,6 +8,7 @@ import {
   Board,
 } from "../types";
 import { isRectIntersect, getRectIntersectionArea, PathUtil } from "./index";
+import { canNest } from "./Constraints";
 
 const LOCAL_STORAGE_KEY = "whiteboard-frame";
 
@@ -82,7 +83,12 @@ export class FrameUtil {
     child: BoardElement,
   ): FrameElement {
     // 需要保证 child 不在 frame 中
-    if (frame.children.some((child: BoardElement) => child.id === child.id)) {
+    if (frame.children.some((c: BoardElement) => c.id === child.id)) {
+      return frame;
+    }
+
+    // 嵌套约束：frame 不允许嵌套 frame，且不能包含 arrow
+    if (!canNest(frame, child)) {
       return frame;
     }
 
