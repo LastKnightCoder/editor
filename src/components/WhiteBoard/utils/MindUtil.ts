@@ -24,6 +24,9 @@ export class MindUtil {
         {
           before: (node, parent) => {
             if (parent) {
+              node.level = parent.level + 1;
+              node.background = MIND_COLORS[node.level - 1]?.background;
+              node.textColor = MIND_COLORS[node.level - 1]?.textColor;
               if (node.level > 2) {
                 node.direction = parent.direction;
               }
