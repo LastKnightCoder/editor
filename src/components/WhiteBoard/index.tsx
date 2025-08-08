@@ -342,12 +342,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
               <BoardStateContext.Provider
                 value={{ isMoving: isElementsMoving }}
               >
-                <div className="flex h-full w-full">
-                  {/* 左侧侧边栏 */}
-                  <Sidebar />
-
-                  {/* 主画布区域 */}
-                  <div className="flex-1 relative">
+                <div className="relative h-full w-full">
+                  {/* 画布层 - 不受侧边栏布局影响 */}
+                  <div className="absolute inset-0">
                     {/* 工具栏 */}
                     {!readonly && <Toolbar />}
 
@@ -367,6 +364,11 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                     <div className={styles.verticalBar}>
                       {!readonly && <AttributeSetter />}
                     </div>
+                  </div>
+
+                  {/* 覆盖在左侧的侧边栏，不参与布局计算 */}
+                  <div className="absolute left-0 top-0 h-full pointer-events-auto">
+                    <Sidebar />
                   </div>
                 </div>
 
