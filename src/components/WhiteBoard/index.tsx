@@ -40,6 +40,7 @@ import PresentationCreator from "./components/PresentationCreator";
 import PresentationMode from "./components/PresentationMode";
 import StatusBar from "./components/StatusBar";
 import BoardContent from "./components/BoardContent";
+import Sidebar from "./components/Sidebar";
 import {
   useViewPortControls,
   useEventHandlers,
@@ -341,24 +342,32 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
               <BoardStateContext.Provider
                 value={{ isMoving: isElementsMoving }}
               >
-                {/* 工具栏 */}
-                {!readonly && <Toolbar />}
+                <div className="flex h-full w-full">
+                  {/* 左侧侧边栏 */}
+                  <Sidebar />
 
-                {/* 画板内容 */}
-                <BoardContent
-                  ref={svgRef}
-                  board={board}
-                  viewPort={viewPort}
-                  centerConnectArrows={centerConnectArrows}
-                  noneCenterConnectArrows={noneCenterConnectArrows}
-                  gridVisible={gridVisible}
-                  gridSize={gridSize}
-                  refLines={refLines}
-                />
+                  {/* 主画布区域 */}
+                  <div className="flex-1 relative">
+                    {/* 工具栏 */}
+                    {!readonly && <Toolbar />}
 
-                {/* 垂直工具栏 */}
-                <div className={styles.verticalBar}>
-                  {!readonly && <AttributeSetter />}
+                    {/* 画板内容 */}
+                    <BoardContent
+                      ref={svgRef}
+                      board={board}
+                      viewPort={viewPort}
+                      centerConnectArrows={centerConnectArrows}
+                      noneCenterConnectArrows={noneCenterConnectArrows}
+                      gridVisible={gridVisible}
+                      gridSize={gridSize}
+                      refLines={refLines}
+                    />
+
+                    {/* 垂直工具栏 */}
+                    <div className={styles.verticalBar}>
+                      {!readonly && <AttributeSetter />}
+                    </div>
+                  </div>
                 </div>
 
                 {/* 演示相关组件 */}

@@ -12,3 +12,4 @@ export * from "./RefLineUtil";
 export * from "./ArrowUtil.ts";
 export * from "./MindUtil.ts";
 export * from "./FrameUtil.ts";
+export * from "./Constraints";

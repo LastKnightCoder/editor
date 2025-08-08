@@ -19,6 +19,8 @@ export enum ECreateBoardElementType {
 export interface BoardElement {
   id: string;
   type: string;
+  // 可选名称，用于 UI 展示；为空时由各元素类型生成默认中文名称
+  name?: string;
   groupId?: string;
   children?: BoardElement[];
   [key: string]: any;
