@@ -224,7 +224,7 @@ async function mergeAudioVideo(
       .input(audioPath)
       .outputOptions([
         "-c:v copy", // 不重新编码视频
-        "-c:a aac", // 音频编码为 AAC
+        "-c:a copy",
         "-shortest", // 使用较短的流长度
       ])
       .on("progress", (progress) => {

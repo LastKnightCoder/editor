@@ -1,6 +1,11 @@
 import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
-import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
+import {
+  useCreation,
+  useLocalStorageState,
+  useMemoizedFn,
+  useDebounceFn,
+} from "ahooks";
 import {
   App,
   Dropdown,
@@ -40,6 +45,9 @@ import useDragAndDrop, {
 } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
 import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
+import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
+import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
+import ytdl from "@distube/ytdl-core";
 
 import SVG from "react-inlinesvg";
 import For from "@/components/For";
@@ -158,6 +166,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [webviewUrl, setWebviewUrl] = useState("");
   const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
   const [bilibiliUrl, setBilibiliUrl] = useState("");
+  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [youtubeVideoInfo, setYoutubeVideoInfo] = useState<{
+    audioFmts: ytdl.videoFormat[];
+    videoFmts: ytdl.videoFormat[];
+    videoId: string;
+    title: string;
+  } | null>(null);
+  const [youtubeVideoInfoLoading, setYoutubeVideoInfoLoading] = useState(false);
+  const [youtubeSelectedVideoFormat, setYoutubeSelectedVideoFormat] = useState<
+    ytdl.videoFormat | undefined
+  >(undefined);
+  const [youtubeSelectedAudioFormat, setYoutubeSelectedAudioFormat] = useState<
+    ytdl.videoFormat | undefined
+  >(undefined);
   const [bilibiliLoading, setBilibiliLoading] = useState(false);
   const [bilibiliQualityOptions, setBilibiliQualityOptions] = useState<
     Array<{
@@ -178,6 +201,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     updateProject: state.updateProject,
     activeProjectItemId: state.activeProjectItemId,
   }));
+
+  const setting = useSettingStore.getState().setting;
 
   useEffect(() => {
     if (activeProjectItemId === projectItemId) {
@@ -337,6 +362,33 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
     };
   }, [debounceTimeoutId]);
+
+  // YouTube 链接解析（与 ProjectView 保持一致的流程：获取 video/audio 格式并默认选最佳）
+  const handleYoutubeUrlChange = useDebounceFn(
+    async (url: string) => {
+      setYoutubeUrl(url);
+      const res = parseYoutubeUrl(url);
+      if (!res.videoId) {
+        message.error("无法解析视频 ID");
+        return;
+      }
+      setYoutubeVideoInfoLoading(true);
+      const info = await getYoutubeVideoInfo(
+        res.videoId,
+        setting.integration.youtube.proxy,
+      );
+      setYoutubeVideoInfo(info);
+      const bestVideoFormat =
+        info?.videoFmts.find((f) => f.quality === "highest") ||
+        info?.videoFmts[0];
+      const bestAudioFormat =
+        info?.audioFmts.find((f) => f.quality === "highest") ||
+        info?.audioFmts[0];
+      setYoutubeSelectedVideoFormat(bestVideoFormat);
+      setYoutubeSelectedAudioFormat(bestAudioFormat);
+    },
+    { wait: 800 },
+  );
 
   const refresh = useMemoizedFn((projectItemId) => {
     getProjectItemById(projectItemId).then((projectItem) => {
@@ -788,6 +840,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           key: "add-bilibili-video-note-project-item",
           label: "Bilibili 视频",
         },
+        {
+          key: "add-youtube-video-note-project-item",
+          label: "YouTube 视频",
+        },
       ],
     },
     {
@@ -929,6 +985,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         setWebVideoModalOpen(true);
       } else if (key === "add-bilibili-video-note-project-item") {
         setBilibiliModalOpen(true);
+      } else if (key === "add-youtube-video-note-project-item") {
+        setYoutubeModalOpen(true);
       } else if (key === "add-webview-project-item") {
         setWebviewModalOpen(true);
       } else if (key === "link-card-project-item") {
@@ -1626,6 +1684,134 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             <li>分集: https://www.bilibili.com/bangumi/play/ep...</li>
           </ul>
         </div>
+      </Modal>
+
+      <Modal
+        open={youtubeModalOpen}
+        title={"添加 YouTube 视频笔记"}
+        onCancel={() => {
+          setYoutubeModalOpen(false);
+          setYoutubeUrl("");
+          setYoutubeVideoInfo(null);
+          setYoutubeSelectedVideoFormat(undefined);
+          setYoutubeSelectedAudioFormat(undefined);
+        }}
+        onOk={async () => {
+          if (!projectItem || !projectId) {
+            message.error("项目文档尚未加载完成");
+            return;
+          }
+          if (!youtubeUrl.trim()) {
+            message.error("请输入 YouTube 视频链接");
+            return;
+          }
+          if (!isYoutubeUrl(youtubeUrl)) {
+            message.error("请输入有效的 YouTube 视频链接");
+            return;
+          }
+          try {
+            if (!youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat) {
+              message.error("请选择清晰度");
+              return;
+            }
+
+            if (!youtubeVideoInfo) {
+              message.error("无法获取视频信息");
+              return;
+            }
+
+            const item = await createEmptyVideoNote({
+              type: "youtube",
+              videoId: youtubeVideoInfo.videoId,
+              videoFormat: youtubeSelectedVideoFormat,
+              audioFormat: youtubeSelectedAudioFormat,
+            });
+            if (!item) {
+              message.error("创建视频笔记失败");
+              return;
+            }
+            const createProjectItem: CreateProjectItem = {
+              title:
+                youtubeVideoInfo.title ||
+                `YouTube 视频 - ${youtubeVideoInfo.videoId}`,
+              content: [],
+              children: [],
+              refType: "video-note",
+              refId: item.id,
+              projectItemType: EProjectItemType.VideoNote,
+              count: 0,
+              whiteBoardContentId: 0,
+            };
+            const [parentProjectItem] = await addChildProjectItem(
+              projectItem.id,
+              createProjectItem,
+            );
+            if (parentProjectItem) {
+              setProjectItem(parentProjectItem);
+              projectItemEventBus.publishProjectItemEvent(
+                "project-item:updated",
+                parentProjectItem,
+              );
+            }
+            setYoutubeModalOpen(false);
+            setYoutubeUrl("");
+            setYoutubeVideoInfo(null);
+            setYoutubeSelectedVideoFormat(undefined);
+            setYoutubeSelectedAudioFormat(undefined);
+            message.success("YouTube 视频笔记添加成功！");
+          } catch (e) {
+            console.error(e);
+            message.error("添加 YouTube 视频失败");
+          }
+        }}
+      >
+        <Input
+          placeholder="请输入 YouTube 链接 (https://www.youtube.com/watch?v=...)"
+          value={youtubeUrl}
+          onChange={(e) => handleYoutubeUrlChange.run(e.target.value)}
+          autoFocus
+        />
+        {youtubeVideoInfo?.audioFmts?.length &&
+          youtubeVideoInfo?.videoFmts?.length && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ marginBottom: 6 }}>选择音频清晰度</div>
+              <Select
+                style={{ width: "100%" }}
+                options={youtubeVideoInfo.audioFmts.map((f) => ({
+                  label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
+                  value: f.itag,
+                }))}
+                value={youtubeSelectedAudioFormat?.itag}
+                loading={youtubeVideoInfoLoading}
+                onChange={(v) =>
+                  setYoutubeSelectedAudioFormat(
+                    youtubeVideoInfo.audioFmts.find(
+                      (f) => f.itag === v,
+                    ) as ytdl.videoFormat,
+                  )
+                }
+                placeholder="选择清晰度"
+              />
+              <div style={{ marginTop: 6 }}>选择视频清晰度</div>
+              <Select
+                style={{ width: "100%" }}
+                options={youtubeVideoInfo.videoFmts.map((f) => ({
+                  label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
+                  value: f.itag,
+                }))}
+                value={youtubeSelectedVideoFormat?.itag}
+                loading={youtubeVideoInfoLoading}
+                onChange={(v) =>
+                  setYoutubeSelectedVideoFormat(
+                    youtubeVideoInfo.videoFmts.find(
+                      (f) => f.itag === v,
+                    ) as ytdl.videoFormat,
+                  )
+                }
+                placeholder="选择清晰度"
+              />
+            </div>
+          )}
       </Modal>
 
       {isPresentation &&

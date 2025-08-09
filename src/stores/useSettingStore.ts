@@ -161,6 +161,10 @@ export interface ISetting {
         vipStatus: number; // 0: 普通成员，1：大会员
       };
     };
+    youtube: {
+      enabled: boolean;
+      proxy: string;
+    };
   };
 }
 
@@ -186,6 +190,8 @@ interface IActions {
     userInfo: ISetting["integration"]["bilibili"]["userInfo"],
   ) => void;
   setBilibiliEnabled: (enabled: boolean) => void;
+  setYoutubeEnabled: (enabled: boolean) => void;
+  updateYoutubeProxy: (proxy: string) => void;
 }
 
 const initialState: IState = {
@@ -317,6 +323,10 @@ const initialState: IState = {
           vipStatus: 0,
         },
       },
+      youtube: {
+        enabled: false,
+        proxy: "",
+      },
     },
   },
   settingModalOpen: false,
@@ -425,6 +435,22 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.bilibili.enabled = enabled;
+      }),
+    });
+  },
+  setYoutubeEnabled: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.youtube.enabled = enabled;
+      }),
+    });
+  },
+  updateYoutubeProxy: (proxy) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.youtube.proxy = proxy;
       }),
     });
   },

@@ -27,6 +27,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.11",
     "@electron/rebuild": "^3.7.1",
     "@node-rs/jieba": "^2.0.1",
     "@tailwindcss/postcss": "^4.1.11",
@@ -106,6 +107,7 @@
     "graphviz-react": "^1.2.5",
     "gsap": "^3.12.5",
     "html2canvas": "^1.4.1",
+    "https-proxy-agent": "^7.0.6",
     "husky": "^9.1.7",
     "immer": "^10.0.2",
     "is-hotkey": "^0.2.0",
