@@ -224,7 +224,7 @@ export class MovePlugin implements IBoardPlugin {
     const { movedElements } = this.getUpdatedInfo(e, board);
 
     movedElements.forEach((movedElement) => {
-      const element = this.moveElements!.find(
+      const element = this.moveElements?.find(
         (element) => element.id === movedElement.id,
       );
       const path = PathUtil.getPathByElement(board, movedElement);
@@ -577,19 +577,23 @@ export class MovePlugin implements IBoardPlugin {
           }
         }
 
-        // 添加到目标Frame
+        // 添加到目标Frame（约束：禁止 frame 嵌套 frame，禁止 arrow 进入 frame）
         if (targetFrame) {
-          const frameUpdate = frameUpdates.get(targetFrame.id);
-          if (frameUpdate) {
-            if (
-              frameUpdate.finalChildren.find((child) => child.id === element.id)
-            ) {
-              frameUpdate.finalChildren = frameUpdate.finalChildren.filter(
-                (child) => child.id !== element.id,
-              );
+          if (element.type !== "frame" && element.type !== "arrow") {
+            const frameUpdate = frameUpdates.get(targetFrame.id);
+            if (frameUpdate) {
+              if (
+                frameUpdate.finalChildren.find(
+                  (child) => child.id === element.id,
+                )
+              ) {
+                frameUpdate.finalChildren = frameUpdate.finalChildren.filter(
+                  (child) => child.id !== element.id,
+                );
+              }
+              frameUpdate.finalChildren.push(element);
+              frameUpdate.hasChildMoveIn = true;
             }
-            frameUpdate.finalChildren.push(element);
-            frameUpdate.hasChildMoveIn = true;
           }
         }
 
@@ -598,9 +602,17 @@ export class MovePlugin implements IBoardPlugin {
         let newPath: number[] | null = null;
 
         if (targetFrame) {
-          const targetFramePath = PathUtil.getPathByElement(board, targetFrame);
-          if (targetFramePath) {
-            newPath = [...targetFramePath, targetFrame.children.length];
+          if (element.type === "frame" || element.type === "arrow") {
+            // 不允许放入 frame，路径回落到根层
+            newPath = [board.children.length];
+          } else {
+            const targetFramePath = PathUtil.getPathByElement(
+              board,
+              targetFrame,
+            );
+            if (targetFramePath) {
+              newPath = [...targetFramePath, targetFrame.children.length];
+            }
           }
         } else {
           newPath = [board.children.length];
