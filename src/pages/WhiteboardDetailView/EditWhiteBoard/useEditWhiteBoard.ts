@@ -27,7 +27,6 @@ const useEditWhiteBoard = (whiteBoardId: number) => {
     getWhiteBoardById(whiteBoardId)
       .then((wb) => {
         setWhiteBoard(wb);
-        console.log(wb.whiteBoardContentList);
         if (wb.whiteBoardContentList.length > 0) {
           setActiveSubWhiteBoard(wb.whiteBoardContentList[0]);
         }

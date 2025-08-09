@@ -6,8 +6,12 @@ import { performRAGEnhancement } from "@/utils/rag-helper";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 
 interface IChatStreamOptions {
-  onFinish: (content: string, reasoning_content: string, res: Response) => void;
-  onUpdate: (
+  onFinish?: (
+    content: string,
+    reasoning_content: string,
+    res: Response,
+  ) => void;
+  onUpdate?: (
     responseText: string,
     fetchText: string,
     reasoningText?: string,
@@ -134,15 +138,20 @@ export const chatStreamInner = async (
     };
   });
 
+  const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((model) =>
+    modelName.startsWith(model),
+  );
+  const notSupportFrequencyPenalty = ["gemini"].some((model) =>
+    modelName.startsWith(model),
+  );
+
   const requestPayload = {
     messages: streamMessages,
     stream: true,
     model: modelName,
-    temperature: ["o3", "o3-mini", "o4", "o4-mini"].includes(modelName)
-      ? undefined
-      : 0.3,
+    temperature: notSupportTemperature ? undefined : 0.3,
     presence_penalty: 0,
-    frequency_penalty: modelName.includes("gemini") ? undefined : 0,
+    frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
     top_p: 1,
     reasoning_effort: options.enableThinking ? "medium" : undefined,
   };

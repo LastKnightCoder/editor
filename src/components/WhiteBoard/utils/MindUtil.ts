@@ -1,6 +1,7 @@
 import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 import BoardUtil from "./BoardUtil.ts";
+import PathUtil from "./PathUtil.ts";
 import { Board, MindNodeElement, MindDragTarget } from "../types";
 import { MIND_COLORS } from "../constants";
 
@@ -153,6 +154,66 @@ export class MindUtil {
         true,
       );
     });
+  }
+
+  /**
+   * 在 mind 节点移动后，对受影响的根节点（目标根与源根）进行重新布局
+   * 调用时机：完成 move 操作（apply）之后
+   */
+  static relayoutAffectedRootsAfterMindMove(
+    board: Board,
+    movedMindNodeId: string,
+    sourceRootId?: string | null,
+  ) {
+    const latestMoved = BoardUtil.getElementById(
+      board,
+      movedMindNodeId,
+    ) as MindNodeElement | null;
+    if (!latestMoved) return;
+
+    // 最新的目标根节点
+    const targetRoot = MindUtil.getRoot(board, latestMoved);
+    if (targetRoot) {
+      const laidOut = MindUtil.layout(targetRoot);
+      const targetRootPath = PathUtil.getPathByElement(board, targetRoot);
+      if (targetRootPath) {
+        board.apply(
+          {
+            type: "set_node",
+            path: targetRootPath,
+            properties: targetRoot,
+            newProperties: laidOut,
+          },
+          true,
+        );
+      }
+    }
+
+    // 旧的源根节点（若与目标根不同）
+    if (sourceRootId && (!targetRoot || targetRoot.id !== sourceRootId)) {
+      const latestSourceRoot = BoardUtil.getElementById(
+        board,
+        sourceRootId,
+      ) as MindNodeElement | null;
+      if (latestSourceRoot) {
+        const relaid = MindUtil.layout(latestSourceRoot);
+        const sourceRootPath = PathUtil.getPathByElement(
+          board,
+          latestSourceRoot,
+        );
+        if (sourceRootPath) {
+          board.apply(
+            {
+              type: "set_node",
+              path: sourceRootPath,
+              properties: latestSourceRoot,
+              newProperties: relaid,
+            },
+            true,
+          );
+        }
+      }
+    }
   }
 
   static dfs(
