@@ -18,6 +18,7 @@ import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
 import staticServerModule from "./modules/static-server";
 import bilibiliCacheModule from "./modules/bilibili-cache";
+import youtubeCacheModule from "./modules/youtube-cache";
 import PathUtil from "./utils/PathUtil";
 
 (async (): Promise<void> => {
@@ -188,6 +189,7 @@ const initModules = async () => {
       voiceCopyModule.init(),
       staticServerModule.init(),
       bilibiliCacheModule.init(),
+      youtubeCacheModule.init(),
     ]);
 
     // 初始化窗口管理器

@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import ytdl from "@distube/ytdl-core";
 
 export interface LocalVideoMetaInfo {
   type: "local";
@@ -17,10 +18,18 @@ export interface BiliBiliVideoMetaInfo {
   quality?: number; // 用户选择的清晰度，默认使用 80 (1080P)
 }
 
+export interface YouTubeVideoMetaInfo {
+  type: "youtube";
+  videoId: string;
+  videoFormat: ytdl.videoFormat;
+  audioFormat: ytdl.videoFormat;
+}
+
 type VideoMetaInfo =
   | LocalVideoMetaInfo
   | RemoteVideoMetaInfo
-  | BiliBiliVideoMetaInfo;
+  | BiliBiliVideoMetaInfo
+  | YouTubeVideoMetaInfo;
 
 export interface VideoNote {
   id: number;

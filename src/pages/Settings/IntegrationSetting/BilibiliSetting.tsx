@@ -266,10 +266,39 @@ const BilibiliSetting: React.FC = () => {
   return (
     <>
       <Card className={styles.appCard}>
-        <div className={styles.appIcon}>B</div>
+        <div className="flex gap-2 items-center">
+          <div className={styles.appIcon}>B</div>
 
-        <Title level={5}>Bilibili</Title>
-        <Text type="secondary">哔哩哔哩视频平台集成</Text>
+          <div className="flex flex-col">
+            <Title level={5} className="mb-0!">
+              Bilibili
+            </Title>
+            <Text type="secondary">哔哩哔哩</Text>
+          </div>
+
+          {bilibili.userInfo.isLogin && (
+            <div className="ml-auto">
+              <Space
+                direction="vertical"
+                size="small"
+                style={{ width: "100%" }}
+              >
+                <Space>
+                  <Avatar
+                    icon={<UserOutlined />}
+                    src={bilibili.userInfo.avatar}
+                  />
+                  <div>
+                    <div>{bilibili.userInfo.name}</div>
+                    <Tag color={getVipStatusColor(bilibili.userInfo.vipStatus)}>
+                      {getVipStatusText(bilibili.userInfo.vipStatus)}
+                    </Tag>
+                  </div>
+                </Space>
+              </Space>
+            </div>
+          )}
+        </div>
 
         <div className={styles.appStatus}>
           <div
@@ -279,32 +308,6 @@ const BilibiliSetting: React.FC = () => {
             {bilibili.userInfo.isLogin ? "已连接" : "未连接"}
           </Text>
         </div>
-
-        {bilibili.userInfo.isLogin && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 12,
-              background: "#f5f5f5",
-              borderRadius: 8,
-            }}
-          >
-            <Space direction="vertical" size="small" style={{ width: "100%" }}>
-              <Space>
-                <Avatar
-                  icon={<UserOutlined />}
-                  src={bilibili.userInfo.avatar}
-                />
-                <div>
-                  <div>{bilibili.userInfo.name}</div>
-                  <Tag color={getVipStatusColor(bilibili.userInfo.vipStatus)}>
-                    {getVipStatusText(bilibili.userInfo.vipStatus)}
-                  </Tag>
-                </div>
-              </Space>
-            </Space>
-          </div>
-        )}
 
         <Space direction="vertical" style={{ width: "100%", marginTop: 16 }}>
           {!bilibili.userInfo.isLogin ? (

@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import { type VideoNote as IVideoNote, BiliBiliVideoMetaInfo } from "@/types";
+import {
+  type VideoNote as IVideoNote,
+  BiliBiliVideoMetaInfo,
+  YouTubeVideoMetaInfo,
+} from "@/types";
 import VideoNote from "@/components/VideoNote";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
+import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import styles from "./index.module.less";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
+import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
 import { useVideoNoteOperations } from "@/hooks/useVideoNoteOperations";
 
 interface IVideoNoteViewProps {
@@ -15,13 +21,19 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const uploadResource = useUploadResource();
 
-  // 使用 Bilibili 视频处理 hook
   const {
     videoUrl: bilibiliVideoUrl,
     loading: bilibiliLoading,
     error: bilibiliError,
     streamProgress,
   } = useBilibiliVideo(videoNote?.metaInfo as BiliBiliVideoMetaInfo);
+
+  const {
+    videoUrl: youtubeVideoUrl,
+    loading: youtubeLoading,
+    error: youtubeError,
+    streamProgress: youtubeStreamProgress,
+  } = useYoutubeVideo(videoNote?.metaInfo as YouTubeVideoMetaInfo);
 
   const {
     refreshVideoNote,
@@ -77,6 +89,29 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         {bilibiliVideoUrl && !bilibiliLoading && !bilibiliError && (
           <VideoNote
             videoSrc={bilibiliVideoUrl}
+            initialNotes={videoNote.notes}
+            uploadResource={uploadResource}
+            addSubNote={handleAddSubNote}
+            deleteSubNote={handleDeleteSubNote}
+            updateSubNote={handleUpdateSubNote}
+            updateNotes={updateNotes}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (videoNote.metaInfo.type === "youtube") {
+    return (
+      <div className={styles.container}>
+        <YoutubeVideoLoader
+          loading={youtubeLoading}
+          error={youtubeError}
+          streamProgress={youtubeStreamProgress}
+        />
+        {youtubeVideoUrl && !youtubeLoading && !youtubeError && (
+          <VideoNote
+            videoSrc={youtubeVideoUrl}
             initialNotes={videoNote.notes}
             uploadResource={uploadResource}
             addSubNote={handleAddSubNote}
