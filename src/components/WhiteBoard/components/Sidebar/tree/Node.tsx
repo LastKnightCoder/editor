@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
-// antd Dropdown 版本的节点组件
-import { Dropdown, MenuProps } from "antd";
+import { Dropdown, MenuProps, App } from "antd";
 import {
   Board,
   BoardElement,
@@ -34,7 +33,8 @@ const Node: React.FC<NodeProps> = ({
   const [expanded, setExpanded] = useState(!collapsed);
   const [isRenaming, setIsRenaming] = useState(false);
   const [tempName, setTempName] = useState<string>(element.name ?? "");
-  // antd Dropdown 用于右键菜单
+
+  const { modal } = App.useApp();
 
   const hasChildren =
     Array.isArray(element.children) && element.children.length > 0;
@@ -42,7 +42,6 @@ const Node: React.FC<NodeProps> = ({
 
   const displayName = element.name ?? element.type;
 
-  // 拖拽：仅 frame / mind-node 可作为容器接收 drop
   const elementPath = useMemo(
     () => PathUtil.getPathByElement(board, element) ?? [],
     [board, element],
@@ -170,13 +169,48 @@ const Node: React.FC<NodeProps> = ({
               return; // 阻止 mind-node 被插到非 mind-node 的层级
             }
           }
-          // 逆序展示修正：UI Top 表示数据层插入到 dropIndex 之前，
-          // 但我们为了避免先删后插引起的索引偏移，选择使用偏移后的目标：
-          // Top -> dropIndex + 1, Bottom -> dropIndex
-          const insertIndex =
-            position === DragPosition.Top ? dropIndex + 1 : dropIndex;
+          // 根据父级列表的展示顺序决定插入索引：
+          // - 顶层和非 mind-node 子列表为逆序（Top 表示插到其后）
+          // - mind-node 子列表为正序（Top 表示插到其前）
+          // 在移动前记录源 mind 根节点，移动后获取最新 root 并重新布局
+          let sourceMindRootIdForReorder: string | null = null;
+          const dragEl2 = BoardUtil.getElementById(board, dragItem.elementId);
+          if (dragEl2?.type === "mind-node") {
+            const sourceRoot = MindUtil.getRoot(
+              board as Board,
+              dragEl2 as MindNodeElement,
+            );
+            sourceMindRootIdForReorder = sourceRoot?.id ?? null;
+          }
+          let isReversed = true; // 默认按当前 UI 的逆序渲染
+          if (parent.length > 0) {
+            const parentEl2 = PathUtil.getElementByPath(
+              board,
+              parent,
+            ) as BoardElement | null;
+            isReversed = parentEl2 ? parentEl2.type !== "mind-node" : true;
+          } else {
+            // 顶层为逆序
+            isReversed = true;
+          }
+          const insertIndex = isReversed
+            ? position === DragPosition.Top
+              ? dropIndex + 1
+              : dropIndex
+            : position === DragPosition.Top
+              ? dropIndex
+              : dropIndex + 1;
           const newPath = [...parent, insertIndex];
           board.apply({ type: "move_node", path: fromPath, newPath }, true);
+
+          // 移动后对 mind-node 的 root 进行重新布局（统一调用工具方法）
+          if (dragEl2?.type === "mind-node") {
+            MindUtil.relayoutAffectedRootsAfterMindMove(
+              board as Board,
+              dragItem.elementId,
+              sourceMindRootIdForReorder,
+            );
+          }
         },
       },
     );
@@ -233,21 +267,122 @@ const Node: React.FC<NodeProps> = ({
       const path = elementPath;
       if (!path) return;
       if (key === "toTop") {
+        // 记录源 mind root（若当前元素为 mind-node）
+        let sourceMindRootId: string | null = null;
+        if (element.type === "mind-node") {
+          const sourceRoot = MindUtil.getRoot(
+            board as Board,
+            element as MindNodeElement,
+          );
+          sourceMindRootId = sourceRoot?.id ?? null;
+        }
+
         const parent = PathUtil.getParentByPath(board, path);
-        const total = Array.isArray((parent as BoardElement).children)
-          ? (parent as BoardElement).children!.length
-          : board.children.length;
-        const newPath = [...path.slice(0, -1), total];
+        const isTopLevel = !parent || (parent as any) === board;
+        const parentChildren = isTopLevel
+          ? board.children
+          : ((parent as BoardElement).children ?? []);
+        const total = parentChildren.length;
+        // 顶层与非 mind-node 子列表为逆序；mind-node 子列表为正序
+        const isReversed = isTopLevel
+          ? true
+          : (parent as BoardElement).type !== "mind-node";
+        const targetIndex = isReversed ? total : 0;
+        const newPath = [...path.slice(0, -1), targetIndex];
         board.apply({ type: "move_node", path, newPath }, true);
+
+        // 移动后重新布局目标 root 与旧 root（获取最新 root）
+        if (element.type === "mind-node") {
+          MindUtil.relayoutAffectedRootsAfterMindMove(
+            board as Board,
+            element.id,
+            sourceMindRootId,
+          );
+        }
         return;
       }
       if (key === "toBottom") {
-        const newPath = [...path.slice(0, -1), 0];
+        // 记录源 mind root（若当前元素为 mind-node）
+        let sourceMindRootId: string | null = null;
+        if (element.type === "mind-node") {
+          const sourceRoot = MindUtil.getRoot(
+            board as Board,
+            element as MindNodeElement,
+          );
+          sourceMindRootId = sourceRoot?.id ?? null;
+        }
+
+        const parent = PathUtil.getParentByPath(board, path);
+        const isTopLevel = !parent || (parent as any) === board;
+        const parentChildren = isTopLevel
+          ? board.children
+          : ((parent as BoardElement).children ?? []);
+        const total = parentChildren.length;
+        const isReversed = isTopLevel
+          ? true
+          : (parent as BoardElement).type !== "mind-node";
+        const targetIndex = isReversed ? 0 : total;
+        const newPath = [...path.slice(0, -1), targetIndex];
         board.apply({ type: "move_node", path, newPath }, true);
+
+        // 移动后重新布局目标 root 与旧 root（获取最新 root）
+        if (element.type === "mind-node") {
+          MindUtil.relayoutAffectedRootsAfterMindMove(
+            board as Board,
+            element.id,
+            sourceMindRootId,
+          );
+        }
         return;
       }
       if (key === "delete") {
-        board.apply({ type: "remove_node", path, node: element }, true);
+        modal.confirm({
+          title: "删除元素",
+          content: "确定要删除该元素吗？",
+          okButtonProps: {
+            danger: true,
+          },
+          onOk: () => {
+            // mind-node 需要特殊处理：非根节点删除后需对其根节点重新布局
+            if (element.type === "mind-node") {
+              const mindElement = element as MindNodeElement;
+              const root = MindUtil.getRoot(board as Board, mindElement);
+              if (!root) return;
+              if (root.id === mindElement.id) {
+                // 删除根节点：直接 remove
+                const currentPath = PathUtil.getPathByElement(board, element);
+                if (!currentPath) return;
+                board.apply(
+                  { type: "remove_node", path: currentPath, node: element },
+                  true,
+                );
+              } else {
+                // 删除非根节点：基于根节点重建并 layout
+                const rootPath = PathUtil.getPathByElement(board, root);
+                if (!rootPath) return;
+                const newRoot = MindUtil.deleteNode(root, mindElement);
+                board.apply(
+                  {
+                    type: "set_node",
+                    path: rootPath,
+                    properties: root,
+                    newProperties: newRoot,
+                  },
+                  true,
+                );
+              }
+              return;
+            }
+            // 其他类型：直接删除
+            const currentPath = PathUtil.getPathByElement(board, element);
+            if (!currentPath) return;
+            board.apply(
+              { type: "remove_node", path: currentPath, node: element },
+              true,
+            );
+          },
+        });
+        return;
       }
     },
     [board, element, elementPath, startRename],
@@ -264,35 +399,46 @@ const Node: React.FC<NodeProps> = ({
     [],
   );
 
+  const color = useMemo(() => {
+    const getColor = (type: string) => {
+      switch (type) {
+        case "richtext":
+          return "emerald";
+        case "card":
+          return "blue";
+        case "frame":
+          return "purple";
+        case "mind-node":
+          return "orange";
+        case "image":
+          return "pink";
+        case "video":
+          return "rose";
+        case "webview":
+          return "cyan";
+        case "geometry":
+          return "amber";
+        case "arrow":
+          return "indigo";
+        default:
+          return "gray";
+      }
+    };
+
+    return getColor(element.type);
+  }, [element.type]);
+
   // 根据元素类型确定图标颜色
-  const getElementColor = (type: string) => {
-    switch (type) {
-      case "richtext":
-        return "text-emerald-500";
-      case "card":
-        return "text-blue-500";
-      case "frame":
-        return "text-purple-500";
-      case "mind-node":
-        return "text-orange-500";
-      default:
-        return "text-gray-500";
-    }
+  const getElementColor = () => {
+    return `text-${color}-500!`;
   };
 
-  const getBgColor = (type: string) => {
-    switch (type) {
-      case "richtext":
-        return "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-700/30";
-      case "card":
-        return "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700/30";
-      case "frame":
-        return "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-700/30";
-      case "mind-node":
-        return "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700/30";
-      default:
-        return "bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-700/30";
-    }
+  const getBgColor = () => {
+    return `bg-${color}-50 dark:bg-${color}-900/30 border-${color}-300 dark:border-${color}-700/50`;
+  };
+
+  const getRoundedBgColor = () => {
+    return `bg-${color}-500`;
   };
 
   return (
@@ -307,8 +453,9 @@ const Node: React.FC<NodeProps> = ({
           className={classNames(
             "group cursor-pointer select-none relative transition-all duration-150 ease-out",
             "rounded-md mx-2 my-0.5",
-            "hover:bg-item-hover",
-            isSelected && "bg-sidebar-active border-l-2 border-bottom-line",
+            `hover:bg-${color}-50`,
+            isSelected &&
+              `border-${color}-500! bg-${color}-50 dark:bg-${color}-900/30`,
             isContainer &&
               isOver &&
               canDrop &&
@@ -330,11 +477,17 @@ const Node: React.FC<NodeProps> = ({
           {depth > 0 && (
             <>
               <div
-                className="absolute top-0 bottom-0 w-px bg-gradient-to-b from-ui-border/20 via-ui-border/40 to-ui-border/20"
+                className={classNames(
+                  "absolute top-0 bottom-0 w-px bg-gradient-to-b",
+                  `from-${color}-500/20 via-${color}-500/40 to-${color}-500/20`,
+                )}
                 style={{ left: `${0.3 * (depth - 1) + 1.2}em` }}
               />
               <div
-                className="absolute top-1/2 w-3 h-px bg-gradient-to-r from-ui-border/40 to-transparent"
+                className={classNames(
+                  "absolute top-1/2 w-3 h-px bg-gradient-to-r",
+                  `from-${color}-500/40 to-transparent`,
+                )}
                 style={{ left: `${0.3 * (depth - 1) + 1.2}em` }}
               />
             </>
@@ -364,7 +517,10 @@ const Node: React.FC<NodeProps> = ({
             ) : (
               <div className="w-5 h-5 flex items-center justify-center">
                 <div
-                  className={`w-1.5 h-1.5 rounded-full ${getBgColor(element.type)}`}
+                  className={classNames(
+                    "w-1.5 h-1.5 rounded-full",
+                    getRoundedBgColor(),
+                  )}
                 />
               </div>
             )}
@@ -378,8 +534,14 @@ const Node: React.FC<NodeProps> = ({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") commitRename();
                     if (e.key === "Escape") setIsRenaming(false);
+                    e.stopPropagation();
                   }}
-                  className="min-w-0 flex-1 bg-transparent outline-none border-b border-ui-border/50 focus:border-bottom-line text-sm text-text-primary"
+                  className={classNames(
+                    "min-w-0 flex-1 bg-transparent outline-none border-b border-${color}-500/20 focus:border-bottom-line text-sm text-text-primary",
+                    `border-${color}-500/20`,
+                    `focus:border-${color}-500`,
+                    `text-sm text-text-primary`,
+                  )}
                 />
               ) : (
                 <span className="truncate text-text-primary font-medium text-sm leading-relaxed">
@@ -390,9 +552,8 @@ const Node: React.FC<NodeProps> = ({
                 className={classNames(
                   "flex-shrink-0 text-xs px-3 py-1 rounded-full font-medium transition-all duration-200",
                   "border backdrop-blur-sm",
-                  getBgColor(element.type),
-                  getElementColor(element.type),
-                  "group-hover:scale-105",
+                  getBgColor(),
+                  getElementColor(),
                 )}
               >
                 {element.type}
@@ -403,13 +564,13 @@ const Node: React.FC<NodeProps> = ({
           {isOver && canDrop && (
             <div className="absolute inset-0 pointer-events-none rounded-xl">
               {dragPosition === DragPosition.Top && (
-                <div className="absolute left-2 right-2 -top-1 h-1 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
+                <div className="absolute left-2 right-2 -top-1 h-[1px] bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
               )}
               {dragPosition === DragPosition.Bottom && (
-                <div className="absolute left-2 right-2 -bottom-1 h-1 bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
+                <div className="absolute left-2 right-2 -bottom-1 h-[1px] bg-gradient-to-r from-violet-500 to-purple-500 rounded-full shadow-lg shadow-violet-500/50" />
               )}
               {dragPosition === DragPosition.Inside && isContainer && (
-                <div className="absolute inset-0 rounded-xl ring-2 ring-violet-500/40" />
+                <div className="absolute inset-0 rounded-xl ring-[2px] ring-violet-500/40" />
               )}
             </div>
           )}

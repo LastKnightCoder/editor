@@ -13,17 +13,9 @@ const ElementTree: React.FC<ElementTreeProps> = ({
   selectedIds,
   collapsed,
 }) => {
-  // 反向展示：后插入（覆盖前面的）显示在上面
   const nodes = useMemo(() => (root ? root.slice().reverse() : []), [root]);
   return (
-    <div
-      className="pb-2"
-      onWheel={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
-      onPointerMove={(e) => e.stopPropagation()}
-      onPointerUp={(e) => e.stopPropagation()}
-    >
+    <div className="pb-2">
       {nodes.map((n) => (
         <Node
           key={n.id}

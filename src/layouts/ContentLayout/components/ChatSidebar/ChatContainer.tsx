@@ -28,7 +28,7 @@ import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
-import { chat, createChatMessage } from "@/commands";
+import { createChatMessage } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { InfoCircleOutlined } from "@ant-design/icons";
@@ -253,7 +253,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     const titleMessages: RequestMessage[] =
                       updatedChatMessage.messages
                         .slice(1)
-                        .slice(-10)
+                        .slice(-2)
                         .map((message): RequestMessage => {
                           if (message.role === Role.User) {
                             return message as RequestMessage;
@@ -268,10 +268,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                           }
                         });
 
-                    const newTitle = await chat(
-                      titleProviderConfig.apiKey,
-                      titleProviderConfig.baseUrl,
-                      titleModelConfig.name,
+                    chatLLMStream(
+                      titleProviderConfig,
+                      titleModelConfig,
                       [
                         {
                           role: Role.System,
@@ -280,20 +279,32 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                           ],
                         },
                         ...titleMessages,
-                      ],
-                    );
-
-                    if (newTitle) {
-                      const updateChat = produce(
-                        updatedChatMessage,
-                        (draft) => {
-                          draft.title = newTitle.slice(0, 20);
+                        {
+                          role: Role.User,
+                          content: [
+                            {
+                              type: "text",
+                              text: "请根据以上对话内容生成一个简洁的标题",
+                            },
+                          ],
                         },
-                      );
-                      await updateChatMessage(updateChat);
-                      updateCurrentChat(updateChat);
-                      titleRef.current?.setValue(newTitle.slice(0, 20));
-                    }
+                      ],
+                      {
+                        onFinish: async (content) => {
+                          if (content) {
+                            const updateChat = produce(
+                              updatedChatMessage,
+                              (draft) => {
+                                draft.title = content.slice(0, 20);
+                              },
+                            );
+                            await updateChatMessage(updateChat);
+                            updateCurrentChat(updateChat);
+                            titleRef.current?.setValue(content.slice(0, 20));
+                          }
+                        },
+                      },
+                    );
                   }
                 } catch (e) {
                   console.error("Failed to generate title:", e);

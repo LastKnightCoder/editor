@@ -89,6 +89,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
     }, [cdnUrl]);
 
     const onError = useMemoizedFn(() => {
+      console.log("onError", cdnUrl);
       setPreviewUrl(cdnUrl);
     });
 

@@ -1,5 +1,5 @@
 import { memo, useMemo, useState, useEffect, useRef } from "react";
-import { useAsyncEffect, useMemoizedFn } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPoint from "../ArrowConnectPoint";
@@ -32,10 +32,9 @@ import {
   DEFAULT_DESCRIPTION_ALIGNMENT,
   DEFAULT_DESCRIPTION_FONT_SIZE,
 } from "../../constants/image";
-import { remoteResourceToLocal } from "@/utils";
-import { convertFileSrc } from "@/commands";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
+import LocalImage from "@/components/LocalImage";
 
 import styles from "./index.module.less";
 
@@ -78,37 +77,13 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
 
   const { isDark } = useTheme();
 
-  const [isConverting, setIsConverting] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(src);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [tempDescription, setTempDescription] = useState(description);
   const editTextRef = useRef<EditTextHandle>(null);
 
-  useAsyncEffect(async () => {
-    setIsConverting(true);
-    try {
-      if (src.startsWith("http")) {
-        const localUrl = await remoteResourceToLocal(src);
-        const filePath = await convertFileSrc(localUrl);
-        setPreviewUrl(filePath);
-      } else {
-        const filePath = await convertFileSrc(src);
-        setPreviewUrl(filePath);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsConverting(false);
-    }
-  }, [src]);
-
   useEffect(() => {
     setTempDescription(description);
   }, [description]);
-
-  const onLoadImageError = () => {
-    setPreviewUrl(src);
-  };
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
@@ -213,10 +188,6 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
     editTextRef.current?.focusEnd();
   });
 
-  if (isConverting) {
-    return null;
-  }
-
   // 获取描述文字颜色
   const descriptionColor =
     element.descriptionStyle?.color ||
@@ -316,15 +287,14 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           userSelect: "none",
         }}
       >
-        <img
-          src={previewUrl}
-          onError={onLoadImageError}
+        <LocalImage
+          url={src}
+          alt={description}
           width={width}
           height={height}
-          alt={""}
-          onDoubleClick={stopPropagation}
-          draggable={false}
           className="object-contain select-none object-center"
+          draggable={false}
+          onDoubleClick={stopPropagation}
         />
       </foreignObject>
 

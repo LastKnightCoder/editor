@@ -77,7 +77,6 @@ class LLMModule implements Module {
     });
   }
 
-  // 保持原有的 chat 方法作为向后兼容
   async chat(
     apiKey: string,
     baseUrl: string,
@@ -94,61 +93,20 @@ class LLMModule implements Module {
 
     const { enableThinking = false } = options || {};
 
-    // 直接转换为 OpenAI 格式，无需复杂判断
-    const openAIMessages: any[] = messages.map((message) => {
-      const role = message.role;
-
-      if (typeof message.content === "string") {
-        return {
-          role,
-          content: message.content,
-        };
-      }
-
-      // 只有一个文本内容时使用简单格式
-      if (message.content.length === 1 && message.content[0].type === "text") {
-        return {
-          role,
-          content: message.content[0].text,
-        };
-      }
-
-      // 多模态内容格式
-      const content = message.content.map((item) => {
-        if (item.type === "text") {
-          return {
-            type: "text" as const,
-            text: item.text,
-          };
-        } else if (item.type === "image") {
-          return {
-            type: "image_url" as const,
-            image_url: {
-              url: item.image,
-            },
-          };
-        }
-        // 文件类型暂时转为文本处理
-        return {
-          type: "text" as const,
-          text: `[文件: ${item.file}]`,
-        };
-      });
-
-      return {
-        role,
-        content,
-      };
-    });
+    const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((model) =>
+      model.startsWith(model),
+    );
+    const notSupportFrequencyPenalty = ["gemini"].some((model) =>
+      model.startsWith(model),
+    );
 
     const res = await client.chat.completions.create({
       model,
-      messages: openAIMessages,
-      temperature: 0.3,
-      n: 1,
-      top_p: 0,
+      messages: messages as any,
+      temperature: notSupportTemperature ? undefined : 0.3,
       stream: false,
       reasoning_effort: enableThinking ? "medium" : undefined,
+      frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
     });
 
     return res.choices[0].message.content;
