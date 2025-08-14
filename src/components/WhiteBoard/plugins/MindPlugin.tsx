@@ -1,4 +1,5 @@
 import { produce } from "immer";
+import type { ReactNode } from "react";
 import {
   Board,
   IBoardPlugin,
@@ -50,8 +51,27 @@ export class MindPlugin implements IBoardPlugin {
   private listeners: Set<() => void> = new Set();
 
   isHit(_board: Board, element: MindNodeElement, x: number, y: number) {
-    const { x: left, y: top, width, height } = element;
+    // 若节点在折叠状态（被父级或祖先按其方向折叠而隐藏），直接不可命中
+    const root = MindUtil.getRoot(_board, element);
+    if (root) {
+      let isVisible = false;
+      MindUtil.dfs(
+        root,
+        {
+          before: (current) => {
+            if (current.id === element.id) {
+              isVisible = true;
+            }
+          },
+        },
+        null,
+        0,
+        true,
+      );
+      if (!isVisible) return false;
+    }
 
+    const { x: left, y: top, width, height } = element;
     return x >= left && x <= left + width && y >= top && y <= top + height;
   }
 
@@ -91,6 +111,9 @@ export class MindPlugin implements IBoardPlugin {
   }
 
   onPointerDown(e: PointerEvent, board: Board) {
+    // 如果是右键，直接 return
+    if (e.button === 2) return;
+
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 
@@ -483,7 +506,7 @@ export class MindPlugin implements IBoardPlugin {
 
   render(
     _board: Board,
-    { element, children }: { element: MindNodeElement; children?: any },
+    { element, children }: { element: MindNodeElement; children?: ReactNode },
   ) {
     return (
       <g key={element.id}>
