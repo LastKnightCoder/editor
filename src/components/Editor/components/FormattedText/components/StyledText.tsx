@@ -18,7 +18,7 @@ const StyledText = memo(
     children,
     className,
     textDecoration,
-    color,
+    color = "inherit",
     attributes,
   }: StyledTextProps) => {
     const style = useMemo(() => {

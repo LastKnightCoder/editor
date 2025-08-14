@@ -376,7 +376,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 >
                   <div className="relative h-full w-full">
                     <div
-                      className={`absolute left-0 top-1/2 -translate-y-1/2 ${sidebarOpen ? "translate-x-1/2" : "-translate-x-0"} rounded-full w-6 h-6 border border-gray-200 dark:border-gray-800 bg-white dark:bg-black flex items-center justify-center cursor-pointer z-10`}
+                      className={`absolute left-0 top-1/2 -translate-y-1/2 ${sidebarOpen ? "-translate-x-1/2" : "-translate-x-0"} rounded-full w-6 h-6 border border-gray-200 dark:border-gray-800 bg-white dark:bg-black flex items-center justify-center cursor-pointer z-10`}
                     >
                       {sidebarOpen ? (
                         <ArrowLeftOutlined
