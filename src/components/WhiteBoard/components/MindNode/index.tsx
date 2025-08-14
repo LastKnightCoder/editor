@@ -405,7 +405,7 @@ const MindNode = (props: MindNodeProps) => {
             sourceMarker={EMarkerType.None}
             targetMarker={EMarkerType.None}
             lineColor={
-              MIND_LINE_COLORS[element.level - (1 % MIND_LINE_COLORS.length)]
+              MIND_LINE_COLORS[(element.level - 1) % MIND_LINE_COLORS.length]
             }
             lineWidth={2}
             points={[
@@ -431,7 +431,7 @@ const MindNode = (props: MindNodeProps) => {
             sourceMarker={EMarkerType.None}
             targetMarker={EMarkerType.None}
             lineColor={
-              MIND_LINE_COLORS[element.level - (1 % MIND_LINE_COLORS.length)]
+              MIND_LINE_COLORS[(element.level - 1) % MIND_LINE_COLORS.length]
             }
             lineWidth={2}
             points={[
@@ -466,7 +466,10 @@ const MindNode = (props: MindNodeProps) => {
             cy={element.y + element.height / 2}
             r={8}
             fill={
-              MIND_LINE_COLORS[element.level - (1 % MIND_LINE_COLORS.length)]
+              MIND_LINE_COLORS[
+                (element.level - 1 + MIND_LINE_COLORS.length) %
+                  MIND_LINE_COLORS.length
+              ]
             }
           />
           <text
@@ -501,7 +504,10 @@ const MindNode = (props: MindNodeProps) => {
             cy={element.y + element.height / 2}
             r={8}
             fill={
-              MIND_LINE_COLORS[element.level - (1 % MIND_LINE_COLORS.length)]
+              MIND_LINE_COLORS[
+                (element.level - 1 + MIND_LINE_COLORS.length) %
+                  MIND_LINE_COLORS.length
+              ]
             }
             className="relative"
           />

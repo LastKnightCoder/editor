@@ -156,10 +156,6 @@ export class MindUtil {
     });
   }
 
-  /**
-   * 在 mind 节点移动后，对受影响的根节点（目标根与源根）进行重新布局
-   * 调用时机：完成 move 操作（apply）之后
-   */
   static relayoutAffectedRootsAfterMindMove(
     board: Board,
     movedMindNodeId: string,
@@ -341,8 +337,8 @@ export class MindUtil {
             x: 0,
             y: 0,
             width: 24,
-            height: 48,
-            actualHeight: 48,
+            height: 40,
+            actualHeight: 40,
             level: current.level + 1,
             childrenHeight: 0,
             leftChildrenHeight: 0,
@@ -410,8 +406,8 @@ export class MindUtil {
             x: 0,
             y: 0,
             width: 24,
-            height: 48,
-            actualHeight: 48,
+            height: 40,
+            actualHeight: 40,
             level: current.level + 1,
             childrenHeight: 0,
             leftChildrenHeight: 0,

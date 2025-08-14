@@ -22,6 +22,120 @@ interface NodeProps {
 }
 
 const INDENT = 1; // 使用 em 单位，根据用户偏好
+const COLOR_CLASS_MAP: Record<
+  string,
+  {
+    text: string;
+    surface: string;
+    rounded: string;
+    hover: string;
+    gradV: string;
+    gradH: string;
+    selected: string;
+    input: string;
+  }
+> = {
+  emerald: {
+    text: "wb-node-text-emerald",
+    surface: "wb-node-surface-emerald",
+    rounded: "wb-node-rounded-emerald",
+    hover: "wb-node-hover-emerald",
+    gradV: "wb-node-grad-v-emerald",
+    gradH: "wb-node-grad-h-emerald",
+    selected: "wb-node-selected-emerald",
+    input: "wb-node-input-emerald",
+  },
+  blue: {
+    text: "wb-node-text-blue",
+    surface: "wb-node-surface-blue",
+    rounded: "wb-node-rounded-blue",
+    hover: "wb-node-hover-blue",
+    gradV: "wb-node-grad-v-blue",
+    gradH: "wb-node-grad-h-blue",
+    selected: "wb-node-selected-blue",
+    input: "wb-node-input-blue",
+  },
+  purple: {
+    text: "wb-node-text-purple",
+    surface: "wb-node-surface-purple",
+    rounded: "wb-node-rounded-purple",
+    hover: "wb-node-hover-purple",
+    gradV: "wb-node-grad-v-purple",
+    gradH: "wb-node-grad-h-purple",
+    selected: "wb-node-selected-purple",
+    input: "wb-node-input-purple",
+  },
+  orange: {
+    text: "wb-node-text-orange",
+    surface: "wb-node-surface-orange",
+    rounded: "wb-node-rounded-orange",
+    hover: "wb-node-hover-orange",
+    gradV: "wb-node-grad-v-orange",
+    gradH: "wb-node-grad-h-orange",
+    selected: "wb-node-selected-orange",
+    input: "wb-node-input-orange",
+  },
+  pink: {
+    text: "wb-node-text-pink",
+    surface: "wb-node-surface-pink",
+    rounded: "wb-node-rounded-pink",
+    hover: "wb-node-hover-pink",
+    gradV: "wb-node-grad-v-pink",
+    gradH: "wb-node-grad-h-pink",
+    selected: "wb-node-selected-pink",
+    input: "wb-node-input-pink",
+  },
+  rose: {
+    text: "wb-node-text-rose",
+    surface: "wb-node-surface-rose",
+    rounded: "wb-node-rounded-rose",
+    hover: "wb-node-hover-rose",
+    gradV: "wb-node-grad-v-rose",
+    gradH: "wb-node-grad-h-rose",
+    selected: "wb-node-selected-rose",
+    input: "wb-node-input-rose",
+  },
+  cyan: {
+    text: "wb-node-text-cyan",
+    surface: "wb-node-surface-cyan",
+    rounded: "wb-node-rounded-cyan",
+    hover: "wb-node-hover-cyan",
+    gradV: "wb-node-grad-v-cyan",
+    gradH: "wb-node-grad-h-cyan",
+    selected: "wb-node-selected-cyan",
+    input: "wb-node-input-cyan",
+  },
+  amber: {
+    text: "wb-node-text-amber",
+    surface: "wb-node-surface-amber",
+    rounded: "wb-node-rounded-amber",
+    hover: "wb-node-hover-amber",
+    gradV: "wb-node-grad-v-amber",
+    gradH: "wb-node-grad-h-amber",
+    selected: "wb-node-selected-amber",
+    input: "wb-node-input-amber",
+  },
+  indigo: {
+    text: "wb-node-text-indigo",
+    surface: "wb-node-surface-indigo",
+    rounded: "wb-node-rounded-indigo",
+    hover: "wb-node-hover-indigo",
+    gradV: "wb-node-grad-v-indigo",
+    gradH: "wb-node-grad-h-indigo",
+    selected: "wb-node-selected-indigo",
+    input: "wb-node-input-indigo",
+  },
+  gray: {
+    text: "wb-node-text-gray",
+    surface: "wb-node-surface-gray",
+    rounded: "wb-node-rounded-gray",
+    hover: "wb-node-hover-gray",
+    gradV: "wb-node-grad-v-gray",
+    gradH: "wb-node-grad-h-gray",
+    selected: "wb-node-selected-gray",
+    input: "wb-node-input-gray",
+  },
+};
 
 const Node: React.FC<NodeProps> = ({
   element,
@@ -428,18 +542,10 @@ const Node: React.FC<NodeProps> = ({
     return getColor(element.type);
   }, [element.type]);
 
-  // 根据元素类型确定图标颜色
-  const getElementColor = () => {
-    return `text-${color}-500!`;
-  };
-
-  const getBgColor = () => {
-    return `bg-${color}-50 dark:bg-${color}-900/30 border-${color}-300 dark:border-${color}-700/50`;
-  };
-
-  const getRoundedBgColor = () => {
-    return `bg-${color}-500`;
-  };
+  const colorClasses = useMemo(
+    () => COLOR_CLASS_MAP[color] ?? COLOR_CLASS_MAP.gray,
+    [color],
+  );
 
   return (
     <div className="relative">
@@ -452,10 +558,9 @@ const Node: React.FC<NodeProps> = ({
           onClick={onClick}
           className={classNames(
             "group cursor-pointer select-none relative transition-all duration-150 ease-out",
-            "rounded-md mx-2 my-0.5",
-            `hover:bg-${color}-50`,
-            isSelected &&
-              `border-${color}-500! bg-${color}-50 dark:bg-${color}-900/30`,
+            "rounded-md mx-2",
+            colorClasses.hover,
+            isSelected && colorClasses.selected,
             isContainer &&
               isOver &&
               canDrop &&
@@ -474,25 +579,6 @@ const Node: React.FC<NodeProps> = ({
             (dropContainerRef as any).current = el;
           }}
         >
-          {depth > 0 && (
-            <>
-              <div
-                className={classNames(
-                  "absolute top-0 bottom-0 w-px bg-gradient-to-b",
-                  `from-${color}-500/20 via-${color}-500/40 to-${color}-500/20`,
-                )}
-                style={{ left: `${0.3 * (depth - 1) + 1.2}em` }}
-              />
-              <div
-                className={classNames(
-                  "absolute top-1/2 w-3 h-px bg-gradient-to-r",
-                  `from-${color}-500/40 to-transparent`,
-                )}
-                style={{ left: `${0.3 * (depth - 1) + 1.2}em` }}
-              />
-            </>
-          )}
-
           <div className="flex items-center gap-2 py-1.5 px-2">
             {hasChildren ? (
               <button
@@ -519,7 +605,7 @@ const Node: React.FC<NodeProps> = ({
                 <div
                   className={classNames(
                     "w-1.5 h-1.5 rounded-full",
-                    getRoundedBgColor(),
+                    colorClasses.rounded,
                   )}
                 />
               </div>
@@ -537,10 +623,8 @@ const Node: React.FC<NodeProps> = ({
                     e.stopPropagation();
                   }}
                   className={classNames(
-                    "min-w-0 flex-1 bg-transparent outline-none border-b border-${color}-500/20 focus:border-bottom-line text-sm text-text-primary",
-                    `border-${color}-500/20`,
-                    `focus:border-${color}-500`,
-                    `text-sm text-text-primary`,
+                    "min-w-0 flex-1 bg-transparent outline-none border-b focus:border-bottom-line text-sm text-text-primary",
+                    colorClasses.input,
                   )}
                 />
               ) : (
@@ -552,8 +636,8 @@ const Node: React.FC<NodeProps> = ({
                 className={classNames(
                   "flex-shrink-0 text-xs px-3 py-1 rounded-full font-medium transition-all duration-200",
                   "border backdrop-blur-sm",
-                  getBgColor(),
-                  getElementColor(),
+                  colorClasses.surface,
+                  colorClasses.text,
                 )}
               >
                 {element.type}
