@@ -1,6 +1,11 @@
 import { Descendant } from "slate";
 
-export type IndexType = "card" | "article" | "project-item" | "document-item";
+export type IndexType =
+  | "card"
+  | "article"
+  | "project-item"
+  | "document-item"
+  | "log-entry";
 
 export interface SearchResult {
   id: number;

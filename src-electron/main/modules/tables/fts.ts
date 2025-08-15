@@ -6,6 +6,7 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
+import LogTable from "./log";
 import { chunk } from "llm-chunk";
 
 const jieba = Jieba.withDict(dict);
@@ -290,6 +291,9 @@ class FTSTable {
         case "document-item":
           details = DocumentTable.getDocumentItem(db, result.id);
           break;
+        case "log-entry":
+          details = LogTable.getLogById(db, result.id);
+          break;
         default:
           break;
       }
@@ -301,6 +305,8 @@ class FTSTable {
           // @ts-ignore
           title: details.title || "",
           updateTime: result.updateTime,
+          // @ts-ignore
+          contentId: details.contentId || details.content_id,
         });
       }
     }

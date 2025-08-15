@@ -62,6 +62,7 @@ const VecDocumentView = memo(() => {
                 <Select.Option value="article">文章</Select.Option>
                 <Select.Option value="project-item">项目</Select.Option>
                 <Select.Option value="document-item">知识库</Select.Option>
+                <Select.Option value="log-entry">日志</Select.Option>
               </Select>
               {leftExtraNode}
             </Flex>

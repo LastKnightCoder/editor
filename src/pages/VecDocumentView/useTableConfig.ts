@@ -5,6 +5,7 @@ import useArticleConig from "./useArticleConfig";
 import useProjectConfig from "./useProjectConfig";
 import useDocumentConfig from "./useDocumentConfig";
 import { IndexType } from "@/types";
+import useLogConfig from "./useLogConfig";
 
 // 定义通用的表格配置接口，包含 leftExtraNode
 interface TableConfig {
@@ -22,6 +23,7 @@ const useTableConfig = (key: IndexType): TableConfig | null => {
   const articleConfig = useArticleConig();
   const projectConfig = useProjectConfig();
   const documentConfig = useDocumentConfig();
+  const logConfig = useLogConfig();
 
   const tableConfig = useMemo(() => {
     if (key === "card") {
@@ -32,10 +34,19 @@ const useTableConfig = (key: IndexType): TableConfig | null => {
       return projectConfig;
     } else if (key === "document-item") {
       return documentConfig;
+    } else if (key === "log-entry") {
+      return logConfig;
     } else {
       return null;
     }
-  }, [cardConfig, articleConfig, projectConfig, documentConfig, key]);
+  }, [
+    cardConfig,
+    articleConfig,
+    projectConfig,
+    documentConfig,
+    logConfig,
+    key,
+  ]);
 
   return tableConfig;
 };

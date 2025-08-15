@@ -13,6 +13,7 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
 import DocumentTable from "./document";
+import LogTable from "./log";
 
 // 添加类型前缀到ID
 const addTypePrefix = (id: number, type: string): string => {
@@ -264,6 +265,9 @@ export default class VecDocumentTable {
           case "document-item":
             details = DocumentTable.getDocumentItem(db, doc.id);
             break;
+          case "log-entry":
+            details = LogTable.getLogById(db, doc.id);
+            break;
           default:
             break;
         }
@@ -346,6 +350,9 @@ export default class VecDocumentTable {
           break;
         case "document-item":
           details = DocumentTable.getDocumentItem(db, doc.id);
+          break;
+        case "log-entry":
+          details = LogTable.getLogById(db, doc.id);
           break;
         default:
           break;

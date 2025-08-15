@@ -12,7 +12,6 @@ import article from "@/assets/icons/article.svg";
 import project from "@/assets/icons/project.svg";
 import document from "@/assets/icons/document.svg";
 import daily from "@/assets/icons/daily.svg";
-import timeRecord from "@/assets/icons/time-record.svg";
 import whiteBoard from "@/assets/icons/white-board.svg";
 import pdf from "@/assets/icons/pdf.svg";
 import vecDatabase from "@/assets/icons/vec-database.svg";
@@ -162,18 +161,11 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         enable: module.vecDocuments.enable,
       },
       {
-        key: "daily",
+        key: "life",
         icon: daily,
-        desc: "日记",
-        path: "/dailies",
-        enable: module.dailyNote.enable,
-      },
-      {
-        key: "timeRecord",
-        icon: timeRecord,
-        desc: "时间统计",
-        path: "/time-records",
-        enable: module.timeRecord.enable,
+        desc: "日志",
+        path: "/life",
+        enable: true,
       },
       {
         key: "goal",

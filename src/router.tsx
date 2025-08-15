@@ -45,6 +45,7 @@ const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
 const GoalManagementView = loadable(
   () => import("@/pages/GoalView/GoalManagementView"),
 );
+const LifeView = loadable(() => import("@/pages/LifeView"));
 
 const routes = [
   {
@@ -110,6 +111,10 @@ const routes = [
       {
         path: "time-records",
         element: <TimeRecordView />,
+      },
+      {
+        path: "life",
+        element: <LifeView />,
       },
       {
         path: "vec-documents",
