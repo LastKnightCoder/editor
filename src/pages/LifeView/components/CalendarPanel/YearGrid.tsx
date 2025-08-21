@@ -7,37 +7,37 @@ interface YearGridProps {
 }
 
 const YearGrid = memo((props: YearGridProps) => {
-  const { centuryStart, selectedYear, onSelect } = props;
-  const years = Array.from({ length: 100 }).map((_, i) => centuryStart + i);
+  const { selectedYear, onSelect } = props;
+
+  // 显示过去20年至今
+  const currentYear = new Date().getFullYear();
+  const startYear = currentYear - 20;
+  const years = Array.from({ length: 21 }).map((_, i) => startYear + i);
+
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(10, 1fr)",
-        gap: "0.5em",
-        maxHeight: "100%",
-        overflow: "auto",
-      }}
-    >
-      {years.map((y) => {
-        const isSelected = y === selectedYear;
-        return (
-          <div
-            key={y}
-            onClick={() => onSelect(y)}
-            style={{
-              padding: "0.5em 0.75em",
-              borderRadius: 8,
-              cursor: "pointer",
-              border: isSelected
-                ? "2px solid var(--primary-color)"
-                : "1px solid var(--line-color)",
-            }}
-          >
-            {y}
-          </div>
-        );
-      })}
+    <div className="w-full">
+      {/* 年份范围标题 */}
+      <div className="text-center text-lg font-semibold mb-4">
+        {startYear}年 - {currentYear}年
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {years.map((y) => {
+          const isSelected = y === selectedYear;
+
+          return (
+            <div
+              key={y}
+              onClick={() => onSelect(y)}
+              className={`aspect-square cursor-pointer rounded-lg flex items-center justify-center transition-all duration-200 text-xs font-medium ${
+                !isSelected ? "hover:bg-gray-100 dark:hover:bg-gray-700" : ""
+              } ${isSelected ? "bg-blue-500 text-white" : "bg-transparent"}`}
+            >
+              {y % 100}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 });

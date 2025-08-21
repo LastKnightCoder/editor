@@ -1,6 +1,5 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { Button, Segmented, Space } from "antd";
-import dayjs from "dayjs";
 import DayGrid from "./DayGrid";
 import WeekGrid from "./WeekGrid";
 import MonthGrid from "./MonthGrid";
@@ -8,51 +7,61 @@ import YearGrid from "./YearGrid";
 import { useLifeViewStore } from "@/stores/useLifeViewStore";
 import useTimeRecordStore from "@/stores/useTimeRecordStore";
 import { useShallow } from "zustand/react/shallow";
-import { getLogsByRange } from "@/commands/log";
+import { getLogsByRange, LogEntry } from "@/commands/log";
 
 const CalendarPanel = memo(() => {
-  const {
-    periodType,
-    anchorDate,
-    setPeriodType,
-    setAnchorDate,
-    centuryStartYear,
-    setCenturyStartYear,
-  } = useLifeViewStore();
+  const { periodType, anchorDate, setPeriodType, setAnchorDate } =
+    useLifeViewStore();
   const { timeRecords } = useTimeRecordStore(
     useShallow((s) => ({ timeRecords: s.timeRecords })),
   );
+
+  // 缓存当前月份的日志数据
+  const [monthLogs, setMonthLogs] = useState<LogEntry[]>([]);
+
+  // 当日历切换到日视图或日期变化时，重新加载日志数据
+  const currentMonth = anchorDate.format("YYYY-MM");
+  useEffect(() => {
+    if (periodType === "day") {
+      const monthStart = anchorDate.startOf("month");
+      const monthEnd = anchorDate.endOf("month");
+      getLogsByRange({
+        startDate: monthStart.valueOf(),
+        endDate: monthEnd.valueOf(),
+        periodTypes: ["day"], // 只查询日记
+      })
+        .then(setMonthLogs)
+        .catch(() => setMonthLogs([]));
+    }
+  }, [periodType, currentMonth, anchorDate]);
+
+  // 当在日视图且日志模式下，如果当前日期只有一篇日记，自动打开它
+  const { activeTab, setActiveLogId } = useLifeViewStore();
+  useEffect(() => {
+    if (periodType === "day" && activeTab === "logs" && monthLogs.length > 0) {
+      const dayStart = anchorDate.startOf("day").valueOf();
+      const dayEnd = anchorDate.endOf("day").valueOf();
+      const todayLogs = monthLogs.filter(
+        (log) => log.start_date >= dayStart && log.end_date <= dayEnd,
+      );
+
+      // 如果当天只有一篇日记，自动打开它
+      if (todayLogs.length === 1) {
+        setActiveLogId(todayLogs[0].id);
+      }
+    }
+  }, [periodType, activeTab, anchorDate, monthLogs, setActiveLogId]);
 
   const goPrev = () => {
     if (periodType === "day") setAnchorDate(anchorDate.add(-1, "month"));
     else if (periodType === "week") setAnchorDate(anchorDate.add(-1, "year"));
     else if (periodType === "month") setAnchorDate(anchorDate.add(-1, "year"));
-    else if (periodType === "year") setCenturyStartYear(centuryStartYear - 100);
   };
 
   const goNext = () => {
     if (periodType === "day") setAnchorDate(anchorDate.add(1, "month"));
     else if (periodType === "week") setAnchorDate(anchorDate.add(1, "year"));
     else if (periodType === "month") setAnchorDate(anchorDate.add(1, "year"));
-    else if (periodType === "year") setCenturyStartYear(centuryStartYear + 100);
-  };
-
-  const getCounts = async (d: dayjs.Dayjs) => {
-    // 记录数：当天的 timeRecords 数
-    const dayStr = d.format("YYYY-MM-DD");
-    const recordGroup = timeRecords.find((g) => g.date === dayStr);
-    const records = recordGroup ? recordGroup.timeRecords.length : 0;
-    // 日志数：查询当日范围
-    const start = d.startOf("day").valueOf();
-    const end = d.endOf("day").valueOf();
-    const logs = (
-      await getLogsByRange({
-        startDate: start,
-        endDate: end,
-        periodTypes: ["day"],
-      })
-    ).length;
-    return { records, logs };
   };
 
   return (
@@ -63,7 +72,9 @@ const CalendarPanel = memo(() => {
       >
         <Segmented
           value={periodType}
-          onChange={(v) => setPeriodType(v as any)}
+          onChange={(v) =>
+            setPeriodType(v as "day" | "week" | "month" | "year")
+          }
           options={[
             { label: "日", value: "day" },
             { label: "周", value: "week" },
@@ -71,28 +82,26 @@ const CalendarPanel = memo(() => {
             { label: "年", value: "year" },
           ]}
         />
-        <Space>
-          <Button size="small" onClick={goPrev}>
-            上一
-            {periodType === "day"
-              ? "月"
-              : periodType === "week"
-                ? "年"
-                : periodType === "month"
+        {periodType !== "year" && (
+          <Space>
+            <Button size="small" onClick={goPrev}>
+              上一
+              {periodType === "day"
+                ? "月"
+                : periodType === "week"
                   ? "年"
-                  : "世纪"}
-          </Button>
-          <Button size="small" onClick={goNext}>
-            下一
-            {periodType === "day"
-              ? "月"
-              : periodType === "week"
-                ? "年"
-                : periodType === "month"
+                  : "年"}
+            </Button>
+            <Button size="small" onClick={goNext}>
+              下一
+              {periodType === "day"
+                ? "月"
+                : periodType === "week"
                   ? "年"
-                  : "世纪"}
-          </Button>
-        </Space>
+                  : "年"}
+            </Button>
+          </Space>
+        )}
       </Space>
 
       {periodType === "day" && (
@@ -102,12 +111,19 @@ const CalendarPanel = memo(() => {
           onSelect={(d) => setAnchorDate(d)}
           // 徽标计数
           getCounts={(d) => {
-            // 同步接口是异步；这里返回 undefined 则不渲染，列表可在下次 render 补齐
-            // 简易实现：同步读取 timeRecords，日志数采用 0；如需精确可将结果缓存
+            // 查询该日期的时间记录数
             const dayStr = d.format("YYYY-MM-DD");
             const recordGroup = timeRecords.find((g) => g.date === dayStr);
             const records = recordGroup ? recordGroup.timeRecords.length : 0;
-            return { records, logs: 0 };
+
+            // 查询该日期的日志数量
+            const dayStart = d.startOf("day").valueOf();
+            const dayEnd = d.endOf("day").valueOf();
+            const logs = monthLogs.filter(
+              (log) => log.start_date >= dayStart && log.end_date <= dayEnd,
+            ).length;
+
+            return { records, logs };
           }}
         />
       )}
@@ -127,7 +143,7 @@ const CalendarPanel = memo(() => {
       )}
       {periodType === "year" && (
         <YearGrid
-          centuryStart={centuryStartYear}
+          centuryStart={2000}
           selectedYear={anchorDate.year()}
           onSelect={(y) => setAnchorDate(anchorDate.year(y))}
         />

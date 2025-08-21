@@ -26,10 +26,11 @@ import classnames from "classnames";
 interface ITimeRecordProps {
   onClickEdit?: (timeRecord: ITimeRecord) => void;
   className?: string;
+  hideSelectTime?: boolean; // 是否隐藏时间选择器
 }
 
 const TimeRecord = memo((props: ITimeRecordProps) => {
-  const { onClickEdit, className } = props;
+  const { onClickEdit, className, hideSelectTime = false } = props;
 
   const {
     timeRecords,
@@ -134,13 +135,15 @@ const TimeRecord = memo((props: ITimeRecordProps) => {
 
   return (
     <div className={classnames(styles.timeRecordContainer, className)}>
-      <SelectTime
-        className={styles.selectTime}
-        filterType={filterType}
-        filterValue={filterValue}
-        onSelectFilterTypeChange={onSelectFilterTypeChange}
-        onFilterValueChange={onFilterValueChange}
-      />
+      {!hideSelectTime && (
+        <SelectTime
+          className={styles.selectTime}
+          filterType={filterType}
+          filterValue={filterValue}
+          onSelectFilterTypeChange={onSelectFilterTypeChange}
+          onFilterValueChange={onFilterValueChange}
+        />
+      )}
       <div className={styles.list}>
         <LoadMoreComponent
           onLoadMore={onLoadMoreTimeRecords}

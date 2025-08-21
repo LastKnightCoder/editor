@@ -1,11 +1,12 @@
 import { memo, useEffect, useMemo, useState } from "react";
-import { Button, Flex, List, Typography } from "antd";
+import { message } from "antd";
 import { useLifeViewStore } from "@/stores/useLifeViewStore";
-import { createLog, getLogsByRange, LogEntry } from "@/commands/log";
-import Editor from "@/components/Editor";
+import { getLogsByRange, LogEntry, deleteLog } from "@/commands/log";
+import LogCard from "./LogCard";
 
 const LogList = memo(() => {
-  const { periodType, anchorDate, setActiveLogId } = useLifeViewStore();
+  const { periodType, anchorDate, setActiveLogId, activeLogId } =
+    useLifeViewStore();
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const range = useMemo(() => {
@@ -30,7 +31,7 @@ const LogList = memo(() => {
       return {
         start: s.valueOf(),
         end: e.valueOf(),
-        types: ["week", "month"] as const,
+        types: ["day", "week", "month"] as const,
       };
     } else {
       const s = anchorDate.startOf("year");
@@ -38,97 +39,71 @@ const LogList = memo(() => {
       return {
         start: s.valueOf(),
         end: e.valueOf(),
-        types: ["month", "year"] as const,
+        types: ["day", "week", "month", "year"] as const,
       };
     }
   }, [periodType, anchorDate]);
+
+  const refreshLogs = () => {
+    getLogsByRange({
+      startDate: range.start,
+      endDate: range.end,
+      periodTypes: [...range.types],
+    }).then(setLogs);
+  };
 
   useEffect(() => {
     getLogsByRange({
       startDate: range.start,
       endDate: range.end,
-      periodTypes: range.types as any,
+      periodTypes: [...range.types],
     }).then(setLogs);
-  }, [range.start, range.end, periodType]);
+  }, [range.start, range.end, range.types]);
 
-  const onCreate = async () => {
-    const start =
-      periodType === "day"
-        ? anchorDate.startOf("day")
-        : periodType === "week"
-          ? anchorDate.startOf("week")
-          : periodType === "month"
-            ? anchorDate.startOf("month")
-            : anchorDate.startOf("year");
-    const end = start.endOf(periodType).valueOf();
-    const res = await createLog({
-      periodType,
-      startDate: start.valueOf(),
-      endDate: end,
-      title:
-        periodType === "day"
-          ? `${start.format("YYYY-MM-DD")} 日记`
-          : periodType === "week"
-            ? `${start.format("YYYY 第WW周")} 周记`
-            : periodType === "month"
-              ? `${start.format("YYYY-MM")} 月记`
-              : `${start.format("YYYY")} 年记`,
-      content: [
-        { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-      ],
-      tags: [],
-    });
-    setActiveLogId(res.id);
-    // 刷新
-    const newLogs = await getLogsByRange({
-      startDate: range.start,
-      endDate: range.end,
-      periodTypes: range.types as any,
-    });
-    setLogs(newLogs);
+  const handleLogClick = (log: LogEntry) => {
+    setActiveLogId(log.id);
+  };
+
+  const handleDeleteLog = async (logId: number) => {
+    try {
+      await deleteLog(logId);
+      message.success("日志删除成功");
+      // 如果删除的是当前选中的日志，清空选中状态
+      if (activeLogId === logId) {
+        setActiveLogId(undefined);
+      }
+      // 刷新列表
+      refreshLogs();
+    } catch (error) {
+      console.error("Delete log failed:", error);
+      message.error("删除日志失败");
+    }
   };
 
   return (
-    <Flex
-      vertical
-      gap={8}
-      style={{ width: "100%", height: "100%", overflow: "hidden" }}
-    >
-      <Button type="primary" onClick={onCreate}>
-        新建
-        {periodType === "day"
-          ? "日记"
-          : periodType === "week"
-            ? "周记"
-            : periodType === "month"
-              ? "月记"
-              : "年记"}
-      </Button>
-      <div style={{ flex: 1, overflow: "auto" }}>
-        <List
-          dataSource={logs}
-          renderItem={(item) => (
-            <List.Item
-              style={{ cursor: "pointer" }}
-              onClick={() => setActiveLogId(item.id)}
-            >
-              <List.Item.Meta
-                title={
-                  <Typography.Text strong ellipsis>
-                    {item.title || "未命名"}
-                  </Typography.Text>
-                }
-                description={
-                  <div style={{ maxWidth: 480 }}>
-                    <Editor readonly initValue={item.content.slice(0, 1)} />
-                  </div>
-                }
-              />
-            </List.Item>
-          )}
-        />
+    <div className="flex flex-col h-full p-3">
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-3 scrollbar-hide">
+        {logs.length === 0 ? (
+          <div className="flex items-center justify-center h-32 text-gray-500">
+            暂无日志
+          </div>
+        ) : (
+          logs.map((log) => (
+            <LogCard
+              key={log.id}
+              log={log}
+              onClick={handleLogClick}
+              onDelete={handleDeleteLog}
+              className={
+                activeLogId === log.id
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-950/50"
+                  : ""
+              }
+            />
+          ))
+        )}
       </div>
-    </Flex>
+    </div>
   );
 });
 
