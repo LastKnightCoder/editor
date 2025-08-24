@@ -34,6 +34,5 @@ alwaysApply: true
 
 ## Other
 
-- ALWAYS begin your response by telling me what AI model you are using. Just say the name of the model like (claude-3.5-sonnet, claude-4.0-sonnet, gemini-2.5-pro, etc.)
 - Do Not Build Project, like pnpm run build, is not encouraged
 - prefer export multiple utils, types files in a file, like index.ts, and just import this file
