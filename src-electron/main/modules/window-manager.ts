@@ -1,4 +1,9 @@
-import { BrowserWindow, ipcMain } from "electron";
+import {
+  BrowserWindow,
+  ipcMain,
+  screen,
+  BrowserWindowConstructorOptions,
+} from "electron";
 import path from "node:path";
 import log from "electron-log";
 
@@ -215,7 +220,7 @@ export class WindowManager {
   }
 
   // 创建基础窗口配置
-  private createBaseWindowConfig() {
+  private createBaseWindowConfig(): BrowserWindowConstructorOptions {
     return {
       width: 800,
       height: 600,
@@ -309,7 +314,8 @@ export class WindowManager {
   // 创建快速卡片窗口
   public createQuickCardWindow() {
     log.info("创建快速卡片窗口");
-    const win = new BrowserWindow(this.createBaseWindowConfig());
+    const baseConfig = this.createBaseWindowConfig();
+    const win = new BrowserWindow(baseConfig);
 
     this.setupWindowEvents(win);
 
@@ -365,7 +371,18 @@ export class WindowManager {
       }
     }
 
-    const win = new BrowserWindow(this.createBaseWindowConfig());
+    const baseConfig = this.createBaseWindowConfig();
+    if (type === "markdown") {
+      const display = screen.getDisplayNearestPoint(
+        screen.getCursorScreenPoint(),
+      );
+      baseConfig.x = display.bounds.x;
+      baseConfig.y = display.bounds.y;
+      baseConfig.width = display.bounds.width;
+      baseConfig.height = display.bounds.height;
+    }
+
+    const win = new BrowserWindow(baseConfig);
 
     // 存储窗口引用
     windowMap.set(windowKey, win);
