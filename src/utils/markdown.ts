@@ -490,9 +490,9 @@ const normalizeEditorContent = (
       }
     } else if (element.type === "paragraph") {
       // 如果 paragraph 仅包含一个 image，则将该 image 提升为块级元素，避免被转换为 inline-image
-      // @ts-ignore
       if (
         element.children.length === 1 &&
+        // @ts-ignore
         element.children[0].type === "image"
       ) {
         const onlyChild = element.children[0] as ImageElement;
