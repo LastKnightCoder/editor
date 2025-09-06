@@ -2,6 +2,7 @@ import { createHashRouter } from "react-router-dom";
 import loadable from "@loadable/component";
 import HomeView from "@/pages/HomeView";
 import ContentLayout from "@/layouts/ContentLayout";
+import Table from "@/components/Table";
 
 const SettingsPage = loadable(() => import("@/pages/Settings"));
 
@@ -54,6 +55,10 @@ const routes = [
       {
         path: "/",
         element: <HomeView />,
+      },
+      {
+        path: "/table",
+        element: <Table columns={[]} data={[]} />,
       },
       {
         path: "cards/list",
