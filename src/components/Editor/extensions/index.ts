@@ -37,6 +37,7 @@ import WebviewExtension from "./webview";
 import InlineHtmlExtension from "./html-inline";
 import InlineImageExtension from "./inline-image";
 import EmojiExtension from "./emoji";
+import AnnotationExtension from "./annotation";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -82,6 +83,7 @@ export const whiteboard = new WhiteboardExtension();
 export const htmlInline = new InlineHtmlExtension();
 export const inlineImage = new InlineImageExtension();
 export const emoji = new EmojiExtension();
+export const annotation = new AnnotationExtension();
 
 export const startExtensions = [
   ai,
@@ -125,4 +127,5 @@ export const startExtensions = [
   frontMatter,
   webview,
   emoji,
+  annotation,
 ];
