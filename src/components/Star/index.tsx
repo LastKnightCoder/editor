@@ -1,6 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import { MdStar, MdStarHalf, MdStarBorder } from "react-icons/md";
+import { useMemoizedFn } from "ahooks";
 
 export interface StarProps {
   value: number | null;
@@ -44,7 +45,7 @@ const Star: React.FC<StarProps> = ({
     [hoverValue, value, max, step],
   );
 
-  const handleMove =
+  const handleMove = useMemoizedFn(
     (index: number) => (e: React.MouseEvent<HTMLButtonElement>) => {
       if (readonly) return;
       const rect = (
@@ -55,14 +56,15 @@ const Star: React.FC<StarProps> = ({
       const next = step === 0.5 ? index - 1 + half : index;
       const normalized = clamp(next, 0, max);
       setHoverValue(normalized);
-    };
+    },
+  );
 
-  const handleLeave = () => {
+  const handleLeave = useMemoizedFn(() => {
     if (readonly) return;
     setHoverValue(null);
-  };
+  });
 
-  const handleClick =
+  const handleClick = useMemoizedFn(
     (index: number) => (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
       e.preventDefault();
@@ -74,13 +76,15 @@ const Star: React.FC<StarProps> = ({
       const half = x <= rect.width / 2 ? 0.5 : 1;
       const next = step === 0.5 ? index - 1 + half : index;
       const normalized = clamp(next, 0, max);
-      onChange?.(normalized);
-    };
+      const current = normalizeValue(value ?? 0, max, step);
+      onChange?.(current === normalized ? 0 : normalized);
+    },
+  );
 
-  const stopDouble = (e: React.MouseEvent<HTMLDivElement>) => {
+  const stopDouble = useMemoizedFn((e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     e.preventDefault();
-  };
+  });
 
   const containerCls = classNames(
     "inline-flex items-center gap-1 select-none",
@@ -92,7 +96,11 @@ const Star: React.FC<StarProps> = ({
   );
 
   return (
-    <div className={containerCls} onDoubleClick={stopDouble}>
+    <div
+      className={containerCls}
+      onDoubleClick={stopDouble}
+      onMouseLeave={handleLeave}
+    >
       {Array.from({ length: max }).map((_, idx) => {
         const index = idx + 1;
         let IconComp: React.ComponentType<{

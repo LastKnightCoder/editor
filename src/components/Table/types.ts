@@ -70,7 +70,6 @@ export interface CellPlugin<T> {
   afterLoad?: (value: CellValue, config: T) => CellValue;
 }
 
-// 验证规则
 export interface ValidationRule {
   required?: boolean;
   min?: number;
@@ -79,20 +78,9 @@ export interface ValidationRule {
   custom?: (value: CellValue) => string | null; // 返回错误信息
 }
 
-// 表格交互类型
-export type TableInteraction =
-  | { type: "CELL_CLICK"; rowId: string; columnId: string }
-  | { type: "CELL_DOUBLE_CLICK"; rowId: string; columnId: string }
-  | { type: "COLUMN_RESIZE"; columnId: string; deltaX: number }
-  | {
-      type: "KEYBOARD_NAVIGATION";
-      direction: "up" | "down" | "left" | "right";
-    };
-
 export interface TableSnapshot {
   columns: ColumnDef[];
   rows: RowData[];
-  columnWidths: Record<string, number>;
   columnOrder: string[];
 }
 

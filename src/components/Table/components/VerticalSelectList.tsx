@@ -31,8 +31,8 @@ const VerticalSelectList = (props: VerticalSelectListProps) => {
             <div
               style={{
                 width: "fit-content",
-                fontSize: "10px",
-                padding: "0px 4px",
+                fontSize: "12px",
+                padding: "2px 4px",
                 borderRadius: "4px",
                 backgroundColor:
                   SELECT_COLORS_CONFIG[option.color][theme].backgroundColor,
