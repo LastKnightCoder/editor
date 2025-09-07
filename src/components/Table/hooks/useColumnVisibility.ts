@@ -2,9 +2,6 @@ import { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ColumnDef } from "../types";
 
-/**
- * 用于管理列可见性的钩子
- */
 export function useColumnVisibility(initialColumns: ColumnDef[]) {
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(
     new Set(initialColumns.filter((col) => col.hidden).map((col) => col.id)),

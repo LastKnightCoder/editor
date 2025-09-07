@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 
-/**
- * 用于列调整大小的钩子
- */
 export function useColumnResize(
   onResize: (columnId: string, width: number) => void,
 ) {
@@ -33,7 +30,6 @@ export function useColumnResize(
     setResizing(null);
   });
 
-  // 当调整大小时添加全局事件监听器
   useEffect(() => {
     if (!resizing) return;
 

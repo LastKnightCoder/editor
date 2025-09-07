@@ -6,7 +6,7 @@ import styles from "./index.module.less";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop";
-import CustomCheckbox from "../CustomCheckbox";
+import CustomCheckbox from "@/components/CustomCheckbox";
 import { useMemoizedFn } from "ahooks";
 
 interface CheckListItemProps {

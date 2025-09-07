@@ -3,6 +3,9 @@ import NumberPlugin from "./NumberPlugin";
 import DatePlugin from "./DatePlugin";
 import SelectPlugin from "./SelectPlugin";
 import MultiSelectPlugin from "./MultiSelectPlugin";
+import CheckboxPlugin from "./CheckboxPlugin";
+import LinkPlugin from "./LinkPlugin";
+import StarPlugin from "./StarPlugin";
 
 export const builtInPlugins = [
   TextPlugin,
@@ -10,6 +13,9 @@ export const builtInPlugins = [
   DatePlugin,
   SelectPlugin,
   MultiSelectPlugin,
+  CheckboxPlugin,
+  LinkPlugin,
+  StarPlugin,
 ];
 
 export {
@@ -18,4 +24,7 @@ export {
   DatePlugin,
   SelectPlugin,
   MultiSelectPlugin,
+  CheckboxPlugin,
+  LinkPlugin,
+  StarPlugin,
 };

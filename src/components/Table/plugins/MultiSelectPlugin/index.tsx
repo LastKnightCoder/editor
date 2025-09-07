@@ -1,31 +1,24 @@
-import { CellPlugin } from "../../types";
+import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "../../components/SelectEditor";
+import { MdChecklist } from "react-icons/md";
 
-/**
- * 多选下拉菜单单元格插件
- */
-const MultiSelectPlugin: CellPlugin = {
+const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: "multiSelect",
+  name: "多选",
   Renderer,
+  // @ts-ignore
   Editor,
+  Icon: ({ className }) => <MdChecklist className={className} />,
 
-  // 保存前确保值为字符串数组
-  beforeSave: (value) => {
-    if (!value) return null;
-    if (Array.isArray(value)) {
-      return value.map(String);
-    }
-    return [String(value)];
+  beforeSave: (value: string[], configs) => {
+    if (!value || !Array.isArray(value)) return [];
+    return value.filter((v) => configs.options.find((opt) => opt.id === v));
   },
 
-  // 加载后转换为字符串数组
-  afterLoad: (value) => {
-    if (!value) return null;
-    if (Array.isArray(value)) {
-      return value.map(String);
-    }
-    return [String(value)];
+  afterLoad: (value: string[], configs) => {
+    if (!value || !Array.isArray(value)) return [];
+    return value.filter((v) => configs.options.find((opt) => opt.id === v));
   },
 };
 
