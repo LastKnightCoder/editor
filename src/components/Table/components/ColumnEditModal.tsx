@@ -182,6 +182,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                   options={options}
                   theme={theme}
                   onClear={(id) => removeOption(id)}
+                  className="flex-wrap"
                 />
               </div>
             );

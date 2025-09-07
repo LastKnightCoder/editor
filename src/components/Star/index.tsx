@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import classNames from "classnames";
 import { MdStar, MdStarHalf, MdStarBorder } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
@@ -86,7 +86,8 @@ const Star: React.FC<StarProps> = ({
   className,
   size = 18,
 }) => {
-  const [hoverValue, setHoverValue] = React.useState<number | null>(null);
+  const [hoverValue, setHoverValue] = useState<number | null>(null);
+  const isHoverRef = useRef(false);
 
   const displayValue = React.useMemo(
     () => normalizeValue(hoverValue ?? value ?? 0, max, step),
@@ -96,7 +97,7 @@ const Star: React.FC<StarProps> = ({
   const handleMove = useMemoizedFn(
     (index: number) =>
       (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
-        if (readonly) return;
+        if (readonly || !isHoverRef.current) return;
         const rect = (
           e.currentTarget as HTMLButtonElement
         ).getBoundingClientRect();
@@ -108,7 +109,12 @@ const Star: React.FC<StarProps> = ({
       },
   );
 
+  const handleMouseEnter = useMemoizedFn(() => {
+    isHoverRef.current = true;
+  });
+
   const handleLeave = useMemoizedFn(() => {
+    isHoverRef.current = false;
     if (readonly) return;
     setHoverValue(null);
   });
@@ -148,6 +154,7 @@ const Star: React.FC<StarProps> = ({
     <div
       className={containerCls}
       onDoubleClick={stopDouble}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={handleLeave}
     >
       {Array.from({ length: max }).map((_, idx) => {

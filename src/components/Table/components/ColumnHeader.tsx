@@ -60,6 +60,13 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       onResizeStart(column.id, e.clientX, width);
     });
 
+    const onDoubleClick = useMemoizedFn((e: React.MouseEvent) => {
+      if (readonly) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onEdit?.(column.id);
+    });
+
     // 实现拖拽功能
     const [{ isDragging }, drag] = useDrag(
       () => ({
@@ -154,6 +161,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
             "bg-[#e3f2fd]": isOver && canDrop && !isDragging,
           },
         )}
+        onDoubleClick={onDoubleClick}
         style={headerStyle}
       >
         <div className="flex items-center px-4 py-2 h-full cursor-grab box-border">

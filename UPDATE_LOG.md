@@ -635,8 +635,12 @@
 - fix: 导入 Markdown 时块级图片被转化为了行内图片
 - fix: 打开 Markdown 文件时不打开主应用，且全屏
 
-## v15.0.0
+## 0.15.0
 
 - feat: 支持数据表格
 - feat: 添加注解插件
 - fix: EditText 粘贴时未触发 onChange 方法
+
+## 0.15.1
+
+- feat: 支持删除数据行
