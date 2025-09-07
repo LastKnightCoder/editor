@@ -323,19 +323,15 @@ export const createTableStore = (
 
       switch (direction) {
         case Direction.UP:
-        case "up":
           newRowIndex = Math.max(0, rowIndex - 1);
           break;
         case Direction.DOWN:
-        case "down":
           newRowIndex = Math.min(rows.length - 1, rowIndex + 1);
           break;
         case Direction.LEFT:
-        case "left":
           newColIndex = Math.max(0, colIndex - 1);
           break;
         case Direction.RIGHT:
-        case "right":
           newColIndex = Math.min(columnOrder.length - 1, colIndex + 1);
           break;
       }

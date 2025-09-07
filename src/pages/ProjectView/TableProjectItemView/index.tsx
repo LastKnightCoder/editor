@@ -89,7 +89,7 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
         />
       </div>
 
-      <div className="flex-1 px-4 pb-4">
+      <div className="flex-1 min-h-0 px-4 pb-4">
         <Table
           columns={table.columns as ColumnDef[]}
           data={table.rows as RowData[]}

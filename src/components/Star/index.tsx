@@ -28,6 +28,54 @@ const normalizeValue = (
   return clamp(rounded, 0, max);
 };
 
+interface IconCompProps {
+  index: number;
+  displayValue: number;
+  theme: "light" | "dark";
+  handleMove: (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => void;
+  handleLeave: () => void;
+  handleClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  size: number;
+}
+
+const IconComp = ({
+  index,
+  displayValue,
+  theme,
+  handleMove,
+  handleLeave,
+  handleClick,
+  size,
+}: IconCompProps) => {
+  let IconComp: React.ComponentType<{
+    className?: string;
+    size?: number;
+  }> = MdStarBorder;
+  if (displayValue >= index) {
+    IconComp = MdStar;
+  } else if (displayValue >= index - 0.5) {
+    IconComp = MdStarHalf;
+  }
+
+  return (
+    <button
+      type="button"
+      className={classNames(
+        "p-0 m-0 appearance-none bg-transparent border-0 leading-none",
+        {
+          "text-yellow-500 hover:text-yellow-500/90": theme === "light",
+          "text-yellow-400 hover:text-yellow-300": theme === "dark",
+        },
+      )}
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+      onClick={handleClick}
+    >
+      <IconComp size={size} />
+    </button>
+  );
+};
+
 const Star: React.FC<StarProps> = ({
   value,
   onChange,
@@ -46,17 +94,18 @@ const Star: React.FC<StarProps> = ({
   );
 
   const handleMove = useMemoizedFn(
-    (index: number) => (e: React.MouseEvent<HTMLButtonElement>) => {
-      if (readonly) return;
-      const rect = (
-        e.currentTarget as HTMLButtonElement
-      ).getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const half = x <= rect.width / 2 ? 0.5 : 1;
-      const next = step === 0.5 ? index - 1 + half : index;
-      const normalized = clamp(next, 0, max);
-      setHoverValue(normalized);
-    },
+    (index: number) =>
+      (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
+        if (readonly) return;
+        const rect = (
+          e.currentTarget as HTMLButtonElement
+        ).getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const half = x <= rect.width / 2 ? 0.5 : 1;
+        const next = step === 0.5 ? index - 1 + half : index;
+        const normalized = clamp(next, 0, max);
+        setHoverValue(normalized);
+      },
   );
 
   const handleLeave = useMemoizedFn(() => {
@@ -87,7 +136,7 @@ const Star: React.FC<StarProps> = ({
   });
 
   const containerCls = classNames(
-    "inline-flex items-center gap-1 select-none",
+    "flex items-center select-none",
     {
       "cursor-pointer": !readonly,
       "cursor-default": readonly,
@@ -103,32 +152,18 @@ const Star: React.FC<StarProps> = ({
     >
       {Array.from({ length: max }).map((_, idx) => {
         const index = idx + 1;
-        let IconComp: React.ComponentType<{
-          className?: string;
-          size?: number;
-        }> = MdStarBorder;
-        if (displayValue >= index) {
-          IconComp = MdStar;
-        } else if (displayValue >= index - 0.5) {
-          IconComp = MdStarHalf;
-        }
+
         return (
-          <button
+          <IconComp
             key={idx}
-            type="button"
-            className={classNames(
-              "p-0 m-0 appearance-none bg-transparent border-0 leading-none",
-              {
-                "text-yellow-500 hover:text-yellow-500/90": theme === "light",
-                "text-yellow-400 hover:text-yellow-300": theme === "dark",
-              },
-            )}
-            onMouseMove={handleMove(index)}
-            onMouseLeave={handleLeave}
-            onClick={handleClick(index)}
-          >
-            <IconComp size={size} />
-          </button>
+            index={index}
+            displayValue={displayValue}
+            theme={theme}
+            handleMove={handleMove(index)}
+            handleLeave={handleLeave}
+            handleClick={handleClick(index)}
+            size={size}
+          />
         );
       })}
     </div>
