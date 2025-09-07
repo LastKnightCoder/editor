@@ -30,6 +30,7 @@ const TableContent: React.FC<TableContentProps> = memo(
       startEditing,
       stopEditing,
       addRow,
+      deleteRow,
       addColumn,
       editColumn,
       updateCellValue,
@@ -48,6 +49,7 @@ const TableContent: React.FC<TableContentProps> = memo(
       startEditing: state.startEditing,
       stopEditing: state.stopEditing,
       addRow: state.addRow,
+      deleteRow: state.deleteRow,
       addColumn: state.addColumn,
       editColumn: state.editColumn,
       updateCellValue: state.updateCellValue,
@@ -267,6 +269,7 @@ const TableContent: React.FC<TableContentProps> = memo(
                       onStopEditing={stopEditing}
                       onCellChange={handleCellChange}
                       onColumnChange={onColumnChange}
+                      deleteRow={deleteRow}
                       moveRow={handleMoveRow}
                       theme={theme}
                       readonly={readonly}

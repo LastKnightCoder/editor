@@ -1,4 +1,4 @@
-import React, { memo, useRef } from "react";
+import React, { memo, useMemo, useRef } from "react";
 import {
   useDrag,
   useDrop,
@@ -11,6 +11,7 @@ import { ColumnDef, RowData, CellCoord } from "../types";
 import Cell from "./Cell";
 import PluginManager from "../PluginManager";
 import { MdDragIndicator } from "react-icons/md";
+import { App, Dropdown, DropdownProps } from "antd";
 
 const ROW_TYPE = "tableRow";
 
@@ -38,6 +39,7 @@ interface RowProps {
   onCellChange: (rowId: string, columnId: string, value: any) => void;
   onColumnChange: (column: ColumnDef) => void;
   moveRow?: (dragIndex: number, hoverIndex: number) => void; // 拖拽排序方法
+  deleteRow: (rowId: string) => void;
 }
 
 const Row: React.FC<RowProps> = memo(
@@ -59,8 +61,34 @@ const Row: React.FC<RowProps> = memo(
     onColumnChange,
     moveRow,
     theme,
+    deleteRow,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
+    const { modal } = App.useApp();
+
+    const menuProps = useMemo(() => {
+      return {
+        trigger: ["click"],
+        menu: {
+          items: [
+            {
+              key: "delete",
+              label: "删除",
+              onClick: () => {
+                modal.confirm({
+                  title: "删除行",
+                  content: "确定要删除该行吗？",
+                  okButtonProps: {
+                    danger: true,
+                  },
+                  onOk: () => deleteRow(row.id),
+                });
+              },
+            },
+          ],
+        },
+      } satisfies DropdownProps;
+    }, [deleteRow]);
 
     const [, drag] = useDrag(
       () => ({
@@ -117,7 +145,9 @@ const Row: React.FC<RowProps> = memo(
       >
         <div className="w-[50px] min-w-[50px] box-border border-r border-gray-400/50 flex flex-col justify-center items-center relative cursor-grab group">
           <div className="flex gap-1 items-center text-gray-500 text-[12px] py-2">
-            <MdDragIndicator />
+            <Dropdown {...menuProps} className="cursor-pointer">
+              <MdDragIndicator />
+            </Dropdown>
             <span>{rowIndex}</span>
           </div>
         </div>
