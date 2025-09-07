@@ -17,7 +17,6 @@ import whiteBoard from "@/assets/icons/white-board.svg";
 import pdf from "@/assets/icons/pdf.svg";
 import vecDatabase from "@/assets/icons/vec-database.svg";
 import goal from "@/assets/icons/goal.svg";
-import table from "@/assets/icons/table.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -111,13 +110,6 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         icon: home,
         desc: "首页",
         path: "/",
-        enable: true,
-      },
-      {
-        key: "table",
-        icon: table,
-        desc: "表格",
-        path: "/table",
         enable: true,
       },
       {
