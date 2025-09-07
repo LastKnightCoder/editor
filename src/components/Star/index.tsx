@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import classNames from "classnames";
 import { MdStar, MdStarHalf, MdStarBorder } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
@@ -32,21 +32,10 @@ interface IconCompProps {
   index: number;
   displayValue: number;
   theme: "light" | "dark";
-  handleMove: (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => void;
-  handleLeave: () => void;
-  handleClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   size: number;
 }
 
-const IconComp = ({
-  index,
-  displayValue,
-  theme,
-  handleMove,
-  handleLeave,
-  handleClick,
-  size,
-}: IconCompProps) => {
+const IconComp = ({ index, displayValue, theme, size }: IconCompProps) => {
   let IconComp: React.ComponentType<{
     className?: string;
     size?: number;
@@ -67,9 +56,6 @@ const IconComp = ({
           "text-yellow-400 hover:text-yellow-300": theme === "dark",
         },
       )}
-      onMouseMove={handleMove}
-      onMouseLeave={handleLeave}
-      onClick={handleClick}
     >
       <IconComp size={size} />
     </button>
@@ -87,50 +73,79 @@ const Star: React.FC<StarProps> = ({
   size = 18,
 }) => {
   const [hoverValue, setHoverValue] = useState<number | null>(null);
-  const isHoverRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [isHovering, setIsHovering] = useState<boolean>(false);
 
-  const displayValue = React.useMemo(
-    () => normalizeValue(hoverValue ?? value ?? 0, max, step),
-    [hoverValue, value, max, step],
+  const displayValue = useMemo(
+    () =>
+      normalizeValue(isHovering ? (hoverValue ?? 0) : (value ?? 0), max, step),
+    [hoverValue, value, max, step, isHovering],
   );
 
-  const handleMove = useMemoizedFn(
-    (index: number) =>
-      (e: React.MouseEvent<HTMLButtonElement | HTMLDivElement>) => {
-        if (readonly || !isHoverRef.current) return;
-        const rect = (
-          e.currentTarget as HTMLButtonElement
-        ).getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const half = x <= rect.width / 2 ? 0.5 : 1;
-        const next = step === 0.5 ? index - 1 + half : index;
-        const normalized = clamp(next, 0, max);
-        setHoverValue(normalized);
-      },
-  );
-
-  const handleMouseEnter = useMemoizedFn(() => {
-    isHoverRef.current = true;
+  const quantizeByStep = useMemoizedFn((raw: number) => {
+    if (step === 0.5) {
+      const v = Math.ceil(raw * 2) / 2;
+      return clamp(v, 0.5, max);
+    }
+    const v = Math.ceil(raw);
+    return clamp(v, 1, max);
   });
 
+  const handleContainerMove = useMemoizedFn(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (readonly || !isHovering) return;
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const ratio = clamp(x / rect.width, 0, 1);
+      const raw = ratio * max;
+      const next = quantizeByStep(raw);
+      setHoverValue(next);
+    },
+  );
+
   const handleLeave = useMemoizedFn(() => {
-    isHoverRef.current = false;
     if (readonly) return;
+    setIsHovering(false);
     setHoverValue(null);
   });
 
-  const handleClick = useMemoizedFn(
-    (index: number) => (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleContainerPointerOut = useMemoizedFn(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (readonly) return;
+      const nextTarget = e.relatedTarget as Node | null;
+      const container = containerRef.current;
+      if (!nextTarget || (container && !container.contains(nextTarget))) {
+        setIsHovering(false);
+        setHoverValue(null);
+      }
+    },
+  );
+
+  // 移除与全局相关的监听，避免外部状态干扰
+
+  const handleContainerEnter = useMemoizedFn(() => {
+    if (readonly) return;
+    setIsHovering(true);
+  });
+
+  useEffect(() => {
+    setHoverValue(null);
+  }, [value]);
+
+  const handleContainerClick = useMemoizedFn(
+    (e: React.MouseEvent<HTMLDivElement>) => {
       e.stopPropagation();
       e.preventDefault();
       if (readonly) return;
-      const rect = (
-        e.currentTarget as HTMLButtonElement
-      ).getBoundingClientRect();
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const half = x <= rect.width / 2 ? 0.5 : 1;
-      const next = step === 0.5 ? index - 1 + half : index;
-      const normalized = clamp(next, 0, max);
+      const ratio = clamp(x / rect.width, 0, 1);
+      const raw = ratio * max;
+      const normalized = quantizeByStep(raw);
       const current = normalizeValue(value ?? 0, max, step);
       onChange?.(current === normalized ? 0 : normalized);
     },
@@ -152,10 +167,14 @@ const Star: React.FC<StarProps> = ({
 
   return (
     <div
+      ref={containerRef}
       className={containerCls}
       onDoubleClick={stopDouble}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleLeave}
+      onPointerEnter={handleContainerEnter}
+      onPointerLeave={handleLeave}
+      onPointerOut={handleContainerPointerOut}
+      onPointerMove={handleContainerMove}
+      onClick={handleContainerClick}
     >
       {Array.from({ length: max }).map((_, idx) => {
         const index = idx + 1;
@@ -166,9 +185,6 @@ const Star: React.FC<StarProps> = ({
             index={index}
             displayValue={displayValue}
             theme={theme}
-            handleMove={handleMove(index)}
-            handleLeave={handleLeave}
-            handleClick={handleClick(index)}
             size={size}
           />
         );
