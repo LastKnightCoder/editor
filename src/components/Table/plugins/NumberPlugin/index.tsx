@@ -7,6 +7,7 @@ import { TbNumber } from "react-icons/tb";
 const NumberPlugin: CellPlugin<any> = {
   type: "number",
   name: "数字",
+  editable: true,
   Renderer,
   Editor,
   Icon: ({ className }) => <TbNumber className={className} />,

@@ -21,7 +21,7 @@ const TextEditor: React.FC<TextEditorProps> = memo(
           onPressEnter={onFinishEdit}
           contentEditable={true}
           defaultFocus={true}
-          className="w-full h-full px-4 py-2 flex items-center"
+          className="w-full h-full px-4 py-2 flex items-center whitespace-nowrap"
         />
       </div>
     );

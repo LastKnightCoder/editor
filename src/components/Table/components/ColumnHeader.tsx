@@ -1,5 +1,7 @@
-import React, { memo, useRef } from "react";
+import React, { memo, useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
+import { Dropdown, App } from "antd";
+
 import {
   useDrag,
   useDrop,
@@ -9,6 +11,7 @@ import {
 import { ColumnDef } from "../types";
 import PluginManager from "../PluginManager";
 import classNames from "classnames";
+import { MoreOutlined } from "@ant-design/icons";
 
 const COLUMN_HEADER = "columnHeader";
 
@@ -22,6 +25,7 @@ interface ColumnHeaderProps {
   pluginManager?: PluginManager;
   theme: "light" | "dark";
   readonly: boolean;
+  onDelete?: (columnId: string) => void;
 }
 
 interface DragItem {
@@ -41,9 +45,12 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
     pluginManager,
     theme,
     readonly,
+    onDelete,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const isDark = theme === "dark";
+
+    const { modal } = App.useApp();
 
     // 处理调整大小开始
     const handleResizeStart = useMemoizedFn((e: React.MouseEvent) => {
@@ -51,15 +58,6 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       e.preventDefault();
       e.stopPropagation();
       onResizeStart(column.id, e.clientX, width);
-    });
-
-    // 处理双击编辑
-    const handleDoubleClick = useMemoizedFn((e: React.MouseEvent) => {
-      if (readonly) return;
-      e.stopPropagation();
-      if (onEdit) {
-        onEdit(column.id);
-      }
     });
 
     // 实现拖拽功能
@@ -115,6 +113,37 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       opacity: isDragging ? 0.5 : 1,
     };
 
+    const moreMenuItems = useMemo(() => {
+      return readonly
+        ? []
+        : [
+            {
+              key: "edit",
+              label: "编辑",
+              onClick: () => {
+                if (readonly) return;
+                onEdit?.(column.id);
+              },
+            },
+            {
+              key: "delete",
+              label: "删除",
+              onClick: () => {
+                if (readonly) return;
+                modal.confirm({
+                  title: "确认删除",
+                  content: "确定要删除这条列吗？",
+                  okText: "确认",
+                  okButtonProps: {
+                    danger: true,
+                  },
+                  onOk: () => onDelete?.(column.id),
+                });
+              },
+            },
+          ];
+    }, [readonly]);
+
     return (
       <div
         ref={ref}
@@ -126,7 +155,6 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
           },
         )}
         style={headerStyle}
-        onDoubleClick={handleDoubleClick}
       >
         <div className="flex items-center px-4 py-2 h-full cursor-grab box-border">
           <div
@@ -134,8 +162,13 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
             title={column.title}
           >
             <PluginIcon type={column.type} pluginManager={pluginManager} />
-            {column.title}
+            <span className="text-truncate">{column.title}</span>
           </div>
+          <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]}>
+            <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-[var(--common-hover-bg)] rounded-full flex items-center justify-center flex-shrink-0">
+              <MoreOutlined />
+            </div>
+          </Dropdown>
           <div
             className={classNames(
               "absolute top-0 right-[-2px] w-1 h-full cursor-col-resize bg-transparent",

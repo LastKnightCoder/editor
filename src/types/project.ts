@@ -19,6 +19,7 @@ export enum EProjectItemType {
   WhiteBoard = "white-board",
   VideoNote = "video-note",
   WebView = "web-view",
+  TableView = "table-view",
 }
 
 export interface ProjectItem {

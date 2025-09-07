@@ -12,13 +12,7 @@ interface RendererProps {
 }
 
 const Renderer: React.FC<RendererProps> = memo(({ value, config, theme }) => {
-  if (!value) {
-    return (
-      <div className="flex items-center w-full h-full box-border py-1 px-1.5">
-        <span className="text-gray-300 italic">-</span>
-      </div>
-    );
-  }
+  if (!value) return null;
 
   const values = Array.isArray(value) ? value : [value];
 
@@ -35,7 +29,7 @@ const Renderer: React.FC<RendererProps> = memo(({ value, config, theme }) => {
     });
 
     return (
-      <div className="flex items-center w-full h-full box-border py-1 px-1.5">
+      <div className="flex items-center w-full h-full box-border py-1 px-4">
         {coloredOptions.length > 0 && (
           <SelectList options={coloredOptions} theme={theme} />
         )}

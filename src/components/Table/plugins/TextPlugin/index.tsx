@@ -6,6 +6,7 @@ import { MdTextFields } from "react-icons/md";
 const TextPlugin: CellPlugin<any> = {
   type: "text",
   name: "文本",
+  editable: true,
   Renderer,
   Editor,
   Icon: ({ className }: { className?: string }) => (

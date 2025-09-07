@@ -6,6 +6,7 @@ import { MdCalendarToday } from "react-icons/md";
 const DatePlugin: CellPlugin<any> = {
   type: "date",
   name: "日期",
+  editable: true,
   Renderer,
   Editor,
   Icon: ({ className }) => <MdCalendarToday className={className} />,

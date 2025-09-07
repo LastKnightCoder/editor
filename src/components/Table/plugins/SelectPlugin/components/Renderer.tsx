@@ -13,11 +13,7 @@ interface RendererProps {
 
 const Renderer: React.FC<RendererProps> = memo(({ value, config, theme }) => {
   if (!value) {
-    return (
-      <div className="flex items-center h-full w-full px-2">
-        <span className="text-gray-300 italic">-</span>
-      </div>
-    );
+    return null;
   }
 
   // 查找匹配的选项
@@ -30,14 +26,14 @@ const Renderer: React.FC<RendererProps> = memo(({ value, config, theme }) => {
 
       if (color) {
         return (
-          <div className="flex items-center h-full w-full px-2">
+          <div className="flex items-center h-full w-full px-4">
             <SelectList options={[option]} theme={theme} />
           </div>
         );
       }
 
       return (
-        <div className="flex items-center h-full w-full px-2">
+        <div className="flex items-center h-full w-full px-4">
           <span className="inline-block">{label}</span>
         </div>
       );

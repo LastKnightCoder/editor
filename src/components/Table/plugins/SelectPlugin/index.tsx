@@ -6,6 +6,7 @@ import { MdArrowDropDownCircle } from "react-icons/md";
 const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: "select",
   name: "单选",
+  editable: true,
   Renderer,
   // @ts-ignore
   Editor,

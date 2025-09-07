@@ -31,7 +31,7 @@ const Renderer: React.FC<{
 
   return (
     <div
-      className="w-full h-full flex items-center px-2"
+      className="w-full h-full flex items-center px-4"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -43,6 +43,7 @@ const Renderer: React.FC<{
 const CheckboxPlugin: CellPlugin<unknown> = {
   type: "checkbox",
   name: "复选框",
+  editable: false,
   Renderer,
   Icon: ({ className }) => <MdCheckBox className={className} />,
   beforeSave: (value) => Boolean(value),

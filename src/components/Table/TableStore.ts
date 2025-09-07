@@ -302,9 +302,9 @@ export const createTableStore = (
     },
 
     moveCellSelection: (direction) => {
-      const { selectedCell, rows, columnOrder } = get();
+      const { selectedCell, rows, columnOrder, editingCell } = get();
 
-      if (!selectedCell) return;
+      if (!selectedCell || editingCell) return;
 
       const { rowId, columnId } = selectedCell;
 
