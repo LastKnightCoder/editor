@@ -46,7 +46,7 @@ const Renderer: React.FC<{
 
   return (
     <div
-      className="w-full h-full flex items-center px-2"
+      className="w-full h-full flex items-center px-4"
       onClick={onClickContainer}
     >
       <Star
@@ -64,6 +64,7 @@ const Renderer: React.FC<{
 const StarPlugin: CellPlugin<StarConfig> = {
   type: "star",
   name: "评分",
+  editable: false,
   Renderer,
   Icon: ({ className }) => <MdStarRate className={className} />,
   beforeSave: (value, config) => normalize(value, config),

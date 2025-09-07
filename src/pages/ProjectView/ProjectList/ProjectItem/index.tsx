@@ -32,7 +32,9 @@ import {
   addChildProjectItem,
   removeRootProjectItem,
   removeChildProjectItem,
+  createDataTable,
 } from "@/commands";
+import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
@@ -851,6 +853,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       label: "添加网页",
     },
     {
+      key: "add-table-project-item",
+      label: "添加表格",
+    },
+    {
       key: "link-card-project-item",
       label: "关联卡片",
     },
@@ -989,6 +995,34 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         setYoutubeModalOpen(true);
       } else if (key === "add-webview-project-item") {
         setWebviewModalOpen(true);
+      } else if (key === "add-table-project-item") {
+        if (!projectItemId) return;
+        const dataTable = await createDataTable({
+          columns: DEFAULT_COLUMNS,
+          rows: DEFAULT_ROWS,
+          columnOrder: DEFAULT_COLUMNS.map((column) => column.id),
+        });
+        const createProjectItem: CreateProjectItem = {
+          title: "新表格",
+          content: [],
+          children: [],
+          refType: "data-table",
+          refId: dataTable.id,
+          projectItemType: EProjectItemType.TableView,
+          count: 0,
+          whiteBoardContentId: 0,
+        };
+        const [parentProjectItem] = await addChildProjectItem(
+          projectItemId,
+          createProjectItem,
+        );
+        if (parentProjectItem) {
+          setProjectItem(parentProjectItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            parentProjectItem,
+          );
+        }
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {

@@ -6,6 +6,7 @@ import { MdChecklist } from "react-icons/md";
 const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: "multiSelect",
   name: "多选",
+  editable: true,
   Renderer,
   // @ts-ignore
   Editor,

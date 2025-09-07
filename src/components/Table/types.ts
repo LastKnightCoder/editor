@@ -25,13 +25,13 @@ export interface RowData {
 export interface TableData {
   columns: ColumnDef[];
   rows: RowData[];
-  columnWidths: Record<string, number>;
   columnOrder: string[];
 }
 
 export interface TableProps {
   columns: ColumnDef[];
   data: RowData[];
+  columnOrder: string[];
   plugins?: CellPlugin<unknown>[];
   onChange?: (data: TableData) => void;
   theme?: "light" | "dark";
@@ -63,6 +63,7 @@ export interface CellPlugin<T> {
     theme: "light" | "dark";
     readonly: boolean;
   }>;
+  editable?: boolean;
   onMount?: () => void;
   onUnmount?: () => void;
   beforeSave?: (value: CellValue, config: T) => CellValue;

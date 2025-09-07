@@ -19,7 +19,7 @@ import {
 } from "@ant-design/icons";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import { useNavigate } from "react-router-dom";
-
+import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem/index.tsx";
 import If from "@/components/If";
 import For from "@/components/For";
@@ -51,6 +51,7 @@ import {
   nodeFetch,
   createWhiteBoardContent,
   addRootProjectItem,
+  createDataTable,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
@@ -374,6 +375,10 @@ const Project = () => {
       label: "添加网页",
     },
     {
+      key: "add-table-project-item",
+      label: "添加表格",
+    },
+    {
       key: "link-card-project-item",
       label: "关联卡片",
     },
@@ -504,6 +509,32 @@ const Project = () => {
         setYoutubeModalOpen(true);
       } else if (key === "add-webview-project-item") {
         setWebviewModalOpen(true);
+      } else if (key === "add-table-project-item") {
+        const dataTable = await createDataTable({
+          columns: DEFAULT_COLUMNS,
+          rows: DEFAULT_ROWS,
+          columnOrder: DEFAULT_COLUMNS.map((column) => column.id),
+        });
+        const createProjectItem: CreateProjectItem = {
+          title: "新表格",
+          content: [],
+          children: [],
+          refType: "data-table",
+          refId: dataTable.id,
+          projectItemType: EProjectItemType.TableView,
+          count: 0,
+          whiteBoardContentId: 0,
+        };
+        const [newProject, item] = await addRootProjectItem(
+          project.id,
+          createProjectItem,
+        );
+        if (item) {
+          useProjectsStore.setState({
+            activeProjectItemId: item.id,
+          });
+        }
+        setProject(newProject);
       } else if (key === "link-card-project-item") {
         openSelectCardModal();
       } else if (key === "link-white-board-project-item") {

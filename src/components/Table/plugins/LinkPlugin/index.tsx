@@ -36,16 +36,12 @@ const Renderer: React.FC<{
   };
 
   if (!value) {
-    return (
-      <div className="flex items-center h-full w-full px-2">
-        <span className="text-gray-300 italic">-</span>
-      </div>
-    );
+    return null;
   }
 
   return (
     <div className="relative w-full h-full flex items-center">
-      <div className="px-2 truncate max-w-full">
+      <div className="px-4 truncate max-w-full">
         <span className="underline decoration-1 cursor-text select-text truncate">
           {String(value)}
         </span>
@@ -75,6 +71,7 @@ const Renderer: React.FC<{
 const LinkPlugin: CellPlugin<unknown> = {
   type: "link",
   name: "链接",
+  editable: true,
   Renderer,
   Icon: ({ className }) => <MdLink className={className} />,
   beforeSave: (value) => {

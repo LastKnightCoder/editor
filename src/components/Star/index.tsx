@@ -21,7 +21,6 @@ const normalizeValue = (
   max: number,
   step: 0.5 | 1,
 ) => {
-  console.log("normalizeValue", val, max, step);
   if (val === null || val === undefined || Number.isNaN(Number(val))) return 0;
   const num = typeof val === "number" ? val : Number(val);
   const rounded = step === 0.5 ? Math.round(num * 2) / 2 : Math.round(num);
