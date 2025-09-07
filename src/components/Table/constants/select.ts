@@ -3,8 +3,8 @@
 export const SELECT_COLORS_CONFIG = {
   red: {
     light: {
-      backgroundColor: "#FF4500",
-      color: "#fff",
+      backgroundColor: "rgba(204, 1, 88, 0.137)",
+      color: "rgb(109, 53, 49)",
     },
     dark: {
       backgroundColor: "#8B0000",
@@ -13,8 +13,8 @@ export const SELECT_COLORS_CONFIG = {
   },
   orange: {
     light: {
-      backgroundColor: "#FFA500",
-      color: "#fff",
+      backgroundColor: "rgba(213, 96, 0, 0.19)",
+      color: "rgb(101, 61, 33)",
     },
     dark: {
       backgroundColor: "#8B0000",
@@ -23,52 +23,52 @@ export const SELECT_COLORS_CONFIG = {
   },
   yellow: {
     light: {
-      backgroundColor: "#FFFF00",
-      color: "#000",
+      backgroundColor: "rgba(209, 155, 0, 0.24)",
+      color: "rgb(93, 66, 34)",
     },
     dark: {
-      backgroundColor: "#8B8B00",
-      color: "#fff",
+      backgroundColor: "rgba(255, 182, 135, 0.275)",
+      color: "rgb(245, 237, 233)",
     },
   },
   green: {
     light: {
-      backgroundColor: "#90EE90",
-      color: "#000",
+      backgroundColor: "rgba(1, 104, 42, 0.145)",
+      color: "rgb(42, 83, 60)",
     },
     dark: {
-      backgroundColor: "#006400",
-      color: "#fff",
+      backgroundColor: "rgba(93, 255, 164, 0.25)",
+      color: "rgb(232, 241, 236)",
     },
   },
-  cyan: {
+  gray: {
     light: {
-      backgroundColor: "#00FFFF",
-      color: "#000",
+      backgroundColor: "rgba(28, 19, 1, 0.11)",
+      color: "rgb(73, 72, 70)",
     },
     dark: {
-      backgroundColor: "#000080",
-      color: "#fff",
+      backgroundColor: "rgba(254, 250, 240, 0.208)",
+      color: "rgb(230, 229, 227)",
     },
   },
   blue: {
     light: {
-      backgroundColor: "#1E90FF",
-      color: "#fff",
+      backgroundColor: "rgba(45, 149, 218, 0.235)",
+      color: "rgb(38, 74, 114)",
     },
     dark: {
-      backgroundColor: "#000080",
-      color: "#fff",
+      backgroundColor: "rgba(59, 152, 255, 0.384)",
+      color: "rgb(232, 242, 250)",
     },
   },
   purple: {
     light: {
-      backgroundColor: "#800080",
-      color: "#fff",
+      backgroundColor: "rgba(104, 1, 184, 0.125)",
+      color: "rgb(85, 59, 105)",
     },
     dark: {
-      backgroundColor: "#800080",
-      color: "#fff",
+      backgroundColor: "rgba(197, 123, 255, 0.345)",
+      color: "rgb(243, 235, 249)",
     },
   },
 };

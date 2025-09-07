@@ -1,7 +1,6 @@
 import { SELECT_COLORS } from "./constants";
 
-// 列定义
-export interface ColumnDef<T = any> {
+export interface ColumnDef<T = unknown> {
   id: string;
   title: string;
   type: string; // "text" | "number" | "date" | "select" | "multiSelect" | "custom"
@@ -9,64 +8,65 @@ export interface ColumnDef<T = any> {
   config?: T; // 列类型特定配置（例如，选择的选项）
   validation?: ValidationRule;
   hidden?: boolean;
-  sortDirection?: "asc" | "desc" | null;
-  icon?: string; // 列图标名称
 }
 
-// 单元格值（动态类型）
 export type CellValue =
-  | string // 文本，数字（需要转换）
+  | string
   | number
-  | Date
+  | boolean
   | string[] // 多选
   | any; // 自定义类型
 
-// 行数据
 export interface RowData {
-  id: string; // 唯一标识符
+  id: string;
   [columnId: string]: CellValue;
 }
 
-/**
- * 表格数据类型，用于onChange回调
- */
 export interface TableData {
   columns: ColumnDef[];
   rows: RowData[];
+  columnWidths: Record<string, number>;
+  columnOrder: string[];
 }
 
-/**
- * 表格属性
- */
 export interface TableProps {
   columns: ColumnDef[];
   data: RowData[];
-  plugins?: CellPlugin[];
+  plugins?: CellPlugin<unknown>[];
   onChange?: (data: TableData) => void;
+  theme?: "light" | "dark";
+  readonly?: boolean;
+  className?: string;
 }
 
-// 单元格插件接口
-export interface CellPlugin {
+export interface CellPlugin<T> {
   type: string;
-  // 只读模式渲染器
+  name: string;
+  // 列头显示的图标
+  Icon?: React.ComponentType<{ className?: string }>;
   Renderer: React.ComponentType<{
     value: CellValue;
-    config?: any;
+    config?: T;
     column: ColumnDef;
+    theme: "light" | "dark";
+    readonly: boolean;
+    onCellValueChange?: (newValue: CellValue) => void;
   }>;
-  // 可选的编辑器组件
+  // 单元格编辑器组件
   Editor?: React.ComponentType<{
     value: CellValue;
-    config?: any;
+    config?: T;
     column: ColumnDef;
     onCellValueChange: (newValue: CellValue) => void;
-    onBlur: () => void;
+    onFinishEdit: () => void;
     onColumnChange: (column: ColumnDef) => void;
+    theme: "light" | "dark";
+    readonly: boolean;
   }>;
   onMount?: () => void;
   onUnmount?: () => void;
-  beforeSave?: (value: CellValue) => CellValue;
-  afterLoad?: (value: CellValue) => CellValue;
+  beforeSave?: (value: CellValue, config: T) => CellValue;
+  afterLoad?: (value: CellValue, config: T) => CellValue;
 }
 
 // 验证规则
@@ -88,20 +88,18 @@ export type TableInteraction =
       direction: "up" | "down" | "left" | "right";
     };
 
-// 表格快照用于撤销/重做
 export interface TableSnapshot {
   columns: ColumnDef[];
   rows: RowData[];
+  columnWidths: Record<string, number>;
   columnOrder: string[];
 }
 
-// 单元格坐标
 export interface CellCoord {
   rowId: string;
   columnId: string;
 }
 
-// 选定区域
 export interface SelectedRegion {
   start: CellCoord;
   end: CellCoord;
