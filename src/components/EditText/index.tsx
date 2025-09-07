@@ -139,17 +139,15 @@ const EditText = memo(
     }, [defaultFocus, focusEnd]);
 
     useMutationObserver(
-      (mutations) => {
-        if (mutations.some((mutation) => mutation.type === "characterData")) {
-          const mutation = mutations[0];
-          const target = mutation.target as Text;
-          onChange?.(target.nodeValue || "");
-          innerText.current = target.nodeValue || "";
-        }
+      () => {
+        const textContent = ref.current?.innerText || "";
+        onChange?.(textContent);
+        innerText.current = textContent;
       },
       ref,
       {
         characterData: true,
+        childList: true,
         subtree: true,
       },
     );

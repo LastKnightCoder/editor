@@ -639,3 +639,4 @@
 
 - feat: 支持数据表格
 - feat: 添加注解插件
+- fix: EditText 粘贴时未触发 onChange 方法

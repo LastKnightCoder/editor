@@ -155,7 +155,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
 
   return (
     <div
-      className="relative w-full h-full py-0 px-2 relative"
+      className="relative w-full h-full py-0 px-4 relative"
       onClick={() => {
         setIsOpen(!isOpen);
       }}

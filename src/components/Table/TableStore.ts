@@ -59,7 +59,6 @@ const createSnapshot = (
   columns: JSON.parse(JSON.stringify(state.columns)),
   rows: JSON.parse(JSON.stringify(state.rows)),
   columnOrder: [...state.columnOrder],
-  columnWidths: state.columnWidths,
 });
 
 export const createTableStore = (
@@ -101,9 +100,14 @@ export const createTableStore = (
     },
 
     resizeColumn: (columnId, width) => {
+      const { columns } = get();
       set(
-        produce((state) => {
+        produce((state: TableState) => {
           state.columnWidths[columnId] = Math.max(50, width); // 最小宽度
+          const columnIndex = columns.findIndex((c) => c.id === columnId);
+          if (columnIndex !== -1) {
+            state.columns[columnIndex].width = Math.max(50, width);
+          }
         }),
       );
     },
@@ -295,6 +299,7 @@ export const createTableStore = (
             };
             if (typeof updates.width === "number") {
               state.columnWidths[columnId] = Math.max(50, updates.width);
+              state.columns[columnIndex].width = Math.max(50, updates.width);
             }
           }
         }),
