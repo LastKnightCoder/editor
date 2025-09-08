@@ -23,6 +23,7 @@ import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem/index.tsx";
 import If from "@/components/If";
 import For from "@/components/For";
+import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 import styles from "./index.module.less";
 import {
@@ -34,7 +35,7 @@ import {
   IndexType,
   SearchResult,
 } from "@/types";
-import { useDebounceFn, useMemoizedFn } from "ahooks";
+import { useDebounceFn, useLocalStorageState, useMemoizedFn } from "ahooks";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
@@ -71,11 +72,17 @@ import ytdl from "@distube/ytdl-core";
 const Project = () => {
   const { message } = App.useApp();
   const { id } = useParams();
-  const { activeProjectItemId } = useProjectsStore((state) => ({
-    activeProjectItemId: state.activeProjectItemId,
+  const { hideProjectItemList } = useProjectsStore((state) => ({
+    hideProjectItemList: state.hideProjectItemList,
   }));
   const { setting } = useSettingStore((state) => ({ setting: state.setting }));
 
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+    "project-list-sidebar-width",
+    {
+      defaultValue: 300,
+    },
+  );
   const [project, setProject] = useState<IProject | null>(null);
   const [cards, setCards] = useState<ICard[]>([]);
   const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
@@ -586,170 +593,101 @@ const Project = () => {
 
   return (
     <ProjectContext.Provider value={{ projectId: project.id }}>
-      <div className={styles.list}>
-        <div className={styles.header}>
-          <div className={styles.title}>
-            <HomeOutlined
-              onClick={() => {
-                useProjectsStore.setState({
-                  activeProjectItemId: null,
-                  hideProjectItemList: false,
-                });
-                navigate(`/projects/list`);
-              }}
-            />
-            {project.title}
-          </div>
-          <div className={styles.icons}>
-            {activeProjectItemId && (
+      <ResizeableAndHideableSidebar
+        width={sidebarWidth ?? 300}
+        onWidthChange={setSidebarWidth}
+        open={!hideProjectItemList}
+        disableResize={hideProjectItemList}
+        className="h-full"
+      >
+        <div className={styles.list}>
+          <div className={styles.header}>
+            <div className={styles.title}>
+              <HomeOutlined
+                onClick={() => {
+                  useProjectsStore.setState({
+                    activeProjectItemId: null,
+                    hideProjectItemList: false,
+                  });
+                  navigate(`/projects/list`);
+                }}
+              />
+              {project.title}
+            </div>
+            <div className={styles.icons}>
               <div className={styles.icon} onClick={onFoldSidebar}>
                 <MenuFoldOutlined />
               </div>
-            )}
-            <Dropdown
-              menu={{
-                items: addMenuItems,
-                onClick: handleAddMenuClick,
-              }}
-            >
-              <div className={styles.icon}>
-                <PlusOutlined />
-              </div>
-            </Dropdown>
+              <Dropdown
+                menu={{
+                  items: addMenuItems,
+                  onClick: handleAddMenuClick,
+                }}
+              >
+                <div className={styles.icon}>
+                  <PlusOutlined />
+                </div>
+              </Dropdown>
+            </div>
           </div>
-        </div>
-        <div className={styles.divider}></div>
-        <div className={styles.contentArea}>
-          <If condition={project.children.length === 0}>
-            <Empty description={"项目下暂无文档"} />
-          </If>
-          <For
-            data={project.children}
-            renderItem={(projectItemId, index) => (
-              <ProjectItem
-                projectItemId={projectItemId}
-                isRoot
-                key={projectItemId}
-                path={[index]}
-                parentProjectItemId={project.id}
-                parentChildren={project.children}
-                cards={cards}
-                whiteBoards={whiteBoards}
-                refreshProject={refresh}
-              />
-            )}
+          <div className={styles.divider}></div>
+          <div className={styles.contentArea}>
+            <If condition={project.children.length === 0}>
+              <Empty description={"项目下暂无文档"} />
+            </If>
+            <For
+              data={project.children}
+              renderItem={(projectItemId, index) => (
+                <ProjectItem
+                  projectItemId={projectItemId}
+                  isRoot
+                  key={projectItemId}
+                  path={[index]}
+                  parentProjectItemId={project.id}
+                  parentChildren={project.children}
+                  cards={cards}
+                  whiteBoards={whiteBoards}
+                  refreshProject={refresh}
+                />
+              )}
+            />
+          </div>
+          <ContentSelectorModal
+            title={"选择关联卡片"}
+            open={selectCardModalOpen}
+            onCancel={onCardCancel}
+            onSelect={handleCardSelect}
+            contentType="card"
+            multiple={false}
+            excludeIds={excludeCardIds}
+            initialContents={initialCardContents}
+            extensions={extensions}
           />
-        </div>
-        <ContentSelectorModal
-          title={"选择关联卡片"}
-          open={selectCardModalOpen}
-          onCancel={onCardCancel}
-          onSelect={handleCardSelect}
-          contentType="card"
-          multiple={false}
-          excludeIds={excludeCardIds}
-          initialContents={initialCardContents}
-          extensions={extensions}
-        />
-        <SelectWhiteBoardModal
-          title={"选择关联白板"}
-          selectedWhiteBoards={selectedWhiteBoards}
-          onChange={onWhiteBoardChange}
-          open={selectWhiteBoardModalOpen}
-          allWhiteBoards={whiteBoards}
-          onCancel={onWhiteBoardCancel}
-          onOk={handleOnSelectWhiteboardOk}
-          excludeWhiteBoardIds={excludeWhiteBoardIds}
-          multiple={multiple}
-        />
-        <Modal
-          open={webVideoModalOpen}
-          onCancel={() => setWebVideoModalOpen(false)}
-          onOk={async () => {
-            const item = await createEmptyVideoNote({
-              type: "remote",
-              url: webVideoUrl,
-            });
-            if (!item) {
-              message.error("创建视频笔记失败");
-              return;
-            }
-            const createProjectItem: CreateProjectItem = {
-              title: webVideoUrl,
-              content: [],
-              children: [],
-              refType: "video-note",
-              refId: item.id,
-              projectItemType: EProjectItemType.VideoNote,
-              count: 0,
-              whiteBoardContentId: 0,
-            };
-            const [newProject, projectItem] = await addRootProjectItem(
-              project.id,
-              createProjectItem,
-            );
-            if (projectItem) {
-              useProjectsStore.setState({
-                activeProjectItemId: projectItem.id,
-              });
-            }
-            setProject(newProject);
-            setWebVideoModalOpen(false);
-            setWebVideoUrl("");
-          }}
-        >
-          <Input
-            placeholder="请输入网址"
-            value={webVideoUrl}
-            onChange={(e) => setWebVideoUrl(e.target.value)}
+          <SelectWhiteBoardModal
+            title={"选择关联白板"}
+            selectedWhiteBoards={selectedWhiteBoards}
+            onChange={onWhiteBoardChange}
+            open={selectWhiteBoardModalOpen}
+            allWhiteBoards={whiteBoards}
+            onCancel={onWhiteBoardCancel}
+            onOk={handleOnSelectWhiteboardOk}
+            excludeWhiteBoardIds={excludeWhiteBoardIds}
+            multiple={multiple}
           />
-        </Modal>
-        <Modal
-          open={youtubeModalOpen}
-          title="添加 YouTube 视频笔记"
-          onCancel={() => {
-            setYoutubeModalOpen(false);
-            setYoutubeUrl("");
-            setYoutubeVideoInfo(null);
-            setYoutubeSelectedVideoFormat(undefined);
-            setYoutubeSelectedAudioFormat(undefined);
-          }}
-          onOk={async () => {
-            if (!youtubeUrl.trim()) {
-              message.error("请输入 YouTube 视频链接");
-              return;
-            }
-            if (!isYoutubeUrl(youtubeUrl)) {
-              message.error("请输入有效的 YouTube 视频链接");
-              return;
-            }
-            try {
-              if (!youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat) {
-                message.error("请选择清晰度");
-                return;
-              }
-
-              if (!youtubeVideoInfo) {
-                message.error("无法获取视频信息");
-                return;
-              }
-
+          <Modal
+            open={webVideoModalOpen}
+            onCancel={() => setWebVideoModalOpen(false)}
+            onOk={async () => {
               const item = await createEmptyVideoNote({
-                type: "youtube",
-                videoId: youtubeVideoInfo.videoId,
-                videoFormat: youtubeSelectedVideoFormat,
-                audioFormat: youtubeSelectedAudioFormat,
+                type: "remote",
+                url: webVideoUrl,
               });
-
               if (!item) {
                 message.error("创建视频笔记失败");
                 return;
               }
-
               const createProjectItem: CreateProjectItem = {
-                title:
-                  youtubeVideoInfo.title ||
-                  `YouTube 视频 - ${youtubeVideoInfo.videoId}`,
+                title: webVideoUrl,
                 content: [],
                 children: [],
                 refType: "video-note",
@@ -768,300 +706,378 @@ const Project = () => {
                 });
               }
               setProject(newProject);
+              setWebVideoModalOpen(false);
+              setWebVideoUrl("");
+            }}
+          >
+            <Input
+              placeholder="请输入网址"
+              value={webVideoUrl}
+              onChange={(e) => setWebVideoUrl(e.target.value)}
+            />
+          </Modal>
+          <Modal
+            open={youtubeModalOpen}
+            title="添加 YouTube 视频笔记"
+            onCancel={() => {
               setYoutubeModalOpen(false);
               setYoutubeUrl("");
               setYoutubeVideoInfo(null);
               setYoutubeSelectedVideoFormat(undefined);
               setYoutubeSelectedAudioFormat(undefined);
-              message.success("YouTube 视频笔记添加成功！");
-            } catch (e) {
-              console.error(e);
-              message.error("添加 YouTube 视频失败");
-            }
-          }}
-          okButtonProps={{
-            disabled:
-              !youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat,
-          }}
-        >
-          <Input
-            placeholder="请输入 YouTube 链接 (https://www.youtube.com/watch?v=...)"
-            value={youtubeUrl}
-            onChange={(e) => handleYoutubeUrlChange.run(e.target.value)}
-            autoFocus
-          />
-          {youtubeVideoInfo?.audioFmts?.length &&
-            youtubeVideoInfo?.videoFmts?.length && (
-              <div style={{ marginTop: 12 }}>
-                <div style={{ marginBottom: 6 }}>选择音频清晰度</div>
-                <Select
-                  style={{ width: "100%" }}
-                  options={youtubeVideoInfo.audioFmts.map((f) => ({
-                    label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
-                    value: f.itag,
-                  }))}
-                  value={youtubeSelectedAudioFormat?.itag}
-                  loading={youtubeVideoInfoLoading}
-                  onChange={(v) =>
-                    setYoutubeSelectedAudioFormat(
-                      youtubeVideoInfo.audioFmts.find(
-                        (f) => f.itag === v,
-                      ) as ytdl.videoFormat,
-                    )
-                  }
-                  placeholder="选择清晰度"
-                />
-                <div style={{ marginTop: 6 }}>选择视频清晰度</div>
-                <Select
-                  style={{ width: "100%" }}
-                  options={youtubeVideoInfo.videoFmts.map((f) => ({
-                    label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
-                    value: f.itag,
-                  }))}
-                  value={youtubeSelectedVideoFormat?.itag}
-                  loading={youtubeVideoInfoLoading}
-                  onChange={(v) =>
-                    setYoutubeSelectedVideoFormat(
-                      youtubeVideoInfo.videoFmts.find(
-                        (f) => f.itag === v,
-                      ) as ytdl.videoFormat,
-                    )
-                  }
-                  placeholder="选择清晰度"
-                />
-              </div>
-            )}
-        </Modal>
-        <Modal
-          open={webviewModalOpen}
-          title="添加网页"
-          onCancel={() => {
-            setWebviewModalOpen(false);
-            setWebviewUrl("");
-          }}
-          onOk={async () => {
-            if (!webviewUrl) {
-              message.error("请输入网址");
-              return;
-            }
-
-            const url = webviewUrl.startsWith("http")
-              ? webviewUrl
-              : `https://${webviewUrl}`;
-
-            let title = url;
-            try {
-              const response = await nodeFetch(url, {
-                method: "GET",
-              });
-
-              if (typeof response === "string") {
-                const titleMatch = response.match(
-                  /<title[^>]*>([^<]+)<\/title>/i,
-                );
-                if (titleMatch && titleMatch[1]) {
-                  title = titleMatch[1].trim();
+            }}
+            onOk={async () => {
+              if (!youtubeUrl.trim()) {
+                message.error("请输入 YouTube 视频链接");
+                return;
+              }
+              if (!isYoutubeUrl(youtubeUrl)) {
+                message.error("请输入有效的 YouTube 视频链接");
+                return;
+              }
+              try {
+                if (
+                  !youtubeSelectedVideoFormat ||
+                  !youtubeSelectedAudioFormat
+                ) {
+                  message.error("请选择清晰度");
+                  return;
                 }
+
+                if (!youtubeVideoInfo) {
+                  message.error("无法获取视频信息");
+                  return;
+                }
+
+                const item = await createEmptyVideoNote({
+                  type: "youtube",
+                  videoId: youtubeVideoInfo.videoId,
+                  videoFormat: youtubeSelectedVideoFormat,
+                  audioFormat: youtubeSelectedAudioFormat,
+                });
+
+                if (!item) {
+                  message.error("创建视频笔记失败");
+                  return;
+                }
+
+                const createProjectItem: CreateProjectItem = {
+                  title:
+                    youtubeVideoInfo.title ||
+                    `YouTube 视频 - ${youtubeVideoInfo.videoId}`,
+                  content: [],
+                  children: [],
+                  refType: "video-note",
+                  refId: item.id,
+                  projectItemType: EProjectItemType.VideoNote,
+                  count: 0,
+                  whiteBoardContentId: 0,
+                };
+                const [newProject, projectItem] = await addRootProjectItem(
+                  project.id,
+                  createProjectItem,
+                );
+                if (projectItem) {
+                  useProjectsStore.setState({
+                    activeProjectItemId: projectItem.id,
+                  });
+                }
+                setProject(newProject);
+                setYoutubeModalOpen(false);
+                setYoutubeUrl("");
+                setYoutubeVideoInfo(null);
+                setYoutubeSelectedVideoFormat(undefined);
+                setYoutubeSelectedAudioFormat(undefined);
+                message.success("YouTube 视频笔记添加成功！");
+              } catch (e) {
+                console.error(e);
+                message.error("添加 YouTube 视频失败");
               }
-            } catch (error) {
-              console.error("获取网页标题失败:", error);
-            }
-
-            const createProjectItem: CreateProjectItem = {
-              title: `${title} [${url}]`,
-              content: [],
-              children: [],
-              refType: "",
-              refId: 0,
-              projectItemType: EProjectItemType.WebView,
-              count: 0,
-              whiteBoardContentId: 0,
-            };
-
-            const [newProject, item] = await addRootProjectItem(
-              project.id,
-              createProjectItem,
-            );
-            if (item) {
-              useProjectsStore.setState({
-                activeProjectItemId: item.id,
-              });
-            }
-            setProject(newProject);
-
-            setWebviewModalOpen(false);
-            setWebviewUrl("");
-          }}
-        >
-          <Input
-            placeholder="请输入网址"
-            value={webviewUrl}
-            onChange={(e) => setWebviewUrl(e.target.value)}
-            prefix={<GlobalOutlined />}
-            autoFocus
-          />
-        </Modal>
-        <Modal
-          open={bilibiliModalOpen}
-          title="添加 Bilibili 视频笔记"
-          onCancel={() => {
-            setBilibiliModalOpen(false);
-            setBilibiliUrl("");
-            setBilibiliLoading(false);
-            setBilibiliQualityOptions([]);
-            setSelectedQuality(BilibiliVideoQuality.HD_1080P);
-            setQualityLoading(false);
-            // 清理防抖定时器
-            if (debounceTimeoutId) {
-              clearTimeout(debounceTimeoutId);
-              setDebounceTimeoutId(null);
-            }
-          }}
-          confirmLoading={bilibiliLoading}
-          onOk={async () => {
-            if (!bilibiliUrl.trim()) {
-              message.error("请输入 Bilibili 视频链接");
-              return;
-            }
-
-            if (!isBilibiliUrl(bilibiliUrl)) {
-              message.error("请输入有效的 Bilibili 视频链接");
-              return;
-            }
-
-            setBilibiliLoading(true);
-
-            try {
-              // 快速检查 URL 有效性
-              const urlCheck = await quickCheckBilibiliUrl(bilibiliUrl);
-              if (!urlCheck.isValid) {
-                message.error(urlCheck.error || "无效的 Bilibili 链接");
+            }}
+            okButtonProps={{
+              disabled:
+                !youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat,
+            }}
+          >
+            <Input
+              placeholder="请输入 YouTube 链接 (https://www.youtube.com/watch?v=...)"
+              value={youtubeUrl}
+              onChange={(e) => handleYoutubeUrlChange.run(e.target.value)}
+              autoFocus
+            />
+            {youtubeVideoInfo?.audioFmts?.length &&
+              youtubeVideoInfo?.videoFmts?.length && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 6 }}>选择音频清晰度</div>
+                  <Select
+                    style={{ width: "100%" }}
+                    options={youtubeVideoInfo.audioFmts.map((f) => ({
+                      label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
+                      value: f.itag,
+                    }))}
+                    value={youtubeSelectedAudioFormat?.itag}
+                    loading={youtubeVideoInfoLoading}
+                    onChange={(v) =>
+                      setYoutubeSelectedAudioFormat(
+                        youtubeVideoInfo.audioFmts.find(
+                          (f) => f.itag === v,
+                        ) as ytdl.videoFormat,
+                      )
+                    }
+                    placeholder="选择清晰度"
+                  />
+                  <div style={{ marginTop: 6 }}>选择视频清晰度</div>
+                  <Select
+                    style={{ width: "100%" }}
+                    options={youtubeVideoInfo.videoFmts.map((f) => ({
+                      label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
+                      value: f.itag,
+                    }))}
+                    value={youtubeSelectedVideoFormat?.itag}
+                    loading={youtubeVideoInfoLoading}
+                    onChange={(v) =>
+                      setYoutubeSelectedVideoFormat(
+                        youtubeVideoInfo.videoFmts.find(
+                          (f) => f.itag === v,
+                        ) as ytdl.videoFormat,
+                      )
+                    }
+                    placeholder="选择清晰度"
+                  />
+                </div>
+              )}
+          </Modal>
+          <Modal
+            open={webviewModalOpen}
+            title="添加网页"
+            onCancel={() => {
+              setWebviewModalOpen(false);
+              setWebviewUrl("");
+            }}
+            onOk={async () => {
+              if (!webviewUrl) {
+                message.error("请输入网址");
                 return;
               }
 
-              const playerInfo = await getVideoInfoByUrl(bilibiliUrl);
+              const url = webviewUrl.startsWith("http")
+                ? webviewUrl
+                : `https://${webviewUrl}`;
 
-              // 创建 Bilibili 视频笔记
-              const item = await createEmptyVideoNote({
-                type: "bilibili",
-                bvid: playerInfo.bvid || "",
-                cid: playerInfo.cid || "", // 将在播放时获取
-                quality: selectedQuality, // 用户选择的清晰度
-              });
+              let title = url;
+              try {
+                const response = await nodeFetch(url, {
+                  method: "GET",
+                });
 
-              if (!item) {
-                message.error("创建视频笔记失败");
-                return;
+                if (typeof response === "string") {
+                  const titleMatch = response.match(
+                    /<title[^>]*>([^<]+)<\/title>/i,
+                  );
+                  if (titleMatch && titleMatch[1]) {
+                    title = titleMatch[1].trim();
+                  }
+                }
+              } catch (error) {
+                console.error("获取网页标题失败:", error);
               }
 
               const createProjectItem: CreateProjectItem = {
-                title: urlCheck.title || `Bilibili 视频 - ${urlCheck.bvid}`,
+                title: `${title} [${url}]`,
                 content: [],
                 children: [],
-                refType: "video-note",
-                refId: item.id,
-                projectItemType: EProjectItemType.VideoNote,
+                refType: "",
+                refId: 0,
+                projectItemType: EProjectItemType.WebView,
                 count: 0,
                 whiteBoardContentId: 0,
               };
 
-              const [newProject, projectItem] = await addRootProjectItem(
+              const [newProject, item] = await addRootProjectItem(
                 project.id,
                 createProjectItem,
               );
-
-              if (projectItem) {
+              if (item) {
                 useProjectsStore.setState({
-                  activeProjectItemId: projectItem.id,
+                  activeProjectItemId: item.id,
                 });
               }
-
               setProject(newProject);
+
+              setWebviewModalOpen(false);
+              setWebviewUrl("");
+            }}
+          >
+            <Input
+              placeholder="请输入网址"
+              value={webviewUrl}
+              onChange={(e) => setWebviewUrl(e.target.value)}
+              prefix={<GlobalOutlined />}
+              autoFocus
+            />
+          </Modal>
+          <Modal
+            open={bilibiliModalOpen}
+            title="添加 Bilibili 视频笔记"
+            onCancel={() => {
               setBilibiliModalOpen(false);
               setBilibiliUrl("");
+              setBilibiliLoading(false);
               setBilibiliQualityOptions([]);
               setSelectedQuality(BilibiliVideoQuality.HD_1080P);
+              setQualityLoading(false);
               // 清理防抖定时器
               if (debounceTimeoutId) {
                 clearTimeout(debounceTimeoutId);
                 setDebounceTimeoutId(null);
               }
-              message.success("Bilibili 视频笔记添加成功！");
-            } catch (error) {
-              console.error("添加 Bilibili 视频失败:", error);
-              message.error("添加 Bilibili 视频失败，请检查链接是否正确");
-            } finally {
-              setBilibiliLoading(false);
-            }
-          }}
-        >
-          <div style={{ marginBottom: 16 }}>
-            <Input
-              placeholder="请输入 Bilibili 视频链接 (如: https://www.bilibili.com/video/BV...)"
-              value={bilibiliUrl}
-              onChange={(e) => handleBilibiliUrlChange(e.target.value)}
-              suffix={qualityLoading ? <LoadingOutlined /> : undefined}
-              autoFocus
-            />
-            {qualityLoading && (
-              <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
-                正在获取可用清晰度选项...
+            }}
+            confirmLoading={bilibiliLoading}
+            onOk={async () => {
+              if (!bilibiliUrl.trim()) {
+                message.error("请输入 Bilibili 视频链接");
+                return;
+              }
+
+              if (!isBilibiliUrl(bilibiliUrl)) {
+                message.error("请输入有效的 Bilibili 视频链接");
+                return;
+              }
+
+              setBilibiliLoading(true);
+
+              try {
+                // 快速检查 URL 有效性
+                const urlCheck = await quickCheckBilibiliUrl(bilibiliUrl);
+                if (!urlCheck.isValid) {
+                  message.error(urlCheck.error || "无效的 Bilibili 链接");
+                  return;
+                }
+
+                const playerInfo = await getVideoInfoByUrl(bilibiliUrl);
+
+                // 创建 Bilibili 视频笔记
+                const item = await createEmptyVideoNote({
+                  type: "bilibili",
+                  bvid: playerInfo.bvid || "",
+                  cid: playerInfo.cid || "", // 将在播放时获取
+                  quality: selectedQuality, // 用户选择的清晰度
+                });
+
+                if (!item) {
+                  message.error("创建视频笔记失败");
+                  return;
+                }
+
+                const createProjectItem: CreateProjectItem = {
+                  title: urlCheck.title || `Bilibili 视频 - ${urlCheck.bvid}`,
+                  content: [],
+                  children: [],
+                  refType: "video-note",
+                  refId: item.id,
+                  projectItemType: EProjectItemType.VideoNote,
+                  count: 0,
+                  whiteBoardContentId: 0,
+                };
+
+                const [newProject, projectItem] = await addRootProjectItem(
+                  project.id,
+                  createProjectItem,
+                );
+
+                if (projectItem) {
+                  useProjectsStore.setState({
+                    activeProjectItemId: projectItem.id,
+                  });
+                }
+
+                setProject(newProject);
+                setBilibiliModalOpen(false);
+                setBilibiliUrl("");
+                setBilibiliQualityOptions([]);
+                setSelectedQuality(BilibiliVideoQuality.HD_1080P);
+                // 清理防抖定时器
+                if (debounceTimeoutId) {
+                  clearTimeout(debounceTimeoutId);
+                  setDebounceTimeoutId(null);
+                }
+                message.success("Bilibili 视频笔记添加成功！");
+              } catch (error) {
+                console.error("添加 Bilibili 视频失败:", error);
+                message.error("添加 Bilibili 视频失败，请检查链接是否正确");
+              } finally {
+                setBilibiliLoading(false);
+              }
+            }}
+          >
+            <div style={{ marginBottom: 16 }}>
+              <Input
+                placeholder="请输入 Bilibili 视频链接 (如: https://www.bilibili.com/video/BV...)"
+                value={bilibiliUrl}
+                onChange={(e) => handleBilibiliUrlChange(e.target.value)}
+                suffix={qualityLoading ? <LoadingOutlined /> : undefined}
+                autoFocus
+              />
+              {qualityLoading && (
+                <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+                  正在获取可用清晰度选项...
+                </div>
+              )}
+            </div>
+
+            {bilibiliQualityOptions.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
+                  选择清晰度:
+                  {qualityLoading && (
+                    <LoadingOutlined style={{ marginLeft: 8 }} />
+                  )}
+                </div>
+                <Select
+                  value={selectedQuality}
+                  onChange={setSelectedQuality}
+                  style={{ width: "100%" }}
+                  placeholder="选择清晰度"
+                  loading={qualityLoading}
+                  disabled={qualityLoading}
+                >
+                  {bilibiliQualityOptions.map((option) => (
+                    <Select.Option key={option.value} value={option.value}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span>{option.label}</span>
+                        <div>
+                          {option.needVip && <Tag color="gold">大会员</Tag>}
+                          {option.needLogin && !option.needVip && (
+                            <Tag color="blue">需登录</Tag>
+                          )}
+                        </div>
+                      </div>
+                    </Select.Option>
+                  ))}
+                </Select>
+                <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+                  * 高清晰度可能需要登录或大会员权限
+                </div>
               </div>
             )}
-          </div>
 
-          {bilibiliQualityOptions.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
-                选择清晰度:
-                {qualityLoading && (
-                  <LoadingOutlined style={{ marginLeft: 8 }} />
-                )}
-              </div>
-              <Select
-                value={selectedQuality}
-                onChange={setSelectedQuality}
-                style={{ width: "100%" }}
-                placeholder="选择清晰度"
-                loading={qualityLoading}
-                disabled={qualityLoading}
-              >
-                {bilibiliQualityOptions.map((option) => (
-                  <Select.Option key={option.value} value={option.value}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span>{option.label}</span>
-                      <div>
-                        {option.needVip && <Tag color="gold">大会员</Tag>}
-                        {option.needLogin && !option.needVip && (
-                          <Tag color="blue">需登录</Tag>
-                        )}
-                      </div>
-                    </div>
-                  </Select.Option>
-                ))}
-              </Select>
-              <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
-                * 高清晰度可能需要登录或大会员权限
-              </div>
+            <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+              <p>支持的链接格式：</p>
+              <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
+                <li>普通视频: https://www.bilibili.com/video/BV...</li>
+                <li>番剧: https://www.bilibili.com/bangumi/play/ss...</li>
+                <li>分集: https://www.bilibili.com/bangumi/play/ep...</li>
+              </ul>
             </div>
-          )}
-
-          <div style={{ fontSize: 12, color: "#8c8c8c" }}>
-            <p>支持的链接格式：</p>
-            <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
-              <li>普通视频: https://www.bilibili.com/video/BV...</li>
-              <li>番剧: https://www.bilibili.com/bangumi/play/ss...</li>
-              <li>分集: https://www.bilibili.com/bangumi/play/ep...</li>
-            </ul>
-          </div>
-        </Modal>
-      </div>
+          </Modal>
+        </div>
+      </ResizeableAndHideableSidebar>
     </ProjectContext.Provider>
   );
 };
