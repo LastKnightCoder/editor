@@ -1,4 +1,4 @@
-import React, { useRef, memo } from "react";
+import React, { useRef, memo, useState, useMemo } from "react";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -73,10 +73,8 @@ const TableContent: React.FC<TableContentProps> = memo(
       editColumn(column.id, column);
     });
 
-    const [columnEditOpen, setColumnEditOpen] = React.useState(false);
-    const [editingColumnId, setEditingColumnId] = React.useState<string | null>(
-      null,
-    );
+    const [columnEditOpen, setColumnEditOpen] = useState(false);
+    const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
 
     const { isColumnVisible } = useColumnVisibility(storeColumns);
 
@@ -156,7 +154,7 @@ const TableContent: React.FC<TableContentProps> = memo(
         })()
       : null;
 
-    const totalMinWidth = React.useMemo(() => {
+    const totalMinWidth = useMemo(() => {
       const colsWidth = visibleColumnOrder.reduce(
         (sum, id) => sum + (columnWidths[id] || 200),
         0,

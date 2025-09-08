@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ColumnDef, SelectOption } from "../types";
 import { v4 as uuid } from "uuid";
 import { SELECT_COLORS } from "../constants";
@@ -30,6 +30,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   pluginManager,
 }) => {
   const [form] = Form.useForm<ColumnFormValues>();
+  const [optionInput, setOptionInput] = useState("");
 
   const plugins = pluginManager.getAllPlugins();
   const pluginOptions = plugins.map((plugin) => ({
@@ -67,16 +68,20 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
 
   const handleOk = async () => {
     const values = await form.validateFields();
+    const currentType = values.type;
+    const includeConfig =
+      currentType === "select" || currentType === "multiSelect";
+    const config = includeConfig ? form.getFieldValue(["config"]) : undefined;
     const rawWidth =
       typeof values.width === "number" ? values.width : Number(values.width);
     const normalizedWidth = Math.max(
       50,
       Math.min(500, Number.isFinite(rawWidth) ? rawWidth : 200),
     );
-    onSave({
-      ...values,
-      width: normalizedWidth,
-    });
+    const payload = includeConfig
+      ? { ...values, config, width: normalizedWidth }
+      : { ...values, width: normalizedWidth };
+    onSave(payload);
   };
 
   const addOption = (name: string) => {
@@ -171,10 +176,13 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                 <Form.Item label="选项">
                   <Input
                     placeholder="输入后按回车新增"
+                    value={optionInput}
+                    onChange={(e) => setOptionInput(e.target.value)}
                     onPressEnter={(e) => {
-                      const value = (e.currentTarget as HTMLInputElement).value;
-                      addOption(value);
-                      (e.currentTarget as HTMLInputElement).value = "";
+                      e.preventDefault();
+                      e.stopPropagation();
+                      addOption(optionInput);
+                      setOptionInput("");
                     }}
                   />
                 </Form.Item>
