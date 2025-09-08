@@ -32,6 +32,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [options, setOptions] = useState<SelectOption[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<SelectOption[]>([]);
+  const [initialValue, setInitialValue] = useState<CellValue>(value);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -51,20 +52,28 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
 
     setOptions(optionsFromConfig);
 
-    // 初始化选中值（严格依赖对象数组）
-    if (value) {
-      if (isMultiSelect && Array.isArray(value)) {
+    if (initialValue) {
+      if (isMultiSelect && Array.isArray(initialValue)) {
+        console.log("[SelectEditor] useEffect initialValue:", initialValue);
         setSelectedOptions(
-          optionsFromConfig.filter((option) => value.includes(option.id)),
+          initialValue
+            .map((optionId) =>
+              optionsFromConfig.find((option) => option.id === optionId),
+            )
+            .filter((option) => option !== undefined),
         );
       } else if (!isMultiSelect) {
-        const option = optionsFromConfig.find((option) => option.id === value);
+        const option = optionsFromConfig.find(
+          (option) => option.id === initialValue,
+        );
+        console.log("[SelectEditor] useEffect initialValue:", option);
         setSelectedOptions(option ? [option] : []);
       }
     } else {
+      console.log("[SelectEditor] useEffect initialValue:", []);
       setSelectedOptions([]);
     }
-  }, [column, value, isMultiSelect]);
+  }, [column, initialValue, isMultiSelect]);
 
   const filteredOptions = useMemo(() => {
     if (!searchTerm) {
@@ -102,6 +111,91 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     return null;
   };
 
+  const removeSelectedOption = useMemoizedFn((optionId: string) => {
+    onCellValueChange(
+      isMultiSelect
+        ? selectedOptions
+            .filter((item) => item.id !== optionId)
+            .map((o) => o.id)
+        : selectedOptions.filter((item) => item.id !== optionId)[0].id,
+    );
+    setSelectedOptions(selectedOptions.filter((item) => item.id !== optionId));
+    setInitialValue(
+      isMultiSelect
+        ? selectedOptions
+            .filter((item) => item.id !== optionId)
+            .map((o) => o.id)
+        : selectedOptions.filter((item) => item.id !== optionId)[0].id,
+    );
+    console.log(
+      "[SelectEditor] removeSelectedOption:",
+      selectedOptions.filter((item) => item.id !== optionId),
+    );
+  });
+
+  const deleteOption = useMemoizedFn((option: SelectOption) => {
+    // 从选项列表中删除该选项
+    const newOptions = options.filter((o) => o.id !== option.id);
+    setOptions(newOptions);
+
+    // 更新列配置
+    const newColumn = produce(column, (draft) => {
+      if (draft.config) {
+        draft.config.options = newOptions;
+      }
+    }) as ColumnDef<{ options: SelectOption[] }>;
+    onColumnChange?.(newColumn);
+
+    // 如果该选项被选中，则从选中项中移除
+    const newSelectedOptions = selectedOptions.filter(
+      (selected) => selected.id !== option.id,
+    );
+    setSelectedOptions(newSelectedOptions);
+    onCellValueChange(
+      isMultiSelect
+        ? newSelectedOptions.map((o) => o.id)
+        : newSelectedOptions[0].id,
+    );
+
+    // 更新初始值
+    if (isMultiSelect) {
+      setInitialValue(newSelectedOptions.map((o) => o.id));
+    } else {
+      setInitialValue(
+        newSelectedOptions.length > 0 ? newSelectedOptions[0].id : "",
+      );
+    }
+  });
+
+  const changeOptionColor = useMemoizedFn(
+    (option: SelectOption, newColor: (typeof SELECT_COLORS)[number]) => {
+      // 更新选项颜色
+      const newOptions = options.map((o) =>
+        o.id === option.id ? { ...o, color: newColor } : o,
+      );
+      setOptions(newOptions);
+
+      // 更新列配置
+      const newColumn = produce(column, (draft) => {
+        if (draft.config) {
+          draft.config.options = newOptions;
+        }
+      }) as ColumnDef<{ options: SelectOption[] }>;
+      onColumnChange?.(newColumn);
+
+      // 更新已选中的选项（如果该选项被选中）
+      const newSelectedOptions = selectedOptions.map((selected) =>
+        selected.id === option.id ? { ...selected, color: newColor } : selected,
+      );
+      setSelectedOptions(newSelectedOptions);
+      onCellValueChange(
+        isMultiSelect
+          ? newSelectedOptions.map((o) => o.id)
+          : newSelectedOptions[0].id,
+      );
+    },
+  );
+
   const handleSelect = useMemoizedFn((option: SelectOption) => {
     let newSelectedOptions: SelectOption[];
 
@@ -114,10 +208,17 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     } else {
       newSelectedOptions = [option];
     }
-
+    console.log("[SelectEditor] handleSelect:", newSelectedOptions);
     setSelectedOptions(newSelectedOptions);
     onCellValueChange(
-      isMultiSelect ? newSelectedOptions.map((o) => o.id) : option.id,
+      isMultiSelect
+        ? newSelectedOptions.map((o) => o.id)
+        : newSelectedOptions[0].id,
+    );
+    setInitialValue(
+      isMultiSelect
+        ? newSelectedOptions.map((o) => o.id)
+        : newSelectedOptions[0].id,
     );
   });
 
@@ -139,6 +240,11 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
       setSearchTerm("");
     } else if (e.key === "Escape") {
       setIsOpen(false);
+      onCellValueChange(
+        isMultiSelect
+          ? selectedOptions.map((o) => o.id)
+          : selectedOptions[0].id,
+      );
       onFinishEdit();
     }
   });
@@ -169,6 +275,11 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
         onOpenChange={(open) => {
           if (!open) {
             setIsOpen(false);
+            onCellValueChange(
+              isMultiSelect
+                ? selectedOptions.map((o) => o.id)
+                : selectedOptions[0].id,
+            );
             onFinishEdit();
           }
         }}
@@ -185,7 +296,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
               "max-w-[180px] max-h-100 flex flex-col overflow-y-auto rounded-lg shadow-lg mt-2 -ml-2 p-0 border",
               {
                 "bg-white border-gray-200": !isDark,
-                "bg-gray-900 border-gray-700": isDark,
+                "bg-black border-gray-500": isDark,
               },
             )}
             onClick={(e) => {
@@ -194,11 +305,17 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
             }}
             ref={popoverRef}
           >
+            <SelectList
+              options={selectedOptions}
+              onClear={removeSelectedOption}
+              theme={theme}
+              className="flex-wrap px-2 my-2 gap-2"
+            />
             <input
               ref={inputRef}
               type="text"
               className={classnames(
-                "outline-none border-b-1 bg-transparent text-[14px] px-4 py-2 placeholder-gray-400",
+                "outline-none border-b-1 bg-transparent text-[14px] p-2 placeholder-gray-400",
                 {
                   "text-gray-900 border-gray-200": !isDark,
                   "text-gray-100 border-gray-700": isDark,
@@ -217,6 +334,8 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
               options={filteredOptions}
               theme={theme}
               onSelect={handleSelect}
+              onDelete={deleteOption}
+              onColorChange={changeOptionColor}
               className="my-1 px-1"
             />
             {searchTerm && filteredOptions.length === 0 && (
