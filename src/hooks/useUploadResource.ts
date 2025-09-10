@@ -4,7 +4,10 @@ import { putObject } from "@/commands";
 import { copyFileToLocal, uploadFileFromFile } from "@/utils";
 import { v4 as uuid } from "uuid";
 
-const uploadResourceInner = async (imageBed: any, file: File) => {
+const uploadResourceInner = async (
+  imageBed: any,
+  file: File,
+): Promise<string | null> => {
   const githubInfo = imageBed.github;
   const aliOSSInfo = imageBed.aliOSS;
 

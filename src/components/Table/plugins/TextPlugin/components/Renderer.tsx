@@ -7,7 +7,6 @@ import { ColumnDef } from "../../../types";
  */
 interface TextRendererProps {
   value: string;
-  config?: any;
   column: ColumnDef;
 }
 

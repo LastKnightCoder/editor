@@ -45,7 +45,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     onContentChange: onContentChangeFromEditProjectItem,
     saveProjectItem,
     setProjectItem,
-    prevProjectItem,
   } = useEdit(projectItemId);
 
   const { throttleHandleEditorContentChange } = useEditContent(
@@ -115,8 +114,10 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       projectItemId,
       (data) => {
         setProjectItem(data.projectItem);
-        prevProjectItem.current = data.projectItem;
-        titleRef.current?.setValue(data.projectItem.title);
+        if (!projectItem) return;
+        if (data.projectItem.title !== projectItem?.title) {
+          titleRef.current?.setValue(data.projectItem.title);
+        }
       },
     );
 

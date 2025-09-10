@@ -1,4 +1,5 @@
 import { SELECT_COLORS } from "./constants";
+import { ImageItem } from "./plugins/ImagePlugin/types";
 
 export interface ColumnDef<T = unknown> {
   id: string;
@@ -15,6 +16,7 @@ export type CellValue =
   | number
   | boolean
   | string[] // 多选
+  | ImageItem[] // 图片
   | any; // 自定义类型
 
 export interface RowData {
@@ -46,7 +48,6 @@ export interface CellPlugin<T> {
   Icon?: React.ComponentType<{ className?: string }>;
   Renderer: React.ComponentType<{
     value: CellValue;
-    config?: T;
     column: ColumnDef;
     theme: "light" | "dark";
     readonly: boolean;
@@ -55,7 +56,6 @@ export interface CellPlugin<T> {
   // 单元格编辑器组件
   Editor?: React.ComponentType<{
     value: CellValue;
-    config?: T;
     column: ColumnDef;
     onCellValueChange: (newValue: CellValue) => void;
     onFinishEdit: () => void;

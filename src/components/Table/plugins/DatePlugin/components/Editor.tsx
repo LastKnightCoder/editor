@@ -8,7 +8,6 @@ import { CellValue, ColumnDef } from "../../../types";
 
 interface DateEditorProps {
   value: CellValue;
-  config?: any;
   column: ColumnDef;
   onCellValueChange: (newValue: CellValue) => void;
   onFinishEdit: () => void;

@@ -38,7 +38,6 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
               style={{
                 backgroundColor:
                   SELECT_COLORS_CONFIG[color][theme].backgroundColor,
-                border: `1px solid ${SELECT_COLORS_CONFIG[color][theme].color}`,
               }}
             />
             <span className="capitalize">{color}</span>
@@ -137,7 +136,7 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
               trigger={["hover"]}
               placement="bottomRight"
             >
-              <EllipsisOutlined />
+              <EllipsisOutlined onClick={(e) => e.stopPropagation()} />
             </Dropdown>
           </div>
         );

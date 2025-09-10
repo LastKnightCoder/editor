@@ -5,7 +5,6 @@ import { MdCheckBox } from "react-icons/md";
 
 const Renderer: React.FC<{
   value: CellValue;
-  config?: unknown;
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;

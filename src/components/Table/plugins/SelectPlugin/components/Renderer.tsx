@@ -4,17 +4,16 @@ import SelectList from "../../../components/SelectList";
 
 interface RendererProps {
   value: CellValue;
-  config?: {
-    options: SelectOption[];
-  };
   column: ColumnDef;
   theme: "light" | "dark";
 }
 
-const Renderer: React.FC<RendererProps> = memo(({ value, config, theme }) => {
+const Renderer: React.FC<RendererProps> = memo(({ value, theme, column }) => {
   if (!value) {
     return null;
   }
+
+  const config = column.config as { options: SelectOption[] };
 
   // 查找匹配的选项
   if (config?.options && Array.isArray(config.options)) {

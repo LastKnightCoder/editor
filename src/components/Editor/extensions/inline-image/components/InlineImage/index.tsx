@@ -102,9 +102,9 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
   // 使用 resize hook 处理图片调整大小
   const resize = useImageResize({
     initialSize: { width, height },
-    minWidth: 50,
+    minWidth: 10,
     maxWidth,
-    minHeight: 30,
+    minHeight: 10,
     aspectRatio: naturalSize.width / naturalSize.height || 16 / 9,
     onResizeEnd: (newSize) => {
       if (newSize.width && newSize.height) {
@@ -144,12 +144,14 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
       {url ? (
         // 显示图片内容
         <span
-          className={classnames(styles.container, styles.inline, {
+          className={classnames(styles.container, {
             [styles.resizing]: resize.isResizing,
           })}
           style={{
-            width: resize.size.width ? `${resize.size.width}px` : "auto",
-            height: resize.size.height ? `${resize.size.height}px` : "auto",
+            width: resize.size.width ? `${resize.size.width / 16}em` : "auto",
+            height: resize.size.height
+              ? `${resize.size.height / 16}em`
+              : "auto",
           }}
         >
           <LocalImage

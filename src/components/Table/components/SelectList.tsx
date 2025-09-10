@@ -14,6 +14,10 @@ interface SelectListProps {
 const SelectList = memo((props: SelectListProps) => {
   const { options, theme, onSelect, onClear, className } = props;
 
+  if (options.length === 0) {
+    return null;
+  }
+
   return (
     <div
       className={`flex flex-nowrap flex-nowrap items-center gap-1 h-full ${className}`}
