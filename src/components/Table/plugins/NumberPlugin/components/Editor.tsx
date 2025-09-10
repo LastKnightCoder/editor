@@ -4,30 +4,25 @@ import { formatNumber, parseNumber } from "../utils/numberUtils";
 import EditText from "@/components/EditText";
 import { useMemoizedFn } from "ahooks";
 
-/**
- * 数字单元格编辑器组件
- */
 interface NumberEditorProps {
   value: CellValue;
-  config?: {
-    precision?: number;
-    min?: number;
-    max?: number;
-  };
   column: ColumnDef;
   onCellValueChange: (newValue: CellValue) => void;
   onFinishEdit: () => void;
 }
 
 const NumberEditor: React.FC<NumberEditorProps> = memo(
-  ({ value, config, onCellValueChange, onFinishEdit }) => {
-    // 将数字转换为字符串用于输入
+  ({ value, column, onCellValueChange, onFinishEdit }) => {
+    const config = column.config as {
+      precision?: number;
+      min?: number;
+      max?: number;
+    };
+
     const initialValue =
       value !== null && value !== undefined ? String(value) : "";
 
-    // 处理输入变化
     const handleChange = useMemoizedFn((value: string) => {
-      // 解析为数字
       const parsedNumber = parseNumber(formatNumber(value, config));
       onCellValueChange(parsedNumber);
     });

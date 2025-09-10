@@ -1,7 +1,6 @@
 import React, { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
-import EditText from "@/components/EditText";
 
 import { CellValue, ColumnDef, CellPlugin } from "../types";
 import { useCellEditor, useValidation } from "../hooks";
@@ -29,7 +28,6 @@ const MemoizedRenderer = memo(
   ({
     plugin,
     value,
-    config,
     column,
     theme,
     readonly,
@@ -47,7 +45,6 @@ const MemoizedRenderer = memo(
     return (
       <Renderer
         value={value}
-        config={config}
         column={column}
         theme={theme}
         readonly={readonly}
@@ -61,7 +58,6 @@ const MemoizedEditor = memo(
   ({
     plugin,
     value,
-    config,
     column,
     onCellValueChange,
     onFinishEdit,
@@ -73,7 +69,6 @@ const MemoizedEditor = memo(
       Editor: NonNullable<CellPlugin<unknown>["Editor"]>;
     };
     value: CellValue;
-    config?: any;
     column: ColumnDef;
     onCellValueChange: (value: CellValue) => void;
     onFinishEdit: () => void;
@@ -86,7 +81,6 @@ const MemoizedEditor = memo(
       <div className="w-full h-full relative">
         <Editor
           value={value}
-          config={config}
           column={column}
           onCellValueChange={onCellValueChange}
           onFinishEdit={onFinishEdit}
@@ -121,7 +115,8 @@ const Cell: React.FC<CellProps> = memo(
     const isDark = theme === "dark";
 
     const handleDoubleClick = useMemoizedFn(() => {
-      if (readonly) return;
+      const editable = plugin?.editable;
+      if (readonly || !editable) return;
       onDoubleClick(rowId, columnId);
     });
 
@@ -150,8 +145,9 @@ const Cell: React.FC<CellProps> = memo(
 
     // 处理单击选择或编辑
     const handleClick = useMemoizedFn(() => {
+      const editable = plugin?.editable;
       if (readonly) return;
-      if (isSelected) {
+      if (isSelected && editable) {
         // 如果已经被选中，点击则进入编辑模式
         onStartEditing(rowId, columnId);
       } else {
@@ -191,7 +187,6 @@ const Cell: React.FC<CellProps> = memo(
                 }
               }
               value={draftValue}
-              config={column.config}
               column={column}
               onCellValueChange={handleChange}
               onFinishEdit={handleFinishEdit}
@@ -199,23 +194,7 @@ const Cell: React.FC<CellProps> = memo(
               theme={theme}
               readonly={readonly}
             />
-          ) : (
-            <div className="w-full h-full relative">
-              <EditText
-                defaultValue={
-                  draftValue !== null && draftValue !== undefined
-                    ? String(draftValue)
-                    : ""
-                }
-                onChange={handleChange}
-                onBlur={handleFinishEdit}
-                onPressEnter={handleFinishEdit}
-                contentEditable={true}
-                defaultFocus={true}
-                className="w-full h-full px-4 py-2 border-0 outline-none"
-              />
-            </div>
-          )}
+          ) : null}
         </div>
       );
     }
@@ -247,20 +226,13 @@ const Cell: React.FC<CellProps> = memo(
         {plugin ? (
           <MemoizedRenderer
             plugin={plugin}
-            value={draftValue}
-            config={column.config}
+            value={value}
             column={column}
             theme={theme}
             readonly={readonly}
             onCellValueChange={handleValueChange}
           />
-        ) : (
-          <div className="px-4 py-2 h-full flex items-center text-[#757575] whitespace-nowrap overflow-hidden text-ellipsis">
-            {draftValue !== null && draftValue !== undefined
-              ? String(draftValue)
-              : ""}
-          </div>
-        )}
+        ) : null}
       </div>
     );
   },

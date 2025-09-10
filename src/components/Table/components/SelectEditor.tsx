@@ -16,7 +16,6 @@ interface SelectEditorProps {
   onCellValueChange: (value: CellValue) => void;
   onFinishEdit: () => void;
   onColumnChange: (column: ColumnDef<{ options: SelectOption[] }>) => void;
-  config?: { options: SelectOption[] };
   theme: "light" | "dark";
 }
 
@@ -32,7 +31,6 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [options, setOptions] = useState<SelectOption[]>([]);
   const [selectedOptions, setSelectedOptions] = useState<SelectOption[]>([]);
-  const [initialValue, setInitialValue] = useState<CellValue>(value);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -44,7 +42,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   const isMultiSelect = column.type === "multiSelect";
   const isDark = theme === "dark";
 
-  useEffect(() => {
+  const initOptions = useMemoizedFn(() => {
     const config = column.config || { options: [] };
     const optionsFromConfig: SelectOption[] = Array.isArray(config.options)
       ? (config.options as SelectOption[])
@@ -52,28 +50,27 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
 
     setOptions(optionsFromConfig);
 
-    if (initialValue) {
-      if (isMultiSelect && Array.isArray(initialValue)) {
-        console.log("[SelectEditor] useEffect initialValue:", initialValue);
+    if (value) {
+      if (isMultiSelect && Array.isArray(value)) {
         setSelectedOptions(
-          initialValue
+          value
             .map((optionId) =>
               optionsFromConfig.find((option) => option.id === optionId),
             )
             .filter((option) => option !== undefined),
         );
       } else if (!isMultiSelect) {
-        const option = optionsFromConfig.find(
-          (option) => option.id === initialValue,
-        );
-        console.log("[SelectEditor] useEffect initialValue:", option);
+        const option = optionsFromConfig.find((option) => option.id === value);
         setSelectedOptions(option ? [option] : []);
       }
     } else {
-      console.log("[SelectEditor] useEffect initialValue:", []);
       setSelectedOptions([]);
     }
-  }, [column, initialValue, isMultiSelect]);
+  });
+
+  useEffect(() => {
+    initOptions();
+  }, [initOptions]);
 
   const filteredOptions = useMemo(() => {
     if (!searchTerm) {
@@ -120,13 +117,6 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
         : selectedOptions.filter((item) => item.id !== optionId)[0].id,
     );
     setSelectedOptions(selectedOptions.filter((item) => item.id !== optionId));
-    setInitialValue(
-      isMultiSelect
-        ? selectedOptions
-            .filter((item) => item.id !== optionId)
-            .map((o) => o.id)
-        : selectedOptions.filter((item) => item.id !== optionId)[0].id,
-    );
     console.log(
       "[SelectEditor] removeSelectedOption:",
       selectedOptions.filter((item) => item.id !== optionId),
@@ -156,15 +146,6 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
         ? newSelectedOptions.map((o) => o.id)
         : newSelectedOptions[0].id,
     );
-
-    // 更新初始值
-    if (isMultiSelect) {
-      setInitialValue(newSelectedOptions.map((o) => o.id));
-    } else {
-      setInitialValue(
-        newSelectedOptions.length > 0 ? newSelectedOptions[0].id : "",
-      );
-    }
   });
 
   const changeOptionColor = useMemoizedFn(
@@ -208,14 +189,8 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     } else {
       newSelectedOptions = [option];
     }
-    console.log("[SelectEditor] handleSelect:", newSelectedOptions);
     setSelectedOptions(newSelectedOptions);
     onCellValueChange(
-      isMultiSelect
-        ? newSelectedOptions.map((o) => o.id)
-        : newSelectedOptions[0].id,
-    );
-    setInitialValue(
       isMultiSelect
         ? newSelectedOptions.map((o) => o.id)
         : newSelectedOptions[0].id,
@@ -269,17 +244,12 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     >
       <SelectList options={selectedOptions} theme={theme} />
       <Popover
-        placement="bottomLeft"
+        placement="bottom"
         trigger="click"
         open={isOpen}
         onOpenChange={(open) => {
           if (!open) {
             setIsOpen(false);
-            onCellValueChange(
-              isMultiSelect
-                ? selectedOptions.map((o) => o.id)
-                : selectedOptions[0].id,
-            );
             onFinishEdit();
           }
         }}
@@ -293,10 +263,11 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
         content={
           <div
             className={classnames(
-              "max-w-[180px] max-h-100 flex flex-col overflow-y-auto rounded-lg shadow-lg mt-2 -ml-2 p-0 border",
+              "relative max-w-[180px] max-h-[240px] flex flex-col overflow-y-auto rounded-lg shadow-lg border",
               {
                 "bg-white border-gray-200": !isDark,
                 "bg-black border-gray-500": isDark,
+                "-mt-10": selectedOptions.length > 0,
               },
             )}
             onClick={(e) => {
@@ -305,17 +276,21 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
             }}
             ref={popoverRef}
           >
-            <SelectList
-              options={selectedOptions}
-              onClear={removeSelectedOption}
-              theme={theme}
-              className="flex-wrap px-2 my-2 gap-2"
-            />
+            {selectedOptions.length > 0 && (
+              <div className="my-2">
+                <SelectList
+                  options={selectedOptions}
+                  onClear={removeSelectedOption}
+                  theme={theme}
+                  className="flex-wrap px-3 gap-2"
+                />
+              </div>
+            )}
             <input
               ref={inputRef}
               type="text"
               className={classnames(
-                "outline-none border-b-1 bg-transparent text-[14px] p-2 placeholder-gray-400",
+                "outline-none border-b-1 bg-transparent text-[14px] px-3 py-2 placeholder-gray-400",
                 {
                   "text-gray-900 border-gray-200": !isDark,
                   "text-gray-100 border-gray-700": isDark,
@@ -327,7 +302,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
               placeholder={selectedOptions.length > 0 ? "" : "选择或输入..."}
               autoFocus
             />
-            <div className="px-2 mt-2 mb-1 text-[12px] text-gray-500">
+            <div className="px-3 mt-2 mb-1 text-[12px] text-gray-500">
               选择或创建一个选项
             </div>
             <VerticalSelectList
@@ -336,7 +311,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
               onSelect={handleSelect}
               onDelete={deleteOption}
               onColorChange={changeOptionColor}
-              className="my-1 px-1"
+              className="my-1 px-2 max-h-[160px] overflow-y-auto"
             />
             {searchTerm && filteredOptions.length === 0 && (
               <div
@@ -350,7 +325,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
               >
                 <div
                   className={classnames(
-                    "m-1 p-1 rounded-md flex items-center gap-1 cursor-pointer text-[12px] text-gray-500",
+                    "m-1 px-2 py-1 rounded-md flex items-center gap-1 cursor-pointer text-[12px] text-gray-500",
                     {
                       "hover:bg-gray-100": !isDark,
                       "hover:bg-gray-700": isDark,
@@ -374,7 +349,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
           </div>
         }
       >
-        <div style={{ width: 200 }}></div>
+        <div className="w-full h-full"></div>
       </Popover>
     </div>
   );

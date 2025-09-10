@@ -23,12 +23,12 @@ const normalize = (value: CellValue, config?: StarConfig) => {
 
 const Renderer: React.FC<{
   value: CellValue;
-  config?: StarConfig;
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
   onCellValueChange?: (newValue: CellValue) => void;
-}> = ({ value, config, theme, readonly, onCellValueChange }) => {
+}> = ({ value, column, theme, readonly, onCellValueChange }) => {
+  const config = column.config as StarConfig;
   const max = Math.max(0, Number(config?.max ?? 5) || 5);
   const step = (config?.step ?? 0.5) === 1 ? 1 : 0.5;
   const current = normalize(value, { max, step });

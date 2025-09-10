@@ -4,16 +4,14 @@ import SelectList from "../../../components/SelectList";
 
 interface RendererProps {
   value: CellValue;
-  config?: {
-    options: SelectOption[];
-  };
   column: ColumnDef;
   theme: "light" | "dark";
 }
 
-const Renderer: React.FC<RendererProps> = memo(({ value, config, theme }) => {
+const Renderer: React.FC<RendererProps> = memo(({ value, column, theme }) => {
   if (!value) return null;
 
+  const config = column.config as { options: SelectOption[] };
   const values = Array.isArray(value) ? value : [value];
 
   if (config?.options && Array.isArray(config.options)) {

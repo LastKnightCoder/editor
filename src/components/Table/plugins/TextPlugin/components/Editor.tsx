@@ -4,7 +4,6 @@ import EditText from "@/components/EditText";
 
 interface TextEditorProps {
   value: CellValue;
-  config?: any;
   column: ColumnDef;
   onCellValueChange: (newValue: CellValue) => void;
   onFinishEdit: () => void;

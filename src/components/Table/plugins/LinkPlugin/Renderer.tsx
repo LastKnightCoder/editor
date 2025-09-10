@@ -1,12 +1,15 @@
 import React, { useMemo } from "react";
 import { CellValue, ColumnDef } from "../../types";
 import { TbLayoutSidebarRight } from "react-icons/tb";
+import { TbExternalLink } from "react-icons/tb";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { normalizeUrl } from "./utils";
+import { useMemoizedFn } from "ahooks";
+import { openExternal } from "@/commands";
+import { Tooltip } from "antd";
 
 const Renderer: React.FC<{
   value: CellValue;
-  config?: unknown;
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
@@ -17,7 +20,7 @@ const Renderer: React.FC<{
 
   const isDark = theme === "dark";
 
-  const openInRightSidebar = (e: React.MouseEvent) => {
+  const openInRightSidebar = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     if (!url) return;
@@ -26,7 +29,14 @@ const Renderer: React.FC<{
       type: "webview",
       title: url,
     });
-  };
+  });
+
+  const openInBrowser = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!url) return;
+    openExternal(url);
+  });
 
   if (!value) {
     return null;
@@ -47,15 +57,20 @@ const Renderer: React.FC<{
             ? " bg-gray-700/80 text-gray-200"
             : " bg-gray-200/80 text-gray-700")
         }
-        onClick={openInRightSidebar}
         onDoubleClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
         }}
-        role="button"
-        aria-label="在侧边栏打开"
       >
-        <TbLayoutSidebarRight className="w-4 h-4" />
+        <Tooltip title="在浏览器中打开" mouseEnterDelay={1}>
+          <TbExternalLink onClick={openInBrowser} className="w-4 h-4" />
+        </Tooltip>
+        <Tooltip title="在侧边栏中打开" mouseEnterDelay={1}>
+          <TbLayoutSidebarRight
+            onClick={openInRightSidebar}
+            className="w-4 h-4"
+          />
+        </Tooltip>
       </div>
     </div>
   );

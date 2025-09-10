@@ -1,5 +1,3 @@
-// 单选或多选标签的背景色和文字颜色，红橙黄绿青蓝紫都有
-// 包含浅色和深色
 export const SELECT_COLORS_CONFIG = {
   red: {
     light: {

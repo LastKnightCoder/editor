@@ -71,6 +71,7 @@ import {
   GlobalOutlined,
   VideoCameraOutlined,
   LoadingOutlined,
+  TableOutlined,
 } from "@ant-design/icons";
 import {
   getContentLength,
@@ -194,7 +195,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   >([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(
     BilibiliVideoQuality.HD_1080P,
-  ); // 默认 1080P
+  );
   const [qualityLoading, setQualityLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -409,6 +410,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       "project-item:updated",
       projectItemId,
       (data) => {
+        console.log("project-item:updated data", data);
         setProjectItem(data.projectItem);
         titleRef.current?.setValue(data.projectItem.title);
       },
@@ -466,7 +468,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const onDrop = useMemoizedFn(
     async (dragItem: IDragItem, dragPosition: EDragPosition) => {
       if (!projectItem || !projectId) return;
-      // 先删掉原来的位置，在新的位置插入
       const {
         itemId: dragId,
         parentId: dragParentId,
@@ -581,6 +582,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
         for (const refreshId of [...new Set(needRefreshId)]) {
           const updatedProjectItem = await getProjectItemById(refreshId);
+          console.log("updatedProjectItem", updatedProjectItem);
           if (!updatedProjectItem) continue;
           defaultProjectItemEventBus
             .createEditor()
@@ -701,6 +703,15 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         {
           key: "open-in-right-sidebar",
           label: "右侧打开",
+        },
+      ].filter(isValid);
+    }
+
+    if (projectItem?.projectItemType === EProjectItemType.TableView) {
+      return [
+        {
+          key: "remove",
+          label: "删除表格",
         },
       ].filter(isValid);
     }
@@ -1189,6 +1200,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   ) : projectItem.projectItemType ===
                     EProjectItemType.WebView ? (
                     <GlobalOutlined />
+                  ) : projectItem.projectItemType ===
+                    EProjectItemType.TableView ? (
+                    <TableOutlined />
                   ) : (
                     <FileOutlined />
                   )}

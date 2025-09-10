@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { CellValue } from "../types";
 
@@ -8,10 +8,6 @@ export function useCellEditor(
 ) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftValue, setDraftValue] = useState<CellValue>(initialValue);
-
-  useEffect(() => {
-    setDraftValue(initialValue);
-  }, [initialValue]);
 
   const startEditing = useMemoizedFn(() => {
     setIsEditing(true);
