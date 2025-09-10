@@ -25,14 +25,14 @@ const Renderer: React.FC<RendererProps> = memo(({ value, theme, column }) => {
 
       if (color) {
         return (
-          <div className="flex items-center h-full w-full px-4">
+          <div className="flex items-center h-full w-full px-2">
             <SelectList options={[option]} theme={theme} />
           </div>
         );
       }
 
       return (
-        <div className="flex items-center h-full w-full px-4">
+        <div className="flex items-center h-full w-full px-2">
           <span className="inline-block">{label}</span>
         </div>
       );

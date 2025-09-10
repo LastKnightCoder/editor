@@ -172,11 +172,11 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
 
     return (
       <div
-        className="relative flex items-center h-full w-full "
+        className="relative items-center h-full w-full "
         onWheel={handleWheel}
       >
         <div
-          className="w-full h-full px-2 py-1 overflow-x-auto scrollbar-hide"
+          className="w-full h-full flex px-2 py-1 overflow-x-auto scrollbar-hide"
           ref={scrollContainerRef}
         >
           <div

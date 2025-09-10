@@ -1,4 +1,5 @@
-import React, { memo } from "react";
+import React, { memo, useRef } from "react";
+import { useMemoizedFn } from "ahooks";
 import { CellValue, ColumnDef } from "../../../types";
 import EditText from "@/components/EditText";
 
@@ -11,8 +12,22 @@ interface TextEditorProps {
 
 const TextEditor: React.FC<TextEditorProps> = memo(
   ({ value, onCellValueChange, onFinishEdit }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    const handleWheel = useMemoizedFn((e: React.WheelEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (scrollRef.current) {
+        scrollRef.current.scrollLeft += e.deltaY;
+      }
+    });
+
     return (
-      <div className="w-full h-full relative">
+      <div
+        className="w-full h-full relative overflow-x-auto scrollbar-hide"
+        ref={scrollRef}
+        onWheel={handleWheel}
+      >
         <EditText
           defaultValue={value?.toString() || ""}
           onChange={onCellValueChange}
@@ -20,7 +35,7 @@ const TextEditor: React.FC<TextEditorProps> = memo(
           onPressEnter={onFinishEdit}
           contentEditable={true}
           defaultFocus={true}
-          className="w-full h-full px-4 py-2 flex items-center whitespace-nowrap"
+          className="w-full h-full px-2 py-2 flex items-center whitespace-nowrap"
         />
       </div>
     );

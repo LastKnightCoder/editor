@@ -2,7 +2,7 @@ import React, { memo } from "react";
 import { CellValue, ColumnDef } from "../../../types";
 import { formatNumber, parseNumber } from "../utils/numberUtils";
 import EditText from "@/components/EditText";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useUnmount } from "ahooks";
 
 interface NumberEditorProps {
   value: CellValue;
@@ -27,6 +27,10 @@ const NumberEditor: React.FC<NumberEditorProps> = memo(
       onCellValueChange(parsedNumber);
     });
 
+    useUnmount(() => {
+      onFinishEdit();
+    });
+
     return (
       <div className="w-full h-full relative">
         <EditText
@@ -36,7 +40,7 @@ const NumberEditor: React.FC<NumberEditorProps> = memo(
           onChange={handleChange}
           onBlur={onFinishEdit}
           onPressEnter={onFinishEdit}
-          className="w-full h-full px-4 py-2 flex items-center"
+          className="w-full h-full px-2 py-2 flex items-center"
         />
       </div>
     );

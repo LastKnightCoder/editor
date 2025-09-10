@@ -156,7 +156,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
         >
           <LocalImage
             ref={imageRef}
-            src={url}
+            url={url}
             alt={alt}
             className={classnames(styles.image)}
             onLoad={handleImageLoad}

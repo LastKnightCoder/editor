@@ -6,7 +6,7 @@ type DirectionString = "up" | "down" | "left" | "right";
 
 export const useKeyboardNavigation = (
   onMove: (direction: DirectionString | Direction) => void,
-  onEdit: () => void,
+  onEdit: (e: KeyboardEvent) => void,
 ) => {
   const handleKeyDown = useMemoizedFn((e: KeyboardEvent) => {
     if (
@@ -31,7 +31,8 @@ export const useKeyboardNavigation = (
         onMove("right");
         break;
       case "Enter":
-        onEdit();
+      case " ":
+        onEdit(e);
         break;
     }
   });

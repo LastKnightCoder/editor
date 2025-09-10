@@ -18,7 +18,7 @@ const NumberRenderer: React.FC<NumberRendererProps> = memo(
     const formattedValue = formatNumber(value as number | string, config);
 
     return (
-      <div className="w-full h-full px-4 py-2 flex items-center overflow-hidden text-ellipsis whitespace-nowrap box-border">
+      <div className="w-full h-full px-2 py-2 flex items-center overflow-hidden text-ellipsis whitespace-nowrap box-border">
         {formattedValue}
       </div>
     );

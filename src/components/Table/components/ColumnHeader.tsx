@@ -164,7 +164,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
         onDoubleClick={onDoubleClick}
         style={headerStyle}
       >
-        <div className="flex items-center px-4 py-2 h-full cursor-grab box-border">
+        <div className="flex items-center px-2 py-2 h-full cursor-grab box-border">
           <div
             className="flex items-center flex-1 whitespace-nowrap overflow-hidden text-ellipsis font-semibold cursor-pointer"
             title={column.title}
