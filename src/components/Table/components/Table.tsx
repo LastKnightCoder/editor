@@ -24,7 +24,15 @@ const Table: React.FC<TableProps> = memo(
     readonly,
     className,
   }): ReactNode => {
-    const pluginMgr = useCreation(() => new PluginManager(), []);
+    const pluginMgr = useCreation(() => {
+      const pluginMgr = new PluginManager();
+      pluginMgr.registerPlugins(builtInPlugins as CellPlugin<unknown>[]);
+      if (plugins.length > 0) {
+        pluginMgr.registerPlugins(plugins);
+      }
+      pluginMgr.loadAllPlugins();
+      return pluginMgr;
+    }, [plugins]);
     const store = useCreation(
       () => createTableStore(columns, data, columnOrder),
       [],
@@ -32,20 +40,6 @@ const Table: React.FC<TableProps> = memo(
 
     const { theme: systemTheme } = useTheme();
     const finalTheme = theme || systemTheme;
-
-    useEffect(() => {
-      pluginMgr.registerPlugins(builtInPlugins as CellPlugin<unknown>[]);
-
-      if (plugins.length > 0) {
-        pluginMgr.registerPlugins(plugins);
-      }
-
-      pluginMgr.loadAllPlugins();
-
-      return () => {
-        pluginMgr.unloadAllPlugins();
-      };
-    }, [plugins, pluginMgr]);
 
     useEffect(() => {
       if (!onChange) return;
@@ -85,7 +79,7 @@ const Table: React.FC<TableProps> = memo(
       (direction) => {
         store.getState().moveCellSelection(direction);
       },
-      () => {
+      (e) => {
         const { selectedCell, editingCell } = store.getState();
         if (selectedCell && !editingCell && !readonly) {
           const column = columns.find(
@@ -97,6 +91,8 @@ const Table: React.FC<TableProps> = memo(
           if (!plugin) return;
           // 获取 plugin 的编辑器
           if (plugin.editable) {
+            e.preventDefault();
+            e.stopPropagation();
             store
               .getState()
               .startEditing(selectedCell.rowId, selectedCell.columnId);

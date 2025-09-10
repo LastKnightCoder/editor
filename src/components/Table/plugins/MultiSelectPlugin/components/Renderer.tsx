@@ -27,7 +27,7 @@ const Renderer: React.FC<RendererProps> = memo(({ value, column, theme }) => {
     });
 
     return (
-      <div className="flex items-center w-full h-full box-border py-1 px-4">
+      <div className="flex items-center w-full h-full box-border py-1 px-2">
         {coloredOptions.length > 0 && (
           <SelectList options={coloredOptions} theme={theme} />
         )}

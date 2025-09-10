@@ -1,4 +1,4 @@
-import React, { useRef, memo, useState, useMemo } from "react";
+import React, { useRef, memo, useState, useMemo, useEffect } from "react";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
@@ -168,6 +168,28 @@ const TableContent: React.FC<TableContentProps> = memo(
       estimateSize: () => 40,
       overscan: 6,
     });
+
+    useEffect(() => {
+      const scrollElement = scrollParentRef.current;
+      if (!scrollElement) return;
+
+      const handleWheel = (e: WheelEvent) => {
+        // 检查是否按下 Ctrl 键
+        if (e.ctrlKey) {
+          // 阻止默认的垂直滚动行为
+          e.preventDefault();
+
+          // 将垂直滚动转换为横向滚动
+          scrollElement.scrollLeft += e.deltaY;
+        }
+      };
+
+      scrollElement.addEventListener("wheel", handleWheel, { passive: false });
+
+      return () => {
+        scrollElement.removeEventListener("wheel", handleWheel);
+      };
+    }, []);
 
     return (
       <div className="w-full h-full flex flex-col">

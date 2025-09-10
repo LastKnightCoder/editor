@@ -30,7 +30,7 @@ const Renderer: React.FC<{
 
   return (
     <div
-      className="w-full h-full flex items-center px-4"
+      className="w-full h-full flex items-center px-2"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
