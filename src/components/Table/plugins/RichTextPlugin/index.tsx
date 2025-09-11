@@ -47,16 +47,12 @@ const RichTextPlugin: CellPlugin<RichTextPluginConfig> = {
     const deletePromises = contentIdsToDelete.map(async (contentId) => {
       try {
         await deleteContent(contentId);
-        console.log(`已清理 content 记录: ${contentId}`);
       } catch (error) {
         console.error(`清理 content 记录 ${contentId} 失败:`, error);
       }
     });
 
     await Promise.allSettled(deletePromises);
-    console.log(
-      `RichTextPlugin: 清理了 ${contentIdsToDelete.length} 个 content 引用`,
-    );
   },
 };
 
