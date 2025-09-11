@@ -3,7 +3,10 @@ import { CustomElement, FormattedText } from "@editor/types";
 import { markdownSerializerRegistry } from "./markdownSerializerRegistry";
 
 export const getMarkdown = (value: Descendant[]): string => {
-  return value
+  // 重置脚注状态
+  markdownSerializerRegistry.resetFootnotes();
+
+  const content = value
     .map((element, index) => {
       const isBlockElement = markdownSerializerRegistry.isBlock(
         element as CustomElement,
@@ -16,6 +19,11 @@ export const getMarkdown = (value: Descendant[]): string => {
       return "";
     })
     .join("");
+
+  // 添加脚注定义
+  const footnoteDefinitions =
+    markdownSerializerRegistry.getFootnoteDefinitions();
+  return content + footnoteDefinitions;
 };
 
 export const leafToMarkdown = (leaf: FormattedText): string => {

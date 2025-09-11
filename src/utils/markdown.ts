@@ -229,6 +229,13 @@ const markdownToDescendant = (
         color: node.attributes.color || "red",
         children: [],
       };
+    } else if (node.name === "detail") {
+      return {
+        type: "detail",
+        title: node.attributes.title || "DETAIL",
+        open: node.attributes.open === "true" || node.attributes.open === true,
+        children: [],
+      };
     } else {
       return null;
     }
@@ -356,6 +363,22 @@ const markdownToDescendant = (
         },
       ],
     };
+  } else if (node.type === "footnoteReference") {
+    // 将脚注引用转换为 annotation
+    const content = footnoteDefinitionsMap.get(node.identifier) || "";
+    return {
+      type: "annotation",
+      content,
+      children: [
+        {
+          type: "formatted",
+          text: "",
+        },
+      ],
+    };
+  } else if (node.type === "footnoteDefinition") {
+    // 脚注定义已经在第一次遍历中处理了，这里忽略
+    return null;
   } else {
     console.log("unknown node", node);
     if (
@@ -381,10 +404,26 @@ const markdownToDescendant = (
   }
 };
 
+// 全局脚注定义映射
+const footnoteDefinitionsMap: Map<string, string> = new Map();
+
+// 提取节点中的文本内容
+const extractTextFromNode = (node: any): string => {
+  if (node.type === "text") {
+    return node.value;
+  }
+  if (node.children) {
+    return node.children.map(extractTextFromNode).join("");
+  }
+  return "";
+};
+
 export const importFromMarkdown = (
   markdown: string,
   ignoreTypes: string[] = [],
 ): Descendant[] => {
+  // 重置脚注定义映射
+  footnoteDefinitionsMap.clear();
   const parseResult = unified()
     .use(remarkParse)
     .use(remarkRehype, { allowDangerousHtml: true })
@@ -394,6 +433,22 @@ export const importFromMarkdown = (
     .use(remarkDirective)
     .use(remarkFrontmatter, ["yaml"])
     .parse(markdown);
+
+  // 首次遍历：收集所有脚注定义
+  const collectFootnoteDefinitions = (nodes: typeof parseResult.children) => {
+    for (const node of nodes) {
+      if (node.type === "footnoteDefinition") {
+        // 提取脚注内容
+        const content = extractTextFromNode(node);
+        footnoteDefinitionsMap.set(node.identifier, content);
+      }
+      // if (node.children) {
+      //   collectFootnoteDefinitions(node.children);
+      // }
+    }
+  };
+
+  collectFootnoteDefinitions(parseResult.children);
 
   const editor: Descendant[] = [];
 
@@ -440,7 +495,9 @@ export const importFromMarkdown = (
 
   console.log("parseResult", parseResult);
 
-  dfs(parseResult.children, editor, ignoreTypes, parseResult);
+  // 添加 footnoteDefinition 到忽略类型，因为我们已经手动处理了
+  const extendedIgnoreTypes = [...ignoreTypes, "footnoteDefinition"];
+  dfs(parseResult.children, editor, extendedIgnoreTypes, parseResult);
 
   let beforeNormalize = editor;
   let afterNormalize = normalizeEditorContent(editor);

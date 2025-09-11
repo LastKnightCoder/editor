@@ -1,8 +1,8 @@
 import { SelectOption } from "../types";
 import { SELECT_COLORS_CONFIG, SELECT_COLORS } from "../constants";
 import classNames from "classnames";
-import { Dropdown } from "antd";
-import { memo } from "react";
+import { Dropdown, Input } from "antd";
+import { memo, useState } from "react";
 import { EllipsisOutlined } from "@ant-design/icons";
 
 interface VerticalSelectListProps {
@@ -10,6 +10,7 @@ interface VerticalSelectListProps {
   theme: "light" | "dark";
   onSelect?: (option: SelectOption) => void;
   onDelete?: (option: SelectOption) => void;
+  onEdit?: (option: SelectOption, newName: string) => void;
   onColorChange?: (
     option: SelectOption,
     color: (typeof SELECT_COLORS)[number],
@@ -18,12 +19,30 @@ interface VerticalSelectListProps {
 }
 
 const VerticalSelectList = memo((props: VerticalSelectListProps) => {
-  const { options, theme, onSelect, onDelete, onColorChange, className } =
-    props;
+  const {
+    options,
+    theme,
+    onSelect,
+    onDelete,
+    onEdit,
+    onColorChange,
+    className,
+  } = props;
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
 
   if (options.length === 0) {
     return null;
   }
+
+  const handleEditComplete = (option: SelectOption) => {
+    if (editingValue.trim()) {
+      onEdit?.(option, editingValue.trim());
+    }
+    setEditingId(null);
+    setEditingValue("");
+  };
 
   const createColorSubMenu = (option: SelectOption) => {
     return {
@@ -54,6 +73,18 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
   const createDropdownMenu = (option: SelectOption) => {
     const menuItems = [];
 
+    if (onEdit) {
+      menuItems.push({
+        key: "edit",
+        label: "编辑选项",
+        onClick: (e: any) => {
+          e.domEvent.stopPropagation();
+          setEditingId(option.id);
+          setEditingValue(option.name);
+        },
+      });
+    }
+
     if (onColorChange) {
       menuItems.push(createColorSubMenu(option));
     }
@@ -76,7 +107,7 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
   return (
     <div className={`flex flex-col gap-1 h-full ${className}`}>
       {options.map((option) => {
-        const hasActions = onDelete || onColorChange;
+        const hasActions = onDelete || onColorChange || onEdit;
 
         if (!hasActions) {
           // 如果没有操作回调，直接渲染点击项
@@ -87,21 +118,37 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
                 "hover:bg-gray-100": theme !== "dark",
                 "hover:bg-gray-900/50": theme === "dark",
               })}
-              onClick={() => onSelect?.(option)}
+              onClick={() => !editingId && onSelect?.(option)}
             >
-              <div
-                style={{
-                  width: "fit-content",
-                  fontSize: "12px",
-                  padding: "2px 4px",
-                  borderRadius: "4px",
-                  backgroundColor:
-                    SELECT_COLORS_CONFIG[option.color][theme].backgroundColor,
-                  color: SELECT_COLORS_CONFIG[option.color][theme].color,
-                }}
-              >
-                {option.name}
-              </div>
+              {editingId === option.id ? (
+                <Input
+                  value={editingValue}
+                  onChange={(e) => setEditingValue(e.target.value)}
+                  onPressEnter={() => handleEditComplete(option)}
+                  onBlur={() => handleEditComplete(option)}
+                  autoFocus
+                  style={{
+                    fontSize: "12px",
+                    width: "fit-content",
+                    minWidth: "60px",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "fit-content",
+                    fontSize: "12px",
+                    padding: "2px 4px",
+                    borderRadius: "4px",
+                    backgroundColor:
+                      SELECT_COLORS_CONFIG[option.color][theme].backgroundColor,
+                    color: SELECT_COLORS_CONFIG[option.color][theme].color,
+                  }}
+                >
+                  {option.name}
+                </div>
+              )}
             </div>
           );
         }
@@ -116,21 +163,37 @@ const VerticalSelectList = memo((props: VerticalSelectListProps) => {
                 "hover:bg-gray-900/50": theme === "dark",
               },
             )}
-            onClick={() => onSelect?.(option)}
+            onClick={() => !editingId && onSelect?.(option)}
           >
-            <div
-              style={{
-                width: "fit-content",
-                fontSize: "12px",
-                padding: "2px 4px",
-                borderRadius: "4px",
-                backgroundColor:
-                  SELECT_COLORS_CONFIG[option.color][theme].backgroundColor,
-                color: SELECT_COLORS_CONFIG[option.color][theme].color,
-              }}
-            >
-              {option.name}
-            </div>
+            {editingId === option.id ? (
+              <Input
+                value={editingValue}
+                onChange={(e) => setEditingValue(e.target.value)}
+                onPressEnter={() => handleEditComplete(option)}
+                onBlur={() => handleEditComplete(option)}
+                autoFocus
+                style={{
+                  fontSize: "12px",
+                  width: "fit-content",
+                  minWidth: "60px",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <div
+                style={{
+                  width: "fit-content",
+                  fontSize: "12px",
+                  padding: "2px 4px",
+                  borderRadius: "4px",
+                  backgroundColor:
+                    SELECT_COLORS_CONFIG[option.color][theme].backgroundColor,
+                  color: SELECT_COLORS_CONFIG[option.color][theme].color,
+                }}
+              >
+                {option.name}
+              </div>
+            )}
             <Dropdown
               menu={createDropdownMenu(option)}
               trigger={["hover"]}
