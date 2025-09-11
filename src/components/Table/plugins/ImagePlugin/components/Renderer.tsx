@@ -16,7 +16,7 @@ interface ImageRendererProps {
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
-  onCellValueChange?: (newValue: ImagePluginValue) => void;
+  onCellValueChange: (newValue: ImagePluginValue) => void;
 }
 
 const ImageRenderer: React.FC<ImageRendererProps> = memo(

@@ -26,7 +26,7 @@ const Renderer: React.FC<{
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
-  onCellValueChange?: (newValue: CellValue) => void;
+  onCellValueChange: (newValue: CellValue) => void;
 }> = ({ value, column, theme, readonly, onCellValueChange }) => {
   const config = column.config as StarConfig;
   const max = Math.max(0, Number(config?.max ?? 5) || 5);
