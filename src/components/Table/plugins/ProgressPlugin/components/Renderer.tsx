@@ -8,7 +8,7 @@ interface ProgressRendererProps {
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
-  onCellValueChange?: (newValue: ProgressValue) => void;
+  onCellValueChange: (newValue: ProgressValue) => void;
 }
 
 const ProgressRenderer: React.FC<ProgressRendererProps> = memo(

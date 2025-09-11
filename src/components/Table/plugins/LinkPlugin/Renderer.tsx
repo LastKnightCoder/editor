@@ -13,7 +13,7 @@ const Renderer: React.FC<{
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
-  onCellValueChange?: (newValue: CellValue) => void;
+  onCellValueChange: (newValue: CellValue) => void;
   className?: string;
 }> = ({ value, theme }) => {
   const url = useMemo(() => normalizeUrl(String(value ?? "")), [value]);

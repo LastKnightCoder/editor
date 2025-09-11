@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { message } from "antd";
 import useSettingStore from "@/stores/useSettingStore";
@@ -45,6 +45,7 @@ export function useYoutubeVideo(
   const [streamProgress, setStreamProgress] = useState<StreamProgress | null>(
     null,
   );
+  const initedRef = useRef(false);
 
   const { setting } = useSettingStore((s) => ({ setting: s.setting }));
 
@@ -159,7 +160,8 @@ export function useYoutubeVideo(
   );
 
   useEffect(() => {
-    if (!meta || meta.type !== "youtube") return;
+    if (!meta || meta.type !== "youtube" || initedRef.current) return;
+    initedRef.current = true;
     processYoutube(meta.videoId, meta.videoFormat, meta.audioFormat);
     return () => setStreamProgress(null);
   }, [meta?.videoId, meta?.videoFormat, meta?.audioFormat, processYoutube]);

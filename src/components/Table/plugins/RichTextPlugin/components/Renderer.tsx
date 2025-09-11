@@ -137,7 +137,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           };
 
           const newValue = [...richTextList, newRichTextItem];
-          onCellValueChange?.(newValue);
+          onCellValueChange(newValue);
 
           // 立即打开编辑
           setCurrentEditingContentId(contentId);
@@ -197,7 +197,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           ? { ...item, title: title || item.title }
           : item,
       );
-      onCellValueChange?.(newValue);
+      onCellValueChange(newValue);
     });
 
     // 横向滚动处理
