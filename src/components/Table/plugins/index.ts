@@ -9,6 +9,7 @@ import StarPlugin from "./StarPlugin";
 import ImagePlugin from "./ImagePlugin";
 import AttachmentPlugin from "./AttachmentPlugin";
 import ProgressPlugin from "./ProgressPlugin";
+import RichTextPlugin from "./RichTextPlugin";
 
 export const builtInPlugins = [
   TextPlugin,
@@ -22,6 +23,7 @@ export const builtInPlugins = [
   ImagePlugin,
   AttachmentPlugin,
   ProgressPlugin,
+  RichTextPlugin,
 ];
 
 export {
@@ -36,4 +38,5 @@ export {
   ImagePlugin,
   AttachmentPlugin,
   ProgressPlugin,
+  RichTextPlugin,
 };

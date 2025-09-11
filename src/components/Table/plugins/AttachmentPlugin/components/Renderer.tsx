@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useCallback } from "react";
+import React, { memo, useState, useRef } from "react";
 import { Popover, App } from "antd";
 import {
   MdAdd,
@@ -161,12 +161,11 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
       }
     });
 
-    const handleWheel = useCallback((e: React.WheelEvent) => {
+    const handleWheel = useMemoizedFn((e: React.WheelEvent) => {
       if (scrollContainerRef.current) {
-        e.preventDefault();
         scrollContainerRef.current.scrollLeft += e.deltaY;
       }
-    }, []);
+    });
 
     const uploadContent = <FileUpload onUploadLocal={handleUploadFiles} />;
 

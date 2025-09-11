@@ -34,7 +34,7 @@ const TableContent: React.FC<TableContentProps> = memo(
       addColumn,
       editColumn,
       updateCellValue,
-      deleteColumn,
+      deleteColumnWithCleanup,
       moveColumn,
       moveRow,
       clearCellSelection,
@@ -53,7 +53,7 @@ const TableContent: React.FC<TableContentProps> = memo(
       addColumn: state.addColumn,
       editColumn: state.editColumn,
       updateCellValue: state.updateCellValue,
-      deleteColumn: state.deleteColumn,
+      deleteColumnWithCleanup: state.deleteColumnWithCleanup,
       moveColumn: state.moveColumn,
       moveRow: state.moveRow,
       clearCellSelection: state.clearCellSelection,
@@ -129,8 +129,8 @@ const TableContent: React.FC<TableContentProps> = memo(
       },
     );
 
-    const handleDeleteColumn = useMemoizedFn((columnId: string) => {
-      deleteColumn(columnId);
+    const handleDeleteColumn = useMemoizedFn(async (columnId: string) => {
+      await deleteColumnWithCleanup(columnId, pluginManager);
     });
 
     const handleCellDoubleClick = useMemoizedFn(
