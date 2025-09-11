@@ -8,13 +8,13 @@ const Renderer: React.FC<{
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
-  onCellValueChange?: (newValue: CellValue) => void;
+  onCellValueChange: (newValue: CellValue) => void;
 }> = ({ value, readonly, onCellValueChange }) => {
   const checked = Boolean(value);
 
   const handleToggle = () => {
     if (readonly) return;
-    onCellValueChange?.(!checked);
+    onCellValueChange(!checked);
   };
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {

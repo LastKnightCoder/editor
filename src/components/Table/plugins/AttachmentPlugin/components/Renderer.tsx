@@ -28,7 +28,7 @@ interface AttachmentRendererProps {
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
-  onCellValueChange?: (newValue: AttachmentPluginValue) => void;
+  onCellValueChange: (newValue: AttachmentPluginValue) => void;
 }
 
 const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
