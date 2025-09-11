@@ -410,7 +410,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       "project-item:updated",
       projectItemId,
       (data) => {
-        console.log("project-item:updated data", data);
         setProjectItem(data.projectItem);
         titleRef.current?.setValue(data.projectItem.title);
       },

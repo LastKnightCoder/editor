@@ -39,7 +39,7 @@ const MemoizedRenderer = memo(
     column: ColumnDef;
     theme: "light" | "dark";
     readonly: boolean;
-    onCellValueChange?: (value: CellValue) => void;
+    onCellValueChange: (value: CellValue) => void;
   }) => {
     const Renderer = plugin.Renderer;
     return (

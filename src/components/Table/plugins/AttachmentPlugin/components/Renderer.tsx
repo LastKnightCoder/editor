@@ -28,7 +28,7 @@ interface AttachmentRendererProps {
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
-  onCellValueChange?: (newValue: AttachmentPluginValue) => void;
+  onCellValueChange: (newValue: AttachmentPluginValue) => void;
 }
 
 const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
@@ -104,7 +104,7 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
             const newValue = attachmentList.filter(
               (item) => item.id !== attachmentId,
             );
-            onCellValueChange?.(newValue);
+            onCellValueChange(newValue);
           },
         });
       },
@@ -152,7 +152,7 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
         }
 
         if (newAttachments.length > 0) {
-          onCellValueChange?.([...attachmentList, ...newAttachments]);
+          onCellValueChange([...attachmentList, ...newAttachments]);
         }
 
         setUploadPopoverVisible(false);

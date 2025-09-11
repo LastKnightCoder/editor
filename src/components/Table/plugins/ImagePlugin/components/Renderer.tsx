@@ -16,7 +16,7 @@ interface ImageRendererProps {
   column: ColumnDef;
   theme: "light" | "dark";
   readonly: boolean;
-  onCellValueChange?: (newValue: ImagePluginValue) => void;
+  onCellValueChange: (newValue: ImagePluginValue) => void;
 }
 
 const ImageRenderer: React.FC<ImageRendererProps> = memo(
@@ -78,7 +78,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
       (imageId: string, e: React.MouseEvent) => {
         e.stopPropagation();
         const newValue = imageList.filter((item) => item.id !== imageId);
-        onCellValueChange?.(newValue);
+        onCellValueChange(newValue);
       },
     );
 
@@ -110,7 +110,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
         }
 
         if (newImages.length > 0) {
-          onCellValueChange?.([...imageList, ...newImages]);
+          onCellValueChange([...imageList, ...newImages]);
         }
 
         if (fileInputRef.current) {
@@ -126,7 +126,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
         alt: "网络图片",
       };
 
-      onCellValueChange?.([...imageList, newImage]);
+      onCellValueChange([...imageList, newImage]);
       setUploadPopoverVisible(false);
     });
 
