@@ -35,7 +35,6 @@ const MemoizedRenderer = memo(
   }: {
     plugin: CellPlugin<unknown>;
     value: CellValue;
-    config?: any;
     column: ColumnDef;
     theme: "light" | "dark";
     readonly: boolean;
