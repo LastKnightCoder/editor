@@ -26,3 +26,13 @@ export const getContentById = async (
 ): Promise<IContent | null> => {
   return await invoke("content:get-by-id", contentId);
 };
+
+export const deleteContent = async (contentId: number): Promise<number> => {
+  return await invoke("content:delete", contentId);
+};
+
+export const incrementContentRefCount = async (
+  contentId: number,
+): Promise<void> => {
+  return await invoke("content:increment-ref-count", contentId);
+};

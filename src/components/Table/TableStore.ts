@@ -46,6 +46,10 @@ interface TableState {
   deleteRow: (rowId: string) => void;
   addColumn: (column: Partial<ColumnDef>) => void;
   deleteColumn: (columnId: string) => void;
+  deleteColumnWithCleanup: (
+    columnId: string,
+    pluginMgr?: import("./PluginManager").PluginManager,
+  ) => Promise<void>;
   editColumn: (columnId: string, updates: Partial<ColumnDef>) => void; // 编辑列属性
 
   moveCellSelection: (direction: Direction | string) => void;
@@ -271,6 +275,27 @@ export const createTableStore = (
         }),
       );
       get().commitHistory();
+    },
+
+    deleteColumnWithCleanup: async (columnId, pluginMgr) => {
+      const { columns, rows } = get();
+
+      const columnToDelete = columns.find((col) => col.id === columnId);
+      if (!columnToDelete) return;
+
+      const columnData = rows
+        .map((row) => row[columnId])
+        .filter((value) => value != null);
+
+      if (pluginMgr && columnToDelete.type) {
+        try {
+          await pluginMgr.executeColumnCleanup(columnToDelete.type, columnData);
+        } catch (error) {
+          console.error("插件清理失败:", error);
+        }
+      }
+
+      get().deleteColumn(columnId);
     },
 
     moveRow: (fromIndex, toIndex) => {

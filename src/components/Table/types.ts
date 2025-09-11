@@ -51,7 +51,7 @@ export interface CellPlugin<T> {
     column: ColumnDef;
     theme: "light" | "dark";
     readonly: boolean;
-    onCellValueChange?: (newValue: CellValue) => void;
+    onCellValueChange: (newValue: CellValue) => void;
   }>;
   // 单元格编辑器组件
   Editor?: React.ComponentType<{
@@ -68,6 +68,7 @@ export interface CellPlugin<T> {
   onUnmount?: () => void;
   beforeSave?: (value: CellValue, config: T) => CellValue;
   afterLoad?: (value: CellValue, config: T) => CellValue;
+  onColumnCleanup?: (columnData: CellValue[]) => Promise<void> | void;
 }
 
 export interface ValidationRule {

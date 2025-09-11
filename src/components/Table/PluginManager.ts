@@ -74,6 +74,16 @@ export class PluginManager {
     const plugin = this.getPlugin(type);
     return plugin?.afterLoad ? plugin.afterLoad(value, config) : value;
   }
+
+  async executeColumnCleanup(
+    type: string,
+    columnData: CellValue[],
+  ): Promise<void> {
+    const plugin = this.getPlugin(type);
+    if (plugin?.onColumnCleanup) {
+      await plugin.onColumnCleanup(columnData);
+    }
+  }
 }
 
 export const createPluginManager = (): PluginManager => {

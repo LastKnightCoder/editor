@@ -15,8 +15,6 @@ const TextEditor: React.FC<TextEditorProps> = memo(
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const handleWheel = useMemoizedFn((e: React.WheelEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
       if (scrollRef.current) {
         scrollRef.current.scrollLeft += e.deltaY;
       }

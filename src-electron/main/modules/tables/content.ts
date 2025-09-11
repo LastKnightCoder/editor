@@ -18,6 +18,8 @@ export default class ContentTable {
       "content:update": this.updateContent.bind(this),
       "content:create": this.createContent.bind(this),
       "content:get-by-id": this.getContentById.bind(this),
+      "content:delete": this.deleteContent.bind(this),
+      "content:increment-ref-count": this.incrementRefCount.bind(this),
     };
   }
 
