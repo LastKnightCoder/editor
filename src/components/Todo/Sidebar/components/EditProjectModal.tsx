@@ -29,7 +29,6 @@ const EditProjectModal = memo(
         destroyOnClose
         width={480}
         closable={false}
-        className="create-project-modal"
       >
         <ProjectForm
           title="编辑项目"
