@@ -1,7 +1,7 @@
-import React, { useRef, useEffect, useState } from "react";
-import { Modal, Button, Tooltip, App } from "antd";
+import React, { useRef, useEffect, useState, useMemo } from "react";
+import { Modal, Button, Tooltip, App, MenuItemProps, Dropdown } from "antd";
 import { Descendant } from "slate";
-import { CloseOutlined } from "@ant-design/icons";
+import { CloseOutlined, MoreOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import Editor, { EditorRef } from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -9,13 +9,15 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import useUploadResource from "@/hooks/useUploadResource";
 import useEditContent from "@/hooks/useEditContent";
 import { getContentById } from "@/commands/content";
+import { isContentIsCard, buildCardFromContent } from "@/commands/card";
 import { IContent } from "@/types";
-import { formatDate, getContentLength } from "@/utils";
+import { formatDate, getContentLength, defaultCardEventBus } from "@/utils";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
+import { BsCardText } from "react-icons/bs";
 
 const customExtensions = [
   contentLinkExtension,
@@ -29,6 +31,7 @@ interface RichTextEditModalProps {
   title: string;
   onClose: () => void;
   onTitleChange: (title: string) => void;
+  onTypeChange?: (type: string) => void;
 }
 
 const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
@@ -37,6 +40,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   title: initialTitle,
   onClose,
   onTitleChange,
+  onTypeChange,
 }) => {
   const editorRef = useRef<EditorRef>(null);
   const titleRef = useRef<EditTextHandle>(null);
@@ -48,6 +52,17 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   const [updateTime, setUpdateTime] = useState(0);
   const { message } = App.useApp();
 
+  const [isCard, setIsCard] = useState(false);
+
+  useEffect(() => {
+    if (contentId && visible) {
+      isContentIsCard(contentId).then((res) => {
+        console.log("isContentIsCard", res);
+        setIsCard(res);
+      });
+    }
+  }, [contentId, visible]);
+
   const uploadResource = useUploadResource();
   const { throttleHandleEditorContentChange } = useEditContent(
     contentId,
@@ -57,6 +72,36 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
       setUpdateTime(Date.now());
     },
   );
+
+  const handleBuildCard: MenuItemProps["onClick"] = useMemoizedFn(() => {
+    if (!contentId) return;
+
+    buildCardFromContent(contentId).then((card) => {
+      if (card) {
+        onTypeChange?.("card");
+        setIsCard(true);
+        defaultCardEventBus
+          .createEditor()
+          .publishCardEvent("card:created", card);
+        message.success("创建卡片成功");
+      } else {
+        message.error("创建卡片失败");
+      }
+    });
+  });
+
+  const items = useMemo(() => {
+    return [
+      !isCard
+        ? {
+            key: "build-card",
+            label: "创建卡片",
+            icon: <BsCardText />,
+            onClick: handleBuildCard,
+          }
+        : null,
+    ].filter((val) => val !== null);
+  }, [isCard]);
 
   // 加载内容
   const loadContent = useMemoizedFn(async () => {
@@ -139,7 +184,13 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
           </>
         )}
       </div>
+
       <div className="flex items-center gap-2 ml-4">
+        {items.length > 0 && (
+          <Dropdown menu={{ items }}>
+            <Button type="text" icon={<MoreOutlined />} />
+          </Dropdown>
+        )}
         <Tooltip title="关闭">
           <Button type="text" icon={<CloseOutlined />} onClick={handleClose} />
         </Tooltip>
