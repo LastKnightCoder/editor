@@ -173,6 +173,16 @@ function updateTrayMenu() {
       },
     },
     {
+      label: "打开任务管理窗口",
+      click: () => {
+        if (windowManager) {
+          if (typeof windowManager.createTodoWindow === "function") {
+            windowManager.createTodoWindow();
+          }
+        }
+      },
+    },
+    {
       label: "打开笔记应用",
       click: () => {
         const mainWindow = BrowserWindow.getAllWindows()[0];

@@ -1,0 +1,323 @@
+# TODO 管理功能设计文档
+
+本文件作为 TODO 管理功能的系统性设计与实现说明，覆盖：数据库表设计、Electron 主进程与渲染进程的技术方案、目录结构与代码架构、状态管理、拖拽与排序策略、UI/交互规范，以及扩展与维护建议。此文档用于后续迭代的统一参考。
+
+---
+
+## 一、目标与范围
+
+- 支持分组管理，每个组下有独立的 TODO 列表
+- 支持嵌套任务（父子关系），完成父任务可递归影响所有子任务
+- 支持拖拽重排（分组、任务、任务关联的笔记），并持久化排序
+- 支持截止日期（Due Date），逾期指示与筛选
+- 独立窗口显示，通过系统托盘菜单打开
+- 支持任务与笔记的关联：可选择已有笔记或新建并关联，支持排序与标题快照更新
+- 采用 SQLite 持久化；不使用外键（通过字段与索引维护逻辑关联）
+
+## 二、架构总览
+
+- Electron 架构
+  - 主进程（`src-electron/main`）：数据库访问、窗口/托盘管理、IPC 命令处理
+  - 预加载与安全桥接（`src-electron/preload`）：按需暴露能力
+  - 渲染进程（`src`）：React + Zustand（配合 immer）状态管理，Ant Design + Tailwind UI
+- 数据持久化：SQLite，所有表在 `src-electron/main/modules/table` 下以静态方法提供 DDL/升级/事件注册
+- 进程间通信：`ipcMain.handle` + 前端 commands（`src/commands/todo.ts`）
+- 窗口管理：`src-electron/main/modules/window-manager.ts` 提供 `createTodoWindow`
+- 托盘菜单：`src-electron/main/modules/tray.ts` 新增“TODO 管理”入口
+
+## 三、目录结构（与核心文件）
+
+- 主进程
+  - `src-electron/main/modules/database.ts`：数据库初始化、表注册、升级
+  - `src-electron/main/modules/tables/todo-group.ts`：分组表与命令
+  - `src-electron/main/modules/tables/todo-item.ts`：任务表与命令（含递归 CTE、移动/排序）
+  - `src-electron/main/modules/tables/todo-note-link.ts`：任务-内容关联表与命令（排序、标题快照）
+  - `src-electron/main/modules/window-manager.ts`：窗口创建（含 `todo` 类型）
+  - `src-electron/main/modules/tray.ts`：托盘菜单项（打开 TODO 窗口）
+- 渲染进程
+  - `src/pages/TodoWindow/index.tsx`：三栏页面骨架（左分组/中列表/右详情）
+  - `src/commands/todo.ts`：前端 IPC 封装
+  - `src/stores/todo.ts`：Zustand Store（含 UI 状态、数据与操作）
+  - 组件
+    - 左栏：`src/components/Todo/Sidebar/GroupList.tsx`
+    - 中栏：`src/components/Todo/List/Toolbar.tsx`、`src/components/Todo/List/TodoTree.tsx`、`src/components/Todo/List/OverdueIndicator.tsx`、`src/components/Todo/List/KeyboardShortcuts.tsx`
+    - 右栏：`src/components/Todo/Details/DetailsPanel.tsx`、`src/components/Todo/Details/TodoNotesDnd.tsx`、`src/components/Todo/Details/EditableField.tsx`
+    - DnD Provider：`src/pages/TodoWindow/DndProvider.tsx`
+  - 类型：`src/types/todo.ts`，并在 `src/types/index.ts` 统一导出
+
+## 四、数据库设计（SQLite）
+
+### 4.1 设计原则
+
+- 不使用外键；通过字段与索引维护逻辑关联
+- 主键使用 `INTEGER PRIMARY KEY` 自增 ID
+- 所有表包含 `create_time`、`update_time`；必要字段包含 `is_archived`、`sort_index`
+- 排序采用“间隔法”（例如初始步长 1024），降低重排成本；间隔耗尽时本地归一化
+
+### 4.2 表定义
+
+1) 分组表 `todo_group`
+
+```sql
+CREATE TABLE IF NOT EXISTS todo_group (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL,
+  color TEXT,
+  sort_index INTEGER NOT NULL DEFAULT 0,
+  is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
+  create_time INTEGER NOT NULL,
+  update_time INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_todo_group_sort ON todo_group(sort_index);
+```
+
+2) 任务表 `todo_item`
+
+```sql
+CREATE TABLE IF NOT EXISTS todo_item (
+  id INTEGER PRIMARY KEY,
+  group_id INTEGER NOT NULL,
+  parent_id INTEGER,
+  title TEXT NOT NULL,
+  description TEXT,
+  is_completed INTEGER NOT NULL DEFAULT 0 CHECK(is_completed IN (0,1)),
+  due_at INTEGER,
+  completed_at INTEGER,
+  sort_index INTEGER NOT NULL DEFAULT 0,
+  is_archived INTEGER NOT NULL DEFAULT 0 CHECK(is_archived IN (0,1)),
+  create_time INTEGER NOT NULL,
+  update_time INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_todo_item_group ON todo_item(group_id);
+CREATE INDEX IF NOT EXISTS idx_todo_item_parent ON todo_item(parent_id);
+CREATE INDEX IF NOT EXISTS idx_todo_item_sort ON todo_item(group_id, parent_id, sort_index);
+```
+
+3) 任务-笔记关联表 `todo_note_link`
+
+```sql
+CREATE TABLE IF NOT EXISTS todo_note_link (
+  id INTEGER PRIMARY KEY,
+  todo_id INTEGER NOT NULL,
+  content_id INTEGER NOT NULL,
+  title TEXT,
+  type TEXT,
+  sort_index INTEGER NOT NULL DEFAULT 0,
+  create_time INTEGER NOT NULL,
+  update_time INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_todo_note_link_todo ON todo_note_link(todo_id);
+CREATE INDEX IF NOT EXISTS idx_todo_note_link_sort ON todo_note_link(todo_id, sort_index);
+```
+
+### 4.3 递归 CTE：级联完成/取消完成
+
+- 使用 SQLite `WITH RECURSIVE` 计算包含父任务及所有子任务的闭包集合，一次性更新 `is_completed` 与 `completed_at`
+- 好处：原子性强、无需在渲染层递归多次 IPC
+
+### 4.4 排序策略（间隔法）
+
+- `sort_index` 采用固定步长（如 1024）分配；在两个相邻项之间插入时取中值
+- 当间隔不足时，局部重排该父级下的 `sort_index`（非全量）
+
+### 4.5 与内容系统的引用计数
+
+- 关联现有笔记：调用 `incrementContentRefCount`
+- 取消关联：若引用计数为 0 则通过 `deleteContent` 清理
+- `todo_note_link.title` 用于标题快照，避免内容标题变动后列表空白
+
+## 五、主进程实现
+
+### 5.1 数据库模块与表注册
+
+- 文件：`src-electron/main/modules/database.ts`
+- 在构造函数中注册：`TodoGroupTable`、`TodoItemTable`、`TodoNoteLinkTable`
+- `Table` 约定：
+  - `static initTable(db: Database.Database): void`
+  - `static upgradeTable(db: Database.Database, fromVersion: number, toVersion: number): void`
+  - `static getListenEvents(db: Database.Database): Record<string, (event, payload) => any>`
+
+### 5.2 IPC 命令清单（示意）
+
+- 分组：
+  - `todo.group.list`
+  - `todo.group.create`
+  - `todo.group.update`（重命名/颜色/归档）
+  - `todo.group.reorder`
+  - `todo.group.stats`（总数/未完成/逾期）
+- 任务：
+  - `todo.item.list`
+  - `todo.item.create`
+  - `todo.item.update`（标题/描述/截止日期/完成状态）
+  - `todo.item.toggleCompleteCascade`
+  - `todo.item.moveAndReorder`（跨父级/跨分组、前后锚点）
+  - `todo.item.archive` / `todo.item.delete`
+- 笔记关联：
+  - `todo.note.list`
+  - `todo.note.attachExisting`
+  - `todo.note.createAndAttach`
+  - `todo.note.detach`
+  - `todo.note.reorder`
+  - `todo.note.updateTitleSnapshot`
+
+### 5.3 窗口与托盘
+
+- `window-manager.ts`：
+  - 新增 `EditorType` = `"todo"`
+  - `createTodoWindow()` 创建独立窗口（载入 `/todo`）
+  - `getEditorRoute("todo") -> /todo`
+- `tray.ts`：托盘右键菜单新增“TODO 管理”调用 `createTodoWindow()`
+
+## 六、前端实现
+
+### 6.1 路由与页面
+
+- `src/router.tsx` 新增：`{ path: '/todo', element: <TodoWindowPage /> }`
+- 页面：`src/pages/TodoWindow/index.tsx`
+  - 三栏布局：左（分组）/中（任务列表）/右（详情）
+  - 两侧栏使用 `ResizableAndHideableSidebar` 可调整与折叠
+  - 顶部工具栏 `Toolbar`：左右栏开关、快速创建任务、筛选（全部/未完成/已完成/逾期）
+  - `DndProvider` 注入 `react-dnd` 后端
+
+### 6.2 状态管理（Zustand + immer）
+
+- 文件：`src/stores/todo.ts`
+- 主要状态：
+  - `ui`: `{ leftOpen, rightOpen, leftWidth, rightWidth }`
+  - `groups`, `groupStats`
+  - `itemsByGroupId: Record<number, TodoItem[]>`
+  - `notesByTodoId: Record<number, TodoNoteLink[]>`
+  - `activeGroupId`, `activeTodoId`, `expandedIds`
+  - `filters`: `{ completed?: boolean; overdue?: boolean; keyword?: string }`
+- 主要操作：
+  - 分组：加载/创建/更新/归档/重排/统计
+  - 任务：加载/创建/更新/级联完成/移动与排序/归档、删除
+  - 笔记：加载/关联/新建并关联/取消关联/排序/标题快照更新
+  - UI：侧栏开关/宽度、当前选中任务与分组、展开状态、筛选设置
+
+### 6.3 前端命令封装
+
+- 文件：`src/commands/todo.ts`
+- 提供所有主进程 IPC 的 Promise 风格封装，参数与返回类型与 `src/types/todo.ts` 对齐
+
+### 6.4 组件一览
+
+- 左栏 `GroupList`
+  - 分组列表卡片、未完成计数徽标、逾期红点
+  - 悬浮操作菜单（重命名/置顶/归档/删除）
+  - 拖拽排序：本地顺序立即响应 + 节流持久化
+- 中栏 `Toolbar`
+  - 新建任务输入框（回车创建）
+  - 侧栏折叠按钮
+  - 筛选下拉：全部/未完成/已完成/已逾期
+- 中栏 `TodoTree`
+  - 任务行：复选框（父任务二次确认级联完成）、标题、截止日期编辑（`Popover + DatePicker`）
+  - 逾期/今日到期指示点 `OverdueIndicator`
+  - 拖拽重排：`react-dnd` 支持同层移动与未来的跨层/跨组移动（调用 `moveAndReorder`）
+  - 快捷键 `KeyboardShortcuts`：Ctrl+Enter 新建、Delete 删除
+- 右栏 `DetailsPanel`
+  - 可编辑标题、描述、截止日期（`EditableField`）
+  - 任务完成状态勾选（级联）
+  - 关联笔记区 `TodoNotesDnd`：关联现有、创建并关联、取消关联、拖拽排序、编辑（`RichTextEditModal`）
+- DnD 支持：`src/pages/TodoWindow/DndProvider.tsx`
+
+### 6.5 拖拽与排序（react-dnd）
+
+- 分组/任务/笔记均采用 `react-dnd` 实现拖拽
+- 拖拽过程：
+  - 本地数组 `localList` 即时更新，提供顺畅反馈
+  - 拖拽结束：计算 `beforeId`/`afterId` 与 `toGroupId`/`toParentId`，调用持久化命令
+- 任务层级拖拽（后续可拓展）：
+  - 使用 hover 区域与缩进判定 `toParentId`
+  - 父级变化与同级重排统一复用 `moveAndReorder`
+
+### 6.6 筛选与逾期
+
+- `filters` 支持：全部/未完成/已完成/逾期
+- 逾期定义：`!isCompleted && dueAt < now`
+- UI：任务行左侧红点、分组项小红点提示逾期数量
+
+### 6.7 UI 与交互规范
+
+- 组件库：Ant Design（`Popover`、`DatePicker`、`Dropdown`、`Modal.confirm`）
+- 样式：Tailwind CSS（现代化、圆角、阴影、透明玻璃感）
+- 图标：`react-icons`
+- 可访问性：拖拽时透明度/高亮反馈；键盘操作（创建/删除）
+
+## 七、代码规范（项目内约定）
+
+- 包管理器使用 `pnpm`；Electron 相关包尽量使用 `-D` 安装
+- 状态管理使用 `zustand`，不可变数据流使用 `immer`
+- Electron 数据存储使用 `sqlite`
+- 所有类型声明在 `src/types`，禁止 `any`
+- 所有与 Electron 的交互均在 `src/commands` 下封装，通过 command 调用
+- 编辑器相关代码在 `src/components/Editor`（本功能不直接修改编辑器，但遵守此结构）
+- 移动/重构要清理无用代码/样式/文件
+- 避免使用 `:global` 样式
+- 使用 `classnames` 处理多类名
+- 组件 `memo` 时不要使用 `export default memo(Component)`，而使用 `const Component = memo(() => {})`
+- 当文件过长时，拆分组件与 hooks
+
+## 八、性能与可维护性
+
+- 列表渲染：后续接入虚拟滚动（如 `react-virtual`）
+- 拖拽排序：节流后端持久化，局部 `sort_index` 归一化
+- Store 切片化：将 TODO store 与其他业务隔离
+- 类型显式化：函数签名与 IPC payload/response 均类型严格
+- 错误处理：所有命令 `try/catch` 并提示用户
+
+## 九、扩展点与迭代建议
+
+- 任务层级拖拽：支持跨层级/跨分组移动与缩进调整
+- 任务筛选增强：按日期范围、关键字搜索
+- 重复任务/提醒：到期提醒、重复规则
+- 多选批量操作：批量完成/移动/归档
+- 协作与同步：后续可对接云端或多端同步
+
+## 十、关键类型与命令（节选）
+
+### 10.1 TypeScript 接口（节选）
+
+```ts
+export interface TodoGroup { id: number; title: string; color?: string | null; sortIndex: number; isArchived: boolean; createTime: number; updateTime: number; }
+export interface TodoItem { id: number; groupId: number; parentId?: number | null; title: string; description?: string | null; isCompleted: boolean; dueAt?: number | null; completedAt?: number | null; sortIndex: number; isArchived: boolean; createTime: number; updateTime: number; }
+export interface TodoNoteLink { id: number; todoId: number; contentId: number; title?: string | null; type: string; sortIndex: number; createTime: number; updateTime: number; }
+export interface TodoGroupStats { total: number; uncompleted: number; overdue: number; }
+```
+
+### 10.2 关键命令（节选）
+
+```ts
+// 分组
+listTodoGroups(); createTodoGroup(p); updateTodoGroup(p); reorderTodoGroups(ids); getTodoGroupStats();
+
+// 任务
+listTodoItems(groupId); createTodoItem(p); updateTodoItem(p); toggleCompleteCascade(id, checked);
+moveAndReorder({ id, toGroupId, toParentId, beforeId, afterId }); archiveTodoItem(id, flag); deleteTodoItem(id);
+
+// 笔记关联
+listTodoNotes(todoId); attachExistingNote(todoId, contentId, title, type); createAndAttachNote(todoId, title);
+detachNote(linkId); reorderNotes(todoId, orderedLinkIds); updateNoteTitleSnapshot(linkId, title);
+```
+
+## 十一、已知问题与注意事项
+
+- 使用 `react-dnd` 时，避免在拖拽过程中同步外部数据导致闪烁：通过本地 `localList` 与 `isDragging` 保护
+- 过滤/排序在渲染层完成；当数据量很大时考虑在主进程提供筛选参数
+- 递归 CTE 更新需谨慎：确保 WHERE 条件只命中当前分支
+
+## 十二、变更记录（摘要）
+
+- 引入表：`todo_group`、`todo_item`、`todo_note_link`（主键自增）
+- 数据库注册：在 `database.ts` 中注册三张表
+- IPC：分组/任务/笔记关联全量命令
+- 窗口：`window-manager` 增加 `todo` 类型；`tray` 新增入口
+- 前端：
+  - 路由 `/todo`，三栏布局页面
+  - Store：加入 UI 状态、筛选、活跃任务、分组统计与笔记缓存
+  - 组件：分组列表、任务树、右栏详情、笔记关联与拖拽、逾期指示、快捷键
+  - 拖拽：分组/任务/笔记排序与持久化
+  - UI：Tailwind 风格、Antd 控件
+
+---
+如有更新，请更新此文档

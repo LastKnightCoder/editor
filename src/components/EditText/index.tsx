@@ -7,12 +7,17 @@ import React, {
   memo,
 } from "react";
 import { useMemoizedFn, useMutationObserver } from "ahooks";
+import cx from "classnames";
+import "./index.less";
 
 interface IEditTextProps {
   id?: string;
   className?: string;
   style?: React.CSSProperties;
   defaultValue?: string;
+  placeholder?: string;
+  placeholderClassName?: string;
+  placeholderStyle?: React.CSSProperties;
   contentEditable?: boolean;
   onChange?: (value: string) => void;
   onPressEnter?: () => void;
@@ -42,6 +47,9 @@ const EditText = memo(
       className,
       style,
       defaultValue,
+      placeholder,
+      placeholderClassName,
+      placeholderStyle,
       contentEditable = false,
       onChange,
       onPressEnter,
@@ -57,6 +65,10 @@ const EditText = memo(
     const ref = useRef<HTMLDivElement>(null);
     const isComposing = useRef(false);
     const innerText = useRef(initValue);
+    const [isEmpty, setIsEmpty] = useState<boolean>(() => {
+      const initial = (defaultValue ?? "").trim();
+      return initial.length === 0;
+    });
 
     useImperativeHandle(editTextRef, () => ({
       clear: () => {
@@ -143,6 +155,7 @@ const EditText = memo(
         const textContent = ref.current?.innerText || "";
         onChange?.(textContent);
         innerText.current = textContent;
+        setIsEmpty(textContent.trim().length === 0);
       },
       ref,
       {
@@ -204,8 +217,22 @@ const EditText = memo(
       <div
         id={id}
         ref={ref}
-        className={className}
-        style={style}
+        className={cx(
+          className,
+          placeholder ? "edit-text-with-placeholder" : undefined,
+          placeholderClassName,
+        )}
+        style={{
+          ...style,
+          ...(placeholder && !style?.position ? { position: "relative" } : {}),
+          ...(placeholderStyle?.color
+            ? ({
+                ["--placeholder-color" as any]: placeholderStyle.color,
+              } as any)
+            : {}),
+        }}
+        data-placeholder={placeholder}
+        data-empty={isEmpty ? "true" : "false"}
         // @ts-ignore
         contentEditable={contentEditable ? "plaintext-only" : false}
         suppressContentEditableWarning
