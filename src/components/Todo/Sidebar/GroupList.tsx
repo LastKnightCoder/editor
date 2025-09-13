@@ -3,7 +3,6 @@ import { useTodoStore } from "@/stores/todo";
 import { useMemoizedFn } from "ahooks";
 import { type ProjectColorName } from "@/constants/project-colors";
 import { SidebarHeader, GroupItem } from "./components";
-import "./group-list.less";
 
 const GroupList = () => {
   const {
