@@ -173,7 +173,7 @@ function updateTrayMenu() {
       },
     },
     {
-      label: "打开任务管理窗口",
+      label: "任务清单",
       click: () => {
         if (windowManager) {
           if (typeof windowManager.createTodoWindow === "function") {

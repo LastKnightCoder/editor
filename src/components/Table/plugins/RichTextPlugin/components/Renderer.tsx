@@ -208,6 +208,15 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       }
     });
 
+    const handleTypeChange = useMemoizedFn((type: string) => {
+      const newValue = richTextList.map((item) =>
+        item.contentId === currentEditingContentId
+          ? { ...item, type: type as RichTextItem["type"] }
+          : item,
+      );
+      onCellValueChange(newValue);
+    });
+
     const dropdownContent = (
       <DropdownMenu
         theme={theme}
@@ -338,6 +347,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
               setCurrentEditingTitle("");
             }}
             onTitleChange={handleEditSave}
+            onTypeChange={handleTypeChange}
           />
         )}
       </div>
