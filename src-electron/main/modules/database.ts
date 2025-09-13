@@ -26,6 +26,9 @@ import GoalTable from "./tables/goal";
 import GoalItemTable from "./tables/goal-item";
 import GoalProgressEntryTable from "./tables/goal-progress-entry";
 import DataTableTable from "./tables/data-table";
+import TodoGroupTable from "./tables/todo-group";
+import TodoItemTable from "./tables/todo-item";
+import TodoNoteLinkTable from "./tables/todo-note-link";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -70,6 +73,9 @@ class DatabaseModule implements Module {
       GoalItemTable,
       GoalProgressEntryTable,
       DataTableTable,
+      TodoGroupTable,
+      TodoItemTable,
+      TodoNoteLinkTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

@@ -10,7 +10,7 @@ import useUploadResource from "@/hooks/useUploadResource";
 import useEditContent from "@/hooks/useEditContent";
 import { getContentById } from "@/commands/content";
 import { IContent } from "@/types";
-import { formatDate } from "@/utils";
+import { formatDate, getContentLength } from "@/utils";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -44,6 +44,8 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [editorContent, setEditorContent] = useState<Descendant[]>([]);
   const [title, setTitle] = useState(initialTitle);
+  const [count, setCount] = useState(0);
+  const [updateTime, setUpdateTime] = useState(0);
   const { message } = App.useApp();
 
   const uploadResource = useUploadResource();
@@ -51,6 +53,8 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
     contentId,
     (content) => {
       editorRef.current?.setEditorValue(content);
+      setCount(getContentLength(content));
+      setUpdateTime(Date.now());
     },
   );
 
@@ -64,7 +68,9 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
       if (contentData) {
         setContent(contentData);
         setEditorContent(contentData.content);
+        setCount(contentData.count);
         editorRef.current?.setEditorValue(contentData.content);
+        setUpdateTime(contentData.updateTime);
       }
     } catch (error) {
       console.error("加载内容失败:", error);
@@ -78,6 +84,8 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     setEditorContent(content);
     throttleHandleEditorContentChange(content);
+    setCount(getContentLength(content));
+    setUpdateTime(Date.now());
   });
 
   // 关闭处理
@@ -111,13 +119,11 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
           ref={titleRef}
           defaultValue={title}
           contentEditable={true}
+          onPressEnter={() => {
+            editorRef.current?.focus();
+          }}
           onChange={onTitleChange}
           className="text-lg font-medium outline-none border-none bg-transparent w-full min-h-[32px] leading-8"
-          style={{
-            color: "inherit",
-            fontSize: "inherit",
-            fontWeight: "inherit",
-          }}
         />
       </div>
       <div className="flex text-xs gap-2.5 text-gray-500">
@@ -127,9 +133,9 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
               <span>创建于 {formatDate(content.createTime, true)}</span>
             </div>
             <div>
-              <span>最后修改于 {formatDate(content.updateTime, true)}</span>
+              <span>最后修改于 {formatDate(updateTime, true)}</span>
             </div>
-            <div>字数：{content.count}</div>
+            <div>字数：{count}</div>
           </>
         )}
       </div>

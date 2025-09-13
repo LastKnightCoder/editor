@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
+import classnames from "classnames";
 import styles from "./index.module.less";
 
 interface CustomCheckboxProps {
   checked: boolean;
   onChange: () => void;
+  className?: string;
 }
 
 const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
   checked,
   onChange,
+  className,
 }) => {
   const [isChecked, setIsChecked] = useState(checked);
   const [showFireworks, setShowFireworks] = useState(false);
@@ -35,7 +38,10 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
   };
 
   return (
-    <div className={styles.checkboxContainer} onClick={handleClick}>
+    <div
+      className={classnames(styles.checkboxContainer, className)}
+      onClick={handleClick}
+    >
       <svg
         className={styles.checkbox}
         viewBox="0 0 24 24"

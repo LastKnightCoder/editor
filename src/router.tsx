@@ -45,6 +45,7 @@ const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
 const GoalManagementView = loadable(
   () => import("@/pages/GoalView/GoalManagementView"),
 );
+const TodoWindowPage = loadable(() => import("@/pages/TodoWindow"));
 
 const routes = [
   {
@@ -188,6 +189,10 @@ const routes = [
         element: <SingleMarkdownEditor />,
       },
     ],
+  },
+  {
+    path: "/todo",
+    element: <TodoWindowPage />,
   },
 ];
 

@@ -18,7 +18,8 @@ type EditorType =
   | "article"
   | "project-item"
   | "document-item"
-  | "markdown";
+  | "markdown"
+  | "todo";
 
 // 窗口参数定义
 interface EditorParams {
@@ -50,6 +51,7 @@ export class WindowManager {
     this.windowsMap.set("project-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("document-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("markdown", new Map<string, BrowserWindow>());
+    this.windowsMap.set("todo", new Map<string, BrowserWindow>());
 
     this.registerIpcHandlers();
   }
@@ -283,6 +285,7 @@ export class WindowManager {
       "project-item": "single-project-item-editor",
       "document-item": "single-document-item-editor",
       markdown: "single-markdown-editor",
+      todo: "todo",
     };
     return routes[type];
   }
@@ -295,6 +298,7 @@ export class WindowManager {
       "project-item": "projectItemId",
       "document-item": "documentItemId",
       markdown: "filePath",
+      todo: "noop",
     };
     return paramNames[type];
   }
@@ -307,8 +311,24 @@ export class WindowManager {
       "project-item": "项目",
       "document-item": "知识库",
       markdown: "Markdown",
+      todo: "TODO",
     };
     return editorNames[type];
+  }
+
+  public createTodoWindow() {
+    const baseConfig = this.createBaseWindowConfig();
+    const win = new BrowserWindow(baseConfig);
+
+    this.setupWindowEvents(win);
+
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/todo`);
+    } else {
+      win.loadFile(indexHtml, { hash: `/todo` });
+    }
+
+    return win;
   }
 
   // 创建快速卡片窗口

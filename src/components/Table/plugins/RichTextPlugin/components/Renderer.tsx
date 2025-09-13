@@ -13,14 +13,15 @@ import { useMemoizedFn } from "ahooks";
 import { v4 as uuid } from "uuid";
 import { ColumnDef } from "../../../types";
 import { RichTextPluginValue, RichTextItem } from "../types";
-import { DropdownMenu, RichTextEditModal } from "./index";
+import { DropdownMenu } from "./index";
+import RichTextEditModal from "@/components/RichTextEditModal";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
 import {
   createContent,
   deleteContent,
   incrementContentRefCount,
 } from "@/commands/content";
 import { SearchResult } from "@/types";
-import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { Descendant } from "slate";
 import classNames from "classnames";
 
