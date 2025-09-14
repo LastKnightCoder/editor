@@ -53,6 +53,16 @@ export default defineConfig(() => {
                 ),
                 plugins: [
                   {
+                    name: "copy-typst-worker",
+                    closeBundle() {
+                      fs.ensureDirSync("dist-electron/main/workers");
+                      fs.copySync(
+                        "src-electron/main/workers/typst-worker.js",
+                        "dist-electron/main/workers/typst-worker.js",
+                      );
+                    },
+                  },
+                  {
                     name: "jieba-dict-copy",
                     closeBundle() {
                       // 构建完成后触发

@@ -260,6 +260,13 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        type: "typst",
+        isBlock: true,
+        toMarkdown: (element) => {
+          return `\`\`\`typst\n${element.content || ""}\n\`\`\``;
+        },
+      },
+      {
         type: "callout",
         isBlock: true,
         toMarkdown: (element, childrenStr) => {

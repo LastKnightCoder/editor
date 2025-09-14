@@ -358,6 +358,14 @@ export const insertTikz = (editor: Editor) => {
   });
 };
 
+export const insertTypst = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: "typst",
+    content: "",
+    children: [{ type: "formatted", text: "" }],
+  });
+};
+
 export const insertGraphviz = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: "graphviz",

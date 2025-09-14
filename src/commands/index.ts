@@ -29,3 +29,4 @@ export * from "./goal";
 export * from "./bilibili-cache";
 export * from "./youtube-cache";
 export * from "./data-table";
+export * from "./typst";
