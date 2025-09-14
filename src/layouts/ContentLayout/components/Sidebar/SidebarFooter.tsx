@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useNavigate } from "react-router-dom";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import SidebarItem from "./SidebarItem";
 import { useMemoizedFn } from "ahooks";
@@ -58,7 +57,6 @@ const SettingsButton = memo(
 
 const SidebarFooter = memo((props: SidebarFooterProps) => {
   const { isShortWidth } = props;
-  const navigate = useNavigate();
 
   const { darkMode, onDarkModeChange } = useSettingStore(
     useShallow((state) => ({
@@ -68,7 +66,9 @@ const SidebarFooter = memo((props: SidebarFooterProps) => {
   );
 
   const navigateToSettings = useMemoizedFn(() => {
-    navigate("/settings");
+    useSettingStore.setState({
+      settingModalOpen: true,
+    });
   });
 
   const darkModeChange = useMemoizedFn(() => {

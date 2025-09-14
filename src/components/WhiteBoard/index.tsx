@@ -6,6 +6,7 @@ import {
   useLocalStorageState,
 } from "ahooks";
 import classnames from "classnames";
+import OpenIndicator from "@/components/OpenIndicator";
 
 import Board from "./Board";
 import {
@@ -58,7 +59,6 @@ import {
 
 import styles from "./index.module.less";
 import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
-import { ArrowLeftOutlined, ArrowRightOutlined } from "@ant-design/icons";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -376,21 +376,13 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 >
                   <div className="relative h-full w-full">
                     <div
-                      className={`absolute left-0 top-1/2 -translate-y-1/2 ${sidebarOpen ? "-translate-x-1/2" : "-translate-x-0"} rounded-full w-6 h-6 border border-gray-200 dark:border-gray-800 bg-white dark:bg-black flex items-center justify-center cursor-pointer z-10`}
+                      className={`absolute cursor-pointer left-0 top-1/2 -translate-y-1/2`}
                     >
-                      {sidebarOpen ? (
-                        <ArrowLeftOutlined
-                          onClick={() => {
-                            setSidebarOpen(false);
-                          }}
-                        />
-                      ) : (
-                        <ArrowRightOutlined
-                          onClick={() => {
-                            setSidebarOpen(true);
-                          }}
-                        />
-                      )}
+                      <OpenIndicator
+                        open={!!sidebarOpen}
+                        showIndicator={true}
+                        onOpenChange={setSidebarOpen}
+                      />
                     </div>
                     {!readonly && <Toolbar />}
 

@@ -137,12 +137,19 @@ const PresentationCreator: React.FC = () => {
     async (frame: PresentationFrame, animate = true) => {
       if (!board) return;
 
+      // 根据帧内元素动态计算视口
+      const elementIdSet = new Set(frame.elements);
+      const elements = board.presentationManager.getElementsByIds(elementIdSet);
+      const computed =
+        board.presentationManager.fitElementsInViewport(elements);
+      if (!computed) return;
+
       if (animate) {
         // 使用动画过渡
         await ViewPortTransforms.animateToViewport(
           board,
           board.viewPort,
-          frame.viewPort,
+          computed,
           500,
         );
       } else {
@@ -150,14 +157,14 @@ const PresentationCreator: React.FC = () => {
         board.apply({
           type: "set_viewport",
           properties: board.viewPort,
-          newProperties: frame.viewPort,
+          newProperties: computed,
         });
       }
 
       setCurrentFrame(frame);
 
       // 更新当前视口引用
-      currentViewportRef.current = { ...frame.viewPort };
+      currentViewportRef.current = { ...computed };
     },
   );
 
@@ -242,33 +249,14 @@ const PresentationCreator: React.FC = () => {
 
     setIsAdjustingViewport(true);
 
-    // 保存当前视口状态
-    currentViewportRef.current = { ...currentFrame.viewPort };
+    // 保存当前视口状态（不再写回帧，仅临时调整）
+    currentViewportRef.current = { ...board.viewPort };
   });
 
   // 停止调整视口
   const stopAdjustViewport = useMemoizedFn(() => {
     setIsAdjustingViewport(false);
-
-    // 如果有调整，更新当前帧
-    if (currentFrame && currentViewportRef.current) {
-      const updatedFrame = {
-        ...currentFrame,
-        viewPort: { ...currentViewportRef.current },
-      };
-
-      // 更新帧列表
-      setFrames((prev) =>
-        prev.map((frame) =>
-          frame.id === currentFrame.id ? updatedFrame : frame,
-        ),
-      );
-
-      // 更新当前帧
-      setCurrentFrame(updatedFrame);
-
-      message.success("视口已更新");
-    }
+    // 不再将视口写回帧
   });
 
   // 调整视口填充
@@ -276,43 +264,24 @@ const PresentationCreator: React.FC = () => {
     setViewportPadding(value);
 
     if (currentFrame && board) {
-      // 获取当前选中的元素
-      const selectedElements = board.selection.selectedElements;
+      // 使用当前帧的元素计算合适的视口，并仅应用到当前视图
+      const elementIdSet = new Set(currentFrame.elements);
+      const elements = board.presentationManager.getElementsByIds(elementIdSet);
+      const newViewport = board.presentationManager.fitElementsInViewport(
+        elements,
+        value,
+      );
 
-      if (selectedElements.length > 0) {
-        // 使用presentationManager的方法来计算合适的视口
-        const newViewport = board.presentationManager.fitElementsInViewport(
-          selectedElements,
-          value,
-        );
+      if (newViewport) {
+        // 更新视口
+        board.apply({
+          type: "set_viewport",
+          properties: board.viewPort,
+          newProperties: newViewport,
+        });
 
-        if (newViewport) {
-          // 更新视口
-          board.apply({
-            type: "set_viewport",
-            properties: board.viewPort,
-            newProperties: newViewport,
-          });
-
-          // 更新当前视口引用
-          currentViewportRef.current = { ...newViewport };
-
-          // 更新当前帧
-          const updatedFrame = {
-            ...currentFrame,
-            viewPort: { ...newViewport },
-          };
-
-          // 更新帧列表
-          setFrames((prev) =>
-            prev.map((frame) =>
-              frame.id === currentFrame.id ? updatedFrame : frame,
-            ),
-          );
-
-          // 更新当前帧
-          setCurrentFrame(updatedFrame);
-        }
+        // 更新当前视口引用
+        currentViewportRef.current = { ...newViewport };
       }
     }
   });
@@ -366,24 +335,7 @@ const PresentationCreator: React.FC = () => {
     // 移除全局事件监听
     document.removeEventListener("mousemove", handleResizeMove);
     document.removeEventListener("mouseup", handleResizeEnd);
-
-    // 如果有当前帧和视口，更新帧
-    if (currentFrame && currentViewportRef.current) {
-      const updatedFrame = {
-        ...currentFrame,
-        viewPort: { ...currentViewportRef.current },
-      };
-
-      // 更新帧列表
-      setFrames((prev) =>
-        prev.map((frame) =>
-          frame.id === currentFrame.id ? updatedFrame : frame,
-        ),
-      );
-
-      // 更新当前帧
-      setCurrentFrame(updatedFrame);
-    }
+    // 不再将视口写回帧
   });
 
   // 处理键盘事件

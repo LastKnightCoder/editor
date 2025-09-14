@@ -1,4 +1,4 @@
-import { useEffect, useMemo, memo } from "react";
+import { useEffect, memo } from "react";
 import isHotkey from "is-hotkey";
 import { Outlet } from "react-router-dom";
 import classnames from "classnames";
@@ -19,6 +19,7 @@ import { openMarkdownInNewWindow, selectFile } from "@/commands";
 
 import styles from "./index.module.less";
 import useSmallComponentSidebarStore from "@/stores/useSmallComponentSidebar";
+import SettingModal from "./components/SettingModal";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
@@ -48,21 +49,11 @@ const ShortSidebarLayout = memo(() => {
     (state) => state.open,
   );
 
-  // 本来不需要计算宽度的，但是不知道为什么 HomeView 会不生效，感觉是 Chrome 的
-  const chatWidth = useRightSidebarStore((state) => state.width);
-  const rightSidebarWidth = useRightSidebarStore((state) => state.width);
-  const smallComponentSidebarWidth = useSmallComponentSidebarStore(
-    (state) => state.width,
-  );
-  const mainContentWidth = useMemo(() => {
-    return `calc(100% - ${chatWidth}px - ${rightSidebarWidth}px - ${smallComponentSidebarWidth}px)`;
-  }, [chatWidth, rightSidebarWidth, smallComponentSidebarWidth]);
-
   return (
     <div className={styles.container}>
       <Sidebar className={styles.sidebar} />
       <div className={styles.content}>
-        <div className={styles.mainContent} style={{ width: mainContentWidth }}>
+        <div className={styles.mainContent}>
           <Outlet />
         </div>
         <div
@@ -79,6 +70,7 @@ const ShortSidebarLayout = memo(() => {
         </div>
       </div>
       <Search />
+      <SettingModal />
     </div>
   );
 });
