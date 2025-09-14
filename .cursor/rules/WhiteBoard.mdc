@@ -1,0 +1,136 @@
+---
+alwaysApply: false
+---
+## 代码规范（结合项目规范）
+
+- **包管理器**: 使用 pnpm，非运行时依赖尽量 `-D`（遵循 Electron 项目规范）。
+- **状态与不可变**: 模块内部状态由 `Board` 自行维护，外部页面/应用层仍统一使用 zustand；数据更新通过 `immer`（在 Board 内部已使用 `createDraft/finishDraft`）。
+- **类型声明**: 模块内部类型集中在 `WhiteBoard/types`（内聚性）；若需跨模块复用，请在 `src/types` 建立导出并让 WhiteBoard 复用，避免重复定义。避免使用 `any`。当前仅 `Board.createOptions: any` 为临时入口，建议按元素创建场景补全具体类型。
+- **组件导出**: 使用 `const Component = memo(() => {})` 的形式，避免 `export default memo(Component)` 影响 React Refresh。
+- **样式**: 使用 less module，非必须不使用 `:global`，避免样式泄露。
+- **类名**: 使用 `classnames` 组合。
+- **文件长度**: 当文件过长时，拆分为子组件与 hooks（本模块已在 `components/*`、`hooks/*` 进行拆分）。
+- **Electron 交互**: 若需与主进程交互，统一走 `src/commands`，白板模块自身不直接操作 Electron。
+
+---
+
+## 开发建议与最佳实践
+
+- **添加新元素类型（强烈建议遵循）**：
+  1. 定义类型：在 `WhiteBoard/types` 中新增元素类型定义（必要时在全局 `src/types` 暴露共享声明）。
+  2. 插件实现：在 `WhiteBoard/plugins` 新建 `XxxPlugin.tsx`，实现 `IBoardPlugin`（命中、移动、渲染、事件）。
+  3. 渲染器：在 `WhiteBoard/components/<Element>` 下添加渲染组件与样式；若有多渲染模式，建立 `RendererRegistry`。
+  4. 工具栏/属性面板：在 `components/Toolbar`、`components/AttributeSetter` 添加创建入口与属性编辑器。
+  5. 常量/配置：在 `WhiteBoard/constants` 增加默认样式、尺寸、键位等。
+  6. 工具函数：在 `WhiteBoard/utils` 增加 `XxxUtil.ts`（命中测试、几何计算、规范化）。
+  7. 注册：在 `WhiteBoard/plugins/index.ts` 导出；在 `WhiteBoard/index.tsx` 插入到插件初始化数组合适位置（决定事件优先级）。
+
+- **事件节流**: 指针移动通过 `ahooks/useThrottleFn(wait: 25ms)`，避免高频 render；如新增高频事件，保持统一节流策略。
+- **Viewport 注意**: 所有坐标以世界坐标系为准，SVG `viewBox` 与 `minX/minY/width/height` 映射缩放；缩放中心点由 `updateZoom` 的 `point` 决定（默认容器中心）。
+- **选择与吸附**: 修改元素几何属性后，记得更新/移除对应 `refLine` 矩形，`Board.apply` 已处理常见情况；视口变化时会清理参考线。
+- **Undo/Redo 合并**: 1 秒内操作合并进入同一 undo entry；大量操作建议成批 `apply`，减少历史条目。
+- **只读模式**: 插件需要尊重 `board.readonly`，变更/剪切类操作在只读时应跳过（Board 已在入口处做保护）。
+- **性能优化**: 
+  - 尽量将计算放入 `utils/*` 纯函数中，或 `useMemo`/`useMemoizedFn`。
+  - 使用 `useSyncExternalStore` 精准订阅，避免过度状态提升。
+  - 大量元素时分层渲染（本模块已分离箭头/非箭头组）。
+- **测试**: 现有 `utils/__tests__` 覆盖 Path/Sort/BoardOperations 基础逻辑；新增元素/插件建议补充单元测试（命中测试、转换、批量 set_node 合并等）。
+
+### 代码风格细则
+
+- 变量/函数命名语义化，不使用 1-2 字母短名。
+- 导出 API 显式类型注解；避免 `any`，必要时使用联合/交叉/泛型建模。
+- 控制流优先早返回，避免深层嵌套；不要空捕获异常。
+- 复杂逻辑抽为 `utils/*` 纯函数并单测覆盖。
+- 保持 `SVG` 与坐标逻辑的纯度，尽量避免在渲染周期内做数据突变。
+
+---
+
+## 目录结构与关键文件
+
+```
+src/components/WhiteBoard/
+  Board.tsx                 # 核心 Board 类（事件、插件、apply、undo/redo、快照）
+  index.tsx                 # WhiteBoard 容器组件（插件装配、上下文、事件绑定、UI 布局）
+  context.ts                # Board/Selection/ViewPort/BoardState 上下文
+  constants/                # 各类常量（arrow/geometry/grid/viewport 等），map.ts 保存 BOARD_TO_CONTAINER
+  types/                    # 模块内类型（board/viewport/selection/operation/...）
+  transforms/               # 视口/选择相关变换（ViewPortTransforms）
+  plugins/                  # 插件集合（交互/渲染/命中）
+  utils/                    # 纯工具库（BoardOperations/RefLineUtil/PresentationManager/...）
+  hooks/                    # 白板相关 hooks（事件、视口控制、选择、网格等）
+  components/               # UI 组件（BoardContent/Toolbar/AttributeSetter/Sidebar/StatusBar/...）
+```
+
+关键渲染链路：
+- `index.tsx` 创建 `Board` → 通过 `useSyncExternalStore` 取 `{ children, viewPort, selection }` → `BoardContent` 以 SVG 渲染 → `board.renderElements()` → 插件 `render`。
+
+---
+
+## API 速查（常用）
+
+- Board 实例：
+  - `apply(ops, updateHistory=true, skipPathTransform=false)` 应用操作。
+  - `undo() / redo()` 撤销/重做。
+  - `renderElements(elements) / renderElement(element)` 渲染委托插件。
+  - `isHit(element, x, y) / moveElement(element, dx, dy)` 命中与移动委托插件。
+  - `subscribe(cb) / getSnapshot()` 状态订阅与快照。
+  - `getPlugin(name)` 获取插件实例。
+  - `presentationManager` 序列与演示控制。
+
+- 视口控制（hooks/useViewPortControls）：`handleZoomIn/Out/To`、`handleFitElements(padding, selectedOnly, elements?)`、`handleContainerResize`。
+
+- 参考线（RefLineUtil）：`setRefRects/addRefRect/removeRefRect`、`setCurrent/getUpdateCurrent/matchRefLines`。
+
+---
+
+## 常见问题与坑位
+
+- `move_node` 路径索引在同层移动时会因先删后插导致偏移，已在 `BoardOperations` 中修正；自定义批量操作时避免手工错序。
+- 使用 `ViewPortTransforms` 前必须确保 `BOARD_TO_CONTAINER.set(board, container)` 已绑定（在 `index.tsx` 的 effect 中完成）。
+- 进入演示模式会强制 `readonly`，退出时恢复；插件需要从 `Board.readonly` 分支逻辑。
+- 视口变化会清理参考线：布局操作后若需保留吸附显示，请重新设置 current。
+- `wheel` 事件以 `passive:false` 监听以阻止默认滚动，避免页面级滚动干扰。
+
+建议补充：
+- 为 `Board.createOptions` 明确类型，按创建类型拆分配置接口，消除 `any`。
+- 为 `plugins/CommonPlugin.ts` 与公共工具增加文档注释，沉淀交互约定（键位、对齐规则等）。
+- 大型元素（如思维导图）在 `render` 中避免创建新闭包/对象，必要时使用 `memo` 与 `useMemo`。
+
+---
+
+## 扩展指南（示例：新增形状 ShapeX）
+
+1. `types/shape-x.ts` 定义 `ShapeXElement extends BoardElement` 必要属性。
+2. `plugins/ShapeXPlugin.tsx`：实现 `isHit/moveElement/render` 与必要事件处理。
+3. `components/ShapeX/`：渲染组件，必要时分离 `RendererRegistry`。
+4. `components/Toolbar` 与 `components/AttributeSetter` 中增加入口与属性编辑器。
+5. `constants/shape-x.ts` 默认样式与配置。
+6. `utils/ShapeXUtil.ts` 命中、几何、规范化工具。
+7. 在 `plugins/index.ts` 导出并在 `WhiteBoard/index.tsx` 插件初始化数组中注册。
+8. 补充 `utils/__tests__` 相关单元测试。
+
+---
+
+## 变更记录建议
+
+- 功能/数据结构变更请在根目录 `UPDATE_LOG.md` 记录要点；涉及序列化数据的升级需提供迁移策略（若保存到数据库/文件）。
+
+---
+
+## 参考文件索引
+
+- `WhiteBoard/index.tsx` 容器与事件绑定
+- `WhiteBoard/Board.tsx` 核心状态与插件调度
+- `WhiteBoard/transforms/ViewPortTransforms.ts` 视口变换/动画
+- `WhiteBoard/utils/BoardOperations.ts` 纯操作应用与历史预处理
+- `WhiteBoard/utils/RefLineUtil.ts` 参考线/吸附
+- `WhiteBoard/utils/PresentationManager.ts` 演示管理
+- `WhiteBoard/components/BoardContent/index.tsx` SVG 渲染
+- `WhiteBoard/hooks/useEventHandlers.ts` 事件派发
+- `WhiteBoard/hooks/useViewPortControls.ts` 视口控制
+
+---
+
+本规范文件位于 `@rules/WhiteBoard.mdc`，更新白板相关功能时请同步维护，确保架构与约定可被后续成员快速理解与遵循。
+
