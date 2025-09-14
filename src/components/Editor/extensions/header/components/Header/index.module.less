@@ -1,9 +1,6 @@
 .container {
   position: relative;
   &.hideDecoration {
-    .h1 {
-      border-bottom: none;
-    }
     .h2::before,
     .h3::before,
     .h4::before {
@@ -78,7 +75,6 @@
   .h1 {
     font-size: 2em;
     line-height: 1.3;
-    border-bottom: solid 3px rgba(128, 30, 255, 1);
   }
 
   .h2 {
@@ -86,44 +82,14 @@
     border-radius: 14px;
   }
 
-  .h2::before {
-    content: "H2";
-    border-radius: 0.3em;
-    font-size: 0.8em;
-    padding: 0.25em 0.375em;
-    margin-right: 0.5em;
-    background-color: rgba(128, 30, 255, 1);
-    color: white;
-  }
-
   .h3 {
     font-size: 1.5em;
     border-radius: 10px;
   }
 
-  .h3::before {
-    content: "H3";
-    color: white;
-    font-size: 0.8em;
-    background-color: rgba(128, 30, 255, 1);
-    border-radius: 0.3em;
-    margin-right: 12px;
-    padding: 4px 7px;
-  }
-
   .h4 {
     font-size: 1.25em;
     border-radius: 0.3em;
-  }
-
-  .h4::before {
-    content: "H4";
-    color: white;
-    font-size: 0.8em;
-    background-color: rgba(128, 30, 255, 1);
-    border-radius: 0.3em;
-    margin-right: 12px;
-    padding: 4px 7px;
   }
 
   .h5 {

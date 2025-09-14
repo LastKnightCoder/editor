@@ -73,13 +73,11 @@ import styles from "./index.module.less";
 interface IEditorContext {
   uploadResource?: (file: File) => Promise<string | null>;
   theme?: "light" | "dark";
-  hideHeaderDecoration?: boolean;
 }
 
 export const EditorContext = createContext<IEditorContext>({
   theme: "light",
   uploadResource: undefined,
-  hideHeaderDecoration: false,
 });
 
 export type EditorRef = {
@@ -105,7 +103,6 @@ interface IEditorProps {
   onBlur?: () => void;
   placeHolder?: string;
   theme?: "light" | "dark";
-  hideHeaderDecoration?: boolean;
   disableStartExtensions?: boolean;
 }
 
@@ -130,7 +127,6 @@ const Index = memo(
       onBlur,
       placeHolder,
       theme,
-      hideHeaderDecoration = false,
       disableStartExtensions = false,
     } = props;
 
@@ -265,7 +261,6 @@ const Index = memo(
         value={{
           uploadResource,
           theme: theme || systemTheme,
-          hideHeaderDecoration,
         }}
       >
         <Slate

@@ -11,7 +11,7 @@ const OpenIndicator = (props: IOpenIndicatorProps) => {
 
   return (
     <div
-      className={`w-4 h-12 flex items-center justify-center rounded-[8px] bg-white border border-gray-200 dark:bg-black dark:border-gray-600 ${showIndicator ? "opacity-100" : "opacity-0"}`}
+      className={`w-4 h-12 flex items-center justify-center rounded-r-[8px] bg-white border border-gray-200 dark:bg-black dark:border-gray-600 ${showIndicator ? "opacity-100" : "opacity-0"}`}
       onClick={() => {
         onOpenChange(!open);
       }}
