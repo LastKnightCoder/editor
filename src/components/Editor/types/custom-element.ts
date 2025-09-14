@@ -15,6 +15,7 @@ import {
 } from "./element/check-list.ts";
 import { MermaidElement } from "./element/mermaid.ts";
 import { TikzElement } from "./element/tikz.ts";
+import { TypstElement } from "./element/typst.ts";
 import { InlineMathElement, BlockMathElement } from "./element/math.ts";
 import {
   TableElement,
@@ -71,6 +72,7 @@ export type CustomElement =
   | CheckListElement
   | MermaidElement
   | TikzElement
+  | TypstElement
   | HTMLBlockElement
   | GraphvizElement
   | CustomBlockElement

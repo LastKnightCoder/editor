@@ -19,6 +19,7 @@ import MermaidExtension from "./mermaid";
 import { TableExtension, TableRowExtension, TableCellExtension } from "./table";
 import HtmlBlockExtension from "./html-block";
 import TikzExtension from "./tikz";
+import TypstExtension from "./typst";
 import CustomBlockExtension from "./custom-block";
 // import GraphvizExtension from "./graphviz";
 import {
@@ -64,6 +65,7 @@ export const table = new TableExtension();
 export const tableRow = new TableRowExtension();
 export const tableCell = new TableCellExtension();
 export const tikz = new TikzExtension();
+export const typst = new TypstExtension();
 export const frontMatter = new FrontMatterExtension();
 export const webview = new WebviewExtension();
 
@@ -116,6 +118,7 @@ export const startExtensions = [
   tableRow,
   tableCell,
   tikz,
+  typst,
   customBlock,
   // graphviz,
   multiColumnContainer,

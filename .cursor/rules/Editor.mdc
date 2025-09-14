@@ -56,7 +56,6 @@ src/components/Editor/
 │   └── [40+ other extensions] # Audio, video, AI, etc.
 ├── hooks/                    # React hooks
 │   ├── useDragAndDrop.ts     # Drag and drop functionality
-│   ├── useHideHeaderDecoration.ts
 │   ├── useImageResize.ts     # Image resizing
 │   ├── useTheme.ts           # Theme integration
 │   └── useUploadResource.ts  # File upload handling
@@ -538,7 +537,6 @@ src/components/Editor/
 │   └── [40+ other extensions] # Audio, video, AI, etc.
 ├── hooks/                    # React hooks
 │   ├── useDragAndDrop.ts     # Drag and drop functionality
-│   ├── useHideHeaderDecoration.ts
 │   ├── useImageResize.ts     # Image resizing
 │   ├── useTheme.ts           # Theme integration
 │   └── useUploadResource.ts  # File upload handling

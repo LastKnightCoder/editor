@@ -171,6 +171,17 @@ const markdownToDescendant = (
           },
         ],
       };
+    } else if (node.lang?.trim?.()?.toLowerCase?.() === "typst") {
+      return {
+        type: "typst",
+        content: node.value,
+        children: [
+          {
+            type: "formatted",
+            text: "",
+          },
+        ],
+      };
     }
     return {
       type: "code-block",
