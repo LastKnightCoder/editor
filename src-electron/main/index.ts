@@ -17,6 +17,9 @@ import windowManagerModule from "./modules/window-manager";
 import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
 import staticServerModule from "./modules/static-server";
+import bilibiliCacheModule from "./modules/bilibili-cache";
+import youtubeCacheModule from "./modules/youtube-cache";
+import typstModule from "./modules/typst";
 import PathUtil from "./utils/PathUtil";
 
 (async (): Promise<void> => {
@@ -186,6 +189,9 @@ const initModules = async () => {
       extraModule.init(),
       voiceCopyModule.init(),
       staticServerModule.init(),
+      bilibiliCacheModule.init(),
+      youtubeCacheModule.init(),
+      typstModule.init(),
     ]);
 
     // 初始化窗口管理器
@@ -208,8 +214,12 @@ app.whenReady().then(() => {
   log.info("应用就绪");
 
   initModules().then(() => {
-    log.info("创建主窗口");
-    windowManager.createMainWindow();
+    if (filesToOpen.length === 0) {
+      log.info("创建主窗口");
+      windowManager.createMainWindow();
+    } else {
+      log.info("检测到通过文件关联(.md)启动，跳过创建主窗口");
+    }
 
     // 注册全局快捷键 Ctrl/Command+N 打开快速卡片窗口
     const shortcutKey = process.platform === "darwin" ? "Command+N" : "Ctrl+N";

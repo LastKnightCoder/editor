@@ -160,9 +160,6 @@ const Search = memo(() => {
             ref={searchRef}
             className={styles.search}
             onPressEnter={onPressEnter}
-            onDeleteEmpty={() => {
-              useCommandPanelStore.setState({ open: false });
-            }}
             contentEditable
             defaultFocus
             defaultValue={lastSearchText.current || ""}

@@ -81,10 +81,7 @@ const SingleMarkdownEditor = () => {
     if (isSourceMode) {
       // 从源码模式切换到编辑模式
       try {
-        const editorContent = importFromMarkdown(currentSourceText.current, [
-          "footnoteDefinition",
-          "footnoteReference",
-        ]);
+        const editorContent = importFromMarkdown(currentSourceText.current);
         setContent(editorContent);
         editorRef.current?.setEditorValue(editorContent);
         editorRef.current?.focus();
@@ -118,10 +115,7 @@ const SingleMarkdownEditor = () => {
   const { run: calculateWordCount } = useThrottleFn(
     () => {
       if (isSourceMode) {
-        const editorContent = importFromMarkdown(currentSourceText.current, [
-          "footnoteDefinition",
-          "footnoteReference",
-        ]);
+        const editorContent = importFromMarkdown(currentSourceText.current);
         setWordCount(getContentLength(editorContent));
       } else {
         setWordCount(getContentLength(content));
@@ -183,10 +177,7 @@ const SingleMarkdownEditor = () => {
     const loadMarkdownFile = async () => {
       try {
         const markdownText = await readTextFile(filePath);
-        const editorContent = importFromMarkdown(markdownText, [
-          "footnoteDefinition",
-          "footnoteReference",
-        ]);
+        const editorContent = importFromMarkdown(markdownText);
         setContent(editorContent);
         currentSourceText.current = markdownText;
         beforeSaveSourceText.current = markdownText;

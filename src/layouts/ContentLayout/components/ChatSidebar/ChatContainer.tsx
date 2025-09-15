@@ -28,10 +28,11 @@ import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
-import { chat, createChatMessage } from "@/commands";
+import { createChatMessage } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { InfoCircleOutlined } from "@ant-design/icons";
+import { LuBrain } from "react-icons/lu";
 import classNames from "classnames";
 interface ChatContainerProps {
   currentChat: ChatMessage;
@@ -83,6 +84,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const [ragEnabled, setRagEnabled] = useLocalStorageState("ragEnabled", {
       defaultValue: false,
     });
+
+    const [enableThinking, setEnableThinking] = useLocalStorageState(
+      "enableThinking",
+      {
+        defaultValue: chatModelConfig?.features?.thinking ?? false,
+      },
+    );
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -227,6 +235,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           chatModelConfig,
           sendMessages,
           {
+            enableThinking: chatModelConfig.features?.thinking
+              ? enableThinking
+              : undefined,
             onFinish: async () => {
               try {
                 const updatedChatMessage =
@@ -242,7 +253,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     const titleMessages: RequestMessage[] =
                       updatedChatMessage.messages
                         .slice(1)
-                        .slice(-10)
+                        .slice(-2)
                         .map((message): RequestMessage => {
                           if (message.role === Role.User) {
                             return message as RequestMessage;
@@ -257,10 +268,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                           }
                         });
 
-                    const newTitle = await chat(
-                      titleProviderConfig.apiKey,
-                      titleProviderConfig.baseUrl,
-                      titleModelConfig.name,
+                    chatLLMStream(
+                      titleProviderConfig,
+                      titleModelConfig,
                       [
                         {
                           role: Role.System,
@@ -269,20 +279,32 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                           ],
                         },
                         ...titleMessages,
-                      ],
-                    );
-
-                    if (newTitle) {
-                      const updateChat = produce(
-                        updatedChatMessage,
-                        (draft) => {
-                          draft.title = newTitle.slice(0, 20);
+                        {
+                          role: Role.User,
+                          content: [
+                            {
+                              type: "text",
+                              text: "请根据以上对话内容生成一个简洁的标题",
+                            },
+                          ],
                         },
-                      );
-                      await updateChatMessage(updateChat);
-                      updateCurrentChat(updateChat);
-                      titleRef.current?.setValue(newTitle.slice(0, 20));
-                    }
+                      ],
+                      {
+                        onFinish: async (content) => {
+                          if (content) {
+                            const updateChat = produce(
+                              updatedChatMessage,
+                              (draft) => {
+                                draft.title = content.slice(0, 20);
+                              },
+                            );
+                            await updateChatMessage(updateChat);
+                            updateCurrentChat(updateChat);
+                            titleRef.current?.setValue(content.slice(0, 20));
+                          }
+                        },
+                      },
+                    );
                   }
                 } catch (e) {
                   console.error("Failed to generate title:", e);
@@ -623,7 +645,24 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         </div>
 
         {embeddingModelInfo && (
-          <div className="flex-none">
+          <div className="flex-none flex items-center gap-2 flex-wrap">
+            {chatModelConfig?.features?.thinking && (
+              <div
+                className={classNames(
+                  "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
+                  {
+                    "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                      enableThinking,
+                    "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
+                      !enableThinking,
+                  },
+                )}
+                onClick={() => setEnableThinking(!enableThinking)}
+              >
+                <LuBrain />
+                思考
+              </div>
+            )}
             <div
               className={classNames(
                 "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",

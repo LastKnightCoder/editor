@@ -52,6 +52,7 @@ const SliderListView = loadable(
 const SliderDetailView = loadable(
   () => import("@/pages/SliderView/SliderDetailView.tsx"),
 );
+const TodoWindowPage = loadable(() => import("@/pages/TodoWindow"));
 
 const routes = [
   {
@@ -207,6 +208,10 @@ const routes = [
         element: <SingleMarkdownEditor />,
       },
     ],
+  },
+  {
+    path: "/todo",
+    element: <TodoWindowPage />,
   },
 ];
 

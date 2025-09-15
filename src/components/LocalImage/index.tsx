@@ -63,7 +63,8 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
         if (
           !cdnUrl ||
           cdnUrl.startsWith("data:") ||
-          cdnUrl.startsWith("blob:")
+          cdnUrl.startsWith("blob:") ||
+          cdnUrl.startsWith("http://localhost")
         ) {
           return;
         }
@@ -88,6 +89,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
     }, [cdnUrl]);
 
     const onError = useMemoizedFn(() => {
+      console.log("onError", cdnUrl);
       setPreviewUrl(cdnUrl);
     });
 

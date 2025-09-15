@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, memo, useState } from "react";
-import { Tooltip } from "antd";
+import { Tooltip, App } from "antd";
 import {
   useMemoizedFn,
   useRafInterval,
@@ -52,6 +52,7 @@ import { produce } from "immer";
 import { Descendant } from "slate";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import classnames from "classnames";
+import ErrorBoundary from "@/components/ErrorBoundary";
 const extensions = [
   contentLinkExtension,
   fileAttachmentExtension,
@@ -66,6 +67,7 @@ interface IEditArticleProps {
 
 const EditArticle = memo((props: IEditArticleProps) => {
   const { articleId, defaultReadonly = true } = props;
+  const { message } = App.useApp();
 
   const {
     initValue,
@@ -74,6 +76,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
     onInit,
     onDeleteTag,
     onAddTag,
+    onTagsChange,
     onTitleChange,
     saveArticle,
     setEditingArticle,
@@ -249,6 +252,19 @@ const EditArticle = memo((props: IEditArticleProps) => {
     onDeleteTag(tag);
   });
 
+  const handleEditTag = useMemoizedFn((oldTag: string, newTag: string) => {
+    if (!editingArticle || !newTag || newTag === oldTag) return;
+    if (editingArticle.tags.includes(newTag)) {
+      message.warning("标签已存在");
+      return;
+    }
+    // 直接替换标签，保持顺序
+    const newTags = editingArticle.tags.map((tag) =>
+      tag === oldTag ? newTag : tag,
+    );
+    onTagsChange(newTags);
+  });
+
   useRafInterval(async () => {
     if (!editingArticle) return;
     const updatedArticle = await saveArticle();
@@ -356,16 +372,18 @@ const EditArticle = memo((props: IEditArticleProps) => {
               cardId: -1,
             }}
           >
-            <Editor
-              key={editingArticle.id}
-              ref={editorRef}
-              initValue={initValue}
-              onInit={onInit}
-              extensions={extensions}
-              onChange={handleOnEditorContentChange}
-              uploadResource={uploadResource}
-              readonly={readonly}
-            />
+            <ErrorBoundary>
+              <Editor
+                key={editingArticle.id}
+                ref={editorRef}
+                initValue={initValue}
+                onInit={onInit}
+                extensions={extensions}
+                onChange={handleOnEditorContentChange}
+                uploadResource={uploadResource}
+                readonly={readonly}
+              />
+            </ErrorBoundary>
           </EditCardContext.Provider>
           <AddTag
             style={{ marginTop: 20 }}
@@ -373,6 +391,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
             tags={editingArticle.tags}
             addTag={handleAddTag}
             removeTag={handleDeleteTag}
+            editTag={handleEditTag}
           />
         </div>
         <EditorOutline

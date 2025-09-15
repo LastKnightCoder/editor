@@ -1,25 +1,35 @@
 import { Descendant } from "slate";
+import ytdl from "@distube/ytdl-core";
 
-interface LocalVideoMetaInfo {
+export interface LocalVideoMetaInfo {
   type: "local";
   filePath: string;
 }
 
-interface RemoteVideoMetaInfo {
+export interface RemoteVideoMetaInfo {
   type: "remote";
   url: string;
 }
 
-interface BiliBiliVideoMetaInfo {
+export interface BiliBiliVideoMetaInfo {
   type: "bilibili";
   bvid: string;
   cid: string;
+  quality?: number; // 用户选择的清晰度，默认使用 80 (1080P)
+}
+
+export interface YouTubeVideoMetaInfo {
+  type: "youtube";
+  videoId: string;
+  videoFormat: ytdl.videoFormat;
+  audioFormat: ytdl.videoFormat;
 }
 
 type VideoMetaInfo =
   | LocalVideoMetaInfo
   | RemoteVideoMetaInfo
-  | BiliBiliVideoMetaInfo;
+  | BiliBiliVideoMetaInfo
+  | YouTubeVideoMetaInfo;
 
 export interface VideoNote {
   id: number;

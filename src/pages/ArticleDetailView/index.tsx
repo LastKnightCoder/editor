@@ -1,6 +1,6 @@
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Breadcrumb, FloatButton, Dropdown, Empty } from "antd";
-import { useMemoizedFn } from "ahooks";
+import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { RiSlideshowLine } from "react-icons/ri";
 import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
@@ -9,6 +9,7 @@ import Titlebar from "@/components/Titlebar";
 import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";
+import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
 
 import EditArticle from "./EditArticle";
@@ -34,6 +35,13 @@ const ArticleDetailView = () => {
       stopArticlePresentation: state.stopArticlePresentation,
       hideArticleList: state.hideArticleList,
     })),
+  );
+
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+    "article-list-sidebar-width",
+    {
+      defaultValue: 300,
+    },
   );
 
   const [searchParams] = useSearchParams();
@@ -69,12 +77,16 @@ const ArticleDetailView = () => {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        <div
-          className={classnames(styles.simpleArticleListContainer, {
-            [styles.hide]: hideArticleList,
-          })}
-        >
-          <SimpleArticleList activeArticleId={articleId} />
+        <div className={classnames(styles.simpleArticleListContainer)}>
+          <ResizableAndHideableSidebar
+            width={sidebarWidth ?? 300}
+            onWidthChange={setSidebarWidth}
+            open={!hideArticleList}
+            disableResize={hideArticleList}
+            className="h-full"
+          >
+            <SimpleArticleList activeArticleId={articleId} />
+          </ResizableAndHideableSidebar>
         </div>
         <div
           className={classnames(styles.articleContainer, {

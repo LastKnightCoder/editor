@@ -8,7 +8,9 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import VideoNoteView from "../VideoNoteView";
 import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
 import WebViewProjectItemView from "../WebViewProjectItemView";
+import TableProjectItemView from "../TableProjectItemView";
 import styles from "./index.module.less";
+
 const EditProjectView = () => {
   const { activeProjectItemId } = useProjectsStore((state) => ({
     activeProjectItemId: state.activeProjectItemId,
@@ -49,6 +51,17 @@ const EditProjectView = () => {
     return (
       <div className={styles.container}>
         <WhiteBoardProjectView
+          key={projectItem.id}
+          projectItemId={projectItem.id}
+        />
+      </div>
+    );
+  }
+
+  if (projectItem.projectItemType === EProjectItemType.TableView) {
+    return (
+      <div className={styles.container}>
+        <TableProjectItemView
           key={projectItem.id}
           projectItemId={projectItem.id}
         />

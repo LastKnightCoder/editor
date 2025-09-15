@@ -9,6 +9,7 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import EditText, { EditTextHandle } from "@/components/EditText";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import {
@@ -44,7 +45,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     onContentChange: onContentChangeFromEditProjectItem,
     saveProjectItem,
     setProjectItem,
-    prevProjectItem,
   } = useEdit(projectItemId);
 
   const { throttleHandleEditorContentChange } = useEditContent(
@@ -114,8 +114,10 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       projectItemId,
       (data) => {
         setProjectItem(data.projectItem);
-        prevProjectItem.current = data.projectItem;
-        titleRef.current?.setValue(data.projectItem.title);
+        if (!projectItem) return;
+        if (data.projectItem.title !== projectItem?.title) {
+          titleRef.current?.setValue(data.projectItem.title);
+        }
       },
     );
 
@@ -149,16 +151,18 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               cardId: -1,
             }}
           >
-            <Editor
-              key={projectItem.id}
-              ref={editorRef}
-              initValue={projectItem.content}
-              onInit={onInit}
-              onChange={onContentChange}
-              uploadResource={uploadResource}
-              readonly={readonly}
-              extensions={extensions}
-            />
+            <ErrorBoundary>
+              <Editor
+                key={projectItem.id}
+                ref={editorRef}
+                initValue={projectItem.content}
+                onInit={onInit}
+                onChange={onContentChange}
+                uploadResource={uploadResource}
+                readonly={readonly}
+                extensions={extensions}
+              />
+            </ErrorBoundary>
           </EditCardContext.Provider>
         </div>
         <EditorOutline

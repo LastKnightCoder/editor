@@ -1,4 +1,9 @@
-import { BrowserWindow, ipcMain } from "electron";
+import {
+  BrowserWindow,
+  ipcMain,
+  screen,
+  BrowserWindowConstructorOptions,
+} from "electron";
 import path from "node:path";
 import log from "electron-log";
 
@@ -13,7 +18,8 @@ type EditorType =
   | "article"
   | "project-item"
   | "document-item"
-  | "markdown";
+  | "markdown"
+  | "todo";
 
 // 窗口参数定义
 interface EditorParams {
@@ -45,6 +51,7 @@ export class WindowManager {
     this.windowsMap.set("project-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("document-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("markdown", new Map<string, BrowserWindow>());
+    this.windowsMap.set("todo", new Map<string, BrowserWindow>());
 
     this.registerIpcHandlers();
   }
@@ -215,7 +222,7 @@ export class WindowManager {
   }
 
   // 创建基础窗口配置
-  private createBaseWindowConfig() {
+  private createBaseWindowConfig(): BrowserWindowConstructorOptions {
     return {
       width: 800,
       height: 600,
@@ -278,6 +285,7 @@ export class WindowManager {
       "project-item": "single-project-item-editor",
       "document-item": "single-document-item-editor",
       markdown: "single-markdown-editor",
+      todo: "todo",
     };
     return routes[type];
   }
@@ -290,6 +298,7 @@ export class WindowManager {
       "project-item": "projectItemId",
       "document-item": "documentItemId",
       markdown: "filePath",
+      todo: "noop",
     };
     return paramNames[type];
   }
@@ -302,14 +311,31 @@ export class WindowManager {
       "project-item": "项目",
       "document-item": "知识库",
       markdown: "Markdown",
+      todo: "TODO",
     };
     return editorNames[type];
+  }
+
+  public createTodoWindow() {
+    const baseConfig = this.createBaseWindowConfig();
+    const win = new BrowserWindow(baseConfig);
+
+    this.setupWindowEvents(win);
+
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/todo`);
+    } else {
+      win.loadFile(indexHtml, { hash: `/todo` });
+    }
+
+    return win;
   }
 
   // 创建快速卡片窗口
   public createQuickCardWindow() {
     log.info("创建快速卡片窗口");
-    const win = new BrowserWindow(this.createBaseWindowConfig());
+    const baseConfig = this.createBaseWindowConfig();
+    const win = new BrowserWindow(baseConfig);
 
     this.setupWindowEvents(win);
 
@@ -365,7 +391,18 @@ export class WindowManager {
       }
     }
 
-    const win = new BrowserWindow(this.createBaseWindowConfig());
+    const baseConfig = this.createBaseWindowConfig();
+    if (type === "markdown") {
+      const display = screen.getDisplayNearestPoint(
+        screen.getCursorScreenPoint(),
+      );
+      baseConfig.x = display.bounds.x;
+      baseConfig.y = display.bounds.y;
+      baseConfig.width = display.bounds.width;
+      baseConfig.height = display.bounds.height;
+    }
+
+    const win = new BrowserWindow(baseConfig);
 
     // 存储窗口引用
     windowMap.set(windowKey, win);

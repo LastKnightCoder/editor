@@ -117,6 +117,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           </span>
         );
       },
+      hr: ({ ...props }: any) => {
+        return (
+          <hr
+            {...props}
+            className="my-4 border-[1px] border-gray-300 dark:border-gray-600"
+          />
+        );
+      },
     }),
     [markdownComponents, handleReferenceClick],
   );

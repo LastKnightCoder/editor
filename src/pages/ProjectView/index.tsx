@@ -84,11 +84,7 @@ const ProjectView = () => {
       }}
     >
       <div className={classnames(styles.viewContainer)}>
-        <div
-          className={classnames(styles.sidebar, {
-            [styles.hide]: hideProjectItemList,
-          })}
-        >
+        <div className={classnames(styles.sidebar)}>
           <ProjectList />
         </div>
 

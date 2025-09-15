@@ -19,6 +19,7 @@ import MermaidExtension from "./mermaid";
 import { TableExtension, TableRowExtension, TableCellExtension } from "./table";
 import HtmlBlockExtension from "./html-block";
 import TikzExtension from "./tikz";
+import TypstExtension from "./typst";
 import CustomBlockExtension from "./custom-block";
 // import GraphvizExtension from "./graphviz";
 import {
@@ -37,6 +38,7 @@ import WebviewExtension from "./webview";
 import InlineHtmlExtension from "./html-inline";
 import InlineImageExtension from "./inline-image";
 import EmojiExtension from "./emoji";
+import AnnotationExtension from "./annotation";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -63,6 +65,7 @@ export const table = new TableExtension();
 export const tableRow = new TableRowExtension();
 export const tableCell = new TableCellExtension();
 export const tikz = new TikzExtension();
+export const typst = new TypstExtension();
 export const frontMatter = new FrontMatterExtension();
 export const webview = new WebviewExtension();
 
@@ -82,6 +85,7 @@ export const whiteboard = new WhiteboardExtension();
 export const htmlInline = new InlineHtmlExtension();
 export const inlineImage = new InlineImageExtension();
 export const emoji = new EmojiExtension();
+export const annotation = new AnnotationExtension();
 
 export const startExtensions = [
   ai,
@@ -114,6 +118,7 @@ export const startExtensions = [
   tableRow,
   tableCell,
   tikz,
+  typst,
   customBlock,
   // graphviz,
   multiColumnContainer,
@@ -125,4 +130,5 @@ export const startExtensions = [
   frontMatter,
   webview,
   emoji,
+  annotation,
 ];

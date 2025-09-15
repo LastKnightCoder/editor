@@ -94,11 +94,7 @@ export const streamFetch = async (
   // 2. listen response multi times, and write to Response.body
   on("stream-response", handleResponse);
 
-  const headers: Record<string, string> = {
-    Accept: "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
-    "User-Agent": navigator.userAgent,
-  };
+  const headers: Record<string, string> = {};
   for (const item of new Headers(_headers || {})) {
     headers[item[0]] = item[1];
   }
@@ -140,13 +136,13 @@ export function stream(
     text: string,
   ) => { content: string; reasoning_content: string } | undefined,
   options: {
-    onFinish: (
+    onFinish?: (
       content: string,
       reasoning_content: string,
       res: Response,
     ) => void;
     onError?: (e: Error) => void;
-    onUpdate: (full: string, inc: string, reasoningText?: string) => void;
+    onUpdate?: (full: string, inc: string, reasoningText?: string) => void;
     onReasoning?: (full: string, inc: string) => void;
   },
 ) {
@@ -159,22 +155,20 @@ export function stream(
 
   const flushRemainText = () => {
     responseText += remainText;
-    options?.onUpdate?.(responseText, remainText, reasoningText);
+    options.onUpdate?.(responseText, remainText, reasoningText);
     remainText = "";
   };
 
   const flushReasoningText = () => {
     reasoningText += reasoningRemainText;
-    options?.onReasoning?.(reasoningText, reasoningRemainText);
+    options.onReasoning?.(reasoningText, reasoningRemainText);
     reasoningRemainText = "";
   };
 
-  // animate response to make it looks smooth
   function animateResponseText() {
     if (finished || controller.signal.aborted) {
       flushReasoningText();
       flushRemainText();
-      console.log("[Response Animation] finished");
       if (responseText?.length === 0) {
         options.onError?.(new Error("empty response from server"));
       }
@@ -201,20 +195,18 @@ export function stream(
     requestAnimationFrame(animateResponseText);
   }
 
-  // start animation
   animateResponseText();
 
   const finish = () => {
     if (!finished) {
-      console.debug("[ChatAPI] end");
       finished = true;
       flushReasoningText();
       flushRemainText();
-      options.onFinish(
+      options.onFinish?.(
         responseText + remainText,
         reasoningText + reasoningRemainText,
         responseRes,
-      ); // 将res传递给onFinish
+      );
     }
   };
 

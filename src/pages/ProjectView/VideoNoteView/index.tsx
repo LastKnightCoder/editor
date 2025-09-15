@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
-import { useMemoizedFn } from "ahooks";
-import { type VideoNote as IVideoNote } from "@/types";
 import {
-  getVideoNoteById,
-  updateVideoNote,
-  addSubNote,
-  deleteSubNote,
-  updateSubNote,
-} from "@/commands";
+  type VideoNote as IVideoNote,
+  BiliBiliVideoMetaInfo,
+  YouTubeVideoMetaInfo,
+} from "@/types";
 import VideoNote from "@/components/VideoNote";
+import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
+import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import styles from "./index.module.less";
 import useUploadResource from "@/hooks/useUploadResource.ts";
+import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
+import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
+import { useVideoNoteOperations } from "@/hooks/useVideoNoteOperations";
 
 interface IVideoNoteViewProps {
   videoNoteId: number;
@@ -20,50 +21,31 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const uploadResource = useUploadResource();
 
-  const refreshVideoNote = useMemoizedFn(async () => {
-    const videoNote = await getVideoNoteById(videoNoteId);
-    setVideoNote(videoNote);
-  });
+  const {
+    videoUrl: bilibiliVideoUrl,
+    loading: bilibiliLoading,
+    error: bilibiliError,
+    streamProgress,
+  } = useBilibiliVideo(videoNote?.metaInfo as BiliBiliVideoMetaInfo);
+
+  const {
+    videoUrl: youtubeVideoUrl,
+    loading: youtubeLoading,
+    error: youtubeError,
+    streamProgress: youtubeStreamProgress,
+  } = useYoutubeVideo(videoNote?.metaInfo as YouTubeVideoMetaInfo);
+
+  const {
+    refreshVideoNote,
+    updateNotes,
+    handleAddSubNote,
+    handleDeleteSubNote,
+    handleUpdateSubNote,
+  } = useVideoNoteOperations(videoNoteId, videoNote, setVideoNote);
 
   useEffect(() => {
     refreshVideoNote();
   }, [videoNoteId]);
-
-  const updateNotes = useMemoizedFn(async (notes: IVideoNote["notes"]) => {
-    if (!videoNote) return;
-    const newVideoNote = {
-      ...videoNote,
-      notes: notes.map((note) => ({
-        id: note.id,
-        startTime: note.startTime,
-        contentId: note.contentId,
-      })),
-    };
-    const updatedVideoNote = await updateVideoNote(newVideoNote);
-    setVideoNote(updatedVideoNote);
-  });
-
-  const handleAddSubNote = useMemoizedFn(
-    async (note: Omit<IVideoNote["notes"][number], "contentId">) => {
-      const res = await addSubNote(videoNoteId, note);
-      refreshVideoNote();
-      return res;
-    },
-  );
-
-  const handleDeleteSubNote = useMemoizedFn(async (noteId: string) => {
-    const res = await deleteSubNote(videoNoteId, noteId);
-    refreshVideoNote();
-    return res;
-  });
-
-  const handleUpdateSubNote = useMemoizedFn(
-    async (note: IVideoNote["notes"][number]) => {
-      const res = await updateSubNote(note);
-      refreshVideoNote();
-      return res;
-    },
-  );
 
   if (!videoNote) return null;
 
@@ -93,6 +75,51 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           updateSubNote={handleUpdateSubNote}
           updateNotes={updateNotes}
         />
+      </div>
+    );
+  } else if (videoNote.metaInfo.type === "bilibili") {
+    return (
+      <div className={styles.container}>
+        <BilibiliVideoLoader
+          loading={bilibiliLoading}
+          error={bilibiliError}
+          streamProgress={streamProgress}
+        />
+
+        {bilibiliVideoUrl && !bilibiliLoading && !bilibiliError && (
+          <VideoNote
+            videoSrc={bilibiliVideoUrl}
+            initialNotes={videoNote.notes}
+            uploadResource={uploadResource}
+            addSubNote={handleAddSubNote}
+            deleteSubNote={handleDeleteSubNote}
+            updateSubNote={handleUpdateSubNote}
+            updateNotes={updateNotes}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (videoNote.metaInfo.type === "youtube") {
+    return (
+      <div className={styles.container}>
+        <YoutubeVideoLoader
+          loading={youtubeLoading}
+          error={youtubeError}
+          streamProgress={youtubeStreamProgress}
+        />
+        {youtubeVideoUrl && !youtubeLoading && !youtubeError && (
+          <VideoNote
+            videoSrc={youtubeVideoUrl}
+            initialNotes={videoNote.notes}
+            uploadResource={uploadResource}
+            addSubNote={handleAddSubNote}
+            deleteSubNote={handleDeleteSubNote}
+            updateSubNote={handleUpdateSubNote}
+            updateNotes={updateNotes}
+          />
+        )}
       </div>
     );
   }

@@ -31,9 +31,3 @@ alwaysApply: true
   - initTable 创建表
   - upgradeTable 有新的字段变化，或者数据迁移时在此升级表
   - getListenEvents 为前端提供的 command，键名为 commnd 名称，值为对应的处理方法，为保证 this 指向正确，建议 bind(this)
-
-## Other
-
-- ALWAYS begin your response by telling me what AI model you are using. Just say the name of the model like (claude-3.5-sonnet, claude-4.0-sonnet, gemini-2.5-pro, etc.)
-- Do Not Build Project, like pnpm run build, is not encouraged
-- prefer export multiple utils, types files in a file, like index.ts, and just import this file

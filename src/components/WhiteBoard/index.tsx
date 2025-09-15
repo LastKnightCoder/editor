@@ -1,6 +1,12 @@
 import React, { memo, useEffect, useRef, useSyncExternalStore } from "react";
-import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
+import {
+  useMemoizedFn,
+  useCreation,
+  useThrottleFn,
+  useLocalStorageState,
+} from "ahooks";
 import classnames from "classnames";
+import OpenIndicator from "@/components/OpenIndicator";
 
 import Board from "./Board";
 import {
@@ -40,6 +46,7 @@ import PresentationCreator from "./components/PresentationCreator";
 import PresentationMode from "./components/PresentationMode";
 import StatusBar from "./components/StatusBar";
 import BoardContent from "./components/BoardContent";
+import Sidebar from "./components/Sidebar";
 import {
   useViewPortControls,
   useEventHandlers,
@@ -51,6 +58,7 @@ import {
 } from "./hooks";
 
 import styles from "./index.module.less";
+import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -109,6 +117,19 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     readonly,
     onChange,
   } = props;
+
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+    "whiteboard-sidebar-width",
+    {
+      defaultValue: 300,
+    },
+  );
+  const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
+    "whiteboard-sidebar-open",
+    {
+      defaultValue: true,
+    },
+  );
 
   // 引用
   const containerRef = useRef<HTMLDivElement>(null);
@@ -318,76 +339,97 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   });
 
   return (
-    <div
-      ref={containerRef}
-      className={classnames(styles.boardContainer, className)}
-      style={style}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onContextMenu={handleContextMenu}
-      onClick={handleClick}
-      onDoubleClick={handleDblClick}
-      onPointerDown={handleOnPointerDown}
-      onPointerMove={handleOnPointerMove}
-      onPointerUp={handleOnPointerUp}
-    >
-      <BoardContext.Provider value={board}>
-        <SelectionContext.Provider value={selection}>
-          <ViewPortContext.Provider value={viewPort}>
-            <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
-              <BoardStateContext.Provider
-                value={{ isMoving: isElementsMoving }}
-              >
-                {/* 工具栏 */}
-                {!readonly && <Toolbar />}
+    <BoardContext.Provider value={board}>
+      <SelectionContext.Provider value={selection}>
+        <ViewPortContext.Provider value={viewPort}>
+          <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
+            <BoardStateContext.Provider value={{ isMoving: isElementsMoving }}>
+              <div className="flex h-full">
+                <ResizeableAndHideableSidebar
+                  className="relative flex-shrink-0 h-full flex-none overflow-hidden"
+                  width={sidebarWidth ?? 300}
+                  onWidthChange={setSidebarWidth}
+                  open={!!sidebarOpen}
+                  disableResize={!sidebarOpen}
+                >
+                  <Sidebar />
+                </ResizeableAndHideableSidebar>
+                <div
+                  ref={containerRef}
+                  className={classnames(
+                    "flex-1 min-w-0",
+                    styles.boardContainer,
+                    className,
+                  )}
+                  style={style}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseEnter={handleMouseEnter}
+                  onMouseLeave={handleMouseLeave}
+                  onContextMenu={handleContextMenu}
+                  onClick={handleClick}
+                  onDoubleClick={handleDblClick}
+                  onPointerDown={handleOnPointerDown}
+                  onPointerMove={handleOnPointerMove}
+                  onPointerUp={handleOnPointerUp}
+                >
+                  <div className="relative h-full w-full">
+                    <div
+                      className={`absolute cursor-pointer left-0 top-1/2 -translate-y-1/2`}
+                    >
+                      <OpenIndicator
+                        open={!!sidebarOpen}
+                        showIndicator={true}
+                        onOpenChange={setSidebarOpen}
+                      />
+                    </div>
+                    {!readonly && <Toolbar />}
 
-                {/* 画板内容 */}
-                <BoardContent
-                  ref={svgRef}
-                  board={board}
-                  viewPort={viewPort}
-                  centerConnectArrows={centerConnectArrows}
-                  noneCenterConnectArrows={noneCenterConnectArrows}
-                  gridVisible={gridVisible}
-                  gridSize={gridSize}
-                  refLines={refLines}
-                />
+                    <BoardContent
+                      ref={svgRef}
+                      board={board}
+                      viewPort={viewPort}
+                      centerConnectArrows={centerConnectArrows}
+                      noneCenterConnectArrows={noneCenterConnectArrows}
+                      gridVisible={gridVisible}
+                      gridSize={gridSize}
+                      refLines={refLines}
+                    />
 
-                {/* 垂直工具栏 */}
-                <div className={styles.verticalBar}>
-                  {!readonly && <AttributeSetter />}
+                    <div className={styles.verticalBar}>
+                      {!readonly && <AttributeSetter />}
+                    </div>
+                  </div>
+
+                  {/* 演示相关组件 */}
+                  <PresentationCreator />
+                  <PresentationMode />
+
+                  {/* 状态栏 */}
+                  <StatusBar
+                    ref={statusBarRef}
+                    gridVisible={gridVisible}
+                    gridSize={gridSize}
+                    zoom={zoom}
+                    sequences={board.presentationManager.sequences}
+                    onGridVisibleChange={handleGridVisibleChange}
+                    onGridSizeChange={handleGridSizeChange}
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onZoomTo={handleZoomTo}
+                    onFitElements={handleFitAll}
+                    onStartPresentation={handleStartPresentation}
+                    onEditSequence={handleEditSequence}
+                    onDeleteSequence={handleDeleteSequence}
+                  />
                 </div>
-
-                {/* 演示相关组件 */}
-                <PresentationCreator />
-                <PresentationMode />
-
-                {/* 状态栏 */}
-                <StatusBar
-                  ref={statusBarRef}
-                  gridVisible={gridVisible}
-                  gridSize={gridSize}
-                  zoom={zoom}
-                  sequences={board.presentationManager.sequences}
-                  onGridVisibleChange={handleGridVisibleChange}
-                  onGridSizeChange={handleGridSizeChange}
-                  onZoomIn={handleZoomIn}
-                  onZoomOut={handleZoomOut}
-                  onZoomTo={handleZoomTo}
-                  onFitElements={handleFitAll}
-                  onStartPresentation={handleStartPresentation}
-                  onEditSequence={handleEditSequence}
-                  onDeleteSequence={handleDeleteSequence}
-                />
-              </BoardStateContext.Provider>
-            </ArrowMoveContext.Provider>
-          </ViewPortContext.Provider>
-        </SelectionContext.Provider>
-      </BoardContext.Provider>
-    </div>
+              </div>
+            </BoardStateContext.Provider>
+          </ArrowMoveContext.Provider>
+        </ViewPortContext.Provider>
+      </SelectionContext.Provider>
+    </BoardContext.Provider>
   );
 });
 

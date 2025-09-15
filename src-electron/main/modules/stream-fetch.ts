@@ -1,5 +1,4 @@
 import { EventEmitter } from "node:events";
-import axios, { AxiosRequestConfig } from "axios";
 import { ipcMain, WebContents } from "electron";
 
 interface StreamResponse {
@@ -60,7 +59,13 @@ export default class StreamFetch extends EventEmitter {
       ) => {
         const requestId = await StreamFetch.getNextRequestId();
         StreamFetch.senders.set(requestId, event.sender);
-        return await streamFetch.fetch(method, url, headers, body, requestId);
+        return await streamFetch.fetch(
+          method,
+          url,
+          headers,
+          body ?? null,
+          requestId,
+        );
       },
     );
 
@@ -125,28 +130,22 @@ export default class StreamFetch extends EventEmitter {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: any,
+    body: Buffer | string | null,
     requestId: number,
   ): Promise<StreamResponse> {
     const abortController = new AbortController();
     StreamFetch.activeRequests.set(requestId, abortController);
 
-    const config: AxiosRequestConfig = {
+    const config: RequestInit = {
       method,
-      url,
       headers,
-      responseType: "stream",
-      maxRedirects: 3,
-      timeout: 60 * 1000,
+      body: JSON.stringify(body),
       signal: abortController.signal,
     };
-
-    if (body && ["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
-      config.data = body;
-    }
-
     try {
-      const response = await axios(config);
+      console.log("config", config);
+      const response = await fetch(url, config);
+
       const streamResponse: StreamResponse = {
         requestId,
         status: response.status,
@@ -154,15 +153,14 @@ export default class StreamFetch extends EventEmitter {
         headers: this.normalizeHeaders(response.headers),
       };
 
-      response.data.on("data", (chunk: Buffer) => {
-        this.emit("chunk", { requestId, chunk } as ChunkPayload);
-      });
-
-      response.data.on("end", () => {
+      if (!response.body) {
         this.emit("end", { requestId, status: 0 } as EndPayload);
-      });
+        return streamResponse;
+      }
 
-      response.data.on("error", (error: Error) => {
+      const reader = response.body.getReader();
+
+      this.processStream(reader, requestId).catch((error) => {
         this.emit("error", { requestId, error });
       });
 
@@ -170,13 +168,21 @@ export default class StreamFetch extends EventEmitter {
     } catch (error) {
       StreamFetch.activeRequests.delete(requestId);
 
-      if (axios.isAxiosError(error)) {
-        const status = error.response?.status || 599;
-        const statusText = error.response?.statusText || "Error";
-        const headers = error.response?.headers
-          ? this.normalizeHeaders(error.response.headers)
-          : {};
+      if (error instanceof Error) {
+        if (error.name === "AbortError" || error.message.includes("aborted")) {
+          this.emit("end", {
+            requestId,
+            status: 0,
+          });
+          return {
+            requestId,
+            status: 0,
+            statusText: "Request cancelled by user",
+            headers: {},
+          };
+        }
 
+        // 网络错误或其他错误
         this.emit("error", {
           requestId,
           error: new Error(error.message),
@@ -184,25 +190,14 @@ export default class StreamFetch extends EventEmitter {
 
         return {
           requestId,
-          status,
-          statusText,
-          headers,
-        };
-      } else if (error instanceof Error && error.message.includes("aborted")) {
-        this.emit("end", {
-          requestId,
-          status: 0,
-        });
-        return {
-          requestId,
-          status: 0,
-          statusText: "Request cancelled by user",
+          status: 599,
+          statusText: "Error",
           headers: {},
         };
       } else {
         this.emit("error", {
           requestId,
-          error: new Error((error as Error)?.message || "Unknown error"),
+          error: new Error("Unknown error"),
         });
         return {
           requestId,
@@ -214,13 +209,51 @@ export default class StreamFetch extends EventEmitter {
     }
   }
 
-  private normalizeHeaders(headers: any): Record<string, string> {
+  private async processStream(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    requestId: number,
+  ): Promise<void> {
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          this.emit("end", { requestId, status: 0 } as EndPayload);
+          break;
+        }
+
+        if (value) {
+          // 将 Uint8Array 转换为 Buffer
+          const chunk = Buffer.from(value);
+          this.emit("chunk", { requestId, chunk } as ChunkPayload);
+        }
+      }
+    } catch (error) {
+      this.emit("error", { requestId, error: error as Error });
+    } finally {
+      reader.releaseLock();
+      StreamFetch.activeRequests.delete(requestId);
+    }
+  }
+
+  private normalizeHeaders(
+    headers: Headers | Record<string, string | string[]>,
+  ): Record<string, string> {
     const normalized: Record<string, string> = {};
-    for (const [key, value] of Object.entries(headers)) {
-      if (typeof value === "string") {
+
+    if (headers instanceof Headers) {
+      // 处理 fetch API 的 Headers 对象
+      headers.forEach((value, key) => {
         normalized[key] = value;
-      } else if (Array.isArray(value)) {
-        normalized[key] = value.join(", ");
+      });
+    } else {
+      // 处理普通对象
+      for (const [key, value] of Object.entries(headers)) {
+        if (typeof value === "string") {
+          normalized[key] = value;
+        } else if (Array.isArray(value)) {
+          normalized[key] = value.join(", ");
+        }
       }
     }
     return normalized;

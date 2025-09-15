@@ -61,6 +61,7 @@ export interface KnowledgeOptions {
     model: string;
     baseUrl: string;
     distance: number;
+    dimensions: number;
   };
   limit: number;
 }

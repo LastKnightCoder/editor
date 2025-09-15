@@ -58,3 +58,33 @@
     }
   }
 }
+
+.dashPatternSelect {
+  display: grid;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 0.5em;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: auto;
+
+  .dashPatternItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5em;
+    cursor: pointer;
+    border-radius: 0.25em;
+    border: 1px solid #f0f0f0;
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: rgb(102, 152, 255);
+      background: rgba(102, 152, 255, 0.05);
+    }
+
+    &.active {
+      border-color: rgb(102, 152, 255);
+      background: rgba(102, 152, 255, 0.1);
+    }
+  }
+}

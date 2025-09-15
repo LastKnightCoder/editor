@@ -251,3 +251,75 @@ pnpm test:ui          # Interactive UI
 
 - Use arrow functions.
 - Before finishing, run `npm run lint` to check for type errors, unused variables, and unused function parameters. If there are unused variables, remove them (you can pass parameters to only check the files you modified).
+
+## Project-Specific Rules from Cursor Configuration
+
+### Package Management
+
+- Use pnpm for package management
+- Prefer dev dependencies (`-D`) for Electron projects
+
+### State Management
+
+- Use Zustand for state management
+- Use Immer for immutable data flow
+
+### Database Conventions
+
+- All tables in `src-electron/main/modules/tables/` must be static classes
+- First parameter must be `db: Database.Database`
+- All tables must be registered in `database.ts`
+- Tables must provide three static methods:
+  - `initTable`: Create table
+  - `upgradeTable`: Handle schema migrations
+  - `getListenEvents`: Return command handlers with proper binding
+
+### Editor Integration
+
+- All Electron interactions go through `src/commands/`
+- Editor is uncontrolled - use `ref.current.setEditorValue` when switching content
+- Icon library: react-icons
+
+### Component Optimization
+
+- Use memo like: `const Component = memo(() => {})` instead of `export default memo(Component)`
+- Use classnames library for multiple class names
+- Avoid `:global` styles unless necessary
+- Split long components and hooks
+
+### Type Safety
+
+- No `any` types allowed
+- All type declarations in `src/types/` folder
+
+## Development Commands Reference
+
+```bash
+# Development
+pnpm dev              # Start development server
+pnpm dev:content      # Start content-specific dev server
+
+# Building
+pnpm build            # Build for production
+pnpm build:content    # Build content pages only
+
+# Testing
+pnpm test             # Run tests in watch mode
+pnpm test:run         # Run tests once
+pnpm test:ui          # Open Vitest UI
+
+# Code Quality
+pnpm lint             # ESLint with auto-fix
+pnpm format           # Prettier formatting
+
+# Electron-specific
+pnpm rebuild          # Rebuild native modules (better-sqlite3)
+
+# Release
+pnpm release          # Create release build
+pnpm updater          # Update application
+```
+
+## Database Storage
+
+Data is stored in `~/.editor/data.db` - ensure regular backups of this file.

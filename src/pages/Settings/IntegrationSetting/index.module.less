@@ -1,0 +1,67 @@
+.container {
+  padding: 16px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.header {
+  margin-bottom: 8px;
+
+  .ant-typography-title {
+    margin-bottom: 8px !important;
+  }
+}
+
+.integrationList {
+  .ant-card {
+    height: 100%;
+    transition: all 0.3s ease;
+
+    &:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+  }
+}
+
+.appCard {
+  text-align: left;
+  height: 100%;
+
+  .ant-card-body {
+    padding: 20px;
+  }
+}
+
+.appIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: linear-gradient(135deg, #00a1d6 0%, #00d4aa 100%);
+  color: white;
+}
+
+.appStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+
+  .statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+
+    &.connected {
+      background-color: #52c41a;
+    }
+
+    &.disconnected {
+      background-color: #ff4d4f;
+    }
+  }
+}

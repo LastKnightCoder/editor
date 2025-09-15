@@ -22,6 +22,7 @@ import {
   VideoElement,
   HTMLInlineElement,
   InlineImageElement,
+  AnnotationElement,
 } from "../types";
 import { EGalleryMode, EStyledColor } from "../constants";
 import { codeBlockMap } from "../extensions/code-block";
@@ -357,6 +358,14 @@ export const insertTikz = (editor: Editor) => {
   });
 };
 
+export const insertTypst = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: "typst",
+    content: "",
+    children: [{ type: "formatted", text: "" }],
+  });
+};
+
 export const insertGraphviz = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: "graphviz",
@@ -408,6 +417,22 @@ export const insertDivideLine = (editor: Editor) => {
     type: "divide-line",
     children: [{ type: "formatted", text: "" }],
   });
+};
+
+export const insertAnnotation = (editor: Editor, content: string) => {
+  if (!editor.selection) return;
+
+  if (editor.selection && !Range.isCollapsed(editor.selection)) {
+    Transforms.collapse(editor, { edge: "end" });
+  }
+
+  const annotation: AnnotationElement = {
+    type: "annotation",
+    content,
+    children: [{ type: "formatted", text: "" }],
+  };
+
+  Transforms.insertNodes(editor, annotation);
 };
 
 export const insertMultiColumnsContainer = (editor: Editor, columns = 2) => {
@@ -572,6 +597,14 @@ export const unwrapLink = (editor: Editor) => {
     match: (n) =>
       !Editor.isEditor(n) && Element.isElement(n) && n.type === "link",
   });
+};
+
+export const isAnnotationActive = (editor: Editor) => {
+  const [annotation] = Editor.nodes(editor, {
+    match: (n) =>
+      !Editor.isEditor(n) && Element.isElement(n) && n.type === "annotation",
+  });
+  return !!annotation;
 };
 
 export const wrapLink = (editor: Editor, url: string, open = false) => {

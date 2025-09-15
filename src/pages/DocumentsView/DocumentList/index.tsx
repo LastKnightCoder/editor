@@ -1,6 +1,5 @@
 import DocumentCard from "../DocumentCard";
 import For from "@/components/For";
-import useGridLayout from "@/hooks/useGridLayout";
 import { IDocument } from "@/types";
 
 import styles from "./index.module.less";
@@ -14,11 +13,9 @@ interface DocumentListProps {
 const DocumentList = (props: DocumentListProps) => {
   const { documents, addDocument } = props;
 
-  const { gridContainerRef, itemWidth, gap } = useGridLayout();
-
   if (documents.length === 0) {
     return (
-      <div ref={gridContainerRef} className={styles.empty}>
+      <div className={styles.empty}>
         <Empty description="暂无知识库">
           <Button onClick={addDocument}>新建知识库</Button>
         </Empty>
@@ -27,12 +24,12 @@ const DocumentList = (props: DocumentListProps) => {
   }
 
   return (
-    <div className={styles.container} ref={gridContainerRef} style={{ gap }}>
+    <div className={styles.container}>
       <For
         data={documents}
         renderItem={(document: IDocument) => (
           <DocumentCard
-            style={{ width: itemWidth, height: 160 }}
+            style={{ height: 160 }}
             key={document.id}
             document={document}
           />

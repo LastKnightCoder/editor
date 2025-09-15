@@ -1,18 +1,20 @@
 import { CellPlugin } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
+import { MdTextFields } from "react-icons/md";
 
-/**
- * 文本单元格插件
- */
-const TextPlugin: CellPlugin = {
+const TextPlugin: CellPlugin<any> = {
   type: "text",
+  name: "文本",
+  editable: true,
   Renderer,
   Editor,
+  Icon: ({ className }: { className?: string }) => (
+    <MdTextFields className={className} />
+  ),
 
-  // 文本不需要转换
-  beforeSave: (value) => value,
-  afterLoad: (value) => value,
+  beforeSave: (value: string) => value,
+  afterLoad: (value: string) => value,
 };
 
 export default TextPlugin;

@@ -17,3 +17,5 @@ export * from "./question";
 export * from "./content";
 export * from "./goal";
 export * from "./slider";
+export * from "./data-table";
+export * from "./todo";

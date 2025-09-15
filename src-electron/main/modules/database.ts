@@ -30,6 +30,10 @@ import SliderPageTable from "./tables/slider-page";
 import SliderEditorBlockTable from "./tables/slider-editor-block";
 import SliderTemplateSetTable from "./tables/slider-template-set";
 import SliderTemplateTable from "./tables/slider-template";
+import DataTableTable from "./tables/data-table";
+import TodoGroupTable from "./tables/todo-group";
+import TodoItemTable from "./tables/todo-item";
+import TodoNoteLinkTable from "./tables/todo-note-link";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -78,6 +82,10 @@ class DatabaseModule implements Module {
       GoalTable,
       GoalItemTable,
       GoalProgressEntryTable,
+      DataTableTable,
+      TodoGroupTable,
+      TodoItemTable,
+      TodoNoteLinkTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

@@ -15,5 +15,7 @@ module.exports = {
     "@typescript-eslint/ban-ts-comment": "off",
     "object-curly-spacing": ["warn", "always"],
     "prettier/prettier": "warn",
+    "no-useless-escape": "off",
+    "no-constant-condition": "off",
   },
 }

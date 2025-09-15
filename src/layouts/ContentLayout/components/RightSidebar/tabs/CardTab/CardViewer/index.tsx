@@ -1,6 +1,6 @@
 import { getCardById, updateCard } from "@/commands";
 import { ICard } from "@/types";
-import { Empty } from "antd";
+import { Empty, App } from "antd";
 import { Descendant } from "slate";
 import { useState, useEffect, memo, useRef } from "react";
 import styles from "./index.module.less";
@@ -37,6 +37,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   const [card, setCard] = useState<ICard | null>(null);
   const editorRef = useRef<EditorRef>(null);
   const { visible, isConnected } = useRightSidebarContext();
+  const { message } = App.useApp();
   const prevCard = useRef<ICard | null>(null);
   const uploadResource = useUploadResource();
 
@@ -125,6 +126,22 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
     setCard(updatedCard);
   });
 
+  const handleEditTag = useMemoizedFn((oldTag: string, newTag: string) => {
+    if (!card || !newTag || newTag === oldTag) return;
+    if (card.tags.includes(newTag)) {
+      message.warning("标签已存在");
+      return;
+    }
+    // 直接替换标签，保持顺序
+    const updatedCard = produce(card, (draft) => {
+      const index = draft.tags.indexOf(oldTag);
+      if (index !== -1) {
+        draft.tags[index] = newTag;
+      }
+    });
+    setCard(updatedCard);
+  });
+
   useEffect(() => {
     const unsubscribe = cardEventBus.subscribeToCardWithId(
       "card:updated",
@@ -173,6 +190,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
         tags={card.tags}
         addTag={handleAddTag}
         removeTag={handleDeleteTag}
+        editTag={handleEditTag}
         readonly={false}
       />
     </div>

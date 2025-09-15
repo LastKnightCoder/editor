@@ -17,6 +17,9 @@ interface TagsProps {
   hoverAble?: boolean;
   lastChild?: ReactNode;
   tagStyle?: React.CSSProperties;
+  editingTag?: string | null;
+  editRef?: React.RefObject<HTMLDivElement>;
+  onEditBlur?: () => void;
 }
 
 const Tags = (props: TagsProps) => {
@@ -33,6 +36,9 @@ const Tags = (props: TagsProps) => {
     hoverAble = false,
     lastChild,
     tagStyle,
+    editingTag,
+    editRef,
+    onEditBlur,
   } = props;
 
   if (!lastChild && (!tags || tags.length === 0)) {
@@ -51,19 +57,25 @@ const Tags = (props: TagsProps) => {
     <div className={tagsClassName} style={style}>
       {tags
         .filter((tag) => !!tag)
-        .map((tag) => (
-          <Tag
-            tag={tag}
-            key={tag}
-            closable={closable}
-            onClose={() => onClose && onClose(tag)}
-            onClick={() => onClick && onClick(tag)}
-            showIcon={showIcon}
-            showSharp={showSharp}
-            hoverAble={hoverAble}
-            style={tagStyle}
-          />
-        ))}
+        .map((tag) => {
+          const isCurrentlyEditing = editingTag === tag;
+          return (
+            <Tag
+              tag={tag}
+              key={tag}
+              closable={closable}
+              onClose={() => onClose && onClose(tag)}
+              onClick={() => onClick && onClick(tag)}
+              showIcon={showIcon}
+              showSharp={showSharp}
+              hoverAble={hoverAble}
+              style={tagStyle}
+              isEditing={isCurrentlyEditing}
+              editRef={isCurrentlyEditing ? editRef : undefined}
+              onEditBlur={isCurrentlyEditing ? onEditBlur : undefined}
+            />
+          );
+        })}
       {lastChild}
     </div>
   );

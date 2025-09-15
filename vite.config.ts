@@ -1,20 +1,16 @@
 import { rmSync } from "node:fs";
 import { defineConfig, splitVendorChunkPlugin } from "vite";
 import react from "@vitejs/plugin-react-swc";
-import visualizer from "rollup-plugin-visualizer";
 import electron from "vite-plugin-electron/simple";
 import pkg from "./package.json";
 import fs from "fs-extra";
 
 import * as path from "path";
+import { platform } from "node:os";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ command }) => {
+export default defineConfig(() => {
   rmSync("dist-electron", { recursive: true, force: true });
-
-  const isServe = command === "serve";
-  const isBuild = command === "build";
-  const sourcemap = isServe || !!process.env.VSCODE_DEBUG;
 
   return {
     resolve: {
@@ -27,11 +23,6 @@ export default defineConfig(({ command }) => {
     plugins: [
       react(),
       splitVendorChunkPlugin(),
-      visualizer({
-        open: true,
-        gzipSize: true,
-        brotliSize: true,
-      }),
       electron({
         main: {
           entry: "src-electron/main/index.ts",
@@ -53,14 +44,24 @@ export default defineConfig(({ command }) => {
               },
             },
             build: {
-              sourcemap,
-              minify: isBuild,
+              sourcemap: false,
+              minify: true,
               outDir: "dist-electron/main",
               rollupOptions: {
                 external: Object.keys(
                   "dependencies" in pkg ? pkg.dependencies : {},
                 ),
                 plugins: [
+                  {
+                    name: "copy-typst-worker",
+                    closeBundle() {
+                      fs.ensureDirSync("dist-electron/main/workers");
+                      fs.copySync(
+                        "src-electron/main/workers/typst-worker.js",
+                        "dist-electron/main/workers/typst-worker.js",
+                      );
+                    },
+                  },
                   {
                     name: "jieba-dict-copy",
                     closeBundle() {
@@ -73,6 +74,22 @@ export default defineConfig(({ command }) => {
                         "node_modules/@node-rs/jieba/idf.txt",
                         "dist-electron/main/idf.txt", // 确保输出到这里
                       );
+                    },
+                  },
+                  {
+                    name: "ffmpeg",
+                    closeBundle() {
+                      if (platform() === "win32") {
+                        fs.copySync(
+                          "node_modules/ffmpeg-static/ffmpeg.exe",
+                          "dist-electron/main/ffmpeg.exe",
+                        );
+                      } else if (platform() === "darwin") {
+                        fs.copySync(
+                          "node_modules/ffmpeg-static/ffmpeg",
+                          "dist-electron/main/ffmpeg",
+                        );
+                      }
                     },
                   },
                 ],
@@ -91,8 +108,8 @@ export default defineConfig(({ command }) => {
               },
             },
             build: {
-              sourcemap: sourcemap ? "inline" : undefined,
-              minify: isBuild,
+              sourcemap: false,
+              minify: true,
               outDir: "dist-electron/preload",
               rollupOptions: {
                 external: Object.keys(
@@ -107,13 +124,14 @@ export default defineConfig(({ command }) => {
     clearScreen: false,
     server: {
       strictPort: true,
+      watch: {
+        followSymlinks: false,
+      },
     },
-    envPrefix: ["VITE_", "TAURI_"],
+    envPrefix: ["VITE_"],
     build: {
-      // don't minify for debug builds
-      minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
-      // produce sourcemaps for debug builds
-      sourcemap: !!process.env.TAURI_DEBUG,
+      minify: "esbuild",
+      sourcemap: false,
       rollupOptions: {
         output: {
           manualChunks: {

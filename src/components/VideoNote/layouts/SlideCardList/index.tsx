@@ -23,8 +23,6 @@ interface SlideCardListProps {
   handleBatchMerge: () => void;
   canMergeSelected: boolean;
   gridContainerRef: React.RefObject<HTMLDivElement>;
-  itemWidth: number;
-  gap: number;
   handleMoveNote: (dragId: string, hoverId: string) => void;
 }
 
@@ -44,8 +42,6 @@ const SlideCardList: React.FC<SlideCardListProps> = memo(
     handleBatchMerge,
     canMergeSelected,
     gridContainerRef,
-    itemWidth,
-    gap,
     handleMoveNote,
   }) => {
     const theme = useTheme();
@@ -135,11 +131,7 @@ const SlideCardList: React.FC<SlideCardListProps> = memo(
             )}
           </div>
         </div>
-        <div
-          className={styles.slidesContainer}
-          ref={gridContainerRef}
-          style={{ gap }}
-        >
+        <div className={styles.slidesContainer} ref={gridContainerRef}>
           {notes.map((note) => (
             <DraggableSlideCard
               key={note.id}
@@ -150,7 +142,6 @@ const SlideCardList: React.FC<SlideCardListProps> = memo(
               formatTime={formatTime}
               onClick={handleNoteClick}
               onDelete={handleDeleteNote}
-              style={{ width: itemWidth }}
               isSelectionMode={isSelectionMode}
               isSelected={selectedNoteIds.includes(note.id)}
               onSelect={toggleSelectNote}
@@ -158,11 +149,7 @@ const SlideCardList: React.FC<SlideCardListProps> = memo(
             />
           ))}
           {!isSelectionMode && (
-            <div
-              className={styles.addCardButton}
-              onClick={handleAddNote}
-              style={{ width: itemWidth }}
-            >
+            <div className={styles.addCardButton} onClick={handleAddNote}>
               <div className={styles.addIcon}>+</div>
               <span>添加新标注</span>
             </div>

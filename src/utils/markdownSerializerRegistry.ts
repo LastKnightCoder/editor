@@ -23,9 +23,32 @@ export interface MarkdownSerializer {
 export class MarkdownSerializerRegistry {
   private serializers: MarkdownSerializer[] = [];
   private blockTypes: Set<string> = new Set();
+  private footnoteCounter = 0;
+  private footnoteDefinitions: Map<number, string> = new Map();
 
   constructor() {
     this.registerDefaultSerializers();
+  }
+
+  resetFootnotes(): void {
+    this.footnoteCounter = 0;
+    this.footnoteDefinitions.clear();
+  }
+
+  addFootnote(content: string): number {
+    this.footnoteCounter++;
+    this.footnoteDefinitions.set(this.footnoteCounter, content);
+    return this.footnoteCounter;
+  }
+
+  getFootnoteDefinitions(): string {
+    if (this.footnoteDefinitions.size === 0) {
+      return "";
+    }
+    const definitions = Array.from(this.footnoteDefinitions.entries())
+      .map(([id, content]) => `[^${id}]: ${content}`)
+      .join("\n");
+    return `\n\n${definitions}`;
   }
 
   register(serializer: MarkdownSerializer): void {
@@ -237,6 +260,13 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        type: "typst",
+        isBlock: true,
+        toMarkdown: (element) => {
+          return `\`\`\`typst\n${element.content || ""}\n\`\`\``;
+        },
+      },
+      {
         type: "callout",
         isBlock: true,
         toMarkdown: (element, childrenStr) => {
@@ -245,6 +275,22 @@ export class MarkdownSerializerRegistry {
             : ` title=${DEFAULT_TITLE[element.calloutType as keyof typeof DEFAULT_TITLE]}`;
           const type = element.calloutType || "note";
           return `:::${type}{${title}}\n${childrenStr}:::`;
+        },
+      },
+      {
+        type: "detail",
+        isBlock: true,
+        toMarkdown: (element, childrenStr) => {
+          const attributes = [];
+          if (element.title) {
+            attributes.push(`title="${element.title}"`);
+          }
+          if (element.open) {
+            attributes.push(`open=true`);
+          }
+          const attributeStr =
+            attributes.length > 0 ? attributes.join(" ") : "";
+          return `:::detail{${attributeStr}}\n${childrenStr}\n:::`;
         },
       },
       {
@@ -327,6 +373,13 @@ export class MarkdownSerializerRegistry {
         type: "emoji",
         toMarkdown: (element) => {
           return `:${element.nativeEmoji || element.emoji}:`;
+        },
+      },
+      {
+        type: "annotation",
+        toMarkdown: (element) => {
+          const footnoteId = this.addFootnote(element.content || "");
+          return `[^${footnoteId}]`;
         },
       },
     ]);

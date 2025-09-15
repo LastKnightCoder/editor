@@ -1,25 +1,36 @@
-import { CellPlugin } from "../../types";
+import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "../../components/SelectEditor";
+import { MdArrowDropDownCircle } from "react-icons/md";
 
-/**
- * 单选下拉菜单单元格插件
- */
-const SelectPlugin: CellPlugin = {
+const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: "select",
+  name: "单选",
+  editable: true,
   Renderer,
+  // @ts-ignore
   Editor,
+  Icon: ({ className }) => <MdArrowDropDownCircle className={className} />,
 
   // 保存前确保值为字符串
-  beforeSave: (value) => {
+  beforeSave: (value: string, config: { options: SelectOption[] }) => {
     if (value === null || value === undefined || value === "") return null;
-    return String(value);
+    const option = config.options.find((opt) => opt.id === value);
+    if (option) {
+      return option.id;
+    } else {
+      return null;
+    }
   },
 
-  // 加载后转换为字符串
-  afterLoad: (value) => {
+  afterLoad: (value: string, config: { options: SelectOption[] }) => {
     if (value === null || value === undefined || value === "") return null;
-    return String(value);
+    const option = config.options.find((opt) => opt.id === value);
+    if (option) {
+      return option.id;
+    } else {
+      return null;
+    }
   },
 };
 

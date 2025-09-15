@@ -69,7 +69,6 @@ const GoalSection = memo(
           </span>
         </div>
 
-        {/* 只在进行中的section且未折叠时显示新增按钮 */}
         {!isCollapsed && status === EGoalStatus.InProgress && onCreateGoal && (
           <div className={styles.sectionActions}>
             <button className={styles.addGoalButton} onClick={onCreateGoal}>

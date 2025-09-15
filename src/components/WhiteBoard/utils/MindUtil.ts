@@ -1,6 +1,7 @@
 import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 import BoardUtil from "./BoardUtil.ts";
+import PathUtil from "./PathUtil.ts";
 import { Board, MindNodeElement, MindDragTarget } from "../types";
 import { MIND_COLORS } from "../constants";
 
@@ -24,6 +25,9 @@ export class MindUtil {
         {
           before: (node, parent) => {
             if (parent) {
+              node.level = parent.level + 1;
+              node.background = MIND_COLORS[node.level - 1]?.background;
+              node.textColor = MIND_COLORS[node.level - 1]?.textColor;
               if (node.level > 2) {
                 node.direction = parent.direction;
               }
@@ -152,6 +156,62 @@ export class MindUtil {
     });
   }
 
+  static relayoutAffectedRootsAfterMindMove(
+    board: Board,
+    movedMindNodeId: string,
+    sourceRootId?: string | null,
+  ) {
+    const latestMoved = BoardUtil.getElementById(
+      board,
+      movedMindNodeId,
+    ) as MindNodeElement | null;
+    if (!latestMoved) return;
+
+    // 最新的目标根节点
+    const targetRoot = MindUtil.getRoot(board, latestMoved);
+    if (targetRoot) {
+      const laidOut = MindUtil.layout(targetRoot);
+      const targetRootPath = PathUtil.getPathByElement(board, targetRoot);
+      if (targetRootPath) {
+        board.apply(
+          {
+            type: "set_node",
+            path: targetRootPath,
+            properties: targetRoot,
+            newProperties: laidOut,
+          },
+          true,
+        );
+      }
+    }
+
+    // 旧的源根节点（若与目标根不同）
+    if (sourceRootId && (!targetRoot || targetRoot.id !== sourceRootId)) {
+      const latestSourceRoot = BoardUtil.getElementById(
+        board,
+        sourceRootId,
+      ) as MindNodeElement | null;
+      if (latestSourceRoot) {
+        const relaid = MindUtil.layout(latestSourceRoot);
+        const sourceRootPath = PathUtil.getPathByElement(
+          board,
+          latestSourceRoot,
+        );
+        if (sourceRootPath) {
+          board.apply(
+            {
+              type: "set_node",
+              path: sourceRootPath,
+              properties: latestSourceRoot,
+              newProperties: relaid,
+            },
+            true,
+          );
+        }
+      }
+    }
+  }
+
   static dfs(
     node: MindNodeElement,
     {
@@ -277,8 +337,8 @@ export class MindUtil {
             x: 0,
             y: 0,
             width: 24,
-            height: 48,
-            actualHeight: 48,
+            height: 40,
+            actualHeight: 40,
             level: current.level + 1,
             childrenHeight: 0,
             leftChildrenHeight: 0,
@@ -346,8 +406,8 @@ export class MindUtil {
             x: 0,
             y: 0,
             width: 24,
-            height: 48,
-            actualHeight: 48,
+            height: 40,
+            actualHeight: 40,
             level: current.level + 1,
             childrenHeight: 0,
             leftChildrenHeight: 0,

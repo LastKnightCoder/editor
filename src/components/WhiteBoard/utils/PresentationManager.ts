@@ -9,7 +9,7 @@ import {
 } from "../types";
 import { produce } from "immer";
 import { ViewPortTransforms } from "../transforms/ViewPortTransforms";
-import { BOARD_TO_CONTAINER } from "../constants";
+import { BOARD_TO_CONTAINER, FIT_VIEW_PADDING } from "../constants";
 
 export class PresentationManager {
   private board: Board;
@@ -168,27 +168,58 @@ export class PresentationManager {
     this.isPresentationMode = false;
   }
 
-  // 显示当前帧
+  // 显示当前帧（基于元素动态计算视口）
   async showCurrentFrame(animate = true): Promise<void> {
     if (!this.currentSequence || this.currentFrameIndex === null) return;
     const frame = this.currentSequence.frames[this.currentFrameIndex];
     if (!frame) return;
 
-    // 更新视口，使用动画过渡
+    // 根据帧中记录的元素ID动态计算视口
+    const elementIdSet = new Set(frame.elements);
+    const targetElements = this.getElementsByIds(elementIdSet);
+    const computedViewport = this.fitElementsInViewport(
+      targetElements,
+      FIT_VIEW_PADDING,
+    );
+
+    if (!computedViewport) return;
+
     if (animate) {
       await ViewPortTransforms.animateToViewport(
         this.board,
         this.board.viewPort,
-        frame.viewPort,
+        computedViewport,
         500,
       );
     } else {
       this.board.apply({
         type: "set_viewport",
         properties: this.board.viewPort,
-        newProperties: frame.viewPort,
+        newProperties: computedViewport,
       });
     }
+  }
+
+  // 获取指定ID集合的元素（DFS 遍历嵌套 children）
+  getElementsByIds(elementIds: Set<string>): BoardElement[] {
+    const matchedElements: BoardElement[] = [];
+    const stack: BoardElement[] = [...this.board.children];
+
+    while (stack.length > 0) {
+      const currentElement = stack.pop() as BoardElement;
+      if (elementIds.has(currentElement.id)) {
+        matchedElements.push(currentElement);
+      }
+
+      const childElements = currentElement.children;
+      if (Array.isArray(childElements) && childElements.length > 0) {
+        for (let index = 0; index < childElements.length; index++) {
+          stack.push(childElements[index]);
+        }
+      }
+    }
+
+    return matchedElements;
   }
 
   // 下一帧
@@ -288,10 +319,14 @@ export class PresentationManager {
       return false;
     }
 
-    // 检查第一帧是否有效
+    // 检查第一帧是否包含元素
     const firstFrame = sequence.frames[0];
-    if (!firstFrame || !firstFrame.viewPort) {
-      console.error("第一帧无效或缺少视口信息");
+    if (
+      !firstFrame ||
+      !firstFrame.elements ||
+      firstFrame.elements.length === 0
+    ) {
+      console.error("第一帧无效或缺少元素信息");
       return false;
     }
 
@@ -328,27 +363,24 @@ export class PresentationManager {
     return true;
   }
 
-  // 创建新的帧
-  createFrame(viewPort: ViewPort, elements: BoardElement[]): PresentationFrame {
+  // 创建新的帧（仅存储元素ID）
+  createFrame(
+    _viewPort: ViewPort,
+    elements: BoardElement[],
+  ): PresentationFrame {
     return {
       id: uuidv4(),
-      viewPort: { ...viewPort },
       elements: elements.map((el) => el.id),
     };
   }
 
-  // 从选中元素创建帧
+  // 从选中元素创建帧（仅存储元素ID）
   createFrameFromSelectedElements(board: Board): PresentationFrame | null {
     const selectedElements = board.selection.selectedElements;
     if (selectedElements.length === 0) return null;
 
-    // 计算选中元素的边界框
-    const viewPort = this.fitElementsInViewport(selectedElements);
-    if (!viewPort) return null;
-
     return {
       id: uuidv4(),
-      viewPort,
       elements: selectedElements.map((el) => el.id),
     };
   }

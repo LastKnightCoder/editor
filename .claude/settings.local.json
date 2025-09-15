@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": ["Bash(mkdir:*)"],
+    "deny": []
+  },
+  "$schema": "https://json.schemastore.org/claude-code-settings.json"
+}

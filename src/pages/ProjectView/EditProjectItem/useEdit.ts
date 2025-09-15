@@ -48,6 +48,7 @@ const useEdit = (projectItemId: number) => {
   const saveProjectItem = useMemoizedFn(async () => {
     if (!projectItem || dragging) return;
 
+    // console.log("saveProjectItem projectItem", projectItem);
     const changed =
       JSON.stringify({
         ...projectItem,
@@ -61,6 +62,7 @@ const useEdit = (projectItemId: number) => {
       });
     if (!changed) return;
 
+    // console.log("saveProjectItem projectItem", projectItem, prevProjectItem.current);
     const updatedProjectItem = await updateProjectItem(projectItem);
     if (!updatedProjectItem) return;
 
@@ -98,6 +100,7 @@ const useEdit = (projectItemId: number) => {
 
   const onTitleChange = useMemoizedFn((title: string) => {
     if (!projectItem) return;
+    if (title === projectItem.title) return;
     const newProjectItem = produce(projectItem, (draft) => {
       draft.title = title;
     });

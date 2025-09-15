@@ -1,12 +1,15 @@
-import styles from "./index.module.less";
-import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
 import { Popover, Tooltip, Switch, Slider, ConfigProvider, theme } from "antd";
 import { produce } from "immer";
-import Arrow from "../../Arrow";
 import { ColorResult, BlockPicker } from "react-color";
 import { BiSolidColorFill } from "react-icons/bi";
 import { BsBorderWidth } from "react-icons/bs";
 import { PiPencilLineDuotone } from "react-icons/pi";
+import { TbWaveSine } from "react-icons/tb";
+import { DashOutlined } from "@ant-design/icons";
+import Arrow from "../../Arrow";
+import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
+
+import styles from "./index.module.less";
 
 interface ArrowSetterProps {
   element: ArrowElement;
@@ -98,6 +101,29 @@ const lineWidthOptions = [
   },
 ] as const;
 
+const dashPatterns = [
+  {
+    label: "标准虚线",
+    value: [5, 5],
+  },
+  {
+    label: "点线",
+    value: [2, 2],
+  },
+  {
+    label: "长虚线",
+    value: [10, 5],
+  },
+  {
+    label: "点划线",
+    value: [10, 3, 2, 3],
+  },
+  {
+    label: "密集虚线",
+    value: [3, 3],
+  },
+];
+
 const ArrowSetter = (props: ArrowSetterProps) => {
   const { element, onChange } = props;
 
@@ -146,6 +172,34 @@ const ArrowSetter = (props: ArrowSetterProps) => {
   const onRoughnessChange = (value: number) => {
     const newElement = produce(element, (draft) => {
       draft.roughness = value;
+    });
+    onChange(newElement);
+  };
+
+  const onDashedChange = (checked: boolean) => {
+    const newElement = produce(element, (draft) => {
+      draft.dashed = checked;
+    });
+    onChange(newElement);
+  };
+
+  const onDashArrayChange = (value: number[]) => {
+    const newElement = produce(element, (draft) => {
+      draft.dashArray = value;
+    });
+    onChange(newElement);
+  };
+
+  const onAnimatedChange = (checked: boolean) => {
+    const newElement = produce(element, (draft) => {
+      draft.animated = checked;
+    });
+    onChange(newElement);
+  };
+
+  const onAnimationSpeedChange = (value: number) => {
+    const newElement = produce(element, (draft) => {
+      draft.animationSpeed = value;
     });
     onChange(newElement);
   };
@@ -415,6 +469,85 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         </Tooltip>
       </Popover>
 
+      {/* 虚线设置器 */}
+      <Popover
+        arrow={false}
+        trigger={"click"}
+        placement={"right"}
+        styles={{
+          body: {
+            padding: 12,
+            marginLeft: 24,
+            width: 220,
+            background: "white",
+          },
+        }}
+        content={
+          <div className="text-black">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span>虚线</span>
+              <Switch
+                checked={element.dashed || false}
+                onChange={onDashedChange}
+                size="small"
+              />
+            </div>
+            {element.dashed && (
+              <div>
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: "#666" }}>虚线样式</span>
+                </div>
+                <div className={styles.dashPatternSelect}>
+                  {dashPatterns.map((pattern) => (
+                    <div
+                      key={pattern.label}
+                      className={`${styles.dashPatternItem} ${
+                        JSON.stringify(element.dashArray) ===
+                        JSON.stringify(pattern.value)
+                          ? styles.active
+                          : ""
+                      }`}
+                      onClick={() => onDashArrayChange(pattern.value)}
+                    >
+                      <svg width={60} height={20} style={{ marginBottom: 4 }}>
+                        <line
+                          x1={5}
+                          y1={10}
+                          x2={55}
+                          y2={10}
+                          stroke={
+                            JSON.stringify(element.dashArray) ===
+                            JSON.stringify(pattern.value)
+                              ? "#1890ff"
+                              : "#000"
+                          }
+                          strokeWidth={2}
+                          strokeDasharray={pattern.value.join(",")}
+                        />
+                      </svg>
+                      <span style={{ fontSize: 11 }}>{pattern.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        }
+      >
+        <Tooltip title={"虚线"} placement={"left"}>
+          <div className={styles.item}>
+            <DashOutlined />
+          </div>
+        </Tooltip>
+      </Popover>
+
       {/* 草图风格设置器 */}
       <Popover
         arrow={false}
@@ -470,6 +603,73 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         <Tooltip title={"草图风格"} placement={"left"}>
           <div className={styles.item}>
             <PiPencilLineDuotone />
+          </div>
+        </Tooltip>
+      </Popover>
+
+      {/* 流动动画设置器 */}
+      <Popover
+        arrow={false}
+        trigger={"click"}
+        placement={"right"}
+        styles={{
+          body: {
+            padding: 12,
+            marginLeft: 24,
+            width: 200,
+            background: "white",
+          },
+        }}
+        content={
+          <div className="text-black">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 8,
+              }}
+            >
+              <span>流动动画</span>
+              <Switch
+                checked={element.animated || false}
+                onChange={onAnimatedChange}
+                size="small"
+              />
+            </div>
+            {element.animated && (
+              <div>
+                <span>动画速度</span>
+                <ConfigProvider
+                  theme={{
+                    algorithm: theme.defaultAlgorithm,
+                  }}
+                >
+                  <Slider
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={element.animationSpeed || 3}
+                    onChange={onAnimationSpeedChange}
+                    tooltip={{ formatter: (value) => `${value}` }}
+                    marks={{
+                      1: "慢",
+                      5: "中",
+                      10: "快",
+                    }}
+                  />
+                </ConfigProvider>
+                <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+                  {element.dashed ? "虚线将显示流动效果" : "实线将显示流动点"}
+                </div>
+              </div>
+            )}
+          </div>
+        }
+      >
+        <Tooltip title={"流动动画"} placement={"left"}>
+          <div className={styles.item}>
+            <TbWaveSine />
           </div>
         </Tooltip>
       </Popover>

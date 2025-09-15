@@ -74,12 +74,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       getValue: (): MessageContent[] => {
         const content: MessageContent[] = [];
 
-        // 添加图片内容
         images.forEach((image) => {
           content.push({ type: "image", image });
         });
 
-        // 添加文本内容
         if (textContent.trim()) {
           content.push({ type: "text", text: textContent.trim() });
         }
@@ -104,7 +102,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       },
     }));
 
-    // 将图片转换为 base64
     const convertToBase64 = (file: File): Promise<string> => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -114,7 +111,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       });
     };
 
-    // 处理本地文件上传
     const handleFileUpload = async (file: File) => {
       try {
         const base64 = await convertToBase64(file);
@@ -126,7 +122,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       return false; // 阻止默认上传行为
     };
 
-    // 处理 URL 输入
     const handleUrlSubmit = () => {
       if (urlInput.trim()) {
         setImages((prev) => [...prev, urlInput.trim()]);
@@ -136,12 +131,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       }
     };
 
-    // 删除图片
     const removeImage = (index: number) => {
       setImages((prev) => prev.filter((_, i) => i !== index));
     };
 
-    // 处理键盘事件
     const handleKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -151,7 +144,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     return (
       <div className={classnames("flex flex-col p-2", className)}>
-        {/* 图片预览区域 */}
         {images.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {images.map((image, index) => (
@@ -171,7 +163,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           </div>
         )}
 
-        {/* 输入区域 */}
         <div className="mb-2">
           <TextArea
             ref={textAreaRef}
@@ -186,10 +177,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           />
         </div>
 
-        {/* 工具栏 */}
         <div className="flex items-center justify-between mt-1">
           <div className="flex items-center gap-1.5">
-            {/* 新建对话 */}
             {onCreateNewMessage && (
               <Tooltip title="新建对话">
                 <Button
@@ -204,7 +193,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               </Tooltip>
             )}
 
-            {/* 模型选择 */}
             {modelSelectItems.length > 0 && onModelSelect && (
               <Tooltip title={currentModelName || "选择模型"}>
                 <Dropdown
@@ -224,7 +212,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 </Dropdown>
               </Tooltip>
             )}
-            {/* 图片上传 */}
             {isSupportMultiModal && (
               <>
                 <Tooltip title="上传图片">
@@ -239,7 +226,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                       icon={<PictureOutlined />}
                       size="small"
                       disabled={!contentEditable}
-                      className="!p-1 !rounded hover:!bg-gray-100"
+                      className="!p-1 !rounded bg-none! border-none! hover:!bg-gray-100!"
                     />
                   </Upload>
                 </Tooltip>
@@ -251,35 +238,35 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                     size="small"
                     disabled={!contentEditable}
                     onClick={() => setUrlModalVisible(true)}
-                    className="!p-1 !rounded hover:!bg-gray-100"
+                    className="!p-1 !rounded bg-none! border-none! hover:!bg-gray-100!"
                   />
                 </Tooltip>
               </>
             )}
           </div>
 
-          {/* 发送/停止按钮 */}
           <div>
             {sendLoading ? (
               <Button
+                type="text"
                 size="small"
                 onClick={onStop}
                 icon={<StopOutlined />}
-                className="p-1 rounded border-none! text-gray-500! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20!"
+                className="p-1 rounded border-none! bg-none! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20! shadow-none!"
                 title="停止生成"
               />
             ) : (
               <Button
+                type="text"
                 size="small"
                 onClick={onPressEnter}
                 icon={<SendOutlined />}
-                className="p-1 rounded border-none!"
+                className="p-1 rounded border-none! bg-none! hover:!bg-gray-100! shadow-none!"
               />
             )}
           </div>
         </div>
 
-        {/* URL 输入模态框 */}
         <Modal
           title="添加图片链接"
           open={urlModalVisible}
