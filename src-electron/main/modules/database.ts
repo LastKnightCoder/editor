@@ -25,6 +25,11 @@ import WhiteBoardContentTable from "./tables/white-board-content";
 import GoalTable from "./tables/goal";
 import GoalItemTable from "./tables/goal-item";
 import GoalProgressEntryTable from "./tables/goal-progress-entry";
+import SliderDeckTable from "./tables/slider-deck";
+import SliderPageTable from "./tables/slider-page";
+import SliderEditorBlockTable from "./tables/slider-editor-block";
+import SliderTemplateSetTable from "./tables/slider-template-set";
+import SliderTemplateTable from "./tables/slider-template";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -48,6 +53,11 @@ class DatabaseModule implements Module {
     this.databases = new Map();
     this.windowToDatabase = new Map();
     this.tables = [
+      SliderDeckTable,
+      SliderPageTable,
+      SliderEditorBlockTable,
+      SliderTemplateSetTable,
+      SliderTemplateTable,
       ContentTable,
       WhiteBoardContentTable,
       WhiteboardTable,

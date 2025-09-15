@@ -182,6 +182,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         path: "/goals",
         enable: module.goal.enable,
       },
+      {
+        key: "table",
+        icon: goal,
+        desc: "表格",
+        path: "/table-view",
+        enable: true,
+      },
     ].filter((item) => item.enable);
   }, [module]);
 

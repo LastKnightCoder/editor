@@ -45,6 +45,13 @@ const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
 const GoalManagementView = loadable(
   () => import("@/pages/GoalView/GoalManagementView"),
 );
+const TableView = loadable(() => import("@/pages/TableView"));
+const SliderListView = loadable(
+  () => import("@/pages/SliderView/SliderListView.tsx"),
+);
+const SliderDetailView = loadable(
+  () => import("@/pages/SliderView/SliderDetailView.tsx"),
+);
 
 const routes = [
   {
@@ -122,6 +129,18 @@ const routes = [
       {
         path: "settings",
         element: <SettingsPage />,
+      },
+      {
+        path: "table-view",
+        element: <TableView />,
+      },
+      {
+        path: "sliders/list",
+        element: <SliderListView />,
+      },
+      {
+        path: "sliders/detail/:id",
+        element: <SliderDetailView />,
       },
     ],
   },

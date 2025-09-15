@@ -16,3 +16,4 @@ export * from "./video-note";
 export * from "./question";
 export * from "./content";
 export * from "./goal";
+export * from "./slider";

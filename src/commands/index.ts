@@ -26,3 +26,4 @@ export * from "./video-notes";
 export * from "./question.ts";
 export * from "./content.ts";
 export * from "./goal";
+export * from "./slider";
