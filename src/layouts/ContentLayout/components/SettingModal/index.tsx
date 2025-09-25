@@ -88,12 +88,13 @@ const SettingModal = () => {
       onCancel={onCancel}
       footer={null}
       width={1080}
-      height={"80vh"}
+      height={"70vh"}
       styles={{
         body: {
-          height: "80vh",
+          height: "70vh",
         },
       }}
+      className="my-[15vh]! top-0!"
       closable={false}
     >
       <div className="flex flex-col h-full gap-4">
