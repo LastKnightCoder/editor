@@ -163,7 +163,7 @@ const TodoRow = ({
             contentEditable={isEditing}
             defaultFocus={isEditing}
             className={classnames(
-              "w-full truncate flex items-center h-7 rounded",
+              "w-full truncate flex items-center h-7 rounded text-[14px]",
               isCompleted ? "line-through opacity-60" : undefined,
               isDark ? "text-gray-200" : "text-gray-900",
             )}
