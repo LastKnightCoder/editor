@@ -132,7 +132,7 @@ const Toolbar = () => {
           onPressEnter={handleCreateTask}
           contentEditable={true}
           defaultFocus
-          className="text-[12px] text-[#455963] dark:text-[#8a9ca5] flex-1 min-w-0"
+          className="text-[#455963] dark:text-[#8a9ca5] flex-1 min-w-0"
         />
       </div>
     </div>

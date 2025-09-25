@@ -170,58 +170,67 @@ const Search = memo(() => {
         </div>
 
         <div className={styles.resultContainer}>
-          <If condition={searchLoading}>
-            <div className={styles.loadingContainer}>
-              <LoadingOutlined />
-            </div>
-          </If>
-          <If condition={!searchLoading}>
-            <>
-              <If condition={searchResults.length === 0}>
-                <Empty
-                  style={{
-                    padding: 24,
-                  }}
-                  description={"暂无数据"}
-                />
-              </If>
-              <If condition={searchResults.length > 0}>
-                <div ref={resultsListRef} className={styles.list}>
-                  <div
+          <div
+            className={styles.resultsWrapper}
+            style={{ overflow: searchLoading ? "hidden" : "auto" }}
+          >
+            <If condition={searchLoading}>
+              <div className={styles.loadingContainer}>
+                <LoadingOutlined />
+              </div>
+            </If>
+            <If condition={!searchLoading}>
+              <>
+                <If condition={searchResults.length === 0}>
+                  <Empty
                     style={{
-                      height: `${resultsVirtualizer.getTotalSize()}px`,
-                      width: "100%",
-                      position: "relative",
+                      padding: 24,
                     }}
-                  >
-                    {resultsVirtualizer.getVirtualItems().map((virtualItem) => {
-                      const result = searchResults[virtualItem.index];
-                      return (
-                        <div
-                          key={`search-${result.id}-${result.type}`}
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: `${virtualItem.size}px`,
-                            transform: `translateY(${virtualItem.start}px)`,
-                          }}
-                        >
-                          <SearchResultItem
-                            result={result}
-                            getRefTypeLabel={getRefTypeLabel}
-                            getTagColor={getTagColor}
-                            handleSearchResultClick={handleSearchResultClick}
-                          />
-                        </div>
-                      );
-                    })}
+                    description={"暂无数据"}
+                  />
+                </If>
+                <If condition={searchResults.length > 0}>
+                  <div ref={resultsListRef} className={styles.list}>
+                    <div
+                      style={{
+                        height: `${resultsVirtualizer.getTotalSize()}px`,
+                        width: "100%",
+                        position: "relative",
+                      }}
+                    >
+                      {resultsVirtualizer
+                        .getVirtualItems()
+                        .map((virtualItem) => {
+                          const result = searchResults[virtualItem.index];
+                          return (
+                            <div
+                              key={`search-${result.id}-${result.type}`}
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                height: `${virtualItem.size}px`,
+                                transform: `translateY(${virtualItem.start}px)`,
+                              }}
+                            >
+                              <SearchResultItem
+                                result={result}
+                                getRefTypeLabel={getRefTypeLabel}
+                                getTagColor={getTagColor}
+                                handleSearchResultClick={
+                                  handleSearchResultClick
+                                }
+                              />
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
-                </div>
-              </If>
-            </>
-          </If>
+                </If>
+              </>
+            </If>
+          </div>
         </div>
       </div>
     </div>

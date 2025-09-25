@@ -1,9 +1,11 @@
 .loadingContainer {
-  height: 160px;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36px;
+  min-height: 160px;
+  width: 100%;
 }
 
 .commandContainer {
@@ -21,7 +23,7 @@
     background: rgba(17, 25, 39, 0.8);
 
     &.dark {
-      background: rgba(17, 25, 39, 0.4);
+      background: rgba(17, 25, 39, 0.8);
     }
   }
 
@@ -30,13 +32,14 @@
     width: 640px;
     max-height: 80vh;
     max-width: 80vw;
-    top: 40%;
+    top: 15vh; /* Set a fixed distance from the top */
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translateX(-50%);
     background-color: white;
+    min-height: 200px; /* Ensure minimum height */
 
     &.dark {
-      background-color: rgba(49, 49, 52, 0.95);
+      background-color: rgba(49, 49, 52, 1);
     }
 
     box-shadow:
@@ -78,13 +81,21 @@
       flex-direction: column;
       max-height: calc(80vh - 56px);
 
+      .resultsWrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 160px;
+        height: 100%;
+      }
+
       .list {
         display: flex;
         flex-direction: column;
         gap: 16px;
         padding: 16px;
         overflow-y: auto;
-        max-height: calc(80vh - 56px);
+        flex: 1;
       }
     }
   }

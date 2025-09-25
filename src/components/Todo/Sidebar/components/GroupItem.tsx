@@ -152,7 +152,7 @@ const GroupItem = memo(
               style={{ backgroundColor: getProjectColorValue(color, theme) }}
             />
           )}
-          <span className="truncate text-[12px]" title={title}>
+          <span className="truncate text-[14px]" title={title}>
             {title}
           </span>
         </div>
