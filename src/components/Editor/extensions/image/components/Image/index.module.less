@@ -2,9 +2,21 @@
   display: block;
   width: fit-content;
   position: relative;
-  border-radius: 6px;
+  border-radius: 0;
   max-width: 100%;
   margin: 0 auto;
+
+  &.selected::after {
+    content: "";
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    bottom: -2px;
+    left: -2px;
+    pointer-events: none;
+    border: 1.5px solid var(--color-primary, #1890ff);
+    border-radius: 0;
+  }
 
   &:hover .actions {
     opacity: 1;
@@ -14,8 +26,12 @@
 
   .image {
     max-width: 100%;
-    zoom: 50%;
+    // zoom removed to ensure resize width equals visual width
     //box-shadow: 0 5px 11px 0 rgba(0, 0, 0, 18%), 0 4px 15px 0 rgba(0, 0, 0, 15%);
+    cursor: default;
+  }
+
+  .zoomIn {
     cursor: zoom-in;
   }
 }
@@ -82,6 +98,83 @@
   position: relative;
   @import "@/components/Editor/extensions/drop-common.less";
   @import "@/components/Editor/extensions/drag-common.less";
+}
+
+/* 调整大小的句柄与信息（复用 inline-image 的风格） */
+.resizeHandle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background-color: white;
+  border: 2px solid var(--color-primary, #1890ff);
+  border-radius: 50%;
+  z-index: 2;
+  touch-action: none;
+}
+
+.resize-nw {
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+
+.resize-ne {
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+}
+
+.resize-sw {
+  bottom: 0;
+  left: 0;
+  transform: translate(-50%, 50%);
+}
+
+.resize-se {
+  bottom: 0;
+  right: 0;
+  transform: translate(50%, 50%);
+}
+
+.resize-n {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 8px;
+}
+
+.resize-s {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 8px;
+}
+
+.resize-e {
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+}
+
+.resize-w {
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 100%;
+}
+
+.imageInfo {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 3;
 }
 
 /* 裁剪相关样式 */

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { message, Spin, Modal, Button } from "antd";
+import { useMemoizedFn } from "ahooks";
+import { message, Spin } from "antd";
 import { Transforms } from "slate";
 import {
   ReactEditor,
@@ -11,6 +12,8 @@ import {
   DeleteOutlined,
   FullscreenOutlined,
   ScissorOutlined,
+  CheckOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
@@ -27,6 +30,10 @@ import styles from "./index.module.less";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
 import ImageUploader from "@/components/Editor/components/ImageUploader";
+import {
+  useImageResize,
+  ResizeDirection,
+} from "@/components/Editor/hooks/useImageResize";
 
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
@@ -35,7 +42,14 @@ interface IImageProps {
 
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const { attributes, children, element } = props;
-  const { url, alt = "", pasteUploading = false, crop, previewUrl } = element;
+  const {
+    url,
+    alt = "",
+    pasteUploading = false,
+    crop,
+    previewUrl,
+    width,
+  } = element;
 
   const uploadResource = useUploadResource();
 
@@ -48,6 +62,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const editor = useSlate();
   const readOnly = useReadOnly();
+  const [isSelected, setIsSelected] = useState(false);
 
   const { showImageOverview } = useImagesOverviewStore((state) => ({
     showImageOverview: state.showImageOverview,
@@ -91,7 +106,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     );
   };
 
-  const [showCropModal, setShowCropModal] = useState(false);
+  const [isCropping, setIsCropping] = useState(false);
   const [currentCrop, setCurrentCrop] = useState<Crop>(
     crop || {
       unit: "%",
@@ -102,7 +117,14 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     },
   );
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null); // 兼容旧引用
+  const displayImgRef = useRef<HTMLImageElement>(null); // 用于计算自然尺寸
+  const cropImgRef = useRef<HTMLImageElement>(null); // 用于内联裁剪
+  const containerRef = useRef<HTMLDivElement>(null);
+  const preCropWidthRef = useRef<number | null>(null);
+
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  const [maxWidth, setMaxWidth] = useState<number>(Infinity);
 
   useEffect(() => {
     if (!previewUrl && url) {
@@ -119,6 +141,35 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     }
   }, [url, previewUrl, editor, element]);
 
+  // 外部点击取消选中
+  useEffect(() => {
+    const handleDocMouseDown = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const target = e.target as Node;
+      if (!containerRef.current.contains(target)) {
+        setIsSelected(false);
+      }
+    };
+    document.addEventListener("mousedown", handleDocMouseDown);
+    return () => document.removeEventListener("mousedown", handleDocMouseDown);
+  }, []);
+
+  // 计算编辑器可用最大宽度
+  useEffect(() => {
+    const editorEl = containerRef.current?.closest(
+      '[data-slate-editor="true"]',
+    ) as HTMLElement | null;
+    if (editorEl) {
+      setMaxWidth(editorEl.clientWidth);
+    }
+  }, []);
+
+  const updateElementWidth = useMemoizedFn((newWidth?: number) => {
+    if (typeof newWidth !== "number") return;
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, { width: newWidth }, { at: path });
+  });
+
   const onImageLoad = () => {
     if (!crop) {
       setCurrentCrop({
@@ -131,13 +182,78 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     }
   };
 
+  const handleDisplayImageLoad = useMemoizedFn(() => {
+    if (displayImgRef.current) {
+      const img = displayImgRef.current;
+      const imgNaturalWidth = img.naturalWidth;
+      const imgNaturalHeight = img.naturalHeight;
+      setNaturalSize({ width: imgNaturalWidth, height: imgNaturalHeight });
+
+      if (!width) {
+        const editorEl = containerRef.current?.closest(
+          '[data-slate-editor="true"]',
+        ) as HTMLElement | null;
+        const editorWidth = editorEl?.clientWidth || 0;
+        const dpr = window.devicePixelRatio || 1;
+        const initialWidth = Math.min(
+          imgNaturalWidth / dpr,
+          editorWidth || imgNaturalWidth,
+        );
+        updateElementWidth(initialWidth);
+        resize.setSize({ width: initialWidth });
+      }
+    }
+  });
+
+  const resize = useImageResize({
+    initialSize: { width },
+    minWidth: 50,
+    maxWidth,
+    minHeight: 10,
+    aspectRatio:
+      naturalSize.width && naturalSize.height
+        ? naturalSize.width / naturalSize.height
+        : undefined,
+    onResizeEnd: (size) => {
+      if (size.width) {
+        updateElementWidth(size.width);
+      }
+    },
+    readonly: readOnly,
+    keepAspectRatio: true,
+  });
+
+  const handleSelect = useMemoizedFn((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (readOnly) {
+      // 只读下直接预览
+      showOverView();
+      return;
+    }
+    if (isSelected) {
+      // 选中后再次点击进行预览
+      showOverView();
+    } else {
+      setIsSelected(true);
+    }
+  });
+
+  // 仅四角句柄，样式更明显
+  const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
+    { direction: "nw", cursor: "nwse-resize" },
+    { direction: "ne", cursor: "nesw-resize" },
+    { direction: "se", cursor: "nwse-resize" },
+    { direction: "sw", cursor: "nesw-resize" },
+  ];
+
   const cancelCrop = () => {
-    setShowCropModal(false);
+    setIsCropping(false);
   };
 
   const confirmCrop = async () => {
-    if (imgRef.current && completedCrop) {
-      const image = imgRef.current;
+    if ((cropImgRef.current || imgRef.current) && completedCrop) {
+      const image = cropImgRef.current || imgRef.current!;
       const canvas = document.createElement("canvas");
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
@@ -156,6 +272,16 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           canvas.width,
           canvas.height,
         );
+
+        // 防御性检查，触发一次像素读取来暴露跨域错误，便于提示
+        try {
+          ctx.getImageData(0, 0, 1, 1);
+        } catch (e) {
+          console.warn(
+            "Canvas tainted, attempting to upload anyway via blob",
+            e,
+          );
+        }
 
         canvas.toBlob(async (blob) => {
           if (blob && uploadResource) {
@@ -177,6 +303,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
                     at: path,
                   },
                 );
+                // 保持裁剪前的显示宽度不变
+                if (preCropWidthRef.current) {
+                  updateElementWidth(preCropWidthRef.current);
+                  resize.setSize({ width: preCropWidthRef.current });
+                }
               } else {
                 message.warning("裁剪图片上传失败");
               }
@@ -185,18 +316,18 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
               message.error("裁剪图片上传失败");
             } finally {
               setUploading(false);
-              setShowCropModal(false);
+              setIsCropping(false);
             }
           } else {
             if (!uploadResource) {
               message.warning("尚未配置任何图床，无法上传裁剪图片");
             }
-            setShowCropModal(false);
+            setIsCropping(false);
           }
         }, "image/jpeg");
       }
     } else {
-      setShowCropModal(false);
+      setIsCropping(false);
     }
   };
 
@@ -221,21 +352,108 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     const displayUrl = previewUrl || url;
 
     return (
-      <div className={styles.imageContainer}>
-        <LocalImage
-          className={styles.image}
-          url={displayUrl}
-          alt={alt}
-          onClick={showOverView}
-        />
+      <div
+        ref={containerRef}
+        className={classnames(styles.imageContainer, {
+          [styles.resizing as any]: resize.isResizing,
+          [styles.selected as any]: isSelected && !isCropping,
+        })}
+        style={{
+          width: isCropping
+            ? "auto"
+            : resize.size.width
+              ? `${resize.size.width}px`
+              : width
+                ? `${width}px`
+                : "auto",
+          maxWidth: "100%",
+        }}
+      >
+        {isCropping ? (
+          <Spin spinning={uploading} tip="正在上传裁剪图片...">
+            <ReactCrop
+              crop={currentCrop}
+              onChange={(c) => setCurrentCrop(c)}
+              onComplete={(c) => setCompletedCrop(c)}
+              disabled={uploading}
+            >
+              <LocalImage
+                ref={cropImgRef}
+                url={url}
+                alt={alt}
+                style={{ maxWidth: "100%" }}
+                onLoad={onImageLoad}
+                crossOrigin="anonymous"
+              />
+            </ReactCrop>
+          </Spin>
+        ) : (
+          <LocalImage
+            className={classnames(styles.image, {
+              [styles.zoomIn as any]: isSelected,
+            })}
+            url={displayUrl}
+            alt={alt}
+            ref={displayImgRef}
+            onClick={handleSelect}
+            onLoad={handleDisplayImageLoad}
+            crossOrigin="anonymous"
+          />
+        )}
+        {!readOnly && isSelected && (
+          <>
+            {!isCropping &&
+              RESIZE_HANDLES.map(({ direction, cursor }) => (
+                <div
+                  key={direction}
+                  className={classnames(
+                    styles.resizeHandle,
+                    // @ts-ignore
+                    styles[`resize-${direction}`],
+                  )}
+                  style={{ cursor }}
+                  onPointerDown={(e) => resize.handleResizeStart(e, direction)}
+                />
+              ))}
+            {resize.isResizing && (
+              <div className={styles.imageInfo}>
+                {Math.round(resize.size.width || 0)} px
+              </div>
+            )}
+          </>
+        )}
         <div className={styles.actions}>
-          <div onClick={showOverView} className={styles.item}>
-            <FullscreenOutlined />
-          </div>
-          <div className={styles.divider}></div>
-          <div onClick={() => setShowCropModal(true)} className={styles.item}>
-            <ScissorOutlined />
-          </div>
+          {!isCropping && (
+            <>
+              <div onClick={showOverView} className={styles.item}>
+                <FullscreenOutlined />
+              </div>
+              <div className={styles.divider}></div>
+              <div
+                onClick={() => {
+                  const containerWidth = containerRef.current?.clientWidth || 0;
+                  const currentDisplayWidth =
+                    resize.size.width || width || containerWidth;
+                  preCropWidthRef.current = currentDisplayWidth || null;
+                  setIsCropping(true);
+                }}
+                className={styles.item}
+              >
+                <ScissorOutlined />
+              </div>
+            </>
+          )}
+          {isCropping && (
+            <>
+              <div onClick={confirmCrop} className={styles.item}>
+                <CheckOutlined />
+              </div>
+              <div className={styles.divider}></div>
+              <div onClick={cancelCrop} className={styles.item}>
+                <CloseOutlined />
+              </div>
+            </>
+          )}
           <div className={styles.divider}></div>
           <div onClick={deleteImage} className={styles.item}>
             <DeleteOutlined />
@@ -279,46 +497,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         {children}
         <AddParagraph element={element} />
       </div>
-      <Modal
-        title="裁剪图片"
-        open={showCropModal}
-        onCancel={cancelCrop}
-        confirmLoading={uploading}
-        footer={[
-          <Button key="cancel" onClick={cancelCrop} disabled={uploading}>
-            取消
-          </Button>,
-          <Button
-            key="confirm"
-            type="primary"
-            onClick={confirmCrop}
-            loading={uploading}
-          >
-            确认
-          </Button>,
-        ]}
-        width={800}
-      >
-        {url && (
-          <Spin spinning={uploading} tip="正在上传裁剪图片...">
-            <ReactCrop
-              crop={currentCrop}
-              onChange={(c) => setCurrentCrop(c)}
-              onComplete={(c) => setCompletedCrop(c)}
-              aspect={16 / 9}
-              disabled={uploading}
-            >
-              <LocalImage
-                ref={imgRef}
-                url={url}
-                alt={alt}
-                style={{ maxWidth: "100%" }}
-                onLoad={onImageLoad}
-              />
-            </ReactCrop>
-          </Spin>
-        )}
-      </Modal>
+      {/* inline crop mode, modal removed */}
     </div>
   );
 };
