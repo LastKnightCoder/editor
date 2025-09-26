@@ -9,5 +9,6 @@ export interface ImageElement {
   pasteUploading?: boolean;
   crop?: Crop;
   previewUrl?: string;
+  width?: number;
   children: Descendant[];
 }
