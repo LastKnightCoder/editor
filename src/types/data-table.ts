@@ -40,7 +40,7 @@ export interface DataTableViewConfig {
   rowOrder: string[];
   filters: FilterRule[];
   sorts: SortRule[];
-  groups: GroupRule[];
+  groupBy?: GroupRule | null;
 }
 
 export interface DataTableView {
@@ -85,5 +85,5 @@ export interface SortRule {
 export interface GroupRule {
   id: string;
   fieldId: string;
-  strategy: string;
+  strategy?: "text" | "select" | "multiSelect" | "checkbox" | "star" | string;
 }

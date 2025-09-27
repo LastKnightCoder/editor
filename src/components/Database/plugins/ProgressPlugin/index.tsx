@@ -60,6 +60,18 @@ const ProgressPlugin: CellPlugin<null> = {
     }
     return { current: 0, target: 100 };
   },
+
+  getGroupKey: (row, column) => {
+    const value = row[column.id];
+    if (
+      !value ||
+      typeof value !== "object" ||
+      !("current" in value) ||
+      !("target" in value)
+    )
+      return "";
+    return `${value.current}/${value.target}`;
+  },
 };
 
 export default ProgressPlugin;

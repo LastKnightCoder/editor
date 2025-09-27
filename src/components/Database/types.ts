@@ -1,4 +1,4 @@
-import { CreateDataTableView, DataTableView } from "@/types";
+import { CreateDataTableView, DataTableView, GroupRule } from "@/types";
 import { SELECT_COLORS } from "./constants";
 import { ImageItem } from "./plugins/ImagePlugin/types";
 
@@ -55,6 +55,7 @@ export interface DatabaseProps {
 export interface TableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
+  groupBy?: GroupRule | null;
 }
 
 export interface CellPlugin<T> {
@@ -79,6 +80,7 @@ export interface CellPlugin<T> {
     theme: "light" | "dark";
     readonly: boolean;
   }>;
+  getGroupKey?: (row: RowData, column: ColumnDef) => string;
   editable?: boolean;
   onMount?: () => void;
   onUnmount?: () => void;

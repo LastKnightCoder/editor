@@ -35,7 +35,6 @@ const Renderer: React.FC<{
 
   const handleChange = (v: number | null) => {
     if (readonly) return;
-    console.log("handleChange", v);
     onCellValueChange(v ?? 0);
   };
 
@@ -69,6 +68,11 @@ const StarPlugin: CellPlugin<StarConfig> = {
   Icon: ({ className }) => <MdStarRate className={className} />,
   beforeSave: (value, config) => normalize(value, config),
   afterLoad: (value, config) => normalize(value, config),
+  getGroupKey: (row, column) => {
+    const value = row[column.id];
+    if (!value) return "";
+    return String(value);
+  },
 };
 
 export default StarPlugin;

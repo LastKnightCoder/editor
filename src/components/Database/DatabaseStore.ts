@@ -65,6 +65,7 @@ interface TableState {
     viewConfig: TableViewConfig,
   ) => void;
   setViewConfig: (config: TableViewConfig) => void;
+  setGroupBy: (groupConfig: TableViewConfig["groupBy"]) => void;
 }
 
 const createSnapshot = (
@@ -75,6 +76,7 @@ const createSnapshot = (
   viewConfig: {
     columnOrder: [...state.viewConfig.columnOrder],
     rowOrder: [...state.viewConfig.rowOrder],
+    groupBy: state.viewConfig.groupBy ?? null,
   },
 });
 
@@ -93,6 +95,7 @@ export const createDatabaseStore = (
     rowOrder: initialViewConfig?.rowOrder?.length
       ? initialViewConfig.rowOrder
       : initialRows.map((row) => row.id),
+    groupBy: initialViewConfig?.groupBy ?? null,
   };
 
   return create<TableState>((set, get) => ({
@@ -459,7 +462,15 @@ export const createDatabaseStore = (
           state.viewConfig = {
             columnOrder: [...config.columnOrder],
             rowOrder: [...config.rowOrder],
+            groupBy: config.groupBy ?? null,
           };
+        }),
+      );
+    },
+    setGroupBy: (groupConfig) => {
+      set(
+        produce<TableState>((state: TableState) => {
+          state.viewConfig.groupBy = groupConfig ?? null;
         }),
       );
     },

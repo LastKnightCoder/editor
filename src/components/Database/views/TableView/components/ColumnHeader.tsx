@@ -12,6 +12,7 @@ import { ColumnDef } from "../../../types";
 import PluginManager from "../../../PluginManager";
 import classNames from "classnames";
 import { MoreOutlined } from "@ant-design/icons";
+import ColumnIcon from "./ColumnIcon";
 
 const COLUMN_HEADER = "columnHeader";
 
@@ -149,7 +150,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
               },
             },
           ];
-    }, [readonly]);
+    }, [readonly, column.id, onEdit, onDelete, modal]);
 
     return (
       <div
@@ -166,11 +167,13 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       >
         <div className="flex items-center px-2 py-2 h-full cursor-grab box-border">
           <div
-            className="flex items-center flex-1 whitespace-nowrap overflow-hidden text-ellipsis font-semibold cursor-pointer"
+            className="flex items-center h-full flex-1 whitespace-nowrap overflow-hidden font-semibold cursor-pointer"
             title={column.title}
           >
-            <PluginIcon type={column.type} pluginManager={pluginManager} />
-            <span className="text-truncate">{column.title}</span>
+            <ColumnIcon type={column.type} pluginManager={pluginManager} />
+            <span className="text-truncate h-full flex items-center text-sm">
+              {column.title}
+            </span>
           </div>
           <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]}>
             <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-[var(--common-hover-bg)] rounded-full flex items-center justify-center flex-shrink-0">
@@ -194,23 +197,3 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
 );
 
 export default ColumnHeader;
-
-function PluginIcon({
-  type,
-  pluginManager,
-}: {
-  type: string;
-  pluginManager?: PluginManager;
-}) {
-  const plugin = pluginManager?.getPlugin(type);
-  const Icon = plugin?.Icon;
-  if (!Icon)
-    return (
-      <span className="inline-flex items-center justify-center mr-1.5 text-[#666]"></span>
-    );
-  return (
-    <span className="inline-flex items-center justify-center mr-1.5 text-[#666]">
-      <Icon />
-    </span>
-  );
-}

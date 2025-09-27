@@ -23,6 +23,10 @@ const NumberPlugin: CellPlugin<any> = {
     if (value === null || value === undefined) return null;
     return parseNumber(value);
   },
+
+  getGroupKey: (row, column) => {
+    return String(row[column.id]);
+  },
 };
 
 export default NumberPlugin;

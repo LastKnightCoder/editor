@@ -242,6 +242,7 @@ const Database: React.FC<DatabaseProps> = memo(
         >
           <div className="flex-shrink-0">
             <ViewTabs
+              pluginManager={pluginMgr}
               onCreateView={openCreateViewModal}
               onDeleteView={handleDeleteView}
               onActiveViewIdChange={onActiveViewIdChange}

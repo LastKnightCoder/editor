@@ -70,7 +70,7 @@ export default class DataTableViewTable {
       rowOrder: config?.rowOrder ? [...config.rowOrder] : [],
       filters: config?.filters ? [...config.filters] : [],
       sorts: config?.sorts ? [...config.sorts] : [],
-      groups: config?.groups ? [...config.groups] : [],
+      groupBy: config?.groupBy ?? null,
     };
   }
 

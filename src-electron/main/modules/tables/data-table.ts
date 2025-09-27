@@ -80,7 +80,7 @@ export default class DataTableTable {
             rowOrder,
             filters: [],
             sorts: [],
-            groups: [],
+            groupBy: null,
           },
         });
 

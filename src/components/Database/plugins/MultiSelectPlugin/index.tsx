@@ -21,6 +21,11 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     if (!value || !Array.isArray(value)) return [];
     return value.filter((v) => configs.options.find((opt) => opt.id === v));
   },
+  getGroupKey: (row, column) => {
+    const value = row[column.id];
+    if (!value || !Array.isArray(value)) return "";
+    return value.join(",");
+  },
 };
 
 export default MultiSelectPlugin;

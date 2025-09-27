@@ -34,7 +34,11 @@ const Renderer: React.FC<{
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      <CustomCheckbox checked={checked} onChange={handleToggle} />
+      <CustomCheckbox
+        checked={checked}
+        onChange={handleToggle}
+        readonly={readonly}
+      />
     </div>
   );
 };
@@ -47,6 +51,9 @@ const CheckboxPlugin: CellPlugin<unknown> = {
   Icon: ({ className }) => <MdCheckBox className={className} />,
   beforeSave: (value) => Boolean(value),
   afterLoad: (value) => Boolean(value),
+  getGroupKey: (row, column) => {
+    return String(row[column.id]);
+  },
 };
 
 export default CheckboxPlugin;
