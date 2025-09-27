@@ -1,3 +1,4 @@
+import { CreateDataTableView, DataTableView } from "@/types";
 import { SELECT_COLORS } from "./constants";
 import { ImageItem } from "./plugins/ImagePlugin/types";
 
@@ -24,21 +25,36 @@ export interface RowData {
   [columnId: string]: CellValue;
 }
 
-export interface TableData {
+export interface DatabaseData {
   columns: ColumnDef[];
   rows: RowData[];
-  columnOrder: string[];
 }
 
-export interface TableProps {
-  columns: ColumnDef[];
+export interface DatabaseProps {
   data: RowData[];
-  columnOrder: string[];
+  columns: ColumnDef[];
+  views: DataTableView[];
+  activeViewId: number;
+  viewConfig: TableViewConfig;
   plugins?: CellPlugin<unknown>[];
-  onChange?: (data: TableData) => void;
+  onDataChange?: (data: DatabaseData) => void;
+  onViewConfigChange?: (config: TableViewConfig) => void;
+  onActiveViewIdChange?: (viewId: number | null) => Promise<void>;
+  onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
+  onDeleteView?: (viewId: number) => Promise<number | null>;
+  onRenameView?: (
+    viewId: number,
+    name: string,
+  ) => Promise<DataTableView | null>;
+  onReorderViews?: (orderedIds: number[]) => Promise<void>;
   theme?: "light" | "dark";
   readonly?: boolean;
   className?: string;
+}
+
+export interface TableViewConfig {
+  columnOrder: string[];
+  rowOrder: string[];
 }
 
 export interface CellPlugin<T> {
@@ -82,7 +98,7 @@ export interface ValidationRule {
 export interface TableSnapshot {
   columns: ColumnDef[];
   rows: RowData[];
-  columnOrder: string[];
+  viewConfig: TableViewConfig;
 }
 
 export interface CellCoord {

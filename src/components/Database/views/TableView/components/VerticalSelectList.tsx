@@ -1,5 +1,5 @@
-import { SelectOption } from "../types";
-import { SELECT_COLORS_CONFIG, SELECT_COLORS } from "../constants";
+import { SelectOption } from "../../../types";
+import { SELECT_COLORS_CONFIG, SELECT_COLORS } from "../../../constants";
 import classNames from "classnames";
 import { Dropdown, Input } from "antd";
 import { memo, useState } from "react";

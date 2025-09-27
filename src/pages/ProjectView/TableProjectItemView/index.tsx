@@ -1,22 +1,30 @@
 import { memo, useEffect, useRef, useState } from "react";
-import Table, { RowData, ColumnDef, TableData } from "@/components/Table";
-import { DataTable, ProjectItem, EProjectItemType } from "@/types";
-import {
-  getProjectItemById,
-  getDataTableById,
-  updateDataTable,
-  updateProjectItem,
-} from "@/commands";
+import Database, { RowData, ColumnDef } from "@/components/Database";
+import { ProjectItem, EProjectItemType } from "@/types";
+import { getProjectItemById, updateProjectItem } from "@/commands";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { defaultProjectItemEventBus } from "@/utils";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
+import useEditDatabase from "@/hooks/useEditDatabase";
 
 const TableProjectItemView = memo((props: { projectItemId: number }) => {
   const { projectItemId } = props;
 
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
-  const [table, setTable] = useState<DataTable | null>(null);
+  const [tableId, setTableId] = useState<number>();
+  const {
+    activeViewId,
+    views,
+    table,
+    onDataChange,
+    onViewConfigChange,
+    onCreateView,
+    onDeleteView,
+    onRenameView,
+    onReorderViews,
+    onActiveViewIdChange,
+  } = useEditDatabase(tableId);
   const titleRef = useRef<EditTextHandle>(null);
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
@@ -32,26 +40,16 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
         if (item.projectItemType !== EProjectItemType.TableView) return;
         setProjectItem(item);
         if (item.refType === "data-table" && item.refId) {
-          getDataTableById(item.refId).then((t) => setTable(t));
+          setTableId(item.refId);
         }
       })
       .catch((e) => console.error(e));
 
     return () => {
       setProjectItem(null);
-      setTable(null);
+      setTableId(undefined);
     };
   }, [projectItemId]);
-
-  const onChange = useMemoizedFn((data: TableData) => {
-    if (!table) return;
-    updateDataTable({
-      id: table.id,
-      columns: data.columns,
-      rows: data.rows,
-      columnOrder: data.columnOrder,
-    }).then((newTable) => setTable(newTable));
-  });
 
   const onTitleChange = useMemoizedFn((title: string) => {
     if (!projectItem) return;
@@ -74,7 +72,9 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
     }
   });
 
-  if (!projectItem || !table) return null;
+  const activeView = views.find((view) => view.id === activeViewId);
+
+  if (!projectItem || !table || !activeView) return null;
 
   return (
     <div className="w-full mx-auto max-w-[840px] h-full flex flex-col">
@@ -90,11 +90,20 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
       </div>
 
       <div className="flex-1 min-h-0 px-4 pb-4">
-        <Table
+        <Database
+          key={`${table.id}-${activeView.id}`}
           columns={table.columns as ColumnDef[]}
           data={table.rows as RowData[]}
-          columnOrder={table.columnOrder}
-          onChange={onChange}
+          views={views}
+          activeViewId={activeView.id}
+          viewConfig={activeView.config}
+          onActiveViewIdChange={onActiveViewIdChange}
+          onViewConfigChange={onViewConfigChange}
+          onDataChange={onDataChange}
+          onCreateView={onCreateView}
+          onDeleteView={onDeleteView}
+          onRenameView={onRenameView}
+          onReorderViews={onReorderViews}
         />
       </div>
     </div>

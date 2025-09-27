@@ -7,9 +7,9 @@ import {
 } from "react-dnd";
 import classnames from "classnames";
 
-import { ColumnDef, RowData, CellCoord } from "../types";
+import { ColumnDef, RowData, CellCoord } from "../../../types";
 import Cell from "./Cell";
-import PluginManager from "../PluginManager";
+import PluginManager from "../../../PluginManager";
 import { MdDragIndicator } from "react-icons/md";
 import { App, Dropdown, DropdownProps } from "antd";
 

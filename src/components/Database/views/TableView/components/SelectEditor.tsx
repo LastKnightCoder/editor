@@ -4,8 +4,8 @@ import { v4 as uuid } from "uuid";
 import classnames from "classnames";
 import { produce } from "immer";
 
-import { CellValue, ColumnDef, SelectOption } from "../types";
-import { SELECT_COLORS } from "../constants";
+import { CellValue, ColumnDef, SelectOption } from "../../../types";
+import { SELECT_COLORS } from "../../../constants";
 import { Popover } from "antd";
 import SelectList from "./SelectList";
 import VerticalSelectList from "./VerticalSelectList";

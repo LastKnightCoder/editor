@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { ColumnDef, SelectOption } from "../types";
+import { ColumnDef, SelectOption } from "../../../types";
 import { v4 as uuid } from "uuid";
-import { SELECT_COLORS } from "../constants";
+import { SELECT_COLORS } from "../../../constants";
 import SelectList from "./SelectList";
-import PluginManager from "../PluginManager";
+import PluginManager from "../../../PluginManager";
 import { Modal, Form, Input, InputNumber, Select } from "antd";
 
 interface ColumnEditModalProps {

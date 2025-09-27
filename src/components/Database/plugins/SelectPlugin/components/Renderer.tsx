@@ -1,6 +1,6 @@
 import React, { memo } from "react";
 import { CellValue, ColumnDef, SelectOption } from "../../../types";
-import SelectList from "../../../components/SelectList";
+import SelectList from "../../../views/TableView/components/SelectList";
 
 interface RendererProps {
   value: CellValue;

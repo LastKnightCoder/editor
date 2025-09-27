@@ -2,29 +2,29 @@ import React, { useRef, memo, useState, useMemo, useEffect } from "react";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-import { ColumnDef, CellValue } from "../types";
-import { useColumnVisibility, useTableStore } from "../hooks";
-import ColumnHeader from "./ColumnHeader";
-import Row from "./Row";
-import PluginManager from "../PluginManager";
-import ColumnEditModal from "./ColumnEditModal";
+import { ColumnDef, CellValue, RowData } from "../../types";
+import { useColumnVisibility, useDatabaseStore } from "../../hooks";
+import ColumnHeader from "./components/ColumnHeader";
+import Row from "./components/Row";
+import PluginManager from "../../PluginManager";
+import ColumnEditModal from "./components/ColumnEditModal";
 import classNames from "classnames";
 
-interface TableContentProps {
+interface TableViewProps {
   pluginManager: PluginManager;
   startResize: (columnId: string, startX: number, startWidth: number) => void;
   theme: "light" | "dark";
   readonly: boolean;
 }
 
-const TableContent: React.FC<TableContentProps> = memo(
+const TableView: React.FC<TableViewProps> = memo(
   ({ pluginManager, startResize, theme, readonly }) => {
     const {
       selectedCell,
       editingCell,
       columns: storeColumns,
       rows: storeRows,
-      columnOrder,
+      viewConfig,
       columnWidths,
       selectCell,
       startEditing,
@@ -38,12 +38,12 @@ const TableContent: React.FC<TableContentProps> = memo(
       moveColumn,
       moveRow,
       clearCellSelection,
-    } = useTableStore((state) => ({
+    } = useDatabaseStore((state) => ({
       selectedCell: state.selectedCell,
       editingCell: state.editingCell,
       columns: state.columns,
       rows: state.rows,
-      columnOrder: state.columnOrder,
+      viewConfig: state.viewConfig,
       columnWidths: state.columnWidths,
       selectCell: state.selectCell,
       startEditing: state.startEditing,
@@ -140,9 +140,44 @@ const TableContent: React.FC<TableContentProps> = memo(
       },
     );
 
-    const visibleColumnOrder = columnOrder.filter((columnId) =>
-      isColumnVisible(columnId),
-    );
+    const visibleColumnOrder = useMemo(() => {
+      const order = viewConfig.columnOrder.filter((columnId) =>
+        isColumnVisible(columnId),
+      );
+      const existingIds = new Set(order);
+      storeColumns.forEach((column) => {
+        if (!existingIds.has(column.id) && isColumnVisible(column.id)) {
+          order.push(column.id);
+        }
+      });
+      return order;
+    }, [viewConfig.columnOrder, storeColumns, isColumnVisible]);
+
+    const rowMap = useMemo(() => {
+      const map = new Map<string, RowData>();
+      storeRows.forEach((row) => {
+        map.set(row.id, row);
+      });
+      return map;
+    }, [storeRows]);
+
+    const viewRowOrder = useMemo(() => {
+      const order: string[] = [];
+      const existing = new Set<string>();
+      viewConfig.rowOrder.forEach((rowId) => {
+        if (rowMap.has(rowId) && !existing.has(rowId)) {
+          order.push(rowId);
+          existing.add(rowId);
+        }
+      });
+      storeRows.forEach((row) => {
+        if (!existing.has(row.id)) {
+          order.push(row.id);
+          existing.add(row.id);
+        }
+      });
+      return order;
+    }, [viewConfig.rowOrder, storeRows, rowMap]);
 
     const editingColumn = editingColumnId
       ? (() => {
@@ -163,7 +198,7 @@ const TableContent: React.FC<TableContentProps> = memo(
     }, [visibleColumnOrder, columnWidths]);
 
     const rowVirtualizer = useVirtualizer({
-      count: storeRows.length,
+      count: viewRowOrder.length,
       getScrollElement: () => scrollParentRef.current,
       estimateSize: () => 40,
       overscan: 6,
@@ -259,8 +294,9 @@ const TableContent: React.FC<TableContentProps> = memo(
               ref={tableBodyRef}
             >
               {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const actualRow = storeRows[virtualRow.index];
-                if (!actualRow) return null;
+                const rowId = viewRowOrder[virtualRow.index];
+                const actualRow = rowMap.get(rowId);
+                if (!rowId || !actualRow) return null;
                 return (
                   <div
                     key={virtualRow.key}
@@ -332,6 +368,6 @@ const TableContent: React.FC<TableContentProps> = memo(
   },
 );
 
-TableContent.displayName = "TableContent";
+TableView.displayName = "TableView";
 
-export default TableContent;
+export default TableView;

@@ -1,6 +1,6 @@
 import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
-import Editor from "../../components/SelectEditor";
+import Editor from "../../views/TableView/components/SelectEditor";
 import { MdArrowDropDownCircle } from "react-icons/md";
 
 const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {

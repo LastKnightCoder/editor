@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Direction } from "../TableStore";
+import { Direction } from "../DatabaseStore";
 
 type DirectionString = "up" | "down" | "left" | "right";
 

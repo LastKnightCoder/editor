@@ -7,7 +7,9 @@ import {
   CellValue,
   TableSnapshot,
   CellCoord,
+  TableViewConfig,
 } from "./types";
+import { DataTableView } from "@/types";
 
 export enum Direction {
   UP = "up",
@@ -19,7 +21,10 @@ export enum Direction {
 interface TableState {
   columns: ColumnDef[];
   rows: RowData[];
-  columnOrder: string[];
+  views: DataTableView[];
+  viewConfig: TableViewConfig;
+  activeViewId: number | null;
+
   columnWidths: Record<string, number>;
 
   selectedCell: CellCoord | null;
@@ -54,28 +59,48 @@ interface TableState {
 
   moveCellSelection: (direction: Direction | string) => void;
 
-  syncExternalData: (columns: ColumnDef[], rows: RowData[]) => void;
+  syncExternalData: (
+    columns: ColumnDef[],
+    rows: RowData[],
+    viewConfig: TableViewConfig,
+  ) => void;
+  setViewConfig: (config: TableViewConfig) => void;
 }
 
 const createSnapshot = (
-  state: Pick<TableState, "columns" | "rows" | "columnOrder" | "columnWidths">,
+  state: Pick<TableState, "columns" | "rows" | "viewConfig" | "columnWidths">,
 ): TableSnapshot => ({
   columns: JSON.parse(JSON.stringify(state.columns)),
   rows: JSON.parse(JSON.stringify(state.rows)),
-  columnOrder: [...state.columnOrder],
+  viewConfig: {
+    columnOrder: [...state.viewConfig.columnOrder],
+    rowOrder: [...state.viewConfig.rowOrder],
+  },
 });
 
-export const createTableStore = (
+export const createDatabaseStore = (
   initialColumns: ColumnDef[] = [],
   initialRows: RowData[] = [],
-  initColumnOrder?: string[],
+  initialViewConfig?: TableViewConfig,
+  initialViews?: DataTableView[],
+  activeViewId?: number,
 ) => {
-  const columnOrder = initColumnOrder || initialColumns.map((col) => col.id);
+  const baseColumnOrder = initialColumns.map((col) => col.id);
+  const viewConfig: TableViewConfig = {
+    columnOrder: initialViewConfig?.columnOrder?.length
+      ? initialViewConfig.columnOrder
+      : baseColumnOrder,
+    rowOrder: initialViewConfig?.rowOrder?.length
+      ? initialViewConfig.rowOrder
+      : initialRows.map((row) => row.id),
+  };
 
   return create<TableState>((set, get) => ({
     columns: initialColumns,
     rows: initialRows,
-    columnOrder: columnOrder,
+    viewConfig,
+    views: initialViews || [],
+    activeViewId: activeViewId || null,
     columnWidths: initialColumns.reduce(
       (acc, col) => ({
         ...acc,
@@ -106,7 +131,7 @@ export const createTableStore = (
     resizeColumn: (columnId, width) => {
       const { columns } = get();
       set(
-        produce((state: TableState) => {
+        produce<TableState>((state: TableState) => {
           state.columnWidths[columnId] = Math.max(50, width); // 最小宽度
           const columnIndex = columns.findIndex((c) => c.id === columnId);
           if (columnIndex !== -1) {
@@ -121,10 +146,10 @@ export const createTableStore = (
 
       set(
         produce<TableState>((state) => {
-          const columnOrder = [...state.columnOrder];
-          const [movedColumn] = columnOrder.splice(fromIndex, 1);
-          columnOrder.splice(toIndex, 0, movedColumn);
-          state.columnOrder = columnOrder;
+          const nextOrder = [...state.viewConfig.columnOrder];
+          const [movedColumn] = nextOrder.splice(fromIndex, 1);
+          nextOrder.splice(toIndex, 0, movedColumn);
+          state.viewConfig.columnOrder = nextOrder;
         }),
       );
     },
@@ -153,7 +178,7 @@ export const createTableStore = (
       const newSnapshot = createSnapshot(currentState);
 
       set(
-        produce((state) => {
+        produce<TableState>((state) => {
           if (state.historyIndex < state.history.length - 1) {
             state.history = state.history.slice(0, state.historyIndex + 1);
           }
@@ -175,10 +200,13 @@ export const createTableStore = (
       if (historyIndex > 0) {
         const previousSnapshot = history[historyIndex - 1];
         set(
-          produce((state) => {
+          produce<TableState>((state) => {
             state.columns = previousSnapshot.columns;
             state.rows = previousSnapshot.rows;
-            state.columnOrder = previousSnapshot.columnOrder;
+            state.viewConfig = {
+              columnOrder: [...previousSnapshot.viewConfig.columnOrder],
+              rowOrder: [...previousSnapshot.viewConfig.rowOrder],
+            };
             state.historyIndex--;
           }),
         );
@@ -191,10 +219,13 @@ export const createTableStore = (
       if (historyIndex < history.length - 1) {
         const nextSnapshot = history[historyIndex + 1];
         set(
-          produce((state) => {
+          produce<TableState>((state) => {
             state.columns = nextSnapshot.columns;
             state.rows = nextSnapshot.rows;
-            state.columnOrder = nextSnapshot.columnOrder;
+            state.viewConfig = {
+              columnOrder: [...nextSnapshot.viewConfig.columnOrder],
+              rowOrder: [...nextSnapshot.viewConfig.rowOrder],
+            };
             state.historyIndex++;
           }),
         );
@@ -205,7 +236,7 @@ export const createTableStore = (
       const newId = uuidv4();
 
       set(
-        produce((state) => {
+        produce<TableState>((state) => {
           const newRow: RowData = {
             id: rowData.id || newId,
             ...rowData,
@@ -218,6 +249,7 @@ export const createTableStore = (
           });
 
           state.rows.push(newRow);
+          state.viewConfig.rowOrder = [...state.viewConfig.rowOrder, newRow.id];
         }),
       );
 
@@ -226,8 +258,11 @@ export const createTableStore = (
 
     deleteRow: (rowId) => {
       set(
-        produce((state) => {
+        produce<TableState>((state) => {
           state.rows = state.rows.filter((row: RowData) => row.id !== rowId);
+          state.viewConfig.rowOrder = state.viewConfig.rowOrder.filter(
+            (id) => id !== rowId,
+          );
         }),
       );
       get().commitHistory();
@@ -237,7 +272,7 @@ export const createTableStore = (
       const columnId = columnData.id || uuidv4();
 
       set(
-        produce((state) => {
+        produce<TableState>((state) => {
           const newColumn: ColumnDef = {
             id: columnId,
             title: columnData.title || "新列",
@@ -246,7 +281,10 @@ export const createTableStore = (
           };
 
           state.columns.push(newColumn);
-          state.columnOrder.push(columnId);
+          state.viewConfig.columnOrder = [
+            ...state.viewConfig.columnOrder,
+            columnId,
+          ];
           state.columnWidths[columnId] = columnData.width || 200;
 
           state.rows.forEach((row: RowData) => {
@@ -259,11 +297,11 @@ export const createTableStore = (
 
     deleteColumn: (columnId) => {
       set(
-        produce((state) => {
+        produce<TableState>((state) => {
           state.columns = state.columns.filter(
             (col: ColumnDef) => col.id !== columnId,
           );
-          state.columnOrder = state.columnOrder.filter(
+          state.viewConfig.columnOrder = state.viewConfig.columnOrder.filter(
             (id: string) => id !== columnId,
           );
           delete state.columnWidths[columnId];
@@ -303,10 +341,10 @@ export const createTableStore = (
 
       set(
         produce<TableState>((state) => {
-          const rows = [...state.rows];
-          const [movedRow] = rows.splice(fromIndex, 1);
-          rows.splice(toIndex, 0, movedRow);
-          state.rows = rows;
+          const order = [...state.viewConfig.rowOrder];
+          const [moved] = order.splice(fromIndex, 1);
+          order.splice(toIndex, 0, moved);
+          state.viewConfig.rowOrder = order;
         }),
       );
     },
@@ -332,14 +370,16 @@ export const createTableStore = (
     },
 
     moveCellSelection: (direction) => {
-      const { selectedCell, rows, columnOrder, editingCell } = get();
+      const { selectedCell, rows, viewConfig, editingCell } = get();
 
       if (!selectedCell || editingCell) return;
 
       const { rowId, columnId } = selectedCell;
 
       const rowIndex = rows.findIndex((row) => row.id === rowId);
-      const colIndex = columnOrder.findIndex((colId) => colId === columnId);
+      const colIndex = viewConfig.columnOrder.findIndex(
+        (colId) => colId === columnId,
+      );
 
       if (rowIndex === -1 || colIndex === -1) return;
 
@@ -357,47 +397,73 @@ export const createTableStore = (
           newColIndex = Math.max(0, colIndex - 1);
           break;
         case Direction.RIGHT:
-          newColIndex = Math.min(columnOrder.length - 1, colIndex + 1);
+          newColIndex = Math.min(
+            viewConfig.columnOrder.length - 1,
+            colIndex + 1,
+          );
           break;
       }
 
       if (newRowIndex === rowIndex && newColIndex === colIndex) return;
 
       const newRowId = rows[newRowIndex].id;
-      const newColumnId = columnOrder[newColIndex];
+      const newColumnId = viewConfig.columnOrder[newColIndex];
 
       set({ selectedCell: { rowId: newRowId, columnId: newColumnId } });
     },
 
-    syncExternalData: (columns, rows) => {
-      const { columns: currentColumns, rows: currentRows } = get();
+    syncExternalData: (columns, rows, incomingViewConfig) => {
+      const {
+        columns: currentColumns,
+        rows: currentRows,
+        viewConfig: currentConfig,
+      } = get();
 
       const columnsChanged =
         JSON.stringify(columns) !== JSON.stringify(currentColumns);
       const rowsChanged = JSON.stringify(rows) !== JSON.stringify(currentRows);
+      const viewConfigChanged =
+        JSON.stringify(incomingViewConfig) !== JSON.stringify(currentConfig);
 
-      if (columnsChanged || rowsChanged) {
+      if (columnsChanged || rowsChanged || viewConfigChanged) {
         set(
-          produce((state) => {
+          produce<TableState>((state: TableState) => {
             if (columnsChanged) {
-              state.columnOrder = columns.map((col) => col.id);
-
               const newColumnWidths: Record<string, number> = {};
               columns.forEach((col: ColumnDef) => {
                 newColumnWidths[col.id] =
                   state.columnWidths[col.id] || col.width || 200;
               });
               state.columnWidths = newColumnWidths;
+              state.columns = columns;
             }
 
             if (rowsChanged) {
               state.rows = rows;
             }
+
+            if (viewConfigChanged) {
+              state.viewConfig = {
+                columnOrder: [...incomingViewConfig.columnOrder],
+                rowOrder: [...incomingViewConfig.rowOrder],
+              };
+            }
           }),
         );
       }
     },
+
+    setViewConfig: (config) => {
+      set(
+        produce<TableState>((state: TableState) => {
+          state.viewConfig = {
+            columnOrder: [...config.columnOrder],
+            rowOrder: [...config.rowOrder],
+          };
+        }),
+      );
+    },
   }));
 };
 
-export default createTableStore;
+export default createDatabaseStore;
