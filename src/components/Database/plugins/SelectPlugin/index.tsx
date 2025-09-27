@@ -32,6 +32,11 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
       return null;
     }
   },
+  getGroupKey: (row, column) => {
+    const value = row[column.id];
+    if (!value) return "";
+    return value;
+  },
 };
 
 export default SelectPlugin;

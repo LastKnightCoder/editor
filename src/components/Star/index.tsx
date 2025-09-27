@@ -82,15 +82,6 @@ const Star: React.FC<StarProps> = ({
     [hoverValue, value, max, step, isHovering],
   );
 
-  const quantizeByStep = useMemoizedFn((raw: number) => {
-    if (step === 0.5) {
-      const v = Math.ceil(raw * 2) / 2;
-      return clamp(v, 0.5, max);
-    }
-    const v = Math.ceil(raw);
-    return clamp(v, 1, max);
-  });
-
   const handleContainerMove = useMemoizedFn(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (readonly || !isHovering) return;
@@ -100,8 +91,7 @@ const Star: React.FC<StarProps> = ({
       const x = e.clientX - rect.left;
       const ratio = clamp(x / rect.width, 0, 1);
       const raw = ratio * max;
-      const next = quantizeByStep(raw);
-      setHoverValue(next);
+      setHoverValue(normalizeValue(raw, max, step));
     },
   );
 
@@ -111,22 +101,7 @@ const Star: React.FC<StarProps> = ({
     setHoverValue(null);
   });
 
-  const handleContainerPointerOut = useMemoizedFn(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (readonly) return;
-      const nextTarget = e.relatedTarget as Node | null;
-      const container = containerRef.current;
-      if (!nextTarget || (container && !container.contains(nextTarget))) {
-        setIsHovering(false);
-        setHoverValue(null);
-      }
-    },
-  );
-
-  // 移除与全局相关的监听，避免外部状态干扰
-
   const handleContainerEnter = useMemoizedFn(() => {
-    if (readonly) return;
     setIsHovering(true);
   });
 
@@ -145,9 +120,8 @@ const Star: React.FC<StarProps> = ({
       const x = e.clientX - rect.left;
       const ratio = clamp(x / rect.width, 0, 1);
       const raw = ratio * max;
-      const normalized = quantizeByStep(raw);
-      const current = normalizeValue(value ?? 0, max, step);
-      onChange?.(current === normalized ? 0 : normalized);
+      const current = normalizeValue(raw ?? 0, max, step);
+      onChange?.(current);
     },
   );
 
@@ -172,7 +146,6 @@ const Star: React.FC<StarProps> = ({
       onDoubleClick={stopDouble}
       onPointerEnter={handleContainerEnter}
       onPointerLeave={handleLeave}
-      onPointerOut={handleContainerPointerOut}
       onPointerMove={handleContainerMove}
       onClick={handleContainerClick}
     >

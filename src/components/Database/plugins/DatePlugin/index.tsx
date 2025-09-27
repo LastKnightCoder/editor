@@ -24,6 +24,9 @@ const DatePlugin: CellPlugin<any> = {
     if (value === null || value === undefined) return null;
     return typeof value === "number" ? value : null;
   },
+  getGroupKey: (row, column) => {
+    return String(row[column.id]);
+  },
 };
 
 export default DatePlugin;

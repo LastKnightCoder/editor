@@ -2,530 +2,261 @@
 alwaysApply: false
 ---
 
-# Table 组件技术文档
+# Database 组件技术文档
 
 ## 概述
 
-Table 组件是一个基于 React 的高性能、插件化表格组件，支持丰富的单元格类型、拖拽排序、键盘导航、主题切换等功能。该组件采用插件架构设计，具有良好的扩展性和可维护性。
+Database 组件是一个基于 React 与 Zustand 的高性能数据表解决方案，具备多视图切换、表格分组、插件化单元格、键盘导航、拖拽排序、主题切换等能力。核心由主渲染层 `Database` 与 Electron 端数据表服务协作完成，通过 `data-table` 与 `data-table-view` 模块实现表与视图的落库、同步与迁移。
 
 ## 目录结构
 
 ```
-Table/
-├── components/                    # 核心组件
-│   ├── Cell.tsx                  # 单元格组件
-│   ├── ColumnEditModal.tsx       # 列编辑模态框
-│   ├── ColumnHeader.tsx          # 列头组件
-│   ├── Row.tsx                   # 行组件
-│   ├── SelectEditor.tsx          # 选择编辑器
-│   ├── SelectList.tsx            # 选择列表组件
-│   ├── Table.tsx                 # 主表格组件
-│   ├── TableContent.tsx          # 表格内容组件
-│   └── VerticalSelectList.tsx    # 垂直选择列表
-├── plugins/                      # 插件系统
-│   ├── AttachmentPlugin/         # 附件插件
-│   ├── CheckboxPlugin/           # 复选框插件
-│   ├── DatePlugin/               # 日期插件
-│   ├── ImagePlugin/              # 图片插件
-│   ├── LinkPlugin/               # 链接插件
-│   ├── MultiSelectPlugin/        # 多选插件
-│   ├── NumberPlugin/             # 数字插件
-│   ├── ProgressPlugin/           # 进度插件
-│   ├── RichTextPlugin/           # 富文本插件
-│   ├── SelectPlugin/             # 单选插件
-│   ├── StarPlugin/               # 评分插件
-│   ├── TextPlugin/               # 文本插件
-│   └── index.ts                  # 插件统一导出
-├── hooks/                        # 自定义 Hooks
-│   ├── useCellEditor.ts          # 单元格编辑器 Hook
-│   ├── useColumnResize.ts        # 列宽调整 Hook
-│   ├── useColumnVisibility.ts    # 列显示隐藏 Hook
-│   ├── useKeyboardNavigation.ts  # 键盘导航 Hook
-│   ├── useTableStore.ts          # 表格状态 Hook
-│   ├── useValidation.ts          # 数据验证 Hook
-│   └── index.ts                  # Hooks 统一导出
-├── constants/                    # 常量定义
-│   ├── select.ts                 # 选择相关常量
-│   └── index.ts                  # 常量统一导出
-├── PluginManager.ts              # 插件管理器
-├── TableContext.tsx              # React Context
-├── TableStore.ts                 # Zustand 状态管理
-├── types.ts                      # TypeScript 类型定义
-└── index.ts                      # 组件统一导出
+Database/
+├── Database.tsx                # 顶层组件，注入上下文、插件、视图切换
+├── DatabaseContext.tsx         # 表实例上下文
+├── DatabaseStore.ts            # Zustand store，列/行/视图状态集中管理
+├── PluginManager.ts            # 单元格插件生命周期与转换器
+├── index.ts                    # 对外导出
+├── hooks/                      # 表相关 Hooks
+│   ├── useCellEditor.ts
+│   ├── useColumnResize.ts
+│   ├── useColumnVisibility.ts
+│   ├── useKeyboardNavigation.ts
+│   ├── useDatabaseStore.ts
+│   └── ...
+├── views/
+│   ├── TableView/              # 表视图实现
+│   │   ├── index.tsx           # 渲染表格、分组、虚拟列表
+│   │   ├── components/
+│   │   │   ├── ColumnHeader.tsx
+│   │   │   ├── ColumnEditModal.tsx
+│   │   │   ├── Row.tsx
+│   │   │   ├── Cell.tsx
+│   │   │   ├── SelectEditor.tsx 等
+│   │   └── GroupPanel.tsx      # 分组字段选择面板
+│   └── ... 其他视图类型扩展位
+├── plugins/                    # 单元格插件仓库
+│   ├── TextPlugin/
+│   ├── NumberPlugin/
+│   ├── SelectPlugin/
+│   ├── MultiSelectPlugin/
+│   ├── StarPlugin/
+│   └── ...
+├── constants/
+│   └── index.ts
+└── types.ts                    # DatabaseView、TableViewConfig 等类型定义
 ```
 
-## 架构设计
+## 后端模块
 
-### 1. 插件架构
+Electron 端配套的 SQLite 表维护在 `src-electron/main/modules/tables`：
 
-Table 组件采用插件架构，每个单元格类型都是一个独立的插件，通过 `PluginManager` 进行管理。
+- `data-table.ts`：负责数据表主体，存储列、行及当前激活视图。
+- `data-table-view.ts`：负责多视图列表，记录视图配置 `DataTableViewConfig`（列序、行序、筛选、排序、分组）。
 
-#### 插件接口
+核心方法：
 
-```typescript
+- `DataTableTable.getDetail(tableId)` 返回表和所有视图组合。
+- `DataTableViewTable.normalizeConfig` 确保视图配置补齐列/行/分组结构。
+- `DataTableTable.update` 会触发 `DataTableViewTable.syncViewsWithTable`，在列、行变化时同步所有视图的列序/行序。
+
+## 前端架构
+
+### 插件架构
+
+单元格行为通过插件解耦：
+
+```ts
 interface CellPlugin<T> {
-  type: string; // 插件类型标识
-  name: string; // 插件显示名称
-  Icon?: React.ComponentType; // 列头图标组件
-  Renderer: React.ComponentType; // 单元格渲染组件
-  Editor?: React.ComponentType; // 单元格编辑组件
-  editable?: boolean; // 是否可编辑
-  onMount?: () => void; // 插件挂载钩子
-  onUnmount?: () => void; // 插件卸载钩子
-  beforeSave?: (value, config) => any; // 保存前数据转换
-  afterLoad?: (value, config) => any; // 加载后数据转换
-  onColumnCleanup?: (columnData) => Promise<void>; // 列删除时清理
+  type: string;
+  name: string;
+  Icon?: React.ComponentType;
+  Renderer: React.ComponentType<CellRendererProps>;
+  Editor?: React.ComponentType<CellEditorProps>;
+  editable?: boolean;
+  beforeSave?: (value: CellValue, config: T) => CellValue;
+  afterLoad?: (value: CellValue, config: T) => CellValue;
+  onColumnCleanup?: (columnData: CellValue[]) => Promise<void> | void;
 }
 ```
 
-#### 插件管理器
+`PluginManager` 提供注册、查找、保存前/加载后转换、列清理等方法；`Database` 初始化时会注册内置插件并合并外部插件。
 
-```typescript
-class PluginManager {
-  registerPlugin(plugin: CellPlugin): void; // 注册单个插件
-  registerPlugins(plugins: CellPlugin[]): void; // 批量注册插件
-  getPlugin(type: string): CellPlugin; // 获取插件
-  loadAllPlugins(): void; // 加载所有插件
-  transformBeforeSave(type, value, config): any; // 保存前转换
-  transformAfterLoad(type, value, config): any; // 加载后转换
-  executeColumnCleanup(type, columnData): void; // 执行列清理
+### 状态管理
+
+`DatabaseStore.ts` 基于 Zustand 构建：
+
+- `columns`、`rows`、`viewConfig`、`views`、`activeViewId` 等核心数据。
+- `columnWidths`、`selectedCell`、`editingCell` 等交互状态。
+- 行/列移动、列宽调整、单元格更新、历史快照（撤销/重做）等操作函数。
+- `setGroupBy`、`setViewConfig` 支持视图分组、列序、行序同步。
+
+### Database 组件
+
+职责：
+
+1. 创建 `PluginManager`、`DatabaseStore` 并通过 Context 提供给子组件。
+2. 监听 store 变化，调用外部回调同步数据、视图配置。
+3. 支持 `views` 切换：`ViewTabs` 显示所有视图标签，允许拖拽排序、重命名、删除、新建。
+4. 处理键盘导航：方向键移动选区 Enter 启动编辑。
+
+### ViewTabs
+
+- 显示所有视图标签；`react-dnd` 实现拖拽排序。
+- 双击标签使用 `EditText` 进入重命名模式。
+- “新视图”按钮会使用当前视图为模板创建新视图。
+- 右侧 “分组” 按钮打开 `GroupPanel`，选择字段后存储到当前视图 `groupBy` 中。
+
+### TableView
+
+- 使用 `@tanstack/react-virtual` 渲染行虚拟列表。
+- 支持 `groupBy`：视图根据字段分组，列表中插入分组头部，组内行继续虚拟化呈现。
+- 支持 `Ctrl + 滚轮` 横向滚动，列宽拖拽调整，行拖拽排序。
+- 底部 `+ 添加行` 区域固定在表体底部。
+- `GroupPanel` 选择字段时提供确认/取消按钮，只有确认后方才更新 `groupBy`。
+
+## 视图配置 (`TableViewConfig`)
+
+```ts
+interface TableViewConfig {
+  columnOrder: string[];
+  rowOrder: string[];
+  filters: FilterRule[];
+  sorts: SortRule[];
+  groupBy?: GroupRule | null; // { fieldId, strategy }
 }
 ```
 
-### 2. 状态管理
+- `GroupRule.strategy` 支持 `text`、`select`、`multiSelect`、`checkbox`、`star`。
+- 多选分组时会将 option 按名称排序后合并。
 
-使用 Zustand 进行状态管理，支持历史记录和撤销重做功能。
+## Electron 数据流
 
-#### 主要状态
+1. 前端调用 `createDataTableView`、`updateDataTableView`、`deleteDataTableView` 等命令。
+2. `data-table-view.ts` 处理 SQL，`normalizeConfig` 保证 `groupBy` 等字段存在。
+3. `data-table.ts.update` 更新表数据后，同步各视图列序、行序，保持视图一致。
+4. `getDataTableDetail` 提供表与视图合集给前端初始化。
 
-```typescript
-interface TableState {
-  // 数据状态
-  columns: ColumnDef[]; // 列定义
-  rows: RowData[]; // 行数据
-  columnOrder: string[]; // 列顺序
-  columnWidths: Record<string, number>; // 列宽度
+## 主要 Hooks
 
-  // 交互状态
-  selectedCell: CellCoord | null; // 选中单元格
-  editingCell: CellCoord | null; // 编辑中单元格
+- `useEditDatabase(tableId)`：从 Electron 获取表与视图，提供 `onDataChange`、`onViewConfigChange`、`onCreateView`、`onDeleteView`、`onRenameView`、`onReorderViews`、`onActiveViewIdChange` 等封装，保持前端状态与后端同步。
+- `useColumnResize`、`useColumnVisibility`、`useKeyboardNavigation`：辅助列宽拖拽、列显示、键盘导航。
 
-  // 历史记录
-  history: TableSnapshot[]; // 历史快照
-  historyIndex: number; // 历史索引
+## 插件体系
 
-  // 操作方法
-  updateCellValue: (rowId, columnId, value) => void;
-  moveColumn: (fromIndex, toIndex) => void;
-  moveRow: (fromIndex, toIndex) => void;
-  addRow: (row?) => void;
-  deleteRow: (rowId) => void;
-  addColumn: (column) => void;
-  deleteColumn: (columnId) => void;
-  // ... 更多方法
-}
-```
+插件目录保留与 Table 时代一致的结构。常用插件：
 
-### 3. 核心组件
+- `TextPlugin`：基础文本输入。
+- `SelectPlugin` / `MultiSelectPlugin`：单选、多选，支持配置选项列表。
+- `CheckboxPlugin`：布尔类型，分组时按“已勾选/未勾选”归类。
+- `StarPlugin`：评分组件，列配置可定义最大分值与步长。
+- `AttachmentPlugin`、`ImagePlugin` 等多媒体插件。
 
-#### Table (主组件)
+每个插件负责渲染与编辑，对外暴露 `beforeSave`/`afterLoad` 以做数据转换。
 
-- 初始化插件管理器
-- 创建状态存储
-- 提供 Context
-- 处理主题和键盘导航
+### 插件使用示例
 
-#### TableContent (表格内容)
-
-- 渲染表格结构
-- 处理虚拟化滚动
-- 管理列头和行
-- 处理拖拽排序
-
-#### Cell (单元格)
-
-- 渲染单元格内容
-- 处理编辑模式切换
-- 管理选中状态
-- 集成插件渲染器
-
-#### Row (行组件)
-
-- 渲染行内容
-- 支持行拖拽
-- 处理行操作
-
-#### ColumnHeader (列头)
-
-- 渲染列头
-- 支持列拖拽
-- 处理列宽调整
-- 显示插件图标
-
-## 核心功能
-
-### 1. 虚拟化渲染
-
-使用 `@tanstack/react-virtual` 实现行虚拟化，支持大量数据渲染。
-
-### 2. 拖拽排序
-
-基于 `react-dnd` 实现：
-
-- 列拖拽排序
-- 行拖拽排序
-- 拖拽预览效果
-
-### 3. 键盘导航
-
-支持方向键导航和快捷键操作：
-
-- 方向键移动选择
-- Enter/Space 进入编辑
-- Escape 退出编辑
-
-### 4. 主题支持
-
-支持 light/dark 主题切换，所有组件和插件都支持主题。
-
-### 5. 历史记录
-
-支持撤销重做功能，自动保存历史快照。
-
-## 代码规范
-
-### 1. 组件规范
-
-#### 使用 memo 优化性能
-
-```typescript
-const Component = memo(({ props }) => {
-  // 组件逻辑
-});
-```
-
-#### 使用 useMemoizedFn 处理函数
-
-```typescript
-const handleClick = useMemoizedFn(() => {
-  // 处理逻辑
-});
-```
-
-#### 使用 classNames 处理样式
-
-```typescript
-const className = classNames("base-class", {
-  "conditional-class": condition,
-  "theme-dark": isDark,
-});
-```
-
-### 2. TypeScript 规范
-
-#### 严格类型定义
-
-- 不使用 `any` 类型
-- 定义完整的接口
-- 使用泛型约束
-
-#### 类型导出
-
-```typescript
-export type { TableProps, ColumnDef, CellValue, CellPlugin };
-```
-
-### 3. 文件组织规范
-
-#### 组件文件结构
-
-```
-PluginName/
-├── components/
-│   ├── Renderer.tsx      # 渲染组件
-│   ├── Editor.tsx        # 编辑组件
-│   └── index.ts          # 组件导出
-├── types.ts              # 类型定义
-└── index.tsx             # 插件主文件
-```
-
-#### 导出规范
-
-```typescript
-// 插件内部组件导出
-export { default as Renderer } from "./Renderer";
-export { default as Editor } from "./Editor";
-
-// 主文件导出
-export default PluginName;
-```
-
-## 插件编写规范
-
-### 1. 基础插件模板
-
-```typescript
-import { CellPlugin } from "../../types";
-import Renderer from "./components/Renderer";
-import Editor from "./components/Editor";
-import { PluginIcon } from "react-icons/md";
-
-const PluginName: CellPlugin<ConfigType> = {
-  type: "plugin-type",
-  name: "插件名称",
-  editable: true,
-  Renderer,
-  Editor,
-  Icon: ({ className }) => <PluginIcon className={className} />,
-
-  beforeSave: (value, config) => {
-    // 保存前数据处理
-    return processedValue;
-  },
-
-  afterLoad: (value, config) => {
-    // 加载后数据处理
-    return processedValue;
-  },
-
-  onColumnCleanup: async (columnData) => {
-    // 列删除时清理资源
-    await cleanupResources(columnData);
-  },
-};
-
-export default PluginName;
-```
-
-### 2. 渲染器规范
-
-```typescript
-interface RendererProps {
-  value: CellValue;
-  column: ColumnDef;
-  theme: "light" | "dark";
-  readonly: boolean;
-  onCellValueChange: (newValue: CellValue) => void;
-}
-
-const Renderer: React.FC<RendererProps> = memo(({
-  value,
-  column,
-  theme,
-  readonly,
-  onCellValueChange,
-}) => {
-  const isDark = theme === "dark";
-
-  // 渲染逻辑
-  return (
-    <div className="w-full h-full flex items-center px-2">
-      {/* 内容 */}
-    </div>
-  );
-});
-```
-
-### 3. 编辑器规范
-
-```typescript
-interface EditorProps {
-  value: CellValue;
-  column: ColumnDef;
-  onCellValueChange: (newValue: CellValue) => void;
-  onFinishEdit: () => void;
-  onColumnChange: (column: ColumnDef) => void;
-  theme: "light" | "dark";
-  readonly: boolean;
-}
-
-const Editor: React.FC<EditorProps> = memo(({
-  value,
-  onCellValueChange,
-  onFinishEdit,
-  theme,
-  readonly,
-}) => {
-  // 编辑逻辑
-
-  return (
-    <div className="w-full h-full">
-      {/* 编辑组件 */}
-    </div>
-  );
-});
-```
-
-### 4. 插件开发要点
-
-#### 主题支持
-
-- 所有插件必须支持 light/dark 主题
-- 使用条件样式处理主题差异
-
-#### 性能优化
-
-- 使用 memo 包装组件
-- 使用 useMemoizedFn 处理事件
-- 避免不必要的渲染
-
-#### 数据处理
-
-- 实现 beforeSave 和 afterLoad 进行数据转换
-- 处理边界情况和错误数据
-- 实现数据验证
-
-#### 资源清理
-
-- 实现 onColumnCleanup 清理资源
-- 处理异步清理操作
-- 确保无内存泄漏
-
-### 5. 内置插件参考
-
-#### 简单插件示例 (TextPlugin)
-
-```typescript
-const TextPlugin: CellPlugin<any> = {
-  type: "text",
-  name: "文本",
-  editable: true,
-  Renderer,
-  Editor,
-  Icon: ({ className }) => <MdTextFields className={className} />,
-  beforeSave: (value) => value,
-  afterLoad: (value) => value,
-};
-```
-
-#### 复杂插件示例 (RichTextPlugin)
-
-```typescript
-const RichTextPlugin: CellPlugin<RichTextPluginConfig> = {
-  type: "rich-text",
-  name: "富文本",
-  editable: false,  // 通过渲染器直接操作
-  Renderer,
-  Icon: ({ className }) => <MdDescription className={className} />,
-
-  beforeSave: (value) => {
-    return Array.isArray(value)
-      ? value.filter(item => item && item.contentId)
-      : [];
-  },
-
-  afterLoad: (value) => {
-    return Array.isArray(value)
-      ? value.filter(item => item && item.contentId)
-      : [];
-  },
-
-  onColumnCleanup: async (columnData) => {
-    // 清理关联的内容记录
-    const contentIds = extractContentIds(columnData);
-    await Promise.allSettled(
-      contentIds.map(id => deleteContent(id))
-    );
-  },
-};
-```
-
-## 使用示例
-
-### 1. 基础使用
+基础使用：
 
 ```tsx
-import Table from "@/components/Table";
+import Database, { ColumnDef, RowData } from "@/components/Database";
+import { plugins } from "@/components/Database";
 
-const MyTable = () => {
-  const columns = [
-    { id: "name", title: "姓名", type: "text", width: 200 },
-    { id: "age", title: "年龄", type: "number", width: 100 },
-    { id: "email", title: "邮箱", type: "text", width: 250 },
-  ];
+const columns: ColumnDef[] = [
+  { id: "name", title: "名称", type: "text", width: 220 },
+  { id: "status", title: "状态", type: "select", config: { options: [...] } },
+  { id: "rating", title: "评分", type: "star", config: { max: 5, step: 1 } },
+];
 
-  const data = [
-    { id: "1", name: "张三", age: 25, email: "zhang@example.com" },
-    { id: "2", name: "李四", age: 30, email: "li@example.com" },
-  ];
+const rows: RowData[] = [
+  { id: "1", name: "任务 A", status: "doing", rating: 4 },
+  { id: "2", name: "任务 B", status: "todo", rating: 5 },
+];
 
-  const columnOrder = ["name", "age", "email"];
-
-  return (
-    <Table
-      columns={columns}
-      data={data}
-      columnOrder={columnOrder}
-      onChange={(tableData) => console.log(tableData)}
-      theme="light"
-      readonly={false}
-    />
-  );
-};
+<Database
+  columns={columns}
+  data={rows}
+  views={preparedViews}
+  activeViewId={activeViewId}
+  viewConfig={activeView.config}
+  plugins={[plugins.TextPlugin, plugins.SelectPlugin, plugins.StarPlugin]}
+/>;
 ```
 
-### 2. 自定义插件
+自定义插件：
 
 ```tsx
-import Table, { CellPlugin } from "@/components/Table";
+import { CellPlugin } from "@/components/Database";
 
-// 自定义插件
-const CustomPlugin: CellPlugin<any> = {
-  type: "custom",
-  name: "自定义",
+const CustomTagPlugin: CellPlugin<{ color?: string }> = {
+  type: "custom-tag",
+  name: "标签",
   editable: true,
-  Renderer: ({ value }) => <div>{value}</div>,
+  Renderer: ({ value }) => <span className="px-2 py-1 rounded bg-blue-100">{value}</span>,
   Editor: ({ value, onCellValueChange, onFinishEdit }) => (
     <input
-      value={value}
-      onChange={(e) => onCellValueChange(e.target.value)}
+      className="w-full h-full px-2"
+      value={String(value ?? "")}
+      onChange={(event) => onCellValueChange(event.target.value)}
       onBlur={onFinishEdit}
+      autoFocus
     />
   ),
-  Icon: () => <span>🎨</span>,
+  beforeSave: (value, config) => String(value ?? ""),
+  afterLoad: (value) => String(value ?? ""),
 };
 
-const MyTable = () => {
-  return (
-    <Table
-      columns={columns}
-      data={data}
-      columnOrder={columnOrder}
-      plugins={[CustomPlugin]} // 注册自定义插件
-    />
-  );
-};
+<Database
+  columns={[{ id: "tag", title: "标签", type: "custom-tag" }]}
+  data={[{ id: "row-1", tag: "自定义" }]}
+  views={preparedViews}
+  activeViewId={activeViewId}
+  viewConfig={activeView.config}
+  plugins={[CustomTagPlugin]}
+/>;
 ```
 
-## 注意事项
+## 交互能力
 
-1. **性能优化**：大量数据时注意虚拟化配置和组件优化
-2. **内存管理**：插件开发时注意资源清理，避免内存泄漏
-3. **类型安全**：严格使用 TypeScript，避免 any 类型
-4. **主题兼容**：确保所有自定义插件支持主题切换
-5. **数据一致性**：确保 beforeSave 和 afterLoad 的数据转换一致性
+- **行/列拖拽排序**：`Row.tsx` 与 `ColumnHeader.tsx` 使用 `react-dnd`。
+- **单元格编辑**：按下 Enter 或双击进入，失焦或回车提交，Escape 退出。
+- **虚拟滚动**：大数据集下保持流畅；按住 `Ctrl` + 滚轮横向滚动。
+- **多视图管理**：每张表可持久化多个视图，视图名称、顺序、配置独立维护。
+- **分组视图**：视图可按字段分组，支持文本、单选、多选、复选、评分。
 
-## 扩展开发
+## API 概述
 
-### 1. 新增插件类型
+### 组件 Props
 
-- 创建插件目录和文件
-- 实现 Renderer 和 Editor 组件
-- 定义类型和配置
-- 注册到插件系统
+```ts
+interface DatabaseProps {
+  columns: ColumnDef[];
+  data: RowData[];
+  views: DataTableView[];
+  activeViewId: number;
+  viewConfig: TableViewConfig;
+  onActiveViewIdChange?: (viewId: number | null) => Promise<void>;
+  onDataChange?: (data: { columns: ColumnDef[]; rows: RowData[] }) => void;
+  onViewConfigChange?: (config: TableViewConfig) => void;
+  onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
+  onDeleteView?: (viewId: number) => Promise<number | null>;
+  onRenameView?: (viewId: number, name: string) => Promise<DataTableView | null>;
+  onReorderViews?: (orderedIds: number[]) => Promise<void>;
+  plugins?: CellPlugin<unknown>[];
+  theme?: "light" | "dark";
+  readonly?: boolean;
+  className?: string;
+}
+```
 
-### 2. 扩展表格功能
+### Electron 命令
 
-- 修改 TableStore 添加新状态
-- 更新组件逻辑
-- 添加相应的 Hook
+- `data-table:create/update/get-detail/set-active-view/delete`。
+- `data-table-view:create/update/delete/reorder/list-by-table`。
 
-### 3. 主题定制
+## 说明
 
-- 修改 CSS 变量
-- 更新主题配置
-- 确保所有组件支持
-
----
-
-**注意：若有相关更新，请更新此文档**
+- 新建视图默认复制当前视图配置，顺序递增。
+- 删除视图时保持至少一张视图存在，自动切换至第一张视图。
+- 分组面板只在确认时写入 `groupBy`，取消或关闭不会改变配置。
+- 表渲染层不再单独导出 Table 组件，所有能力通过 `Database` 暴露。

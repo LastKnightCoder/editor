@@ -88,7 +88,7 @@ const Row: React.FC<RowProps> = memo(
           ],
         },
       } satisfies DropdownProps;
-    }, [deleteRow]);
+    }, [deleteRow, modal, row.id]);
 
     const [, drag] = useDrag(
       () => ({
@@ -172,7 +172,7 @@ const Row: React.FC<RowProps> = memo(
 
           return (
             <Cell
-              key={columnId}
+              key={`${row.id}-${columnId}`}
               rowId={row.id}
               columnId={columnId}
               column={column}

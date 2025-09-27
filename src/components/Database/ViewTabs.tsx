@@ -1,11 +1,14 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
-import { MdAdd, MdClose } from "react-icons/md";
+import { MdAdd, MdClose, MdOutlineGroupWork } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { DataTableView } from "@/types";
 import { useDatabaseStore } from "./hooks";
+import { Popover, Tooltip } from "antd";
+import GroupPanel from "./views/TableView/components/GroupPanel";
+import PluginManager from "./PluginManager";
 
 interface DragItem {
   type: "view-tab";
@@ -13,6 +16,7 @@ interface DragItem {
 }
 
 interface ViewTabsProps {
+  pluginManager: PluginManager;
   onCreateView?: () => void;
   onDeleteView?: (viewId: number) => Promise<void>;
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
@@ -105,8 +109,10 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         className={classNames(
           "inline-flex items-center gap-1 px-3 h-9 rounded-full transition-colors cursor-pointer",
           {
-            "bg-blue-500 text-white": isActive,
-            "bg-gray-200/70 hover:bg-gray-300": !isActive,
+            "bg-[#F0EFED] text-[#2C2C2C] dark:bg-[#30302E] dark:text-[#FFFFFF]":
+              isActive,
+            "text-[#807D78] hover:bg-[#F0EFED] dark:hover:bg-[#30302E] dark:text-[#A5A199]":
+              !isActive,
           },
         )}
         onClick={() => onActivate(view.id)}
@@ -149,16 +155,22 @@ ViewTabItem.displayName = "ViewTabItem";
 
 const ViewTabs: React.FC<ViewTabsProps> = memo(
   ({
+    pluginManager,
     onCreateView,
     onDeleteView,
     onActiveViewIdChange,
     onRenameView,
     onReorderViews,
   }) => {
-    const { activeViewId, views } = useDatabaseStore((state) => ({
-      activeViewId: state.activeViewId,
-      views: state.views,
-    }));
+    const { activeViewId, views, viewConfig, setGroupBy, columns } =
+      useDatabaseStore((state) => ({
+        activeViewId: state.activeViewId,
+        views: state.views,
+        viewConfig: state.viewConfig,
+        setGroupBy: state.setGroupBy,
+        columns: state.columns,
+      }));
+    const [showGrouping, setShowGrouping] = useState(false);
 
     const orderedIds = useMemo(() => views.map((view) => view.id), [views]);
     const orderedIdsRef = useRef<number[]>(orderedIds);
@@ -227,7 +239,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     });
 
     return (
-      <div className="flex items-center gap-2 px-4 pb-2">
+      <div className="flex items-center gap-2 pb-2">
         <div className="flex items-center gap-2 overflow-x-auto">
           {views.map((view, index) => (
             <ViewTabItem
@@ -246,14 +258,39 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             />
           ))}
           <div
-            className="flex h-9 items-center gap-1 px-3 rounded-full border border-dashed border-gray-400 text-gray-600 hover:bg-gray-100 cursor-pointer"
+            className="flex w-9 h-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 cursor-pointer"
             onClick={() => onCreateView?.()}
           >
             <div className="h-9 flex items-center justify-center">
-              <MdAdd />
+              <Tooltip title="新视图">
+                <MdAdd />
+              </Tooltip>
             </div>
-            <div className="h-9 flex items-center text-sm">新视图</div>
           </div>
+        </div>
+        <div className="ml-auto">
+          <Popover
+            open={showGrouping}
+            onOpenChange={(visible) => setShowGrouping(visible)}
+            trigger="click"
+            placement="bottom"
+            content={
+              <GroupPanel
+                pluginManager={pluginManager}
+                columns={columns}
+                config={viewConfig.groupBy ?? null}
+                onClose={() => setShowGrouping(false)}
+                onSubmit={(groupBy) => setGroupBy(groupBy)}
+              />
+            }
+          >
+            <div className="flex h-9 items-center ml-auto gap-1 px-3 rounded-full hover:bg-[#F0EFED] text-[#2C2C2C] dark:hover:bg-[#30302E] dark:text-[#FFFFFF] cursor-pointer">
+              <div className="h-9 flex items-center justify-center">
+                <MdOutlineGroupWork />
+              </div>
+              <div className="h-9 flex items-center text-sm">分组设置</div>
+            </div>
+          </Popover>
         </div>
       </div>
     );

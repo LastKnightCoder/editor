@@ -15,6 +15,9 @@ const TextPlugin: CellPlugin<any> = {
 
   beforeSave: (value: string) => value,
   afterLoad: (value: string) => value,
+  getGroupKey: (row, column) => {
+    return String(row[column.id]);
+  },
 };
 
 export default TextPlugin;

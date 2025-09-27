@@ -6,12 +6,14 @@ interface CustomCheckboxProps {
   checked: boolean;
   onChange: () => void;
   className?: string;
+  readonly?: boolean;
 }
 
 const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
   checked,
   onChange,
   className,
+  readonly,
 }) => {
   const [isChecked, setIsChecked] = useState(checked);
   const [showFireworks, setShowFireworks] = useState(false);
@@ -21,6 +23,7 @@ const CustomCheckbox: React.FC<CustomCheckboxProps> = ({
   }, [checked]);
 
   const handleClick = (e: React.MouseEvent) => {
+    if (readonly) return;
     e.preventDefault();
     e.stopPropagation();
 
