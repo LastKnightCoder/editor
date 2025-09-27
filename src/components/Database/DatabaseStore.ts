@@ -9,7 +9,7 @@ import {
   CellCoord,
   TableViewConfig,
 } from "./types";
-import { DataTableView } from "@/types";
+import { DataTableView, SortRule } from "@/types";
 
 export enum Direction {
   UP = "up",
@@ -66,6 +66,7 @@ interface TableState {
   ) => void;
   setViewConfig: (config: TableViewConfig) => void;
   setGroupBy: (groupConfig: TableViewConfig["groupBy"]) => void;
+  setSorts: (sorts: SortRule[]) => void;
 }
 
 const createSnapshot = (
@@ -77,6 +78,7 @@ const createSnapshot = (
     columnOrder: [...state.viewConfig.columnOrder],
     rowOrder: [...state.viewConfig.rowOrder],
     groupBy: state.viewConfig.groupBy ?? null,
+    sorts: [...state.viewConfig.sorts],
   },
 });
 
@@ -96,6 +98,7 @@ export const createDatabaseStore = (
       ? initialViewConfig.rowOrder
       : initialRows.map((row) => row.id),
     groupBy: initialViewConfig?.groupBy ?? null,
+    sorts: initialViewConfig?.sorts?.length ? [...initialViewConfig.sorts] : [],
   };
 
   return create<TableState>((set, get) => ({
@@ -209,6 +212,8 @@ export const createDatabaseStore = (
             state.viewConfig = {
               columnOrder: [...previousSnapshot.viewConfig.columnOrder],
               rowOrder: [...previousSnapshot.viewConfig.rowOrder],
+              groupBy: previousSnapshot.viewConfig.groupBy ?? null,
+              sorts: [...previousSnapshot.viewConfig.sorts],
             };
             state.historyIndex--;
           }),
@@ -228,6 +233,8 @@ export const createDatabaseStore = (
             state.viewConfig = {
               columnOrder: [...nextSnapshot.viewConfig.columnOrder],
               rowOrder: [...nextSnapshot.viewConfig.rowOrder],
+              groupBy: nextSnapshot.viewConfig.groupBy ?? null,
+              sorts: [...nextSnapshot.viewConfig.sorts],
             };
             state.historyIndex++;
           }),
@@ -449,6 +456,8 @@ export const createDatabaseStore = (
               state.viewConfig = {
                 columnOrder: [...incomingViewConfig.columnOrder],
                 rowOrder: [...incomingViewConfig.rowOrder],
+                groupBy: incomingViewConfig.groupBy ?? null,
+                sorts: [...(incomingViewConfig.sorts ?? [])],
               };
             }
           }),
@@ -463,6 +472,7 @@ export const createDatabaseStore = (
             columnOrder: [...config.columnOrder],
             rowOrder: [...config.rowOrder],
             groupBy: config.groupBy ?? null,
+            sorts: [...config.sorts],
           };
         }),
       );
@@ -471,6 +481,13 @@ export const createDatabaseStore = (
       set(
         produce<TableState>((state: TableState) => {
           state.viewConfig.groupBy = groupConfig ?? null;
+        }),
+      );
+    },
+    setSorts: (sorts) => {
+      set(
+        produce<TableState>((state: TableState) => {
+          state.viewConfig.sorts = [...sorts];
         }),
       );
     },

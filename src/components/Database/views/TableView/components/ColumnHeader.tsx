@@ -12,7 +12,7 @@ import { ColumnDef } from "../../../types";
 import PluginManager from "../../../PluginManager";
 import classNames from "classnames";
 import { MoreOutlined } from "@ant-design/icons";
-import ColumnIcon from "./ColumnIcon";
+import ColumnIcon from "../../../ColumnIcon";
 
 const COLUMN_HEADER = "columnHeader";
 

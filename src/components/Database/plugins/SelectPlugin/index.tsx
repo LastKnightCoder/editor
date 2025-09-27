@@ -37,6 +37,12 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     if (!value) return "";
     return value;
   },
+  sort: (params) => {
+    const { a, b, direction } = params;
+    if (a === b) return 0;
+    if (typeof a !== "string" || typeof b !== "string") return 0;
+    return direction === "asc" ? a.localeCompare(b) : b.localeCompare(a);
+  },
 };
 
 export default SelectPlugin;

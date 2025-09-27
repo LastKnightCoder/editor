@@ -72,6 +72,22 @@ const ProgressPlugin: CellPlugin<null> = {
       return "";
     return `${value.current}/${value.target}`;
   },
+  sort: (params) => {
+    const { a, b, direction } = params;
+    if (typeof a !== "object" || typeof b !== "object") return 0;
+    if (a === b || a === null || b === null) return 0;
+
+    const aCurrent = a.current;
+    const bCurrent = b.current;
+    const aTarget = a.target;
+    const bTarget = b.target;
+
+    const aProgress = aCurrent / aTarget;
+    const bProgress = bCurrent / bTarget;
+    if (aProgress === bProgress) return 0;
+
+    return direction === "asc" ? aProgress - bProgress : bProgress - aProgress;
+  },
 };
 
 export default ProgressPlugin;

@@ -1,4 +1,9 @@
-import { CreateDataTableView, DataTableView, GroupRule } from "@/types";
+import {
+  CreateDataTableView,
+  DataTableView,
+  GroupRule,
+  SortRule,
+} from "@/types";
 import { SELECT_COLORS } from "./constants";
 import { ImageItem } from "./plugins/ImagePlugin/types";
 
@@ -56,6 +61,7 @@ export interface TableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
   groupBy?: GroupRule | null;
+  sorts: SortRule[];
 }
 
 export interface CellPlugin<T> {
@@ -81,6 +87,15 @@ export interface CellPlugin<T> {
     readonly: boolean;
   }>;
   getGroupKey?: (row: RowData, column: ColumnDef) => string;
+  sort?: (params: {
+    a: CellValue;
+    b: CellValue;
+    column: ColumnDef;
+    direction: "asc" | "desc";
+    columnConfig: T | undefined;
+    rowA: RowData;
+    rowB: RowData;
+  }) => number;
   editable?: boolean;
   onMount?: () => void;
   onUnmount?: () => void;
