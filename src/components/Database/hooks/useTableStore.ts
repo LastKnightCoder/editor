@@ -1,16 +1,16 @@
 import { useContext } from "react";
 import { useStore } from "zustand";
-import { TableContext, TableStoreType } from "../TableContext";
+import { DatabaseContext, DatabaseStoreType } from "../DatabaseContext";
 import { useMemoizedFn } from "ahooks";
 
-export function useTableStore<T = TableStoreType>(
-  selector?: (state: ReturnType<TableStoreType["getState"]>) => T,
+export function useTableStore<T = DatabaseStoreType>(
+  selector?: (state: ReturnType<DatabaseStoreType["getState"]>) => T,
 ): T {
-  const store = useContext(TableContext);
+  const store = useContext(DatabaseContext);
 
   if (!store) {
     throw new Error(
-      "useTableStore must be used within a TableContext.Provider",
+      "useTableStore must be used within a DatabaseContext.Provider",
     );
   }
 

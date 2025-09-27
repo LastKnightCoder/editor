@@ -2,8 +2,8 @@ import React, { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
-import { CellValue, ColumnDef, CellPlugin } from "../types";
-import { useCellEditor, useValidation } from "../hooks";
+import { CellValue, ColumnDef, CellPlugin } from "../../../types";
+import { useCellEditor, useValidation } from "../../../hooks";
 
 interface CellProps {
   rowId: string;

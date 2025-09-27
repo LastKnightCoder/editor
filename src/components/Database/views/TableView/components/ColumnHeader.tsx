@@ -8,8 +8,8 @@ import {
   DropTargetMonitor,
   DragSourceMonitor,
 } from "react-dnd";
-import { ColumnDef } from "../types";
-import PluginManager from "../PluginManager";
+import { ColumnDef } from "../../../types";
+import PluginManager from "../../../PluginManager";
 import classNames from "classnames";
 import { MoreOutlined } from "@ant-design/icons";
 

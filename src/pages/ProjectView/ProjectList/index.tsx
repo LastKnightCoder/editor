@@ -520,7 +520,7 @@ const Project = () => {
         const dataTable = await createDataTable({
           columns: DEFAULT_COLUMNS,
           rows: DEFAULT_ROWS,
-          columnOrder: DEFAULT_COLUMNS.map((column) => column.id),
+          activeViewId: null,
         });
         const createProjectItem: CreateProjectItem = {
           title: "新表格",

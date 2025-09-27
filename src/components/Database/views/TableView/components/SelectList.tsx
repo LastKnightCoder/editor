@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { CloseOutlined } from "@ant-design/icons";
-import { SelectOption } from "../types";
-import { SELECT_COLORS_CONFIG } from "../constants";
+import { SelectOption } from "../../../types";
+import { SELECT_COLORS_CONFIG } from "../../../constants";
 
 interface SelectListProps {
   options: SelectOption[];

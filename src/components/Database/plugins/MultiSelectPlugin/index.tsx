@@ -1,6 +1,6 @@
 import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
-import Editor from "../../components/SelectEditor";
+import Editor from "../../views/TableView/components/SelectEditor";
 import { MdChecklist } from "react-icons/md";
 
 const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
