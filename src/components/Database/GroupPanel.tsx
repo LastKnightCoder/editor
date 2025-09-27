@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Radio, Button } from "antd";
-import { ColumnDef, TableViewConfig } from "../../../types";
-import PluginManager from "../../../PluginManager";
+import { ColumnDef, TableViewConfig } from "./types";
+import PluginManager from "./PluginManager";
 import ColumnIcon from "./ColumnIcon";
 
 interface GroupPanelProps {

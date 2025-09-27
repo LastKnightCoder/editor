@@ -60,6 +60,7 @@ const useEditDatabase = (tableId?: number) => {
         columnOrder: config.columnOrder,
         rowOrder: config.rowOrder,
         groupBy: config.groupBy ?? null,
+        sorts: config.sorts ?? [],
       },
     });
     if (updated) {

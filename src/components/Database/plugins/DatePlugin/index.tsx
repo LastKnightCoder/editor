@@ -27,6 +27,14 @@ const DatePlugin: CellPlugin<any> = {
   getGroupKey: (row, column) => {
     return String(row[column.id]);
   },
+  sort: (params) => {
+    const { a, b, direction } = params;
+    if (a === b) return 0;
+
+    if (typeof a !== "number" || typeof b !== "number") return 0;
+
+    return direction === "asc" ? a - b : b - a;
+  },
 };
 
 export default DatePlugin;

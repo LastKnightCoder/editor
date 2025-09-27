@@ -1,4 +1,4 @@
-import PluginManager from "../../../PluginManager";
+import PluginManager from "./PluginManager";
 
 const ColumnIcon = ({
   type,

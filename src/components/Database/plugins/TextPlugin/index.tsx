@@ -18,6 +18,12 @@ const TextPlugin: CellPlugin<any> = {
   getGroupKey: (row, column) => {
     return String(row[column.id]);
   },
+  sort: (params) => {
+    const { a, b, direction } = params;
+    if (a === b) return 0;
+    if (typeof a !== "string" || typeof b !== "string") return 0;
+    return direction === "asc" ? a.localeCompare(b) : b.localeCompare(a);
+  },
 };
 
 export default TextPlugin;

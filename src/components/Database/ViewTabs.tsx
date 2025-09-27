@@ -1,13 +1,14 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
-import { MdAdd, MdClose, MdOutlineGroupWork } from "react-icons/md";
+import { MdAdd, MdClose, MdOutlineGroupWork, MdSort } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { DataTableView } from "@/types";
 import { useDatabaseStore } from "./hooks";
 import { Popover, Tooltip } from "antd";
-import GroupPanel from "./views/TableView/components/GroupPanel";
+import GroupPanel from "./GroupPanel";
+import SortPanel from "./SortPanel";
 import PluginManager from "./PluginManager";
 
 interface DragItem {
@@ -162,15 +163,17 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     onRenameView,
     onReorderViews,
   }) => {
-    const { activeViewId, views, viewConfig, setGroupBy, columns } =
+    const { activeViewId, views, viewConfig, setGroupBy, columns, setSorts } =
       useDatabaseStore((state) => ({
         activeViewId: state.activeViewId,
         views: state.views,
         viewConfig: state.viewConfig,
         setGroupBy: state.setGroupBy,
         columns: state.columns,
+        setSorts: state.setSorts,
       }));
     const [showGrouping, setShowGrouping] = useState(false);
+    const [showSorting, setShowSorting] = useState(false);
 
     const orderedIds = useMemo(() => views.map((view) => view.id), [views]);
     const orderedIdsRef = useRef<number[]>(orderedIds);
@@ -268,7 +271,38 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             </div>
           </div>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Popover
+            open={showSorting}
+            onOpenChange={(visible) => setShowSorting(visible)}
+            trigger="click"
+            placement="bottom"
+            content={
+              <SortPanel
+                pluginManager={pluginManager}
+                columns={columns}
+                sorts={viewConfig.sorts ?? []}
+                onChange={(nextSorts) => setSorts(nextSorts)}
+                onClose={() => setShowSorting(false)}
+              />
+            }
+          >
+            <div
+              className={classNames(
+                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full hover:bg-[#F0EFED] text-[#2C2C2C] dark:hover:bg-[#30302E] dark:text-[#FFFFFF] cursor-pointer",
+                {
+                  "bg-[#F0EFED] dark:bg-[#30302E]":
+                    viewConfig.sorts?.length > 0,
+                },
+              )}
+            >
+              <Tooltip title="排序设置">
+                <div className="h-9 flex items-center justify-center">
+                  <MdSort />
+                </div>
+              </Tooltip>
+            </div>
+          </Popover>
           <Popover
             open={showGrouping}
             onOpenChange={(visible) => setShowGrouping(visible)}
@@ -284,11 +318,19 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               />
             }
           >
-            <div className="flex h-9 items-center ml-auto gap-1 px-3 rounded-full hover:bg-[#F0EFED] text-[#2C2C2C] dark:hover:bg-[#30302E] dark:text-[#FFFFFF] cursor-pointer">
-              <div className="h-9 flex items-center justify-center">
-                <MdOutlineGroupWork />
-              </div>
-              <div className="h-9 flex items-center text-sm">分组设置</div>
+            <div
+              className={classNames(
+                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full hover:bg-[#F0EFED] text-[#2C2C2C] dark:hover:bg-[#30302E] dark:text-[#FFFFFF] cursor-pointer",
+                {
+                  "bg-[#F0EFED] dark:bg-[#30302E]": viewConfig.groupBy !== null,
+                },
+              )}
+            >
+              <Tooltip title="分组设置">
+                <div className="h-9 flex items-center justify-center">
+                  <MdOutlineGroupWork />
+                </div>
+              </Tooltip>
             </div>
           </Popover>
         </div>

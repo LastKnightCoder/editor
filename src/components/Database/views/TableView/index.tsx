@@ -156,6 +156,14 @@ const TableView: React.FC<TableViewProps> = memo(
       return order;
     }, [viewConfig.columnOrder, storeColumns, isColumnVisible]);
 
+    const columnMap = useMemo(() => {
+      const map = new Map<string, ColumnDef>();
+      storeColumns.forEach((column) => {
+        map.set(column.id, column);
+      });
+      return map;
+    }, [storeColumns]);
+
     const rowMap = useMemo(() => {
       const map = new Map<string, RowData>();
       storeRows.forEach((row) => {
@@ -164,9 +172,59 @@ const TableView: React.FC<TableViewProps> = memo(
       return map;
     }, [storeRows]);
 
+    const sortedSortRules = useMemo(() => {
+      if (!viewConfig.sorts || !viewConfig.sorts.length) {
+        return [] as typeof viewConfig.sorts;
+      }
+      return [...viewConfig.sorts]
+        .map((rule, index) => ({ rule, index }))
+        .sort((a, b) => {
+          if (a.rule.priority === b.rule.priority) {
+            return a.index - b.index;
+          }
+          return a.rule.priority - b.rule.priority;
+        })
+        .map((item) => item.rule);
+    }, [viewConfig.sorts]);
+
     const orderedRows = useMemo(() => {
+      if (sortedSortRules.length) {
+        const orders = storeRows.slice();
+        const sortedOrders = orders.toSorted((a: RowData, b: RowData) => {
+          for (const sort of sortedSortRules) {
+            const column = columnMap.get(sort.fieldId);
+            if (!column) continue;
+            const plugin = pluginManager.getPlugin(column.type);
+            if (!plugin) continue;
+            const compare =
+              plugin.sort?.({
+                a: a[sort.fieldId],
+                b: b[sort.fieldId],
+                column,
+                direction: sort.direction,
+                columnConfig: column.config,
+                rowA: a,
+                rowB: b,
+              }) ?? 0;
+            if (compare !== 0) {
+              return compare;
+            }
+          }
+          // 兜底根据 rowOrder 排序
+          const rowAIndex = orders.indexOf(a);
+          const rowBIndex = orders.indexOf(b);
+          if (rowAIndex !== -1 && rowBIndex !== -1) {
+            return rowAIndex - rowBIndex;
+          }
+
+          return 0;
+        });
+        return sortedOrders;
+      }
+
       const order: RowData[] = [];
       const existing = new Set<string>();
+
       viewConfig.rowOrder.forEach((rowId) => {
         const row = rowMap.get(rowId);
         if (row && !existing.has(rowId)) {
@@ -181,7 +239,14 @@ const TableView: React.FC<TableViewProps> = memo(
         }
       });
       return order;
-    }, [viewConfig.rowOrder, storeRows, rowMap]);
+    }, [
+      viewConfig.rowOrder,
+      sortedSortRules,
+      storeRows,
+      rowMap,
+      columnMap,
+      pluginManager,
+    ]);
 
     const groupConfig = viewConfig.groupBy;
     const isGrouped = Boolean(groupConfig && groupConfig.fieldId);

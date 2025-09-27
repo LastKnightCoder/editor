@@ -73,6 +73,12 @@ const StarPlugin: CellPlugin<StarConfig> = {
     if (!value) return "";
     return String(value);
   },
+  sort: (params) => {
+    const { a, b, direction } = params;
+    if (a === b) return 0;
+
+    return direction === "asc" ? Number(a) - Number(b) : Number(b) - Number(a);
+  },
 };
 
 export default StarPlugin;

@@ -54,6 +54,12 @@ const CheckboxPlugin: CellPlugin<unknown> = {
   getGroupKey: (row, column) => {
     return String(row[column.id]);
   },
+  sort: (params) => {
+    const { a, b, direction } = params;
+    if (a === b) return 0;
+
+    return direction === "asc" ? (a ? 1 : -1) : b ? 1 : -1;
+  },
 };
 
 export default CheckboxPlugin;
