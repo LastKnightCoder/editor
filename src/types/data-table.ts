@@ -38,7 +38,7 @@ export interface UpdateDataTable {
 export interface DataTableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
-  filters: FilterRule[];
+  filters: FilterRuleGroup | null;
   sorts: SortRule[];
   groupBy?: GroupRule | null;
 }
@@ -68,12 +68,24 @@ export type UpdateDataTableView = Omit<
 
 export type DataTableViewType = "table";
 
-export interface FilterRule {
+export type FilterLogicOperator = "and" | "or";
+
+export interface FilterRuleCondition {
   id: string;
-  fieldId: string;
-  operator: string;
+  type: "condition";
+  fieldId: string | null;
+  operator: string | null;
   value: unknown;
 }
+
+export interface FilterRuleGroup {
+  id: string;
+  type: "group";
+  logic: FilterLogicOperator;
+  children: FilterRule[];
+}
+
+export type FilterRule = FilterRuleCondition | FilterRuleGroup;
 
 export interface SortRule {
   id: string;

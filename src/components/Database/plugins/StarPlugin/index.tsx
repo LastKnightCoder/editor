@@ -79,6 +79,58 @@ const StarPlugin: CellPlugin<StarConfig> = {
 
     return direction === "asc" ? Number(a) - Number(b) : Number(b) - Number(a);
   },
+  filters: [
+    {
+      operator: "评分>=",
+      label: ">=",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = Number(row[column.id] ?? 0);
+        if (typeof filterValue !== "number") return false;
+        return cellValue >= filterValue;
+      },
+    },
+    {
+      operator: "评分>",
+      label: ">",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = Number(row[column.id] ?? 0);
+        if (typeof filterValue !== "number") return false;
+        return cellValue > filterValue;
+      },
+    },
+    {
+      operator: "评分<=",
+      label: "<=",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = Number(row[column.id] ?? 0);
+        if (typeof filterValue !== "number") return false;
+        return cellValue <= filterValue;
+      },
+    },
+    {
+      operator: "评分<",
+      label: "<",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = Number(row[column.id] ?? 0);
+        if (typeof filterValue !== "number") return false;
+        return cellValue < filterValue;
+      },
+    },
+    {
+      operator: "评分=",
+      label: "=",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = Number(row[column.id] ?? 0);
+        if (typeof filterValue !== "number") return false;
+        return cellValue === filterValue;
+      },
+    },
+  ],
 };
 
 export default StarPlugin;

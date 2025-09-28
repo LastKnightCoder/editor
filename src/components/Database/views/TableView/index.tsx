@@ -1,7 +1,7 @@
 import React, { useRef, memo, useState, useMemo, useEffect } from "react";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ColumnDef, CellValue, RowData } from "../../types";
+import { ColumnDef, CellValue, RowData, FilterGroup } from "../../types";
 import { useColumnVisibility, useDatabaseStore } from "../../hooks";
 import ColumnHeader from "./components/ColumnHeader";
 import PluginManager from "../../PluginManager";
@@ -164,13 +164,60 @@ const TableView: React.FC<TableViewProps> = memo(
       return map;
     }, [storeColumns]);
 
-    const rowMap = useMemo(() => {
-      const map = new Map<string, RowData>();
-      storeRows.forEach((row) => {
-        map.set(row.id, row);
+    const filteredRows = useMemo(() => {
+      const activeFilters = viewConfig.filters ?? null;
+      if (!activeFilters) return storeRows;
+      const columnLookup = new Map<string, ColumnDef>();
+      storeColumns.forEach((column) => {
+        columnLookup.set(column.id, column);
       });
-      return map;
-    }, [storeRows]);
+
+      const evaluateGroup = (group: FilterGroup, row: RowData): boolean => {
+        if (
+          !group ||
+          !Array.isArray(group.children) ||
+          group.children.length === 0
+        ) {
+          console.warn("筛选组为空", group);
+          return true;
+        }
+        const matches = group.children.map((child) => {
+          if (child.type === "group") {
+            return evaluateGroup(child, row);
+          }
+          if (!child.fieldId || !child.operator) {
+            return true;
+          }
+          const column = columnLookup.get(child.fieldId);
+          if (!column) {
+            return true;
+          }
+          const plugin = pluginManager.getPlugin(column.type);
+          if (!plugin) {
+            return true;
+          }
+          const definition = (plugin.filters ?? []).find(
+            (item) => item.operator === child.operator,
+          );
+          if (!definition) {
+            return true;
+          }
+          try {
+            return definition.filter(child.value ?? null, row, column);
+          } catch (error) {
+            console.error("筛选执行失败", error);
+            return true;
+          }
+        });
+
+        if (group.logic === "and") {
+          return matches.every(Boolean);
+        }
+        return matches.some(Boolean);
+      };
+
+      return storeRows.filter((row) => evaluateGroup(activeFilters, row));
+    }, [viewConfig.filters, storeRows, storeColumns, pluginManager]);
 
     const sortedSortRules = useMemo(() => {
       if (!viewConfig.sorts || !viewConfig.sorts.length) {
@@ -189,7 +236,7 @@ const TableView: React.FC<TableViewProps> = memo(
 
     const orderedRows = useMemo(() => {
       if (sortedSortRules.length) {
-        const orders = storeRows.slice();
+        const orders = filteredRows.slice();
         const sortedOrders = orders.toSorted((a: RowData, b: RowData) => {
           for (const sort of sortedSortRules) {
             const column = columnMap.get(sort.fieldId);
@@ -226,13 +273,13 @@ const TableView: React.FC<TableViewProps> = memo(
       const existing = new Set<string>();
 
       viewConfig.rowOrder.forEach((rowId) => {
-        const row = rowMap.get(rowId);
+        const row = filteredRows.find((item) => item.id === rowId);
         if (row && !existing.has(rowId)) {
           order.push(row);
           existing.add(rowId);
         }
       });
-      storeRows.forEach((row) => {
+      filteredRows.forEach((row) => {
         if (!existing.has(row.id)) {
           order.push(row);
           existing.add(row.id);
@@ -242,8 +289,7 @@ const TableView: React.FC<TableViewProps> = memo(
     }, [
       viewConfig.rowOrder,
       sortedSortRules,
-      storeRows,
-      rowMap,
+      filteredRows,
       columnMap,
       pluginManager,
     ]);

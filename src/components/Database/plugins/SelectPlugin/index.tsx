@@ -43,6 +43,54 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     if (typeof a !== "string" || typeof b !== "string") return 0;
     return direction === "asc" ? a.localeCompare(b) : b.localeCompare(a);
   },
+  filters: [
+    {
+      operator: "是",
+      label: "是",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "string" || typeof filterValue !== "string") {
+          return false;
+        }
+        return cellValue === filterValue;
+      },
+    },
+    {
+      operator: "不是",
+      label: "不是",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "string" || typeof filterValue !== "string") {
+          return true;
+        }
+        return cellValue !== filterValue;
+      },
+    },
+    {
+      operator: "为空",
+      label: "为空",
+      filter: (_filterValue, row, column) => {
+        const cellValue = row[column.id];
+        return (
+          cellValue === null || cellValue === undefined || cellValue === ""
+        );
+      },
+    },
+    {
+      operator: "不为空",
+      label: "不为空",
+      filter: (_filterValue, row, column) => {
+        const cellValue = row[column.id];
+        return !(
+          cellValue === null ||
+          cellValue === undefined ||
+          cellValue === ""
+        );
+      },
+    },
+  ],
 };
 
 export default SelectPlugin;

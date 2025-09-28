@@ -26,6 +26,61 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     if (!value || !Array.isArray(value)) return "";
     return value.join(",");
   },
+  filters: [
+    {
+      operator: "包含",
+      label: "包含",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (!Array.isArray(cellValue)) {
+          return false;
+        }
+        const targets = Array.isArray(filterValue)
+          ? filterValue
+          : filterValue
+            ? [filterValue]
+            : [];
+        console.log("targets", targets, cellValue);
+        if (!targets.length) return false;
+        return targets.every((value) => cellValue.includes(value));
+      },
+    },
+    {
+      operator: "包含任一",
+      label: "包含任一",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (!Array.isArray(cellValue)) {
+          return false;
+        }
+        const targets = Array.isArray(filterValue)
+          ? filterValue
+          : filterValue
+            ? [filterValue]
+            : [];
+        if (!targets.length) return false;
+        return targets.some((value) => cellValue.includes(value));
+      },
+    },
+    {
+      operator: "为空",
+      label: "为空",
+      filter: (_filterValue, row, column) => {
+        const cellValue = row[column.id];
+        return !Array.isArray(cellValue) || cellValue.length === 0;
+      },
+    },
+    {
+      operator: "不为空",
+      label: "不为空",
+      filter: (_filterValue, row, column) => {
+        const cellValue = row[column.id];
+        return Array.isArray(cellValue) && cellValue.length > 0;
+      },
+    },
+  ],
 };
 
 export default MultiSelectPlugin;

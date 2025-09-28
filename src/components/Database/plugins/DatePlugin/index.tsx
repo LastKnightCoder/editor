@@ -35,6 +35,60 @@ const DatePlugin: CellPlugin<any> = {
 
     return direction === "asc" ? a - b : b - a;
   },
+  filters: [
+    {
+      operator: "是",
+      label: "是",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "number" || typeof filterValue !== "number") {
+          return false;
+        }
+        return cellValue === filterValue;
+      },
+    },
+    {
+      operator: "不早于",
+      label: "不早于",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "number" || typeof filterValue !== "number") {
+          return false;
+        }
+        return cellValue >= filterValue;
+      },
+    },
+    {
+      operator: "不晚于",
+      label: "不晚于",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "number" || typeof filterValue !== "number") {
+          return false;
+        }
+        return cellValue <= filterValue;
+      },
+    },
+    {
+      operator: "为空",
+      label: "为空",
+      filter: (_filterValue, row, column) => {
+        const cellValue = row[column.id];
+        return cellValue === null || cellValue === undefined;
+      },
+    },
+    {
+      operator: "不为空",
+      label: "不为空",
+      filter: (_filterValue, row, column) => {
+        const cellValue = row[column.id];
+        return !(cellValue === null || cellValue === undefined);
+      },
+    },
+  ],
 };
 
 export default DatePlugin;
