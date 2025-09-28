@@ -78,7 +78,7 @@ export default class DataTableTable {
           config: {
             columnOrder,
             rowOrder,
-            filters: [],
+            filters: null,
             sorts: [],
             groupBy: null,
           },
