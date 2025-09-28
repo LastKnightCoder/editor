@@ -376,19 +376,28 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         return;
       }
       setYoutubeVideoInfoLoading(true);
-      const info = await getYoutubeVideoInfo(
-        res.videoId,
-        setting.integration.youtube.proxy,
-      );
-      setYoutubeVideoInfo(info);
-      const bestVideoFormat =
-        info?.videoFmts.find((f) => f.quality === "highest") ||
-        info?.videoFmts[0];
-      const bestAudioFormat =
-        info?.audioFmts.find((f) => f.quality === "highest") ||
-        info?.audioFmts[0];
-      setYoutubeSelectedVideoFormat(bestVideoFormat);
-      setYoutubeSelectedAudioFormat(bestAudioFormat);
+      try {
+        const info = await getYoutubeVideoInfo(
+          res.videoId,
+          setting.integration.youtube.proxy,
+        );
+        setYoutubeVideoInfo(info);
+        const bestVideoFormat =
+          info?.videoFmts.find((f) => f.quality === "highest") ||
+          info?.videoFmts[0];
+        const bestAudioFormat =
+          info?.audioFmts.find((f) => f.quality === "highest") ||
+          info?.audioFmts[0];
+        setYoutubeSelectedVideoFormat(bestVideoFormat);
+        setYoutubeSelectedAudioFormat(bestAudioFormat);
+      } catch (e) {
+        message.error("获取视频信息失败");
+        setYoutubeVideoInfo(null);
+        setYoutubeSelectedVideoFormat(undefined);
+        setYoutubeSelectedAudioFormat(undefined);
+      } finally {
+        setYoutubeVideoInfoLoading(false);
+      }
     },
     { wait: 800 },
   );
@@ -1612,7 +1621,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             const item = await createEmptyVideoNote({
               type: "bilibili",
               bvid: urlCheck.bvid || "",
-              cid: "", // 将在播放时获取
+              cid: "", // cid 将在播放阶段按 bvid+清晰度确定
               quality: selectedQuality, // 用户选择的清晰度
             });
 
@@ -1738,6 +1747,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           setYoutubeVideoInfo(null);
           setYoutubeSelectedVideoFormat(undefined);
           setYoutubeSelectedAudioFormat(undefined);
+        }}
+        okButtonProps={{
+          disabled: !youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat,
         }}
         onOk={async () => {
           if (!projectItem || !projectId) {

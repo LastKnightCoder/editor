@@ -259,6 +259,7 @@ async function cacheYoutube(
 
   try {
     const agent = proxy ? ytdl.createProxyAgent({ uri: proxy }) : undefined;
+    console.log("[youtube] proxy", proxy);
     const videoInfo = await ytdl.getInfo(
       `https://www.youtube.com/watch?v=${videoId}`,
       { agent },

@@ -2,9 +2,21 @@ import React, { useContext, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlate } from "slate-react";
 import { Transforms } from "slate";
-import { Button, Empty, Flex, Input, Popover, Spin, App, Modal } from "antd";
+import {
+  Button,
+  Empty,
+  Flex,
+  Input,
+  Popover,
+  Spin,
+  App,
+  Modal,
+  Select,
+  Tag,
+} from "antd";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
+import { LoadingOutlined } from "@ant-design/icons";
 
 import { IExtensionBaseProps } from "@editor/extensions/types.ts";
 import { VideoElement } from "@editor/types";
@@ -23,9 +35,13 @@ import {
   isBilibiliUrl,
   quickCheckBilibiliUrl,
   getVideoInfoByUrl,
+  getQualityInfo,
+  getQualityOptions,
+  BilibiliVideoQuality,
 } from "@/utils/bilibili";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
 import useSettingStore from "@/stores/useSettingStore";
+import ytdl from "@distube/ytdl-core";
 import type {
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
@@ -69,10 +85,36 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const [biliModalOpen, setBiliModalOpen] = useState(false);
   const [biliUrl, setBiliUrl] = useState("");
   const [biliLoading, setBiliLoading] = useState(false);
+  const [bilibiliQualityOptions, setBilibiliQualityOptions] = useState<
+    Array<{
+      label: string;
+      value: number;
+      needLogin?: boolean;
+      needVip?: boolean;
+    }>
+  >([]);
+  const [selectedBilibiliQuality, setSelectedBilibiliQuality] =
+    useState<number>(BilibiliVideoQuality.HD_1080P);
+  const [bilibiliQualityLoading, setBilibiliQualityLoading] = useState(false);
+  const biliDebounceRef = useRef<number | null>(null);
 
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeCreateLoading, setYoutubeCreateLoading] = useState(false);
+  const [youtubeVideoInfo, setYoutubeVideoInfo] = useState<{
+    audioFmts: ytdl.videoFormat[];
+    videoFmts: ytdl.videoFormat[];
+    videoId: string;
+    title: string;
+  } | null>(null);
+  const [youtubeVideoInfoLoading, setYoutubeVideoInfoLoading] = useState(false);
+  const [youtubeSelectedVideoFormat, setYoutubeSelectedVideoFormat] = useState<
+    ytdl.videoFormat | undefined
+  >(undefined);
+  const [youtubeSelectedAudioFormat, setYoutubeSelectedAudioFormat] = useState<
+    ytdl.videoFormat | undefined
+  >(undefined);
+  const ytDebounceRef = useRef<number | null>(null);
 
   const setting = useSettingStore.getState().setting;
 
@@ -203,6 +245,79 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     },
   );
 
+  // ---- Bilibili 清晰度：根据 URL 获取可用质量并默认选择 ----
+  const fetchBilibiliQualityOptions = useMemoizedFn(async (url: string) => {
+    if (!url.trim() || !isBilibiliUrl(url)) {
+      setBilibiliQualityOptions([]);
+      return;
+    }
+    if (bilibiliQualityLoading) return;
+    setBilibiliQualityLoading(true);
+    try {
+      const credentials = setting.integration.bilibili.credentials;
+      const videoInfo = await getVideoInfoByUrl(url, credentials);
+      const qualityInfo = await getQualityInfo(
+        videoInfo.cid,
+        videoInfo.bvid,
+        credentials,
+      );
+      const options = getQualityOptions(qualityInfo.accept_quality);
+      setBilibiliQualityOptions(options);
+
+      const hasLogin = !!credentials.SESSDATA;
+      const hasVip =
+        !!setting.integration.bilibili.userInfo.vipStatus && hasLogin;
+      let defaultQuality: number;
+      if (hasVip) {
+        defaultQuality = options[0]?.value || BilibiliVideoQuality.HD_1080P;
+      } else if (hasLogin) {
+        const maxQuality = Math.max(
+          ...options
+            .filter((opt) => opt.value <= BilibiliVideoQuality.HD_1080P)
+            .map((opt) => opt.value),
+        );
+        defaultQuality = maxQuality || BilibiliVideoQuality.HD_720P;
+      } else {
+        const maxQuality = Math.max(
+          ...options
+            .filter((opt) => opt.value <= BilibiliVideoQuality.HD_720P)
+            .map((opt) => opt.value),
+        );
+        defaultQuality = maxQuality || BilibiliVideoQuality.CLEAR_480P;
+      }
+      setSelectedBilibiliQuality(defaultQuality);
+    } catch (e) {
+      setBilibiliQualityOptions([
+        { label: "480P 清晰", value: BilibiliVideoQuality.CLEAR_480P },
+        { label: "720P 高清", value: BilibiliVideoQuality.HD_720P },
+        {
+          label: "1080P 高清",
+          value: BilibiliVideoQuality.HD_1080P,
+          needLogin: true,
+        },
+      ]);
+      setSelectedBilibiliQuality(BilibiliVideoQuality.HD_720P);
+    } finally {
+      setBilibiliQualityLoading(false);
+    }
+  });
+
+  const handleBiliUrlChange = useMemoizedFn((url: string) => {
+    setBiliUrl(url);
+    if (biliDebounceRef.current) {
+      window.clearTimeout(biliDebounceRef.current);
+    }
+    if (!url.trim()) {
+      setBilibiliQualityOptions([]);
+      return;
+    }
+    biliDebounceRef.current = window.setTimeout(() => {
+      if (isBilibiliUrl(url)) {
+        fetchBilibiliQualityOptions(url);
+      }
+    }, 800);
+  });
+
   // 解析并写入 Bilibili metaInfo
   const handleConfirmBilibili = useMemoizedFn(async () => {
     if (!biliUrl || !isBilibiliUrl(biliUrl)) {
@@ -216,18 +331,16 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         message.error(quick.error || "无效的 Bilibili 链接");
         return;
       }
-
       // 获取 cid（以及可选质量信息）
       const info = await getVideoInfoByUrl(
         biliUrl,
         setting.integration.bilibili.credentials,
       );
-
       const meta: BiliBiliVideoMetaInfo = {
         type: "bilibili",
         bvid: info.bvid,
         cid: info.cid,
-        // 不强制选择清晰度，hook 内会默认 80；如需自定义可在此写入
+        quality: selectedBilibiliQuality,
       };
 
       const path = ReactEditor.findPath(editor, element);
@@ -242,6 +355,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
 
       setBiliModalOpen(false);
       setBiliUrl("");
+      setBilibiliQualityOptions([]);
     } catch (e) {
       message.error("解析 Bilibili 信息失败");
       // 保持弹窗以便用户修改
@@ -256,6 +370,10 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       message.error("请输入有效的 YouTube 链接");
       return;
     }
+    if (!youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat) {
+      message.error("请选择清晰度");
+      return;
+    }
     setYoutubeCreateLoading(true);
     try {
       const { videoId } = parseYoutubeUrl(youtubeUrl);
@@ -263,26 +381,12 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         message.error("无法解析视频 ID");
         return;
       }
-      const info = await getYoutubeVideoInfo(
-        videoId,
-        setting.integration.youtube.proxy,
-      );
-      if (!info) {
-        message.error("获取视频信息失败");
-        return;
-      }
-      const bestVideo =
-        info.videoFmts.find((f) => f.quality === "highest") ||
-        info.videoFmts[0];
-      const bestAudio =
-        info.audioFmts.find((f) => f.quality === "highest") ||
-        info.audioFmts[0];
 
       const meta: YouTubeVideoMetaInfo = {
         type: "youtube",
-        videoId: info.videoId,
-        videoFormat: bestVideo,
-        audioFormat: bestAudio,
+        videoId,
+        videoFormat: youtubeSelectedVideoFormat,
+        audioFormat: youtubeSelectedAudioFormat,
       } as const;
 
       const path = ReactEditor.findPath(editor, element);
@@ -297,11 +401,58 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
 
       setYoutubeModalOpen(false);
       setYoutubeUrl("");
+      setYoutubeVideoInfo(null);
+      setYoutubeSelectedVideoFormat(undefined);
+      setYoutubeSelectedAudioFormat(undefined);
     } catch (e) {
       message.error("解析 YouTube 信息失败");
     } finally {
       setYoutubeCreateLoading(false);
     }
+  });
+
+  // 根据输入的 YouTube URL 获取可用清晰度
+  const handleYoutubeUrlChange = useMemoizedFn(async (url: string) => {
+    setYoutubeUrl(url);
+    if (ytDebounceRef.current) {
+      window.clearTimeout(ytDebounceRef.current);
+    }
+    if (!url.trim()) {
+      setYoutubeVideoInfo(null);
+      setYoutubeSelectedVideoFormat(undefined);
+      setYoutubeSelectedAudioFormat(undefined);
+      return;
+    }
+    ytDebounceRef.current = window.setTimeout(async () => {
+      const { videoId } = parseYoutubeUrl(url);
+      if (!videoId) {
+        message.error("无法解析视频 ID");
+        return;
+      }
+      setYoutubeVideoInfoLoading(true);
+      try {
+        const info = await getYoutubeVideoInfo(
+          videoId,
+          setting.integration.youtube.proxy,
+        );
+        setYoutubeVideoInfo(info);
+        const bestVideo =
+          info?.videoFmts.find((f) => f.quality === "highest") ||
+          info?.videoFmts[0];
+        const bestAudio =
+          info?.audioFmts.find((f) => f.quality === "highest") ||
+          info?.audioFmts[0];
+        setYoutubeSelectedVideoFormat(bestVideo);
+        setYoutubeSelectedAudioFormat(bestAudio);
+      } catch (e) {
+        message.error("获取视频信息失败");
+        setYoutubeVideoInfo(null);
+        setYoutubeSelectedVideoFormat(undefined);
+        setYoutubeSelectedAudioFormat(undefined);
+      } finally {
+        setYoutubeVideoInfoLoading(false);
+      }
+    }, 800);
   });
 
   const { src, uploading, playbackRate = 1 } = element;
@@ -462,15 +613,55 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         onCancel={() => {
           setBiliModalOpen(false);
           setBiliUrl("");
+          setBilibiliQualityOptions([]);
         }}
         onOk={handleConfirmBilibili}
       >
-        <Input
-          placeholder="请输入 Bilibili 链接 (https://www.bilibili.com/video/BV...)"
-          value={biliUrl}
-          onChange={(e) => setBiliUrl(e.target.value)}
-          autoFocus
-        />
+        <div style={{ marginBottom: 12 }}>
+          <Input
+            placeholder="请输入 Bilibili 链接 (https://www.bilibili.com/video/BV...)"
+            value={biliUrl}
+            onChange={(e) => handleBiliUrlChange(e.target.value)}
+            suffix={bilibiliQualityLoading ? <LoadingOutlined /> : undefined}
+            autoFocus
+          />
+        </div>
+        {bilibiliQualityOptions.length > 0 && (
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ marginBottom: 6 }}>选择清晰度:</div>
+            <Select
+              style={{ width: "100%" }}
+              value={selectedBilibiliQuality}
+              onChange={setSelectedBilibiliQuality}
+              disabled={bilibiliQualityLoading}
+              loading={bilibiliQualityLoading}
+              placeholder="选择清晰度"
+            >
+              {bilibiliQualityOptions.map((opt) => (
+                <Select.Option key={opt.value} value={opt.value}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                    <div>
+                      {opt.needVip && <Tag color="gold">大会员</Tag>}
+                      {opt.needLogin && !opt.needVip && (
+                        <Tag color="blue">需登录</Tag>
+                      )}
+                    </div>
+                  </div>
+                </Select.Option>
+              ))}
+            </Select>
+            <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+              * 高清晰度可能需要登录或大会员权限
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* YouTube 地址输入弹窗 */}
@@ -481,15 +672,62 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         onCancel={() => {
           setYoutubeModalOpen(false);
           setYoutubeUrl("");
+          setYoutubeVideoInfo(null);
+          setYoutubeSelectedVideoFormat(undefined);
+          setYoutubeSelectedAudioFormat(undefined);
         }}
         onOk={handleConfirmYoutube}
+        okButtonProps={{
+          disabled: !youtubeSelectedVideoFormat || !youtubeSelectedAudioFormat,
+        }}
       >
         <Input
           placeholder="请输入 YouTube 链接 (https://www.youtube.com/watch?v=...)"
           value={youtubeUrl}
-          onChange={(e) => setYoutubeUrl(e.target.value)}
+          onChange={(e) => handleYoutubeUrlChange(e.target.value)}
           autoFocus
         />
+        {youtubeVideoInfo?.audioFmts?.length &&
+        youtubeVideoInfo?.videoFmts?.length ? (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ marginBottom: 6 }}>选择音频清晰度</div>
+            <Select
+              style={{ width: "100%" }}
+              options={youtubeVideoInfo.audioFmts.map((f) => ({
+                label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
+                value: f.itag,
+              }))}
+              value={youtubeSelectedAudioFormat?.itag}
+              loading={youtubeVideoInfoLoading}
+              onChange={(itag) =>
+                setYoutubeSelectedAudioFormat(
+                  youtubeVideoInfo.audioFmts.find(
+                    (f) => f.itag === itag,
+                  ) as ytdl.videoFormat,
+                )
+              }
+              placeholder="选择清晰度"
+            />
+            <div style={{ marginTop: 6 }}>选择视频清晰度</div>
+            <Select
+              style={{ width: "100%" }}
+              options={youtubeVideoInfo.videoFmts.map((f) => ({
+                label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
+                value: f.itag,
+              }))}
+              value={youtubeSelectedVideoFormat?.itag}
+              loading={youtubeVideoInfoLoading}
+              onChange={(itag) =>
+                setYoutubeSelectedVideoFormat(
+                  youtubeVideoInfo.videoFmts.find(
+                    (f) => f.itag === itag,
+                  ) as ytdl.videoFormat,
+                )
+              }
+              placeholder="选择清晰度"
+            />
+          </div>
+        ) : null}
       </Modal>
     </div>
   );
