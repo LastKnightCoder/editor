@@ -164,6 +164,7 @@ interface VideoParams {
   src: string;
   uploading?: boolean;
   playbackRate?: number;
+  metaInfo?: VideoElement["metaInfo"];
 }
 
 export const insertVideo = (editor: Editor, params: VideoParams) => {
