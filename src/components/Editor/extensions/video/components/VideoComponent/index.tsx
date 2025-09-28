@@ -245,7 +245,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     },
   );
 
-  // ---- Bilibili 清晰度：根据 URL 获取可用质量并默认选择 ----
   const fetchBilibiliQualityOptions = useMemoizedFn(async (url: string) => {
     if (!url.trim() || !isBilibiliUrl(url)) {
       setBilibiliQualityOptions([]);
@@ -318,7 +317,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     }, 800);
   });
 
-  // 解析并写入 Bilibili metaInfo
   const handleConfirmBilibili = useMemoizedFn(async () => {
     if (!biliUrl || !isBilibiliUrl(biliUrl)) {
       message.error("请输入有效的 Bilibili 链接");

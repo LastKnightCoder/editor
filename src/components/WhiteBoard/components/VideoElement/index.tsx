@@ -2,6 +2,13 @@ import React, { memo, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import If from "@/components/If";
 import LocalVideo from "@/components/LocalVideo";
+// keep single If import
+import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
+import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
+import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
+import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
+import { isBilibiliUrl } from "@/utils/bilibili";
+import { isYoutubeUrl } from "@/utils/youtube/parser";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPoint from "../ArrowConnectPoint";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
@@ -43,7 +50,36 @@ interface VideoElementProps {
 const VideoElementComponent = memo((props: VideoElementProps) => {
   const { element, onResize, onResizeStart, onResizeEnd } = props;
 
-  const { id, x, y, width, height, src } = element;
+  const { id, x, y, width, height, src, metaInfo } = element;
+  const isBilibili = useMemo(() => {
+    if (!src) return false;
+    if (metaInfo && (metaInfo as any).type === "bilibili") return true;
+    return isBilibiliUrl(src);
+  }, [src, metaInfo]);
+
+  const isYoutube = useMemo(() => {
+    if (!src) return false;
+    if (metaInfo && (metaInfo as any).type === "youtube") return true;
+    return isYoutubeUrl(src);
+  }, [src, metaInfo]);
+
+  const {
+    videoUrl: bilibiliVideoUrl,
+    loading: bilibiliLoading,
+    error: bilibiliError,
+    streamProgress: bilibiliProgress,
+  } = useBilibiliVideo(
+    (metaInfo as any)?.type === "bilibili" ? (metaInfo as any) : undefined,
+  );
+
+  const {
+    videoUrl: youtubeVideoUrl,
+    loading: youtubeLoading,
+    error: youtubeError,
+    streamProgress: youtubeProgress,
+  } = useYoutubeVideo(
+    (metaInfo as any)?.type === "youtube" ? (metaInfo as any) : undefined,
+  );
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
@@ -108,19 +144,61 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           height,
         }}
       >
-        <LocalVideo
-          src={src}
-          controls
-          style={{
-            padding: 16,
-            boxSizing: "border-box",
-          }}
-          width={"100%"}
-          height={"100%"}
-          onClick={(e: React.MouseEvent) => {
-            e.preventDefault();
-          }}
-        />
+        {/* 平台视频优先按平台渲染 */}
+        <If condition={isBilibili}>
+          <>
+            <BilibiliVideoLoader
+              loading={bilibiliLoading}
+              error={bilibiliError}
+              streamProgress={bilibiliProgress}
+            />
+            <If
+              condition={
+                !!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError
+              }
+            >
+              <LocalVideo
+                src={bilibiliVideoUrl as string}
+                controls
+                style={{ padding: 16, boxSizing: "border-box" }}
+                width={"100%"}
+                height={"100%"}
+              />
+            </If>
+          </>
+        </If>
+        <If condition={isYoutube}>
+          <>
+            <YoutubeVideoLoader
+              loading={youtubeLoading}
+              error={youtubeError}
+              streamProgress={youtubeProgress}
+            />
+            <If
+              condition={!!youtubeVideoUrl && !youtubeLoading && !youtubeError}
+            >
+              <LocalVideo
+                src={youtubeVideoUrl as string}
+                controls
+                style={{ padding: 16, boxSizing: "border-box" }}
+                width={"100%"}
+                height={"100%"}
+              />
+            </If>
+          </>
+        </If>
+        <If condition={!isBilibili && !isYoutube}>
+          <LocalVideo
+            src={src}
+            controls
+            style={{ padding: 16, boxSizing: "border-box" }}
+            width={"100%"}
+            height={"100%"}
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+            }}
+          />
+        </If>
       </foreignObject>
       <If condition={isSelected}>
         <g>
