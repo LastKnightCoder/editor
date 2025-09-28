@@ -680,3 +680,5 @@
 - feat: 数据表格支持排序
 - feat: 数据表格支持筛选
 - feat: 代码块支持收起，并可调整高度
+- feat: 编辑器内视频支持 bilibili 和 youtube
+- feat: 白板视频支持 bilibili 和 youtube
