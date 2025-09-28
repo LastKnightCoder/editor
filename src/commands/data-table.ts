@@ -41,6 +41,12 @@ export const deleteDataTable = async (id: number): Promise<number> => {
   return invoke("data-table:delete", id);
 };
 
+export const incrementDataTableRefCount = async (
+  id: number,
+): Promise<number> => {
+  return invoke("data-table:increment-ref-count", id);
+};
+
 export const createDataTableView = async (
   view: CreateDataTableView,
 ): Promise<DataTableView> => {

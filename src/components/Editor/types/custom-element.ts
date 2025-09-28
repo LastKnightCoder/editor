@@ -48,6 +48,7 @@ import { WebviewElement } from "./element/webview.ts";
 import { InlineImageElement } from "./element/inline-image.ts";
 import { EmojiElement } from "./element/emoji.ts";
 import { AnnotationElement } from "./element/annotation.ts";
+import { DatabaseElement } from "./element/database.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -94,7 +95,8 @@ export type CustomElement =
   | HTMLInlineElement
   | InlineImageElement
   | EmojiElement
-  | AnnotationElement;
+  | AnnotationElement
+  | DatabaseElement;
 
 export type InlineElement =
   | LinkElement

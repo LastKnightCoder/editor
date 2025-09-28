@@ -41,6 +41,7 @@ const NumberEditor: React.FC<NumberEditorProps> = memo(
           onBlur={onFinishEdit}
           onPressEnter={onFinishEdit}
           className="w-full h-full px-2 py-2 flex items-center"
+          isSlateEditor
         />
       </div>
     );
