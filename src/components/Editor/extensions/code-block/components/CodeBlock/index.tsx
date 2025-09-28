@@ -79,12 +79,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     code: defaultCode,
     language,
     uuid,
-    isFold: defaultIsFold = false,
-    foldHeight: defaultFoldHeight = 400,
+    isFold = false,
+    foldHeight = 400,
   } = element;
   const [code, setCode] = useState(defaultCode);
-  const [isFold, setIsFold] = useState<boolean>(defaultIsFold);
-  const [foldHeight, setFoldHeight] = useState<number>(defaultFoldHeight);
   const [canFold, setCanFold] = useState(false);
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
   const foldStyle = useMemo(() => {
@@ -112,26 +110,20 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     });
 
   useEffect(() => {
-    const path = ReactEditor.findPath(slateEditor, element);
-    if (typeof element.isFold !== "boolean") {
-      Transforms.setNodes(slateEditor, { isFold: false }, { at: path });
+    if (editorRef.current && editorRef.current.getValue() !== defaultCode) {
+      editorRef.current.setValue(defaultCode);
+      editorRef.current.refresh();
+      setCode(defaultCode);
     }
-    if (typeof element.foldHeight !== "number") {
-      Transforms.setNodes(
-        slateEditor,
-        { foldHeight: MIN_FOLD_HEIGHT },
-        { at: path },
-      );
+    if (
+      fullscreenEditorRef.current &&
+      fullscreenEditorRef.current.getValue() !== defaultCode
+    ) {
+      fullscreenEditorRef.current.setValue(defaultCode);
+      fullscreenEditorRef.current.refresh();
+      setCode(defaultCode);
     }
-  }, [element, slateEditor]);
-
-  useEffect(() => {
-    setIsFold(defaultIsFold);
-  }, [defaultIsFold]);
-
-  useEffect(() => {
-    setFoldHeight(defaultFoldHeight);
-  }, [defaultFoldHeight]);
+  }, [defaultCode]);
 
   useEffect(() => {
     const alias =
@@ -160,27 +152,19 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     setCanFold(foldable);
     if (!foldable && isFold) {
       const path = ReactEditor.findPath(slateEditor, element);
-      setIsFold(false);
       Transforms.setNodes(slateEditor, { isFold: false }, { at: path });
     }
   });
 
   const updateFoldHeight = useMemoizedFn((nextHeight: number) => {
-    setFoldHeight(nextHeight);
     const path = ReactEditor.findPath(slateEditor, element);
     Transforms.setNodes(slateEditor, { foldHeight: nextHeight }, { at: path });
     measureFoldable();
   });
 
-  useEffect(() => {
-    setCode(defaultCode);
-    measureFoldable();
-  }, [defaultCode, measureFoldable]);
-
   const handleOnChange = useMemoizedFn(
     (_editor: Editor, _change: EditorChange, value: string) => {
       const path = ReactEditor.findPath(slateEditor, element);
-      setCode(value);
       Transforms.setNodes(slateEditor, { code: value }, { at: path });
       measureFoldable();
     },
@@ -246,7 +230,6 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   const handleToggleFold = useMemoizedFn(() => {
     const path = ReactEditor.findPath(slateEditor, element);
     const nextIsFold = !isFold;
-    setIsFold(nextIsFold);
     Transforms.setNodes(slateEditor, { isFold: nextIsFold }, { at: path });
     if (!nextIsFold) {
       measureFoldable();
