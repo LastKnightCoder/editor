@@ -84,6 +84,10 @@ export class PluginManager {
       await plugin.onColumnCleanup(columnData);
     }
   }
+
+  getFilterDefinitions(type: string) {
+    return this.getPlugin(type)?.filters ?? [];
+  }
 }
 
 export const createPluginManager = (): PluginManager => {

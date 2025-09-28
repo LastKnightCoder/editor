@@ -88,6 +88,52 @@ const ProgressPlugin: CellPlugin<null> = {
 
     return direction === "asc" ? aProgress - bProgress : bProgress - aProgress;
   },
+  filters: [
+    {
+      operator: "进度>=",
+      label: "进度>=",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const value = row[column.id] as ProgressValue | undefined;
+        if (!value || typeof filterValue !== "number") return false;
+        const ratio = value.target ? value.current / value.target : 0;
+        return ratio >= filterValue;
+      },
+    },
+    {
+      operator: "进度>",
+      label: "进度>",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const value = row[column.id] as ProgressValue | undefined;
+        if (!value || typeof filterValue !== "number") return false;
+        const ratio = value.target ? value.current / value.target : 0;
+        return ratio > filterValue;
+      },
+    },
+    {
+      operator: "进度<=",
+      label: "进度<=",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const value = row[column.id] as ProgressValue | undefined;
+        if (!value || typeof filterValue !== "number") return false;
+        const ratio = value.target ? value.current / value.target : 0;
+        return ratio <= filterValue;
+      },
+    },
+    {
+      operator: "进度<",
+      label: "进度<",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const value = row[column.id] as ProgressValue | undefined;
+        if (!value || typeof filterValue !== "number") return false;
+        const ratio = value.target ? value.current / value.target : 0;
+        return ratio < filterValue;
+      },
+    },
+  ],
 };
 
 export default ProgressPlugin;

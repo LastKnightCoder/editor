@@ -35,8 +35,51 @@ export default class DataTableViewTable {
     `);
   }
 
-  static upgradeTable(_db: Database.Database) {
-    // no-op for now
+  static upgradeTable(db: Database.Database) {
+    const selectStmt = db.prepare(
+      `SELECT id, config FROM data_table_views WHERE config IS NOT NULL`,
+    );
+    const updateStmt = db.prepare(
+      `UPDATE data_table_views SET config = ?, update_time = ? WHERE id = ?`,
+    );
+
+    const rows = selectStmt.all();
+    if (!rows.length) return;
+
+    const now = Date.now();
+
+    const migrate = db.transaction(
+      (entries: { id: number; config: string }[]) => {
+        entries.forEach((entry) => {
+          let parsed: DataTableViewConfig | Record<string, unknown>;
+          try {
+            parsed = JSON.parse(entry.config || "{}");
+          } catch (error) {
+            console.warn(
+              "upgradeTable: 无法解析 config，跳过",
+              entry.id,
+              error,
+            );
+            return;
+          }
+
+          const filters = (parsed as DataTableViewConfig).filters as unknown;
+          if (
+            Array.isArray(filters) ||
+            (filters && typeof filters !== "object")
+          ) {
+            (parsed as DataTableViewConfig).filters = null;
+          }
+
+          const serialized = JSON.stringify(parsed);
+          if (serialized !== entry.config) {
+            updateStmt.run(serialized, now, entry.id);
+          }
+        });
+      },
+    );
+
+    migrate(rows as { id: number; config: string }[]);
   }
 
   static getListenEvents() {
@@ -68,7 +111,7 @@ export default class DataTableViewTable {
     return {
       columnOrder: config?.columnOrder ? [...config.columnOrder] : [],
       rowOrder: config?.rowOrder ? [...config.rowOrder] : [],
-      filters: config?.filters ? [...config.filters] : [],
+      filters: config?.filters ? structuredClone(config.filters) : null,
       sorts: config?.sorts ? [...config.sorts] : [],
       groupBy: config?.groupBy ?? null,
     };

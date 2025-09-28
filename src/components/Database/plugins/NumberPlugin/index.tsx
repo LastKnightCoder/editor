@@ -34,6 +34,84 @@ const NumberPlugin: CellPlugin<any> = {
 
     return direction === "asc" ? a - b : b - a;
   },
+  filters: [
+    {
+      operator: "等于",
+      label: "=",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "number" || typeof filterValue !== "number") {
+          return false;
+        }
+        return cellValue === filterValue;
+      },
+    },
+    {
+      operator: "大于",
+      label: ">",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "number" || typeof filterValue !== "number") {
+          return false;
+        }
+        return cellValue > filterValue;
+      },
+    },
+    {
+      operator: "大于等于",
+      label: ">=",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "number" || typeof filterValue !== "number") {
+          return false;
+        }
+        return cellValue >= filterValue;
+      },
+    },
+    {
+      operator: "小于",
+      label: "<",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "number" || typeof filterValue !== "number") {
+          return false;
+        }
+        return cellValue < filterValue;
+      },
+    },
+    {
+      operator: "小于等于",
+      label: "<=",
+      requiresValue: true,
+      filter: (filterValue, row, column) => {
+        const cellValue = row[column.id];
+        if (typeof cellValue !== "number" || typeof filterValue !== "number") {
+          return false;
+        }
+        return cellValue <= filterValue;
+      },
+    },
+    {
+      operator: "为空",
+      label: "为空",
+      filter: (_filterValue, row, column) => {
+        const cellValue = row[column.id];
+        return cellValue === null || cellValue === undefined;
+      },
+    },
+    {
+      operator: "不为空",
+      label: "不为空",
+      filter: (_filterValue, row, column) => {
+        const cellValue = row[column.id];
+        return !(cellValue === null || cellValue === undefined);
+      },
+    },
+  ],
 };
 
 export default NumberPlugin;

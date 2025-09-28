@@ -1,6 +1,12 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
-import { MdAdd, MdClose, MdOutlineGroupWork, MdSort } from "react-icons/md";
+import {
+  MdAdd,
+  MdClose,
+  MdOutlineGroupWork,
+  MdSort,
+  MdOutlineFilterAlt,
+} from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -10,6 +16,7 @@ import { Popover, Tooltip } from "antd";
 import GroupPanel from "./GroupPanel";
 import SortPanel from "./SortPanel";
 import PluginManager from "./PluginManager";
+import FilterPanel from "./FilterPanel";
 
 interface DragItem {
   type: "view-tab";
@@ -23,6 +30,7 @@ interface ViewTabsProps {
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
   onRenameView?: (viewId: number, name: string) => Promise<void>;
   onReorderViews?: (orderedIds: number[]) => Promise<void> | void;
+  theme: "light" | "dark";
 }
 
 interface ViewTabItemProps {
@@ -162,18 +170,28 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     onActiveViewIdChange,
     onRenameView,
     onReorderViews,
+    theme,
   }) => {
-    const { activeViewId, views, viewConfig, setGroupBy, columns, setSorts } =
-      useDatabaseStore((state) => ({
-        activeViewId: state.activeViewId,
-        views: state.views,
-        viewConfig: state.viewConfig,
-        setGroupBy: state.setGroupBy,
-        columns: state.columns,
-        setSorts: state.setSorts,
-      }));
+    const {
+      activeViewId,
+      views,
+      viewConfig,
+      setGroupBy,
+      columns,
+      setSorts,
+      setFilters,
+    } = useDatabaseStore((state) => ({
+      activeViewId: state.activeViewId,
+      views: state.views,
+      viewConfig: state.viewConfig,
+      setGroupBy: state.setGroupBy,
+      columns: state.columns,
+      setSorts: state.setSorts,
+      setFilters: state.setFilters,
+    }));
     const [showGrouping, setShowGrouping] = useState(false);
     const [showSorting, setShowSorting] = useState(false);
+    const [showFilter, setShowFilter] = useState(false);
 
     const orderedIds = useMemo(() => views.map((view) => view.id), [views]);
     const orderedIdsRef = useRef<number[]>(orderedIds);
@@ -272,6 +290,37 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <Popover
+            open={showFilter}
+            onOpenChange={(visible) => setShowFilter(visible)}
+            trigger="click"
+            placement="bottom"
+            content={
+              <FilterPanel
+                columns={columns}
+                filters={viewConfig.filters ?? null}
+                pluginManager={pluginManager}
+                onChange={(nextFilters) => setFilters(nextFilters)}
+                onClose={() => setShowFilter(false)}
+                theme={theme}
+              />
+            }
+          >
+            <div
+              className={classNames(
+                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full hover:bg-[#F0EFED] text-[#2C2C2C] dark:hover:bg-[#30302E] dark:text-[#FFFFFF] cursor-pointer",
+                {
+                  "bg-[#F0EFED] dark:bg-[#30302E]": Boolean(viewConfig.filters),
+                },
+              )}
+            >
+              <Tooltip title="筛选设置">
+                <div className="h-9 flex items-center justify-center">
+                  <MdOutlineFilterAlt />
+                </div>
+              </Tooltip>
+            </div>
+          </Popover>
           <Popover
             open={showSorting}
             onOpenChange={(visible) => setShowSorting(visible)}

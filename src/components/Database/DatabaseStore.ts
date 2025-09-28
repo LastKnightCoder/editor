@@ -8,6 +8,7 @@ import {
   TableSnapshot,
   CellCoord,
   TableViewConfig,
+  FilterGroup,
 } from "./types";
 import { DataTableView, SortRule } from "@/types";
 
@@ -67,7 +68,14 @@ interface TableState {
   setViewConfig: (config: TableViewConfig) => void;
   setGroupBy: (groupConfig: TableViewConfig["groupBy"]) => void;
   setSorts: (sorts: SortRule[]) => void;
+  setFilters: (filters: FilterGroup | null) => void;
 }
+
+const cloneFilters = (
+  filters: FilterGroup | null | undefined,
+): FilterGroup | null => {
+  return filters ? JSON.parse(JSON.stringify(filters)) : null;
+};
 
 const createSnapshot = (
   state: Pick<TableState, "columns" | "rows" | "viewConfig" | "columnWidths">,
@@ -79,6 +87,7 @@ const createSnapshot = (
     rowOrder: [...state.viewConfig.rowOrder],
     groupBy: state.viewConfig.groupBy ?? null,
     sorts: [...state.viewConfig.sorts],
+    filters: cloneFilters(state.viewConfig.filters ?? null),
   },
 });
 
@@ -99,6 +108,9 @@ export const createDatabaseStore = (
       : initialRows.map((row) => row.id),
     groupBy: initialViewConfig?.groupBy ?? null,
     sorts: initialViewConfig?.sorts?.length ? [...initialViewConfig.sorts] : [],
+    filters: initialViewConfig?.filters
+      ? cloneFilters(initialViewConfig.filters)
+      : null,
   };
 
   return create<TableState>((set, get) => ({
@@ -458,6 +470,7 @@ export const createDatabaseStore = (
                 rowOrder: [...incomingViewConfig.rowOrder],
                 groupBy: incomingViewConfig.groupBy ?? null,
                 sorts: [...(incomingViewConfig.sorts ?? [])],
+                filters: cloneFilters(incomingViewConfig.filters ?? null),
               };
             }
           }),
@@ -473,6 +486,7 @@ export const createDatabaseStore = (
             rowOrder: [...config.rowOrder],
             groupBy: config.groupBy ?? null,
             sorts: [...config.sorts],
+            filters: cloneFilters(config.filters ?? null),
           };
         }),
       );
@@ -488,6 +502,13 @@ export const createDatabaseStore = (
       set(
         produce<TableState>((state: TableState) => {
           state.viewConfig.sorts = [...sorts];
+        }),
+      );
+    },
+    setFilters: (filters) => {
+      set(
+        produce<TableState>((state: TableState) => {
+          state.viewConfig.filters = cloneFilters(filters);
         }),
       );
     },

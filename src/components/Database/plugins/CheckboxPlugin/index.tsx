@@ -60,6 +60,20 @@ const CheckboxPlugin: CellPlugin<unknown> = {
 
     return direction === "asc" ? (a ? 1 : -1) : b ? 1 : -1;
   },
+  filters: [
+    {
+      operator: "已选",
+      label: "已选",
+      requiresValue: false,
+      filter: (_value, row, column) => Boolean(row[column.id]) === true,
+    },
+    {
+      operator: "未选",
+      label: "未选",
+      requiresValue: false,
+      filter: (_value, row, column) => Boolean(row[column.id]) === false,
+    },
+  ],
 };
 
 export default CheckboxPlugin;

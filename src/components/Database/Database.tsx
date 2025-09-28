@@ -248,6 +248,7 @@ const Database: React.FC<DatabaseProps> = memo(
               onActiveViewIdChange={onActiveViewIdChange}
               onRenameView={handleRenameView}
               onReorderViews={handleReorderViews}
+              theme={finalTheme}
             />
           </div>
           <div className="w-full flex-1 min-h-0">{View}</div>

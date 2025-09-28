@@ -30,6 +30,25 @@ export interface RowData {
   [columnId: string]: CellValue;
 }
 
+export type FilterLogicOperator = "and" | "or";
+
+export interface FilterCondition {
+  id: string;
+  type: "condition";
+  fieldId: string | null;
+  operator: string | null;
+  value: CellValue | null;
+}
+
+export interface FilterGroup {
+  id: string;
+  type: "group";
+  logic: FilterLogicOperator;
+  children: FilterNode[];
+}
+
+export type FilterNode = FilterCondition | FilterGroup;
+
 export interface DatabaseData {
   columns: ColumnDef[];
   rows: RowData[];
@@ -62,6 +81,7 @@ export interface TableViewConfig {
   rowOrder: string[];
   groupBy?: GroupRule | null;
   sorts: SortRule[];
+  filters?: FilterGroup | null;
 }
 
 export interface CellPlugin<T> {
@@ -102,6 +122,7 @@ export interface CellPlugin<T> {
   beforeSave?: (value: CellValue, config: T) => CellValue;
   afterLoad?: (value: CellValue, config: T) => CellValue;
   onColumnCleanup?: (columnData: CellValue[]) => Promise<void> | void;
+  filters?: CellFilterDefinition<T>[];
 }
 
 export interface ValidationRule {
@@ -132,4 +153,16 @@ export interface SelectOption {
   id: string;
   name: string;
   color: (typeof SELECT_COLORS)[number];
+}
+
+export interface CellFilterDefinition<TColumnConfig> {
+  operator: string;
+  label?: string;
+  requiresValue?: boolean;
+  getInitialValue?: (column: ColumnDef<TColumnConfig>) => CellValue | null;
+  filter: (
+    filterValue: CellValue | null,
+    row: RowData,
+    column: ColumnDef<TColumnConfig>,
+  ) => boolean;
 }
