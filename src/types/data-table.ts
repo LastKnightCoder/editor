@@ -20,6 +20,7 @@ export interface DataTable {
   columns: DataTableColumn[];
   rows: DataTableRow[];
   activeViewId: number | null;
+  refCount?: number;
 }
 
 export interface CreateDataTable {
@@ -33,6 +34,7 @@ export interface UpdateDataTable {
   columns?: DataTableColumn[];
   rows?: DataTableRow[];
   activeViewId?: number | null;
+  height?: number;
 }
 
 export interface DataTableViewConfig {

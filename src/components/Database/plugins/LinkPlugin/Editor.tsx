@@ -21,6 +21,7 @@ const LinkEditor: React.FC<LinkEditorProps> = memo(
           contentEditable={true}
           defaultFocus={true}
           className="w-full min-h-10 px-2 py-2 flex items-center"
+          isSlateEditor
         />
       </div>
     );

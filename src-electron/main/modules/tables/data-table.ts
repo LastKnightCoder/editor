@@ -12,7 +12,8 @@ export default class DataTableTable {
         update_time INTEGER NOT NULL,
         columns TEXT NOT NULL,
         rows TEXT NOT NULL,
-        active_view_id INTEGER
+        active_view_id INTEGER,
+        ref_count INTEGER DEFAULT 0
       )
     `);
   }
@@ -27,6 +28,14 @@ export default class DataTableTable {
     const hasActiveViewId = tableInfo.some(
       (column) => column.name === "active_view_id",
     );
+    const hasRefCount = tableInfo.some((column) => column.name === "ref_count");
+
+    if (!hasRefCount) {
+      db.exec("ALTER TABLE data_tables ADD COLUMN ref_count INTEGER DEFAULT 1");
+      db.exec(`UPDATE data_tables SET ref_count = 1 WHERE ref_count IS NULL`);
+    }
+
+    this.deleteDataTableWhenRefCountIsZero(db);
 
     if (!hasColumnOrder && hasActiveViewId) {
       return;
@@ -34,8 +43,6 @@ export default class DataTableTable {
 
     db.exec("BEGIN");
     try {
-      DataTableViewTable.initTable(db);
-
       db.exec(`
         CREATE TABLE IF NOT EXISTS data_tables_new (
           id INTEGER PRIMARY KEY,
@@ -43,7 +50,8 @@ export default class DataTableTable {
           update_time INTEGER NOT NULL,
           columns TEXT NOT NULL,
           rows TEXT NOT NULL,
-          active_view_id INTEGER
+          active_view_id INTEGER,
+          ref_count INTEGER NOT NULL
         )
       `);
 
@@ -55,9 +63,10 @@ export default class DataTableTable {
           update_time,
           columns,
           rows,
-          active_view_id
+          active_view_id,
+          ref_count
         )
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
 
       const rows = selectStmt.all();
@@ -91,6 +100,7 @@ export default class DataTableTable {
           row.columns,
           row.rows,
           view.id,
+          row.ref_count ?? 1,
         );
       });
 
@@ -112,6 +122,7 @@ export default class DataTableTable {
       "data-table:get-detail": this.getDetail.bind(this),
       "data-table:set-active-view": this.setActiveView.bind(this),
       "data-table:delete": this.remove.bind(this),
+      "data-table:increment-ref-count": this.incrementRefCount.bind(this),
     } as const;
   }
 
@@ -123,6 +134,7 @@ export default class DataTableTable {
       columns: JSON.parse(row.columns || "[]"),
       rows: JSON.parse(row.rows || "[]"),
       activeViewId: row.active_view_id ?? null,
+      refCount: row.ref_count ?? 0,
     };
   }
 
@@ -150,8 +162,8 @@ export default class DataTableTable {
 
   static create(db: Database.Database, table: CreateDataTable): DataTable {
     const stmt = db.prepare(`
-      INSERT INTO data_tables (create_time, update_time, columns, rows, active_view_id)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO data_tables (create_time, update_time, columns, rows, active_view_id, ref_count)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
@@ -160,6 +172,7 @@ export default class DataTableTable {
       JSON.stringify(table.columns || []),
       JSON.stringify(table.rows || []),
       table.activeViewId ?? null,
+      1,
     );
     const id = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "data-table", "insert", id, now);
@@ -212,14 +225,52 @@ export default class DataTableTable {
   }
 
   static remove(db: Database.Database, id: number): number {
+    const stmt = db.prepare(`
+      UPDATE data_tables SET ref_count = ref_count - 1 WHERE id = ?
+    `);
+    const changes = stmt.run(id).changes;
+
+    Operation.insertOperation(db, "data-table", "delete", id, Date.now());
+
+    // this.deleteDataTableWhenRefCountIsZero(db);
+
+    return changes;
+  }
+
+  static incrementRefCount(db: Database.Database, id: number): number {
+    const stmt = db.prepare(`
+      UPDATE data_tables SET ref_count = ref_count + 1 WHERE id = ?
+    `);
+    const changes = stmt.run(id).changes;
+
+    if (changes > 0) {
+      const updateTimeStmt = db.prepare(
+        `UPDATE data_tables SET update_time = ? WHERE id = ?`,
+      );
+      updateTimeStmt.run(Date.now(), id);
+    }
+
+    return changes;
+  }
+
+  static deleteDataTableWhenRefCountIsZero(db: Database.Database) {
+    const selectStmt = db.prepare(
+      `SELECT id FROM data_tables WHERE ref_count <= 0`,
+    );
+    const ids = selectStmt.all() as Array<{ id: number }>;
+    if (!ids.length) return;
+
     const deleteViewsStmt = db.prepare(
       `DELETE FROM data_table_views WHERE table_id = ?`,
     );
-    deleteViewsStmt.run(id);
+    const deleteTableStmt = db.prepare(`DELETE FROM data_tables WHERE id = ?`);
 
-    const stmt = db.prepare(`DELETE FROM data_tables WHERE id = ?`);
-    Operation.insertOperation(db, "data-table", "delete", id, Date.now());
-    return stmt.run(id).changes;
+    const now = Date.now();
+    ids.forEach(({ id }) => {
+      deleteViewsStmt.run(id);
+      deleteTableStmt.run(id);
+      Operation.insertOperation(db, "data-table", "delete", id, now);
+    });
   }
 
   static setActiveView(

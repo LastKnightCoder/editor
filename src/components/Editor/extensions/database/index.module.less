@@ -1,0 +1,39 @@
+.container {
+  position: relative;
+  @import "@/components/Editor/extensions/drop-common.less";
+  @import "@/components/Editor/extensions/drag-common.less";
+
+  .databaseWrapper {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--line-color);
+    border-radius: 0.75em;
+    padding: 1.5em;
+    min-height: 12em;
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75em;
+    color: var(--secondary-text-color);
+    font-size: 0.75em;
+  }
+
+  .content {
+    flex: 1;
+    min-height: 10em;
+  }
+
+  .empty {
+    min-height: 12em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--secondary-text-color);
+    font-size: 0.875em;
+  }
+}
