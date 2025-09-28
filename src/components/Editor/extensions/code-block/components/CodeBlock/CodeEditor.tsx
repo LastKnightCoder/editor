@@ -5,7 +5,7 @@ import { Editor, EditorChange, EditorConfiguration } from "codemirror";
 interface CodeEditorProps {
   value: string;
   options: EditorConfiguration;
-  className: string;
+  className?: string;
   onChange: (editor: Editor, change: EditorChange, code: string) => void;
   onKeyDown: (editor: Editor, event: KeyboardEvent) => void;
   editorDidMount: (editor: Editor) => void;

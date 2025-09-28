@@ -5,5 +5,7 @@ export interface CodeBlockElement {
   language: string;
   code: string;
   uuid: string;
+  isFold?: boolean;
+  foldHeight?: number;
   children: Descendant[];
 }
