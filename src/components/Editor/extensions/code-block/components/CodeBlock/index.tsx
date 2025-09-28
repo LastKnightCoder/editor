@@ -17,7 +17,11 @@ import classnames from "classnames";
 import { Editor, EditorChange, EditorConfiguration } from "codemirror";
 import { App } from "antd";
 import isHotkey from "is-hotkey";
-import { MdFullscreenExit } from "react-icons/md";
+import {
+  MdFullscreenExit,
+  MdKeyboardArrowDown,
+  MdKeyboardArrowUp,
+} from "react-icons/md";
 import { CodeBlockElement } from "@/components/Editor/types";
 import AddParagraph, {
   AddParagraphRef,
@@ -64,13 +68,33 @@ const aliases = {
   zsh: "shell",
 };
 
+const MIN_FOLD_HEIGHT = 200;
+const MAX_FOLD_HEIGHT = 1200;
+
 const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   props,
 ) => {
   const { children, element, onDidMount, onWillUnmount, attributes } = props;
-  const { code: defaultCode, language, uuid } = element;
+  const {
+    code: defaultCode,
+    language,
+    uuid,
+    isFold: defaultIsFold = false,
+    foldHeight: defaultFoldHeight = 400,
+  } = element;
   const [code, setCode] = useState(defaultCode);
+  const [isFold, setIsFold] = useState<boolean>(defaultIsFold);
+  const [foldHeight, setFoldHeight] = useState<number>(defaultFoldHeight);
+  const [canFold, setCanFold] = useState(false);
   const [langConfig, setLangConfig] = useState<ILanguageConfig>();
+  const foldStyle = useMemo(() => {
+    if (!(isFold && canFold)) {
+      return undefined;
+    }
+    return {
+      "--fold-height": `${foldHeight / 16}em`,
+    } as React.CSSProperties;
+  }, [canFold, foldHeight, isFold]);
   const slateEditor = useSlate();
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
@@ -79,6 +103,8 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   const editorRef = useRef<Editor | null>(null);
   const fullscreenEditorRef = useRef<Editor | null>(null);
   const { message } = App.useApp();
+  const resizeStartYRef = useRef(0);
+  const startFoldHeightRef = useRef(0);
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -86,20 +112,26 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     });
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.getValue() !== defaultCode) {
-      editorRef.current.setValue(defaultCode);
-      editorRef.current.refresh();
-      setCode(defaultCode);
+    const path = ReactEditor.findPath(slateEditor, element);
+    if (typeof element.isFold !== "boolean") {
+      Transforms.setNodes(slateEditor, { isFold: false }, { at: path });
     }
-    if (
-      fullscreenEditorRef.current &&
-      fullscreenEditorRef.current.getValue() !== defaultCode
-    ) {
-      fullscreenEditorRef.current.setValue(defaultCode);
-      fullscreenEditorRef.current.refresh();
-      setCode(defaultCode);
+    if (typeof element.foldHeight !== "number") {
+      Transforms.setNodes(
+        slateEditor,
+        { foldHeight: MIN_FOLD_HEIGHT },
+        { at: path },
+      );
     }
-  }, [defaultCode]);
+  }, [element, slateEditor]);
+
+  useEffect(() => {
+    setIsFold(defaultIsFold);
+  }, [defaultIsFold]);
+
+  useEffect(() => {
+    setFoldHeight(defaultFoldHeight);
+  }, [defaultFoldHeight]);
 
   useEffect(() => {
     const alias =
@@ -113,10 +145,44 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     setLangConfig(languageConfig);
   }, [language]);
 
-  const handleOnChange = useMemoizedFn(
-    (_editor: Editor, _change: EditorChange, code: string) => {
+  const measureFoldable = useMemoizedFn(() => {
+    if (isFullscreen) {
+      return;
+    }
+    const wrapper = editorRef.current?.getWrapperElement();
+    if (!wrapper) {
+      setCanFold(false);
+      return;
+    }
+    const scrollHeight = wrapper.scrollHeight;
+    const threshold = Math.max(foldHeight, MIN_FOLD_HEIGHT);
+    const foldable = scrollHeight > threshold;
+    setCanFold(foldable);
+    if (!foldable && isFold) {
       const path = ReactEditor.findPath(slateEditor, element);
-      Transforms.setNodes(slateEditor, { code }, { at: path });
+      setIsFold(false);
+      Transforms.setNodes(slateEditor, { isFold: false }, { at: path });
+    }
+  });
+
+  const updateFoldHeight = useMemoizedFn((nextHeight: number) => {
+    setFoldHeight(nextHeight);
+    const path = ReactEditor.findPath(slateEditor, element);
+    Transforms.setNodes(slateEditor, { foldHeight: nextHeight }, { at: path });
+    measureFoldable();
+  });
+
+  useEffect(() => {
+    setCode(defaultCode);
+    measureFoldable();
+  }, [defaultCode, measureFoldable]);
+
+  const handleOnChange = useMemoizedFn(
+    (_editor: Editor, _change: EditorChange, value: string) => {
+      const path = ReactEditor.findPath(slateEditor, element);
+      setCode(value);
+      Transforms.setNodes(slateEditor, { code: value }, { at: path });
+      measureFoldable();
     },
   );
 
@@ -162,6 +228,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
       }
     }
     setIsFullscreen(!isFullscreen);
+    if (!isFullscreen) {
+      setTimeout(() => {
+        measureFoldable();
+      }, 100);
+    }
   });
 
   const handleOnLanguageChange = useMemoizedFn((value: string) => {
@@ -171,6 +242,43 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
       { at: ReactEditor.findPath(slateEditor, element) },
     );
   });
+
+  const handleToggleFold = useMemoizedFn(() => {
+    const path = ReactEditor.findPath(slateEditor, element);
+    const nextIsFold = !isFold;
+    setIsFold(nextIsFold);
+    Transforms.setNodes(slateEditor, { isFold: nextIsFold }, { at: path });
+    if (!nextIsFold) {
+      measureFoldable();
+    }
+  });
+
+  const handleResizeMove = useMemoizedFn((event: MouseEvent) => {
+    const deltaY = event.clientY - resizeStartYRef.current;
+    const nextHeight = Math.min(
+      MAX_FOLD_HEIGHT,
+      Math.max(MIN_FOLD_HEIGHT, startFoldHeightRef.current + deltaY),
+    );
+    updateFoldHeight(nextHeight);
+  });
+
+  const handleResizeEnd = useMemoizedFn(() => {
+    document.removeEventListener("mousemove", handleResizeMove);
+    document.removeEventListener("mouseup", handleResizeEnd);
+  });
+
+  const handleResizeStart = useMemoizedFn(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!isFold || readOnly) {
+        return;
+      }
+      event.preventDefault();
+      resizeStartYRef.current = event.clientY;
+      startFoldHeightRef.current = foldHeight;
+      document.addEventListener("mousemove", handleResizeMove);
+      document.addEventListener("mouseup", handleResizeEnd);
+    },
+  );
 
   const handleOnKeyDown = useMemoizedFn(
     (editor: Editor, event: KeyboardEvent) => {
@@ -249,6 +357,9 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
 
   const onEditorDidMount = useMemoizedFn((editor: Editor) => {
     editorRef.current = editor;
+    setTimeout(() => {
+      measureFoldable();
+    }, 0);
     onDidMount && onDidMount(editor);
   });
 
@@ -256,6 +367,13 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     onWillUnmount && onWillUnmount(editor);
     editorRef.current = null;
   });
+
+  useEffect(() => {
+    return () => {
+      document.removeEventListener("mousemove", handleResizeMove);
+      document.removeEventListener("mouseup", handleResizeEnd);
+    };
+  }, [handleResizeEnd, handleResizeMove]);
 
   return (
     <div
@@ -285,15 +403,38 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
         <Suspense
           fallback={<div className={styles.loading}>加载代码编辑器中...</div>}
         >
-          <CodeEditorLazy
-            value={code || ""}
-            options={editorOptions}
-            className={styles.CodeMirrorContainer}
-            onChange={handleOnChange}
-            onKeyDown={handleOnKeyDown}
-            editorDidMount={onEditorDidMount}
-            editorWillUnmount={onEditorWillUnmount}
-          />
+          <div
+            className={classnames(styles.CodeMirrorContainer, {
+              [styles.folded]: isFold && canFold,
+            })}
+            style={foldStyle}
+          >
+            <CodeEditorLazy
+              value={code || ""}
+              options={editorOptions}
+              onChange={handleOnChange}
+              onKeyDown={handleOnKeyDown}
+              editorDidMount={onEditorDidMount}
+              editorWillUnmount={onEditorWillUnmount}
+            />
+            {canFold && (
+              <div className={styles.foldToggle} onClick={handleToggleFold}>
+                {isFold ? (
+                  <MdKeyboardArrowDown size={18} />
+                ) : (
+                  <MdKeyboardArrowUp size={18} />
+                )}
+              </div>
+            )}
+            {isFold && canFold && !readOnly && (
+              <div
+                className={styles.resizeHandle}
+                onMouseDown={handleResizeStart}
+              >
+                <div className={styles.resizeIndicator} />
+              </div>
+            )}
+          </div>
         </Suspense>
         <AddParagraph element={element} ref={addParagraphRef} />
         <DragHandle canDrag={canDrag} dragRef={drag} />
