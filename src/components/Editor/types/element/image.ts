@@ -10,5 +10,6 @@ export interface ImageElement {
   crop?: Crop;
   previewUrl?: string;
   width?: number;
+  description?: string;
   children: Descendant[];
 }
