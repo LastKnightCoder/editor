@@ -644,9 +644,15 @@ export default class ProjectTable {
     const currentChildren = new Set(parentProjectItem.children);
     currentChildren.add(createdItemId);
     parentProjectItem.children = Array.from(currentChildren);
-    this.updateProjectItem(db, parentProjectItem);
+    const updatedParentProjectItem = this.updateProjectItem(
+      db,
+      parentProjectItem,
+    );
+    if (!updatedParentProjectItem) {
+      return null;
+    }
 
-    return [parentProjectItem, this.getProjectItem(db, createdItemId)];
+    return [updatedParentProjectItem, this.getProjectItem(db, createdItemId)];
   }
 
   static addRefRootProjectItem(

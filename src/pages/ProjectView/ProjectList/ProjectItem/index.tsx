@@ -262,7 +262,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [debounceTimeoutId, setDebounceTimeoutId] =
     useState<NodeJS.Timeout | null>(null);
 
-  // 获取 Bilibili 视频的可用清晰度选项
   const fetchBilibiliQualityOptions = useMemoizedFn(async (url: string) => {
     if (!url.trim() || !isBilibiliUrl(url)) {
       setBilibiliQualityOptions([]);
@@ -333,11 +332,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     }
   });
 
-  // 处理输入变化的防抖逻辑
   const handleBilibiliUrlChange = useMemoizedFn((url: string) => {
     setBilibiliUrl(url);
 
-    // 清除之前的防抖定时器
     if (debounceTimeoutId) {
       clearTimeout(debounceTimeoutId);
     }
@@ -347,7 +344,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       return;
     }
 
-    // 设置新的防抖定时器
     const timeoutId = setTimeout(() => {
       if (isBilibiliUrl(url)) {
         fetchBilibiliQualityOptions(url);
@@ -357,7 +353,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     setDebounceTimeoutId(timeoutId);
   });
 
-  // 清理防抖定时器
   useEffect(() => {
     return () => {
       if (debounceTimeoutId) {
@@ -366,7 +361,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     };
   }, [debounceTimeoutId]);
 
-  // YouTube 链接解析（与 ProjectView 保持一致的流程：获取 video/audio 格式并默认选最佳）
   const handleYoutubeUrlChange = useDebounceFn(
     async (url: string) => {
       setYoutubeUrl(url);
