@@ -23,6 +23,7 @@ export interface MindNodeElement {
   defaultFocus?: boolean;
   isRightFold?: boolean;
   isLeftFold?: boolean;
+  theme?: "light" | "dark";
 }
 
 export interface MindDragTarget {

@@ -13,6 +13,8 @@ import { ZOOMS } from "../../constants";
 import { usePresentationState } from "../../hooks";
 import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 
 interface StatusBarProps {
   gridVisible?: boolean;
@@ -49,7 +51,7 @@ const StatusBar = memo(
     } = props;
 
     const { isPresentationMode } = usePresentationState();
-
+    const { isDark } = useTheme();
     const stopPropagation = useMemoizedFn((e: any) => {
       e.stopPropagation();
     });
@@ -62,7 +64,9 @@ const StatusBar = memo(
     return (
       <Flex
         ref={ref}
-        className={styles.statusBar}
+        className={classnames(styles.statusBar, {
+          [styles.dark]: isDark,
+        })}
         align={"center"}
         onPointerDown={stopPropagation}
         onDoubleClick={stopPropagation}

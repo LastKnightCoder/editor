@@ -6,6 +6,7 @@ import { Descendant } from "slate";
 export interface GeometryElement extends CommonElement {
   type: "geometry";
   geometryType: string;
+  theme?: "light" | "dark";
   color?: string;
   fill?: string;
   fillOpacity?: number;

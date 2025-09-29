@@ -51,6 +51,7 @@ const MindNode = (props: MindNodeProps) => {
     isLeftFold,
     isRightFold,
     direction,
+    theme,
   } = element;
 
   const board = useBoard();
@@ -344,6 +345,12 @@ const MindNode = (props: MindNodeProps) => {
         )
       : 0;
 
+  const editorStyle = useMemo(() => {
+    return {
+      maxWidth: MIND_NODE_MAX_WIDTH,
+    } as React.CSSProperties;
+  }, [theme]);
+
   return (
     <g>
       <If condition={isSelected}>
@@ -374,7 +381,7 @@ const MindNode = (props: MindNodeProps) => {
           onPointerDown={handlePointerDown}
         >
           <div
-            className="absolute left-0 top-0 rounded-4 box-border z-[-1]"
+            className="absolute left-0 top-0 rounded-[4px] box-border z-[-1]"
             style={{
               background: background || "transparent",
               border: `1px solid ${border || "transparent"}`,
@@ -386,13 +393,19 @@ const MindNode = (props: MindNodeProps) => {
             ref={editorRef}
             initValue={text}
             readonly={!isEditing}
-            className="w-fit p-4 box-border"
-            style={{
-              maxWidth: MIND_NODE_MAX_WIDTH,
-            }}
+            className="w-fit p-4 box-border rounded-[4px]"
+            style={editorStyle}
             onChange={onContentChange}
             onBlur={handleBlur}
             extensions={customExtensions}
+            theme={
+              theme ??
+              (textColor === "#000"
+                ? "light"
+                : textColor === "#fff"
+                  ? "dark"
+                  : undefined)
+            }
           />
         </div>
       </foreignObject>

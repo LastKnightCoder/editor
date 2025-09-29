@@ -12,6 +12,23 @@
   padding: 0 0.75em;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 
+  &.dark {
+    background: #000;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    .toolBarItem {
+      color: #fff;
+      &:not(.active):hover {
+        color: rgb(102, 152, 255);
+        background: rgba(255, 255, 255, 0.2);
+      }
+      &.active {
+        color: rgb(102, 152, 255);
+        background: rgba(102, 152, 255, 0.1);
+      }
+    }
+  }
+
   .toolBarItem {
     color: #999;
     fill: currentColor;

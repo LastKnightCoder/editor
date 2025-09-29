@@ -10,6 +10,8 @@ import { useBoard } from "../../../hooks";
 import { FrameUtil } from "../../../utils";
 
 import styles from "./index.module.less";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 
 interface FrameSetterProps {
   element: FrameElement;
@@ -18,6 +20,7 @@ interface FrameSetterProps {
 
 const FrameSetter = memo((props: FrameSetterProps) => {
   const { element, onChange } = props;
+  const { isDark } = useTheme();
   const [styleOpen, setStyleOpen] = useState(false);
   const board = useBoard();
 
@@ -75,17 +78,25 @@ const FrameSetter = memo((props: FrameSetterProps) => {
 
   const styleContent = (
     <div
-      className={styles.popoverContent}
+      className={classnames(styles.popoverContent, {
+        [styles.dark]: isDark,
+      })}
       onClick={stopPropagation}
       onPointerDown={stopPropagation}
       onPointerUp={stopPropagation}
       onWheel={stopPropagation}
     >
-      <div className={styles.styleGrid}>
+      <div
+        className={classnames(styles.styleGrid, {
+          [styles.dark]: isDark,
+        })}
+      >
         {FRAME_DEFAULT_STYLES.map((style, index) => (
           <div
             key={index}
-            className={styles.styleItem}
+            className={classnames(styles.styleItem, {
+              [styles.dark]: isDark,
+            })}
             onClick={() => handleStyleChange(index)}
             style={{
               backgroundColor: style.backgroundColor,
@@ -103,9 +114,10 @@ const FrameSetter = memo((props: FrameSetterProps) => {
       onPointerDown={stopPropagation}
       onDoubleClick={stopPropagation}
       onWheel={stopPropagation}
-      className={styles.container}
+      className={classnames(styles.container, {
+        [styles.dark]: isDark,
+      })}
     >
-      {/* 样式选择 */}
       <Popover
         open={styleOpen}
         onOpenChange={setStyleOpen}

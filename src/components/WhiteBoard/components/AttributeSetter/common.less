@@ -9,6 +9,22 @@
   gap: 1em;
   align-items: center;
 
+  &.dark {
+    background: #000;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    .item {
+      color: #fff;
+      &:not(.active):hover {
+        color: rgba(102, 152, 255);
+        background: rgba(255, 255, 255, 0.1);
+      }
+      &.active {
+        color: rgba(102, 152, 255);
+      }
+    }
+  }
+
   .item {
     color: #999;
     fill: currentColor;

@@ -10,6 +10,8 @@ import Arrow from "../../Arrow";
 import { ArrowElement, EArrowLineType, EMarkerType } from "../../../types";
 
 import styles from "./index.module.less";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 
 interface ArrowSetterProps {
   element: ArrowElement;
@@ -126,6 +128,7 @@ const dashPatterns = [
 
 const ArrowSetter = (props: ArrowSetterProps) => {
   const { element, onChange } = props;
+  const { isDark } = useTheme();
 
   const onSelectArrowType = (type: EArrowLineType) => {
     const newElement = produce(element, (draft) => {
@@ -206,7 +209,9 @@ const ArrowSetter = (props: ArrowSetterProps) => {
 
   return (
     <div
-      className={styles.container}
+      className={classnames(styles.container, {
+        [styles.dark]: isDark,
+      })}
       onPointerDown={(e) => {
         e.stopPropagation();
       }}
@@ -224,7 +229,6 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         styles={{
           body: {
             marginLeft: 24,
-            background: "white",
           },
         }}
         content={
@@ -243,7 +247,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                       sourceMarker={EMarkerType.None}
                       targetMarker={EMarkerType.None}
                       lineType={type.type}
-                      lineColor={"black"}
+                      lineColor={isDark ? "#fff" : "#000"}
                       lineWidth={50}
                       points={[
                         { x: 50, y: 800 },
@@ -264,7 +268,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                 sourceMarker={EMarkerType.None}
                 targetMarker={EMarkerType.Arrow}
                 lineType={element.lineType}
-                lineColor={"black"}
+                lineColor={isDark ? "#fff" : "#000"}
                 lineWidth={1}
                 points={[
                   { x: 1, y: 15 },
@@ -283,7 +287,6 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         styles={{
           body: {
             marginLeft: 24,
-            background: "white",
           },
         }}
         content={
@@ -302,7 +305,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                       sourceMarker={marker.type}
                       targetMarker={EMarkerType.None}
                       lineType={EArrowLineType.STRAIGHT}
-                      lineColor={"black"}
+                      lineColor={isDark ? "#fff" : "#000"}
                       lineWidth={50}
                       points={[
                         { x: 50, y: 512 },
@@ -323,7 +326,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                 sourceMarker={element.source.marker}
                 targetMarker={EMarkerType.None}
                 lineType={EArrowLineType.STRAIGHT}
-                lineColor={"black"}
+                lineColor={isDark ? "#fff" : "#000"}
                 lineWidth={1}
                 points={[
                   { x: 1, y: 8 },
@@ -342,7 +345,6 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         styles={{
           body: {
             marginLeft: 24,
-            background: "white",
           },
         }}
         content={
@@ -361,7 +363,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                       sourceMarker={EMarkerType.None}
                       targetMarker={marker.type}
                       lineType={EArrowLineType.STRAIGHT}
-                      lineColor={"black"}
+                      lineColor={isDark ? "#fff" : "#000"}
                       lineWidth={50}
                       points={[
                         { x: 50, y: 512 },
@@ -382,7 +384,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                 sourceMarker={EMarkerType.None}
                 targetMarker={element.target.marker}
                 lineType={EArrowLineType.STRAIGHT}
-                lineColor={"black"}
+                lineColor={isDark ? "#fff" : "#000"}
                 lineWidth={1}
                 points={[
                   { x: 1, y: 8 },
@@ -431,7 +433,6 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         styles={{
           body: {
             marginLeft: 24,
-            background: "white",
           },
         }}
         content={
@@ -449,7 +450,7 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                     sourceMarker={EMarkerType.None}
                     targetMarker={EMarkerType.None}
                     lineType={EArrowLineType.STRAIGHT}
-                    lineColor={"black"}
+                    lineColor={isDark ? "#fff" : "#000"}
                     lineWidth={option.value}
                     points={[
                       { x: 2, y: 22 },
@@ -479,11 +480,10 @@ const ArrowSetter = (props: ArrowSetterProps) => {
             padding: 12,
             marginLeft: 24,
             width: 220,
-            background: "white",
           },
         }}
         content={
-          <div className="text-black">
+          <div>
             <div
               style={{
                 display: "flex",
@@ -526,7 +526,9 @@ const ArrowSetter = (props: ArrowSetterProps) => {
                             JSON.stringify(element.dashArray) ===
                             JSON.stringify(pattern.value)
                               ? "#1890ff"
-                              : "#000"
+                              : isDark
+                                ? "#fff"
+                                : "#000"
                           }
                           strokeWidth={2}
                           strokeDasharray={pattern.value.join(",")}
@@ -548,7 +550,6 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         </Tooltip>
       </Popover>
 
-      {/* 草图风格设置器 */}
       <Popover
         arrow={false}
         trigger={"click"}
@@ -558,11 +559,10 @@ const ArrowSetter = (props: ArrowSetterProps) => {
             padding: 12,
             marginLeft: 24,
             width: 200,
-            background: "white",
           },
         }}
         content={
-          <div className="text-black">
+          <div>
             <div
               style={{
                 display: "flex",
@@ -607,7 +607,6 @@ const ArrowSetter = (props: ArrowSetterProps) => {
         </Tooltip>
       </Popover>
 
-      {/* 流动动画设置器 */}
       <Popover
         arrow={false}
         trigger={"click"}
@@ -617,11 +616,10 @@ const ArrowSetter = (props: ArrowSetterProps) => {
             padding: 12,
             marginLeft: 24,
             width: 200,
-            background: "white",
           },
         }}
         content={
-          <div className="text-black">
+          <div>
             <div
               style={{
                 display: "flex",
@@ -640,26 +638,20 @@ const ArrowSetter = (props: ArrowSetterProps) => {
             {element.animated && (
               <div>
                 <span>动画速度</span>
-                <ConfigProvider
-                  theme={{
-                    algorithm: theme.defaultAlgorithm,
+                <Slider
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={element.animationSpeed || 3}
+                  onChange={onAnimationSpeedChange}
+                  tooltip={{ formatter: (value) => `${value}` }}
+                  marks={{
+                    1: "慢",
+                    5: "中",
+                    10: "快",
                   }}
-                >
-                  <Slider
-                    min={1}
-                    max={10}
-                    step={1}
-                    value={element.animationSpeed || 3}
-                    onChange={onAnimationSpeedChange}
-                    tooltip={{ formatter: (value) => `${value}` }}
-                    marks={{
-                      1: "慢",
-                      5: "中",
-                      10: "快",
-                    }}
-                  />
-                </ConfigProvider>
-                <div style={{ fontSize: 12, color: "#666", marginTop: 8 }}>
+                />
+                <div style={{ fontSize: 12, marginTop: 8 }}>
                   {element.dashed ? "虚线将显示流动效果" : "实线将显示流动点"}
                 </div>
               </div>

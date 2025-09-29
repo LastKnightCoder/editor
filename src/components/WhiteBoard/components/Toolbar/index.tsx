@@ -21,10 +21,12 @@ import { useBoard, useCreateElementType } from "../../hooks";
 
 import styles from "./index.module.less";
 import usePresentationState from "../../hooks/usePresentationState";
+import useTheme from "@/hooks/useTheme";
 
 const Toolbar = memo(() => {
   const board = useBoard();
   const { modal } = App.useApp();
+  const { isDark } = useTheme();
 
   const createBoardElementType = useCreateElementType();
 
@@ -70,7 +72,9 @@ const Toolbar = memo(() => {
 
   return (
     <div
-      className={styles.toolBar}
+      className={classnames(styles.toolBar, {
+        [styles.dark]: isDark,
+      })}
       onClick={stopPropagation}
       onPointerDown={stopPropagation}
       onMouseDown={stopPropagation}

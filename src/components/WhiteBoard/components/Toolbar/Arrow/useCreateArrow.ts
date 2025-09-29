@@ -70,7 +70,7 @@ export const useCreateArrow = () => {
           },
           points: [startPoint.current, currentPoint.current],
           lineWidth: 2,
-          lineColor: "#36282b",
+          lineColor: "#697989",
           dashed: false,
           dashArray: [5, 5],
         };
