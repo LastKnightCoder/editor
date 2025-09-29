@@ -682,4 +682,5 @@
 - feat: 代码块支持收起，并可调整高度
 - feat: 编辑器内视频支持 bilibili 和 youtube
 - feat: 白板视频支持 bilibili 和 youtube
+- feat: 图片支持添加描述
 - fix: 选中的知识库添加文档时会丢失

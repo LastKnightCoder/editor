@@ -14,6 +14,7 @@ import {
   ScissorOutlined,
   CheckOutlined,
   CloseOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
@@ -34,6 +35,7 @@ import {
   useImageResize,
   ResizeDirection,
 } from "@/components/Editor/hooks/useImageResize";
+import EditText, { EditTextHandle } from "@/components/EditText";
 
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
@@ -49,6 +51,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     crop,
     previewUrl,
     width,
+    description,
   } = element;
 
   const uploadResource = useUploadResource();
@@ -63,6 +66,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const editor = useSlate();
   const readOnly = useReadOnly();
   const [isSelected, setIsSelected] = useState(false);
+  const [showDescEditor, setShowDescEditor] = useState(false);
+  const descRef = useRef<EditTextHandle | null>(null);
 
   const { showImageOverview } = useImagesOverviewStore((state) => ({
     showImageOverview: state.showImageOverview,
@@ -170,6 +175,21 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     Transforms.setNodes(editor, { width: newWidth }, { at: path });
   });
 
+  const updateDescription = useMemoizedFn((value: string) => {
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, { description: value }, { at: path });
+  });
+
+  const exitDescEditing = useMemoizedFn(() => {
+    const val = descRef.current?.getValue() || "";
+    if (!val.trim()) {
+      updateDescription("");
+      setShowDescEditor(false);
+    } else {
+      setShowDescEditor(false);
+    }
+  });
+
   const onImageLoad = () => {
     if (!crop) {
       setCurrentCrop({
@@ -253,7 +273,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const confirmCrop = async () => {
     if ((cropImgRef.current || imgRef.current) && completedCrop) {
-      const image = cropImgRef.current || imgRef.current!;
+      const image = cropImgRef.current ?? imgRef.current;
+      if (!image) {
+        setIsCropping(false);
+        return;
+      }
       const canvas = document.createElement("canvas");
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
@@ -355,8 +379,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       <div
         ref={containerRef}
         className={classnames(styles.imageContainer, {
-          [styles.resizing as any]: resize.isResizing,
-          [styles.selected as any]: isSelected && !isCropping,
+          [styles.resizing]: resize.isResizing,
+          [styles.selected]: isSelected && !isCropping,
         })}
         style={{
           width: isCropping
@@ -390,7 +414,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         ) : (
           <LocalImage
             className={classnames(styles.image, {
-              [styles.zoomIn as any]: isSelected,
+              [styles.zoomIn]: isSelected,
             })}
             url={displayUrl}
             alt={alt}
@@ -399,6 +423,35 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             onLoad={handleDisplayImageLoad}
             crossOrigin="anonymous"
           />
+        )}
+        {/* 描述编辑/展示区域 */}
+        {(showDescEditor || (description && description.trim().length > 0)) && (
+          <div
+            style={{
+              marginTop: "0.5em",
+              color: "rgba(0,0,0,0.65)",
+              fontSize: "0.875em",
+              lineHeight: 1.4,
+              wordBreak: "break-word",
+              textAlign: "center",
+            }}
+          >
+            {showDescEditor ? (
+              <EditText
+                ref={(r) => (descRef.current = r)}
+                defaultValue={description || ""}
+                placeholder="请输入图片描述"
+                contentEditable={!readOnly}
+                defaultFocus
+                onChange={(val) => updateDescription(val)}
+                onBlur={exitDescEditing}
+                onPressEnter={exitDescEditing}
+                isSlateEditor={true}
+              />
+            ) : (
+              <div>{description}</div>
+            )}
+          </div>
         )}
         {!readOnly && isSelected && (
           <>
@@ -429,6 +482,21 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
                 <FullscreenOutlined />
               </div>
               <div className={styles.divider}></div>
+              {!description && !showDescEditor && (
+                <>
+                  <div
+                    onClick={() => {
+                      if (readOnly) return;
+                      setShowDescEditor(true);
+                      setTimeout(() => descRef.current?.focusEnd(), 0);
+                    }}
+                    className={styles.item}
+                  >
+                    <FileTextOutlined />
+                  </div>
+                  <div className={styles.divider}></div>
+                </>
+              )}
               <div
                 onClick={() => {
                   const containerWidth = containerRef.current?.clientWidth || 0;
