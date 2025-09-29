@@ -402,11 +402,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                     </div>
                   </div>
 
-                  {/* 演示相关组件 */}
                   <PresentationCreator />
                   <PresentationMode />
 
-                  {/* 状态栏 */}
                   <StatusBar
                     ref={statusBarRef}
                     gridVisible={gridVisible}

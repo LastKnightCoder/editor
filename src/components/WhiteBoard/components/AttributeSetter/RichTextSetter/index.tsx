@@ -9,6 +9,8 @@ import { Popover, Tooltip, Slider, ConfigProvider, theme } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { useState } from "react";
 import { CardUtil, RichTextUtil } from "@/components/WhiteBoard/utils";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 interface RichTextSetterProps {
   element: RichTextElement;
   onChange: (element: RichTextElement) => void;
@@ -165,6 +167,7 @@ const RichTextSetter = (props: RichTextSetterProps) => {
 
   const [selectColorOpen, setSelectColorOpen] = useState(false);
   const [selectPaddingOpen, setSelectPaddingOpen] = useState(false);
+  const { isDark } = useTheme();
 
   const handleOnSelectColor = useMemoizedFn((color: ColorConfig) => {
     const newElement = produce(element, (draft) => {
@@ -255,7 +258,9 @@ const RichTextSetter = (props: RichTextSetterProps) => {
       onDoubleClick={(e) => {
         e.stopPropagation();
       }}
-      className={styles.container}
+      className={classnames(styles.container, {
+        [styles.dark]: isDark,
+      })}
     >
       <Popover
         open={selectColorOpen}
@@ -264,12 +269,11 @@ const RichTextSetter = (props: RichTextSetterProps) => {
           body: {
             padding: 0,
             marginLeft: 24,
-            backgroundColor: "white",
           },
         }}
         trigger={"click"}
         content={
-          <div className="flex flex-col gap-4 max-w-[200px] py-5 px-3 text-black">
+          <div className="flex flex-col gap-4 max-w-[200px] py-5 px-3">
             <div>
               <h3 className="mb-2 text-sm font-bold">透明背景</h3>
               <div className="flex flex-wrap gap-2">
@@ -377,12 +381,11 @@ const RichTextSetter = (props: RichTextSetterProps) => {
             padding: 12,
             marginLeft: 12,
             width: 200,
-            backgroundColor: "white",
           },
         }}
         trigger={"click"}
         content={
-          <div className="flex flex-col gap-4 text-black">
+          <div className="flex flex-col gap-4">
             <div>
               <div className="mb-2 text-sm font-medium">水平内边距</div>
               <ConfigProvider

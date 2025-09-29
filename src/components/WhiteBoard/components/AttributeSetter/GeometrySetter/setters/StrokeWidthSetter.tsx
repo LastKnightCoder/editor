@@ -32,11 +32,10 @@ const StrokeWidthSetterComponent: React.FC<GeometrySetterComponentProps> = ({
           padding: 12,
           marginLeft: 24,
           width: 200,
-          backgroundColor: "white",
         },
       }}
       content={
-        <div className="text-black">
+        <div>
           <ConfigProvider
             theme={{
               algorithm: theme.defaultAlgorithm,

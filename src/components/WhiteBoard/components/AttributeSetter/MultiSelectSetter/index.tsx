@@ -14,6 +14,8 @@ import { useViewPort, useBoard } from "@/components/WhiteBoard/hooks";
 import { isValid } from "@/components/WhiteBoard/utils";
 
 import styles from "./index.module.less";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 
 interface MultiSelectSetterProps {
   elements: BoardElement[];
@@ -25,6 +27,7 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
 
   const { zoom } = useViewPort();
   const board = useBoard();
+  const { isDark } = useTheme();
 
   const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
     e.stopPropagation();
@@ -174,7 +177,9 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
       onPointerDown={stopPropagation}
       onDoubleClick={stopPropagation}
       onWheel={stopPropagation}
-      className={styles.container}
+      className={classnames(styles.container, {
+        [styles.dark]: isDark,
+      })}
     >
       <Tooltip title="左对齐" trigger="hover" placement="left">
         <div className={styles.item} onClick={handleAlignLeft}>

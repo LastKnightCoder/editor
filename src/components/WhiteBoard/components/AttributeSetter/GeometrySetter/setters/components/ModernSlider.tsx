@@ -1,5 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef, memo } from "react";
 import styles from "../setters.module.less";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 
 interface ModernSliderProps {
   value: number;
@@ -13,7 +15,7 @@ export const ModernSlider = memo<ModernSliderProps>(
   ({ value, min, max, step = 1, onChange }) => {
     const [isDragging, setIsDragging] = useState(false);
     const sliderRef = useRef<HTMLDivElement>(null);
-
+    const { isDark } = useTheme();
     // 计算百分比位置
     const percentage = ((value - min) / (max - min)) * 100;
 
@@ -144,7 +146,12 @@ export const ModernSlider = memo<ModernSliderProps>(
     return (
       <div
         ref={sliderRef}
-        className={`${styles.modernSlider} ${isDragging ? styles.dragging : ""}`}
+        className={classnames(
+          `${styles.modernSlider} ${isDragging ? styles.dragging : ""}`,
+          {
+            [styles.dark]: isDark,
+          },
+        )}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
       >

@@ -8,6 +8,8 @@ import { PiPencilLineDuotone } from "react-icons/pi";
 import { GeometryElement } from "../../../../plugins/GeometryPlugin";
 import { StyleOptionGrid } from "./components/StyleOptionGrid";
 import { ModernSlider } from "./components/ModernSlider";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 
 type SketchOptionKey = keyof NonNullable<GeometryElement["sketchOptions"]>;
 type SketchOptionValue<K extends SketchOptionKey> = NonNullable<
@@ -29,6 +31,7 @@ const SketchStyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({
   element,
   onChange,
 }) => {
+  const { isDark } = useTheme();
   const sketchEnabled = element.sketchEnabled || false;
   const sketchOptions = element.sketchOptions;
 
@@ -159,11 +162,14 @@ const SketchStyleSetterComponent: React.FC<GeometrySetterComponentProps> = ({
           padding: 0,
           marginLeft: 24,
           width: 320,
-          background: "white",
         },
       }}
       content={
-        <div className={styles.modernSketchOptions}>
+        <div
+          className={classnames(styles.modernSketchOptions, {
+            [styles.dark]: isDark,
+          })}
+        >
           <div className={styles.header}>
             <span className={styles.title}>草图风格</span>
             <Switch

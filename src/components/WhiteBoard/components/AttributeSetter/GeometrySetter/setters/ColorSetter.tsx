@@ -9,11 +9,13 @@ import { useMemoizedFn } from "ahooks";
 import Colors from "./components/Colors";
 
 import styles from "./setters.module.less";
+import classnames from "classnames";
 
 export interface ColorOption {
   fill: string;
   stroke: string;
   color: string;
+  theme?: "light" | "dark";
 }
 
 const fillWithStrokeColors: ColorOption[] = [
@@ -22,48 +24,56 @@ const fillWithStrokeColors: ColorOption[] = [
     fill: "#FFD0CE",
     stroke: "#FF6A63",
     color: "#000",
+    theme: "light",
   },
   // 橙色
   {
     fill: "#FFCDAC",
     stroke: "#FB6C0C",
     color: "#000",
+    theme: "light",
   },
   // 黄色
   {
     fill: "#FFE8BF",
     stroke: "#FFA02C",
     color: "#000",
+    theme: "light",
   },
   // 绿色
   {
     fill: "#D6F2E9",
     stroke: "#24B079",
     color: "#000",
+    theme: "light",
   },
   // 蓝色
   {
     fill: "#B8D9FF",
     stroke: "#3F71FB",
     color: "#000",
+    theme: "light",
   },
   // 紫色
   {
     fill: "#E8E4FF",
     stroke: "#A67FFF",
     color: "#000",
+    theme: "light",
   },
   // 粉色
   {
     fill: "#FFE6F2",
     stroke: "#FF6A63",
     color: "#000",
+    theme: "light",
   },
   // 灰色
   {
     fill: "#F2F2F2",
     stroke: "#808080",
     color: "#000",
+    theme: "light",
   },
 ];
 
@@ -72,41 +82,49 @@ const fillWithoutStrokeColors: ColorOption[] = [
     fill: "#FF6A63",
     stroke: "transparent",
     color: "#fff",
+    theme: "dark",
   },
   {
     fill: "#FB6C0C",
     stroke: "transparent",
     color: "#fff",
+    theme: "dark",
   },
   {
     fill: "#FFA02C",
     stroke: "transparent",
     color: "#fff",
+    theme: "dark",
   },
   {
     fill: "#24B079",
     stroke: "transparent",
     color: "#fff",
+    theme: "dark",
   },
   {
     fill: "#3F71FB",
     stroke: "transparent",
     color: "#fff",
+    theme: "dark",
   },
   {
     fill: "#A67FFF",
     stroke: "transparent",
     color: "#fff",
+    theme: "dark",
   },
   {
     fill: "#FF6A63",
     stroke: "transparent",
     color: "#fff",
+    theme: "dark",
   },
   {
     fill: "#808080",
     stroke: "transparent",
     color: "#fff",
+    theme: "dark",
   },
 ];
 
@@ -165,6 +183,7 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       draft.fill = color.fill;
       draft.fillOpacity = 1;
       draft.color = color.color;
+      draft.theme = color.theme;
     });
     onChange(newElement);
   });
@@ -177,12 +196,11 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       styles={{
         body: {
           marginLeft: 24,
-          backgroundColor: "white",
           padding: 8,
         },
       }}
       content={
-        <div className="flex flex-col text-black gap-2">
+        <div className={classnames("flex flex-col gap-2")}>
           <Colors colors={fillWithStrokeColors} onClick={handleOnSelectColor} />
           <Colors
             colors={fillWithoutStrokeColors}
@@ -196,7 +214,7 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       }
     >
       <Tooltip title={"颜色"} placement={"left"}>
-        <div className={styles.item}>
+        <div className={classnames(styles.item)}>
           <BiSolidColorFill width={20} height={20} />
         </div>
       </Tooltip>

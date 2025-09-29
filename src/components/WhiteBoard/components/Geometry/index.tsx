@@ -65,6 +65,7 @@ const Geometry = memo((props: GeometryProps) => {
     strokeOpacity,
     text,
     color,
+    theme,
   } = element;
 
   const [isEditing, setIsEditing] = useState(false);
@@ -237,6 +238,7 @@ const Geometry = memo((props: GeometryProps) => {
             onBlur={handleOnBlur}
             readonly={!isEditing}
             onChange={handleTextContentChange}
+            theme={theme}
           />
         </div>
       </foreignObject>

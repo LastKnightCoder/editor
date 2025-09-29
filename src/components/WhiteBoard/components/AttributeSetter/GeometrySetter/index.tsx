@@ -3,6 +3,8 @@ import { GeometryElement } from "../../../plugins";
 import { geometrySetterManager } from "./GeometrySetterManager";
 import styles from "./index.module.less";
 import { registerGeometrySetters } from "./registerGeometrySetters";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 
 interface GeometrySettersProps {
   element: GeometryElement;
@@ -19,6 +21,7 @@ const GeometrySetters: React.FC<GeometrySettersProps> = ({
   element,
   onChange,
 }) => {
+  const { isDark } = useTheme();
   // 获取适用于当前几何图形的所有设置器组件
   const setterComponents = geometrySetterManager.getSettersForElement(element);
 
@@ -29,7 +32,9 @@ const GeometrySetters: React.FC<GeometrySettersProps> = ({
 
   return (
     <div
-      className={styles.container}
+      className={classnames(styles.container, {
+        [styles.dark]: isDark,
+      })}
       onPointerDown={(e) => {
         e.stopPropagation();
       }}

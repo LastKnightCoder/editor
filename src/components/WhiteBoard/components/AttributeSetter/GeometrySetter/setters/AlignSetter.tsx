@@ -12,6 +12,7 @@ import {
   MdOutlineFormatAlignRight,
   MdOutlineFormatAlignCenter,
 } from "react-icons/md";
+import useTheme from "@/hooks/useTheme";
 
 const alignOptions = [
   {
@@ -33,6 +34,7 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
   element,
   onChange,
 }) => {
+  const { isDark } = useTheme();
   const handleOnSelectAlign = useMemoizedFn(
     (value: "left" | "center" | "right") => {
       const newElement = produce(element, (draft) => {
@@ -57,12 +59,15 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       styles={{
         body: {
           marginLeft: 24,
-          backgroundColor: "white",
           padding: 8,
         },
       }}
       content={
-        <div className={styles.alignSelect}>
+        <div
+          className={classnames(styles.alignSelect, {
+            [styles.dark]: isDark,
+          })}
+        >
           {alignOptions.map((align) => (
             <div
               key={align.value}
@@ -78,7 +83,11 @@ const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
       }
     >
       <Tooltip title={"文字对齐"} placement={"left"}>
-        <div className={styles.item}>
+        <div
+          className={classnames(styles.item, {
+            [styles.dark]: isDark,
+          })}
+        >
           <MdOutlineFormatAlignJustify />
         </div>
       </Tooltip>

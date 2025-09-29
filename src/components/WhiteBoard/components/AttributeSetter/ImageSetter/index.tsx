@@ -12,6 +12,8 @@ import {
 } from "../../../constants/image";
 
 import styles from "./index.module.less";
+import useTheme from "@/hooks/useTheme";
+import classnames from "classnames";
 
 interface ImageSetterProps {
   element: ImageElement;
@@ -69,7 +71,7 @@ const DESCRIPTION_COLORS: DescriptionColor[] = [
 
 const ImageSetter = memo((props: ImageSetterProps) => {
   const { element, onChange } = props;
-
+  const { isDark } = useTheme();
   const { showDescription = false } = element;
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
   const [positionPopoverVisible, setPositionPopoverVisible] = useState(false);
@@ -122,7 +124,9 @@ const ImageSetter = memo((props: ImageSetterProps) => {
 
   const positionContent = (
     <div
-      className={styles.popoverContent}
+      className={classnames(styles.popoverContent, {
+        [styles.dark]: isDark,
+      })}
       onClick={stopPropagation}
       onPointerDown={stopPropagation}
       onPointerUp={stopPropagation}
@@ -136,7 +140,7 @@ const ImageSetter = memo((props: ImageSetterProps) => {
         <span>上方</span>
       </div>
       <div
-        className={styles.positionItem}
+        className={classnames(styles.positionItem)}
         onClick={() => handlePositionChange(EDescriptionPosition.BOTTOM)}
       >
         <BiSolidDownArrow />
@@ -147,28 +151,30 @@ const ImageSetter = memo((props: ImageSetterProps) => {
 
   const alignmentContent = (
     <div
-      className={styles.popoverContent}
+      className={classnames(styles.popoverContent, {
+        [styles.dark]: isDark,
+      })}
       onClick={stopPropagation}
       onPointerDown={stopPropagation}
       onPointerUp={stopPropagation}
       onWheel={stopPropagation}
     >
       <div
-        className={styles.alignItem}
+        className={classnames(styles.alignItem)}
         onClick={() => handleAlignmentChange(EDescriptionAlignment.LEFT)}
       >
         <CgAlignLeft />
         <span>左对齐</span>
       </div>
       <div
-        className={styles.alignItem}
+        className={classnames(styles.alignItem)}
         onClick={() => handleAlignmentChange(EDescriptionAlignment.CENTER)}
       >
         <CgAlignCenter />
         <span>居中</span>
       </div>
       <div
-        className={styles.alignItem}
+        className={classnames(styles.alignItem)}
         onClick={() => handleAlignmentChange(EDescriptionAlignment.RIGHT)}
       >
         <CgAlignRight />
@@ -205,7 +211,9 @@ const ImageSetter = memo((props: ImageSetterProps) => {
       onPointerDown={stopPropagation}
       onDoubleClick={stopPropagation}
       onWheel={stopPropagation}
-      className={styles.container}
+      className={classnames(styles.container, {
+        [styles.dark]: isDark,
+      })}
     >
       <Tooltip
         title={!showDescription ? "显示描述" : "隐藏描述"}
@@ -225,7 +233,6 @@ const ImageSetter = memo((props: ImageSetterProps) => {
               body: {
                 padding: 0,
                 marginLeft: 24,
-                backgroundColor: "white",
               },
             }}
             trigger={"click"}
@@ -251,7 +258,6 @@ const ImageSetter = memo((props: ImageSetterProps) => {
               body: {
                 padding: 0,
                 marginLeft: 24,
-                backgroundColor: "white",
               },
             }}
             trigger={"click"}
@@ -278,7 +284,6 @@ const ImageSetter = memo((props: ImageSetterProps) => {
               body: {
                 padding: 0,
                 marginLeft: 24,
-                backgroundColor: "white",
               },
             }}
             trigger={"click"}
