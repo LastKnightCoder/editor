@@ -2,6 +2,7 @@ import { createHashRouter } from "react-router-dom";
 import loadable from "@loadable/component";
 import HomeView from "@/pages/HomeView";
 import ContentLayout from "@/layouts/ContentLayout";
+import CardListView from "@/pages/card-list-view/CardListView";
 
 const SettingsPage = loadable(() => import("@/pages/Settings"));
 
@@ -23,9 +24,9 @@ const SingleMarkdownEditor = loadable(
 
 const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
 
-const CardListView = loadable(
-  () => import("@/pages/card-list-view/CardListView"),
-);
+// const CardListView = loadable(
+//   () => import("@/pages/card-list-view/CardListView"),
+// );
 const CardDetailView = loadable(() => import("@/pages/CardDetailView"));
 const ArticleListView = loadable(() => import("@/pages/ArticleListView"));
 const ArticleDetailView = loadable(() => import("@/pages/ArticleDetailView"));

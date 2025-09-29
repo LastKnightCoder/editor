@@ -21,6 +21,12 @@ const useEditDoc = (documentItemId: number | null) => {
   ]);
   const [documentItem, setDocumentItem] = useState<IDocumentItem | null>(null);
 
+  const setDocumentItemAndRef = useMemoizedFn((documentItem: IDocumentItem) => {
+    setDocumentItem(documentItem);
+    documentRef.current = documentItem;
+  });
+
+  const documentRef = useRef<IDocumentItem | null>(null);
   const prevDocument = useRef<IDocumentItem | null>(null);
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
@@ -35,7 +41,7 @@ const useEditDoc = (documentItemId: number | null) => {
     if (!documentItemId) return;
     const documentItem = await getDocumentItem(documentItemId);
     if (!documentItem) return;
-    setDocumentItem(documentItem);
+    setDocumentItemAndRef(documentItem);
     prevDocument.current = documentItem;
     setInitValue(documentItem.content);
   }, [documentItemId]);
@@ -43,7 +49,7 @@ const useEditDoc = (documentItemId: number | null) => {
   const saveDocument = useMemoizedFn(async () => {
     const changed =
       JSON.stringify({
-        ...documentItem,
+        ...documentRef.current,
         content: undefined,
         count: undefined,
       }) !==
@@ -52,16 +58,18 @@ const useEditDoc = (documentItemId: number | null) => {
         content: undefined,
         count: undefined,
       });
-    if (!documentItem || !changed) return;
-    const updatedDoc = await updateDocumentItem(documentItem);
-    setDocumentItem(updatedDoc);
+    if (!documentRef.current || !changed) return;
+    const updatedDoc = await updateDocumentItem(documentRef.current);
+    if (!updatedDoc) return;
+
+    setDocumentItemAndRef(updatedDoc);
     prevDocument.current = updatedDoc;
 
-    if (documentItem.isCard && documentItem.cardId) {
-      const card = await getCardById(documentItem.cardId);
+    if (updatedDoc.isCard && updatedDoc.cardId) {
+      const card = await getCardById(updatedDoc.cardId);
       cardEventBus.publishCardEvent("card:updated", card);
-    } else if (documentItem.isArticle && documentItem.articleId) {
-      const article = await findOneArticle(documentItem.articleId);
+    } else if (updatedDoc.isArticle && updatedDoc.articleId) {
+      const article = await findOneArticle(updatedDoc.articleId);
       articleEventBus.publishArticleEvent("article:updated", article);
     }
 
@@ -69,30 +77,30 @@ const useEditDoc = (documentItemId: number | null) => {
   });
 
   const onInit = useMemoizedFn((editor: Editor, content: Descendant[]) => {
-    if (!editor || !documentItem) return;
+    if (!editor || !documentRef.current) return;
     const wordsCount = getContentLength(content);
-    const newDocumentItem = produce(documentItem, (draft) => {
+    const newDocumentItem = produce(documentRef.current, (draft) => {
       draft.count = wordsCount;
     });
-    setDocumentItem(newDocumentItem);
+    setDocumentItemAndRef(newDocumentItem);
   });
 
   const onTitleChange = useMemoizedFn((title: string) => {
-    if (!documentItem) return;
-    const newDocument = produce(documentItem, (draft) => {
+    if (!documentRef.current) return;
+    const newDocument = produce(documentRef.current, (draft) => {
       draft.title = title;
     });
-    setDocumentItem(newDocument);
+    setDocumentItemAndRef(newDocument);
   });
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
-    if (!documentItem) return;
+    if (!documentRef.current) return;
     const wordsCount = getContentLength(content);
-    const newDocument = produce(documentItem, (draft) => {
+    const newDocument = produce(documentRef.current, (draft) => {
       draft.content = content;
       draft.count = wordsCount;
     });
-    setDocumentItem(newDocument);
+    setDocumentItemAndRef(newDocument);
   });
 
   return {
@@ -102,7 +110,7 @@ const useEditDoc = (documentItemId: number | null) => {
     documentItem,
     initValue,
     onInit,
-    setDocumentItem,
+    setDocumentItem: setDocumentItemAndRef,
     prevDocument,
   };
 };

@@ -64,7 +64,6 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     onTitleChange,
     initValue,
     setDocumentItem,
-    prevDocument,
   } = useEditDoc(documentItemId);
 
   const { throttleHandleEditorContentChange } = useEditContent(
@@ -83,9 +82,11 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
       "document-item:updated",
       documentItemId,
       (data) => {
-        titleRef.current?.setValue(data.documentItem.title);
         setDocumentItem(data.documentItem);
-        prevDocument.current = data.documentItem;
+        if (!data.documentItem) return;
+        if (data.documentItem.title !== documentItem?.title) {
+          titleRef.current?.setValue(data.documentItem.title);
+        }
       },
     );
 
