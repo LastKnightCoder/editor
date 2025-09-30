@@ -18,3 +18,8 @@ export * from "./content";
 export * from "./goal";
 export * from "./data-table";
 export * from "./todo";
+export * from "./rpc";
+
+export type DeepPartial<T> = {
+  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
+};

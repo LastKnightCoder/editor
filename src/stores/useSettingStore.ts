@@ -2,7 +2,6 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { merge, cloneDeep } from "lodash";
 
-import { getSetting } from "@/commands";
 import { EGithubCDN } from "@/constants/github";
 
 export enum EImageBed {
@@ -16,6 +15,8 @@ export enum ESync {
 }
 
 import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
+import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
+import { DeepPartial } from "@/types";
 
 interface DoubaoVoiceCopyConfig {
   accessToken: string;
@@ -335,54 +336,32 @@ const initialState: IState = {
 const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
   initSetting: async () => {
-    const setting = await getSetting();
+    const client = useBackendWebsocketStore.getState().client;
+    if (!client) {
+      throw new Error("Client not initialized");
+    }
+    client.registerNotificationHandler("user-setting-changed", (newSetting) => {
+      console.log("user-setting-changed", newSetting);
+      const { setting } = get();
+      set({
+        setting: produce(setting, (draft) => {
+          merge(draft, newSetting as DeepPartial<ISetting>);
+        }),
+      });
+    });
+    const setting = (await client.sendRequest(
+      "get-user-setting",
+      null,
+    )) as ISetting;
     try {
-      const parsedSetting = JSON.parse(setting);
-
-      // 数据迁移：从 llmProviders 迁移到 llmConfigs
-      if (parsedSetting.llmProviders && !parsedSetting.llmConfigs) {
-        const llmConfigs: ISetting["llmConfigs"] = [];
-
-        // 迁移 OPENAI 配置
-        if (parsedSetting.llmProviders.openai?.configs) {
-          parsedSetting.llmProviders.openai.configs.forEach((config: any) => {
-            llmConfigs.push({
-              id: config.id,
-              name: config.name,
-              apiKey: config.apiKey,
-              baseUrl: config.baseUrl,
-              models: config.models,
-            });
-          });
-        }
-
-        // 迁移 OTHER 配置
-        if (parsedSetting.llmProviders.other?.configs) {
-          parsedSetting.llmProviders.other.configs.forEach((config: any) => {
-            llmConfigs.push({
-              id: config.id,
-              name: config.name,
-              apiKey: config.apiKey,
-              baseUrl: config.baseUrl,
-              models: config.models,
-            });
-          });
-        }
-
-        parsedSetting.llmConfigs = llmConfigs;
-        // 删除旧数据
-        delete parsedSetting.llmProviders;
-      }
-
       const newSetting = cloneDeep(initialState.setting);
-      merge(newSetting, parsedSetting);
+      merge(newSetting, setting);
       set({
         setting: newSetting,
-      });
-    } finally {
-      set({
         inited: true,
       });
+    } catch (e) {
+      console.error("initSetting error", e);
     }
   },
   setSettingModalOpen: (open) => {

@@ -16,11 +16,13 @@ import voiceCopyModule from "./modules/voice-copy";
 import windowManagerModule from "./modules/window-manager";
 import loggerModule from "./modules/logger";
 import trayModule from "./modules/tray";
-import staticServerModule from "./modules/static-server";
+import serverModule from "./modules/server";
 import bilibiliCacheModule from "./modules/bilibili-cache";
 import youtubeCacheModule from "./modules/youtube-cache";
 import typstModule from "./modules/typst";
+import userSettingModule from "./modules/user-setting";
 import PathUtil from "./utils/PathUtil";
+import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
 (async (): Promise<void> => {
   const contextMenu = await import("electron-context-menu");
@@ -178,7 +180,7 @@ const initModules = async () => {
   const startTime = Date.now();
 
   try {
-    await Promise.all([
+    await Promise.allSettled([
       settingModule.init(),
       resourceModule.init(),
       databaseModule.init(),
@@ -188,11 +190,14 @@ const initModules = async () => {
       fileModule.init(),
       extraModule.init(),
       voiceCopyModule.init(),
-      staticServerModule.init(),
+      serverModule.init(),
       bilibiliCacheModule.init(),
       youtubeCacheModule.init(),
       typstModule.init(),
     ]);
+
+    const backendServer = new BackendWebSocketServer(24678);
+    await userSettingModule.init(backendServer);
 
     // 初始化窗口管理器
     windowManager = await windowManagerModule.init(

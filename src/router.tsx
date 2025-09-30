@@ -7,7 +7,6 @@ import CardListView from "@/pages/card-list-view/CardListView";
 const SettingsPage = loadable(() => import("@/pages/Settings"));
 
 const QuickCard = loadable(() => import("@/pages/QuickCard"));
-const QuickTimeRecord = loadable(() => import("@/pages/QuickTimeRecord"));
 const SingleCardEditor = loadable(() => import("@/pages/SingleCardEditor"));
 const SingleArticleEditor = loadable(
   () => import("@/pages/SingleArticleEditor"),
@@ -138,10 +137,6 @@ const routes = [
     ],
   },
   {
-    path: "/quick-time-record",
-    element: <QuickTimeRecord />,
-  },
-  {
     path: "/single-card-editor/",
     element: <QuickOpenLayout />,
     children: [
@@ -193,7 +188,13 @@ const routes = [
   },
   {
     path: "/todo",
-    element: <TodoWindowPage />,
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <TodoWindowPage />,
+      },
+    ],
   },
 ];
 
