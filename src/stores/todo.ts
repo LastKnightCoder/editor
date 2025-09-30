@@ -100,6 +100,7 @@ interface TodoState {
   detachNote: (linkId: number) => Promise<void>;
   reorderNotes: (todoId: number, orderedLinkIds: number[]) => Promise<void>;
   updateNoteTitleSnapshot: (linkId: number, title: string) => Promise<void>;
+  reset: () => void;
 }
 
 export const useTodoStore = create<TodoState>()(
@@ -119,6 +120,20 @@ export const useTodoStore = create<TodoState>()(
     setRightOpen: (open) => set((s) => ({ ui: { ...s.ui, rightOpen: open } })),
     setLeftWidth: (w) => set((s) => ({ ui: { ...s.ui, leftWidth: w } })),
     setRightWidth: (w) => set((s) => ({ ui: { ...s.ui, rightWidth: w } })),
+
+    reset: () => {
+      set({
+        groups: [],
+        groupStats: {},
+        itemsByGroupId: {},
+        notesByTodoId: {},
+        activeGroupId: null,
+        activeTodoId: null,
+        expandedIds: new Set<number>(),
+        filters: {},
+        loading: { groups: false, items: false, notes: false },
+      });
+    },
 
     loadGroups: async () => {
       set((s) => ({ loading: { ...s.loading, groups: true } }));

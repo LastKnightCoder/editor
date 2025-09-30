@@ -21,13 +21,16 @@ const TodoWindowPage = () => {
     loadGroupStats,
     activeGroupId,
     loadItems,
+    reset,
   } = useTodoStore();
 
   useEffect(() => {
     if (isConnected && active) {
       loadGroups().then(loadGroupStats);
+    } else {
+      reset();
     }
-  }, [isConnected, active, loadGroups, loadGroupStats]);
+  }, [isConnected, active, loadGroups, loadGroupStats, reset]);
 
   useEffect(() => {
     if (activeGroupId != null) {

@@ -1,22 +1,30 @@
-import { saveSetting } from "@/commands";
+import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { useEffect } from "react";
 
 const useSyncSetting = () => {
-  const { initSetting, setting, inited } = useSettingStore((state) => ({
+  const { initSetting, inited, setting } = useSettingStore((state) => ({
     initSetting: state.initSetting,
-    setting: state.setting,
     inited: state.inited,
+    setting: state.setting,
+  }));
+  const { isServerReady, client } = useBackendWebsocketStore((state) => ({
+    isServerReady: state.isServerReady,
+    client: state.client,
   }));
 
   useEffect(() => {
-    initSetting();
-  }, [initSetting]);
+    console.log("isServerReady", isServerReady);
+    if (isServerReady) {
+      initSetting();
+    }
+  }, [isServerReady, initSetting]);
 
   useEffect(() => {
-    if (!inited) return;
-    saveSetting(JSON.stringify(setting, null, 2)).then();
-  }, [inited, setting]);
+    if (client && inited) {
+      client.sendRequest("set-user-setting", setting);
+    }
+  }, [inited, setting, client]);
 };
 
 export default useSyncSetting;
