@@ -11,5 +11,7 @@ export interface ImageElement {
   previewUrl?: string;
   width?: number;
   description?: string;
+  // 对齐方式：在非浮动时控制图片位置（默认 center）
+  align?: "left" | "center" | "right";
   children: Descendant[];
 }
