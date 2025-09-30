@@ -15,6 +15,9 @@ import {
   CheckOutlined,
   CloseOutlined,
   FileTextOutlined,
+  AlignCenterOutlined,
+  AlignLeftOutlined,
+  AlignRightOutlined,
 } from "@ant-design/icons";
 import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
@@ -52,6 +55,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     previewUrl,
     width,
     description,
+    align = "center",
   } = element;
 
   const uploadResource = useUploadResource();
@@ -104,6 +108,31 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       editor,
       {
         url,
+      },
+      {
+        at: path,
+      },
+    );
+  };
+
+  const toggleAlign = () => {
+    if (readOnly) return;
+    const path = ReactEditor.findPath(editor, element);
+    let newAlign: "left" | "center" | "right";
+
+    // 循环切换：left -> center -> right -> left
+    if (align === "left") {
+      newAlign = "center";
+    } else if (align === "center") {
+      newAlign = "right";
+    } else {
+      newAlign = "left";
+    }
+
+    Transforms.setNodes(
+      editor,
+      {
+        align: newAlign,
       },
       {
         at: path,
@@ -381,6 +410,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         className={classnames(styles.imageContainer, {
           [styles.resizing]: resize.isResizing,
           [styles.selected]: isSelected && !isCropping,
+          [styles.alignLeft]: align === "left" && !isCropping,
+          [styles.alignCenter]: align === "center" && !isCropping,
+          [styles.alignRight]: align === "right" && !isCropping,
         })}
         style={{
           width: isCropping
@@ -480,6 +512,22 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
             <>
               <div onClick={showOverView} className={styles.item}>
                 <FullscreenOutlined />
+              </div>
+              <div className={styles.divider}></div>
+              <div
+                onClick={toggleAlign}
+                className={styles.item}
+                title={
+                  align === "left"
+                    ? "居中对齐"
+                    : align === "center"
+                      ? "右对齐"
+                      : "左对齐"
+                }
+              >
+                {align === "left" && <AlignLeftOutlined />}
+                {align === "center" && <AlignCenterOutlined />}
+                {align === "right" && <AlignRightOutlined />}
               </div>
               <div className={styles.divider}></div>
               {!description && !showDescEditor && (

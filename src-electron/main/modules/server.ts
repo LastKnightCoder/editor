@@ -45,7 +45,7 @@ class ServerModule implements Module {
   }
 
   async init() {
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<void>((resolve) => {
       const appDir = PathUtil.getAppDir();
       this.app.use(
         Express.static(appDir, {

@@ -4,7 +4,20 @@
   position: relative;
   border-radius: 0;
   max-width: 100%;
-  margin: 0 auto;
+  margin: 0 auto; // 默认居中
+
+  // 对齐样式（非浮动时）
+  &.alignLeft {
+    margin: 0 auto 0 0; // 左对齐
+  }
+
+  &.alignCenter {
+    margin: 0 auto; // 居中对齐
+  }
+
+  &.alignRight {
+    margin: 0 0 0 auto; // 右对齐
+  }
 
   &.selected::after {
     content: "";
