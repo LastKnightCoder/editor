@@ -1,6 +1,8 @@
 import { memo, useState, useEffect } from "react";
 import { App, Form, message } from "antd";
 import dayjs from "dayjs";
+import useInitDatabase from "@/hooks/useInitDatabase";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 
 import {
   IGoal,
@@ -39,6 +41,8 @@ import styles from "./index.module.less";
 import { useMemoizedFn } from "ahooks";
 
 const GoalManagementView = memo(() => {
+  const { active } = useInitDatabase();
+  const isConnected = useDatabaseConnected();
   const { modal } = App.useApp();
 
   // 数据状态
@@ -99,8 +103,14 @@ const GoalManagementView = memo(() => {
   });
 
   useEffect(() => {
-    loadGoals();
-  }, [loadGoals]);
+    if (isConnected && active) {
+      loadGoals();
+    } else {
+      // 当数据库断开连接或切换时，清空数据
+      setGoals([]);
+      setSelectedGoal(null);
+    }
+  }, [isConnected, active, loadGoals]);
 
   // 目标相关操作
   const handleGoalSelect = (goal: IGoal) => {

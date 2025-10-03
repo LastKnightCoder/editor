@@ -341,7 +341,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       throw new Error("Client not initialized");
     }
     client.registerNotificationHandler("user-setting-changed", (newSetting) => {
-      console.log("user-setting-changed", newSetting);
       const { setting } = get();
       set({
         setting: produce(setting, (draft) => {
