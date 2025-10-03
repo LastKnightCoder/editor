@@ -253,11 +253,11 @@ const GoalDetailPanel = memo(
       ];
     };
 
-    const renderTreeNode = (item: IGoalItemTree): any => {
+    const renderTreeNode = (item: IGoalItemTree, level = 0): any => {
       const progress = calculateProgress(item);
 
       const children = [
-        ...item.children.map(renderTreeNode),
+        ...item.children.map((child) => renderTreeNode(child, level + 1)),
         ...(item.progress_entries || []).map((entry) => ({
           title: (
             <div className={styles.progressEntry}>
@@ -434,7 +434,9 @@ const GoalDetailPanel = memo(
             <Empty description="还没有子目标，点击上方按钮添加第一个子目标" />
           ) : (
             <Tree
-              treeData={selectedGoal.items.map(renderTreeNode)}
+              treeData={selectedGoal.items.map((item) =>
+                renderTreeNode(item, 0),
+              )}
               expandedKeys={expandedKeys}
               onExpand={setExpandedKeys}
               className={styles.goalTree}

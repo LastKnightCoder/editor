@@ -99,6 +99,28 @@ function createDockMenu() {
       },
     },
     {
+      label: "任务清单",
+      click: () => {
+        log.info("从Dock菜单打开TODO窗口");
+        if (windowManager) {
+          if (typeof windowManager.createTodoWindow === "function") {
+            windowManager.createTodoWindow();
+          }
+        }
+      },
+    },
+    {
+      label: "进度管理",
+      click: () => {
+        log.info("从Dock菜单打开进度管理窗口");
+        if (windowManager) {
+          if (typeof windowManager.createGoalWindow === "function") {
+            windowManager.createGoalWindow();
+          }
+        }
+      },
+    },
+    {
       label: "打开笔记应用",
       click: () => {
         const mainWindow = BrowserWindow.getAllWindows()[0];
@@ -178,6 +200,16 @@ function updateTrayMenu() {
         if (windowManager) {
           if (typeof windowManager.createTodoWindow === "function") {
             windowManager.createTodoWindow();
+          }
+        }
+      },
+    },
+    {
+      label: "进度管理",
+      click: () => {
+        if (windowManager) {
+          if (typeof windowManager.createGoalWindow === "function") {
+            windowManager.createGoalWindow();
           }
         }
       },

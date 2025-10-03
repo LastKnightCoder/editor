@@ -19,7 +19,8 @@ type EditorType =
   | "project-item"
   | "document-item"
   | "markdown"
-  | "todo";
+  | "todo"
+  | "goal";
 
 // 窗口参数定义
 interface EditorParams {
@@ -52,6 +53,7 @@ export class WindowManager {
     this.windowsMap.set("document-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("markdown", new Map<string, BrowserWindow>());
     this.windowsMap.set("todo", new Map<string, BrowserWindow>());
+    this.windowsMap.set("goal", new Map<string, BrowserWindow>());
 
     this.registerIpcHandlers();
   }
@@ -286,6 +288,7 @@ export class WindowManager {
       "document-item": "single-document-item-editor",
       markdown: "single-markdown-editor",
       todo: "todo",
+      goal: "goals",
     };
     return routes[type];
   }
@@ -299,6 +302,7 @@ export class WindowManager {
       "document-item": "documentItemId",
       markdown: "filePath",
       todo: "noop",
+      goal: "noop",
     };
     return paramNames[type];
   }
@@ -312,6 +316,7 @@ export class WindowManager {
       "document-item": "知识库",
       markdown: "Markdown",
       todo: "TODO",
+      goal: "进度管理",
     };
     return editorNames[type];
   }
@@ -326,6 +331,21 @@ export class WindowManager {
       win.loadURL(`${VITE_DEV_SERVER_URL}#/todo`);
     } else {
       win.loadFile(indexHtml, { hash: `/todo` });
+    }
+
+    return win;
+  }
+
+  public createGoalWindow() {
+    const baseConfig = this.createBaseWindowConfig();
+    const win = new BrowserWindow(baseConfig);
+
+    this.setupWindowEvents(win);
+
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/goals`);
+    } else {
+      win.loadFile(indexHtml, { hash: `/goals` });
     }
 
     return win;
