@@ -1,5 +1,15 @@
 import React, { memo, useState, useEffect } from "react";
-import { Empty, Tree, Dropdown, Progress, Tag, Tooltip, Form } from "antd";
+import {
+  Empty,
+  Tree,
+  Dropdown,
+  Progress,
+  Tag,
+  Tooltip,
+  Form,
+  MenuProps,
+  App,
+} from "antd";
 import { ClockCircleOutlined, MoreOutlined } from "@ant-design/icons";
 import { TbTargetArrow } from "react-icons/tb";
 import { TrophyOutlined, CheckCircleOutlined } from "@ant-design/icons";
@@ -13,9 +23,24 @@ import {
   EGoalItemType,
   EGoalItemStatus,
   IGoalProgressEntry,
+  IGoalNoteLink,
 } from "@/types";
+import {
+  createAndAttachGoalNote,
+  attachExistingGoalNote,
+  listGoalNotes,
+  updateGoalNoteTitle,
+} from "@/commands/goal-note";
+import { updateGoalNoteType } from "@/commands/goal-note";
 import { EditProgressModal } from "./modals";
+import GoalItemNotes from "./GoalItemNotes";
+import ProgressEntryNotes from "./ProgressEntryNotes";
 import styles from "../index.module.less";
+import { useMemoizedFn } from "ahooks";
+import ContentSelectorModal from "@/components/ContentSelectorModal";
+import RichTextEditModal from "@/components/RichTextEditModal";
+import { IndexType, SearchResult } from "@/types";
+import { getEditorText } from "@/utils";
 
 interface GoalDetailPanelProps {
   selectedGoal: IGoalWithItems | null;
@@ -38,6 +63,13 @@ interface GoalDetailPanelProps {
   ) => void;
 }
 
+const selectNotes = [
+  "card",
+  "article",
+  "project-item",
+  "document-item",
+] satisfies IndexType[];
+
 const GoalDetailPanel = memo(
   ({
     selectedGoal,
@@ -57,6 +89,17 @@ const GoalDetailPanel = memo(
       null,
     );
     const [editProgressForm] = Form.useForm();
+
+    const { message } = App.useApp();
+    const [selectorModalVisible, setSelectorModalVisible] = useState(false);
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [linkedNotes, setLinkedNotes] = useState<IGoalNoteLink[]>([]);
+    const [currentGoalId, setCurrentGoalId] = useState<number | null>(null);
+    const [currentEditingContentId, setCurrentEditingContentId] = useState<
+      number | null
+    >(null);
+    const [currentEditingTitle, setCurrentEditingTitle] = useState("");
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const calculateProgress = (item: IGoalItemTree): number => {
       const progress = Math.min(
@@ -166,18 +209,140 @@ const GoalDetailPanel = memo(
     };
 
     const handleNodeClick = (item: IGoalItemTree) => {
-      if (item.type === EGoalItemType.BigGoal) {
-        const isExpanded = expandedKeys.includes(item.id);
-        if (isExpanded) {
-          setExpandedKeys((prev) => prev.filter((key) => key !== item.id));
-        } else {
-          setExpandedKeys((prev) => [...prev, item.id]);
-        }
+      const isExpanded = expandedKeys.includes(item.id);
+      if (isExpanded) {
+        setExpandedKeys((prev) => prev.filter((key) => key !== item.id));
+      } else {
+        setExpandedKeys((prev) => [...prev, item.id]);
       }
     };
 
-    const getMenuItems = (item: IGoalItemTree) => {
-      const baseItems = [
+    // 加载关联的笔记（用于检查重复）
+    const loadLinkedNotes = useMemoizedFn(async (goalId: number) => {
+      try {
+        const notes = await listGoalNotes(goalId);
+        setLinkedNotes(notes);
+      } catch (error) {
+        console.error("加载关联笔记失败:", error);
+      }
+    });
+
+    // 创建新笔记
+    const handleCreateNote = useMemoizedFn(async (goalId: number) => {
+      try {
+        const result = await createAndAttachGoalNote(goalId, "未命名文档");
+        setCurrentGoalId(goalId);
+        setCurrentEditingContentId(result.contentId);
+        setCurrentEditingTitle("未命名文档");
+        setEditModalVisible(true);
+        // 加载笔记列表，以便后续编辑时能找到笔记
+        await loadLinkedNotes(goalId);
+      } catch (error) {
+        console.error("创建笔记失败:", error);
+        message.error("创建笔记失败");
+      }
+    });
+
+    // 关联现有笔记
+    const handleLinkNote = useMemoizedFn((goalId: number) => {
+      setCurrentGoalId(goalId);
+      loadLinkedNotes(goalId);
+      setSelectorModalVisible(true);
+    });
+
+    // 选择笔记进行关联
+    const handleSelectNote = useMemoizedFn(
+      async (items: SearchResult | SearchResult[]) => {
+        const item = Array.isArray(items) ? items[0] : items;
+        if (!item) return;
+
+        const goalId = currentGoalId;
+        if (!goalId) return;
+
+        // 检查是否已经关联
+        const exists = linkedNotes.some(
+          (note) => note.contentId === item.contentId,
+        );
+        if (exists) {
+          message.warning("该笔记已经关联");
+          return;
+        }
+
+        try {
+          await attachExistingGoalNote({
+            goalId,
+            contentId: item.contentId,
+            title:
+              item.title || getEditorText(item.content, 10) || "未命名文档",
+            type: item.type as string,
+          });
+
+          message.success("笔记关联成功");
+          setSelectorModalVisible(false);
+          // 触发刷新
+          setRefreshKey((prev) => prev + 1);
+        } catch (error) {
+          console.error("关联笔记失败:", error);
+          message.error("关联笔记失败");
+        }
+      },
+    );
+
+    // 编辑笔记标题
+    const handleEditSave = useMemoizedFn(async (title: string) => {
+      if (!currentEditingContentId || !currentGoalId) return;
+
+      try {
+        const note = linkedNotes.find(
+          (n) => n.contentId === currentEditingContentId,
+        );
+        if (note) {
+          await updateGoalNoteTitle(note.id, title || note.title || "");
+        }
+      } catch (error) {
+        console.error("更新笔记标题失败:", error);
+        message.error("更新笔记标题失败");
+      }
+    });
+
+    // 编辑笔记类型
+    const handleTypeChange = useMemoizedFn(async (type: string) => {
+      if (!currentEditingContentId || !currentGoalId) return;
+
+      try {
+        const note = linkedNotes.find(
+          (n) => n.contentId === currentEditingContentId,
+        );
+        if (note) {
+          await updateGoalNoteType(note.id, type);
+        }
+      } catch (error) {
+        console.error("更新笔记类型失败:", error);
+        message.error("更新笔记类型失败");
+      }
+    });
+
+    // 关闭编辑模态框
+    const onCloseEditModal = useMemoizedFn(async () => {
+      setEditModalVisible(false);
+      setCurrentEditingContentId(null);
+      setCurrentEditingTitle("");
+      // 触发刷新
+      setRefreshKey((prev) => prev + 1);
+    });
+
+    const getMenuItems = useMemoizedFn((item: IGoalItemTree) => {
+      const baseItems: MenuProps["items"] = [
+        {
+          key: "createNote",
+          label: "新建笔记",
+          onClick: () => handleCreateNote(item.id),
+        },
+        {
+          key: "linkNote",
+          label: "关联笔记",
+          onClick: () => handleLinkNote(item.id),
+        },
         {
           key: "delete",
           label: "删除",
@@ -224,34 +389,33 @@ const GoalDetailPanel = memo(
       }
 
       return baseItems;
-    };
+    });
 
-    const getProgressEntryMenuItems = (
-      entry: IGoalProgressEntry,
-      parentItem: IGoalItemTree,
-    ) => {
-      return [
-        {
-          key: "editEntry",
-          label: "编辑进度",
-          onClick: () => handleEditProgressEntry(entry, parentItem),
-        },
-        {
-          key: "deleteEntry",
-          label: "删除记录",
-          danger: true,
-          onClick: () => {
-            if (onDeleteProgressEntry) {
-              onDeleteProgressEntry(
-                entry.id,
-                entry.progress_delta || null,
-                parentItem.id,
-              );
-            }
+    const getProgressEntryMenuItems = useMemoizedFn(
+      (entry: IGoalProgressEntry, parentItem: IGoalItemTree) => {
+        return [
+          {
+            key: "editEntry",
+            label: "编辑进度",
+            onClick: () => handleEditProgressEntry(entry, parentItem),
           },
-        },
-      ];
-    };
+          {
+            key: "deleteEntry",
+            label: "删除记录",
+            danger: true,
+            onClick: () => {
+              if (onDeleteProgressEntry) {
+                onDeleteProgressEntry(
+                  entry.id,
+                  entry.progress_delta || null,
+                  parentItem.id,
+                );
+              }
+            },
+          },
+        ];
+      },
+    );
 
     const renderTreeNode = (item: IGoalItemTree, level = 0): any => {
       const progress = calculateProgress(item);
@@ -294,6 +458,13 @@ const GoalDetailPanel = memo(
                   {entry.description}
                 </div>
               )}
+              <div className="mt-3">
+                <ProgressEntryNotes
+                  goalProgressEntryId={entry.id}
+                  readonly={false}
+                  className="border-0 shadow-none"
+                />
+              </div>
             </div>
           ),
           key: `entry_${entry.id}`,
@@ -330,6 +501,14 @@ const GoalDetailPanel = memo(
               {item.description && (
                 <div className={styles.nodeDescription}>{item.description}</div>
               )}
+              <div className="mt-3">
+                <GoalItemNotes
+                  key={`goal-notes-${item.id}-${refreshKey}`}
+                  goalId={item.id}
+                  readonly={false}
+                  className="border-0 shadow-none"
+                />
+              </div>
             </div>
             <div
               className={styles.nodeActions}
@@ -367,7 +546,6 @@ const GoalDetailPanel = memo(
         const getAllKeys = (items: IGoalItemTree[]): React.Key[] => {
           const keys: React.Key[] = [];
           items.forEach((item) => {
-            // 如果有子项或有进度记录，就展开这个节点
             if (
               item.children.length > 0 ||
               (item.progress_entries && item.progress_entries.length > 0)
@@ -385,7 +563,6 @@ const GoalDetailPanel = memo(
           return keys;
         };
         const allKeys = getAllKeys(selectedGoal.items);
-        console.log("设置展开的节点 keys:", allKeys);
         setExpandedKeys(allKeys);
       }
     }, [selectedGoal]);
@@ -451,6 +628,27 @@ const GoalDetailPanel = memo(
           onSubmit={handleEditProgressSubmit}
           form={editProgressForm}
         />
+        <ContentSelectorModal
+          open={selectorModalVisible}
+          onCancel={() => setSelectorModalVisible(false)}
+          onSelect={handleSelectNote}
+          contentType={selectNotes}
+          extensions={[]}
+          title="选择要关联的笔记"
+          emptyDescription="未找到相关笔记"
+          multiple={false}
+          excludeContentIds={linkedNotes.map((note) => note.contentId)}
+        />
+        {currentEditingContentId && (
+          <RichTextEditModal
+            visible={editModalVisible}
+            contentId={currentEditingContentId}
+            title={currentEditingTitle}
+            onClose={onCloseEditModal}
+            onTitleChange={handleEditSave}
+            onTypeChange={handleTypeChange}
+          />
+        )}
       </div>
     );
   },
