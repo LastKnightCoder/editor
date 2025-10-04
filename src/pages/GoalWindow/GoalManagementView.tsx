@@ -185,7 +185,9 @@ const GoalManagementView = memo(() => {
       content: `删除目标"${goal.title}"将同时删除其所有子目标和进度记录，此操作无法撤销。`,
       okText: "确认删除",
       cancelText: "取消",
-      okType: "danger",
+      okButtonProps: {
+        danger: true,
+      },
       onOk: async () => {
         try {
           await deleteGoal(goal.id);
@@ -210,6 +212,9 @@ const GoalManagementView = memo(() => {
       }？`,
       okText: "确认",
       cancelText: "取消",
+      okButtonProps: {
+        danger: true,
+      },
       onOk: async () => {
         try {
           await updateGoal({ id: goal.id, status: newStatus });
@@ -256,7 +261,7 @@ const GoalManagementView = memo(() => {
   };
 
   const handleSubmitProgress = async (values: any) => {
-    if (!selectedItemId) return;
+    if (!selectedItemId || !selectedGoal) return;
 
     try {
       const entryData: ICreateGoalProgressEntry = {
@@ -280,7 +285,7 @@ const GoalManagementView = memo(() => {
       progressForm.resetFields();
       setSelectedItemId(null);
       setSelectedItemType(null);
-      loadGoalDetail(selectedGoal!.id);
+      loadGoalDetail(selectedGoal.id);
     } catch (error) {
       console.error("Failed to add progress:", error);
       message.error("添加进度失败");
@@ -288,16 +293,20 @@ const GoalManagementView = memo(() => {
   };
 
   const handleDeleteItem = async (itemId: number) => {
+    if (!selectedGoal) return;
     modal.confirm({
       title: "确认删除",
       content: "删除子目标将同时删除其所有子项和进度记录，此操作无法撤销。",
       okText: "确认",
       cancelText: "取消",
+      okButtonProps: {
+        danger: true,
+      },
       onOk: async () => {
         try {
           await deleteGoalItem(itemId);
           message.success("子目标删除成功");
-          loadGoalDetail(selectedGoal!.id);
+          loadGoalDetail(selectedGoal.id);
         } catch (error) {
           console.error("Failed to delete goal item:", error);
           message.error("删除子目标失败");
@@ -307,7 +316,7 @@ const GoalManagementView = memo(() => {
   };
 
   const handleToggleMilestone = async (item: IGoalItemTree) => {
-    if (item.type !== EGoalItemType.Milestone) return;
+    if (item.type !== EGoalItemType.Milestone || !selectedGoal) return;
 
     const newStatus =
       item.status === EGoalItemStatus.Completed
@@ -317,7 +326,7 @@ const GoalManagementView = memo(() => {
     try {
       await updateGoalItem({ id: item.id, status: newStatus });
       message.success("状态更新成功");
-      loadGoalDetail(selectedGoal!.id);
+      loadGoalDetail(selectedGoal.id);
     } catch (error) {
       console.error("Failed to update item status:", error);
       message.error("更新状态失败");
@@ -330,6 +339,13 @@ const GoalManagementView = memo(() => {
       ...prev,
       [status]: !prev[status],
     }));
+  };
+
+  // 处理笔记变化
+  const handleNoteChange = () => {
+    // 当笔记发生变化时，可以选择重新加载目标数据或执行其他操作
+    // 这里可以根据需要添加逻辑，比如显示提示信息等
+    console.log("Goal notes have been updated");
   };
 
   // 处理更新进度记录
@@ -377,7 +393,9 @@ const GoalManagementView = memo(() => {
       content: "删除进度记录后无法恢复，确认要删除吗？",
       okText: "确认删除",
       cancelText: "取消",
-      okType: "danger",
+      okButtonProps: {
+        danger: true,
+      },
       onOk: async () => {
         try {
           // 先删除进度记录
@@ -456,6 +474,7 @@ const GoalManagementView = memo(() => {
         onDeleteGoal={handleDeleteGoal}
         onUpdateGoalStatus={handleUpdateGoalStatus}
         onToggleSection={handleToggleSection}
+        onNoteChange={handleNoteChange}
       />
 
       <GoalDetailPanel

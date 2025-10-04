@@ -53,6 +53,28 @@ export interface IGoalProgressEntry {
   create_time: number;
 }
 
+export interface IGoalProgressNoteLink {
+  id: number;
+  goalProgressEntryId: number;
+  contentId: number;
+  title?: string;
+  type?: string;
+  sortIndex: number;
+  createTime: number;
+  updateTime: number;
+}
+
+export interface IGoalNoteLink {
+  id: number;
+  goalId: number;
+  contentId: number;
+  title?: string;
+  type?: string;
+  sortIndex: number;
+  createTime: number;
+  updateTime: number;
+}
+
 // 创建和更新类型
 export type ICreateGoal = Omit<IGoal, "id" | "create_time" | "update_time">;
 export type IUpdateGoal = Partial<

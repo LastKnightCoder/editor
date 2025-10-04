@@ -15,6 +15,7 @@ interface GoalListProps {
   onDeleteGoal: (goal: IGoal) => void;
   onUpdateGoalStatus: (goal: IGoal, status: EGoalStatus) => void;
   onToggleSection: (status: EGoalStatus) => void;
+  onNoteChange?: () => void; // 笔记变化回调
 }
 
 const GoalList = memo(
@@ -29,6 +30,7 @@ const GoalList = memo(
     onDeleteGoal,
     onUpdateGoalStatus,
     onToggleSection,
+    onNoteChange,
   }: GoalListProps) => {
     const inProgressGoals = goals.filter(
       (g) => g.status === EGoalStatus.InProgress,
@@ -59,6 +61,7 @@ const GoalList = memo(
             onDeleteGoal={onDeleteGoal}
             onUpdateGoalStatus={onUpdateGoalStatus}
             onCreateGoal={onCreateGoal} // 只传递给进行中的section
+            onNoteChange={onNoteChange}
           />
 
           <GoalSection
@@ -72,6 +75,7 @@ const GoalList = memo(
             onEditGoal={onEditGoal}
             onDeleteGoal={onDeleteGoal}
             onUpdateGoalStatus={onUpdateGoalStatus}
+            onNoteChange={onNoteChange}
           />
 
           <GoalSection
@@ -85,6 +89,7 @@ const GoalList = memo(
             onEditGoal={onEditGoal}
             onDeleteGoal={onDeleteGoal}
             onUpdateGoalStatus={onUpdateGoalStatus}
+            onNoteChange={onNoteChange}
           />
         </div>
       </div>

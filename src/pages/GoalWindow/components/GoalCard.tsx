@@ -1,6 +1,6 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import classnames from "classnames";
-import { Card, Dropdown } from "antd";
+import { Card, Dropdown, MenuProps } from "antd";
 import { MoreOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 
@@ -28,25 +28,17 @@ const GoalCard = memo(
     const hasDateRange = goal.start_date && goal.end_date;
     const isOverdue = goal.end_date && Date.now() > goal.end_date;
 
-    const getGoalMenuItems = () => {
-      const baseItems = [
+    const getGoalMenuItems = useMemo(() => {
+      const baseItems: MenuProps["items"] = [
         {
           key: "edit",
           label: "编辑",
           onClick: () => onEdit(goal),
         },
-        {
-          key: "delete",
-          label: "删除",
-          danger: true,
-          onClick: () => onDelete(goal),
-        },
       ];
 
       if (goal.status === EGoalStatus.InProgress) {
-        return [
-          ...baseItems,
-          { type: "divider" as const },
+        baseItems.push(
           {
             key: "complete",
             label: "标记为已完成",
@@ -57,11 +49,22 @@ const GoalCard = memo(
             label: "标记为已放弃",
             onClick: () => onUpdateStatus(goal, EGoalStatus.Abandoned),
           },
-        ];
+        );
       }
 
+      // 添加删除选项
+      baseItems.push(
+        { type: "divider" },
+        {
+          key: "delete",
+          label: "删除",
+          danger: true,
+          onClick: () => onDelete(goal),
+        },
+      );
+
       return baseItems;
-    };
+    }, [goal, onDelete, onUpdateStatus, onEdit]);
 
     return (
       <Card
@@ -75,7 +78,7 @@ const GoalCard = memo(
         <div className={styles.goalHeader}>
           <h4 className={styles.goalTitle}>{goal.title}</h4>
           <div className={styles.goalActions}>
-            <Dropdown menu={{ items: getGoalMenuItems() }} trigger={["click"]}>
+            <Dropdown menu={{ items: getGoalMenuItems }} trigger={["click"]}>
               <button onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                 <MoreOutlined />
               </button>
