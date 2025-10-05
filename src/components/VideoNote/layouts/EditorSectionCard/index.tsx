@@ -1,11 +1,14 @@
 import React, { useRef } from "react";
+import { Descendant } from "slate";
 import classnames from "classnames";
 import { useDrag, useDrop } from "react-dnd";
 import { MdDragIndicator } from "react-icons/md";
 import { VideoNote } from "@/types";
 import { ResizableBox, ResizeCallbackData } from "react-resizable";
 import "react-resizable/css/styles.css";
-import Editor from "@/components/Editor";
+import Editor, { type EditorRef } from "@/components/Editor";
+import useEditContent from "@/hooks/useEditContent";
+import type IExtension from "@/components/Editor/extensions/types";
 import { EditorSection } from "../useVideoNoteBase";
 import { ItemTypes } from "../../constants";
 import styles from "./index.module.less";
@@ -23,10 +26,13 @@ interface EditorSectionCardProps {
   notes: VideoNote["notes"];
   formatTime: (time: number) => string;
   handleExitEditByNoteId: (noteId: string) => void;
-  handleNoteChange: (noteId: string, value: any) => void;
+  syncNotesByContentId: (
+    contentId: number,
+    content: VideoNote["notes"][number]["content"],
+  ) => void;
   handleResizeSection: (noteId: string, height: number) => void;
   handleMoveEditorSection: (dragIndex: number, hoverIndex: number) => void;
-  extensions: any[];
+  extensions: IExtension[];
   uploadResource?: (file: File) => Promise<string | null>;
 }
 
@@ -36,7 +42,7 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
   notes,
   formatTime,
   handleExitEditByNoteId,
-  handleNoteChange,
+  syncNotesByContentId,
   handleResizeSection,
   handleMoveEditorSection,
   extensions,
@@ -45,6 +51,7 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
   // 使用 ref 引用 DOM 元素
   const ref = useRef<HTMLDivElement>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<EditorRef>(null);
 
   // 拖拽处理
   const [{ isDragging }, drag] = useDrag({
@@ -112,6 +119,19 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
   });
 
   const note = notes.find((n) => n.id === section.noteId);
+  const contentId = note?.contentId;
+
+  const { throttleHandleEditorContentChange } = useEditContent(
+    contentId,
+    (newContent) => {
+      if (!contentId) return;
+      // 同步同 contentId 的所有笔记
+      syncNotesByContentId(contentId, newContent);
+      // 同步当前编辑器内容（非受控）
+      editorRef.current?.setEditorValue(newContent);
+    },
+  );
+
   if (!note) return null;
 
   // 只对放置目标使用ref，拖拽只应用于拖拽手柄
@@ -171,10 +191,16 @@ const EditorSectionCard: React.FC<EditorSectionCardProps> = ({
           <Editor
             key={section.noteId}
             initValue={note.content}
-            onChange={(value) => handleNoteChange(note.id, value)}
+            onChange={(value: Descendant[]) => {
+              throttleHandleEditorContentChange(value);
+              if (contentId) {
+                syncNotesByContentId(contentId, value);
+              }
+            }}
             readonly={false}
             uploadResource={uploadResource}
             extensions={extensions}
+            ref={editorRef}
           />
         </div>
       </div>

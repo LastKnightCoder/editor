@@ -18,9 +18,6 @@ export interface VideoNoteBaseProps {
     note: Omit<VideoNoteType["notes"][number], "contentId">,
   ) => Promise<VideoNoteType["notes"][number] | null>;
   deleteSubNote: (noteId: string) => Promise<boolean>;
-  updateSubNote: (
-    note: VideoNoteType["notes"][number],
-  ) => Promise<VideoNoteType["notes"][number] | null>;
   updateNotes: (notes: VideoNoteType["notes"]) => Promise<void>;
   uploadResource?: (file: File) => Promise<string | null>;
 }
@@ -30,7 +27,7 @@ export interface VideoNoteBaseReturnProps {
   notes: VideoNoteType["notes"];
   extensions: IExtension[];
   handleAddNote: () => void;
-  handleNoteChange: (noteId: string, content: Descendant[]) => void;
+  syncNotesByContentId: (contentId: number, content: Descendant[]) => void;
   handleNoteClick: (noteId: string) => void;
   handleDeleteNote: (noteId: string) => void;
   formatTime: (time: number) => string;
@@ -60,7 +57,6 @@ export const useVideoNoteBase = ({
   uploadResource,
   addSubNote,
   deleteSubNote,
-  updateSubNote,
   updateNotes,
 }: VideoNoteBaseProps): VideoNoteBaseReturnProps => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -147,25 +143,15 @@ export const useVideoNoteBase = ({
     }
   });
 
-  const handleNoteChange = useMemoizedFn(
-    async (noteId: string, content: Descendant[]) => {
-      const note = notes.find((note) => note.id === noteId);
-      if (!note) return;
-
-      const updatedNote = await updateSubNote({
-        ...note,
-        content,
-        count: getContentLength(content),
-      });
-
-      if (!updatedNote) return;
-
+  const syncNotesByContentId = useMemoizedFn(
+    (contentId: number, content: Descendant[]) => {
       const updatedNotes = produce(notes, (draft) => {
-        const note = draft.find((note) => note.id === noteId);
-        if (note) {
-          note.content = content;
-          note.count = getContentLength(content);
-        }
+        draft.forEach((n) => {
+          if (n.contentId === contentId) {
+            n.content = content;
+            n.count = getContentLength(content);
+          }
+        });
       });
       setNotes(updatedNotes);
     },
@@ -419,7 +405,7 @@ export const useVideoNoteBase = ({
     notes,
     extensions,
     handleAddNote,
-    handleNoteChange,
+    syncNotesByContentId,
     handleNoteClick,
     handleDeleteNote,
     formatTime,
