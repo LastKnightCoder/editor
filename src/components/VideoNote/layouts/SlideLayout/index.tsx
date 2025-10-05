@@ -21,7 +21,6 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
     uploadResource,
     addSubNote,
     deleteSubNote,
-    updateSubNote,
   }) => {
     const theme = useTheme();
     const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -30,7 +29,7 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
       notes,
       extensions,
       handleAddNote,
-      handleNoteChange,
+      syncNotesByContentId,
       handleNoteClick,
       handleDeleteNote,
       formatTime,
@@ -54,7 +53,6 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
       uploadResource,
       addSubNote,
       deleteSubNote,
-      updateSubNote,
       updateNotes,
     });
 
@@ -130,7 +128,7 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
                 notes={notes}
                 formatTime={formatTime}
                 handleExitEditByNoteId={handleExitEditByNoteId}
-                handleNoteChange={handleNoteChange}
+                syncNotesByContentId={syncNotesByContentId}
                 handleResizeSection={handleResizeSection}
                 handleMoveEditorSection={handleMoveEditorSection}
                 extensions={extensions}
