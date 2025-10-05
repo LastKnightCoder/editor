@@ -212,6 +212,7 @@ async function getVideoInfoByApi(
       duration: formatDuration(page.duration),
       cid: page.cid.toString(),
       bvid: videoData.bvid,
+      part: page.part,
     })),
   };
 }

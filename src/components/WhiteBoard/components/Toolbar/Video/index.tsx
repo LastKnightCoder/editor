@@ -60,12 +60,10 @@ const Video = (props: ImageProps) => {
     },
   );
 
-  // Popover
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);
 
-  // Bilibili 清晰度
   const [biliQualityLoading, setBiliQualityLoading] = useState(false);
   const [biliQualityOptions, setBiliQualityOptions] = useState<
     Array<{
@@ -80,7 +78,6 @@ const Video = (props: ImageProps) => {
   );
   const [biliDebounceId, setBiliDebounceId] = useState<number | null>(null);
 
-  // YouTube 清晰度
   const [ytInfo, setYtInfo] = useState<{
     audioFmts: ytdl.videoFormat[];
     videoFmts: ytdl.videoFormat[];
@@ -209,10 +206,17 @@ const Video = (props: ImageProps) => {
           url,
           setting.integration.bilibili.credentials,
         );
+
+        let cid = videoInfo.cid;
+        const p = new URL(url).searchParams.get("p");
+        if (p && videoInfo.pages) {
+          const page = videoInfo.pages[Number(p) - 1];
+          cid = page.cid;
+        }
         await VideoUtil.insertVideoFromMeta(board, {
           type: "bilibili",
           bvid: videoInfo.bvid,
-          cid: videoInfo.cid,
+          cid: cid,
           quality: biliQuality,
         });
       } else if (isYoutubeUrl(url)) {

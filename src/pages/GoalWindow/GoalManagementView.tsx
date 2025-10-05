@@ -341,13 +341,6 @@ const GoalManagementView = memo(() => {
     }));
   };
 
-  // 处理笔记变化
-  const handleNoteChange = () => {
-    // 当笔记发生变化时，可以选择重新加载目标数据或执行其他操作
-    // 这里可以根据需要添加逻辑，比如显示提示信息等
-    console.log("Goal notes have been updated");
-  };
-
   // 处理更新进度记录
   const handleUpdateProgressEntry = async (
     entryId: number,
@@ -474,7 +467,6 @@ const GoalManagementView = memo(() => {
         onDeleteGoal={handleDeleteGoal}
         onUpdateGoalStatus={handleUpdateGoalStatus}
         onToggleSection={handleToggleSection}
-        onNoteChange={handleNoteChange}
       />
 
       <GoalDetailPanel

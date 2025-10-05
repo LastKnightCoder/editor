@@ -18,7 +18,6 @@ interface GoalSectionProps {
   onDeleteGoal: (goal: IGoal) => void;
   onUpdateGoalStatus: (goal: IGoal, status: EGoalStatus) => void;
   onCreateGoal?: () => void; // 新增目标的回调，只有进行中的section会有
-  onNoteChange?: () => void; // 笔记变化回调
 }
 
 const GoalSection = memo(
@@ -34,7 +33,6 @@ const GoalSection = memo(
     onDeleteGoal,
     onUpdateGoalStatus,
     onCreateGoal,
-    onNoteChange,
   }: GoalSectionProps) => {
     const getSectionTitle = () => {
       switch (status) {
@@ -96,7 +94,6 @@ const GoalSection = memo(
                   onEdit={onEditGoal}
                   onDelete={onDeleteGoal}
                   onUpdateStatus={onUpdateGoalStatus}
-                  onNoteChange={onNoteChange}
                 />
               ))
             )}

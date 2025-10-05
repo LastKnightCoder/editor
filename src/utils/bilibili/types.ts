@@ -25,6 +25,7 @@ export interface BilibiliPage {
   duration: string;
   cid: string;
   bvid: string;
+  part: string;
 }
 
 export interface BilibiliQualityInfo {
