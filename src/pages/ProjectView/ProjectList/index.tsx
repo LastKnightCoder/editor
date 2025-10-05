@@ -143,12 +143,19 @@ const Project = () => {
     try {
       const credentials = setting.integration.bilibili.credentials;
 
+      console.log("url", url);
       // 先获取视频信息以获得 cid
       const videoInfo = await getVideoInfoByUrl(url, credentials);
 
+      const p = new URL(url).searchParams.get("p");
+      let cid: string = videoInfo.cid;
+      if (p && videoInfo.pages) {
+        cid = videoInfo.pages[Number(p) - 1].cid;
+      }
+
       // 获取可用清晰度信息
       const qualityInfo = await getQualityInfo(
-        videoInfo.cid,
+        cid,
         videoInfo.bvid,
         credentials,
       );
@@ -950,13 +957,24 @@ const Project = () => {
                   return;
                 }
 
+                let title = urlCheck.title;
+
                 const playerInfo = await getVideoInfoByUrl(bilibiliUrl);
+                let cid = playerInfo.cid;
+                const p = new URL(bilibiliUrl).searchParams.get("p");
+                if (p && playerInfo.pages) {
+                  const page = playerInfo.pages[Number(p) - 1];
+                  cid = page.cid;
+                  if (page.part) {
+                    title = page.part;
+                  }
+                }
 
                 // 创建 Bilibili 视频笔记
                 const item = await createEmptyVideoNote({
                   type: "bilibili",
                   bvid: playerInfo.bvid || "",
-                  cid: playerInfo.cid || "", // 将在播放时获取
+                  cid: cid || "", // 将在播放时获取
                   quality: selectedQuality, // 用户选择的清晰度
                 });
 
@@ -966,7 +984,7 @@ const Project = () => {
                 }
 
                 const createProjectItem: CreateProjectItem = {
-                  title: urlCheck.title || `Bilibili 视频 - ${urlCheck.bvid}`,
+                  title: title || `Bilibili 视频 - ${urlCheck.bvid}`,
                   content: [],
                   children: [],
                   refType: "video-note",

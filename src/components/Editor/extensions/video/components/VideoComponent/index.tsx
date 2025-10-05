@@ -118,7 +118,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
 
   const setting = useSettingStore.getState().setting;
 
-  // ---- 平台识别（要求 metaInfo 已存在；新增入口可解析写入） ----
   const isBilibili = useMemo(
     () => !!element.src && isBilibiliUrl(element.src),
     [element.src],
@@ -135,7 +134,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     ? (element.metaInfo as YouTubeVideoMetaInfo)
     : undefined;
 
-  // 通过 hook 获取最终可播放地址（依赖 metaInfo）
   const {
     videoUrl: bilibiliVideoUrl,
     loading: bilibiliLoading,
@@ -334,10 +332,16 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         biliUrl,
         setting.integration.bilibili.credentials,
       );
+      let cid = info.cid;
+      const p = new URL(biliUrl).searchParams.get("p");
+      if (p && info.pages) {
+        const page = info.pages[Number(p) - 1];
+        cid = page.cid;
+      }
       const meta: BiliBiliVideoMetaInfo = {
         type: "bilibili",
         bvid: info.bvid,
-        cid: info.cid,
+        cid: cid,
         quality: selectedBilibiliQuality,
       };
 
