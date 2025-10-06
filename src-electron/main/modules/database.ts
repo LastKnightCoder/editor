@@ -32,6 +32,7 @@ import TodoItemTable from "./tables/todo-item";
 import TodoNoteLinkTable from "./tables/todo-note-link";
 import GoalProgressNoteLinkTable from "./tables/goal-progress-note-link";
 import GoalNoteLinkTable from "./tables/goal-note-link";
+import QuestionGroupTable from "./tables/question-group";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -71,6 +72,7 @@ class DatabaseModule implements Module {
       StatisticTable,
       FtsTable,
       VideoNoteTable,
+      QuestionGroupTable,
       QuestionTable,
       GoalTable,
       GoalItemTable,

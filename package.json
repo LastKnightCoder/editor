@@ -1,11 +1,11 @@
 {
-  "name": "notes",
+  "name": "tau",
   "private": true,
   "version": "0.16.2",
   "author": {
     "name": "LastKnightCoder"
   },
-  "description": "Notes",
+  "description": "Tau",
   "main": "dist-electron/main/index.js",
   "scripts": {
     "start": "vite",

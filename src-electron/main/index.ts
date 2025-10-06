@@ -87,7 +87,7 @@ if (process.platform === "win32") {
 }
 
 // 注册文件关联
-app.setAsDefaultProtocolClient("notes");
+app.setAsDefaultProtocolClient("tau");
 if (process.platform === "win32") {
   app.setUserTasks([
     {

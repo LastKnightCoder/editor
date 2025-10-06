@@ -8,7 +8,7 @@ import {
 } from "@/commands";
 
 export interface UseVideoNoteOperationsResult {
-  refreshVideoNote: () => Promise<void>;
+  refreshVideoNote: (videoNoteId: number) => Promise<void>;
   updateNotes: (notes: IVideoNote["notes"]) => Promise<void>;
   handleAddSubNote: (
     note: Omit<IVideoNote["notes"][number], "contentId">,
@@ -21,7 +21,7 @@ export function useVideoNoteOperations(
   videoNote: IVideoNote | null,
   setVideoNote: (videoNote: IVideoNote | null) => void,
 ): UseVideoNoteOperationsResult {
-  const refreshVideoNote = useMemoizedFn(async () => {
+  const refreshVideoNote = useMemoizedFn(async (videoNoteId: number) => {
     const videoNote = await getVideoNoteById(videoNoteId);
     setVideoNote(videoNote);
   });
@@ -43,14 +43,14 @@ export function useVideoNoteOperations(
   const handleAddSubNote = useMemoizedFn(
     async (note: Omit<IVideoNote["notes"][number], "contentId">) => {
       const res = await addSubNote(videoNoteId, note);
-      refreshVideoNote();
+      refreshVideoNote(videoNoteId);
       return res;
     },
   );
 
   const handleDeleteSubNote = useMemoizedFn(async (noteId: string) => {
     const res = await deleteSubNote(videoNoteId, noteId);
-    refreshVideoNote();
+    refreshVideoNote(videoNoteId);
     return res;
   });
 
