@@ -124,8 +124,8 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
         const emptyContent: Descendant[] = [
           {
             type: "paragraph",
-            children: [{ text: "" }],
-          } as any,
+            children: [{ type: "formatted", text: "" }],
+          },
         ];
         const contentId = await createContent(emptyContent, 0);
 

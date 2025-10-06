@@ -116,6 +116,7 @@ const UnansweredQuestions: React.FC = () => {
     setModalVisible(false);
     setSelectedQuestion(null);
     setSelectedQuestionAnswers([]);
+    fetchQuestions();
   });
 
   // 处理删除答案
@@ -293,7 +294,7 @@ const UnansweredQuestions: React.FC = () => {
 
   useEffect(() => {
     fetchQuestions();
-  }, []);
+  }, [fetchQuestions]);
 
   const displayQuestions = showAll ? questions : questions.slice(0, 5);
   const hasMoreQuestions = questions.length > 5;
@@ -302,7 +303,7 @@ const UnansweredQuestions: React.FC = () => {
     <div className={styles.unansweredQuestions}>
       <div className={styles.header}>
         <Typography.Title level={5} style={{ margin: 0 }}>
-          问题
+          待解决问题({questions.length})
         </Typography.Title>
         <div>
           <Button

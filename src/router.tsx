@@ -44,6 +44,7 @@ const TimeRecordView = loadable(() => import("@/pages/TimeRecordView"));
 const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
 const TodoWindowPage = loadable(() => import("@/pages/TodoWindow"));
 const GoalWindowPage = loadable(() => import("@/pages/GoalWindow"));
+const QuestionWindowPage = loadable(() => import("@/pages/QuestionWindow"));
 
 const routes = [
   {
@@ -197,6 +198,16 @@ const routes = [
       {
         index: true,
         element: <GoalWindowPage />,
+      },
+    ],
+  },
+  {
+    path: "/questions",
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <QuestionWindowPage />,
       },
     ],
   },

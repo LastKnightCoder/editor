@@ -20,7 +20,8 @@ type EditorType =
   | "document-item"
   | "markdown"
   | "todo"
-  | "goal";
+  | "goal"
+  | "question";
 
 // 窗口参数定义
 interface EditorParams {
@@ -54,6 +55,7 @@ export class WindowManager {
     this.windowsMap.set("markdown", new Map<string, BrowserWindow>());
     this.windowsMap.set("todo", new Map<string, BrowserWindow>());
     this.windowsMap.set("goal", new Map<string, BrowserWindow>());
+    this.windowsMap.set("question", new Map<string, BrowserWindow>());
 
     this.registerIpcHandlers();
   }
@@ -289,6 +291,7 @@ export class WindowManager {
       markdown: "single-markdown-editor",
       todo: "todo",
       goal: "goals",
+      question: "questions",
     };
     return routes[type];
   }
@@ -303,6 +306,7 @@ export class WindowManager {
       markdown: "filePath",
       todo: "noop",
       goal: "noop",
+      question: "noop",
     };
     return paramNames[type];
   }
@@ -317,6 +321,7 @@ export class WindowManager {
       markdown: "Markdown",
       todo: "TODO",
       goal: "进度管理",
+      question: "问题管理",
     };
     return editorNames[type];
   }
@@ -346,6 +351,21 @@ export class WindowManager {
       win.loadURL(`${VITE_DEV_SERVER_URL}#/goals`);
     } else {
       win.loadFile(indexHtml, { hash: `/goals` });
+    }
+
+    return win;
+  }
+
+  public createQuestionWindow() {
+    const baseConfig = this.createBaseWindowConfig();
+    const win = new BrowserWindow(baseConfig);
+
+    this.setupWindowEvents(win);
+
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/questions`);
+    } else {
+      win.loadFile(indexHtml, { hash: `/questions` });
     }
 
     return win;

@@ -86,13 +86,11 @@ function getMacOSStatusBarIconPath(preloadPath: string) {
   return "";
 }
 
-// 创建 macOS Dock 菜单
 function createDockMenu() {
   const dockMenu = Menu.buildFromTemplate([
     {
       label: "打开新窗口",
       click: () => {
-        log.info("从Dock菜单打开新窗口");
         if (windowManager) {
           windowManager.createMainWindow();
         }
@@ -101,7 +99,6 @@ function createDockMenu() {
     {
       label: "任务清单",
       click: () => {
-        log.info("从Dock菜单打开TODO窗口");
         if (windowManager) {
           if (typeof windowManager.createTodoWindow === "function") {
             windowManager.createTodoWindow();
@@ -110,9 +107,18 @@ function createDockMenu() {
       },
     },
     {
+      label: "问题管理",
+      click: () => {
+        if (windowManager) {
+          if (typeof windowManager.createQuestionWindow === "function") {
+            windowManager.createQuestionWindow();
+          }
+        }
+      },
+    },
+    {
       label: "进度管理",
       click: () => {
-        log.info("从Dock菜单打开进度管理窗口");
         if (windowManager) {
           if (typeof windowManager.createGoalWindow === "function") {
             windowManager.createGoalWindow();
@@ -138,7 +144,6 @@ function createDockMenu() {
   app.dock?.setMenu(dockMenu);
 }
 
-// 创建系统托盘
 function createTray(preloadPath: string) {
   // 托盘图标路径，根据平台选择适当的图标
   const iconPath = path.join(
@@ -147,8 +152,6 @@ function createTray(preloadPath: string) {
       : path.join(process.env.APP_ROOT || "", "build"),
     process.platform === "win32" ? "icon.ico" : "icon.png",
   );
-
-  log.info(`创建系统托盘，图标路径: ${iconPath}`);
 
   // 检查图标文件是否存在
   if (!existsSync(iconPath)) {
@@ -161,7 +164,6 @@ function createTray(preloadPath: string) {
     );
 
     if (existsSync(alternativeIconPath)) {
-      log.info(`使用备用托盘图标: ${alternativeIconPath}`);
       // 创建托盘实例
       tray = new Tray(alternativeIconPath);
     } else {
@@ -200,6 +202,16 @@ function updateTrayMenu() {
         if (windowManager) {
           if (typeof windowManager.createTodoWindow === "function") {
             windowManager.createTodoWindow();
+          }
+        }
+      },
+    },
+    {
+      label: "问题管理",
+      click: () => {
+        if (windowManager) {
+          if (typeof windowManager.createQuestionWindow === "function") {
+            windowManager.createQuestionWindow();
           }
         }
       },

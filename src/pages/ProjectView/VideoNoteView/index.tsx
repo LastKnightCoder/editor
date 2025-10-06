@@ -40,12 +40,11 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     updateNotes,
     handleAddSubNote,
     handleDeleteSubNote,
-    handleUpdateSubNote,
   } = useVideoNoteOperations(videoNoteId, videoNote, setVideoNote);
 
   useEffect(() => {
-    refreshVideoNote();
-  }, [videoNoteId]);
+    refreshVideoNote(videoNoteId);
+  }, [refreshVideoNote, videoNoteId]);
 
   if (!videoNote) return null;
 
@@ -58,7 +57,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           uploadResource={uploadResource}
           addSubNote={handleAddSubNote}
           deleteSubNote={handleDeleteSubNote}
-          updateSubNote={handleUpdateSubNote}
           updateNotes={updateNotes}
         />
       </div>
@@ -72,7 +70,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           uploadResource={uploadResource}
           addSubNote={handleAddSubNote}
           deleteSubNote={handleDeleteSubNote}
-          updateSubNote={handleUpdateSubNote}
           updateNotes={updateNotes}
         />
       </div>
@@ -93,7 +90,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             uploadResource={uploadResource}
             addSubNote={handleAddSubNote}
             deleteSubNote={handleDeleteSubNote}
-            updateSubNote={handleUpdateSubNote}
             updateNotes={updateNotes}
           />
         )}
@@ -116,7 +112,6 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             uploadResource={uploadResource}
             addSubNote={handleAddSubNote}
             deleteSubNote={handleDeleteSubNote}
-            updateSubNote={handleUpdateSubNote}
             updateNotes={updateNotes}
           />
         )}

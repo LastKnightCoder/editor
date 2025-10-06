@@ -6,6 +6,9 @@ export interface IQuestion {
   updateTime: number;
   questionContent: string;
   answers: number[];
+  groupId: number;
+  sortIndex: number;
+  resolvedTime?: number | null;
 }
 
 export interface IAnswer {

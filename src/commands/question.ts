@@ -2,8 +2,13 @@ import { invoke } from "@/electron";
 import { IQuestion, ICreateAnswer, IAnswer } from "@/types";
 import { Descendant } from "slate";
 
-export async function createQuestion(question: string): Promise<IQuestion> {
-  return invoke("question:create", question);
+export async function createQuestion(
+  question: string,
+  groupId?: number,
+): Promise<IQuestion> {
+  // groupId 可选，保持对旧调用的兼容
+  if (groupId == null) return invoke("question:create", question);
+  return invoke("question:create", question, groupId);
 }
 
 export async function updateQuestion(
@@ -63,4 +68,28 @@ export async function getQuestionAnswers(
 
 export async function getNoAnswerQuestions(): Promise<IQuestion[]> {
   return invoke("question:get-no-answer-questions");
+}
+
+export async function listQuestionsByGroup(params: {
+  groupId: number;
+  filter?: "all" | "answered" | "unanswered";
+  search?: string;
+}): Promise<IQuestion[]> {
+  return invoke(
+    "question:list-by-group",
+    params.groupId,
+    params.filter ?? "all",
+    params.search ?? "",
+  );
+}
+
+export async function reorderQuestions(orderedIds: number[]): Promise<number> {
+  return invoke("question:reorder", { orderedIds });
+}
+
+export async function moveQuestionToGroup(
+  id: number,
+  toGroupId: number,
+): Promise<IQuestion> {
+  return invoke("question:move-to-group", { id, toGroupId });
 }
