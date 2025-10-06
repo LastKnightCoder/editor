@@ -14,6 +14,8 @@ interface LocalVideoProps {
   [key: string]: any;
 }
 
+const VIDEO_POSITION_PREFIX = "video_position_";
+
 function getMimeType(ext: string): string {
   const mimeTypes: Record<string, string> = {
     ".mp4": "video/mp4",
@@ -113,6 +115,55 @@ const LocalVideo = memo(
         }
       }
     }, [previewUrl, getVideoElement]);
+
+    // 保存和恢复播放位置
+    useEffect(() => {
+      const videoElement = getVideoElement();
+      if (!videoElement) return;
+
+      const storageKey = `${VIDEO_POSITION_PREFIX}${src}`;
+
+      // 当视频元数据加载完成后恢复播放位置
+      const handleLoadedMetadata = () => {
+        const savedPosition = localStorage.getItem(storageKey);
+        if (savedPosition && currentTime.current === 0) {
+          const position = parseFloat(savedPosition);
+          if (
+            !isNaN(position) &&
+            position >= 0 &&
+            position < videoElement.duration
+          ) {
+            videoElement.currentTime = position;
+            currentTime.current = position;
+          }
+        }
+      };
+
+      // 定期保存播放位置
+      const handleTimeUpdate = () => {
+        if (videoElement.currentTime >= 0) {
+          localStorage.setItem(storageKey, videoElement.currentTime.toString());
+        }
+      };
+
+      // 播放结束时清除保存的位置
+      const handleEnded = () => {
+        localStorage.removeItem(storageKey);
+      };
+
+      videoElement.addEventListener("loadedmetadata", handleLoadedMetadata);
+      videoElement.addEventListener("timeupdate", handleTimeUpdate);
+      videoElement.addEventListener("ended", handleEnded);
+
+      return () => {
+        videoElement.removeEventListener(
+          "loadedmetadata",
+          handleLoadedMetadata,
+        );
+        videoElement.removeEventListener("timeupdate", handleTimeUpdate);
+        videoElement.removeEventListener("ended", handleEnded);
+      };
+    }, [src, getVideoElement]);
 
     const handleOnError = useMemoizedFn(
       async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
