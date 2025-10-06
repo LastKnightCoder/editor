@@ -693,3 +693,4 @@
 - feat: 图片添加对齐属性
 - feat: bilibili 视频支持多 p 视频
 - feat: 添加问题管理页面
+- chore: 修改应用名称为 Tau

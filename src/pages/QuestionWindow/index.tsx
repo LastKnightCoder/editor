@@ -8,15 +8,10 @@ import { useQuestionStore } from "@/stores/question";
 import NewAnswerModal from "@/components/NewAnswerModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import AnswerModal from "@/components/AnswerModal";
-import {
-  getQuestionAnswers,
-  getContentById,
-  isContentIsCard,
-} from "@/commands";
+import { getQuestionAnswers, isContentIsCard } from "@/commands";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { Descendant } from "slate";
 import DndProvider from "@/components/DndProvider";
-import { getEditorText } from "@/utils/editor";
 import QuestionGroupList from "./components/QuestionGroupList";
 import Toolbar from "./components/Toolbar";
 import QuestionList from "./components/QuestionList";
