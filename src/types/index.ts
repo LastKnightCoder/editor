@@ -19,6 +19,7 @@ export * from "./goal";
 export * from "./data-table";
 export * from "./todo";
 export * from "./rpc";
+export * from "./shortcut";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];

@@ -17,6 +17,7 @@ import { produce } from "immer";
 import classnames from "classnames";
 
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import useShortcutStore from "@/stores/useShortcutStore";
 import useDragAndDrop, {
   EDragPosition,
   IDragItem,
@@ -125,6 +126,32 @@ const DocumentItem = (props: IDocumentItemProps) => {
   const activeDocumentItemId = useDocumentsStore(
     useShallow((state) => state.activeDocumentItemId),
   );
+
+  const {
+    findShortcut,
+    createShortcut,
+    deleteShortcut,
+    loaded,
+    loadShortcuts,
+  } = useShortcutStore();
+
+  // 加载快捷方式
+  useEffect(() => {
+    if (!loaded) {
+      loadShortcuts();
+    }
+  }, [loaded, loadShortcuts]);
+
+  // 检查是否已添加快捷方式
+  const isShortcut = useMemo(() => {
+    if (!item) return null;
+    return findShortcut({
+      resourceType: "document",
+      scope: "item",
+      resourceId: documentId,
+      documentItemId: item.id,
+    });
+  }, [findShortcut, documentId, item]);
 
   useEffect(() => {
     if (activeDocumentItemId === itemId) {
@@ -637,6 +664,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
         label: "演示模式",
       },
       {
+        key: "toggle-shortcut",
+        label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+      },
+      {
         key: "open-in-new-window",
         label: "窗口打开",
       },
@@ -645,13 +676,33 @@ const DocumentItem = (props: IDocumentItemProps) => {
         label: "右侧打开",
       },
     ],
-    [],
+    [isShortcut],
   );
 
   const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
       if (key === "delete") {
         await onClickDelete();
+      } else if (key === "toggle-shortcut") {
+        if (!item) return;
+        try {
+          if (isShortcut) {
+            await deleteShortcut(isShortcut.id);
+            message.success("已取消快捷方式");
+          } else {
+            await createShortcut({
+              resourceType: "document",
+              scope: "item",
+              resourceId: documentId,
+              documentItemId: item.id,
+              title: item.title,
+            });
+            message.success("已添加到快捷方式");
+          }
+        } catch (error) {
+          console.error("操作快捷方式失败:", error);
+          message.error("操作失败");
+        }
       } else if (key === "export-markdown") {
         if (!item) {
           return;

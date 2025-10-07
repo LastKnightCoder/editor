@@ -83,16 +83,6 @@ const Star: React.FC<StarProps> = ({
       max,
       step,
     );
-    console.log(
-      "isHovering",
-      isHovering,
-      "hoverValue",
-      hoverValue,
-      "value",
-      value,
-      "displayValue",
-      displayValue,
-    );
     return displayValue;
   }, [hoverValue, value, max, step, isHovering]);
 
@@ -104,14 +94,12 @@ const Star: React.FC<StarProps> = ({
     const x = e.clientX - rect.left;
     const ratio = clamp(x / rect.width, 0, 1);
     const raw = ratio * max;
-    console.log("handleContainerMove", raw);
     setHoverValue(normalizeValue(raw, max, step));
   });
 
   const handleLeave = useMemoizedFn(() => {
     isHoveringRef.current = false;
     setIsHovering(false);
-    console.log("handleLeave");
     if (readonly) return;
     setHoverValue(null);
   });
@@ -119,7 +107,6 @@ const Star: React.FC<StarProps> = ({
   const handleContainerEnter = useMemoizedFn(() => {
     setIsHovering(true);
     isHoveringRef.current = true;
-    console.log("handleContainerEnter");
   });
 
   const handleContainerClick = useMemoizedFn((e: MouseEvent) => {
@@ -134,7 +121,6 @@ const Star: React.FC<StarProps> = ({
     const raw = ratio * max;
     const current = normalizeValue(raw ?? 0, max, step);
     onChange?.(current);
-    console.log("handleContainerClick", current);
   });
 
   const handlePointerOut = useMemoizedFn((e: PointerEvent) => {

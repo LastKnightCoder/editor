@@ -41,6 +41,7 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore";
+import useShortcutStore from "@/stores/useShortcutStore";
 import useDragAndDrop, {
   EDragPosition,
   IDragItem,
@@ -205,6 +206,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     activeProjectItemId: state.activeProjectItemId,
   }));
 
+  const {
+    findShortcut,
+    createShortcut,
+    deleteShortcut,
+    loaded,
+    loadShortcuts,
+  } = useShortcutStore();
+
   const setting = useSettingStore.getState().setting;
 
   useEffect(() => {
@@ -213,6 +222,24 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       onOpenChange?.(true);
     }
   }, [activeProjectItemId]);
+
+  // 加载快捷方式
+  useEffect(() => {
+    if (!loaded) {
+      loadShortcuts();
+    }
+  }, [loaded, loadShortcuts]);
+
+  // 检查是否已添加快捷方式
+  const isShortcut = useMemo(() => {
+    if (!projectItem) return null;
+    return findShortcut({
+      resourceType: "project",
+      scope: "item",
+      resourceId: projectId,
+      projectItemId: projectItem.id,
+    });
+  }, [findShortcut, projectId, projectItem]);
 
   const onChildOpenChange = useMemoizedFn((open: boolean) => {
     if (open) {
@@ -646,6 +673,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           ],
         },
         {
+          key: "toggle-shortcut",
+          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+        },
+        {
           key: "open-in-new-window",
           label: "窗口打开",
         },
@@ -669,6 +700,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             }
           : undefined,
         {
+          key: "toggle-shortcut",
+          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+        },
+        {
           key: "remove",
           label: "删除白板",
         },
@@ -682,6 +717,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     if (projectItem?.projectItemType === EProjectItemType.VideoNote) {
       return [
         {
+          key: "toggle-shortcut",
+          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+        },
+        {
           key: "remove",
           label: "删除视频",
         },
@@ -694,6 +733,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
     if (projectItem?.projectItemType === EProjectItemType.WebView) {
       return [
+        {
+          key: "toggle-shortcut",
+          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+        },
         {
           key: "remove",
           label: "删除网页",
@@ -712,16 +755,40 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     if (projectItem?.projectItemType === EProjectItemType.TableView) {
       return [
         {
+          key: "toggle-shortcut",
+          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+        },
+        {
           key: "remove",
           label: "删除表格",
         },
       ].filter(isValid);
     }
-  }, [projectItem?.projectItemType, projectItem?.refType]);
+  }, [projectItem?.projectItemType, projectItem?.refType, isShortcut]);
 
   const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
-      if (key === "to-card") {
+      if (key === "toggle-shortcut") {
+        if (!projectItem) return;
+        try {
+          if (isShortcut) {
+            await deleteShortcut(isShortcut.id);
+            message.success("已取消快捷方式");
+          } else {
+            await createShortcut({
+              resourceType: "project",
+              scope: "item",
+              resourceId: projectId,
+              projectItemId: projectItem.id,
+              title: projectItem.title,
+            });
+            message.success("已添加到快捷方式");
+          }
+        } catch (error) {
+          console.error("操作快捷方式失败:", error);
+          message.error("操作失败");
+        }
+      } else if (key === "to-card") {
         const projectItem = await getProjectItemById(projectItemId);
         if (!projectItem) return;
         await buildCardFromProjectItem(projectItem);

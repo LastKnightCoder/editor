@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { produce } from "immer";
@@ -10,6 +10,7 @@ import { MdMoreVert } from "react-icons/md";
 import { AiFillPushpin } from "react-icons/ai";
 import useTheme from "@/hooks/useTheme.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import useShortcutStore from "@/stores/useShortcutStore";
 
 import { IDocument } from "@/types";
 
@@ -35,6 +36,30 @@ const DocumentCard = (props: DocumentCardProps) => {
       updateDocument: state.updateDocument,
     })),
   );
+
+  const {
+    findShortcut,
+    createShortcut,
+    deleteShortcut: deleteShortcutById,
+    loaded,
+    loadShortcuts,
+  } = useShortcutStore();
+
+  // 加载快捷方式
+  React.useEffect(() => {
+    if (!loaded) {
+      loadShortcuts();
+    }
+  }, [loaded, loadShortcuts]);
+
+  // 检查是否已添加快捷方式
+  const isShortcut = useMemo(() => {
+    return findShortcut({
+      resourceType: "document",
+      scope: "item",
+      resourceId: document.id,
+    });
+  }, [findShortcut, document.id]);
 
   const handleDeleteDocument = () => {
     Modal.confirm({
@@ -77,6 +102,26 @@ const DocumentCard = (props: DocumentCardProps) => {
       label: "编辑知识库",
       onClick: () => {
         setEditOpen(true);
+      },
+    },
+    {
+      key: "toggle-shortcut",
+      label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+      onClick: async () => {
+        try {
+          if (isShortcut) {
+            await deleteShortcutById(isShortcut.id);
+          } else {
+            await createShortcut({
+              resourceType: "document",
+              scope: "item",
+              resourceId: document.id,
+              title: document.title,
+            });
+          }
+        } catch (error) {
+          console.error("操作快捷方式失败:", error);
+        }
       },
     },
     {
