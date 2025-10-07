@@ -15,7 +15,6 @@ import { TbTargetArrow } from "react-icons/tb";
 import { TrophyOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import { IoAdd } from "react-icons/io5";
 import dayjs from "dayjs";
-import classnames from "classnames";
 
 import {
   IGoalWithItems,
@@ -35,12 +34,12 @@ import { updateGoalNoteType } from "@/commands/goal-note";
 import { EditProgressModal } from "./modals";
 import GoalItemNotes from "./GoalItemNotes";
 import ProgressEntryNotes from "./ProgressEntryNotes";
-import styles from "../index.module.less";
 import { useMemoizedFn } from "ahooks";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import RichTextEditModal from "@/components/RichTextEditModal";
 import { IndexType, SearchResult } from "@/types";
 import { getEditorText } from "@/utils";
+import styles from "./GoalDetailPanel.module.less";
 
 interface GoalDetailPanelProps {
   selectedGoal: IGoalWithItems | null;
@@ -424,20 +423,20 @@ const GoalDetailPanel = memo(
         ...item.children.map((child) => renderTreeNode(child, level + 1)),
         ...(item.progress_entries || []).map((entry) => ({
           title: (
-            <div className={styles.progressEntry}>
-              <div className={styles.entryHeader}>
-                <ClockCircleOutlined className={styles.timeIcon} />
-                <span className={styles.entryTitle}>
+            <div className="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-lg p-4 px-5 w-full transition-all duration-200 border-l-4 border-l-green-500 hover:border-gray-300 dark:hover:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900/50">
+              <div className="flex items-center gap-3">
+                <ClockCircleOutlined className="text-green-500 text-sm flex-shrink-0" />
+                <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm flex-1 min-w-0 tracking-tight">
                   {entry.title || "进度记录"}
                   {entry.progress_delta && (
-                    <span className={styles.entryProgressDelta}>
+                    <span className="text-green-600 dark:text-green-500 font-semibold text-[13px] ml-1.5 bg-green-50 dark:bg-green-900/20 py-0.5 px-1.5 rounded-md">
                       (+{entry.progress_delta}
                       {item.unit ? ` ${item.unit}` : ""})
                     </span>
                   )}
                 </span>
-                <div className={styles.entryActions}>
-                  <span className={styles.entryTime}>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-gray-500 dark:text-gray-500 text-[11px] font-mono bg-gray-100 dark:bg-zinc-800 py-1 px-2 rounded-md font-medium">
                     {dayjs(entry.create_time).format("MM-DD HH:mm")}
                   </span>
                   <Dropdown
@@ -445,7 +444,7 @@ const GoalDetailPanel = memo(
                     trigger={["click"]}
                   >
                     <button
-                      className={styles.entryMenuButton}
+                      className="w-6 h-6 border-none rounded-md bg-transparent text-gray-400 dark:text-gray-500 cursor-pointer flex items-center justify-center opacity-60 transition-all duration-200 hover:opacity-100 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-gray-100"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <MoreOutlined />
@@ -454,7 +453,7 @@ const GoalDetailPanel = memo(
                 </div>
               </div>
               {entry.description && (
-                <div className={styles.entryDescription}>
+                <div className="text-gray-600 dark:text-gray-400 text-[13px] leading-relaxed ml-[26px] pt-2 border-t border-gray-100 dark:border-zinc-800 mt-2">
                   {entry.description}
                 </div>
               )}
@@ -476,21 +475,19 @@ const GoalDetailPanel = memo(
       return {
         title: (
           <div
-            className={classnames(styles.treeNodeContent, {
-              [styles.bigGoal]: item.type === EGoalItemType.BigGoal,
-            })}
+            className="flex items-center justify-between w-full min-h-[72px] py-6 px-7 rounded-xl transition-all duration-200 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 mb-0 cursor-pointer hover:border-gray-300 dark:hover:border-zinc-700 hover:bg-gray-50 dark:hover:bg-zinc-900/50"
             onClick={(e) => {
               e.stopPropagation();
               handleNodeClick(item);
             }}
           >
-            <div className={styles.nodeInfo}>
-              <div className={styles.nodeTitleRow}>
-                <span className={styles.nodeTitle}>
+            <div className="flex-1 min-w-0 mr-6">
+              <div className="flex items-center gap-3">
+                <span className="font-semibold text-gray-900 dark:text-gray-100 text-base leading-normal tracking-tight">
                   {item.title}
                   {item.type === EGoalItemType.Progress &&
                     item.target_value && (
-                      <span className={styles.progressText}>
+                      <span className="text-gray-600 dark:text-gray-400 font-medium text-sm ml-2">
                         ({item.current_value || 0}/{item.target_value}
                         {item.unit ? ` ${item.unit}` : ""})
                       </span>
@@ -499,7 +496,9 @@ const GoalDetailPanel = memo(
                 {getTypeTag(item.type)}
               </div>
               {item.description && (
-                <div className={styles.nodeDescription}>{item.description}</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mt-1.5">
+                  {item.description}
+                </div>
               )}
               <div className="mt-3">
                 <GoalItemNotes
@@ -511,11 +510,11 @@ const GoalDetailPanel = memo(
               </div>
             </div>
             <div
-              className={styles.nodeActions}
+              className="flex items-center gap-4 flex-shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
               <Tooltip title={`进度: ${progress.toFixed(1)}%`}>
-                <div className={styles.progressBar}>
+                <div className="w-[120px]">
                   <Progress
                     percent={progress}
                     size="small"
@@ -528,7 +527,7 @@ const GoalDetailPanel = memo(
                 menu={{ items: getMenuItems(item) }}
                 trigger={["click"]}
               >
-                <button>
+                <button className="w-8 h-8 border-none rounded-md bg-transparent text-gray-600 dark:text-gray-400 cursor-pointer flex items-center justify-center opacity-70 transition-all duration-200 hover:opacity-100 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-gray-100">
                   <MoreOutlined />
                 </button>
               </Dropdown>
@@ -569,8 +568,8 @@ const GoalDetailPanel = memo(
 
     if (!selectedGoal) {
       return (
-        <div className={styles.rightPanel}>
-          <div className={styles.emptyDetail}>
+        <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
+          <div className="flex flex-col justify-center items-center h-full text-gray-600 dark:text-gray-400 gap-4">
             <Empty description="请选择一个目标查看详情" />
           </div>
         </div>
@@ -578,17 +577,19 @@ const GoalDetailPanel = memo(
     }
 
     return (
-      <div className={styles.rightPanel}>
-        <div className={styles.detailHeader}>
-          <div className={styles.goalInfo}>
-            <h1>{selectedGoal.title}</h1>
+      <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 overflow-hidden">
+        <div className="py-8 px-8 border-b border-gray-100 dark:border-zinc-800 flex items-start gap-5 bg-white dark:bg-zinc-900">
+          <div className="flex-1">
+            <h1 className="m-0 mb-3 text-gray-900 dark:text-gray-100 text-[28px] font-bold tracking-tight leading-tight">
+              {selectedGoal.title}
+            </h1>
             {selectedGoal.description && (
-              <p className={styles.goalDescription}>
+              <p className="m-0 mb-4 text-gray-600 dark:text-gray-400 leading-relaxed text-base">
                 {selectedGoal.description}
               </p>
             )}
             {selectedGoal.start_date && selectedGoal.end_date && (
-              <div className={styles.dateRange}>
+              <div className="text-gray-500 dark:text-gray-500 text-sm flex items-center gap-2 bg-gray-100 dark:bg-zinc-800 py-2 px-3 rounded-md w-fit">
                 <ClockCircleOutlined />
                 {dayjs(selectedGoal.start_date).format("YYYY-MM-DD")} ~{" "}
                 {dayjs(selectedGoal.end_date).format("YYYY-MM-DD")}
@@ -596,17 +597,19 @@ const GoalDetailPanel = memo(
             )}
           </div>
           <button
-            className={`${styles.customButton} ${styles.primary} ${styles.large}`}
+            className="inline-flex items-center justify-center gap-2 px-[18px] h-10 border-none rounded-lg bg-gradient-to-br from-indigo-500/60 to-purple-600/60 hover:from-indigo-600/70 hover:to-purple-700/70 text-white text-sm font-semibold cursor-pointer transition-all duration-200 outline-none"
             onClick={onAddRootItem}
           >
             <IoAdd size={18} />
-            添加子目标
+            添加目标
           </button>
         </div>
 
-        <div className={styles.detailContent}>
+        <div className="flex-1 p-10 overflow-y-auto bg-gray-50 dark:bg-zinc-950">
           {detailLoading ? (
-            <div className={styles.loading}>加载中...</div>
+            <div className="flex justify-center items-center h-[200px] text-gray-600 dark:text-gray-400 text-base">
+              加载中...
+            </div>
           ) : selectedGoal.items.length === 0 ? (
             <Empty description="还没有子目标，点击上方按钮添加第一个子目标" />
           ) : (

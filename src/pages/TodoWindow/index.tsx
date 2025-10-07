@@ -5,7 +5,7 @@ import GroupList from "@/components/Todo/Sidebar/GroupList";
 import Toolbar from "@/components/Todo/List/Toolbar";
 import { TodoTree } from "@/components/Todo/List";
 import DetailsPanel from "@/components/Todo/Details/DetailsPanel";
-import DndProvider from "./DndProvider";
+import DndProvider from "@/components/DndProvider";
 import KeyboardShortcuts from "@/components/Todo/List/KeyboardShortcuts";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
@@ -41,7 +41,7 @@ const TodoWindowPage = () => {
   return (
     <DndProvider>
       <KeyboardShortcuts />
-      <div className="flex w-full h-[100vh] overflow-hidden bg-[var(--main-bg-color)]">
+      <div className="flex w-full h-full overflow-hidden bg-[var(--main-bg-color)]">
         <ResizeableAndHideableSidebar
           width={ui.leftWidth}
           open={ui.leftOpen}

@@ -1,10 +1,9 @@
 import { memo } from "react";
-import { Empty } from "antd";
+import { Empty, Tooltip } from "antd";
 import { IoChevronDown, IoChevronForward, IoAdd } from "react-icons/io5";
 
 import { IGoal, EGoalStatus } from "@/types";
 import GoalCard from "./GoalCard";
-import styles from "../index.module.less";
 
 interface GoalSectionProps {
   status: EGoalStatus;
@@ -61,27 +60,46 @@ const GoalSection = memo(
     };
 
     return (
-      <div className={styles.goalSection}>
-        <div className={styles.sectionHeader} onClick={onToggleCollapse}>
-          <span className={styles.sectionTitle}>{getSectionTitle()}</span>
-          <span className={styles.sectionArrow}>
-            {isCollapsed ? <IoChevronForward /> : <IoChevronDown />}
-          </span>
+      <div className="mb-2 last:mb-0">
+        <div className="flex justify-between items-center py-4 px-6 transition-all duration-200 border-b border-gray-100 dark:border-zinc-800">
+          <div
+            className="flex items-center gap-2 cursor-pointer flex-1 "
+            onClick={onToggleCollapse}
+          >
+            <span
+              className={`text-gray-400 dark:text-gray-500 text-base transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}
+            >
+              {isCollapsed ? (
+                <IoChevronForward className="rotate-90" />
+              ) : (
+                <IoChevronDown />
+              )}
+            </span>
+            <span className="font-semibold text-gray-900 dark:text-gray-100 text-base tracking-tight select-none">
+              {getSectionTitle()}
+            </span>
+          </div>
+          {status === EGoalStatus.InProgress && onCreateGoal && (
+            <Tooltip title="新建目标" placement="left">
+              <button
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-transparent text-gray-600 dark:text-gray-400 cursor-pointer transition-all duration-200 dark:hover:border-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-900"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateGoal();
+                }}
+              >
+                <IoAdd size={18} />
+              </button>
+            </Tooltip>
+          )}
         </div>
 
-        {!isCollapsed && status === EGoalStatus.InProgress && onCreateGoal && (
-          <div className={styles.sectionActions}>
-            <button className={styles.addGoalButton} onClick={onCreateGoal}>
-              <IoAdd size={18} />
-              新建目标
-            </button>
-          </div>
-        )}
-
         {!isCollapsed && (
-          <div className={styles.goalList}>
+          <div className="p-4 flex flex-col gap-3">
             {loading ? (
-              <div className={styles.loading}>加载中...</div>
+              <div className="flex justify-center items-center h-[200px] text-gray-600 dark:text-gray-400 text-base">
+                加载中...
+              </div>
             ) : goals.length === 0 ? (
               <Empty description={getEmptyDescription()} />
             ) : (

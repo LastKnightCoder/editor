@@ -1,11 +1,9 @@
 import { memo, useMemo } from "react";
 import classnames from "classnames";
 import { Card, Dropdown, MenuProps } from "antd";
-import { MoreOutlined, ClockCircleOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
+import { MoreOutlined } from "@ant-design/icons";
 
 import { IGoal, EGoalStatus } from "@/types";
-import styles from "../index.module.less";
 
 interface GoalCardProps {
   goal: IGoal;
@@ -25,9 +23,6 @@ const GoalCard = memo(
     onDelete,
     onUpdateStatus,
   }: GoalCardProps) => {
-    const hasDateRange = goal.start_date && goal.end_date;
-    const isOverdue = goal.end_date && Date.now() > goal.end_date;
-
     const getGoalMenuItems = useMemo(() => {
       const baseItems: MenuProps["items"] = [
         {
@@ -66,41 +61,34 @@ const GoalCard = memo(
       return baseItems;
     }, [goal, onDelete, onUpdateStatus, onEdit]);
 
+    const handleClick = () => {
+      onSelect(goal);
+    };
+
     return (
-      <Card
-        size="small"
-        className={classnames(styles.goalCard, {
-          [styles.selected]: isSelected,
-          [styles.overdue]: isOverdue && goal.status === EGoalStatus.InProgress,
-        })}
-        onClick={() => onSelect(goal)}
+      <div
+        className={classnames(
+          "flex justify-between items-start py-3 px-2 rounded-lg cursor-pointer",
+          {
+            "bg-gray-100 dark:bg-zinc-800": isSelected,
+          },
+        )}
+        onClick={handleClick}
       >
-        <div className={styles.goalHeader}>
-          <h4 className={styles.goalTitle}>{goal.title}</h4>
-          <div className={styles.goalActions}>
-            <Dropdown menu={{ items: getGoalMenuItems }} trigger={["click"]}>
-              <button onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                <MoreOutlined />
-              </button>
-            </Dropdown>
-          </div>
+        <h4 className="m-0 text-base font-semibold text-gray-900 dark:text-gray-100 flex-1 mr-3 leading-normal tracking-tight select-none">
+          {goal.title}
+        </h4>
+        <div className="flex items-center gap-2 opacity-60 hover:opacity-100 transition-opacity duration-200">
+          <Dropdown menu={{ items: getGoalMenuItems }} trigger={["click"]}>
+            <button
+              className="w-7 h-7 border-none rounded-full bg-transparent text-gray-600 dark:text-gray-400 cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-gray-200 dark:hover:bg-zinc-700 hover:text-gray-900 dark:hover:text-gray-100"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              <MoreOutlined />
+            </button>
+          </Dropdown>
         </div>
-
-        {goal.description && (
-          <p className={styles.goalDescription}>{goal.description}</p>
-        )}
-
-        {hasDateRange && (
-          <div className={styles.goalDateRange}>
-            <ClockCircleOutlined /> {dayjs(goal.start_date).format("MM-DD")} ~{" "}
-            {dayjs(goal.end_date).format("MM-DD")}
-          </div>
-        )}
-
-        <div className={styles.goalMeta}>
-          <span>创建于 {dayjs(goal.create_time).format("YYYY-MM-DD")}</span>
-        </div>
-      </Card>
+      </div>
     );
   },
 );

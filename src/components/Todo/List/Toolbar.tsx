@@ -120,7 +120,7 @@ const Toolbar = () => {
           ))}
         </div>
       </div>
-      <div className="mt-3 py-3 px-5 flex items-center border-b border-[#e2e4ea] dark:border-[#455963]">
+      <div className="mt-3 py-3 mx-5 px-0 flex items-center border-b border-[#e2e4ea] dark:border-[#455963]">
         <EditText
           ref={taskValueRef}
           placeholder="添加任务..."
