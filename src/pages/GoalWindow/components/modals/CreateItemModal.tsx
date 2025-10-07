@@ -2,7 +2,6 @@ import { memo } from "react";
 import { Modal, Form, Input, Select, InputNumber } from "antd";
 
 import { EGoalItemType } from "@/types";
-import styles from "../../index.module.less";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -85,12 +84,15 @@ const CreateItemModal = memo(
           </Form.Item>
 
           <Form.Item>
-            <div className={styles.modalActions}>
-              <button className={styles.customButton} onClick={onCancel}>
+            <div className="flex justify-end gap-3 mt-8 pt-5 border-t border-gray-100 dark:border-zinc-800">
+              <button
+                className="inline-flex items-center justify-center gap-2 px-4 h-9 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-sm font-medium cursor-pointer transition-all duration-200 outline-none hover:border-gray-400 dark:hover:border-zinc-600 hover:bg-gray-50 dark:hover:bg-zinc-800"
+                onClick={onCancel}
+              >
                 取消
               </button>
               <button
-                className={`${styles.customButton} ${styles.primary}`}
+                className="inline-flex items-center justify-center gap-2 px-4 h-9 border-none rounded-lg bg-gradient-to-br from-indigo-500/60 to-purple-600/60 hover:from-indigo-600/70 hover:to-purple-700/70 text-white text-sm font-semibold cursor-pointer transition-all duration-200 outline-none"
                 type="submit"
               >
                 创建

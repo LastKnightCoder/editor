@@ -37,13 +37,20 @@ import {
   CreateItemModal,
   ProgressModal,
 } from "./components/modals";
-import styles from "./index.module.less";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 const GoalManagementView = memo(() => {
   const { active } = useInitDatabase();
   const isConnected = useDatabaseConnected();
   const { modal } = App.useApp();
+
+  const [goalListWidth, setGoalListWidth] = useLocalStorageState(
+    "goal-list-width",
+    {
+      defaultValue: 300,
+    },
+  );
 
   // 数据状态
   const [goals, setGoals] = useState<IGoal[]>([]);
@@ -455,20 +462,28 @@ const GoalManagementView = memo(() => {
   };
 
   return (
-    <div className={styles.goalManagementView}>
-      <GoalList
-        goals={goals}
-        loading={loading}
-        selectedGoalId={selectedGoal?.id}
-        collapsedSections={collapsedSections}
-        onCreateGoal={() => setCreateGoalModalVisible(true)}
-        onGoalSelect={handleGoalSelect}
-        onEditGoal={handleEditGoal}
-        onDeleteGoal={handleDeleteGoal}
-        onUpdateGoalStatus={handleUpdateGoalStatus}
-        onToggleSection={handleToggleSection}
-      />
-
+    <div className="h-full flex gap-6 p-6 box-border bg-gray-50 dark:bg-zinc-950">
+      <ResizeableAndHideableSidebar
+        width={goalListWidth || 300}
+        onWidthChange={setGoalListWidth}
+        open={true}
+        className="h-full overflow-hidden"
+        minWidth={200}
+        maxWidth={400}
+      >
+        <GoalList
+          goals={goals}
+          loading={loading}
+          selectedGoalId={selectedGoal?.id}
+          collapsedSections={collapsedSections}
+          onCreateGoal={() => setCreateGoalModalVisible(true)}
+          onGoalSelect={handleGoalSelect}
+          onEditGoal={handleEditGoal}
+          onDeleteGoal={handleDeleteGoal}
+          onUpdateGoalStatus={handleUpdateGoalStatus}
+          onToggleSection={handleToggleSection}
+        />
+      </ResizeableAndHideableSidebar>
       <GoalDetailPanel
         selectedGoal={selectedGoal}
         detailLoading={detailLoading}

@@ -2,7 +2,6 @@ import { memo } from "react";
 
 import { IGoal, EGoalStatus } from "@/types";
 import GoalSection from "./GoalSection";
-import styles from "../index.module.less";
 
 interface GoalListProps {
   goals: IGoal[];
@@ -41,12 +40,14 @@ const GoalList = memo(
     );
 
     return (
-      <div className={styles.leftPanel}>
-        <div className={styles.panelHeader}>
-          <h2>进度管理</h2>
+      <div className="h-full bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden">
+        <div className="py-8 px-6 border-b border-gray-100 dark:border-zinc-800">
+          <h2 className="m-0 text-gray-900 dark:text-gray-100 text-2xl font-bold tracking-tight">
+            进度管理
+          </h2>
         </div>
 
-        <div className={styles.goalSections}>
+        <div className="flex-1 overflow-y-auto py-2">
           <GoalSection
             status={EGoalStatus.InProgress}
             goals={inProgressGoals}

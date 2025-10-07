@@ -1,8 +1,6 @@
 import { memo } from "react";
 import { Modal, Form, InputNumber } from "antd";
 
-import styles from "../../index.module.less";
-
 interface EditProgressModalProps {
   visible: boolean;
   unit?: string;
@@ -37,26 +35,20 @@ const EditProgressModal = memo(
             />
           </Form.Item>
 
-          <div
-            style={{
-              padding: "12px",
-              background: "var(--color-fill-secondary)",
-              borderRadius: "6px",
-              marginBottom: "16px",
-              color: "var(--color-text-secondary)",
-              fontSize: "12px",
-            }}
-          >
+          <div className="p-3 bg-gray-100 dark:bg-zinc-800 rounded-md mb-4 text-gray-600 dark:text-gray-400 text-xs">
             💡 修改此进度记录的增量值，总进度将会自动重新计算
           </div>
 
           <Form.Item>
-            <div className={styles.modalActions}>
-              <button className={styles.customButton} onClick={onCancel}>
+            <div className="flex justify-end gap-3 mt-8 pt-5 border-t border-gray-100 dark:border-zinc-800">
+              <button
+                className="inline-flex items-center justify-center gap-2 px-4 h-9 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-gray-900 dark:text-gray-100 text-sm font-medium cursor-pointer transition-all duration-200 outline-none hover:border-gray-400 dark:hover:border-zinc-600 hover:bg-gray-50 dark:hover:bg-zinc-800"
+                onClick={onCancel}
+              >
                 取消
               </button>
               <button
-                className={`${styles.customButton} ${styles.primary}`}
+                className="inline-flex items-center justify-center gap-2 px-4 h-9 border-none rounded-lg bg-gradient-to-br from-indigo-500/60 to-purple-600/60 hover:from-indigo-600/70 hover:to-purple-700/70 text-white text-sm font-semibold cursor-pointer transition-all duration-200 outline-none"
                 type="submit"
               >
                 保存
