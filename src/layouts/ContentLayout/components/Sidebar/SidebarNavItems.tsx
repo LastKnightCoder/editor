@@ -2,6 +2,7 @@ import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import SidebarItem from "./SidebarItem";
+import ShortcutDropdown from "./ShortcutDropdown";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { useMemoizedFn } from "ahooks";
 
@@ -188,6 +189,7 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
           isShortWidth={isShortWidth}
         />
       ))}
+      <ShortcutDropdown isShortWidth={isShortWidth} />
     </>
   );
 });

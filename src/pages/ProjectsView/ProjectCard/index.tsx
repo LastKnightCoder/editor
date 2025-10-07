@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { Descendant } from "slate";
@@ -13,6 +13,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import { Project } from "@/types";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
+import useShortcutStore from "@/stores/useShortcutStore";
 import EditProjectInfoModal from "@/pages/ProjectsView/EditProjectInfoModal";
 
 import styles from "./index.module.less";
@@ -48,6 +49,30 @@ const ProjectCard = (props: ProjectCardProps) => {
       unpinProject: state.unpinProject,
     })),
   );
+
+  const {
+    findShortcut,
+    createShortcut,
+    deleteShortcut: deleteShortcutById,
+    loaded,
+    loadShortcuts,
+  } = useShortcutStore();
+
+  // 加载快捷方式
+  React.useEffect(() => {
+    if (!loaded) {
+      loadShortcuts();
+    }
+  }, [loaded, loadShortcuts]);
+
+  // 检查是否已添加快捷方式
+  const isShortcut = useMemo(() => {
+    return findShortcut({
+      resourceType: "project",
+      scope: "item",
+      resourceId: project.id,
+    });
+  }, [findShortcut, project.id]);
 
   const onClick = () => {
     navigate(`/projects/detail/${project.id}`);
@@ -110,6 +135,26 @@ const ProjectCard = (props: ProjectCardProps) => {
       label: project.archived ? "取消归档" : "归档项目",
       onClick: () =>
         project.archived ? handleUnarchiveProject() : handleArchiveProject(),
+    },
+    {
+      key: "toggle-shortcut",
+      label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+      onClick: async () => {
+        try {
+          if (isShortcut) {
+            await deleteShortcutById(isShortcut.id);
+          } else {
+            await createShortcut({
+              resourceType: "project",
+              scope: "item",
+              resourceId: project.id,
+              title: project.title,
+            });
+          }
+        } catch (error) {
+          console.error("操作快捷方式失败:", error);
+        }
+      },
     },
     {
       key: "delete",

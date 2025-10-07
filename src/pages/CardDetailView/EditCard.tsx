@@ -26,6 +26,7 @@ import useEditContent from "@/hooks/useEditContent";
 
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useSettingStore from "@/stores/useSettingStore";
+import useShortcutStore from "@/stores/useShortcutStore";
 
 import {
   contentLinkExtension,
@@ -108,6 +109,31 @@ const EditCard = (props: IEditCardProps) => {
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
+
+  const {
+    findShortcut,
+    createShortcut,
+    deleteShortcut,
+    loaded,
+    loadShortcuts,
+  } = useShortcutStore();
+
+  // 加载快捷方式
+  useEffect(() => {
+    if (!loaded) {
+      loadShortcuts();
+    }
+  }, [loaded, loadShortcuts]);
+
+  // 检查是否已添加快捷方式
+  const isShortcut = useMemo(() => {
+    if (!editingCard) return null;
+    return findShortcut({
+      resourceType: "card",
+      scope: "item",
+      resourceId: editingCard.id,
+    });
+  }, [findShortcut, editingCard]);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!readonly) {
@@ -294,31 +320,52 @@ const EditCard = (props: IEditCardProps) => {
     });
   });
 
-  const handleMoreMenuClick = useMemoizedFn(({ key }: { key: string }) => {
-    if (!editingCard) return;
+  const handleMoreMenuClick = useMemoizedFn(
+    async ({ key }: { key: string }) => {
+      if (!editingCard) return;
 
-    if (key === "presentation") {
-      setPresentationMode(true);
-    } else if (key === "open-window") {
-      openCardInNewWindow(databaseName, editingCard.id);
-      navigate("/cards/list");
-    } else if (key === "open-sidebar") {
-      const { addTab } = useRightSidebarStore.getState();
-      addTab({
-        id: String(editingCard.id),
-        title: getEditorText(editingCard.content, 10),
-        type: "card",
-      });
-      navigate("/cards/list");
-    } else if (key === "export-markdown") {
-      const markdown = getMarkdown(editingCard.content);
-      downloadMarkdown(markdown, String(editingCard.id));
-    } else if (key === "export-image") {
-      setExportModalOpen(true);
-    } else if (key === "delete-card") {
-      handleDeleteCard(editingCard.id);
-    }
-  });
+      if (key === "presentation") {
+        setPresentationMode(true);
+      } else if (key === "open-window") {
+        openCardInNewWindow(databaseName, editingCard.id);
+        navigate("/cards/list");
+      } else if (key === "open-sidebar") {
+        const { addTab } = useRightSidebarStore.getState();
+        addTab({
+          id: String(editingCard.id),
+          title: getEditorText(editingCard.content, 10),
+          type: "card",
+        });
+        navigate("/cards/list");
+      } else if (key === "toggle-shortcut") {
+        try {
+          if (isShortcut) {
+            await deleteShortcut(isShortcut.id);
+            message.success("已取消快捷方式");
+          } else {
+            const title = getEditorText(editingCard.content, 10);
+            await createShortcut({
+              resourceType: "card",
+              scope: "item",
+              resourceId: editingCard.id,
+              title,
+            });
+            message.success("已添加到快捷方式");
+          }
+        } catch (error) {
+          console.error("操作快捷方式失败:", error);
+          message.error("操作失败");
+        }
+      } else if (key === "export-markdown") {
+        const markdown = getMarkdown(editingCard.content);
+        downloadMarkdown(markdown, String(editingCard.id));
+      } else if (key === "export-image") {
+        setExportModalOpen(true);
+      } else if (key === "delete-card") {
+        handleDeleteCard(editingCard.id);
+      }
+    },
+  );
 
   const moreMenuItems: MenuProps["items"] = useMemo(() => {
     return [
@@ -333,6 +380,10 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "open-sidebar",
         label: "侧边打开",
+      },
+      {
+        key: "toggle-shortcut",
+        label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
       },
       {
         key: "export",
@@ -353,7 +404,7 @@ const EditCard = (props: IEditCardProps) => {
         label: "删除卡片",
       },
     ];
-  }, []);
+  }, [isShortcut]);
 
   if (loading) {
     return (

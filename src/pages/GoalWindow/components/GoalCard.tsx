@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
 import classnames from "classnames";
-import { Card, Dropdown, MenuProps } from "antd";
+import { Dropdown, MenuProps } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
 
 import { IGoal, EGoalStatus } from "@/types";

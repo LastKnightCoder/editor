@@ -33,6 +33,7 @@ import TodoNoteLinkTable from "./tables/todo-note-link";
 import GoalProgressNoteLinkTable from "./tables/goal-progress-note-link";
 import GoalNoteLinkTable from "./tables/goal-note-link";
 import QuestionGroupTable from "./tables/question-group";
+import ShortcutTable from "./tables/shortcut";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -84,6 +85,7 @@ class DatabaseModule implements Module {
       TodoNoteLinkTable,
       GoalProgressNoteLinkTable,
       GoalNoteLinkTable,
+      ShortcutTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

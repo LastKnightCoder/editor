@@ -1,10 +1,17 @@
-import React, { MouseEvent, useMemo, useRef, memo, useState } from "react";
+import React, {
+  MouseEvent,
+  useMemo,
+  useRef,
+  memo,
+  useState,
+  useEffect,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import classnames from "classnames";
 import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
 import { AiFillPushpin } from "react-icons/ai";
-import { Dropdown, MenuProps, Tooltip } from "antd";
+import { Dropdown, MenuProps, Tooltip, message } from "antd";
 import { useMemoizedFn } from "ahooks";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import { useShallow } from "zustand/react/shallow";
@@ -27,6 +34,7 @@ import {
 import { openCardInNewWindow } from "@/commands";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useSettingStore from "@/stores/useSettingStore.ts";
+import useShortcutStore from "@/stores/useShortcutStore";
 import { ECardCategory, ICard } from "@/types";
 import { cardCategoryName } from "@/constants";
 import useEditContent from "@/hooks/useEditContent";
@@ -75,7 +83,31 @@ const CardItem = memo(
       useShallow((state) => state.setting.database.active),
     );
 
+    const {
+      findShortcut,
+      createShortcut,
+      deleteShortcut,
+      loaded,
+      loadShortcuts,
+    } = useShortcutStore();
+
     const { content, tags, isTop, contentId } = card;
+
+    // 加载快捷方式
+    useEffect(() => {
+      if (!loaded) {
+        loadShortcuts();
+      }
+    }, [loaded, loadShortcuts]);
+
+    // 检查是否已添加快捷方式
+    const isShortcut = useMemo(() => {
+      return findShortcut({
+        resourceType: "card",
+        scope: "item",
+        resourceId: card.id,
+      });
+    }, [findShortcut, card.id]);
 
     useEditContent(contentId, (content) => {
       editorRef.current?.setEditorValue(content.slice(0, 3));
@@ -118,6 +150,10 @@ const CardItem = memo(
           label: isTop ? "取消置顶" : "设置置顶",
         },
         {
+          key: "toggle-shortcut",
+          label: isShortcut ? "取消快捷方式" : "添加到快捷方式",
+        },
+        {
           key: "presentation-mode",
           label: "演示模式",
           onClick: handlePresentationMode,
@@ -150,7 +186,16 @@ const CardItem = memo(
           })),
         },
       ];
-    }, [card.category, databaseName, card.id, addTab, card.content, isTop]);
+    }, [
+      card.category,
+      databaseName,
+      card.id,
+      addTab,
+      card.content,
+      isTop,
+      isShortcut,
+      handlePresentationMode,
+    ]);
 
     const handleMoreClick: MenuProps["onClick"] = useMemoizedFn(
       async ({ key }) => {
@@ -161,6 +206,27 @@ const CardItem = memo(
         } else if (key === "toggle-top") {
           if (onToggleCardTop) {
             await onToggleCardTop(card.id);
+          }
+        } else if (key === "toggle-shortcut") {
+          try {
+            if (isShortcut) {
+              // 删除快捷方式
+              await deleteShortcut(isShortcut.id);
+              message.success("已取消快捷方式");
+            } else {
+              // 添加快捷方式
+              const title = getEditorText(card.content, 10);
+              await createShortcut({
+                resourceType: "card",
+                scope: "item",
+                resourceId: card.id,
+                title,
+              });
+              message.success("已添加到快捷方式");
+            }
+          } catch (error) {
+            console.error("操作快捷方式失败:", error);
+            message.error("操作失败");
           }
         } else if (key === "export-markdown") {
           const markdown = getMarkdown(card.content);
