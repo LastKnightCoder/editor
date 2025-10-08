@@ -8,6 +8,7 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import useDocumentsStore from "@/stores/useDocumentsStore";
 import { ShortcutResourceType } from "@/types";
 import shortcut from "@/assets/icons/shortcut.svg";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 
 interface ShortcutDropdownProps {
   isShortWidth: boolean;
@@ -25,12 +26,13 @@ const ShortcutDropdown = memo(({ isShortWidth }: ShortcutDropdownProps) => {
   const navigate = useNavigate();
 
   const { items, loaded, loadShortcuts } = useShortcutStore();
+  const isConnected = useDatabaseConnected();
 
   useEffect(() => {
-    if (!loaded) {
+    if (!loaded && isConnected) {
       loadShortcuts();
     }
-  }, [loaded, loadShortcuts]);
+  }, [loaded, loadShortcuts, isConnected]);
 
   // 按类型分组快捷方式
   const groupedShortcuts = useMemo(() => {
