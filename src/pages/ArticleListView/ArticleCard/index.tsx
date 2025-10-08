@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 import { Dropdown, message, Modal, Spin, Typography } from "antd";
@@ -107,7 +107,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   });
 
   // 加载快捷方式
-  React.useEffect(() => {
+  useEffect(() => {
     if (!loaded) {
       loadShortcuts();
     }

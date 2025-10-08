@@ -775,12 +775,19 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             await deleteShortcut(isShortcut.id);
             message.success("已取消快捷方式");
           } else {
+            let title = projectItem.title;
+            if (projectItem.projectItemType === EProjectItemType.WebView) {
+              const { title: webviewTitle } = extractUrlFromTitle(
+                projectItem.title,
+              );
+              title = webviewTitle;
+            }
             await createShortcut({
               resourceType: "project",
               scope: "item",
               resourceId: projectId,
               projectItemId: projectItem.id,
-              title: projectItem.title,
+              title,
             });
             message.success("已添加到快捷方式");
           }

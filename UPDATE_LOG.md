@@ -693,5 +693,7 @@
 - feat: 图片添加对齐属性
 - feat: bilibili 视频支持分 p 视频
 - feat: 添加问题管理页面
+- feat: 迁移进度管理页面
 - feat: 音视频自动记录上次播放位置
+- feat: 支持添加快捷方式
 - chore: 修改应用名称为 Tau
