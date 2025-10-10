@@ -45,6 +45,8 @@ const VecDocumentView = loadable(() => import("@/pages/VecDocumentView"));
 const TodoWindowPage = loadable(() => import("@/pages/TodoWindow"));
 const GoalWindowPage = loadable(() => import("@/pages/GoalWindow"));
 const QuestionWindowPage = loadable(() => import("@/pages/QuestionWindow"));
+const PomodoroWindowPage = loadable(() => import("@/pages/PomodoroWindow"));
+const PomodoroMiniPage = loadable(() => import("@/pages/PomodoroWindow/Mini"));
 
 const routes = [
   {
@@ -208,6 +210,26 @@ const routes = [
       {
         index: true,
         element: <QuestionWindowPage />,
+      },
+    ],
+  },
+  {
+    path: "/pomodoro",
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <PomodoroWindowPage />,
+      },
+    ],
+  },
+  {
+    path: "/pomodoro/mini",
+    element: <QuickOpenLayout />,
+    children: [
+      {
+        index: true,
+        element: <PomodoroMiniPage />,
       },
     ],
   },

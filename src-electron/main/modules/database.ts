@@ -34,6 +34,8 @@ import GoalProgressNoteLinkTable from "./tables/goal-progress-note-link";
 import GoalNoteLinkTable from "./tables/goal-note-link";
 import QuestionGroupTable from "./tables/question-group";
 import ShortcutTable from "./tables/shortcut";
+import PomodoroPresetTable from "./tables/pomodoro-preset";
+import PomodoroSessionTable from "./tables/pomodoro-session";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -86,6 +88,8 @@ class DatabaseModule implements Module {
       GoalProgressNoteLinkTable,
       GoalNoteLinkTable,
       ShortcutTable,
+      PomodoroPresetTable,
+      PomodoroSessionTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

@@ -127,6 +127,16 @@ function createDockMenu() {
       },
     },
     {
+      label: "番茄专注",
+      click: () => {
+        if (windowManager) {
+          if (typeof windowManager.createPomodoroWindow === "function") {
+            windowManager.createPomodoroWindow();
+          }
+        }
+      },
+    },
+    {
       label: "打开笔记应用",
       click: () => {
         const mainWindow = BrowserWindow.getAllWindows()[0];
@@ -227,6 +237,16 @@ function updateTrayMenu() {
       },
     },
     {
+      label: "番茄专注",
+      click: () => {
+        if (windowManager) {
+          if (typeof windowManager.createPomodoroWindow === "function") {
+            windowManager.createPomodoroWindow();
+          }
+        }
+      },
+    },
+    {
       label: "打开笔记应用",
       click: () => {
         const mainWindow = BrowserWindow.getAllWindows()[0];
@@ -236,6 +256,17 @@ function updateTrayMenu() {
           mainWindow.focus();
         } else if (windowManager) {
           windowManager.createMainWindow();
+        }
+      },
+    },
+    {
+      label: "番茄专注小窗",
+      click: () => {
+        if (
+          windowManager &&
+          typeof windowManager.createPomodoroMiniWindow === "function"
+        ) {
+          windowManager.createPomodoroMiniWindow();
         }
       },
     },

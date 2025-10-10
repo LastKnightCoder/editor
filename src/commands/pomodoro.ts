@@ -1,0 +1,93 @@
+import { invoke } from "@/electron";
+import { PomodoroPreset, PomodoroSession } from "@/types";
+
+export const listPomodoroPresets = async (): Promise<PomodoroPreset[]> => {
+  return invoke("pomodoro:list-presets");
+};
+
+export const createPomodoroPreset = async (payload: {
+  name: string;
+  mode: "countdown" | "countup";
+  durationMin?: number;
+}): Promise<PomodoroPreset> => {
+  return invoke("pomodoro:create-preset", payload);
+};
+
+export const updatePomodoroPreset = async (payload: {
+  id: number;
+  name?: string;
+  mode?: "countdown" | "countup";
+  durationMin?: number;
+}): Promise<PomodoroPreset> => {
+  return invoke("pomodoro:update-preset", payload);
+};
+
+export const archivePomodoroPreset = async (
+  id: number,
+  archived: boolean,
+): Promise<number> => {
+  return invoke("pomodoro:archive-preset", { id, archived });
+};
+
+export const reorderPomodoroPresets = async (
+  orderedIds: number[],
+): Promise<number> => {
+  return invoke("pomodoro:reorder-presets", { orderedIds });
+};
+
+export const deletePomodoroPreset = async (id: number): Promise<number> => {
+  return invoke("pomodoro:delete-preset", id);
+};
+
+// Sessions
+export const getActivePomodoroSession =
+  async (): Promise<PomodoroSession | null> => {
+    return invoke("pomodoro:get-active-session");
+  };
+
+export const startPomodoroSession = async (
+  presetId: number,
+  expectedMs?: number,
+): Promise<PomodoroSession> => {
+  return invoke("pomodoro:start-session", { presetId, expectedMs });
+};
+
+export const pausePomodoroSession =
+  async (): Promise<PomodoroSession | null> => {
+    return invoke("pomodoro:pause-session");
+  };
+
+export const resumePomodoroSession =
+  async (): Promise<PomodoroSession | null> => {
+    return invoke("pomodoro:resume-session");
+  };
+
+export const stopPomodoroSession = async (
+  asComplete = true,
+): Promise<PomodoroSession | null> => {
+  return invoke("pomodoro:stop-session", { asComplete });
+};
+
+export const listPomodoroSessions = async (params: {
+  presetId?: number;
+  start?: number;
+  end?: number;
+  limit?: number;
+  status?: PomodoroSession["status"]; // keep typing aligned
+}): Promise<PomodoroSession[]> => {
+  return invoke("pomodoro:list-sessions", params);
+};
+
+export const summaryPomodoroToday = async (): Promise<{
+  count: number;
+  focusMs: number;
+}> => {
+  return invoke("pomodoro:summary-today");
+};
+
+export const summaryPomodoroTotal = async (): Promise<{
+  count: number;
+  focusMs: number;
+}> => {
+  return invoke("pomodoro:summary-total");
+};
