@@ -105,6 +105,9 @@ const Toolbar = memo(
             }}
             defaultValue={searchQuery}
             onChange={onSearch}
+            onPressEnter={() => {
+              onSearch(searchRef.current?.getValue() || "");
+            }}
             contentEditable={true}
             className="text-[#455963] dark:text-[#8a9ca5] flex-1 min-w-0"
           />
