@@ -373,7 +373,6 @@ const QuestionWindowPage = () => {
           contentType={["card", "article", "project-item", "document-item"]}
           extensions={extensions}
         />
-
         <AnswerModal
           visible={answerPreviewVisible}
           selectedAnswer={selectedAnswer}
