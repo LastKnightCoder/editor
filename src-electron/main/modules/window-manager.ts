@@ -21,7 +21,8 @@ type EditorType =
   | "markdown"
   | "todo"
   | "goal"
-  | "question";
+  | "question"
+  | "pomodoro-mini";
 
 // 窗口参数定义
 interface EditorParams {
@@ -56,6 +57,7 @@ export class WindowManager {
     this.windowsMap.set("todo", new Map<string, BrowserWindow>());
     this.windowsMap.set("goal", new Map<string, BrowserWindow>());
     this.windowsMap.set("question", new Map<string, BrowserWindow>());
+    this.windowsMap.set("pomodoro-mini", new Map<string, BrowserWindow>());
 
     this.registerIpcHandlers();
   }
@@ -161,6 +163,14 @@ export class WindowManager {
       const sender = event.sender;
       const win = BrowserWindow.fromWebContents(sender);
       win?.close();
+    });
+
+    ipcMain.handle("open-pomodoro-window", () => {
+      this.createPomodoroWindow();
+    });
+
+    ipcMain.handle("open-pomodoro-mini-window", () => {
+      this.createPomodoroMiniWindow();
     });
   }
 
@@ -292,6 +302,7 @@ export class WindowManager {
       todo: "todo",
       goal: "goals",
       question: "questions",
+      "pomodoro-mini": "pomodoro/mini",
     };
     return routes[type];
   }
@@ -307,6 +318,7 @@ export class WindowManager {
       todo: "noop",
       goal: "noop",
       question: "noop",
+      "pomodoro-mini": "noop",
     };
     return paramNames[type];
   }
@@ -322,8 +334,37 @@ export class WindowManager {
       todo: "TODO",
       goal: "进度管理",
       question: "问题管理",
+      "pomodoro-mini": "番茄小窗",
     };
     return editorNames[type];
+  }
+
+  public createPomodoroWindow() {
+    const baseConfig = this.createBaseWindowConfig();
+    const win = new BrowserWindow(baseConfig);
+    this.setupWindowEvents(win);
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/pomodoro`);
+    } else {
+      win.loadFile(indexHtml, { hash: `/pomodoro` });
+    }
+    return win;
+  }
+
+  public createPomodoroMiniWindow() {
+    const baseConfig = this.createBaseWindowConfig();
+    baseConfig.width = 260;
+    baseConfig.height = 130;
+    baseConfig.alwaysOnTop = true as any;
+    const win = new BrowserWindow(baseConfig);
+    this.setupWindowEvents(win);
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/pomodoro/mini`);
+    } else {
+      win.loadFile(indexHtml, { hash: `/pomodoro/mini` });
+    }
+    win.setAlwaysOnTop(true);
+    return win;
   }
 
   public createTodoWindow() {

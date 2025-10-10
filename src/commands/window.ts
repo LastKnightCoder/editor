@@ -7,3 +7,11 @@ export const setAlwaysOnTop = async (flag: boolean) => {
 export const closeWindow = async () => {
   return invoke("close-window");
 };
+
+export const openPomodoroWindow = async () => {
+  return invoke("open-pomodoro-window");
+};
+
+export const openPomodoroMiniWindow = async () => {
+  return invoke("open-pomodoro-mini-window");
+};
