@@ -57,7 +57,6 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   useEffect(() => {
     if (contentId && visible) {
       isContentIsCard(contentId).then((res) => {
-        console.log("isContentIsCard", res);
         setIsCard(res);
       });
     }

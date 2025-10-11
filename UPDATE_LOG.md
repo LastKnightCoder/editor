@@ -696,4 +696,5 @@
 - feat: 迁移进度管理页面
 - feat: 音视频自动记录上次播放位置
 - feat: 支持添加快捷方式
+- feat: 全量注入 Tailwind CSS
 - chore: 修改应用名称为 Tau
