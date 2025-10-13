@@ -353,6 +353,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       null,
     )) as ISetting;
     try {
+      console.log("setting", setting);
       const newSetting = cloneDeep(initialState.setting);
       merge(newSetting, setting);
       set({

@@ -4,7 +4,7 @@ import { useThrottleFn, useMemoizedFn } from "ahooks";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import { useQuestionStore } from "@/stores/question";
+import { useQuestionStore } from "@/stores/useQuestionStore";
 import NewAnswerModal from "@/components/NewAnswerModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import AnswerModal from "@/components/AnswerModal";

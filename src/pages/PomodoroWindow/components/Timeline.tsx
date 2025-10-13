@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { PomodoroPreset, PomodoroSession } from "@/types";
 import { listPomodoroSessions, listPomodoroPresets } from "@/commands";
 import { useMemoizedFn } from "ahooks";
@@ -17,7 +23,11 @@ const groupByDate = (sessions: PomodoroSession[]) => {
   return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
 };
 
-const Timeline: React.FC = () => {
+export type TimelineRefHandler = {
+  refresh: () => void;
+};
+
+const Timeline = forwardRef<TimelineRefHandler>((_, ref) => {
   const [range, setRange] = useState<Range>(7);
   const [records, setRecords] = useState<PomodoroSession[]>([]);
   const [presets, setPresets] = useState<PomodoroPreset[]>([]);
@@ -48,6 +58,10 @@ const Timeline: React.FC = () => {
   }, []);
 
   const groups = useMemo(() => groupByDate(records), [records]);
+
+  useImperativeHandle(ref, () => ({
+    refresh,
+  }));
 
   return (
     <div className="mt-6">
@@ -127,6 +141,6 @@ const Timeline: React.FC = () => {
       </div>
     </div>
   );
-};
+});
 
 export default Timeline;

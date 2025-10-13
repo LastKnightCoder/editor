@@ -128,7 +128,6 @@ class ServerModule implements Module {
           console.log(`add server ${clientID} for ${path}`);
 
           const notification: RpcNotificationMessage<null> = {
-            jsonrpc: "2.0",
             type: RpcMessageType.Notification,
             method: "server-ready",
             data: null,
@@ -149,7 +148,6 @@ class ServerModule implements Module {
         // 如果服务器已经存在，向新加入的客户端发送 ServerReady 通知
         if (wss.server) {
           const notification: RpcNotificationMessage<null> = {
-            jsonrpc: "2.0",
             type: RpcMessageType.Notification,
             method: "server-ready",
             data: null,
@@ -200,7 +198,6 @@ class ServerModule implements Module {
             } else {
               const errorResponse: RpcResponseMessage<null, null> = {
                 type: RpcMessageType.Response,
-                jsonrpc: "2.0",
                 id: msg.id,
                 error: {
                   code: -1,
@@ -209,7 +206,6 @@ class ServerModule implements Module {
                 },
                 result: null,
                 method: msg.method,
-                private: msg.private,
               };
               ws.send(JSON.stringify(errorResponse));
             }
@@ -258,7 +254,6 @@ class ServerModule implements Module {
         );
         if (isServer) {
           const notification: RpcNotificationMessage<null> = {
-            jsonrpc: "2.0",
             type: RpcMessageType.Notification,
             method: "server-gone",
             data: null,

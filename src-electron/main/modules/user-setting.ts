@@ -34,12 +34,10 @@ class UserSettingModule {
 
         const res: RpcResponseMessage = {
           type: RpcMessageType.Response,
-          private: null,
           id,
           method,
           result: { Ok: true },
           error: null,
-          jsonrpc: "2.0",
         };
 
         return res;
@@ -52,12 +50,10 @@ class UserSettingModule {
         const { id, method } = message;
         const res: RpcResponseMessage = {
           type: RpcMessageType.Response,
-          private: null,
           id,
           method,
           result: this.userSetting,
           error: null,
-          jsonrpc: "2.0",
         };
 
         return res;

@@ -53,23 +53,10 @@ class PomodoroPresetTable {
     db.exec(
       `CREATE INDEX IF NOT EXISTS idx_preset_archived ON pomodoro_presets(archived);`,
     );
-
-    // 如果表为空，插入一个默认预设
-    const countRow = db
-      .prepare(`SELECT COUNT(*) as c FROM pomodoro_presets`)
-      .get() as { c: number };
-    if (!countRow || countRow.c === 0) {
-      const now = Date.now();
-      db.prepare(
-        `INSERT INTO pomodoro_presets (name, mode, duration_min, sort_order, archived, create_time, update_time)
-         VALUES (?, ?, ?, ?, 0, ?, ?)`,
-      ).run("默认 25m", "countdown", 25, 0, now, now);
-    }
   }
 
   static upgradeTable(_db: Database.Database): void {
     // 目前无迁移
-    // 标记参数已使用，避免未使用告警
     void _db;
   }
 
