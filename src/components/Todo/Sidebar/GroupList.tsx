@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useTodoStore } from "@/stores/todo";
+import { useTodoStore } from "@/stores/useTodoStore";
 import { useMemoizedFn } from "ahooks";
 import { type ProjectColorName } from "@/constants/project-colors";
 import { SidebarHeader, GroupItem } from "./components";

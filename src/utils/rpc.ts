@@ -12,7 +12,6 @@ export function isRpcHeartbeatMessage(
   return (
     message &&
     typeof message === "object" &&
-    "jsonrpc" in message &&
     "type" in message &&
     (message.type === RpcMessageType.Ping ||
       message.type === RpcMessageType.Pong)
@@ -38,7 +37,6 @@ export function isRpcRequestMessage(
   return (
     message &&
     typeof message === "object" &&
-    "jsonrpc" in message &&
     "type" in message &&
     message.type === RpcMessageType.Request
   );
@@ -49,7 +47,6 @@ export function isRpcResponseMessage(
   return (
     message &&
     typeof message === "object" &&
-    "jsonrpc" in message &&
     "type" in message &&
     message.type === RpcMessageType.Response
   );
@@ -61,7 +58,6 @@ export function isRpcNotificationMessage(
   return (
     message &&
     typeof message === "object" &&
-    "jsonrpc" in message &&
     "type" in message &&
     message.type === RpcMessageType.Notification
   );

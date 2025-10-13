@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   listPomodoroPresets,
   createPomodoroPreset,
@@ -9,30 +9,46 @@ import {
   pausePomodoroSession,
   resumePomodoroSession,
   stopPomodoroSession,
-  getActivePomodoroSession,
   summaryPomodoroToday,
   summaryPomodoroTotal,
+  selectPomodoroPreset,
 } from "@/commands";
 import { deletePomodoroPreset } from "@/commands/pomodoro";
-import { PomodoroPreset, PomodoroSession } from "@/types";
-import { on, off } from "@/electron";
+import { PomodoroPreset } from "@/types";
 import { useMemoizedFn } from "ahooks";
+import { usePomodoroStore } from "@/stores/usePomodoroStore";
 import {
   AiOutlinePlayCircle,
-  AiOutlinePause,
   AiOutlineStop,
+  AiOutlinePauseCircle,
 } from "react-icons/ai";
 import { openPomodoroMiniWindow } from "@/commands/window";
 import PresetItem from "./components/PresetItem";
 import DndProvider from "@/components/DndProvider";
 import PresetModal from "./components/PresetModal";
-import Timeline from "./components/Timeline";
+import Timeline, { TimelineRefHandler } from "./components/Timeline";
 import useInitDatabase from "@/hooks/useInitDatabase";
+import classNames from "classnames";
+import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
+import { Dropdown, App, Empty, Button } from "antd";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { fmt } from "./utils";
+
+enum TabType {
+  Active = "active",
+  Archived = "archived",
+}
 
 const PomodoroWindowPage: React.FC = () => {
   useInitDatabase();
+
+  const { modal } = App.useApp();
+  const isConnected = useDatabaseConnected();
+
+  const { activeSession, selectedPreset, initPomodoro, elapsedMs, remainMs } =
+    usePomodoroStore();
+
   const [presets, setPresets] = useState<PomodoroPreset[]>([]);
-  const [active, setActive] = useState<PomodoroSession | null>(null);
   const [today, setToday] = useState<{ count: number; focusMs: number }>({
     count: 0,
     focusMs: 0,
@@ -45,75 +61,65 @@ const PomodoroWindowPage: React.FC = () => {
   const [editingPreset, setEditingPreset] = useState<PomodoroPreset | null>(
     null,
   );
-  const [working, setWorking] = useState(false);
-
+  const [tabType, setTabType] = useState<TabType>(TabType.Active);
+  const timelineRef = useRef<TimelineRefHandler>(null);
   const refresh = useMemoizedFn(async () => {
-    setPresets(await listPomodoroPresets());
-    setActive(await getActivePomodoroSession());
+    const presets = await listPomodoroPresets();
+    setPresets(presets);
     setToday(await summaryPomodoroToday());
     setTotal(await summaryPomodoroTotal());
   });
 
   useEffect(() => {
+    if (!isConnected) return;
+    initPomodoro();
     refresh();
-    const h = () => refresh();
-    on && on("pomodoro:state-changed", h);
-    on && on("pomodoro:tick", h);
-    return () => {
-      off && off("pomodoro:state-changed", h);
-      off && off("pomodoro:tick", h);
-    };
-  }, [refresh]);
+  }, [isConnected, initPomodoro, refresh]);
 
   const start = useMemoizedFn(async (p: PomodoroPreset) => {
     const expected =
       p.mode === "countdown" ? p.durationMin * 60 * 1000 : undefined;
     await startPomodoroSession(p.id, expected);
-    setActive(await getActivePomodoroSession());
   });
 
   const pause = useMemoizedFn(async () => {
     await pausePomodoroSession();
-    setActive(await getActivePomodoroSession());
   });
 
   const resume = useMemoizedFn(async () => {
     await resumePomodoroSession();
-    setActive(await getActivePomodoroSession());
   });
 
   const stop = useMemoizedFn(async () => {
     await stopPomodoroSession(true);
-    setActive(await getActivePomodoroSession());
     await refresh();
+    timelineRef.current?.refresh();
   });
 
   const archive = useMemoizedFn(async (p: PomodoroPreset, value: boolean) => {
-    if (working) return;
-    setWorking(true);
-    try {
-      await archivePomodoroPreset(p.id, value);
-      await refresh();
-    } finally {
-      setWorking(false);
-    }
+    await archivePomodoroPreset(p.id, value);
+    await refresh();
   });
 
   const removePreset = useMemoizedFn(async (p: PomodoroPreset) => {
-    if (working) return;
-    if (!confirm(`删除预设 “${p.name}”？该操作不可恢复`)) return;
-    setWorking(true);
-    try {
-      await deletePomodoroPreset(p.id);
-      await refresh();
-    } finally {
-      setWorking(false);
-    }
+    modal.confirm({
+      title: "删除预设",
+      content: `删除预设 “${p.name}”？该操作不可恢复`,
+      okText: "删除",
+      cancelText: "取消",
+      okButtonProps: {
+        danger: true,
+      },
+      onOk: async () => {
+        await deletePomodoroPreset(p.id);
+        await refresh();
+      },
+    });
   });
 
   const reorderByDrag = useMemoizedFn(
     async (dragId: number, hoverId: number, place: "before" | "after") => {
-      if (working || dragId === hoverId) return;
+      if (dragId === hoverId) return;
       const active = presets.filter((p) => !p.archived);
       const archived = presets.filter((p) => p.archived);
       const arr = active.slice();
@@ -124,51 +130,98 @@ const PomodoroWindowPage: React.FC = () => {
       const insertIdx = place === "before" ? hoverIdx : hoverIdx + 1;
       arr.splice(insertIdx > dragIdx ? insertIdx - 1 : insertIdx, 0, dragItem);
       const newOrder = [...arr, ...archived].map((x) => x.id);
-      setWorking(true);
-      try {
-        await reorderPomodoroPresets(newOrder);
-        await refresh();
-      } finally {
-        setWorking(false);
-      }
+      await reorderPomodoroPresets(newOrder);
+      await refresh();
     },
   );
 
+  const changeTab = useMemoizedFn((type: TabType) => {
+    setTabType(type);
+  });
+
+  const filteredPresets = useMemo(() => {
+    return presets.filter((p) =>
+      tabType === TabType.Active ? !p.archived : p.archived,
+    );
+  }, [presets, tabType]);
+
+  const activePreset = useMemo(() => {
+    return presets.find((p) => p.id === activeSession?.presetId);
+  }, [presets, activeSession]);
+
   return (
-    <div className="p-4 w-full h-full">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 w-full h-full flex flex-col">
+      <div className="flex flex-none h-10 items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">番茄专注</h2>
-        <div className="flex items-center gap-2">
-          <button
-            className="px-3 py-1 rounded border"
-            onClick={() => {
+        <div className="flex flex-none gap-3">
+          <div
+            className={classNames(
+              "flex px-2 h-8 leading-8 items-center rounded-full cursor-pointer text-sm",
+              {
+                "bg-green-700 text-white ": tabType === TabType.Active,
+              },
+            )}
+            onClick={() => changeTab(TabType.Active)}
+          >
+            坚持中
+          </div>
+          <div
+            className={classNames(
+              "flex px-2 h-8 leading-8 items-center rounded-full cursor-pointer text-sm",
+              {
+                "bg-gray-600 text-white dark:bg-gray-400 dark:text-white":
+                  tabType === TabType.Archived,
+              },
+            )}
+            onClick={() => changeTab(TabType.Archived)}
+          >
+            已归档
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 cursor-pointer flex items-center justify-center px-3 py-1 rounded-full dark:text-white text-gray-600 hover:bg-gray-200 dark:hover:bg-green-800/80"
+            onClick={(e) => {
+              e.stopPropagation();
               setEditingPreset(null);
               setPresetModalOpen(true);
             }}
           >
-            新建预设
-          </button>
-          <button
-            className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500"
-            onClick={openPomodoroMiniWindow}
+            <PlusOutlined />
+          </div>
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: "open-mini-window",
+                  label: "打开小窗",
+                  onClick: () => openPomodoroMiniWindow(),
+                },
+              ],
+            }}
           >
-            打开小窗
-          </button>
+            <div className="w-8 h-8 cursor-pointer flex items-center justify-center px-3 py-1 rounded-full dark:text-white text-gray-600 hover:bg-gray-200 dark:hover:bg-green-800/80">
+              <MoreOutlined className="text-white" />
+            </div>
+          </Dropdown>
         </div>
       </div>
 
       <DndProvider>
-        <div className="flex gap-4">
-          <div className="w-80">
-            <div className="mb-2 text-sm text-gray-500">常用专注</div>
-            <ul className="divide-y divide-gray-200 rounded border border-gray-200">
-              {presets
-                .filter((p) => !p.archived)
-                .map((p) => (
+        <div className="flex gap-4 flex-1 min-h-0">
+          <div className="flex-1 min-w-0 h-full flex flex-col">
+            <ul className="flex flex-col gap-2 flex-1 min-h-0">
+              {filteredPresets.length > 0 ? (
+                filteredPresets.map((p) => (
                   <PresetItem
                     key={p.id}
+                    active={activeSession?.presetId === p.id}
+                    selected={selectedPreset?.id === p.id}
+                    status={activeSession?.status}
                     preset={p}
                     onStart={start}
+                    onPause={pause}
+                    onResume={resume}
                     onEdit={(pp) => {
                       setEditingPreset(pp);
                       setPresetModalOpen(true);
@@ -176,67 +229,64 @@ const PomodoroWindowPage: React.FC = () => {
                     onArchiveToggle={(pp, val) => archive(pp, val)}
                     onDelete={removePreset}
                     onReorder={reorderByDrag}
+                    onClick={() => selectPomodoroPreset(p)}
                   />
-                ))}
+                ))
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <Empty description="暂无番茄钟">
+                    {tabType === TabType.Active && (
+                      <Button onClick={() => setPresetModalOpen(true)}>
+                        新建番茄钟
+                      </Button>
+                    )}
+                  </Empty>
+                </div>
+              )}
             </ul>
-            <div className="mt-4 text-sm text-gray-500">已归档</div>
-            <ul className="divide-y divide-gray-200 rounded border border-gray-200 mt-1">
-              {presets
-                .filter((p) => p.archived)
-                .map((p) => (
-                  <PresetItem
-                    key={p.id}
-                    preset={p}
-                    onStart={start}
-                    onEdit={(pp) => {
-                      setEditingPreset(pp);
-                      setPresetModalOpen(true);
-                    }}
-                    onArchiveToggle={(pp, val) => archive(pp, val)}
-                    onDelete={removePreset}
-                    onReorder={() => {
-                      // noop
-                    }}
-                  />
-                ))}
-            </ul>
-          </div>
-          <div className="flex-1">
-            <div className="mb-2 text-sm text-gray-500">当前</div>
-            <div className="rounded border border-gray-200 p-4">
-              {active ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-gray-600">
-                    状态：{active.status}
-                  </span>
-                  {active.status === "running" && (
+            {activeSession && (
+              <div className="flex-none flex justify-between">
+                <div>
+                  <div>{activePreset?.name}</div>
+                  <div>
+                    {activeSession.expectedMs !== undefined
+                      ? fmt(remainMs ?? 0)
+                      : fmt(elapsedMs)}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  {activeSession.status === "running" ? (
                     <button
-                      className="inline-flex items-center gap-1 px-3 py-1 rounded bg-amber-500 text-white hover:bg-amber-400"
+                      className={classNames(
+                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 text-sm cursor-pointer text-green-600 hover:text-green-500 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20",
+                      )}
                       onClick={pause}
                     >
-                      <AiOutlinePause className="text-lg" /> 暂停
+                      <AiOutlinePauseCircle className="text-lg" />
                     </button>
-                  )}
-                  {active.status === "paused" && (
+                  ) : (
                     <button
-                      className="inline-flex items-center gap-1 px-3 py-1 rounded bg-green-600 text-white hover:bg-green-500"
+                      className={classNames(
+                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 text-sm cursor-pointer text-green-600 hover:text-green-500 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20",
+                      )}
                       onClick={resume}
                     >
-                      <AiOutlinePlayCircle className="text-lg" /> 继续
+                      <AiOutlinePlayCircle className="text-lg" />
                     </button>
                   )}
                   <button
-                    className="inline-flex items-center gap-1 px-3 py-1 rounded bg-rose-600 text-white hover:bg-rose-500"
+                    className={classNames(
+                      "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 cursor-pointer text-green-600 hover:text-green-500 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20",
+                    )}
                     onClick={stop}
                   >
-                    <AiOutlineStop className="text-lg" /> 结束
+                    <AiOutlineStop className="text-lg" />
                   </button>
                 </div>
-              ) : (
-                <div className="text-sm text-gray-500">未在计时</div>
-              )}
-            </div>
-
+              </div>
+            )}
+          </div>
+          <div className="flex-none w-80">
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div className="rounded border border-gray-200 p-4">
                 <div className="text-xs text-gray-500">今日番茄</div>
@@ -254,7 +304,7 @@ const PomodoroWindowPage: React.FC = () => {
               </div>
             </div>
 
-            <Timeline />
+            <Timeline ref={timelineRef} />
           </div>
         </div>
       </DndProvider>

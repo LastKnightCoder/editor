@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useTodoStore } from "@/stores/todo";
+import { useTodoStore } from "@/stores/useTodoStore";
 import { TodoItem } from "@/types";
 import SortableItem from "./SortableItem";
 import classnames from "classnames";

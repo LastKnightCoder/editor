@@ -5,7 +5,7 @@ import { useDrag, useDrop } from "react-dnd";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import useTheme from "@/hooks/useTheme";
-import { useTodoStore } from "@/stores/todo";
+import { useTodoStore } from "@/stores/useTodoStore";
 import {
   type ProjectColorName,
   getProjectColorValue,

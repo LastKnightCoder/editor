@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useTodoStore } from "@/stores/todo";
+import { useTodoStore } from "@/stores/useTodoStore";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import classNames from "classnames";
 import useTheme from "@/hooks/useTheme";

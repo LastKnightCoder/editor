@@ -1,76 +1,39 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect } from "react";
 import {
-  getActivePomodoroSession,
   pausePomodoroSession,
   resumePomodoroSession,
   stopPomodoroSession,
 } from "@/commands";
-import { on, off } from "@/electron";
-import { useMemoizedFn } from "ahooks";
+import { usePomodoroStore } from "@/stores/usePomodoroStore";
+import useInitDatabase from "@/hooks/useInitDatabase";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import { fmt } from "./utils";
 
 const Mini: React.FC = () => {
-  const [active, setActive] =
-    useState<Awaited<ReturnType<typeof getActivePomodoroSession>>>(null);
-  const [now, setNow] = useState(Date.now());
+  useInitDatabase();
+  const isConnected = useDatabaseConnected();
+  const { activeSession, elapsedMs, remainMs, initPomodoro, inited } =
+    usePomodoroStore();
 
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const refresh = useMemoizedFn(async () => {
-    setActive(await getActivePomodoroSession());
-  });
-
-  useEffect(() => {
-    refresh();
-    const h = () => refresh();
-    on && on("pomodoro:state-changed", h);
-    // 订阅tick以秒级刷新
-    on && on("pomodoro:tick", h);
-    return () => {
-      off && off("pomodoro:state-changed", h);
-      off && off("pomodoro:tick", h);
-    };
-  }, [refresh]);
-
-  const elapsed = useMemo(() => {
-    if (!active) return 0;
-    let pause = active.pauseTotalMs;
-    if (active.status === "paused") {
-      const last = active.pauses[active.pauses.length - 1];
-      if (last && last.end === undefined) {
-        pause += now - last.start;
+    if (isConnected) {
+      if (!inited) {
+        initPomodoro();
       }
     }
-    return Math.max(0, (active.endTime ?? now) - active.startTime - pause);
-  }, [active, now]);
+  }, [initPomodoro, inited, isConnected]);
 
-  const remainMs = useMemo(() => {
-    if (!active || !active.expectedMs) return undefined;
-    return Math.max(0, active.expectedMs - elapsed);
-  }, [active, elapsed]);
-
-  const fmt = (ms: number) => {
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    const ss = s % 60;
-    const mm = Math.floor(m % 60);
-    const hh = Math.floor(m / 60);
-    return (
-      (hh > 0 ? `${hh}:` : "") +
-      `${mm.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`
-    );
-  };
-
-  if (!active) return <div className="p-3 text-sm text-gray-600">未在计时</div>;
+  if (!activeSession)
+    return <div className="p-3 text-sm text-gray-600">未在计时</div>;
 
   return (
     <div className="p-3 flex items-center gap-2">
       <div className="font-semibold">
-        {active.expectedMs ? fmt(remainMs || 0) : fmt(elapsed)}
+        {activeSession.expectedMs !== undefined
+          ? fmt(remainMs ?? 0)
+          : fmt(elapsedMs)}
       </div>
-      {active.status === "running" ? (
+      {activeSession.status === "running" ? (
         <button
           className="px-2 py-0.5 rounded bg-amber-500 text-white hover:bg-amber-400 text-xs"
           onClick={() => pausePomodoroSession()}

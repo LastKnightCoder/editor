@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import { useTodoStore } from "@/stores/todo";
+import { useTodoStore } from "@/stores/useTodoStore";
 import GroupList from "@/components/Todo/Sidebar/GroupList";
 import Toolbar from "@/components/Todo/List/Toolbar";
 import { TodoTree } from "@/components/Todo/List";

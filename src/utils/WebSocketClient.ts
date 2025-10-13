@@ -94,9 +94,7 @@ class WebSocketClient {
         id: uuidv4(),
         method,
         params,
-        jsonrpc: "2.0",
         type: RpcMessageType.Request,
-        private: null,
       };
 
       this.pendingRequest.set(message.id, request);

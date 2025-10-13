@@ -21,6 +21,7 @@ import bilibiliCacheModule from "./modules/bilibili-cache";
 import youtubeCacheModule from "./modules/youtube-cache";
 import typstModule from "./modules/typst";
 import userSettingModule from "./modules/user-setting";
+import pomodoroModule from "./modules/pomodoro";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -198,6 +199,7 @@ const initModules = async () => {
 
     const backendServer = new BackendWebSocketServer(24678);
     await userSettingModule.init(backendServer);
+    await pomodoroModule.init(backendServer);
 
     // 初始化窗口管理器
     windowManager = await windowManagerModule.init(

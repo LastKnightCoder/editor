@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { PomodoroMode, PomodoroPreset } from "@/types";
 import { useMemoizedFn } from "ahooks";
+import { Modal, Form, Input, Radio, InputNumber } from "antd";
 
 interface PresetModalProps {
   open: boolean;
@@ -21,111 +22,90 @@ const PresetModal: React.FC<PresetModalProps> = ({
   initial,
   title,
 }) => {
-  const [name, setName] = useState(initial?.name || "");
-  const [mode, setMode] = useState<PomodoroMode>(
-    (initial?.mode as PomodoroMode) || "countdown",
-  );
-  const [duration, setDuration] = useState<number>(initial?.durationMin ?? 25);
+  const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
+  const mode = Form.useWatch("mode", form);
 
   useEffect(() => {
     if (open) {
-      setName(initial?.name || "");
-      setMode((initial?.mode as PomodoroMode) || "countdown");
-      setDuration(initial?.durationMin ?? 25);
+      form.setFieldsValue({
+        name: initial?.name || "",
+        mode: (initial?.mode as PomodoroMode) || "countdown",
+        durationMin: initial?.durationMin ?? 25,
+      });
     }
-  }, [open, initial]);
+  }, [open, initial, form]);
 
   const handleOk = useMemoizedFn(async () => {
-    if (!name.trim()) return;
-    setSubmitting(true);
     try {
+      const values = await form.validateFields();
+      setSubmitting(true);
       await onSubmit({
-        name: name.trim(),
-        mode,
-        durationMin: mode === "countdown" ? duration : undefined,
+        name: values.name.trim(),
+        mode: values.mode,
+        durationMin:
+          values.mode === "countdown" ? values.durationMin : undefined,
       });
       onClose();
+    } catch (error) {
+      // 表单验证失败
     } finally {
       setSubmitting(false);
     }
   });
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-      <div className="bg-white rounded shadow-lg w-[420px] p-4">
-        <div className="text-lg font-semibold mb-3">
-          {title || (initial?.id ? "编辑预设" : "新建预设")}
-        </div>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">名称</label>
-            <input
-              className="w-full border rounded px-2 py-1 text-sm"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="如：具体数学"
+    <Modal
+      open={open}
+      onClose={onClose}
+      onOk={handleOk}
+      onCancel={onClose}
+      okText={submitting ? "保存中..." : "保存"}
+      cancelText="取消"
+      destroyOnClose
+      title={title || (initial?.id ? "编辑预设" : "新建预设")}
+      confirmLoading={submitting}
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={{
+          name: initial?.name || "",
+          mode: (initial?.mode as PomodoroMode) || "countdown",
+          durationMin: initial?.durationMin ?? 25,
+        }}
+      >
+        <Form.Item
+          label="名称"
+          name="name"
+          rules={[{ required: true, message: "请输入名称" }]}
+        >
+          <Input size="large" placeholder="如：具体数学" />
+        </Form.Item>
+
+        <Form.Item label="计时模式" name="mode">
+          <Radio.Group>
+            <Radio value="countdown">倒计时</Radio>
+            <Radio value="countup">正计时</Radio>
+          </Radio.Group>
+        </Form.Item>
+
+        {mode === "countdown" && (
+          <Form.Item
+            label="倒计时分钟"
+            name="durationMin"
+            rules={[{ required: true, message: "请输入倒计时分钟" }]}
+          >
+            <InputNumber
+              size="large"
+              min={1}
+              max={600}
+              style={{ width: 200 }}
             />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">计时模式</label>
-            <div className="flex items-center gap-4 text-sm">
-              <label className="inline-flex items-center gap-1">
-                <input
-                  type="radio"
-                  className="accent-blue-600"
-                  checked={mode === "countdown"}
-                  onChange={() => setMode("countdown")}
-                />
-                倒计时
-              </label>
-              <label className="inline-flex items-center gap-1">
-                <input
-                  type="radio"
-                  className="accent-blue-600"
-                  checked={mode === "countup"}
-                  onChange={() => setMode("countup")}
-                />
-                正计时
-              </label>
-            </div>
-          </div>
-          {mode === "countdown" && (
-            <div>
-              <label className="block text-sm text-gray-600 mb-1">
-                倒计时分钟
-              </label>
-              <input
-                className="w-32 border rounded px-2 py-1 text-sm"
-                type="number"
-                min={1}
-                max={600}
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-              />
-            </div>
-          )}
-        </div>
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <button
-            className="px-3 py-1 rounded border"
-            onClick={onClose}
-            disabled={submitting}
-          >
-            取消
-          </button>
-          <button
-            className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-500 disabled:opacity-50"
-            onClick={handleOk}
-            disabled={submitting}
-          >
-            {submitting ? "保存中..." : "保存"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Form.Item>
+        )}
+      </Form>
+    </Modal>
   );
 };
 

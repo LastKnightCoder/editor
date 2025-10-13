@@ -49,9 +49,28 @@ class DatabaseModule implements Module {
     string,
     (db: Database.Database, ...args: any) => any
   >;
+  private currentDatabaseName = "data.db"; // 默认数据库
+  private databaseChangeCallbacks: Array<(dbName: string) => void> = [];
 
   getDatabase(name: string): Database.Database | undefined {
     return this.databases.get(name);
+  }
+
+  getCurrentDatabase(): Database.Database | undefined {
+    return this.getDatabase(this.currentDatabaseName);
+  }
+
+  getCurrentDatabaseName(): string {
+    return this.currentDatabaseName;
+  }
+
+  onDatabaseChange(callback: (dbName: string) => void): void {
+    this.databaseChangeCallbacks.push(callback);
+  }
+
+  private notifyDatabaseChange(dbName: string): void {
+    this.currentDatabaseName = dbName;
+    this.databaseChangeCallbacks.forEach((cb) => cb(dbName));
   }
 
   constructor() {
@@ -177,6 +196,11 @@ class DatabaseModule implements Module {
       async (event, name, force?: boolean) => {
         const appDir = PathUtil.getAppDir();
         const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+
+        // 检测数据库切换
+        const oldDbName = this.currentDatabaseName;
+        const dbChanged = oldDbName !== name;
+
         if (!this.databases.has(name) || force) {
           log.info(`connect database ${dbPath}`);
           if (this.databases.has(name)) {
@@ -192,6 +216,12 @@ class DatabaseModule implements Module {
         const win = BrowserWindow.fromWebContents(sender);
         if (win) {
           this.windowToDatabase.set(win.id, name);
+        }
+
+        // 通知数据库已切换
+        if (dbChanged) {
+          log.info(`Database changed from ${oldDbName} to ${name}`);
+          this.notifyDatabaseChange(name);
         }
       },
     );

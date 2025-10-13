@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useTodoStore } from "@/stores/todo";
+import { useTodoStore } from "@/stores/useTodoStore";
 
 const KeyboardShortcuts = () => {
   const { activeGroupId, activeTodoId, createItem, deleteItem } =

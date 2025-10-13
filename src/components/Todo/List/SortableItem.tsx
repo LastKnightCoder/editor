@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
-import { useTodoStore } from "@/stores/todo";
+import { useTodoStore } from "@/stores/useTodoStore";
 import { TodoItem } from "@/types";
 import TodoRow from "./TodoRow";
 import classnames from "classnames";
