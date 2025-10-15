@@ -69,12 +69,10 @@ class BackendWebSocketServer {
 
       const response: RpcResponseMessage = {
         id,
-        jsonrpc: "2.0",
         type: RpcMessageType.Response,
         method,
         result,
         error,
-        private: null,
       };
       this.sendResponse(response);
     }
@@ -86,7 +84,6 @@ class BackendWebSocketServer {
 
   sendNotification(messageType: string, data: any = null) {
     const message: RpcNotificationMessage = {
-      jsonrpc: "2.0",
       type: RpcMessageType.Notification,
       method: messageType,
       data: data,
