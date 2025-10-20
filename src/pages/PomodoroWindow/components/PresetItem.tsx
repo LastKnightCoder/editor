@@ -86,7 +86,7 @@ const PresetItem: React.FC<PresetItemProps> = ({
     });
 
     return menuItems;
-  }, [preset]);
+  }, [preset, onEdit, onArchiveToggle, onDelete]);
 
   return (
     <Dropdown trigger={["contextMenu"]} menu={{ items: menuItems }}>

@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
-  listPomodoroPresets,
   createPomodoroPreset,
   updatePomodoroPreset,
   archivePomodoroPreset,
@@ -22,11 +21,14 @@ import {
   AiOutlineStop,
   AiOutlinePauseCircle,
 } from "react-icons/ai";
-import { openPomodoroMiniWindow } from "@/commands/window";
+import {
+  openPomodoroMiniWindow,
+  openPomodoroImmersiveWindow,
+} from "@/commands/window";
 import PresetItem from "./components/PresetItem";
 import DndProvider from "@/components/DndProvider";
 import PresetModal from "./components/PresetModal";
-import Timeline, { TimelineRefHandler } from "./components/Timeline";
+import Timeline from "./components/Timeline";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import classNames from "classnames";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
@@ -53,9 +55,11 @@ const PomodoroWindowPage: React.FC = () => {
     elapsedMs,
     remainMs,
     rightSidebarWidth,
+    presets,
+    refreshPresets,
+    refreshSessions,
   } = usePomodoroStore();
 
-  const [presets, setPresets] = useState<PomodoroPreset[]>([]);
   const [today, setToday] = useState<{ count: number; focusMs: number }>({
     count: 0,
     focusMs: 0,
@@ -69,10 +73,8 @@ const PomodoroWindowPage: React.FC = () => {
     null,
   );
   const [tabType, setTabType] = useState<TabType>(TabType.Active);
-  const timelineRef = useRef<TimelineRefHandler>(null);
-  const refresh = useMemoizedFn(async () => {
-    const presets = await listPomodoroPresets();
-    setPresets(presets);
+
+  const refreshSummary = useMemoizedFn(async () => {
     setToday(await summaryPomodoroToday());
     setTotal(await summaryPomodoroTotal());
   });
@@ -80,8 +82,8 @@ const PomodoroWindowPage: React.FC = () => {
   useEffect(() => {
     if (!isConnected) return;
     initPomodoro();
-    refresh();
-  }, [isConnected, initPomodoro, refresh]);
+    refreshSummary();
+  }, [isConnected, initPomodoro, refreshSummary]);
 
   const start = useMemoizedFn(async (p: PomodoroPreset) => {
     const expected =
@@ -99,19 +101,19 @@ const PomodoroWindowPage: React.FC = () => {
 
   const stop = useMemoizedFn(async () => {
     await stopPomodoroSession(true);
-    await refresh();
-    timelineRef.current?.refresh();
+    await refreshSummary();
+    await refreshSessions();
   });
 
   const archive = useMemoizedFn(async (p: PomodoroPreset, value: boolean) => {
     await archivePomodoroPreset(p.id, value);
-    await refresh();
+    await refreshPresets();
   });
 
   const removePreset = useMemoizedFn(async (p: PomodoroPreset) => {
     modal.confirm({
       title: "删除预设",
-      content: `删除预设 “${p.name}”？该操作不可恢复`,
+      content: `删除预设 "${p.name}"？该操作不可恢复`,
       okText: "删除",
       cancelText: "取消",
       okButtonProps: {
@@ -119,7 +121,7 @@ const PomodoroWindowPage: React.FC = () => {
       },
       onOk: async () => {
         await deletePomodoroPreset(p.id);
-        await refresh();
+        await refreshPresets();
       },
     });
   });
@@ -138,7 +140,7 @@ const PomodoroWindowPage: React.FC = () => {
       arr.splice(insertIdx > dragIdx ? insertIdx - 1 : insertIdx, 0, dragItem);
       const newOrder = [...arr, ...archived].map((x) => x.id);
       await reorderPomodoroPresets(newOrder);
-      await refresh();
+      await refreshPresets();
     },
   );
 
@@ -206,7 +208,14 @@ const PomodoroWindowPage: React.FC = () => {
                 {
                   key: "open-mini-window",
                   label: "打开小窗",
+                  disabled: !activeSession,
                   onClick: () => openPomodoroMiniWindow(),
+                },
+                {
+                  key: "open-immersive-window",
+                  label: "进入沉浸模式",
+                  disabled: !activeSession,
+                  onClick: () => openPomodoroImmersiveWindow(),
                 },
               ],
             }}
@@ -307,61 +316,64 @@ const PomodoroWindowPage: React.FC = () => {
             maxWidth={600}
           >
             <div className="h-full flex flex-col">
-              <div className="grid grid-cols-2 gap-4 mt-4 flex-shrink-0">
-                <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    今日番茄
+              <div className="flex-none">
+                <h2>概览</h2>
+                <div className="grid grid-cols-2 gap-4 mt-4 flex-shrink-0">
+                  <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      今日番茄
+                    </div>
+                    <div className="text-2xl font-semibold dark:text-white">
+                      {today.count}
+                    </div>
                   </div>
-                  <div className="text-2xl font-semibold dark:text-white">
-                    {today.count}
+                  <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      今日专注时长
+                    </div>
+                    <div className="text-2xl font-semibold dark:text-white">
+                      {Math.round(today.focusMs / 60000)}{" "}
+                      <span className="text-base">m</span>
+                    </div>
                   </div>
-                </div>
-                <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    今日专注时长
+                  <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      总番茄
+                    </div>
+                    <div className="text-2xl font-semibold dark:text-white">
+                      {total.count}
+                    </div>
                   </div>
-                  <div className="text-2xl font-semibold dark:text-white">
-                    {Math.round(today.focusMs / 60000)}{" "}
-                    <span className="text-base">m</span>
-                  </div>
-                </div>
-                <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    总番茄
-                  </div>
-                  <div className="text-2xl font-semibold dark:text-white">
-                    {total.count}
-                  </div>
-                </div>
-                <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    总专注时长
-                  </div>
-                  <div className="text-2xl font-semibold dark:text-white">
-                    {(() => {
-                      const totalMinutes = Math.round(total.focusMs / 60000);
-                      const hours = Math.floor(totalMinutes / 60);
-                      const minutes = totalMinutes % 60;
-                      if (hours > 0) {
+                  <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      总专注时长
+                    </div>
+                    <div className="text-2xl font-semibold dark:text-white">
+                      {(() => {
+                        const totalMinutes = Math.round(total.focusMs / 60000);
+                        const hours = Math.floor(totalMinutes / 60);
+                        const minutes = totalMinutes % 60;
+                        if (hours > 0) {
+                          return (
+                            <>
+                              {hours} <span className="text-base">h</span>{" "}
+                              {minutes} <span className="text-base">m</span>
+                            </>
+                          );
+                        }
                         return (
                           <>
-                            {hours} <span className="text-base">h</span>{" "}
                             {minutes} <span className="text-base">m</span>
                           </>
                         );
-                      }
-                      return (
-                        <>
-                          {minutes} <span className="text-base">m</span>
-                        </>
-                      );
-                    })()}
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex-1 min-h-0">
-                <Timeline ref={timelineRef} />
+                <Timeline />
               </div>
             </div>
           </ResizableAndHideableSidebar>
@@ -378,7 +390,7 @@ const PomodoroWindowPage: React.FC = () => {
           } else {
             await createPomodoroPreset(values);
           }
-          await refresh();
+          await refreshPresets();
         }}
       />
     </div>
