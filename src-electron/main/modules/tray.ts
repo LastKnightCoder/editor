@@ -259,17 +259,6 @@ function updateTrayMenu() {
         }
       },
     },
-    {
-      label: "番茄专注小窗",
-      click: () => {
-        if (
-          windowManager &&
-          typeof windowManager.createPomodoroMiniWindow === "function"
-        ) {
-          windowManager.createPomodoroMiniWindow();
-        }
-      },
-    },
     { type: "separator" },
     {
       label: "退出",
