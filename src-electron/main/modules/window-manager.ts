@@ -22,7 +22,8 @@ type EditorType =
   | "todo"
   | "goal"
   | "question"
-  | "pomodoro-mini";
+  | "pomodoro-mini"
+  | "pomodoro-immersive";
 
 // 窗口参数定义
 interface EditorParams {
@@ -37,6 +38,8 @@ interface EditorParams {
 export class WindowManager {
   // 窗口映射
   private windowsMap = new Map<EditorType, Map<string, BrowserWindow>>();
+  // 沉浸窗口实例（单例，复用）
+  private pomodoroImmersiveWindow: BrowserWindow | null = null;
 
   constructor(
     viteDevServerUrl: string,
@@ -58,8 +61,12 @@ export class WindowManager {
     this.windowsMap.set("goal", new Map<string, BrowserWindow>());
     this.windowsMap.set("question", new Map<string, BrowserWindow>());
     this.windowsMap.set("pomodoro-mini", new Map<string, BrowserWindow>());
+    this.windowsMap.set("pomodoro-immersive", new Map<string, BrowserWindow>());
 
     this.registerIpcHandlers();
+
+    // 提前创建沉浸窗口（隐藏状态）
+    this.initPomodoroImmersiveWindow();
   }
 
   // 注册IPC处理程序
@@ -172,6 +179,14 @@ export class WindowManager {
     ipcMain.handle("open-pomodoro-mini-window", () => {
       this.createPomodoroMiniWindow();
     });
+
+    ipcMain.handle("open-pomodoro-immersive-window", () => {
+      this.showPomodoroImmersiveWindow();
+    });
+
+    ipcMain.handle("hide-pomodoro-immersive-window", () => {
+      this.hidePomodoroImmersiveWindow();
+    });
   }
 
   // 创建主窗口
@@ -260,7 +275,7 @@ export class WindowManager {
   }
 
   // 设置窗口公共事件
-  private setupWindowEvents(win: BrowserWindow) {
+  private setupWindowEvents(win: BrowserWindow, openDevTools = true) {
     win.on("enter-full-screen", () => {
       win.webContents.send("full-screen-change");
     });
@@ -286,7 +301,7 @@ export class WindowManager {
       },
     );
 
-    if (VITE_DEV_SERVER_URL) {
+    if (VITE_DEV_SERVER_URL && openDevTools) {
       win.webContents.openDevTools();
     }
   }
@@ -303,6 +318,7 @@ export class WindowManager {
       goal: "goals",
       question: "questions",
       "pomodoro-mini": "pomodoro/mini",
+      "pomodoro-immersive": "pomodoro/immersive",
     };
     return routes[type];
   }
@@ -319,6 +335,7 @@ export class WindowManager {
       goal: "noop",
       question: "noop",
       "pomodoro-mini": "noop",
+      "pomodoro-immersive": "noop",
     };
     return paramNames[type];
   }
@@ -335,6 +352,7 @@ export class WindowManager {
       goal: "进度管理",
       question: "问题管理",
       "pomodoro-mini": "番茄小窗",
+      "pomodoro-immersive": "番茄沉浸",
     };
     return editorNames[type];
   }
@@ -365,6 +383,94 @@ export class WindowManager {
     }
     win.setAlwaysOnTop(true);
     return win;
+  }
+
+  // 初始化沉浸窗口（仅在构造函数中调用一次）
+  private initPomodoroImmersiveWindow() {
+    log.info("初始化沉浸窗口（隐藏状态）");
+
+    // 获取主屏幕尺寸
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.size;
+
+    // Mac 上使用屏幕大小，其他平台使用全屏
+    const isMac = process.platform === "darwin";
+
+    const win = new BrowserWindow({
+      frame: false,
+      alwaysOnTop: true,
+      autoHideMenuBar: true,
+      show: false, // 初始不显示
+      fullscreen: !isMac, // Mac 上不使用全屏
+      enableLargerThanScreen: isMac, // Mac 上允许窗口大于屏幕
+      width: isMac ? width : undefined,
+      height: isMac ? height : undefined,
+      x: isMac ? 0 : undefined,
+      y: isMac ? 0 : undefined,
+      icon: path.join(path.dirname(preload), "../../build/icon.png"),
+      webPreferences: {
+        preload,
+        spellcheck: false,
+      },
+    });
+
+    // 不打开 DevTools，避免窗口自动显示
+    this.setupWindowEvents(win, false);
+
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/pomodoro/immersive`);
+    } else {
+      win.loadFile(indexHtml, { hash: `/pomodoro/immersive` });
+    }
+
+    win.setAlwaysOnTop(true);
+
+    // Mac 上设置 simpleFullScreen
+    if (isMac) {
+      win.setSimpleFullScreen(true);
+    }
+
+    // 监听销毁事件
+    win.on("closed", () => {
+      log.debug("沉浸窗口被销毁");
+      this.pomodoroImmersiveWindow = null;
+    });
+
+    this.pomodoroImmersiveWindow = win;
+  }
+
+  public showPomodoroImmersiveWindow() {
+    // 如果窗口不存在或已销毁，重新初始化
+    if (
+      !this.pomodoroImmersiveWindow ||
+      this.pomodoroImmersiveWindow.isDestroyed()
+    ) {
+      log.warn("沉浸窗口不存在，重新初始化");
+      this.initPomodoroImmersiveWindow();
+    }
+
+    log.debug("显示沉浸窗口");
+    if (this.pomodoroImmersiveWindow) {
+      const isMac = process.platform === "darwin";
+      // Mac 上不需要设置全屏，已经是屏幕大小
+      // 其他平台在显示之前设置全屏
+      if (!isMac) {
+        this.pomodoroImmersiveWindow.setFullScreen(true);
+      }
+      this.pomodoroImmersiveWindow.show();
+      this.pomodoroImmersiveWindow.focus();
+    }
+    return this.pomodoroImmersiveWindow;
+  }
+
+  public hidePomodoroImmersiveWindow() {
+    log.debug("隐藏沉浸窗口");
+    if (
+      this.pomodoroImmersiveWindow &&
+      !this.pomodoroImmersiveWindow.isDestroyed()
+    ) {
+      this.pomodoroImmersiveWindow.hide();
+    }
   }
 
   public createTodoWindow() {

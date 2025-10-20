@@ -47,6 +47,9 @@ const GoalWindowPage = loadable(() => import("@/pages/GoalWindow"));
 const QuestionWindowPage = loadable(() => import("@/pages/QuestionWindow"));
 const PomodoroWindowPage = loadable(() => import("@/pages/PomodoroWindow"));
 const PomodoroMiniPage = loadable(() => import("@/pages/PomodoroWindow/Mini"));
+const PomodoroImmersivePage = loadable(
+  () => import("@/pages/PomodoroWindow/Immersive"),
+);
 
 const routes = [
   {
@@ -232,6 +235,10 @@ const routes = [
         element: <PomodoroMiniPage />,
       },
     ],
+  },
+  {
+    path: "/pomodoro/immersive",
+    element: <PomodoroImmersivePage />,
   },
 ];
 
