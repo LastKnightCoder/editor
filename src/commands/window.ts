@@ -15,3 +15,11 @@ export const openPomodoroWindow = async () => {
 export const openPomodoroMiniWindow = async () => {
   return invoke("open-pomodoro-mini-window");
 };
+
+export const openPomodoroImmersiveWindow = async () => {
+  return invoke("open-pomodoro-immersive-window");
+};
+
+export const hidePomodoroImmersiveWindow = async () => {
+  return invoke("hide-pomodoro-immersive-window");
+};

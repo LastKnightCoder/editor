@@ -1,13 +1,6 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
-import { PomodoroPreset, PomodoroSession } from "@/types";
-import { listPomodoroSessions, listPomodoroPresets } from "@/commands";
-import { useMemoizedFn } from "ahooks";
+import { useMemo } from "react";
+import { PomodoroSession } from "@/types";
+import { usePomodoroStore } from "@/stores/usePomodoroStore";
 import stopwatchIcon from "@/assets/icons/stopwatch.svg";
 
 const formatDate = (timestamp: number) => {
@@ -36,44 +29,17 @@ const groupByDate = (sessions: PomodoroSession[]) => {
   return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
 };
 
-export type TimelineRefHandler = {
-  refresh: () => void;
-};
+const Timeline = () => {
+  const sessions = usePomodoroStore((state) => state.sessions);
+  const presets = usePomodoroStore((state) => state.presets);
 
-const Timeline = forwardRef<TimelineRefHandler>((_, ref) => {
-  const [records, setRecords] = useState<PomodoroSession[]>([]);
-  const [presets, setPresets] = useState<PomodoroPreset[]>([]);
-
-  const refresh = useMemoizedFn(async () => {
-    const end = Date.now();
-    const start = end - 30 * 24 * 60 * 60 * 1000; // 固定查询近30天
-    const list = await listPomodoroSessions({
-      start,
-      end,
-      limit: 1000,
-    });
-    setRecords(list);
-  });
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    listPomodoroPresets().then((ps) => setPresets(ps));
-  }, []);
-
-  const groups = useMemo(() => groupByDate(records), [records]);
+  const groups = useMemo(() => groupByDate(sessions), [sessions]);
 
   const presetMap = useMemo(() => {
     const map = new Map<number, string>();
     presets.forEach((p) => map.set(p.id, p.name));
     return map;
   }, [presets]);
-
-  useImperativeHandle(ref, () => ({
-    refresh,
-  }));
 
   return (
     <div className="mt-6 h-full flex flex-col overflow-hidden">
@@ -188,6 +154,6 @@ const Timeline = forwardRef<TimelineRefHandler>((_, ref) => {
       </div>
     </div>
   );
-});
+};
 
 export default Timeline;

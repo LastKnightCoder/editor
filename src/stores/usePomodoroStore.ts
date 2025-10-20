@@ -3,10 +3,12 @@ import { produce } from "immer";
 import { persist } from "zustand/middleware";
 import { PomodoroPreset, PomodoroSession } from "@/types";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
+import { listPomodoroSessions, listPomodoroPresets } from "@/commands";
 
 interface PomodoroState {
   inited: boolean;
   presets: PomodoroPreset[];
+  sessions: PomodoroSession[]; // 专注记录（近30天）
   selectedPreset: PomodoroPreset | null;
   activeSession: PomodoroSession | null;
   elapsedMs: number; // 当前已专注时长
@@ -17,6 +19,7 @@ interface PomodoroState {
 interface PomodoroActions {
   initPomodoro: () => Promise<void>;
   setPresets: (presets: PomodoroPreset[]) => void;
+  setSessions: (sessions: PomodoroSession[]) => void;
   setSelectedPreset: (preset: PomodoroPreset | null) => void;
   setActiveSession: (s: PomodoroSession | null) => void;
   updateTick: (data: {
@@ -24,11 +27,14 @@ interface PomodoroActions {
     elapsedMs: number;
     remainMs?: number;
   }) => void;
+  refreshSessions: () => Promise<void>;
+  refreshPresets: () => Promise<void>;
 }
 
 const initialState: PomodoroState = {
   inited: false,
   presets: [],
+  sessions: [],
   selectedPreset: null,
   activeSession: null,
   elapsedMs: 0,
@@ -77,9 +83,23 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
             null,
           )) as PomodoroPreset | null;
 
+          // 获取预设列表
+          const presets = await listPomodoroPresets();
+
+          // 获取专注记录（近30天）
+          const end = Date.now();
+          const start = end - 30 * 24 * 60 * 60 * 1000;
+          const sessions = await listPomodoroSessions({
+            start,
+            end,
+            limit: 1000,
+          });
+
           // 启动时不会有 active session（软件关闭时会话数据丢失）
           set({
             selectedPreset,
+            presets,
+            sessions,
             activeSession: null,
             elapsedMs: 0,
             remainMs: undefined,
@@ -94,6 +114,13 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
         set(
           produce((draft: PomodoroState) => {
             draft.presets = presets;
+          }),
+        ),
+
+      setSessions: (sessions) =>
+        set(
+          produce((draft: PomodoroState) => {
+            draft.sessions = sessions;
           }),
         ),
 
@@ -119,6 +146,22 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
             draft.remainMs = data.remainMs;
           }),
         ),
+
+      refreshSessions: async () => {
+        const end = Date.now();
+        const start = end - 30 * 24 * 60 * 60 * 1000;
+        const sessions = await listPomodoroSessions({
+          start,
+          end,
+          limit: 1000,
+        });
+        get().setSessions(sessions);
+      },
+
+      refreshPresets: async () => {
+        const presets = await listPomodoroPresets();
+        get().setPresets(presets);
+      },
     }),
     {
       name: "pomodoro-storage",
