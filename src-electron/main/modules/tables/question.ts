@@ -169,27 +169,41 @@ export default class QuestionTable {
   static createQuestion(
     db: Database.Database,
     question: string,
-    groupId?: number,
+    groupId: number,
   ): IQuestion {
-    const now = Date.now();
-    const def = groupId ?? QuestionGroupTable.getDefaultGroup(db).id;
-    const maxSort = db
-      .prepare(`SELECT MAX(sort_index) as max_idx FROM questions`)
-      .get() as { max_idx: number | null };
-    const nextSortIndex = (maxSort?.max_idx ?? 0) + 1024;
-    const stmt = db.prepare(
-      "INSERT INTO questions (create_time, update_time, question_content, answers, group_id, sort_index) VALUES (?, ?, ?, ?, ?, ?)",
-    );
-    const res = stmt.run(
-      now,
-      now,
-      question,
-      JSON.stringify([]),
-      def,
-      nextSortIndex,
-    );
-    const createdQuestionId = res.lastInsertRowid;
-    return this.getQuestionById(db, createdQuestionId as number) as IQuestion;
+    try {
+      const now = Date.now();
+
+      console.log("[QuestionTable] 创建问题:", { question, groupId });
+
+      const maxSort = db
+        .prepare(`SELECT MAX(sort_index) as max_idx FROM questions`)
+        .get() as { max_idx: number | null };
+      const nextSortIndex = (maxSort?.max_idx ?? 0) + 1024;
+
+      const stmt = db.prepare(
+        "INSERT INTO questions (create_time, update_time, question_content, answers, group_id, sort_index) VALUES (?, ?, ?, ?, ?, ?)",
+      );
+      const res = stmt.run(
+        now,
+        now,
+        question,
+        JSON.stringify([]),
+        groupId,
+        nextSortIndex,
+      );
+      const createdQuestionId = res.lastInsertRowid;
+      const createdQuestion = this.getQuestionById(
+        db,
+        createdQuestionId as number,
+      ) as IQuestion;
+
+      console.log("[QuestionTable] 问题创建成功:", createdQuestion);
+      return createdQuestion;
+    } catch (error) {
+      console.error("[QuestionTable] 创建问题失败:", error);
+      throw error;
+    }
   }
 
   static updateQuestion(

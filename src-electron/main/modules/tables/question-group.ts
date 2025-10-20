@@ -106,7 +106,24 @@ export default class QuestionGroupTable {
   static getDefaultGroup(db: Database.Database): QuestionGroup {
     const row = db
       .prepare(`SELECT * FROM question_group WHERE is_default = 1 LIMIT 1`)
-      .get() as QuestionGroupRow;
+      .get() as QuestionGroupRow | undefined;
+
+    // 如果没有找到默认分组，创建一个
+    if (!row) {
+      const now = Date.now();
+      const insert = db.prepare(
+        `INSERT INTO question_group (title, color, sort_index, is_default, create_time, update_time)
+         VALUES (?, ?, ?, 1, ?, ?)`,
+      );
+      insert.run("未分类", "#9CA3AF", 0, now, now);
+
+      // 重新查询
+      const newRow = db
+        .prepare(`SELECT * FROM question_group WHERE is_default = 1 LIMIT 1`)
+        .get() as QuestionGroupRow;
+      return this.parse(newRow);
+    }
+
     return this.parse(row);
   }
 
