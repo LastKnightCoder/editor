@@ -371,9 +371,12 @@ export class WindowManager {
 
   public createPomodoroMiniWindow() {
     const baseConfig = this.createBaseWindowConfig();
-    baseConfig.width = 260;
-    baseConfig.height = 130;
-    baseConfig.alwaysOnTop = true as any;
+    baseConfig.width = 240;
+    baseConfig.height = 100;
+    baseConfig.alwaysOnTop = true;
+    baseConfig.frame = false;
+    baseConfig.resizable = false;
+    baseConfig.movable = true;
     const win = new BrowserWindow(baseConfig);
     this.setupWindowEvents(win);
     if (VITE_DEV_SERVER_URL) {

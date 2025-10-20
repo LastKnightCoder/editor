@@ -152,9 +152,13 @@ const QuestionWindowPage = () => {
       message.error("问题内容不能为空");
       return;
     }
+    if (activeGroupId == null) {
+      message.error("请选择一个分类");
+      return;
+    }
     await createQuestion({
       questionContent: newQuestionValue,
-      groupId: activeGroupId || undefined,
+      groupId: activeGroupId,
     });
     setNewQuestionVisible(false);
     setNewQuestionValue("");

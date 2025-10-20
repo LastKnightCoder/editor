@@ -71,7 +71,7 @@ interface QuestionState {
 
   createQuestion: (payload: {
     questionContent: string;
-    groupId?: number;
+    groupId: number;
   }) => Promise<IQuestion>;
   updateQuestion: (payload: {
     id: number;

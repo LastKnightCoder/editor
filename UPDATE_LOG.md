@@ -697,4 +697,9 @@
 - feat: 音视频自动记录上次播放位置
 - feat: 支持添加快捷方式
 - feat: 全量注入 Tailwind CSS
+- fix: 小组件添加问题
 - chore: 修改应用名称为 Tau
+
+## 0.16.4
+
+- feat: 添加番茄专注
