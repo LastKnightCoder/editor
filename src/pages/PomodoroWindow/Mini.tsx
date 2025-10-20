@@ -27,33 +27,53 @@ const Mini: React.FC = () => {
     return <div className="p-3 text-sm text-gray-600">未在计时</div>;
 
   return (
-    <div className="p-3 flex items-center gap-2">
-      <div className="font-semibold">
-        {activeSession.expectedMs !== undefined
-          ? fmt(remainMs ?? 0)
-          : fmt(elapsedMs)}
+    <div className="flex flex-col items-center w-full max-w-4xl gap-10">
+      <div className="bg-gradient-to-br from-white to-gray-200 rounded-full w-[60vmin] h-[60vmin] flex justify-center items-center shadow-2xl transition-transform duration-300 hover:scale-105">
+        <div className="text-center text-gray-800 p-5">
+          {activeSession.expectedMs !== undefined
+            ? fmt(remainMs ?? 0)
+            : fmt(elapsedMs)}
+        </div>
       </div>
-      {activeSession.status === "running" ? (
+
+      <div className="flex gap-4 md:gap-8 flex-wrap justify-center">
+        {activeSession.status === "running" ? (
+          <button
+            className="bg-gradient-to-br from-orange-400 to-orange-300 rounded-full 
+                      w-12 h-12 md:w-32 md:h-32 
+                      text-white text-xs md:text-lg 
+                      font-bold cursor-pointer shadow-lg transition-all duration-300 
+                      flex justify-center items-center text-center p-1 md:p-4 
+                      hover:-translate-y-1 hover:shadow-xl active:scale-95"
+            onClick={() => pausePomodoroSession()}
+          >
+            暂停
+          </button>
+        ) : (
+          <button
+            className="bg-gradient-to-br from-orange-400 to-orange-300 rounded-full 
+                      w-12 h-12 md:w-32 md:h-32 
+                      text-white text-xs md:text-lg 
+                      font-bold cursor-pointer shadow-lg transition-all duration-300 
+                      flex justify-center items-center text-center p-1 md:p-4 
+                      hover:-translate-y-1 hover:shadow-xl active:scale-95"
+            onClick={() => resumePomodoroSession()}
+          >
+            继续
+          </button>
+        )}
         <button
-          className="px-2 py-0.5 rounded bg-amber-500 text-white hover:bg-amber-400 text-xs"
-          onClick={() => pausePomodoroSession()}
+          className="bg-gradient-to-br from-green-400 to-teal-400 rounded-full 
+                      w-12 h-12 md:w-32 md:h-32
+                      text-white text-xs md:text-lg
+                      font-bold cursor-pointer shadow-lg transition-all duration-300 
+                      flex justify-center items-center text-center p-1 md:p-4
+                      hover:-translate-y-1 hover:shadow-xl active:scale-95"
+          onClick={() => stopPomodoroSession(true)}
         >
-          暂停
+          结束
         </button>
-      ) : (
-        <button
-          className="px-2 py-0.5 rounded bg-green-600 text-white hover:bg-green-500 text-xs"
-          onClick={() => resumePomodoroSession()}
-        >
-          继续
-        </button>
-      )}
-      <button
-        className="px-2 py-0.5 rounded bg-rose-600 text-white hover:bg-rose-500 text-xs"
-        onClick={() => stopPomodoroSession(true)}
-      >
-        结束
-      </button>
+      </div>
     </div>
   );
 };
