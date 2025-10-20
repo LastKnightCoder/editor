@@ -8,8 +8,21 @@ import {
 import { PomodoroPreset, PomodoroSession } from "@/types";
 import { listPomodoroSessions, listPomodoroPresets } from "@/commands";
 import { useMemoizedFn } from "ahooks";
+import stopwatchIcon from "@/assets/icons/stopwatch.svg";
 
-type Range = 7 | 30;
+const formatDate = (timestamp: number) => {
+  const d = new Date(timestamp);
+  const currentYear = new Date().getFullYear();
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const date = d.getDate();
+
+  if (year === currentYear) {
+    return `${month}月${date}日`;
+  } else {
+    return `${year}年${month}月${date}日`;
+  }
+};
 
 const groupByDate = (sessions: PomodoroSession[]) => {
   const map = new Map<string, PomodoroSession[]>();
@@ -28,22 +41,15 @@ export type TimelineRefHandler = {
 };
 
 const Timeline = forwardRef<TimelineRefHandler>((_, ref) => {
-  const [range, setRange] = useState<Range>(7);
   const [records, setRecords] = useState<PomodoroSession[]>([]);
   const [presets, setPresets] = useState<PomodoroPreset[]>([]);
-  const [status, setStatus] = useState<
-    "all" | "completed" | "running" | "paused"
-  >("all");
-  const [presetId, setPresetId] = useState<number | "all">("all");
 
   const refresh = useMemoizedFn(async () => {
     const end = Date.now();
-    const start = end - range * 24 * 60 * 60 * 1000;
+    const start = end - 30 * 24 * 60 * 60 * 1000; // 固定查询近30天
     const list = await listPomodoroSessions({
       start,
       end,
-      status: status === "all" ? undefined : (status as any),
-      presetId: presetId === "all" ? undefined : (presetId as number),
       limit: 1000,
     });
     setRecords(list);
@@ -51,7 +57,7 @@ const Timeline = forwardRef<TimelineRefHandler>((_, ref) => {
 
   useEffect(() => {
     refresh();
-  }, [range, status, presetId, refresh]);
+  }, [refresh]);
 
   useEffect(() => {
     listPomodoroPresets().then((ps) => setPresets(ps));
@@ -59,85 +65,126 @@ const Timeline = forwardRef<TimelineRefHandler>((_, ref) => {
 
   const groups = useMemo(() => groupByDate(records), [records]);
 
+  const presetMap = useMemo(() => {
+    const map = new Map<number, string>();
+    presets.forEach((p) => map.set(p.id, p.name));
+    return map;
+  }, [presets]);
+
   useImperativeHandle(ref, () => ({
     refresh,
   }));
 
   return (
-    <div className="mt-6">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-sm text-gray-500">专注记录</div>
-        <div className="flex items-center gap-2 text-sm">
-          <select
-            className="border rounded px-2 py-1"
-            value={presetId === "all" ? "all" : String(presetId)}
-            onChange={(e) => {
-              const v = e.target.value;
-              setPresetId(v === "all" ? "all" : Number(v));
-            }}
-          >
-            <option value="all">全部预设</option>
-            {presets.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="border rounded px-2 py-1"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as any)}
-          >
-            <option value="all">全部</option>
-            <option value="completed">已完成</option>
-            <option value="running">进行中</option>
-            <option value="paused">已暂停</option>
-          </select>
-          <button
-            className={`px-2 py-0.5 rounded border ${range === 7 ? "bg-gray-100" : ""}`}
-            onClick={() => setRange(7)}
-          >
-            近7天
-          </button>
-          <button
-            className={`px-2 py-0.5 rounded border ${range === 30 ? "bg-gray-100" : ""}`}
-            onClick={() => setRange(30)}
-          >
-            近30天
-          </button>
-        </div>
+    <div className="mt-6 h-full flex flex-col overflow-hidden">
+      <div className="mb-4 flex-shrink-0">
+        <div className="text-sm text-gray-500 dark:text-gray-400">专注记录</div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-6 overflow-y-auto scrollbar-hide flex-1">
         {groups.length === 0 && (
-          <div className="text-sm text-gray-500">暂无记录</div>
-        )}
-        {groups.map(([date, list]) => (
-          <div key={date} className="border rounded p-3">
-            <div className="text-sm text-gray-600 mb-2">{date}</div>
-            <div className="space-y-2">
-              {list.map((s) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <div className="text-gray-700">
-                    {new Date(s.startTime).toLocaleTimeString()} ~
-                    {s.endTime
-                      ? ` ${new Date(s.endTime).toLocaleTimeString()}`
-                      : " 进行中"}
-                  </div>
-                  <div className="text-gray-500">
-                    专注 {Math.round((s.focusMs || 0) / 60000)}m
-                    {s.pauseTotalMs > 0
-                      ? ` · 暂停 ${Math.round(s.pauseTotalMs / 60000)}m`
-                      : ""}
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            暂无记录
           </div>
-        ))}
+        )}
+        {groups.map(([dateKey, list]) => {
+          const firstSession = list[0];
+          const displayDate = formatDate(firstSession.startTime);
+
+          return (
+            <div key={dateKey}>
+              <div className="text-sm text-gray-400 dark:text-gray-500 mb-3">
+                {displayDate}
+              </div>
+              <div>
+                {list.map((session, index) => {
+                  const isLast = index === list.length - 1;
+                  const startTime = new Date(
+                    session.startTime,
+                  ).toLocaleTimeString("zh-CN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                  const endTime = session.endTime
+                    ? new Date(session.endTime).toLocaleTimeString("zh-CN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : null;
+                  const presetName =
+                    presetMap.get(session.presetId) || "未知预设";
+                  const focusMinutes = Math.round(
+                    (session.focusMs || 0) / 60000,
+                  );
+
+                  return (
+                    <div
+                      key={session.id}
+                      className="flex items-start gap-3 relative"
+                    >
+                      {/* 连接线 - 相对于整个条目定位，延伸到下一个条目 */}
+                      {!isLast && (
+                        <div
+                          className="absolute w-[2px] bg-blue-500/20 dark:bg-blue-400/20 z-0"
+                          style={{
+                            left: "calc(1rem - 1px)",
+                            top: "2.25rem",
+                            bottom: "0.25rem",
+                          }}
+                        />
+                      )}
+                      {isLast && (
+                        <div
+                          className="absolute w-[2px] bg-blue-500/20 dark:bg-blue-400/20 z-0"
+                          style={{
+                            left: "calc(1rem - 1px)",
+                            top: "2.25rem",
+                            height: "0.75rem",
+                          }}
+                        />
+                      )}
+
+                      {/* 左侧：图标和圆圈 */}
+                      <div className="flex flex-col items-center relative flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                          <img
+                            src={stopwatchIcon}
+                            alt="stopwatch"
+                            className="w-5 h-5"
+                            style={{
+                              filter:
+                                "invert(45%) sepia(91%) saturate(1794%) hue-rotate(201deg) brightness(97%) contrast(92%)",
+                            }}
+                          />
+                        </div>
+                        <div className="w-2 h-2 border border-blue-500 dark:border-blue-400 rounded-full bg-white dark:bg-gray-800 mt-3 relative z-10" />
+                      </div>
+
+                      {/* 中间和右侧：内容 */}
+                      <div className="flex-1 pb-8">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {startTime} - {endTime || "进行中"}
+                            </div>
+                            <div className="text-base mt-1 dark:text-gray-200">
+                              {presetName}
+                            </div>
+                          </div>
+
+                          {/* 右侧：时长 */}
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {focusMinutes}m
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

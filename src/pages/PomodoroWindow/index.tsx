@@ -33,6 +33,7 @@ import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { Dropdown, App, Empty, Button } from "antd";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { fmt } from "./utils";
+import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 enum TabType {
   Active = "active",
@@ -45,8 +46,14 @@ const PomodoroWindowPage: React.FC = () => {
   const { modal } = App.useApp();
   const isConnected = useDatabaseConnected();
 
-  const { activeSession, selectedPreset, initPomodoro, elapsedMs, remainMs } =
-    usePomodoroStore();
+  const {
+    activeSession,
+    selectedPreset,
+    initPomodoro,
+    elapsedMs,
+    remainMs,
+    rightSidebarWidth,
+  } = usePomodoroStore();
 
   const [presets, setPresets] = useState<PomodoroPreset[]>([]);
   const [today, setToday] = useState<{ count: number; focusMs: number }>({
@@ -137,6 +144,10 @@ const PomodoroWindowPage: React.FC = () => {
 
   const changeTab = useMemoizedFn((type: TabType) => {
     setTabType(type);
+  });
+
+  const handleWidthChange = useMemoizedFn((width: number) => {
+    usePomodoroStore.setState({ rightSidebarWidth: width });
   });
 
   const filteredPresets = useMemo(() => {
@@ -286,26 +297,74 @@ const PomodoroWindowPage: React.FC = () => {
               </div>
             )}
           </div>
-          <div className="flex-none w-80">
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="rounded border border-gray-200 p-4">
-                <div className="text-xs text-gray-500">今日番茄</div>
-                <div className="text-2xl font-semibold">{today.count}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  今日专注 {Math.round(today.focusMs / 60000)}m
+          <ResizableAndHideableSidebar
+            side="left"
+            width={rightSidebarWidth}
+            onWidthChange={handleWidthChange}
+            open={true}
+            disableResize={false}
+            minWidth={300}
+            maxWidth={600}
+          >
+            <div className="h-full flex flex-col">
+              <div className="grid grid-cols-2 gap-4 mt-4 flex-shrink-0">
+                <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    今日番茄
+                  </div>
+                  <div className="text-2xl font-semibold dark:text-white">
+                    {today.count}
+                  </div>
+                </div>
+                <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    今日专注时长
+                  </div>
+                  <div className="text-2xl font-semibold dark:text-white">
+                    {Math.round(today.focusMs / 60000)}{" "}
+                    <span className="text-base">m</span>
+                  </div>
+                </div>
+                <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    总番茄
+                  </div>
+                  <div className="text-2xl font-semibold dark:text-white">
+                    {total.count}
+                  </div>
+                </div>
+                <div className="rounded bg-gray-100 dark:bg-[#1a1a1a] p-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    总专注时长
+                  </div>
+                  <div className="text-2xl font-semibold dark:text-white">
+                    {(() => {
+                      const totalMinutes = Math.round(total.focusMs / 60000);
+                      const hours = Math.floor(totalMinutes / 60);
+                      const minutes = totalMinutes % 60;
+                      if (hours > 0) {
+                        return (
+                          <>
+                            {hours} <span className="text-base">h</span>{" "}
+                            {minutes} <span className="text-base">m</span>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          {minutes} <span className="text-base">m</span>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
-              <div className="rounded border border-gray-200 p-4">
-                <div className="text-xs text-gray-500">总番茄</div>
-                <div className="text-2xl font-semibold">{total.count}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  总专注 {Math.round(total.focusMs / 60000)}m
-                </div>
+
+              <div className="flex-1 min-h-0">
+                <Timeline ref={timelineRef} />
               </div>
             </div>
-
-            <Timeline ref={timelineRef} />
-          </div>
+          </ResizableAndHideableSidebar>
         </div>
       </DndProvider>
 
