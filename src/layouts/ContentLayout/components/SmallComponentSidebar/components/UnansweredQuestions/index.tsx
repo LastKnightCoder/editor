@@ -29,6 +29,7 @@ import {
   createQuestion,
   deleteQuestion,
 } from "@/commands";
+import { getDefaultQuestionGroup } from "@/commands/question-group";
 import EditText from "@/components/EditText";
 import AnswerCardList from "@/components/AnswerCardList";
 import NewAnswerModal from "@/components/NewAnswerModal";
@@ -262,13 +263,28 @@ const UnansweredQuestions: React.FC = () => {
     }
 
     try {
-      await createQuestion(newQuestionContent);
+      console.log("[UnansweredQuestions] 开始创建问题:", newQuestionContent);
+
+      // 获取默认分组
+      const defaultGroup = await getDefaultQuestionGroup();
+      console.log("[UnansweredQuestions] 默认分组:", defaultGroup);
+
+      const result = await createQuestion(newQuestionContent, defaultGroup.id);
+      console.log("[UnansweredQuestions] 问题创建成功:", result);
+
       setNewQuestionModalVisible(false);
       setNewQuestionContent("");
-      handleRefresh();
+
+      // 直接调用 fetchQuestions 刷新列表
+      await fetchQuestions();
+      console.log("[UnansweredQuestions] 列表刷新完成");
+
+      message.success("问题创建成功");
     } catch (error) {
-      console.error("创建问题失败:", error);
-      message.error("创建问题失败");
+      console.error("[UnansweredQuestions] 创建问题失败:", error);
+      message.error(
+        `创建问题失败: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   });
 

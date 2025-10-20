@@ -4,10 +4,8 @@ import { Descendant } from "slate";
 
 export async function createQuestion(
   question: string,
-  groupId?: number,
+  groupId: number,
 ): Promise<IQuestion> {
-  // groupId 可选，保持对旧调用的兼容
-  if (groupId == null) return invoke("question:create", question);
   return invoke("question:create", question, groupId);
 }
 
