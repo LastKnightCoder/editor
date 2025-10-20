@@ -1,11 +1,13 @@
 import { Editor } from "slate";
 import { createQuestion } from "@/commands/question";
+import { getDefaultQuestionGroup } from "@/commands/question-group";
 import { setOrInsertNode } from "@/components/Editor/utils";
 
 export const createQuestionNode = async (editor: Editor) => {
   try {
-    // 创建一个新的问题
-    const question = await createQuestion("新问题");
+    // 获取默认分组并创建一个新的问题
+    const defaultGroup = await getDefaultQuestionGroup();
+    const question = await createQuestion("新问题", defaultGroup.id);
     const questionId = question.id;
 
     setOrInsertNode(editor, {
