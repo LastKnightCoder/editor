@@ -87,7 +87,8 @@ export class VideoUtil {
           videoId: string;
           videoFormat: any;
           audioFormat: any;
-        },
+        }
+      | { type: "notion"; blockId: string },
   ) {
     const { minX, minY, width, height } = board.viewPort;
     const center = { x: minX + width / 2, y: minY + height / 2 };
@@ -103,7 +104,9 @@ export class VideoUtil {
         src:
           meta.type === "bilibili"
             ? `bilibili://${meta.bvid}`
-            : `youtube://${meta.videoId}`,
+            : meta.type === "youtube"
+              ? `youtube://${meta.videoId}`
+              : `notion://${meta.blockId}`,
         x: center.x - videoWidth / 2,
         y: center.y - videoHeight / 2,
         width: videoWidth,

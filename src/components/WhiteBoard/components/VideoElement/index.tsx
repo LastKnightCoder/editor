@@ -5,8 +5,10 @@ import LocalVideo from "@/components/LocalVideo";
 // keep single If import
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
+import NotionVideoLoader from "@/components/NotionVideoLoader";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
+import { useNotionVideo } from "@/hooks/useNotionVideo";
 import { isBilibiliUrl } from "@/utils/bilibili";
 import { isYoutubeUrl } from "@/utils/youtube/parser";
 import ResizeCircle from "../ResizeCircle";
@@ -63,6 +65,12 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
     return isYoutubeUrl(src);
   }, [src, metaInfo]);
 
+  const isNotion = useMemo(() => {
+    if (!src) return false;
+    if (metaInfo && (metaInfo as any).type === "notion") return true;
+    return false; // Notion 视频没有 URL 特征，只能通过 metaInfo 判断
+  }, [src, metaInfo]);
+
   const {
     videoUrl: bilibiliVideoUrl,
     loading: bilibiliLoading,
@@ -79,6 +87,15 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
     streamProgress: youtubeProgress,
   } = useYoutubeVideo(
     (metaInfo as any)?.type === "youtube" ? (metaInfo as any) : undefined,
+  );
+
+  const {
+    videoUrl: notionVideoUrl,
+    loading: notionLoading,
+    error: notionError,
+    streamProgress: notionProgress,
+  } = useNotionVideo(
+    (metaInfo as any)?.type === "notion" ? (metaInfo as any) : undefined,
   );
 
   const board = useBoard();
@@ -187,7 +204,25 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
             </If>
           </>
         </If>
-        <If condition={!isBilibili && !isYoutube}>
+        <If condition={isNotion}>
+          <>
+            <NotionVideoLoader
+              loading={notionLoading}
+              error={notionError}
+              streamProgress={notionProgress}
+            />
+            <If condition={!!notionVideoUrl && !notionLoading && !notionError}>
+              <LocalVideo
+                src={notionVideoUrl as string}
+                controls
+                style={{ padding: 16, boxSizing: "border-box" }}
+                width={"100%"}
+                height={"100%"}
+              />
+            </If>
+          </>
+        </If>
+        <If condition={!isBilibili && !isYoutube && !isNotion}>
           <LocalVideo
             src={src}
             controls

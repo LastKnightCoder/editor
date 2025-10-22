@@ -22,6 +22,8 @@ import youtubeCacheModule from "./modules/youtube-cache";
 import typstModule from "./modules/typst";
 import userSettingModule from "./modules/user-setting";
 import pomodoroModule from "./modules/pomodoro";
+import notionModule from "./modules/notion";
+import notionCacheModule from "./modules/notion-cache";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -195,6 +197,8 @@ const initModules = async () => {
       bilibiliCacheModule.init(),
       youtubeCacheModule.init(),
       typstModule.init(),
+      notionModule.init(),
+      notionCacheModule.init(),
     ]);
 
     const backendServer = new BackendWebSocketServer(24678);

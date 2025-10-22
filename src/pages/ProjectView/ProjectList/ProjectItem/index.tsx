@@ -50,6 +50,8 @@ import useAddRefCard from "./useAddRefCard";
 import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
 import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
+import { getNotionBlockInfo } from "@/commands/notion";
+import { parseNotionBlockId } from "@/utils/notion";
 import ytdl from "@distube/ytdl-core";
 
 import SVG from "react-inlinesvg";
@@ -200,6 +202,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [qualityLoading, setQualityLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [notionModalOpen, setNotionModalOpen] = useState(false);
+  const [notionInput, setNotionInput] = useState("");
+  const [notionTitle, setNotionTitle] = useState("");
+  const [notionLoading, setNotionLoading] = useState(false);
 
   const { updateProject, activeProjectItemId } = useProjectsStore((state) => ({
     updateProject: state.updateProject,
@@ -933,6 +939,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           key: "add-youtube-video-note-project-item",
           label: "YouTube 视频",
         },
+        {
+          key: "add-notion-video-note-project-item",
+          label: "Notion 视频",
+        },
       ],
     },
     {
@@ -1080,6 +1090,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         setBilibiliModalOpen(true);
       } else if (key === "add-youtube-video-note-project-item") {
         setYoutubeModalOpen(true);
+      } else if (key === "add-notion-video-note-project-item") {
+        setNotionModalOpen(true);
       } else if (key === "add-webview-project-item") {
         setWebviewModalOpen(true);
       } else if (key === "add-table-project-item") {
@@ -1935,6 +1947,146 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               />
             </div>
           )}
+      </Modal>
+
+      <Modal
+        open={notionModalOpen}
+        title="添加 Notion 视频笔记"
+        onCancel={() => {
+          setNotionModalOpen(false);
+          setNotionInput("");
+          setNotionTitle("");
+          setNotionLoading(false);
+        }}
+        confirmLoading={notionLoading}
+        onOk={async () => {
+          if (!projectItem || !projectId) {
+            message.error("项目文档尚未加载完成");
+            return;
+          }
+
+          if (!notionInput.trim()) {
+            message.error("请输入 Notion 视频区块 ID 或链接");
+            return;
+          }
+
+          if (!notionTitle.trim()) {
+            message.error("请输入视频标题");
+            return;
+          }
+
+          setNotionLoading(true);
+
+          try {
+            // 解析 blockId
+            const blockId = parseNotionBlockId(notionInput);
+            if (!blockId) {
+              message.error("无法解析 Block ID，请检查输入格式");
+              setNotionLoading(false);
+              return;
+            }
+
+            // 获取 Notion token
+            const token = setting.integration.notion.token;
+            if (!token || !setting.integration.notion.enabled) {
+              message.error("请先在设置中配置 Notion 集成");
+              setNotionLoading(false);
+              return;
+            }
+
+            // 验证是否为视频区块
+            const blockInfo = await getNotionBlockInfo(token, blockId);
+            if (!blockInfo.success) {
+              message.error(blockInfo.error || "获取区块信息失败");
+              setNotionLoading(false);
+              return;
+            }
+
+            if (blockInfo.blockType !== "video") {
+              message.error(
+                `该区块不是视频类型，而是 ${blockInfo.blockType} 类型`,
+              );
+              setNotionLoading(false);
+              return;
+            }
+
+            // 创建 Notion 视频笔记
+            const item = await createEmptyVideoNote({
+              type: "notion",
+              blockId: blockId,
+            });
+
+            if (!item) {
+              message.error("创建视频笔记失败");
+              setNotionLoading(false);
+              return;
+            }
+
+            const createProjectItem: CreateProjectItem = {
+              title: notionTitle.trim(),
+              content: [],
+              children: [],
+              refType: "video-note",
+              refId: item.id,
+              projectItemType: EProjectItemType.VideoNote,
+              count: 0,
+              whiteBoardContentId: 0,
+            };
+
+            const [parentProjectItem] = await addChildProjectItem(
+              projectItemId,
+              createProjectItem,
+            );
+
+            if (parentProjectItem) {
+              setProjectItem(parentProjectItem);
+              projectItemEventBus.publishProjectItemEvent(
+                "project-item:updated",
+                parentProjectItem,
+              );
+            }
+
+            setNotionModalOpen(false);
+            setNotionInput("");
+            setNotionTitle("");
+            message.success("Notion 视频笔记添加成功！");
+          } catch (error) {
+            console.error("添加 Notion 视频失败:", error);
+            message.error("添加 Notion 视频失败，请检查 Block ID 是否正确");
+          } finally {
+            setNotionLoading(false);
+          }
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Input.TextArea
+            placeholder="请输入 Notion 视频区块 ID 或链接&#10;例如：&#10;- 3b628e1d-84da-4c6c-900d-b6e4a28532e1&#10;- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1"
+            value={notionInput}
+            onChange={(e) => setNotionInput(e.target.value)}
+            rows={4}
+            autoFocus
+          />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <Input
+            placeholder="请输入视频标题（必填）"
+            value={notionTitle}
+            onChange={(e) => setNotionTitle(e.target.value)}
+          />
+        </div>
+
+        <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+          <p>支持的输入格式：</p>
+          <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
+            <li>Block ID: 3b628e1d-84da-4c6c-900d-b6e4a28532e1</li>
+            <li>Notion 链接（包含 # 后的 ID）</li>
+          </ul>
+          <p style={{ marginTop: 8 }}>
+            注意：请确保已在 Notion 集成设置中配置
+            Token，并且该集成有权限访问包含视频的页面。
+          </p>
+        </div>
       </Modal>
 
       {isPresentation &&
