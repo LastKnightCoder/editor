@@ -3,6 +3,7 @@ import {
   ipcMain,
   screen,
   BrowserWindowConstructorOptions,
+  app,
 } from "electron";
 import path from "node:path";
 import log from "electron-log";
@@ -189,6 +190,27 @@ export class WindowManager {
     });
   }
 
+  // 检查是否应该退出应用（Windows平台特定）
+  public checkAndQuitIfNeeded() {
+    // 仅在 Windows 平台检查
+    if (process.platform !== "win32") {
+      return;
+    }
+
+    const allWindows = BrowserWindow.getAllWindows();
+
+    // 如果只剩下一个窗口，且是沉浸式窗口，且它是隐藏的，则退出
+    if (
+      allWindows.length === 1 &&
+      this.pomodoroImmersiveWindow &&
+      !this.pomodoroImmersiveWindow.isDestroyed() &&
+      !this.pomodoroImmersiveWindow.isVisible()
+    ) {
+      log.info("Windows平台：只剩隐藏的沉浸式窗口，退出应用");
+      app.quit();
+    }
+  }
+
   // 创建主窗口
   public createMainWindow() {
     const win = new BrowserWindow({
@@ -236,6 +258,10 @@ export class WindowManager {
 
     win.on("blur", () => {
       win.webContents.send("window-blur");
+    });
+
+    win.on("closed", () => {
+      this.checkAndQuitIfNeeded();
     });
 
     win.webContents.on(
@@ -289,6 +315,10 @@ export class WindowManager {
 
     win.on("blur", () => {
       win.webContents.send("window-blur");
+    });
+
+    win.on("closed", () => {
+      this.checkAndQuitIfNeeded();
     });
 
     // 添加错误处理
