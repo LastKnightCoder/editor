@@ -36,6 +36,7 @@ import QuestionGroupTable from "./tables/question-group";
 import ShortcutTable from "./tables/shortcut";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import PomodoroSessionTable from "./tables/pomodoro-session";
+import NotionSyncTable from "./tables/notion-sync";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -109,6 +110,7 @@ class DatabaseModule implements Module {
       ShortcutTable,
       PomodoroPresetTable,
       PomodoroSessionTable,
+      NotionSyncTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

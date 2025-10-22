@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { Descendant } from "slate";
 import {
   Dropdown,
   Empty,
@@ -66,10 +67,15 @@ import {
 } from "@/utils/bilibili";
 import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
-import { getNotionBlockInfo } from "@/commands/notion";
+import { getNotionBlockInfo, createNotionPage } from "@/commands/notion";
 import { parseNotionBlockId } from "@/utils/notion";
 import useSettingStore from "@/stores/useSettingStore";
 import ytdl from "@distube/ytdl-core";
+import NotionSyncModal, {
+  NotionSyncConfig,
+} from "@/components/NotionSyncModal";
+import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
+import { generateContentHash } from "@/utils/content-hash";
 
 const Project = () => {
   const { message } = App.useApp();
@@ -129,6 +135,7 @@ const Project = () => {
   const [notionInput, setNotionInput] = useState("");
   const [notionTitle, setNotionTitle] = useState("");
   const [notionLoading, setNotionLoading] = useState(false);
+  const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
 
   const onFoldSidebar = useMemoizedFn(() => {
     useProjectsStore.setState({
@@ -359,10 +366,128 @@ const Project = () => {
     },
   );
 
+  const handleNotionSyncModalOk = useMemoizedFn(
+    async (config: NotionSyncConfig) => {
+      if (!project) return;
+
+      const token = setting.integration.notion.token;
+      if (!token || !setting.integration.notion.enabled) {
+        message.error("请先在设置中配置 Notion 集成");
+        return;
+      }
+
+      try {
+        let pageId = config.pageId;
+        const pageTitle = config.pageTitle || "新文档";
+
+        // 如果需要创建新页面
+        if (config.createNew && config.parentId) {
+          const result = await createNotionPage(
+            token,
+            config.parentId,
+            pageTitle,
+            [],
+          );
+
+          if (!result.success || !result.pageId) {
+            message.error(result.error || "创建 Notion 页面失败");
+            return;
+          }
+
+          pageId = result.pageId;
+        }
+
+        // 创建初始内容
+        const initialContent: Descendant[] = [
+          {
+            type: "paragraph",
+            children: [{ type: "formatted", text: "" }],
+          },
+        ];
+
+        // 计算内容哈希
+        const contentHash = generateContentHash(initialContent);
+
+        // 创建 NotionSync 记录
+        const notionSync = await createNotionSync({
+          pageId,
+          syncMode: config.syncMode,
+          lastLocalContentHash: contentHash,
+          pendingSync: false,
+        });
+
+        // 立即同步初始内容到 Notion，避免创建后检测到冲突
+        try {
+          if (config.syncMode === "json") {
+            // JSON 模式：创建代码块
+            const jsonContent = JSON.stringify(initialContent, null, 2);
+            const { appendNotionBlock } = await import("@/commands/notion");
+            const result = await appendNotionBlock(token, pageId, {
+              type: "code",
+              code: {
+                rich_text: [
+                  {
+                    type: "text",
+                    text: { content: jsonContent },
+                  },
+                ],
+                language: "javascript",
+              },
+            });
+
+            // 如果创建成功，更新 codeBlockId
+            if (result.success && result.blockId) {
+              await updateNotionSync(notionSync.id, {
+                codeBlockId: result.blockId,
+              });
+            }
+          }
+          // 双向模式下，空内容不需要同步
+        } catch (syncError) {
+          console.warn("初始同步失败，将在编辑时重试:", syncError);
+        }
+
+        // 创建 ProjectItem
+        const createProjectItem: CreateProjectItem = {
+          title: pageTitle,
+          content: initialContent,
+          children: [],
+          refType: "notion-sync",
+          refId: notionSync.id,
+          projectItemType: EProjectItemType.Document,
+          count: 0,
+          whiteBoardContentId: 0,
+        };
+
+        const [newProject, item] = await addRootProjectItem(
+          project.id,
+          createProjectItem,
+        );
+
+        if (item) {
+          useProjectsStore.setState({
+            activeProjectItemId: item.id,
+          });
+        }
+
+        setProject(newProject);
+        setNotionSyncModalOpen(false);
+        message.success("Notion 文档创建成功！");
+      } catch (error: any) {
+        console.error("创建 Notion 文档失败:", error);
+        message.error(error.message || "创建失败");
+      }
+    },
+  );
+
   const addMenuItems: MenuProps["items"] = [
     {
       key: "add-project-item",
       label: "添加文档",
+    },
+    {
+      key: "add-notion-document-project-item",
+      label: "添加 Notion 文档",
     },
     {
       key: "add-white-board-project-item",
@@ -445,6 +570,8 @@ const Project = () => {
           });
         }
         setProject(newProject);
+      } else if (key === "add-notion-document-project-item") {
+        setNotionSyncModalOpen(true);
       } else if (key === "add-white-board-project-item") {
         const whiteBoardContent = await createWhiteBoardContent({
           name: "新白板",
@@ -1235,6 +1362,13 @@ const Project = () => {
               </p>
             </div>
           </Modal>
+
+          <NotionSyncModal
+            open={notionSyncModalOpen}
+            token={setting.integration.notion.token}
+            onOk={handleNotionSyncModalOk}
+            onCancel={() => setNotionSyncModalOpen(false)}
+          />
         </div>
       </ResizeableAndHideableSidebar>
     </ProjectContext.Provider>
