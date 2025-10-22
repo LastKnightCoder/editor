@@ -1,0 +1,59 @@
+.container {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+}
+
+.statusButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 13px;
+  border: 1px solid transparent;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  &.synced {
+    color: #52c41a;
+
+    .iconSynced {
+      color: #52c41a;
+    }
+  }
+
+  &.syncing {
+    color: #1890ff;
+
+    .iconSyncing {
+      color: #1890ff;
+    }
+  }
+
+  &.error {
+    color: #ff4d4f;
+    border-color: #ffccc7;
+    background-color: #fff1f0;
+
+    .iconError {
+      color: #ff4d4f;
+    }
+  }
+
+  &.pending {
+    color: #faad14;
+
+    .iconPending {
+      color: #faad14;
+    }
+  }
+}
+
+.statusText {
+  line-height: 1;
+}

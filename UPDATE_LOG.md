@@ -704,3 +704,4 @@
 
 - feat: 添加番茄专注
 - feat: 支持 Notion 视频
+- feat: 支持 Notion 文档的同步

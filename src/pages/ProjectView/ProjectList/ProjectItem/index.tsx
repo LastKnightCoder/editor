@@ -38,6 +38,9 @@ import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
+import NotionSyncModal, {
+  NotionSyncConfig,
+} from "@/components/NotionSyncModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore";
@@ -50,8 +53,15 @@ import useAddRefCard from "./useAddRefCard";
 import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
 import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
-import { getNotionBlockInfo } from "@/commands/notion";
+import {
+  getNotionBlockInfo,
+  createNotionPage,
+  appendNotionBlock,
+} from "@/commands/notion";
 import { parseNotionBlockId } from "@/utils/notion";
+import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
+import { generateContentHash } from "@/utils/content-hash";
+import { Descendant } from "slate";
 import ytdl from "@distube/ytdl-core";
 
 import SVG from "react-inlinesvg";
@@ -206,6 +216,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [notionInput, setNotionInput] = useState("");
   const [notionTitle, setNotionTitle] = useState("");
   const [notionLoading, setNotionLoading] = useState(false);
+  const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
 
   const { updateProject, activeProjectItemId } = useProjectsStore((state) => ({
     updateProject: state.updateProject,
@@ -772,6 +783,120 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     }
   }, [projectItem?.projectItemType, projectItem?.refType, isShortcut]);
 
+  const handleNotionSyncModalOk = useMemoizedFn(
+    async (config: NotionSyncConfig) => {
+      if (!projectItem) return;
+
+      const token = setting.integration.notion.token;
+      if (!token || !setting.integration.notion.enabled) {
+        message.error("请先在设置中配置 Notion 集成");
+        return;
+      }
+
+      try {
+        let pageId = config.pageId;
+        const pageTitle = config.pageTitle || "新文档";
+
+        // 如果需要创建新页面
+        if (config.createNew && config.parentId) {
+          const result = await createNotionPage(
+            token,
+            config.parentId,
+            pageTitle,
+            [],
+          );
+
+          if (!result.success || !result.pageId) {
+            message.error(result.error || "创建 Notion 页面失败");
+            return;
+          }
+
+          pageId = result.pageId;
+        }
+
+        // 创建初始内容
+        const initialContent: Descendant[] = [
+          {
+            type: "paragraph",
+            children: [{ type: "formatted", text: "" }],
+          } as any,
+        ];
+
+        // 计算内容哈希
+        const contentHash = generateContentHash(initialContent);
+
+        // 创建 NotionSync 记录
+        const notionSync = await createNotionSync({
+          pageId,
+          syncMode: config.syncMode,
+          lastLocalContentHash: contentHash,
+          pendingSync: false,
+        });
+
+        // 立即同步初始内容到 Notion，避免创建后检测到冲突
+        try {
+          if (config.syncMode === "json") {
+            // JSON 模式：创建代码块
+            const jsonContent = JSON.stringify(initialContent, null, 2);
+            const result = await appendNotionBlock(token, pageId, {
+              type: "code",
+              code: {
+                rich_text: [
+                  {
+                    type: "text",
+                    text: { content: jsonContent },
+                  },
+                ],
+                language: "javascript",
+              },
+            });
+
+            // 如果创建成功，更新 codeBlockId
+            if (result.success && result.blockId) {
+              await updateNotionSync(notionSync.id, {
+                codeBlockId: result.blockId,
+              });
+            }
+          }
+          // 双向模式下，空内容不需要同步
+        } catch (syncError) {
+          console.warn("初始同步失败，将在编辑时重试:", syncError);
+        }
+
+        // 创建 ProjectItem
+        const createProjectItem: CreateProjectItem = {
+          title: pageTitle,
+          content: initialContent,
+          children: [],
+          refType: "notion-sync",
+          refId: notionSync.id,
+          projectItemType: EProjectItemType.Document,
+          count: 0,
+          whiteBoardContentId: 0,
+        };
+
+        const [parentProjectItem] = await addChildProjectItem(
+          projectItemId,
+          createProjectItem,
+        );
+
+        if (parentProjectItem) {
+          setProjectItem(parentProjectItem);
+          projectItemEventBus.publishProjectItemEvent(
+            "project-item:updated",
+            parentProjectItem,
+          );
+        }
+
+        setNotionSyncModalOpen(false);
+        message.success("Notion 文档创建成功！");
+      } catch (error) {
+        console.error("创建 Notion 文档失败:", error);
+        message.error("创建 Notion 文档失败");
+      }
+    },
+  );
+
   const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
     async ({ key }) => {
       if (key === "toggle-shortcut") {
@@ -916,6 +1041,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       label: "添加文档",
     },
     {
+      key: "add-notion-document",
+      label: "添加 Notion 文档",
+    },
+    {
       key: "add-white-board-project-item",
       label: "添加白板",
     },
@@ -1001,6 +1130,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             parentProjectItem,
           );
         }
+      } else if (key === "add-notion-document") {
+        setNotionSyncModalOpen(true);
       } else if (key === "add-white-board-project-item") {
         if (!projectItemId) return;
         const whiteBoardContent = await createWhiteBoardContent({
@@ -2088,6 +2219,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           </p>
         </div>
       </Modal>
+
+      <NotionSyncModal
+        open={notionSyncModalOpen}
+        token={setting.integration.notion.token}
+        onOk={handleNotionSyncModalOk}
+        onCancel={() => setNotionSyncModalOpen(false)}
+      />
 
       {isPresentation &&
         projectItem &&

@@ -33,3 +33,4 @@ export * from "./data-table";
 export * from "./typst";
 export * from "./shortcut";
 export * from "./pomodoro";
+export * from "./notion-sync";
