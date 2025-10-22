@@ -25,11 +25,17 @@ export interface YouTubeVideoMetaInfo {
   audioFormat: ytdl.videoFormat;
 }
 
+export interface NotionVideoMetaInfo {
+  type: "notion";
+  blockId: string;
+}
+
 type VideoMetaInfo =
   | LocalVideoMetaInfo
   | RemoteVideoMetaInfo
   | BiliBiliVideoMetaInfo
-  | YouTubeVideoMetaInfo;
+  | YouTubeVideoMetaInfo
+  | NotionVideoMetaInfo;
 
 export interface VideoNote {
   id: number;

@@ -28,9 +28,13 @@ import LocalVideo from "@/components/LocalVideo";
 import If from "@/components/If";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
+import NotionVideoLoader from "@/components/NotionVideoLoader";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
+import { useNotionVideo } from "@/hooks/useNotionVideo";
 import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
+import { parseNotionBlockId } from "@/utils/notion";
+import { getNotionBlockInfo } from "@/commands/notion";
 import {
   isBilibiliUrl,
   quickCheckBilibiliUrl,
@@ -45,6 +49,7 @@ import ytdl from "@distube/ytdl-core";
 import type {
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
+  NotionVideoMetaInfo,
   LocalVideoMetaInfo,
   RemoteVideoMetaInfo,
 } from "@/types";
@@ -55,6 +60,7 @@ function isBiliMetaInfo(
   m?:
     | BiliBiliVideoMetaInfo
     | YouTubeVideoMetaInfo
+    | NotionVideoMetaInfo
     | LocalVideoMetaInfo
     | RemoteVideoMetaInfo,
 ): m is BiliBiliVideoMetaInfo {
@@ -65,10 +71,22 @@ function isYoutubeMetaInfo(
   m?:
     | BiliBiliVideoMetaInfo
     | YouTubeVideoMetaInfo
+    | NotionVideoMetaInfo
     | LocalVideoMetaInfo
     | RemoteVideoMetaInfo,
 ): m is YouTubeVideoMetaInfo {
   return !!m && (m as YouTubeVideoMetaInfo).type === "youtube";
+}
+
+function isNotionMetaInfo(
+  m?:
+    | BiliBiliVideoMetaInfo
+    | YouTubeVideoMetaInfo
+    | NotionVideoMetaInfo
+    | LocalVideoMetaInfo
+    | RemoteVideoMetaInfo,
+): m is NotionVideoMetaInfo {
+  return !!m && (m as NotionVideoMetaInfo).type === "notion";
 }
 
 const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
@@ -116,6 +134,11 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   >(undefined);
   const ytDebounceRef = useRef<number | null>(null);
 
+  const [notionModalOpen, setNotionModalOpen] = useState(false);
+  const [notionInput, setNotionInput] = useState("");
+  const [notionTitle, setNotionTitle] = useState("");
+  const [notionLoading, setNotionLoading] = useState(false);
+
   const setting = useSettingStore.getState().setting;
 
   const isBilibili = useMemo(
@@ -126,12 +149,18 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     () => !!element.src && isYoutubeUrl(element.src),
     [element.src],
   );
+  const isNotion = useMemo(() => {
+    return isNotionMetaInfo(element.metaInfo);
+  }, [element.metaInfo]);
 
   const biliMeta = isBiliMetaInfo(element.metaInfo)
     ? (element.metaInfo as BiliBiliVideoMetaInfo)
     : null;
   const ytMeta = isYoutubeMetaInfo(element.metaInfo)
     ? (element.metaInfo as YouTubeVideoMetaInfo)
+    : undefined;
+  const notionMeta = isNotionMetaInfo(element.metaInfo)
+    ? (element.metaInfo as NotionVideoMetaInfo)
     : undefined;
 
   const {
@@ -154,6 +183,13 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     error: youtubeError,
     streamProgress: youtubeProgress,
   } = useYoutubeVideo(ytMeta);
+
+  const {
+    videoUrl: notionVideoUrl,
+    loading: notionVideoLoading,
+    error: notionVideoError,
+    streamProgress: notionProgress,
+  } = useNotionVideo(notionMeta);
 
   const { drag, drop, isDragging, isBefore, isOverCurrent, canDrop, canDrag } =
     useDragAndDrop({
@@ -500,6 +536,12 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             >
               YouTube
             </Button>
+            <Button
+              disabled={readOnly}
+              onClick={() => setNotionModalOpen(true)}
+            >
+              Notion
+            </Button>
           </Flex>
         </Flex>
       </Empty>
@@ -577,7 +619,37 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
               )}
             </If>
 
-            <If condition={!isBilibili && !isYoutube}>
+            <If condition={isNotion}>
+              {notionMeta ? (
+                <>
+                  <NotionVideoLoader
+                    loading={notionVideoLoading}
+                    error={notionVideoError}
+                    streamProgress={notionProgress}
+                  />
+                  <If
+                    condition={
+                      !!notionVideoUrl &&
+                      !notionVideoLoading &&
+                      !notionVideoError
+                    }
+                  >
+                    <LocalVideo
+                      width={"100%"}
+                      controls
+                      src={notionVideoUrl as string}
+                      playbackRate={playbackRate}
+                    />
+                  </If>
+                </>
+              ) : (
+                <div style={{ color: "#ff4d4f", padding: 8 }}>
+                  缺少 Notion metaInfo，请通过添加视频入口创建
+                </div>
+              )}
+            </If>
+
+            <If condition={!isBilibili && !isYoutube && !isNotion}>
               <LocalVideo
                 width={"100%"}
                 controls
@@ -730,6 +802,120 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             />
           </div>
         ) : null}
+      </Modal>
+
+      {/* Notion 视频输入弹窗 */}
+      <Modal
+        open={notionModalOpen}
+        title={"添加 Notion 视频"}
+        confirmLoading={notionLoading}
+        onCancel={() => {
+          setNotionModalOpen(false);
+          setNotionInput("");
+          setNotionTitle("");
+          setNotionLoading(false);
+        }}
+        onOk={async () => {
+          if (!notionInput.trim()) {
+            message.error("请输入 Notion 视频区块 ID 或链接");
+            return;
+          }
+
+          if (!notionTitle.trim()) {
+            message.error("请输入视频标题");
+            return;
+          }
+
+          setNotionLoading(true);
+
+          try {
+            // 解析 blockId
+            const blockId = parseNotionBlockId(notionInput);
+            if (!blockId) {
+              message.error("无法解析 Block ID，请检查输入格式");
+              setNotionLoading(false);
+              return;
+            }
+
+            // 获取 Notion token
+            const token = setting.integration.notion.token;
+            if (!token || !setting.integration.notion.enabled) {
+              message.error("请先在设置中配置 Notion 集成");
+              setNotionLoading(false);
+              return;
+            }
+
+            // 获取区块信息
+            const blockInfo = await getNotionBlockInfo(token, blockId);
+            if (!blockInfo.success) {
+              message.error(blockInfo.error || "获取 Notion 区块信息失败");
+              setNotionLoading(false);
+              return;
+            }
+
+            if (blockInfo.blockType !== "video") {
+              message.error(
+                `该区块不是视频类型，而是 ${blockInfo.blockType} 类型`,
+              );
+              setNotionLoading(false);
+              return;
+            }
+
+            // 设置 element 的 metaInfo
+            const path = ReactEditor.findPath(editor, element);
+            Transforms.setNodes<VideoElement>(
+              editor,
+              {
+                metaInfo: {
+                  type: "notion",
+                  blockId: blockId,
+                } as NotionVideoMetaInfo,
+                src: `notion://${blockId}`,
+              },
+              { at: path },
+            );
+
+            setNotionModalOpen(false);
+            setNotionInput("");
+            setNotionTitle("");
+            message.success("Notion 视频添加成功！");
+          } catch (error) {
+            console.error("添加 Notion 视频失败:", error);
+            message.error("添加 Notion 视频失败，请检查 Block ID 是否正确");
+          } finally {
+            setNotionLoading(false);
+          }
+        }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Input.TextArea
+            placeholder="请输入 Notion 视频区块 ID 或链接&#10;例如：&#10;- 3b628e1d-84da-4c6c-900d-b6e4a28532e1&#10;- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1"
+            value={notionInput}
+            onChange={(e) => setNotionInput(e.target.value)}
+            rows={4}
+            autoFocus
+          />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <Input
+            placeholder="请输入视频标题（必填）"
+            value={notionTitle}
+            onChange={(e) => setNotionTitle(e.target.value)}
+          />
+        </div>
+
+        <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+          <p>支持的输入格式：</p>
+          <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
+            <li>Block ID: 3b628e1d-84da-4c6c-900d-b6e4a28532e1</li>
+            <li>Notion 链接（包含 # 后的 ID）</li>
+          </ul>
+          <p style={{ marginTop: 8 }}>
+            注意：请确保已在 Notion 集成设置中配置
+            Token，并且该集成有权限访问包含视频的页面。
+          </p>
+        </div>
       </Modal>
     </div>
   );

@@ -27,6 +27,8 @@ import {
 } from "@/utils/bilibili";
 import { isYoutubeUrl, parseYoutubeUrl } from "@/utils/youtube/parser";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
+import { parseNotionBlockId } from "@/utils/notion";
+import { getNotionBlockInfo } from "@/commands/notion";
 import useSettingStore from "@/stores/useSettingStore";
 import ytdl from "@distube/ytdl-core";
 
@@ -92,6 +94,10 @@ const Video = (props: ImageProps) => {
     undefined,
   );
   const [ytDebounceId, setYtDebounceId] = useState<number | null>(null);
+
+  const [notionInput, setNotionInput] = useState("");
+  const [notionTitle, setNotionTitle] = useState("");
+  const [notionLoading, setNotionLoading] = useState(false);
 
   const onUrlChange = useMemoizedFn(async (value: string) => {
     setUrl(value);
@@ -186,6 +192,63 @@ const Video = (props: ImageProps) => {
         }
       }, 800);
       setYtDebounceId(id);
+    }
+  });
+
+  const onNotionConfirm = useMemoizedFn(async () => {
+    setNotionLoading(true);
+    try {
+      if (!notionInput.trim()) {
+        message.error("请输入 Notion 视频区块 ID 或链接");
+        return;
+      }
+
+      if (!notionTitle.trim()) {
+        message.error("请输入视频标题");
+        return;
+      }
+
+      // 解析 blockId
+      const blockId = parseNotionBlockId(notionInput);
+      if (!blockId) {
+        message.error("无法解析 Block ID，请检查输入格式");
+        return;
+      }
+
+      // 获取 Notion token
+      const token = setting.integration.notion.token;
+      if (!token || !setting.integration.notion.enabled) {
+        message.error("请先在设置中配置 Notion 集成");
+        return;
+      }
+
+      // 获取区块信息
+      const blockInfo = await getNotionBlockInfo(token, blockId);
+      if (!blockInfo.success) {
+        message.error(blockInfo.error || "获取 Notion 区块信息失败");
+        return;
+      }
+
+      if (blockInfo.blockType !== "video") {
+        message.error(`该区块不是视频类型，而是 ${blockInfo.blockType} 类型`);
+        return;
+      }
+
+      // 插入视频
+      await VideoUtil.insertVideoFromMeta(board, {
+        type: "notion",
+        blockId: blockId,
+      });
+
+      setPopoverOpen(false);
+      setNotionInput("");
+      setNotionTitle("");
+      message.success("Notion 视频添加成功！");
+    } catch (error) {
+      console.error("添加 Notion 视频失败:", error);
+      message.error("添加 Notion 视频失败，请检查 Block ID 是否正确");
+    } finally {
+      setNotionLoading(false);
     }
   });
 
@@ -391,6 +454,41 @@ const Video = (props: ImageProps) => {
                         loading={confirmLoading}
                         onClick={onConfirm}
                       >
+                        添加
+                      </Button>
+                    </Flex>
+                  ),
+                },
+                {
+                  key: "notion",
+                  label: "Notion",
+                  children: (
+                    <Flex vertical gap={8}>
+                      <Input.TextArea
+                        placeholder="请输入 Notion 视频区块 ID 或链接&#10;例如：&#10;- 3b628e1d-84da-4c6c-900d-b6e4a28532e1&#10;- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1"
+                        value={notionInput}
+                        onChange={(e) => setNotionInput(e.target.value)}
+                        rows={4}
+                      />
+                      <Input
+                        placeholder="请输入视频标题（必填）"
+                        value={notionTitle}
+                        onChange={(e) => setNotionTitle(e.target.value)}
+                      />
+                      <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+                        <p>支持的输入格式：</p>
+                        <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
+                          <li>
+                            Block ID: 3b628e1d-84da-4c6c-900d-b6e4a28532e1
+                          </li>
+                          <li>Notion 链接（包含 # 后的 ID）</li>
+                        </ul>
+                        <p style={{ marginTop: 8 }}>
+                          注意：请确保已在 Notion 集成设置中配置
+                          Token，并且该集成有权限访问包含视频的页面。
+                        </p>
+                      </div>
+                      <Button loading={notionLoading} onClick={onNotionConfirm}>
                         添加
                       </Button>
                     </Flex>

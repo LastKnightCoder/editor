@@ -166,6 +166,16 @@ export interface ISetting {
       enabled: boolean;
       proxy: string;
     };
+    notion: {
+      enabled: boolean;
+      token: string;
+      userInfo: {
+        name: string;
+        email: string;
+        avatar: string;
+        isConnected: boolean;
+      };
+    };
   };
 }
 
@@ -193,6 +203,11 @@ interface IActions {
   setBilibiliEnabled: (enabled: boolean) => void;
   setYoutubeEnabled: (enabled: boolean) => void;
   updateYoutubeProxy: (proxy: string) => void;
+  updateNotionToken: (token: string) => void;
+  updateNotionUserInfo: (
+    userInfo: ISetting["integration"]["notion"]["userInfo"],
+  ) => void;
+  setNotionEnabled: (enabled: boolean) => void;
 }
 
 const initialState: IState = {
@@ -328,6 +343,16 @@ const initialState: IState = {
         enabled: false,
         proxy: "",
       },
+      notion: {
+        enabled: false,
+        token: "",
+        userInfo: {
+          name: "",
+          email: "",
+          avatar: "",
+          isConnected: false,
+        },
+      },
     },
   },
   settingModalOpen: false,
@@ -430,6 +455,30 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.youtube.proxy = proxy;
+      }),
+    });
+  },
+  updateNotionToken: (token) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.notion.token = token;
+      }),
+    });
+  },
+  updateNotionUserInfo: (userInfo) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.notion.userInfo = userInfo;
+      }),
+    });
+  },
+  setNotionEnabled: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.notion.enabled = enabled;
       }),
     });
   },

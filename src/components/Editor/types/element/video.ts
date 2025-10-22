@@ -2,6 +2,7 @@ import { Descendant } from "slate";
 import type {
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
+  NotionVideoMetaInfo,
   LocalVideoMetaInfo,
   RemoteVideoMetaInfo,
 } from "@/types";
@@ -15,6 +16,7 @@ export interface VideoElement {
     | LocalVideoMetaInfo
     | RemoteVideoMetaInfo
     | BiliBiliVideoMetaInfo
-    | YouTubeVideoMetaInfo;
+    | YouTubeVideoMetaInfo
+    | NotionVideoMetaInfo;
   children: Descendant[];
 }

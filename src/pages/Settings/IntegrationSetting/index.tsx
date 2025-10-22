@@ -2,6 +2,7 @@ import React from "react";
 import { Row, Typography, Divider } from "antd";
 import BilibiliSetting from "./BilibiliSetting";
 import YouTubeSetting from "./YouTubeSetting";
+import NotionSetting from "./NotionSetting";
 
 import styles from "./index.module.less";
 import ContainerCol from "@/components/ContainerCol";
@@ -27,6 +28,9 @@ const IntegrationSetting: React.FC = () => {
           </ContainerCol>
           <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
             <YouTubeSetting />
+          </ContainerCol>
+          <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
+            <NotionSetting />
           </ContainerCol>
         </Row>
       </div>

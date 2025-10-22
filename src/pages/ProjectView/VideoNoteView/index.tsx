@@ -3,14 +3,17 @@ import {
   type VideoNote as IVideoNote,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
+  NotionVideoMetaInfo,
 } from "@/types";
 import VideoNote from "@/components/VideoNote";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
+import NotionVideoLoader from "@/components/NotionVideoLoader";
 import styles from "./index.module.less";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
+import { useNotionVideo } from "@/hooks/useNotionVideo";
 import { useVideoNoteOperations } from "@/hooks/useVideoNoteOperations";
 
 interface IVideoNoteViewProps {
@@ -34,6 +37,13 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     error: youtubeError,
     streamProgress: youtubeStreamProgress,
   } = useYoutubeVideo(videoNote?.metaInfo as YouTubeVideoMetaInfo);
+
+  const {
+    videoUrl: notionVideoUrl,
+    loading: notionLoading,
+    error: notionError,
+    streamProgress: notionStreamProgress,
+  } = useNotionVideo(videoNote?.metaInfo as NotionVideoMetaInfo);
 
   const {
     refreshVideoNote,
@@ -108,6 +118,28 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         {youtubeVideoUrl && !youtubeLoading && !youtubeError && (
           <VideoNote
             videoSrc={youtubeVideoUrl}
+            initialNotes={videoNote.notes}
+            uploadResource={uploadResource}
+            addSubNote={handleAddSubNote}
+            deleteSubNote={handleDeleteSubNote}
+            updateNotes={updateNotes}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (videoNote.metaInfo.type === "notion") {
+    return (
+      <div className={styles.container}>
+        <NotionVideoLoader
+          loading={notionLoading}
+          error={notionError}
+          streamProgress={notionStreamProgress}
+        />
+        {notionVideoUrl && !notionLoading && !notionError && (
+          <VideoNote
+            videoSrc={notionVideoUrl}
             initialNotes={videoNote.notes}
             uploadResource={uploadResource}
             addSubNote={handleAddSubNote}
