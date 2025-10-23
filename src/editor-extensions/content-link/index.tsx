@@ -6,7 +6,9 @@ import { InlineElement } from "@/components/Editor/types";
 import ContentLink from "./components/ContentLink";
 
 import { withSetting, normalize } from "./plugins";
+import { withMentionCommands } from "./plugins/withMentionCommands";
 import hoveringBarConfigs from "./hovering-bar-configs";
+import { mentionCommandConfig } from "./hotkeys/mentionCommand";
 
 export interface ContentLinkElement {
   type: "content-link";
@@ -21,7 +23,11 @@ class ContentLinkExtension extends Base implements IExtension {
   type = "content-link";
 
   override getPlugins() {
-    return [withSetting, normalize];
+    return [withSetting, normalize, withMentionCommands];
+  }
+
+  override getHotkeyConfigs() {
+    return mentionCommandConfig;
   }
 
   override getHoveringBarElements() {
