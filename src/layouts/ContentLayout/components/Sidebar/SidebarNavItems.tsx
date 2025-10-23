@@ -17,6 +17,7 @@ import timeRecord from "@/assets/icons/time-record.svg";
 import whiteBoard from "@/assets/icons/white-board.svg";
 import pdf from "@/assets/icons/pdf.svg";
 import vecDatabase from "@/assets/icons/vec-database.svg";
+import calendar from "@/assets/icons/calendar.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -146,6 +147,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "知识库",
         path: "/documents/list",
         enable: module.document.enable,
+      },
+      {
+        key: "calendar",
+        icon: calendar,
+        desc: "日历",
+        path: "/calendar",
+        enable: true,
       },
       {
         key: "pdf",

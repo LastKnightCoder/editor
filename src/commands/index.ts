@@ -34,3 +34,4 @@ export * from "./typst";
 export * from "./shortcut";
 export * from "./pomodoro";
 export * from "./notion-sync";
+export * from "./calendar";
