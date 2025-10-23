@@ -37,6 +37,8 @@ import ShortcutTable from "./tables/shortcut";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import PomodoroSessionTable from "./tables/pomodoro-session";
 import NotionSyncTable from "./tables/notion-sync";
+import CalendarTable from "./tables/calendar";
+import CalendarEventTable from "./tables/calendar-event";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -111,6 +113,8 @@ class DatabaseModule implements Module {
       PomodoroPresetTable,
       PomodoroSessionTable,
       NotionSyncTable,
+      CalendarTable,
+      CalendarEventTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

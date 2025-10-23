@@ -50,6 +50,7 @@ const PomodoroMiniPage = loadable(() => import("@/pages/PomodoroWindow/Mini"));
 const PomodoroImmersivePage = loadable(
   () => import("@/pages/PomodoroWindow/Immersive"),
 );
+const CalendarPage = loadable(() => import("@/pages/Calendar"));
 
 const routes = [
   {
@@ -123,6 +124,10 @@ const routes = [
       {
         path: "settings",
         element: <SettingsPage />,
+      },
+      {
+        path: "calendar",
+        element: <CalendarPage />,
       },
     ],
   },
