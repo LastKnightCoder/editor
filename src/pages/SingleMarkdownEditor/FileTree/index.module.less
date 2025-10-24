@@ -1,0 +1,144 @@
+.fileTree {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  user-select: none;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  [data-theme="dark"] & {
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+    }
+  }
+}
+
+.loading,
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #999;
+  font-size: 14px;
+}
+
+.treeNodeContainer {
+  .treeNode {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #333;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    border-radius: 8px;
+    margin-bottom: 4px;
+
+    &:hover:not(.active) {
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    &.active {
+      background-color: rgba(24, 144, 255, 0.1);
+      color: #1890ff;
+
+      .icon {
+        color: #1890ff;
+      }
+    }
+
+    [data-theme="dark"] & {
+      color: #d4d4d4;
+
+      &:hover:not(.active) {
+        background-color: rgba(255, 255, 255, 0.08);
+      }
+
+      &.active {
+        background-color: rgba(24, 144, 255, 0.2);
+        color: #40a9ff;
+
+        .icon {
+          color: #40a9ff;
+        }
+      }
+    }
+  }
+
+  .arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+    color: #999;
+    flex-shrink: 0;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="dark"] & {
+      color: #888;
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.12);
+      }
+    }
+  }
+
+  .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #666;
+    flex-shrink: 0;
+
+    [data-theme="dark"] & {
+      color: #aaa;
+    }
+  }
+
+  .name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 24px;
+  }
+
+  .children {
+    padding-left: 16px;
+    margin-top: 2px;
+  }
+}

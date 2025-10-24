@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, readdir, stat } from "node:fs/promises";
 import { ensureDir, pathExists, remove } from "fs-extra/esm";
-import { sep } from "node:path";
+import { sep, dirname, join } from "node:path";
 import { Module } from "../types/module";
 
 class File implements Module {
@@ -35,6 +35,15 @@ class File implements Module {
     ipcMain.handle("remove-file", async (_event, path) => {
       return remove(path);
     });
+    ipcMain.handle("read-directory", async (_event, dirPath) => {
+      return await this.readDirectory(dirPath);
+    });
+    ipcMain.handle("get-directory-name", async (_event, filePath) => {
+      return this.getDirectoryName(filePath);
+    });
+    ipcMain.handle("is-directory", async (_event, path) => {
+      return await this.isDirectory(path);
+    });
   }
 
   async readBinaryFile(filePath: string): Promise<Uint8Array> {
@@ -63,6 +72,30 @@ class File implements Module {
 
   async getSep(): Promise<string> {
     return sep;
+  }
+
+  async readDirectory(
+    dirPath: string,
+  ): Promise<{ name: string; path: string; isDirectory: boolean }[]> {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    return entries.map((entry) => ({
+      name: entry.name,
+      path: join(dirPath, entry.name),
+      isDirectory: entry.isDirectory(),
+    }));
+  }
+
+  getDirectoryName(filePath: string): string {
+    return dirname(filePath);
+  }
+
+  async isDirectory(path: string): Promise<boolean> {
+    try {
+      const stats = await stat(path);
+      return stats.isDirectory();
+    } catch {
+      return false;
+    }
   }
 }
 

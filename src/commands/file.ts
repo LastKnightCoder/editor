@@ -91,3 +91,17 @@ export const compressImage = async (
 ): Promise<Uint8Array> => {
   return await invoke("compress-image", buffer, mimeType);
 };
+
+export const readDirectory = async (
+  dirPath: string,
+): Promise<{ name: string; path: string; isDirectory: boolean }[]> => {
+  return await invoke("read-directory", dirPath);
+};
+
+export const getDirectoryName = async (filePath: string): Promise<string> => {
+  return await invoke("get-directory-name", filePath);
+};
+
+export const isDirectory = async (path: string): Promise<boolean> => {
+  return await invoke("is-directory", path);
+};
