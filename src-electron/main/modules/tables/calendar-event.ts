@@ -6,6 +6,9 @@ import {
 } from "@/types/calendar";
 import Operation from "./operation";
 import ContentTable from "./content";
+import CalendarGroupTable from "./calendar-group";
+import CalendarTable from "./calendar";
+import log from "electron-log";
 
 export default class CalendarEventTable {
   static getListenEvents() {
@@ -37,7 +40,8 @@ export default class CalendarEventTable {
         start_time INTEGER,
         end_time INTEGER,
         color TEXT,
-        all_day INTEGER DEFAULT 0
+        all_day INTEGER DEFAULT 0,
+        value REAL DEFAULT NULL
       )
     `;
     db.exec(createTableSql);
@@ -52,8 +56,178 @@ export default class CalendarEventTable {
     db.exec(createIndexSql);
   }
 
-  static upgradeTable(_db: Database.Database) {
-    // 数据迁移和升级逻辑
+  static upgradeTable(db: Database.Database) {
+    // 检查并添加 value 字段
+    const tableInfo = db
+      .prepare(`PRAGMA table_info(calendar_event)`)
+      .all() as Array<{
+      name: string;
+    }>;
+    const hasValue = tableInfo.some((column) => column.name === "value");
+
+    if (!hasValue) {
+      log.info("Adding value column to calendar_event table");
+      db.exec(`ALTER TABLE calendar_event ADD COLUMN value REAL DEFAULT NULL;`);
+    }
+
+    // 检查是否已经迁移时间记录（通过查询是否存在"时间记录"分组）
+    const checkGroupStmt = db.prepare(
+      `SELECT id FROM calendar_group WHERE name = ? AND is_system = 0`,
+    );
+    const existingGroup = checkGroupStmt.get("时间记录");
+
+    if (existingGroup) {
+      log.info("Time records already migrated, skipping migration");
+      return;
+    }
+
+    // 检查 time_records 表是否存在
+    const checkTableStmt = db.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='time_records'`,
+    );
+    const timeRecordsTableExists = checkTableStmt.get();
+
+    if (!timeRecordsTableExists) {
+      log.info("time_records table does not exist, skipping migration");
+      return;
+    }
+
+    // 检查是否有时间记录数据
+    const countStmt = db.prepare(`SELECT COUNT(*) as count FROM time_records`);
+    const { count } = countStmt.get() as { count: number };
+
+    if (count === 0) {
+      log.info("No time records to migrate");
+      return;
+    }
+
+    log.info(`Starting migration of ${count} time records to calendar`);
+
+    try {
+      // 1. 创建"时间记录"分组
+      const timeRecordGroup = CalendarGroupTable.createGroup(db, {
+        name: "时间记录",
+        isSystem: false,
+        orderIndex: 999,
+      });
+      log.info(`Created time record group with id: ${timeRecordGroup.id}`);
+
+      // 2. 获取所有不同的 time_type
+      const timeTypesStmt = db.prepare(
+        "SELECT DISTINCT time_type FROM time_records",
+      );
+      const timeTypes = (timeTypesStmt.all() as { time_type: string }[]).map(
+        (t) => t.time_type,
+      );
+      log.info(`Found ${timeTypes.length} time types: ${timeTypes.join(", ")}`);
+
+      // 3. 为每个 time_type 创建一个日历
+      const colors = [
+        "red",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "purple",
+        "pink",
+        "gray",
+      ];
+      const timeTypeToCalendarId: { [key: string]: number } = {};
+
+      timeTypes.forEach((timeType, index) => {
+        const color = colors[index % colors.length];
+        const calendar = CalendarTable.createCalendar(db, {
+          title: timeType,
+          color: color as any,
+          descriptionContentId: 0,
+          archived: false,
+          pinned: false,
+          visible: true,
+          orderIndex: index,
+          groupId: timeRecordGroup.id,
+        });
+        timeTypeToCalendarId[timeType] = calendar.id;
+        log.info(`Created calendar "${timeType}" with id: ${calendar.id}`);
+      });
+
+      // 4. 遍历所有时间记录并创建日历事件
+      const recordsStmt = db.prepare(
+        "SELECT * FROM time_records ORDER BY date",
+      );
+      const records = recordsStmt.all() as Array<{
+        id: number;
+        date: string;
+        cost: number;
+        content: string;
+        event_type: string;
+        time_type: string;
+      }>;
+      let migratedCount = 0;
+
+      for (const record of records) {
+        try {
+          // 解析记录
+          const parsedRecord = {
+            id: record.id,
+            date: record.date,
+            cost: record.cost,
+            content: JSON.parse(record.content),
+            eventType: record.event_type,
+            timeType: record.time_type,
+          };
+
+          // 创建内容记录
+          const contentId = ContentTable.createContent(db, {
+            content: parsedRecord.content,
+          });
+
+          // 解析日期为时间戳
+          const startDate = new Date(parsedRecord.date).setHours(0, 0, 0, 0);
+
+          // 创建日历事件
+          const calendarId = timeTypeToCalendarId[parsedRecord.timeType];
+          if (!calendarId) {
+            log.warn(
+              `No calendar found for time type: ${parsedRecord.timeType}`,
+            );
+            continue;
+          }
+
+          this.createEvent(db, {
+            title: parsedRecord.eventType,
+            calendarId: calendarId,
+            detailContentId: contentId,
+            startDate: startDate,
+            endDate: startDate,
+            startTime: null,
+            endTime: null,
+            allDay: true,
+            color: null,
+            value: parsedRecord.cost,
+          });
+
+          migratedCount++;
+        } catch (error) {
+          log.error(`Failed to migrate time record ${record.id}:`, error);
+        }
+      }
+
+      log.info(
+        `Successfully migrated ${migratedCount} time records to calendar`,
+      );
+
+      // 5. 迁移成功后删除 time_records 表
+      try {
+        db.exec(`DROP TABLE IF EXISTS time_records`);
+        log.info("Successfully dropped time_records table after migration");
+      } catch (error) {
+        log.error("Failed to drop time_records table:", error);
+        // 不抛出错误，因为迁移已经成功，删除表失败不应该影响主流程
+      }
+    } catch (error) {
+      log.error("Failed to migrate time records:", error);
+      throw error;
+    }
   }
 
   static parseCalendarEvent(row: any): CalendarEvent {
@@ -70,6 +244,8 @@ export default class CalendarEventTable {
       endTime: row.end_time !== null ? row.end_time : null,
       color: row.color || null,
       allDay: Boolean(row.all_day),
+      value:
+        row.value !== null && row.value !== undefined ? row.value : undefined,
     };
   }
 
@@ -80,8 +256,8 @@ export default class CalendarEventTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO calendar_event
-      (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, value)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -96,6 +272,7 @@ export default class CalendarEventTable {
       data.endTime !== null ? data.endTime : null,
       data.color || null,
       Number(data.allDay || false),
+      data.value !== undefined ? data.value : null,
     );
 
     Operation.insertOperation(
@@ -125,7 +302,8 @@ export default class CalendarEventTable {
         start_time = ?,
         end_time = ?,
         color = ?,
-        all_day = ?
+        all_day = ?,
+        value = ?
       WHERE id = ?
     `);
 
@@ -140,6 +318,7 @@ export default class CalendarEventTable {
       data.endTime !== null ? data.endTime : null,
       data.color || null,
       Number(data.allDay || false),
+      data.value !== undefined ? data.value : null,
       data.id,
     );
 
