@@ -153,23 +153,6 @@ export function assignMonthViewLevels(
     }
   });
 
-  sortedEvents.forEach((item, index) => {
-    const startDate = dayjs(item.event.startDate).format("MM-DD");
-    const endDate = item.event.endDate
-      ? dayjs(item.event.endDate).format("MM-DD")
-      : startDate;
-    const duration = dayjs(item.event.endDate || item.event.startDate).diff(
-      dayjs(item.event.startDate),
-      "day",
-    );
-    console.log(
-      `  ${index + 1}. [${item.event.title}] ${startDate} → ${endDate} (${duration}天), spans:`,
-      item.spans
-        .map((s) => `row${s.row}[col${s.startCol}-${s.endCol}]`)
-        .join(", "),
-    );
-  });
-
   // 2. 为每行维护层级占用情况
   // rowLevelOccupancy[row][level] = 该行该层级占用到的最大列
   const rowLevelOccupancy = new Map<number, number[]>();

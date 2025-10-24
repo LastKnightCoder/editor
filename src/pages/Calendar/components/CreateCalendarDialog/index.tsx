@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { AutoComplete } from "antd";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { MdClose } from "react-icons/md";
 import {
@@ -11,21 +12,59 @@ import useSettingStore from "@/stores/useSettingStore";
 interface CreateCalendarDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultGroupId?: number | null;
 }
 
 const CreateCalendarDialog = ({
   isOpen,
   onClose,
+  defaultGroupId,
 }: CreateCalendarDialogProps) => {
-  const { createCalendar } = useCalendarStore();
+  const { createCalendar, createCalendarGroup, calendarGroups } =
+    useCalendarStore();
   const { setting } = useSettingStore();
   const theme = setting.darkMode ? "dark" : "light";
 
   const [title, setTitle] = useState("");
   const [color, setColor] = useState<ProjectColorName>("blue");
+  const [groupInput, setGroupInput] = useState("");
+
+  // 获取用户分组（非系统分组）
+  const userGroups = calendarGroups.filter((g) => !g.isSystem);
+
+  // 当 defaultGroupId 改变时，更新 groupInput
+  useEffect(() => {
+    if (defaultGroupId) {
+      const group = calendarGroups.find((g) => g.id === defaultGroupId);
+      if (group) {
+        setGroupInput(group.name);
+      }
+    }
+  }, [defaultGroupId, calendarGroups]);
 
   const handleSave = async () => {
     if (!title) return;
+
+    let groupId: number | undefined;
+
+    // 如果输入了分组名称
+    if (groupInput.trim()) {
+      // 检查分组是否已存在
+      const existingGroup = userGroups.find(
+        (g) => g.name === groupInput.trim(),
+      );
+      if (existingGroup) {
+        groupId = existingGroup.id;
+      } else {
+        // 创建新分组
+        const newGroup = await createCalendarGroup({
+          name: groupInput.trim(),
+          isSystem: false,
+          orderIndex: userGroups.length,
+        });
+        groupId = newGroup.id;
+      }
+    }
 
     await createCalendar({
       title,
@@ -35,10 +74,12 @@ const CreateCalendarDialog = ({
       pinned: false,
       visible: true,
       orderIndex: 0,
+      groupId,
     });
 
     setTitle("");
     setColor("blue");
+    setGroupInput("");
     onClose();
   };
 
@@ -72,6 +113,29 @@ const CreateCalendarDialog = ({
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
               placeholder="输入日历名称"
               autoFocus
+            />
+          </div>
+
+          {/* 分组选择 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              分组（可选）
+            </label>
+            <AutoComplete
+              value={groupInput}
+              onChange={setGroupInput}
+              options={userGroups.map((group) => ({
+                value: group.name,
+                label: group.name,
+              }))}
+              placeholder="选择或输入新分组名称"
+              size="large"
+              className="mt-1 w-full"
+              filterOption={(inputValue, option) =>
+                option!.value
+                  .toUpperCase()
+                  .indexOf(inputValue.toUpperCase()) !== -1
+              }
             />
           </div>
 

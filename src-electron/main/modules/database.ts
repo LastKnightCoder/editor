@@ -36,7 +36,9 @@ import QuestionGroupTable from "./tables/question-group";
 import ShortcutTable from "./tables/shortcut";
 import PomodoroPresetTable from "./tables/pomodoro-preset";
 import PomodoroSessionTable from "./tables/pomodoro-session";
+import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
 import NotionSyncTable from "./tables/notion-sync";
+import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
 
@@ -112,7 +114,9 @@ class DatabaseModule implements Module {
       ShortcutTable,
       PomodoroPresetTable,
       PomodoroSessionTable,
+      PomodoroCalendarMappingTable,
       NotionSyncTable,
+      CalendarGroupTable,
       CalendarTable,
       CalendarEventTable,
     ] as unknown as Table[];

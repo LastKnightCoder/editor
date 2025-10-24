@@ -1,6 +1,24 @@
 import { Descendant } from "slate";
 import { ProjectColorName } from "@/constants/project-colors";
 
+export interface CalendarGroup {
+  id: number;
+  name: string;
+  isSystem: boolean;
+  orderIndex: number;
+  createTime: number;
+  updateTime: number;
+}
+
+export type CreateCalendarGroup = Omit<
+  CalendarGroup,
+  "id" | "createTime" | "updateTime"
+>;
+export type UpdateCalendarGroup = Omit<
+  CalendarGroup,
+  "createTime" | "updateTime"
+>;
+
 export interface Calendar {
   id: number;
   createTime: number;
@@ -13,13 +31,18 @@ export interface Calendar {
   pinned: boolean;
   visible: boolean;
   orderIndex: number;
+  groupId?: number;
+  isInSystemGroup?: boolean;
 }
 
 export type CreateCalendar = Omit<
   Calendar,
-  "id" | "createTime" | "updateTime" | "description"
+  "id" | "createTime" | "updateTime" | "description" | "isInSystemGroup"
 >;
-export type UpdateCalendar = Omit<Calendar, "createTime" | "updateTime">;
+export type UpdateCalendar = Omit<
+  Calendar,
+  "createTime" | "updateTime" | "isInSystemGroup"
+>;
 
 export interface CalendarEvent {
   id: number;

@@ -34,6 +34,10 @@ const WeekView = () => {
   const [pendingEvent, setPendingEvent] = useState<PendingWeekEvent | null>(
     null,
   );
+  const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  });
 
   // 当编辑对话框关闭时，清除待创建事件高亮
   useEffect(() => {
@@ -41,6 +45,18 @@ const WeekView = () => {
       setPendingEvent(null);
     }
   }, [editingEvent]);
+
+  // 更新当前时间
+  useEffect(() => {
+    const updateCurrentTime = () => {
+      const now = new Date();
+      setCurrentTimeMinutes(now.getHours() * 60 + now.getMinutes());
+    };
+
+    // 每分钟更新一次
+    const timer = setInterval(updateCurrentTime, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   const weekStart = getWeekStart(currentDate);
 
@@ -71,13 +87,20 @@ const WeekView = () => {
         endMinutes,
       });
 
+      // 优先选择第一个非系统日历
+      const nonSystemCalendars = calendars.filter((c) => !c.isInSystemGroup);
+      const defaultCalendarId =
+        nonSystemCalendars.length > 0
+          ? nonSystemCalendars[0].id
+          : calendars[0].id;
+
       // 同时打开编辑对话框
       const dayStart = getDateStart(dayDate.getTime());
       const newEvent: any = {
         id: 0,
         createTime: Date.now(),
         updateTime: Date.now(),
-        calendarId: calendars[0].id,
+        calendarId: defaultCalendarId,
         title: "",
         detailContentId: 0,
         startDate: dayStart,
@@ -253,7 +276,7 @@ const WeekView = () => {
                         <div
                           key={event.id}
                           onClick={() => setEditingEvent(event)}
-                          className="absolute cursor-pointer rounded px-2 h-4 flex items-center text-xs text-white shadow-sm"
+                          className="absolute cursor-pointer rounded p-2 h-4 flex items-center text-xs text-white shadow-sm"
                           style={{
                             backgroundColor: colorValue,
                             left: `${left}%`,
@@ -345,6 +368,35 @@ const WeekView = () => {
             ))}
           </div>
 
+          {/* 当前时间红线 - 横跨整周，红点在今天位置 */}
+          {(() => {
+            const todayIndex = weekDays.findIndex((day) =>
+              isToday(day.getTime()),
+            );
+            if (todayIndex === -1) return null;
+
+            return (
+              <div
+                className="absolute pointer-events-none z-30"
+                style={{
+                  top: `${3 + (currentTimeMinutes / 15) * CELL_HEIGHT}px`,
+                  left: "64px", // w-16 = 64px
+                  right: 0,
+                }}
+              >
+                <div className="relative h-0.5 bg-red-500">
+                  <div
+                    className="absolute h-2 w-2 rounded-full bg-red-500"
+                    style={{
+                      left: `${(todayIndex / 7) * 100}%`,
+                      top: "-3px",
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
+
           {/* 每一天的列 */}
           {weekDays.map((_day, dayIndex) => {
             const dragHook = dayDragHooks[dayIndex];
@@ -409,7 +461,7 @@ const WeekView = () => {
                     <div
                       key={event.id}
                       onClick={() => setEditingEvent(event)}
-                      className="absolute cursor-pointer rounded px-2 text-xs text-white shadow-sm"
+                      className="absolute cursor-pointer rounded p-2 text-xs text-white shadow-sm"
                       style={{
                         backgroundColor: colorValue,
                         top: `${(startMinutes / 15) * CELL_HEIGHT}px`,

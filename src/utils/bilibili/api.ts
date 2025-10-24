@@ -292,10 +292,6 @@ export async function getPlayUrl(
       throw new BilibiliParseError("未找到可用的播放地址");
     }
 
-    console.log(
-      `获取到 ${dash.video.length} 个视频流, ${dash.audio.length} 个音频流`,
-    );
-
     const sortedAudios = dash.audio.sort((a, b) => b.id - a.id);
     // 首先选择可用的音频流
     let audioStream = await selectAvailableStream(sortedAudios);
@@ -325,10 +321,6 @@ export async function getPlayUrl(
         videoStream = dash.video[0];
       }
     }
-
-    console.log(
-      `最终选择: 视频流质量 ${videoStream.id}, 音频流质量 ${audioStream.id}`,
-    );
 
     return {
       video: videoStream.baseUrl,

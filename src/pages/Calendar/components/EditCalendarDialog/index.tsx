@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AutoComplete } from "antd";
 import { MdClose } from "react-icons/md";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { Calendar } from "@/types";
@@ -15,19 +16,33 @@ interface EditCalendarDialogProps {
 }
 
 const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
-  const { updateCalendar } = useCalendarStore();
+  const { updateCalendar, createCalendarGroup, calendarGroups } =
+    useCalendarStore();
   const { setting } = useSettingStore();
   const theme = setting.darkMode ? "dark" : "light";
 
   const [title, setTitle] = useState("");
   const [color, setColor] = useState<ProjectColorName>("blue");
+  const [groupInput, setGroupInput] = useState("");
+
+  // 获取用户分组（非系统分组）
+  const userGroups = calendarGroups.filter((g) => !g.isSystem);
 
   useEffect(() => {
     if (calendar) {
       setTitle(calendar.title);
       setColor(calendar.color);
+      // 设置分组输入框的初始值
+      if (calendar.groupId) {
+        const group = calendarGroups.find((g) => g.id === calendar.groupId);
+        if (group) {
+          setGroupInput(group.name);
+        }
+      } else {
+        setGroupInput("");
+      }
     }
-  }, [calendar]);
+  }, [calendar, calendarGroups]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,10 +54,32 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
 
     if (!calendar) return;
 
+    let groupId: number | undefined;
+
+    // 如果输入了分组名称
+    if (groupInput.trim()) {
+      // 检查分组是否已存在
+      const existingGroup = userGroups.find(
+        (g) => g.name === groupInput.trim(),
+      );
+      if (existingGroup) {
+        groupId = existingGroup.id;
+      } else {
+        // 创建新分组
+        const newGroup = await createCalendarGroup({
+          name: groupInput.trim(),
+          isSystem: false,
+          orderIndex: userGroups.length,
+        });
+        groupId = newGroup.id;
+      }
+    }
+
     await updateCalendar({
       ...calendar,
       title: title.trim(),
       color,
+      groupId,
     });
 
     onClose();
@@ -78,10 +115,41 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="输入日历名称"
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-blue-400"
-              autoFocus
+              disabled={calendar?.isInSystemGroup}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:focus:border-blue-400"
+              autoFocus={!calendar?.isInSystemGroup}
             />
+            {calendar?.isInSystemGroup && (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                系统日历名称不可修改
+              </p>
+            )}
           </div>
+
+          {/* 分组选择 - 仅非系统日历显示 */}
+          {!calendar?.isInSystemGroup && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                分组（可选）
+              </label>
+              <AutoComplete
+                value={groupInput}
+                onChange={setGroupInput}
+                options={userGroups.map((group) => ({
+                  value: group.name,
+                  label: group.name,
+                }))}
+                placeholder="选择或输入新分组名称"
+                size="large"
+                className="w-full"
+                filterOption={(inputValue, option) =>
+                  option!.value
+                    .toUpperCase()
+                    .indexOf(inputValue.toUpperCase()) !== -1
+                }
+              />
+            </div>
+          )}
 
           {/* 颜色选择 */}
           <div>

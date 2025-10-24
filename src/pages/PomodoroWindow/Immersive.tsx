@@ -8,12 +8,14 @@ import { hidePomodoroImmersiveWindow } from "@/commands/window";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import { fmt } from "./utils";
+import { fmt, FIVE_MINUTES_MS } from "./utils";
 import { AiOutlineClose } from "react-icons/ai";
+import { App } from "antd";
 
 const Immersive: React.FC = () => {
   useInitDatabase();
   const isConnected = useDatabaseConnected();
+  const { modal } = App.useApp();
   const { activeSession, elapsedMs, remainMs, initPomodoro, inited } =
     usePomodoroStore();
 
@@ -82,8 +84,22 @@ const Immersive: React.FC = () => {
           <button
             className="px-8 py-3 rounded-full bg-rose-600/20 text-rose-400 hover:bg-rose-600/30 text-lg border border-rose-600/30 transition-all"
             onClick={async () => {
-              await stopPomodoroSession(true);
-              hidePomodoroImmersiveWindow();
+              if (elapsedMs < FIVE_MINUTES_MS) {
+                modal.confirm({
+                  title: "专注时长不足 5 分钟",
+                  content: "当前专注时长不足 5 分钟，是否放弃本次记录？",
+                  okText: "放弃",
+                  cancelText: "取消",
+                  okButtonProps: { danger: true },
+                  onOk: async () => {
+                    await stopPomodoroSession(true);
+                    hidePomodoroImmersiveWindow();
+                  },
+                });
+              } else {
+                await stopPomodoroSession(true);
+                hidePomodoroImmersiveWindow();
+              }
             }}
           >
             结束
