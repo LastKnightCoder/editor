@@ -37,6 +37,7 @@ export interface ISetting {
   };
   imageBed: {
     active: EImageBed;
+    enableCompression: boolean;
     github: {
       token: string;
       repo: string;
@@ -222,6 +223,7 @@ const initialState: IState = {
     },
     imageBed: {
       active: EImageBed.Github,
+      enableCompression: false,
       github: {
         token: "",
         repo: "",
