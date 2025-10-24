@@ -36,6 +36,7 @@ nsis:
   uninstallerIcon: "build/icon.ico"
   uninstallDisplayName: "notes"
   shortcutName: "Notes"
+  include: "build/installer.nsh"
 
 
 win:
@@ -44,6 +45,12 @@ win:
   artifactName: "${productName}-v${version}-${platform}.${ext}"
   fileAssociations:
     - ext: md
+      name: Markdown
+      description: Markdown文件
+      icon: build/icon.ico
+      role: Editor
+      isPackage: false
+    - ext: markdown
       name: Markdown
       description: Markdown文件
       icon: build/icon.ico

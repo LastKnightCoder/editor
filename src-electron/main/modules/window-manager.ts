@@ -31,6 +31,7 @@ interface EditorParams {
   databaseName?: string;
   itemId?: number;
   filePath?: string;
+  rootPath?: string;
   showTitlebar?: boolean;
   isDefaultTop?: boolean;
 }
@@ -582,13 +583,14 @@ export class WindowManager {
       databaseName,
       itemId,
       filePath,
+      rootPath,
       showTitlebar = false,
       isDefaultTop = false,
     } = params;
     let windowKey = "";
 
     if (type === "markdown") {
-      windowKey = filePath || "";
+      windowKey = filePath || rootPath || "";
     } else {
       windowKey = `${databaseName}-${itemId}`;
     }
@@ -597,7 +599,7 @@ export class WindowManager {
     const windowMap = this.windowsMap.get(type)!;
 
     log.debug(
-      `尝试创建${editorName}编辑器窗口: ${type === "markdown" ? filePath : `${databaseName}, ${itemId}`}`,
+      `尝试创建${editorName}编辑器窗口: ${type === "markdown" ? filePath || rootPath : `${databaseName}, ${itemId}`}`,
     );
 
     // 检查窗口是否已存在
@@ -637,8 +639,16 @@ export class WindowManager {
 
     let urlParams = "";
     if (type === "markdown") {
-      const encodedFilePath = encodeURIComponent(filePath || "");
-      urlParams = `${paramName}=${encodedFilePath}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
+      const encodedFilePath = filePath ? encodeURIComponent(filePath) : "";
+      const encodedRootPath = rootPath ? encodeURIComponent(rootPath) : "";
+
+      if (filePath) {
+        urlParams = `filePath=${encodedFilePath}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
+      } else if (rootPath) {
+        urlParams = `rootPath=${encodedRootPath}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
+      } else {
+        urlParams = `showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
+      }
     } else {
       urlParams = `databaseName=${databaseName}&${paramName}=${itemId}&showTitlebar=${showTitlebar}&isDefaultTop=${isDefaultTop}`;
     }

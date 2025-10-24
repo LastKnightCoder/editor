@@ -15,12 +15,13 @@ import {
   fileAttachmentExtension,
   questionCardExtension,
 } from "@/editor-extensions";
-import { readTextFile, writeTextFile } from "@/commands";
+import { readTextFile, writeTextFile, getDirectoryName } from "@/commands";
 import {
   useMemoizedFn,
   useRafInterval,
   useThrottleFn,
   useUnmount,
+  useLocalStorageState,
 } from "ahooks";
 import { importFromMarkdown, getMarkdown } from "@/utils";
 import MarkdownSourceEditor from "./MarkdownSourceEditor";
@@ -33,7 +34,11 @@ import {
   CodeOutlined,
   FormOutlined,
   BgColorsOutlined,
+  FolderOutlined,
+  FileMarkdownOutlined,
 } from "@ant-design/icons";
+import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import FileTree from "./FileTree";
 
 import styles from "./index.module.less";
 import classnames from "classnames";
@@ -48,14 +53,35 @@ const customExtensions = [
 const SingleMarkdownEditor = () => {
   const [searchParams] = useSearchParams();
   const encodedFilePath = searchParams.get("filePath") || "";
-  const filePath = decodeURIComponent(encodedFilePath);
-  const [loading, setLoading] = useState(true);
+  const encodedRootPath = searchParams.get("rootPath") || "";
+
+  // filePath 和 rootPath 互斥，filePath 优先
+  const initialFilePath = encodedFilePath
+    ? decodeURIComponent(encodedFilePath)
+    : "";
+  const initialRootPath = initialFilePath
+    ? "" // 如果有 filePath，rootPath 从 filePath 推导
+    : encodedRootPath
+      ? decodeURIComponent(encodedRootPath)
+      : "";
+
+  const [currentFilePath, setCurrentFilePath] = useState(initialFilePath);
+  const [rootPath, setRootPath] = useState(initialRootPath);
+  const [loading, setLoading] = useState(!!initialFilePath); // 只有当有文件路径时才显示加载状态
   const [error, setError] = useState<string | null>(null);
 
   const [content, setContent] = useState<Descendant[]>([]);
   const [isSourceMode, setIsSourceMode] = useState(false);
   const [isReadonly, setIsReadonly] = useState(false);
   const [wordCount, setWordCount] = useState(0);
+  const [fileTreeOpen, setFileTreeOpen] = useState(true);
+  const [fileTreeWidth, setFileTreeWidth] = useLocalStorageState<number>(
+    "markdown-editor-file-tree-width",
+    {
+      defaultValue: 240,
+    },
+  );
+
   const { isDark } = useTheme();
   const { onDarkModeChange } = useSettingStore((state) => ({
     onDarkModeChange: state.onDarkModeChange,
@@ -66,6 +92,7 @@ const SingleMarkdownEditor = () => {
   const uploadResource = useUploadResource();
   const beforeSaveSourceText = useRef("");
   const currentSourceText = useRef("");
+  const editorContainerRef = useRef<HTMLDivElement>(null);
 
   const onClickHeader = useMemoizedFn((index: number) => {
     if (!editorRef.current) return;
@@ -84,7 +111,6 @@ const SingleMarkdownEditor = () => {
         const editorContent = importFromMarkdown(currentSourceText.current);
         setContent(editorContent);
         editorRef.current?.setEditorValue(editorContent);
-        editorRef.current?.focus();
       } catch (error) {
         console.error("解析Markdown失败:", error);
       }
@@ -100,12 +126,6 @@ const SingleMarkdownEditor = () => {
       setTimeout(() => {
         if (!sourceEditorRef.current) return;
         sourceEditorRef.current.refresh();
-        sourceEditorRef.current.focus();
-        // 去最后一行最后一列
-        const doc = sourceEditorRef.current.getDoc();
-        const lastLine = doc.lineCount() - 1;
-        const lastLineLength = doc.getLine(lastLine).length;
-        doc.setCursor({ line: lastLine, ch: lastLineLength });
       }, 100);
     }
     setIsSourceMode(!isSourceMode);
@@ -124,8 +144,9 @@ const SingleMarkdownEditor = () => {
     { wait: 1000 },
   );
 
-  const saveMarkdownFile = useMemoizedFn(async () => {
-    if (!filePath) return;
+  const saveMarkdownFile = useMemoizedFn(async (filePathToSave?: string) => {
+    const pathToSave = filePathToSave || currentFilePath;
+    if (!pathToSave) return;
 
     try {
       const markdownText = isSourceMode
@@ -134,7 +155,7 @@ const SingleMarkdownEditor = () => {
       if (markdownText === beforeSaveSourceText.current) return;
       beforeSaveSourceText.current = markdownText;
       currentSourceText.current = markdownText;
-      await writeTextFile(filePath, markdownText);
+      await writeTextFile(pathToSave, markdownText);
     } catch (error) {
       console.error("保存Markdown文件失败:", error);
       message.error("保存失败");
@@ -143,6 +164,52 @@ const SingleMarkdownEditor = () => {
 
   const onSourceEditorDidMount = useMemoizedFn((editor: CodeMirrorEditor) => {
     sourceEditorRef.current = editor;
+  });
+
+  const loadMarkdownFile = useMemoizedFn(async (filePathToLoad: string) => {
+    try {
+      const markdownText = await readTextFile(filePathToLoad);
+      const editorContent = importFromMarkdown(markdownText);
+      setContent(editorContent);
+      currentSourceText.current = markdownText;
+      beforeSaveSourceText.current = markdownText;
+
+      // 更新编辑器的内容
+      if (editorRef.current) {
+        editorRef.current.setEditorValue(editorContent);
+      }
+
+      // 更新源码编辑器的内容（如果在源码模式）
+      if (isSourceMode && sourceEditorRef.current) {
+        sourceEditorRef.current.setValue(markdownText);
+      }
+
+      // editorRef.current?.focus();
+      calculateWordCount();
+
+      // 滚动到顶部
+      setTimeout(() => {
+        editorContainerRef.current?.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      }, 100);
+    } catch (error) {
+      console.error("加载Markdown文件失败:", error);
+      message.error("加载文件失败");
+      setError(error instanceof Error ? error.message : "未知错误");
+    }
+  });
+
+  const onFileClick = useMemoizedFn(async (newFilePath: string) => {
+    if (newFilePath === currentFilePath) return;
+
+    // 自动保存当前文件
+    await saveMarkdownFile(currentFilePath);
+
+    // 切换到新文件
+    setCurrentFilePath(newFilePath);
+    await loadMarkdownFile(newFilePath);
   });
 
   useEffect(() => {
@@ -169,31 +236,23 @@ const SingleMarkdownEditor = () => {
   }, [saveMarkdownFile, toggleMode]);
 
   useEffect(() => {
-    if (!filePath) {
-      setLoading(false);
-      return;
-    }
-
-    const loadMarkdownFile = async () => {
-      try {
-        const markdownText = await readTextFile(filePath);
-        const editorContent = importFromMarkdown(markdownText);
-        setContent(editorContent);
-        currentSourceText.current = markdownText;
-        beforeSaveSourceText.current = markdownText;
-        editorRef.current?.focus();
-        calculateWordCount();
-      } catch (error) {
-        console.error("加载Markdown文件失败:", error);
-        message.error("加载文件失败");
-        setError(error instanceof Error ? error.message : "未知错误");
+    const init = async () => {
+      if (initialFilePath) {
+        // 有文件路径，加载文件并设置 rootPath
+        await loadMarkdownFile(initialFilePath);
+        const dirPath = await getDirectoryName(initialFilePath);
+        setRootPath(dirPath);
+      } else if (initialRootPath) {
+        // 只有 rootPath，不加载文件
+        setRootPath(initialRootPath);
       }
     };
 
-    loadMarkdownFile().finally(() => {
+    init().finally(() => {
       setLoading(false);
     });
-  }, [calculateWordCount, filePath]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     calculateWordCount();
@@ -229,8 +288,8 @@ const SingleMarkdownEditor = () => {
     return <div className={styles.error}>{error}</div>;
   }
 
-  if (!filePath) {
-    return <div className={styles.loading}>未指定文件路径</div>;
+  if (!rootPath && !currentFilePath) {
+    return <div className={styles.loading}>未指定文件路径或文件夹</div>;
   }
 
   return (
@@ -239,48 +298,90 @@ const SingleMarkdownEditor = () => {
         [styles.dark]: isDark,
       })}
     >
-      <div className={styles.editorContainer}>
-        <div
-          className={classnames(styles.sourceEditor, {
-            [styles.hidden]: !isSourceMode,
-          })}
+      <div className={styles.mainContent}>
+        <ResizableAndHideableSidebar
+          width={fileTreeWidth ?? 240}
+          open={fileTreeOpen}
+          onWidthChange={(width) => setFileTreeWidth(width)}
+          className={styles.fileTreeSidebar}
+          minWidth={200}
+          maxWidth={400}
+          side="right"
         >
-          <MarkdownSourceEditor
-            value={currentSourceText.current}
-            onChange={onSourceTextChange}
-            editorDidMount={onSourceEditorDidMount}
-            isDark={isDark}
-            readonly={isReadonly}
-          />
-        </div>
-        <If condition={!isSourceMode}>
-          <div className={styles.contentEditor}>
-            <ErrorBoundary>
-              <Editor
-                className={styles.editor}
-                ref={editorRef}
-                initValue={content}
-                onChange={onContentChange}
-                extensions={customExtensions}
-                readonly={isReadonly}
-                uploadResource={uploadResource}
-                theme={isDark ? "dark" : "light"}
+          <div className={styles.fileTreeContainer}>
+            {rootPath && (
+              <FileTree
+                currentFilePath={currentFilePath}
+                onFileClick={onFileClick}
+                rootPath={rootPath}
               />
-            </ErrorBoundary>
-            <div className={styles.outlineContainer}>
-              <EditorOutline
-                className={styles.outline}
-                content={content}
-                show={true}
-                onClickHeader={onClickHeader}
-              />
-            </div>
+            )}
           </div>
-        </If>
+        </ResizableAndHideableSidebar>
+
+        <div className={styles.editorContainer} ref={editorContainerRef}>
+          {currentFilePath ? (
+            <>
+              <div
+                className={classnames(styles.sourceEditor, {
+                  [styles.hidden]: !isSourceMode,
+                })}
+              >
+                <MarkdownSourceEditor
+                  value={currentSourceText.current}
+                  onChange={onSourceTextChange}
+                  editorDidMount={onSourceEditorDidMount}
+                  isDark={isDark}
+                  readonly={isReadonly}
+                />
+              </div>
+              <If condition={!isSourceMode}>
+                <div className={styles.contentEditor}>
+                  <ErrorBoundary>
+                    <Editor
+                      key={currentFilePath}
+                      className={styles.editor}
+                      ref={editorRef}
+                      initValue={content}
+                      onChange={onContentChange}
+                      extensions={customExtensions}
+                      readonly={isReadonly}
+                      uploadResource={uploadResource}
+                      theme={isDark ? "dark" : "light"}
+                    />
+                  </ErrorBoundary>
+                  <div className={styles.outlineContainer}>
+                    <EditorOutline
+                      className={styles.outline}
+                      content={content}
+                      show={true}
+                      onClickHeader={onClickHeader}
+                    />
+                  </div>
+                </div>
+              </If>
+            </>
+          ) : (
+            <div className={styles.emptyEditor}>
+              <div className={styles.emptyContent}>
+                <FileMarkdownOutlined style={{ fontSize: 64, color: "#999" }} />
+                <p>请从左侧文件树选择一个 Markdown 文件</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className={styles.statusBar}>
         <div className={styles.statusBarLeft}>
+          <Tooltip title={fileTreeOpen ? "隐藏文件树" : "显示文件树"}>
+            <Button
+              type="text"
+              icon={<FolderOutlined />}
+              onClick={() => setFileTreeOpen(!fileTreeOpen)}
+            />
+          </Tooltip>
+
           <Tooltip title={isReadonly ? "切换到编辑模式" : "切换到只读模式"}>
             <Button
               type="text"

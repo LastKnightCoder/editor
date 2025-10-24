@@ -10,6 +10,7 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
+    "start:win": "chcp 65001 && npm start",
     "dev:content": "vite --config vite-page.config.ts",
     "build:content": "cross-env NODE_OPTIONS='--max-old-space-size=4096' tsc && vite build --config vite-page.config.ts",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=4096' tsc && vite build && electron-builder",

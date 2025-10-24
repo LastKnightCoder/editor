@@ -1,5 +1,5 @@
 import { app, BrowserWindow, protocol, globalShortcut } from "electron";
-import path, { extname } from "node:path";
+import path, { extname, isAbsolute } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { createReadStream, existsSync, statSync } from "node:fs";
@@ -24,6 +24,7 @@ import userSettingModule from "./modules/user-setting";
 import pomodoroModule from "./modules/pomodoro";
 import notionModule from "./modules/notion";
 import notionCacheModule from "./modules/notion-cache";
+import recentProjectsModule from "./modules/recent-projects";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -129,18 +130,21 @@ if (!gotTheLock) {
 
       // 处理第二个实例的命令行参数
       const filePath = getFilePathFromArgs(commandLine);
-      if (filePath && filePath.toLowerCase().endsWith(".md")) {
-        log.info(`第二个实例收到Markdown文件: ${filePath}`);
-        windowManager.createEditorWindow("markdown", { filePath });
+      if (filePath) {
+        handleFileOrFolder(filePath);
       }
     }
   });
 
   // 处理初次启动时的命令行参数
   const argv = process.argv;
+  log.info(`启动命令行参数: ${JSON.stringify(argv)}`);
   const filePathFromArgs = getFilePathFromArgs(argv);
   if (filePathFromArgs) {
+    log.info(`检测到文件或文件夹参数: ${filePathFromArgs}`);
     filesToOpen.push(filePathFromArgs);
+  } else {
+    log.info("未检测到有效的文件或文件夹参数");
   }
 
   app.whenReady().then(() => {
@@ -181,11 +185,9 @@ if (!gotTheLock) {
 
       // 应用初始化完成后，处理之前保存的文件路径
       if (filesToOpen.length > 0) {
-        log.info(`处理启动时收到的Markdown文件: ${filesToOpen}`);
+        log.info(`处理启动时收到的文件或文件夹: ${filesToOpen}`);
         filesToOpen.forEach((filePath) => {
-          if (filePath.toLowerCase().endsWith(".md")) {
-            windowManager.createEditorWindow("markdown", { filePath });
-          }
+          handleFileOrFolder(filePath);
         });
         // 处理完毕后清空
         filesToOpen = [];
@@ -381,31 +383,98 @@ const initModules = async () => {
     // 初始化托盘管理器
     trayManager = await trayModule.init(windowManager, preload);
 
+    // 注册最近项目模块
+    recentProjectsModule.registerListeners();
+    recentProjectsModule.setOnProjectOpen(handleFileOrFolder);
+    recentProjectsModule.updateJumpList();
+
     log.info(`所有模块初始化完成，耗时: ${Date.now() - startTime}ms`);
   } catch (e) {
     log.error("模块初始化失败", e);
   }
 };
 
-// 从命令行参数中提取文件路径
+// 从命令行参数中提取文件路径或文件夹路径
 function getFilePathFromArgs(args: string[]): string | null {
-  // 最后一个参数通常是文件路径
-  const lastArg = args[args.length - 1];
+  // 检查路径是否应该被处理：只处理 Markdown 文件或文件夹
+  const shouldProcessPath = (path: string): boolean => {
+    // 过滤掉以 -- 开头的参数
+    if (path.startsWith("--")) {
+      return false;
+    }
 
-  if (
-    lastArg &&
-    !lastArg.startsWith("--") &&
-    lastArg.toLowerCase().endsWith(".md")
-  ) {
+    // 过滤掉相对路径（如 . 或 ..）
+    if (path === "." || path === "..") {
+      return false;
+    }
+
+    // 必须是绝对路径
+    if (!isAbsolute(path)) {
+      return false;
+    }
+
+    // 过滤掉可执行文件
+    const lowerPath = path.toLowerCase();
+    const executableExtensions = [".exe", ".dll", ".app"];
+    if (executableExtensions.some((ext) => lowerPath.endsWith(ext))) {
+      return false;
+    }
+
+    // 只处理 .md 文件
+    if (lowerPath.endsWith(".md")) {
+      return true;
+    }
+
+    // 只处理文件夹
+    if (existsSync(path)) {
+      const stats = statSync(path);
+      if (stats.isDirectory()) {
+        return true;
+      }
+    }
+
+    // 其他情况一律忽略
+    return false;
+  };
+
+  // 最后一个参数通常是文件路径或文件夹路径
+  const lastArg = args[args.length - 1];
+  if (lastArg && shouldProcessPath(lastArg)) {
+    log.info(`找到有效路径（最后一个参数）: ${lastArg}`);
     return lastArg;
   }
 
-  // 遍历所有参数查找可能的文件路径
+  // 遍历所有参数查找可能的文件路径或文件夹路径
   for (const arg of args) {
-    if (!arg.startsWith("--") && arg.toLowerCase().endsWith(".md")) {
+    if (shouldProcessPath(arg)) {
+      log.info(`找到有效路径（遍历参数）: ${arg}`);
       return arg;
     }
   }
 
+  log.info("未找到有效的文件或文件夹路径");
   return null;
+}
+
+// 处理文件或文件夹
+function handleFileOrFolder(path: string) {
+  if (!existsSync(path)) {
+    log.warn(`路径不存在: ${path}`);
+    return;
+  }
+
+  const stats = statSync(path);
+
+  if (stats.isDirectory()) {
+    // 是文件夹，以项目方式打开
+    log.info(`打开文件夹作为项目: ${path}`);
+    recentProjectsModule.addRecentProject(path);
+    windowManager.createEditorWindow("markdown", { rootPath: path });
+  } else if (path.toLowerCase().endsWith(".md")) {
+    // 是 Markdown 文件
+    log.info(`打开 Markdown 文件: ${path}`);
+    windowManager.createEditorWindow("markdown", { filePath: path });
+  } else {
+    log.warn(`不支持的文件类型: ${path}`);
+  }
 }

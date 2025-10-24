@@ -11,6 +11,31 @@
   }
 }
 
+.mainContent {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+}
+
+.fileTreeSidebar {
+  flex-shrink: 0;
+  border-right: 1px solid #e0e0e0;
+  background-color: #fafafa;
+  overflow: hidden;
+
+  [data-theme="dark"] & {
+    border-right: 1px solid #333;
+    background-color: #2a2a2a;
+  }
+}
+
+.fileTreeContainer {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
 .editorContainer {
   flex: 1;
   width: 100%;
@@ -114,4 +139,29 @@
 .wordCount {
   padding: 0 8px;
   font-size: 12px;
+}
+
+.emptyEditor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+.emptyContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #999;
+
+  p {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  [data-theme="dark"] & {
+    color: #666;
+  }
 }
