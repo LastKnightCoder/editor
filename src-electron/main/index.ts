@@ -142,6 +142,172 @@ if (!gotTheLock) {
   if (filePathFromArgs) {
     filesToOpen.push(filePathFromArgs);
   }
+
+  app.whenReady().then(() => {
+    log.info("应用就绪");
+
+    initModules().then(() => {
+      if (filesToOpen.length === 0) {
+        log.info("创建主窗口");
+        windowManager.createMainWindow();
+      } else {
+        log.info("检测到通过文件关联(.md)启动，跳过创建主窗口");
+      }
+
+      // 注册全局快捷键 Ctrl/Command+N 打开快速卡片窗口
+      const shortcutKey =
+        process.platform === "darwin" ? "Command+N" : "Ctrl+N";
+      globalShortcut.register(shortcutKey, () => {
+        windowManager.createQuickCardWindow();
+      });
+
+      // 注册DPR调整快捷键
+      globalShortcut.register("Ctrl+=", () => {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow) {
+          const currentFactor = focusedWindow.webContents.getZoomFactor();
+          focusedWindow.webContents.setZoomFactor(currentFactor + 0.1);
+          log.info(`窗口DPR已调整为: ${currentFactor + 0.1}`);
+        }
+      });
+
+      globalShortcut.register("Ctrl+-", () => {
+        const focusedWindow = BrowserWindow.getFocusedWindow();
+        if (focusedWindow) {
+          const currentFactor = focusedWindow.webContents.getZoomFactor();
+          focusedWindow.webContents.setZoomFactor(currentFactor - 0.1);
+        }
+      });
+
+      // 应用初始化完成后，处理之前保存的文件路径
+      if (filesToOpen.length > 0) {
+        log.info(`处理启动时收到的Markdown文件: ${filesToOpen}`);
+        filesToOpen.forEach((filePath) => {
+          if (filePath.toLowerCase().endsWith(".md")) {
+            windowManager.createEditorWindow("markdown", { filePath });
+          }
+        });
+        // 处理完毕后清空
+        filesToOpen = [];
+      }
+
+      app.on("activate", () => {
+        log.info("应用激活");
+        if (BrowserWindow.getAllWindows().length === 0) {
+          windowManager.createMainWindow();
+        }
+      });
+    });
+
+    protocol.handle("ltoh", async (request) => {
+      const startTime = Date.now();
+      // log.debug(`协议请求: ${request.url}`);
+
+      try {
+        // 转换URL为文件路径
+        const parsedUrl = new URL(request.url);
+        const filePath = parsedUrl.pathname.slice(1);
+
+        const realPath = PathUtil.getFilePath(filePath);
+        // log.debug(`真实路径: ${realPath}`);
+
+        // 验证文件存在
+        if (!existsSync(realPath) || !statSync(realPath).isFile()) {
+          log.warn(`文件不存在: ${realPath}`);
+          return new Response("Not Found", { status: 404 });
+        }
+
+        // 获取文件信息
+        const stats = statSync(realPath);
+        const fileSize = stats.size;
+        const rangeHeader = request.headers.get("range") || "";
+        const mimeType = getMimeType(extname(realPath));
+
+        // log.debug(`文件信息 [${realPath}]: 大小=${fileSize}, 类型=${mimeType}`);
+
+        // 处理范围请求
+        if (
+          (rangeHeader && mimeType.startsWith("video/")) ||
+          mimeType.startsWith("audio/")
+        ) {
+          const ranges = rangeHeader.replace(/bytes=/, "").split("-");
+          const start = parseInt(ranges[0], 10);
+          const end = ranges[1] ? parseInt(ranges[1], 10) : fileSize - 1;
+
+          log.debug(`处理范围请求: ${start}-${end}/${fileSize}`);
+
+          return streamResponse(
+            realPath,
+            {
+              status: 206,
+              headers: {
+                "Content-Type": mimeType,
+                "Content-Length": (end - start + 1).toString(),
+                "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+                "Accept-Ranges": "bytes",
+                "Cache-Control": "public, max-age=31536000",
+              },
+            },
+            { start, end },
+          );
+        }
+
+        // 完整文件请求
+        log.debug(`处理完整文件请求: ${realPath}`);
+        return streamResponse(realPath, {
+          status: 200,
+          headers: {
+            "Content-Type": mimeType,
+            "Content-Length": fileSize.toString(),
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "max-age=604800", // 7天缓存
+          },
+        });
+      } catch (error) {
+        log.error(`协议请求失败 [${Date.now() - startTime}ms]:`, error);
+        return new Response("Internal Error", { status: 500 });
+      }
+    });
+  });
+
+  app.on("window-all-closed", () => {
+    log.info("所有窗口已关闭");
+    if (process.platform !== "darwin") {
+      log.info("退出应用");
+      app.quit();
+    }
+  });
+
+  // 处理文件打开事件
+  app.on("open-file", (_event, filePath) => {
+    _event.preventDefault();
+    log.info(`收到文件打开请求: ${filePath}`);
+
+    // 检查是否为Markdown文件
+    if (filePath.toLowerCase().endsWith(".md")) {
+      if (windowManager) {
+        log.info(`使用窗口管理器打开Markdown文件: ${filePath}`);
+        windowManager.createEditorWindow("markdown", { filePath });
+      } else {
+        // 如果应用尚未初始化，保存文件路径以便后续处理
+        log.info(`应用尚未初始化，保存Markdown文件路径: ${filePath}`);
+        filesToOpen.push(filePath);
+      }
+    } else {
+      log.info(`不支持打开的文件类型: ${filePath}`);
+    }
+  });
+
+  // 添加退出前的清理
+  app.on("before-quit", () => {
+    log.info("应用即将退出，执行清理");
+    // 注销所有全局快捷键
+    globalShortcut.unregisterAll();
+
+    if (trayManager) {
+      trayManager.destroyTray();
+    }
+  });
 }
 
 function getMimeType(ext: string): string {
@@ -221,160 +387,6 @@ const initModules = async () => {
   }
 };
 
-app.whenReady().then(() => {
-  log.info("应用就绪");
-
-  initModules().then(() => {
-    if (filesToOpen.length === 0) {
-      log.info("创建主窗口");
-      windowManager.createMainWindow();
-    } else {
-      log.info("检测到通过文件关联(.md)启动，跳过创建主窗口");
-    }
-
-    // 注册全局快捷键 Ctrl/Command+N 打开快速卡片窗口
-    const shortcutKey = process.platform === "darwin" ? "Command+N" : "Ctrl+N";
-    globalShortcut.register(shortcutKey, () => {
-      windowManager.createQuickCardWindow();
-    });
-
-    // 注册DPR调整快捷键
-    globalShortcut.register("Ctrl+=", () => {
-      const focusedWindow = BrowserWindow.getFocusedWindow();
-      if (focusedWindow) {
-        const currentFactor = focusedWindow.webContents.getZoomFactor();
-        focusedWindow.webContents.setZoomFactor(currentFactor + 0.1);
-        log.info(`窗口DPR已调整为: ${currentFactor + 0.1}`);
-      }
-    });
-
-    globalShortcut.register("Ctrl+-", () => {
-      const focusedWindow = BrowserWindow.getFocusedWindow();
-      if (focusedWindow) {
-        const currentFactor = focusedWindow.webContents.getZoomFactor();
-        focusedWindow.webContents.setZoomFactor(currentFactor - 0.1);
-      }
-    });
-
-    // 应用初始化完成后，处理之前保存的文件路径
-    if (filesToOpen.length > 0) {
-      log.info(`处理启动时收到的Markdown文件: ${filesToOpen}`);
-      filesToOpen.forEach((filePath) => {
-        if (filePath.toLowerCase().endsWith(".md")) {
-          windowManager.createEditorWindow("markdown", { filePath });
-        }
-      });
-      // 处理完毕后清空
-      filesToOpen = [];
-    }
-
-    app.on("activate", () => {
-      log.info("应用激活");
-      if (BrowserWindow.getAllWindows().length === 0) {
-        windowManager.createMainWindow();
-      }
-    });
-  });
-
-  protocol.handle("ltoh", async (request) => {
-    const startTime = Date.now();
-    // log.debug(`协议请求: ${request.url}`);
-
-    try {
-      // 转换URL为文件路径
-      const parsedUrl = new URL(request.url);
-      const filePath = parsedUrl.pathname.slice(1);
-
-      const realPath = PathUtil.getFilePath(filePath);
-      // log.debug(`真实路径: ${realPath}`);
-
-      // 验证文件存在
-      if (!existsSync(realPath) || !statSync(realPath).isFile()) {
-        log.warn(`文件不存在: ${realPath}`);
-        return new Response("Not Found", { status: 404 });
-      }
-
-      // 获取文件信息
-      const stats = statSync(realPath);
-      const fileSize = stats.size;
-      const rangeHeader = request.headers.get("range") || "";
-      const mimeType = getMimeType(extname(realPath));
-
-      // log.debug(`文件信息 [${realPath}]: 大小=${fileSize}, 类型=${mimeType}`);
-
-      // 处理范围请求
-      if (
-        (rangeHeader && mimeType.startsWith("video/")) ||
-        mimeType.startsWith("audio/")
-      ) {
-        const ranges = rangeHeader.replace(/bytes=/, "").split("-");
-        const start = parseInt(ranges[0], 10);
-        const end = ranges[1] ? parseInt(ranges[1], 10) : fileSize - 1;
-
-        log.debug(`处理范围请求: ${start}-${end}/${fileSize}`);
-
-        return streamResponse(
-          realPath,
-          {
-            status: 206,
-            headers: {
-              "Content-Type": mimeType,
-              "Content-Length": (end - start + 1).toString(),
-              "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-              "Accept-Ranges": "bytes",
-              "Cache-Control": "public, max-age=31536000",
-            },
-          },
-          { start, end },
-        );
-      }
-
-      // 完整文件请求
-      log.debug(`处理完整文件请求: ${realPath}`);
-      return streamResponse(realPath, {
-        status: 200,
-        headers: {
-          "Content-Type": mimeType,
-          "Content-Length": fileSize.toString(),
-          "Accept-Ranges": "bytes",
-          "Cache-Control": "max-age=604800", // 7天缓存
-        },
-      });
-    } catch (error) {
-      log.error(`协议请求失败 [${Date.now() - startTime}ms]:`, error);
-      return new Response("Internal Error", { status: 500 });
-    }
-  });
-});
-
-app.on("window-all-closed", () => {
-  log.info("所有窗口已关闭");
-  if (process.platform !== "darwin") {
-    log.info("退出应用");
-    app.quit();
-  }
-});
-
-// 处理文件打开事件
-app.on("open-file", (_event, filePath) => {
-  _event.preventDefault();
-  log.info(`收到文件打开请求: ${filePath}`);
-
-  // 检查是否为Markdown文件
-  if (filePath.toLowerCase().endsWith(".md")) {
-    if (windowManager) {
-      log.info(`使用窗口管理器打开Markdown文件: ${filePath}`);
-      windowManager.createEditorWindow("markdown", { filePath });
-    } else {
-      // 如果应用尚未初始化，保存文件路径以便后续处理
-      log.info(`应用尚未初始化，保存Markdown文件路径: ${filePath}`);
-      filesToOpen.push(filePath);
-    }
-  } else {
-    log.info(`不支持打开的文件类型: ${filePath}`);
-  }
-});
-
 // 从命令行参数中提取文件路径
 function getFilePathFromArgs(args: string[]): string | null {
   // 最后一个参数通常是文件路径
@@ -397,14 +409,3 @@ function getFilePathFromArgs(args: string[]): string | null {
 
   return null;
 }
-
-// 添加退出前的清理
-app.on("before-quit", () => {
-  log.info("应用即将退出，执行清理");
-  // 注销所有全局快捷键
-  globalShortcut.unregisterAll();
-
-  if (trayManager) {
-    trayManager.destroyTray();
-  }
-});

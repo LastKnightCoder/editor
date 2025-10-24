@@ -38,6 +38,7 @@ class ServerModule implements Module {
   app: Express.Application;
   server: http.Server;
   wsServers: Record<string, WebSocketServer> = {};
+  private initialized = false;
   constructor() {
     this.name = "static-server";
     this.app = Express();
@@ -45,6 +46,12 @@ class ServerModule implements Module {
   }
 
   async init() {
+    if (this.initialized) {
+      console.log("ServerModule already initialized, skipping");
+      return;
+    }
+    this.initialized = true;
+
     return new Promise<void>((resolve) => {
       const appDir = PathUtil.getAppDir();
       this.app.use(
