@@ -43,7 +43,7 @@ function createPanel(editor: Editor) {
     return (
       <DndProvider>
         <MentionPanelContext.Provider value={store}>
-          <MentionPanel extensions={extensions} />
+          <MentionPanel extensions={extensions} editor={editor} />
         </MentionPanelContext.Provider>
       </DndProvider>
     );

@@ -1,15 +1,19 @@
 .mentionPanel {
   position: fixed;
-  z-index: 1000;
-  background: var(--background-color);
+  background: var(--main-bg-color);
   border: 1px solid var(--border-color);
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  max-height: 400px;
-  width: 500px;
-  overflow: hidden;
+  width: 360px;
   display: flex;
   flex-direction: column;
+  margin: 0;
+  padding: 0;
+
+  /* Popover API 默认样式重置 */
+  &:popover-open {
+    inset: unset;
+  }
 }
 
 .loading {
@@ -18,25 +22,29 @@
   align-items: center;
   padding: 40px;
   color: var(--text-color-secondary);
+  background-color: var(--main-bg-color);
 }
 
 .list {
   overflow-y: auto;
-  flex: 1;
+  max-height: 300px;
+  background-color: var(--main-bg-color);
 }
 
 .item {
-  padding: 12px 16px;
+  padding: 8px 12px;
   cursor: pointer;
   border-bottom: 1px solid var(--border-color);
   transition: background-color 0.2s;
+  position: relative;
+  background-color: var(--main-bg-color);
 
   &:hover {
-    background-color: var(--hover-background-color);
+    background-color: var(--block-panel-active-bg);
   }
 
   &.active {
-    background-color: var(--active-background-color);
+    background-color: var(--block-panel-active-bg);
   }
 
   &:last-child {
@@ -44,31 +52,19 @@
   }
 }
 
-.titleContainer {
-  margin-bottom: 4px;
-}
-
-.title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-color);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-
-.time {
-  font-size: 12px;
-  color: var(--text-color-secondary);
-  margin-bottom: 8px;
+.typeTag {
+  position: absolute;
+  top: 8px;
+  right: 12px;
 }
 
 .content {
   font-size: 13px;
-  color: var(--text-color-secondary);
-  max-height: 60px;
+  color: var(--text-color);
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 80px;
 
   :global {
     .editor-container {
@@ -81,4 +77,5 @@
   padding: 40px;
   text-align: center;
   color: var(--text-color-secondary);
+  background-color: var(--main-bg-color);
 }
