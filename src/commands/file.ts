@@ -84,3 +84,10 @@ export const openMarkdownInNewWindow = async (filePath: string) => {
 export const generateCacheKey = async (url: string): Promise<string> => {
   return await invoke("generate-cache-key", url);
 };
+
+export const compressImage = async (
+  buffer: Uint8Array,
+  mimeType: string,
+): Promise<Uint8Array> => {
+  return await invoke("compress-image", buffer, mimeType);
+};

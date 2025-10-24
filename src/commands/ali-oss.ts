@@ -18,7 +18,7 @@ interface IPutObject {
   bucket: string;
   region: string;
   objectName: string;
-  file: File;
+  file: Uint8Array;
 }
 
 export const putObject = async (putObj: IPutObject): Promise<string> => {

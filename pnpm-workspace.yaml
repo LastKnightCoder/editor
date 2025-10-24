@@ -5,3 +5,4 @@ onlyBuiltDependencies:
   - electron
   - esbuild
   - ffmpeg-static
+  - lzma-native

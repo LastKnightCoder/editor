@@ -6,6 +6,7 @@ import { promises as fs } from "node:fs";
 import PathUtil from "../utils/PathUtil";
 import { Module } from "../types/module";
 import crypto from "node:crypto";
+import sharp from "sharp";
 
 class ResourceModule implements Module {
   name = "resource";
@@ -65,6 +66,13 @@ class ResourceModule implements Module {
     ipcMain.handle("delete-cache-file", async (_, filePath: string) => {
       return this.deleteCacheFile(filePath);
     });
+
+    ipcMain.handle(
+      "compress-image",
+      async (_, buffer: Uint8Array, mimeType: string) => {
+        return this.compressImage(Buffer.from(buffer), mimeType);
+      },
+    );
   }
 
   showInFolder(path: string) {
@@ -181,6 +189,34 @@ class ResourceModule implements Module {
     } catch (error) {
       // 文件不存在或删除失败，忽略错误
       console.warn("删除缓存文件失败:", error);
+    }
+  }
+
+  // 压缩图片
+  async compressImage(buffer: Buffer, mimeType: string): Promise<Buffer> {
+    try {
+      // 检查是否是支持的图片格式
+      const supportedTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/webp",
+      ];
+
+      if (!supportedTypes.includes(mimeType.toLowerCase())) {
+        return buffer;
+      }
+
+      // 使用 sharp 压缩图片为 webp 格式
+      const compressedBuffer = await sharp(buffer)
+        .webp({ quality: 80 })
+        .toBuffer();
+
+      return compressedBuffer;
+    } catch (error) {
+      console.error("图片压缩失败:", error);
+      // 压缩失败时返回原始 buffer
+      return buffer;
     }
   }
 }
