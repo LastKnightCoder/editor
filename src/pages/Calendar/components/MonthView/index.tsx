@@ -310,10 +310,13 @@ const MonthView = () => {
     return result;
   }, [events, year, month, dateGrid]);
 
+  // 计算实际的行数
+  const totalRows = useMemo(() => Math.ceil(dateGrid.length / 7), [dateGrid]);
+
   // 计算每行的事件布局 - 使用新算法
   const rowEventLayout = useMemo(() => {
     // 动态计算每行可显示的最大事件层级数
-    const rowHeight = containerHeight / 5;
+    const rowHeight = containerHeight / totalRows;
     const dateAreaHeight = 36; // 日期数字和边距
     const eventHeight = 24; // 事件高度（18px + 6px间距）
     const moreButtonHeight = 18; // "+N 更多" 按钮高度（16px line-height + 2px padding）
@@ -344,12 +347,17 @@ const MonthView = () => {
       Array<{ event: CalendarEvent; span: EventSpan; level: number }>
     > = new Map();
 
-    for (let i = 0; i < 5; i++) {
+    // 初始化所有行
+    for (let i = 0; i < totalRows; i++) {
       layout.set(i, []);
     }
 
     // 填充布局结果
     layoutResult.forEach((rowItems, row) => {
+      // 确保 row 存在（防止算法返回超出范围的行）
+      if (!layout.has(row)) {
+        layout.set(row, []);
+      }
       const rowLayout = layout.get(row)!;
       rowItems.forEach((item) => {
         // 找到对应的事件
@@ -367,7 +375,7 @@ const MonthView = () => {
     });
 
     return layout;
-  }, [topLayoutEvents, containerHeight]);
+  }, [topLayoutEvents, containerHeight, totalRows]);
 
   const weekDays = ["一", "二", "三", "四", "五", "六", "日"];
 
@@ -386,7 +394,10 @@ const MonthView = () => {
 
       <div
         ref={containerRef}
-        className="relative grid flex-1 grid-cols-7 grid-rows-5 overflow-hidden"
+        className="relative grid flex-1 grid-cols-7 overflow-hidden"
+        style={{
+          gridTemplateRows: `repeat(${totalRows}, minmax(0, 1fr))`,
+        }}
       >
         {dateGrid.map((day, index) => {
           if (day === null) {

@@ -57,6 +57,7 @@ export interface CalendarEvent {
   endTime: number | null; // 分钟数 0-1439
   color: ProjectColorName | null;
   allDay: boolean;
+  value?: number; // 可选的数值字段，用于存储如时间成本等数值
 }
 
 export type CreateCalendarEvent = Omit<

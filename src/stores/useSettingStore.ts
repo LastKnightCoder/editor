@@ -105,10 +105,6 @@ export interface ISetting {
       enable: boolean;
       name: "PDF";
     };
-    timeRecord: {
-      enable: boolean;
-      name: "时间记录";
-    };
     vecDocuments: {
       enable: boolean;
       name: "索引数据库";
@@ -292,10 +288,6 @@ const initialState: IState = {
       pdf: {
         enable: true,
         name: "PDF",
-      },
-      timeRecord: {
-        enable: true,
-        name: "时间记录",
       },
       vecDocuments: {
         enable: true,

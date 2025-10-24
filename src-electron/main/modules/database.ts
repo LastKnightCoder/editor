@@ -10,7 +10,6 @@ import ArticleTable from "./tables/article";
 import DocumentTable from "./tables/document";
 import WhiteboardTable from "./tables/whiteboard";
 import ProjectTable from "./tables/project";
-import TimeRecordTable from "./tables/time-record";
 import PdfTable from "./tables/pdf";
 import DailyNoteTable from "./tables/daily-note";
 import VecDocumentTable from "./tables/vec-document";
@@ -90,7 +89,6 @@ class DatabaseModule implements Module {
       ArticleTable,
       ProjectTable,
       DocumentTable,
-      TimeRecordTable,
       PdfTable,
       DailyNoteTable,
       VecDocumentTable,
@@ -119,6 +117,7 @@ class DatabaseModule implements Module {
       CalendarGroupTable,
       CalendarTable,
       CalendarEventTable,
+      // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(

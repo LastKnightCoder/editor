@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { App } from "antd";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { CreateCalendarEvent, UpdateCalendarEvent } from "@/types";
@@ -9,6 +9,20 @@ import {
 } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import dayjs from "dayjs";
+import { Descendant } from "slate";
+import Editor, { EditorRef } from "@/components/Editor";
+import {
+  getContentById,
+  createContent,
+  updateContent,
+} from "@/commands/content";
+
+const DEFAULT_CONTENT: Descendant[] = [
+  {
+    type: "paragraph",
+    children: [{ type: "formatted", text: "" }],
+  },
+];
 
 const EventDialog = () => {
   const {
@@ -31,6 +45,9 @@ const EventDialog = () => {
   const [endTime, setEndTime] = useState("");
   const [allDay, setAllDay] = useState(false);
   const [color, setColor] = useState<string | null>(null);
+  const [value, setValue] = useState<string>("");
+  const [description, setDescription] = useState<Descendant[]>(DEFAULT_CONTENT);
+  const editorRef = useRef<EditorRef>(null);
 
   // 判断当前事件是否属于系统日历
   const isSystemCalendarEvent = editingEvent
@@ -39,46 +56,84 @@ const EventDialog = () => {
     : false;
 
   useEffect(() => {
-    if (editingEvent) {
-      setTitle(editingEvent.title);
-      setCalendarId(editingEvent.calendarId);
-      setStartDate(dayjs(editingEvent.startDate).format("YYYY-MM-DD"));
-      setEndDate(
-        editingEvent.endDate
-          ? dayjs(editingEvent.endDate).format("YYYY-MM-DD")
-          : "",
-      );
-      setAllDay(editingEvent.allDay);
-      setColor(editingEvent.color);
-
-      if (!editingEvent.allDay && editingEvent.startTime !== null) {
-        const startHours = Math.floor(editingEvent.startTime / 60);
-        const startMins = editingEvent.startTime % 60;
-        setStartTime(
-          `${startHours.toString().padStart(2, "0")}:${startMins.toString().padStart(2, "0")}`,
+    const loadDescription = async () => {
+      if (editingEvent) {
+        setTitle(editingEvent.title);
+        setCalendarId(editingEvent.calendarId);
+        setStartDate(dayjs(editingEvent.startDate).format("YYYY-MM-DD"));
+        setEndDate(
+          editingEvent.endDate
+            ? dayjs(editingEvent.endDate).format("YYYY-MM-DD")
+            : "",
         );
-      }
-
-      if (!editingEvent.allDay && editingEvent.endTime !== null) {
-        const endHours = Math.floor(editingEvent.endTime / 60);
-        const endMins = editingEvent.endTime % 60;
-        setEndTime(
-          `${endHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")}`,
+        setAllDay(editingEvent.allDay);
+        setColor(editingEvent.color);
+        setValue(
+          editingEvent.value !== undefined && editingEvent.value !== null
+            ? editingEvent.value.toString()
+            : "",
         );
+
+        if (!editingEvent.allDay && editingEvent.startTime !== null) {
+          const startHours = Math.floor(editingEvent.startTime / 60);
+          const startMins = editingEvent.startTime % 60;
+          setStartTime(
+            `${startHours.toString().padStart(2, "0")}:${startMins.toString().padStart(2, "0")}`,
+          );
+        }
+
+        if (!editingEvent.allDay && editingEvent.endTime !== null) {
+          const endHours = Math.floor(editingEvent.endTime / 60);
+          const endMins = editingEvent.endTime % 60;
+          setEndTime(
+            `${endHours.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")}`,
+          );
+        }
+
+        // 加载描述内容
+        if (
+          editingEvent.detailContentId &&
+          editingEvent.detailContentId !== 0
+        ) {
+          try {
+            const content = await getContentById(editingEvent.detailContentId);
+            if (content?.content) {
+              setDescription(content.content);
+              editorRef.current?.setEditorValue(content.content);
+            } else {
+              setDescription(DEFAULT_CONTENT);
+              editorRef.current?.setEditorValue(DEFAULT_CONTENT);
+            }
+          } catch (error) {
+            console.error("Failed to load description:", error);
+            setDescription(DEFAULT_CONTENT);
+            editorRef.current?.setEditorValue(DEFAULT_CONTENT);
+          }
+        } else {
+          setDescription(DEFAULT_CONTENT);
+          editorRef.current?.setEditorValue(DEFAULT_CONTENT);
+        }
+      } else {
+        // 重置表单 - 选择第一个非系统日历
+        setTitle("");
+        const firstNonSystemCalendar = calendars.find(
+          (c) => !c.isInSystemGroup,
+        );
+        setCalendarId(firstNonSystemCalendar?.id || calendars[0]?.id || 0);
+        const today = new Date().toISOString().split("T")[0];
+        setStartDate(today);
+        setEndDate("");
+        setStartTime("09:00");
+        setEndTime("10:00");
+        setAllDay(false);
+        setColor(null);
+        setValue("");
+        setDescription(DEFAULT_CONTENT);
+        editorRef.current?.setEditorValue(DEFAULT_CONTENT);
       }
-    } else {
-      // 重置表单 - 选择第一个非系统日历
-      setTitle("");
-      const firstNonSystemCalendar = calendars.find((c) => !c.isInSystemGroup);
-      setCalendarId(firstNonSystemCalendar?.id || calendars[0]?.id || 0);
-      const today = new Date().toISOString().split("T")[0];
-      setStartDate(today);
-      setEndDate("");
-      setStartTime("09:00");
-      setEndTime("10:00");
-      setAllDay(false);
-      setColor(null);
-    }
+    };
+
+    loadDescription();
   }, [editingEvent, calendars]);
 
   const handleSave = async () => {
@@ -109,18 +164,46 @@ const EventDialog = () => {
       endTimeMinutes = hours * 60 + mins;
     }
 
+    // 处理描述内容
+    const hasContent =
+      JSON.stringify(description) !== JSON.stringify(DEFAULT_CONTENT);
+    let detailContentId = editingEvent?.detailContentId || 0;
+
+    if (hasContent) {
+      // 如果有内容
+      if (editingEvent && editingEvent.detailContentId !== 0) {
+        // 更新现有内容
+        await updateContent(editingEvent.detailContentId, description);
+        detailContentId = editingEvent.detailContentId;
+      } else {
+        // 创建新内容
+        const contentId = await createContent(description, 0);
+        if (contentId) {
+          detailContentId = contentId;
+        }
+      }
+    } else {
+      // 如果没有内容，保持原有的 detailContentId（如果有的话）
+      detailContentId = editingEvent?.detailContentId || 0;
+    }
+
+    // 处理 value 字段
+    const numericValue = value.trim() !== "" ? parseFloat(value) : undefined;
+
     if (editingEvent && editingEvent.id !== 0) {
       // 更新现有事件
       const updateData: UpdateCalendarEvent = {
         ...editingEvent,
         title,
         calendarId,
+        detailContentId,
         startDate: startDateTs,
         endDate: endDateTs,
         startTime: startTimeMinutes,
         endTime: endTimeMinutes,
         allDay,
         color: color as any,
+        value: numericValue,
       };
       await updateEvent(updateData);
     } else {
@@ -128,13 +211,14 @@ const EventDialog = () => {
       const createData: CreateCalendarEvent = {
         title,
         calendarId,
-        detailContentId: 0,
+        detailContentId,
         startDate: startDateTs,
         endDate: endDateTs,
         startTime: startTimeMinutes,
         endTime: endTimeMinutes,
         allDay,
         color: color as any,
+        value: numericValue,
       };
       await createEvent(createData);
     }
@@ -342,6 +426,38 @@ const EventDialog = () => {
                         />
                       );
                     })}
+                  </div>
+                </div>
+
+                {/* 数值 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    数值（可选）
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    disabled={isSystemCalendarEvent}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
+                    placeholder="如时间成本、金额等"
+                  />
+                </div>
+
+                {/* 描述 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    描述（可选）
+                  </label>
+                  <div className="border-1 rounded-lg border-gray-300 dark:border-gray-600 p-2 min-h-40">
+                    <Editor
+                      ref={editorRef}
+                      initValue={DEFAULT_CONTENT}
+                      onChange={setDescription}
+                      readonly={isSystemCalendarEvent}
+                      placeHolder="添加事件描述..."
+                    />
                   </div>
                 </div>
               </div>
