@@ -74,7 +74,7 @@ const SettingsPage = () => {
   }, []);
 
   return (
-    <div className="w-full h-full flex flex-col box-border overflow-hidden bg-[var(--background-color)] gap-2">
+    <div className="w-full h-full flex flex-col box-border overflow-hidden gap-2">
       <Titlebar className="h-15 flex-shrink-0">
         <Breadcrumb
           className="h-15 pl-6! flex items-center app-region-no-drag"

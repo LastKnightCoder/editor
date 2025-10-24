@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { Editor } from "slate";
 import { SearchResult } from "@/types";
 import { wrapContentLink } from "../components/utils";
+import { cleanupMentionPanel } from "../plugins/withMentionCommands";
 import {
   IMentionPanelState,
   IMentionPanelActions,
@@ -73,6 +74,10 @@ export const createMentionPanelStore = (editor: Editor) => {
       );
 
       reset();
+      // 卸载面板
+      setTimeout(() => {
+        cleanupMentionPanel(editor);
+      }, 0);
     },
 
     reset: () => {
