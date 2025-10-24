@@ -68,12 +68,19 @@ const MonthView = () => {
       endDate: finalEndDate,
     });
 
+    // 优先选择第一个非系统日历
+    const nonSystemCalendars = calendars.filter((c) => !c.isInSystemGroup);
+    const defaultCalendarId =
+      nonSystemCalendars.length > 0
+        ? nonSystemCalendars[0].id
+        : calendars[0].id;
+
     // 同时打开编辑对话框
     const newEvent: any = {
       id: 0,
       createTime: Date.now(),
       updateTime: Date.now(),
-      calendarId: calendars[0].id,
+      calendarId: defaultCalendarId,
       title: "",
       detailContentId: 0,
       startDate: startDate,

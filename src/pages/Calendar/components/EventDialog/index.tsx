@@ -32,6 +32,12 @@ const EventDialog = () => {
   const [allDay, setAllDay] = useState(false);
   const [color, setColor] = useState<string | null>(null);
 
+  // 判断当前事件是否属于系统日历
+  const isSystemCalendarEvent = editingEvent
+    ? calendars.find((c) => c.id === editingEvent.calendarId)
+        ?.isInSystemGroup || false
+    : false;
+
   useEffect(() => {
     if (editingEvent) {
       setTitle(editingEvent.title);
@@ -61,9 +67,10 @@ const EventDialog = () => {
         );
       }
     } else {
-      // 重置表单
+      // 重置表单 - 选择第一个非系统日历
       setTitle("");
-      setCalendarId(calendars[0]?.id || 0);
+      const firstNonSystemCalendar = calendars.find((c) => !c.isInSystemGroup);
+      setCalendarId(firstNonSystemCalendar?.id || calendars[0]?.id || 0);
       const today = new Date().toISOString().split("T")[0];
       setStartDate(today);
       setEndDate("");
@@ -76,6 +83,15 @@ const EventDialog = () => {
 
   const handleSave = async () => {
     if (!title || !calendarId) return;
+
+    // 系统日历事件不允许编辑
+    if (isSystemCalendarEvent) {
+      modal.warning({
+        title: "无法编辑",
+        content: "系统日历的事件不允许编辑",
+      });
+      return;
+    }
 
     const startDateTs = dayjs(startDate).startOf("day").valueOf();
     const endDateTs = endDate ? dayjs(endDate).startOf("day").valueOf() : null;
@@ -128,6 +144,15 @@ const EventDialog = () => {
 
   const handleDelete = () => {
     if (editingEvent && editingEvent.id !== 0) {
+      // 系统日历事件不允许删除
+      if (isSystemCalendarEvent) {
+        modal.warning({
+          title: "无法删除",
+          content: "系统日历的事件不允许删除",
+        });
+        return;
+      }
+
       modal.confirm({
         title: "删除事件",
         content: "确定要删除这个事件吗？",
@@ -180,7 +205,8 @@ const EventDialog = () => {
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
+                    disabled={isSystemCalendarEvent}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
                     placeholder="事件标题"
                   />
                 </div>
@@ -193,14 +219,29 @@ const EventDialog = () => {
                   <select
                     value={calendarId}
                     onChange={(e) => setCalendarId(Number(e.target.value))}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
+                    disabled={isSystemCalendarEvent}
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
                   >
                     {calendars.map((cal) => (
-                      <option key={cal.id} value={cal.id}>
+                      <option
+                        key={cal.id}
+                        value={cal.id}
+                        disabled={cal.isInSystemGroup}
+                        style={{
+                          color: cal.isInSystemGroup ? "#9ca3af" : "inherit",
+                        }}
+                      >
                         {cal.title}
+                        {cal.isInSystemGroup ? " (系统日历)" : ""}
                       </option>
                     ))}
                   </select>
+                  {calendars.find((c) => c.id === calendarId)
+                    ?.isInSystemGroup && (
+                    <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
+                      注意：您正在编辑系统日历中的事件
+                    </p>
+                  )}
                 </div>
 
                 {/* 全天 */}
@@ -209,7 +250,8 @@ const EventDialog = () => {
                     type="checkbox"
                     checked={allDay}
                     onChange={(e) => setAllDay(e.target.checked)}
-                    className="h-4 w-4"
+                    disabled={isSystemCalendarEvent}
+                    className="h-4 w-4 disabled:cursor-not-allowed disabled:opacity-60"
                   />
                   <label className="ml-2 text-sm text-gray-700 dark:text-gray-300">
                     全天
@@ -226,7 +268,8 @@ const EventDialog = () => {
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
+                      disabled={isSystemCalendarEvent}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
                     />
                   </div>
                   {!allDay && (
@@ -238,7 +281,8 @@ const EventDialog = () => {
                         type="time"
                         value={startTime}
                         onChange={(e) => setStartTime(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
+                        disabled={isSystemCalendarEvent}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
                       />
                     </div>
                   )}
@@ -254,7 +298,8 @@ const EventDialog = () => {
                       type="date"
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
+                      disabled={isSystemCalendarEvent}
+                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
                     />
                   </div>
                   {!allDay && (
@@ -266,7 +311,8 @@ const EventDialog = () => {
                         type="time"
                         value={endTime}
                         onChange={(e) => setEndTime(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
+                        disabled={isSystemCalendarEvent}
+                        className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
                       />
                     </div>
                   )}
@@ -286,8 +332,11 @@ const EventDialog = () => {
                       return (
                         <button
                           key={c.name}
-                          onClick={() => setColor(c.name)}
-                          className={`h-8 w-8 rounded-full ${color === c.name ? "ring-2 ring-blue-600 ring-offset-2" : ""}`}
+                          onClick={() =>
+                            !isSystemCalendarEvent && setColor(c.name)
+                          }
+                          disabled={isSystemCalendarEvent}
+                          className={`h-8 w-8 rounded-full disabled:cursor-not-allowed disabled:opacity-60 ${color === c.name ? "ring-2 ring-blue-600 ring-offset-2" : ""}`}
                           style={{ backgroundColor: colorValue }}
                           title={c.label}
                         />
@@ -300,30 +349,41 @@ const EventDialog = () => {
 
             {/* 底部按钮栏 - 固定在底部 */}
             <div className="border-t border-gray-200 p-4 dark:border-gray-700">
-              <div className="flex justify-between">
-                {editingEvent && editingEvent.id !== 0 && (
-                  <button
-                    onClick={handleDelete}
-                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-                  >
-                    删除
-                  </button>
-                )}
-                <div className="flex gap-2 ml-auto">
+              {isSystemCalendarEvent ? (
+                <div className="flex justify-end">
                   <button
                     onClick={() => setEditingEvent(null)}
                     className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
                   >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    保存
+                    关闭
                   </button>
                 </div>
-              </div>
+              ) : (
+                <div className="flex justify-between">
+                  {editingEvent && editingEvent.id !== 0 && (
+                    <button
+                      onClick={handleDelete}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                    >
+                      删除
+                    </button>
+                  )}
+                  <div className="flex gap-2 ml-auto">
+                    <button
+                      onClick={() => setEditingEvent(null)}
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      保存
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>

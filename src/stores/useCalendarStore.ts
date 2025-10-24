@@ -4,11 +4,14 @@ import { produce } from "immer";
 import {
   Calendar,
   CalendarEvent,
+  CalendarGroup,
   CreateCalendar,
   UpdateCalendar,
   CreateCalendarEvent,
   UpdateCalendarEvent,
   CalendarViewType,
+  CreateCalendarGroup,
+  UpdateCalendarGroup,
 } from "@/types";
 
 import {
@@ -22,6 +25,10 @@ import {
   getEventsForDay,
   getEventsForWeek,
   getEventsForMonth,
+  getAllCalendarGroups,
+  createCalendarGroup as createCalendarGroupCommand,
+  updateCalendarGroup as updateCalendarGroupCommand,
+  deleteCalendarGroup as deleteCalendarGroupCommand,
 } from "@/commands";
 
 import { getWeekStart } from "@/utils/calendar";
@@ -30,6 +37,7 @@ interface IState {
   // 日历数据
   calendars: Calendar[];
   events: CalendarEvent[];
+  calendarGroups: CalendarGroup[];
 
   // 视图状态
   currentView: CalendarViewType;
@@ -41,6 +49,9 @@ interface IState {
   // UI 状态
   loading: boolean;
   showArchived: boolean;
+  showSystemSection: boolean;
+  showMyCalendarSection: boolean;
+  showArchivedSection: boolean;
 
   // 当前编辑的事件
   editingEvent: CalendarEvent | null;
@@ -57,6 +68,12 @@ interface IActions {
   archiveCalendar: (id: number) => Promise<Calendar>;
   unarchiveCalendar: (id: number) => Promise<Calendar>;
   toggleCalendarVisibility: (id: number) => Promise<void>;
+
+  // 日历分组管理
+  createCalendarGroup: (group: CreateCalendarGroup) => Promise<CalendarGroup>;
+  updateCalendarGroup: (group: UpdateCalendarGroup) => Promise<CalendarGroup>;
+  deleteCalendarGroup: (id: number) => Promise<number>;
+  loadCalendarGroups: () => Promise<void>;
 
   // 事件管理
   createEvent: (event: CreateCalendarEvent) => Promise<CalendarEvent>;
@@ -80,16 +97,25 @@ interface IActions {
 
   // 编辑状态
   setEditingEvent: (event: CalendarEvent | null) => void;
+
+  // 展开/收起状态
+  setShowSystemSection: (show: boolean) => void;
+  setShowMyCalendarSection: (show: boolean) => void;
+  setShowArchivedSection: (show: boolean) => void;
 }
 
 const initState: IState = {
   calendars: [],
   events: [],
+  calendarGroups: [],
   currentView: "month",
   currentDate: Date.now(),
   selectedCalendarIds: [],
   loading: false,
   showArchived: false,
+  showSystemSection: true,
+  showMyCalendarSection: true,
+  showArchivedSection: false,
   editingEvent: null,
 };
 
@@ -101,15 +127,43 @@ const useCalendarStore = create<IState & IActions>()(
       init: async () => {
         set({ loading: true });
         try {
-          const calendars = await getAllCalendars();
+          const [calendars, calendarGroups] = await Promise.all([
+            getAllCalendars(),
+            getAllCalendarGroups(),
+          ]);
           const selectedCalendarIds = calendars
             .filter((c) => c.visible)
             .map((c) => c.id);
-          set({ calendars, selectedCalendarIds });
+          set({ calendars, calendarGroups, selectedCalendarIds });
           await get().loadEventsForCurrentView();
         } finally {
           set({ loading: false });
         }
+      },
+
+      loadCalendarGroups: async () => {
+        const calendarGroups = await getAllCalendarGroups();
+        set({ calendarGroups });
+      },
+
+      createCalendarGroup: async (group: CreateCalendarGroup) => {
+        const newGroup = await createCalendarGroupCommand(group);
+        await get().loadCalendarGroups();
+        return newGroup;
+      },
+
+      updateCalendarGroup: async (group: UpdateCalendarGroup) => {
+        const updated = await updateCalendarGroupCommand(group);
+        await get().loadCalendarGroups();
+        return updated;
+      },
+
+      deleteCalendarGroup: async (id: number) => {
+        const result = await deleteCalendarGroupCommand(id);
+        await get().loadCalendarGroups();
+        const calendars = await getAllCalendars();
+        set({ calendars });
+        return result;
       },
 
       createCalendar: async (calendar: CreateCalendar) => {
@@ -286,6 +340,18 @@ const useCalendarStore = create<IState & IActions>()(
       setEditingEvent: (event: CalendarEvent | null) => {
         set({ editingEvent: event });
       },
+
+      setShowSystemSection: (show: boolean) => {
+        set({ showSystemSection: show });
+      },
+
+      setShowMyCalendarSection: (show: boolean) => {
+        set({ showMyCalendarSection: show });
+      },
+
+      setShowArchivedSection: (show: boolean) => {
+        set({ showArchivedSection: show });
+      },
     }),
     {
       name: "calendar-store",
@@ -293,6 +359,9 @@ const useCalendarStore = create<IState & IActions>()(
         currentView: state.currentView,
         selectedCalendarIds: state.selectedCalendarIds,
         showArchived: state.showArchived,
+        showSystemSection: state.showSystemSection,
+        showMyCalendarSection: state.showMyCalendarSection,
+        showArchivedSection: state.showArchivedSection,
       }),
     },
   ),

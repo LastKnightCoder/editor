@@ -34,7 +34,7 @@ import classNames from "classnames";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { Dropdown, App, Empty, Button } from "antd";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import { fmt } from "./utils";
+import { fmt, FIVE_MINUTES_MS } from "./utils";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 enum TabType {
@@ -100,9 +100,24 @@ const PomodoroWindowPage: React.FC = () => {
   });
 
   const stop = useMemoizedFn(async () => {
-    await stopPomodoroSession(true);
-    await refreshSummary();
-    await refreshSessions();
+    if (elapsedMs < FIVE_MINUTES_MS) {
+      modal.confirm({
+        title: "专注时长不足 5 分钟",
+        content: "当前专注时长不足 5 分钟，是否放弃本次记录？",
+        okText: "放弃",
+        cancelText: "取消",
+        okButtonProps: { danger: true },
+        onOk: async () => {
+          await stopPomodoroSession(true);
+          await refreshSummary();
+          await refreshSessions();
+        },
+      });
+    } else {
+      await stopPomodoroSession(true);
+      await refreshSummary();
+      await refreshSessions();
+    }
   });
 
   const archive = useMemoizedFn(async (p: PomodoroPreset, value: boolean) => {

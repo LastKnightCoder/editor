@@ -35,6 +35,10 @@ const DayView = () => {
   const [pendingEvent, setPendingEvent] = useState<PendingTimeEvent | null>(
     null,
   );
+  const [currentTimeMinutes, setCurrentTimeMinutes] = useState(() => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  });
 
   // 当编辑对话框关闭时，清除待创建事件高亮
   useEffect(() => {
@@ -42,6 +46,18 @@ const DayView = () => {
       setPendingEvent(null);
     }
   }, [editingEvent]);
+
+  // 更新当前时间
+  useEffect(() => {
+    const updateCurrentTime = () => {
+      const now = new Date();
+      setCurrentTimeMinutes(now.getHours() * 60 + now.getMinutes());
+    };
+
+    // 每分钟更新一次
+    const timer = setInterval(updateCurrentTime, 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   // 过滤当天的事件
   const dayStart = getDateStart(currentDate);
@@ -67,12 +83,19 @@ const DayView = () => {
     // 设置待创建事件（用于高亮显示）
     setPendingEvent({ startMinutes, endMinutes });
 
+    // 优先选择第一个非系统日历
+    const nonSystemCalendars = calendars.filter((c) => !c.isInSystemGroup);
+    const defaultCalendarId =
+      nonSystemCalendars.length > 0
+        ? nonSystemCalendars[0].id
+        : calendars[0].id;
+
     // 同时打开编辑对话框
     const newEvent: CalendarEvent = {
       id: 0,
       createTime: Date.now(),
       updateTime: Date.now(),
-      calendarId: calendars[0].id,
+      calendarId: defaultCalendarId,
       title: "",
       detailContentId: 0,
       startDate: dayStart,
@@ -183,6 +206,19 @@ const DayView = () => {
               />
             )}
 
+            {/* 当前时间红线 */}
+            <div
+              className="absolute left-0 right-0 pointer-events-none z-30"
+              style={{
+                top: `${(currentTimeMinutes / 15) * CELL_HEIGHT}px`,
+              }}
+            >
+              <div className="flex items-center">
+                <div className="h-2 w-2 rounded-full bg-red-500" />
+                <div className="h-0.5 flex-1 bg-red-500" />
+              </div>
+            </div>
+
             {/* 事件 */}
             <div className="absolute inset-0 pointer-events-none">
               <div className="pointer-events-auto">
@@ -208,7 +244,7 @@ const DayView = () => {
                     <div
                       key={event.id}
                       onClick={() => setEditingEvent(event)}
-                      className="absolute cursor-pointer rounded border border-white p-1 text-xs text-white shadow-sm"
+                      className="absolute cursor-pointer rounded p-2 text-xs text-white shadow-sm"
                       style={{
                         top: `${gridPosition.top}px`,
                         height: `${gridPosition.height}px`,

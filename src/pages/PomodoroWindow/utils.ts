@@ -9,3 +9,5 @@ export const fmt = (ms: number) => {
     `${mm.toString().padStart(2, "0")}:${ss.toString().padStart(2, "0")}`
   );
 };
+
+export const FIVE_MINUTES_MS = 5 * 60 * 1000;

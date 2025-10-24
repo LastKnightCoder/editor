@@ -7,7 +7,88 @@ import {
 } from "@/types";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import PomodoroSessionTable from "./tables/pomodoro-session";
+import PomodoroPresetTable from "./tables/pomodoro-preset";
+import CalendarGroupTable from "./tables/calendar-group";
+import CalendarTable from "./tables/calendar";
+import CalendarEventTable from "./tables/calendar-event";
+import PomodoroCalendarMappingTable from "./tables/pomodoro-calendar-mapping";
 import databaseModule from "./database";
+
+interface CalendarEventSegment {
+  startDate: number;
+  endDate: number | null;
+  startTime: number;
+  endTime: number;
+}
+
+/**
+ * 将可能跨天的番茄钟会话分割成多个日历事件段
+ */
+function splitCrossDaySession(
+  startTimeMs: number,
+  endTimeMs: number,
+): CalendarEventSegment[] {
+  const startDate = new Date(startTimeMs);
+  const endDate = new Date(endTimeMs);
+
+  const startDayTimestamp = new Date(
+    startDate.getFullYear(),
+    startDate.getMonth(),
+    startDate.getDate(),
+  ).getTime();
+
+  const endDayTimestamp = new Date(
+    endDate.getFullYear(),
+    endDate.getMonth(),
+    endDate.getDate(),
+  ).getTime();
+
+  if (startDayTimestamp === endDayTimestamp) {
+    const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+    const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+
+    return [
+      {
+        startDate: startDayTimestamp,
+        endDate: null,
+        startTime: startMinutes,
+        endTime: endMinutes,
+      },
+    ];
+  }
+
+  const segments: CalendarEventSegment[] = [];
+
+  const firstDayStartMinutes =
+    startDate.getHours() * 60 + startDate.getMinutes();
+  segments.push({
+    startDate: startDayTimestamp,
+    endDate: startDayTimestamp,
+    startTime: firstDayStartMinutes,
+    endTime: 1439,
+  });
+
+  let currentDayTimestamp = startDayTimestamp + 24 * 60 * 60 * 1000;
+  while (currentDayTimestamp < endDayTimestamp) {
+    segments.push({
+      startDate: currentDayTimestamp,
+      endDate: currentDayTimestamp,
+      startTime: 0,
+      endTime: 1439,
+    });
+    currentDayTimestamp += 24 * 60 * 60 * 1000;
+  }
+
+  const lastDayEndMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+  segments.push({
+    startDate: endDayTimestamp,
+    endDate: endDayTimestamp,
+    startTime: 0,
+    endTime: lastDayEndMinutes,
+  });
+
+  return segments;
+}
 
 class PomodoroModule {
   private backendServer: BackendWebSocketServer | null = null;
@@ -265,6 +346,20 @@ class PomodoroModule {
             now - this.activeSession.startTime - pauseTotalMs,
           );
 
+          // 如果专注时长小于 5 分钟，不保存记录，直接清除
+          const FIVE_MINUTES_MS = 5 * 60 * 1000;
+          if (focusMs < FIVE_MINUTES_MS) {
+            this.activeSession = null;
+            this.notifyActiveSessionChanged();
+            return {
+              type: RpcMessageType.Response,
+              id,
+              method,
+              result: null,
+              error: null,
+            };
+          }
+
           // 判断状态：正计时或倒计时完成为 completed，否则为 stopped
           const status: "completed" | "stopped" =
             payload && payload.asComplete === false ? "stopped" : "completed";
@@ -280,6 +375,20 @@ class PomodoroModule {
             pauses,
             status,
           });
+
+          // 创建日历事件
+          try {
+            this.createCalendarEventForSession(
+              db,
+              savedSession.id,
+              savedSession.presetId,
+              savedSession.startTime,
+              savedSession.endTime || now,
+              savedSession.focusMs,
+            );
+          } catch (e) {
+            console.error("Failed to create calendar event:", e);
+          }
 
           this.activeSession = null;
           this.notifyActiveSessionChanged();
@@ -370,6 +479,72 @@ class PomodoroModule {
         });
       }
     }, 1000);
+  }
+
+  private createCalendarEventForSession(
+    db: any,
+    sessionId: number,
+    presetId: number,
+    startTime: number,
+    endTime: number,
+    focusMs: number,
+  ) {
+    // 获取系统分组
+    const systemGroup = CalendarGroupTable.getSystemGroup(db);
+
+    // 查找番茄钟日历
+    const pomodoroCalendars = CalendarTable.getAllCalendars(db).filter(
+      (cal) => cal.title === "番茄钟" && cal.groupId === systemGroup.id,
+    );
+
+    if (pomodoroCalendars.length === 0) {
+      console.error("Pomodoro calendar not found");
+      return;
+    }
+
+    const pomodoroCalendar = pomodoroCalendars[0];
+
+    // 获取预设名称
+    let presetName = "未知";
+    try {
+      const preset = PomodoroPresetTable.getById(db, presetId);
+      if (preset) {
+        presetName = preset.name;
+      }
+    } catch (e) {
+      // 预设可能已被删除
+    }
+
+    // 计算实际专注分钟数
+    const focusMinutes = Math.round(focusMs / 60000);
+
+    // 生成标题
+    const title = `专注 ${presetName} ${focusMinutes} 分钟`;
+
+    // 分割跨天会话
+    const segments = splitCrossDaySession(startTime, endTime);
+
+    // 为每个段创建日历事件并建立映射关系
+    const eventIds: number[] = [];
+    for (const segment of segments) {
+      const event = CalendarEventTable.createEvent(db, {
+        calendarId: pomodoroCalendar.id,
+        title,
+        detailContentId: 0,
+        startDate: segment.startDate,
+        endDate: segment.endDate,
+        startTime: segment.startTime,
+        endTime: segment.endTime,
+        allDay: false,
+        color: null,
+      });
+      eventIds.push(event.id);
+    }
+
+    // 创建映射关系
+    if (eventIds.length > 0) {
+      PomodoroCalendarMappingTable.createMappings(db, sessionId, eventIds);
+    }
   }
 }
 

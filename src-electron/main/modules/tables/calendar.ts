@@ -3,6 +3,7 @@ import { Calendar, CreateCalendar, UpdateCalendar } from "@/types/calendar";
 import { Descendant } from "slate";
 import Operation from "./operation";
 import ContentTable from "./content";
+import CalendarGroupTable from "./calendar-group";
 
 export default class CalendarTable {
   static getListenEvents() {
@@ -42,8 +43,24 @@ export default class CalendarTable {
     db.exec(createIndexSql);
   }
 
-  static upgradeTable(_db: Database.Database) {
+  static upgradeTable(db: Database.Database) {
     // 数据迁移和升级逻辑
+
+    // 检查 group_id 字段是否存在
+    const tableInfo = db.prepare(`PRAGMA table_info(calendar)`).all() as Array<{
+      name: string;
+    }>;
+    const hasGroupId = tableInfo.some((column) => column.name === "group_id");
+
+    // 添加 group_id 字段
+    if (!hasGroupId) {
+      db.exec(`ALTER TABLE calendar ADD COLUMN group_id INTEGER DEFAULT NULL;`);
+    }
+
+    // 添加索引
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_calendar_group_id ON calendar(group_id);`,
+    );
   }
 
   static parseCalendar(row: any, db: Database.Database): Calendar {
@@ -53,6 +70,19 @@ export default class CalendarTable {
     if (descriptionContentId) {
       const content = ContentTable.getContentById(db, descriptionContentId);
       description = content?.content || [];
+    }
+
+    const groupId = row.group_id || undefined;
+    let isInSystemGroup = false;
+
+    // 判断是否在系统分组
+    if (groupId) {
+      try {
+        const group = CalendarGroupTable.getGroupById(db, groupId);
+        isInSystemGroup = group.isSystem;
+      } catch (e) {
+        // 分组不存在
+      }
     }
 
     return {
@@ -67,6 +97,8 @@ export default class CalendarTable {
       pinned: Boolean(row.pinned),
       visible: Boolean(row.visible),
       orderIndex: row.order_index,
+      groupId,
+      isInSystemGroup,
     };
   }
 
@@ -74,8 +106,8 @@ export default class CalendarTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO calendar
-      (create_time, update_time, title, color, description_content_id, archived, pinned, visible, order_index)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, title, color, description_content_id, archived, pinned, visible, order_index, group_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -88,6 +120,7 @@ export default class CalendarTable {
       Number(data.pinned || false),
       Number(data.visible !== undefined ? data.visible : true),
       data.orderIndex || 0,
+      data.groupId ?? null,
     );
 
     Operation.insertOperation(
@@ -112,7 +145,8 @@ export default class CalendarTable {
         archived = ?,
         pinned = ?,
         visible = ?,
-        order_index = ?
+        order_index = ?,
+        group_id = ?
       WHERE id = ?
     `);
 
@@ -125,6 +159,7 @@ export default class CalendarTable {
       Number(data.pinned || false),
       Number(data.visible !== undefined ? data.visible : true),
       data.orderIndex || 0,
+      data.groupId ?? null,
       data.id,
     );
 
@@ -134,6 +169,12 @@ export default class CalendarTable {
   }
 
   static deleteCalendar(db: Database.Database, id: number): number {
+    // 检查是否为系统日历
+    const calendar = this.getCalendarById(db, id);
+    if (calendar.isInSystemGroup) {
+      throw new Error("Cannot delete calendar in system group");
+    }
+
     // 删除所有关联的事件（直接执行 SQL）
     const eventStmt = db.prepare(
       "SELECT id, detail_content_id FROM calendar_event WHERE calendar_id = ?",
@@ -154,7 +195,6 @@ export default class CalendarTable {
     db.prepare("DELETE FROM calendar_event WHERE calendar_id = ?").run(id);
 
     // 删除日历描述内容
-    const calendar = this.getCalendarById(db, id);
     if (calendar && calendar.descriptionContentId) {
       ContentTable.deleteContent(db, calendar.descriptionContentId);
     }

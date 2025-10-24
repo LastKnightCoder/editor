@@ -1,5 +1,10 @@
 import Database from "better-sqlite3";
 import { Notification } from "electron";
+import CalendarGroupTable from "./calendar-group";
+import CalendarTable from "./calendar";
+import CalendarEventTable from "./calendar-event";
+import PomodoroPresetTable from "./pomodoro-preset";
+import PomodoroCalendarMappingTable from "./pomodoro-calendar-mapping";
 
 export type PomodoroStatus =
   | "running"
@@ -58,6 +63,92 @@ const parse = (row: PomodoroSessionRow): PomodoroSession => ({
   updateTime: row.update_time,
 });
 
+interface CalendarEventSegment {
+  startDate: number; // 开始日期时间戳
+  endDate: number | null; // 结束日期时间戳（可能为null表示同一天）
+  startTime: number; // 开始时间（分钟数 0-1439）
+  endTime: number; // 结束时间（分钟数 0-1439）
+}
+
+/**
+ * 将可能跨天的番茄钟会话分割成多个日历事件段
+ * @param startTimeMs 开始时间戳（毫秒）
+ * @param endTimeMs 结束时间戳（毫秒）
+ * @returns 事件段数组
+ */
+function splitCrossDaySession(
+  startTimeMs: number,
+  endTimeMs: number,
+): CalendarEventSegment[] {
+  const startDate = new Date(startTimeMs);
+  const endDate = new Date(endTimeMs);
+
+  // 获取开始日期的午夜时间戳
+  const startDayTimestamp = new Date(
+    startDate.getFullYear(),
+    startDate.getMonth(),
+    startDate.getDate(),
+  ).getTime();
+
+  // 获取结束日期的午夜时间戳
+  const endDayTimestamp = new Date(
+    endDate.getFullYear(),
+    endDate.getMonth(),
+    endDate.getDate(),
+  ).getTime();
+
+  // 如果在同一天
+  if (startDayTimestamp === endDayTimestamp) {
+    const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+    const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+
+    return [
+      {
+        startDate: startDayTimestamp,
+        endDate: null,
+        startTime: startMinutes,
+        endTime: endMinutes,
+      },
+    ];
+  }
+
+  // 跨天情况，需要分割
+  const segments: CalendarEventSegment[] = [];
+
+  // 第一天：从开始时间到 23:59
+  const firstDayStartMinutes =
+    startDate.getHours() * 60 + startDate.getMinutes();
+  segments.push({
+    startDate: startDayTimestamp,
+    endDate: startDayTimestamp,
+    startTime: firstDayStartMinutes,
+    endTime: 1439, // 23:59
+  });
+
+  // 中间的完整天（如果有）
+  let currentDayTimestamp = startDayTimestamp + 24 * 60 * 60 * 1000;
+  while (currentDayTimestamp < endDayTimestamp) {
+    segments.push({
+      startDate: currentDayTimestamp,
+      endDate: currentDayTimestamp,
+      startTime: 0, // 00:00
+      endTime: 1439, // 23:59
+    });
+    currentDayTimestamp += 24 * 60 * 60 * 1000;
+  }
+
+  // 最后一天：从 00:00 到结束时间
+  const lastDayEndMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+  segments.push({
+    startDate: endDayTimestamp,
+    endDate: endDayTimestamp,
+    startTime: 0, // 00:00
+    endTime: lastDayEndMinutes,
+  });
+
+  return segments;
+}
+
 class PomodoroSessionTable {
   static initTable(db: Database.Database): void {
     db.exec(`
@@ -88,9 +179,115 @@ class PomodoroSessionTable {
     );
   }
 
-  static upgradeTable(_db: Database.Database): void {
-    // 暂无迁移
-    void _db;
+  static upgradeTable(db: Database.Database): void {
+    // 迁移番茄钟记录到日历
+    try {
+      // 检查是否已经迁移过（通过检查是否存在名为"番茄钟"的日历）
+      const existingCalendar = db
+        .prepare("SELECT id FROM calendar WHERE title = ?")
+        .get("番茄钟");
+
+      if (existingCalendar) {
+        // 已经迁移过，跳过
+        return;
+      }
+
+      // 1. 获取或创建系统分组
+      const systemGroup = CalendarGroupTable.getSystemGroup(db);
+
+      // 2. 创建"番茄钟"日历
+      const pomodoroCalendar = CalendarTable.createCalendar(db, {
+        title: "番茄钟",
+        color: "red" as any,
+        descriptionContentId: 0,
+        archived: false,
+        pinned: false,
+        visible: true,
+        orderIndex: 0,
+        groupId: systemGroup.id,
+      });
+
+      // 3. 查询所有已完成的番茄钟会话
+      const sessions = db
+        .prepare(
+          `SELECT * FROM pomodoro_sessions 
+           WHERE (status = 'completed' OR status = 'stopped') 
+           AND end_time IS NOT NULL
+           ORDER BY start_time ASC`,
+        )
+        .all() as PomodoroSessionRow[];
+
+      console.log(
+        `Migrating ${sessions.length} pomodoro sessions to calendar...`,
+      );
+
+      // 4. 为每个会话创建对应的日历事件
+      for (const sessionRow of sessions) {
+        try {
+          // 获取预设名称
+          let presetName = "未知";
+          try {
+            const preset = PomodoroPresetTable.getById(
+              db,
+              sessionRow.preset_id,
+            );
+            if (preset) {
+              presetName = preset.name;
+            }
+          } catch (e) {
+            // 预设可能已被删除
+          }
+
+          // 计算实际专注分钟数
+          const focusMinutes = Math.round(sessionRow.focus_ms / 60000);
+
+          // 生成标题
+          const title = `专注 ${presetName} ${focusMinutes} 分钟`;
+
+          // 分割跨天会话
+          const segments = splitCrossDaySession(
+            sessionRow.start_time,
+            sessionRow.end_time!,
+          );
+
+          // 为每个段创建日历事件并建立映射关系
+          const eventIds: number[] = [];
+          for (const segment of segments) {
+            const event = CalendarEventTable.createEvent(db, {
+              calendarId: pomodoroCalendar.id,
+              title,
+              detailContentId: 0,
+              startDate: segment.startDate,
+              endDate: segment.endDate,
+              startTime: segment.startTime,
+              endTime: segment.endTime,
+              allDay: false,
+              color: null,
+            });
+            eventIds.push(event.id);
+          }
+
+          // 创建映射关系
+          if (eventIds.length > 0) {
+            PomodoroCalendarMappingTable.createMappings(
+              db,
+              sessionRow.id,
+              eventIds,
+            );
+          }
+        } catch (e) {
+          console.error(
+            `Failed to migrate pomodoro session ${sessionRow.id}:`,
+            e,
+          );
+        }
+      }
+
+      console.log("Pomodoro sessions migration completed");
+    } catch (e) {
+      console.error("Failed to migrate pomodoro sessions:", e);
+      // 不抛出异常，避免阻塞数据库初始化
+    }
   }
 
   static getListenEvents() {
