@@ -138,3 +138,10 @@ export const deletePomodoroSessions = async (
 ): Promise<number> => {
   return invoke("pomodoro:delete-sessions", sessionIds);
 };
+
+export const updatePomodoroSession = async (
+  sessionId: number,
+  focusMs: number,
+): Promise<PomodoroSession> => {
+  return invoke("pomodoro:update-session", { sessionId, focusMs });
+};

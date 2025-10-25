@@ -6,9 +6,11 @@ import { usePomodoroStore } from "@/stores/usePomodoroStore";
 import {
   deletePomodoroSession,
   deletePomodoroSessions,
+  updatePomodoroSession,
 } from "@/commands/pomodoro";
 import stopwatchIcon from "@/assets/icons/stopwatch.svg";
 import BatchManageModal from "./BatchManageModal";
+import EditSessionModal from "./EditSessionModal";
 
 const formatDate = (timestamp: number) => {
   const d = new Date(timestamp);
@@ -40,6 +42,10 @@ const Timeline = () => {
   const sessions = usePomodoroStore((state) => state.sessions);
   const presets = usePomodoroStore((state) => state.presets);
   const [batchManageOpen, setBatchManageOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<PomodoroSession | null>(
+    null,
+  );
   const { modal, message } = App.useApp();
 
   const groups = useMemo(() => groupByDate(sessions), [sessions]);
@@ -80,6 +86,26 @@ const Timeline = () => {
     await deletePomodoroSessions(sessionIds);
     await usePomodoroStore.getState().refreshSessions();
     setBatchManageOpen(false);
+  };
+
+  const handleEditSession = (session: PomodoroSession) => {
+    setEditingSession(session);
+    setEditModalOpen(true);
+  };
+
+  const handleUpdateSession = async (focusMs: number) => {
+    if (!editingSession) return;
+
+    try {
+      await updatePomodoroSession(editingSession.id, focusMs);
+      await usePomodoroStore.getState().refreshSessions();
+      message.success("更新成功");
+      setEditModalOpen(false);
+      setEditingSession(null);
+    } catch (error) {
+      console.error("Failed to update session:", error);
+      message.error("更新失败，请重试");
+    }
   };
 
   return (
@@ -202,8 +228,13 @@ const Timeline = () => {
                               menu={{
                                 items: [
                                   {
+                                    key: "edit",
+                                    label: "编辑记录",
+                                    onClick: () => handleEditSession(session),
+                                  },
+                                  {
                                     key: "delete",
-                                    label: "删除此记录",
+                                    label: "删除记录",
                                     onClick: () =>
                                       handleDeleteSession(session.id),
                                   },
@@ -234,6 +265,16 @@ const Timeline = () => {
         sessions={sessions}
         presets={presetMap}
         onDelete={handleBatchDelete}
+      />
+
+      <EditSessionModal
+        session={editingSession}
+        open={editModalOpen}
+        onCancel={() => {
+          setEditModalOpen(false);
+          setEditingSession(null);
+        }}
+        onOk={handleUpdateSession}
       />
     </div>
   );

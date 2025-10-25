@@ -297,6 +297,7 @@ class PomodoroSessionTable {
       "pomodoro:summary-total": this.summaryTotal.bind(this),
       "pomodoro:delete-session": this.deleteSession.bind(this),
       "pomodoro:delete-sessions": this.deleteSessions.bind(this),
+      "pomodoro:update-session": this.updateSession.bind(this),
     } as const;
   }
 
@@ -476,6 +477,155 @@ class PomodoroSessionTable {
       }
     }
     return totalDeleted;
+  }
+
+  static updateSession(
+    db: Database.Database,
+    params: { sessionId: number; focusMs: number },
+  ): PomodoroSession {
+    const { sessionId, focusMs } = params;
+
+    // 1. 获取原有 session 数据
+    const existingSession = this.getById(db, sessionId);
+    if (!existingSession) {
+      throw new Error(`Session ${sessionId} not found`);
+    }
+
+    if (!existingSession.endTime) {
+      throw new Error(`Cannot update running session ${sessionId}`);
+    }
+
+    // 2. 从后向前处理暂停记录，计算有效的暂停
+    const validPauses: PauseSpan[] = [];
+    let pauseTotalMs = 0;
+
+    // 计算新的结束时间（不包括暂停）
+    let newEndTime = existingSession.startTime + focusMs;
+
+    // 从后向前遍历暂停记录，只保留在新结束时间之前的暂停
+    for (const pause of existingSession.pauses) {
+      if (pause.start < newEndTime && pause.end) {
+        // 暂停开始在新结束时间之前
+        const pauseEnd = Math.min(pause.end, newEndTime);
+        const pauseDuration = pauseEnd - pause.start;
+
+        if (pauseDuration > 0) {
+          validPauses.push({ start: pause.start, end: pauseEnd });
+          pauseTotalMs += pauseDuration;
+          // 延长结束时间以补偿暂停
+          newEndTime += pauseDuration;
+        }
+      }
+    }
+
+    const pauseCount = validPauses.length;
+    const now = Date.now();
+
+    // 3. 获取关联的日历事件并删除
+    const eventIds = PomodoroCalendarMappingTable.getEventsBySessionId(
+      db,
+      sessionId,
+    );
+
+    for (const eventId of eventIds) {
+      try {
+        CalendarEventTable.deleteEvent(db, eventId);
+      } catch (e) {
+        console.error(
+          `Failed to delete calendar event ${eventId} for session ${sessionId}:`,
+          e,
+        );
+      }
+    }
+
+    // 4. 删除旧的映射关系
+    PomodoroCalendarMappingTable.deleteBySessionId(db, sessionId);
+
+    // 5. 更新数据库中的 session 记录
+    db.prepare(
+      `UPDATE pomodoro_sessions 
+       SET focus_ms = ?, 
+           end_time = ?, 
+           pause_total_ms = ?, 
+           pause_count = ?, 
+           pauses = ?, 
+           update_time = ?
+       WHERE id = ?`,
+    ).run(
+      focusMs,
+      newEndTime,
+      pauseTotalMs,
+      pauseCount,
+      JSON.stringify(validPauses),
+      now,
+      sessionId,
+    );
+
+    // 6. 获取番茄钟日历
+    const pomodoroCalendar = db
+      .prepare("SELECT id FROM calendar WHERE title = ?")
+      .get("番茄钟") as { id: number } | undefined;
+
+    if (pomodoroCalendar) {
+      // 7. 获取预设名称
+      let presetName = "未知";
+      try {
+        const preset = PomodoroPresetTable.getById(
+          db,
+          existingSession.presetId,
+        );
+        if (preset) {
+          presetName = preset.name;
+        }
+      } catch (e) {
+        // 预设可能已被删除
+      }
+
+      // 计算实际专注分钟数
+      const focusMinutes = Math.round(focusMs / 60000);
+
+      // 生成标题
+      const title = `专注 ${presetName} ${focusMinutes} 分钟`;
+
+      // 8. 分割跨天会话并创建新的日历事件
+      const segments = splitCrossDaySession(
+        existingSession.startTime,
+        newEndTime,
+      );
+
+      const newEventIds: number[] = [];
+      for (const segment of segments) {
+        try {
+          const event = CalendarEventTable.createEvent(db, {
+            calendarId: pomodoroCalendar.id,
+            title,
+            detailContentId: 0,
+            startDate: segment.startDate,
+            endDate: segment.endDate,
+            startTime: segment.startTime,
+            endTime: segment.endTime,
+            allDay: false,
+            color: null,
+          });
+          newEventIds.push(event.id);
+        } catch (e) {
+          console.error(`Failed to create calendar event:`, e);
+        }
+      }
+
+      // 9. 创建新的映射关系
+      if (newEventIds.length > 0) {
+        PomodoroCalendarMappingTable.createMappings(db, sessionId, newEventIds);
+      }
+    }
+
+    // 10. 返回更新后的 session
+    const updatedSession = this.getById(db, sessionId);
+    if (!updatedSession) {
+      throw new Error("Failed to fetch updated session");
+    }
+
+    return updatedSession;
   }
 }
 

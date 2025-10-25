@@ -95,6 +95,7 @@ class PomodoroModule {
   private selectedPreset: PomodoroPreset | null = null;
   private activeSession: PomodoroSession | null = null;
   private tickTimer: NodeJS.Timer | null = null;
+  private autoStopTriggered = false;
 
   async init(backendServer: BackendWebSocketServer) {
     this.backendServer = backendServer;
@@ -183,6 +184,7 @@ class PomodoroModule {
             updateTime: now,
           };
 
+          this.autoStopTriggered = false;
           this.notifyActiveSessionChanged();
 
           return {
@@ -315,83 +317,13 @@ class PomodoroModule {
         const { id, params, method } = message;
 
         try {
-          if (!this.activeSession) {
-            throw new Error("No active session");
-          }
-
           const payload = params as unknown as
             | { asComplete?: boolean }
             | undefined;
-          const db = this.getDatabase();
-          if (!db) {
-            throw new Error("Database not connected");
-          }
 
-          const now = Date.now();
-          const pauses = this.activeSession.pauses;
-
-          if (this.activeSession.status === "paused" && pauses.length > 0) {
-            const last = pauses[pauses.length - 1];
-            if (last && last.end === undefined) {
-              last.end = now;
-            }
-          }
-
-          const pauseTotalMs = pauses.reduce(
-            (acc, p) => acc + ((p.end ?? now) - p.start),
-            0,
-          );
-          const focusMs = Math.max(
-            0,
-            now - this.activeSession.startTime - pauseTotalMs,
-          );
-
-          // 如果专注时长小于 5 分钟，不保存记录，直接清除
-          const FIVE_MINUTES_MS = 5 * 60 * 1000;
-          if (focusMs < FIVE_MINUTES_MS) {
-            this.activeSession = null;
-            this.notifyActiveSessionChanged();
-            return {
-              type: RpcMessageType.Response,
-              id,
-              method,
-              result: null,
-              error: null,
-            };
-          }
-
-          // 判断状态：正计时或倒计时完成为 completed，否则为 stopped
-          const status: "completed" | "stopped" =
-            payload && payload.asComplete === false ? "stopped" : "completed";
-
-          const savedSession = PomodoroSessionTable.insertCompletedSession(db, {
-            presetId: this.activeSession.presetId,
-            startTime: this.activeSession.startTime,
-            endTime: now,
-            expectedMs: this.activeSession.expectedMs,
-            focusMs,
-            pauseTotalMs,
-            pauseCount: this.activeSession.pauseCount,
-            pauses,
-            status,
-          });
-
-          // 创建日历事件
-          try {
-            this.createCalendarEventForSession(
-              db,
-              savedSession.id,
-              savedSession.presetId,
-              savedSession.startTime,
-              savedSession.endTime || now,
-              savedSession.focusMs,
-            );
-          } catch (e) {
-            console.error("Failed to create calendar event:", e);
-          }
-
-          this.activeSession = null;
-          this.notifyActiveSessionChanged();
+          const asComplete =
+            payload && payload.asComplete === false ? false : true;
+          const savedSession = await this.stopSession(asComplete);
 
           return {
             type: RpcMessageType.Response,
@@ -446,6 +378,93 @@ class PomodoroModule {
     }
   }
 
+  private async autoStopSession() {
+    console.log("Auto stopping countdown session");
+    try {
+      const result = await this.stopSession(true);
+      if (result) {
+        console.log("Auto stop completed, session saved:", result.id);
+      }
+    } catch (error) {
+      console.error("Failed to auto stop session:", error);
+    }
+  }
+
+  private async stopSession(
+    asComplete: boolean,
+  ): Promise<PomodoroSession | null> {
+    if (!this.activeSession) {
+      throw new Error("No active session");
+    }
+
+    const db = this.getDatabase();
+    if (!db) {
+      throw new Error("Database not connected");
+    }
+
+    const now = Date.now();
+    const pauses = this.activeSession.pauses;
+
+    if (this.activeSession.status === "paused" && pauses.length > 0) {
+      const last = pauses[pauses.length - 1];
+      if (last && last.end === undefined) {
+        last.end = now;
+      }
+    }
+
+    const pauseTotalMs = pauses.reduce(
+      (acc, p) => acc + ((p.end ?? now) - p.start),
+      0,
+    );
+    const focusMs = Math.max(
+      0,
+      now - this.activeSession.startTime - pauseTotalMs,
+    );
+
+    // 如果专注时长小于 5 分钟，不保存记录，直接清除
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    if (focusMs < FIVE_MINUTES_MS) {
+      this.activeSession = null;
+      this.notifyActiveSessionChanged();
+      return null;
+    }
+
+    // 判断状态：正计时或倒计时完成为 completed，否则为 stopped
+    const status: "completed" | "stopped" = asComplete
+      ? "completed"
+      : "stopped";
+
+    const savedSession = PomodoroSessionTable.insertCompletedSession(db, {
+      presetId: this.activeSession.presetId,
+      startTime: this.activeSession.startTime,
+      endTime: now,
+      expectedMs: this.activeSession.expectedMs,
+      focusMs,
+      pauseTotalMs,
+      pauseCount: this.activeSession.pauseCount,
+      pauses,
+      status,
+    });
+
+    // 创建日历事件
+    try {
+      this.createCalendarEventForSession(
+        db,
+        savedSession.id,
+        savedSession.presetId,
+        savedSession.startTime,
+        savedSession.endTime || now,
+      );
+    } catch (e) {
+      console.error("Failed to create calendar event:", e);
+    }
+
+    this.activeSession = null;
+    this.notifyActiveSessionChanged();
+
+    return savedSession;
+  }
+
   private startTickTimer() {
     if (this.tickTimer) return;
 
@@ -470,6 +489,19 @@ class PomodoroModule {
         let remainMs: number | undefined;
         if (this.activeSession.expectedMs) {
           remainMs = Math.max(0, this.activeSession.expectedMs - elapsedMs);
+
+          // 倒计时模式：当剩余时间为 0 且未触发过自动停止时，自动结束会话
+          if (
+            remainMs === 0 &&
+            !this.autoStopTriggered &&
+            this.activeSession.status === "running"
+          ) {
+            this.autoStopTriggered = true;
+            // 异步执行停止操作，避免阻塞 tick
+            this.autoStopSession().catch((e) => {
+              console.error("Failed to auto stop session:", e);
+            });
+          }
         }
 
         this.backendServer.sendNotification("pomodoro:tick", {
@@ -487,7 +519,6 @@ class PomodoroModule {
     presetId: number,
     startTime: number,
     endTime: number,
-    focusMs: number,
   ) {
     // 获取系统分组
     const systemGroup = CalendarGroupTable.getSystemGroup(db);
