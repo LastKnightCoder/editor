@@ -1,6 +1,7 @@
 import { invoke } from "@/electron";
 import { PomodoroPreset, PomodoroSession } from "@/types";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
+import { BackgroundSoundType } from "@/stores/usePomodoroStore";
 
 export const listPomodoroPresets = async (): Promise<PomodoroPreset[]> => {
   return invoke("pomodoro:list-presets");
@@ -144,4 +145,45 @@ export const updatePomodoroSession = async (
   focusMs: number,
 ): Promise<PomodoroSession> => {
   return invoke("pomodoro:update-session", { sessionId, focusMs });
+};
+
+export const getBackgroundSound = async (): Promise<{
+  backgroundSound: BackgroundSoundType;
+  backgroundVolume: number;
+}> => {
+  const client = useBackendWebsocketStore.getState().client;
+  if (!client) {
+    throw new Error("Client not initialized");
+  }
+
+  const result = await client.sendRequest(
+    "pomodoro:get-background-sound",
+    null,
+  );
+  return result as {
+    backgroundSound: BackgroundSoundType;
+    backgroundVolume: number;
+  };
+};
+
+export const setBackgroundSound = async (params: {
+  backgroundSound?: BackgroundSoundType;
+  backgroundVolume?: number;
+}): Promise<{
+  backgroundSound: BackgroundSoundType;
+  backgroundVolume: number;
+}> => {
+  const client = useBackendWebsocketStore.getState().client;
+  if (!client) {
+    throw new Error("Client not initialized");
+  }
+
+  const result = await client.sendRequest(
+    "pomodoro:set-background-sound",
+    params,
+  );
+  return result as {
+    backgroundSound: BackgroundSoundType;
+    backgroundVolume: number;
+  };
 };

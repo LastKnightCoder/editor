@@ -3,7 +3,22 @@ import { produce } from "immer";
 import { persist } from "zustand/middleware";
 import { PomodoroPreset, PomodoroSession } from "@/types";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
-import { listPomodoroSessions, listPomodoroPresets } from "@/commands";
+import {
+  listPomodoroSessions,
+  listPomodoroPresets,
+  setBackgroundSound as setBackgroundSoundCommand,
+} from "@/commands";
+
+export type BackgroundSoundType =
+  | null
+  | "brook"
+  | "birds"
+  | "autumn"
+  | "tide"
+  | "summer"
+  | "wind-chime"
+  | "bonfire"
+  | "rain";
 
 interface PomodoroState {
   inited: boolean;
@@ -14,6 +29,8 @@ interface PomodoroState {
   elapsedMs: number; // 当前已专注时长
   remainMs?: number; // 当前剩余时长（倒计时）
   rightSidebarWidth: number; // 右侧边栏宽度
+  backgroundSound: BackgroundSoundType; // 背景音类型
+  backgroundVolume: number; // 背景音音量 0-100
 }
 
 interface PomodoroActions {
@@ -29,6 +46,8 @@ interface PomodoroActions {
   }) => void;
   refreshSessions: () => Promise<void>;
   refreshPresets: () => Promise<void>;
+  setBackgroundSound: (sound: BackgroundSoundType) => Promise<void>;
+  setBackgroundVolume: (volume: number) => Promise<void>;
 }
 
 const initialState: PomodoroState = {
@@ -40,6 +59,8 @@ const initialState: PomodoroState = {
   elapsedMs: 0,
   remainMs: undefined,
   rightSidebarWidth: 350,
+  backgroundSound: null,
+  backgroundVolume: 50,
 };
 
 export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
@@ -85,6 +106,22 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
           get().updateTick(tickState);
         });
 
+        client.registerNotificationHandler(
+          "pomodoro:background-sound-changed",
+          (data) => {
+            const soundData = data as {
+              backgroundSound: BackgroundSoundType;
+              backgroundVolume: number;
+            };
+            set(
+              produce((draft: PomodoroState) => {
+                draft.backgroundSound = soundData.backgroundSound;
+                draft.backgroundVolume = soundData.backgroundVolume;
+              }),
+            );
+          },
+        );
+
         // 获取初始数据
         try {
           const selectedPreset = (await client.sendRequest(
@@ -114,6 +151,20 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
             remainMs: undefined,
             inited: true,
           });
+
+          // 同步本地持久化的背景音设置到服务端
+          const currentState = get();
+          if (
+            currentState.backgroundSound !== null ||
+            currentState.backgroundVolume !== 50
+          ) {
+            await setBackgroundSoundCommand({
+              backgroundSound: currentState.backgroundSound,
+              backgroundVolume: currentState.backgroundVolume,
+            }).catch((err) => {
+              console.error("Failed to sync background sound to server:", err);
+            });
+          }
         } catch (e) {
           console.error("initPomodoro error", e);
         }
@@ -171,11 +222,21 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
         const presets = await listPomodoroPresets();
         get().setPresets(presets);
       },
+
+      setBackgroundSound: async (sound) => {
+        await setBackgroundSoundCommand({ backgroundSound: sound });
+      },
+
+      setBackgroundVolume: async (volume) => {
+        await setBackgroundSoundCommand({ backgroundVolume: volume });
+      },
     }),
     {
       name: "pomodoro-storage",
       partialize: (state) => ({
         rightSidebarWidth: state.rightSidebarWidth,
+        backgroundSound: state.backgroundSound,
+        backgroundVolume: state.backgroundVolume,
       }),
     },
   ),

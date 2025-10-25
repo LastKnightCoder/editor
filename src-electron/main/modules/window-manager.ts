@@ -42,6 +42,8 @@ export class WindowManager {
   private windowsMap = new Map<EditorType, Map<string, BrowserWindow>>();
   // 沉浸窗口实例（单例，复用）
   private pomodoroImmersiveWindow: BrowserWindow | null = null;
+  // 背景音播放窗口（隐藏的单例窗口）
+  private backgroundAudioWindow: BrowserWindow | null = null;
 
   constructor(
     viteDevServerUrl: string,
@@ -69,6 +71,9 @@ export class WindowManager {
 
     // 提前创建沉浸窗口（隐藏状态）
     this.initPomodoroImmersiveWindow();
+
+    // 创建背景音播放窗口（隐藏状态）
+    this.initBackgroundAudioWindow();
   }
 
   // 注册IPC处理程序
@@ -200,14 +205,31 @@ export class WindowManager {
 
     const allWindows = BrowserWindow.getAllWindows();
 
-    // 如果只剩下一个窗口，且是沉浸式窗口，且它是隐藏的，则退出
-    if (
-      allWindows.length === 1 &&
-      this.pomodoroImmersiveWindow &&
-      !this.pomodoroImmersiveWindow.isDestroyed() &&
-      !this.pomodoroImmersiveWindow.isVisible()
-    ) {
-      log.info("Windows平台：只剩隐藏的沉浸式窗口，退出应用");
+    // 过滤掉隐藏的系统窗口（沉浸式窗口和背景音窗口）
+    const visibleWindows = allWindows.filter((win) => {
+      // 排除已销毁的窗口
+      if (win.isDestroyed()) return false;
+
+      // 排除隐藏的沉浸式窗口
+      if (
+        this.pomodoroImmersiveWindow &&
+        win === this.pomodoroImmersiveWindow &&
+        !this.pomodoroImmersiveWindow.isVisible()
+      ) {
+        return false;
+      }
+
+      // 排除背景音窗口（始终隐藏）
+      if (this.backgroundAudioWindow && win === this.backgroundAudioWindow) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // 如果没有可见窗口，退出应用
+    if (visibleWindows.length === 0) {
+      log.info("Windows平台：没有可见窗口，退出应用");
       app.quit();
     }
   }
@@ -471,6 +493,43 @@ export class WindowManager {
     });
 
     this.pomodoroImmersiveWindow = win;
+  }
+
+  // 初始化背景音播放窗口（隐藏的单例窗口）
+  private initBackgroundAudioWindow() {
+    log.info("初始化背景音播放窗口（隐藏状态）");
+
+    const win = new BrowserWindow({
+      width: 1,
+      height: 1,
+      show: false,
+      skipTaskbar: true, // 不在任务栏显示
+      webPreferences: {
+        preload,
+        spellcheck: false,
+      },
+    });
+
+    // 加载背景音播放页面（使用路由）
+    if (VITE_DEV_SERVER_URL) {
+      win.loadURL(`${VITE_DEV_SERVER_URL}#/background-audio`).catch((err) => {
+        log.error("开发模式加载背景音页面失败:", err);
+      });
+    } else {
+      win.loadFile(indexHtml, { hash: `/background-audio` }).catch((err) => {
+        log.error("生产模式加载背景音页面失败:", err);
+      });
+    }
+
+    win.on("closed", () => {
+      log.info("背景音播放窗口被关闭，重新创建");
+      this.backgroundAudioWindow = null;
+      // 自动重新创建
+      this.initBackgroundAudioWindow();
+    });
+
+    this.backgroundAudioWindow = win;
+    log.info("背景音播放窗口初始化完成");
   }
 
   public showPomodoroImmersiveWindow() {

@@ -11,7 +11,9 @@ import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { fmt, FIVE_MINUTES_MS } from "./utils";
 import { AiOutlineClose } from "react-icons/ai";
+import { HiMusicNote } from "react-icons/hi";
 import { App } from "antd";
+import BackgroundSoundPanel from "./components/BackgroundSoundPanel";
 
 const Immersive: React.FC = () => {
   useInitDatabase();
@@ -133,7 +135,16 @@ const Immersive: React.FC = () => {
         </div>
       </div>
 
-      {/* 右下角退出按钮 */}
+      {/* 右下角按钮组 */}
+      <BackgroundSoundPanel>
+        <button
+          className="absolute bottom-8 right-24 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-all"
+          title="背景音"
+        >
+          <HiMusicNote className="text-2xl" />
+        </button>
+      </BackgroundSoundPanel>
+
       <button
         className="absolute bottom-8 right-8 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-all"
         onClick={() => hidePomodoroImmersiveWindow()}

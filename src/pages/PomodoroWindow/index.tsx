@@ -29,6 +29,7 @@ import PresetItem from "./components/PresetItem";
 import DndProvider from "@/components/DndProvider";
 import PresetModal from "./components/PresetModal";
 import Timeline from "./components/Timeline";
+import BackgroundSoundPanel from "./components/BackgroundSoundPanel";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import classNames from "classnames";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
@@ -36,6 +37,7 @@ import { Dropdown, App, Empty, Button } from "antd";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { fmt, FIVE_MINUTES_MS } from "./utils";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { HiMusicNote } from "react-icons/hi";
 
 enum TabType {
   Active = "active",
@@ -290,6 +292,15 @@ const PomodoroWindowPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
+                  <BackgroundSoundPanel>
+                    <button
+                      className={classNames(
+                        "w-8 h-8 rounded-full inline-flex items-center justify-center gap-1 cursor-pointer text-green-600 hover:text-green-500 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20",
+                      )}
+                    >
+                      <HiMusicNote className="text-lg" />
+                    </button>
+                  </BackgroundSoundPanel>
                   {activeSession.status === "running" ? (
                     <button
                       className={classNames(
