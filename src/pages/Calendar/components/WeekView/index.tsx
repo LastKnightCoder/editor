@@ -361,12 +361,9 @@ const WeekView = () => {
 
       {/* 时间网格 */}
       <div className="flex-1 overflow-y-auto">
-        <div className="relative flex min-h-full">
-          {/* 顶部空白区域，避免 00:00 被遮挡 */}
-          <div className="absolute left-0 top-0 h-3 w-16" />
-
+        <div className="relative flex min-h-full pt-3">
           {/* 时间标签 */}
-          <div className="sticky left-0 z-10 w-16 flex-shrink-0 pt-3">
+          <div className="sticky left-0 z-10 w-16 flex-shrink-0">
             {timeSlots.map((minutes) => (
               <div
                 key={minutes}
@@ -391,7 +388,7 @@ const WeekView = () => {
               <div
                 className="absolute pointer-events-none z-30"
                 style={{
-                  top: `${3 + (currentTimeMinutes / 15) * CELL_HEIGHT}px`,
+                  top: `${12 + (currentTimeMinutes / 15) * CELL_HEIGHT}px`,
                   left: "64px", // w-16 = 64px
                   right: 0,
                 }}
@@ -417,7 +414,7 @@ const WeekView = () => {
             return (
               <div
                 key={dayIndex}
-                className="relative flex-1 border-l border-gray-200 pt-3 dark:border-gray-700"
+                className="relative flex-1 border-l border-gray-200 dark:border-gray-700"
                 {...handlers}
               >
                 {/* 网格线 */}
