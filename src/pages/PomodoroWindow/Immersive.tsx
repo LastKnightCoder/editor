@@ -6,6 +6,7 @@ import {
 } from "@/commands";
 import { hidePomodoroImmersiveWindow } from "@/commands/window";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
+import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { fmt, FIVE_MINUTES_MS } from "./utils";
@@ -18,6 +19,7 @@ const Immersive: React.FC = () => {
   const { modal } = App.useApp();
   const { activeSession, elapsedMs, remainMs, initPomodoro, inited } =
     usePomodoroStore();
+  const { client } = useBackendWebsocketStore();
 
   useEffect(() => {
     if (isConnected) {
@@ -39,6 +41,30 @@ const Immersive: React.FC = () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
+
+  // 监听番茄钟结束，自动关闭窗口
+  useEffect(() => {
+    if (!client) return;
+
+    const handler = (session: unknown) => {
+      // 当 activeSession 从有变为 null 时，说明番茄钟结束
+      if (!session) {
+        hidePomodoroImmersiveWindow();
+      }
+    };
+
+    client.registerNotificationHandler(
+      "pomodoro:active-session-changed",
+      handler,
+    );
+
+    return () => {
+      client.unregisterNotificationHandler(
+        "pomodoro:active-session-changed",
+        handler,
+      );
+    };
+  }, [client]);
 
   if (!activeSession) {
     return (

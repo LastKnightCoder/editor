@@ -6,6 +6,7 @@ import {
 } from "@/commands";
 import { closeWindow } from "@/commands/window";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
+import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { fmt } from "./utils";
@@ -66,6 +67,7 @@ const Mini: React.FC = () => {
   const isConnected = useDatabaseConnected();
   const { activeSession, elapsedMs, remainMs, initPomodoro, inited, presets } =
     usePomodoroStore();
+  const { client } = useBackendWebsocketStore();
 
   useEffect(() => {
     if (isConnected) {
@@ -74,6 +76,30 @@ const Mini: React.FC = () => {
       }
     }
   }, [initPomodoro, inited, isConnected]);
+
+  // 监听番茄钟结束，自动关闭窗口
+  useEffect(() => {
+    if (!client) return;
+
+    const handler = (session: unknown) => {
+      // 当 activeSession 从有变为 null 时，说明番茄钟结束
+      if (!session) {
+        closeWindow();
+      }
+    };
+
+    client.registerNotificationHandler(
+      "pomodoro:active-session-changed",
+      handler,
+    );
+
+    return () => {
+      client.unregisterNotificationHandler(
+        "pomodoro:active-session-changed",
+        handler,
+      );
+    };
+  }, [client]);
 
   const presetName = useMemo(() => {
     if (!activeSession) return "";
