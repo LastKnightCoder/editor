@@ -295,6 +295,8 @@ class PomodoroSessionTable {
       "pomodoro:list-sessions": this.listSessions.bind(this),
       "pomodoro:summary-today": this.summaryToday.bind(this),
       "pomodoro:summary-total": this.summaryTotal.bind(this),
+      "pomodoro:delete-session": this.deleteSession.bind(this),
+      "pomodoro:delete-sessions": this.deleteSessions.bind(this),
     } as const;
   }
 
@@ -425,6 +427,55 @@ class PomodoroSessionTable {
       )
       .get() as { c: number; s: number };
     return { count: row.c || 0, focusMs: row.s || 0 };
+  }
+
+  static deleteSession(db: Database.Database, sessionId: number): number {
+    try {
+      // 1. 获取关联的日历事件 ID
+      const eventIds = PomodoroCalendarMappingTable.getEventsBySessionId(
+        db,
+        sessionId,
+      );
+
+      // 2. 删除所有关联的日历事件
+      for (const eventId of eventIds) {
+        try {
+          CalendarEventTable.deleteEvent(db, eventId);
+        } catch (e) {
+          console.error(
+            `Failed to delete calendar event ${eventId} for session ${sessionId}:`,
+            e,
+          );
+          // 继续删除其他事件
+        }
+      }
+
+      // 3. 删除映射关系
+      PomodoroCalendarMappingTable.deleteBySessionId(db, sessionId);
+
+      // 4. 删除会话记录
+      const stmt = db.prepare("DELETE FROM pomodoro_sessions WHERE id = ?");
+      const result = stmt.run(sessionId);
+
+      return result.changes;
+    } catch (e) {
+      console.error(`Failed to delete pomodoro session ${sessionId}:`, e);
+      throw e;
+    }
+  }
+
+  static deleteSessions(db: Database.Database, sessionIds: number[]): number {
+    let totalDeleted = 0;
+    for (const sessionId of sessionIds) {
+      try {
+        const deleted = this.deleteSession(db, sessionId);
+        totalDeleted += deleted;
+      } catch (e) {
+        console.error(`Failed to delete session ${sessionId}:`, e);
+        // 继续删除其他会话
+      }
+    }
+    return totalDeleted;
   }
 }
 
