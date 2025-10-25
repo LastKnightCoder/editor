@@ -85,7 +85,7 @@ const CalendarHeader = () => {
                   ? "周"
                   : view === "month"
                     ? "月"
-                    : "日程"}
+                    : "时间轴"}
             </button>
           ),
         )}
