@@ -90,12 +90,25 @@ function splitCrossDaySession(
   return segments;
 }
 
+export type BackgroundSoundType =
+  | null
+  | "brook"
+  | "birds"
+  | "autumn"
+  | "tide"
+  | "summer"
+  | "wind-chime"
+  | "bonfire"
+  | "rain";
+
 class PomodoroModule {
   private backendServer: BackendWebSocketServer | null = null;
   private selectedPreset: PomodoroPreset | null = null;
   private activeSession: PomodoroSession | null = null;
   private tickTimer: NodeJS.Timer | null = null;
   private autoStopTriggered = false;
+  private backgroundSound: BackgroundSoundType = null;
+  private backgroundVolume = 50;
 
   async init(backendServer: BackendWebSocketServer) {
     this.backendServer = backendServer;
@@ -346,6 +359,54 @@ class PomodoroModule {
         }
       },
     );
+
+    this.backendServer.addMessageHandler(
+      "pomodoro:get-background-sound",
+      async (message: RpcRequestMessage) => {
+        const { id, method } = message;
+        return {
+          type: RpcMessageType.Response,
+          id,
+          method,
+          result: {
+            backgroundSound: this.backgroundSound,
+            backgroundVolume: this.backgroundVolume,
+          },
+          error: null,
+        };
+      },
+    );
+
+    this.backendServer.addMessageHandler(
+      "pomodoro:set-background-sound",
+      async (message: RpcRequestMessage) => {
+        const { id, params, method } = message;
+        const payload = params as unknown as {
+          backgroundSound?: BackgroundSoundType;
+          backgroundVolume?: number;
+        };
+
+        if (payload.backgroundSound !== undefined) {
+          this.backgroundSound = payload.backgroundSound;
+        }
+        if (payload.backgroundVolume !== undefined) {
+          this.backgroundVolume = payload.backgroundVolume;
+        }
+
+        this.notifyBackgroundSoundChanged();
+
+        return {
+          type: RpcMessageType.Response,
+          id,
+          method,
+          result: {
+            backgroundSound: this.backgroundSound,
+            backgroundVolume: this.backgroundVolume,
+          },
+          error: null,
+        };
+      },
+    );
   }
 
   private getDatabase() {
@@ -375,6 +436,15 @@ class PomodoroModule {
         "pomodoro:active-session-changed",
         this.activeSession,
       );
+    }
+  }
+
+  private notifyBackgroundSoundChanged() {
+    if (this.backendServer) {
+      this.backendServer.sendNotification("pomodoro:background-sound-changed", {
+        backgroundSound: this.backgroundSound,
+        backgroundVolume: this.backgroundVolume,
+      });
     }
   }
 

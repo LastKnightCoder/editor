@@ -50,6 +50,7 @@ const PomodoroMiniPage = loadable(() => import("@/pages/PomodoroWindow/Mini"));
 const PomodoroImmersivePage = loadable(
   () => import("@/pages/PomodoroWindow/Immersive"),
 );
+const BackgroundAudioPage = loadable(() => import("@/pages/BackgroundAudio"));
 const CalendarPage = loadable(() => import("@/pages/Calendar"));
 
 const routes = [
@@ -244,6 +245,10 @@ const routes = [
   {
     path: "/pomodoro/immersive",
     element: <PomodoroImmersivePage />,
+  },
+  {
+    path: "/background-audio",
+    element: <BackgroundAudioPage />,
   },
 ];
 
