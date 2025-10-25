@@ -515,11 +515,8 @@ class PomodoroModule {
       // 预设可能已被删除
     }
 
-    // 计算实际专注分钟数
-    const focusMinutes = Math.round(focusMs / 60000);
-
     // 生成标题
-    const title = `专注 ${presetName} ${focusMinutes} 分钟`;
+    const title = `🍅 ${presetName}`;
 
     // 分割跨天会话
     const segments = splitCrossDaySession(startTime, endTime);

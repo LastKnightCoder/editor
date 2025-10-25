@@ -63,7 +63,16 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
         client.registerNotificationHandler(
           "pomodoro:active-session-changed",
           (session) => {
-            get().setActiveSession(session as PomodoroSession | null);
+            const prevSession = get().activeSession;
+            const newSession = session as PomodoroSession | null;
+
+            // 检测会话结束：之前有会话，现在变为 null
+            if (prevSession && !newSession) {
+              // 会话结束，刷新专注列表
+              get().refreshSessions();
+            }
+
+            get().setActiveSession(newSession);
           },
         );
 

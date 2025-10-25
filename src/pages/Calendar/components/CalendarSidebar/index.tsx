@@ -222,7 +222,7 @@ const CalendarSidebar = memo(() => {
     return (
       <div
         key={calendar.id}
-        className={`group relative flex items-center justify-between rounded-lg py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${indent ? "pl-6 pr-3" : "px-3"}`}
+        className={`group relative flex items-center justify-between rounded-lg py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${indent ? "pl-4 pr-3" : "px-3"}`}
       >
         <div className="flex flex-1 items-center gap-2 overflow-hidden">
           <button
@@ -273,10 +273,10 @@ const CalendarSidebar = memo(() => {
 
     return (
       <div key={group.id} className="mb-2">
-        <div className="flex items-center justify-between px-3 py-1">
+        <div className="flex items-center justify-between px-1 py-1">
           <button
             onClick={() => toggleGroup(group.id)}
-            className="flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-gray-400"
+            className="flex items-center gap-1 text-sm font-semibold text-gray-600 dark:text-gray-400"
           >
             {isExpanded ? (
               <MdKeyboardArrowDown className="h-4 w-4" />
@@ -298,7 +298,7 @@ const CalendarSidebar = memo(() => {
           )}
         </div>
         {isExpanded && (
-          <div className="space-y-1">
+          <div className="space-y-1 mt-2 ml-2">
             {groupCalendars.length > 0 ? (
               groupCalendars.map((cal) => renderCalendarItem(cal, true))
             ) : (
@@ -320,21 +320,21 @@ const CalendarSidebar = memo(() => {
           {/* 系统日历 */}
           {systemGroup && (
             <div className="mb-4">
-              <div className="mb-2 flex items-center justify-between px-3 py-1">
+              <div className="mb-2 flex items-center justify-between py-1">
                 <button
                   onClick={() => setShowSystemSection(!showSystemSection)}
-                  className="flex items-center gap-1 text-sm font-semibold text-gray-500 dark:text-gray-400"
+                  className="flex items-center gap-1 text-base font-semibold text-gray-700 dark:text-gray-300"
                 >
                   {showSystemSection ? (
-                    <MdKeyboardArrowDown className="h-4 w-4" />
+                    <MdKeyboardArrowDown className="h-5 w-5" />
                   ) : (
-                    <MdKeyboardArrowRight className="h-4 w-4" />
+                    <MdKeyboardArrowRight className="h-5 w-5" />
                   )}
                   <span>系统日历</span>
                 </button>
               </div>
               {showSystemSection && (
-                <div className="space-y-1">
+                <div className="space-y-1 ml-2">
                   {getCalendarsInGroup(systemGroup.id, false).map((cal) =>
                     renderCalendarItem(cal, false),
                   )}
@@ -345,15 +345,15 @@ const CalendarSidebar = memo(() => {
 
           {/* 我的日历 */}
           <div className="mb-4">
-            <div className="mb-2 flex items-center justify-between px-3 py-1">
+            <div className="mb-2 flex items-center justify-between py-1">
               <button
                 onClick={() => setShowMyCalendarSection(!showMyCalendarSection)}
-                className="flex items-center gap-1 text-sm font-semibold text-gray-500 dark:text-gray-400"
+                className="flex items-center gap-1 text-base font-semibold text-gray-700 dark:text-gray-300"
               >
                 {showMyCalendarSection ? (
-                  <MdKeyboardArrowDown className="h-4 w-4" />
+                  <MdKeyboardArrowDown className="h-5 w-5" />
                 ) : (
-                  <MdKeyboardArrowRight className="h-4 w-4" />
+                  <MdKeyboardArrowRight className="h-5 w-5" />
                 )}
                 <span>我的日历</span>
               </button>
@@ -366,16 +366,15 @@ const CalendarSidebar = memo(() => {
                   className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
                   title="添加"
                 >
-                  <MdAdd className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <MdAdd className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                 </button>
               </Dropdown>
             </div>
 
             {showMyCalendarSection && (
-              <>
+              <div className="ml-2">
                 {/* 用户分组 */}
                 {userGroups.map((group) => renderGroup(group, false))}
-
                 {/* 无分组的日历 */}
                 {getCalendarsWithoutGroup(false).length > 0 && (
                   <div className="space-y-1">
@@ -384,7 +383,7 @@ const CalendarSidebar = memo(() => {
                     )}
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
 
@@ -393,17 +392,17 @@ const CalendarSidebar = memo(() => {
             <div className="mb-4">
               <button
                 onClick={() => setShowArchivedSection(!showArchivedSection)}
-                className="mb-2 flex items-center gap-1 px-3 py-1 text-sm font-semibold text-gray-500 dark:text-gray-400"
+                className="mb-2 flex items-center gap-1 py-1 text-base font-semibold text-gray-700 dark:text-gray-300"
               >
                 {showArchivedSection ? (
-                  <MdKeyboardArrowDown className="h-4 w-4" />
+                  <MdKeyboardArrowDown className="h-5 w-5" />
                 ) : (
-                  <MdKeyboardArrowRight className="h-4 w-4" />
+                  <MdKeyboardArrowRight className="h-5 w-5" />
                 )}
                 <span>归档日历</span>
               </button>
               {showArchivedSection && (
-                <div className="space-y-2">
+                <div className="space-y-2 ml-2">
                   {/* 系统分组的归档日历 */}
                   {systemGroup && renderGroup(systemGroup, true)}
 

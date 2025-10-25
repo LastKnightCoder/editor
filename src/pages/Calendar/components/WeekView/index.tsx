@@ -13,6 +13,7 @@ import { getProjectColorValue } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import dayjs from "dayjs";
 import { assignWeekViewLevels } from "@/utils/eventLayoutAlgorithm";
+import { hexToRgba } from "../../utils";
 
 const CELL_HEIGHT = 30;
 const GRID_START_TIME = 0;
@@ -272,9 +273,12 @@ const WeekView = () => {
                         (c) => c.id === event.calendarId,
                       );
                       const color = event.color || calendar?.color || "blue";
-                      const colorValue = getProjectColorValue(
-                        color,
-                        theme === "dark" ? "dark" : "light",
+                      const colorValue = hexToRgba(
+                        getProjectColorValue(
+                          color,
+                          theme === "dark" ? "dark" : "light",
+                        ),
+                        0.9,
                       );
 
                       return (
@@ -319,9 +323,12 @@ const WeekView = () => {
                           );
                           const color =
                             event.color || calendar?.color || "blue";
-                          const colorValue = getProjectColorValue(
-                            color,
-                            theme === "dark" ? "dark" : "light",
+                          const colorValue = hexToRgba(
+                            getProjectColorValue(
+                              color,
+                              theme === "dark" ? "dark" : "light",
+                            ),
+                            0.9,
                           );
 
                           return (
@@ -453,9 +460,12 @@ const WeekView = () => {
                     (c) => c.id === event.calendarId,
                   );
                   const color = event.color || calendar?.color || "blue";
-                  const colorValue = getProjectColorValue(
-                    color,
-                    theme === "dark" ? "dark" : "light",
+                  const colorValue = hexToRgba(
+                    getProjectColorValue(
+                      color,
+                      theme === "dark" ? "dark" : "light",
+                    ),
+                    0.9,
                   );
 
                   const startMinutes = event.startTime || 0;

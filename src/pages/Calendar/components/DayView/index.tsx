@@ -15,6 +15,7 @@ import {
 import { getProjectColorValue } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import { CalendarEvent } from "@/types";
+import { hexToRgba } from "../../utils";
 
 const CELL_HEIGHT = 30; // 每个时间槽（15分钟）的高度
 const GRID_START_TIME = 0; // 00:00
@@ -136,9 +137,12 @@ const DayView = () => {
             {allDayEvents.map((event) => {
               const calendar = calendars.find((c) => c.id === event.calendarId);
               const color = event.color || calendar?.color || "blue";
-              const colorValue = getProjectColorValue(
-                color,
-                theme === "dark" ? "dark" : "light",
+              const colorValue = hexToRgba(
+                getProjectColorValue(
+                  color,
+                  theme === "dark" ? "dark" : "light",
+                ),
+                0.9,
               );
 
               return (
@@ -236,9 +240,12 @@ const DayView = () => {
                     (c) => c.id === event.calendarId,
                   );
                   const color = event.color || calendar?.color || "blue";
-                  const colorValue = getProjectColorValue(
-                    color,
-                    theme === "dark" ? "dark" : "light",
+                  const colorValue = hexToRgba(
+                    getProjectColorValue(
+                      color,
+                      theme === "dark" ? "dark" : "light",
+                    ),
+                    0.9,
                   );
 
                   return (
