@@ -1,7 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { App, Dropdown, Empty } from "antd";
+import { EllipsisOutlined, MoreOutlined } from "@ant-design/icons";
 import { PomodoroSession } from "@/types";
 import { usePomodoroStore } from "@/stores/usePomodoroStore";
+import {
+  deletePomodoroSession,
+  deletePomodoroSessions,
+} from "@/commands/pomodoro";
 import stopwatchIcon from "@/assets/icons/stopwatch.svg";
+import BatchManageModal from "./BatchManageModal";
 
 const formatDate = (timestamp: number) => {
   const d = new Date(timestamp);
@@ -32,6 +39,8 @@ const groupByDate = (sessions: PomodoroSession[]) => {
 const Timeline = () => {
   const sessions = usePomodoroStore((state) => state.sessions);
   const presets = usePomodoroStore((state) => state.presets);
+  const [batchManageOpen, setBatchManageOpen] = useState(false);
+  const { modal, message } = App.useApp();
 
   const groups = useMemo(() => groupByDate(sessions), [sessions]);
 
@@ -41,16 +50,62 @@ const Timeline = () => {
     return map;
   }, [presets]);
 
+  const handleDeleteSession = (sessionId: number) => {
+    modal.confirm({
+      title: "删除专注记录",
+      content: "确定要删除这条专注记录吗？删除后无法恢复。",
+      okText: "确认删除",
+      okButtonProps: {
+        danger: true,
+      },
+      cancelText: "取消",
+      onOk: async () => {
+        try {
+          await deletePomodoroSession(sessionId);
+          await usePomodoroStore.getState().refreshSessions();
+          message.success("删除成功");
+        } catch (error) {
+          console.error("Failed to delete session:", error);
+          message.error("删除失败，请重试");
+        }
+      },
+    });
+  };
+
+  const handleOpenBatchManage = () => {
+    setBatchManageOpen(true);
+  };
+
+  const handleBatchDelete = async (sessionIds: number[]) => {
+    await deletePomodoroSessions(sessionIds);
+    await usePomodoroStore.getState().refreshSessions();
+    setBatchManageOpen(false);
+  };
+
   return (
     <div className="mt-6 h-full flex flex-col overflow-hidden">
-      <div className="mb-4 flex-shrink-0">
+      <div className="mb-4 flex-shrink-0 flex items-center justify-between">
         <div className="text-sm text-gray-500 dark:text-gray-400">专注记录</div>
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: "batch",
+                label: "批量管理",
+                onClick: handleOpenBatchManage,
+              },
+            ],
+          }}
+          trigger={["click"]}
+        >
+          <MoreOutlined className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 cursor-pointer text-base" />
+        </Dropdown>
       </div>
 
       <div className="space-y-6 overflow-y-auto scrollbar-hide flex-1">
         {groups.length === 0 && (
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            暂无记录
+            <Empty description="暂无专注记录" />
           </div>
         )}
         {groups.map(([dateKey, list]) => {
@@ -128,7 +183,7 @@ const Timeline = () => {
 
                       {/* 中间和右侧：内容 */}
                       <div className="flex-1 pb-8">
-                        <div className="flex items-start justify-between">
+                        <div className="flex items-start justify-between group">
                           <div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">
                               {startTime} - {endTime || "进行中"}
@@ -138,9 +193,29 @@ const Timeline = () => {
                             </div>
                           </div>
 
-                          {/* 右侧：时长 */}
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {focusMinutes}m
+                          {/* 右侧：时长和操作 */}
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {focusMinutes}m
+                            </div>
+                            <Dropdown
+                              menu={{
+                                items: [
+                                  {
+                                    key: "delete",
+                                    label: "删除此记录",
+                                    onClick: () =>
+                                      handleDeleteSession(session.id),
+                                  },
+                                ],
+                              }}
+                              trigger={["click"]}
+                            >
+                              <EllipsisOutlined
+                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </Dropdown>
                           </div>
                         </div>
                       </div>
@@ -152,6 +227,14 @@ const Timeline = () => {
           );
         })}
       </div>
+
+      <BatchManageModal
+        open={batchManageOpen}
+        onCancel={() => setBatchManageOpen(false)}
+        sessions={sessions}
+        presets={presetMap}
+        onDelete={handleBatchDelete}
+      />
     </div>
   );
 };

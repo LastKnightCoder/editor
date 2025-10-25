@@ -126,3 +126,15 @@ export const summaryPomodoroTotal = async (): Promise<{
 }> => {
   return invoke("pomodoro:summary-total");
 };
+
+export const deletePomodoroSession = async (
+  sessionId: number,
+): Promise<number> => {
+  return invoke("pomodoro:delete-session", sessionId);
+};
+
+export const deletePomodoroSessions = async (
+  sessionIds: number[],
+): Promise<number> => {
+  return invoke("pomodoro:delete-sessions", sessionIds);
+};
