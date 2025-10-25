@@ -58,6 +58,7 @@ export interface CalendarEvent {
   color: ProjectColorName | null;
   allDay: boolean;
   value?: number; // 可选的数值字段，用于存储如时间成本等数值
+  detailContent?: Descendant[]; // 预加载的描述内容
 }
 
 export type CreateCalendarEvent = Omit<
@@ -70,7 +71,7 @@ export type UpdateCalendarEvent = Omit<
 >;
 
 // 视图类型
-export type CalendarViewType = "day" | "week" | "month";
+export type CalendarViewType = "day" | "week" | "month" | "agenda";
 
 // 时间范围查询参数
 export interface DateRangeQuery {

@@ -184,6 +184,7 @@ const MonthView = () => {
 
   // 获取某一天的事件
   const getEventsForDay = (day: number): CalendarEvent[] => {
+    if (!events) return [];
     const dayDate = dayjs()
       .year(year)
       .month(month - 1)
@@ -297,6 +298,8 @@ const MonthView = () => {
   // 获取应该在顶部布局区域渲染的所有事件信息
   // 在月视图中，为了保持布局一致性，所有事件都参与统一的顶部布局
   const topLayoutEvents = useMemo(() => {
+    if (!events || events.length === 0) return [];
+
     const result = events
       .map((event) => {
         const renderInfo = getEventRenderInfo(event);

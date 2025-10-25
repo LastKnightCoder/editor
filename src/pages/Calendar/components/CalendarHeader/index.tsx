@@ -22,6 +22,11 @@ const CalendarHeader = () => {
       });
     } else if (currentView === "week") {
       return `${date.getFullYear()}年 第${Math.ceil((date.getDate() + new Date(date.getFullYear(), date.getMonth(), 1).getDay()) / 7)}周`;
+    } else if (currentView === "agenda") {
+      return date.toLocaleDateString("zh-CN", {
+        year: "numeric",
+        month: "long",
+      });
     } else {
       return date.toLocaleDateString("zh-CN", {
         year: "numeric",
@@ -63,19 +68,27 @@ const CalendarHeader = () => {
 
       {/* 右侧：视图切换 */}
       <div className="flex rounded-lg border border-gray-300 dark:border-gray-600">
-        {(["day", "week", "month"] as CalendarViewType[]).map((view) => (
-          <button
-            key={view}
-            onClick={() => setCurrentView(view)}
-            className={`px-4 py-2 text-sm font-medium ${
-              currentView === view
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-            } ${view === "day" ? "rounded-l-lg" : ""} ${view === "month" ? "rounded-r-lg" : ""}`}
-          >
-            {view === "day" ? "日" : view === "week" ? "周" : "月"}
-          </button>
-        ))}
+        {(["day", "week", "month", "agenda"] as CalendarViewType[]).map(
+          (view) => (
+            <button
+              key={view}
+              onClick={() => setCurrentView(view)}
+              className={`px-4 py-2 text-sm font-medium ${
+                currentView === view
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+              } ${view === "day" ? "rounded-l-lg" : ""} ${view === "agenda" ? "rounded-r-lg" : ""}`}
+            >
+              {view === "day"
+                ? "日"
+                : view === "week"
+                  ? "周"
+                  : view === "month"
+                    ? "月"
+                    : "日程"}
+            </button>
+          ),
+        )}
       </div>
     </div>
   );

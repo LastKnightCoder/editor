@@ -90,11 +90,16 @@ const EventDialog = () => {
           );
         }
 
-        // 加载描述内容
-        if (
+        // 加载描述内容 - 优先使用预加载的内容
+        if (editingEvent.detailContent) {
+          // 优先使用已预加载的内容
+          setDescription(editingEvent.detailContent);
+          editorRef.current?.setEditorValue(editingEvent.detailContent);
+        } else if (
           editingEvent.detailContentId &&
           editingEvent.detailContentId !== 0
         ) {
+          // 降级：如果没有预加载内容，才异步获取
           try {
             const content = await getContentById(editingEvent.detailContentId);
             if (content?.content) {

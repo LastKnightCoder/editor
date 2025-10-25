@@ -256,7 +256,7 @@ const useCalendarStore = create<IState & IActions>()(
           date.setDate(date.getDate() - 1);
         } else if (currentView === "week") {
           date.setDate(date.getDate() - 7);
-        } else if (currentView === "month") {
+        } else if (currentView === "month" || currentView === "agenda") {
           date.setMonth(date.getMonth() - 1);
         }
 
@@ -272,7 +272,7 @@ const useCalendarStore = create<IState & IActions>()(
           date.setDate(date.getDate() + 1);
         } else if (currentView === "week") {
           date.setDate(date.getDate() + 7);
-        } else if (currentView === "month") {
+        } else if (currentView === "month" || currentView === "agenda") {
           date.setMonth(date.getMonth() + 1);
         }
 
@@ -324,7 +324,7 @@ const useCalendarStore = create<IState & IActions>()(
           } else if (currentView === "week") {
             const weekStart = getWeekStart(date);
             events = await getEventsForWeek(weekStart, selectedCalendarIds);
-          } else if (currentView === "month") {
+          } else if (currentView === "month" || currentView === "agenda") {
             const year = date.getFullYear();
             const month = date.getMonth() + 1;
             events = await getEventsForMonth(year, month, selectedCalendarIds);

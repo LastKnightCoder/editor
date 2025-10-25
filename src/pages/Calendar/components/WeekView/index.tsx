@@ -126,6 +126,7 @@ const WeekView = () => {
 
   // 为每一天的有时间事件计算重叠位置
   const dayTimedEventsLists = useMemo(() => {
+    if (!events) return weekDays.map(() => []);
     return weekDays.map((day) => {
       const dayDate = getDateStart(day.getTime());
       return events.filter((event) => {
@@ -204,7 +205,9 @@ const WeekView = () => {
             style={{
               minHeight: (() => {
                 // 统一收集所有全天事件
-                const allDayEvents = events.filter((event) => event.allDay);
+                const allDayEvents = events
+                  ? events.filter((event) => event.allDay)
+                  : [];
                 // 使用算法分配层级
                 const eventLevels = assignWeekViewLevels(
                   allDayEvents,
@@ -221,7 +224,9 @@ const WeekView = () => {
           >
             {(() => {
               // 统一处理所有全天事件的 level 分配
-              const allDayEvents = events.filter((event) => event.allDay);
+              const allDayEvents = events
+                ? events.filter((event) => event.allDay)
+                : [];
 
               // 使用新算法分配层级
               const eventLevels = assignWeekViewLevels(
@@ -323,7 +328,7 @@ const WeekView = () => {
                             <div
                               key={event.id}
                               onClick={() => setEditingEvent(event)}
-                              className="absolute cursor-pointer rounded px-2 py-1 text-xs text-white shadow-sm"
+                              className="absolute cursor-pointer rounded px-2 text-xs text-white shadow-sm"
                               style={{
                                 backgroundColor: colorValue,
                                 left: `${(dayIndex / 7) * 100}%`,
