@@ -14,6 +14,7 @@ import { CalendarEvent } from "@/types";
 import { MdClose } from "react-icons/md";
 import dayjs from "dayjs";
 import { assignMonthViewLevels } from "@/utils/eventLayoutAlgorithm";
+import { hexToRgba } from "../../utils";
 
 interface PendingDateEvent {
   startDate: number;
@@ -846,9 +847,12 @@ const MonthView = () => {
                   (c) => c.id === event.calendarId,
                 );
                 const color = event.color || calendar?.color || "blue";
-                const colorValue = getProjectColorValue(
-                  color,
-                  theme === "dark" ? "dark" : "light",
+                const colorValue = hexToRgba(
+                  getProjectColorValue(
+                    color,
+                    theme === "dark" ? "dark" : "light",
+                  ),
+                  0.9,
                 );
 
                 return (

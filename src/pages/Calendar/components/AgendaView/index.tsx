@@ -7,16 +7,8 @@ import useSettingStore from "@/stores/useSettingStore";
 import { CalendarEvent } from "@/types";
 import dayjs from "dayjs";
 import Editor from "@/components/Editor";
+import { hexToRgba } from "../../utils";
 import "./index.module.less";
-
-// 将 hex 颜色转换为 rgba
-const hexToRgba = (hex: string, alpha: number): string => {
-  hex = hex.replace("#", "");
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-};
 
 const AgendaView = () => {
   const { currentDate, calendars, setEditingEvent } = useCalendarStore();
@@ -28,36 +20,32 @@ const AgendaView = () => {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
 
-  // 按天组织事件
+  // 按天组织事件（只显示单日非全天事件）
   const eventsByDay = useMemo(() => {
     const grouped = new Map<string, CalendarEvent[]>();
 
     if (!events) return grouped;
 
     events.forEach((event) => {
+      // 过滤掉全天事件
+      if (event.allDay) return;
+
       const eventStart = dayjs(event.startDate);
       const eventEnd = event.endDate ? dayjs(event.endDate) : eventStart;
 
-      // 为跨天事件的每一天都添加记录
-      let currentDay = eventStart;
-      while (
-        currentDay.isSame(eventEnd, "day") ||
-        currentDay.isBefore(eventEnd, "day")
-      ) {
-        const dayKey = currentDay.format("YYYY-MM-DD");
-        if (!grouped.has(dayKey)) {
-          grouped.set(dayKey, []);
-        }
-        grouped.get(dayKey)!.push(event);
-        currentDay = currentDay.add(1, "day");
+      // 只保留单日事件（开始和结束在同一天）
+      if (!eventStart.isSame(eventEnd, "day")) return;
+
+      const dayKey = eventStart.format("YYYY-MM-DD");
+      if (!grouped.has(dayKey)) {
+        grouped.set(dayKey, []);
       }
+      grouped.get(dayKey)!.push(event);
     });
 
-    // 排序：有时间的事件按 startTime 升序，全天事件排在最后
+    // 排序：按 startTime 升序
     grouped.forEach((dayEvents) => {
       dayEvents.sort((a, b) => {
-        if (a.allDay && !b.allDay) return 1;
-        if (!a.allDay && b.allDay) return -1;
         const aTime = a.startTime ?? Number.MAX_SAFE_INTEGER;
         const bTime = b.startTime ?? Number.MAX_SAFE_INTEGER;
         return aTime - bTime;

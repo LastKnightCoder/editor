@@ -144,15 +144,6 @@ const EventDialog = () => {
   const handleSave = async () => {
     if (!title || !calendarId) return;
 
-    // 系统日历事件不允许编辑
-    if (isSystemCalendarEvent) {
-      modal.warning({
-        title: "无法编辑",
-        content: "系统日历的事件不允许编辑",
-      });
-      return;
-    }
-
     const startDateTs = dayjs(startDate).startOf("day").valueOf();
     const endDateTs = endDate ? dayjs(endDate).startOf("day").valueOf() : null;
 
@@ -294,8 +285,7 @@ const EventDialog = () => {
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    disabled={isSystemCalendarEvent}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
                     placeholder="事件标题"
                   />
                 </div>
@@ -328,7 +318,7 @@ const EventDialog = () => {
                   {calendars.find((c) => c.id === calendarId)
                     ?.isInSystemGroup && (
                     <p className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">
-                      注意：您正在编辑系统日历中的事件
+                      注意：系统日历事件的时间和日历归属不可修改
                     </p>
                   )}
                 </div>
@@ -444,8 +434,7 @@ const EventDialog = () => {
                     step="0.01"
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
-                    disabled={isSystemCalendarEvent}
-                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-700"
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-600 dark:bg-gray-700"
                     placeholder="如时间成本、金额等"
                   />
                 </div>
@@ -460,7 +449,7 @@ const EventDialog = () => {
                       ref={editorRef}
                       initValue={DEFAULT_CONTENT}
                       onChange={setDescription}
-                      readonly={isSystemCalendarEvent}
+                      readonly={false}
                       placeHolder="添加事件描述..."
                     />
                   </div>
@@ -470,18 +459,10 @@ const EventDialog = () => {
 
             {/* 底部按钮栏 - 固定在底部 */}
             <div className="border-t border-gray-200 p-4 dark:border-gray-700">
-              {isSystemCalendarEvent ? (
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => setEditingEvent(null)}
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                  >
-                    关闭
-                  </button>
-                </div>
-              ) : (
-                <div className="flex justify-between">
-                  {editingEvent && editingEvent.id !== 0 && (
+              <div className="flex justify-between">
+                {editingEvent &&
+                  editingEvent.id !== 0 &&
+                  !isSystemCalendarEvent && (
                     <button
                       onClick={handleDelete}
                       className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
@@ -489,22 +470,21 @@ const EventDialog = () => {
                       删除
                     </button>
                   )}
-                  <div className="flex gap-2 ml-auto">
-                    <button
-                      onClick={() => setEditingEvent(null)}
-                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
-                    >
-                      取消
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                    >
-                      保存
-                    </button>
-                  </div>
+                <div className="flex gap-2 ml-auto">
+                  <button
+                    onClick={() => setEditingEvent(null)}
+                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    保存
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </>
