@@ -231,7 +231,7 @@ export default class CalendarEventTable {
   }
 
   static parseCalendarEvent(row: any): CalendarEvent {
-    return {
+    const event: CalendarEvent = {
       id: row.id,
       createTime: row.create_time,
       updateTime: row.update_time,
@@ -247,6 +247,17 @@ export default class CalendarEventTable {
       value:
         row.value !== null && row.value !== undefined ? row.value : undefined,
     };
+
+    // 解析预加载的描述内容
+    if (row.detail_content) {
+      try {
+        event.detailContent = JSON.parse(row.detail_content);
+      } catch (error) {
+        log.error("Failed to parse detail_content:", error);
+      }
+    }
+
+    return event;
   }
 
   static createEvent(
@@ -366,11 +377,15 @@ export default class CalendarEventTable {
     calendarIds?: number[],
   ): CalendarEvent[] {
     let query = `
-      SELECT * FROM calendar_event
+      SELECT 
+        e.*,
+        c.content as detail_content
+      FROM calendar_event e
+      LEFT JOIN contents c ON e.detail_content_id = c.id
       WHERE (
-        (start_date >= ? AND start_date <= ?) OR
-        (end_date >= ? AND end_date <= ?) OR
-        (start_date <= ? AND (end_date >= ? OR end_date IS NULL))
+        (e.start_date >= ? AND e.start_date <= ?) OR
+        (e.end_date >= ? AND e.end_date <= ?) OR
+        (e.start_date <= ? AND (e.end_date >= ? OR e.end_date IS NULL))
       )
     `;
     const params: any[] = [
@@ -384,11 +399,11 @@ export default class CalendarEventTable {
 
     if (calendarIds && calendarIds.length > 0) {
       const placeholders = calendarIds.map(() => "?").join(",");
-      query += ` AND calendar_id IN (${placeholders})`;
+      query += ` AND e.calendar_id IN (${placeholders})`;
       params.push(...calendarIds);
     }
 
-    query += " ORDER BY start_date ASC, start_time ASC";
+    query += " ORDER BY e.start_date ASC, e.start_time ASC";
 
     const stmt = db.prepare(query);
     const rows = stmt.all(...params);

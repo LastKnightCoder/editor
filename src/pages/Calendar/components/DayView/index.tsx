@@ -62,6 +62,7 @@ const DayView = () => {
   // 过滤当天的事件
   const dayStart = getDateStart(currentDate);
   const dayEvents = useMemo(() => {
+    if (!events) return [];
     return events.filter((event) => {
       const eventStart = getDateStart(event.startDate);
       const eventEnd = event.endDate ? getDateStart(event.endDate) : eventStart;

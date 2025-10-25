@@ -1,0 +1,33 @@
+:global {
+  .agenda-view-editor {
+    .editor-content {
+      padding: 0 !important;
+      min-height: auto !important;
+      font-size: 12px !important;
+    }
+
+    // 隐藏工具栏和其他不需要的元素
+    .hovering-toolbar,
+    .block-panel,
+    .images-overview {
+      display: none !important;
+    }
+
+    // 调整段落间距
+    p {
+      margin: 0.25rem 0;
+      font-size: 12px;
+    }
+
+    // 确保文本颜色继承
+    .formatted-text {
+      color: inherit !important;
+      font-size: 12px;
+    }
+
+    // 所有文本元素都使用小号字体
+    * {
+      font-size: 12px;
+    }
+  }
+}
