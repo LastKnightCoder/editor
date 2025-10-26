@@ -96,11 +96,43 @@ if (process.platform === "win32") {
   app.setUserTasks([
     {
       program: process.execPath,
-      arguments: "",
+      arguments: "--window-type=main",
       iconPath: process.execPath,
       iconIndex: 0,
       title: "打开笔记应用",
       description: "打开笔记应用主界面",
+    },
+    {
+      program: process.execPath,
+      arguments: "--window-type=todo",
+      iconPath: process.execPath,
+      iconIndex: 0,
+      title: "任务清单",
+      description: "打开任务清单窗口",
+    },
+    {
+      program: process.execPath,
+      arguments: "--window-type=question",
+      iconPath: process.execPath,
+      iconIndex: 0,
+      title: "问题管理",
+      description: "打开问题管理窗口",
+    },
+    {
+      program: process.execPath,
+      arguments: "--window-type=goal",
+      iconPath: process.execPath,
+      iconIndex: 0,
+      title: "进度管理",
+      description: "打开进度管理窗口",
+    },
+    {
+      program: process.execPath,
+      arguments: "--window-type=pomodoro",
+      iconPath: process.execPath,
+      iconIndex: 0,
+      title: "番茄专注",
+      description: "打开番茄专注窗口",
     },
   ]);
 }
@@ -110,6 +142,8 @@ let trayManager: Awaited<ReturnType<typeof trayModule.init>>;
 
 // 添加全局变量，存储启动时传入的文件路径
 let filesToOpen: string[] = [];
+// 存储启动时要打开的窗口类型
+let windowTypeToOpen: string | null = null;
 
 // 捕获命令行参数中的文件路径
 const gotTheLock = app.requestSingleInstanceLock();
@@ -120,18 +154,22 @@ if (!gotTheLock) {
 } else {
   // 监听第二个实例启动时传入的参数
   app.on("second-instance", (_event, commandLine) => {
-    // 如果用户尝试打开第二个实例，我们应该聚焦到第一个实例的窗口
-    if (windowManager) {
-      const mainWindow = BrowserWindow.getAllWindows()[0];
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.focus();
-      }
+    // 首先检查是否有窗口类型参数
+    const windowType = getWindowTypeFromArgs(commandLine);
+    if (windowType && windowManager) {
+      handleWindowType(windowType);
+      return;
+    }
 
-      // 处理第二个实例的命令行参数
-      const filePath = getFilePathFromArgs(commandLine);
-      if (filePath) {
-        handleFileOrFolder(filePath);
+    // 处理第二个实例的命令行参数（文件路径）
+    const filePath = getFilePathFromArgs(commandLine);
+    if (filePath) {
+      handleFileOrFolder(filePath);
+    } else {
+      // 没有文件路径参数，显示或创建主窗口
+      log.info("第二个实例启动，没有文件参数，显示主窗口");
+      if (windowManager) {
+        windowManager.showOrCreateMainWindow();
       }
     }
   });
@@ -139,19 +177,32 @@ if (!gotTheLock) {
   // 处理初次启动时的命令行参数
   const argv = process.argv;
   log.info(`启动命令行参数: ${JSON.stringify(argv)}`);
-  const filePathFromArgs = getFilePathFromArgs(argv);
-  if (filePathFromArgs) {
-    log.info(`检测到文件或文件夹参数: ${filePathFromArgs}`);
-    filesToOpen.push(filePathFromArgs);
+
+  // 首先检查窗口类型参数
+  windowTypeToOpen = getWindowTypeFromArgs(argv);
+  if (windowTypeToOpen) {
+    log.info(`检测到窗口类型参数: ${windowTypeToOpen}`);
   } else {
-    log.info("未检测到有效的文件或文件夹参数");
+    // 检查文件路径参数
+    const filePathFromArgs = getFilePathFromArgs(argv);
+    if (filePathFromArgs) {
+      log.info(`检测到文件或文件夹参数: ${filePathFromArgs}`);
+      filesToOpen.push(filePathFromArgs);
+    } else {
+      log.info("未检测到有效的文件或文件夹参数");
+    }
   }
 
   app.whenReady().then(() => {
     log.info("应用就绪");
 
     initModules().then(() => {
-      if (filesToOpen.length === 0) {
+      // 处理窗口类型参数
+      if (windowTypeToOpen) {
+        log.info(`根据窗口类型参数打开窗口: ${windowTypeToOpen}`);
+        handleWindowType(windowTypeToOpen);
+        windowTypeToOpen = null;
+      } else if (filesToOpen.length === 0) {
         log.info("创建主窗口");
         windowManager.createMainWindow();
       } else {
@@ -476,5 +527,59 @@ function handleFileOrFolder(path: string) {
     windowManager.createEditorWindow("markdown", { filePath: path });
   } else {
     log.warn(`不支持的文件类型: ${path}`);
+  }
+}
+
+// 从命令行参数中提取窗口类型
+function getWindowTypeFromArgs(args: string[]): string | null {
+  for (const arg of args) {
+    if (arg.startsWith("--window-type=")) {
+      const windowType = arg.split("=")[1];
+      log.info(`找到窗口类型参数: ${windowType}`);
+      return windowType;
+    }
+  }
+  return null;
+}
+
+// 根据窗口类型打开相应的窗口
+function handleWindowType(windowType: string) {
+  if (!windowManager) {
+    log.warn("窗口管理器未初始化");
+    return;
+  }
+
+  switch (windowType) {
+    case "main":
+      log.info("打开主窗口");
+      windowManager.showOrCreateMainWindow();
+      break;
+    case "todo":
+      log.info("打开任务清单窗口");
+      if (typeof windowManager.createTodoWindow === "function") {
+        windowManager.createTodoWindow();
+      }
+      break;
+    case "question":
+      log.info("打开问题管理窗口");
+      if (typeof windowManager.createQuestionWindow === "function") {
+        windowManager.createQuestionWindow();
+      }
+      break;
+    case "goal":
+      log.info("打开进度管理窗口");
+      if (typeof windowManager.createGoalWindow === "function") {
+        windowManager.createGoalWindow();
+      }
+      break;
+    case "pomodoro":
+      log.info("打开番茄专注窗口");
+      if (typeof windowManager.createPomodoroWindow === "function") {
+        windowManager.createPomodoroWindow();
+      }
+      break;
+    default:
+      log.warn(`未知的窗口类型: ${windowType}`);
+      windowManager.showOrCreateMainWindow();
   }
 }
