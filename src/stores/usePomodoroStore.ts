@@ -7,6 +7,8 @@ import {
   listPomodoroSessions,
   listPomodoroPresets,
   setBackgroundSound as setBackgroundSoundCommand,
+  summaryPomodoroToday,
+  summaryPomodoroTotal,
 } from "@/commands";
 
 export type BackgroundSoundType =
@@ -31,6 +33,8 @@ interface PomodoroState {
   rightSidebarWidth: number; // 右侧边栏宽度
   backgroundSound: BackgroundSoundType; // 背景音类型
   backgroundVolume: number; // 背景音音量 0-100
+  today: { count: number; focusMs: number }; // 今日统计
+  total: { count: number; focusMs: number }; // 总统计
 }
 
 interface PomodoroActions {
@@ -46,6 +50,7 @@ interface PomodoroActions {
   }) => void;
   refreshSessions: () => Promise<void>;
   refreshPresets: () => Promise<void>;
+  refreshSummary: () => Promise<void>;
   setBackgroundSound: (sound: BackgroundSoundType) => Promise<void>;
   setBackgroundVolume: (volume: number) => Promise<void>;
 }
@@ -61,6 +66,8 @@ const initialState: PomodoroState = {
   rightSidebarWidth: 350,
   backgroundSound: null,
   backgroundVolume: 50,
+  today: { count: 0, focusMs: 0 },
+  total: { count: 0, focusMs: 0 },
 };
 
 export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
@@ -89,8 +96,9 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
 
             // 检测会话结束：之前有会话，现在变为 null
             if (prevSession && !newSession) {
-              // 会话结束，刷新专注列表
+              // 会话结束，刷新专注列表和统计数据
               get().refreshSessions();
+              get().refreshSummary();
             }
 
             get().setActiveSession(newSession);
@@ -165,6 +173,9 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
               console.error("Failed to sync background sound to server:", err);
             });
           }
+
+          // 获取统计数据
+          await get().refreshSummary();
         } catch (e) {
           console.error("initPomodoro error", e);
         }
@@ -221,6 +232,17 @@ export const usePomodoroStore = create<PomodoroState & PomodoroActions>()(
       refreshPresets: async () => {
         const presets = await listPomodoroPresets();
         get().setPresets(presets);
+      },
+
+      refreshSummary: async () => {
+        const today = await summaryPomodoroToday();
+        const total = await summaryPomodoroTotal();
+        set(
+          produce((draft: PomodoroState) => {
+            draft.today = today;
+            draft.total = total;
+          }),
+        );
       },
 
       setBackgroundSound: async (sound) => {

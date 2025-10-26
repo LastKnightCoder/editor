@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTodoStore } from "@/stores/useTodoStore";
-import { App, Dropdown } from "antd";
+import { App, Dropdown, MenuProps } from "antd";
 import dayjs from "dayjs";
 import {
   MdMoreVert,
@@ -8,6 +8,8 @@ import {
   MdDelete,
   MdKeyboardArrowUp,
   MdKeyboardArrowDown,
+  MdEdit,
+  MdInfo,
 } from "react-icons/md";
 import CustomCheckbox from "@/components/CustomCheckbox";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -99,24 +101,54 @@ const TodoRow = ({
     await createItemRelative({ refId: id, position: "below", title: "新任务" });
   };
 
-  const menuItems = [
+  const menuItems: MenuProps["items"] = [
+    {
+      key: "view-detail",
+      label: "查看详情",
+      icon: <MdInfo />,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        setRightOpen(true);
+      },
+    },
+    {
+      key: "edit",
+      label: "编辑",
+      icon: <MdEdit />,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        onStartEdit();
+      },
+    },
+    {
+      type: "divider" as const,
+    },
     {
       key: "add-subtask",
       label: "添加子任务",
       icon: <MdAdd />,
-      onClick: handleAddSubTask,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleAddSubTask();
+      },
     },
     {
       key: "add-above",
       label: "在上面添加任务",
       icon: <MdKeyboardArrowUp />,
-      onClick: handleAddTaskAbove,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleAddTaskAbove();
+      },
     },
     {
       key: "add-below",
       label: "在下面添加任务",
       icon: <MdKeyboardArrowDown />,
-      onClick: handleAddTaskBelow,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleAddTaskBelow();
+      },
     },
     {
       type: "divider" as const,
@@ -125,7 +157,10 @@ const TodoRow = ({
       key: "delete",
       label: "删除任务",
       icon: <MdDelete />,
-      onClick: handleDeleteTask,
+      onClick: (e) => {
+        e.domEvent.stopPropagation();
+        handleDeleteTask();
+      },
       danger: true,
     },
   ];
@@ -133,7 +168,7 @@ const TodoRow = ({
   return (
     <div
       className={classnames(
-        "transition-all duration-200 cursor-pointer px-3 py-1 rounded-lg",
+        "transition-all duration-200 px-3 py-1 rounded-lg",
         {
           "hover:bg-[#1a1a1a]": !selected && isDark,
           "hover:bg-[#f6fbff]": !selected && !isDark,
@@ -144,7 +179,6 @@ const TodoRow = ({
       style={{
         marginLeft: depth * 12,
       }}
-      onClick={() => setRightOpen(true)}
       onDoubleClick={onStartEdit}
     >
       <div className="flex gap-2 w-full">

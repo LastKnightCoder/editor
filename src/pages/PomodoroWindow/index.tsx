@@ -8,8 +8,6 @@ import {
   pausePomodoroSession,
   resumePomodoroSession,
   stopPomodoroSession,
-  summaryPomodoroToday,
-  summaryPomodoroTotal,
   selectPomodoroPreset,
 } from "@/commands";
 import { deletePomodoroPreset } from "@/commands/pomodoro";
@@ -59,33 +57,20 @@ const PomodoroWindowPage: React.FC = () => {
     rightSidebarWidth,
     presets,
     refreshPresets,
-    refreshSessions,
+    today,
+    total,
   } = usePomodoroStore();
 
-  const [today, setToday] = useState<{ count: number; focusMs: number }>({
-    count: 0,
-    focusMs: 0,
-  });
-  const [total, setTotal] = useState<{ count: number; focusMs: number }>({
-    count: 0,
-    focusMs: 0,
-  });
   const [presetModalOpen, setPresetModalOpen] = useState(false);
   const [editingPreset, setEditingPreset] = useState<PomodoroPreset | null>(
     null,
   );
   const [tabType, setTabType] = useState<TabType>(TabType.Active);
 
-  const refreshSummary = useMemoizedFn(async () => {
-    setToday(await summaryPomodoroToday());
-    setTotal(await summaryPomodoroTotal());
-  });
-
   useEffect(() => {
     if (!isConnected) return;
     initPomodoro();
-    refreshSummary();
-  }, [isConnected, initPomodoro, refreshSummary]);
+  }, [isConnected, initPomodoro]);
 
   const start = useMemoizedFn(async (p: PomodoroPreset) => {
     const expected =
@@ -111,14 +96,12 @@ const PomodoroWindowPage: React.FC = () => {
         okButtonProps: { danger: true },
         onOk: async () => {
           await stopPomodoroSession(true);
-          await refreshSummary();
-          await refreshSessions();
+          // 会话结束时会自动通过通知刷新统计数据和专注列表
         },
       });
     } else {
       await stopPomodoroSession(true);
-      await refreshSummary();
-      await refreshSessions();
+      // 会话结束时会自动通过通知刷新统计数据和专注列表
     }
   });
 

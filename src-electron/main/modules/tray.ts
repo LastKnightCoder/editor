@@ -29,6 +29,11 @@ function createMacOSStatusBarIcon(preloadPath: string) {
   // 获取图标路径
   const iconPath = getMacOSStatusBarIconPath(preloadPath);
 
+  if (!iconPath) {
+    log.error("无法创建 macOS 状态栏图标，图标路径为空");
+    return;
+  }
+
   // 创建较小的状态栏图标
   const image = nativeImage.createFromPath(iconPath);
   const resizedImage = image.resize({ width: 18, height: 18 });
@@ -36,6 +41,13 @@ function createMacOSStatusBarIcon(preloadPath: string) {
   // 创建状态栏图标
   tray = new Tray(resizedImage);
   tray.setToolTip("笔记应用");
+
+  // 绑定点击事件（只绑定一次）
+  tray.on("click", () => {
+    if (windowManager) {
+      windowManager.showOrCreateMainWindow();
+    }
+  });
 
   // 设置菜单
   updateTrayMenu();
@@ -142,6 +154,8 @@ function createDockMenu() {
 }
 
 function createTray(preloadPath: string) {
+  let finalIconPath: string | null = null;
+
   // 托盘图标路径，根据平台选择适当的图标
   const iconPath = path.join(
     app.isPackaged
@@ -151,7 +165,10 @@ function createTray(preloadPath: string) {
   );
 
   // 检查图标文件是否存在
-  if (!existsSync(iconPath)) {
+  if (existsSync(iconPath)) {
+    finalIconPath = iconPath;
+    log.info(`找到托盘图标: ${iconPath}`);
+  } else {
     log.warn(`托盘图标文件不存在: ${iconPath}，尝试使用备用路径`);
     // 尝试备用路径
     const alternativeIconPath = path.join(
@@ -161,27 +178,49 @@ function createTray(preloadPath: string) {
     );
 
     if (existsSync(alternativeIconPath)) {
-      // 创建托盘实例
-      tray = new Tray(alternativeIconPath);
+      finalIconPath = alternativeIconPath;
+      log.info(`找到备用托盘图标: ${alternativeIconPath}`);
     } else {
       log.error(`备用托盘图标也不存在: ${alternativeIconPath}`);
-      // 使用默认图标
-      tray = new Tray("");
+      log.error("将尝试创建没有图标的托盘");
     }
-  } else {
-    // 创建托盘实例
-    tray = new Tray(iconPath);
   }
 
-  tray.setToolTip("笔记应用");
+  try {
+    // 创建托盘实例
+    if (finalIconPath) {
+      tray = new Tray(finalIconPath);
+      log.info(`已创建托盘图标: ${finalIconPath}`);
+    } else {
+      // 尝试使用空的 nativeImage
+      const emptyImage = nativeImage.createEmpty();
+      tray = new Tray(emptyImage);
+      log.warn("已创建空图标的托盘（图标文件未找到）");
+    }
 
-  // 创建托盘上下文菜单
-  updateTrayMenu();
+    tray.setToolTip("笔记应用");
+
+    // 绑定点击事件（只绑定一次）
+    tray.on("click", () => {
+      if (windowManager) {
+        windowManager.showOrCreateMainWindow();
+      }
+    });
+
+    // 创建托盘上下文菜单
+    updateTrayMenu();
+  } catch (error) {
+    log.error("创建托盘失败:", error);
+    tray = null;
+  }
 }
 
 // 更新托盘菜单
 function updateTrayMenu() {
-  if (!tray) return;
+  if (!tray) {
+    log.warn("托盘未创建，无法更新菜单");
+    return;
+  }
 
   const contextMenu = Menu.buildFromTemplate([
     {
@@ -244,13 +283,7 @@ function updateTrayMenu() {
   ]);
 
   tray.setContextMenu(contextMenu);
-
-  // 添加点击托盘图标事件
-  tray.on("click", () => {
-    if (windowManager) {
-      windowManager.showOrCreateMainWindow();
-    }
-  });
+  log.debug("托盘菜单已更新");
 }
 
 // 清理托盘

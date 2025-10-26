@@ -540,10 +540,8 @@ export class WindowManager {
 
     win.setAlwaysOnTop(true);
 
-    // Mac 上设置 simpleFullScreen
-    if (isMac) {
-      win.setSimpleFullScreen(true);
-    }
+    // 注意：不在初始化时设置 simpleFullScreen，而是在显示时设置
+    // 这样可以避免窗口隐藏时 Dock 仍然被隐藏的问题
 
     // 监听销毁事件
     win.on("closed", () => {
@@ -604,11 +602,15 @@ export class WindowManager {
     log.debug("显示沉浸窗口");
     if (this.pomodoroImmersiveWindow) {
       const isMac = process.platform === "darwin";
-      // Mac 上不需要设置全屏，已经是屏幕大小
-      // 其他平台在显示之前设置全屏
-      if (!isMac) {
+
+      // Mac 上设置 simpleFullScreen，会隐藏 Dock 和菜单栏
+      if (isMac) {
+        this.pomodoroImmersiveWindow.setSimpleFullScreen(true);
+      } else {
+        // 其他平台在显示之前设置全屏
         this.pomodoroImmersiveWindow.setFullScreen(true);
       }
+
       this.pomodoroImmersiveWindow.show();
       this.pomodoroImmersiveWindow.focus();
     }
@@ -621,6 +623,16 @@ export class WindowManager {
       this.pomodoroImmersiveWindow &&
       !this.pomodoroImmersiveWindow.isDestroyed()
     ) {
+      const isMac = process.platform === "darwin";
+
+      // Mac 上退出 simpleFullScreen，恢复 Dock 和菜单栏
+      if (isMac) {
+        this.pomodoroImmersiveWindow.setSimpleFullScreen(false);
+      } else {
+        // 其他平台退出全屏
+        this.pomodoroImmersiveWindow.setFullScreen(false);
+      }
+
       this.pomodoroImmersiveWindow.hide();
     }
   }
