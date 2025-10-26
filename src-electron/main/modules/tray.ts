@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron";
+import { app, Tray, Menu, nativeImage } from "electron";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import log from "electron-log";
@@ -136,19 +136,6 @@ function createDockMenu() {
         }
       },
     },
-    {
-      label: "打开笔记应用",
-      click: () => {
-        const mainWindow = BrowserWindow.getAllWindows()[0];
-        if (mainWindow) {
-          if (mainWindow.isMinimized()) mainWindow.restore();
-          mainWindow.show();
-          mainWindow.focus();
-        } else if (windowManager) {
-          windowManager.createMainWindow();
-        }
-      },
-    },
   ]);
 
   app.dock?.setMenu(dockMenu);
@@ -246,19 +233,6 @@ function updateTrayMenu() {
         }
       },
     },
-    {
-      label: "打开笔记应用",
-      click: () => {
-        const mainWindow = BrowserWindow.getAllWindows()[0];
-        if (mainWindow) {
-          if (mainWindow.isMinimized()) mainWindow.restore();
-          mainWindow.show();
-          mainWindow.focus();
-        } else if (windowManager) {
-          windowManager.createMainWindow();
-        }
-      },
-    },
     { type: "separator" },
     {
       label: "退出",
@@ -273,11 +247,8 @@ function updateTrayMenu() {
 
   // 添加点击托盘图标事件
   tray.on("click", () => {
-    const mainWindow = BrowserWindow.getAllWindows()[0];
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
+    if (windowManager) {
+      windowManager.showOrCreateMainWindow();
     }
   });
 }

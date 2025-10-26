@@ -40,6 +40,8 @@ interface EditorParams {
 export class WindowManager {
   // 窗口映射
   private windowsMap = new Map<EditorType, Map<string, BrowserWindow>>();
+  // 主窗口集合（支持多个主窗口）
+  private mainWindows = new Set<BrowserWindow>();
   // 沉浸窗口实例（单例，复用）
   private pomodoroImmersiveWindow: BrowserWindow | null = null;
   // 背景音播放窗口（隐藏的单例窗口）
@@ -234,7 +236,57 @@ export class WindowManager {
     }
   }
 
-  // 创建主窗口
+  // 获取第一个可用的主窗口
+  public getMainWindow(): BrowserWindow | null {
+    // 清理已销毁的窗口
+    for (const win of this.mainWindows) {
+      if (win.isDestroyed()) {
+        this.mainWindows.delete(win);
+      }
+    }
+
+    // 返回第一个可用的主窗口
+    for (const win of this.mainWindows) {
+      if (!win.isDestroyed()) {
+        return win;
+      }
+    }
+
+    return null;
+  }
+
+  // 获取所有主窗口
+  public getAllMainWindows(): BrowserWindow[] {
+    // 清理已销毁的窗口
+    for (const win of this.mainWindows) {
+      if (win.isDestroyed()) {
+        this.mainWindows.delete(win);
+      }
+    }
+
+    return Array.from(this.mainWindows);
+  }
+
+  // 显示或创建主窗口
+  public showOrCreateMainWindow() {
+    const mainWindow = this.getMainWindow();
+
+    if (mainWindow) {
+      // 找到主窗口，显示并聚焦
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.show();
+      mainWindow.focus();
+      log.info("显示已存在的主窗口");
+    } else {
+      // 没有主窗口，创建新的
+      log.info("未找到主窗口，创建新窗口");
+      this.createMainWindow();
+    }
+  }
+
+  // 创建主窗口（总是创建新的主窗口）
   public createMainWindow() {
     const win = new BrowserWindow({
       width: 1200,
@@ -257,6 +309,10 @@ export class WindowManager {
         frame: true,
       }),
     });
+
+    // 将窗口添加到主窗口集合
+    this.mainWindows.add(win);
+    log.info(`创建主窗口，当前主窗口数量: ${this.mainWindows.size}`);
 
     if (VITE_DEV_SERVER_URL) {
       log.debug("开发模式：加载开发服务器URL");
@@ -284,6 +340,9 @@ export class WindowManager {
     });
 
     win.on("closed", () => {
+      // 从主窗口集合中移除
+      this.mainWindows.delete(win);
+      log.info(`主窗口关闭，当前主窗口数量: ${this.mainWindows.size}`);
       this.checkAndQuitIfNeeded();
     });
 
