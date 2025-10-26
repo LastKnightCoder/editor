@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { formatTime } from "@/utils/calendar";
@@ -6,7 +6,7 @@ import { getProjectColorValue } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import { CalendarEvent } from "@/types";
 import dayjs from "dayjs";
-import Editor from "@/components/Editor";
+import Editor, { EditorRef } from "@/components/Editor";
 import { hexToRgba } from "../../utils";
 import "./index.module.less";
 
@@ -15,6 +15,9 @@ const AgendaView = () => {
   const { events } = useCalendarEvents();
   const { setting } = useSettingStore();
   const theme = setting.darkMode ? "dark" : "light";
+
+  // 存储每个事件的 Editor ref
+  const editorRefsMap = useRef<Map<string, EditorRef>>(new Map());
 
   const date = new Date(currentDate);
   const year = date.getFullYear();
@@ -70,6 +73,18 @@ const AgendaView = () => {
   const daysWithEvents = daysInMonth.filter((dayKey) =>
     eventsByDay.has(dayKey),
   );
+
+  // 当事件内容变化时，更新对应的 Editor
+  useEffect(() => {
+    if (!events) return;
+
+    events.forEach((event) => {
+      const editorRef = editorRefsMap.current.get(String(event.id));
+      if (editorRef && event.detailContent) {
+        editorRef.setEditorValue(event.detailContent);
+      }
+    });
+  }, [events]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-white dark:bg-[var(--main-bg-color)]">
@@ -201,6 +216,14 @@ const AgendaView = () => {
                             {hasDescription && (
                               <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                                 <Editor
+                                  ref={(ref) => {
+                                    if (ref) {
+                                      editorRefsMap.current.set(
+                                        String(event.id),
+                                        ref,
+                                      );
+                                    }
+                                  }}
                                   initValue={event.detailContent}
                                   readonly={true}
                                   className="agenda-view-editor"
