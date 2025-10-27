@@ -1,4 +1,4 @@
-import React, { useEffect, memo } from "react";
+import React, { useEffect, memo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { DatePicker } from "antd";
 import dayjs from "dayjs";
@@ -17,6 +17,8 @@ interface DateEditorProps {
 const DateEditor: React.FC<DateEditorProps> = memo(
   ({ value, onCellValueChange, onFinishEdit }) => {
     const dateValue = typeof value === "number" ? dayjs(new Date(value)) : null;
+    const hasChangedRef = useRef(false);
+    const isOpenRef = useRef(false);
 
     useEffect(() => {
       const pickerInput = document.querySelector(
@@ -28,17 +30,40 @@ const DateEditor: React.FC<DateEditorProps> = memo(
     }, []);
 
     // 处理日期变更
-    const handleChange = (date: dayjs.Dayjs | null) => {
+    const handleChange = useMemoizedFn((date: dayjs.Dayjs | null) => {
       const ts = date ? date.toDate().getTime() : null;
       onCellValueChange(ts);
-      onFinishEdit();
-    };
+      hasChangedRef.current = true;
+    });
+
+    // 处理日期选择器打开/关闭状态
+    const handleOpenChange = useMemoizedFn((open: boolean) => {
+      isOpenRef.current = open;
+      // 当日期选择器关闭且有修改时，延迟完成编辑
+      if (!open && hasChangedRef.current) {
+        setTimeout(() => {
+          onFinishEdit();
+        }, 100);
+      }
+    });
+
+    // 处理失焦，完成编辑
+    const handleBlur = useMemoizedFn(() => {
+      // 如果日期选择器已关闭，则完成编辑
+      if (!isOpenRef.current) {
+        setTimeout(() => {
+          onFinishEdit();
+        }, 100);
+      }
+    });
 
     const handleKeyDown = useMemoizedFn((e: KeyboardEvent) => {
       if (e.key === "Enter") {
         onFinishEdit();
       } else if (e.key === "Escape") {
-        onCellValueChange(value); // 还原为原始值
+        if (!hasChangedRef.current) {
+          onCellValueChange(value); // 还原为原始值
+        }
         onFinishEdit();
       }
     });
@@ -55,6 +80,8 @@ const DateEditor: React.FC<DateEditorProps> = memo(
         <DatePicker
           value={dateValue}
           onChange={handleChange}
+          onOpenChange={handleOpenChange}
+          onBlur={handleBlur}
           allowClear
           format="YYYY-MM-DD"
           inputReadOnly={false}

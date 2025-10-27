@@ -78,7 +78,7 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
   if (!projectItem || !table || !activeView) return null;
 
   return (
-    <div className="w-full mx-auto max-w-[840px] h-full flex flex-col">
+    <div className="w-full mx-auto max-w-[920px] h-full flex flex-col">
       <div className="px-4 pt-3 pb-1 mb-2">
         <EditText
           key={projectItem.id}

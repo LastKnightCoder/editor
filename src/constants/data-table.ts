@@ -6,6 +6,7 @@ export const DEFAULT_COLUMNS: DataTableColumn[] = [
     id: uuidv4(),
     title: "文本",
     type: "text",
+    isPrimary: true,
     width: 100,
   },
   {
