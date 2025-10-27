@@ -42,6 +42,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
     onCreateView,
     onDeleteView,
     onRenameView,
+    onUpdateView,
     onReorderViews,
     onActiveViewIdChange,
   } = useEditDatabase(tableId);
@@ -129,6 +130,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
           onCreateView={onCreateView}
           onDeleteView={onDeleteView}
           onRenameView={onRenameView}
+          onUpdateView={onUpdateView}
           onReorderViews={onReorderViews}
           readonly={readOnly}
         />

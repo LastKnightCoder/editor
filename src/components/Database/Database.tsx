@@ -1,6 +1,6 @@
 import React, { useEffect, ReactNode, memo, useMemo } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
-import { App, Form, Input } from "antd";
+import { App } from "antd";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
 
@@ -11,6 +11,7 @@ import PluginManager from "./PluginManager";
 import { useColumnResize, useKeyboardNavigation } from "./hooks";
 import { DatabaseContext } from "./DatabaseContext";
 import TableView from "./views/TableView";
+import GalleryView from "./views/GalleryView";
 import ViewTabs from "./ViewTabs";
 
 const defaultPlugins: DatabaseProps["plugins"] = [];
@@ -26,6 +27,7 @@ const Database: React.FC<DatabaseProps> = memo(
     onCreateView,
     onDeleteView,
     onRenameView,
+    onUpdateView,
     onReorderViews,
     views,
     plugins = defaultPlugins,
@@ -52,7 +54,6 @@ const Database: React.FC<DatabaseProps> = memo(
     const finalTheme = theme || systemTheme;
 
     const { modal } = App.useApp();
-    const [form] = Form.useForm<{ name: string }>();
 
     useEffect(() => {
       const unsubscribe = store.subscribe((state, prevState) => {
@@ -115,54 +116,29 @@ const Database: React.FC<DatabaseProps> = memo(
       },
     );
 
-    const openCreateViewModal = useMemoizedFn(() => {
-      const currentView = views.find((view) => view.id === activeViewId);
-      if (!currentView) return;
-      const defaultName = `${currentView.name} 副本`;
-      form.setFieldsValue({ name: defaultName });
-      modal.confirm({
-        title: "新建视图",
-        content: (
-          <Form form={form} layout="vertical">
-            <Form.Item
-              label="视图名称"
-              name="name"
-              rules={[{ required: true, message: "请输入视图名称" }]}
-            >
-              <Input placeholder="请输入视图名称" maxLength={50} />
-            </Form.Item>
-          </Form>
-        ),
-        okText: "创建",
-        cancelText: "取消",
-        onOk: async () => {
-          const values = await form.validateFields();
-          await handleCreateView(values.name);
-        },
-      });
-    });
-
-    const handleCreateView = useMemoizedFn(async (name: string) => {
-      const currentView = views.find((view) => view.id === activeViewId);
-      if (!currentView) return;
-      const nextOrder =
-        Math.max(0, ...views.map((view) => view.order ?? 0)) + 1;
-      const result = await onCreateView?.({
-        tableId: currentView.tableId,
-        type: currentView.type,
-        config: currentView.config,
-        name,
-        order: nextOrder,
-      });
-      if (result) {
-        store.setState((prev) => ({
-          ...prev,
-          views: [...prev.views, result],
-          activeViewId: result.id,
-        }));
-        onActiveViewIdChange?.(result.id);
-      }
-    });
+    const handleCreateView = useMemoizedFn(
+      async (type: string, name: string) => {
+        const currentView = views.find((view) => view.id === activeViewId);
+        if (!currentView) return;
+        const nextOrder =
+          Math.max(0, ...views.map((view) => view.order ?? 0)) + 1;
+        const result = await onCreateView?.({
+          tableId: currentView.tableId,
+          type: type as "table" | "gallery",
+          config: currentView.config,
+          name,
+          order: nextOrder,
+        });
+        if (result) {
+          store.setState((prev) => ({
+            ...prev,
+            views: [...prev.views, result],
+            activeViewId: result.id,
+          }));
+          onActiveViewIdChange?.(result.id);
+        }
+      },
+    );
 
     const handleDeleteView = useMemoizedFn(async (viewId: number) => {
       modal.confirm({
@@ -198,6 +174,37 @@ const Database: React.FC<DatabaseProps> = memo(
       },
     );
 
+    const handleUpdateView = useMemoizedFn(
+      async (
+        viewId: number,
+        updates: {
+          name?: string;
+          type?: "table" | "gallery";
+          galleryConfig?: {
+            coverType: "detail" | "image";
+            coverImageColumnId?: string;
+          };
+        },
+      ) => {
+        if (!onUpdateView) return;
+
+        // 调用后端 API 保存视图更新
+        const updated = await onUpdateView(viewId, updates);
+        if (!updated) return;
+
+        // 更新本地 store
+        store.setState((prev) => ({
+          ...prev,
+          views: prev.views.map((v) => (v.id === updated.id ? updated : v)),
+        }));
+
+        // 如果更新的是当前活动视图，同时更新 viewConfig
+        if (viewId === activeViewId && updated.config.galleryConfig) {
+          store.getState().setGalleryConfig(updated.config.galleryConfig);
+        }
+      },
+    );
+
     const handleReorderViews = useMemoizedFn((orderedIds: number[]) => {
       store.setState((prev) => {
         const ordered = orderedIds
@@ -227,6 +234,17 @@ const Database: React.FC<DatabaseProps> = memo(
           />
         );
       }
+
+      if (activeView.type === "gallery") {
+        return (
+          <GalleryView
+            key={activeView.id}
+            pluginManager={pluginMgr}
+            theme={finalTheme}
+            readonly={!!readonly}
+          />
+        );
+      }
     }, [activeViewId, views, pluginMgr, startResize, finalTheme, readonly]);
 
     return (
@@ -243,10 +261,11 @@ const Database: React.FC<DatabaseProps> = memo(
           <div className="flex-shrink-0">
             <ViewTabs
               pluginManager={pluginMgr}
-              onCreateView={openCreateViewModal}
+              onCreateView={handleCreateView}
               onDeleteView={handleDeleteView}
               onActiveViewIdChange={onActiveViewIdChange}
               onRenameView={handleRenameView}
+              onUpdateView={handleUpdateView}
               onReorderViews={handleReorderViews}
               theme={finalTheme}
             />

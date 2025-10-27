@@ -150,6 +150,54 @@ const useEditDatabase = (tableId?: number) => {
     });
   });
 
+  const onUpdateView = useMemoizedFn(
+    async (
+      viewId: number,
+      updates: {
+        name?: string;
+        type?: "table" | "gallery";
+        galleryConfig?: {
+          coverType: "detail" | "image";
+          coverImageColumnId?: string;
+        };
+      },
+    ) => {
+      const target = views.find((view) => view.id === viewId);
+      if (!target) return null;
+
+      // 确定最终的类型
+      const finalType = updates.type ?? target.type;
+
+      // 根据类型决定 galleryConfig
+      const finalConfig = {
+        ...target.config,
+        galleryConfig:
+          finalType === "gallery"
+            ? (updates.galleryConfig ?? target.config.galleryConfig)
+            : undefined,
+      };
+
+      const updated = await updateDataTableView({
+        ...target,
+        name: updates.name ?? target.name,
+        type: finalType,
+        config: finalConfig,
+      }).catch((error) => {
+        console.error("更新视图失败:", error);
+        return null;
+      });
+
+      if (!updated) return null;
+
+      setViews((prev) =>
+        prev
+          .map((view) => (view.id === updated.id ? updated : view))
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+      );
+      return updated;
+    },
+  );
+
   return {
     activeViewId,
     views,
@@ -159,6 +207,7 @@ const useEditDatabase = (tableId?: number) => {
     onCreateView,
     onDeleteView,
     onRenameView,
+    onUpdateView,
     onReorderViews,
     onActiveViewIdChange,
   };

@@ -2,7 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
 import {
   MdAdd,
-  MdClose,
+  MdMoreHoriz,
   MdOutlineGroupWork,
   MdSort,
   MdOutlineFilterAlt,
@@ -17,6 +17,12 @@ import GroupPanel from "./GroupPanel";
 import SortPanel from "./SortPanel";
 import PluginManager from "./PluginManager";
 import FilterPanel from "./FilterPanel";
+import ViewTypeSelectModal from "./ViewTypeSelectModal";
+import ViewEditPanel from "./ViewEditPanel";
+import { DataTableViewType } from "@/types";
+import type { GalleryViewConfig } from "./types";
+import { Dropdown } from "antd";
+import type { MenuProps } from "antd";
 
 interface DragItem {
   type: "view-tab";
@@ -25,10 +31,18 @@ interface DragItem {
 
 interface ViewTabsProps {
   pluginManager: PluginManager;
-  onCreateView?: () => void;
+  onCreateView?: (type: DataTableViewType, name: string) => void;
   onDeleteView?: (viewId: number) => Promise<void>;
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
   onRenameView?: (viewId: number, name: string) => Promise<void>;
+  onUpdateView?: (
+    viewId: number,
+    updates: {
+      name?: string;
+      type?: DataTableViewType;
+      galleryConfig?: GalleryViewConfig;
+    },
+  ) => Promise<void>;
   onReorderViews?: (orderedIds: number[]) => Promise<void> | void;
   theme: "light" | "dark";
 }
@@ -39,12 +53,19 @@ interface ViewTabItemProps {
   isActive: boolean;
   isEditing: boolean;
   allowDelete: boolean;
+  columns: { id: string; title: string; type: string }[];
   getOrderedIds: () => number[];
   onActivate: (viewId: number) => void;
   onStartEdit: (viewId: number, currentName: string) => void;
   onDelete?: (viewId: number) => void;
   onCommit: (viewId: number, value: string, fallback: string) => void;
   onReorder?: (orderedIds: number[]) => void;
+  onUpdateView?: (
+    viewId: number,
+    name: string,
+    type: DataTableViewType,
+    galleryConfig?: GalleryViewConfig,
+  ) => Promise<void>;
 }
 
 const ViewTabItem: React.FC<ViewTabItemProps> = memo(
@@ -54,14 +75,17 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     isActive,
     isEditing,
     allowDelete,
+    columns,
     getOrderedIds,
     onActivate,
     onStartEdit,
     onDelete,
     onCommit,
     onReorder,
+    onUpdateView,
   }) => {
     const editRef = useRef<EditTextHandle | null>(null);
+    const [showEditPopover, setShowEditPopover] = useState(false);
 
     useEffect(() => {
       if (isEditing) {
@@ -111,6 +135,40 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
       onCommit(view.id, value, view.name);
     };
 
+    const handleEditClick = useMemoizedFn(() => {
+      setShowEditPopover(true);
+    });
+
+    const handleUpdateView = useMemoizedFn(
+      async (
+        viewId: number,
+        name: string,
+        type: DataTableViewType,
+        galleryConfig?: GalleryViewConfig,
+      ) => {
+        await onUpdateView?.(viewId, name, type, galleryConfig);
+        setShowEditPopover(false);
+      },
+    );
+
+    const menuItems: MenuProps["items"] = [
+      {
+        key: "edit",
+        label: "编辑",
+        onClick: handleEditClick,
+      },
+      ...(allowDelete
+        ? [
+            {
+              key: "delete",
+              label: "删除",
+              danger: true,
+              onClick: () => onDelete?.(view.id),
+            },
+          ]
+        : []),
+    ];
+
     return (
       <div
         ref={setContainerRef}
@@ -143,18 +201,31 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           )}
           onBlur={commitChange}
           onPressEnter={commitChange}
+          isSlateEditor={true}
         />
-        {allowDelete && (
-          <div className="h-9 flex items-center justify-center">
-            <MdClose
-              className="text-base flex-none"
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete?.(view.id);
-              }}
+        <Popover
+          open={showEditPopover}
+          onOpenChange={(visible) => setShowEditPopover(visible)}
+          trigger={[]}
+          placement="bottomRight"
+          content={
+            <ViewEditPanel
+              view={view}
+              columns={columns}
+              onConfirm={handleUpdateView}
+              onClose={() => setShowEditPopover(false)}
             />
-          </div>
-        )}
+          }
+        >
+          <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
+            <div
+              className="h-9 flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MdMoreHoriz className="text-base flex-none" />
+            </div>
+          </Dropdown>
+        </Popover>
       </div>
     );
   },
@@ -169,6 +240,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     onDeleteView,
     onActiveViewIdChange,
     onRenameView,
+    onUpdateView,
     onReorderViews,
     theme,
   }) => {
@@ -192,6 +264,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     const [showGrouping, setShowGrouping] = useState(false);
     const [showSorting, setShowSorting] = useState(false);
     const [showFilter, setShowFilter] = useState(false);
+    const [showViewTypeSelect, setShowViewTypeSelect] = useState(false);
 
     const orderedIds = useMemo(() => views.map((view) => view.id), [views]);
     const orderedIdsRef = useRef<number[]>(orderedIds);
@@ -259,6 +332,25 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       onReorderViews(nextOrderedIds);
     });
 
+    const handleCreateView = useMemoizedFn(
+      (type: DataTableViewType, name: string) => {
+        onCreateView?.(type, name);
+        setShowViewTypeSelect(false);
+      },
+    );
+
+    const handleUpdateView = useMemoizedFn(
+      async (
+        viewId: number,
+        name: string,
+        type: DataTableViewType,
+        galleryConfig?: GalleryViewConfig,
+      ) => {
+        if (!onUpdateView) return;
+        await onUpdateView(viewId, { name, type, galleryConfig });
+      },
+    );
+
     return (
       <div className="flex items-center gap-2 pb-2">
         <div className="flex items-center gap-2 overflow-x-auto">
@@ -270,17 +362,19 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               isActive={view.id === activeViewId}
               isEditing={editingId === view.id}
               allowDelete={views.length > 1}
+              columns={columns}
               getOrderedIds={() => orderedIdsRef.current}
               onActivate={handleActivate}
               onStartEdit={handleStartEdit}
               onDelete={onDeleteView ? handleDelete : undefined}
               onCommit={handleCommit}
               onReorder={onReorderViews ? handleReorder : undefined}
+              onUpdateView={handleUpdateView}
             />
           ))}
           <div
             className="flex w-9 h-9 items-center justify-center rounded-full text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 cursor-pointer"
-            onClick={() => onCreateView?.()}
+            onClick={() => setShowViewTypeSelect(true)}
           >
             <div className="h-9 flex items-center justify-center">
               <Tooltip title="新视图">
@@ -383,6 +477,12 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             </div>
           </Popover>
         </div>
+        <ViewTypeSelectModal
+          open={showViewTypeSelect}
+          onCancel={() => setShowViewTypeSelect(false)}
+          onConfirm={handleCreateView}
+          theme={theme}
+        />
       </div>
     );
   },
