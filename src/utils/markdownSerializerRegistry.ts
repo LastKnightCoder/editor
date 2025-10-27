@@ -274,7 +274,7 @@ export class MarkdownSerializerRegistry {
             ? ` title="${element.title}"`
             : ` title=${DEFAULT_TITLE[element.calloutType as keyof typeof DEFAULT_TITLE]}`;
           const type = element.calloutType || "note";
-          return `:::${type}{${title}}\n${childrenStr}:::`;
+          return `:::${type}{${title}}\n${childrenStr}\n:::`;
         },
       },
       {
@@ -345,7 +345,7 @@ export class MarkdownSerializerRegistry {
         isBlock: true,
         toMarkdown: (element, childrenStr) => {
           const color = element.color || "default";
-          return `:::highlight-block{color=${color}}\n${childrenStr}:::`;
+          return `:::highlight-block{color=${color}}\n${childrenStr}\n:::`;
         },
       },
       {
