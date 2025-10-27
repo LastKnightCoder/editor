@@ -2,8 +2,9 @@ import React, { memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
-import { CellValue, ColumnDef, CellPlugin } from "../../../types";
+import { CellValue, ColumnDef, CellPlugin, RowData } from "../../../types";
 import { useCellEditor, useValidation } from "../../../hooks";
+import PrimaryColumnRenderer from "../../../plugins/TextPlugin/PrimaryColumnRenderer";
 
 interface CellProps {
   rowId: string;
@@ -22,6 +23,8 @@ interface CellProps {
   onStopEditing: () => void;
   onValueChange: (rowId: string, columnId: string, value: CellValue) => void;
   onColumnChange: (column: ColumnDef) => void;
+  row?: RowData;
+  onOpenRowDetail?: (row: RowData) => void;
 }
 
 const MemoizedRenderer = memo(
@@ -110,6 +113,8 @@ const Cell: React.FC<CellProps> = memo(
     onColumnChange,
     theme,
     readonly,
+    row,
+    onOpenRowDetail,
   }) => {
     const isDark = theme === "dark";
 
@@ -222,7 +227,17 @@ const Cell: React.FC<CellProps> = memo(
             )}
           />
         )}
-        {plugin ? (
+        {column.isPrimary && row ? (
+          <PrimaryColumnRenderer
+            value={value}
+            column={column}
+            theme={theme}
+            readonly={readonly}
+            onCellValueChange={handleValueChange}
+            row={row}
+            onOpenDetail={onOpenRowDetail}
+          />
+        ) : plugin ? (
           <MemoizedRenderer
             plugin={plugin}
             value={value}

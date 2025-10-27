@@ -11,6 +11,7 @@ import {
   FilterGroup,
 } from "./types";
 import { DataTableView, SortRule } from "@/types";
+import { deleteContent } from "@/commands";
 
 export enum Direction {
   UP = "up",
@@ -279,6 +280,14 @@ export const createDatabaseStore = (
     },
 
     deleteRow: (rowId) => {
+      const { rows } = get();
+      const rowToDelete = rows.find((row) => row.id === rowId);
+
+      // 如果行有 detailContentId，需要删除关联的内容
+      if (rowToDelete?.detailContentId && rowToDelete.detailContentId > 0) {
+        deleteContent(rowToDelete.detailContentId as number);
+      }
+
       set(
         produce<TableState>((state) => {
           state.rows = state.rows.filter((row: RowData) => row.id !== rowId);

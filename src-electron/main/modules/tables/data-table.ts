@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { DataTable, CreateDataTable, UpdateDataTable } from "@/types";
 import Operation from "./operation";
 import DataTableViewTable from "./data-table-view";
+import ContentTable from "./content";
 
 export default class DataTableTable {
   static initTable(db: Database.Database) {
@@ -36,6 +37,8 @@ export default class DataTableTable {
     }
 
     this.deleteDataTableWhenRefCountIsZero(db);
+    // 升级主列和 detailContentId
+    this.upgradePrimaryColumn(db);
 
     if (!hasColumnOrder && hasActiveViewId) {
       return;
@@ -71,16 +74,17 @@ export default class DataTableTable {
 
       const rows = selectStmt.all();
 
-      rows.forEach((row: any) => {
-        const columns = JSON.parse(row.columns || "[]");
-        const tableRows = JSON.parse(row.rows || "[]");
+      rows.forEach((row: unknown) => {
+        const rowData = row as Record<string, unknown>;
+        const columns = JSON.parse((rowData.columns as string) || "[]");
+        const tableRows = JSON.parse((rowData.rows as string) || "[]");
         const columnOrder = hasColumnOrder
-          ? JSON.parse(row.column_order || "[]")
+          ? JSON.parse((rowData.column_order as string) || "[]")
           : columns.map((c: { id: string }) => c.id);
         const rowOrder = tableRows.map((r: { id: string }) => r.id);
 
         const view = DataTableViewTable.create(db, {
-          tableId: row.id,
+          tableId: rowData.id as number,
           name: "默认视图",
           type: "table",
           order: 0,
@@ -94,13 +98,13 @@ export default class DataTableTable {
         });
 
         insertStmt.run(
-          row.id,
-          row.create_time,
-          row.update_time,
-          row.columns,
-          row.rows,
+          rowData.id,
+          rowData.create_time,
+          rowData.update_time,
+          rowData.columns,
+          rowData.rows,
           view.id,
-          row.ref_count ?? 1,
+          (rowData.ref_count as number | undefined) ?? 1,
         );
       });
 
@@ -112,6 +116,72 @@ export default class DataTableTable {
       db.exec("ROLLBACK");
       throw error;
     }
+  }
+
+  static upgradePrimaryColumn(db: Database.Database) {
+    const selectStmt = db.prepare(`SELECT * FROM data_tables`);
+    const updateStmt = db.prepare(
+      `UPDATE data_tables SET columns = ?, rows = ?, update_time = ? WHERE id = ?`,
+    );
+
+    const tables = selectStmt.all();
+
+    tables.forEach((table: unknown) => {
+      const tableData = table as { id: number; columns: string; rows: string };
+      const columns = JSON.parse(tableData.columns || "[]");
+      const rows = JSON.parse(tableData.rows || "[]");
+      let hasChanges = false;
+
+      // 检查是否已有主列
+      const hasPrimaryColumn = columns.some(
+        (col: { isPrimary?: boolean }) => col.isPrimary,
+      );
+
+      if (!hasPrimaryColumn) {
+        // 查找第一个 text 类型的列
+        const firstTextColumn = columns.find(
+          (col: { type: string }) => col.type === "text",
+        );
+
+        if (firstTextColumn) {
+          // 设置为主列
+          firstTextColumn.isPrimary = true;
+        } else {
+          // 创建新的主列
+          const newPrimaryColumn = {
+            id: `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            title: "名称",
+            type: "text",
+            width: 200,
+            isPrimary: true,
+          };
+          columns.unshift(newPrimaryColumn);
+
+          // 为所有行添加这个新列
+          rows.forEach((row: Record<string, unknown>) => {
+            row[newPrimaryColumn.id] = "";
+          });
+        }
+        hasChanges = true;
+      }
+
+      // 为所有行添加 detailContentId 字段（如果不存在）
+      rows.forEach((row: Record<string, unknown>) => {
+        if (row.detailContentId === undefined) {
+          row.detailContentId = 0;
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        updateStmt.run(
+          JSON.stringify(columns),
+          JSON.stringify(rows),
+          Date.now(),
+          tableData.id,
+        );
+      }
+    });
   }
 
   static getListenEvents() {
@@ -126,15 +196,15 @@ export default class DataTableTable {
     } as const;
   }
 
-  static parse(row: any): DataTable {
+  static parse(row: Record<string, unknown>): DataTable {
     return {
-      id: row.id,
-      createTime: row.create_time,
-      updateTime: row.update_time,
-      columns: JSON.parse(row.columns || "[]"),
-      rows: JSON.parse(row.rows || "[]"),
-      activeViewId: row.active_view_id ?? null,
-      refCount: row.ref_count ?? 0,
+      id: row.id as number,
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
+      columns: JSON.parse((row.columns as string) || "[]"),
+      rows: JSON.parse((row.rows as string) || "[]"),
+      activeViewId: (row.active_view_id as number | null) ?? null,
+      refCount: (row.ref_count as number | undefined) ?? 0,
     };
   }
 
@@ -142,7 +212,7 @@ export default class DataTableTable {
     const stmt = db.prepare(`SELECT * FROM data_tables WHERE id = ?`);
     const row = stmt.get(id);
     if (!row) return null;
-    return this.parse(row);
+    return this.parse(row as Record<string, unknown>);
   }
 
   static getDetail(
@@ -189,7 +259,11 @@ export default class DataTableTable {
     );
     updateActiveViewStmt.run(view.id, id);
 
-    return this.getById(db, id)!;
+    const result = this.getById(db, id);
+    if (!result) {
+      throw new Error(`Failed to create data table with id ${id}`);
+    }
+    return result;
   }
 
   static update(
@@ -225,6 +299,16 @@ export default class DataTableTable {
   }
 
   static remove(db: Database.Database, id: number): number {
+    // 先获取表数据，删除所有行的 detailContentId 关联的内容
+    const table = this.getById(db, id);
+    if (table) {
+      table.rows.forEach((row) => {
+        if (row.detailContentId && row.detailContentId > 0) {
+          ContentTable.deleteContent(db, row.detailContentId as number);
+        }
+      });
+    }
+
     const stmt = db.prepare(`
       UPDATE data_tables SET ref_count = ref_count - 1 WHERE id = ?
     `);
@@ -267,6 +351,16 @@ export default class DataTableTable {
 
     const now = Date.now();
     ids.forEach(({ id }) => {
+      // 删除表前，先删除所有行的 detailContentId 关联的内容
+      const table = this.getById(db, id);
+      if (table) {
+        table.rows.forEach((row) => {
+          if (row.detailContentId && row.detailContentId > 0) {
+            ContentTable.deleteContent(db, row.detailContentId as number);
+          }
+        });
+      }
+
       deleteViewsStmt.run(id);
       deleteTableStmt.run(id);
       Operation.insertOperation(db, "data-table", "delete", id, now);
