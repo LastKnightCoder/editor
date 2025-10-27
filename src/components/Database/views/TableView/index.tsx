@@ -1,8 +1,9 @@
 import React, { useRef, memo, useState, useMemo, useEffect } from "react";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ColumnDef, CellValue, RowData, FilterGroup } from "../../types";
+import { ColumnDef, CellValue, RowData } from "../../types";
 import { useColumnVisibility, useDatabaseStore } from "../../hooks";
+import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import ColumnHeader from "./components/ColumnHeader";
 import PluginManager from "../../PluginManager";
 import ColumnEditModal from "./components/ColumnEditModal";
@@ -180,190 +181,12 @@ const TableView: React.FC<TableViewProps> = memo(
       return order;
     }, [viewConfig.columnOrder, storeColumns, isColumnVisible]);
 
-    const columnMap = useMemo(() => {
-      const map = new Map<string, ColumnDef>();
-      storeColumns.forEach((column) => {
-        map.set(column.id, column);
-      });
-      return map;
-    }, [storeColumns]);
-
-    const filteredRows = useMemo(() => {
-      const activeFilters = viewConfig.filters ?? null;
-      if (!activeFilters) return storeRows;
-      const columnLookup = new Map<string, ColumnDef>();
-      storeColumns.forEach((column) => {
-        columnLookup.set(column.id, column);
-      });
-
-      const evaluateGroup = (group: FilterGroup, row: RowData): boolean => {
-        if (
-          !group ||
-          !Array.isArray(group.children) ||
-          group.children.length === 0
-        ) {
-          console.warn("筛选组为空", group);
-          return true;
-        }
-        const matches = group.children.map((child) => {
-          if (child.type === "group") {
-            return evaluateGroup(child, row);
-          }
-          if (!child.fieldId || !child.operator) {
-            return true;
-          }
-          const column = columnLookup.get(child.fieldId);
-          if (!column) {
-            return true;
-          }
-          const plugin = pluginManager.getPlugin(column.type);
-          if (!plugin) {
-            return true;
-          }
-          const definition = (plugin.filters ?? []).find(
-            (item) => item.operator === child.operator,
-          );
-          if (!definition) {
-            return true;
-          }
-          try {
-            return definition.filter(child.value ?? null, row, column);
-          } catch (error) {
-            console.error("筛选执行失败", error);
-            return true;
-          }
-        });
-
-        if (group.logic === "and") {
-          return matches.every(Boolean);
-        }
-        return matches.some(Boolean);
-      };
-
-      return storeRows.filter((row) => evaluateGroup(activeFilters, row));
-    }, [viewConfig.filters, storeRows, storeColumns, pluginManager]);
-
-    const sortedSortRules = useMemo(() => {
-      if (!viewConfig.sorts || !viewConfig.sorts.length) {
-        return [] as typeof viewConfig.sorts;
-      }
-      return [...viewConfig.sorts]
-        .map((rule, index) => ({ rule, index }))
-        .sort((a, b) => {
-          if (a.rule.priority === b.rule.priority) {
-            return a.index - b.index;
-          }
-          return a.rule.priority - b.rule.priority;
-        })
-        .map((item) => item.rule);
-    }, [viewConfig.sorts]);
-
-    const orderedRows = useMemo(() => {
-      if (sortedSortRules.length) {
-        const orders = filteredRows.slice();
-        const sortedOrders = orders.toSorted((a: RowData, b: RowData) => {
-          for (const sort of sortedSortRules) {
-            const column = columnMap.get(sort.fieldId);
-            if (!column) continue;
-            const plugin = pluginManager.getPlugin(column.type);
-            if (!plugin) continue;
-            const compare =
-              plugin.sort?.({
-                a: a[sort.fieldId],
-                b: b[sort.fieldId],
-                column,
-                direction: sort.direction,
-                columnConfig: column.config,
-                rowA: a,
-                rowB: b,
-              }) ?? 0;
-            if (compare !== 0) {
-              return compare;
-            }
-          }
-          // 兜底根据 rowOrder 排序
-          const rowAIndex = orders.indexOf(a);
-          const rowBIndex = orders.indexOf(b);
-          if (rowAIndex !== -1 && rowBIndex !== -1) {
-            return rowAIndex - rowBIndex;
-          }
-
-          return 0;
-        });
-        return sortedOrders;
-      }
-
-      const order: RowData[] = [];
-      const existing = new Set<string>();
-
-      viewConfig.rowOrder.forEach((rowId) => {
-        const row = filteredRows.find((item) => item.id === rowId);
-        if (row && !existing.has(rowId)) {
-          order.push(row);
-          existing.add(rowId);
-        }
-      });
-      filteredRows.forEach((row) => {
-        if (!existing.has(row.id)) {
-          order.push(row);
-          existing.add(row.id);
-        }
-      });
-      return order;
-    }, [
-      viewConfig.rowOrder,
-      sortedSortRules,
-      filteredRows,
-      columnMap,
+    const { groupedRows, isGrouped } = useFilteredAndSortedRows(
+      storeRows,
+      storeColumns,
+      viewConfig,
       pluginManager,
-    ]);
-
-    const groupConfig = viewConfig.groupBy;
-    const isGrouped = Boolean(groupConfig && groupConfig.fieldId);
-
-    const groupedRows = useMemo(() => {
-      if (!groupConfig || !groupConfig.fieldId) {
-        return [
-          { key: "__all__", label: "全部", rows: orderedRows, column: null },
-        ];
-      }
-
-      const targetColumn = storeColumns.find(
-        (col) => col.id === groupConfig.fieldId,
-      );
-      if (!targetColumn) {
-        return [
-          { key: "__all__", label: "全部", rows: orderedRows, column: null },
-        ];
-      }
-
-      const groups = new Map<string, RowData[]>();
-
-      orderedRows.forEach((row) => {
-        const key =
-          pluginManager
-            .getPlugin(targetColumn.type)
-            ?.getGroupKey?.(row, targetColumn) || "未分组";
-        console.assert(typeof key === "string", "Group key must be a string");
-        if (!groups.has(key)) {
-          groups.set(key, []);
-        }
-        groups.get(key)?.push(row);
-      });
-
-      const sortedKeys = [...groups.keys()].sort((a, b) => {
-        if (a === "未分组") return 1;
-        if (b === "未分组") return -1;
-        return a.localeCompare(b, "zh-CN");
-      });
-
-      return sortedKeys.map((key) => ({
-        key,
-        label: key,
-        rows: groups.get(key) ?? [],
-        column: targetColumn,
-      }));
-    }, [groupConfig, orderedRows, storeColumns, pluginManager]);
+    );
 
     const flatItems = useMemo(() => {
       const items: Array<

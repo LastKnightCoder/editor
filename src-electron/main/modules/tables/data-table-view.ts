@@ -114,6 +114,12 @@ export default class DataTableViewTable {
       filters: config?.filters ? structuredClone(config.filters) : null,
       sorts: config?.sorts ? [...config.sorts] : [],
       groupBy: config?.groupBy ?? null,
+      galleryConfig: config?.galleryConfig
+        ? {
+            coverType: config.galleryConfig.coverType,
+            coverImageColumnId: config.galleryConfig.coverImageColumnId,
+          }
+        : undefined,
     };
   }
 

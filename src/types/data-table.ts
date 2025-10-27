@@ -39,12 +39,18 @@ export interface UpdateDataTable {
   height?: number;
 }
 
+export interface GalleryViewConfig {
+  coverType: "detail" | "image";
+  coverImageColumnId?: string;
+}
+
 export interface DataTableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
   filters: FilterRuleGroup | null;
   sorts: SortRule[];
   groupBy?: GroupRule | null;
+  galleryConfig?: GalleryViewConfig;
 }
 
 export interface DataTableView {
@@ -70,7 +76,7 @@ export type UpdateDataTableView = Omit<
   "createTime" | "updateTime"
 >;
 
-export type DataTableViewType = "table";
+export type DataTableViewType = "table" | "gallery";
 
 export type FilterLogicOperator = "and" | "or";
 

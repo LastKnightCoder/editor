@@ -72,10 +72,23 @@ export interface DatabaseProps {
     viewId: number,
     name: string,
   ) => Promise<DataTableView | null>;
+  onUpdateView?: (
+    viewId: number,
+    updates: {
+      name?: string;
+      type?: "table" | "gallery";
+      galleryConfig?: GalleryViewConfig;
+    },
+  ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
   theme?: "light" | "dark";
   readonly?: boolean;
   className?: string;
+}
+
+export interface GalleryViewConfig {
+  coverType: "detail" | "image";
+  coverImageColumnId?: string;
 }
 
 export interface TableViewConfig {
@@ -84,6 +97,7 @@ export interface TableViewConfig {
   groupBy?: GroupRule | null;
   sorts: SortRule[];
   filters?: FilterGroup | null;
+  galleryConfig?: GalleryViewConfig;
 }
 
 export interface CellPlugin<T> {

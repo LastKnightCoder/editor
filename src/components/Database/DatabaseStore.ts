@@ -70,6 +70,7 @@ interface TableState {
   setGroupBy: (groupConfig: TableViewConfig["groupBy"]) => void;
   setSorts: (sorts: SortRule[]) => void;
   setFilters: (filters: FilterGroup | null) => void;
+  setGalleryConfig: (galleryConfig: TableViewConfig["galleryConfig"]) => void;
 }
 
 const cloneFilters = (
@@ -518,6 +519,15 @@ export const createDatabaseStore = (
       set(
         produce<TableState>((state: TableState) => {
           state.viewConfig.filters = cloneFilters(filters);
+        }),
+      );
+    },
+    setGalleryConfig: (galleryConfig) => {
+      set(
+        produce<TableState>((state: TableState) => {
+          state.viewConfig.galleryConfig = galleryConfig
+            ? { ...galleryConfig }
+            : undefined;
         }),
       );
     },

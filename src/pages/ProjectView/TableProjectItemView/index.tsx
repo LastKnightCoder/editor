@@ -22,6 +22,7 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
     onCreateView,
     onDeleteView,
     onRenameView,
+    onUpdateView,
     onReorderViews,
     onActiveViewIdChange,
   } = useEditDatabase(tableId);
@@ -103,6 +104,7 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
           onCreateView={onCreateView}
           onDeleteView={onDeleteView}
           onRenameView={onRenameView}
+          onUpdateView={onUpdateView}
           onReorderViews={onReorderViews}
         />
       </div>
