@@ -15,6 +15,7 @@ export interface ColumnDef<T = unknown> {
   config?: T; // 列类型特定配置（例如，选择的选项）
   validation?: ValidationRule;
   hidden?: boolean;
+  isPrimary?: boolean;
 }
 
 export type CellValue =
@@ -27,6 +28,7 @@ export type CellValue =
 
 export interface RowData {
   id: string;
+  detailContentId?: number;
   [columnId: string]: CellValue;
 }
 

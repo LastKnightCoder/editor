@@ -40,6 +40,7 @@ interface RowProps {
   onColumnChange: (column: ColumnDef) => void;
   moveRow?: (dragIndex: number, hoverIndex: number) => void; // 拖拽排序方法
   deleteRow: (rowId: string) => void;
+  onOpenRowDetail?: (row: RowData) => void;
 }
 
 const Row: React.FC<RowProps> = memo(
@@ -62,6 +63,7 @@ const Row: React.FC<RowProps> = memo(
     moveRow,
     theme,
     deleteRow,
+    onOpenRowDetail,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const { modal } = App.useApp();
@@ -189,6 +191,8 @@ const Row: React.FC<RowProps> = memo(
               onColumnChange={onColumnChange}
               theme={theme}
               readonly={readonly}
+              row={row}
+              onOpenRowDetail={onOpenRowDetail}
             />
           );
         })}

@@ -122,35 +122,41 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
     };
 
     const moreMenuItems = useMemo(() => {
-      return readonly
-        ? []
-        : [
-            {
-              key: "edit",
-              label: "编辑",
-              onClick: () => {
-                if (readonly) return;
-                onEdit?.(column.id);
+      if (readonly) return [];
+
+      const items = [
+        {
+          key: "edit",
+          label: "编辑",
+          onClick: () => {
+            if (readonly) return;
+            onEdit?.(column.id);
+          },
+        },
+      ];
+
+      // 主列不显示删除选项
+      if (!column.isPrimary) {
+        items.push({
+          key: "delete",
+          label: "删除",
+          onClick: () => {
+            if (readonly) return;
+            modal.confirm({
+              title: "确认删除",
+              content: "确定要删除这条列吗？",
+              okText: "确认",
+              okButtonProps: {
+                danger: true,
               },
-            },
-            {
-              key: "delete",
-              label: "删除",
-              onClick: () => {
-                if (readonly) return;
-                modal.confirm({
-                  title: "确认删除",
-                  content: "确定要删除这条列吗？",
-                  okText: "确认",
-                  okButtonProps: {
-                    danger: true,
-                  },
-                  onOk: () => onDelete?.(column.id),
-                });
-              },
-            },
-          ];
-    }, [readonly, column.id, onEdit, onDelete, modal]);
+              onOk: () => onDelete?.(column.id),
+            });
+          },
+        });
+      }
+
+      return items;
+    }, [readonly, column.id, column.isPrimary, onEdit, onDelete, modal]);
 
     return (
       <div

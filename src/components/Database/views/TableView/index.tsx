@@ -6,6 +6,7 @@ import { useColumnVisibility, useDatabaseStore } from "../../hooks";
 import ColumnHeader from "./components/ColumnHeader";
 import PluginManager from "../../PluginManager";
 import ColumnEditModal from "./components/ColumnEditModal";
+import RowDetailModal from "./components/RowDetailModal";
 import classNames from "classnames";
 import Row from "./components/Row";
 
@@ -78,6 +79,8 @@ const TableView: React.FC<TableViewProps> = memo(
 
     const [columnEditOpen, setColumnEditOpen] = useState(false);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+    const [rowDetailOpen, setRowDetailOpen] = useState(false);
+    const [editingRow, setEditingRow] = useState<RowData | null>(null);
 
     const { isColumnVisible } = useColumnVisibility(storeColumns);
 
@@ -142,6 +145,27 @@ const TableView: React.FC<TableViewProps> = memo(
         startEditing(rowId, columnId);
       },
     );
+
+    const handleOpenRowDetail = useMemoizedFn((row: RowData) => {
+      setEditingRow(row);
+      setRowDetailOpen(true);
+    });
+
+    const handleCloseRowDetail = useMemoizedFn(() => {
+      setRowDetailOpen(false);
+      setEditingRow(null);
+    });
+
+    const handleSaveRowDetail = useMemoizedFn((rowData: Partial<RowData>) => {
+      if (!editingRow) return;
+
+      // 更新行数据
+      Object.keys(rowData).forEach((key) => {
+        if (key !== "id") {
+          updateCellValue(editingRow.id, key, rowData[key]);
+        }
+      });
+    });
 
     const visibleColumnOrder = useMemo(() => {
       const order = viewConfig.columnOrder.filter((columnId) =>
@@ -339,7 +363,7 @@ const TableView: React.FC<TableViewProps> = memo(
         rows: groups.get(key) ?? [],
         column: targetColumn,
       }));
-    }, [groupConfig, orderedRows, storeColumns]);
+    }, [groupConfig, orderedRows, storeColumns, pluginManager]);
 
     const flatItems = useMemo(() => {
       const items: Array<
@@ -352,12 +376,12 @@ const TableView: React.FC<TableViewProps> = memo(
         | { type: "row"; row: RowData }
       > = [];
       groupedRows.forEach((group) => {
-        if (isGrouped && group.key !== "__all__") {
+        if (isGrouped && group.key !== "__all__" && group.column) {
           items.push({
             type: "header",
             key: group.key,
-            column: group.column!,
-            columnValue: group.rows[0][group.column!.id],
+            column: group.column,
+            columnValue: group.rows[0][group.column.id],
           });
         }
         group.rows.forEach((row) => {
@@ -553,6 +577,7 @@ const TableView: React.FC<TableViewProps> = memo(
                       moveRow={handleMoveRow}
                       theme={theme}
                       readonly={readonly}
+                      onOpenRowDetail={handleOpenRowDetail}
                     />
                   </div>
                 );
@@ -597,6 +622,18 @@ const TableView: React.FC<TableViewProps> = memo(
             onSave={handleSaveColumn}
             theme={theme}
             pluginManager={pluginManager}
+          />
+        )}
+        {rowDetailOpen && editingRow && (
+          <RowDetailModal
+            row={editingRow}
+            columns={storeColumns}
+            pluginManager={pluginManager}
+            theme={theme}
+            onClose={handleCloseRowDetail}
+            onSave={handleSaveRowDetail}
+            onAddColumn={handleAddColumn}
+            readonly={readonly}
           />
         )}
       </div>

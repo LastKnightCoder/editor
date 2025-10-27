@@ -6,10 +6,12 @@ export interface DataTableColumn {
   config?: unknown;
   validation?: unknown;
   hidden?: boolean;
+  isPrimary?: boolean;
 }
 
 export interface DataTableRow {
   id: string;
+  detailContentId?: number;
   [columnId: string]: unknown;
 }
 
