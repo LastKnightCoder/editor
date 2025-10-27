@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
@@ -32,6 +32,7 @@ const WeekView = () => {
   const { setting } = useSettingStore();
   const theme = setting.darkMode ? "dark" : "light";
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [pendingEvent, setPendingEvent] = useState<PendingWeekEvent | null>(
     null,
   );
@@ -58,6 +59,20 @@ const WeekView = () => {
     const timer = setInterval(updateCurrentTime, 60000);
     return () => clearInterval(timer);
   }, []);
+
+  // 自动滚动到当前时间
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      // 计算当前时间对应的位置
+      const scrollPosition = (currentTimeMinutes / 15) * CELL_HEIGHT;
+      // 减去一些偏移量，让当前时间显示在视口中间靠上的位置
+      const offset = scrollContainerRef.current.clientHeight / 3;
+      scrollContainerRef.current.scrollTop = Math.max(
+        0,
+        scrollPosition - offset,
+      );
+    }
+  }, [currentDate]); // 当日期变化时触发滚动
 
   const weekStart = getWeekStart(currentDate);
 
@@ -360,7 +375,7 @@ const WeekView = () => {
       </div>
 
       {/* 时间网格 */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
         <div className="relative flex min-h-full pt-3">
           {/* 时间标签 */}
           <div className="sticky left-0 z-10 w-16 flex-shrink-0">

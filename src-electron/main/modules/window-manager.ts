@@ -581,8 +581,6 @@ export class WindowManager {
     win.on("closed", () => {
       log.info("背景音播放窗口被关闭，重新创建");
       this.backgroundAudioWindow = null;
-      // 自动重新创建
-      this.initBackgroundAudioWindow();
     });
 
     this.backgroundAudioWindow = win;
