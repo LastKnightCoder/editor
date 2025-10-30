@@ -7,7 +7,7 @@ import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import ColumnHeader from "./components/ColumnHeader";
 import PluginManager from "../../PluginManager";
 import ColumnEditModal from "./components/ColumnEditModal";
-import RowDetailModal from "./components/RowDetailModal";
+import RowDetailModal from "../../components/RowDetailModal";
 import classNames from "classnames";
 import Row from "./components/Row";
 

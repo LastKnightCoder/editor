@@ -20,7 +20,7 @@ import FilterPanel from "./FilterPanel";
 import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
 import { DataTableViewType } from "@/types";
-import type { GalleryViewConfig } from "./types";
+import type { GalleryViewConfig, CalendarViewConfig } from "./types";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 
@@ -41,6 +41,7 @@ interface ViewTabsProps {
       name?: string;
       type?: DataTableViewType;
       galleryConfig?: GalleryViewConfig;
+      calendarConfig?: CalendarViewConfig;
     },
   ) => Promise<void>;
   onReorderViews?: (orderedIds: number[]) => Promise<void> | void;
@@ -345,9 +346,15 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
         name: string,
         type: DataTableViewType,
         galleryConfig?: GalleryViewConfig,
+        calendarConfig?: CalendarViewConfig,
       ) => {
         if (!onUpdateView) return;
-        await onUpdateView(viewId, { name, type, galleryConfig });
+        await onUpdateView(viewId, {
+          name,
+          type,
+          galleryConfig,
+          calendarConfig,
+        });
       },
     );
 

@@ -12,6 +12,7 @@ import { useColumnResize, useKeyboardNavigation } from "./hooks";
 import { DatabaseContext } from "./DatabaseContext";
 import TableView from "./views/TableView";
 import GalleryView from "./views/GalleryView";
+import CalendarView from "./views/CalendarView";
 import ViewTabs from "./ViewTabs";
 
 const defaultPlugins: DatabaseProps["plugins"] = [];
@@ -124,7 +125,7 @@ const Database: React.FC<DatabaseProps> = memo(
           Math.max(0, ...views.map((view) => view.order ?? 0)) + 1;
         const result = await onCreateView?.({
           tableId: currentView.tableId,
-          type: type as "table" | "gallery",
+          type: type as "table" | "gallery" | "calendar",
           config: currentView.config,
           name,
           order: nextOrder,
@@ -179,10 +180,13 @@ const Database: React.FC<DatabaseProps> = memo(
         viewId: number,
         updates: {
           name?: string;
-          type?: "table" | "gallery";
+          type?: "table" | "gallery" | "calendar";
           galleryConfig?: {
             coverType: "detail" | "image";
             coverImageColumnId?: string;
+          };
+          calendarConfig?: {
+            dateColumnId?: string;
           };
         },
       ) => {
@@ -199,8 +203,13 @@ const Database: React.FC<DatabaseProps> = memo(
         }));
 
         // 如果更新的是当前活动视图，同时更新 viewConfig
-        if (viewId === activeViewId && updated.config.galleryConfig) {
-          store.getState().setGalleryConfig(updated.config.galleryConfig);
+        if (viewId === activeViewId) {
+          if (updated.config.galleryConfig) {
+            store.getState().setGalleryConfig(updated.config.galleryConfig);
+          }
+          if (updated.config.calendarConfig) {
+            store.getState().setCalendarConfig(updated.config.calendarConfig);
+          }
         }
       },
     );
@@ -238,6 +247,17 @@ const Database: React.FC<DatabaseProps> = memo(
       if (activeView.type === "gallery") {
         return (
           <GalleryView
+            key={activeView.id}
+            pluginManager={pluginMgr}
+            theme={finalTheme}
+            readonly={!!readonly}
+          />
+        );
+      }
+
+      if (activeView.type === "calendar") {
+        return (
+          <CalendarView
             key={activeView.id}
             pluginManager={pluginMgr}
             theme={finalTheme}

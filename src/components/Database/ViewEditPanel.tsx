@@ -1,7 +1,7 @@
 import React, { memo, useState, useEffect } from "react";
 import { Input, Form, Radio, Select, Space, Button } from "antd";
 import { DataTableView, DataTableViewType } from "@/types";
-import { ColumnDef, GalleryViewConfig } from "./types";
+import { ColumnDef, GalleryViewConfig, CalendarViewConfig } from "./types";
 import { useMemoizedFn } from "ahooks";
 
 interface ViewEditPanelProps {
@@ -12,6 +12,7 @@ interface ViewEditPanelProps {
     name: string,
     type: DataTableViewType,
     galleryConfig?: GalleryViewConfig,
+    calendarConfig?: CalendarViewConfig,
   ) => void;
   onClose: () => void;
 }
@@ -23,6 +24,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       type: DataTableViewType;
       coverType: "detail" | "image";
       coverImageColumnId?: string;
+      dateColumnId?: string;
     }>();
 
     const [viewType, setViewType] = useState<DataTableViewType>("table");
@@ -30,11 +32,13 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
     useEffect(() => {
       if (view) {
         const galleryConfig = view.config.galleryConfig;
+        const calendarConfig = view.config.calendarConfig;
         form.setFieldsValue({
           name: view.name,
           type: view.type,
           coverType: galleryConfig?.coverType || "detail",
           coverImageColumnId: galleryConfig?.coverImageColumnId,
+          dateColumnId: calendarConfig?.dateColumnId,
         });
         setViewType(view.type);
       }
@@ -52,7 +56,20 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
               }
             : undefined;
 
-        onConfirm(view.id, values.name, values.type, galleryConfig);
+        const calendarConfig: CalendarViewConfig | undefined =
+          values.type === "calendar"
+            ? {
+                dateColumnId: values.dateColumnId,
+              }
+            : undefined;
+
+        onConfirm(
+          view.id,
+          values.name,
+          values.type,
+          galleryConfig,
+          calendarConfig,
+        );
         onClose();
       } catch (error) {
         console.error("表单验证失败:", error);
@@ -60,6 +77,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
     });
 
     const imageColumns = columns.filter((col) => col.type === "image");
+    const dateColumns = columns.filter((col) => col.type === "date");
 
     if (!view) return null;
 
@@ -79,6 +97,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
               <Space direction="vertical">
                 <Radio value="table">表格</Radio>
                 <Radio value="gallery">画廊</Radio>
+                <Radio value="calendar">日历</Radio>
               </Space>
             </Radio.Group>
           </Form.Item>
@@ -118,6 +137,31 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                   ) : null
                 }
               </Form.Item>
+            </>
+          )}
+
+          {viewType === "calendar" && (
+            <>
+              <Form.Item label="日期列" name="dateColumnId">
+                <Select
+                  placeholder={
+                    dateColumns.length === 0
+                      ? "无日期列"
+                      : "选择日期列（默认使用第一个日期列）"
+                  }
+                  disabled={dateColumns.length === 0}
+                  allowClear
+                  options={dateColumns.map((col) => ({
+                    label: col.title,
+                    value: col.id,
+                  }))}
+                />
+              </Form.Item>
+              {dateColumns.length === 0 && (
+                <div className="text-sm text-gray-500 -mt-2 mb-2">
+                  请先添加一个日期类型的列
+                </div>
+              )}
             </>
           )}
 

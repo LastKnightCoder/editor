@@ -44,6 +44,10 @@ export interface GalleryViewConfig {
   coverImageColumnId?: string;
 }
 
+export interface CalendarViewConfig {
+  dateColumnId?: string; // 用于日历显示的日期列ID
+}
+
 export interface DataTableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
@@ -51,6 +55,7 @@ export interface DataTableViewConfig {
   sorts: SortRule[];
   groupBy?: GroupRule | null;
   galleryConfig?: GalleryViewConfig;
+  calendarConfig?: CalendarViewConfig;
 }
 
 export interface DataTableView {
@@ -76,7 +81,7 @@ export type UpdateDataTableView = Omit<
   "createTime" | "updateTime"
 >;
 
-export type DataTableViewType = "table" | "gallery";
+export type DataTableViewType = "table" | "gallery" | "calendar";
 
 export type FilterLogicOperator = "and" | "or";
 

@@ -120,6 +120,11 @@ export default class DataTableViewTable {
             coverImageColumnId: config.galleryConfig.coverImageColumnId,
           }
         : undefined,
+      calendarConfig: config?.calendarConfig
+        ? {
+            dateColumnId: config.calendarConfig.dateColumnId,
+          }
+        : undefined,
     };
   }
 

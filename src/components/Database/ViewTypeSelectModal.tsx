@@ -33,7 +33,6 @@ const viewTypes: ViewType[] = [
     type: "calendar",
     name: "日历",
     icon: <MdCalendarToday />,
-    disabled: true,
   },
 ];
 
