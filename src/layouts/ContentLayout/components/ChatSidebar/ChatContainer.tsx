@@ -681,7 +681,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           </div>
         )}
 
-        <div className="mt-3 flex-none px-3 py-3 box-border bg-[var(--main-bg-color)] rounded-3xl">
+        <div className="mt-3 flex-none px-3 py-3 box-border bg-[#fafafa] dark:bg-[#222222] shadow-sm rounded-3xl">
           <div className="flex items-end gap-2">
             <div className="flex-1 min-w-0">
               <ChatInputArea

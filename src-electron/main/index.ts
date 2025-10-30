@@ -210,9 +210,7 @@ if (!gotTheLock) {
       }
 
       // 注册全局快捷键 Ctrl/Command+N 打开快速卡片窗口
-      const shortcutKey =
-        process.platform === "darwin" ? "Command+N" : "Ctrl+N";
-      globalShortcut.register(shortcutKey, () => {
+      globalShortcut.register("CommandOrControl+Shift+N", () => {
         windowManager.createQuickCardWindow();
       });
 

@@ -17,6 +17,7 @@ import whiteBoard from "@/assets/icons/white-board.svg";
 import pdf from "@/assets/icons/pdf.svg";
 import vecDatabase from "@/assets/icons/vec-database.svg";
 import calendar from "@/assets/icons/calendar.svg";
+import chat from "@/assets/icons/chat.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -110,6 +111,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         icon: home,
         desc: "首页",
         path: "/",
+        enable: true,
+      },
+      {
+        key: "chat",
+        icon: chat,
+        desc: "聊天管理",
+        path: "/chat-management",
         enable: true,
       },
       {

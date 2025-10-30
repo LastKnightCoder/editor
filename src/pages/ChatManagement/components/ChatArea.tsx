@@ -1,44 +1,27 @@
-import { App } from "antd";
-import classnames from "classnames";
+import { memo, useMemo, lazy, Suspense, useRef, useState } from "react";
+import { App, Empty, Spin } from "antd";
 import { useShallow } from "zustand/react/shallow";
-import {
-  useState,
-  useMemo,
-  memo,
-  lazy,
-  Suspense,
-  useRef,
-  useEffect,
-} from "react";
-import {
-  LoadingOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-} from "@ant-design/icons";
+import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
+import classnames from "classnames";
 import "katex/dist/katex.min.css";
 
-import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import EditText from "@/components/EditText";
 import type { EditTextHandle } from "@/components/EditText";
-import ModelSidebar from "@/components/ModelSidebar";
 import { openExternal } from "@/commands";
-
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
-import { measurePerformance } from "./hooks/usePerformanceMonitor";
-
-import MermaidRenderer from "./MermaidRenderer";
-import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
-import { MarkdownProvider } from "./MarkdownContext";
-
+import { measurePerformance } from "@/layouts/ContentLayout/components/ChatSidebar/hooks/usePerformanceMonitor";
+import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
+import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
+import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { ResponseMessage } from "@/types";
 import { Role } from "@/constants";
-import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useSettingStore from "@/stores/useSettingStore";
-import type { ChatContainerHandle } from "./ChatContainer";
+import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 
-const ChatContainer = lazy(() => import("./ChatContainer"));
+const ChatContainer = lazy(
+  () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
+);
 
 const DEFAULT_CHAT = {
   id: 0,
@@ -55,20 +38,13 @@ const DEFAULT_CHAT = {
   title: "新对话",
 };
 
-const ChatSidebar = memo(() => {
+const ChatArea = memo(() => {
   const { isDark } = useTheme();
   const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
 
-  const database = useSettingStore((state) => state.setting.database.active);
-  const isConnected = useDatabaseConnected();
-
   const {
-    initChatMessage,
-    initChatGroups,
-    open,
-    width,
     currentChatId,
     chats,
     createChatMessage,
@@ -76,10 +52,6 @@ const ChatSidebar = memo(() => {
     updateCurrentChat,
   } = useChatMessageStore(
     useShallow((state) => ({
-      initChatMessage: state.initChatMessage,
-      initChatGroups: state.initChatGroups,
-      open: state.open,
-      width: state.width,
       currentChatId: state.currentChatId,
       chats: state.chats,
       createChatMessage: state.createChatMessage,
@@ -88,22 +60,12 @@ const ChatSidebar = memo(() => {
     })),
   );
 
-  // 添加 ModelSidebar 可见性状态
-  const [modelSidebarVisible, setModelSidebarVisible] = useState(false);
-
-  useEffect(() => {
-    if (isConnected) {
-      initChatMessage();
-      initChatGroups();
-    }
-  }, [initChatMessage, initChatGroups, isConnected, database]);
+  const [createMessageLoading, setCreateMessageLoading] = useState(false);
+  const [sendLoading, setSendLoading] = useState(false);
 
   const currentChat = useMemo(() => {
     return chats.find((chat) => chat.id === currentChatId);
   }, [chats, currentChatId]);
-
-  const [createMessageLoading, setCreateMessageLoading] = useState(false);
-  const [sendLoading, setSendLoading] = useState(false);
 
   const onCreateNewMessage = useMemoizedFn(async () => {
     const messages: ResponseMessage[] = [
@@ -140,26 +102,9 @@ const ChatSidebar = memo(() => {
     perf.end();
   });
 
-  // 处理对话选择
-  const handleChatSelect = useMemoizedFn((chatId: number) => {
-    chatContainerRef.current?.scrollToTop();
-    useChatMessageStore.setState({ currentChatId: chatId });
-    setModelSidebarVisible(false);
-  });
-
-  // 切换对话列表侧边栏
-  const toggleModelSidebar = useMemoizedFn(() => {
-    setModelSidebarVisible(!modelSidebarVisible);
-  });
-
-  const onCreateChat = useMemoizedFn(async () => {
-    await onCreateNewMessage();
-    setModelSidebarVisible(false);
-  });
-
-  // 只有在侧边栏打开时才需要渲染Markdown组件
+  // 只有在有选中对话时才需要渲染Markdown组件
   const markdownComponents = useMemo(() => {
-    if (!open) return null;
+    if (!currentChat) return null;
 
     // 处理链接点击
     const handleLinkClick = (
@@ -175,7 +120,7 @@ const ChatSidebar = memo(() => {
     };
 
     return {
-      code(props: any) {
+      code(props: { children?: React.ReactNode; className?: string }) {
         const { children, className, ...rest } = props;
         const match = /language-(\w+)/.exec(className || "");
         const mermaidMatch = match && match[1] === "mermaid";
@@ -200,7 +145,14 @@ const ChatSidebar = memo(() => {
           </code>
         );
       },
-      a: ({ node, children, href, ...props }: any) => {
+      a: ({
+        children,
+        href,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        href?: string;
+      }) => {
         return (
           <a
             {...props}
@@ -214,58 +166,85 @@ const ChatSidebar = memo(() => {
         );
       },
     };
-  }, [open]);
+  }, [currentChat]);
+
+  // 检查是否有消息内容（排除系统消息）
+  const hasMessages = useMemo(() => {
+    if (!currentChat) return false;
+    return (
+      currentChat.messages.filter((m) => m.role !== Role.System).length > 0
+    );
+  }, [currentChat]);
+
+  if (!currentChat) {
+    return (
+      <div className="flex-1 h-full flex bg-primary-bg overflow-hidden">
+        <div className="flex-1 flex items-center justify-center">
+          <Empty description="请选择一个对话" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <ResizableAndHideableSidebar
-      className="relative box-border flex-none h-full"
-      width={width}
-      open={open}
-      onWidthChange={(width) => {
-        useChatMessageStore.setState({ width });
-      }}
-      side={"left"}
-      minWidth={320}
-      maxWidth={920}
-      disableResize={!open}
-    >
-      <MarkdownProvider isDark={isDark} isVisible={open}>
-        <div className="h-full bg-[var(--primary-bg-color)] box-border">
-          <div
-            className={classnames("box-border p-4 h-full flex flex-col", {
-              "bg-[#29292f]": isDark,
-            })}
-          >
-            <div className="flex justify-between items-center">
+    <MarkdownProvider isDark={isDark} isVisible={true}>
+      <div className="flex-1 min-w-0 h-full flex bg-primary-bg overflow-hidden">
+        {hasMessages ? (
+          <div className={classnames("flex-1 flex flex-col overflow-hidden")}>
+            <div className="w-full px-6 py-4 flex justify-between items-center flex-shrink-0">
               <div className="font-bold flex-1 flex items-center gap-2">
-                <button
-                  className="px-3 py-2 rounded-md cursor-pointer text-base transition-all duration-200 ease-in-out flex items-center justify-center hover:text-black dark:hover:text-white"
-                  onClick={toggleModelSidebar}
-                >
-                  {modelSidebarVisible ? (
-                    <MenuFoldOutlined />
-                  ) : (
-                    <MenuUnfoldOutlined />
-                  )}
-                </button>
-                {currentChat && (
-                  <EditText
-                    key={currentChat.id}
-                    ref={editTitleRef}
-                    defaultValue={currentChat.title}
-                    onChange={onTitleChange}
-                    contentEditable={!sendLoading}
-                  />
-                )}
+                <EditText
+                  key={currentChat.id}
+                  ref={editTitleRef}
+                  defaultValue={currentChat.title}
+                  onChange={onTitleChange}
+                  contentEditable={!sendLoading}
+                />
               </div>
             </div>
 
-            {(currentChat || (!currentChat && !createMessageLoading)) &&
-              open && (
+            <div className="flex-1 flex justify-center overflow-hidden mb-3">
+              <div className="w-full max-w-6xl mx-20 flex flex-col overflow-hidden mb-3">
+                {(currentChat || (!currentChat && !createMessageLoading)) && (
+                  <Suspense
+                    fallback={
+                      <div className="flex items-center justify-center h-full">
+                        <Spin indicator={<LoadingOutlined />} />
+                      </div>
+                    }
+                  >
+                    <ChatContainer
+                      ref={chatContainerRef}
+                      currentChat={currentChat || DEFAULT_CHAT}
+                      isDark={isDark}
+                      markdownComponents={markdownComponents}
+                      isVisible={true}
+                      updateChatMessage={updateChatMessage}
+                      updateCurrentChat={updateCurrentChat}
+                      sendLoading={sendLoading}
+                      setSendLoading={setSendLoading}
+                      titleRef={editTitleRef}
+                      onCreateNewMessage={onCreateNewMessage}
+                      createMessageLoading={createMessageLoading}
+                    />
+                  </Suspense>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          // 无消息时：垂直居中，输入框限宽
+          <div
+            className={classnames(
+              "w-full flex-1 min-h-0 flex flex-col justify-center items-center overflow-hidden px-20",
+            )}
+          >
+            <div className="w-full max-w-6xl">
+              {(currentChat || (!currentChat && !createMessageLoading)) && (
                 <Suspense
                   fallback={
                     <div className="flex items-center justify-center h-full">
-                      <LoadingOutlined />
+                      <Spin indicator={<LoadingOutlined />} />
                     </div>
                   }
                 >
@@ -274,7 +253,7 @@ const ChatSidebar = memo(() => {
                     currentChat={currentChat || DEFAULT_CHAT}
                     isDark={isDark}
                     markdownComponents={markdownComponents}
-                    isVisible={open}
+                    isVisible={true}
                     updateChatMessage={updateChatMessage}
                     updateCurrentChat={updateCurrentChat}
                     sendLoading={sendLoading}
@@ -285,21 +264,12 @@ const ChatSidebar = memo(() => {
                   />
                 </Suspense>
               )}
+            </div>
           </div>
-        </div>
-
-        {open && (
-          <ModelSidebar
-            visible={modelSidebarVisible}
-            onChatSelect={handleChatSelect}
-            selectedChatId={currentChatId || undefined}
-            onCreateChat={onCreateChat}
-            onClose={() => setModelSidebarVisible(false)}
-          />
         )}
-      </MarkdownProvider>
-    </ResizableAndHideableSidebar>
+      </div>
+    </MarkdownProvider>
   );
 });
 
-export default ChatSidebar;
+export default ChatArea;

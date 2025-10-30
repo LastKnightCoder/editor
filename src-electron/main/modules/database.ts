@@ -14,6 +14,7 @@ import PdfTable from "./tables/pdf";
 import DailyNoteTable from "./tables/daily-note";
 import VecDocumentTable from "./tables/vec-document";
 import ChatMessageTable from "./tables/chat-message";
+import ChatGroupTable from "./tables/chat-group";
 import OperationTable from "./tables/operation";
 import StatisticTable from "./tables/statistic";
 import FtsTable from "./tables/fts";
@@ -92,6 +93,7 @@ class DatabaseModule implements Module {
       PdfTable,
       DailyNoteTable,
       VecDocumentTable,
+      ChatGroupTable,
       ChatMessageTable,
       OperationTable,
       StatisticTable,
