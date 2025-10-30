@@ -37,15 +37,12 @@ const DateEditor: React.FC<DateEditorProps> = memo(
       }
     }, []);
 
-    // 处理单值日期变更
     const handleSingleChange = useMemoizedFn((date: dayjs.Dayjs | null) => {
       const ts = date ? date.toDate().getTime() : null;
-      // 单值模式：end = start
       onCellValueChange({ start: ts, end: ts });
       hasChangedRef.current = true;
     });
 
-    // 处理范围日期变更
     const handleRangeChange = useMemoizedFn(
       (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
         if (!dates) {
@@ -61,10 +58,8 @@ const DateEditor: React.FC<DateEditorProps> = memo(
       },
     );
 
-    // 处理日期选择器打开/关闭状态
     const handleOpenChange = useMemoizedFn((open: boolean) => {
       isOpenRef.current = open;
-      // 当日期选择器关闭且有修改时，延迟完成编辑
       if (!open && hasChangedRef.current) {
         setTimeout(() => {
           onFinishEdit();
@@ -72,9 +67,7 @@ const DateEditor: React.FC<DateEditorProps> = memo(
       }
     });
 
-    // 处理失焦，完成编辑
     const handleBlur = useMemoizedFn(() => {
-      // 如果日期选择器已关闭，则完成编辑
       if (!isOpenRef.current) {
         setTimeout(() => {
           onFinishEdit();
@@ -100,7 +93,6 @@ const DateEditor: React.FC<DateEditorProps> = memo(
       };
     }, [handleKeyDown]);
 
-    // 单值模式
     if (!isRange) {
       const singleValue = dateValue?.start
         ? dayjs(new Date(dateValue.start))
@@ -124,7 +116,6 @@ const DateEditor: React.FC<DateEditorProps> = memo(
       );
     }
 
-    // 范围模式
     const rangeValue: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null =
       dateValue?.start || dateValue?.end
         ? [

@@ -157,7 +157,7 @@ const useEditDatabase = (tableId?: number) => {
       viewId: number,
       updates: {
         name?: string;
-        type?: "table" | "gallery";
+        type?: "table" | "gallery" | "calendar";
         galleryConfig?: {
           coverType: "detail" | "image";
           coverImageColumnId?: string;

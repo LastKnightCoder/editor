@@ -185,14 +185,14 @@ const WeekView = () => {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex border-b border-gray-200 dark:border-gray-700">
+      <div className="flex border-b border-gray-200 dark:border-[#fff]/10">
         <div className="w-16 flex-shrink-0" />
         {weekDays.map((day, index) => {
           const isTodayDate = isToday(day.getTime());
           return (
             <div
               key={index}
-              className="flex flex-1 flex-col items-center border-l border-gray-200 py-3 dark:border-gray-700"
+              className="flex flex-1 flex-col items-center border-l border-gray-200 py-3 dark:border-[#fff]/10"
             >
               <div className="text-xs text-gray-500 dark:text-gray-400">
                 周{weekDayNames[index]}
@@ -429,14 +429,14 @@ const WeekView = () => {
             return (
               <div
                 key={dayIndex}
-                className="relative flex-1 border-l border-gray-200 dark:border-gray-700"
+                className="relative flex-1 border-l border-gray-200 dark:border-[#fff]/10"
                 {...handlers}
               >
                 {/* 网格线 */}
                 {timeSlots.map((minutes) => (
                   <div
                     key={minutes}
-                    className="border-b border-gray-200 dark:border-gray-700"
+                    className="border-b border-gray-200 dark:border-[#fff]/10"
                     style={{ height: `${CELL_HEIGHT * 4}px` }}
                   />
                 ))}

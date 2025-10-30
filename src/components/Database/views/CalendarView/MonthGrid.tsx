@@ -138,8 +138,10 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
 
     // 计算事件的渲染信息
     const getEventRenderInfo = (event: CalendarRowEvent) => {
-      const eventStart = dayjs(event.startDate);
-      const eventEnd = event.endDate ? dayjs(event.endDate) : eventStart;
+      const eventStart = dayjs(event.startDate).startOf("day");
+      const eventEnd = event.endDate
+        ? dayjs(event.endDate).startOf("day")
+        : eventStart;
 
       // 限制事件在当月显示的范围
       const monthStart = dayjs()
@@ -150,6 +152,12 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         .year(year)
         .month(month - 1)
         .endOf("month");
+
+      // 检查事件是否与当月有交集
+      // 如果事件结束时间早于月初，或者事件开始时间晚于月末，则不显示
+      if (eventEnd.isBefore(monthStart) || eventStart.isAfter(monthEnd)) {
+        return { spans: [] };
+      }
 
       // 将事件时间限制在当月范围内
       const displayStart = eventStart.isBefore(monthStart)
@@ -425,11 +433,13 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
 
     return (
       <div className="flex h-full flex-col overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
-          {weekDays.map((day) => (
+        <div className="grid grid-cols-7 border-b border-gray-200 dark:border-[#fff]/10">
+          {weekDays.map((day, index) => (
             <div
               key={day}
-              className="border-r border-gray-200 py-3 text-center text-sm font-medium text-gray-600 last:border-r-0 dark:border-gray-600 dark:text-gray-400"
+              className={`py-3 text-center text-sm font-medium text-gray-600 dark:text-gray-400 border-r border-gray-200 dark:border-[#fff]/10 ${
+                index === 0 ? "border-l" : ""
+              }`}
             >
               {day}
             </div>
@@ -444,11 +454,16 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
           }}
         >
           {dateGrid.map((day, index) => {
+            const col = index % 7;
+            const row = Math.floor(index / 7);
+            const isFirstCol = col === 0;
+            const isLastRow = row === totalRows - 1;
+
             if (day === null) {
               return (
                 <div
                   key={`empty-${index}`}
-                  className="border-b border-r border-gray-200 last:border-r-0 dark:border-gray-700"
+                  className={`border-b ${isFirstCol ? "border-l" : ""} border-b border-r border-gray-200 dark:border-[#fff]/10`}
                 />
               );
             }
@@ -463,8 +478,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             const isTodayDate = isToday(dayDate);
 
             // 计算当前单元格所在行需要的事件区域高度
-            const currentRow = Math.floor(index / 7);
-            const rowSpans = rowEventLayout.get(currentRow) || [];
+            const rowSpans = rowEventLayout.get(row) || [];
             const maxLevel =
               rowSpans.length > 0
                 ? Math.max(...rowSpans.map((item) => item.level))
@@ -473,14 +487,13 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             const topEventsHeight = numLevels * 24;
 
             // 统计当天实际渲染在顶部的事件数量（去重）
-            const dayCol = index % 7;
             const renderedTopEventIds = new Set(
               rowSpans
                 .filter((item) => {
                   const span = item.span;
                   const spanStart = span.startCol;
                   const spanEnd = span.endCol;
-                  return dayCol >= spanStart && dayCol <= spanEnd;
+                  return col >= spanStart && col <= spanEnd;
                 })
                 .map((item) => item.event.id),
             );
@@ -501,15 +514,17 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                 key={day}
                 onMouseDown={(e) => handleMouseDown(validDayIndex, e)}
                 onMouseEnter={() => handleMouseEnter(validDayIndex)}
-                className={`group relative flex flex-col border-b border-r border-gray-200 p-2 last:border-r-0 dark:border-gray-700 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                  inDragRange ? "bg-blue-100 dark:bg-blue-900/30" : ""
-                }`}
+                className={`group relative flex flex-col p-2 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-r ${
+                  !isLastRow ? "border-b" : ""
+                } border-gray-200 dark:border-[#fff]/10 ${
+                  inDragRange ? "bg-indigo-100 dark:bg-indigo-900/30" : ""
+                } ${isFirstCol ? "border-l" : ""}`}
               >
                 <div className="mb-1 flex justify-end">
                   <span
                     className={`flex h-7 w-7 items-center justify-center rounded-full text-sm ${
                       isTodayDate
-                        ? "bg-blue-600 font-bold text-white"
+                        ? "bg-indigo-600 font-bold text-white"
                         : "text-gray-700 dark:text-gray-300"
                     }`}
                   >
@@ -584,7 +599,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             }}
           >
             <div
-              className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+              className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-[#fff]/10"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-4 flex items-center justify-between">
@@ -622,10 +637,9 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
           </div>
         )}
 
-        {/* 右键菜单 */}
         {contextMenuPosition && contextMenuEvent && (
           <div
-            className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px]"
+            className="fixed z-50 bg-white dark:bg-[#222] rounded-lg shadow-lg py-1 min-w-[120px]"
             style={{
               left: `${contextMenuPosition.x}px`,
               top: `${contextMenuPosition.y}px`,
@@ -634,7 +648,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
           >
             <button
               onClick={handleDeleteEvent}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400"
+              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-[#fff]/5 text-red-600 dark:text-red-400"
             >
               删除事件
             </button>

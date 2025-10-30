@@ -7,7 +7,7 @@ import { useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
 import { RowData, ColumnDef } from "../../types";
-import { DateValue } from "../../plugins/DatePlugin";
+import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
 import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
@@ -77,6 +77,10 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     const calendarEvents = useMemo(() => {
       if (!dateColumn) return [];
 
+      // 获取日期列的配置
+      const dateConfig = dateColumn.config as DatePluginConfig | undefined;
+      const isRange = dateConfig?.isRange || false;
+
       // 合并所有分组的行
       const allRows = groupedRows.flatMap((group) => group.rows);
 
@@ -97,11 +101,14 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             ? String(row[primaryColumn.id] || "未命名")
             : "未命名";
 
+          // 如果日期列配置为不包含结束日期，则使用 startDate 作为 endDate
+          const endDate = isRange ? dateValue.end : dateValue.start;
+
           return {
             id: row.id,
             title,
             startDate: dateValue.start,
-            endDate: dateValue.end,
+            endDate,
             color: "#3b82f6", // 默认蓝色
             rowData: row,
           };
@@ -163,16 +170,20 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       (startDate: number, endDate: number) => {
         if (readonly || !dateColumn) return;
 
-        // 创建新行，设置日期列的值为范围
+        // 获取日期列的配置
+        const dateConfig = dateColumn.config as DatePluginConfig | undefined;
+        const isRange = dateConfig?.isRange || false;
+
+        // 创建新行，设置日期列的值
         const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const newRowData: Partial<RowData> = {
           id: newId,
         };
 
-        // 设置日期列的值为范围
+        // 如果日期列不支持范围，只使用开始日期
         newRowData[dateColumn.id] = {
           start: startDate,
-          end: endDate,
+          end: isRange ? endDate : startDate,
         } as DateValue;
 
         // 添加到 store

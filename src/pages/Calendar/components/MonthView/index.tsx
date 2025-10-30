@@ -385,7 +385,7 @@ const MonthView = () => {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-white/10">
         {weekDays.map((day) => (
           <div
             key={day}
@@ -408,7 +408,7 @@ const MonthView = () => {
             return (
               <div
                 key={`empty-${index}`}
-                className="border-b border-r border-gray-200 last:border-r-0 dark:border-gray-700"
+                className="border-b border-r border-gray-200 last:border-r-0 dark:border-[#fff]/10"
               />
             );
           }
@@ -464,7 +464,7 @@ const MonthView = () => {
               }}
               onMouseDown={handleMouseDown(validDayIndex)}
               onMouseEnter={() => handleMouseEnter(validDayIndex)}
-              className="group relative flex flex-col border-b border-r border-gray-200 p-2 last:border-r-0 dark:border-gray-700 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="group relative flex flex-col border-b border-r border-gray-200 p-2 last:border-r-0 dark:border-[#fff]/10 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-[#fff]/5"
             >
               <div className="mb-1 flex justify-end">
                 <span
@@ -498,7 +498,7 @@ const MonthView = () => {
                   if (moreCount > 0) {
                     return (
                       <div
-                        className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 px-1 flex-shrink-0"
+                        className="cursor-pointer text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 px-1 flex-shrink-0"
                         style={{ paddingBottom: "2px", lineHeight: "16px" }}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -821,10 +821,9 @@ const MonthView = () => {
           }}
         >
           <div
-            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
+            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-[#fff]/10"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* 头部 */}
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold">
                 {year}年{month}月{moreEventsDay}日的事件
@@ -839,8 +838,6 @@ const MonthView = () => {
                 <MdClose className="h-5 w-5" />
               </button>
             </div>
-
-            {/* 事件列表 */}
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {moreEventsList.map((event) => {
                 const calendar = calendars.find(

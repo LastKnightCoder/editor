@@ -118,15 +118,26 @@ const Database: React.FC<DatabaseProps> = memo(
     );
 
     const handleCreateView = useMemoizedFn(
-      async (type: string, name: string) => {
+      async (type: string, name: string, dateColumnId?: string) => {
         const currentView = views.find((view) => view.id === activeViewId);
         if (!currentView) return;
         const nextOrder =
           Math.max(0, ...views.map((view) => view.order ?? 0)) + 1;
+
+        // 构建视图配置
+        const config = { ...currentView.config };
+
+        // 如果是日历视图，添加日期列配置
+        if (type === "calendar" && dateColumnId) {
+          config.calendarConfig = {
+            dateColumnId,
+          };
+        }
+
         const result = await onCreateView?.({
           tableId: currentView.tableId,
           type: type as "table" | "gallery" | "calendar",
-          config: currentView.config,
+          config,
           name,
           order: nextOrder,
         });
@@ -136,6 +147,12 @@ const Database: React.FC<DatabaseProps> = memo(
             views: [...prev.views, result],
             activeViewId: result.id,
           }));
+
+          // 如果是日历视图，更新 store 中的 calendarConfig
+          if (type === "calendar" && result.config.calendarConfig) {
+            store.getState().setCalendarConfig(result.config.calendarConfig);
+          }
+
           onActiveViewIdChange?.(result.id);
         }
       },
