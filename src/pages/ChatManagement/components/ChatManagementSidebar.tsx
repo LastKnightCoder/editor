@@ -9,8 +9,6 @@ import {
   EditOutlined,
   InboxOutlined,
   FolderAddOutlined,
-  RightOutlined,
-  DownOutlined,
   FolderOpenOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
