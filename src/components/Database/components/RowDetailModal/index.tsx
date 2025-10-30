@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, memo } from "react";
 import { MdClose, MdAdd } from "react-icons/md";
-import { ColumnDef, RowData, CellValue } from "../../../../types";
-import PluginManager from "../../../../PluginManager";
+import { ColumnDef, RowData, CellValue } from "../../types";
+import { PluginManager } from "../../PluginManager";
 import {
   getContentById,
   createContent,
@@ -102,7 +102,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
 
     const handleColumnValueChange = useMemoizedFn(
       (columnId: string, value: CellValue) => {
-        setRowData((prev) => ({
+        setRowData((prev: RowData) => ({
           ...prev,
           [columnId]: value,
         }));
@@ -177,7 +177,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                             <Editor
                               value={rowData[column.id]}
                               column={column}
-                              onCellValueChange={(value) => {
+                              onCellValueChange={(value: CellValue) => {
                                 handleColumnValueChange(column.id, value);
                               }}
                               onFinishEdit={() => {
@@ -196,7 +196,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                             column={column}
                             theme={theme}
                             readonly={readonly}
-                            onCellValueChange={(value) =>
+                            onCellValueChange={(value: CellValue) =>
                               handleColumnValueChange(column.id, value)
                             }
                           />

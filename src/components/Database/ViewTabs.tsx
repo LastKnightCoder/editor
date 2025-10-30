@@ -31,7 +31,11 @@ interface DragItem {
 
 interface ViewTabsProps {
   pluginManager: PluginManager;
-  onCreateView?: (type: DataTableViewType, name: string) => void;
+  onCreateView?: (
+    type: DataTableViewType,
+    name: string,
+    dateColumnId?: string,
+  ) => void;
   onDeleteView?: (viewId: number) => Promise<void>;
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
   onRenameView?: (viewId: number, name: string) => Promise<void>;
@@ -334,8 +338,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     });
 
     const handleCreateView = useMemoizedFn(
-      (type: DataTableViewType, name: string) => {
-        onCreateView?.(type, name);
+      (type: DataTableViewType, name: string, dateColumnId?: string) => {
+        onCreateView?.(type, name, dateColumnId);
         setShowViewTypeSelect(false);
       },
     );
@@ -488,6 +492,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           open={showViewTypeSelect}
           onCancel={() => setShowViewTypeSelect(false)}
           onConfirm={handleCreateView}
+          columns={columns}
           theme={theme}
         />
       </div>

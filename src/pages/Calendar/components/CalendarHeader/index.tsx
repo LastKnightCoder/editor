@@ -36,11 +36,11 @@ const CalendarHeader = () => {
   };
 
   return (
-    <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-[var(--main-bg-color)]">
+    <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-[#fff]/10 dark:bg-[var(--main-bg-color)]">
       <div className="flex items-center gap-4">
         <button
           onClick={goToToday}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
         >
           <MdToday />
           今天
@@ -49,13 +49,13 @@ const CalendarHeader = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={goToPrevious}
-            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-[#fff]/5"
           >
             <MdChevronLeft className="h-5 w-5" />
           </button>
           <button
             onClick={goToNext}
-            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-[#fff]/5"
           >
             <MdChevronRight className="h-5 w-5" />
           </button>
@@ -67,7 +67,7 @@ const CalendarHeader = () => {
       </div>
 
       {/* 右侧：视图切换 */}
-      <div className="flex rounded-lg border border-gray-300 dark:border-gray-600">
+      <div className="flex rounded-lg border border-gray-300 dark:border-[#fff]/10">
         {(["day", "week", "month", "agenda"] as CalendarViewType[]).map(
           (view) => (
             <button
@@ -75,8 +75,8 @@ const CalendarHeader = () => {
               onClick={() => setCurrentView(view)}
               className={`px-4 py-2 text-sm font-medium ${
                 currentView === view
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                  ? "bg-indigo-400 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-[#fff]/10 dark:text-gray-300 dark:hover:bg-[#fff]/5"
               } ${view === "day" ? "rounded-l-lg" : ""} ${view === "agenda" ? "rounded-r-lg" : ""}`}
             >
               {view === "day"

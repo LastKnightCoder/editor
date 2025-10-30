@@ -3,9 +3,6 @@ import { CellValue, ColumnDef } from "../../../types";
 import { formatDateRange } from "../utils/dateUtils";
 import { DatePluginConfig, DateValue } from "../index";
 
-/**
- * 日期单元格渲染器组件（只读模式）
- */
 interface DateRendererProps {
   value: CellValue;
   column: ColumnDef;
@@ -26,7 +23,7 @@ const DateRenderer: React.FC<DateRendererProps> = memo(({ value, column }) => {
   const formattedDate = formatDateRange(dateValue, showTime, isRange);
 
   return (
-    <div className="px-[27px] py-2 h-full w-full box-border flex items-center overflow-hidden text-ellipsis whitespace-nowrap">
+    <div className="px-2 py-2 h-full w-full box-border flex items-center overflow-hidden text-ellipsis whitespace-nowrap">
       {formattedDate}
     </div>
   );

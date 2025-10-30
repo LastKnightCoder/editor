@@ -222,9 +222,10 @@ const Cell: React.FC<CellProps> = memo(
           />
         ) : (
           <div
-            className={classNames(
-              "absolute h-full border-r border-gray-400/50 right-0 top-0",
-            )}
+            className={classNames("absolute h-full border-r right-0 top-0", {
+              "border-gray-400/50": theme === "light",
+              "border-[#fff]/10": theme === "dark",
+            })}
           />
         )}
         {column.isPrimary && row ? (

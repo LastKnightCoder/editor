@@ -142,9 +142,8 @@ const DayView = () => {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* 全天事件区域 */}
       {allDayEvents.length > 0 && (
-        <div className="border-b border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800">
+        <div className="border-b border-gray-200 bg-gray-50 p-2 dark:border-[#fff]/10 dark:bg-[#fff]/5">
           <div className="text-xs font-medium text-gray-500 dark:text-gray-400">
             全天
           </div>
@@ -184,7 +183,7 @@ const DayView = () => {
             {timeSlots.map((minutes) => (
               <div
                 key={minutes}
-                className="border-b border-gray-200 text-right text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400"
+                className="border-b border-gray-200 text-right text-xs text-gray-500 dark:border-[#fff]/10 dark:text-gray-400"
                 style={{ height: `${CELL_HEIGHT * 4}px` }}
               >
                 <span className="relative -top-2 pr-2">
@@ -199,12 +198,10 @@ const DayView = () => {
             {timeSlots.map((minutes) => (
               <div
                 key={minutes}
-                className="border-b border-gray-200 dark:border-gray-700"
+                className="border-b border-gray-200 dark:border-[#fff]/10"
                 style={{ height: `${CELL_HEIGHT * 4}px` }}
               />
             ))}
-
-            {/* 拖拽选择区域 */}
             {isDragging && selectedRange && (
               <div
                 className="absolute left-0 right-0 bg-blue-200 opacity-30 dark:bg-blue-600"
@@ -214,8 +211,6 @@ const DayView = () => {
                 }}
               />
             )}
-
-            {/* 待创建事件区域 - 仅高亮显示 */}
             {pendingEvent && !isDragging && (
               <div
                 className="absolute left-0 right-0 pointer-events-none rounded-lg border-2 border-blue-500 bg-blue-100/50 dark:bg-blue-900/30"

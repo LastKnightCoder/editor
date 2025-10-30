@@ -313,7 +313,7 @@ const CalendarSidebar = memo(() => {
   };
 
   return (
-    <div className="hidden w-64 border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-[var(--main-bg-color)] lg:block">
+    <div className="hidden w-64 border-r border-gray-200 bg-white dark:border-[#fff]/10 dark:bg-[var(--main-bg-color)] lg:block">
       <div className="flex h-full flex-col">
         {/* 日历列表 */}
         <div className="flex-1 overflow-y-auto p-4">

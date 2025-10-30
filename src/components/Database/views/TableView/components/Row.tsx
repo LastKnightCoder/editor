@@ -137,15 +137,22 @@ const Row: React.FC<RowProps> = memo(
       <div
         ref={ref}
         className={classnames(
-          "h-10 flex flex-row w-full min-w-max transition-[box-shadow,background-color,transform] duration-150 ease-linear",
+          "h-10 flex flex-row w-full min-w-max border-b transition-[box-shadow,background-color,transform] duration-150 ease-linear",
           {
-            "hover:bg-gray-700/50": theme === "dark",
-            "hover:bg-gray-100": theme === "light",
+            "hover:bg-gray-700/50 border-[#fff]/10": theme === "dark",
+            "hover:bg-gray-100 border-gray-400/50": theme === "light",
           },
-          "border-b border-gray-400/50",
         )}
       >
-        <div className="w-[50px] min-w-[50px] box-border border-r border-gray-400/50 flex flex-col justify-center items-center relative cursor-grab group">
+        <div
+          className={classnames(
+            "w-[50px] min-w-[50px] box-border border-r flex flex-col justify-center items-center relative cursor-grab group",
+            {
+              "border-gray-400/50": theme === "light",
+              "border-[#fff]/10": theme === "dark",
+            },
+          )}
+        >
           <div className="flex gap-1 items-center text-gray-500 text-[12px] py-2">
             <Dropdown {...menuProps} className="cursor-pointer">
               <MdDragIndicator />

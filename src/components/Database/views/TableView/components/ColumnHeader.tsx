@@ -162,7 +162,11 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       <div
         ref={ref}
         className={classNames(
-          "relative p-0 box-border h-10 transition-[box-shadow,opacity,background-color,transform] duration-150 ease-linear border-r border-px border-gray-400/50",
+          "relative p-0 box-border h-10 transition-[box-shadow,opacity,background-color,transform] duration-150 ease-linear border-r border-px",
+          {
+            "border-gray-400/50": theme === "light",
+            "border-[#fff]/10": theme === "dark",
+          },
           {
             "opacity-50 cursor-grabbing z-10": isDragging,
             "bg-[#e3f2fd]": isOver && canDrop && !isDragging,
