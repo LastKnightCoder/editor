@@ -34,8 +34,8 @@ nsis:
   createStartMenuShortcut: true
   installerIcon: "build/icon.ico"
   uninstallerIcon: "build/icon.ico"
-  uninstallDisplayName: "notes"
-  shortcutName: "Notes"
+  uninstallDisplayName: "Tau"
+  shortcutName: "Tau"
   include: "build/installer.nsh"
 
 

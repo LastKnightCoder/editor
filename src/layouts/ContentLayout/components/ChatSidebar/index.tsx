@@ -66,6 +66,7 @@ const ChatSidebar = memo(() => {
 
   const {
     initChatMessage,
+    initChatGroups,
     open,
     width,
     currentChatId,
@@ -76,6 +77,7 @@ const ChatSidebar = memo(() => {
   } = useChatMessageStore(
     useShallow((state) => ({
       initChatMessage: state.initChatMessage,
+      initChatGroups: state.initChatGroups,
       open: state.open,
       width: state.width,
       currentChatId: state.currentChatId,
@@ -92,8 +94,9 @@ const ChatSidebar = memo(() => {
   useEffect(() => {
     if (isConnected) {
       initChatMessage();
+      initChatGroups();
     }
-  }, [initChatMessage, isConnected, database]);
+  }, [initChatMessage, initChatGroups, isConnected, database]);
 
   const currentChat = useMemo(() => {
     return chats.find((chat) => chat.id === currentChatId);

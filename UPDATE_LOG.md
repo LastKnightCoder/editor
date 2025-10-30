@@ -736,5 +736,6 @@
 
 - feat: 数据库支持画廊视图
 - feat: 数据库支持详情
+- feat: 支持对话管理
 - fix: Markdown 导出 callout 和 高亮块格式不对
 - fix: 数据表格时间无法选择
