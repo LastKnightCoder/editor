@@ -5,6 +5,8 @@ import { SELECT_COLORS } from "../../../constants";
 import SelectList from "./SelectList";
 import PluginManager from "../../../PluginManager";
 import { Modal, Form, Input, InputNumber, Select } from "antd";
+import CustomCheckbox from "@/components/CustomCheckbox";
+import { DatePluginConfig } from "../../../plugins/DatePlugin/index";
 
 interface ColumnEditModalProps {
   open: boolean;
@@ -17,7 +19,10 @@ interface ColumnEditModalProps {
 
 type ColumnFormValues = Partial<
   Omit<ColumnDef, "config"> & {
-    config?: { options?: SelectOption[] };
+    config?:
+      | { options?: SelectOption[] }
+      | DatePluginConfig
+      | Record<string, unknown>;
   }
 >;
 
@@ -41,17 +46,27 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   useEffect(() => {
     if (open) {
       if (column) {
+        // 处理 select/multiSelect 的 options
         const initialOptions: SelectOption[] | undefined = Array.isArray(
           (column as ColumnDef<{ options: SelectOption[] }>).config?.options,
         )
           ? ((column as ColumnDef<{ options: SelectOption[] }>).config!
               .options as SelectOption[])
           : undefined;
+
+        // 处理 date 类型的配置
+        const dateConfig =
+          column.type === "date"
+            ? (column.config as DatePluginConfig)
+            : undefined;
+
         form.setFieldsValue({
           title: column.title,
           type: column.type,
           width: column.width,
-          config: initialOptions ? { options: initialOptions } : undefined,
+          config: initialOptions
+            ? { options: initialOptions }
+            : dateConfig || undefined,
         });
       } else {
         form.setFieldsValue({
@@ -70,7 +85,9 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
     const values = await form.validateFields();
     const currentType = values.type;
     const includeConfig =
-      currentType === "select" || currentType === "multiSelect";
+      currentType === "select" ||
+      currentType === "multiSelect" ||
+      currentType === "date";
     const config = includeConfig ? form.getFieldValue(["config"]) : undefined;
     const rawWidth =
       typeof values.width === "number" ? values.width : Number(values.width);
@@ -192,6 +209,106 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                   onClear={(id) => removeOption(id)}
                   className="flex-wrap"
                 />
+              </div>
+            );
+          }}
+        </Form.Item>
+
+        {/* Date 类型配置 */}
+        <Form.Item
+          noStyle
+          shouldUpdate={(prev, curr) =>
+            prev.type !== curr.type || prev.config !== curr.config
+          }
+        >
+          {() => {
+            const currentType = form.getFieldValue("type");
+            if (currentType !== "date") return null;
+
+            const showTime =
+              (form.getFieldValue(["config", "showTime"]) as boolean) || false;
+            const isRange =
+              (form.getFieldValue(["config", "isRange"]) as boolean) || false;
+            const sortField =
+              (form.getFieldValue(["config", "sortField"]) as
+                | "start"
+                | "end") || "start";
+            const groupField =
+              (form.getFieldValue(["config", "groupField"]) as
+                | "start"
+                | "end") || "start";
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <CustomCheckbox
+                    checked={showTime}
+                    onChange={() => {
+                      form.setFieldsValue({
+                        config: {
+                          ...(form.getFieldValue(["config"]) || {}),
+                          showTime: !showTime,
+                        },
+                      });
+                    }}
+                  />
+                  <span>包含时间</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <CustomCheckbox
+                    checked={isRange}
+                    onChange={() => {
+                      form.setFieldsValue({
+                        config: {
+                          ...(form.getFieldValue(["config"]) || {}),
+                          isRange: !isRange,
+                        },
+                      });
+                    }}
+                  />
+                  <span>结束日期</span>
+                </div>
+
+                {isRange && (
+                  <>
+                    <Form.Item label="排序依据" className="mb-0">
+                      <Select
+                        value={sortField}
+                        onChange={(value) => {
+                          form.setFieldsValue({
+                            config: {
+                              ...(form.getFieldValue(["config"]) || {}),
+                              sortField: value,
+                            },
+                          });
+                        }}
+                        options={[
+                          { label: "开始日期", value: "start" },
+                          { label: "结束日期", value: "end" },
+                        ]}
+                      />
+                    </Form.Item>
+
+                    <Form.Item label="分组依据" className="mb-0">
+                      <Select
+                        value={groupField}
+                        onChange={(value) => {
+                          form.setFieldsValue({
+                            config: {
+                              ...(form.getFieldValue(["config"]) || {}),
+                              groupField: value,
+                            },
+                          });
+                        }}
+                        options={[
+                          { label: "开始日期", value: "start" },
+                          { label: "结束日期", value: "end" },
+                        ]}
+                      />
+                    </Form.Item>
+                  </>
+                )}
               </div>
             );
           }}

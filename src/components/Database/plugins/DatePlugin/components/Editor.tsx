@@ -5,6 +5,9 @@ import dayjs from "dayjs";
 import "./Editor.less";
 
 import { CellValue, ColumnDef } from "../../../types";
+import { DatePluginConfig, DateValue } from "../index";
+
+const { RangePicker } = DatePicker;
 
 interface DateEditorProps {
   value: CellValue;
@@ -15,10 +18,15 @@ interface DateEditorProps {
 }
 
 const DateEditor: React.FC<DateEditorProps> = memo(
-  ({ value, onCellValueChange, onFinishEdit }) => {
-    const dateValue = typeof value === "number" ? dayjs(new Date(value)) : null;
+  ({ value, column, onCellValueChange, onFinishEdit }) => {
+    const config = column.config as DatePluginConfig | undefined;
+    const dateValue = value as DateValue;
     const hasChangedRef = useRef(false);
     const isOpenRef = useRef(false);
+
+    const showTime = config?.showTime || false;
+    const isRange = config?.isRange || false;
+    const format = showTime ? "YYYY-MM-DD HH:mm:ss" : "YYYY-MM-DD";
 
     useEffect(() => {
       const pickerInput = document.querySelector(
@@ -29,12 +37,29 @@ const DateEditor: React.FC<DateEditorProps> = memo(
       }
     }, []);
 
-    // 处理日期变更
-    const handleChange = useMemoizedFn((date: dayjs.Dayjs | null) => {
+    // 处理单值日期变更
+    const handleSingleChange = useMemoizedFn((date: dayjs.Dayjs | null) => {
       const ts = date ? date.toDate().getTime() : null;
-      onCellValueChange(ts);
+      // 单值模式：end = start
+      onCellValueChange({ start: ts, end: ts });
       hasChangedRef.current = true;
     });
+
+    // 处理范围日期变更
+    const handleRangeChange = useMemoizedFn(
+      (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
+        if (!dates) {
+          onCellValueChange({ start: null, end: null });
+        } else {
+          const [start, end] = dates;
+          onCellValueChange({
+            start: start ? start.toDate().getTime() : null,
+            end: end ? end.toDate().getTime() : null,
+          });
+        }
+        hasChangedRef.current = true;
+      },
+    );
 
     // 处理日期选择器打开/关闭状态
     const handleOpenChange = useMemoizedFn((open: boolean) => {
@@ -75,15 +100,49 @@ const DateEditor: React.FC<DateEditorProps> = memo(
       };
     }, [handleKeyDown]);
 
+    // 单值模式
+    if (!isRange) {
+      const singleValue = dateValue?.start
+        ? dayjs(new Date(dateValue.start))
+        : null;
+
+      return (
+        <div className={`tw-date-editor w-full h-full`}>
+          <DatePicker
+            value={singleValue}
+            onChange={handleSingleChange}
+            onOpenChange={handleOpenChange}
+            onBlur={handleBlur}
+            allowClear
+            format={format}
+            showTime={showTime}
+            inputReadOnly={false}
+            autoFocus
+            className="w-full h-full border-0 outline-none shadow-none bg-transparent [&_.ant-picker-input]:h-full [&_.ant-picker-input>input]:h-full [&_.ant-picker-input>input]:px-4 [&_.ant-picker-input>input]:py-2"
+          />
+        </div>
+      );
+    }
+
+    // 范围模式
+    const rangeValue: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null =
+      dateValue?.start || dateValue?.end
+        ? [
+            dateValue.start ? dayjs(new Date(dateValue.start)) : null,
+            dateValue.end ? dayjs(new Date(dateValue.end)) : null,
+          ]
+        : null;
+
     return (
       <div className={`tw-date-editor w-full h-full`}>
-        <DatePicker
-          value={dateValue}
-          onChange={handleChange}
+        <RangePicker
+          value={rangeValue}
+          onChange={handleRangeChange}
           onOpenChange={handleOpenChange}
           onBlur={handleBlur}
           allowClear
-          format="YYYY-MM-DD"
+          format={format}
+          showTime={showTime}
           inputReadOnly={false}
           autoFocus
           className="w-full h-full border-0 outline-none shadow-none bg-transparent [&_.ant-picker-input]:h-full [&_.ant-picker-input>input]:h-full [&_.ant-picker-input>input]:px-4 [&_.ant-picker-input>input]:py-2"
