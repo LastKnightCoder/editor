@@ -76,8 +76,9 @@ export interface DatabaseProps {
     viewId: number,
     updates: {
       name?: string;
-      type?: "table" | "gallery";
+      type?: "table" | "gallery" | "calendar";
       galleryConfig?: GalleryViewConfig;
+      calendarConfig?: CalendarViewConfig;
     },
   ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
@@ -91,6 +92,10 @@ export interface GalleryViewConfig {
   coverImageColumnId?: string;
 }
 
+export interface CalendarViewConfig {
+  dateColumnId?: string;
+}
+
 export interface TableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
@@ -98,6 +103,7 @@ export interface TableViewConfig {
   sorts: SortRule[];
   filters?: FilterGroup | null;
   galleryConfig?: GalleryViewConfig;
+  calendarConfig?: CalendarViewConfig;
 }
 
 export interface CellPlugin<T> {

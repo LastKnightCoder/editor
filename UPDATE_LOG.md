@@ -738,5 +738,6 @@
 - feat: 数据库支持详情
 - feat: 支持对话管理
 - feat: 数据库日期插件升级
+- feat: 数据库支持日历视图
 - fix: Markdown 导出 callout 和 高亮块格式不对
 - fix: 数据表格时间无法选择

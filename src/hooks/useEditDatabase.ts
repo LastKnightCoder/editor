@@ -63,6 +63,7 @@ const useEditDatabase = (tableId?: number) => {
         sorts: config.sorts ?? [],
         filters: config.filters ?? null,
         galleryConfig: config.galleryConfig,
+        calendarConfig: config.calendarConfig,
       },
     });
     if (updated) {
@@ -161,6 +162,9 @@ const useEditDatabase = (tableId?: number) => {
           coverType: "detail" | "image";
           coverImageColumnId?: string;
         };
+        calendarConfig?: {
+          dateColumnId?: string;
+        };
       },
     ) => {
       const target = views.find((view) => view.id === viewId);
@@ -175,6 +179,10 @@ const useEditDatabase = (tableId?: number) => {
         galleryConfig:
           finalType === "gallery"
             ? (updates.galleryConfig ?? target.config.galleryConfig)
+            : undefined,
+        calendarConfig:
+          finalType === "calendar"
+            ? (updates.calendarConfig ?? target.config.calendarConfig)
             : undefined,
       };
 

@@ -71,6 +71,9 @@ interface TableState {
   setSorts: (sorts: SortRule[]) => void;
   setFilters: (filters: FilterGroup | null) => void;
   setGalleryConfig: (galleryConfig: TableViewConfig["galleryConfig"]) => void;
+  setCalendarConfig: (
+    calendarConfig: TableViewConfig["calendarConfig"],
+  ) => void;
 }
 
 const cloneFilters = (
@@ -527,6 +530,15 @@ export const createDatabaseStore = (
         produce<TableState>((state: TableState) => {
           state.viewConfig.galleryConfig = galleryConfig
             ? { ...galleryConfig }
+            : undefined;
+        }),
+      );
+    },
+    setCalendarConfig: (calendarConfig) => {
+      set(
+        produce<TableState>((state: TableState) => {
+          state.viewConfig.calendarConfig = calendarConfig
+            ? { ...calendarConfig }
             : undefined;
         }),
       );

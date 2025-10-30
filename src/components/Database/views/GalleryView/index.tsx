@@ -6,7 +6,7 @@ import PluginManager from "../../PluginManager";
 import { RowData, ColumnDef, CellValue } from "../../types";
 import GalleryCard from "./GalleryCard";
 import AddCard from "./AddCard";
-import RowDetailModal from "../TableView/components/RowDetailModal";
+import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
 
 const emptyOnCellChange = () => {
