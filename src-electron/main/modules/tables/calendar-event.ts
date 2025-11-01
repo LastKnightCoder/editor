@@ -23,6 +23,8 @@ export default class CalendarEventTable {
       "calendar-event:get-for-day": this.getEventsForDay.bind(this),
       "calendar-event:get-for-week": this.getEventsForWeek.bind(this),
       "calendar-event:get-for-month": this.getEventsForMonth.bind(this),
+      "calendar-event:transfer-between-calendars":
+        this.transferEventsBetweenCalendars.bind(this),
     };
   }
 
@@ -438,5 +440,29 @@ export default class CalendarEventTable {
     const startDate = new Date(year, month - 1, 1).setHours(0, 0, 0, 0);
     const endDate = new Date(year, month, 0).setHours(23, 59, 59, 999);
     return this.getEventsByDateRange(db, startDate, endDate, calendarIds);
+  }
+
+  static transferEventsBetweenCalendars(
+    db: Database.Database,
+    sourceCalendarId: number,
+    targetCalendarId: number,
+  ): number {
+    const now = Date.now();
+    const stmt = db.prepare(`
+      UPDATE calendar_event
+      SET calendar_id = ?, update_time = ?
+      WHERE calendar_id = ?
+    `);
+
+    const result = stmt.run(targetCalendarId, now, sourceCalendarId);
+
+    // 记录操作日志
+    if (result.changes > 0) {
+      log.info(
+        `Transferred ${result.changes} events from calendar ${sourceCalendarId} to ${targetCalendarId}`,
+      );
+    }
+
+    return result.changes;
   }
 }

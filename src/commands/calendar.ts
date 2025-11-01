@@ -100,3 +100,10 @@ export const getEventsForMonth = async (
 ): Promise<CalendarEvent[]> => {
   return await invoke("calendar-event:get-for-month", year, month, calendarIds);
 };
+
+export const mergeCalendars = async (
+  sourceCalendarIds: number[],
+  targetCalendarId: number,
+): Promise<{ transferredEvents: number; deletedCalendars: number }> => {
+  return await invoke("calendar:merge", sourceCalendarIds, targetCalendarId);
+};
