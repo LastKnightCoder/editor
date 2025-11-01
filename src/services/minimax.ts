@@ -273,7 +273,7 @@ export async function synthesizeSpeech(
     stream: false,
     voice_setting: {
       voice_id: voiceId,
-      speed: 1.0,
+      speed: 1.1,
       vol: 1.0,
       pitch: 0,
     },
