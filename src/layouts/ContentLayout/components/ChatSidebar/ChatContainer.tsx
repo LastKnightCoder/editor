@@ -418,7 +418,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     useImperativeHandle(ref, () => ({
       scrollToTop: () => {
         if (messagesRef.current) {
-          messagesRef.current.scrollTop = 0;
+          if ("scrollTo" in messagesRef.current) {
+            messagesRef.current.scrollTo({ top: 0, behavior: "smooth" });
+          }
         }
       },
     }));
