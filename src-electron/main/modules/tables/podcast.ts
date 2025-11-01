@@ -61,7 +61,7 @@ export default class PodcastTable {
     db.exec(createIndexSql);
   }
 
-  static upgradeTable(db: Database.Database) {
+  static upgradeTable(_db: Database.Database) {
     // 未来的表升级逻辑
   }
 

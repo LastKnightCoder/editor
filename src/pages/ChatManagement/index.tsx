@@ -1,14 +1,17 @@
-import { memo, useEffect } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useShallow } from "zustand/react/shallow";
+import { useMemoizedFn } from "ahooks";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import ChatManagementSidebar from "./components/ChatManagementSidebar";
 import ChatArea from "./components/ChatArea";
+import type { ChatAreaHandle } from "./components/ChatArea";
 
 const ChatManagement = memo(() => {
   const database = useSettingStore((state) => state.setting.database.active);
   const isConnected = useDatabaseConnected();
+  const chatAreaRef = useRef<ChatAreaHandle>(null);
 
   const { initChatMessage, initChatGroups } = useChatMessageStore(
     useShallow((state) => ({
@@ -24,10 +27,14 @@ const ChatManagement = memo(() => {
     }
   }, [initChatMessage, initChatGroups, isConnected, database]);
 
+  const handleChatSelect = useMemoizedFn(() => {
+    chatAreaRef.current?.scrollToTop();
+  });
+
   return (
     <div className="flex w-full h-full overflow-hidden">
-      <ChatManagementSidebar />
-      <ChatArea />
+      <ChatManagementSidebar onChatSelect={handleChatSelect} />
+      <ChatArea ref={chatAreaRef} />
     </div>
   );
 });
