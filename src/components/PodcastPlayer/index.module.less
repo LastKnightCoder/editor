@@ -1,0 +1,46 @@
+.container {
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+
+  :global(.ant-card-head) {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  :global(.ant-card-body) {
+    padding: 16px;
+  }
+}
+
+.audio {
+  width: 100%;
+  margin-bottom: 12px;
+  outline: none;
+
+  &::-webkit-media-controls-panel {
+    background-color: var(--bg-secondary);
+  }
+}
+
+.speakersSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toggleButton {
+  padding: 4px 8px;
+  height: auto;
+  font-size: 13px;
+
+  &:hover {
+    background: var(--bg-secondary);
+  }
+}
+
+.speakers {
+  padding: 8px 0;
+  border-top: 1px solid var(--border-color);
+}

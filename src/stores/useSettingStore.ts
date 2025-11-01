@@ -125,6 +125,7 @@ export interface ISetting {
     titleSummary: LLMUsageConfig | null;
     aiContinueWrite: LLMUsageConfig | null;
     webClip: LLMUsageConfig | null;
+    podcastGeneration: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -173,6 +174,13 @@ export interface ISetting {
         isConnected: boolean;
       };
     };
+    minimax: {
+      enabled: boolean;
+      apiKey: string;
+      userInfo: {
+        isConnected: boolean;
+      };
+    };
   };
 }
 
@@ -205,6 +213,8 @@ interface IActions {
     userInfo: ISetting["integration"]["notion"]["userInfo"],
   ) => void;
   setNotionEnabled: (enabled: boolean) => void;
+  updateMinimaxApiKey: (apiKey: string) => void;
+  setMinimaxEnabled: (enabled: boolean) => void;
 }
 
 const initialState: IState = {
@@ -314,6 +324,7 @@ const initialState: IState = {
       titleSummary: null,
       aiContinueWrite: null,
       webClip: null,
+      podcastGeneration: null,
     },
     embeddingProvider: {
       currentConfigId: "",
@@ -344,6 +355,13 @@ const initialState: IState = {
           name: "",
           email: "",
           avatar: "",
+          isConnected: false,
+        },
+      },
+      minimax: {
+        enabled: false,
+        apiKey: "",
+        userInfo: {
           isConnected: false,
         },
       },
@@ -473,6 +491,22 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.notion.enabled = enabled;
+      }),
+    });
+  },
+  updateMinimaxApiKey: (apiKey) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.minimax.apiKey = apiKey;
+      }),
+    });
+  },
+  setMinimaxEnabled: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.minimax.enabled = enabled;
       }),
     });
   },

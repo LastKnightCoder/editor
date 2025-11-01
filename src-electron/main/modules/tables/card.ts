@@ -28,6 +28,8 @@ export default class CardTable {
         this.getRecentTemporaryAndLiteratureCards.bind(this),
       "is-content-is-card": this.isContentIsCard.bind(this),
       "build-card-from-content": this.buildCardFromContent.bind(this),
+      "attach-podcast-to-card": this.attachPodcast.bind(this),
+      "detach-podcast-from-card": this.detachPodcast.bind(this),
     };
   }
 
@@ -49,6 +51,22 @@ export default class CardTable {
   }
 
   static upgradeTable(db: Database.Database) {
+    // 检查 podcast_id 字段是否存在
+    const tableInfo = db.prepare(`PRAGMA table_info(cards)`).all() as Array<{
+      name: string;
+    }>;
+    const hasPodcastId = tableInfo.some(
+      (column) => column.name === "podcast_id",
+    );
+
+    if (!hasPodcastId) {
+      db.exec(`ALTER TABLE cards ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
+      db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_cards_podcast_id ON cards(podcast_id);`,
+      );
+      log.info("已添加 podcast_id 字段到 cards 表");
+    }
+
     // 为所有卡片添加 FTS 索引
     log.info("开始为所有卡片添加 FTS 索引");
     const cards = this.getAllCards(db);
@@ -101,6 +119,24 @@ export default class CardTable {
       ? Math.max(card.update_time, card.content_update_time)
       : card.update_time;
 
+    // 解析 podcast 数据
+    let podcast = undefined;
+    if (card.podcast_id && card.podcast_audio_url) {
+      try {
+        podcast = {
+          id: card.podcast_id,
+          audioUrl: card.podcast_audio_url,
+          script: card.podcast_script || "",
+          duration: card.podcast_duration || 0,
+          speakers: card.podcast_speakers
+            ? JSON.parse(card.podcast_speakers)
+            : [],
+        };
+      } catch (error) {
+        console.error("Error parsing podcast data:", error);
+      }
+    }
+
     return {
       id: card.id,
       create_time: card.create_time,
@@ -112,15 +148,19 @@ export default class CardTable {
       count: count,
       contentId: card.content_id,
       isTop: !!card.is_top,
+      podcastId: card.podcast_id || undefined,
+      podcast,
     };
   }
 
   static getAllCards(db: Database.Database) {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count, ct.update_time as content_update_time 
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+             ct.content, ct.count, ct.update_time as content_update_time,
+             p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN podcasts p ON c.podcast_id = p.id
       ORDER BY c.is_top DESC, c.create_time DESC
     `);
     const cards = stmt.all();
@@ -132,10 +172,12 @@ export default class CardTable {
     cardId: number | bigint,
   ): ICard | null {
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count, ct.update_time as content_update_time 
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+             ct.content, ct.count, ct.update_time as content_update_time,
+             p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE c.id = ?
     `);
     const card = stmt.get(cardId);
@@ -150,10 +192,12 @@ export default class CardTable {
 
     const placeholders = cardIds.map(() => "?").join(",");
     const stmt = db.prepare(`
-      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top,
-             ct.content, ct.count, ct.update_time as content_update_time 
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+             ct.content, ct.count, ct.update_time as content_update_time,
+             p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
+      LEFT JOIN podcasts p ON c.podcast_id = p.id
       WHERE c.id IN (${placeholders})
     `);
     const cards = stmt.all(cardIds);
@@ -411,5 +455,29 @@ export default class CardTable {
     ContentTable.incrementRefCount(db, contentId);
     Operation.insertOperation(db, "card", "insert", cardId, now);
     return this.getCardById(db, cardId) as ICard;
+  }
+
+  static attachPodcast(
+    db: Database.Database,
+    cardId: number,
+    podcastId: number,
+  ): ICard | null {
+    const stmt = db.prepare(
+      "UPDATE cards SET podcast_id = ?, update_time = ? WHERE id = ?",
+    );
+    const now = Date.now();
+    stmt.run(podcastId, now, cardId);
+    Operation.insertOperation(db, "card", "update", cardId, now);
+    return this.getCardById(db, cardId);
+  }
+
+  static detachPodcast(db: Database.Database, cardId: number): ICard | null {
+    const stmt = db.prepare(
+      "UPDATE cards SET podcast_id = NULL, update_time = ? WHERE id = ?",
+    );
+    const now = Date.now();
+    stmt.run(now, cardId);
+    Operation.insertOperation(db, "card", "update", cardId, now);
+    return this.getCardById(db, cardId);
   }
 }
