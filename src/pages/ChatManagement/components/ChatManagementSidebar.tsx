@@ -114,7 +114,7 @@ const ChatManagementSidebar = memo(
       ];
 
       try {
-        const result = await createChatMessage(messages, "新对话", groupId);
+        await createChatMessage(messages, "新对话", groupId);
         messageApi.success("对话已创建");
       } catch (error) {
         messageApi.error("创建失败");

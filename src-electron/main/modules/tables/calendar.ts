@@ -4,6 +4,7 @@ import { Descendant } from "slate";
 import Operation from "./operation";
 import ContentTable from "./content";
 import CalendarGroupTable from "./calendar-group";
+import CalendarEventTable from "./calendar-event";
 
 export default class CalendarTable {
   static getListenEvents() {
@@ -14,6 +15,7 @@ export default class CalendarTable {
       "calendar:get-by-id": this.getCalendarById.bind(this),
       "calendar:get-all": this.getAllCalendars.bind(this),
       "calendar:get-visible": this.getVisibleCalendars.bind(this),
+      "calendar:merge": this.mergeCalendars.bind(this),
     };
   }
 
@@ -227,5 +229,61 @@ export default class CalendarTable {
     );
     const rows = stmt.all();
     return rows.map((row) => this.parseCalendar(row, db));
+  }
+
+  static mergeCalendars(
+    db: Database.Database,
+    sourceCalendarIds: number[],
+    targetCalendarId: number,
+  ): { transferredEvents: number; deletedCalendars: number } {
+    // 验证目标日历
+    const targetCalendar = this.getCalendarById(db, targetCalendarId);
+    if (targetCalendar.isInSystemGroup) {
+      throw new Error("Cannot merge into system calendar");
+    }
+
+    // 验证源日历不能包含目标日历
+    if (sourceCalendarIds.includes(targetCalendarId)) {
+      throw new Error("Source calendars cannot include target calendar");
+    }
+
+    let totalTransferredEvents = 0;
+    let deletedCalendars = 0;
+
+    // 验证所有源日历并转移事件
+    for (const sourceId of sourceCalendarIds) {
+      try {
+        const sourceCalendar = this.getCalendarById(db, sourceId);
+
+        // 检查是否为系统日历
+        if (sourceCalendar.isInSystemGroup) {
+          throw new Error(
+            `Cannot merge system calendar: ${sourceCalendar.title}`,
+          );
+        }
+
+        // 转移事件
+        const transferredCount =
+          CalendarEventTable.transferEventsBetweenCalendars(
+            db,
+            sourceId,
+            targetCalendarId,
+          );
+        totalTransferredEvents += transferredCount;
+
+        // 删除源日历
+        this.deleteCalendar(db, sourceId);
+        deletedCalendars++;
+      } catch (error) {
+        // 如果某个日历处理失败，记录错误但继续处理其他日历
+        console.error(`Failed to merge calendar ${sourceId}:`, error);
+        throw error;
+      }
+    }
+
+    return {
+      transferredEvents: totalTransferredEvents,
+      deletedCalendars,
+    };
   }
 }

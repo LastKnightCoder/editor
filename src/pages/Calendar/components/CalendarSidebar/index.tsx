@@ -1,5 +1,5 @@
 import { useState, memo, useEffect } from "react";
-import { App, Dropdown } from "antd";
+import { App, Dropdown, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import useCalendarStore from "@/stores/useCalendarStore";
 import {
@@ -7,18 +7,19 @@ import {
   MdMoreVert,
   MdVisibility,
   MdVisibilityOff,
-  MdEdit,
-  MdArchive,
-  MdDelete,
-  MdUnarchive,
   MdKeyboardArrowDown,
   MdKeyboardArrowRight,
+  MdCheckBox,
+  MdCheckBoxOutlineBlank,
+  MdMergeType,
+  MdClose,
 } from "react-icons/md";
 import { getProjectColorValue } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
 import CreateCalendarDialog from "../CreateCalendarDialog";
 import EditCalendarDialog from "../EditCalendarDialog";
 import CreateGroupDialog from "../CreateGroupDialog";
+import MergeCalendarsDialog from "../MergeCalendarsDialog";
 import { Calendar, CalendarGroup } from "@/types";
 
 const CalendarSidebar = memo(() => {
@@ -37,6 +38,10 @@ const CalendarSidebar = memo(() => {
     setShowSystemSection,
     setShowMyCalendarSection,
     setShowArchivedSection,
+    mergeModeEnabled,
+    selectedCalendarsForMerge,
+    toggleMergeMode,
+    toggleCalendarForMerge,
   } = useCalendarStore();
   const { setting } = useSettingStore();
   const { modal } = App.useApp();
@@ -46,6 +51,7 @@ const CalendarSidebar = memo(() => {
   const [selectedGroupForCreate, setSelectedGroupForCreate] = useState<
     number | null
   >(null);
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(() => {
     return new Set(calendarGroups.map((g) => g.id));
   });
@@ -101,7 +107,6 @@ const CalendarSidebar = memo(() => {
       items.push({
         key: "edit",
         label: "编辑颜色",
-        icon: <MdEdit className="h-4 w-4" />,
         onClick: () => setEditingCalendar(calendar),
       });
     } else {
@@ -109,7 +114,6 @@ const CalendarSidebar = memo(() => {
       items.push({
         key: "edit",
         label: "编辑",
-        icon: <MdEdit className="h-4 w-4" />,
         onClick: () => setEditingCalendar(calendar),
       });
 
@@ -117,7 +121,6 @@ const CalendarSidebar = memo(() => {
         items.push({
           key: "unarchive",
           label: "取消归档",
-          icon: <MdUnarchive className="h-4 w-4" />,
           onClick: async () => {
             await unarchiveCalendar(calendar.id);
           },
@@ -126,7 +129,6 @@ const CalendarSidebar = memo(() => {
         items.push({
           key: "archive",
           label: "归档",
-          icon: <MdArchive className="h-4 w-4" />,
           onClick: async () => {
             await archiveCalendar(calendar.id);
           },
@@ -136,7 +138,6 @@ const CalendarSidebar = memo(() => {
       items.push({
         key: "delete",
         label: "删除",
-        icon: <MdDelete className="h-4 w-4" />,
         danger: true,
         onClick: () => {
           modal.confirm({
@@ -162,7 +163,6 @@ const CalendarSidebar = memo(() => {
       {
         key: "add-calendar",
         label: "添加日历",
-        icon: <MdAdd className="h-4 w-4" />,
         onClick: () => {
           setSelectedGroupForCreate(group.id);
           setShowCreateDialog(true);
@@ -171,7 +171,6 @@ const CalendarSidebar = memo(() => {
       {
         key: "delete",
         label: "删除分组",
-        icon: <MdDelete className="h-4 w-4" />,
         danger: true,
         onClick: () => {
           const groupCalendars = getCalendarsInGroup(group.id, false);
@@ -200,13 +199,11 @@ const CalendarSidebar = memo(() => {
     {
       key: "add-calendar",
       label: "添加日历",
-      icon: <MdAdd className="h-4 w-4" />,
       onClick: () => setShowCreateDialog(true),
     },
     {
       key: "add-group",
       label: "添加分组",
-      icon: <MdAdd className="h-4 w-4" />,
       onClick: () => setShowCreateGroupDialog(true),
     },
   ];
@@ -214,10 +211,14 @@ const CalendarSidebar = memo(() => {
   // 渲染日历项
   const renderCalendarItem = (calendar: Calendar, indent = false) => {
     const isSelected = selectedCalendarIds.includes(calendar.id);
+    const isSelectedForMerge = selectedCalendarsForMerge.includes(calendar.id);
     const color = getProjectColorValue(
       calendar.color,
       theme === "dark" ? "dark" : "light",
     );
+
+    // 是否可以合并（非系统日历且未归档）
+    const canMerge = !calendar.isInSystemGroup && !calendar.archived;
 
     return (
       <div
@@ -225,16 +226,31 @@ const CalendarSidebar = memo(() => {
         className={`group relative flex items-center justify-between rounded-lg py-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${indent ? "pl-4 pr-3" : "px-3"}`}
       >
         <div className="flex flex-1 items-center gap-2 overflow-hidden">
-          <button
-            onClick={() => toggleCalendarVisibility(calendar.id)}
-            className="flex-shrink-0"
-          >
-            {isSelected ? (
-              <MdVisibility className="h-4 w-4" style={{ color }} />
-            ) : (
-              <MdVisibilityOff className="h-4 w-4 text-gray-400" />
-            )}
-          </button>
+          {/* 合并模式下显示复选框，否则显示可见性按钮 */}
+          {mergeModeEnabled && canMerge ? (
+            <button
+              onClick={() => toggleCalendarForMerge(calendar.id)}
+              className="flex-shrink-0"
+            >
+              {isSelectedForMerge ? (
+                <MdCheckBox className="h-4 w-4" style={{ color }} />
+              ) : (
+                <MdCheckBoxOutlineBlank className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={() => toggleCalendarVisibility(calendar.id)}
+              className="flex-shrink-0"
+              disabled={mergeModeEnabled}
+            >
+              {isSelected ? (
+                <MdVisibility className="h-[14px] w-[14px]" style={{ color }} />
+              ) : (
+                <MdVisibilityOff className="h-[14px] w-[14px] text-gray-400" />
+              )}
+            </button>
+          )}
           <span
             className="truncate text-sm"
             style={{
@@ -244,18 +260,20 @@ const CalendarSidebar = memo(() => {
             {calendar.title}
           </span>
         </div>
-        <Dropdown
-          menu={{ items: getCalendarMenuItems(calendar) }}
-          trigger={["click"]}
-          placement="bottomRight"
-        >
-          <button
-            className="flex-shrink-0 opacity-0 group-hover:opacity-100"
-            onClick={(e) => e.stopPropagation()}
+        {!mergeModeEnabled && (
+          <Dropdown
+            menu={{ items: getCalendarMenuItems(calendar) }}
+            trigger={["click"]}
+            placement="bottomRight"
           >
-            <MdMoreVert className="h-5 w-5 text-gray-400" />
-          </button>
-        </Dropdown>
+            <button
+              className="flex-shrink-0 opacity-0 group-hover:opacity-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MdMoreVert className="h-5 w-5 text-gray-400" />
+            </button>
+          </Dropdown>
+        )}
       </div>
     );
   };
@@ -357,22 +375,65 @@ const CalendarSidebar = memo(() => {
                 )}
                 <span>我的日历</span>
               </button>
-              <Dropdown
-                menu={{ items: myCalendarAddMenuItems }}
-                trigger={["click"]}
-                placement="bottomRight"
-              >
-                <button
-                  className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  title="添加"
-                >
-                  <MdAdd className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                </button>
-              </Dropdown>
+              <div className="flex gap-1">
+                {!mergeModeEnabled ? (
+                  <>
+                    <Tooltip
+                      title="批量合并"
+                      trigger="hover"
+                      mouseEnterDelay={0.5}
+                    >
+                      <button
+                        onClick={toggleMergeMode}
+                        className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        // title="批量合并"
+                      >
+                        <MdMergeType className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                      </button>
+                    </Tooltip>
+                    <Dropdown
+                      menu={{ items: myCalendarAddMenuItems }}
+                      trigger={["click"]}
+                      placement="bottomRight"
+                    >
+                      <button
+                        className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+                        title="添加"
+                      >
+                        <MdAdd className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                      </button>
+                    </Dropdown>
+                  </>
+                ) : (
+                  <button
+                    onClick={toggleMergeMode}
+                    className="ml-2 rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    title="退出合并模式"
+                  >
+                    <MdClose className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {showMyCalendarSection && (
               <div className="ml-2">
+                {/* 合并模式提示 */}
+                {mergeModeEnabled && (
+                  <div className="mb-3 rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      选择至少 2 个日历进行合并
+                    </p>
+                    {selectedCalendarsForMerge.length >= 2 && (
+                      <button
+                        onClick={() => setShowMergeDialog(true)}
+                        className="mt-2 w-full rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600"
+                      >
+                        合并选中的 {selectedCalendarsForMerge.length} 个日历
+                      </button>
+                    )}
+                  </div>
+                )}
                 {/* 用户分组 */}
                 {userGroups.map((group) => renderGroup(group, false))}
                 {/* 无分组的日历 */}
@@ -444,6 +505,13 @@ const CalendarSidebar = memo(() => {
       <CreateGroupDialog
         isOpen={showCreateGroupDialog}
         onClose={() => setShowCreateGroupDialog(false)}
+      />
+
+      {/* 合并日历对话框 */}
+      <MergeCalendarsDialog
+        isOpen={showMergeDialog}
+        onClose={() => setShowMergeDialog(false)}
+        sourceCalendarIds={selectedCalendarsForMerge}
       />
     </div>
   );

@@ -29,6 +29,7 @@ import {
   createCalendarGroup as createCalendarGroupCommand,
   updateCalendarGroup as updateCalendarGroupCommand,
   deleteCalendarGroup as deleteCalendarGroupCommand,
+  mergeCalendars as mergeCalendarsCommand,
 } from "@/commands";
 
 import { getWeekStart } from "@/utils/calendar";
@@ -55,6 +56,10 @@ interface IState {
 
   // 当前编辑的事件
   editingEvent: CalendarEvent | null;
+
+  // 合并模式状态
+  mergeModeEnabled: boolean;
+  selectedCalendarsForMerge: number[];
 }
 
 interface IActions {
@@ -102,6 +107,15 @@ interface IActions {
   setShowSystemSection: (show: boolean) => void;
   setShowMyCalendarSection: (show: boolean) => void;
   setShowArchivedSection: (show: boolean) => void;
+
+  // 合并功能
+  toggleMergeMode: () => void;
+  toggleCalendarForMerge: (id: number) => void;
+  clearMergeSelection: () => void;
+  mergeCalendars: (
+    sourceIds: number[],
+    targetId: number,
+  ) => Promise<{ transferredEvents: number; deletedCalendars: number }>;
 }
 
 const initState: IState = {
@@ -117,6 +131,8 @@ const initState: IState = {
   showMyCalendarSection: true,
   showArchivedSection: false,
   editingEvent: null,
+  mergeModeEnabled: false,
+  selectedCalendarsForMerge: [],
 };
 
 const useCalendarStore = create<IState & IActions>()(
@@ -351,6 +367,51 @@ const useCalendarStore = create<IState & IActions>()(
 
       setShowArchivedSection: (show: boolean) => {
         set({ showArchivedSection: show });
+      },
+
+      toggleMergeMode: () => {
+        set(
+          produce((state: IState) => {
+            state.mergeModeEnabled = !state.mergeModeEnabled;
+            // 退出合并模式时清空选择
+            if (!state.mergeModeEnabled) {
+              state.selectedCalendarsForMerge = [];
+            }
+          }),
+        );
+      },
+
+      toggleCalendarForMerge: (id: number) => {
+        set(
+          produce((state: IState) => {
+            const index = state.selectedCalendarsForMerge.indexOf(id);
+            if (index > -1) {
+              state.selectedCalendarsForMerge.splice(index, 1);
+            } else {
+              state.selectedCalendarsForMerge.push(id);
+            }
+          }),
+        );
+      },
+
+      clearMergeSelection: () => {
+        set({ selectedCalendarsForMerge: [] });
+      },
+
+      mergeCalendars: async (sourceIds: number[], targetId: number) => {
+        const result = await mergeCalendarsCommand(sourceIds, targetId);
+        // 重新加载日历列表和事件
+        const calendars = await getAllCalendars();
+        set({
+          calendars,
+          selectedCalendarsForMerge: [],
+          mergeModeEnabled: false,
+          selectedCalendarIds: get().selectedCalendarIds.filter(
+            (id) => !sourceIds.includes(id),
+          ),
+        });
+        await get().loadEventsForCurrentView();
+        return result;
       },
     }),
     {
