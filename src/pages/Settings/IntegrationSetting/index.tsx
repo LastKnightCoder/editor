@@ -3,6 +3,7 @@ import { Row, Typography, Divider } from "antd";
 import BilibiliSetting from "./BilibiliSetting";
 import YouTubeSetting from "./YouTubeSetting";
 import NotionSetting from "./NotionSetting";
+import MinimaxSetting from "./MinimaxSetting";
 
 import styles from "./index.module.less";
 import ContainerCol from "@/components/ContainerCol";
@@ -31,6 +32,9 @@ const IntegrationSetting: React.FC = () => {
           </ContainerCol>
           <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
             <NotionSetting />
+          </ContainerCol>
+          <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
+            <MinimaxSetting />
           </ContainerCol>
         </Row>
       </div>

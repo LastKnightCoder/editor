@@ -7,7 +7,12 @@ interface LLMConfigResult {
 }
 
 export const useLLMConfig = (
-  feature: "chat" | "titleSummary" | "aiContinueWrite" | "webClip",
+  feature:
+    | "chat"
+    | "titleSummary"
+    | "aiContinueWrite"
+    | "webClip"
+    | "podcastGeneration",
 ): LLMConfigResult => {
   const { llmConfigs, llmUsageSettings } = useSettingStore((state) => ({
     llmConfigs: state.setting.llmConfigs,

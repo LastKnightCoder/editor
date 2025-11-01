@@ -17,6 +17,7 @@ const UsageSettings = () => {
     titleSummary: "标题总结",
     aiContinueWrite: "AI续写",
     webClip: "网页剪藏",
+    podcastGeneration: "播客生成",
   } as const;
 
   const handleProviderChange = (

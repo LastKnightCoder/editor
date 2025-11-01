@@ -50,6 +50,16 @@ import graphIcon from "@/assets/icons/graph.svg";
 import useEditCard from "./useEditCard";
 import LinkList from "./LinkList";
 import { isValid } from "@/components/WhiteBoard/utils";
+import PodcastPlayer from "@/components/PodcastPlayer";
+import PodcastGenerationModal from "@/components/PodcastGenerationModal";
+import {
+  createPodcast,
+  attachPodcastToCard,
+  detachPodcastFromCard,
+  deletePodcast,
+  getCardById,
+} from "@/commands";
+import { SpeakerRole } from "@/types/podcast";
 
 const customExtensions = [
   contentLinkExtension,
@@ -108,6 +118,7 @@ const EditCard = (props: IEditCardProps) => {
   const [linkGraphOpen, setLinkGraphOpen] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [podcastModalOpen, setPodcastModalOpen] = useState(false);
   const [updateTime, setUpdateTime] = useState(editingCard?.update_time || 0);
 
   const {
@@ -166,6 +177,67 @@ const EditCard = (props: IEditCardProps) => {
       });
     } catch (error) {
       console.error("删除卡片失败", error);
+    }
+  });
+
+  const handlePodcastSuccess = useMemoizedFn(
+    async (
+      audioUrl: string,
+      script: string,
+      duration: number,
+      speakers: {
+        name: string;
+        voiceId: string;
+        voiceName: string;
+        role: SpeakerRole;
+      }[],
+    ) => {
+      try {
+        // 创建播客记录
+        const podcast = await createPodcast({
+          audioUrl,
+          script,
+          duration,
+          speakers,
+        });
+
+        // 关联到卡片
+        await attachPodcastToCard(cardId, podcast.id);
+
+        // 刷新卡片数据
+        const updatedCard = await getCardById(cardId);
+        if (updatedCard) {
+          setEditingCard(updatedCard);
+        }
+
+        message.success("播客已添加到卡片");
+      } catch (error) {
+        console.error("保存播客失败:", error);
+        message.error("保存播客失败");
+      }
+    },
+  );
+
+  const handleDeletePodcast = useMemoizedFn(async () => {
+    if (!editingCard?.podcastId) return;
+
+    try {
+      // 解除卡片关联
+      await detachPodcastFromCard(cardId);
+
+      // 删除播客记录（会自动减少引用计数）
+      await deletePodcast(editingCard.podcastId);
+
+      // 刷新卡片数据
+      const updatedCard = await getCardById(cardId);
+      if (updatedCard) {
+        setEditingCard(updatedCard);
+      }
+
+      message.success("播客已删除");
+    } catch (error) {
+      console.error("删除播客失败:", error);
+      message.error("删除播客失败");
     }
   });
 
@@ -326,6 +398,8 @@ const EditCard = (props: IEditCardProps) => {
 
       if (key === "presentation") {
         setPresentationMode(true);
+      } else if (key === "generate-podcast") {
+        setPodcastModalOpen(true);
       } else if (key === "open-window") {
         openCardInNewWindow(databaseName, editingCard.id);
         navigate("/cards/list");
@@ -372,6 +446,10 @@ const EditCard = (props: IEditCardProps) => {
       {
         key: "presentation",
         label: "演示模式",
+      },
+      {
+        key: "generate-podcast",
+        label: "生成播客",
       },
       {
         key: "open-window",
@@ -447,6 +525,14 @@ const EditCard = (props: IEditCardProps) => {
         </div>
         <div className="flex-1 w-full overflow-auto">
           <div className="w-full px-5 box-border mx-auto max-w-[min(100%,800px)]">
+            {/* 播客播放器 */}
+            {editingCard.podcast && (
+              <PodcastPlayer
+                podcast={editingCard.podcast}
+                onDelete={handleDeletePodcast}
+              />
+            )}
+
             <ErrorBoundary>
               <Editor
                 key={editingCard.id}
@@ -527,6 +613,13 @@ const EditCard = (props: IEditCardProps) => {
           open={exportModalOpen}
           onClose={() => setExportModalOpen(false)}
           content={editingCard.content}
+        />
+
+        <PodcastGenerationModal
+          open={podcastModalOpen}
+          cardContent={editingCard.content}
+          onSuccess={handlePodcastSuccess}
+          onCancel={() => setPodcastModalOpen(false)}
         />
       </div>
     </EditCardContext.Provider>

@@ -1,4 +1,5 @@
 import { Descendant } from "slate";
+import { IPodcast } from "./podcast";
 
 export enum ECardCategory {
   Temporary = "temporary",
@@ -18,6 +19,8 @@ export interface ICard {
   count: number;
   contentId: number;
   isTop: boolean;
+  podcastId?: number;
+  podcast?: IPodcast;
 }
 
 export type ICreateCard = Omit<
