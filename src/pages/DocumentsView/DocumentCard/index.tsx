@@ -43,6 +43,7 @@ const DocumentCard = (props: DocumentCardProps) => {
     deleteShortcut: deleteShortcutById,
     loaded,
     loadShortcuts,
+    items: shortcuts,
   } = useShortcutStore();
 
   // 加载快捷方式
@@ -59,7 +60,7 @@ const DocumentCard = (props: DocumentCardProps) => {
       scope: "item",
       resourceId: document.id,
     });
-  }, [findShortcut, document.id]);
+  }, [findShortcut, document.id, shortcuts]);
 
   const handleDeleteDocument = () => {
     Modal.confirm({

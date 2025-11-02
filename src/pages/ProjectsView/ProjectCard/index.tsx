@@ -56,6 +56,7 @@ const ProjectCard = (props: ProjectCardProps) => {
     deleteShortcut: deleteShortcutById,
     loaded,
     loadShortcuts,
+    items: shortcuts,
   } = useShortcutStore();
 
   // 加载快捷方式
@@ -72,7 +73,7 @@ const ProjectCard = (props: ProjectCardProps) => {
       scope: "item",
       resourceId: project.id,
     });
-  }, [findShortcut, project.id]);
+  }, [findShortcut, project.id, shortcuts]);
 
   const onClick = () => {
     navigate(`/projects/detail/${project.id}`);

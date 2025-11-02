@@ -127,6 +127,7 @@ const EditCard = (props: IEditCardProps) => {
     deleteShortcut,
     loaded,
     loadShortcuts,
+    items: shortcuts,
   } = useShortcutStore();
 
   // 加载快捷方式
@@ -144,7 +145,7 @@ const EditCard = (props: IEditCardProps) => {
       scope: "item",
       resourceId: editingCard.id,
     });
-  }, [findShortcut, editingCard]);
+  }, [findShortcut, editingCard, shortcuts]);
 
   const onContentChange = useMemoizedFn((content: Descendant[]) => {
     if (!readonly) {

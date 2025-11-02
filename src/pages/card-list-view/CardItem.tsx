@@ -89,6 +89,7 @@ const CardItem = memo(
       deleteShortcut,
       loaded,
       loadShortcuts,
+      items: shortcuts,
     } = useShortcutStore();
 
     const { content, tags, isTop, contentId } = card;
@@ -107,7 +108,7 @@ const CardItem = memo(
         scope: "item",
         resourceId: card.id,
       });
-    }, [findShortcut, card.id]);
+    }, [findShortcut, card.id, shortcuts]);
 
     useEditContent(contentId, (content) => {
       editorRef.current?.setEditorValue(content.slice(0, 3));
