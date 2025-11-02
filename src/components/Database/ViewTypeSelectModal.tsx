@@ -1,7 +1,12 @@
 import React, { memo, useState } from "react";
 import { Modal, Input, Form, Select } from "antd";
 import classNames from "classnames";
-import { MdTableChart, MdViewModule, MdCalendarToday } from "react-icons/md";
+import {
+  MdTableChart,
+  MdViewModule,
+  MdCalendarToday,
+  MdViewKanban,
+} from "react-icons/md";
 import { DataTableViewType } from "@/types";
 
 interface ViewType {
@@ -19,6 +24,7 @@ interface ViewTypeSelectModalProps {
     type: DataTableViewType,
     name: string,
     dateColumnId?: string,
+    groupColumnId?: string,
   ) => void;
   columns: Array<{ id: string; title: string; type: string }>;
   theme: "light" | "dark";
@@ -29,11 +35,19 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
     const [selectedType, setSelectedType] = useState<DataTableViewType | null>(
       null,
     );
-    const [form] = Form.useForm<{ name: string; dateColumnId?: string }>();
+    const [form] = Form.useForm<{
+      name: string;
+      dateColumnId?: string;
+      groupColumnId?: string;
+    }>();
 
     // 检查是否有日期列
     const dateColumns = columns.filter((col) => col.type === "date");
     const hasDateColumn = dateColumns.length > 0;
+
+    // 检查是否有单选列
+    const selectColumns = columns.filter((col) => col.type === "select");
+    const hasSelectColumn = selectColumns.length > 0;
 
     // 动态生成视图类型列表
     const viewTypes: ViewType[] = [
@@ -54,6 +68,13 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
         disabled: !hasDateColumn,
         disabledReason: "需要至少一个日期列",
       },
+      {
+        type: "kanban",
+        name: "看板",
+        icon: <MdViewKanban />,
+        disabled: !hasSelectColumn,
+        disabledReason: "需要至少一个单选列",
+      },
     ];
 
     const handleSelectType = (type: DataTableViewType) => {
@@ -64,7 +85,12 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
       if (!selectedType) return;
       try {
         const values = await form.validateFields();
-        onConfirm(selectedType, values.name, values.dateColumnId);
+        onConfirm(
+          selectedType,
+          values.name,
+          values.dateColumnId,
+          values.groupColumnId,
+        );
         form.resetFields();
         setSelectedType(null);
       } catch (error) {
@@ -90,7 +116,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
         okButtonProps={{ disabled: !selectedType }}
       >
         <div className="py-4">
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-2 gap-4 mb-6">
             {viewTypes.map((viewType) => (
               <div
                 key={viewType.type}
@@ -172,6 +198,24 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                   <Select
                     placeholder="选择用于日历的日期列"
                     options={dateColumns.map((col) => ({
+                      label: col.title,
+                      value: col.id,
+                    }))}
+                  />
+                </Form.Item>
+              )}
+
+              {selectedType === "kanban" && (
+                <Form.Item
+                  label="分组列"
+                  name="groupColumnId"
+                  rules={[
+                    { required: true, message: "请选择单选列作为分组依据" },
+                  ]}
+                >
+                  <Select
+                    placeholder="选择用于看板分组的单选列"
+                    options={selectColumns.map((col) => ({
                       label: col.title,
                       value: col.id,
                     }))}

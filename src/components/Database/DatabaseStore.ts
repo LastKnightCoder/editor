@@ -74,6 +74,7 @@ interface TableState {
   setCalendarConfig: (
     calendarConfig: TableViewConfig["calendarConfig"],
   ) => void;
+  setKanbanConfig: (kanbanConfig: TableViewConfig["kanbanConfig"]) => void;
 }
 
 const cloneFilters = (
@@ -500,6 +501,15 @@ export const createDatabaseStore = (
             groupBy: config.groupBy ?? null,
             sorts: [...config.sorts],
             filters: cloneFilters(config.filters ?? null),
+            galleryConfig: config.galleryConfig
+              ? { ...config.galleryConfig }
+              : undefined,
+            calendarConfig: config.calendarConfig
+              ? { ...config.calendarConfig }
+              : undefined,
+            kanbanConfig: config.kanbanConfig
+              ? { ...config.kanbanConfig }
+              : undefined,
           };
         }),
       );
@@ -539,6 +549,15 @@ export const createDatabaseStore = (
         produce<TableState>((state: TableState) => {
           state.viewConfig.calendarConfig = calendarConfig
             ? { ...calendarConfig }
+            : undefined;
+        }),
+      );
+    },
+    setKanbanConfig: (kanbanConfig) => {
+      set(
+        produce<TableState>((state: TableState) => {
+          state.viewConfig.kanbanConfig = kanbanConfig
+            ? { ...kanbanConfig }
             : undefined;
         }),
       );

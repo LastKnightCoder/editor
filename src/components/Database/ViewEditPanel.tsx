@@ -1,7 +1,12 @@
 import React, { memo, useState, useEffect } from "react";
 import { Input, Form, Radio, Select, Space, Button } from "antd";
 import { DataTableView, DataTableViewType } from "@/types";
-import { ColumnDef, GalleryViewConfig, CalendarViewConfig } from "./types";
+import {
+  ColumnDef,
+  GalleryViewConfig,
+  CalendarViewConfig,
+  KanbanViewConfig,
+} from "./types";
 import { useMemoizedFn } from "ahooks";
 
 interface ViewEditPanelProps {
@@ -13,6 +18,7 @@ interface ViewEditPanelProps {
     type: DataTableViewType,
     galleryConfig?: GalleryViewConfig,
     calendarConfig?: CalendarViewConfig,
+    kanbanConfig?: KanbanViewConfig,
   ) => void;
   onClose: () => void;
 }
@@ -25,6 +31,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       coverType: "detail" | "image";
       coverImageColumnId?: string;
       dateColumnId?: string;
+      groupColumnId?: string;
     }>();
 
     const [viewType, setViewType] = useState<DataTableViewType>("table");
@@ -33,12 +40,14 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
       if (view) {
         const galleryConfig = view.config.galleryConfig;
         const calendarConfig = view.config.calendarConfig;
+        const kanbanConfig = view.config.kanbanConfig;
         form.setFieldsValue({
           name: view.name,
           type: view.type,
           coverType: galleryConfig?.coverType || "detail",
           coverImageColumnId: galleryConfig?.coverImageColumnId,
           dateColumnId: calendarConfig?.dateColumnId,
+          groupColumnId: kanbanConfig?.groupColumnId,
         });
         setViewType(view.type);
       }
@@ -63,12 +72,20 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
               }
             : undefined;
 
+        const kanbanConfig: KanbanViewConfig | undefined =
+          values.type === "kanban"
+            ? {
+                groupColumnId: values.groupColumnId!,
+              }
+            : undefined;
+
         onConfirm(
           view.id,
           values.name,
           values.type,
           galleryConfig,
           calendarConfig,
+          kanbanConfig,
         );
         onClose();
       } catch (error) {
@@ -78,6 +95,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
 
     const imageColumns = columns.filter((col) => col.type === "image");
     const dateColumns = columns.filter((col) => col.type === "date");
+    const selectColumns = columns.filter((col) => col.type === "select");
 
     if (!view) return null;
 
@@ -98,6 +116,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 <Radio value="table">表格</Radio>
                 <Radio value="gallery">画廊</Radio>
                 <Radio value="calendar">日历</Radio>
+                <Radio value="kanban">看板</Radio>
               </Space>
             </Radio.Group>
           </Form.Item>
@@ -160,6 +179,36 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
               {dateColumns.length === 0 && (
                 <div className="text-sm text-gray-500 -mt-2 mb-2">
                   请先添加一个日期类型的列
+                </div>
+              )}
+            </>
+          )}
+
+          {viewType === "kanban" && (
+            <>
+              <Form.Item
+                label="分组列"
+                name="groupColumnId"
+                rules={[
+                  { required: true, message: "请选择单选列作为分组依据" },
+                ]}
+              >
+                <Select
+                  placeholder={
+                    selectColumns.length === 0
+                      ? "无单选列"
+                      : "选择用于看板分组的单选列"
+                  }
+                  disabled={selectColumns.length === 0}
+                  options={selectColumns.map((col) => ({
+                    label: col.title,
+                    value: col.id,
+                  }))}
+                />
+              </Form.Item>
+              {selectColumns.length === 0 && (
+                <div className="text-sm text-gray-500 -mt-2 mb-2">
+                  请先添加一个单选类型的列
                 </div>
               )}
             </>

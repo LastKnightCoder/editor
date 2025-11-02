@@ -76,9 +76,10 @@ export interface DatabaseProps {
     viewId: number,
     updates: {
       name?: string;
-      type?: "table" | "gallery" | "calendar";
+      type?: "table" | "gallery" | "calendar" | "kanban";
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
+      kanbanConfig?: KanbanViewConfig;
     },
   ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
@@ -96,6 +97,11 @@ export interface CalendarViewConfig {
   dateColumnId?: string;
 }
 
+export interface KanbanViewConfig {
+  groupColumnId: string;
+  columnOrder?: string[];
+}
+
 export interface TableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
@@ -104,6 +110,7 @@ export interface TableViewConfig {
   filters?: FilterGroup | null;
   galleryConfig?: GalleryViewConfig;
   calendarConfig?: CalendarViewConfig;
+  kanbanConfig?: KanbanViewConfig;
 }
 
 export interface CellPlugin<T> {

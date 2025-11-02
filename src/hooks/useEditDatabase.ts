@@ -64,6 +64,7 @@ const useEditDatabase = (tableId?: number) => {
         filters: config.filters ?? null,
         galleryConfig: config.galleryConfig,
         calendarConfig: config.calendarConfig,
+        kanbanConfig: config.kanbanConfig,
       },
     });
     if (updated) {
@@ -111,6 +112,7 @@ const useEditDatabase = (tableId?: number) => {
       return null;
     });
     if (!result) return;
+
     setActiveViewId(viewId);
   });
 
@@ -157,13 +159,17 @@ const useEditDatabase = (tableId?: number) => {
       viewId: number,
       updates: {
         name?: string;
-        type?: "table" | "gallery" | "calendar";
+        type?: "table" | "gallery" | "calendar" | "kanban";
         galleryConfig?: {
           coverType: "detail" | "image";
           coverImageColumnId?: string;
         };
         calendarConfig?: {
           dateColumnId?: string;
+        };
+        kanbanConfig?: {
+          groupColumnId: string;
+          columnOrder?: string[];
         };
       },
     ) => {
@@ -173,7 +179,7 @@ const useEditDatabase = (tableId?: number) => {
       // 确定最终的类型
       const finalType = updates.type ?? target.type;
 
-      // 根据类型决定 galleryConfig
+      // 根据类型决定各种配置
       const finalConfig = {
         ...target.config,
         galleryConfig:
@@ -183,6 +189,10 @@ const useEditDatabase = (tableId?: number) => {
         calendarConfig:
           finalType === "calendar"
             ? (updates.calendarConfig ?? target.config.calendarConfig)
+            : undefined,
+        kanbanConfig:
+          finalType === "kanban"
+            ? (updates.kanbanConfig ?? target.config.kanbanConfig)
             : undefined,
       };
 

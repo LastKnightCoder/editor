@@ -20,7 +20,11 @@ import FilterPanel from "./FilterPanel";
 import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
 import { DataTableViewType } from "@/types";
-import type { GalleryViewConfig, CalendarViewConfig } from "./types";
+import type {
+  GalleryViewConfig,
+  CalendarViewConfig,
+  KanbanViewConfig,
+} from "./types";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 
@@ -35,6 +39,7 @@ interface ViewTabsProps {
     type: DataTableViewType,
     name: string,
     dateColumnId?: string,
+    groupColumnId?: string,
   ) => void;
   onDeleteView?: (viewId: number) => Promise<void>;
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
@@ -46,6 +51,7 @@ interface ViewTabsProps {
       type?: DataTableViewType;
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
+      kanbanConfig?: KanbanViewConfig;
     },
   ) => Promise<void>;
   onReorderViews?: (orderedIds: number[]) => Promise<void> | void;
@@ -70,6 +76,8 @@ interface ViewTabItemProps {
     name: string,
     type: DataTableViewType,
     galleryConfig?: GalleryViewConfig,
+    calendarConfig?: CalendarViewConfig,
+    kanbanConfig?: KanbanViewConfig,
   ) => Promise<void>;
 }
 
@@ -338,8 +346,13 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     });
 
     const handleCreateView = useMemoizedFn(
-      (type: DataTableViewType, name: string, dateColumnId?: string) => {
-        onCreateView?.(type, name, dateColumnId);
+      (
+        type: DataTableViewType,
+        name: string,
+        dateColumnId?: string,
+        groupColumnId?: string,
+      ) => {
+        onCreateView?.(type, name, dateColumnId, groupColumnId);
         setShowViewTypeSelect(false);
       },
     );
@@ -351,6 +364,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
         type: DataTableViewType,
         galleryConfig?: GalleryViewConfig,
         calendarConfig?: CalendarViewConfig,
+        kanbanConfig?: KanbanViewConfig,
       ) => {
         if (!onUpdateView) return;
         await onUpdateView(viewId, {
@@ -358,6 +372,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           type,
           galleryConfig,
           calendarConfig,
+          kanbanConfig,
         });
       },
     );

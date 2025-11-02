@@ -48,6 +48,11 @@ export interface CalendarViewConfig {
   dateColumnId?: string; // 用于日历显示的日期列ID
 }
 
+export interface KanbanViewConfig {
+  groupColumnId: string; // 用于分类的单选列ID
+  columnOrder?: string[]; // 看板列的显示顺序（选项ID数组）
+}
+
 export interface DataTableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
@@ -56,6 +61,7 @@ export interface DataTableViewConfig {
   groupBy?: GroupRule | null;
   galleryConfig?: GalleryViewConfig;
   calendarConfig?: CalendarViewConfig;
+  kanbanConfig?: KanbanViewConfig;
 }
 
 export interface DataTableView {
@@ -81,7 +87,7 @@ export type UpdateDataTableView = Omit<
   "createTime" | "updateTime"
 >;
 
-export type DataTableViewType = "table" | "gallery" | "calendar";
+export type DataTableViewType = "table" | "gallery" | "calendar" | "kanban";
 
 export type FilterLogicOperator = "and" | "or";
 
