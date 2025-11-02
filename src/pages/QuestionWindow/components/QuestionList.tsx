@@ -23,6 +23,7 @@ const QuestionList = memo(
     onReorder,
     onOpenAnswer,
     onDeleteAnswer,
+    onUpdateStatus,
   }: QuestionListProps) => {
     const allQuestionIds = useMemo(
       () => questions.map((q) => q.id),
@@ -48,6 +49,7 @@ const QuestionList = memo(
             onReorder={onReorder}
             onOpenAnswer={onOpenAnswer}
             onDeleteAnswer={onDeleteAnswer}
+            onUpdateStatus={onUpdateStatus}
           />
         ))}
       </div>

@@ -9,6 +9,7 @@ export interface IQuestion {
   groupId: number;
   sortIndex: number;
   resolvedTime?: number | null;
+  status: "not_started" | "in_progress" | "resolved";
 }
 
 export interface IAnswer {

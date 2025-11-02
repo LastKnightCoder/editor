@@ -81,7 +81,7 @@ const QuestionWindowPage = () => {
     if (activeGroupId != null) {
       loadItems(activeGroupId);
     }
-  }, [activeGroupId, loadItems]);
+  }, [activeGroupId, filter, loadItems]);
 
   const { run: scheduleReorder } = useThrottleFn(
     async (ids: number[]) => {
@@ -92,26 +92,19 @@ const QuestionWindowPage = () => {
 
   const displayItems = useMemo(() => {
     if (activeGroupId == null) return [];
+    // 后端 loadItems 已经根据 filter 筛选过了，这里只需要处理搜索
     const items = itemsByGroup[activeGroupId] || [];
 
-    // 筛选
-    let filtered = items;
-    if (filter === "answered") {
-      filtered = items.filter((q) => q.answers.length > 0);
-    } else if (filter === "unanswered") {
-      filtered = items.filter((q) => q.answers.length === 0);
-    }
-
-    // 搜索
+    // 搜索筛选
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter((q) =>
+      return items.filter((q) =>
         q.questionContent.toLowerCase().includes(query),
       );
     }
 
-    return filtered;
-  }, [itemsByGroup, activeGroupId, filter, searchQuery]);
+    return items;
+  }, [itemsByGroup, activeGroupId, searchQuery]);
 
   // 加载答案的标题和类型
   useEffect(() => {
@@ -276,6 +269,13 @@ const QuestionWindowPage = () => {
     }
   };
 
+  const handleUpdateStatus = async (
+    id: number,
+    status: "not_started" | "in_progress" | "resolved",
+  ) => {
+    await useQuestionStore.getState().updateQuestionStatus(id, status);
+  };
+
   return (
     <DndProvider>
       <div className="flex w-full h-full overflow-hidden bg-[var(--main-bg-color)]">
@@ -331,6 +331,7 @@ const QuestionWindowPage = () => {
                   onReorder={scheduleReorder}
                   onOpenAnswer={handleOpenAnswer}
                   onDeleteAnswer={handleDeleteAnswer}
+                  onUpdateStatus={handleUpdateStatus}
                 />
               </div>
             </>

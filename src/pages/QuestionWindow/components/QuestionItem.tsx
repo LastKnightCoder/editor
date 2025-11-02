@@ -26,6 +26,10 @@ export interface QuestionItemHandlers {
   onReorder: (orderedIds: number[]) => void;
   onOpenAnswer: (questionId: number, answerId: number) => void;
   onDeleteAnswer: (questionId: number, answerId: number) => void;
+  onUpdateStatus: (
+    id: number,
+    status: "not_started" | "in_progress" | "resolved",
+  ) => void;
 }
 
 interface QuestionItemProps extends QuestionItemHandlers {
@@ -70,6 +74,7 @@ const QuestionItem = memo(
     onReorder,
     onOpenAnswer,
     onDeleteAnswer,
+    onUpdateStatus,
   }: QuestionItemProps) => {
     const { isDark } = useTheme();
     const { modal } = App.useApp();
@@ -132,6 +137,30 @@ const QuestionItem = memo(
         key: "select-answer",
         label: "选择答案",
         onClick: () => onOpenSelectAnswer(q.id),
+      },
+      {
+        key: "status",
+        label: "设置状态",
+        children: [
+          {
+            key: "status-not-started",
+            label: "未开始",
+            onClick: () => onUpdateStatus(q.id, "not_started"),
+            disabled: q.status === "not_started",
+          },
+          {
+            key: "status-in-progress",
+            label: "进行中",
+            onClick: () => onUpdateStatus(q.id, "in_progress"),
+            disabled: q.status === "in_progress",
+          },
+          {
+            key: "status-resolved",
+            label: "已解决",
+            onClick: () => onUpdateStatus(q.id, "resolved"),
+            disabled: q.status === "resolved" || q.answers.length === 0,
+          },
+        ],
       },
       {
         type: "divider" as const,
