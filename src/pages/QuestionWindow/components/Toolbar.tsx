@@ -4,7 +4,13 @@ import { MdAdd } from "react-icons/md";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import useTheme from "@/hooks/useTheme";
 
-export type QuestionFilter = "all" | "answered" | "unanswered";
+export type QuestionFilter =
+  | "all"
+  | "answered"
+  | "unanswered"
+  | "not_started"
+  | "in_progress"
+  | "resolved";
 
 interface ToolbarProps {
   groupTitle: string;
@@ -41,14 +47,19 @@ const Toolbar = memo(
         active: filter === "all",
       },
       {
-        label: "已回答",
-        value: "answered" as const,
-        active: filter === "answered",
+        label: "未开始",
+        value: "not_started" as const,
+        active: filter === "not_started",
       },
       {
-        label: "未回答",
-        value: "unanswered" as const,
-        active: filter === "unanswered",
+        label: "进行中",
+        value: "in_progress" as const,
+        active: filter === "in_progress",
+      },
+      {
+        label: "已解决",
+        value: "resolved" as const,
+        active: filter === "resolved",
       },
     ];
 

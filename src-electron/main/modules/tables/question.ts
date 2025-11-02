@@ -22,6 +22,7 @@ export default class QuestionTable {
       "question:list-by-group": this.listByGroup.bind(this),
       "question:reorder": this.reorderQuestions.bind(this),
       "question:move-to-group": this.moveToGroup.bind(this),
+      "question:update-status": this.updateQuestionStatus.bind(this),
     };
   }
 
@@ -35,7 +36,8 @@ export default class QuestionTable {
         answers TEXT DEFAULT '[]',
         group_id INTEGER,
         sort_index INTEGER NOT    NULL DEFAULT 0,
-        resolved_time INTEGER
+        resolved_time INTEGER,
+        status TEXT NOT NULL DEFAULT 'not_started'
       )
     `;
     db.exec(createTableSql);
@@ -49,6 +51,7 @@ export default class QuestionTable {
     const hasGroupId = tableInfo.some((c) => c.name === "group_id");
     const hasSortIndex = tableInfo.some((c) => c.name === "sort_index");
     const hasResolvedTime = tableInfo.some((c) => c.name === "resolved_time");
+    const hasStatus = tableInfo.some((c) => c.name === "status");
 
     if (!hasGroupId) {
       db.exec(`ALTER TABLE questions ADD COLUMN group_id INTEGER`);
@@ -60,6 +63,35 @@ export default class QuestionTable {
     }
     if (!hasResolvedTime) {
       db.exec(`ALTER TABLE questions ADD COLUMN resolved_time INTEGER`);
+    }
+    if (!hasStatus) {
+      db.exec(
+        `ALTER TABLE questions ADD COLUMN status TEXT NOT NULL DEFAULT 'not_started'`,
+      );
+
+      // 回填 status（仅在首次添加列时执行一次）
+      // 有答案的标记为 resolved，没有答案的保持 not_started
+      const questionsForStatus = db
+        .prepare(`SELECT * FROM questions`)
+        .all() as {
+        id: number;
+        answers: string;
+      }[];
+      const updStatus = db.prepare(
+        `UPDATE questions SET status = ?, update_time = ? WHERE id = ?`,
+      );
+      const statusNow = Date.now();
+      questionsForStatus.forEach((q) => {
+        try {
+          const answers: number[] = JSON.parse(q.answers || "[]");
+          if (answers && answers.length > 0) {
+            updStatus.run("resolved", statusNow, q.id);
+          }
+          // 没有答案的已经是 not_started（默认值），不需要更新
+        } catch (e) {
+          // ignore
+        }
+      });
     }
 
     // 索引
@@ -74,6 +106,9 @@ export default class QuestionTable {
     );
     db.exec(
       `CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_time);`,
+    );
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);`,
     );
 
     // 保障默认分组与回填 group_id
@@ -139,6 +174,7 @@ export default class QuestionTable {
       groupId: question.group_id,
       sortIndex: question.sort_index,
       resolvedTime: question.resolved_time ?? null,
+      status: question.status || "not_started",
     };
   }
 
@@ -182,7 +218,7 @@ export default class QuestionTable {
       const nextSortIndex = (maxSort?.max_idx ?? 0) + 1024;
 
       const stmt = db.prepare(
-        "INSERT INTO questions (create_time, update_time, question_content, answers, group_id, sort_index) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO questions (create_time, update_time, question_content, answers, group_id, sort_index, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
       );
       const res = stmt.run(
         now,
@@ -191,6 +227,7 @@ export default class QuestionTable {
         JSON.stringify([]),
         groupId,
         nextSortIndex,
+        "not_started",
       );
       const createdQuestionId = res.lastInsertRowid;
       const createdQuestion = this.getQuestionById(
@@ -276,10 +313,12 @@ export default class QuestionTable {
 
     const now = Date.now();
     if (wasEmpty) {
-      // 首次添加答案，写入 resolved_time
+      // 首次添加答案，写入 resolved_time，并将状态从 not_started 改为 in_progress
+      const newStatus =
+        question.status === "not_started" ? "in_progress" : question.status;
       db.prepare(
-        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = ? WHERE id = ?",
-      ).run(now, JSON.stringify(question.answers), now, questionId);
+        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = ?, status = ? WHERE id = ?",
+      ).run(now, JSON.stringify(question.answers), now, newStatus, questionId);
     } else {
       db.prepare(
         "UPDATE questions SET update_time = ?, answers = ? WHERE id = ?",
@@ -301,9 +340,10 @@ export default class QuestionTable {
     ContentTable.deleteContent(db, answerId);
     const now = Date.now();
     if (question.answers.length === 0) {
+      // 删除所有答案后，状态自动变为 not_started
       db.prepare(
-        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = NULL WHERE id = ?",
-      ).run(now, JSON.stringify(question.answers), questionId);
+        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = NULL, status = ? WHERE id = ?",
+      ).run(now, JSON.stringify(question.answers), "not_started", questionId);
     } else {
       db.prepare(
         "UPDATE questions SET update_time = ?, answers = ? WHERE id = ?",
@@ -332,9 +372,10 @@ export default class QuestionTable {
     question.answers = answers;
     const now = Date.now();
     if (answers.length === 0) {
+      // 删除所有答案后，状态自动变为 not_started
       db.prepare(
-        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = NULL WHERE id = ?",
-      ).run(now, JSON.stringify(question.answers), questionId);
+        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = NULL, status = ? WHERE id = ?",
+      ).run(now, JSON.stringify(question.answers), "not_started", questionId);
     } else {
       // 若此前没有 resolved_time，这里回填最早答案时间
       const cur = db
@@ -387,13 +428,33 @@ export default class QuestionTable {
   static listByGroup(
     db: Database.Database,
     groupId: number,
-    filter: "all" | "answered" | "unanswered" = "all",
+    filter:
+      | "all"
+      | "answered"
+      | "unanswered"
+      | "not_started"
+      | "in_progress"
+      | "resolved" = "all",
     search?: string,
   ): IQuestion[] {
     const conditions: string[] = ["group_id = ?"];
     const params: unknown[] = [groupId];
+    // 兼容旧的 filter 值
     if (filter === "answered") conditions.push("answers <> '[]'");
     if (filter === "unanswered") conditions.push("answers = '[]'");
+    // 新的状态 filter
+    if (filter === "not_started") {
+      conditions.push("status = ?");
+      params.push("not_started");
+    }
+    if (filter === "in_progress") {
+      conditions.push("status = ?");
+      params.push("in_progress");
+    }
+    if (filter === "resolved") {
+      conditions.push("status = ?");
+      params.push("resolved");
+    }
     if (search && search.trim()) {
       conditions.push("question_content LIKE ?");
       params.push(`%${search}%`);
@@ -412,6 +473,7 @@ export default class QuestionTable {
       group_id: number;
       sort_index: number;
       resolved_time: number | null;
+      status: string;
     }[];
     return rows.map((q) => this.parseQuestion(q));
   }
@@ -441,5 +503,29 @@ export default class QuestionTable {
       `UPDATE questions SET group_id = ?, update_time = ? WHERE id = ?`,
     ).run(params.toGroupId, now, params.id);
     return this.getQuestionById(db, params.id) as IQuestion;
+  }
+
+  static updateQuestionStatus(
+    db: Database.Database,
+    questionId: number,
+    status: string,
+  ): IQuestion {
+    const question = this.getQuestionById(db, questionId);
+    if (!question) {
+      throw new Error("Question not found");
+    }
+    // 只有有答案时才能标记为 resolved
+    if (status === "resolved" && question.answers.length === 0) {
+      throw new Error("Cannot mark question as resolved without answers");
+    }
+    // 验证状态值
+    if (!["not_started", "in_progress", "resolved"].includes(status)) {
+      throw new Error("Invalid status value");
+    }
+    const now = Date.now();
+    db.prepare(
+      `UPDATE questions SET status = ?, update_time = ? WHERE id = ?`,
+    ).run(status, now, questionId);
+    return this.getQuestionById(db, questionId) as IQuestion;
   }
 }

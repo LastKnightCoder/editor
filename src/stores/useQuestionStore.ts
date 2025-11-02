@@ -21,9 +21,16 @@ import {
   addAnswer,
   createAnswer,
   deleteAnswer,
+  updateQuestionStatus as apiUpdateQuestionStatus,
 } from "@/commands/question";
 
-export type QuestionFilter = "all" | "answered" | "unanswered";
+export type QuestionFilter =
+  | "all"
+  | "answered"
+  | "unanswered"
+  | "not_started"
+  | "in_progress"
+  | "resolved";
 
 interface QuestionGroup {
   id: number;
@@ -84,6 +91,10 @@ interface QuestionState {
   addAnswerNew: (questionId: number, content: Descendant[]) => Promise<void>;
   addAnswerSelect: (questionId: number, contentId: number) => Promise<void>;
   deleteAnswer: (questionId: number, answerId: number) => Promise<void>;
+  updateQuestionStatus: (
+    id: number,
+    status: "not_started" | "in_progress" | "resolved",
+  ) => Promise<void>;
 }
 
 export const useQuestionStore = create<QuestionState>()(
@@ -198,12 +209,12 @@ export const useQuestionStore = create<QuestionState>()(
     },
 
     loadItems: async (groupId) => {
-      const { filter, searchQuery } = get();
+      const { filter } = get();
       set((s) => ({ loading: { ...s.loading, items: true } }));
       const items = await listQuestionsByGroup({
         groupId,
         filter,
-        search: searchQuery,
+        search: "", // 搜索在前端处理，避免频繁请求
       });
       set((s) => ({
         itemsByGroup: { ...s.itemsByGroup, [groupId]: items },
@@ -278,6 +289,13 @@ export const useQuestionStore = create<QuestionState>()(
 
     deleteAnswer: async (questionId, answerId) => {
       await deleteAnswer(questionId, answerId);
+      const gid = get().activeGroupId;
+      if (gid != null) await get().loadItems(gid);
+      await get().loadGroupStats();
+    },
+
+    updateQuestionStatus: async (id, status) => {
+      await apiUpdateQuestionStatus(id, status);
       const gid = get().activeGroupId;
       if (gid != null) await get().loadItems(gid);
       await get().loadGroupStats();

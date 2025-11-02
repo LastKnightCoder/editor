@@ -70,7 +70,13 @@ export async function getNoAnswerQuestions(): Promise<IQuestion[]> {
 
 export async function listQuestionsByGroup(params: {
   groupId: number;
-  filter?: "all" | "answered" | "unanswered";
+  filter?:
+    | "all"
+    | "answered"
+    | "unanswered"
+    | "not_started"
+    | "in_progress"
+    | "resolved";
   search?: string;
 }): Promise<IQuestion[]> {
   return invoke(
@@ -90,4 +96,11 @@ export async function moveQuestionToGroup(
   toGroupId: number,
 ): Promise<IQuestion> {
   return invoke("question:move-to-group", { id, toGroupId });
+}
+
+export async function updateQuestionStatus(
+  questionId: number,
+  status: "not_started" | "in_progress" | "resolved",
+): Promise<IQuestion> {
+  return invoke("question:update-status", questionId, status);
 }
