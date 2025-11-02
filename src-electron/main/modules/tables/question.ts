@@ -270,10 +270,20 @@ export default class QuestionTable {
   }
 
   static getNoAnswerQuestions(db: Database.Database): IQuestion[] {
-    // 获取所有的问题，没有答案的排在最上面，有答案的排在下面
+    // 获取所有未解决的问题（not_started 和 in_progress），按状态和创建时间排序
+    // not_started 排在最前面，in_progress 其次
     const questions = db
       .prepare(
-        "SELECT * FROM questions WHERE answers = '[]' ORDER BY sort_index ASC, create_time ASC",
+        `SELECT * FROM questions 
+         WHERE status != 'resolved' 
+         ORDER BY 
+           CASE status 
+             WHEN 'not_started' THEN 1 
+             WHEN 'in_progress' THEN 2 
+             ELSE 3 
+           END,
+           sort_index ASC, 
+           create_time ASC`,
       )
       .all();
     return questions.map((question) => this.parseQuestion(question));
