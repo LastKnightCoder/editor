@@ -229,6 +229,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     deleteShortcut,
     loaded,
     loadShortcuts,
+    items: shortcuts,
   } = useShortcutStore();
 
   const setting = useSettingStore.getState().setting;
@@ -256,7 +257,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       resourceId: projectId,
       projectItemId: projectItem.id,
     });
-  }, [findShortcut, projectId, projectItem]);
+  }, [findShortcut, projectId, projectItem, shortcuts]);
 
   const onChildOpenChange = useMemoizedFn((open: boolean) => {
     if (open) {

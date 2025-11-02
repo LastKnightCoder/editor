@@ -24,6 +24,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     deleteShortcut,
     loaded,
     loadShortcuts,
+    items: shortcuts,
   } = useShortcutStore();
 
   // 加载快捷方式
@@ -40,7 +41,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
       scope: "item",
       resourceId: document.id,
     });
-  }, [findShortcut, document.id]);
+  }, [findShortcut, document.id, shortcuts]);
 
   return (
     <div

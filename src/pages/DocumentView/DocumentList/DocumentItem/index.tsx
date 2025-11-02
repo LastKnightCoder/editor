@@ -133,6 +133,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
     deleteShortcut,
     loaded,
     loadShortcuts,
+    items: shortcuts,
   } = useShortcutStore();
 
   // 加载快捷方式
@@ -151,7 +152,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
       resourceId: documentId,
       documentItemId: item.id,
     });
-  }, [findShortcut, documentId, item]);
+  }, [findShortcut, documentId, item, shortcuts]);
 
   useEffect(() => {
     if (activeDocumentItemId === itemId) {

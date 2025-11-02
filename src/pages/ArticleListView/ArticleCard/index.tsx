@@ -100,6 +100,7 @@ const ArticleCard = (props: IArticleCardProps) => {
     deleteShortcut,
     loaded,
     loadShortcuts,
+    items: shortcuts,
   } = useShortcutStore();
 
   useEditContent(article.contentId, (content) => {
@@ -120,7 +121,7 @@ const ArticleCard = (props: IArticleCardProps) => {
       scope: "item",
       resourceId: article.id,
     });
-  }, [findShortcut, article.id]);
+  }, [findShortcut, article.id, shortcuts]);
 
   const currentDatabaseName = useSettingStore(
     useShallow((state) => state.setting.database.active),
