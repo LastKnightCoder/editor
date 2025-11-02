@@ -13,6 +13,7 @@ import { DatabaseContext } from "./DatabaseContext";
 import TableView from "./views/TableView";
 import GalleryView from "./views/GalleryView";
 import CalendarView from "./views/CalendarView";
+import KanbanView from "./views/KanbanView";
 import ViewTabs from "./ViewTabs";
 
 const defaultPlugins: DatabaseProps["plugins"] = [];
@@ -55,6 +56,14 @@ const Database: React.FC<DatabaseProps> = memo(
     const finalTheme = theme || systemTheme;
 
     const { modal } = App.useApp();
+
+    // 当 activeViewId 改变时，更新 store 中的 viewConfig 为当前活动视图的配置
+    useEffect(() => {
+      const currentView = views.find((view) => view.id === activeViewId);
+      if (currentView && currentView.config) {
+        store.getState().setViewConfig(currentView.config);
+      }
+    }, [activeViewId, views, store]);
 
     useEffect(() => {
       const unsubscribe = store.subscribe((state, prevState) => {
@@ -118,7 +127,12 @@ const Database: React.FC<DatabaseProps> = memo(
     );
 
     const handleCreateView = useMemoizedFn(
-      async (type: string, name: string, dateColumnId?: string) => {
+      async (
+        type: string,
+        name: string,
+        dateColumnId?: string,
+        groupColumnId?: string,
+      ) => {
         const currentView = views.find((view) => view.id === activeViewId);
         if (!currentView) return;
         const nextOrder =
@@ -134,13 +148,21 @@ const Database: React.FC<DatabaseProps> = memo(
           };
         }
 
+        // 如果是看板视图，添加分组列配置
+        if (type === "kanban" && groupColumnId) {
+          config.kanbanConfig = {
+            groupColumnId,
+          };
+        }
+
         const result = await onCreateView?.({
           tableId: currentView.tableId,
-          type: type as "table" | "gallery" | "calendar",
+          type: type as "table" | "gallery" | "calendar" | "kanban",
           config,
           name,
           order: nextOrder,
         });
+
         if (result) {
           store.setState((prev) => ({
             ...prev,
@@ -151,6 +173,11 @@ const Database: React.FC<DatabaseProps> = memo(
           // 如果是日历视图，更新 store 中的 calendarConfig
           if (type === "calendar" && result.config.calendarConfig) {
             store.getState().setCalendarConfig(result.config.calendarConfig);
+          }
+
+          // 如果是看板视图，更新 store 中的 kanbanConfig
+          if (type === "kanban" && result.config.kanbanConfig) {
+            store.getState().setKanbanConfig(result.config.kanbanConfig);
           }
 
           onActiveViewIdChange?.(result.id);
@@ -197,13 +224,17 @@ const Database: React.FC<DatabaseProps> = memo(
         viewId: number,
         updates: {
           name?: string;
-          type?: "table" | "gallery" | "calendar";
+          type?: "table" | "gallery" | "calendar" | "kanban";
           galleryConfig?: {
             coverType: "detail" | "image";
             coverImageColumnId?: string;
           };
           calendarConfig?: {
             dateColumnId?: string;
+          };
+          kanbanConfig?: {
+            groupColumnId: string;
+            columnOrder?: string[];
           };
         },
       ) => {
@@ -226,6 +257,9 @@ const Database: React.FC<DatabaseProps> = memo(
           }
           if (updated.config.calendarConfig) {
             store.getState().setCalendarConfig(updated.config.calendarConfig);
+          }
+          if (updated.config.kanbanConfig) {
+            store.getState().setKanbanConfig(updated.config.kanbanConfig);
           }
         }
       },
@@ -275,6 +309,17 @@ const Database: React.FC<DatabaseProps> = memo(
       if (activeView.type === "calendar") {
         return (
           <CalendarView
+            key={activeView.id}
+            pluginManager={pluginMgr}
+            theme={finalTheme}
+            readonly={!!readonly}
+          />
+        );
+      }
+
+      if (activeView.type === "kanban") {
+        return (
+          <KanbanView
             key={activeView.id}
             pluginManager={pluginMgr}
             theme={finalTheme}

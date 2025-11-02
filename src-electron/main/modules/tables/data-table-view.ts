@@ -125,6 +125,14 @@ export default class DataTableViewTable {
             dateColumnId: config.calendarConfig.dateColumnId,
           }
         : undefined,
+      kanbanConfig: config?.kanbanConfig
+        ? {
+            groupColumnId: config.kanbanConfig.groupColumnId,
+            columnOrder: config.kanbanConfig.columnOrder
+              ? [...config.kanbanConfig.columnOrder]
+              : undefined,
+          }
+        : undefined,
     };
   }
 
