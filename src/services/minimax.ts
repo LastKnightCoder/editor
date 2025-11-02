@@ -484,12 +484,12 @@ function buildPodcastPrompt(
 
 要求：
 
-1. **对话风格**：自然流畅，真实生动，富有互动性和深度
+1. **对话风格**：自然流畅，真实生动，富有互动性和深度，表达尽量口语化，文本富有情绪化，比如惊讶，惊喜，担心，兴奋，愤怒，悲伤，喜悦，等等
 2. **说话人角色**：
 ${speakerInstructions}
 3. **对话长度**：${lengthGuidance}
 4. **格式要求**：每句话单独一行，格式严格为 "${speakers[0].name}: 内容"
-5. **互动性**：${conversationTips}
+5. **互动性**：${conversationTips}，不需要互相打招呼问好，但是需要和观众介绍自己
 6. **内容结构**：
    - 开场：主持人简短介绍主题和嘉宾（1-2 轮）
    - 主体：深入讨论材料中的核心内容（占 80%）
@@ -515,9 +515,10 @@ ${content}
 </context>
 
 请开始生成播客脚本。再次强调：
-1. 每次发言要较长且完整（50-100 字），包含完整观点
+1. 每次发言要较长且完整（50-100 字），包含完整观点，一个人发言不要拆分为多行发言，也就是不会出现一个人的连续发言
 2. 绝对不能包含任何括号内的描述，只生成纯对话文本
-3. 主持人提问要有引导性，嘉宾回答要详细充分`;
+3. 主持人提问要有引导性，嘉宾回答要详细充分
+4. 用户不知道材料的存在，也不知道材料的内容，不要在脚本中提及或引用材料内容，要通过自己的想法表达出来`;
 }
 
 /**
@@ -545,11 +546,20 @@ export function parseScript(
       continue;
     }
 
-    scriptLines.push({
-      speaker: speakerName,
-      text,
-      voiceId: speaker.voiceId,
-    });
+    // 检查是否与上一个说话人相同，如果相同则合并文本
+    const lastLine = scriptLines[scriptLines.length - 1];
+    if (lastLine && lastLine.speaker === speakerName) {
+      // 合并到上一条记录，添加空格分隔
+      lastLine.text += " " + text;
+      console.log(`检测到 ${speakerName} 连续发言，已自动合并`);
+    } else {
+      // 创建新记录
+      scriptLines.push({
+        speaker: speakerName,
+        text,
+        voiceId: speaker.voiceId,
+      });
+    }
   }
 
   return scriptLines;
