@@ -57,6 +57,7 @@ const PomodoroWindowPage: React.FC = () => {
     rightSidebarWidth,
     presets,
     refreshPresets,
+    refreshSummary,
     today,
     total,
   } = usePomodoroStore();
@@ -71,6 +72,36 @@ const PomodoroWindowPage: React.FC = () => {
     if (!isConnected) return;
     initPomodoro();
   }, [isConnected, initPomodoro]);
+
+  // 监听日期变化，在零点时刷新统计数据
+  useEffect(() => {
+    if (!isConnected) return;
+
+    let timeoutId: NodeJS.Timeout;
+
+    const scheduleNextRefresh = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+
+      timeoutId = setTimeout(() => {
+        // 刷新统计数据
+        refreshSummary();
+        // 递归调度下一次刷新
+        scheduleNextRefresh();
+      }, msUntilMidnight);
+    };
+
+    scheduleNextRefresh();
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isConnected, refreshSummary]);
 
   const start = useMemoizedFn(async (p: PomodoroPreset) => {
     const expected =
