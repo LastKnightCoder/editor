@@ -11,6 +11,7 @@ import {
   UpdateTodoItem,
   MoveAndReorderPayload,
 } from "@/types";
+import { Descendant } from "slate";
 import {
   listTodoGroups,
   createTodoGroup,
@@ -79,6 +80,11 @@ interface TodoState {
     dueAt?: number | null;
   }) => Promise<void>;
   updateItem: (payload: UpdateTodoItem) => Promise<void>;
+  updateItemDescriptionContent: (
+    todoId: number,
+    groupId: number,
+    content: Descendant[],
+  ) => void;
   toggleCompleteCascade: (id: number, isCompleted: boolean) => Promise<void>;
   moveAndReorder: (payload: MoveAndReorderPayload) => Promise<void>;
   archiveItem: (id: number, isArchived: boolean) => Promise<void>;
@@ -223,6 +229,17 @@ export const useTodoStore = create<TodoState>()(
         },
       }));
       await get().loadGroupStats();
+    },
+
+    updateItemDescriptionContent: (todoId, groupId, content) => {
+      set((s) => ({
+        itemsByGroupId: {
+          ...s.itemsByGroupId,
+          [groupId]: (s.itemsByGroupId[groupId] || []).map((x) =>
+            x.id === todoId ? { ...x, descriptionContent: content } : x,
+          ),
+        },
+      }));
     },
 
     toggleCompleteCascade: async (id, isCompleted) => {

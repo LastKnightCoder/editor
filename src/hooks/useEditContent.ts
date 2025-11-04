@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
 import { Descendant } from "slate";
-import { updateContent } from "@/commands";
+import { updateContent, getContentById } from "@/commands";
 import { useMemoizedFn, useCreation, useThrottleFn } from "ahooks";
 import { defaultContentEventBus, ContentEventData } from "@/utils";
+
+const DEFAULT_CONTENT: Descendant[] = [
+  {
+    type: "paragraph",
+    disableDrag: false,
+    children: [{ type: "formatted", text: "" }],
+  },
+];
 
 const useEditContent = (
   contentId: number | undefined,
@@ -12,7 +20,18 @@ const useEditContent = (
     () => defaultContentEventBus.createEditor(),
     [],
   );
-  const [content, setContent] = useState<Descendant[]>([]);
+  const [content, setContent] = useState<Descendant[]>(DEFAULT_CONTENT);
+
+  useEffect(() => {
+    if (!contentId) {
+      setContent(DEFAULT_CONTENT);
+    }
+    if (contentId) {
+      getContentById(contentId).then((content) => {
+        setContent(content?.content || DEFAULT_CONTENT);
+      });
+    }
+  }, [contentId]);
 
   const handleSubscribeContentUpdate = useMemoizedFn(
     (data: ContentEventData) => {
@@ -29,7 +48,7 @@ const useEditContent = (
       handleSubscribeContentUpdate,
     );
     return () => unSubscribe();
-  }, [contentId, contentEditor]);
+  }, [contentId, contentEditor, handleSubscribeContentUpdate]);
 
   const handleEditorContentChange = useMemoizedFn(
     async (content: Descendant[]) => {

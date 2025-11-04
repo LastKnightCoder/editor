@@ -1,3 +1,5 @@
+import { Descendant } from "slate";
+
 export interface TodoGroup {
   id: number;
   title: string;
@@ -13,7 +15,8 @@ export interface TodoItem {
   groupId: number;
   parentId: number | null;
   title: string;
-  description?: string;
+  descriptionContentId?: number | null;
+  descriptionContent?: Descendant[];
   isCompleted: boolean;
   dueAt?: number | null;
   completedAt?: number | null;
@@ -58,7 +61,7 @@ export interface CreateTodoItem {
 export interface UpdateTodoItem {
   id: number;
   title?: string;
-  description?: string | null;
+  descriptionContentId?: number | null;
   dueAt?: number | null;
 }
 
