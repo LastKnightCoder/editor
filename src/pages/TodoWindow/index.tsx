@@ -22,6 +22,7 @@ const TodoWindowPage = () => {
     activeGroupId,
     loadItems,
     reset,
+    activeTodoId,
   } = useTodoStore();
 
   useEffect(() => {
@@ -69,7 +70,7 @@ const TodoWindowPage = () => {
           minWidth={200}
           maxWidth={400}
         >
-          <DetailsPanel />
+          <DetailsPanel key={activeTodoId} />
         </ResizeableAndHideableSidebar>
       </div>
     </DndProvider>
