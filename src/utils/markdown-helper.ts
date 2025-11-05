@@ -27,13 +27,19 @@ export const getMarkdown = (value: Descendant[]): string => {
 };
 
 export const leafToMarkdown = (leaf: FormattedText): string => {
-  const { text, code, highlight, strikethrough, bold, italic } = leaf;
+  const {
+    text,
+    code,
+    highlight,
+    strikethrough,
+    bold,
+    italic,
+    color,
+    darkColor,
+  } = leaf;
   let str = text;
   if (code) {
     str = `\`${str}\``;
-  }
-  if (bold) {
-    str = `**${str}**`;
   }
   if (italic) {
     str = `*${str}*`;
@@ -43,6 +49,12 @@ export const leafToMarkdown = (leaf: FormattedText): string => {
   }
   if (highlight) {
     str = `==${str}==`;
+  }
+  if (bold) {
+    str = `\u200B**${str}**`;
+  }
+  if (color && darkColor) {
+    str = `:color[${str}]{color=${color} darkColor=${darkColor}}`;
   }
 
   return str;
