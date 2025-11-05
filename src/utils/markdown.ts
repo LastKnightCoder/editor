@@ -307,6 +307,28 @@ const markdownToDescendant = (
       text: node.value,
     };
   } else if (node.type === "textDirective") {
+    const attributes = node.attributes || {};
+    const color = attributes.color || "";
+    const darkColor = attributes.darkColor || "";
+    if (node.name === "color") {
+      const attributes = { color, darkColor };
+      return node.children
+        .map(markdownToDescendant)
+        .filter(Boolean)
+        .map((item: Descendant | Descendant[]) => {
+          if (Array.isArray(item)) {
+            return item
+              .map((i) => {
+                if (i.type !== "formatted") return undefined;
+                return { ...i, ...attributes };
+              })
+              .filter(Boolean) as Descendant[];
+          }
+          return { ...item, ...attributes };
+        })
+        .filter(Boolean)
+        .flat() as Descendant[];
+    }
     return {
       type: "formatted",
       text: `:${node.name}`,
