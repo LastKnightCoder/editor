@@ -52,9 +52,11 @@ export const useTimeSlotDrag = ({
       currentRangeRef.current = initialRange;
 
       const handleMouseMove = (moveEvent: globalThis.MouseEvent) => {
+        // 动态获取容器位置，以处理滚动情况
+        const currentContainerRect = container.getBoundingClientRect();
         const currentMinutes = positionToMinutes(
           moveEvent.clientY,
-          containerRect.top,
+          currentContainerRect.top,
         );
         const start = Math.min(startMinutesRef.current, currentMinutes);
         const end = Math.max(startMinutesRef.current, currentMinutes);
