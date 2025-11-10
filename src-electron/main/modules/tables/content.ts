@@ -11,6 +11,7 @@ import Operation from "./operation";
 import WhiteBoardContentTable from "./white-board-content";
 import CardTable from "./card";
 import QuestionTable from "./question";
+import ResourceTable from "./resource";
 
 export default class ContentTable {
   static getListenEvents() {
@@ -217,10 +218,12 @@ export default class ContentTable {
     if (result && result.ref_count <= 0) {
       const deleteStmt = db.prepare("DELETE FROM contents WHERE id = ?");
       Operation.insertOperation(db, "content", "delete", contentId, Date.now());
-      // 删除白板内容
+      // 删除白板内容和问题
       const content = this.getContentById(db, contentId);
       const whiteBoardContentId: number[] = [];
       const questionId: number[] = [];
+
+      // 遍历内容，找到所有资源并减少引用计数
       dfs(content?.content || [], (node) => {
         if (node.type === "whiteboard" && node.whiteBoardContentId) {
           whiteBoardContentId.push(node.whiteBoardContentId);
@@ -230,7 +233,48 @@ export default class ContentTable {
           // @ts-ignore
           questionId.push(node.questionId);
         }
+
+        // 减少资源引用计数
+        // @ts-ignore
+        if (node.type === "image" && node.url) {
+          // @ts-ignore
+          ResourceTable.decrementRefCount(db, node.url);
+        }
+        // @ts-ignore
+        if (node.type === "inline-image" && node.url) {
+          // @ts-ignore
+          ResourceTable.decrementRefCount(db, node.url);
+        }
+        // @ts-ignore
+        if (
+          node.type === "image-gallery" &&
+          node.images &&
+          Array.isArray(node.images)
+        ) {
+          // @ts-ignore
+          for (const image of node.images) {
+            if (image.url) {
+              ResourceTable.decrementRefCount(db, image.url);
+            }
+          }
+        }
+        // @ts-ignore
+        if (node.type === "video" && node.src) {
+          // @ts-ignore
+          ResourceTable.decrementRefCount(db, node.src);
+        }
+        // @ts-ignore
+        if (node.type === "audio" && node.src) {
+          // @ts-ignore
+          ResourceTable.decrementRefCount(db, node.src);
+        }
+        // @ts-ignore
+        if (node.type === "file-attachment" && node.filePath) {
+          // @ts-ignore
+          ResourceTable.decrementRefCount(db, node.filePath);
+        }
       });
+
       whiteBoardContentId.forEach((id) => {
         WhiteBoardContentTable.deleteWhiteboard(db, id);
       });

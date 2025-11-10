@@ -17,6 +17,7 @@ import AddParagraph from "@/components/Editor/components/AddParagraph";
 import SwipeImageGallery from "../SwipeImageGallery";
 import HorizontalImageGallery from "../HorizontalImageGallery";
 import VerticalImageGallery from "../VerticalImageGallery";
+import { createOrUpdateResource, decrementResourceRefCount } from "@/commands";
 
 import { ImageGalleryElement } from "@editor/types";
 import { EGalleryMode } from "@editor/constants";
@@ -66,8 +67,54 @@ const ImageGallery = (props: IImageGalleryProps) => {
     setSettingModalOpen(false);
   };
 
-  const onOk = () => {
+  const onOk = async () => {
     setSettingModalOpen(false);
+
+    // 对比图片变化，更新资源引用计数
+    // @ts-ignore
+    const contentId = editor.contentId;
+    if (contentId) {
+      const oldImages = images || [];
+      const newImages = setting.images || [];
+
+      // 找出新增的图片
+      const addedImages = newImages.filter(
+        (newImg) => !oldImages.some((oldImg) => oldImg.url === newImg.url),
+      );
+
+      // 找出删除的图片
+      const removedImages = oldImages.filter(
+        (oldImg) => !newImages.some((newImg) => newImg.url === oldImg.url),
+      );
+
+      // 处理新增的图片
+      for (const image of addedImages) {
+        if (image.url) {
+          try {
+            await createOrUpdateResource({
+              name: image.url.split("/").pop() || "未命名图片",
+              path: image.url,
+              type: "image",
+              source: { type: "content", id: contentId },
+            });
+          } catch (e) {
+            console.error("创建图片资源失败:", e);
+          }
+        }
+      }
+
+      // 处理删除的图片
+      for (const image of removedImages) {
+        if (image.url) {
+          try {
+            await decrementResourceRefCount(image.url);
+          } catch (e) {
+            console.error("减少图片资源引用失败:", e);
+          }
+        }
+      }
+    }
+
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(
       editor,

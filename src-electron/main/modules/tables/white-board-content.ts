@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { WhiteBoardContent } from "@/types";
 import Operation from "./operation";
+import ResourceTable from "./resource";
 // import log from "electron-log";
 
 export default class WhiteboardTable {
@@ -18,15 +19,34 @@ export default class WhiteboardTable {
     this.deleteWhiteBoardContentWhenRefCountIsZero(db);
   }
 
-  static upgradeTable(_db: Database.Database) {
+  static upgradeTable() {
     // 不需要升级
   }
 
   static deleteWhiteBoardContentWhenRefCountIsZero(db: Database.Database) {
-    const stmt = db.prepare(`
+    // 先查找所有 ref_count <= 0 的白板
+    const selectStmt = db.prepare(`
+      SELECT * FROM white_board_contents WHERE ref_count <= 0
+    `);
+    const whiteboards = selectStmt.all();
+
+    // 减少每个白板中资源的引用计数
+    for (const whiteboard of whiteboards) {
+      try {
+        const wb = this.parseWhiteboard(whiteboard);
+        if (wb.data && wb.data.children) {
+          this.decrementWhiteboardResources(db, wb.data.children);
+        }
+      } catch (e) {
+        // 忽略解析错误，继续删除
+      }
+    }
+
+    // 删除 ref_count <= 0 的记录
+    const deleteStmt = db.prepare(`
       DELETE FROM white_board_contents WHERE ref_count <= 0
     `);
-    stmt.run();
+    deleteStmt.run();
   }
 
   static getListenEvents() {
@@ -40,13 +60,15 @@ export default class WhiteboardTable {
     };
   }
 
-  static parseWhiteboard(whiteboard: any): WhiteBoardContent {
+  static parseWhiteboard(whiteboard: unknown): WhiteBoardContent {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wb = whiteboard as any;
     return {
-      id: whiteboard.id,
-      name: whiteboard.name,
-      data: JSON.parse(whiteboard.data),
-      createTime: whiteboard.create_time,
-      updateTime: whiteboard.update_time,
+      id: wb.id,
+      name: wb.name,
+      data: JSON.parse(wb.data),
+      createTime: wb.create_time,
+      updateTime: wb.update_time,
     };
   }
 
@@ -139,6 +161,13 @@ export default class WhiteboardTable {
     // const refCount = refCountStmt.get(id) as { ref_count: number } | undefined;
     // if (refCount && refCount.ref_count <= 0) {
     //   log.info(`删除白板内容: ${id}`);
+    //
+    //   // 减少资源引用计数
+    //   const whiteboard = this.getWhiteboardContent(db, id);
+    //   if (whiteboard && whiteboard.data && whiteboard.data.children) {
+    //     this.decrementWhiteboardResources(db, whiteboard.data.children);
+    //   }
+    //
     //   const deleteStmt = db.prepare(`
     //     DELETE FROM white_board_contents WHERE id = ?
     //   `);
@@ -152,6 +181,86 @@ export default class WhiteboardTable {
     //   return deleteStmt.run(id).changes;
     // }
     return 0;
+  }
+
+  /**
+   * 减少白板中所有资源的引用计数
+   * 使用 DFS 遍历所有元素
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  static decrementWhiteboardResources(
+    db: Database.Database,
+    children: any[],
+  ): void {
+    if (!children || !Array.isArray(children)) return;
+
+    // DFS 遍历函数
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dfs = (nodes: any[], visit: (node: any) => void) => {
+      if (!nodes || !Array.isArray(nodes)) return;
+      for (const node of nodes) {
+        if (node) {
+          visit(node);
+          if (node.children && Array.isArray(node.children)) {
+            dfs(node.children, visit);
+          }
+        }
+      }
+    };
+
+    // 遍历所有子元素
+    dfs(children, (element) => {
+      if (!element || !element.type) return;
+
+      // 处理 Image 元素
+      if (element.type === "image" && element.src) {
+        ResourceTable.decrementRefCount(db, element.src);
+      }
+
+      // 处理 Video 元素
+      if (element.type === "video" && element.src) {
+        ResourceTable.decrementRefCount(db, element.src);
+      }
+
+      // 处理 RichText 元素 - 需要遍历其 content
+      if (element.type === "richtext" && element.content) {
+        dfs(element.content, (node) => {
+          if (!node || !node.type) return;
+
+          if (node.type === "image" && node.url) {
+            ResourceTable.decrementRefCount(db, node.url);
+          }
+
+          if (node.type === "inline-image" && node.url) {
+            ResourceTable.decrementRefCount(db, node.url);
+          }
+
+          if (
+            node.type === "image-gallery" &&
+            node.images &&
+            Array.isArray(node.images)
+          ) {
+            for (const image of node.images) {
+              if (image.url) {
+                ResourceTable.decrementRefCount(db, image.url);
+              }
+            }
+          }
+
+          if (node.type === "video" && node.src) {
+            ResourceTable.decrementRefCount(db, node.src);
+          }
+
+          if (node.type === "audio" && node.src) {
+            ResourceTable.decrementRefCount(db, node.src);
+          }
+
+          if (node.type === "file-attachment" && node.filePath) {
+            ResourceTable.decrementRefCount(db, node.filePath);
+          }
+        });
+      }
+    });
   }
 
   static getWhiteboardContent(

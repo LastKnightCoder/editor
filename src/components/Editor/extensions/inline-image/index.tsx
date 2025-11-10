@@ -7,7 +7,7 @@ import {
 import IExtension from "../types.ts";
 import Base from "../base.ts";
 import InlineImage from "./components/InlineImage";
-import { pasteInlineImagePlugin } from "./plugins";
+import { pasteInlineImagePlugin, overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 
 class InlineImageExtension extends Base implements IExtension {
@@ -19,6 +19,7 @@ class InlineImageExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [
+      overwrite,
       pasteInlineImagePlugin,
       createInlineElementPlugin(this.type),
       createVoidElementPlugin(this.type),

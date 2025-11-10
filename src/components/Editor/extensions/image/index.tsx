@@ -2,7 +2,7 @@ import { RenderElementProps } from "slate-react";
 import { ImageElement } from "@/components/Editor/types";
 
 import Image from "./components/Image";
-import { pasteImage } from "./plugins";
+import { pasteImage, overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 
@@ -18,6 +18,7 @@ class ImageExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [
+      overwrite,
       pasteImage,
       createBlockElementPlugin(this.type),
       createVoidElementPlugin(this.type),

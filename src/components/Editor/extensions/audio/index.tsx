@@ -3,7 +3,7 @@ import IExtension from "../types.ts";
 import { AudioElement } from "@/components/Editor/types";
 import { RenderElementProps } from "slate-react";
 import Audio from "./components/Audio";
-import { pasteAudio } from "./plugins";
+import { pasteAudio, overwrite } from "./plugins";
 import blockPanelItems from "./block-panel-items";
 import { createBlockElementPlugin, createVoidElementPlugin } from "../../utils";
 
@@ -12,6 +12,7 @@ class AudioExtension extends Base implements IExtension {
 
   override getPlugins() {
     return [
+      overwrite,
       pasteAudio,
       createVoidElementPlugin(this.type),
       createBlockElementPlugin(this.type),
