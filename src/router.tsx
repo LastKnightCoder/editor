@@ -53,6 +53,9 @@ const PomodoroImmersivePage = loadable(
 const BackgroundAudioPage = loadable(() => import("@/pages/BackgroundAudio"));
 const CalendarPage = loadable(() => import("@/pages/Calendar"));
 const ChatManagementPage = loadable(() => import("@/pages/ChatManagement"));
+const ResourceManagementPage = loadable(
+  () => import("@/pages/ResourceManagement"),
+);
 
 const routes = [
   {
@@ -134,6 +137,10 @@ const routes = [
       {
         path: "chat-management",
         element: <ChatManagementPage />,
+      },
+      {
+        path: "resource-management",
+        element: <ResourceManagementPage />,
       },
     ],
   },

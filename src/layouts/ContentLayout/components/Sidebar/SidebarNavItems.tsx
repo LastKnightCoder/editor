@@ -18,6 +18,7 @@ import pdf from "@/assets/icons/pdf.svg";
 import vecDatabase from "@/assets/icons/vec-database.svg";
 import calendar from "@/assets/icons/calendar.svg";
 import chat from "@/assets/icons/chat.svg";
+import resource from "@/assets/icons/resource.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -182,6 +183,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "日记",
         path: "/dailies",
         enable: module.dailyNote.enable,
+      },
+      {
+        key: "resource",
+        icon: resource,
+        desc: "资源管理",
+        path: "/resource-management",
+        enable: module.resourceManagement.enable,
       },
     ].filter((item) => item.enable);
   }, [module]);

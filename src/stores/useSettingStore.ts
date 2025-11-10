@@ -113,6 +113,10 @@ export interface ISetting {
       enable: boolean;
       name: "进度管理";
     };
+    resourceManagement: {
+      enable: boolean;
+      name: "资源管理";
+    };
   };
   darkMode: boolean;
   textToSpeech: {
@@ -306,6 +310,10 @@ const initialState: IState = {
       goal: {
         enable: true,
         name: "进度管理",
+      },
+      resourceManagement: {
+        enable: true,
+        name: "资源管理",
       },
     },
     textToSpeech: {

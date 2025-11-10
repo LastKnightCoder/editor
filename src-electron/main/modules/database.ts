@@ -42,6 +42,7 @@ import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
 import PodcastTable from "./tables/podcast";
+import ResourceTable from "./tables/resource";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -121,6 +122,7 @@ class DatabaseModule implements Module {
       CalendarTable,
       CalendarEventTable,
       PodcastTable,
+      ResourceTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 

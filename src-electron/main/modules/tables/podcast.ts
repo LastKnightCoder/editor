@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import Operation from "./operation";
+import ResourceTable from "./resource";
 
 export interface IPodcast {
   id: number;
@@ -61,20 +62,22 @@ export default class PodcastTable {
     db.exec(createIndexSql);
   }
 
-  static upgradeTable(_db: Database.Database) {
+  static upgradeTable() {
     // 未来的表升级逻辑
   }
 
-  static parsePodcast(row: any): IPodcast {
+  static parsePodcast(row: unknown): IPodcast {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r = row as any;
     return {
-      id: row.id,
-      createTime: row.create_time,
-      updateTime: row.update_time,
-      audioUrl: row.audio_url,
-      script: row.script || "",
-      duration: row.duration || 0,
-      speakers: JSON.parse(row.speakers),
-      refCount: row.ref_count || 0,
+      id: r.id,
+      createTime: r.create_time,
+      updateTime: r.update_time,
+      audioUrl: r.audio_url,
+      script: r.script || "",
+      duration: r.duration || 0,
+      speakers: JSON.parse(r.speakers),
+      refCount: r.ref_count || 0,
     };
   }
 
@@ -131,6 +134,12 @@ export default class PodcastTable {
 
     // 如果引用计数为 0，则删除
     if (result && result.ref_count <= 0) {
+      // 先获取 podcast 信息，减少资源引用计数
+      const podcast = this.getPodcastById(db, podcastId);
+      if (podcast?.audioUrl) {
+        ResourceTable.decrementRefCount(db, podcast.audioUrl);
+      }
+
       const deleteStmt = db.prepare("DELETE FROM podcasts WHERE id = ?");
       Operation.insertOperation(db, "podcast", "delete", podcastId, Date.now());
       return deleteStmt.run(podcastId).changes;
