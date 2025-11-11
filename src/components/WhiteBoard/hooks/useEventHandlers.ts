@@ -28,9 +28,70 @@ const useEventHandlers = (board: Board) => {
   const handleOnPointerMove = eventHandlerGenerator("onPointerMove");
   const handleOnPointerUp = eventHandlerGenerator("onPointerUp");
 
-  // 全局事件
-  const handleKeyDown = eventHandlerGenerator("onKeyDown");
-  const handleKeyUp = eventHandlerGenerator("onKeyUp");
+  // 全局事件 - 键盘事件需要特殊处理
+  const handleKeyDown = useMemoizedFn((event: KeyboardEvent) => {
+    // 如果有元素正在编辑，不处理方向键（避免干扰文本编辑器内的光标移动）
+    if (board.isEditingElements.length > 0) {
+      // 对于方向键，直接返回，让编辑器处理
+      if (
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
+      ) {
+        return;
+      }
+    }
+
+    // 检查事件目标，如果在编辑器内部，不处理方向键
+    const target = event.target as HTMLElement;
+    if (
+      target &&
+      (target.getAttribute("contenteditable") === "true" ||
+        target.closest('[contenteditable="true"]') ||
+        target.closest("[data-slate-editor]") ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA")
+    ) {
+      // 对于方向键，直接返回，让编辑器处理
+      if (
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
+      ) {
+        return;
+      }
+    }
+
+    board.onKeyDown(event);
+  });
+
+  const handleKeyUp = useMemoizedFn((event: KeyboardEvent) => {
+    // 如果有元素正在编辑，不处理方向键（避免干扰文本编辑器内的光标移动）
+    if (board.isEditingElements.length > 0) {
+      // 对于方向键，直接返回，让编辑器处理
+      if (
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
+      ) {
+        return;
+      }
+    }
+
+    // 检查事件目标，如果在编辑器内部，不处理方向键
+    const target = event.target as HTMLElement;
+    if (
+      target &&
+      (target.getAttribute("contenteditable") === "true" ||
+        target.closest('[contenteditable="true"]') ||
+        target.closest("[data-slate-editor]") ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA")
+    ) {
+      // 对于方向键，直接返回，让编辑器处理
+      if (
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
+      ) {
+        return;
+      }
+    }
+
+    board.onKeyUp(event);
+  });
   const handleGlobalMouseDown = eventHandlerGenerator("onGlobalMouseDown");
   const handleGlobalMouseUp = eventHandlerGenerator("onGlobalMouseUp");
   const handleOnWheel = eventHandlerGenerator("onWheel");
