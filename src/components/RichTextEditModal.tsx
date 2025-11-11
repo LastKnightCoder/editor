@@ -30,7 +30,7 @@ interface RichTextEditModalProps {
   contentId: number;
   title: string;
   onClose: () => void;
-  onTitleChange: (title: string) => void;
+  onTitleChange?: (title: string) => void;
   onTypeChange?: (type: string) => void;
 }
 
