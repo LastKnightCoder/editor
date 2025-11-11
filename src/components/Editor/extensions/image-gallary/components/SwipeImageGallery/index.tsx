@@ -52,7 +52,7 @@ const SwipeImageGallery = (props: ISwipeImageGalleryProps) => {
                 display: "block",
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
+                objectFit: "contain",
               }}
               alt={item.desc || ""}
             />
