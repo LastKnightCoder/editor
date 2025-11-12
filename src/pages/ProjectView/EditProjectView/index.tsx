@@ -4,7 +4,7 @@ import EditProject from "../EditProjectItem";
 
 import { getProjectItemById } from "@/commands";
 import { EProjectItemType, ProjectItem } from "@/types";
-import useProjectsStore from "@/stores/useProjectsStore";
+import { useProjectContext } from "../ProjectContext";
 import VideoNoteView from "../VideoNoteView";
 import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
 import WebViewProjectItemView from "../WebViewProjectItemView";
@@ -12,9 +12,7 @@ import TableProjectItemView from "../TableProjectItemView";
 import styles from "./index.module.less";
 
 const EditProjectView = () => {
-  const { activeProjectItemId } = useProjectsStore((state) => ({
-    activeProjectItemId: state.activeProjectItemId,
-  }));
+  const { itemId: activeProjectItemId } = useProjectContext();
 
   const { message } = App.useApp();
 

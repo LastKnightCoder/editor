@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { produce } from "immer";
 import classnames from "classnames";
@@ -11,6 +10,8 @@ import { AiFillPushpin } from "react-icons/ai";
 import useTheme from "@/hooks/useTheme.ts";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useShortcutStore from "@/stores/useShortcutStore";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 import { IDocument } from "@/types";
 
@@ -28,7 +29,7 @@ const DocumentCard = (props: DocumentCardProps) => {
   const { isDark } = useTheme();
   const [editOpen, setEditOpen] = useState(false);
 
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const { deleteDocument, updateDocument } = useDocumentsStore(
     useShallow((state) => ({
@@ -84,10 +85,7 @@ const DocumentCard = (props: DocumentCardProps) => {
   };
 
   const onClick = () => {
-    useDocumentsStore.setState({
-      activeDocumentItemId: null,
-    });
-    navigate(`/documents/detail/${document.id}`);
+    navigateTo(TabType.DocumentDetail, { id: document.id });
   };
 
   const items: MenuProps["items"] = [

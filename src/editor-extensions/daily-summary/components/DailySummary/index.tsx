@@ -10,7 +10,6 @@ import dayjs from "dayjs";
 import CardItem2 from "@/components/CardItem2";
 import For from "@/components/For";
 import { Empty, Tag } from "antd";
-import { useNavigate } from "react-router-dom";
 import If from "@/components/If";
 import ArticleCard from "@/pages/ArticleListView/ArticleCard";
 import { useEffect } from "react";
@@ -18,11 +17,13 @@ import { ICard } from "@/types";
 import { IArticle } from "@/types";
 import { getAllArticles, getAllCards } from "@/commands";
 import { useState } from "react";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 const DailySummary = (props: IExtensionBaseProps<DailySummaryElement>) => {
   const { element, attributes, children } = props;
 
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -85,7 +86,7 @@ const DailySummary = (props: IExtensionBaseProps<DailySummaryElement>) => {
                 card={card}
                 showLine={false}
                 onClick={() => {
-                  navigate(`/cards/detail/${card.id}`);
+                  navigateTo(TabType.CardDetail, { id: card.id });
                 }}
                 style={{
                   marginBottom: 0,

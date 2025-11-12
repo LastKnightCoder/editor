@@ -2,37 +2,27 @@ import React, { useEffect, useState } from "react";
 import { Button, Empty, List, Popover, Typography } from "antd";
 import { LoadingOutlined, SyncOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
-import { useNavigate } from "react-router-dom";
 import { IArticle, ICard, IDocumentItem, ProjectItem } from "@/types";
-import { getLatestOperations } from "@/commands";
+import {
+  getLatestOperations,
+  getRootDocumentsByDocumentItemId,
+} from "@/commands";
 import Editor from "@/components/Editor";
 import { getEditorText } from "@/utils";
-import useProjectsStore from "@/stores/useProjectsStore";
-import useDocumentsStore from "@/stores/useDocumentsStore";
-import { getRootDocumentsByDocumentItemId } from "@/commands";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 import TabsIndicator, { TabItem } from "@/components/TabsIndicator";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  projectCardListExtension,
-  documentCardListExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-  projectCardListExtension,
-  documentCardListExtension,
-];
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 import styles from "./index.module.less";
 
 type ItemType = "cards" | "articles" | "projectItems" | "documentItems";
 
 const LatestUpdate: React.FC = () => {
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
+
+  const extensions = useDynamicExtensions();
 
   const [activeTab, setActiveTab] = useState<ItemType>("cards");
   const [loading, setLoading] = useState(false);
@@ -79,30 +69,41 @@ const LatestUpdate: React.FC = () => {
   });
 
   const handleCardClick = useMemoizedFn((cardId: number) => {
-    navigate(`/cards/detail/${cardId}`);
+    navigateTo(TabType.CardDetail, { id: cardId });
   });
 
   const handleArticleClick = useMemoizedFn((articleId: number) => {
-    navigate(`/articles/detail/${articleId}`);
+    navigateTo(TabType.ArticleDetail, { id: articleId });
   });
 
   const handleProjectItemClick = useMemoizedFn((projectItem: ProjectItem) => {
     if (projectItem.projects.length === 0) return;
-    navigate(`/projects/detail/${projectItem.projects[0]}`);
-    useProjectsStore.setState({
-      activeProjectItemId: projectItem.id,
+    navigateTo(TabType.ProjectDetail, {
+      id: projectItem.projects[0],
+      itemId: projectItem.id,
     });
   });
 
   const handleDocumentItemClick = useMemoizedFn(
     async (documentItemId: number) => {
-      const documents = await getRootDocumentsByDocumentItemId(documentItemId);
-      if (documents.length === 0) return;
-      const documentId = documents[0].id;
-      navigate(`/documents/detail/${documentId}`);
-      useDocumentsStore.setState({
-        activeDocumentItemId: documentItemId,
-      });
+      // 获取知识库项所属的知识库
+      try {
+        const documents =
+          await getRootDocumentsByDocumentItemId(documentItemId);
+        if (documents && documents.length > 0) {
+          const documentId = documents[0].id;
+          navigateTo(TabType.DocumentDetail, {
+            id: documentId,
+            itemId: documentItemId,
+          });
+        } else {
+          // 如果没有找到知识库，回退到知识库列表
+          navigateTo(TabType.DocumentList);
+        }
+      } catch (error) {
+        console.error("Failed to get document:", error);
+        navigateTo(TabType.DocumentList);
+      }
     },
   );
 
@@ -166,7 +167,7 @@ const LatestUpdate: React.FC = () => {
                     key={`${item.type}-${item.id}`}
                     initValue={item.content}
                     readonly
-                    extensions={customExtensions}
+                    extensions={extensions}
                     className={styles.editor}
                   />
                 }

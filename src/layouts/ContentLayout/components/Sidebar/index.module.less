@@ -1,37 +1,50 @@
+.sidebarContainer {
+  width: 4em;
+  height: 100%;
+  transition: width 0.3s ease;
+  flex-shrink: 0;
+
+  &.collapsed {
+    width: 3em;
+  }
+}
+
 .sidebar {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  background-color: var(--sidebar-bg-color, var(--main-bg-color));
+  border-right: 1px solid var(--border-color);
 
   .list {
-    padding: 6px 12px 12px 12px;
+    padding: 0.375em 0.75em 0.75em 0.75em;
     flex: auto;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    margin-top: 6px;
+    gap: 0.5em;
+    margin-top: 0.375em;
 
     &::-webkit-scrollbar {
       display: none;
     }
 
     &.isMac {
-      margin-top: 60px;
+      margin-top: 3.75em;
     }
   }
 
   .setting {
-    padding: 12px;
+    padding: 0.75em;
     margin-top: auto;
     flex: none;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 0.5em;
   }
 }

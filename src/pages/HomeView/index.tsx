@@ -5,18 +5,17 @@ import {
   getAllDocumentItems,
   getAllProjectItems,
   getLatestOperations,
-  getRootDocumentsByDocumentItemId,
   getAllCards,
   getAllArticles,
+  getRootDocumentsByDocumentItemId,
 } from "@/commands";
 import { IArticle, ICard, IDocumentItem, ProjectItem } from "@/types";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import For from "@/components/For";
 import { getEditorText } from "@/utils";
 import Editor from "@editor/index.tsx";
-import { useNavigate } from "react-router-dom";
-import useProjectsStore from "@/stores/useProjectsStore.ts";
-import useDocumentsStore from "@/stores/useDocumentsStore.ts";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 import CalendarHeatmap, { IItem } from "@/components/CalendarHeatmap";
 import { getCalendarHeatmap, getAllStatistic } from "@/commands";
 import dayjs from "dayjs";
@@ -26,24 +25,10 @@ import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
 import Titlebar from "@/components/Titlebar";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import {
-  fileAttachmentExtension,
-  contentLinkExtension,
-  projectCardListExtension,
-  documentCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
-
-const customExtensions = [
-  fileAttachmentExtension,
-  contentLinkExtension,
-  projectCardListExtension,
-  documentCardListExtension,
-  questionCardExtension,
-];
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 const HomeView = memo(() => {
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const { isDark } = useTheme();
 
@@ -82,6 +67,7 @@ const HomeView = memo(() => {
   const [cardWordCounts, setCardWordCounts] = useState(0);
   const [articleWordCounts, setArticleWordCounts] = useState(0);
 
+  const extensions = useDynamicExtensions();
   const initData = useMemoizedFn(() => {
     getAllCards().then((cards) => {
       setCards(cards);
@@ -277,7 +263,7 @@ const HomeView = memo(() => {
                         <Editor
                           readonly
                           initValue={card.content}
-                          extensions={customExtensions}
+                          extensions={extensions}
                           className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
                       }
@@ -286,7 +272,7 @@ const HomeView = memo(() => {
                         className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={card.id}
                         onClick={() => {
-                          navigate(`/cards/detail/${card.id}`);
+                          navigateTo(TabType.CardDetail, { id: card.id });
                         }}
                       >
                         {getEditorText(card.content, 20)}
@@ -310,7 +296,7 @@ const HomeView = memo(() => {
                         <Editor
                           readonly
                           initValue={article.content}
-                          extensions={customExtensions}
+                          extensions={extensions}
                           className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
                       }
@@ -319,7 +305,7 @@ const HomeView = memo(() => {
                         className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={article.id}
                         onClick={() => {
-                          navigate("/articles/detail/" + article.id);
+                          navigateTo(TabType.ArticleDetail, { id: article.id });
                         }}
                       >
                         {article.title}
@@ -342,7 +328,7 @@ const HomeView = memo(() => {
                       content={
                         <Editor
                           readonly
-                          extensions={customExtensions}
+                          extensions={extensions}
                           initValue={projectItem.content}
                           className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
@@ -353,11 +339,9 @@ const HomeView = memo(() => {
                         key={projectItem.id}
                         onClick={() => {
                           if (projectItem.projects.length === 0) return;
-                          navigate(
-                            `/projects/detail/${projectItem.projects[0]}`,
-                          );
-                          useProjectsStore.setState({
-                            activeProjectItemId: projectItem.id,
+                          navigateTo(TabType.ProjectDetail, {
+                            id: projectItem.projects[0],
+                            itemId: projectItem.id,
                           });
                         }}
                       >
@@ -381,7 +365,7 @@ const HomeView = memo(() => {
                       content={
                         <Editor
                           readonly
-                          extensions={customExtensions}
+                          extensions={extensions}
                           initValue={documentItem.content}
                           className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
@@ -391,16 +375,23 @@ const HomeView = memo(() => {
                         className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={documentItem.id}
                         onClick={async () => {
-                          const documents =
-                            await getRootDocumentsByDocumentItemId(
-                              documentItem.id,
-                            );
-                          if (documents.length === 0) return;
-                          const documentId = documents[0].id;
-                          navigate(`/documents/detail/${documentId}`);
-                          useDocumentsStore.setState({
-                            activeDocumentItemId: documentItem.id,
-                          });
+                          try {
+                            const documents =
+                              await getRootDocumentsByDocumentItemId(
+                                documentItem.id,
+                              );
+                            if (documents && documents.length > 0) {
+                              navigateTo(TabType.DocumentDetail, {
+                                id: documents[0].id,
+                                itemId: documentItem.id,
+                              });
+                            } else {
+                              navigateTo(TabType.DocumentList);
+                            }
+                          } catch (error) {
+                            console.error("Failed to get document:", error);
+                            navigateTo(TabType.DocumentList);
+                          }
                         }}
                       >
                         {documentItem.title}

@@ -5,24 +5,12 @@ import { useMemoizedFn } from "ahooks";
 import { BaseViewerProps } from "../../../types";
 import ProjectItemViewer from "../ProjectItemViewer";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import {
-  fileAttachmentExtension,
-  contentLinkExtension,
-  projectCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import TabsIndicator from "@/components/TabsIndicator";
 
 import styles from "./index.module.less";
 import If from "@/components/If";
 import { SearchResult } from "@/types/search";
-
-const customExtensions = [
-  fileAttachmentExtension,
-  contentLinkExtension,
-  projectCardListExtension,
-  questionCardExtension,
-];
 
 const ProjectItemsViewer: React.FC<BaseViewerProps> = ({
   addTab,
@@ -33,6 +21,8 @@ const ProjectItemsViewer: React.FC<BaseViewerProps> = ({
   tabs,
 }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
+
+  const extensions = useDynamicExtensions();
 
   const tabItems = useMemo(() => {
     return tabs.map((tab) => ({
@@ -127,7 +117,7 @@ const ProjectItemsViewer: React.FC<BaseViewerProps> = ({
         onCancel={() => setSelectorOpen(false)}
         onSelect={onSelectProjectItem}
         contentType="project-item"
-        extensions={customExtensions}
+        extensions={extensions}
         emptyDescription="无结果"
         showTitle={true}
         multiple={true}

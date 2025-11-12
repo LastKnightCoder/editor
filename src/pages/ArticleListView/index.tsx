@@ -1,18 +1,9 @@
 import { useState, memo, useEffect, useMemo } from "react";
 import For from "@/components/For";
-import { useNavigate } from "react-router-dom";
-import {
-  Dropdown,
-  FloatButton,
-  Pagination,
-  Breadcrumb,
-  Empty,
-  Button,
-} from "antd";
+import { Dropdown, FloatButton, Pagination, Empty, Button } from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import ArticleCard from "./ArticleCard";
 import styles from "./index.module.less";
-import Titlebar from "@/components/Titlebar";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { useCreation, useMemoizedFn } from "ahooks";
 import {
@@ -35,9 +26,11 @@ import useArticleManagementStore from "@/stores/useArticleManagementStore";
 import PresentationMode from "@/components/PresentationMode";
 import useSettingStore from "@/stores/useSettingStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 const ArticleListView = memo(() => {
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
   const [pageNum, setPageNum] = useState(1);
   const [articles, setArticles] = useState<IArticle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -123,7 +116,7 @@ const ArticleListView = memo(() => {
     articleEventBus.publishArticleEvent("article:created", article);
 
     // 创建后跳转到编辑页
-    navigate(`/articles/detail/${article.id}?readonly=false`);
+    navigateTo(TabType.ArticleDetail, { id: article.id });
   });
 
   const handleImportMarkdown = useMemoizedFn(async () => {
@@ -188,12 +181,6 @@ const ArticleListView = memo(() => {
     setArticles(newArticles);
   });
 
-  // 面包屑导航
-  const breadcrumbItems = [
-    { title: "首页", path: "/" },
-    { title: "文章列表", path: "/articles/list" },
-  ];
-
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -214,22 +201,6 @@ const ArticleListView = memo(() => {
 
   return (
     <div className={styles.container}>
-      <Titlebar className={styles.titlebar}>
-        <Breadcrumb
-          className={styles.breadcrumb}
-          items={breadcrumbItems.map((item) => ({
-            title: (
-              <span
-                className={styles.breadcrumbItem}
-                onClick={() => navigate(item.path)}
-              >
-                {item.title}
-              </span>
-            ),
-          }))}
-        />
-      </Titlebar>
-
       <div className={styles.content}>
         <div className={styles.listContainer}>
           <For

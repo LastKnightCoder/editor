@@ -1,22 +1,22 @@
 import { useShallow } from "zustand/react/shallow";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Breadcrumb, FloatButton } from "antd";
+import { FloatButton } from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import EditDocumentModal from "./EditDocumentModal";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 import styles from "./index.module.less";
 import { ICreateDocument } from "@/types";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
-import Titlebar from "@/components/Titlebar";
 import DocumentList from "./DocumentList";
 
 const DocumentsView = () => {
   const [createOpen, setCreateOpen] = useState(false);
 
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
@@ -43,11 +43,6 @@ const DocumentsView = () => {
     });
   }, [documents]);
 
-  const breadcrumbItems = [
-    { title: "首页", path: "/" },
-    { title: "知识库列表", path: "/documents/list" },
-  ];
-
   if (loading) {
     return (
       <div className={styles.loading}>
@@ -58,21 +53,6 @@ const DocumentsView = () => {
 
   return (
     <div className={styles.documentsView}>
-      <Titlebar className={styles.titlebar}>
-        <Breadcrumb
-          className={styles.breadcrumb}
-          items={breadcrumbItems.map((item) => ({
-            title: (
-              <span
-                className={styles.breadcrumbItem}
-                onClick={() => navigate(item.path)}
-              >
-                {item.title}
-              </span>
-            ),
-          }))}
-        />
-      </Titlebar>
       <DocumentList
         documents={sortedDocuments}
         addDocument={() => {
@@ -107,10 +87,7 @@ const DocumentsView = () => {
           };
           const createdDocument = await createDocument(newDocument);
           setCreateOpen(false);
-          useDocumentsStore.setState({
-            activeDocumentItemId: null,
-          });
-          navigate(`/documents/detail/${createdDocument.id}`);
+          navigateTo(TabType.DocumentDetail, { id: createdDocument.id });
         }}
         defaultTitle={""}
         defaultDesc={""}

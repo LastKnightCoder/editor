@@ -1,38 +1,25 @@
 import ProjectList from "./ProjectList";
 import classnames from "classnames";
-import { useNavigate } from "react-router-dom";
 
 import EditProjectView from "./EditProjectView";
 import styles from "./index.module.less";
-import { useParams } from "react-router-dom";
-import { Breadcrumb, Empty, Button } from "antd";
+import { Empty, Button } from "antd";
 import ProjectContext from "./ProjectContext";
-import Titlebar from "@/components/Titlebar";
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Project } from "@/types";
 import { getProjectById } from "@/commands";
-import { LoadingOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import useProjectsStore from "@/stores/useProjectsStore";
-import If from "@/components/If";
-import { useMemoizedFn } from "ahooks";
+import { LoadingOutlined } from "@ant-design/icons";
+import useTabParams from "@/hooks/useTabParams";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 const ProjectView = () => {
-  const { id } = useParams();
+  const { id, itemId } = useTabParams(TabType.ProjectDetail);
 
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const { hideProjectItemList } = useProjectsStore((state) => ({
-    hideProjectItemList: state.hideProjectItemList,
-  }));
-
-  const openSidebar = useMemoizedFn(() => {
-    useProjectsStore.setState({
-      hideProjectItemList: false,
-    });
-  });
 
   useEffect(() => {
     setLoading(true);
@@ -44,15 +31,6 @@ const ProjectView = () => {
         setLoading(false);
       });
   }, [id]);
-
-  const breadcrumbItems = useMemo(() => {
-    if (!project) return [];
-    return [
-      { title: "首页", path: "/" },
-      { title: "项目列表", path: "/projects/list" },
-      { title: project.title, path: `/projects/detail/${project.id}` },
-    ];
-  }, [project]);
 
   if (loading) {
     return (
@@ -69,7 +47,10 @@ const ProjectView = () => {
           description="项目不存在或已被删除"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
-          <Button type="primary" onClick={() => navigate("/projects/list")}>
+          <Button
+            type="primary"
+            onClick={() => navigateTo(TabType.ProjectList)}
+          >
             返回项目列表
           </Button>
         </Empty>
@@ -81,6 +62,7 @@ const ProjectView = () => {
     <ProjectContext.Provider
       value={{
         projectId: Number(id),
+        itemId: itemId,
       }}
     >
       <div className={classnames(styles.viewContainer)}>
@@ -89,28 +71,6 @@ const ProjectView = () => {
         </div>
 
         <div className={styles.edit}>
-          <Titlebar className={styles.titlebar}>
-            <If condition={hideProjectItemList}>
-              <div className={styles.openIndicator} onClick={openSidebar}>
-                <MenuUnfoldOutlined />
-              </div>
-            </If>
-            <Breadcrumb
-              className={classnames(styles.breadcrumb, {
-                [styles.showUnfold]: hideProjectItemList,
-              })}
-              items={breadcrumbItems.map((item) => ({
-                title: (
-                  <span
-                    className={styles.breadcrumbItem}
-                    onClick={() => navigate(item.path)}
-                  >
-                    {item.title}
-                  </span>
-                ),
-              }))}
-            />
-          </Titlebar>
           <div className={styles.editorContainer}>
             <EditProjectView />
           </div>

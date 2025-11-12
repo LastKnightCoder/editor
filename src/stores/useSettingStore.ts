@@ -117,6 +117,18 @@ export interface ISetting {
       enable: boolean;
       name: "资源管理";
     };
+    pomodoro: {
+      enable: boolean;
+      name: "番茄专注";
+    };
+    todo: {
+      enable: boolean;
+      name: "任务列表";
+    };
+    question: {
+      enable: boolean;
+      name: "问题管理";
+    };
   };
   darkMode: boolean;
   textToSpeech: {
@@ -314,6 +326,18 @@ const initialState: IState = {
       resourceManagement: {
         enable: true,
         name: "资源管理",
+      },
+      pomodoro: {
+        enable: true,
+        name: "番茄专注",
+      },
+      todo: {
+        enable: true,
+        name: "任务列表",
+      },
+      question: {
+        enable: true,
+        name: "问题管理",
       },
     },
     textToSpeech: {
