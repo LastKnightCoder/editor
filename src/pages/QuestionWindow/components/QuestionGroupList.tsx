@@ -83,7 +83,7 @@ const QuestionGroupList = memo(
 
     return (
       <>
-        <div className="w-full h-full flex flex-col bg-[#FCFAF8] dark:bg-[#292929]">
+        <div className="w-full h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
           <SidebarHeader onCreate={() => setCreateModalOpen(true)} />
           <div className="flex-1 overflow-auto">
             {groups.map((g) => (

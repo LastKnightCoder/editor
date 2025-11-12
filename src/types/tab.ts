@@ -1,6 +1,3 @@
-/**
- * Tab 类型枚举
- */
 export enum TabType {
   Home = "home",
   CardList = "cardList",
@@ -16,7 +13,6 @@ export enum TabType {
   PdfList = "pdfList",
   PdfDetail = "pdfDetail",
   DailyNote = "dailyNote",
-  TimeRecord = "timeRecord",
   VecDocument = "vecDocument",
   Settings = "settings",
   Calendar = "calendar",
@@ -47,7 +43,6 @@ export type TabParams = {
   [TabType.PdfList]: undefined;
   [TabType.PdfDetail]: { id: number };
   [TabType.DailyNote]: undefined;
-  [TabType.TimeRecord]: undefined;
   [TabType.VecDocument]: undefined;
   [TabType.Settings]: undefined;
   [TabType.Calendar]: undefined;
@@ -107,7 +102,6 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.PdfList]: "PDF",
   [TabType.PdfDetail]: "PDF 详情",
   [TabType.DailyNote]: "日记",
-  [TabType.TimeRecord]: "时间记录",
   [TabType.VecDocument]: "索引数据库",
   [TabType.Settings]: "设置",
   [TabType.Calendar]: "日历",

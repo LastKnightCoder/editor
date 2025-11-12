@@ -599,8 +599,8 @@ const ChatManagementSidebar = memo(
       .sort((a, b) => b.updateTime - a.updateTime);
 
     return (
-      <div className="w-80 h-full  flex flex-col bg-primary-bg">
-        <div className="px-4 py-4 flex justify-between items-center">
+      <div className="w-[280px] h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
+        <div className="px-4 py-4 flex flex-shrink-0 justify-between items-center border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
           <h3 className="m-0 text-base font-semibold">对话管理</h3>
           <PlusOutlined
             className="cursor-pointer hover:text-blue-500 transition-colors"
@@ -610,7 +610,7 @@ const ChatManagementSidebar = memo(
 
         <div
           className={classnames(
-            "flex-1 overflow-y-auto py-2 transition-colors duration-200",
+            "flex-1 min-h-0 overflow-y-auto border-y-[8px] border-transparent transition-colors duration-200",
             {
               "bg-blue-500/5": dragOverTarget === "root",
             },
@@ -619,13 +619,10 @@ const ChatManagementSidebar = memo(
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, null)}
         >
-          {/* 分组 */}
           {rootGroups.map((group) => renderGroup(group))}
 
-          {/* 未分组的对话 - 直接平铺 */}
           {ungroupedChats.map((chat) => renderChatItem(chat))}
 
-          {/* 归档 */}
           {archivedChats.length > 0 && (
             <div className="my-1 mt-4 pt-2">
               <div

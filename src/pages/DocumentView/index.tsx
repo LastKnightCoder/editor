@@ -2,7 +2,6 @@ import DocumentList from "./DocumentList";
 import EditDocumentItem from "./EditDocumentItem";
 import DocumentContext from "./DocumentContext";
 
-import styles from "./index.module.less";
 import { Empty, Button } from "antd";
 import { useState, useEffect } from "react";
 import { IDocument } from "@/types";
@@ -11,6 +10,8 @@ import { LoadingOutlined } from "@ant-design/icons";
 import useTabParams from "@/hooks/useTabParams";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
+import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { useLocalStorageState } from "ahooks";
 
 const DocumentView = () => {
   const { id, itemId } = useTabParams(TabType.DocumentDetail);
@@ -18,6 +19,13 @@ const DocumentView = () => {
   const documentId = Number(id);
   const [document, setDocument] = useState<IDocument | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+    "document-view-sidebar-width",
+    {
+      defaultValue: 300,
+    },
+  );
 
   const navigateTo = useTabStore((state) => state.navigateTo);
 
@@ -34,7 +42,7 @@ const DocumentView = () => {
 
   if (loading) {
     return (
-      <div className={styles.loading}>
+      <div className="w-full h-full flex items-center justify-center">
         <LoadingOutlined />
       </div>
     );
@@ -42,7 +50,7 @@ const DocumentView = () => {
 
   if (!document) {
     return (
-      <div className={styles.empty}>
+      <div className="w-full h-full flex items-center justify-center">
         <Empty
           description="知识库不存在或已被删除"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -67,12 +75,18 @@ const DocumentView = () => {
         itemId: itemId,
       }}
     >
-      <div className={styles.viewContainer}>
-        <div className={styles.sidebar}>
+      <div className="w-full h-full flex">
+        <ResizeableAndHideableSidebar
+          width={sidebarWidth ?? 300}
+          onWidthChange={setSidebarWidth}
+          open={true}
+          disableResize={false}
+          className="h-full border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+        >
           <DocumentList />
-        </div>
-        <div className={styles.edit}>
-          <div className={styles.editorContainer}>
+        </ResizeableAndHideableSidebar>
+        <div className="flex-1 h-full flex flex-col overflow-hidden">
+          <div className="w-full flex-1 overflow-hidden">
             <EditDocumentItem
               key={itemId ?? document.id}
               documentItemId={itemId ?? 0}

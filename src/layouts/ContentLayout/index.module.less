@@ -1,37 +1,23 @@
 .container {
-  width: 100vw;
-  height: 100vh;
-  display: flex;
   --title-bar-height: 48px;
-  --right-sidebar-width: 0px;
+}
 
-  .content {
-    flex: 1;
-    height: 100%;
-    display: flex;
-    width: 100%;
-    box-sizing: border-box;
-    overflow: hidden;
-    background: var(--main-bg-color);
+.mainContent {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
 
-    .mainContent {
-      flex: 1;
-      min-width: 0;
-      max-width: 100%;
-      height: 100%;
-      box-sizing: border-box;
-    }
+.rightSidebar {
+  flex-shrink: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  background: var(--sidebar-background);
 
-    .rightSidebar {
-      flex-shrink: 0;
-      height: 100%;
-      overflow: hidden;
-      display: flex;
-      background: var(--sidebar-background);
-
-      &.hide {
-        margin-right: 0;
-      }
-    }
+  &.hide {
+    margin-right: 0;
   }
 }

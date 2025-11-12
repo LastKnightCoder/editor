@@ -11,6 +11,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { TabType, TAB_TITLES } from "@/types/tab";
 
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
+import useTheme from "@/hooks/useTheme";
 
 // 所有可导航的页面
 const ALL_PAGES = [
@@ -22,7 +23,6 @@ const ALL_PAGES = [
   { type: TabType.WhiteBoardList, category: "内容", module: "whiteBoard" },
   { type: TabType.PdfList, category: "内容", module: "pdf" },
   { type: TabType.DailyNote, category: "内容", module: "dailyNote" },
-  { type: TabType.TimeRecord, category: "工具" },
   { type: TabType.VecDocument, category: "工具", module: "vecDocuments" },
   { type: TabType.Calendar, category: "工具" },
   { type: TabType.ChatManagement, category: "工具" },
@@ -41,6 +41,7 @@ const ALL_PAGES = [
 const CommandPanel = memo(() => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const { theme } = useTheme();
 
   const navigateTo = useTabStore((state) => state.navigateTo);
   const addToHistory = useNavigationHistoryStore((state) => state.addToHistory);
@@ -139,6 +140,7 @@ const CommandPanel = memo(() => {
 
   return (
     <CommandPalette
+      commandPaletteContentClassName={theme}
       onChangeSearch={setSearch}
       onChangeOpen={setOpen}
       search={search}

@@ -40,7 +40,6 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import useAddRefCard from "./ProjectItem/useAddRefCard.ts";
 import useAddRefWhiteBoard from "./useAddRefWhiteBoard.ts";
-import { ProjectContext } from "../ProjectContext.ts";
 import {
   getFileBaseName,
   readTextFile,
@@ -75,12 +74,17 @@ import NotionSyncModal, {
 } from "@/components/NotionSyncModal";
 import { createNotionSync, updateNotionSync } from "@/commands/notion-sync";
 import { generateContentHash } from "@/utils/content-hash";
+import SVG from "react-inlinesvg";
+import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
+import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
+import { AnimatePresence, motion } from "framer-motion";
 
 const Project = () => {
   const { message } = App.useApp();
   const { id } = useTabParams(TabType.ProjectDetail);
   const navigateTo = useTabStore((state) => state.navigateTo);
   const { setting } = useSettingStore((state) => ({ setting: state.setting }));
+  const [hideSidebar, setHideSidebar] = useState(false);
 
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
     "project-list-sidebar-width",
@@ -133,6 +137,10 @@ const Project = () => {
   const [notionTitle, setNotionTitle] = useState("");
   const [notionLoading, setNotionLoading] = useState(false);
   const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
+
+  const onFoldSidebar = useMemoizedFn(() => {
+    setHideSidebar(!hideSidebar);
+  });
 
   const fetchBilibiliQualityOptions = useMemoizedFn(async (url: string) => {
     if (!url.trim() || !isBilibiliUrl(url)) {
@@ -729,11 +737,11 @@ const Project = () => {
   if (!project) return null;
 
   return (
-    <ProjectContext.Provider value={{ projectId: project.id }}>
+    <>
       <ResizeableAndHideableSidebar
         width={sidebarWidth ?? 300}
         onWidthChange={setSidebarWidth}
-        open={true}
+        open={!hideSidebar}
         disableResize={false}
         className="h-full"
       >
@@ -748,6 +756,13 @@ const Project = () => {
               {project.title}
             </div>
             <div className={styles.icons}>
+              <div className={styles.icon} onClick={onFoldSidebar}>
+                <SVG
+                  className="cursor-pointer"
+                  src={leftSidebarIcon}
+                  onClick={onFoldSidebar}
+                />
+              </div>
               <Dropdown
                 menu={{
                   items: addMenuItems,
@@ -1368,7 +1383,24 @@ const Project = () => {
           />
         </div>
       </ResizeableAndHideableSidebar>
-    </ProjectContext.Provider>
+      <AnimatePresence>
+        {hideSidebar && (
+          <motion.div
+            className="absolute top-6 left-5 z-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <SVG
+              className="cursor-pointer"
+              src={rightSidebarIcon}
+              onClick={onFoldSidebar}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

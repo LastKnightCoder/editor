@@ -23,7 +23,6 @@ import { Line } from "@ant-design/charts";
 import useTheme from "@/hooks/useTheme.ts";
 import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
-import Titlebar from "@/components/Titlebar";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
@@ -136,11 +135,8 @@ const HomeView = memo(() => {
 
   return (
     <div className="w-full h-full flex flex-col box-border overflow-y-hidden">
-      <Titlebar className="w-full h-[60px] flex-shrink-0">
-        <div />
-      </Titlebar>
       <div className="flex-1 w-full overflow-y-auto border-[24px] border-transparent border-t-0 box-border [&::-webkit-scrollbar]:hidden">
-        <h2 className="mb-5 text-2xl font-bold">数据总览</h2>
+        <h2 className="m-5 text-2xl font-bold">数据总览</h2>
         <CalendarHeatmap
           className="p-3 mb-3"
           data={operationData}

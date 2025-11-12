@@ -113,6 +113,14 @@ export interface ISetting {
       enable: boolean;
       name: "进度管理";
     };
+    calendar: {
+      enable: boolean;
+      name: "日历";
+    };
+    chatManagement: {
+      enable: boolean;
+      name: "聊天管理";
+    };
     resourceManagement: {
       enable: boolean;
       name: "资源管理";
@@ -338,6 +346,14 @@ const initialState: IState = {
       question: {
         enable: true,
         name: "问题管理",
+      },
+      calendar: {
+        enable: true,
+        name: "日历",
+      },
+      chatManagement: {
+        enable: true,
+        name: "聊天管理",
       },
     },
     textToSpeech: {

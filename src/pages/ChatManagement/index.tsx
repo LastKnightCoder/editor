@@ -34,7 +34,7 @@ const ChatManagement = memo(() => {
   return (
     <div className="flex w-full h-full overflow-hidden">
       <ChatManagementSidebar onChatSelect={handleChatSelect} />
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <ChatArea ref={chatAreaRef} />
       </div>
     </div>

@@ -1,7 +1,5 @@
 import WhiteBoardContent from "./WhiteBoardContent";
 
-import styles from "./index.module.less";
-
 interface WhiteBoardProps {
   whiteBoardId: number;
 }
@@ -12,7 +10,7 @@ const WhiteBoard: React.FC<WhiteBoardProps> = ({ whiteBoardId }) => {
   }
 
   return (
-    <div className={styles.contentContainer}>
+    <div className="w-full h-full flex flex-col overflow-hidden">
       <WhiteBoardContent key={whiteBoardId} whiteBoardId={whiteBoardId} />
     </div>
   );

@@ -20,6 +20,7 @@ import { openMarkdownInNewWindow, selectFile } from "@/commands";
 import styles from "./index.module.less";
 import useSmallComponentSidebarStore from "@/stores/useSmallComponentSidebar";
 import SettingModal from "./components/SettingModal";
+import Sidebar from "./components/Sidebar";
 
 const ShortSidebarLayout = memo(() => {
   useInitDatabase();
@@ -50,22 +51,27 @@ const ShortSidebarLayout = memo(() => {
   );
 
   return (
-    <div className={styles.container}>
-      <div className={styles.content}>
-        <div className={styles.mainContent}>
-          <PanesLayout />
-        </div>
-        <div
-          className={classnames(styles.rightSidebar, {
-            [styles.hide]:
-              !chatSidebarOpen &&
-              !rightSidebarOpen &&
-              !smallComponentSidebarOpen,
-          })}
-        >
-          <SmallComponentSidebar />
-          <ChatSidebar />
-          <RightSidebar />
+    <div className={`w-[100vw] h-[100vh] flex ${styles.container}`}>
+      <div className="flex-shrink-0 w-[92px] h-full flex flex-col">
+        <Sidebar />
+      </div>
+      <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>
+        <div className="flex-1 min-h-0 my-3 mr-3 shadow-md flex overflow-hidden rounded-2xl rounded-xl bg-[var(--main-bg-color)]">
+          <div className={styles.mainContent}>
+            <PanesLayout />
+          </div>
+          <div
+            className={classnames(styles.rightSidebar, {
+              [styles.hide]:
+                !chatSidebarOpen &&
+                !rightSidebarOpen &&
+                !smallComponentSidebarOpen,
+            })}
+          >
+            <SmallComponentSidebar />
+            <ChatSidebar />
+            <RightSidebar />
+          </div>
         </div>
       </div>
       <Search />

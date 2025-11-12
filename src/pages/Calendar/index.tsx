@@ -13,7 +13,7 @@ const CalendarPage = () => {
   }, [init]);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-gray-50 dark:bg-[var(--main-bg-color)]">
+    <div className="flex h-full w-full overflow-hidden bg-gray-50 dark:bg-[var(--main-bg-color)]">
       <CalendarSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <CalendarHeader />

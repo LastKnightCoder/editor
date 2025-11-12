@@ -1,31 +1,24 @@
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 import SVG from "react-inlinesvg";
-import { CloseOutlined, PlusOutlined } from "@ant-design/icons";
+import { PlusOutlined } from "@ant-design/icons";
 import { PushpinOutlined } from "@ant-design/icons";
+import { useDrop } from "react-dnd";
 
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useSmallComponentSidebarStore from "@/stores/useSmallComponentSidebar";
 import useTabStore from "@/stores/useTabStore";
-import useSettingStore from "@/stores/useSettingStore";
-import useCommandPanelStore from "@/stores/useCommandPanelStore";
 
 import TitlebarIcon from "@/components/TitlebarIcon";
 import { setAlwaysOnTop as setTop } from "@/commands";
+import DraggableTab from "./DraggableTab";
 
 import sidebarRightIcon from "@/assets/icons/sidebar-right.svg";
 import chatIcon from "@/assets/icons/chat.svg";
 import smallComponentIcon from "@/assets/icons/small-components.svg";
-import settingIcon from "@/assets/icons/setting.svg";
-import sunIcon from "@/assets/icons/sun.svg";
-import moonIcon from "@/assets/icons/moon.svg";
-import searchIcon from "@/assets/icons/search.svg";
-import { TabType } from "@/types/tab";
-
-import styles from "./index.module.less";
+import { ITab, TabType, PaneDirection } from "@/types/tab";
 
 interface TitlebarWithTabsProps {
   paneId: string;
@@ -44,6 +37,9 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const createTab = useTabStore((state) => state.createTab);
   const closeTab = useTabStore((state) => state.closeTab);
   const switchTab = useTabStore((state) => state.switchTab);
+  const reorderTab = useTabStore((state) => state.reorderTab);
+  const moveTabToPane = useTabStore((state) => state.moveTabToPane);
+  const createPaneWithTab = useTabStore((state) => state.createPaneWithTab);
 
   const [alwaysOnTop, setAlwaysOnTop] = useState<boolean>(false);
 
@@ -121,78 +117,98 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     switchTab(paneId, tabId);
   });
 
-  const { darkMode, onDarkModeChange } = useSettingStore(
-    useShallow((state) => ({
-      darkMode: state.setting.darkMode,
-      onDarkModeChange: state.onDarkModeChange,
-    })),
+  const handleMoveTab = useCallback(
+    (dragIndex: number, hoverIndex: number) => {
+      reorderTab(paneId, dragIndex, hoverIndex);
+    },
+    [paneId, reorderTab],
   );
 
-  const handleToggleTheme = useMemoizedFn(() => {
-    onDarkModeChange(!darkMode);
-  });
+  const handleDragEnd = useCallback(
+    (
+      tab: ITab,
+      sourcePaneId: string,
+      dropZone?: "left" | "right" | "top" | "bottom",
+    ) => {
+      // 如果有 dropZone，说明要分屏
+      if (dropZone) {
+        const direction =
+          dropZone === "left" || dropZone === "right"
+            ? PaneDirection.Horizontal
+            : PaneDirection.Vertical;
 
-  const handleOpenSettings = useMemoizedFn(() => {
-    useSettingStore.setState({
-      settingModalOpen: true,
-    });
-  });
+        // 创建新 pane 并移动 tab（原子操作）
+        createPaneWithTab(sourcePaneId, tab.id, direction, 0.5);
+      } else if (sourcePaneId !== paneId) {
+        // 拖到另一个 pane（非边缘区域）
+        moveTabToPane(sourcePaneId, paneId, tab.id);
+      }
+    },
+    [paneId, createPaneWithTab, moveTabToPane],
+  );
 
-  const handleOpenSearch = useMemoizedFn(() => {
-    useCommandPanelStore.setState({
-      open: true,
-    });
+  // 接收拖拽的 Drop Zone
+  const [, drop] = useDrop({
+    accept: "TAB",
+    drop: () => {
+      // 标题栏 drop 返回 paneId，不带 dropZone（表示直接移动，不分屏）
+      return { paneId, dropZone: undefined };
+    },
+    collect: (monitor) => ({
+      isOver: monitor.isOver(),
+    }),
   });
 
   if (!pane) return null;
 
   return (
-    <div className={classnames(styles.titlebar, className)}>
-      <div className={styles.tabs}>
-        {pane.tabs.map((tab) => (
-          <div
+    <div
+      ref={drop}
+      className={classnames(
+        "w-full h-[60px] box-border flex items-center justify-between bg-[var(--main-bg-color)] flex-shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative",
+        className,
+      )}
+      style={{ "--webkit-app-region": "drag" } as React.CSSProperties}
+    >
+      <div
+        className={classnames(
+          "flex-1 min-w-0 flex items-center gap-1 overflow-x-auto overflow-y-hidden px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-[var(--border-color)] [&::-webkit-scrollbar-thumb]:rounded-sm transition-all",
+        )}
+        style={{ "--webkit-app-region": "no-drag" } as React.CSSProperties}
+      >
+        {pane.tabs.map((tab, index) => (
+          <DraggableTab
             key={tab.id}
-            className={classnames(styles.tab, {
-              [styles.active]: tab.id === pane.activeTabId,
-            })}
-            onClick={() => handleSwitchTab(tab.id)}
-          >
-            <span className={styles.tabTitle}>{tab.title}</span>
-            {tab.closable !== false && (
-              <button
-                className={styles.closeBtn}
-                onClick={(e) => handleCloseTab(tab.id, e)}
-              >
-                <CloseOutlined />
-              </button>
-            )}
-          </div>
+            tab={tab}
+            paneId={paneId}
+            index={index}
+            isActive={tab.id === pane.activeTabId}
+            onClose={(e) => handleCloseTab(tab.id, e)}
+            onSwitch={() => handleSwitchTab(tab.id)}
+            onMove={handleMoveTab}
+            onDragEnd={handleDragEnd}
+          />
         ))}
-        <button className={styles.newTabBtn} onClick={handleNewTab}>
+        <button
+          className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-[var(--text-color)] text-sm transition-colors hover:bg-[var(--common-hover-bg)]"
+          onClick={handleNewTab}
+        >
           <PlusOutlined />
         </button>
       </div>
 
-      <div className={styles.right}>
-        <TitlebarIcon tip="搜索 (Ctrl+P)" onClick={handleOpenSearch}>
-          <SVG src={searchIcon} />
-        </TitlebarIcon>
-        <TitlebarIcon
-          tip={darkMode ? "切换到浅色主题" : "切换到深色主题"}
-          onClick={handleToggleTheme}
-        >
-          <SVG src={darkMode ? sunIcon : moonIcon} />
-        </TitlebarIcon>
-        <TitlebarIcon tip="设置" onClick={handleOpenSettings}>
-          <SVG src={settingIcon} />
-        </TitlebarIcon>
-        <div className={styles.divider} />
+      <div
+        className="flex gap-3 items-center ml-auto pr-3"
+        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+      >
         <TitlebarIcon
           tip={alwaysOnTop ? "取消置顶" : "置顶"}
           onClick={toggleAlwaysOnTop}
         >
           <PushpinOutlined
-            className={classnames(styles.pin, { [styles.onTop]: alwaysOnTop })}
+            className={classnames("transform rotate-0 transition-transform", {
+              "-rotate-45": alwaysOnTop,
+            })}
           />
         </TitlebarIcon>
         <TitlebarIcon
