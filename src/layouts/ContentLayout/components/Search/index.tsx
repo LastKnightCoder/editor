@@ -79,9 +79,9 @@ const Search = memo(() => {
     useCommandPanelStore.setState({ open: false });
 
     if (result.type === "card") {
-      navigateTo(TabType.CardDetail, { id: result.id });
+      openInNewTab(TabType.CardDetail, { id: result.id });
     } else if (result.type === "article") {
-      navigateTo(TabType.ArticleDetail, { id: result.id });
+      openInNewTab(TabType.ArticleDetail, { id: result.id });
     } else if (result.type === "project-item") {
       // 获取项目项所属的项目
       try {
