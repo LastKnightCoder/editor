@@ -1,5 +1,4 @@
 import { Modal, Tabs, TabsProps, Tooltip } from "antd";
-import { useNavigate } from "react-router-dom";
 import AppAbout from "@/pages/Settings/AppAbout";
 import FontSetting from "@/pages/Settings/FontSetting";
 import ResourceUploadSetting from "@/pages/Settings/ResourceUploadSetting";
@@ -10,12 +9,14 @@ import TextToSpeechSetting from "@/pages/Settings/TextToSpeechSetting";
 import ModuleSetting from "@/pages/Settings/ModuleSetting";
 import IntegrationSetting from "@/pages/Settings/IntegrationSetting";
 import useSettingStore from "@/stores/useSettingStore";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 import { useMemoizedFn } from "ahooks";
 import { CloseOutlined, ExpandOutlined } from "@ant-design/icons";
 import styles from "./index.module.less";
 
 const SettingModal = () => {
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const { settingModalOpen } = useSettingStore((state) => ({
     settingModalOpen: state.settingModalOpen,
@@ -76,7 +77,7 @@ const SettingModal = () => {
   ];
 
   const onExpand = useMemoizedFn(() => {
-    navigate("/settings");
+    navigateTo(TabType.Settings);
     useSettingStore.setState({
       settingModalOpen: false,
     });

@@ -22,7 +22,8 @@ import useShortcutStore from "@/stores/useShortcutStore";
 import { IArticle } from "@/types";
 
 import { formatDate, getMarkdown, downloadMarkdown } from "@/utils";
-import { useNavigate } from "react-router-dom";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 import styles from "./index.module.less";
 import {
   getFileBaseName,
@@ -74,7 +75,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   );
 
   const { isDark } = useTheme();
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -182,7 +183,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   });
 
   const handleClickArticle = useMemoizedFn(() => {
-    navigate(`/articles/detail/${article.id}?readonly=true`);
+    navigateTo(TabType.ArticleDetail, { id: article.id });
   });
 
   const handleEdit = () => {

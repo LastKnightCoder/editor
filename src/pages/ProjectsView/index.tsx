@@ -1,20 +1,20 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { useMemoizedFn } from "ahooks";
-import { FloatButton, message, Breadcrumb } from "antd";
+import { FloatButton, message } from "antd";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import { CaretRightOutlined } from "@ant-design/icons";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import EditProjectInfoModal from "./EditProjectInfoModal";
 import ProjectList from "./ProjectList";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 import styles from "./index.module.less";
 import { Descendant } from "slate";
 import { CreateProject } from "@/types";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
-import Titlebar from "@/components/Titlebar";
 import classNames from "classnames";
 
 const EMPTY_DESC: Descendant[] = [
@@ -27,7 +27,7 @@ const EMPTY_DESC: Descendant[] = [
 const ProjectsView = () => {
   const [createOpen, setCreateOpen] = useState(false);
 
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
@@ -85,7 +85,7 @@ const ProjectsView = () => {
         const createdProject = await createProject(project);
         if (createdProject) {
           setCreateOpen(false);
-          navigate(`/projects/detail/${createdProject.id}`);
+          navigateTo(TabType.ProjectDetail, { id: createdProject.id });
         } else {
           message.error("创建项目失败");
         }
@@ -94,12 +94,6 @@ const ProjectsView = () => {
       }
     },
   );
-
-  // 面包屑导航
-  const breadcrumbItems = [
-    { title: "首页", path: "/" },
-    { title: "项目列表", path: "/projects/list" },
-  ];
 
   if (loading) {
     return (
@@ -111,21 +105,6 @@ const ProjectsView = () => {
 
   return (
     <div className={styles.projectContainer}>
-      <Titlebar className={styles.titlebar}>
-        <Breadcrumb
-          className={styles.breadcrumb}
-          items={breadcrumbItems.map((item) => ({
-            title: (
-              <span
-                className={styles.breadcrumbItem}
-                onClick={() => navigate(item.path)}
-              >
-                {item.title}
-              </span>
-            ),
-          }))}
-        />
-      </Titlebar>
       <div className={styles.container}>
         <div className={styles.section}>
           <div className={styles.sectionHeader}>

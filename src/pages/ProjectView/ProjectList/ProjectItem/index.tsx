@@ -113,6 +113,8 @@ import {
   getQualityOptions,
   BilibiliVideoQuality,
 } from "@/utils/bilibili";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 const extractUrlFromTitle = (title: string): { title: string; url: string } => {
   const urlRegex = /\[(https?:\/\/[^\]]+)\]$/;
@@ -158,8 +160,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     [],
   );
 
-  const { projectId } = useProjectContext();
+  const { projectId, itemId } = useProjectContext();
   const databaseName = useSettingStore.getState().setting.database.active;
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState("");
@@ -218,9 +221,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [notionLoading, setNotionLoading] = useState(false);
   const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
 
-  const { updateProject, activeProjectItemId } = useProjectsStore((state) => ({
+  const { updateProject } = useProjectsStore((state) => ({
     updateProject: state.updateProject,
-    activeProjectItemId: state.activeProjectItemId,
   }));
 
   const {
@@ -235,11 +237,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const setting = useSettingStore.getState().setting;
 
   useEffect(() => {
-    if (activeProjectItemId === projectItemId) {
+    if (itemId === projectItemId) {
       setFolderOpen(true);
       onOpenChange?.(true);
     }
-  }, [activeProjectItemId]);
+  }, [itemId]);
 
   // 加载快捷方式
   useEffect(() => {
@@ -498,9 +500,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             }
           }
         }
-        if (activeProjectItemId === projectItemId) {
-          useProjectsStore.setState({
-            activeProjectItemId: null,
+        if (itemId === projectItemId) {
+          navigateTo(TabType.ProjectDetail, {
+            id: projectId,
+            itemId: undefined,
           });
         }
       },
@@ -620,12 +623,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
       } finally {
         if (
-          activeProjectItemId &&
+          itemId &&
           [dragId, dragParentId, projectItemId, parentProjectItemId].includes(
-            activeProjectItemId,
+            itemId,
           )
         ) {
-          needRefreshId.push(activeProjectItemId);
+          needRefreshId.push(itemId);
         }
         for (const refreshId of [...new Set(needRefreshId)]) {
           const updatedProjectItem = await getProjectItemById(refreshId);
@@ -820,7 +823,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           {
             type: "paragraph",
             children: [{ type: "formatted", text: "" }],
-          } as any,
+          },
         ];
 
         // 计算内容哈希
@@ -1355,8 +1358,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             drop(node);
           }}
           className={classnames(styles.header, {
-            "bg-blue-200/30": activeProjectItemId === projectItem.id,
-            "hover:bg-blue-200/30": activeProjectItemId !== projectItem.id,
+            "bg-blue-200/30": itemId === projectItem.id,
+            "hover:bg-blue-200/30": itemId !== projectItem.id,
             [styles.top]:
               isOver && canDrop && dragPosition === EDragPosition.Top,
             [styles.bottom]:
@@ -1367,12 +1370,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           onClick={async () => {
             const activeProjectItem = await getProjectItemById(projectItem.id);
             if (!activeProjectItem) return;
-            const headers = activeProjectItem.content.filter(
-              (node) => node.type === "header",
-            );
-            useProjectsStore.setState({
-              activeProjectItemId: projectItem.id,
-              showOutline: headers.length > 0,
+            navigateTo(TabType.ProjectDetail, {
+              id: projectId,
+              itemId: projectItem.id,
             });
           }}
         >

@@ -1,5 +1,4 @@
 import { useState, memo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import For from "@/components/For";
 import {
   Button,
@@ -9,7 +8,6 @@ import {
   Modal,
   Tabs,
   FloatButton,
-  Breadcrumb,
   Empty,
   Checkbox,
 } from "antd";
@@ -17,7 +15,6 @@ import { PlusOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useShallow } from "zustand/react/shallow";
 import { useLocalStorageState } from "ahooks";
 
-import Titlebar from "@/components/Titlebar";
 import {
   selectFile,
   getFileBaseName,
@@ -36,7 +33,6 @@ import { v4 as uuid } from "uuid";
 import PdfCard from "./PdfCard";
 
 const PdfListView = memo(() => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const uploadResource = useUploadResource();
 
@@ -250,17 +246,6 @@ const PdfListView = memo(() => {
     },
   ];
 
-  // 面包屑导航
-  const breadcrumbItems = [
-    { title: "首页", onClick: () => navigate("/") },
-    {
-      title: "PDF列表",
-      onClick: () => {
-        // 当前页面，不需要操作
-      },
-    },
-  ];
-
   if (loading) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-gray-500">
@@ -272,21 +257,6 @@ const PdfListView = memo(() => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <Titlebar className="w-full h-15 flex-shrink-0">
-        <Breadcrumb
-          className="h-15 pl-10! flex items-center app-region-no-drag"
-          items={breadcrumbItems.map((item) => ({
-            title: (
-              <span
-                className="cursor-pointer transition-all duration-300 ease-in-out px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-                onClick={item.onClick}
-              >
-                {item.title}
-              </span>
-            ),
-          }))}
-        />
-      </Titlebar>
       <div className="flex-1 min-h-0 overflow-hidden relative px-10 py-5 flex">
         {pdfs.length === 0 ? (
           <div className="w-full h-full flex items-center justify-center">

@@ -17,8 +17,6 @@ import { produce } from "immer";
 interface IState {
   documents: IDocument[];
   loading: boolean;
-  activeDocumentItemId: number | null;
-  hideDocumentItemsList: boolean;
 }
 
 interface IActions {
@@ -35,8 +33,6 @@ interface IActions {
 const initState: IState = {
   documents: [],
   loading: false,
-  activeDocumentItemId: null,
-  hideDocumentItemsList: false,
 };
 
 const useDocumentsStore = create<IState & IActions>((set, get) => ({

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { App, Dropdown, MenuProps, message, Tooltip } from "antd";
 import {
   FileOutlined,
@@ -16,7 +15,6 @@ import {
 import { produce } from "immer";
 import classnames from "classnames";
 
-import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import useShortcutStore from "@/stores/useShortcutStore";
 import useDragAndDrop, {
   EDragPosition,
@@ -53,6 +51,9 @@ import useSettingStore from "@/stores/useSettingStore";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import styles from "./index.module.less";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
+import { useDocumentContext } from "../../DocumentContext";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 interface IDocumentItemProps {
   documentId: number;
@@ -122,10 +123,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
   );
 
   const extensions = useDynamicExtensions();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
-  const activeDocumentItemId = useDocumentsStore(
-    useShallow((state) => state.activeDocumentItemId),
-  );
+  const { itemId: activeDocumentItemId } = useDocumentContext();
 
   const {
     findShortcut,
@@ -390,11 +390,10 @@ const DocumentItem = (props: IDocumentItemProps) => {
       onOk: async () => {
         await onParentDeleteChild(item.id);
 
-        const activeDocumentItemId =
-          useDocumentsStore.getState().activeDocumentItemId;
         if (!activeDocumentItemId || activeDocumentItemId === item.id) {
-          useDocumentsStore.setState({
-            activeDocumentItemId: null,
+          navigateTo(TabType.DocumentDetail, {
+            id: documentId,
+            itemId: undefined,
           });
           return;
         }
@@ -407,8 +406,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
           item.id,
         );
         if (isChildOf) {
-          useDocumentsStore.setState({
-            activeDocumentItemId: null,
+          navigateTo(TabType.DocumentDetail, {
+            id: documentId,
+            itemId: undefined,
           });
         }
       },
@@ -448,9 +448,7 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
     const cardItem = await getDocumentItem(createdDocumentItem.id);
     if (!cardItem) return;
-    useDocumentsStore.setState({
-      activeDocumentItemId: cardItem.id,
-    });
+    navigateTo(TabType.DocumentDetail, { id: documentId, itemId: cardItem.id });
   });
 
   const onSelectArticleFinish = useMemoizedFn(
@@ -482,8 +480,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
       const articleItem = await getDocumentItem(createdDocumentItem.id);
       if (!articleItem) return;
-      useDocumentsStore.setState({
-        activeDocumentItemId: articleItem.id,
+      navigateTo(TabType.DocumentDetail, {
+        id: documentId,
+        itemId: articleItem.id,
       });
     },
   );
@@ -540,8 +539,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
       // 设置 activeItem 为第一个
       const activeItem = selectedDocumentItems[0];
       if (!activeItem) return;
-      useDocumentsStore.setState({
-        activeDocumentItemId: activeItem.id,
+      navigateTo(TabType.DocumentDetail, {
+        id: documentId,
+        itemId: activeItem.id,
       });
     },
   );
@@ -799,8 +799,9 @@ const DocumentItem = (props: IDocumentItemProps) => {
             isOver && canDrop && dragPosition === EDragPosition.Inside,
         })}
         onClick={async () => {
-          useDocumentsStore.setState({
-            activeDocumentItemId: item.id,
+          navigateTo(TabType.DocumentDetail, {
+            id: documentId,
+            itemId: item.id,
           });
         }}
       >

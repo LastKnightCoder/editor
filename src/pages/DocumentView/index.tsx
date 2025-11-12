@@ -1,41 +1,33 @@
-import { useParams, useNavigate } from "react-router-dom";
 import DocumentList from "./DocumentList";
 import EditDocumentItem from "./EditDocumentItem";
+import DocumentContext from "./DocumentContext";
 
-import styles from "./index.module.less";
-import Titlebar from "@/components/Titlebar";
-import { Breadcrumb, Empty, Button } from "antd";
-import useDocumentsStore from "@/stores/useDocumentsStore";
-import { useMemo, useState, useEffect } from "react";
+import { Empty, Button } from "antd";
+import { useState, useEffect } from "react";
 import { IDocument } from "@/types";
 import { getDocument } from "@/commands";
-import { LoadingOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import If from "@/components/If";
-import { useMemoizedFn } from "ahooks";
-import classnames from "classnames";
+import { LoadingOutlined } from "@ant-design/icons";
+import useTabParams from "@/hooks/useTabParams";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
+import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { useLocalStorageState } from "ahooks";
 
 const DocumentView = () => {
-  const params = useParams();
+  const { id, itemId } = useTabParams(TabType.DocumentDetail);
 
-  const documentId = Number(params.id);
+  const documentId = Number(id);
   const [document, setDocument] = useState<IDocument | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const navigate = useNavigate();
-
-  const activeDocumentItemId = useDocumentsStore(
-    (state) => state.activeDocumentItemId,
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+    "document-view-sidebar-width",
+    {
+      defaultValue: 300,
+    },
   );
 
-  const { hideDocumentItemsList } = useDocumentsStore((state) => ({
-    hideDocumentItemsList: state.hideDocumentItemsList,
-  }));
-
-  const openSidebar = useMemoizedFn(() => {
-    useDocumentsStore.setState({
-      hideDocumentItemsList: false,
-    });
-  });
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   useEffect(() => {
     setLoading(true);
@@ -48,22 +40,9 @@ const DocumentView = () => {
       });
   }, [documentId]);
 
-  const breadcrumbItems = useMemo(() => {
-    if (!document) return [];
-
-    return [
-      { title: "首页", path: "/" },
-      { title: "知识库列表", path: "/documents/list" },
-      {
-        title: document.title,
-        path: `/documents/detail/${document.id}`,
-      },
-    ];
-  }, [document]);
-
   if (loading) {
     return (
-      <div className={styles.loading}>
+      <div className="w-full h-full flex items-center justify-center">
         <LoadingOutlined />
       </div>
     );
@@ -71,12 +50,15 @@ const DocumentView = () => {
 
   if (!document) {
     return (
-      <div className={styles.empty}>
+      <div className="w-full h-full flex items-center justify-center">
         <Empty
           description="知识库不存在或已被删除"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
-          <Button type="primary" onClick={() => navigate("/documents/list")}>
+          <Button
+            type="primary"
+            onClick={() => navigateTo(TabType.DocumentList)}
+          >
             返回知识库列表
           </Button>
         </Empty>
@@ -87,45 +69,32 @@ const DocumentView = () => {
   if (!document) return null;
 
   return (
-    <div className={styles.viewContainer}>
-      <div
-        className={classnames(styles.sidebar, {
-          [styles.hide]: hideDocumentItemsList,
-        })}
-      >
-        <DocumentList />
-      </div>
-      <div className={styles.edit}>
-        <Titlebar className={styles.titlebar}>
-          <If condition={hideDocumentItemsList}>
-            <div className={styles.openIndicator} onClick={openSidebar}>
-              <MenuUnfoldOutlined />
-            </div>
-          </If>
-          <Breadcrumb
-            className={classnames(styles.breadcrumb, {
-              [styles.showUnfold]: hideDocumentItemsList,
-            })}
-            items={breadcrumbItems.map((item) => ({
-              title: (
-                <span
-                  className={styles.breadcrumbItem}
-                  onClick={() => navigate(item.path)}
-                >
-                  {item.title}
-                </span>
-              ),
-            }))}
-          />
-        </Titlebar>
-        <div className={styles.editorContainer}>
-          <EditDocumentItem
-            key={activeDocumentItemId}
-            documentItemId={activeDocumentItemId ?? 0}
-          />
+    <DocumentContext.Provider
+      value={{
+        documentId: document.id,
+        itemId: itemId,
+      }}
+    >
+      <div className="w-full h-full flex">
+        <ResizeableAndHideableSidebar
+          width={sidebarWidth ?? 300}
+          onWidthChange={setSidebarWidth}
+          open={true}
+          disableResize={false}
+          className="h-full border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+        >
+          <DocumentList />
+        </ResizeableAndHideableSidebar>
+        <div className="flex-1 h-full flex flex-col overflow-hidden">
+          <div className="w-full flex-1 overflow-hidden">
+            <EditDocumentItem
+              key={itemId ?? document.id}
+              documentItemId={itemId ?? 0}
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </DocumentContext.Provider>
   );
 };
 

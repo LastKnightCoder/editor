@@ -113,9 +113,29 @@ export interface ISetting {
       enable: boolean;
       name: "进度管理";
     };
+    calendar: {
+      enable: boolean;
+      name: "日历";
+    };
+    chatManagement: {
+      enable: boolean;
+      name: "聊天管理";
+    };
     resourceManagement: {
       enable: boolean;
       name: "资源管理";
+    };
+    pomodoro: {
+      enable: boolean;
+      name: "番茄专注";
+    };
+    todo: {
+      enable: boolean;
+      name: "任务列表";
+    };
+    question: {
+      enable: boolean;
+      name: "问题管理";
     };
   };
   darkMode: boolean;
@@ -314,6 +334,26 @@ const initialState: IState = {
       resourceManagement: {
         enable: true,
         name: "资源管理",
+      },
+      pomodoro: {
+        enable: true,
+        name: "番茄专注",
+      },
+      todo: {
+        enable: true,
+        name: "任务列表",
+      },
+      question: {
+        enable: true,
+        name: "问题管理",
+      },
+      calendar: {
+        enable: true,
+        name: "日历",
+      },
+      chatManagement: {
+        enable: true,
+        name: "聊天管理",
       },
     },
     textToSpeech: {

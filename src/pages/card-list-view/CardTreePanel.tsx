@@ -59,11 +59,11 @@ const CardTreePanel = memo(
         onWidthChange={handleWidthChange}
         open={true}
         disableResize={false}
-        className="h-full"
+        className="h-full border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
         minWidth={200}
         maxWidth={400}
       >
-        <div className="bg-[var(--second-sidevar-background)] border-[20px] border-transparent box-border transition-all duration-300 w-full h-full overflow-auto [&::-webkit-scrollbar]:hidden">
+        <div className="border-[20px] border-transparent box-border transition-all duration-300 w-full h-full overflow-auto [&::-webkit-scrollbar]:hidden">
           {tagItemList}
         </div>
       </ResizableAndHideableSidebar>

@@ -3,8 +3,9 @@ import { useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import { Button, Dropdown, Empty, MenuProps, message } from "antd";
 import { produce } from "immer";
-import { useNavigate } from "react-router-dom";
 import DocumentItem from "../DocumentItem";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 import If from "@/components/If";
 import { DEFAULT_CREATE_DOCUMENT_ITEM } from "@/constants";
 import {
@@ -18,11 +19,7 @@ import {
 import { IArticle, ICard, IDocument, IDocumentItem } from "@/types";
 import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { EDragPosition } from "@/hooks/useDragAndDrop.ts";
-import {
-  HomeOutlined,
-  PlusOutlined,
-  MenuFoldOutlined,
-} from "@ant-design/icons";
+import { HomeOutlined, PlusOutlined } from "@ant-design/icons";
 
 import styles from "./index.module.less";
 
@@ -53,20 +50,13 @@ const Document = (props: IDocumentProps) => {
     });
   }, []);
 
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
-  const { updateDocument, activeDocumentItemId } = useDocumentsStore(
+  const { updateDocument } = useDocumentsStore(
     useShallow((state) => ({
       updateDocument: state.updateDocument,
-      activeDocumentItemId: state.activeDocumentItemId,
     })),
   );
-
-  const onFoldSidebar = useMemoizedFn(() => {
-    useDocumentsStore.setState({
-      hideDocumentItemsList: true,
-    });
-  });
 
   const addNewDocumentItem = useMemoizedFn(async () => {
     if (!document) return null;
@@ -111,9 +101,6 @@ const Document = (props: IDocumentProps) => {
     if (key === "add-document-item") {
       const item = await addNewDocumentItem();
       if (!item) return;
-      useDocumentsStore.setState({
-        activeDocumentItemId: item.id,
-      });
     }
   });
 
@@ -171,21 +158,12 @@ const Document = (props: IDocumentProps) => {
         <div className={styles.title}>
           <HomeOutlined
             onClick={() => {
-              useDocumentsStore.setState({
-                activeDocumentItemId: null,
-                hideDocumentItemsList: false,
-              });
-              navigate(`/documents/list`);
+              navigateTo(TabType.DocumentList);
             }}
           />
           {document.title}
         </div>
         <div className={styles.icons}>
-          {activeDocumentItemId && (
-            <div className={styles.icon} onClick={onFoldSidebar}>
-              <MenuFoldOutlined />
-            </div>
-          )}
           <Dropdown
             menu={{
               items: addMenuItems,

@@ -5,13 +5,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 
 import Editor, { EditorRef } from "@editor/index.tsx";
 import EditText, { EditTextHandle } from "@/components/EditText";
-
-import {
-  fileAttachmentExtension,
-  contentLinkExtension,
-  projectCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 import { ProjectItem } from "@/types/project";
 import { getProjectItemById, updateProjectItem } from "@/commands";
@@ -27,13 +21,6 @@ interface ProjectItemViewerProps {
   projectItemId: string;
   onTitleChange?: (title: string) => void;
 }
-
-const customExtensions = [
-  fileAttachmentExtension,
-  contentLinkExtension,
-  projectCardListExtension,
-  questionCardExtension,
-];
 
 const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
   projectItemId,
@@ -52,6 +39,8 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
       editorRef.current?.setEditorValue(content);
     },
   );
+
+  const extensions = useDynamicExtensions();
 
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
@@ -213,7 +202,7 @@ const ProjectItemViewer: React.FC<ProjectItemViewerProps> = ({
           onChange={onContentChange}
           readonly={false}
           uploadResource={uploadResource}
-          extensions={customExtensions}
+          extensions={extensions}
         />
       </div>
     </div>

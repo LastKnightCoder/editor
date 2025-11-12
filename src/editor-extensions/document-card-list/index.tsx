@@ -15,13 +15,19 @@ export interface DocumentCardListElement {
 
 class DocumentCardListExtension extends Base implements IExtension {
   type = "document-card-list";
+  private documentId?: number;
+
+  constructor(documentId?: number) {
+    super();
+    this.documentId = documentId;
+  }
 
   override getPlugins() {
     return [overwrite];
   }
 
   override getBlockPanelItems() {
-    return blockPanelItems;
+    return blockPanelItems(this.documentId);
   }
 
   render(props: RenderElementProps) {

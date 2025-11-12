@@ -6,7 +6,6 @@ import {
   useLocalStorageState,
 } from "ahooks";
 import classnames from "classnames";
-import OpenIndicator from "@/components/OpenIndicator";
 
 import Board from "./Board";
 import {
@@ -56,6 +55,10 @@ import {
   ArrowMoveContext,
   useElementsMoving,
 } from "./hooks";
+
+import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
+import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
+import SVG from "react-inlinesvg";
 
 import styles from "./index.module.less";
 import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
@@ -344,9 +347,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
         <ViewPortContext.Provider value={viewPort}>
           <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
             <BoardStateContext.Provider value={{ isMoving: isElementsMoving }}>
-              <div className="flex h-full">
+              <div className="flex h-full relative">
                 <ResizeableAndHideableSidebar
-                  className="relative flex-shrink-0 h-full flex-none overflow-hidden"
+                  className="relative flex-shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
                   width={sidebarWidth ?? 300}
                   onWidthChange={setSidebarWidth}
                   open={!!sidebarOpen}
@@ -354,6 +357,14 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 >
                   <Sidebar />
                 </ResizeableAndHideableSidebar>
+                <SVG
+                  className="absolute top-4 cursor-pointer z-50 transition-all duration-300"
+                  style={{
+                    left: sidebarOpen ? (sidebarWidth ?? 300) + 10 : 10 + "px",
+                  }}
+                  src={sidebarOpen ? leftSidebarIcon : rightSidebarIcon}
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                />
                 <div
                   ref={containerRef}
                   className={classnames(
@@ -375,15 +386,6 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                   onPointerUp={handleOnPointerUp}
                 >
                   <div className="relative h-full w-full">
-                    <div
-                      className={`absolute cursor-pointer left-0 top-1/2 -translate-y-1/2`}
-                    >
-                      <OpenIndicator
-                        open={!!sidebarOpen}
-                        showIndicator={true}
-                        onOpenChange={setSidebarOpen}
-                      />
-                    </div>
                     {!readonly && <Toolbar />}
 
                     <BoardContent

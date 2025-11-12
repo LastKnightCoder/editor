@@ -1,24 +1,10 @@
 import Editor from "@/components/Editor";
 import { Tag } from "antd";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  projectCardListExtension,
-  documentCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { memo } from "react";
 import { SearchResult } from "@/types";
 
 import styles from "./index.module.less";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  projectCardListExtension,
-  documentCardListExtension,
-  questionCardExtension,
-];
 
 // 搜索结果项组件
 const SearchResultItem = memo(
@@ -33,6 +19,8 @@ const SearchResultItem = memo(
     getTagColor: (type: string) => string;
     handleSearchResultClick: (result: SearchResult) => void;
   }) => {
+    const extensions = useDynamicExtensions();
+
     return (
       <div
         className={styles.item}
@@ -53,7 +41,7 @@ const SearchResultItem = memo(
           }}
           initValue={result.content.slice(0, 3)}
           readonly={true}
-          extensions={customExtensions}
+          extensions={extensions}
         />
       </div>
     );
