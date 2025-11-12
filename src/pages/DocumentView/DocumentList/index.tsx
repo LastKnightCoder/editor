@@ -1,11 +1,12 @@
 import { memo } from "react";
 import Document from "./Document";
-import { useParams } from "react-router-dom";
+import useTabParams from "@/hooks/useTabParams";
+import { TabType } from "@/types/tab";
 
 import styles from "./index.module.less";
 
 const DocumentList = memo(() => {
-  const { id } = useParams();
+  const { id } = useTabParams(TabType.DocumentDetail);
 
   return (
     <div className={styles.documentList}>

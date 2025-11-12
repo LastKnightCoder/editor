@@ -1,19 +1,15 @@
-import { Breadcrumb, Flex, Select } from "antd";
-import { useNavigate } from "react-router-dom";
+import { Flex, Select } from "antd";
 
 import AutoHeightTable from "@/components/AutoHeightTable";
 import useTableConfig from "./useTableConfig";
 
 import { useState, memo } from "react";
 import { IndexType } from "@/types";
-import Titlebar from "@/components/Titlebar";
-
 import styles from "./index.module.less";
 
 const VecDocumentView = memo(() => {
   const [indexType, setIndexType] = useState<IndexType>("card");
   const tableConfig = useTableConfig(indexType);
-  const navigate = useNavigate();
 
   if (!tableConfig) return null;
 
@@ -27,28 +23,8 @@ const VecDocumentView = memo(() => {
     leftExtraNode,
   } = tableConfig;
 
-  const breadcrumbItems = [
-    { title: "首页", path: "/" },
-    { title: "索引数据库", path: "/vec-documents/" },
-  ];
-
   return (
     <div className={styles.container}>
-      <Titlebar className={styles.titlebar}>
-        <Breadcrumb
-          className={styles.breadcrumb}
-          items={breadcrumbItems.map((item) => ({
-            title: (
-              <span
-                className={styles.breadcrumbItem}
-                onClick={() => navigate(item.path)}
-              >
-                {item.title}
-              </span>
-            ),
-          }))}
-        />
-      </Titlebar>
       <div className={styles.content}>
         <Flex
           vertical

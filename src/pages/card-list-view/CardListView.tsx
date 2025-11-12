@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useCreation, useMemoizedFn } from "ahooks";
-import { Breadcrumb, Dropdown, MenuProps, FloatButton, App } from "antd";
+import { Dropdown, MenuProps, FloatButton, App } from "antd";
 import { Descendant } from "slate";
-
 import {
   LoadingOutlined,
   PlusOutlined,
@@ -27,8 +25,6 @@ import CreateCard from "./CreateCard";
 import CardPreview from "./CardPreview";
 import If from "@/components/If";
 import PresentationMode from "@/components/PresentationMode";
-import Titlebar from "@/components/Titlebar";
-
 import { ICard, ECardCategory, ICreateCard } from "@/types";
 import { cardCategoryName } from "@/constants";
 import {
@@ -52,7 +48,6 @@ const categoryWithAll = {
 };
 
 const CardListView = () => {
-  const navigate = useNavigate();
   const [cards, setCards] = useState<ICard[]>([]);
   const [loading, setLoading] = useState(false);
   const [isCreatingCard, setIsCreatingCard] = useState(false);
@@ -345,13 +340,6 @@ const CardListView = () => {
     ];
   }, []);
 
-  const breadcrumbItems = useMemo(() => {
-    return [
-      { title: "首页", path: "/" },
-      { title: "卡片列表", path: "/cards/list" },
-    ];
-  }, []);
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-full w-full">
@@ -370,21 +358,6 @@ const CardListView = () => {
             onClickTag={handleClickTag}
           />
           <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden relative">
-            <Titlebar className="h-15 flex-shrink-0">
-              <Breadcrumb
-                className="h-15 pl-10! flex items-center app-region-no-drag"
-                items={breadcrumbItems.map((item) => ({
-                  title: (
-                    <span
-                      className="cursor-pointer transition-all duration-300 ease-in-out p-1 rounded hover:bg-[var(--common-hover-bg)]"
-                      onClick={() => navigate(item.path)}
-                    >
-                      {item.title}
-                    </span>
-                  ),
-                }))}
-              />
-            </Titlebar>
             {viewMode === ViewMode.List ? (
               <CardListPanel
                 ref={cardListRef}

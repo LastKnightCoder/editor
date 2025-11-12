@@ -3,13 +3,14 @@ import { useMemoizedFn, useCreation, useRafInterval, useUnmount } from "ahooks";
 import { Button, Modal, Tooltip, App } from "antd";
 import { Descendant } from "slate";
 import { ExpandOutlined, CloseOutlined } from "@ant-design/icons";
-import { useNavigate } from "react-router-dom";
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditCard from "@/pages/CardDetailView/useEditCard";
 import useUploadResource from "@/hooks/useUploadResource";
 import useEditContent from "@/hooks/useEditContent";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 import {
   contentLinkExtension,
@@ -33,7 +34,7 @@ interface CardPreviewProps {
 
 const CardPreview = (props: CardPreviewProps) => {
   const { cardId, visible, onClose, onGoToDetail } = props;
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
   const editorRef = useRef<EditorRef>(null);
   const { message } = App.useApp();
   const cardEventBus = useCreation(
@@ -129,7 +130,7 @@ const CardPreview = (props: CardPreviewProps) => {
 
   const handleGoToDetail = useMemoizedFn(() => {
     if (editingCard) {
-      navigate(`/cards/detail/${editingCard.id}`);
+      navigateTo(TabType.CardDetail, { id: editingCard.id });
       onGoToDetail?.();
     }
   });

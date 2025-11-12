@@ -19,26 +19,13 @@ import {
 } from "react-icons/md";
 
 import { formatDate, defaultDocumentItemEventBus } from "@/utils";
-import {
-  contentLinkExtension,
-  documentCardListExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
 
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
-
-const extensions = [
-  contentLinkExtension,
-  documentCardListExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
-
 interface EditDocumentItemProps {
   documentItemId: number;
 }
@@ -55,6 +42,8 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
 
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
+
+  const extensions = useDynamicExtensions();
 
   const {
     documentItem,

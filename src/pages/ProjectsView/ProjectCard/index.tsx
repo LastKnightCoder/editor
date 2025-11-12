@@ -1,5 +1,4 @@
 import React, { useState, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import { Descendant } from "slate";
 import { Modal, Dropdown } from "antd";
@@ -15,6 +14,8 @@ import Editor, { EditorRef } from "@editor/index.tsx";
 import useProjectsStore from "@/stores/useProjectsStore.ts";
 import useShortcutStore from "@/stores/useShortcutStore";
 import EditProjectInfoModal from "@/pages/ProjectsView/EditProjectInfoModal";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 import styles from "./index.module.less";
 
@@ -30,7 +31,7 @@ const ProjectCard = (props: ProjectCardProps) => {
   const editorRef = useRef<EditorRef>(null);
 
   const [editOpen, setEditOpen] = useState(false);
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const {
     deleteProject,
@@ -76,7 +77,7 @@ const ProjectCard = (props: ProjectCardProps) => {
   }, [findShortcut, project.id, shortcuts]);
 
   const onClick = () => {
-    navigate(`/projects/detail/${project.id}`);
+    navigateTo(TabType.ProjectDetail, { id: project.id });
   };
 
   const handleDeleteProject = () => {

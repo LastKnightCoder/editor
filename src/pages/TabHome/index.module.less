@@ -1,0 +1,83 @@
+.tabHome {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--main-bg-color);
+  position: relative;
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.25em, 1fr));
+  gap: 1.25em;
+  padding: 2em;
+  flex-shrink: 0;
+}
+
+.shortcutItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25em;
+  border-radius: 0.5em;
+  background-color: var(--card-bg-color, #f5f5f5);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+
+  &:hover {
+    background-color: var(--common-hover-bg);
+    transform: translateY(-0.125em);
+    box-shadow: 0 0.25em 0.5em rgba(0, 0, 0, 0.1);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.shortcutIcon {
+  font-size: 2em;
+  margin-bottom: 0.5em;
+}
+
+.shortcutLabel {
+  font-size: 0.875em;
+  color: var(--text-color);
+  text-align: center;
+}
+
+.editorContainer {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2em;
+  overflow: auto;
+}
+
+.editorWrapper {
+  width: 100%;
+  max-width: 50em;
+  min-height: 18.75em;
+  background-color: var(--editor-bg-color, white);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5em;
+  padding: 1.5em;
+  box-shadow: 0 0.125em 0.5em rgba(0, 0, 0, 0.05);
+}
+
+.saveBtn {
+  position: fixed;
+  right: 2em;
+  bottom: 2em;
+  z-index: 100;
+  box-shadow: 0 0.25em 1em rgba(0, 0, 0, 0.15);
+
+  &:hover {
+    box-shadow: 0 0.375em 1.5em rgba(0, 0, 0, 0.2);
+  }
+}

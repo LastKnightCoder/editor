@@ -3,13 +3,15 @@ import { RenderElementProps } from "slate-react";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import { DocumentCardListElement } from "@/editor-extensions/document-card-list";
-import useDocumentsStore from "@/stores/useDocumentsStore.ts";
 import { IDocumentItem } from "@/types";
 import classnames from "classnames";
 
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
 import React from "react";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
+import { useDocumentContext } from "@/pages/DocumentView/DocumentContext";
 
 interface IDocumentCardExtensionProps {
   element: DocumentCardListElement;
@@ -18,7 +20,9 @@ interface IDocumentCardExtensionProps {
 }
 
 const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
+  const { documentId } = useDocumentContext();
   const { attributes, children, element } = props;
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -27,9 +31,7 @@ const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
     });
 
   const onClickItem = (item: IDocumentItem) => {
-    useDocumentsStore.setState({
-      activeDocumentItemId: item.id,
-    });
+    navigateTo(TabType.DocumentDetail, { id: documentId, itemId: item.id });
   };
 
   const { documentItemId } = element;

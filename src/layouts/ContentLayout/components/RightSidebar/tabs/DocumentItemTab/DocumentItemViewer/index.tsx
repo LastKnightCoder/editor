@@ -6,12 +6,7 @@ import { LoadingOutlined } from "@ant-design/icons";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
-import {
-  fileAttachmentExtension,
-  contentLinkExtension,
-  documentCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 import { IDocumentItem } from "@/types/document";
 import { getDocumentItem, updateDocumentItem } from "@/commands";
@@ -28,17 +23,12 @@ interface DocumentItemViewerProps {
   onTitleChange?: (title: string) => void;
 }
 
-const customExtensions = [
-  fileAttachmentExtension,
-  contentLinkExtension,
-  documentCardListExtension,
-  questionCardExtension,
-];
-
 const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
   documentItemId,
   onTitleChange,
 }) => {
+  const extensions = useDynamicExtensions();
+
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
@@ -206,7 +196,7 @@ const DocumentItemViewer: React.FC<DocumentItemViewerProps> = ({
           onChange={onContentChange}
           readonly={false}
           uploadResource={uploadResource}
-          extensions={customExtensions}
+          extensions={extensions}
         />
       </div>
     </div>

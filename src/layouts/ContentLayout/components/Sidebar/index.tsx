@@ -3,8 +3,8 @@ import classnames from "classnames";
 import { platform } from "@/electron.ts";
 
 import useFullScreen from "@/hooks/useFullScreen.ts";
+import useTabStore from "@/stores/useTabStore";
 import styles from "./index.module.less";
-import SidebarNavItems from "./SidebarNavItems";
 import SidebarFooter from "./SidebarFooter";
 
 interface SidebarProps {
@@ -17,19 +17,25 @@ const Sidebar = memo((props: SidebarProps) => {
 
   const isFullscreen = useFullScreen();
   const isMac = platform === "darwin";
+  const collapsed = useTabStore((state) => state.sidebarCollapsed);
 
   return (
-    <div className={className} style={style}>
+    <div
+      className={classnames(className, styles.sidebarContainer, {
+        [styles.collapsed]: collapsed,
+      })}
+      style={style}
+    >
       <div className={classnames(styles.sidebar)}>
         <div
           className={classnames(styles.list, {
             [styles.isMac]: isMac && !isFullscreen,
           })}
         >
-          <SidebarNavItems isShortWidth={true} />
+          {" "}
         </div>
 
-        <SidebarFooter isShortWidth={true} />
+        <SidebarFooter isShortWidth={collapsed} />
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams } from "react-router-dom";
 import { Descendant } from "slate";
 import {
   Dropdown,
@@ -15,11 +14,11 @@ import {
   HomeOutlined,
   PlusOutlined,
   GlobalOutlined,
-  MenuFoldOutlined,
   LoadingOutlined,
 } from "@ant-design/icons";
-import useProjectsStore from "@/stores/useProjectsStore.ts";
-import { useNavigate } from "react-router-dom";
+import useTabParams from "@/hooks/useTabParams";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem/index.tsx";
 import If from "@/components/If";
@@ -79,10 +78,8 @@ import { generateContentHash } from "@/utils/content-hash";
 
 const Project = () => {
   const { message } = App.useApp();
-  const { id } = useParams();
-  const { hideProjectItemList } = useProjectsStore((state) => ({
-    hideProjectItemList: state.hideProjectItemList,
-  }));
+  const { id } = useTabParams(TabType.ProjectDetail);
+  const navigateTo = useTabStore((state) => state.navigateTo);
   const { setting } = useSettingStore((state) => ({ setting: state.setting }));
 
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
@@ -136,12 +133,6 @@ const Project = () => {
   const [notionTitle, setNotionTitle] = useState("");
   const [notionLoading, setNotionLoading] = useState(false);
   const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
-
-  const onFoldSidebar = useMemoizedFn(() => {
-    useProjectsStore.setState({
-      hideProjectItemList: true,
-    });
-  });
 
   const fetchBilibiliQualityOptions = useMemoizedFn(async (url: string) => {
     if (!url.trim() || !isBilibiliUrl(url)) {
@@ -307,8 +298,6 @@ const Project = () => {
     };
   }, [debounceTimeoutId]);
 
-  const navigate = useNavigate();
-
   const {
     onOk: onCardOk,
     onCancel: onCardCancel,
@@ -465,17 +454,18 @@ const Project = () => {
         );
 
         if (item) {
-          useProjectsStore.setState({
-            activeProjectItemId: item.id,
+          navigateTo(TabType.ProjectDetail, {
+            id: newProject.id,
+            itemId: item.id,
           });
         }
 
         setProject(newProject);
         setNotionSyncModalOpen(false);
         message.success("Notion 文档创建成功！");
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("创建 Notion 文档失败:", error);
-        message.error(error.message || "创建失败");
+        message.error(error instanceof Error ? error.message : "创建失败");
       }
     },
   );
@@ -565,8 +555,9 @@ const Project = () => {
           createProjectItem,
         );
         if (item) {
-          useProjectsStore.setState({
-            activeProjectItemId: item.id,
+          navigateTo(TabType.ProjectDetail, {
+            id: newProject.id,
+            itemId: item.id,
           });
         }
         setProject(newProject);
@@ -606,8 +597,9 @@ const Project = () => {
           createProjectItem,
         );
         if (item) {
-          useProjectsStore.setState({
-            activeProjectItemId: item.id,
+          navigateTo(TabType.ProjectDetail, {
+            id: newProject.id,
+            itemId: item.id,
           });
         }
         setProject(newProject);
@@ -647,8 +639,9 @@ const Project = () => {
           createProjectItem,
         );
         if (projectItem) {
-          useProjectsStore.setState({
-            activeProjectItemId: projectItem.id,
+          navigateTo(TabType.ProjectDetail, {
+            id: newProject.id,
+            itemId: projectItem.id,
           });
         }
         setProject(newProject);
@@ -683,8 +676,9 @@ const Project = () => {
           createProjectItem,
         );
         if (item) {
-          useProjectsStore.setState({
-            activeProjectItemId: item.id,
+          navigateTo(TabType.ProjectDetail, {
+            id: newProject.id,
+            itemId: item.id,
           });
         }
         setProject(newProject);
@@ -721,8 +715,9 @@ const Project = () => {
             whiteBoardContentId: 0,
           });
           if (item) {
-            useProjectsStore.setState({
-              activeProjectItemId: item.id,
+            navigateTo(TabType.ProjectDetail, {
+              id: newProject.id,
+              itemId: item.id,
             });
           }
           setProject(newProject);
@@ -738,8 +733,8 @@ const Project = () => {
       <ResizeableAndHideableSidebar
         width={sidebarWidth ?? 300}
         onWidthChange={setSidebarWidth}
-        open={!hideProjectItemList}
-        disableResize={hideProjectItemList}
+        open={true}
+        disableResize={false}
         className="h-full"
       >
         <div className={styles.list}>
@@ -747,19 +742,12 @@ const Project = () => {
             <div className={styles.title}>
               <HomeOutlined
                 onClick={() => {
-                  useProjectsStore.setState({
-                    activeProjectItemId: null,
-                    hideProjectItemList: false,
-                  });
-                  navigate(`/projects/list`);
+                  navigateTo(TabType.ProjectList);
                 }}
               />
               {project.title}
             </div>
             <div className={styles.icons}>
-              <div className={styles.icon} onClick={onFoldSidebar}>
-                <MenuFoldOutlined />
-              </div>
               <Dropdown
                 menu={{
                   items: addMenuItems,
@@ -843,8 +831,9 @@ const Project = () => {
                 createProjectItem,
               );
               if (projectItem) {
-                useProjectsStore.setState({
-                  activeProjectItemId: projectItem.id,
+                navigateTo(TabType.ProjectDetail, {
+                  id: newProject.id,
+                  itemId: projectItem.id,
                 });
               }
               setProject(newProject);
@@ -920,8 +909,9 @@ const Project = () => {
                   createProjectItem,
                 );
                 if (projectItem) {
-                  useProjectsStore.setState({
-                    activeProjectItemId: projectItem.id,
+                  navigateTo(TabType.ProjectDetail, {
+                    id: newProject.id,
+                    itemId: projectItem.id,
                   });
                 }
                 setProject(newProject);
@@ -1040,8 +1030,9 @@ const Project = () => {
                 createProjectItem,
               );
               if (item) {
-                useProjectsStore.setState({
-                  activeProjectItemId: item.id,
+                navigateTo(TabType.ProjectDetail, {
+                  id: newProject.id,
+                  itemId: item.id,
                 });
               }
               setProject(newProject);
@@ -1139,11 +1130,11 @@ const Project = () => {
                 );
 
                 if (projectItem) {
-                  useProjectsStore.setState({
-                    activeProjectItemId: projectItem.id,
+                  navigateTo(TabType.ProjectDetail, {
+                    id: newProject.id,
+                    itemId: projectItem.id,
                   });
                 }
-
                 setProject(newProject);
                 setBilibiliModalOpen(false);
                 setBilibiliUrl("");
@@ -1314,10 +1305,16 @@ const Project = () => {
                   whiteBoardContentId: 0,
                 };
 
-                const [newProject] = await addRootProjectItem(
+                const [newProject, projectItem] = await addRootProjectItem(
                   project.id,
                   createProjectItem,
                 );
+                if (projectItem) {
+                  navigateTo(TabType.ProjectDetail, {
+                    id: newProject.id,
+                    itemId: projectItem.id,
+                  });
+                }
                 setProject(newProject);
 
                 setNotionModalOpen(false);

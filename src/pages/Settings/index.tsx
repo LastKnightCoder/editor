@@ -1,7 +1,4 @@
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Tabs, TabsProps, Breadcrumb } from "antd";
-import Titlebar from "@/components/Titlebar";
+import { Tabs, TabsProps } from "antd";
 
 import AppAbout from "./AppAbout";
 import FontSetting from "./FontSetting";
@@ -16,8 +13,6 @@ import IntegrationSetting from "./IntegrationSetting";
 import styles from "./index.module.less";
 
 const SettingsPage = () => {
-  const navigate = useNavigate();
-
   const items: TabsProps["items"] = [
     {
       key: "app",
@@ -66,30 +61,8 @@ const SettingsPage = () => {
     },
   ];
 
-  const breadcrumbItems = useMemo(() => {
-    return [
-      { title: "首页", path: "/" },
-      { title: "设置", path: "/settings" },
-    ];
-  }, []);
-
   return (
     <div className="w-full h-full flex flex-col box-border overflow-hidden gap-2">
-      <Titlebar className="h-15 flex-shrink-0">
-        <Breadcrumb
-          className="h-15 pl-6! flex items-center app-region-no-drag"
-          items={breadcrumbItems.map((item) => ({
-            title: (
-              <span
-                className="cursor-pointer transition-all duration-300 ease-in-out p-1 rounded hover:bg-[var(--common-hover-bg)]"
-                onClick={() => navigate(item.path)}
-              >
-                {item.title}
-              </span>
-            ),
-          }))}
-        />
-      </Titlebar>
       <div className="flex flex-1 overflow-hidden">
         <Tabs tabPosition={"left"} items={items} className={styles.tabs} />
       </div>

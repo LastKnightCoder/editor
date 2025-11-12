@@ -8,12 +8,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  projectCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import {
   getProjectItemById,
   connectDatabaseByName,
@@ -28,17 +23,13 @@ import { EditCardContext } from "@/context";
 import { ProjectItem } from "@/types";
 import useEditContent from "@/hooks/useEditContent";
 
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  projectCardListExtension,
-  questionCardExtension,
-];
 const editotContextValue = {
   cardId: -1,
 };
 
 const SingleProjectItemEditor = () => {
+  const extensions = useDynamicExtensions();
+
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
     [],
@@ -192,7 +183,7 @@ const SingleProjectItemEditor = () => {
                 ref={editorRef}
                 initValue={editingProjectItem.content}
                 onChange={onContentChange}
-                extensions={customExtensions}
+                extensions={extensions}
                 readonly={false}
                 uploadResource={uploadResource}
               />

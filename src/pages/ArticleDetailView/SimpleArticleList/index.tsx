@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import classnames from "classnames";
 import useArticleManagementStore from "@/stores/useArticleManagementStore.ts";
 import For from "@/components/For";
@@ -8,6 +7,8 @@ import { IArticle } from "@/types";
 import { MenuFoldOutlined, LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { getAllArticles } from "@/commands";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 interface SimpleArticleListProps {
   activeArticleId: number;
@@ -19,7 +20,7 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
   const { className, style, activeArticleId } = props;
 
   const [articles, setArticles] = useState<IArticle[]>([]);
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -35,10 +36,10 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
 
   const onClick = (article: IArticle) => {
     if (activeArticleId === article.id) {
-      navigate(`/articles/list`);
+      navigateTo(TabType.ArticleList);
       return;
     }
-    navigate(`/articles/detail/${article.id}`);
+    navigateTo(TabType.ArticleDetail, { id: article.id });
   };
 
   const onFoldArticleList = useMemoizedFn(() => {

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import classnames from "classnames";
 import { Popover, App, Tag } from "antd";
-import { useNavigate } from "react-router-dom";
 
 import { MdMoreVert } from "react-icons/md";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 import useTheme from "@/hooks/useTheme.ts";
 import usePdfsStore from "@/stores/usePdfsStore.ts";
 import useUploadResource from "@/hooks/useUploadResource.ts";
@@ -20,7 +21,7 @@ interface PdfCardProps {
 const PdfCard = (props: PdfCardProps) => {
   const { className, style, pdf, compact = false } = props;
 
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
   const { modal, message } = App.useApp();
   const { isDark } = useTheme();
   const [settingOpen, setSettingOpen] = useState(false);
@@ -101,7 +102,7 @@ const PdfCard = (props: PdfCardProps) => {
       });
     } else {
       // 在列表页，导航到详情页
-      navigate(`/pdfs/detail/${pdf.id}`);
+      navigateTo(TabType.PdfDetail, { id: pdf.id });
     }
   };
 

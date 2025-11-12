@@ -1,14 +1,14 @@
 import { useEffect, memo } from "react";
 import isHotkey from "is-hotkey";
-import { Outlet } from "react-router-dom";
 import classnames from "classnames";
 
-import Sidebar from "./components/Sidebar";
 import RightSidebar from "./components/RightSidebar";
 import ChatSidebar from "./components/ChatSidebar";
 import SmallComponentSidebar from "./components/SmallComponentSidebar";
+import PanesLayout from "./components/PanesLayout";
 
 import Search from "./components/Search";
+import CommandPanel from "@/components/CommandPanel";
 
 import useInitDatabase from "@/hooks/useInitDatabase.ts";
 
@@ -51,10 +51,9 @@ const ShortSidebarLayout = memo(() => {
 
   return (
     <div className={styles.container}>
-      <Sidebar className={styles.sidebar} />
       <div className={styles.content}>
         <div className={styles.mainContent}>
-          <Outlet />
+          <PanesLayout />
         </div>
         <div
           className={classnames(styles.rightSidebar, {
@@ -71,6 +70,7 @@ const ShortSidebarLayout = memo(() => {
       </div>
       <Search />
       <SettingModal />
+      <CommandPanel />
     </div>
   );
 });

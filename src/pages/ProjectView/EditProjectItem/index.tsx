@@ -3,21 +3,13 @@ import { Descendant } from "slate";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import useEdit from "./useEdit";
-import { useShallow } from "zustand/react/shallow";
-import useProjectsStore from "@/stores/useProjectsStore";
-
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  projectCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import useEditContent from "@/hooks/useEditContent";
 import NotionSyncStatus from "@/components/NotionSyncStatus";
 import NotionConflictModal from "@/components/NotionConflictModal";
@@ -25,13 +17,6 @@ import { notionCompatibleExtensions } from "@/components/Editor/extensions/notio
 import { useNotionSyncIntegration } from "./useNotionSyncIntegration";
 
 import styles from "./index.module.less";
-
-const defaultExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  projectCardListExtension,
-  questionCardExtension,
-];
 
 const EditProjectItem = (props: { projectItemId: number }) => {
   const { projectItemId } = props;
@@ -50,6 +35,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     saveProjectItem,
     setProjectItem,
   } = useEdit(projectItemId);
+
+  const dynamicExtensions = useDynamicExtensions();
 
   // Notion 同步集成
   const {
@@ -78,8 +65,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
       return notionCompatibleExtensions;
     }
     // 普通文档或 JSON 模式：使用默认扩展（支持所有功能）
-    return defaultExtensions;
-  }, [isNotionDocument, useNotionExtensions]);
+    return dynamicExtensions;
+  }, [isNotionDocument, useNotionExtensions, dynamicExtensions]);
 
   const { throttleHandleEditorContentChange } = useEditContent(
     projectItem?.contentId,
@@ -88,15 +75,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     },
   );
 
-  const { showOutline, readonly } = useProjectsStore(
-    useShallow((state) => ({
-      showOutline: state.showOutline,
-      readonly: state.readonly,
-    })),
-  );
-
   useRafInterval(async () => {
-    if (readonly) return;
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
       projectItemEventBus.publishProjectItemEvent(
@@ -107,7 +86,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   }, 1000);
 
   useUnmount(async () => {
-    if (readonly) return;
     throttleHandleEditorContentChange.flush();
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
@@ -172,7 +150,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               ref={titleRef}
               defaultValue={projectItem.title}
               onChange={onTitleChange}
-              contentEditable={!readonly}
+              contentEditable={true}
               onPressEnter={onPressEnter}
             />
           </div>
@@ -193,7 +171,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                 onInit={onInit}
                 onChange={onContentChange}
                 uploadResource={uploadResource}
-                readonly={readonly}
+                readonly={false}
                 extensions={extensions}
                 disableStartExtensions={useNotionExtensions}
               />
@@ -203,7 +181,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
         <EditorOutline
           className={styles.outline}
           content={projectItem.content}
-          show={showOutline}
+          show={true}
           onClickHeader={onClickHeader}
         />
       </div>

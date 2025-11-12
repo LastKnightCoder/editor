@@ -1,12 +1,11 @@
 import { memo, useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Dropdown, MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import SidebarItem from "./SidebarItem";
 import useShortcutStore from "@/stores/useShortcutStore";
-import useProjectsStore from "@/stores/useProjectsStore";
-import useDocumentsStore from "@/stores/useDocumentsStore";
+import useTabStore from "@/stores/useTabStore";
 import { ShortcutResourceType } from "@/types";
+import { TabType } from "@/types/tab";
 import shortcut from "@/assets/icons/shortcut.svg";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 
@@ -23,7 +22,7 @@ const typeLabels: Record<ShortcutResourceType, string> = {
 
 const ShortcutDropdown = memo(({ isShortWidth }: ShortcutDropdownProps) => {
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const { items, loaded, loadShortcuts } = useShortcutStore();
   const isConnected = useDatabaseConnected();
@@ -83,41 +82,39 @@ const ShortcutDropdown = memo(({ isShortWidth }: ShortcutDropdownProps) => {
     if (shortcut.scope === "module") {
       switch (shortcut.resourceType) {
         case "card":
-          navigate("/cards/list");
+          navigateTo(TabType.CardList);
           break;
         case "article":
-          navigate("/articles/list");
+          navigateTo(TabType.ArticleList);
           break;
         case "document":
-          navigate("/documents/list");
+          navigateTo(TabType.DocumentList);
           break;
         case "project":
-          navigate("/projects/list");
+          navigateTo(TabType.ProjectList);
           break;
       }
     } else {
       switch (shortcut.resourceType) {
         case "card":
-          navigate(`/cards/detail/${shortcut.resourceId}`);
+          navigateTo(TabType.CardDetail, { id: shortcut.resourceId! });
           break;
         case "article":
-          navigate(`/articles/detail/${shortcut.resourceId}`);
+          navigateTo(TabType.ArticleDetail, { id: shortcut.resourceId! });
           break;
         case "document":
-          useDocumentsStore.setState({
-            activeDocumentItemId: shortcut.documentItemId,
+          // 知识库快捷方式 - 导航到知识库详情
+          navigateTo(TabType.DocumentDetail, {
+            id: shortcut.resourceId!,
+            itemId: shortcut.documentItemId!,
           });
-          navigate(
-            `/documents/detail/${shortcut.resourceId}?itemId=${shortcut.documentItemId}`,
-          );
           break;
         case "project":
-          useProjectsStore.setState({
-            activeProjectItemId: shortcut.projectItemId,
+          // 项目快捷方式 - 导航到项目详情
+          navigateTo(TabType.ProjectDetail, {
+            id: shortcut.resourceId!,
+            itemId: shortcut.projectItemId!,
           });
-          navigate(
-            `/projects/detail/${shortcut.resourceId}?itemId=${shortcut.projectItemId}`,
-          );
           break;
       }
     }

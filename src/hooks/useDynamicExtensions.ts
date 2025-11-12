@@ -1,8 +1,13 @@
 import { IExtension } from "@/components/Editor";
 import { useEffect, useState } from "react";
+import { useProjectContext } from "@/pages/ProjectView/ProjectContext";
+import { useDocumentContext } from "@/pages/DocumentView/DocumentContext";
 
 const useDynamicExtensions = () => {
   const [extensions, setExtensions] = useState<IExtension[]>([]);
+
+  const { itemId: projectItemId } = useProjectContext();
+  const { itemId: documentItemId } = useDocumentContext();
 
   useEffect(() => {
     import("@/editor-extensions").then(
@@ -10,21 +15,21 @@ const useDynamicExtensions = () => {
         contentLinkExtension,
         fileAttachmentExtension,
         questionCardExtension,
-        projectCardListExtension,
-        documentCardListExtension,
+        createProjectCardListExtension,
+        createDocumentCardListExtension,
         dailySummaryExtension,
       }) => {
         setExtensions([
           contentLinkExtension,
           fileAttachmentExtension,
           questionCardExtension,
-          projectCardListExtension,
-          documentCardListExtension,
+          createProjectCardListExtension(projectItemId),
+          createDocumentCardListExtension(documentItemId),
           dailySummaryExtension,
         ]);
       },
     );
-  }, []);
+  }, [projectItemId, documentItemId]);
 
   return extensions;
 };

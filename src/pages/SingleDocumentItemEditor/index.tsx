@@ -8,12 +8,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  documentCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import {
   getDocumentItem,
   updateDocumentItem,
@@ -28,17 +23,13 @@ import styles from "./index.module.less";
 import { EditCardContext } from "@/context";
 import { IDocumentItem } from "@/types";
 
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  documentCardListExtension,
-  questionCardExtension,
-];
 const editorContextValue = {
   cardId: -1,
 };
 
 const SingleDocumentItemEditor = () => {
+  const extensions = useDynamicExtensions();
+
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
@@ -193,7 +184,7 @@ const SingleDocumentItemEditor = () => {
                 ref={editorRef}
                 initValue={editingDocumentItem.content}
                 onChange={onContentChange}
-                extensions={customExtensions}
+                extensions={extensions}
                 readonly={false}
                 uploadResource={uploadResource}
               />
