@@ -57,7 +57,14 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
   }
 
   return (
-    <div className={classnames(styles.container, className)} style={style}>
+    <div
+      className={classnames(
+        styles.container,
+        "border-r border-[#f0f0f0] dark:border-[#2a2a2a]",
+        className,
+      )}
+      style={style}
+    >
       <div className={styles.header}>
         <div className={styles.title}>文章列表({articles.length})</div>
         <div className={styles.icon} onClick={onFoldArticleList}>

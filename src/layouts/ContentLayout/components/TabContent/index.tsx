@@ -1,9 +1,8 @@
 import { memo, lazy, Suspense } from "react";
-import { Spin } from "antd";
 import { TabType, ITab } from "@/types/tab";
 import { TabProvider } from "@/contexts/TabContext";
+import { LoadingOutlined } from "@ant-design/icons";
 
-// 懒加载页面组件
 const CardListView = lazy(() => import("@/pages/card-list-view/CardListView"));
 const CardDetailView = lazy(() => import("@/pages/CardDetailView"));
 const ArticleListView = lazy(() => import("@/pages/ArticleListView"));
@@ -17,7 +16,6 @@ const WhiteboardDetailView = lazy(() => import("@/pages/WhiteboardDetailView"));
 const PdfListView = lazy(() => import("@/pages/PdfView/PdfListView"));
 const PdfDetailView = lazy(() => import("@/pages/PdfView/PdfDetailView"));
 const DailyNoteView = lazy(() => import("@/pages/DailyNoteView"));
-const TimeRecordView = lazy(() => import("@/pages/TimeRecordView"));
 const VecDocumentView = lazy(() => import("@/pages/VecDocumentView"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const CalendarPage = lazy(() => import("@/pages/Calendar"));
@@ -27,7 +25,7 @@ const TodoWindowPage = lazy(() => import("@/pages/TodoWindow"));
 const GoalWindowPage = lazy(() => import("@/pages/GoalWindow"));
 const QuestionWindowPage = lazy(() => import("@/pages/QuestionWindow"));
 const PomodoroWindowPage = lazy(() => import("@/pages/PomodoroWindow"));
-const TabHome = lazy(() => import("@/pages/TabHome"));
+const HomeView = lazy(() => import("@/pages/HomeView"));
 
 interface TabContentProps {
   tab: ITab;
@@ -44,7 +42,7 @@ const LoadingFallback = () => (
       width: "100%",
     }}
   >
-    <Spin size="large" />
+    <LoadingOutlined style={{ fontSize: 24 }} spin />
   </div>
 );
 
@@ -54,7 +52,7 @@ const TabContent = memo((props: TabContentProps) => {
   const renderContent = () => {
     switch (tab.type) {
       case TabType.Home:
-        return <TabHome />;
+        return <HomeView />;
 
       case TabType.CardList:
         return <CardListView />;
@@ -94,9 +92,6 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.DailyNote:
         return <DailyNoteView />;
-
-      case TabType.TimeRecord:
-        return <TimeRecordView />;
 
       case TabType.VecDocument:
         return <VecDocumentView />;
@@ -144,9 +139,7 @@ const TabContent = memo((props: TabContentProps) => {
   return (
     <TabProvider tab={tab} paneId={paneId}>
       <Suspense fallback={<LoadingFallback />}>
-        <div style={{ width: "100%", height: "100%", overflow: "auto" }}>
-          {renderContent()}
-        </div>
+        <div style={{ width: "100%", height: "100%" }}>{renderContent()}</div>
       </Suspense>
     </TabProvider>
   );

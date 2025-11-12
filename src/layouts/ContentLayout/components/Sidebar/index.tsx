@@ -1,44 +1,36 @@
-import React, { memo } from "react";
+import { memo } from "react";
 import classnames from "classnames";
 import { platform } from "@/electron.ts";
 
 import useFullScreen from "@/hooks/useFullScreen.ts";
-import useTabStore from "@/stores/useTabStore";
 import styles from "./index.module.less";
 import SidebarFooter from "./SidebarFooter";
+import SidebarNavItems from "./SidebarNavItems";
 
-interface SidebarProps {
-  className?: string;
-  style?: React.CSSProperties;
-}
-
-const Sidebar = memo((props: SidebarProps) => {
-  const { className, style } = props;
-
+const Sidebar = memo(() => {
   const isFullscreen = useFullScreen();
   const isMac = platform === "darwin";
-  const collapsed = useTabStore((state) => state.sidebarCollapsed);
 
   return (
     <div
-      className={classnames(className, styles.sidebarContainer, {
-        [styles.collapsed]: collapsed,
-      })}
-      style={style}
+      className={classnames(
+        "flex-1 min-h-0 m-3 shadow-md rounded-2xl",
+        styles.sidebar,
+      )}
     >
-      <div className={classnames(styles.sidebar)}>
-        <div
-          className={classnames(styles.list, {
-            [styles.isMac]: isMac && !isFullscreen,
-          })}
-        >
-          {" "}
-        </div>
-
-        <SidebarFooter isShortWidth={collapsed} />
+      <div
+        className={classnames(styles.list, {
+          [styles.isMac]: isMac && !isFullscreen,
+        })}
+      >
+        <SidebarNavItems isShortWidth={true} />
       </div>
+
+      <SidebarFooter isShortWidth={true} />
     </div>
   );
 });
+
+Sidebar.displayName = "Sidebar";
 
 export default Sidebar;

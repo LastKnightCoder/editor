@@ -1,12 +1,12 @@
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useNavigate, useLocation, matchPath } from "react-router-dom";
 import SidebarItem from "./SidebarItem";
 import ShortcutDropdown from "./ShortcutDropdown";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { useMemoizedFn } from "ahooks";
+import { TabType } from "@/types/tab";
+import useTabStore from "@/stores/useTabStore";
 
-// 导入图标
 import home from "@/assets/icons/home.svg";
 import card from "@/assets/icons/card.svg";
 import article from "@/assets/icons/article.svg";
@@ -19,6 +19,10 @@ import vecDatabase from "@/assets/icons/vec-database.svg";
 import calendar from "@/assets/icons/calendar.svg";
 import chat from "@/assets/icons/chat.svg";
 import resource from "@/assets/icons/resource.svg";
+import task from "@/assets/icons/task.svg";
+import question from "@/assets/icons/question.svg";
+import pomodoro from "@/assets/icons/pomodoro.svg";
+import goal from "@/assets/icons/goal.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -27,14 +31,14 @@ interface SidebarNavItemsProps {
 // 使用单独的NavItemConfig组件，避免大量配置重新创建
 const NavItemConfig = memo(
   ({
-    path,
+    type,
     icon,
     desc,
     onClick,
     active,
     isShortWidth,
   }: {
-    path: string;
+    type: TabType;
     icon: string;
     desc: string;
     onClick: () => void;
@@ -42,7 +46,7 @@ const NavItemConfig = memo(
     isShortWidth: boolean;
   }) => (
     <SidebarItem
-      key={path}
+      key={type}
       icon={icon}
       label={desc}
       active={active}
@@ -55,40 +59,29 @@ const NavItemConfig = memo(
 // 使用单独的NavItem组件优化每个导航项
 const NavItem = memo(
   ({
-    routePath,
+    type,
     icon,
     desc,
     isShortWidth,
   }: {
-    routePath: string;
+    type: TabType;
     icon: string;
     desc: string;
     isShortWidth: boolean;
   }) => {
-    const navigate = useNavigate();
-    const { pathname } = useLocation();
+    const openInNewTab = useTabStore((state) => state.openInNewTab);
 
     const handleClick = useMemoizedFn(() => {
-      navigate(routePath);
+      openInNewTab(type);
     });
-
-    // 匹配当前路径，确定是否激活
-    const isActive = useMemo(() => {
-      if (routePath === "/" && pathname === "/") {
-        return true;
-      }
-      return (
-        matchPath(routePath === "/" ? "/" : `${routePath}/*`, pathname) !== null
-      );
-    }, [pathname, routePath]);
 
     return (
       <NavItemConfig
-        path={routePath}
+        type={type}
         icon={icon}
         desc={desc}
         onClick={handleClick}
-        active={isActive}
+        active={false}
         isShortWidth={isShortWidth}
       />
     );
@@ -111,84 +104,112 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         key: "home",
         icon: home,
         desc: "首页",
-        path: "/",
+        type: TabType.Home,
         enable: true,
       },
       {
         key: "chat",
         icon: chat,
         desc: "聊天管理",
-        path: "/chat-management",
-        enable: true,
+        type: TabType.ChatManagement,
+        enable: module.chatManagement.enable,
       },
       {
         key: "whiteBoard",
         icon: whiteBoard,
         desc: "白板",
-        path: "/white-board/list",
+        type: TabType.WhiteBoardList,
         enable: module.whiteBoard.enable,
       },
       {
         key: "card",
         icon: card,
         desc: "卡片",
-        path: "/cards/list",
+        type: TabType.CardList,
         enable: module.card.enable,
       },
       {
         key: "article",
         icon: article,
         desc: "文章",
-        path: "/articles/list",
+        type: TabType.ArticleList,
         enable: module.article.enable,
       },
       {
         key: "project",
         icon: project,
         desc: "项目",
-        path: "/projects/list",
+        type: TabType.ProjectList,
         enable: module.project.enable,
       },
       {
         key: "document",
         icon: document,
         desc: "知识库",
-        path: "/documents/list",
+        type: TabType.DocumentList,
         enable: module.document.enable,
       },
       {
         key: "calendar",
         icon: calendar,
         desc: "日历",
-        path: "/calendar",
-        enable: true,
+        type: TabType.Calendar,
+        enable: module.calendar.enable,
+      },
+      {
+        key: "task",
+        icon: task,
+        desc: "任务列表",
+        type: TabType.Todo,
+        enable: module.todo.enable,
+      },
+      {
+        key: "pomodoro",
+        icon: pomodoro,
+        desc: "番茄专注",
+        type: TabType.Pomodoro,
+        enable: module.pomodoro.enable,
+      },
+      {
+        key: "question",
+        icon: question,
+        desc: "问题管理",
+        type: TabType.Questions,
+        enable: module.question.enable,
+      },
+      {
+        key: "goal",
+        icon: goal,
+        desc: "进度管理",
+        type: TabType.Goals,
+        enable: module.goal.enable,
       },
       {
         key: "pdf",
         icon: pdf,
         desc: "PDF",
-        path: "/pdfs/list",
+        type: TabType.PdfList,
         enable: module.pdf.enable,
       },
       {
         key: "vec-documents",
         icon: vecDatabase,
         desc: "索引数据库",
-        path: "/vec-documents",
+        type: TabType.VecDocument,
         enable: module.vecDocuments.enable,
       },
       {
         key: "daily",
         icon: daily,
         desc: "日记",
-        path: "/dailies",
+        type: TabType.DailyNote,
         enable: module.dailyNote.enable,
       },
       {
         key: "resource",
         icon: resource,
         desc: "资源管理",
-        path: "/resource-management",
+        type: TabType.ResourceManagement,
         enable: module.resourceManagement.enable,
       },
     ].filter((item) => item.enable);
@@ -199,7 +220,7 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
       {menuItems.map((item) => (
         <NavItem
           key={item.key}
-          routePath={item.path}
+          type={item.type}
           icon={item.icon}
           desc={item.desc}
           isShortWidth={isShortWidth}

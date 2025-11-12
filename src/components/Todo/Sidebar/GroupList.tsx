@@ -60,7 +60,7 @@ const GroupList = () => {
   );
 
   return (
-    <div className="h-full flex flex-col bg-[#FCFAF8] dark:bg-[#292929]">
+    <div className="h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
       <SidebarHeader onCreate={onCreate} />
       <div className="flex-1 overflow-auto">
         {computed.map((g) => (

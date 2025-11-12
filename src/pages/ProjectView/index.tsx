@@ -1,8 +1,5 @@
 import ProjectList from "./ProjectList";
-import classnames from "classnames";
-
 import EditProjectView from "./EditProjectView";
-import styles from "./index.module.less";
 import { Empty, Button } from "antd";
 import ProjectContext from "./ProjectContext";
 import { useState, useEffect } from "react";
@@ -15,6 +12,8 @@ import { TabType } from "@/types/tab";
 
 const ProjectView = () => {
   const { id, itemId } = useTabParams(TabType.ProjectDetail);
+
+  console.log("ProjectView itemId", itemId);
 
   const navigateTo = useTabStore((state) => state.navigateTo);
 
@@ -34,7 +33,7 @@ const ProjectView = () => {
 
   if (loading) {
     return (
-      <div className={styles.loading}>
+      <div className="w-full h-full flex items-center justify-center">
         <LoadingOutlined />
       </div>
     );
@@ -42,7 +41,7 @@ const ProjectView = () => {
 
   if (!project) {
     return (
-      <div className={styles.empty}>
+      <div className="w-full h-full flex items-center justify-center">
         <Empty
           description="项目不存在或已被删除"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -65,13 +64,13 @@ const ProjectView = () => {
         itemId: itemId,
       }}
     >
-      <div className={classnames(styles.viewContainer)}>
-        <div className={classnames(styles.sidebar)}>
+      <div className="w-full h-full flex">
+        <div className="h-full overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
           <ProjectList />
         </div>
 
-        <div className={styles.edit}>
-          <div className={styles.editorContainer}>
+        <div className="flex-1 h-full flex flex-col overflow-hidden">
+          <div className="w-full flex-1 overflow-hidden">
             <EditProjectView />
           </div>
         </div>
