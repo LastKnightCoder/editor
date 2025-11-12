@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
-import { useNavigate } from "react-router-dom";
 import { Descendant } from "slate";
 import {
   LinkOutlined,
@@ -11,6 +10,8 @@ import {
 import { Drawer, Tooltip, Dropdown, MenuProps, App } from "antd";
 import SVG from "react-inlinesvg";
 import { MdOutlineCode } from "react-icons/md";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
@@ -77,7 +78,7 @@ interface IEditCardProps {
 
 const EditCard = (props: IEditCardProps) => {
   const { cardId, defaultReadonly = false } = props;
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
   const { modal, message } = App.useApp();
   const databaseName = useSettingStore(
     (state) => state.setting.database.active,
@@ -173,7 +174,7 @@ const EditCard = (props: IEditCardProps) => {
         },
         onOk: async () => {
           await deleteCard(cardId);
-          navigate("/cards/list");
+          navigateTo(TabType.CardList);
         },
       });
     } catch (error) {
@@ -403,7 +404,7 @@ const EditCard = (props: IEditCardProps) => {
         setPodcastModalOpen(true);
       } else if (key === "open-window") {
         openCardInNewWindow(databaseName, editingCard.id);
-        navigate("/cards/list");
+        navigateTo(TabType.CardList);
       } else if (key === "open-sidebar") {
         const { addTab } = useRightSidebarStore.getState();
         addTab({
@@ -411,7 +412,7 @@ const EditCard = (props: IEditCardProps) => {
           title: getEditorText(editingCard.content, 10),
           type: "card",
         });
-        navigate("/cards/list");
+        navigateTo(TabType.CardList);
       } else if (key === "toggle-shortcut") {
         try {
           if (isShortcut) {

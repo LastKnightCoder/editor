@@ -6,7 +6,6 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { useNavigate } from "react-router-dom";
 import classnames from "classnames";
 import { IoResizeOutline } from "react-icons/io5";
 import { MdMoreHoriz } from "react-icons/md";
@@ -15,6 +14,8 @@ import { Dropdown, MenuProps, Tooltip, message } from "antd";
 import { useMemoizedFn } from "ahooks";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import { useShallow } from "zustand/react/shallow";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 import {
   contentLinkExtension,
@@ -72,7 +73,7 @@ const CardItem = memo(
       onToggleCardTop,
     } = props;
 
-    const navigate = useNavigate();
+    const navigateTo = useTabStore((state) => state.navigateTo);
 
     const editorRef = useRef<EditorRef>(null);
     const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -243,7 +244,7 @@ const CardItem = memo(
     );
 
     const handleNavigateToDetail = useMemoizedFn(() => {
-      navigate(`/cards/detail/${card.id}`);
+      navigateTo(TabType.CardDetail, { id: card.id });
     });
 
     return (

@@ -217,6 +217,14 @@ const MonthView = () => {
       .month(month - 1)
       .endOf("month");
 
+    // 检查事件是否在当月范围内（事件结束日期在月初之前，或事件开始日期在月末之后）
+    if (
+      eventEnd.isBefore(monthStart, "day") ||
+      eventStart.isAfter(monthEnd, "day")
+    ) {
+      return { spans: [] };
+    }
+
     // 将事件时间限制在当月范围内
     const displayStart = eventStart.isBefore(monthStart)
       ? monthStart

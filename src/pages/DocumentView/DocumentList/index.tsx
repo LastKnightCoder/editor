@@ -1,14 +1,13 @@
 import { memo } from "react";
 import Document from "./Document";
-import { useParams } from "react-router-dom";
-
-import styles from "./index.module.less";
+import useTabParams from "@/hooks/useTabParams";
+import { TabType } from "@/types/tab";
 
 const DocumentList = memo(() => {
-  const { id } = useParams();
+  const { id } = useTabParams(TabType.DocumentDetail);
 
   return (
-    <div className={styles.documentList}>
+    <div className="px-4 h-full overflow-y-auto border-t-[16px] border-b-[16px] border-transparent box-border [&::-webkit-scrollbar]:hidden">
       <Document documentId={Number(id)} key={Number(id)} />
     </div>
   );

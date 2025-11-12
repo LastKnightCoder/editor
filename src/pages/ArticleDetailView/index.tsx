@@ -1,25 +1,25 @@
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Breadcrumb, FloatButton, Dropdown, Empty } from "antd";
+import { useSearchParams } from "react-router-dom";
+import { FloatButton, Dropdown, Empty } from "antd";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import { RiSlideshowLine } from "react-icons/ri";
 import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
 
-import Titlebar from "@/components/Titlebar";
 import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import useArticleManagementStore from "@/stores/useArticleManagementStore";
+import useTabParams from "@/hooks/useTabParams";
+import { TabType } from "@/types/tab";
 
 import EditArticle from "./EditArticle";
 import SimpleArticleList from "./SimpleArticleList";
 import styles from "./index.module.less";
 
 const ArticleDetailView = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const articleId = id ? parseInt(id, 10) : undefined;
+  const { id } = useTabParams(TabType.ArticleDetail);
+  const articleId = id;
 
   const {
     isArticlePresentation,
@@ -47,19 +47,9 @@ const ArticleDetailView = () => {
   const [searchParams] = useSearchParams();
   const readonly = searchParams.get("readonly") === "true";
 
-  // 面包屑导航
-  const breadcrumbItems = [
-    { title: "首页", path: "/" },
-    { title: "文章列表", path: "/articles/list" },
-    {
-      title: id ? `文章 #${id}` : "文章详情",
-      path: `/articles/detail/${id}${readonly ? "?readonly=true" : ""}`,
-    },
-  ];
-
   const handleStartPresentation = useMemoizedFn(async () => {
     if (id) {
-      const article = await findOneArticle(parseInt(id, 10));
+      const article = await findOneArticle(id);
       if (article) {
         startArticlePresentation(article);
       }
@@ -93,21 +83,6 @@ const ArticleDetailView = () => {
             [styles.readonly]: readonly,
           })}
         >
-          <Titlebar className={styles.titlebar}>
-            <Breadcrumb
-              className={styles.breadcrumb}
-              items={breadcrumbItems.map((item) => ({
-                title: (
-                  <span
-                    className={styles.breadcrumbItem}
-                    onClick={() => navigate(item.path)}
-                  >
-                    {item.title}
-                  </span>
-                ),
-              }))}
-            />
-          </Titlebar>
           <div className={styles.editContainer}>
             <EditArticle defaultReadonly={readonly} articleId={articleId} />
           </div>

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRafInterval } from "ahooks";
 import { Empty, App, Input, Modal } from "antd";
 import { WhiteBoardContent as IWhiteBoardContent } from "@/types";
-import styles from "./index.module.less";
 import { LoadingOutlined, PlusOutlined } from "@ant-design/icons";
 import SubWhiteBoardItem from "./SubWhiteBoardItem";
 
@@ -108,8 +107,8 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
   }
 
   return (
-    <div className={styles.contentContainer}>
-      <div className={styles.whiteBoardWrapper}>
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-hidden">
         <WhiteBoard
           key={activeSubWhiteBoard.id}
           className="w-full h-full"
@@ -122,7 +121,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           onChange={onSubWhiteBoardContentChange}
         />
       </div>
-      <div className={styles.subWhiteBoardList}>
+      <div className="h-10 flex-shrink-0 flex items-center border-t border-[#f0f0f0] dark:border-[#2a2a2a] overflow-x-auto px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-[var(--scrollbar-thumb)] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-track]:bg-[var(--scrollbar-track)] [&::-webkit-scrollbar-track]:rounded">
         {whiteBoard.whiteBoardContentList.map((item) => (
           <SubWhiteBoardItem
             key={item.id}
@@ -134,7 +133,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           />
         ))}
         <PlusOutlined
-          className={styles.plusButton}
+          className="min-w-[40px] h-9 rounded flex items-center justify-center cursor-pointer flex-shrink-0 ml-1 bg-transparent border-none text-[var(--text-secondary)] hover:bg-[var(--background-tertiary)] hover:text-[var(--primary-color)] transition-colors"
           onClick={() => setAddSubWhiteBoardModalOpen(true)}
         />
       </div>

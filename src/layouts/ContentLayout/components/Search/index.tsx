@@ -1,5 +1,4 @@
 import { useEffect, memo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 import isHotkey from "is-hotkey";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -14,18 +13,17 @@ import classnames from "classnames";
 import { LoadingOutlined, SearchOutlined } from "@ant-design/icons";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import If from "@/components/If";
-import useProjectsStore from "@/stores/useProjectsStore";
-import useDocumentsStore from "@/stores/useDocumentsStore";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
+import SearchResultItem from "./SearchResultItem";
 import {
-  getDocumentItem,
   getProjectItemById,
   getRootDocumentsByDocumentItemId,
 } from "@/commands";
-import SearchResultItem from "./SearchResultItem";
 
 const Search = memo(() => {
   const { isDark } = useTheme();
-  const navigate = useNavigate();
+  const openInNewTab = useTabStore((state) => state.openInNewTab);
 
   const searchRef = useRef<EditTextHandle>(null);
   const lastSearchText = useRef("");
@@ -81,33 +79,45 @@ const Search = memo(() => {
     useCommandPanelStore.setState({ open: false });
 
     if (result.type === "card") {
-      navigate(`/cards/detail/${result.id}`);
+      navigateTo(TabType.CardDetail, { id: result.id });
     } else if (result.type === "article") {
-      navigate(`/articles/detail/${result.id}`);
+      navigateTo(TabType.ArticleDetail, { id: result.id });
     } else if (result.type === "project-item") {
-      const projectItem = await getProjectItemById(result.id);
-      if (!projectItem) return;
-      const projectId = projectItem.projects[0];
-      if (!projectId) return;
-
-      navigate(`/projects/detail/${projectId}`);
-      useProjectsStore.setState({
-        activeProjectItemId: projectItem.id,
-        hideProjectItemList: false,
-      });
+      // 获取项目项所属的项目
+      try {
+        const projectItem = await getProjectItemById(result.id);
+        if (projectItem && projectItem.projects.length > 0) {
+          const projectId = projectItem.projects[0];
+          openInNewTab(TabType.ProjectDetail, {
+            id: projectId,
+            itemId: result.id,
+          });
+        } else {
+          // 如果没有找到项目，回退到项目列表
+          openInNewTab(TabType.ProjectList);
+        }
+      } catch (error) {
+        console.error("Failed to get project item:", error);
+        openInNewTab(TabType.ProjectList);
+      }
     } else if (result.type === "document-item") {
-      const documentItem = await getDocumentItem(result.id);
-      if (!documentItem) return;
-      const documents = await getRootDocumentsByDocumentItemId(documentItem.id);
-      if (!documents) return;
-      const document = documents[0];
-      if (!document) return;
-
-      navigate(`/documents/detail/${document.id}`);
-      useDocumentsStore.setState({
-        activeDocumentItemId: documentItem.id,
-        hideDocumentItemsList: false,
-      });
+      // 获取知识库项所属的知识库
+      try {
+        const documents = await getRootDocumentsByDocumentItemId(result.id);
+        if (documents && documents.length > 0) {
+          const documentId = documents[0].id;
+          openInNewTab(TabType.DocumentDetail, {
+            id: documentId,
+            itemId: result.id,
+          });
+        } else {
+          // 如果没有找到知识库，回退到知识库列表
+          openInNewTab(TabType.DocumentList);
+        }
+      } catch (error) {
+        console.error("Failed to get document:", error);
+        openInNewTab(TabType.DocumentList);
+      }
     }
   };
 

@@ -15,13 +15,19 @@ export interface ProjectCardListElement {
 
 class ProjectCardListExtension extends Base implements IExtension {
   type = "project-card-list";
+  private projectId?: number;
+
+  constructor(projectId?: number) {
+    super();
+    this.projectId = projectId;
+  }
 
   override getPlugins() {
     return [overwrite];
   }
 
   override getBlockPanelItems() {
-    return blockPanelItems;
+    return blockPanelItems(this.projectId);
   }
 
   render(props: RenderElementProps) {

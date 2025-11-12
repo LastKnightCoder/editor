@@ -9,7 +9,9 @@ import classnames from "classnames";
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
 import React from "react";
-import useProjectsStore from "@/stores/useProjectsStore.ts";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
+import { useProjectContext } from "@/pages/ProjectView/ProjectContext";
 
 interface IProjectCardExtensionProps {
   element: ProjectCardListElement;
@@ -26,10 +28,10 @@ const DocumentListSlate = (props: IProjectCardExtensionProps) => {
       element,
     });
 
+  const navigateTo = useTabStore((state) => state.navigateTo);
+  const { projectId } = useProjectContext();
   const onClickItem = (item: ProjectItem) => {
-    useProjectsStore.setState({
-      activeProjectItemId: item.id,
-    });
+    navigateTo(TabType.ProjectDetail, { id: projectId, itemId: item.id });
   };
 
   const { projectItemId } = element;

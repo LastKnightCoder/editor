@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Calendar, Modal, Breadcrumb } from "antd";
+import { Calendar, Modal } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
 import { Dayjs } from "dayjs";
@@ -8,8 +8,6 @@ import DailyNote from "@/pages/DailyNoteView/EditDailyNote";
 import useDailyNoteStore from "@/stores/useDailyNoteStore.ts";
 import { DeleteOutlined } from "@ant-design/icons";
 import { SelectInfo } from "antd/es/calendar/generateCalendar";
-import { useNavigate } from "react-router-dom";
-import Titlebar from "@/components/Titlebar";
 
 import styles from "./index.module.less";
 import For from "@/components/For";
@@ -19,7 +17,6 @@ import useSettingStore from "@/stores/useSettingStore";
 const extensions = [dailySummaryExtension];
 
 const DailyNoteView = () => {
-  const navigate = useNavigate();
   const {
     dailyNotes,
     deleteDailyNote,
@@ -121,28 +118,8 @@ const DailyNoteView = () => {
     }
   };
 
-  const breadcrumbItems = [
-    { title: "首页", path: "/" },
-    { title: "日记", path: "/dailies" },
-  ];
-
   return (
     <div className={styles.container}>
-      <Titlebar className={styles.titlebar}>
-        <Breadcrumb
-          className={styles.breadcrumb}
-          items={breadcrumbItems.map((item) => ({
-            title: (
-              <span
-                className={styles.breadcrumbItem}
-                onClick={() => navigate(item.path)}
-              >
-                {item.title}
-              </span>
-            ),
-          }))}
-        />
-      </Titlebar>
       <div
         className={classnames(styles.viewContainer, {
           [styles.showEdit]: isShowEdit,

@@ -1,0 +1,50 @@
+.itemIcon {
+  margin-right: 0.5em;
+  font-size: 1em;
+}
+
+.itemCount {
+  margin-left: auto;
+  font-size: 0.75em;
+  color: var(--text-secondary-color);
+  opacity: 0.6;
+}
+
+// 自定义 cmdk 样式
+:global {
+  [cmdk-root] {
+    max-width: 40em;
+  }
+
+  [cmdk-input] {
+    font-size: 1em;
+    padding: 0.75em 1em;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  [cmdk-list] {
+    max-height: 25em;
+    overflow-y: auto;
+  }
+
+  [cmdk-group-heading] {
+    font-size: 0.75em;
+    color: var(--text-secondary-color);
+    padding: 0.5em 1em;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  [cmdk-item] {
+    padding: 0.625em 1em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: 0.875em;
+
+    &[aria-selected="true"] {
+      background-color: var(--common-hover-bg);
+    }
+  }
+}

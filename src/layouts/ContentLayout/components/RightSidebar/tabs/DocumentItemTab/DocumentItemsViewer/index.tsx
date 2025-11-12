@@ -5,24 +5,12 @@ import { useMemoizedFn } from "ahooks";
 import { BaseViewerProps } from "../../../types";
 import DocumentItemViewer from "../DocumentItemViewer";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import {
-  fileAttachmentExtension,
-  contentLinkExtension,
-  documentCardListExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
 import TabsIndicator from "@/components/TabsIndicator";
 
 import styles from "./index.module.less";
 import If from "@/components/If";
 import { SearchResult } from "@/types/search";
-
-const customExtensions = [
-  fileAttachmentExtension,
-  contentLinkExtension,
-  documentCardListExtension,
-  questionCardExtension,
-];
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 const DocumentItemsViewer: React.FC<BaseViewerProps> = ({
   addTab,
@@ -33,6 +21,8 @@ const DocumentItemsViewer: React.FC<BaseViewerProps> = ({
   tabs,
 }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
+
+  const extensions = useDynamicExtensions();
 
   const tabItems = useMemo(() => {
     return tabs.map((tab) => ({
@@ -129,7 +119,7 @@ const DocumentItemsViewer: React.FC<BaseViewerProps> = ({
         onCancel={() => setSelectorOpen(false)}
         onSelect={onSelectDocumentItem}
         contentType="document-item"
-        extensions={customExtensions}
+        extensions={extensions}
         emptyDescription="无结果"
         showTitle={true}
         multiple={true}

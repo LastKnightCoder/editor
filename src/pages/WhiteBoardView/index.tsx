@@ -1,7 +1,6 @@
-import { useState, memo, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, memo, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { Breadcrumb, FloatButton, Empty, Button } from "antd";
+import { FloatButton, Empty, Button } from "antd";
 import classnames from "classnames";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore.ts";
 import { useMemoizedFn } from "ahooks";
@@ -10,9 +9,10 @@ import WhiteBoardList from "./WhiteBoardList";
 
 import { PlusOutlined } from "@ant-design/icons";
 
-import Titlebar from "@/components/Titlebar";
 import useSettingStore from "@/stores/useSettingStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 import styles from "./index.module.less";
 
@@ -34,30 +34,13 @@ const WhiteBoardView = memo(() => {
     }
   }, [isConnected, active, initData]);
 
-  const navigate = useNavigate();
+  const navigateTo = useTabStore((state) => state.navigateTo);
 
   const [createWhiteBoardModalOpen, setCreateWhiteBoardModalOpen] =
     useState(false);
 
-  const breadcrumbItems = useMemo(() => {
-    return [
-      {
-        title: "首页",
-        onClick: () => {
-          navigate("/");
-        },
-      },
-      {
-        title: "白板列表",
-        onClick: () => {
-          navigate("/white-board/list");
-        },
-      },
-    ];
-  }, [navigate]);
-
   const onClick = useMemoizedFn((whiteBoardId: number) => {
-    navigate(`/white-board/detail/${whiteBoardId}`);
+    navigateTo(TabType.WhiteBoardDetail, { id: whiteBoardId });
   });
 
   const handleCreateWhiteBoard = async (title: string, description: string) => {
@@ -90,7 +73,7 @@ const WhiteBoardView = memo(() => {
 
     const whiteBoard = await createWhiteBoard(createWhiteBoardData);
     setCreateWhiteBoardModalOpen(false);
-    navigate(`/white-board/detail/${whiteBoard.id}`);
+    navigateTo(TabType.WhiteBoardDetail, { id: whiteBoard.id });
   };
 
   if (whiteBoards.length === 0) {
@@ -114,18 +97,6 @@ const WhiteBoardView = memo(() => {
 
   return (
     <div className={styles.container}>
-      <Titlebar className={styles.titlebar}>
-        <Breadcrumb
-          className={styles.breadcrumb}
-          items={breadcrumbItems.map((item) => ({
-            title: (
-              <span className={styles.breadcrumbItem} onClick={item.onClick}>
-                {item.title}
-              </span>
-            ),
-          }))}
-        />
-      </Titlebar>
       <div className={classnames(styles.viewContainer)}>
         <WhiteBoardList whiteBoards={whiteBoards} onClick={onClick} />
         <FloatButton
