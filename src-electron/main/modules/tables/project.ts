@@ -7,13 +7,16 @@ import {
   CreateProjectItem,
   UpdateProjectItem,
   EProjectItemType,
+  EProjectType,
 } from "@/types/project";
 import Operation from "./operation";
+import DataTableTable from "./data-table";
 import { Descendant } from "slate";
 import { getContentLength } from "@/utils/helper";
 import { getMarkdown } from "@/utils/markdown.ts";
 import { basename } from "node:path";
 import { BrowserWindow } from "electron";
+import { v4 as uuidv4 } from "uuid";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
@@ -35,7 +38,9 @@ export default class ProjectTable {
         desc TEXT,
         children TEXT,
         archived INTEGER DEFAULT 0,
-        pinned INTEGER DEFAULT 0
+        pinned INTEGER DEFAULT 0,
+        project_type TEXT DEFAULT 'document-tree',
+        data_table_id INTEGER DEFAULT 0
       )
     `);
 
@@ -58,6 +63,33 @@ export default class ProjectTable {
   }
 
   static upgradeTable(db: Database.Database) {
+    // 检查并添加新字段
+    const tableInfo = db.prepare(`PRAGMA table_info(project)`).all() as Array<{
+      name: string;
+    }>;
+    const hasProjectType = tableInfo.some(
+      (column) => column.name === "project_type",
+    );
+    const hasDataTableId = tableInfo.some(
+      (column) => column.name === "data_table_id",
+    );
+
+    if (!hasProjectType) {
+      db.exec(
+        "ALTER TABLE project ADD COLUMN project_type TEXT DEFAULT 'document-tree'",
+      );
+      db.exec(
+        `UPDATE project SET project_type = 'document-tree' WHERE project_type IS NULL`,
+      );
+    }
+
+    if (!hasDataTableId) {
+      db.exec("ALTER TABLE project ADD COLUMN data_table_id INTEGER DEFAULT 0");
+      db.exec(
+        `UPDATE project SET data_table_id = 0 WHERE data_table_id IS NULL`,
+      );
+    }
+
     // 为所有项目条目添加 FTS 索引
     log.info("开始为所有项目条目添加 FTS 索引");
     const projectItems = this.getAllProjectItems(db);
@@ -124,6 +156,8 @@ export default class ProjectTable {
       children: JSON.parse(project.children || "[]"),
       archived: Boolean(project.archived),
       pinned: Boolean(project.pinned),
+      projectType: project.project_type || "document-tree",
+      dataTableId: project.data_table_id || 0,
     };
   }
 
@@ -166,12 +200,32 @@ export default class ProjectTable {
   }
 
   static createProject(db: Database.Database, project: CreateProject): Project {
+    const now = Date.now();
+    let dataTableId = 0;
+
+    // 如果是数据表格类型，先创建数据表格
+    if (project.projectType === EProjectType.DataTable) {
+      // 创建默认主列
+      const defaultColumn = {
+        id: uuidv4(),
+        title: "名称",
+        type: "text",
+        width: 200,
+        isPrimary: true,
+      };
+
+      const dataTable = DataTableTable.create(db, {
+        columns: [defaultColumn],
+        rows: [],
+      });
+      dataTableId = dataTable.id;
+    }
+
     const stmt = db.prepare(`
       INSERT INTO project
-      (create_time, update_time, title, desc, children, archived, pinned)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, title, desc, children, archived, pinned, project_type, data_table_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const now = Date.now();
     const res = stmt.run(
       now,
       now,
@@ -180,6 +234,8 @@ export default class ProjectTable {
       JSON.stringify(project.children || []),
       Number(project.archived || false),
       Number(project.pinned || false),
+      project.projectType || EProjectType.DocumentTree,
+      dataTableId,
     );
 
     Operation.insertOperation(
@@ -201,7 +257,9 @@ export default class ProjectTable {
         desc = ?,
         children = ?,
         archived = ?,
-        pinned = ?
+        pinned = ?,
+        project_type = ?,
+        data_table_id = ?
       WHERE id = ?
     `);
     const now = Date.now();
@@ -212,6 +270,8 @@ export default class ProjectTable {
       JSON.stringify(project.children || []),
       Number(project.archived || false),
       Number(project.pinned || false),
+      project.projectType || EProjectType.DocumentTree,
+      project.dataTableId || 0,
       project.id,
     );
 
@@ -221,15 +281,27 @@ export default class ProjectTable {
   }
 
   static deleteProject(db: Database.Database, id: number): number {
-    const stmt = db.prepare("DELETE FROM project WHERE id = ?");
-    // 所有 project_item 的 projects 字段中删除该项目的id
-    const projectItems = this.getProjectItemsByProjectId(db, id);
-    for (const item of projectItems) {
-      item.projects = item.projects.filter((p: number) => p !== id);
-      this.updateProjectItem(db, item);
+    // 获取项目信息以确定类型
+    const project = this.getProject(db, id);
+
+    // 如果是数据表格类型，减少数据表格的引用计数
+    if (project.projectType === EProjectType.DataTable && project.dataTableId) {
+      DataTableTable.remove(db, project.dataTableId);
     }
-    //  尝试删除无 projects 的 project_item
-    this.deleteProjectItemsNotInAnyProject(db);
+
+    // 如果是文档树类型，处理项目条目
+    if (project.projectType === EProjectType.DocumentTree) {
+      // 所有 project_item 的 projects 字段中删除该项目的id
+      const projectItems = this.getProjectItemsByProjectId(db, id);
+      for (const item of projectItems) {
+        item.projects = item.projects.filter((p: number) => p !== id);
+        this.updateProjectItem(db, item);
+      }
+      //  尝试删除无 projects 的 project_item
+      this.deleteProjectItemsNotInAnyProject(db);
+    }
+
+    const stmt = db.prepare("DELETE FROM project WHERE id = ?");
     Operation.insertOperation(db, "project", "delete", id, Date.now());
     return stmt.run(id).changes;
   }

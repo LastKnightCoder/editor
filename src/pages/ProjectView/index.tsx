@@ -1,9 +1,10 @@
 import ProjectList from "./ProjectList";
 import EditProjectView from "./EditProjectView";
+import DataTableProjectView from "./DataTableProjectView";
 import { Empty, Button } from "antd";
 import ProjectContext from "./ProjectContext";
 import { useState, useEffect } from "react";
-import { Project } from "@/types";
+import { Project, EProjectType } from "@/types";
 import { getProjectById } from "@/commands";
 import { LoadingOutlined } from "@ant-design/icons";
 import useTabParams from "@/hooks/useTabParams";
@@ -12,8 +13,6 @@ import { TabType } from "@/types/tab";
 
 const ProjectView = () => {
   const { id, itemId } = useTabParams(TabType.ProjectDetail);
-
-  console.log("ProjectView itemId", itemId);
 
   const navigateTo = useTabStore((state) => state.navigateTo);
 
@@ -57,6 +56,16 @@ const ProjectView = () => {
     );
   }
 
+  // 数据表格类型的项目直接渲染数据表格
+  if (project.projectType === EProjectType.DataTable) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <DataTableProjectView projectId={Number(id)} />
+      </div>
+    );
+  }
+
+  // 文档树类型的项目渲染原有的布局
   return (
     <ProjectContext.Provider
       value={{

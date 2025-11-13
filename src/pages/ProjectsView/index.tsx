@@ -12,7 +12,7 @@ import { TabType } from "@/types/tab";
 
 import styles from "./index.module.less";
 import { Descendant } from "slate";
-import { CreateProject } from "@/types";
+import { CreateProject, EProjectType } from "@/types";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import classNames from "classnames";
@@ -67,7 +67,7 @@ const ProjectsView = () => {
   });
 
   const handleCreateProject = useMemoizedFn(
-    async (title: string, desc: Descendant[]) => {
+    async (title: string, desc: Descendant[], projectType: EProjectType) => {
       if (!title) {
         message.error("请输入项目名称");
         return;
@@ -79,6 +79,8 @@ const ProjectsView = () => {
         children: [],
         archived: false,
         pinned: false,
+        projectType,
+        dataTableId: 0,
       };
 
       try {
