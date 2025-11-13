@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlate } from "slate-react";
 import { Transforms } from "slate";
@@ -16,13 +16,22 @@ import {
 } from "antd";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
-import { LoadingOutlined } from "@ant-design/icons";
+import {
+  LoadingOutlined,
+  AlignCenterOutlined,
+  AlignLeftOutlined,
+  AlignRightOutlined,
+} from "@ant-design/icons";
 
 import { IExtensionBaseProps } from "@editor/extensions/types.ts";
 import { VideoElement } from "@editor/types";
 import AddParagraph from "@editor/components/AddParagraph";
 import { EditorContext } from "@editor/index.tsx";
 import useDragAndDrop from "@editor/hooks/useDragAndDrop.ts";
+import {
+  useImageResize,
+  ResizeDirection,
+} from "@editor/hooks/useImageResize.ts";
 
 import LocalVideo from "@/components/LocalVideo";
 import If from "@/components/If";
@@ -96,8 +105,13 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const readOnly = useReadOnly();
   const { message } = App.useApp();
   const uploadRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [networkUrlOpen, setNetworkUrlOpen] = useState(false);
   const [networkUrl, setNetworkUrl] = useState("");
+  const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+  const [maxWidth, setMaxWidth] = useState<number>(Infinity);
+  const [isSelected, setIsSelected] = useState(false);
 
   // 添加 Bilibili/Youtube 解析弹窗状态
   const [biliModalOpen, setBiliModalOpen] = useState(false);
@@ -493,7 +507,191 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     }, 800);
   });
 
-  const { src, uploading, playbackRate = 1 } = element;
+  const { src, uploading, playbackRate = 1, width, align = "center" } = element;
+
+  // 外部点击取消选中
+  useEffect(() => {
+    const handleDocMouseDown = (e: MouseEvent) => {
+      if (!containerRef.current) return;
+      const target = e.target as Node;
+      if (!containerRef.current.contains(target)) {
+        setIsSelected(false);
+      }
+    };
+    document.addEventListener("mousedown", handleDocMouseDown);
+    return () => document.removeEventListener("mousedown", handleDocMouseDown);
+  }, []);
+
+  // 计算编辑器可用最大宽度
+  useEffect(() => {
+    const editorEl = containerRef.current?.closest(
+      '[data-slate-editor="true"]',
+    ) as HTMLElement | null;
+    if (editorEl) {
+      setMaxWidth(editorEl.clientWidth);
+    }
+  }, []);
+
+  const updateElementWidth = useMemoizedFn((newWidth?: number) => {
+    if (typeof newWidth !== "number") return;
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.setNodes(editor, { width: newWidth }, { at: path });
+  });
+
+  const toggleAlign = useMemoizedFn(() => {
+    if (readOnly) return;
+    const path = ReactEditor.findPath(editor, element);
+    let newAlign: "left" | "center" | "right";
+
+    // 循环切换：left -> center -> right -> left
+    if (align === "left") {
+      newAlign = "center";
+    } else if (align === "center") {
+      newAlign = "right";
+    } else {
+      newAlign = "left";
+    }
+
+    Transforms.setNodes(
+      editor,
+      {
+        align: newAlign,
+      },
+      {
+        at: path,
+      },
+    );
+  });
+
+  const handleSelect = useMemoizedFn((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (readOnly) {
+      return;
+    }
+    setIsSelected(true);
+  });
+
+  const handleVideoLoad = useMemoizedFn(() => {
+    if (videoRef.current) {
+      const video = videoRef.current;
+      const videoNaturalWidth = video.videoWidth;
+      const videoNaturalHeight = video.videoHeight;
+      setNaturalSize({ width: videoNaturalWidth, height: videoNaturalHeight });
+
+      if (!width) {
+        const editorEl = containerRef.current?.closest(
+          '[data-slate-editor="true"]',
+        ) as HTMLElement | null;
+        const editorWidth = editorEl?.clientWidth || 0;
+        const initialWidth = Math.min(
+          videoNaturalWidth,
+          editorWidth || videoNaturalWidth,
+        );
+        updateElementWidth(initialWidth);
+        resize.setSize({ width: initialWidth });
+      }
+    }
+  });
+
+  const resize = useImageResize({
+    initialSize: { width },
+    minWidth: 200,
+    maxWidth,
+    minHeight: 100,
+    aspectRatio:
+      naturalSize.width && naturalSize.height
+        ? naturalSize.width / naturalSize.height
+        : undefined,
+    onResizeEnd: (size) => {
+      if (size.width) {
+        updateElementWidth(size.width);
+      }
+    },
+    readonly: readOnly,
+    keepAspectRatio: true,
+  });
+
+  // 仅四角句柄
+  const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
+    { direction: "nw", cursor: "nwse-resize" },
+    { direction: "ne", cursor: "nesw-resize" },
+    { direction: "se", cursor: "nwse-resize" },
+    { direction: "sw", cursor: "nesw-resize" },
+  ];
+
+  // 包裹视频的容器，添加调整大小功能
+  const renderVideoContainer = (videoUrl: string) => {
+    return (
+      <div
+        ref={containerRef}
+        className={classnames(styles.videoContainer, {
+          [styles.resizing]: resize.isResizing,
+          [styles.selected]: isSelected,
+          [styles.alignLeft]: align === "left",
+          [styles.alignCenter]: align === "center",
+          [styles.alignRight]: align === "right",
+        })}
+        style={{
+          width: resize.size.width
+            ? `${resize.size.width}px`
+            : width
+              ? `${width}px`
+              : "auto",
+          maxWidth: "100%",
+        }}
+      >
+        <LocalVideo
+          ref={videoRef}
+          className={styles.video}
+          width={"100%"}
+          controls
+          src={videoUrl}
+          playbackRate={playbackRate}
+          onClick={handleSelect}
+          onLoadedMetadata={handleVideoLoad}
+        />
+        {!readOnly && isSelected && (
+          <>
+            {RESIZE_HANDLES.map(({ direction, cursor }) => (
+              <div
+                key={direction}
+                className={classnames(
+                  styles.resizeHandle,
+                  // @ts-ignore
+                  styles[`resize-${direction}`],
+                )}
+                style={{ cursor }}
+                onPointerDown={(e) => resize.handleResizeStart(e, direction)}
+              />
+            ))}
+            {resize.isResizing && (
+              <div className={styles.videoInfo}>
+                {Math.round(resize.size.width || 0)} px
+              </div>
+            )}
+          </>
+        )}
+        <div className={styles.actions}>
+          <div
+            onClick={toggleAlign}
+            className={styles.item}
+            title={
+              align === "left"
+                ? "居中对齐"
+                : align === "center"
+                  ? "右对齐"
+                  : "左对齐"
+            }
+          >
+            {align === "left" && <AlignLeftOutlined />}
+            {align === "center" && <AlignCenterOutlined />}
+            {align === "right" && <AlignRightOutlined />}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const renderEmpty = () => {
     return (
@@ -526,7 +724,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             >
               <Button disabled={readOnly}>网络地址</Button>
             </Popover>
-            {/* 新增：Bilibili / YouTube 入口 */}
             <Button disabled={readOnly} onClick={() => setBiliModalOpen(true)}>
               Bilibili
             </Button>
@@ -576,12 +773,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                       !!bilibiliVideoUrl && !bilibiliLoading && !bilibiliError
                     }
                   >
-                    <LocalVideo
-                      width={"100%"}
-                      controls
-                      src={bilibiliVideoUrl as string}
-                      playbackRate={playbackRate}
-                    />
+                    {renderVideoContainer(bilibiliVideoUrl as string)}
                   </If>
                 </>
               ) : (
@@ -604,12 +796,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                       !!youtubeVideoUrl && !youtubeLoading && !youtubeError
                     }
                   >
-                    <LocalVideo
-                      width={"100%"}
-                      controls
-                      src={youtubeVideoUrl as string}
-                      playbackRate={playbackRate}
-                    />
+                    {renderVideoContainer(youtubeVideoUrl as string)}
                   </If>
                 </>
               ) : (
@@ -634,12 +821,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                       !notionVideoError
                     }
                   >
-                    <LocalVideo
-                      width={"100%"}
-                      controls
-                      src={notionVideoUrl as string}
-                      playbackRate={playbackRate}
-                    />
+                    {renderVideoContainer(notionVideoUrl as string)}
                   </If>
                 </>
               ) : (
@@ -650,12 +832,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             </If>
 
             <If condition={!isBilibili && !isYoutube && !isNotion}>
-              <LocalVideo
-                width={"100%"}
-                controls
-                src={src}
-                playbackRate={playbackRate}
-              />
+              {renderVideoContainer(src)}
             </If>
           </If>
         </Spin>
