@@ -495,20 +495,20 @@ const useTabStore = create<IState & IActions>()(
         paneId?: string,
         title?: string,
       ) => {
-        // const { findTab } = get();
+        const { findTab } = get();
 
-        get().createTab(type, params, paneId, title);
+        // get().createTab(type, params, paneId, title);
 
-        // // 查找是否已存在相同类型和参数的 Tab
-        // const existing = findTab(type, params);
+        // 查找是否已存在相同类型和参数的 Tab
+        const existing = findTab(type, params);
 
-        // if (existing) {
-        //   // 如果存在，切换到该 Tab
-        //   get().switchTab(existing.paneId, existing.tab.id);
-        // } else {
-        //   // 否则创建新 Tab
-        //   get().createTab(type, params, paneId, title);
-        // }
+        if (existing) {
+          // 如果存在，切换到该 Tab
+          get().switchTab(existing.paneId, existing.tab.id);
+        } else {
+          // 否则创建新 Tab
+          get().createTab(type, params, paneId, title);
+        }
       },
 
       openInSplit: <T extends TabType>(

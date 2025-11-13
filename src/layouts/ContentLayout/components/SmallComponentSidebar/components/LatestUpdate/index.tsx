@@ -12,6 +12,7 @@ import { getEditorText } from "@/utils";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import TabsIndicator, { TabItem } from "@/components/TabsIndicator";
+import { extractUrlFromTitle } from "@/utils";
 
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
@@ -69,19 +70,27 @@ const LatestUpdate: React.FC = () => {
   });
 
   const handleCardClick = useMemoizedFn((cardId: number) => {
-    navigateTo(TabType.CardDetail, { id: cardId });
+    navigateTo(TabType.CardDetail, { id: cardId }, `卡片详情 #${cardId}`);
   });
 
-  const handleArticleClick = useMemoizedFn((articleId: number) => {
-    navigateTo(TabType.ArticleDetail, { id: articleId });
+  const handleArticleClick = useMemoizedFn((item: IArticle) => {
+    navigateTo(
+      TabType.ArticleDetail,
+      { id: item.id },
+      `文章 - ${item.title || `#${item.id}`}`,
+    );
   });
 
   const handleProjectItemClick = useMemoizedFn((projectItem: ProjectItem) => {
     if (projectItem.projects.length === 0) return;
-    navigateTo(TabType.ProjectDetail, {
-      id: projectItem.projects[0],
-      itemId: projectItem.id,
-    });
+    navigateTo(
+      TabType.ProjectDetail,
+      {
+        id: projectItem.projects[0]!,
+        itemId: projectItem.id,
+      },
+      `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+    );
   });
 
   const handleDocumentItemClick = useMemoizedFn(
@@ -92,10 +101,14 @@ const LatestUpdate: React.FC = () => {
           await getRootDocumentsByDocumentItemId(documentItemId);
         if (documents && documents.length > 0) {
           const documentId = documents[0].id;
-          navigateTo(TabType.DocumentDetail, {
-            id: documentId,
-            itemId: documentItemId,
-          });
+          navigateTo(
+            TabType.DocumentDetail,
+            {
+              id: documentId,
+              itemId: documentItemId,
+            },
+            `知识库 - ${document.title || `#${documentItemId}`}`,
+          );
         } else {
           // 如果没有找到知识库，回退到知识库列表
           navigateTo(TabType.DocumentList);
@@ -147,7 +160,7 @@ const LatestUpdate: React.FC = () => {
             : isArticle
               ? item.title
               : isProjectItem
-                ? item.title
+                ? extractUrlFromTitle(item.title).title
                 : item.title;
 
           return (
@@ -155,7 +168,7 @@ const LatestUpdate: React.FC = () => {
               className={styles.itemListItem}
               onClick={() => {
                 if (isCard) handleCardClick(item.id);
-                if (isArticle) handleArticleClick(item.id);
+                if (isArticle) handleArticleClick(item);
                 if (isProjectItem) handleProjectItemClick(item);
                 if (isDocumentItem) handleDocumentItemClick(item.id);
               }}

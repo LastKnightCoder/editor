@@ -102,7 +102,11 @@ const PdfCard = (props: PdfCardProps) => {
       });
     } else {
       // 在列表页，导航到详情页
-      navigateTo(TabType.PdfDetail, { id: pdf.id });
+      navigateTo(
+        TabType.PdfDetail,
+        { id: pdf.id },
+        `PDF - ${pdf.fileName || `#${pdf.id}`}`,
+      );
     }
   };
 

@@ -13,7 +13,7 @@ interface IProps {
   onClick: (item: ProjectItem, index: number) => void;
 }
 
-const DocumentList = (props: IProps) => {
+const ProjectList = (props: IProps) => {
   const { projectItemId, onClick } = props;
 
   const [items, setItems] = useState<ProjectItem[]>([]);
@@ -56,4 +56,4 @@ const DocumentList = (props: IProps) => {
   );
 };
 
-export default DocumentList;
+export default ProjectList;

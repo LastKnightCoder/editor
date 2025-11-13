@@ -448,7 +448,11 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
     const cardItem = await getDocumentItem(createdDocumentItem.id);
     if (!cardItem) return;
-    navigateTo(TabType.DocumentDetail, { id: documentId, itemId: cardItem.id });
+    navigateTo(
+      TabType.DocumentDetail,
+      { id: documentId, itemId: cardItem.id },
+      `知识库 - ${cardItem.title || `#${cardItem.id}`}`,
+    );
   });
 
   const onSelectArticleFinish = useMemoizedFn(
@@ -480,10 +484,14 @@ const DocumentItem = (props: IDocumentItemProps) => {
 
       const articleItem = await getDocumentItem(createdDocumentItem.id);
       if (!articleItem) return;
-      navigateTo(TabType.DocumentDetail, {
-        id: documentId,
-        itemId: articleItem.id,
-      });
+      navigateTo(
+        TabType.DocumentDetail,
+        {
+          id: documentId,
+          itemId: articleItem.id,
+        },
+        `知识库 - ${articleItem.title || `#${articleItem.id}`}`,
+      );
     },
   );
 
@@ -539,10 +547,14 @@ const DocumentItem = (props: IDocumentItemProps) => {
       // 设置 activeItem 为第一个
       const activeItem = selectedDocumentItems[0];
       if (!activeItem) return;
-      navigateTo(TabType.DocumentDetail, {
-        id: documentId,
-        itemId: activeItem.id,
-      });
+      navigateTo(
+        TabType.DocumentDetail,
+        {
+          id: documentId,
+          itemId: activeItem.id,
+        },
+        `知识库 - ${activeItem.title || `#${activeItem.id}`}`,
+      );
     },
   );
 
@@ -799,10 +811,14 @@ const DocumentItem = (props: IDocumentItemProps) => {
             isOver && canDrop && dragPosition === EDragPosition.Inside,
         })}
         onClick={async () => {
-          navigateTo(TabType.DocumentDetail, {
-            id: documentId,
-            itemId: item.id,
-          });
+          navigateTo(
+            TabType.DocumentDetail,
+            {
+              id: documentId,
+              itemId: item.id,
+            },
+            `知识库 - ${item.title || `#${item.id}`}`,
+          );
         }}
       >
         <Tooltip title={item.title} trigger={"hover"}>

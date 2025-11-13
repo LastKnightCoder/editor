@@ -31,7 +31,11 @@ const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
     });
 
   const onClickItem = (item: IDocumentItem) => {
-    navigateTo(TabType.DocumentDetail, { id: documentId, itemId: item.id });
+    navigateTo(
+      TabType.DocumentDetail,
+      { id: documentId, itemId: item.id },
+      `知识库 - ${item.title}`,
+    );
   };
 
   const { documentItemId } = element;

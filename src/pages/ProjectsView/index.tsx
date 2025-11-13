@@ -85,7 +85,11 @@ const ProjectsView = () => {
         const createdProject = await createProject(project);
         if (createdProject) {
           setCreateOpen(false);
-          navigateTo(TabType.ProjectDetail, { id: createdProject.id });
+          navigateTo(
+            TabType.ProjectDetail,
+            { id: createdProject.id },
+            `项目 - ${createdProject.title || `#${createdProject.id}`}`,
+          );
         } else {
           message.error("创建项目失败");
         }

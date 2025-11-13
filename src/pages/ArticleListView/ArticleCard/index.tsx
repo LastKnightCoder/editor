@@ -183,7 +183,11 @@ const ArticleCard = (props: IArticleCardProps) => {
   });
 
   const handleClickArticle = useMemoizedFn(() => {
-    navigateTo(TabType.ArticleDetail, { id: article.id });
+    navigateTo(
+      TabType.ArticleDetail,
+      { id: article.id },
+      `文章 - ${article.title || `#${article.id}`}`,
+    );
   });
 
   const handleEdit = () => {

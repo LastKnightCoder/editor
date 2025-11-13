@@ -130,7 +130,11 @@ const CardPreview = (props: CardPreviewProps) => {
 
   const handleGoToDetail = useMemoizedFn(() => {
     if (editingCard) {
-      navigateTo(TabType.CardDetail, { id: editingCard.id });
+      navigateTo(
+        TabType.CardDetail,
+        { id: editingCard.id },
+        `卡片详情 #${editingCard.id}`,
+      );
       onGoToDetail?.();
     }
   });

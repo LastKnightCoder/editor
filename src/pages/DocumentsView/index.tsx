@@ -87,7 +87,11 @@ const DocumentsView = () => {
           };
           const createdDocument = await createDocument(newDocument);
           setCreateOpen(false);
-          navigateTo(TabType.DocumentDetail, { id: createdDocument.id });
+          navigateTo(
+            TabType.DocumentDetail,
+            { id: createdDocument.id },
+            `知识库 - ${createdDocument.title || `#${createdDocument.id}`}`,
+          );
         }}
         defaultTitle={""}
         defaultDesc={""}

@@ -25,6 +25,7 @@ import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import { extractUrlFromTitle } from "@/utils";
 
 const HomeView = memo(() => {
   const navigateTo = useTabStore((state) => state.navigateTo);
@@ -268,7 +269,11 @@ const HomeView = memo(() => {
                         className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={card.id}
                         onClick={() => {
-                          navigateTo(TabType.CardDetail, { id: card.id });
+                          navigateTo(
+                            TabType.CardDetail,
+                            { id: card.id },
+                            `卡片详情 #${card.id}`,
+                          );
                         }}
                       >
                         {getEditorText(card.content, 20)}
@@ -301,7 +306,11 @@ const HomeView = memo(() => {
                         className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
                         key={article.id}
                         onClick={() => {
-                          navigateTo(TabType.ArticleDetail, { id: article.id });
+                          navigateTo(
+                            TabType.ArticleDetail,
+                            { id: article.id },
+                            `文章 - ${article.title || `#${article.id}`}`,
+                          );
                         }}
                       >
                         {article.title}
@@ -335,13 +344,17 @@ const HomeView = memo(() => {
                         key={projectItem.id}
                         onClick={() => {
                           if (projectItem.projects.length === 0) return;
-                          navigateTo(TabType.ProjectDetail, {
-                            id: projectItem.projects[0],
-                            itemId: projectItem.id,
-                          });
+                          navigateTo(
+                            TabType.ProjectDetail,
+                            {
+                              id: projectItem.projects[0],
+                              itemId: projectItem.id,
+                            },
+                            `项目 - ${extractUrlFromTitle(projectItem.title).title || `#${projectItem.id}`}`,
+                          );
                         }}
                       >
-                        {projectItem.title}
+                        {extractUrlFromTitle(projectItem.title).title}
                       </div>
                     </Popover>
                   )}
@@ -377,10 +390,14 @@ const HomeView = memo(() => {
                                 documentItem.id,
                               );
                             if (documents && documents.length > 0) {
-                              navigateTo(TabType.DocumentDetail, {
-                                id: documents[0].id,
-                                itemId: documentItem.id,
-                              });
+                              navigateTo(
+                                TabType.DocumentDetail,
+                                {
+                                  id: documents[0].id,
+                                  itemId: documentItem.id,
+                                },
+                                `知识库 - ${documentItem.title || `#${documentItem.id}`}`,
+                              );
                             } else {
                               navigateTo(TabType.DocumentList);
                             }

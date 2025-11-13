@@ -7,7 +7,7 @@ import styles from "./index.module.less";
 
 interface WhiteBoardListProps {
   whiteBoards: WhiteBoard[];
-  onClick: (id: number) => void;
+  onClick: (whiteBoard: WhiteBoard) => void;
 }
 
 const WhiteBoardList = memo((props: WhiteBoardListProps) => {
@@ -21,7 +21,7 @@ const WhiteBoardList = memo((props: WhiteBoardListProps) => {
           <WhiteBoardCard
             key={whiteBoard.id}
             whiteBoard={whiteBoard}
-            onClick={onClick.bind(null, whiteBoard.id)}
+            onClick={onClick.bind(null, whiteBoard)}
           />
         )}
       />

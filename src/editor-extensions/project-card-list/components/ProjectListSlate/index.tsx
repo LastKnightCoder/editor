@@ -31,7 +31,11 @@ const DocumentListSlate = (props: IProjectCardExtensionProps) => {
   const navigateTo = useTabStore((state) => state.navigateTo);
   const { projectId } = useProjectContext();
   const onClickItem = (item: ProjectItem) => {
-    navigateTo(TabType.ProjectDetail, { id: projectId, itemId: item.id });
+    navigateTo(
+      TabType.ProjectDetail,
+      { id: projectId, itemId: item.id },
+      `项目 - ${item.title}`,
+    );
   };
 
   const { projectItemId } = element;
