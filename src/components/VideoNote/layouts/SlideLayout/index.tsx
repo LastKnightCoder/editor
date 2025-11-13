@@ -21,6 +21,7 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
     uploadResource,
     addSubNote,
     deleteSubNote,
+    useLocalVideo = true,
   }) => {
     const theme = useTheme();
     const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -84,12 +85,22 @@ const SlideLayout: React.FC<VideoNoteBaseProps> = memo(
       >
         <div className={classnames(styles.leftSection)}>
           <div className={classnames(styles.videoSection)}>
-            <LocalVideo
-              className={styles.video}
-              ref={videoRef}
-              src={videoSrc}
-              controls
-            />
+            {useLocalVideo ? (
+              <LocalVideo
+                className={styles.video}
+                ref={videoRef}
+                src={videoSrc}
+                controls
+              />
+            ) : (
+              <video
+                className={styles.video}
+                ref={videoRef}
+                src={videoSrc}
+                controls
+                crossOrigin="anonymous"
+              />
+            )}
           </div>
 
           <SlideCardList

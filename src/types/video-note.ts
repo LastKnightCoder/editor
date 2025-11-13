@@ -28,6 +28,7 @@ export interface YouTubeVideoMetaInfo {
 export interface NotionVideoMetaInfo {
   type: "notion";
   blockId: string;
+  cache?: boolean; // 是否缓存视频，默认 true
 }
 
 type VideoMetaInfo =

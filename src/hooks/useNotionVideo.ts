@@ -19,6 +19,7 @@ export interface UseNotionVideoResult {
 interface NotionVideo {
   type: string;
   blockId: string;
+  cache?: boolean;
 }
 
 export function useNotionVideo(
@@ -30,7 +31,7 @@ export function useNotionVideo(
   const [streamProgress, setStreamProgress] =
     useState<NotionCacheProgress | null>(null);
 
-  const { blockId, type } = notionVideo || {};
+  const { blockId, type, cache = true } = notionVideo || {};
   const { setting } = useSettingStore((state) => ({ setting: state.setting }));
 
   const processNotionVideo = useMemoizedFn(async (blockId: string) => {
@@ -43,7 +44,48 @@ export function useNotionVideo(
         return;
       }
 
-      // 检查是否已缓存
+      // 如果不缓存，直接获取视频 URL 并返回
+      if (!cache) {
+        setLoading(true);
+        setError(null);
+        setStreamProgress({
+          stage: "downloading",
+          progress: 0,
+          message: "正在获取视频信息...",
+          downloaded: 0,
+          total: 0,
+        });
+
+        // 获取视频区块信息
+        const blockInfo = await getNotionBlockInfo(token, blockId);
+
+        if (!blockInfo.success || !blockInfo.videoUrl) {
+          setError(blockInfo.error || "获取视频信息失败");
+          message.error(blockInfo.error || "获取视频信息失败");
+          setLoading(false);
+          return;
+        }
+
+        // 直接使用在线 URL，不进行缓存
+        setVideoUrl(blockInfo.videoUrl);
+
+        setStreamProgress({
+          stage: "completed",
+          progress: 100,
+          message: "视频链接获取完成",
+          downloaded: 1,
+          total: 1,
+        });
+
+        setTimeout(() => {
+          setStreamProgress(null);
+        }, 2000);
+
+        setLoading(false);
+        return;
+      }
+
+      // 缓存模式：检查是否已缓存
       const existingCache = await getNotionCacheStatus(blockId);
 
       if (existingCache) {
@@ -140,7 +182,7 @@ export function useNotionVideo(
     return () => {
       setStreamProgress(null);
     };
-  }, [blockId, type, processNotionVideo]);
+  }, [blockId, type, cache, processNotionVideo]);
 
   return {
     videoUrl,

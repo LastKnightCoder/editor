@@ -12,6 +12,7 @@ import {
   App,
   Modal,
   Select,
+  Switch,
   Tag,
 } from "antd";
 import classnames from "classnames";
@@ -152,6 +153,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const [notionInput, setNotionInput] = useState("");
   const [notionTitle, setNotionTitle] = useState("");
   const [notionLoading, setNotionLoading] = useState(false);
+  const [notionCacheEnabled, setNotionCacheEnabled] = useState(true);
 
   const setting = useSettingStore.getState().setting;
 
@@ -991,6 +993,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           setNotionInput("");
           setNotionTitle("");
           setNotionLoading(false);
+          setNotionCacheEnabled(true);
         }}
         onOk={async () => {
           if (!notionInput.trim()) {
@@ -1046,6 +1049,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
                 metaInfo: {
                   type: "notion",
                   blockId: blockId,
+                  cache: notionCacheEnabled,
                 } as NotionVideoMetaInfo,
                 src: `notion://${blockId}`,
               },
@@ -1080,6 +1084,23 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             value={notionTitle}
             onChange={(e) => setNotionTitle(e.target.value)}
           />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <Flex justify="space-between" align="center">
+            <span>缓存视频到本地</span>
+            <Switch
+              checked={notionCacheEnabled}
+              onChange={setNotionCacheEnabled}
+              checkedChildren="开启"
+              unCheckedChildren="关闭"
+            />
+          </Flex>
+          <div style={{ fontSize: "12px", color: "#666", marginTop: 4 }}>
+            开启缓存：下载并保存视频到本地，支持离线播放但占用存储空间
+            <br />
+            关闭缓存：直接播放在线链接，不占用本地存储空间
+          </div>
         </div>
 
         <div style={{ fontSize: 12, color: "#8c8c8c" }}>
