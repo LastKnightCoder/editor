@@ -23,10 +23,11 @@ import { ITab, TabType, PaneDirection } from "@/types/tab";
 interface TitlebarWithTabsProps {
   paneId: string;
   className?: string;
+  showRightControls?: boolean;
 }
 
 const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
-  const { paneId, className } = props;
+  const { paneId, className, showRightControls = true } = props;
   const chatSidebarOpen = useChatMessageStore((state) => state.open);
   const rightSidebarOpen = useRightSidebarStore((state) => state.open);
   const smallComponentSidebarOpen = useSmallComponentSidebarStore(
@@ -197,43 +198,45 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         </button>
       </div>
 
-      <div
-        className="flex gap-3 items-center ml-auto pr-3"
-        style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-      >
-        <TitlebarIcon
-          tip={alwaysOnTop ? "取消置顶" : "置顶"}
-          onClick={toggleAlwaysOnTop}
+      {showRightControls && (
+        <div
+          className="flex gap-3 items-center ml-auto pr-3"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
         >
-          <PushpinOutlined
-            className={classnames("transform rotate-0 transition-transform", {
-              "-rotate-45": alwaysOnTop,
-            })}
-          />
-        </TitlebarIcon>
-        <TitlebarIcon
-          tip="小组件"
-          onClick={handleOpenSmallComponentSidebar}
-          active={smallComponentSidebarOpen}
-        >
-          <SVG src={smallComponentIcon} />
-        </TitlebarIcon>
-        <TitlebarIcon
-          tip="聊天"
-          onClick={handleOpenChatSidebar}
-          active={chatSidebarOpen}
-        >
-          <SVG src={chatIcon} />
-        </TitlebarIcon>
-        <TitlebarIcon
-          tip="右侧栏"
-          onClick={handleOpenRightSidebar}
-          active={rightSidebarOpen}
-          placement="left"
-        >
-          <SVG src={sidebarRightIcon} />
-        </TitlebarIcon>
-      </div>
+          <TitlebarIcon
+            tip={alwaysOnTop ? "取消置顶" : "置顶"}
+            onClick={toggleAlwaysOnTop}
+          >
+            <PushpinOutlined
+              className={classnames("transform rotate-0 transition-transform", {
+                "-rotate-45": alwaysOnTop,
+              })}
+            />
+          </TitlebarIcon>
+          <TitlebarIcon
+            tip="小组件"
+            onClick={handleOpenSmallComponentSidebar}
+            active={smallComponentSidebarOpen}
+          >
+            <SVG src={smallComponentIcon} />
+          </TitlebarIcon>
+          <TitlebarIcon
+            tip="聊天"
+            onClick={handleOpenChatSidebar}
+            active={chatSidebarOpen}
+          >
+            <SVG src={chatIcon} />
+          </TitlebarIcon>
+          <TitlebarIcon
+            tip="右侧栏"
+            onClick={handleOpenRightSidebar}
+            active={rightSidebarOpen}
+            placement="left"
+          >
+            <SVG src={sidebarRightIcon} />
+          </TitlebarIcon>
+        </div>
+      )}
     </div>
   );
 });
