@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { Modal, Form, Input, Select, InputNumber } from "antd";
+import { Modal, Form, Input, Select, InputNumber, FormInstance } from "antd";
 
 import { EGoalItemType } from "@/types";
+import { ICreateItemFormValues } from "../../types";
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -10,8 +11,8 @@ interface CreateItemModalProps {
   visible: boolean;
   isChildItem: boolean;
   onCancel: () => void;
-  onSubmit: (values: any) => void;
-  form: any;
+  onSubmit: (values: ICreateItemFormValues) => void;
+  form: FormInstance<ICreateItemFormValues>;
 }
 
 const CreateItemModal = memo(

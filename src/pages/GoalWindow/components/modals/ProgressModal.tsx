@@ -1,7 +1,8 @@
 import { memo } from "react";
-import { Modal, Form, Input, InputNumber } from "antd";
+import { Modal, Form, Input, InputNumber, FormInstance } from "antd";
 
 import { EGoalItemType } from "@/types";
+import { IProgressFormValues } from "../../types";
 
 const { TextArea } = Input;
 
@@ -9,8 +10,8 @@ interface ProgressModalProps {
   visible: boolean;
   itemType: EGoalItemType | null;
   onCancel: () => void;
-  onSubmit: (values: any) => void;
-  form: any;
+  onSubmit: (values: IProgressFormValues) => void;
+  form: FormInstance<IProgressFormValues>;
 }
 
 const ProgressModal = memo(

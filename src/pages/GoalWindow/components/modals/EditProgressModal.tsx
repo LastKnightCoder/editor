@@ -1,12 +1,13 @@
 import { memo } from "react";
-import { Modal, Form, InputNumber } from "antd";
+import { Modal, Form, InputNumber, FormInstance } from "antd";
+import { IEditProgressFormValues } from "../../types";
 
 interface EditProgressModalProps {
   visible: boolean;
   unit?: string;
   onCancel: () => void;
-  onSubmit: (values: any) => void;
-  form: any;
+  onSubmit: (values: IEditProgressFormValues) => void;
+  form: FormInstance<IEditProgressFormValues>;
 }
 
 const EditProgressModal = memo(

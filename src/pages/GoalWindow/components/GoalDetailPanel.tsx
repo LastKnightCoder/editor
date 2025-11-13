@@ -10,6 +10,7 @@ import {
   MenuProps,
   App,
 } from "antd";
+import type { DataNode } from "antd/es/tree";
 import { ClockCircleOutlined, MoreOutlined } from "@ant-design/icons";
 import { TbTargetArrow } from "react-icons/tb";
 import { TrophyOutlined, CheckCircleOutlined } from "@ant-design/icons";
@@ -24,6 +25,7 @@ import {
   IGoalProgressEntry,
   IGoalNoteLink,
 } from "@/types";
+import { IEditProgressFormValues } from "../types";
 import {
   createAndAttachGoalNote,
   attachExistingGoalNote,
@@ -87,7 +89,7 @@ const GoalDetailPanel = memo(
     const [editingEntry, setEditingEntry] = useState<IGoalProgressEntry | null>(
       null,
     );
-    const [editProgressForm] = Form.useForm();
+    const [editProgressForm] = Form.useForm<IEditProgressFormValues>();
 
     const { message } = App.useApp();
     const [selectorModalVisible, setSelectorModalVisible] = useState(false);
@@ -185,7 +187,7 @@ const GoalDetailPanel = memo(
       });
     };
 
-    const handleEditProgressSubmit = (values: any) => {
+    const handleEditProgressSubmit = (values: IEditProgressFormValues) => {
       if (editingEntry && editingItem && onUpdateProgressEntry) {
         onUpdateProgressEntry(
           editingEntry.id,
@@ -416,7 +418,7 @@ const GoalDetailPanel = memo(
       },
     );
 
-    const renderTreeNode = (item: IGoalItemTree, level = 0): any => {
+    const renderTreeNode = (item: IGoalItemTree, level = 0): DataNode => {
       const progress = calculateProgress(item);
 
       const children = [

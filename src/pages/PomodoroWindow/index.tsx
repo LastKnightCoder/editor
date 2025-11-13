@@ -28,7 +28,6 @@ import DndProvider from "@/components/DndProvider";
 import PresetModal from "./components/PresetModal";
 import Timeline from "./components/Timeline";
 import BackgroundSoundPanel from "./components/BackgroundSoundPanel";
-import useInitDatabase from "@/hooks/useInitDatabase";
 import classNames from "classnames";
 import { MoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { Dropdown, App, Empty, Button } from "antd";
@@ -43,8 +42,6 @@ enum TabType {
 }
 
 const PomodoroWindowPage: React.FC = () => {
-  useInitDatabase();
-
   const { modal } = App.useApp();
   const isConnected = useDatabaseConnected();
 

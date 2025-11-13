@@ -7,11 +7,9 @@ import { TodoTree } from "@/components/Todo/List";
 import DetailsPanel from "@/components/Todo/Details/DetailsPanel";
 import DndProvider from "@/components/DndProvider";
 import KeyboardShortcuts from "@/components/Todo/List/KeyboardShortcuts";
-import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 
 const TodoWindowPage = () => {
-  const { active } = useInitDatabase();
   const isConnected = useDatabaseConnected();
   const {
     ui,
@@ -26,12 +24,12 @@ const TodoWindowPage = () => {
   } = useTodoStore();
 
   useEffect(() => {
-    if (isConnected && active) {
+    if (isConnected) {
       loadGroups().then(loadGroupStats);
     } else {
       reset();
     }
-  }, [isConnected, active, loadGroups, loadGroupStats, reset]);
+  }, [isConnected, loadGroups, loadGroupStats, reset]);
 
   useEffect(() => {
     if (activeGroupId != null) {

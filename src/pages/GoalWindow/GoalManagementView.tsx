@@ -1,7 +1,6 @@
 import { memo, useState, useEffect } from "react";
 import { App, Form, message } from "antd";
 import dayjs from "dayjs";
-import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 
 import {
@@ -15,6 +14,12 @@ import {
   ICreateGoalItem,
   ICreateGoalProgressEntry,
 } from "@/types";
+import {
+  IGoalFormValues,
+  ICreateItemFormValues,
+  IProgressFormValues,
+} from "./types";
+
 import {
   getAllGoals,
   createGoal,
@@ -41,7 +46,6 @@ import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 const GoalManagementView = memo(() => {
-  const { active } = useInitDatabase();
   const isConnected = useDatabaseConnected();
   const { modal } = App.useApp();
 
@@ -77,10 +81,10 @@ const GoalManagementView = memo(() => {
   });
 
   // 表单实例
-  const [goalForm] = Form.useForm();
-  const [editGoalForm] = Form.useForm();
-  const [itemForm] = Form.useForm();
-  const [progressForm] = Form.useForm();
+  const [goalForm] = Form.useForm<IGoalFormValues>();
+  const [editGoalForm] = Form.useForm<IGoalFormValues>();
+  const [itemForm] = Form.useForm<ICreateItemFormValues>();
+  const [progressForm] = Form.useForm<IProgressFormValues>();
 
   // 基础数据操作
   const loadGoals = useMemoizedFn(async () => {
@@ -110,14 +114,14 @@ const GoalManagementView = memo(() => {
   });
 
   useEffect(() => {
-    if (isConnected && active) {
+    if (isConnected) {
       loadGoals();
     } else {
       // 当数据库断开连接或切换时，清空数据
       setGoals([]);
       setSelectedGoal(null);
     }
-  }, [isConnected, active, loadGoals]);
+  }, [isConnected, loadGoals]);
 
   // 目标相关操作
   const handleGoalSelect = (goal: IGoal) => {
@@ -126,7 +130,7 @@ const GoalManagementView = memo(() => {
     }
   };
 
-  const handleCreateGoal = async (values: any) => {
+  const handleCreateGoal = async (values: IGoalFormValues) => {
     try {
       const goalData: ICreateGoal = {
         title: values.title,
@@ -156,12 +160,12 @@ const GoalManagementView = memo(() => {
       dateRange:
         goal.start_date && goal.end_date
           ? [dayjs(goal.start_date), dayjs(goal.end_date)]
-          : null,
+          : undefined,
     });
     setEditGoalModalVisible(true);
   };
 
-  const handleUpdateGoal = async (values: any) => {
+  const handleUpdateGoal = async (values: IGoalFormValues) => {
     if (!editingGoal) return;
 
     try {
@@ -239,7 +243,7 @@ const GoalManagementView = memo(() => {
   };
 
   // 子目标相关操作
-  const handleCreateItem = async (values: any) => {
+  const handleCreateItem = async (values: ICreateItemFormValues) => {
     if (!selectedGoal) return;
 
     try {
@@ -267,7 +271,7 @@ const GoalManagementView = memo(() => {
     }
   };
 
-  const handleSubmitProgress = async (values: any) => {
+  const handleSubmitProgress = async (values: IProgressFormValues) => {
     if (!selectedItemId || !selectedGoal) return;
 
     try {
