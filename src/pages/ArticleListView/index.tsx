@@ -116,7 +116,11 @@ const ArticleListView = memo(() => {
     articleEventBus.publishArticleEvent("article:created", article);
 
     // 创建后跳转到编辑页
-    navigateTo(TabType.ArticleDetail, { id: article.id });
+    navigateTo(
+      TabType.ArticleDetail,
+      { id: article.id },
+      `文章 - ${article.title || `#${article.id}`}`,
+    );
   });
 
   const handleImportMarkdown = useMemoizedFn(async () => {

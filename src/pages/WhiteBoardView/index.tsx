@@ -13,6 +13,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
+import { WhiteBoard } from "@/types";
 
 import styles from "./index.module.less";
 
@@ -39,8 +40,12 @@ const WhiteBoardView = memo(() => {
   const [createWhiteBoardModalOpen, setCreateWhiteBoardModalOpen] =
     useState(false);
 
-  const onClick = useMemoizedFn((whiteBoardId: number) => {
-    navigateTo(TabType.WhiteBoardDetail, { id: whiteBoardId });
+  const onClick = useMemoizedFn((whiteBoard: WhiteBoard) => {
+    navigateTo(
+      TabType.WhiteBoardDetail,
+      { id: whiteBoard.id },
+      `白板 - ${whiteBoard.title || `#${whiteBoard.id}`}`,
+    );
   });
 
   const handleCreateWhiteBoard = async (title: string, description: string) => {
@@ -73,7 +78,11 @@ const WhiteBoardView = memo(() => {
 
     const whiteBoard = await createWhiteBoard(createWhiteBoardData);
     setCreateWhiteBoardModalOpen(false);
-    navigateTo(TabType.WhiteBoardDetail, { id: whiteBoard.id });
+    navigateTo(
+      TabType.WhiteBoardDetail,
+      { id: whiteBoard.id },
+      `白板 - ${whiteBoard.title || `#${whiteBoard.id}`}`,
+    );
   };
 
   if (whiteBoards.length === 0) {

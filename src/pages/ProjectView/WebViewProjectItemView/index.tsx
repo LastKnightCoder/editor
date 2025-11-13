@@ -12,7 +12,7 @@ import {
   convertHTMLToMarkdown,
   getContentHTML,
 } from "@/utils";
-import { defaultProjectItemEventBus } from "@/utils";
+import { defaultProjectItemEventBus, extractUrlFromTitle } from "@/utils";
 import { EProjectItemType } from "@/types";
 import { addChildProjectItem } from "@/commands";
 import useRightSidebarStore from "@/stores/useRightSidebarStore";
@@ -22,20 +22,6 @@ import styles from "./index.module.less";
 interface WebViewProjectItemViewProps {
   projectItemId: number;
 }
-
-const extractUrlFromTitle = (title: string): { title: string; url: string } => {
-  const urlRegex = /\[(https?:\/\/[^\]]+)\]$/;
-  const match = title.match(urlRegex);
-
-  if (match && match[1]) {
-    return {
-      title: title.replace(urlRegex, "").trim(),
-      url: match[1],
-    };
-  }
-
-  return { title, url: "" };
-};
 
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { projectItemId } = props;

@@ -244,7 +244,7 @@ const CardItem = memo(
     );
 
     const handleNavigateToDetail = useMemoizedFn(() => {
-      navigateTo(TabType.CardDetail, { id: card.id });
+      navigateTo(TabType.CardDetail, { id: card.id }, `卡片详情 #${card.id}`);
     });
 
     return (

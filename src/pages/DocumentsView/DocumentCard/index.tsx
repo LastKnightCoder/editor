@@ -85,7 +85,11 @@ const DocumentCard = (props: DocumentCardProps) => {
   };
 
   const onClick = () => {
-    navigateTo(TabType.DocumentDetail, { id: document.id });
+    navigateTo(
+      TabType.DocumentDetail,
+      { id: document.id },
+      `知识库 - ${document.title || `#${document.id}`}`,
+    );
   };
 
   const items: MenuProps["items"] = [

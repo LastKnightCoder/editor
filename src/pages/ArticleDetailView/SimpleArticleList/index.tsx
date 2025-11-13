@@ -39,7 +39,11 @@ const SimpleArticleList = (props: SimpleArticleListProps) => {
       navigateTo(TabType.ArticleList);
       return;
     }
-    navigateTo(TabType.ArticleDetail, { id: article.id });
+    navigateTo(
+      TabType.ArticleDetail,
+      { id: article.id },
+      `文章 - ${article.title || `#${article.id}`}`,
+    );
   };
 
   const onFoldArticleList = useMemoizedFn(() => {

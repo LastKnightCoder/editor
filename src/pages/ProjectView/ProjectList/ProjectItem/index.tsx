@@ -35,7 +35,7 @@ import {
   createDataTable,
 } from "@/commands";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
-
+import { extractUrlFromTitle } from "@/utils";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import NotionSyncModal, {
@@ -115,20 +115,6 @@ import {
 } from "@/utils/bilibili";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-
-const extractUrlFromTitle = (title: string): { title: string; url: string } => {
-  const urlRegex = /\[(https?:\/\/[^\]]+)\]$/;
-  const match = title.match(urlRegex);
-
-  if (match && match[1]) {
-    return {
-      title: title.replace(urlRegex, "").trim(),
-      url: match[1],
-    };
-  }
-
-  return { title, url: "" };
-};
 
 interface IProjectItemProps {
   projectItemId: number;
@@ -1370,10 +1356,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           onClick={async () => {
             const activeProjectItem = await getProjectItemById(projectItem.id);
             if (!activeProjectItem) return;
-            navigateTo(TabType.ProjectDetail, {
-              id: projectId,
-              itemId: projectItem.id,
-            });
+            navigateTo(
+              TabType.ProjectDetail,
+              {
+                id: projectId,
+                itemId: projectItem.id,
+              },
+              `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+            );
           }}
         >
           <Tooltip

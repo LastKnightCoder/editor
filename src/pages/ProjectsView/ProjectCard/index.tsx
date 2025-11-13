@@ -77,7 +77,11 @@ const ProjectCard = (props: ProjectCardProps) => {
   }, [findShortcut, project.id, shortcuts]);
 
   const onClick = () => {
-    navigateTo(TabType.ProjectDetail, { id: project.id });
+    navigateTo(
+      TabType.ProjectDetail,
+      { id: project.id },
+      `项目 - ${project.title || `#${project.id}`}`,
+    );
   };
 
   const handleDeleteProject = () => {

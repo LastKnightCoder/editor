@@ -86,7 +86,11 @@ const DailySummary = (props: IExtensionBaseProps<DailySummaryElement>) => {
                 card={card}
                 showLine={false}
                 onClick={() => {
-                  navigateTo(TabType.CardDetail, { id: card.id });
+                  navigateTo(
+                    TabType.CardDetail,
+                    { id: card.id },
+                    `卡片详情 - #${card.id}`,
+                  );
                 }}
                 style={{
                   marginBottom: 0,

@@ -97,24 +97,40 @@ const ShortcutDropdown = memo(({ isShortWidth }: ShortcutDropdownProps) => {
     } else {
       switch (shortcut.resourceType) {
         case "card":
-          navigateTo(TabType.CardDetail, { id: shortcut.resourceId! });
+          navigateTo(
+            TabType.CardDetail,
+            { id: shortcut.resourceId! },
+            shortcut.title || `卡片详情 #${shortcut.resourceId}`,
+          );
           break;
         case "article":
-          navigateTo(TabType.ArticleDetail, { id: shortcut.resourceId! });
+          navigateTo(
+            TabType.ArticleDetail,
+            { id: shortcut.resourceId! },
+            `文章 - ${shortcut.title || `#${shortcut.resourceId}`}`,
+          );
           break;
         case "document":
           // 知识库快捷方式 - 导航到知识库详情
-          navigateTo(TabType.DocumentDetail, {
-            id: shortcut.resourceId!,
-            itemId: shortcut.documentItemId!,
-          });
+          navigateTo(
+            TabType.DocumentDetail,
+            {
+              id: shortcut.resourceId!,
+              itemId: shortcut.documentItemId!,
+            },
+            `知识库 - ${shortcut.title || `#${shortcut.resourceId}`}`,
+          );
           break;
         case "project":
           // 项目快捷方式 - 导航到项目详情
-          navigateTo(TabType.ProjectDetail, {
-            id: shortcut.resourceId!,
-            itemId: shortcut.projectItemId!,
-          });
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: shortcut.resourceId!,
+              itemId: shortcut.projectItemId!,
+            },
+            `项目 - ${shortcut.title || `#${shortcut.resourceId}`}`,
+          );
           break;
       }
     }

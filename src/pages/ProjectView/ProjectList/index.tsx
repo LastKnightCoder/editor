@@ -462,10 +462,14 @@ const Project = () => {
         );
 
         if (item) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: item.id,
-          });
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject.id,
+              itemId: item.id,
+            },
+            `项目 - ${item.title || `#${item.id}`}`,
+          );
         }
 
         setProject(newProject);
@@ -563,10 +567,14 @@ const Project = () => {
           createProjectItem,
         );
         if (item) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: item.id,
-          });
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject.id,
+              itemId: item.id,
+            },
+            `项目 - ${item.title || `#${item.id}`}`,
+          );
         }
         setProject(newProject);
       } else if (key === "add-notion-document-project-item") {
@@ -605,10 +613,14 @@ const Project = () => {
           createProjectItem,
         );
         if (item) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: item.id,
-          });
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject.id,
+              itemId: item.id,
+            },
+            `项目 - ${item.title || `#${item.id}`}`,
+          );
         }
         setProject(newProject);
       } else if (key === "add-local-video-note-project-item") {
@@ -647,10 +659,14 @@ const Project = () => {
           createProjectItem,
         );
         if (projectItem) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: projectItem.id,
-          });
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject.id,
+              itemId: projectItem.id,
+            },
+            `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+          );
         }
         setProject(newProject);
       } else if (key === "add-remote-video-note-project-item") {
@@ -684,10 +700,14 @@ const Project = () => {
           createProjectItem,
         );
         if (item) {
-          navigateTo(TabType.ProjectDetail, {
-            id: newProject.id,
-            itemId: item.id,
-          });
+          navigateTo(
+            TabType.ProjectDetail,
+            {
+              id: newProject.id,
+              itemId: item.id,
+            },
+            `项目 - ${item.title || `#${item.id}`}`,
+          );
         }
         setProject(newProject);
       } else if (key === "link-card-project-item") {
@@ -723,10 +743,14 @@ const Project = () => {
             whiteBoardContentId: 0,
           });
           if (item) {
-            navigateTo(TabType.ProjectDetail, {
-              id: newProject.id,
-              itemId: item.id,
-            });
+            navigateTo(
+              TabType.ProjectDetail,
+              {
+                id: newProject.id,
+                itemId: item.id,
+              },
+              `项目 - ${item.title || `#${item.id}`}`,
+            );
           }
           setProject(newProject);
         }
@@ -846,10 +870,14 @@ const Project = () => {
                 createProjectItem,
               );
               if (projectItem) {
-                navigateTo(TabType.ProjectDetail, {
-                  id: newProject.id,
-                  itemId: projectItem.id,
-                });
+                navigateTo(
+                  TabType.ProjectDetail,
+                  {
+                    id: newProject.id,
+                    itemId: projectItem.id,
+                  },
+                  `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+                );
               }
               setProject(newProject);
               setWebVideoModalOpen(false);
@@ -924,10 +952,14 @@ const Project = () => {
                   createProjectItem,
                 );
                 if (projectItem) {
-                  navigateTo(TabType.ProjectDetail, {
-                    id: newProject.id,
-                    itemId: projectItem.id,
-                  });
+                  navigateTo(
+                    TabType.ProjectDetail,
+                    {
+                      id: newProject.id,
+                      itemId: projectItem.id,
+                    },
+                    `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+                  );
                 }
                 setProject(newProject);
                 setYoutubeModalOpen(false);
@@ -1045,10 +1077,14 @@ const Project = () => {
                 createProjectItem,
               );
               if (item) {
-                navigateTo(TabType.ProjectDetail, {
-                  id: newProject.id,
-                  itemId: item.id,
-                });
+                navigateTo(
+                  TabType.ProjectDetail,
+                  {
+                    id: newProject.id,
+                    itemId: item.id,
+                  },
+                  `项目 - ${item.title || `#${item.id}`}`,
+                );
               }
               setProject(newProject);
 
@@ -1145,10 +1181,14 @@ const Project = () => {
                 );
 
                 if (projectItem) {
-                  navigateTo(TabType.ProjectDetail, {
-                    id: newProject.id,
-                    itemId: projectItem.id,
-                  });
+                  navigateTo(
+                    TabType.ProjectDetail,
+                    {
+                      id: newProject.id,
+                      itemId: projectItem.id,
+                    },
+                    `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+                  );
                 }
                 setProject(newProject);
                 setBilibiliModalOpen(false);
@@ -1325,10 +1365,14 @@ const Project = () => {
                   createProjectItem,
                 );
                 if (projectItem) {
-                  navigateTo(TabType.ProjectDetail, {
-                    id: newProject.id,
-                    itemId: projectItem.id,
-                  });
+                  navigateTo(
+                    TabType.ProjectDetail,
+                    {
+                      id: newProject.id,
+                      itemId: projectItem.id,
+                    },
+                    `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+                  );
                 }
                 setProject(newProject);
 
