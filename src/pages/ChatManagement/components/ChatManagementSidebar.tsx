@@ -15,15 +15,18 @@ import classnames from "classnames";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import type { ChatMessage, ChatGroup, ResponseMessage } from "@/types";
 import { Role } from "@/constants";
+import SVG from "react-inlinesvg";
+import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 
 interface ChatManagementSidebarProps {
   onChatSelect?: () => void;
+  onFoldSidebar?: () => void;
 }
 
 type MenuClickInfo = Parameters<NonNullable<MenuProps["onClick"]>>[0];
 
 const ChatManagementSidebar = memo(
-  ({ onChatSelect }: ChatManagementSidebarProps) => {
+  ({ onChatSelect, onFoldSidebar }: ChatManagementSidebarProps) => {
     const { message: messageApi, modal } = App.useApp();
 
     const {
@@ -85,6 +88,24 @@ const ChatManagementSidebar = memo(
       setSelectedChatId(chatId);
       useChatMessageStore.setState({ currentChatId: chatId });
       onChatSelect?.();
+    });
+
+    const handleCreateChat = useMemoizedFn(async () => {
+      const messages: ResponseMessage[] = [
+        {
+          role: Role.System,
+          content:
+            "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+        },
+      ];
+
+      try {
+        await createChatMessage(messages, "新对话", null);
+        messageApi.success("对话已创建");
+      } catch (error) {
+        messageApi.error("创建失败");
+        console.error(error);
+      }
     });
 
     const handleCreateGroup = useMemoizedFn((parentId?: number | null) => {
@@ -598,19 +619,40 @@ const ChatManagementSidebar = memo(
       .filter((c) => c.archived)
       .sort((a, b) => b.updateTime - a.updateTime);
 
+    const addMenuItems: MenuProps["items"] = [
+      {
+        key: "add-chat",
+        label: "添加对话",
+        icon: <MessageOutlined />,
+        onClick: () => handleCreateChat(),
+      },
+      {
+        key: "add-group",
+        label: "添加分组",
+        icon: <FolderOutlined />,
+        onClick: () => handleCreateGroup(),
+      },
+    ];
+
     return (
-      <div className="w-[280px] h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
+      <div className="h-full flex flex-col border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
         <div className="px-4 py-4 flex flex-shrink-0 justify-between items-center border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
           <h3 className="m-0 text-base font-semibold">对话管理</h3>
-          <PlusOutlined
-            className="cursor-pointer hover:text-blue-500 transition-colors"
-            onClick={() => handleCreateGroup()}
-          />
+          <div className="flex items-center gap-3">
+            <SVG
+              className="cursor-pointer"
+              src={leftSidebarIcon}
+              onClick={onFoldSidebar}
+            />
+            <Dropdown menu={{ items: addMenuItems }} placement="bottomRight">
+              <PlusOutlined className="cursor-pointer hover:text-blue-500 transition-colors" />
+            </Dropdown>
+          </div>
         </div>
 
         <div
           className={classnames(
-            "flex-1 min-h-0 overflow-y-auto border-y-[8px] border-transparent transition-colors duration-200",
+            "flex-1 min-h-0 overflow-y-auto border-t-[12px] border-b-[20px] border-r-[10px] border-transparent transition-colors duration-200",
             {
               "bg-blue-500/5": dragOverTarget === "root",
             },

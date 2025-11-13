@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from "react";
+import { memo, useRef, useState, useCallback } from "react";
 import { DndProvider, useDrop } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import classnames from "classnames";
@@ -114,8 +114,96 @@ const ContentDropZone = memo(
   },
 );
 
+// 可拖拽的分割线组件
+const Resizer = memo(
+  ({
+    direction,
+    paneId,
+    containerRef,
+  }: {
+    direction: PaneDirection;
+    paneId: string;
+    containerRef: React.RefObject<HTMLDivElement>;
+  }) => {
+    const [isDragging, setIsDragging] = useState(false);
+    const updatePaneSplitRatio = useTabStore(
+      (state) => state.updatePaneSplitRatio,
+    );
+
+    const handleMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+          if (!containerRef.current) return;
+
+          const container = containerRef.current.getBoundingClientRect();
+
+          if (direction === PaneDirection.Horizontal) {
+            // 水平分割（左右）
+            const mouseX = moveEvent.clientX;
+            const containerLeft = container.left;
+            const containerWidth = container.width;
+
+            // 计算鼠标在容器中的相对位置
+            const relativeX = mouseX - containerLeft;
+            let newRatio = relativeX / containerWidth;
+
+            // 限制比例范围 0.2 ~ 0.8
+            newRatio = Math.max(0.2, Math.min(0.8, newRatio));
+
+            updatePaneSplitRatio(paneId, newRatio);
+          } else {
+            // 垂直分割（上下）
+            const mouseY = moveEvent.clientY;
+            const containerTop = container.top;
+            const containerHeight = container.height;
+
+            // 计算鼠标在容器中的相对位置
+            const relativeY = mouseY - containerTop;
+            let newRatio = relativeY / containerHeight;
+
+            // 限制比例范围 0.2 ~ 0.8
+            newRatio = Math.max(0.2, Math.min(0.8, newRatio));
+
+            updatePaneSplitRatio(paneId, newRatio);
+          }
+        };
+
+        const handleMouseUp = () => {
+          setIsDragging(false);
+          document.removeEventListener("mousemove", handleMouseMove);
+          document.removeEventListener("mouseup", handleMouseUp);
+        };
+
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+      },
+      [direction, paneId, containerRef, updatePaneSplitRatio],
+    );
+
+    const isHorizontal = direction === PaneDirection.Horizontal;
+
+    return (
+      <div
+        className={classnames(
+          "bg-gray-300 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors z-10",
+          {
+            "w-1 cursor-col-resize": isHorizontal,
+            "h-1 cursor-row-resize": !isHorizontal,
+            "bg-blue-500 dark:bg-blue-500": isDragging,
+          },
+        )}
+        onMouseDown={handleMouseDown}
+      />
+    );
+  },
+);
+
 const PanesLayout = memo(() => {
   const panes = useTabStore((state) => state.panes);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   if (panes.length === 0) {
     return <div>没有打开的窗格</div>;
@@ -128,7 +216,7 @@ const PanesLayout = memo(() => {
     return (
       <DndProvider backend={HTML5Backend}>
         <div className={styles.singlePane}>
-          <TitlebarWithTabs paneId={pane.id} />
+          <TitlebarWithTabs paneId={pane.id} showRightControls={true} />
           <ContentDropZone
             paneId={pane.id}
             className={"flex-1 min-h-0 overflow-hidden"}
@@ -158,15 +246,19 @@ const PanesLayout = memo(() => {
   const isHorizontal = direction === PaneDirection.Horizontal;
 
   if (isHorizontal) {
+    // 左右布局：只在右侧的 pane 显示控件
     return (
       <DndProvider backend={HTML5Backend}>
-        <div className={styles.panesContainer}>
+        <div ref={containerRef} className={styles.panesContainer}>
           <div
             className={styles.pane}
             style={{ width: `${splitRatio * 100}%`, height: "100%" }}
           >
-            <TitlebarWithTabs paneId={firstPane.id} />
-            <ContentDropZone paneId={firstPane.id}>
+            <TitlebarWithTabs paneId={firstPane.id} showRightControls={false} />
+            <ContentDropZone
+              paneId={firstPane.id}
+              className="flex-1 min-h-0 overflow-hidden"
+            >
               <div className={styles.paneContent}>
                 {firstActiveTab && (
                   <TabContent tab={firstActiveTab} paneId={firstPane.id} />
@@ -175,12 +267,21 @@ const PanesLayout = memo(() => {
             </ContentDropZone>
           </div>
 
+          <Resizer
+            direction={direction}
+            paneId={secondPane.id}
+            containerRef={containerRef}
+          />
+
           <div
             className={styles.pane}
             style={{ width: `${(1 - splitRatio) * 100}%`, height: "100%" }}
           >
-            <TitlebarWithTabs paneId={secondPane.id} />
-            <ContentDropZone paneId={secondPane.id}>
+            <TitlebarWithTabs paneId={secondPane.id} showRightControls={true} />
+            <ContentDropZone
+              paneId={secondPane.id}
+              className="flex-1 min-h-0 overflow-hidden"
+            >
               <div className={styles.paneContent}>
                 {secondActiveTab && (
                   <TabContent tab={secondActiveTab} paneId={secondPane.id} />
@@ -192,9 +293,11 @@ const PanesLayout = memo(() => {
       </DndProvider>
     );
   } else {
+    // 上下布局：只在上面的 pane 显示控件
     return (
       <DndProvider backend={HTML5Backend}>
         <div
+          ref={containerRef}
           className={styles.panesContainer}
           style={{ flexDirection: "column" }}
         >
@@ -202,8 +305,11 @@ const PanesLayout = memo(() => {
             className={styles.pane}
             style={{ width: "100%", height: `${splitRatio * 100}%` }}
           >
-            <TitlebarWithTabs paneId={firstPane.id} />
-            <ContentDropZone paneId={firstPane.id}>
+            <TitlebarWithTabs paneId={firstPane.id} showRightControls={true} />
+            <ContentDropZone
+              paneId={firstPane.id}
+              className="flex-1 min-h-0 overflow-hidden"
+            >
               <div className={styles.paneContent}>
                 {firstActiveTab && (
                   <TabContent tab={firstActiveTab} paneId={firstPane.id} />
@@ -212,12 +318,24 @@ const PanesLayout = memo(() => {
             </ContentDropZone>
           </div>
 
+          <Resizer
+            direction={direction}
+            paneId={secondPane.id}
+            containerRef={containerRef}
+          />
+
           <div
             className={styles.pane}
             style={{ width: "100%", height: `${(1 - splitRatio) * 100}%` }}
           >
-            <TitlebarWithTabs paneId={secondPane.id} />
-            <ContentDropZone paneId={secondPane.id}>
+            <TitlebarWithTabs
+              paneId={secondPane.id}
+              showRightControls={false}
+            />
+            <ContentDropZone
+              paneId={secondPane.id}
+              className="flex-1 min-h-0 overflow-hidden"
+            >
               <div className={styles.paneContent}>
                 {secondActiveTab && (
                   <TabContent tab={secondActiveTab} paneId={secondPane.id} />
