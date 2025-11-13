@@ -426,11 +426,8 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       throw new Error("Client not initialized");
     }
     client.registerNotificationHandler("user-setting-changed", (newSetting) => {
-      const { setting } = get();
       set({
-        setting: produce(setting, (draft) => {
-          merge(draft, newSetting as DeepPartial<ISetting>);
-        }),
+        setting: newSetting as ISetting,
       });
     });
     const setting = (await client.sendRequest(
@@ -438,7 +435,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       null,
     )) as ISetting;
     try {
-      console.log("setting", setting);
       const newSetting = cloneDeep(initialState.setting);
       merge(newSetting, setting);
       set({
