@@ -1,12 +1,6 @@
-import {
-  RpcMessageType,
-  RpcRequestMessage,
-  RpcResponseMessage,
-  DeepPartial,
-} from "@/types";
+import { RpcMessageType, RpcRequestMessage, RpcResponseMessage } from "@/types";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import PathUtil from "../utils/PathUtil";
-import merge from "lodash/merge";
 import isEqual from "lodash/isEqual";
 import fs from "node:fs/promises";
 import fsExtra from "fs-extra/esm";
@@ -63,18 +57,15 @@ class UserSettingModule {
 
   handleSetUserSetting(newSettings: UserSetting) {
     const settings = this.userSetting;
-    const mergedSettings = this.mergeSetting(settings, newSettings);
-
-    const changed = this.getSettingDiff(settings, mergedSettings);
-
+    this.userSetting = newSettings;
+    const changed = this.getSettingDiff(settings, newSettings);
     if (Object.keys(changed).length === 0) {
       return;
     }
 
-    this.userSetting = mergedSettings;
-    this.saveSetting(JSON.stringify(mergedSettings, null, 2));
+    this.saveSetting(JSON.stringify(newSettings, null, 2));
     if (this.backendServer) {
-      this.backendServer.sendNotification("user-setting-changed", changed);
+      this.backendServer.sendNotification("user-setting-changed", newSettings);
     }
   }
 
@@ -98,13 +89,6 @@ class UserSettingModule {
   private saveSetting(setting: string) {
     const appDir = PathUtil.getAppDir();
     return fs.writeFile(join(appDir, "setting.json"), setting, "utf-8");
-  }
-
-  private mergeSetting(
-    destSetting: UserSetting,
-    sourceSetting: DeepPartial<UserSetting>,
-  ): UserSetting {
-    return merge(structuredClone(destSetting), sourceSetting);
   }
 
   private getSettingDiff(
