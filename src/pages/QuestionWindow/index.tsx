@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { App, Modal, Input } from "antd";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import useInitDatabase from "@/hooks/useInitDatabase";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import { useQuestionStore } from "@/stores/useQuestionStore";
 import NewAnswerModal from "@/components/NewAnswerModal";
@@ -18,7 +17,6 @@ import QuestionList from "./components/QuestionList";
 import type { IAnswer } from "@/types/question";
 
 const QuestionWindowPage = () => {
-  const { active } = useInitDatabase();
   const isConnected = useDatabaseConnected();
   const { message, modal } = App.useApp();
   const extensions = useDynamicExtensions();
@@ -72,10 +70,10 @@ const QuestionWindowPage = () => {
   const [answerTypes, setAnswerTypes] = useState<Record<number, string>>({});
 
   useEffect(() => {
-    if (isConnected && active) {
+    if (isConnected) {
       loadGroups().then(loadGroupStats);
     }
-  }, [isConnected, active, loadGroups, loadGroupStats]);
+  }, [isConnected, loadGroups, loadGroupStats]);
 
   useEffect(() => {
     if (activeGroupId != null) {

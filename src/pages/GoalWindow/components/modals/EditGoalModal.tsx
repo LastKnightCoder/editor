@@ -1,5 +1,6 @@
 import { memo } from "react";
-import { Modal, Form, Input, DatePicker } from "antd";
+import { Modal, Form, Input, DatePicker, FormInstance } from "antd";
+import { IGoalFormValues } from "../../types";
 
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
@@ -7,8 +8,8 @@ const { RangePicker } = DatePicker;
 interface EditGoalModalProps {
   visible: boolean;
   onCancel: () => void;
-  onSubmit: (values: any) => void;
-  form: any;
+  onSubmit: (values: IGoalFormValues) => void;
+  form: FormInstance<IGoalFormValues>;
 }
 
 const EditGoalModal = memo(
