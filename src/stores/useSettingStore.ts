@@ -16,7 +16,6 @@ export enum ESync {
 
 import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
-import { DeepPartial } from "@/types";
 
 interface DoubaoVoiceCopyConfig {
   accessToken: string;
