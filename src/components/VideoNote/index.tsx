@@ -15,6 +15,7 @@ export interface VideoNoteProps {
   deleteSubNote: (noteId: string) => Promise<boolean>;
   uploadResource: (file: File) => Promise<string | null>;
   theme?: "light" | "dark";
+  useLocalVideo?: boolean; // 是否使用 LocalVideo 组件，默认 true
 }
 
 const VideoNote: React.FC<VideoNoteProps> = memo(
@@ -26,6 +27,7 @@ const VideoNote: React.FC<VideoNoteProps> = memo(
     addSubNote,
     deleteSubNote,
     theme = "light",
+    useLocalVideo = true,
   }) => {
     return (
       <ThemeContext.Provider value={theme}>
@@ -37,6 +39,7 @@ const VideoNote: React.FC<VideoNoteProps> = memo(
             uploadResource={uploadResource}
             addSubNote={addSubNote}
             deleteSubNote={deleteSubNote}
+            useLocalVideo={useLocalVideo}
           />
         </DndProvider>
       </ThemeContext.Provider>

@@ -130,6 +130,9 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   }
 
   if (videoNote.metaInfo.type === "notion") {
+    const notionMeta = videoNote.metaInfo as NotionVideoMetaInfo;
+    const useLocalVideo = notionMeta.cache !== false; // 默认使用 LocalVideo，只有明确设置为 false 时才使用普通 video
+
     return (
       <div className={styles.container}>
         <NotionVideoLoader
@@ -145,6 +148,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             addSubNote={handleAddSubNote}
             deleteSubNote={handleDeleteSubNote}
             updateNotes={updateNotes}
+            useLocalVideo={useLocalVideo}
           />
         )}
       </div>

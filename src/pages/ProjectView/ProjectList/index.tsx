@@ -3,11 +3,13 @@ import { Descendant } from "slate";
 import {
   Dropdown,
   Empty,
+  Flex,
   MenuProps,
   App,
   Modal,
   Input,
   Select,
+  Switch,
   Tag,
 } from "antd";
 import {
@@ -136,6 +138,7 @@ const Project = () => {
   const [notionInput, setNotionInput] = useState("");
   const [notionTitle, setNotionTitle] = useState("");
   const [notionLoading, setNotionLoading] = useState(false);
+  const [notionCacheEnabled, setNotionCacheEnabled] = useState(true);
   const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
 
   const onFoldSidebar = useMemoizedFn(() => {
@@ -1284,6 +1287,7 @@ const Project = () => {
               setNotionInput("");
               setNotionTitle("");
               setNotionLoading(false);
+              setNotionCacheEnabled(true);
             }}
             confirmLoading={notionLoading}
             onOk={async () => {
@@ -1341,6 +1345,7 @@ const Project = () => {
                 const item = await createEmptyVideoNote({
                   type: "notion",
                   blockId: blockId,
+                  cache: notionCacheEnabled,
                 });
 
                 if (!item) {
@@ -1379,6 +1384,7 @@ const Project = () => {
                 setNotionModalOpen(false);
                 setNotionInput("");
                 setNotionTitle("");
+                setNotionCacheEnabled(true);
                 message.success("Notion 视频笔记添加成功！");
               } catch (error) {
                 console.error("添加 Notion 视频失败:", error);
@@ -1404,6 +1410,23 @@ const Project = () => {
                 value={notionTitle}
                 onChange={(e) => setNotionTitle(e.target.value)}
               />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <Flex justify="space-between" align="center">
+                <span>缓存视频到本地</span>
+                <Switch
+                  checked={notionCacheEnabled}
+                  onChange={setNotionCacheEnabled}
+                  checkedChildren="开启"
+                  unCheckedChildren="关闭"
+                />
+              </Flex>
+              <div style={{ fontSize: "12px", color: "#666", marginTop: 4 }}>
+                开启缓存：下载并保存视频到本地，支持离线播放但占用存储空间
+                <br />
+                关闭缓存：直接播放在线链接，不占用本地存储空间
+              </div>
             </div>
 
             <div style={{ fontSize: 12, color: "#8c8c8c" }}>

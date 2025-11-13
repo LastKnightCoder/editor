@@ -20,6 +20,7 @@ export interface VideoNoteBaseProps {
   deleteSubNote: (noteId: string) => Promise<boolean>;
   updateNotes: (notes: VideoNoteType["notes"]) => Promise<void>;
   uploadResource?: (file: File) => Promise<string | null>;
+  useLocalVideo?: boolean; // 是否使用 LocalVideo 组件，默认 true
 }
 
 export interface VideoNoteBaseReturnProps {
