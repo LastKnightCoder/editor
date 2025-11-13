@@ -3,7 +3,6 @@ export * from "./card";
 export * from "./article";
 export * from "./setting";
 export * from "./document";
-export * from "./project";
 export * from "./llm";
 export * from "./prompts";
 export * from "./data-table";
