@@ -137,7 +137,7 @@ const EditLink: React.FC<{
 const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
   const { attributes, children, element } = props;
   const { url, openEdit = false } = element;
-
+  const readOnly = useReadOnly();
   const editor = useSlate();
   const [open, setOpen] = useState(openEdit);
   const [editable, setEditable] = useState(openEdit);
@@ -181,7 +181,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
   return (
     <Popover
       trigger={"hover"}
-      open={open}
+      open={open && !readOnly}
       mouseEnterDelay={0.3}
       mouseLeaveDelay={0.3}
       onOpenChange={handleOpenChange}

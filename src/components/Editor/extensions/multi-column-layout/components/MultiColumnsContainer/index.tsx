@@ -1,7 +1,8 @@
 import React from "react";
-import { RenderElementProps } from "slate-react";
+import { RenderElementProps, useReadOnly } from "slate-react";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { MultiColumnContainerElement } from "@/components/Editor/types";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 import styles from "./index.module.less";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
@@ -17,7 +18,8 @@ const MultiColumnsContainer: React.FC<
   React.PropsWithChildren<IMultiColumnsContainerProps>
 > = (props) => {
   const { attributes, element, children } = props;
-
+  const readOnly = useReadOnly();
+  const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
@@ -36,7 +38,7 @@ const MultiColumnsContainer: React.FC<
       <div className={styles.container} {...attributes}>
         {children}
       </div>
-      <AddParagraph element={element} />
+      {!(readOnly && isLast) && <AddParagraph element={element} />}
       <div
         contentEditable={false}
         ref={drag}

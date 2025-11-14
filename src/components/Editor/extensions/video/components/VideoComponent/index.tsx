@@ -33,6 +33,7 @@ import {
   useImageResize,
   ResizeDirection,
 } from "@editor/hooks/useImageResize.ts";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 import LocalVideo from "@/components/LocalVideo";
 import If from "@/components/If";
@@ -101,9 +102,9 @@ function isNotionMetaInfo(
 
 const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const { element, children, attributes } = props;
-
-  const editor = useSlate();
   const readOnly = useReadOnly();
+  const isLast = useIsLastElement(element);
+  const editor = useSlate();
   const { message } = App.useApp();
   const uploadRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -855,7 +856,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           hidden
           onChange={handleUploadFileChange}
         />
-        <AddParagraph element={element} />
+        {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
 
       {/* Bilibili 地址输入弹窗 */}

@@ -32,6 +32,7 @@ import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop";
 import { WhiteBoardContent } from "@/types";
 import { LoadingOutlined } from "@ant-design/icons";
 import { Empty } from "antd";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 type IWhiteboardProps = IExtensionBaseProps<WhiteboardElement>;
 
 interface WhiteboardData {
@@ -44,12 +45,12 @@ interface WhiteboardData {
 const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
   (props) => {
     const { attributes, children, element } = props;
-    const editorReadOnly = useReadOnly();
+    const readOnly = useReadOnly();
     const editor = useSlate();
     const resizeStartYRef = useRef(0);
     const startHeightRef = useRef(0);
     const whiteboardRef = useRef<HTMLDivElement>(null);
-
+    const isLast = useIsLastElement(element);
     const {
       drag,
       drop,
@@ -114,7 +115,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
     );
     // 更新白板数据
     const updateWhiteboardData = useMemoizedFn(async (data: WhiteboardData) => {
-      if (editorReadOnly || !whiteBoardContent) return;
+      if (readOnly || !whiteBoardContent) return;
 
       const res = await updateWhiteBoardContent({
         id: whiteBoardContent.id,
@@ -129,7 +130,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
     // 处理白板数据变化
     const handleWhiteboardChange = useMemoizedFn(
       (newWhiteboardData: WhiteboardData) => {
-        if (editorReadOnly) return;
+        if (readOnly) return;
         updateWhiteboardData(newWhiteboardData);
       },
     );
@@ -191,7 +192,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
 
     // 更新白板高度
     const updateWhiteboardHeight = useMemoizedFn((height: number) => {
-      if (editorReadOnly) return;
+      if (readOnly) return;
 
       try {
         const path = ReactEditor.findPath(editor, element);
@@ -275,7 +276,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
                     whiteBoardContent.data.presentationSequences
                   }
                   style={{ width: "100%", height: "100%" }}
-                  readonly={editorReadOnly}
+                  readonly={readOnly}
                   onChange={handleWhiteboardChange}
                 />
                 <div
@@ -313,7 +314,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
                       whiteBoardContent.data.presentationSequences
                     }
                     style={{ width: "100%", height: "100%" }}
-                    readonly={editorReadOnly}
+                    readonly={readOnly}
                     onChange={handleWhiteboardChange}
                   />
                   <div
@@ -326,7 +327,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
               </div>,
               document.body,
             )}
-          <AddParagraph element={element} />
+          {!(readOnly && isLast) && <AddParagraph element={element} />}
           <div
             contentEditable={false}
             ref={drag}

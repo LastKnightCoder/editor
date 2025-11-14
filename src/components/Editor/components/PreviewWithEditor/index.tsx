@@ -27,6 +27,7 @@ import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { CustomElement } from "../../types";
 import styles from "./index.module.less";
 import PortalToBody from "@/components/PortalToBody";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 interface IPreviewWithEditorProps {
   mode: string;
@@ -53,7 +54,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     const slateEditor = useSlate();
     const readOnly = useReadOnly();
     const { isDark } = useTheme();
-
+    const isLast = useIsLastElement(element);
     const {
       drag,
       drop,
@@ -290,11 +291,13 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
             </div>
           </If>
         </div>
-        <AddParagraph
-          ref={addParagraphRef}
-          element={element}
-          onAddParagraph={onAddParagraph}
-        />
+        {!(readOnly && isLast) && (
+          <AddParagraph
+            ref={addParagraphRef}
+            element={element}
+            onAddParagraph={onAddParagraph}
+          />
+        )}
         <div
           contentEditable={false}
           ref={drag}

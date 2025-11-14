@@ -10,6 +10,7 @@ import {
 
 import useTheme from "../../../../hooks/useTheme";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 import { CaretRightOutlined } from "@ant-design/icons";
 import { MdDragIndicator } from "react-icons/md";
@@ -35,7 +36,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
   const [showContent, setShowContent] = useState(open);
   const [title, setTitle] = useState<string>(element.title || "DETAIL");
   const titleRef = useRef<HTMLDivElement>(null);
-
+  const isLast = useIsLastElement(element);
   const { isDark } = useTheme();
   const editor = useSlate();
   const readOnly = useReadOnly();
@@ -115,7 +116,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
       >
         <MdDragIndicator className={styles.icon} />
       </div>
-      <AddParagraph element={element} />
+      {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>
   );
 };

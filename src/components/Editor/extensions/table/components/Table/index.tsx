@@ -31,6 +31,7 @@ import {
 
 import { TableElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 import ActionItem from "./ActionItem";
 import Actions from "./Actions";
@@ -49,7 +50,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
   const editor = useSlate();
   const readOnly = useReadOnly();
   const { selection } = editor;
-
+  const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
@@ -282,7 +283,7 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = (props) => {
       <table {...attributes} className={styles.table}>
         <tbody>{children}</tbody>
       </table>
-      <AddParagraph element={element} />
+      {!(readOnly && isLast) && <AddParagraph element={element} />}
       <div
         contentEditable={false}
         ref={drag}
