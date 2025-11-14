@@ -126,7 +126,9 @@ const PdfListView = memo(() => {
         });
 
         // 读取文件内容并创建 File 对象
-        const fileContent = await readBinaryFile(filePath[0]);
+        const fileContent = (await readBinaryFile(
+          filePath[0],
+        )) as Uint8Array<ArrayBuffer>;
         const file = new File([fileContent], fileName, {
           type: "application/pdf",
         });
@@ -143,7 +145,9 @@ const PdfListView = memo(() => {
             content: "文件上传失败，将保存为本地文件",
           });
           // 上传失败，复制到本地 resources 目录
-          const fileContentForLocal = await readBinaryFile(filePath[0]);
+          const fileContentForLocal = (await readBinaryFile(
+            filePath[0],
+          )) as Uint8Array<ArrayBuffer>;
           const fileForLocal = new File([fileContentForLocal], fileName, {
             type: "application/pdf",
           });
@@ -156,7 +160,9 @@ const PdfListView = memo(() => {
           content: "文件上传失败，将保存为本地文件",
         });
         // 上传失败，复制到本地 resources 目录
-        const fileContentForLocal = await readBinaryFile(filePath[0]);
+        const fileContentForLocal = (await readBinaryFile(
+          filePath[0],
+        )) as Uint8Array<ArrayBuffer>;
         const fileForLocal = new File([fileContentForLocal], fileName, {
           type: "application/pdf",
         });
@@ -164,7 +170,9 @@ const PdfListView = memo(() => {
       }
     } else {
       // 不上传，复制到本地 resources 目录
-      const fileContentForLocal = await readBinaryFile(filePath[0]);
+      const fileContentForLocal = (await readBinaryFile(
+        filePath[0],
+      )) as Uint8Array<ArrayBuffer>;
       const fileForLocal = new File([fileContentForLocal], fileName, {
         type: "application/pdf",
       });

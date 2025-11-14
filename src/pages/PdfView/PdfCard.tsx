@@ -66,7 +66,9 @@ const PdfCard = (props: PdfCardProps) => {
           });
 
           // 读取本地文件内容
-          const fileContent = await readBinaryFile(pdf.filePath);
+          const fileContent = (await readBinaryFile(
+            pdf.filePath,
+          )) as Uint8Array<ArrayBuffer>;
           const file = new File([fileContent], pdf.fileName, {
             type: "application/pdf",
           });

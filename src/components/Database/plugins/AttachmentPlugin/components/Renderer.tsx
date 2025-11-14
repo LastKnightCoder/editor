@@ -125,7 +125,9 @@ const AttachmentRenderer: React.FC<AttachmentRendererProps> = memo(
             const fileName = await getFileBaseName(filePath);
 
             if (isUpload) {
-              const fileData = await readBinaryFile(filePath);
+              const fileData = (await readBinaryFile(
+                filePath,
+              )) as Uint8Array<ArrayBuffer>;
               const file = new File([fileData], fileName);
               const uploadedUrl = await uploadResource(file);
 

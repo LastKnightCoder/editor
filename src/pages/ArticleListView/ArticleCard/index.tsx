@@ -142,7 +142,9 @@ const ArticleCard = (props: IArticleCardProps) => {
       setBannerUploading(false);
       return;
     }
-    const fileData = await readBinaryFile(filePath[0]);
+    const fileData = (await readBinaryFile(
+      filePath[0],
+    )) as Uint8Array<ArrayBuffer>;
     const file = new File([fileData], await getFileBaseName(filePath[0]));
     if (file.size > 1024 * 1024 * 5) {
       message.error("文件大小超过5M");
