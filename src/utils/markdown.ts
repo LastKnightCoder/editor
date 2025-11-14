@@ -8,7 +8,12 @@ import remarkFrontmatter from "remark-frontmatter";
 import { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
 import { visit } from "unist-util-visit";
-import { HTMLBlockElement, ImageElement } from "@editor/types";
+import {
+  AudioElement,
+  HTMLBlockElement,
+  ImageElement,
+  VideoElement,
+} from "@editor/types";
 
 export {
   markdownSerializerRegistry,
@@ -247,6 +252,36 @@ const markdownToDescendant = (
         open: node.attributes.open === "true" || node.attributes.open === true,
         children: [],
       };
+    } else if (node.name === "video") {
+      const element: VideoElement = {
+        type: "video",
+        src: node.attributes.src || "",
+        children: [{ type: "formatted", text: "" }],
+      };
+      if (node.attributes.playbackRate)
+        element.playbackRate = parseFloat(node.attributes.playbackRate);
+      if (node.attributes.metaInfo) {
+        try {
+          element.metaInfo = JSON.parse(atob(node.attributes.metaInfo));
+        } catch (e) {
+          // ignore invalid metaInfo
+        }
+      }
+      if (node.attributes.width)
+        element.width = parseInt(node.attributes.width);
+      if (node.attributes.align) element.align = node.attributes.align;
+      return element;
+    } else if (node.name === "audio") {
+      const element: AudioElement = {
+        type: "audio",
+        src: node.attributes.src || "",
+        children: [{ type: "formatted", text: "" }],
+      };
+      if (node.attributes.isFromGenerate)
+        element.isFromGenerate = node.attributes.isFromGenerate === "true";
+      if (node.attributes.audioText)
+        element.audioText = node.attributes.audioText;
+      return element;
     } else {
       return null;
     }

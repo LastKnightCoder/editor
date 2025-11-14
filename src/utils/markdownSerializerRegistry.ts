@@ -302,14 +302,34 @@ export class MarkdownSerializerRegistry {
         type: "video",
         isBlock: true,
         toMarkdown: (element) => {
-          return `<video src="${element.url}" controls></video>`;
+          const attributes = [];
+          attributes.push(`src="${element.src}"`);
+          if (element.playbackRate)
+            attributes.push(`playbackRate="${element.playbackRate}"`);
+          if (element.metaInfo) {
+            const metaInfoStr = btoa(JSON.stringify(element.metaInfo));
+            attributes.push(`metaInfo="${metaInfoStr}"`);
+          }
+          if (element.width) attributes.push(`width="${element.width}"`);
+          if (element.align) attributes.push(`align="${element.align}"`);
+          const attributeStr =
+            attributes.length > 0 ? attributes.join(" ") : "";
+          return `:::video{${attributeStr}}\n:::`;
         },
       },
       {
         type: "audio",
         isBlock: true,
         toMarkdown: (element) => {
-          return `<audio src="${element.url}" controls></audio>`;
+          const attributes = [];
+          attributes.push(`src="${element.src}"`);
+          if (element.isFromGenerate)
+            attributes.push(`isFromGenerate="${element.isFromGenerate}"`);
+          if (element.audioText)
+            attributes.push(`audioText="${element.audioText}"`);
+          const attributeStr =
+            attributes.length > 0 ? attributes.join(" ") : "";
+          return `:::audio{${attributeStr}}\n:::`;
         },
       },
       {
