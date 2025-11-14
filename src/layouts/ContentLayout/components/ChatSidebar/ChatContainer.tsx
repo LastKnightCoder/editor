@@ -621,6 +621,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       },
     );
 
+    if (!currentChat) {
+      return null;
+    }
+
     return (
       <>
         <div

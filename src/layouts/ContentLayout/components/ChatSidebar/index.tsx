@@ -157,23 +157,20 @@ const ChatSidebar = memo(() => {
     setModelSidebarVisible(false);
   });
 
-  // 只有在侧边栏打开时才需要渲染Markdown组件
-  const markdownComponents = useMemo(() => {
-    if (!open) return null;
-
-    // 处理链接点击
-    const handleLinkClick = (
-      event: React.MouseEvent<HTMLAnchorElement>,
-      href?: string,
-    ) => {
+  // 处理链接点击
+  const handleLinkClick = useMemoizedFn(
+    (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
       if (href) {
         event.preventDefault();
         openExternal(href).catch((err) => {
           console.error("打开链接失败:", err);
         });
       }
-    };
+    },
+  );
 
+  // Markdown 组件配置 - 保持稳定引用避免代码块闪烁
+  const markdownComponents = useMemo(() => {
     return {
       code(props: any) {
         const { children, className, ...rest } = props;
@@ -214,7 +211,8 @@ const ChatSidebar = memo(() => {
         );
       },
     };
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <ResizableAndHideableSidebar
