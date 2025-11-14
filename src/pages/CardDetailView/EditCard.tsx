@@ -183,10 +183,11 @@ const EditCard = (props: IEditCardProps) => {
         voiceName: string;
         role: SpeakerRole;
       }[],
+      name?: string,
     ) => {
       try {
-        // 创建播客记录
         const podcast = await createPodcast({
+          name,
           audioUrl,
           script,
           duration,
@@ -520,7 +521,7 @@ const EditCard = (props: IEditCardProps) => {
             {/* 播客播放器 */}
             {editingCard.podcast && (
               <PodcastPlayer
-                podcast={editingCard.podcast}
+                defaultPodcast={editingCard.podcast}
                 onDelete={handleDeletePodcast}
               />
             )}
