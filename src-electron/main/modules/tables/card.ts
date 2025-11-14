@@ -125,6 +125,7 @@ export default class CardTable {
       try {
         podcast = {
           id: card.podcast_id,
+          name: card.podcast_name || undefined,
           audioUrl: card.podcast_audio_url,
           script: card.podcast_script || "",
           duration: card.podcast_duration || 0,
@@ -157,7 +158,7 @@ export default class CardTable {
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time,
-             p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       LEFT JOIN podcasts p ON c.podcast_id = p.id
@@ -174,7 +175,7 @@ export default class CardTable {
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time,
-             p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       LEFT JOIN podcasts p ON c.podcast_id = p.id
@@ -194,7 +195,7 @@ export default class CardTable {
     const stmt = db.prepare(`
       SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
              ct.content, ct.count, ct.update_time as content_update_time,
-             p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
+             p.name as podcast_name, p.audio_url as podcast_audio_url, p.script as podcast_script, p.duration as podcast_duration, p.speakers as podcast_speakers
       FROM cards c
       LEFT JOIN contents ct ON c.content_id = ct.id
       LEFT JOIN podcasts p ON c.podcast_id = p.id

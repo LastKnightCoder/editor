@@ -4,6 +4,7 @@ import ResourceTable from "./resource";
 
 export interface IPodcast {
   id: number;
+  name?: string;
   createTime: number;
   updateTime: number;
   audioUrl: string;
@@ -19,6 +20,7 @@ export interface IPodcast {
 }
 
 export interface ICreatePodcast {
+  name?: string;
   audioUrl: string;
   script: string;
   duration: number;
@@ -35,6 +37,7 @@ export default class PodcastTable {
     return {
       "podcast:create": this.createPodcast.bind(this),
       "podcast:get-by-id": this.getPodcastById.bind(this),
+      "podcast:update-name": this.updateName.bind(this),
       "podcast:delete": this.deletePodcast.bind(this),
       "podcast:increment-ref-count": this.incrementRefCount.bind(this),
     };
@@ -44,6 +47,7 @@ export default class PodcastTable {
     const createTableSql = `
       CREATE TABLE IF NOT EXISTS podcasts (
         id INTEGER PRIMARY KEY,
+        name TEXT,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         audio_url TEXT NOT NULL,
@@ -62,8 +66,16 @@ export default class PodcastTable {
     db.exec(createIndexSql);
   }
 
-  static upgradeTable() {
-    // 未来的表升级逻辑
+  static upgradeTable(db: Database.Database) {
+    // 检查是否存在 name 字段
+    const tableInfo = db.prepare("PRAGMA table_info(podcasts)").all() as Array<{
+      name: string;
+    }>;
+    const hasNameColumn = tableInfo.some((col) => col.name === "name");
+
+    if (!hasNameColumn) {
+      db.exec("ALTER TABLE podcasts ADD COLUMN name TEXT");
+    }
   }
 
   static parsePodcast(row: unknown): IPodcast {
@@ -71,6 +83,7 @@ export default class PodcastTable {
     const r = row as any;
     return {
       id: r.id,
+      name: r.name || undefined,
       createTime: r.create_time,
       updateTime: r.update_time,
       audioUrl: r.audio_url,
@@ -85,11 +98,12 @@ export default class PodcastTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO podcasts 
-      (create_time, update_time, audio_url, script, duration, speakers, ref_count)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      (name, create_time, update_time, audio_url, script, duration, speakers, ref_count)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
+      data.name || null,
       now,
       now,
       data.audioUrl,
@@ -102,7 +116,11 @@ export default class PodcastTable {
     const createdPodcastId = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "podcast", "insert", createdPodcastId, now);
 
-    return this.getPodcastById(db, createdPodcastId)!;
+    const podcast = this.getPodcastById(db, createdPodcastId);
+    if (!podcast) {
+      throw new Error("Failed to create podcast");
+    }
+    return podcast;
   }
 
   static getPodcastById(
@@ -153,5 +171,20 @@ export default class PodcastTable {
       "UPDATE podcasts SET ref_count = ref_count + 1 WHERE id = ?",
     );
     stmt.run(podcastId);
+  }
+
+  static updateName(
+    db: Database.Database,
+    podcastId: number,
+    name: string,
+  ): IPodcast | null {
+    const now = Date.now();
+    const stmt = db.prepare(
+      "UPDATE podcasts SET name = ?, update_time = ? WHERE id = ?",
+    );
+    console.log(name, now, podcastId);
+    stmt.run(name, now, podcastId);
+    Operation.insertOperation(db, "podcast", "update", podcastId, now);
+    return this.getPodcastById(db, podcastId);
   }
 }

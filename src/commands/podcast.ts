@@ -31,3 +31,10 @@ export async function attachPodcastToCard(
 export async function detachPodcastFromCard(cardId: number): Promise<void> {
   return invoke("detach-podcast-from-card", cardId);
 }
+
+export async function updatePodcastName(
+  podcastId: number,
+  name: string,
+): Promise<IPodcast | null> {
+  return invoke("podcast:update-name", podcastId, name);
+}

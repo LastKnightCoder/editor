@@ -42,6 +42,7 @@ interface PodcastGenerationModalProps {
     script: string,
     duration: number,
     speakers: PodcastSpeaker[],
+    name?: string,
   ) => void;
   onCancel: () => void;
 }
@@ -55,6 +56,7 @@ interface CloneVoiceItem {
 
 const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
   ({ open, cardContent, onSuccess, onCancel }) => {
+    const [podcastName, setPodcastName] = useState<string>("");
     const [speakers, setSpeakers] = useState<PodcastSpeaker[]>([
       { name: "Speaker1", voiceId: "", voiceName: "", role: SpeakerRole.Host },
       { name: "Speaker2", voiceId: "", voiceName: "", role: SpeakerRole.Guest },
@@ -173,6 +175,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         return;
       }
 
+      if (!podcastName.trim()) {
+        message.error("请输入播客名称");
+        return;
+      }
+
       // 提取卡片内容
       const content = getMarkdown(cardContent);
       if (!content || content.trim().length === 0) {
@@ -187,17 +194,18 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         durationMin: durationRange[0],
         durationMax: durationRange[1],
       });
-    }, [speakers, generateMusic, durationRange, cardContent, generatePodcast]);
-
-    const handleSuccess = useCallback(() => {
-      if (audioUrl) {
-        onSuccess(audioUrl, script, duration, speakers);
-        handleClose();
-      }
-    }, [audioUrl, script, duration, speakers, onSuccess]);
+    }, [
+      speakers,
+      generateMusic,
+      durationRange,
+      cardContent,
+      generatePodcast,
+      podcastName,
+    ]);
 
     const handleClose = useCallback(() => {
       reset();
+      setPodcastName("");
       setSpeakers([
         {
           name: "Speaker1",
@@ -225,6 +233,27 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       ]);
       onCancel();
     }, [reset, onCancel]);
+
+    const handleSuccess = useCallback(() => {
+      if (audioUrl) {
+        onSuccess(
+          audioUrl,
+          script,
+          duration,
+          speakers,
+          podcastName.trim() || undefined,
+        );
+        handleClose();
+      }
+    }, [
+      audioUrl,
+      script,
+      duration,
+      speakers,
+      onSuccess,
+      podcastName,
+      handleClose,
+    ]);
 
     // 验证 voice_id
     const validateVoiceId = useCallback(
@@ -454,7 +483,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
               <Button
                 type="primary"
                 onClick={handleGenerate}
-                disabled={speakers.some((s) => !s.voiceId)}
+                disabled={
+                  speakers.some((s) => !s.voiceId) || !podcastName.trim()
+                }
               >
                 开始生成
               </Button>
@@ -467,6 +498,20 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         <div className="space-y-6">
           {status === "idle" && (
             <div className="space-y-4">
+              <Title level={5}>基础信息</Title>
+              <div>
+                <Text strong className="block mb-2">
+                  播客名称
+                </Text>
+                <Input
+                  placeholder="请输入播客名称"
+                  value={podcastName}
+                  onChange={(e) => setPodcastName(e.target.value)}
+                  maxLength={100}
+                  showCount
+                />
+              </div>
+
               <Title level={5}>说话人配置</Title>
               <Spin spinning={voicesLoading}>
                 <Space
@@ -824,7 +869,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   }
                   key="script"
                 >
-                  <div className="max-h-96 overflow-y-auto space-y-2 bg-gray-50 p-4 rounded whitespace-pre-wrap">
+                  <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded whitespace-pre-wrap max-h-full">
                     {script.split("\n").map((line, index) => (
                       <div key={index}>{line}</div>
                     ))}

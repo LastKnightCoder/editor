@@ -12,6 +12,7 @@ export interface PodcastSpeaker {
 
 export interface IPodcast {
   id: number;
+  name?: string;
   audioUrl: string;
   script: string;
   duration: number;
@@ -19,6 +20,7 @@ export interface IPodcast {
 }
 
 export interface ICreatePodcast {
+  name?: string;
   audioUrl: string;
   script: string;
   duration: number;
