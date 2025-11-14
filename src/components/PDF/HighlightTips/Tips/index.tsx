@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import classnames from "classnames";
-import { Button, Modal } from "antd";
+import { App, Button } from "antd";
 import { v4 as getUUid } from "uuid";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
@@ -68,7 +68,7 @@ const Tips = (props: TipsProps) => {
   } = props;
 
   const [editingNote, setEditingNote] = useState<Note | null>(null);
-
+  const { modal } = App.useApp();
   const textStyleItems = [
     {
       icon: <HighlightOutlined />,
@@ -115,7 +115,7 @@ const Tips = (props: TipsProps) => {
   });
 
   const onDeleteNote = useMemoizedFn((note: Note) => {
-    Modal.confirm({
+    modal.confirm({
       title: "确定删除该笔记吗？",
       onOk: () => {
         const newNotes = produce(notes, (draft) => {

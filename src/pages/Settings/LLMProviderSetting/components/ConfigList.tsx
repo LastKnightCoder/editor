@@ -25,6 +25,11 @@ const ConfigList = ({
   const onDeleteConfig = (id: string) => {
     modal.confirm({
       title: "确定删除此配置吗？",
+      okButtonProps: {
+        danger: true,
+      },
+      okText: "删除",
+      cancelText: "取消",
       onOk: () => {
         useSettingStore.setState(
           produce((draft) => {

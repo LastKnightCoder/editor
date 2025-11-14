@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import { useShallow } from "zustand/react/shallow";
 import classnames from "classnames";
-import { Dropdown, message, Modal, Spin, Typography } from "antd";
+import { Dropdown, message, Spin, Typography, App } from "antd";
 import SVG from "react-inlinesvg";
 import { CalendarOutlined } from "@ant-design/icons";
 import star from "@/assets/article/star.svg";
@@ -80,7 +80,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   const [bannerUploading, setBannerUploading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const editorRef = useRef<EditorRef>(null);
-
+  const { modal } = App.useApp();
   const uploadResource = useUploadResource();
 
   const randomTheme = allThemes[article.id % allThemes.length];
@@ -166,7 +166,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   });
 
   const handleDeleteArticle = useMemoizedFn(() => {
-    Modal.confirm({
+    modal.confirm({
       title: "确定删除该文章？",
       onOk: async () => {
         if (deleteArticle) {

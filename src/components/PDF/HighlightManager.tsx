@@ -2,6 +2,7 @@ import { PDFDocumentProxy } from "pdfjs-dist";
 import { PDFViewer } from "pdfjs-dist/web/pdf_viewer.mjs";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { App } from "antd";
 import { HighlightLayer } from "./types.ts";
 
 import HighlightNode from "./HighlightNode";
@@ -256,24 +257,31 @@ class HighlightManager {
     const { root } = highlightLayer;
 
     root.render(
-      <For
-        data={highlights}
-        renderItem={(highlight) => (
-          <HighlightNode
-            ref={this.highlightRefs.get(highlight.id)}
-            highlight={highlight}
-            key={highlight.id}
-            onHighlightChange={(highlight) => {
-              this.updateHighlight(pageNumber, highlight.id, highlight);
-              this.renderHighlights(pageNumber);
-            }}
-            onRemoveHighlight={() => {
-              this.removeHighlight(pageNumber, highlight.id);
-              this.renderHighlights(pageNumber);
-            }}
-          />
-        )}
-      />,
+      <App
+        style={{
+          fontSize: "var(--font-size)",
+          fontFamily: "var(--font)",
+        }}
+      >
+        <For
+          data={highlights}
+          renderItem={(highlight) => (
+            <HighlightNode
+              ref={this.highlightRefs.get(highlight.id)}
+              highlight={highlight}
+              key={highlight.id}
+              onHighlightChange={(highlight) => {
+                this.updateHighlight(pageNumber, highlight.id, highlight);
+                this.renderHighlights(pageNumber);
+              }}
+              onRemoveHighlight={() => {
+                this.removeHighlight(pageNumber, highlight.id);
+                this.renderHighlights(pageNumber);
+              }}
+            />
+          )}
+        />
+      </App>,
     );
   }
 }

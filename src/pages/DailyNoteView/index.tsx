@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Calendar, Modal } from "antd";
+import { App, Calendar, Modal } from "antd";
 import classnames from "classnames";
 import { useShallow } from "zustand/react/shallow";
 import { Dayjs } from "dayjs";
@@ -17,6 +17,7 @@ import useSettingStore from "@/stores/useSettingStore";
 const extensions = [dailySummaryExtension];
 
 const DailyNoteView = () => {
+  const { modal } = App.useApp();
   const {
     dailyNotes,
     deleteDailyNote,
@@ -46,7 +47,7 @@ const DailyNoteView = () => {
 
   const handleDeleteDailyNote = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    Modal.confirm({
+    modal.confirm({
       title: "是否要删除此篇日记",
       onOk: async () => {
         await deleteDailyNote(id);
@@ -64,7 +65,7 @@ const DailyNoteView = () => {
       const date = value.format("YYYY-MM-DD");
       const dailyNote = dailyNotes.find((item) => item.date === date);
       if (!dailyNote) {
-        Modal.confirm({
+        modal.confirm({
           title: "是否创建日记",
           onOk: async () => {
             const createdDailyNote = await onCreateDailyNote(date);

@@ -21,6 +21,8 @@ import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSideba
 import { openExternal } from "@/commands";
 import ChatSelectorModal from "../ChatSelectorModal";
 
+import styles from "./index.module.less";
+
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
 );
@@ -184,15 +186,16 @@ const ChatReferenceCard = memo(
     return (
       <div
         ref={drop}
-        className={classnames("relative my-4", {
-          "opacity-50": isDragging,
-          "ring-2 ring-blue-400": isOverCurrent && canDrop,
-          "mb-8": isBefore,
-          "mt-8": !isBefore,
+        className={classnames(styles.container, {
+          [styles.dragging]: isDragging,
+          [styles.drop]: isOverCurrent && canDrop,
+          [styles.before]: isBefore,
+          [styles.after]: !isBefore,
         })}
+        contentEditable={false}
       >
         <div {...attributes}>
-          <div className="border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-lg overflow-hidden bg-white dark:bg-gray-900">
+          <div className={styles.card}>
             {!readOnly && (
               <Dropdown
                 menu={{
@@ -210,14 +213,14 @@ const ChatReferenceCard = memo(
                   ],
                 }}
               >
-                <div className="absolute top-2 right-2 z-10 cursor-pointer p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">
+                <div className={styles.moreButton}>
                   <MoreOutlined />
                 </div>
               </Dropdown>
             )}
 
-            <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
-              <h3 className="font-semibold text-base m-0">{title}</h3>
+            <div className={styles.header}>
+              <h3 className={styles.title}>{title}</h3>
             </div>
 
             <div
@@ -225,10 +228,10 @@ const ChatReferenceCard = memo(
                 height,
                 pointerEvents: isResizing ? "none" : "auto",
               }}
-              className="overflow-hidden"
+              className={styles.content}
             >
               {loading ? (
-                <div className="flex items-center justify-center h-full">
+                <div className={styles.loadingContainer}>
                   <Spin indicator={<LoadingOutlined />} />
                 </div>
               ) : chatData ? (
@@ -236,7 +239,7 @@ const ChatReferenceCard = memo(
                   <div className="h-full flex flex-col">
                     <Suspense
                       fallback={
-                        <div className="flex items-center justify-center h-full">
+                        <div className={styles.loadingContainer}>
                           <Spin indicator={<LoadingOutlined />} />
                         </div>
                       }
@@ -265,7 +268,7 @@ const ChatReferenceCard = memo(
                   </div>
                 </MarkdownProvider>
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500">
+                <div className={styles.emptyContainer}>
                   对话不存在或已被删除
                 </div>
               )}
@@ -292,15 +295,12 @@ const ChatReferenceCard = memo(
             <div
               contentEditable={false}
               ref={drag}
-              className={classnames(
-                "absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full opacity-0 hover:opacity-100 transition-opacity cursor-grab",
-                {
-                  "cursor-grabbing": isDragging,
-                  "opacity-100": canDrag,
-                },
-              )}
+              className={classnames(styles.dragHandler, {
+                [styles.grabbing]: isDragging,
+                [styles.canDrag]: canDrag,
+              })}
             >
-              <MdDragIndicator className="text-xl text-gray-400" />
+              <MdDragIndicator className={styles.icon} />
             </div>
           )}
 

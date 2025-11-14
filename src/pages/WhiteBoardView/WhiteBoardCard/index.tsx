@@ -1,5 +1,5 @@
 import React, { useRef, useState, memo } from "react";
-import { message, Modal, Dropdown, Spin, Typography } from "antd";
+import { App, Dropdown, Spin, Typography } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { MdMoreVert } from "react-icons/md";
@@ -54,6 +54,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   );
 
   const uploadResource = useUploadResource();
+  const { modal, message } = App.useApp();
 
   const randomTheme = allThemes[whiteBoard.id % allThemes.length];
   const cardClassName = classnames(
@@ -92,7 +93,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   );
 
   const handleDeleteWhiteBoard = () => {
-    Modal.confirm({
+    modal.confirm({
       title: "确定删除该白板？",
       onOk: async () => {
         await deleteWhiteBoard(whiteBoard.id);
