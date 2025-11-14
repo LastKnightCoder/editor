@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { Descendant } from "slate";
-import { Modal, Dropdown } from "antd";
+import { App, Dropdown } from "antd";
 import classnames from "classnames";
 import { produce } from "immer";
 
@@ -29,7 +29,7 @@ const ProjectCard = (props: ProjectCardProps) => {
   const { project, className, style } = props;
   const { isDark } = useTheme();
   const editorRef = useRef<EditorRef>(null);
-
+  const { modal } = App.useApp();
   const [editOpen, setEditOpen] = useState(false);
   const navigateTo = useTabStore((state) => state.navigateTo);
 
@@ -85,7 +85,7 @@ const ProjectCard = (props: ProjectCardProps) => {
   };
 
   const handleDeleteProject = () => {
-    Modal.confirm({
+    modal.confirm({
       title: "确定删除该项目？",
       onOk: async () => {
         await deleteProject(project.id);

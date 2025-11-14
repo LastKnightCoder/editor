@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMemoizedFn, useAsyncEffect } from "ahooks";
 import { produce } from "immer";
-import { Button, message, Modal, Tabs, TabsProps } from "antd";
+import { App, Button, message, Tabs, TabsProps } from "antd";
 
 import AliOssSetting from "./AliOssSetting";
 
@@ -12,6 +12,7 @@ import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import styles from "./index.module.less";
 
 const SyncSetting = () => {
+  const { modal } = App.useApp();
   const [isSyncing, setIsSyncing] = useState(false);
   const [remoteVersion, setRemoteVersion] = useState(0);
 
@@ -65,7 +66,7 @@ const SyncSetting = () => {
     const originVersion = Number(databaseInfo.version || 0);
     setRemoteVersion(originVersion);
     if (currentVersion < originVersion) {
-      Modal.confirm({
+      modal.confirm({
         title: "同步远程数据库",
         content: "检测到有新的数据库版本，是否下载？",
         onOk: async () => {

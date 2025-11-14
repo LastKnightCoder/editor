@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { produce } from "immer";
 import classnames from "classnames";
-import { Modal, Dropdown, MenuProps } from "antd";
+import { App, Dropdown, MenuProps } from "antd";
 import EditDocumentModal from "../EditDocumentModal";
 
 import { MdMoreVert } from "react-icons/md";
@@ -28,7 +28,7 @@ const DocumentCard = (props: DocumentCardProps) => {
 
   const { isDark } = useTheme();
   const [editOpen, setEditOpen] = useState(false);
-
+  const { modal } = App.useApp();
   const navigateTo = useTabStore((state) => state.navigateTo);
 
   const { deleteDocument, updateDocument } = useDocumentsStore(
@@ -64,7 +64,7 @@ const DocumentCard = (props: DocumentCardProps) => {
   }, [findShortcut, document.id, shortcuts]);
 
   const handleDeleteDocument = () => {
-    Modal.confirm({
+    modal.confirm({
       title: "确定删除该知识库？",
       onOk: async () => {
         await deleteDocument({ id: document.id });

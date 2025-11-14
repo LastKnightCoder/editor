@@ -1,5 +1,5 @@
 import { memo, useState, useMemo, useEffect, lazy, Suspense } from "react";
-import { Modal, Input, Empty, Spin } from "antd";
+import { Modal, Input, Empty, Spin, ConfigProvider, theme } from "antd";
 import {
   FolderOutlined,
   FolderOpenOutlined,
@@ -274,95 +274,108 @@ const ChatSelectorModal = memo(
     const rootGroups = groups.filter((g) => g.parentId === null);
 
     return (
-      <Modal
-        title="选择对话"
-        open={open}
-        onCancel={handleCancel}
-        onOk={handleConfirm}
-        width={1080}
-        okText="确定"
-        cancelText="取消"
-        okButtonProps={{ disabled: !selectedChat }}
-        styles={{
-          body: { height: "600px", display: "flex", flexDirection: "column" },
+      <ConfigProvider
+        theme={{
+          algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         }}
       >
-        <div className="flex flex-col h-full">
-          <div className="mb-4">
-            <Input
-              placeholder="搜索对话标题..."
-              prefix={<SearchOutlined />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-            />
-          </div>
-
-          <div className="flex flex-1 gap-4 min-h-0">
-            <div className="w-80 border border-[#f0f0f0] dark:border-[#2a2a2a] p-2 rounded-lg overflow-y-auto flex-shrink-0">
-              <div className="py-2">
-                {rootGroups.map((group) => renderGroup(group))}
-                {ungroupedChats.map((chat) => renderChatItem(chat))}
-              </div>
-              {filteredChats.length === 0 && (
-                <div className="flex items-center justify-center h-full">
-                  <Empty description="没有找到对话" />
-                </div>
-              )}
+        <Modal
+          title="选择对话"
+          open={open}
+          onCancel={handleCancel}
+          onOk={handleConfirm}
+          width={1080}
+          okText="确定"
+          cancelText="取消"
+          centered
+          okButtonProps={{ disabled: !selectedChat }}
+          styles={{
+            body: {
+              maxHeight: "calc(100vh - 200px)",
+              height: "600px",
+              display: "flex",
+              flexDirection: "column",
+            },
+          }}
+        >
+          <div className="flex flex-col h-full">
+            <div className="mb-4">
+              <Input
+                size="large"
+                placeholder="搜索对话标题..."
+                prefix={<SearchOutlined />}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                allowClear
+              />
             </div>
 
-            <div className="flex-1 border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-lg overflow-hidden min-w-0">
-              {selectedChat ? (
-                <MarkdownProvider isDark={isDark} isVisible={true}>
-                  <div className="h-full flex flex-col bg-white dark:bg-gray-900">
-                    <div className="px-4 py-3 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
-                      <h3 className="font-semibold text-base m-0">
-                        {selectedChat.title}
-                      </h3>
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                      <Suspense
-                        fallback={
-                          <div className="flex items-center justify-center h-full">
-                            <Spin indicator={<LoadingOutlined />} />
-                          </div>
-                        }
-                      >
-                        <ChatContainer
-                          currentChat={selectedChat || DEFAULT_CHAT}
-                          isDark={isDark}
-                          markdownComponents={markdownComponents}
-                          isVisible={true}
-                          updateChatMessage={async () =>
-                            selectedChat || DEFAULT_CHAT
-                          }
-                          updateCurrentChat={() => {
-                            // do nothing
-                            return;
-                          }}
-                          sendLoading={false}
-                          setSendLoading={() => {
-                            // do nothing
-                            return;
-                          }}
-                          titleRef={{ current: null }}
-                          onCreateNewMessage={() => Promise.resolve()}
-                          createMessageLoading={false}
-                          hideInput={true}
-                        />
-                      </Suspense>
-                    </div>
+            <div className="flex flex-1 gap-4 min-h-0">
+              <div className="w-80 border border-[#f0f0f0] dark:border-[#2a2a2a] p-2 rounded-lg overflow-y-auto flex-shrink-0">
+                <div className="py-2">
+                  {rootGroups.map((group) => renderGroup(group))}
+                  {ungroupedChats.map((chat) => renderChatItem(chat))}
+                </div>
+                {filteredChats.length === 0 && (
+                  <div className="flex items-center justify-center h-full">
+                    <Empty description="没有找到对话" />
                   </div>
-                </MarkdownProvider>
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Empty description="请选择一个对话" />
-                </div>
-              )}
+                )}
+              </div>
+
+              <div className="flex-1 border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-lg overflow-hidden min-w-0">
+                {selectedChat ? (
+                  <MarkdownProvider isDark={isDark} isVisible={true}>
+                    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+                      <div className="px-4 py-3 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
+                        <h3 className="font-semibold text-base m-0">
+                          {selectedChat.title}
+                        </h3>
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <Suspense
+                          fallback={
+                            <div className="flex items-center justify-center h-full">
+                              <Spin indicator={<LoadingOutlined />} />
+                            </div>
+                          }
+                        >
+                          <ChatContainer
+                            currentChat={selectedChat || DEFAULT_CHAT}
+                            isDark={isDark}
+                            markdownComponents={markdownComponents}
+                            isVisible={true}
+                            updateChatMessage={async () =>
+                              selectedChat || DEFAULT_CHAT
+                            }
+                            updateCurrentChat={() => {
+                              // do nothing
+                              return;
+                            }}
+                            sendLoading={false}
+                            setSendLoading={() => {
+                              // do nothing
+                              return;
+                            }}
+                            titleRef={{ current: null }}
+                            onCreateNewMessage={() => Promise.resolve()}
+                            createMessageLoading={false}
+                            hideInput={true}
+                          />
+                        </Suspense>
+                      </div>
+                    </div>
+                  </MarkdownProvider>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <Empty description="请选择一个对话" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      </ConfigProvider>
     );
   },
 );
