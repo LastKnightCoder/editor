@@ -116,23 +116,18 @@ const ChatArea = memo(
       perf.end();
     });
 
-    // 只有在有选中对话时才需要渲染Markdown组件
-    const markdownComponents = useMemo(() => {
-      if (!currentChat) return null;
-
-      // 处理链接点击
-      const handleLinkClick = (
-        event: React.MouseEvent<HTMLAnchorElement>,
-        href?: string,
-      ) => {
+    const handleLinkClick = useMemoizedFn(
+      (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
         if (href) {
           event.preventDefault();
           openExternal(href).catch((err) => {
             console.error("打开链接失败:", err);
           });
         }
-      };
+      },
+    );
 
+    const markdownComponents = useMemo(() => {
       return {
         code(props: { children?: React.ReactNode; className?: string }) {
           const { children, className, ...rest } = props;
@@ -182,7 +177,7 @@ const ChatArea = memo(
           );
         },
       };
-    }, [currentChat]);
+    }, []);
 
     // 检查是否有消息内容（排除系统消息）
     const hasMessages = useMemo(() => {
