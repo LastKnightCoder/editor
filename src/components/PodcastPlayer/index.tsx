@@ -38,6 +38,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
           key: "editName",
           label: "编辑名称",
           onClick: () => {
+            setEditedName(podcast.name || "");
             setEditNameModalOpen(true);
           },
         },
@@ -118,11 +119,6 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
       audioPlayerRef.current.togglePlay();
       setPlaying(!playing);
     }
-  };
-
-  const handleNameEdit = () => {
-    setEditedName(podcast.name || "");
-    setEditNameModalOpen(true);
   };
 
   const handleNameSave = async () => {

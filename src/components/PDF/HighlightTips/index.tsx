@@ -2,7 +2,7 @@ import { produce } from "immer";
 import React from "react";
 import Tips from "./Tips";
 
-import { App, Modal } from "antd";
+import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { PdfHighlight, EHighlightColor, EHighlightTextStyle } from "@/types";
 
