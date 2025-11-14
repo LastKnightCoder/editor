@@ -31,7 +31,9 @@ const SelectFileModal = (props: SelectFileModalProps) => {
     const filePath = await selectFile();
     if (!filePath) return;
     if (Array.isArray(filePath) && filePath.length > 1) return;
-    const fileData = await readBinaryFile(filePath[0]);
+    const fileData = (await readBinaryFile(
+      filePath[0],
+    )) as Uint8Array<ArrayBuffer>;
     const fileName = await getFileBaseName(filePath[0]);
     const file = new File([fileData], fileName);
     setFilePath(filePath[0]);
