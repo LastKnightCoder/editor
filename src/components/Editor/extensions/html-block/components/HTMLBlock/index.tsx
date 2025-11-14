@@ -14,7 +14,6 @@ interface HTMLBlockProps {
 const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = (props) => {
   const { attributes, children, element } = props;
   const { html } = element;
-
   const editor = useSlate();
 
   const handleOnChange = (code: string) => {

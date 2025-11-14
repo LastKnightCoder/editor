@@ -9,6 +9,7 @@ import {
 } from "slate-react";
 import { HighlightBlockElement, Color } from "@/components/Editor/types";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 import useTheme from "../../../../hooks/useTheme";
 
@@ -32,7 +33,7 @@ interface IHighBlockProps {
 const HighlightBlock = (props: IHighBlockProps) => {
   const { attributes, element, children } = props;
   const { color } = element;
-
+  const isLast = useIsLastElement(element);
   const { isDark } = useTheme();
   const editor = useSlate();
   const selection = useSlateSelection();
@@ -103,7 +104,7 @@ const HighlightBlock = (props: IHighBlockProps) => {
           {children}
         </HighlightBlockPure>
       </div>
-      <AddParagraph element={element} />
+      {!(readOnly && isLast) && <AddParagraph element={element} />}
     </div>
   );
 };

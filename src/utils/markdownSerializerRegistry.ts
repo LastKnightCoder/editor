@@ -392,7 +392,7 @@ export class MarkdownSerializerRegistry {
       {
         type: "emoji",
         toMarkdown: (element) => {
-          return `:${element.nativeEmoji || element.emoji}:`;
+          return `${element.nativeEmoji || element.emoji}`;
         },
       },
       {

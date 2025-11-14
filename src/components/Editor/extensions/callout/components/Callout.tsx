@@ -15,6 +15,7 @@ import useTheme from "@/components/Editor/hooks/useTheme.ts";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import { CalloutElement, CalloutType } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 import { DEFAULT_TITLE } from "../constants.ts";
 import { useMemoizedFn } from "ahooks";
@@ -36,7 +37,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const readOnly = useReadOnly();
   const [realTitle, setRealTitle] = useState<string>(title || defaultTitle);
   const titleRef = useRef<HTMLParagraphElement>(null);
-
+  const isLast = useIsLastElement(element);
   const { isDark } = useTheme();
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -141,7 +142,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
           </div>
           <div>{children}</div>
         </div>
-        <AddParagraph element={element} />
+        {!(readOnly && isLast) && <AddParagraph element={element} />}
         {!readOnly && (
           <Dropdown
             menu={menu}

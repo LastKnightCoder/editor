@@ -24,6 +24,7 @@ import "react-image-crop/dist/ReactCrop.css";
 
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
 import { useUploadResource } from "@/components/Editor/hooks/useUploadResource";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import { useImagesOverviewStore } from "@/components/Editor/stores";
@@ -72,7 +73,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   const [isSelected, setIsSelected] = useState(false);
   const [showDescEditor, setShowDescEditor] = useState(false);
   const descRef = useRef<EditTextHandle | null>(null);
-
+  const isLast = useIsLastElement(element);
   const { showImageOverview } = useImagesOverviewStore((state) => ({
     showImageOverview: state.showImageOverview,
   }));
@@ -611,9 +612,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
           <MdDragIndicator className={styles.icon} />
         </div>
         {children}
-        <AddParagraph element={element} />
+        {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
-      {/* inline crop mode, modal removed */}
     </div>
   );
 };

@@ -16,11 +16,12 @@ import ResizeHandle from "@/components/ResizeHandle";
 import InputUrlModal from "../InputUrlModal";
 
 import styles from "./index.module.less";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const { element, children, attributes } = props;
   const { url, height = 400 } = element;
-
+  const isLast = useIsLastElement(element);
   const webviewRef = useRef<WebviewRef>(null);
   const { modal } = App.useApp();
   const editor = useSlate();
@@ -150,7 +151,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
 
         {children}
 
-        <AddParagraph element={element} />
+        {!(readOnly && isLast) && <AddParagraph element={element} />}
         <div
           contentEditable={false}
           ref={drag}

@@ -14,6 +14,7 @@ import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop";
 import { DatabaseElement } from "@/components/Editor/types";
 import Database, { ColumnDef, RowData } from "@/components/Database";
 import useEditDatabase from "@/hooks/useEditDatabase";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 import styles from "../index.module.less";
 
 interface DatabaseBlockProps {
@@ -31,7 +32,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
       // @ts-ignore
       element,
     });
-
+  const isLast = useIsLastElement(element);
   const { tableId, height } = element;
   const {
     activeViewId,
@@ -158,7 +159,9 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
           onMouseDown={handleResizeStart}
         />
         {children}
-        <AddParagraph element={element as DatabaseElement} />
+        {!(readOnly && isLast) && (
+          <AddParagraph element={element as DatabaseElement} />
+        )}
         {!readOnly && (
           <div
             ref={drag}

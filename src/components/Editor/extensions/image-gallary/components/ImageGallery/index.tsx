@@ -18,7 +18,7 @@ import SwipeImageGallery from "../SwipeImageGallery";
 import HorizontalImageGallery from "../HorizontalImageGallery";
 import VerticalImageGallery from "../VerticalImageGallery";
 import { createOrUpdateResource, decrementResourceRefCount } from "@/commands";
-
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 import { ImageGalleryElement } from "@editor/types";
 import { EGalleryMode } from "@editor/constants";
 
@@ -40,7 +40,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
     wider = false,
     columnCount = 3,
   } = element;
-
+  const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
@@ -180,7 +180,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
             </div>
           </div>
         </If>
-        <AddParagraph element={element} />
+        {!(readOnly && isLast) && <AddParagraph element={element} />}
         <Modal
           width={720}
           open={settingModalOpen}

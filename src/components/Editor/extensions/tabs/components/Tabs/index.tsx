@@ -11,6 +11,7 @@ import { v4 as getUUid } from "uuid";
 import { ITabsContent, TabsElement } from "@/components/Editor/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import TabsHeader from "../TabsHeader";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 import styles from "./index.module.less";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop.ts";
@@ -26,7 +27,7 @@ interface ITabsProps {
 const Tabs = (props: ITabsProps) => {
   const { attributes, element, children } = props;
   const { activeKey, tabsContent } = element;
-
+  const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
@@ -208,7 +209,7 @@ const Tabs = (props: ITabsProps) => {
           {children}
         </div>
       </div>
-      <AddParagraph element={element} />
+      {!(readOnly && isLast) && <AddParagraph element={element} />}
       <div
         contentEditable={false}
         ref={drag}

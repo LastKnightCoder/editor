@@ -37,6 +37,7 @@ import { codeBlockMap } from "../../index";
 import styles from "./index.module.less";
 import PortalToBody from "@/components/PortalToBody";
 import { useMemoizedFn } from "ahooks";
+import useIsLastElement from "@/components/Editor/hooks/useIsLastElement.ts";
 
 // 懒加载CodeMirror编辑器组件
 const CodeEditorLazy = lazy(() => import("./CodeEditor"));
@@ -103,7 +104,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
   const { message } = App.useApp();
   const resizeStartYRef = useRef(0);
   const startFoldHeightRef = useRef(0);
-
+  const isLast = useIsLastElement(element);
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
       element,
@@ -419,7 +420,9 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
             )}
           </div>
         </Suspense>
-        <AddParagraph element={element} ref={addParagraphRef} />
+        {!(readOnly && isLast) && (
+          <AddParagraph element={element} ref={addParagraphRef} />
+        )}
         <DragHandle canDrag={canDrag} dragRef={drag} />
         {isFullscreen && (
           <PortalToBody>
