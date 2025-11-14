@@ -27,6 +27,7 @@ interface ColumnHeaderProps {
   theme: "light" | "dark";
   readonly: boolean;
   onDelete?: (columnId: string) => void;
+  allowDeleteColumn?: boolean; // 是否允许删除列，默认 true
 }
 
 interface DragItem {
@@ -47,6 +48,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
     theme,
     readonly,
     onDelete,
+    allowDeleteColumn = true,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const isDark = theme === "dark";
@@ -73,11 +75,15 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       () => ({
         type: COLUMN_HEADER,
         item: { id: column.id, index, type: COLUMN_HEADER },
-        collect: (monitor: DragSourceMonitor) => ({
-          isDragging: monitor.isDragging(),
-        }),
+        canDrag: () => {
+          return !readonly;
+        },
+        collect: (monitor: DragSourceMonitor) => {
+          const dragging = monitor.isDragging();
+          return { isDragging: dragging };
+        },
       }),
-      [column.id, index],
+      [column.id, column.title, index, readonly],
     );
 
     // 实现拖放目标功能
@@ -107,10 +113,9 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
           item.index = hoverIndex;
         },
       }),
-      [index, moveColumn],
+      [index, moveColumn, readonly, column.title],
     );
 
-    // 将 drag 和 drop 引用函数连接到同一个元素上
     drag(drop(ref));
 
     // 列标题样式
@@ -135,8 +140,8 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
         },
       ];
 
-      // 主列不显示删除选项
-      if (!column.isPrimary) {
+      // 主列不显示删除选项，或者如果不允许删除列，则不显示
+      if (!column.isPrimary && allowDeleteColumn) {
         items.push({
           key: "delete",
           label: "删除",
@@ -156,7 +161,15 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       }
 
       return items;
-    }, [readonly, column.id, column.isPrimary, onEdit, onDelete, modal]);
+    }, [
+      readonly,
+      column.id,
+      column.isPrimary,
+      allowDeleteColumn,
+      onEdit,
+      onDelete,
+      modal,
+    ]);
 
     return (
       <div

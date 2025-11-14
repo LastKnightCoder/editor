@@ -136,7 +136,11 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                   onChange={(e) =>
                     handleColumnValueChange(primaryColumn.id, e.target.value)
                   }
-                  disabled={readonly}
+                  disabled={
+                    readonly ||
+                    primaryColumn.readonly ||
+                    primaryColumn.isPrimary
+                  }
                   className="w-full border-0 px-0 py-2 text-2xl font-bold bg-transparent focus:outline-none dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
                   placeholder={`输入${primaryColumn.title}`}
                 />
@@ -151,13 +155,14 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                   const Editor = plugin?.Editor;
                   const Renderer = plugin?.Renderer;
                   const isEditing = editingColumn === column.id;
+                  const isColumnReadonly = Boolean(readonly || column.readonly);
 
                   return (
                     <div
                       key={column.id}
                       className="flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded px-2 py-0.5 -mx-2 transition-colors"
                       onClick={() => {
-                        if (!readonly && !isEditing && Editor) {
+                        if (!isColumnReadonly && !isEditing && Editor) {
                           setEditingColumn(column.id);
                         }
                       }}
@@ -172,7 +177,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                         </span>
                       </div>
                       <div className="flex-1 min-h-[32px] flex items-center">
-                        {!readonly && isEditing && Editor ? (
+                        {!isColumnReadonly && isEditing && Editor ? (
                           <div className="w-full">
                             <Editor
                               value={rowData[column.id]}
@@ -187,7 +192,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                                 /* 详情模态窗中不需要处理列变化 */
                               }}
                               theme={theme}
-                              readonly={readonly}
+                              readonly={isColumnReadonly}
                             />
                           </div>
                         ) : Renderer ? (
@@ -195,7 +200,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                             value={rowData[column.id]}
                             column={column}
                             theme={theme}
-                            readonly={readonly}
+                            readonly={isColumnReadonly}
                             onCellValueChange={(value: CellValue) =>
                               handleColumnValueChange(column.id, value)
                             }

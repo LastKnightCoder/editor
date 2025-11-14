@@ -3,10 +3,11 @@ import { useMemoizedFn } from "ahooks";
 import { MdChevronLeft, MdChevronRight } from "react-icons/md";
 import { App } from "antd";
 import dayjs from "dayjs";
+import { v4 as uuidv4 } from "uuid";
 import { useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
-import { RowData, ColumnDef } from "../../types";
+import { RowData, ColumnDef, DatabaseConfig } from "../../types";
 import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
 import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
@@ -16,10 +17,13 @@ interface CalendarViewProps {
   pluginManager: PluginManager;
   theme: "light" | "dark";
   readonly: boolean;
+  onRowDetailOpen?: (row: RowData) => void;
+  onRowAdd?: (defaultData?: Partial<RowData>) => void;
+  config?: DatabaseConfig;
 }
 
 const CalendarView: React.FC<CalendarViewProps> = memo(
-  ({ pluginManager, theme, readonly }) => {
+  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, config }) => {
     const { modal } = App.useApp();
 
     const {
@@ -132,59 +136,30 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     });
 
     const handleEventClick = useMemoizedFn((rowData: RowData) => {
-      setEditingRow(rowData);
-      setRowDetailOpen(true);
+      if (onRowDetailOpen) {
+        onRowDetailOpen(rowData);
+      } else {
+        setEditingRow(rowData);
+        setRowDetailOpen(true);
+      }
     });
 
     const handleDateClick = useMemoizedFn((date: number) => {
       if (readonly || !dateColumn) return;
 
-      // 创建新行，设置日期列的值
-      const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const newRowData: Partial<RowData> = {
-        id: newId,
-      };
-
-      // 设置日期列的值
+      // 创建新行数据，设置日期列的值
+      const newRowData: Partial<RowData> = {};
       newRowData[dateColumn.id] = {
         start: date,
         end: date,
       } as DateValue;
 
-      // 添加到 store
-      addRow(newRowData);
-
-      // 构建完整的新行对象用于打开详情弹窗
-      const newRow: RowData = {
-        id: newId,
-      };
-      columns.forEach((column) => {
-        newRow[column.id] = newRowData[column.id] ?? null;
-      });
-
-      // 立即打开新行的详情弹窗
-      handleEventClick(newRow);
-    });
-
-    const handleDateRangeSelect = useMemoizedFn(
-      (startDate: number, endDate: number) => {
-        if (readonly || !dateColumn) return;
-
-        // 获取日期列的配置
-        const dateConfig = dateColumn.config as DatePluginConfig | undefined;
-        const isRange = dateConfig?.isRange || false;
-
-        // 创建新行，设置日期列的值
-        const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const newRowData: Partial<RowData> = {
-          id: newId,
-        };
-
-        // 如果日期列不支持范围，只使用开始日期
-        newRowData[dateColumn.id] = {
-          start: startDate,
-          end: isRange ? endDate : startDate,
-        } as DateValue;
+      // 如果提供了自定义回调，调用它而不是默认行为
+      if (onRowAdd) {
+        onRowAdd(newRowData);
+      } else {
+        const newId = uuidv4();
+        newRowData.id = newId;
 
         // 添加到 store
         addRow(newRowData);
@@ -197,8 +172,53 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           newRow[column.id] = newRowData[column.id] ?? null;
         });
 
-        // 立即打开新行的详情弹窗
-        handleEventClick(newRow);
+        // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
+        if (!onRowDetailOpen) {
+          setEditingRow(newRow);
+          setRowDetailOpen(true);
+        }
+      }
+    });
+
+    const handleDateRangeSelect = useMemoizedFn(
+      (startDate: number, endDate: number) => {
+        if (readonly || !dateColumn) return;
+
+        // 获取日期列的配置
+        const dateConfig = dateColumn.config as DatePluginConfig | undefined;
+        const isRange = dateConfig?.isRange || false;
+
+        // 创建新行数据，设置日期列的值
+        const newRowData: Partial<RowData> = {};
+        newRowData[dateColumn.id] = {
+          start: startDate,
+          end: isRange ? endDate : startDate,
+        } as DateValue;
+
+        // 如果提供了自定义回调，调用它而不是默认行为
+        if (onRowAdd) {
+          onRowAdd(newRowData);
+        } else {
+          const newId = uuidv4();
+          newRowData.id = newId;
+
+          // 添加到 store
+          addRow(newRowData);
+
+          // 构建完整的新行对象用于打开详情弹窗
+          const newRow: RowData = {
+            id: newId,
+          };
+          columns.forEach((column) => {
+            newRow[column.id] = newRowData[column.id] ?? null;
+          });
+
+          // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
+          if (!onRowDetailOpen) {
+            setEditingRow(newRow);
+            setRowDetailOpen(true);
+          }
+        }
       },
     );
 
@@ -228,7 +248,10 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       });
     });
 
+    const allowAddColumn = config?.allowAddColumn ?? true;
+
     const handleAddColumn = useMemoizedFn(() => {
+      if (!allowAddColumn) return;
       setEditingColumnId(null);
       setColumnEditOpen(true);
     });
@@ -237,6 +260,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       if (editingColumnId) {
         editColumn(editingColumnId, columnData);
       } else {
+        if (!allowAddColumn) return;
         addColumn({
           title: columnData.title || `列 ${columns.length + 1}`,
           type: columnData.type || "text",

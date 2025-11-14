@@ -1,10 +1,16 @@
-import React, { useEffect, ReactNode, memo, useMemo } from "react";
+import {
+  useEffect,
+  ReactNode,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { App } from "antd";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
 
-import { CellPlugin, DatabaseProps } from "./types";
+import { CellPlugin, DatabaseProps, RowData } from "./types";
 import { createDatabaseStore } from "./DatabaseStore";
 import { builtInPlugins } from "./plugins";
 import PluginManager from "./PluginManager";
@@ -18,26 +24,39 @@ import ViewTabs from "./ViewTabs";
 
 const defaultPlugins: DatabaseProps["plugins"] = [];
 
-const Database: React.FC<DatabaseProps> = memo(
-  ({
-    columns,
-    data,
-    activeViewId,
-    onActiveViewIdChange,
-    viewConfig,
-    onViewConfigChange,
-    onCreateView,
-    onDeleteView,
-    onRenameView,
-    onUpdateView,
-    onReorderViews,
-    views,
-    plugins = defaultPlugins,
-    onDataChange,
-    theme,
-    readonly,
-    className,
-  }): ReactNode => {
+export interface DatabaseRef {
+  deleteRow: (rowId: string) => void;
+  addRow: (rowData?: Partial<RowData>) => void;
+  updateRow: (rowId: string, data: Partial<RowData>) => void;
+  getRows: () => RowData[];
+}
+
+const Database = forwardRef<DatabaseRef, DatabaseProps>(
+  (
+    {
+      columns,
+      data,
+      activeViewId,
+      onActiveViewIdChange,
+      viewConfig,
+      onViewConfigChange,
+      onCreateView,
+      onDeleteView,
+      onRenameView,
+      onUpdateView,
+      onReorderViews,
+      views,
+      config,
+      plugins = defaultPlugins,
+      onDataChange,
+      onRowDetailOpen,
+      onRowAdd,
+      theme,
+      readonly,
+      className,
+    },
+    ref,
+  ): ReactNode => {
     const pluginMgr = useCreation(() => {
       const pluginMgr = new PluginManager();
       pluginMgr.registerPlugins(builtInPlugins as CellPlugin<unknown>[]);
@@ -57,13 +76,25 @@ const Database: React.FC<DatabaseProps> = memo(
 
     const { modal } = App.useApp();
 
-    // 当 activeViewId 改变时，更新 store 中的 viewConfig 为当前活动视图的配置
-    useEffect(() => {
-      const currentView = views.find((view) => view.id === activeViewId);
-      if (currentView && currentView.config) {
-        store.getState().setViewConfig(currentView.config);
-      }
-    }, [activeViewId, views, store]);
+    // 暴露 ref 方法
+    useImperativeHandle(ref, () => ({
+      deleteRow: (rowId: string) => {
+        store.getState().deleteRow(rowId);
+      },
+      addRow: (rowData?: Partial<RowData>) => {
+        store.getState().addRow(rowData);
+      },
+      updateRow: (rowId: string, data: Partial<RowData>) => {
+        Object.keys(data).forEach((key) => {
+          if (key !== "id") {
+            store.getState().updateCellValue(rowId, key, data[key]);
+          }
+        });
+      },
+      getRows: () => {
+        return store.getState().rows;
+      },
+    }));
 
     useEffect(() => {
       const unsubscribe = store.subscribe((state, prevState) => {
@@ -251,7 +282,8 @@ const Database: React.FC<DatabaseProps> = memo(
         }));
 
         // 如果更新的是当前活动视图，同时更新 viewConfig
-        if (viewId === activeViewId) {
+        const currentActiveViewId = store.getState().activeViewId;
+        if (viewId === currentActiveViewId) {
           if (updated.config.galleryConfig) {
             store.getState().setGalleryConfig(updated.config.galleryConfig);
           }
@@ -279,55 +311,63 @@ const Database: React.FC<DatabaseProps> = memo(
       onReorderViews?.(orderedIds);
     });
 
+    const storeActiveViewId = store((state) => state.activeViewId);
+    const storeViews = store((state) => state.views);
+
+    useEffect(() => {
+      const currentView = storeViews.find((v) => v.id === storeActiveViewId);
+      if (currentView) {
+        store.getState().setViewConfig(currentView.config);
+      }
+    }, [storeActiveViewId, storeViews, store]);
+
     const View = useMemo(() => {
-      const activeView = views.find((view) => view.id === activeViewId);
+      const activeView = storeViews.find(
+        (view) => view.id === storeActiveViewId,
+      );
       if (!activeView) return null;
+
+      const viewProps = {
+        pluginManager: pluginMgr,
+        theme: finalTheme,
+        readonly: !!readonly,
+        onRowDetailOpen,
+        onRowAdd,
+        config,
+      };
 
       if (activeView.type === "table") {
         return (
           <TableView
             key={activeView.id}
-            pluginManager={pluginMgr}
+            {...viewProps}
             startResize={startResize}
-            theme={finalTheme}
-            readonly={!!readonly}
           />
         );
       }
 
       if (activeView.type === "gallery") {
-        return (
-          <GalleryView
-            key={activeView.id}
-            pluginManager={pluginMgr}
-            theme={finalTheme}
-            readonly={!!readonly}
-          />
-        );
+        return <GalleryView key={activeView.id} {...viewProps} />;
       }
 
       if (activeView.type === "calendar") {
-        return (
-          <CalendarView
-            key={activeView.id}
-            pluginManager={pluginMgr}
-            theme={finalTheme}
-            readonly={!!readonly}
-          />
-        );
+        return <CalendarView key={activeView.id} {...viewProps} />;
       }
 
       if (activeView.type === "kanban") {
-        return (
-          <KanbanView
-            key={activeView.id}
-            pluginManager={pluginMgr}
-            theme={finalTheme}
-            readonly={!!readonly}
-          />
-        );
+        return <KanbanView key={activeView.id} {...viewProps} />;
       }
-    }, [activeViewId, views, pluginMgr, startResize, finalTheme, readonly]);
+    }, [
+      storeActiveViewId,
+      storeViews,
+      pluginMgr,
+      startResize,
+      finalTheme,
+      readonly,
+      onRowDetailOpen,
+      config,
+      store,
+    ]);
 
     return (
       <DatabaseContext.Provider value={store}>

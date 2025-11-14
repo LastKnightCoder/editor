@@ -3,12 +3,12 @@ import { useMemoizedFn } from "ahooks";
 import { useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
-import { RowData, ColumnDef, CellValue } from "../../types";
+import { RowData, ColumnDef, CellValue, DatabaseConfig } from "../../types";
 import GalleryCard from "./GalleryCard";
 import AddCard from "./AddCard";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
-
+import { v4 as uuidv4 } from "uuid";
 const emptyOnCellChange = () => {
   // no-op
 };
@@ -17,10 +17,13 @@ interface GalleryViewProps {
   pluginManager: PluginManager;
   theme: "light" | "dark";
   readonly: boolean;
+  onRowDetailOpen?: (row: RowData) => void;
+  onRowAdd?: (defaultData?: Partial<RowData>) => void;
+  config?: DatabaseConfig;
 }
 
 const GalleryView: React.FC<GalleryViewProps> = memo(
-  ({ pluginManager, theme, readonly }) => {
+  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, config }) => {
     const {
       columns,
       rows,
@@ -58,8 +61,12 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     };
 
     const handleOpenRowDetail = useMemoizedFn((row: RowData) => {
-      setEditingRow(row);
-      setRowDetailOpen(true);
+      if (onRowDetailOpen) {
+        onRowDetailOpen(row);
+      } else {
+        setEditingRow(row);
+        setRowDetailOpen(true);
+      }
     });
 
     const handleCloseRowDetail = useMemoizedFn(() => {
@@ -78,36 +85,47 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       });
     });
 
+    const allowAddColumn = config?.allowAddColumn ?? true;
+
     const handleAddRow = useMemoizedFn(
       (groupColumn?: ColumnDef | null, groupValue?: CellValue) => {
         // 创建新行对象
-        const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const newRowData: Partial<RowData> = {
-          id: newId,
-        };
+        const newRowData: Partial<RowData> = {};
 
         // 如果有分组信息，设置分组字段的值
         if (groupColumn && groupValue !== undefined) {
           newRowData[groupColumn.id] = groupValue;
         }
 
-        // 添加到 store（包含分组字段值）
-        addRow(newRowData);
+        // 如果提供了自定义回调，调用它而不是默认行为
+        if (onRowAdd) {
+          onRowAdd(newRowData);
+        } else {
+          const newId = uuidv4();
+          newRowData.id = newId;
 
-        // 构建完整的新行对象用于打开详情弹窗
-        const newRow: RowData = {
-          id: newId,
-        };
-        columns.forEach((column) => {
-          newRow[column.id] = newRowData[column.id] ?? null;
-        });
+          // 添加到 store（包含分组字段值）
+          addRow(newRowData);
 
-        // 立即打开新行的详情弹窗
-        handleOpenRowDetail(newRow);
+          // 构建完整的新行对象用于打开详情弹窗
+          const newRow: RowData = {
+            id: newId,
+          };
+          columns.forEach((column) => {
+            newRow[column.id] = newRowData[column.id] ?? null;
+          });
+
+          // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
+          if (!onRowDetailOpen) {
+            setEditingRow(newRow);
+            setRowDetailOpen(true);
+          }
+        }
       },
     );
 
     const handleAddColumn = useMemoizedFn(() => {
+      if (!allowAddColumn) return;
       setEditingColumnId(null);
       setColumnEditOpen(true);
     });
@@ -116,6 +134,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       if (editingColumnId) {
         editColumn(editingColumnId, columnData);
       } else {
+        if (!allowAddColumn) return;
         addColumn({
           title: columnData.title || `列 ${columns.length + 1}`,
           type: columnData.type || "text",

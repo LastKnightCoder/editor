@@ -85,6 +85,7 @@ class DatabaseModule implements Module {
     this.databases = new Map();
     this.windowToDatabase = new Map();
     this.tables = [
+      PodcastTable,
       ContentTable,
       WhiteBoardContentTable,
       WhiteboardTable,
@@ -121,7 +122,6 @@ class DatabaseModule implements Module {
       CalendarGroupTable,
       CalendarTable,
       CalendarEventTable,
-      PodcastTable,
       ResourceTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];

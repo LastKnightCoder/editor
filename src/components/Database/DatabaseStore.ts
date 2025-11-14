@@ -75,6 +75,7 @@ interface TableState {
     calendarConfig: TableViewConfig["calendarConfig"],
   ) => void;
   setKanbanConfig: (kanbanConfig: TableViewConfig["kanbanConfig"]) => void;
+  setActiveViewId: (viewId: number | null) => void;
 }
 
 const cloneFilters = (
@@ -117,6 +118,16 @@ export const createDatabaseStore = (
     filters: initialViewConfig?.filters
       ? cloneFilters(initialViewConfig.filters)
       : null,
+    // 复制画廊、日历、看板配置
+    galleryConfig: initialViewConfig?.galleryConfig
+      ? { ...initialViewConfig.galleryConfig }
+      : undefined,
+    calendarConfig: initialViewConfig?.calendarConfig
+      ? { ...initialViewConfig.calendarConfig }
+      : undefined,
+    kanbanConfig: initialViewConfig?.kanbanConfig
+      ? { ...initialViewConfig.kanbanConfig }
+      : undefined,
   };
 
   return create<TableState>((set, get) => ({
@@ -561,6 +572,9 @@ export const createDatabaseStore = (
             : undefined;
         }),
       );
+    },
+    setActiveViewId: (viewId) => {
+      set({ activeViewId: viewId });
     },
   }));
 };
