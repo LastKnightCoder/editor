@@ -17,11 +17,7 @@ import { useShallow } from "zustand/react/shallow";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -54,12 +50,6 @@ interface CardItemProps {
   style?: React.CSSProperties;
 }
 
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
-
 const CardItem = memo(
   (props: CardItemProps) => {
     const {
@@ -74,7 +64,7 @@ const CardItem = memo(
     } = props;
 
     const navigateTo = useTabStore((state) => state.navigateTo);
-
+    const extensions = useDynamicExtensions();
     const editorRef = useRef<EditorRef>(null);
     const [exportModalOpen, setExportModalOpen] = useState(false);
 
@@ -274,7 +264,7 @@ const CardItem = memo(
               className="max-h-75 overflow-hidden pointer-events-none"
               readonly={true}
               initValue={content.slice(0, 3)}
-              extensions={customExtensions}
+              extensions={extensions}
             />
           </ErrorBoundary>
           {tags.length > 0 && <Tags className="mt-5" tags={tags} showIcon />}

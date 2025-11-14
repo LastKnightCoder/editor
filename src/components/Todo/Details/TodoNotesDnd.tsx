@@ -5,9 +5,9 @@ import { MdAdd } from "react-icons/md";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import RichTextEditModal from "@/components/RichTextEditModal";
 import { IndexType, SearchResult, TodoNoteLink } from "@/types";
-import { IExtension } from "@/components/Editor";
 import { useMemoizedFn } from "ahooks";
 import NoteCard from "./NoteCard";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 const selectNotes = [
   "card",
@@ -15,7 +15,6 @@ const selectNotes = [
   "project-item",
   "document-item",
 ] satisfies IndexType[];
-const extensions = [] satisfies IExtension[];
 
 const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
   const {
@@ -37,7 +36,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
   const [editingContentId, setEditingContentId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [localNotes, setLocalNotes] = useState(notes);
-
+  const extensions = useDynamicExtensions();
   const { modal } = App.useApp();
 
   useEffect(() => {

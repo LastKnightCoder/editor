@@ -49,6 +49,7 @@ import { InlineImageElement } from "./element/inline-image.ts";
 import { EmojiElement } from "./element/emoji.ts";
 import { AnnotationElement } from "./element/annotation.ts";
 import { DatabaseElement } from "./element/database.ts";
+import { ChatReferenceElement } from "./element/chat-reference.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -96,7 +97,8 @@ export type CustomElement =
   | InlineImageElement
   | EmojiElement
   | AnnotationElement
-  | DatabaseElement;
+  | DatabaseElement
+  | ChatReferenceElement;
 
 export type InlineElement =
   | LinkElement

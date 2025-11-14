@@ -93,10 +93,8 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
             </div>
           </div>
 
-          {/* 分隔线 */}
           <div className={styles.divider}></div>
 
-          {/* Notion 版本 */}
           <div className={styles.versionPanel}>
             <div className={styles.versionHeader}>
               <Text strong>Notion 版本</Text>

@@ -29,11 +29,7 @@ import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useSettingStore from "@/stores/useSettingStore";
 import useShortcutStore from "@/stores/useShortcutStore";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { EditCardContext } from "@/context";
 import {
   defaultCardEventBus,
@@ -62,12 +58,6 @@ import {
 } from "@/commands";
 import { SpeakerRole } from "@/types/podcast";
 
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
-
 const minFitViewPadding = [40];
 const maxFitViewPadding = [80];
 
@@ -83,7 +73,7 @@ const EditCard = (props: IEditCardProps) => {
   const databaseName = useSettingStore(
     (state) => state.setting.database.active,
   );
-
+  const extensions = useDynamicExtensions();
   const {
     onInit,
     initValue,
@@ -542,7 +532,7 @@ const EditCard = (props: IEditCardProps) => {
                 onInit={onInit}
                 initValue={initValue}
                 onChange={onContentChange}
-                extensions={customExtensions}
+                extensions={extensions}
                 readonly={readonly}
                 uploadResource={uploadResource}
               />

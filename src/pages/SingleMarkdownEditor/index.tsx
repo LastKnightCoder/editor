@@ -10,11 +10,7 @@ import { Editor as CodeMirrorEditor, EditorChange } from "codemirror";
 import isHotkey from "is-hotkey";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { readTextFile, writeTextFile, getDirectoryName } from "@/commands";
 import {
   useMemoizedFn,
@@ -43,12 +39,6 @@ import FileTree from "./FileTree";
 import styles from "./index.module.less";
 import classnames from "classnames";
 import If from "@/components/If";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 const SingleMarkdownEditor = () => {
   const [searchParams] = useSearchParams();
@@ -81,7 +71,7 @@ const SingleMarkdownEditor = () => {
       defaultValue: 240,
     },
   );
-
+  const extensions = useDynamicExtensions();
   const { isDark } = useTheme();
   const { onDarkModeChange } = useSettingStore((state) => ({
     onDarkModeChange: state.onDarkModeChange,
@@ -344,7 +334,7 @@ const SingleMarkdownEditor = () => {
                       ref={editorRef}
                       initValue={content}
                       onChange={onContentChange}
-                      extensions={customExtensions}
+                      extensions={extensions}
                       readonly={isReadonly}
                       uploadResource={uploadResource}
                       theme={isDark ? "dark" : "light"}

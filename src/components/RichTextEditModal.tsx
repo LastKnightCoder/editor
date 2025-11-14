@@ -12,18 +12,9 @@ import { getContentById } from "@/commands/content";
 import { isContentIsCard, buildCardFromContent } from "@/commands/card";
 import { IContent } from "@/types";
 import { formatDate, getContentLength, defaultCardEventBus } from "@/utils";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
-import { BsCardText } from "react-icons/bs";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
+import { BsCardText } from "react-icons/bs";
 
 interface RichTextEditModalProps {
   visible: boolean;
@@ -51,7 +42,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
   const [count, setCount] = useState(0);
   const [updateTime, setUpdateTime] = useState(0);
   const { message } = App.useApp();
-
+  const extensions = useDynamicExtensions();
   const [isCard, setIsCard] = useState(false);
 
   useEffect(() => {
@@ -236,7 +227,7 @@ const RichTextEditModal: React.FC<RichTextEditModalProps> = ({
               onInit={onInit}
               initValue={editorContent}
               onChange={onContentChange}
-              extensions={customExtensions}
+              extensions={extensions}
               uploadResource={uploadResource}
               readonly={false}
             />

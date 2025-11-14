@@ -46,6 +46,7 @@ interface ChatContainerProps {
   titleRef: React.RefObject<EditTextHandle>;
   onCreateNewMessage: () => void;
   createMessageLoading: boolean;
+  hideInput?: boolean; // 控制是否隐藏输入框
 }
 
 export type ChatContainerHandle = {
@@ -66,6 +67,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       titleRef,
       onCreateNewMessage,
       createMessageLoading,
+      hideInput = false,
     },
     ref,
   ) => {
@@ -628,7 +630,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     return (
       <>
         <div
-          className="relative border-t-[12px] border-b-[12px] border-transparent px-6 py-3 flex-1 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
+          className="relative border-t-[12px] border-b-[12px] border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
           ref={messagesRef}
         >
           {visibleMessages.length > 0 && (
@@ -650,63 +652,67 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           )}
         </div>
 
-        {embeddingModelInfo && (
-          <div className="flex-none flex items-center gap-2 flex-wrap">
-            {chatModelConfig?.features?.thinking && (
-              <div
-                className={classNames(
-                  "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
-                  {
-                    "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
-                      enableThinking,
-                    "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
-                      !enableThinking,
-                  },
+        {!hideInput && (
+          <>
+            {embeddingModelInfo && (
+              <div className="flex-none flex items-center gap-2 flex-wrap">
+                {chatModelConfig?.features?.thinking && (
+                  <div
+                    className={classNames(
+                      "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
+                      {
+                        "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                          enableThinking,
+                        "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
+                          !enableThinking,
+                      },
+                    )}
+                    onClick={() => setEnableThinking(!enableThinking)}
+                  >
+                    <LuBrain />
+                    思考
+                  </div>
                 )}
-                onClick={() => setEnableThinking(!enableThinking)}
-              >
-                <LuBrain />
-                思考
+                <div
+                  className={classNames(
+                    "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
+                    {
+                      "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                        ragEnabled,
+                      "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
+                        !ragEnabled,
+                    },
+                  )}
+                  onClick={() => setRagEnabled(!ragEnabled)}
+                >
+                  <InfoCircleOutlined />
+                  知识库增强
+                </div>
               </div>
             )}
-            <div
-              className={classNames(
-                "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
-                {
-                  "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
-                    ragEnabled,
-                  "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
-                    !ragEnabled,
-                },
-              )}
-              onClick={() => setRagEnabled(!ragEnabled)}
-            >
-              <InfoCircleOutlined />
-              知识库增强
-            </div>
-          </div>
-        )}
 
-        <div className="mt-3 flex-none px-3 py-3 box-border bg-[#fafafa] dark:bg-[#222222] shadow-sm rounded-3xl">
-          <div className="flex items-end gap-2">
-            <div className="flex-1 min-w-0">
-              <ChatInputArea
-                className="flex-1 min-w-0"
-                contentEditable={!sendLoading}
-                ref={editTextRef}
-                onPressEnter={sendMessage}
-                onStop={stopStreaming}
-                sendLoading={sendLoading}
-                createMessageLoading={createMessageLoading}
-                onCreateNewMessage={onCreateNewMessage}
-                modelSelectItems={modelSelectItems}
-                onModelSelect={handleModelSelect}
-                currentModelName={chatModelConfig?.name}
-                isSupportMultiModal={chatModelConfig?.features?.multimodal}
-              />
+            <div className="mt-3 flex-none px-3 py-3 box-border bg-[#fafafa] dark:bg-[#222222] shadow-sm rounded-3xl">
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <ChatInputArea
+                    className="flex-1 min-w-0"
+                    contentEditable={!sendLoading}
+                    ref={editTextRef}
+                    onPressEnter={sendMessage}
+                    onStop={stopStreaming}
+                    sendLoading={sendLoading}
+                    createMessageLoading={createMessageLoading}
+                    onCreateNewMessage={onCreateNewMessage}
+                    modelSelectItems={modelSelectItems}
+                    onModelSelect={handleModelSelect}
+                    currentModelName={chatModelConfig?.name}
+                    isSupportMultiModal={chatModelConfig?.features?.multimodal}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </>
     );
   },

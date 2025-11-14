@@ -16,7 +16,7 @@ export const createChatMessage = (
 };
 
 export const getChatMessageById = (id: number): Promise<ChatMessage> => {
-  return invoke("get-chat-message-by-id", { id });
+  return invoke("get-chat-message-by-id", id);
 };
 
 export const updateChatMessage = (
