@@ -265,6 +265,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       columns,
       setSorts,
       setFilters,
+      setActiveViewId,
     } = useDatabaseStore((state) => ({
       activeViewId: state.activeViewId,
       views: state.views,
@@ -273,6 +274,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       columns: state.columns,
       setSorts: state.setSorts,
       setFilters: state.setFilters,
+      setActiveViewId: state.setActiveViewId,
     }));
     const [showGrouping, setShowGrouping] = useState(false);
     const [showSorting, setShowSorting] = useState(false);
@@ -295,8 +297,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     });
 
     const handleActivate = useMemoizedFn((viewId: number) => {
-      if (!onActiveViewIdChange) return;
-      onActiveViewIdChange(viewId);
+      setActiveViewId(viewId);
+      onActiveViewIdChange?.(viewId);
     });
 
     const handleDelete = useMemoizedFn((viewId: number) => {

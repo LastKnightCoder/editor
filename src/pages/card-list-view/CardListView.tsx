@@ -5,11 +5,9 @@ import { Descendant } from "slate";
 import {
   LoadingOutlined,
   PlusOutlined,
-  UnorderedListOutlined,
   UpOutlined,
+  CaretDownOutlined,
 } from "@ant-design/icons";
-import { PiGraphLight } from "react-icons/pi";
-import { BiCategory } from "react-icons/bi";
 
 import useCardsManagementStore, {
   ViewMode,
@@ -21,6 +19,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import CardTreePanel from "./CardTreePanel";
 import CardListPanel, { CardListPanelRef } from "./CardListPanel";
 import CardGraph from "./CardGraph";
+import CardDatabaseView, { CardDatabaseViewRef } from "./CardDatabaseView";
 import CreateCard from "./CreateCard";
 import CardPreview from "./CardPreview";
 import If from "@/components/If";
@@ -41,6 +40,7 @@ import {
   selectFile,
   getCardById,
 } from "@/commands";
+import classNames from "classnames";
 
 const categoryWithAll = {
   all: "全部笔记",
@@ -56,9 +56,12 @@ const CardListView = () => {
   );
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
+  const [pendingCardCategory, setPendingCardCategory] =
+    useState<ECardCategory | null>(null);
   const { modal } = App.useApp();
   const isConnected = useDatabaseConnected();
   const database = useSettingStore((state) => state.setting.database.active);
+  const cardDatabaseViewRef = useRef<CardDatabaseViewRef>(null);
 
   const cardEventBus = useCreation(() => {
     return defaultCardEventBus.createEditor();
@@ -154,6 +157,10 @@ const CardListView = () => {
     try {
       const newCard = await createCard(card);
       setCards((prevCards) => [newCard, ...prevCards]);
+      // 如果是数据库视图，手动添加行
+      if (viewMode === ViewMode.Database) {
+        cardDatabaseViewRef.current?.addCardRow(newCard);
+      }
       cardEventBus.publishCardEvent("card:created", newCard);
     } catch (error) {
       console.error("Failed to create card:", error);
@@ -271,19 +278,23 @@ const CardListView = () => {
 
   const handleSaveCard = useMemoizedFn(
     async (content: Descendant[], tags: string[]) => {
+      const category =
+        pendingCardCategory ||
+        (selectCategory === ("all" as unknown as ECardCategory)
+          ? ECardCategory.Temporary
+          : selectCategory);
+
       const card: ICreateCard = {
         content,
         tags,
         links: [],
-        category:
-          selectCategory === ("all" as unknown as ECardCategory)
-            ? ECardCategory.Temporary
-            : selectCategory,
+        category,
         count: 0,
         isTop: false,
       };
       await handleCreateCard(card);
       setIsCreatingCard(false);
+      setPendingCardCategory(null);
     },
   );
 
@@ -327,6 +338,51 @@ const CardListView = () => {
     startPresentation(card);
   });
 
+  const viewModeMenuItems = useMemo(() => {
+    return [
+      {
+        label: "列表",
+        key: ViewMode.List,
+        onClick: () => {
+          setShowScrollToTop(false);
+          useCardsManagementStore.setState({
+            viewMode: ViewMode.List,
+          });
+        },
+      },
+      {
+        label: "关系图谱",
+        key: ViewMode.Graph,
+        onClick: () => {
+          setShowScrollToTop(false);
+          useCardsManagementStore.setState({
+            viewMode: ViewMode.Graph,
+          });
+        },
+      },
+      {
+        label: "数据库",
+        key: ViewMode.Database,
+        onClick: () => {
+          setShowScrollToTop(false);
+          useCardsManagementStore.setState({
+            viewMode: ViewMode.Database,
+          });
+        },
+      },
+      // {
+      //   label: "时间线",
+      //   key: ViewMode.Timeline,
+      //   onClick: () => {
+      //     setShowScrollToTop(false);
+      //     useCardsManagementStore.setState({
+      //       viewMode: ViewMode.Timeline,
+      //     });
+      //   },
+      // },
+    ];
+  }, []);
+
   const titlebarMenuItems: MenuProps["items"] = useMemo(() => {
     return [
       {
@@ -357,118 +413,134 @@ const CardListView = () => {
             activeCardTag={activeCardTag}
             onClickTag={handleClickTag}
           />
-          <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden relative">
-            {viewMode === ViewMode.List ? (
-              <CardListPanel
-                ref={cardListRef}
-                cards={filteredCards}
-                onCardClick={handleCardClick}
-                onDeleteCard={handleDeleteCard}
-                onUpdateCardCategory={handleUpdateCardCategory}
-                onToggleCardTop={handleToggleCardTop}
-                onShowScrollToTop={setShowScrollToTop}
-                onPresentationMode={handlePresentationMode}
-              />
-            ) : (
-              <div className="flex-1 min-w-0 flex h-full overflow-hidden relative">
+          <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
+            <div className="h-10 mt-3 flex-shrink-0 flex justify-between items-center px-10">
+              <div className="px-4 flex items-center gap-2 rounded-full h-full">
+                {viewModeMenuItems.map((item) => (
+                  <div
+                    key={item.key}
+                    className={classNames(
+                      "px-3 h-full flex items-center rounded-full cursor-pointer",
+                      {
+                        "bg-[#7996a5] text-gray-100 border border-[#f0f0f0] dark:border-[#2a2a2a]":
+                          viewMode === item.key,
+                      },
+                    )}
+                    onClick={item.onClick}
+                  >
+                    {item.label}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 h-10 items-center mr-3">
+                <Dropdown
+                  trigger={["click"]}
+                  menu={{
+                    items: Object.keys(categoryWithAll).map((key) => ({
+                      label: categoryWithAll[key as ECardCategory],
+                      key: key,
+                      disabled: selectCategory === (key as ECardCategory),
+                    })),
+                    onClick: ({ key }) => {
+                      useCardsManagementStore.setState({
+                        selectCategory: key as ECardCategory,
+                      });
+                    },
+                  }}
+                >
+                  <div className="flex items-center gap-3 h-10 cursor-pointer border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-full px-3 py-1">
+                    <span>
+                      {categoryWithAll[selectCategory as ECardCategory]}
+                    </span>
+                    <CaretDownOutlined />
+                  </div>
+                </Dropdown>
+                <div className="cursor-pointer w-10 h-10 flex items-center justify-center rounded-full bg-[#7996a5] text-gray-100">
+                  <Dropdown
+                    trigger={["click"]}
+                    menu={{
+                      items: titlebarMenuItems,
+                      onClick: handleMoreClick,
+                    }}
+                  >
+                    <PlusOutlined />
+                  </Dropdown>
+                </div>
+              </div>
+            </div>
+            <div className="w-full flex-1 min-h-0 flex flex-col overflow-hidden relative">
+              <If condition={viewMode === ViewMode.List}>
+                <CardListPanel
+                  ref={cardListRef}
+                  cards={filteredCards}
+                  onCardClick={handleCardClick}
+                  onDeleteCard={handleDeleteCard}
+                  onUpdateCardCategory={handleUpdateCardCategory}
+                  onToggleCardTop={handleToggleCardTop}
+                  onShowScrollToTop={setShowScrollToTop}
+                  onPresentationMode={handlePresentationMode}
+                />
+              </If>
+              <If condition={viewMode === ViewMode.Graph}>
                 <CardGraph
                   initCards={sortedCards}
                   onClickCard={handleCardClick}
                   className="w-full h-full"
                   currentCardIds={filteredCards.map((card) => card.id)}
                 />
-              </div>
-            )}
-            <CreateCard
-              visible={isCreatingCard}
-              onSave={handleSaveCard}
-              onCancel={() => setIsCreatingCard(false)}
-            />
-            <CardPreview
-              key={previewCardId}
-              cardId={previewCardId}
-              visible={isPreviewVisible}
-              onClose={handleClosePreview}
-            />
-            {!!presentationCard && (
-              <PresentationMode
-                content={presentationCard.content}
-                onExit={() => {
-                  stopPresentation();
-                }}
-              />
-            )}
-            <If condition={!presentationCard}>
-              <FloatButton.Group
-                style={{
-                  position: "absolute",
-                  right: 30,
-                  bottom: 30,
-                }}
-              >
-                <If condition={showScrollToTop && viewMode === ViewMode.List}>
-                  <FloatButton
-                    icon={<UpOutlined />}
-                    tooltip={"回到顶部"}
-                    onClick={() => {
-                      cardListRef.current?.scrollToTop();
-                    }}
-                  />
-                </If>
-                <FloatButton
-                  icon={
-                    <Dropdown
-                      trigger={["hover"]}
-                      menu={{
-                        items: Object.keys(categoryWithAll).map((key) => ({
-                          label: categoryWithAll[key as ECardCategory],
-                          key: key,
-                          disabled: selectCategory === (key as ECardCategory),
-                        })),
-                        onClick: ({ key }) => {
-                          useCardsManagementStore.setState({
-                            selectCategory: key as ECardCategory,
-                          });
-                        },
-                      }}
-                    >
-                      <BiCategory />
-                    </Dropdown>
-                  }
-                ></FloatButton>
-                <FloatButton
-                  tooltip={viewMode === ViewMode.List ? "列表模式" : "图谱模式"}
-                  icon={
-                    viewMode === ViewMode.List ? (
-                      <PiGraphLight />
-                    ) : (
-                      <UnorderedListOutlined />
-                    )
-                  }
-                  onClick={() => {
-                    setShowScrollToTop(false);
-                    useCardsManagementStore.setState({
-                      viewMode:
-                        viewMode === ViewMode.List
-                          ? ViewMode.Graph
-                          : ViewMode.List,
-                    });
+              </If>
+              <If condition={viewMode === ViewMode.Database}>
+                <CardDatabaseView
+                  ref={cardDatabaseViewRef}
+                  cards={filteredCards}
+                  allCards={sortedCards}
+                  selectCategory={selectCategory}
+                  onCardClick={handleCardClick}
+                  onOpenCreateCard={(defaultCategory) => {
+                    setPendingCardCategory(defaultCategory);
+                    setIsCreatingCard(true);
                   }}
                 />
-                <FloatButton
-                  icon={
-                    <Dropdown
-                      menu={{
-                        items: titlebarMenuItems,
-                        onClick: handleMoreClick,
-                      }}
-                    >
-                      <PlusOutlined />
-                    </Dropdown>
-                  }
+              </If>
+              <CreateCard
+                visible={isCreatingCard}
+                onSave={handleSaveCard}
+                onCancel={() => setIsCreatingCard(false)}
+              />
+              <CardPreview
+                key={previewCardId}
+                cardId={previewCardId}
+                visible={isPreviewVisible}
+                onClose={handleClosePreview}
+              />
+              {!!presentationCard && (
+                <PresentationMode
+                  content={presentationCard.content}
+                  onExit={() => {
+                    stopPresentation();
+                  }}
                 />
-              </FloatButton.Group>
-            </If>
+              )}
+              <If condition={!presentationCard}>
+                <FloatButton.Group
+                  style={{
+                    position: "absolute",
+                    right: 30,
+                    bottom: 30,
+                  }}
+                >
+                  <If condition={showScrollToTop && viewMode === ViewMode.List}>
+                    <FloatButton
+                      icon={<UpOutlined />}
+                      tooltip={"回到顶部"}
+                      onClick={() => {
+                        cardListRef.current?.scrollToTop();
+                      }}
+                    />
+                  </If>
+                </FloatButton.Group>
+              </If>
+            </div>
           </div>
         </div>
       </div>

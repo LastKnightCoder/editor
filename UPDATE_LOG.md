@@ -770,4 +770,11 @@
 - feat: 视频支持调整宽高
 - feat: Notion 视频支持不缓存到本地
 - feat: 项目支持数据库类型
+- feat: 支持引用对话
+- feat: underline 和 highlight 支持序列化为 Markdown 并修复
+- feat: 改善播客 UI
 - fix: 输出聊天内容时,代码块一直闪烁
+
+## v0.18.1
+
+- feat: 卡片支持数据库视图

@@ -207,7 +207,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
         <div
           key={group.id}
           className={classNames(
-            "rounded-xl border border-[#2C2C2C] dark:border-[#A5A199] px-3 py-3 flex flex-col gap-3 bg-[#F5F5F5] dark:bg-[#1E1E1E]",
+            "rounded-xl border border-[#f0f0f0] dark:border-[#2a2a2a] px-3 py-3 flex flex-col gap-3",
           )}
         >
           <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       return (
         <div
           key={condition.id}
-          className="flex flex-col gap-2 rounded-lg bg-white dark:bg-[#262626] px-3 py-3 border border-[#2C2C2C] dark:border-[#A5A199]"
+          className="flex flex-col gap-2 rounded-lg px-3 py-3 border border-[#f0f0f0] dark:border-[#2a2a2a]"
         >
           <div className="flex items-center gap-2">
             <Select
@@ -308,7 +308,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
             </Tooltip>
           </div>
           {column && requiresValue !== false && (
-            <div className="border border-dashed border-[#2C2C2C] dark:border-[#A5A199] rounded-md px-2 py-1">
+            <div className="border border-dashed border-[#f0f0f0] dark:border-[#2a2a2a] rounded-md px-2 py-1">
               <FilterValueEditor
                 column={column}
                 value={condition.value ?? null}

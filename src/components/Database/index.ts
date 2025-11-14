@@ -1,4 +1,4 @@
-import Database from "./Database";
+import Database, { DatabaseRef } from "./Database";
 import { PluginManager } from "./PluginManager";
 import * as plugins from "./plugins";
 import { createDatabaseStore } from "./DatabaseStore";
@@ -6,6 +6,7 @@ import { DatabaseContext, DatabaseStoreType } from "./DatabaseContext";
 import * as hooks from "./hooks";
 import type {
   DatabaseProps,
+  DatabaseConfig,
   ColumnDef,
   RowData,
   CellValue,
@@ -17,6 +18,8 @@ import type {
 
 export type {
   DatabaseProps,
+  DatabaseRef,
+  DatabaseConfig,
   ColumnDef,
   RowData,
   CellValue,

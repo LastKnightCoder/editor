@@ -1,7 +1,7 @@
 import React, { useRef, memo, useState, useMemo, useEffect } from "react";
 import { useClickAway, useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ColumnDef, CellValue, RowData } from "../../types";
+import { ColumnDef, CellValue, RowData, DatabaseConfig } from "../../types";
 import { useColumnVisibility, useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import ColumnHeader from "./components/ColumnHeader";
@@ -16,6 +16,9 @@ interface TableViewProps {
   startResize: (columnId: string, startX: number, startWidth: number) => void;
   theme: "light" | "dark";
   readonly: boolean;
+  onRowDetailOpen?: (row: RowData) => void;
+  onRowAdd?: (defaultData?: Partial<RowData>) => void;
+  config?: DatabaseConfig;
 }
 
 const emptyOnCellChange = () => {
@@ -23,7 +26,15 @@ const emptyOnCellChange = () => {
 };
 
 const TableView: React.FC<TableViewProps> = memo(
-  ({ pluginManager, startResize, theme, readonly }) => {
+  ({
+    pluginManager,
+    startResize,
+    theme,
+    readonly,
+    onRowDetailOpen,
+    onRowAdd,
+    config,
+  }) => {
     const {
       selectedCell,
       editingCell,
@@ -98,10 +109,19 @@ const TableView: React.FC<TableViewProps> = memo(
     );
 
     const handleAddRow = useMemoizedFn(() => {
-      addRow();
+      if (onRowAdd) {
+        // 如果提供了自定义回调，调用它而不是默认行为
+        onRowAdd();
+      } else {
+        addRow();
+      }
     });
 
+    const allowAddColumn = config?.allowAddColumn ?? true;
+    const allowDeleteColumn = config?.allowDeleteColumn ?? true;
+
     const handleAddColumn = useMemoizedFn(() => {
+      if (!allowAddColumn) return;
       setEditingColumnId(null);
       setColumnEditOpen(true);
     });
@@ -115,6 +135,7 @@ const TableView: React.FC<TableViewProps> = memo(
       if (editingColumnId) {
         editColumn(editingColumnId, columnData);
       } else {
+        if (!allowAddColumn) return;
         addColumn({
           title: columnData.title || `列 ${storeColumns.length + 1}`,
           type: columnData.type || "text",
@@ -137,6 +158,7 @@ const TableView: React.FC<TableViewProps> = memo(
     );
 
     const handleDeleteColumn = useMemoizedFn(async (columnId: string) => {
+      if (!allowDeleteColumn) return;
       await deleteColumnWithCleanup(columnId, pluginManager);
     });
 
@@ -148,8 +170,12 @@ const TableView: React.FC<TableViewProps> = memo(
     );
 
     const handleOpenRowDetail = useMemoizedFn((row: RowData) => {
-      setEditingRow(row);
-      setRowDetailOpen(true);
+      if (onRowDetailOpen) {
+        onRowDetailOpen(row);
+      } else {
+        setEditingRow(row);
+        setRowDetailOpen(true);
+      }
     });
 
     const handleCloseRowDetail = useMemoizedFn(() => {
@@ -280,24 +306,27 @@ const TableView: React.FC<TableViewProps> = memo(
                 pluginManager={pluginManager}
                 theme={theme}
                 readonly={readonly}
+                allowDeleteColumn={allowDeleteColumn}
               />
             );
           })}
-          <div className="w-[40px] min-w-[40px] flex items-center justify-center">
-            <button
-              className={classNames(
-                "w-6 h-6 rounded-full border-0 text-base leading-none cursor-pointer flex items-center justify-center p-0]",
-                {
-                  "hover:bg-gray-100 text-gray-600": theme === "light",
-                  "hover:bg-gray-600 text-gray-200": theme === "dark",
-                },
-              )}
-              onClick={handleAddColumn}
-              type="button"
-            >
-              +
-            </button>
-          </div>
+          {allowAddColumn && (
+            <div className="w-[40px] min-w-[40px] flex items-center justify-center">
+              <button
+                className={classNames(
+                  "w-6 h-6 rounded-full border-0 text-base leading-none cursor-pointer flex items-center justify-center p-0]",
+                  {
+                    "hover:bg-gray-100 text-gray-600": theme === "light",
+                    "hover:bg-gray-600 text-gray-200": theme === "dark",
+                  },
+                )}
+                onClick={handleAddColumn}
+                type="button"
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
       </div>
     ));

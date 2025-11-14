@@ -1,19 +1,26 @@
 import React, { memo, useState, useMemo } from "react";
-import { DndProvider } from "react-dnd";
-import { HTML5Backend } from "react-dnd-html5-backend";
 import { useMemoizedFn } from "ahooks";
 import { useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
-import { RowData, ColumnDef, CellValue, SelectOption } from "../../types";
+import {
+  RowData,
+  ColumnDef,
+  CellValue,
+  SelectOption,
+  DatabaseConfig,
+} from "../../types";
 import KanbanColumn from "./KanbanColumn";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
-
+import { v4 as uuidv4 } from "uuid";
 interface KanbanViewProps {
   pluginManager: PluginManager;
   theme: "light" | "dark";
   readonly: boolean;
+  onRowDetailOpen?: (row: RowData) => void;
+  onRowAdd?: (defaultData?: Partial<RowData>) => void;
+  config?: DatabaseConfig;
 }
 
 interface GroupedData {
@@ -23,7 +30,7 @@ interface GroupedData {
 }
 
 const KanbanView: React.FC<KanbanViewProps> = memo(
-  ({ pluginManager, theme, readonly }) => {
+  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, config }) => {
     const {
       columns,
       rows,
@@ -152,8 +159,12 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     }, [groupColumn, orderedRows, groupColumnId, kanbanConfig]);
 
     const handleOpenRowDetail = useMemoizedFn((row: RowData) => {
-      setEditingRow(row);
-      setRowDetailOpen(true);
+      if (onRowDetailOpen) {
+        onRowDetailOpen(row);
+      } else {
+        setEditingRow(row);
+        setRowDetailOpen(true);
+      }
     });
 
     const handleCloseRowDetail = useMemoizedFn(() => {
@@ -173,23 +184,33 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     const handleAddCard = useMemoizedFn((groupValue: CellValue) => {
       if (!groupColumnId) return;
 
-      const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const newRowData: Partial<RowData> = {
-        id: newId,
         [groupColumnId]: groupValue,
       };
 
-      addRow(newRowData);
+      // 如果提供了自定义回调，调用它而不是默认行为
+      if (onRowAdd) {
+        onRowAdd(newRowData);
+      } else {
+        const newId = uuidv4();
+        newRowData.id = newId;
 
-      // 构建完整的新行对象用于打开详情弹窗
-      const newRow: RowData = {
-        id: newId,
-      };
-      columns.forEach((column) => {
-        newRow[column.id] = newRowData[column.id] ?? null;
-      });
+        addRow(newRowData);
 
-      handleOpenRowDetail(newRow);
+        // 构建完整的新行对象用于打开详情弹窗
+        const newRow: RowData = {
+          id: newId,
+        };
+        columns.forEach((column) => {
+          newRow[column.id] = newRowData[column.id] ?? null;
+        });
+
+        // 只有在没有自定义 onRowDetailOpen 时才自动打开内部的详情弹窗
+        if (!onRowDetailOpen) {
+          setEditingRow(newRow);
+          setRowDetailOpen(true);
+        }
+      }
     });
 
     const handleMoveCard = useMemoizedFn(
@@ -238,7 +259,10 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       },
     );
 
+    const allowAddColumn = config?.allowAddColumn ?? true;
+
     const handleAddColumn = useMemoizedFn(() => {
+      if (!allowAddColumn) return;
       setEditingColumnId(null);
       setColumnEditOpen(true);
     });
@@ -247,6 +271,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       if (editingColumnId) {
         editColumn(editingColumnId, columnData);
       } else {
+        if (!allowAddColumn) return;
         addColumn({
           title: columnData.title || `列 ${columns.length + 1}`,
           type: columnData.type || "text",
@@ -271,76 +296,72 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     }
 
     return (
-      <DndProvider backend={HTML5Backend}>
-        <div className="w-full h-full flex flex-col">
-          {/* 看板列容器 */}
-          <div className="flex-1 overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-4 p-4 h-full">
-              {groupedData.map((group, index) => (
-                <KanbanColumn
-                  key={
-                    group.groupValue === null
-                      ? "__uncategorized__"
-                      : String(group.groupValue)
-                  }
-                  groupValue={group.groupValue}
-                  groupLabel={group.label}
-                  rows={group.rows}
-                  columns={columns}
-                  groupColumn={groupColumn}
-                  pluginManager={pluginManager}
-                  theme={theme}
-                  readonly={readonly}
-                  onCardClick={handleOpenRowDetail}
-                  onAddCard={handleAddCard}
-                  onMoveCard={handleMoveCard}
-                  onChangeCardGroup={handleChangeCardGroup}
-                  onMoveColumn={handleMoveColumn}
-                  index={index}
-                />
-              ))}
-            </div>
+      <div className="w-full h-full flex flex-col">
+        {/* 看板列容器 */}
+        <div className="flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="flex gap-4 p-4 h-full">
+            {groupedData.map((group, index) => (
+              <KanbanColumn
+                key={
+                  group.groupValue === null
+                    ? "__uncategorized__"
+                    : String(group.groupValue)
+                }
+                groupValue={group.groupValue}
+                groupLabel={group.label}
+                rows={group.rows}
+                columns={columns}
+                groupColumn={groupColumn}
+                pluginManager={pluginManager}
+                theme={theme}
+                readonly={readonly}
+                onCardClick={handleOpenRowDetail}
+                onAddCard={handleAddCard}
+                onMoveCard={handleMoveCard}
+                onChangeCardGroup={handleChangeCardGroup}
+                onMoveColumn={handleMoveColumn}
+                index={index}
+              />
+            ))}
           </div>
-
-          {/* 行详情弹窗 */}
-          {rowDetailOpen && editingRow && (
-            <RowDetailModal
-              row={editingRow}
-              columns={columns}
-              pluginManager={pluginManager}
-              theme={theme}
-              onClose={handleCloseRowDetail}
-              onSave={handleSaveRowDetail}
-              onAddColumn={handleAddColumn}
-              readonly={readonly}
-            />
-          )}
-
-          {/* 列编辑弹窗 */}
-          {columnEditOpen && (
-            <ColumnEditModal
-              open={columnEditOpen}
-              column={
-                editingColumnId
-                  ? (() => {
-                      const found = columns.find(
-                        (c) => c.id === editingColumnId,
-                      );
-                      if (!found) return null;
-                      const width =
-                        columnWidths[editingColumnId] || found.width || 200;
-                      return { ...found, width } as ColumnDef;
-                    })()
-                  : null
-              }
-              onCancel={() => setColumnEditOpen(false)}
-              onSave={handleSaveColumn}
-              theme={theme}
-              pluginManager={pluginManager}
-            />
-          )}
         </div>
-      </DndProvider>
+
+        {/* 行详情弹窗 */}
+        {rowDetailOpen && editingRow && (
+          <RowDetailModal
+            row={editingRow}
+            columns={columns}
+            pluginManager={pluginManager}
+            theme={theme}
+            onClose={handleCloseRowDetail}
+            onSave={handleSaveRowDetail}
+            onAddColumn={handleAddColumn}
+            readonly={readonly}
+          />
+        )}
+
+        {/* 列编辑弹窗 */}
+        {columnEditOpen && (
+          <ColumnEditModal
+            open={columnEditOpen}
+            column={
+              editingColumnId
+                ? (() => {
+                    const found = columns.find((c) => c.id === editingColumnId);
+                    if (!found) return null;
+                    const width =
+                      columnWidths[editingColumnId] || found.width || 200;
+                    return { ...found, width } as ColumnDef;
+                  })()
+                : null
+            }
+            onCancel={() => setColumnEditOpen(false)}
+            onSave={handleSaveColumn}
+            theme={theme}
+            pluginManager={pluginManager}
+          />
+        )}
+      </div>
     );
   },
 );

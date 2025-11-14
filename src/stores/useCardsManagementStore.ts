@@ -5,6 +5,8 @@ import { ECardCategory, ICard } from "@/types";
 export enum ViewMode {
   List = "list",
   Graph = "graph",
+  Database = "database",
+  Timeline = "timeline",
 }
 
 interface IState {

@@ -118,14 +118,19 @@ const Cell: React.FC<CellProps> = memo(
   }) => {
     const isDark = theme === "dark";
 
+    // 检查列级别和全局 readonly，主列也不可编辑
+    const isColumnReadonly = Boolean(
+      readonly || column.readonly || column.isPrimary,
+    );
+
     const handleDoubleClick = useMemoizedFn(() => {
       const editable = plugin?.editable;
-      if (readonly || !editable) return;
+      if (isColumnReadonly || !editable) return;
       onDoubleClick(rowId, columnId);
     });
 
     const handleValueChange = useMemoizedFn((value: CellValue) => {
-      if (readonly) return;
+      if (isColumnReadonly) return;
       onValueChange(rowId, columnId, value);
     });
 
@@ -138,7 +143,7 @@ const Cell: React.FC<CellProps> = memo(
 
     // 处理失焦事件（保存单元格）
     const handleFinishEdit = useMemoizedFn(() => {
-      if (readonly) return;
+      if (isColumnReadonly) return;
       if (error) {
         handleCancel();
       } else {
@@ -150,7 +155,7 @@ const Cell: React.FC<CellProps> = memo(
     // 处理单击选择或编辑
     const handleClick = useMemoizedFn(() => {
       const editable = plugin?.editable;
-      if (readonly) return;
+      if (isColumnReadonly) return;
       if (isSelected && editable) {
         // 如果已经被选中，点击则进入编辑模式
         onStartEditing(rowId, columnId);
@@ -196,7 +201,7 @@ const Cell: React.FC<CellProps> = memo(
               onFinishEdit={handleFinishEdit}
               onColumnChange={onColumnChange}
               theme={theme}
-              readonly={readonly}
+              readonly={isColumnReadonly}
             />
           ) : null}
         </div>
@@ -233,7 +238,7 @@ const Cell: React.FC<CellProps> = memo(
             value={value}
             column={column}
             theme={theme}
-            readonly={readonly}
+            readonly={isColumnReadonly}
             onCellValueChange={handleValueChange}
             row={row}
             onOpenDetail={onOpenRowDetail}
@@ -244,7 +249,7 @@ const Cell: React.FC<CellProps> = memo(
             value={value}
             column={column}
             theme={theme}
-            readonly={readonly}
+            readonly={isColumnReadonly}
             onCellValueChange={handleValueChange}
           />
         ) : null}

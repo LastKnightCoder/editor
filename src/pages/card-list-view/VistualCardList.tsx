@@ -5,6 +5,7 @@ import { useThrottleFn, useMemoizedFn } from "ahooks";
 import If from "@/components/If";
 import CardItem from "./CardItem";
 import { ICard, ECardCategory } from "@/types";
+import classNames from "classnames";
 
 export interface VirtualCardListRef {
   scrollToTop: () => void;
@@ -92,7 +93,7 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
 
     return (
       <div
-        className="border-b-[20px] border-transparent box-border flex flex-col overflow-y-auto h-[calc(100%-60px)] [&::-webkit-scrollbar]:hidden"
+        className="border-y-[20px] border-transparent box-border flex flex-col overflow-y-auto h-full [&::-webkit-scrollbar]:hidden"
         ref={listRef}
       >
         <If condition={cards.length === 0}>
@@ -115,13 +116,20 @@ const VirtualCardList = forwardRef<VirtualCardListRef, VirtualCardListProps>(
                   key={virtualItem.key}
                   data-index={virtualItem.index}
                   ref={virtualizer.measureElement}
+                  className={classNames(
+                    "px-3",
+                    virtualItem.index === 0
+                      ? "pt-0 pb-3"
+                      : virtualItem.index === cards.length - 1
+                        ? "pt-3 pb-0"
+                        : "py-3",
+                  )}
                   style={{
                     position: "absolute",
                     top: 0,
                     left: 0,
                     width: "100%",
                     transform: `translateY(${virtualItem.start}px)`,
-                    padding: "12px",
                     boxSizing: "border-box",
                   }}
                 >

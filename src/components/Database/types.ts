@@ -16,6 +16,7 @@ export interface ColumnDef<T = unknown> {
   validation?: ValidationRule;
   hidden?: boolean;
   isPrimary?: boolean;
+  readonly?: boolean; // 列是否只读（单元格值不可编辑，但列配置可修改）
 }
 
 export type CellValue =
@@ -56,12 +57,18 @@ export interface DatabaseData {
   rows: RowData[];
 }
 
+export interface DatabaseConfig {
+  allowAddColumn?: boolean; // 是否允许新增列，默认 true
+  allowDeleteColumn?: boolean; // 是否允许删除列，默认 true
+}
+
 export interface DatabaseProps {
   data: RowData[];
   columns: ColumnDef[];
   views: DataTableView[];
   activeViewId: number;
   viewConfig: TableViewConfig;
+  config?: DatabaseConfig; // 数据库配置
   plugins?: CellPlugin<unknown>[];
   onDataChange?: (data: DatabaseData) => void;
   onViewConfigChange?: (config: TableViewConfig) => void;
@@ -83,6 +90,8 @@ export interface DatabaseProps {
     },
   ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
+  onRowDetailOpen?: (row: RowData) => void; // 自定义行详情打开回调
+  onRowAdd?: (defaultData?: Partial<RowData>) => void; // 自定义新增行回调，提供则拦截默认行为
   theme?: "light" | "dark";
   readonly?: boolean;
   className?: string;
