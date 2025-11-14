@@ -33,3 +33,4 @@ export * from "./webview.ts";
 export * from "./emoji.ts";
 export * from "./annotation.ts";
 export * from "./database.ts";
+export * from "./chat-reference.ts";

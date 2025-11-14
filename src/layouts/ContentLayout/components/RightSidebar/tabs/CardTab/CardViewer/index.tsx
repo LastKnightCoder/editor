@@ -7,11 +7,7 @@ import styles from "./index.module.less";
 import { formatDate, getEditorText } from "@/utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 import { LoadingOutlined } from "@ant-design/icons";
 import { defaultCardEventBus } from "@/utils";
@@ -20,12 +16,6 @@ import useEditContent from "@/hooks/useEditContent";
 import useUploadResource from "@/hooks/useUploadResource";
 import AddTag from "@/components/AddTag";
 import { produce } from "immer";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 interface CardViewerProps {
   cardId: string;
@@ -40,7 +30,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
   const { message } = App.useApp();
   const prevCard = useRef<ICard | null>(null);
   const uploadResource = useUploadResource();
-
+  const extensions = useDynamicExtensions();
   const cardEventBus = useCreation(
     () => defaultCardEventBus.createEditor(),
     [],
@@ -180,7 +170,7 @@ const CardViewer = memo(({ cardId, onTitleChange }: CardViewerProps) => {
           ref={editorRef}
           className={styles.content}
           initValue={card.content}
-          extensions={customExtensions}
+          extensions={extensions}
           onChange={onContentChange}
           readonly={false}
           uploadResource={uploadResource}

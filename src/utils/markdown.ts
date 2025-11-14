@@ -252,6 +252,14 @@ const markdownToDescendant = (
         open: node.attributes.open === "true" || node.attributes.open === true,
         children: [],
       };
+    } else if (node.name === "underline") {
+      return {
+        type: "underline",
+        color: node.attributes.color || "default",
+        lineType: node.attributes.lineType || "solid",
+        colorSelectOpen: false,
+        children: [],
+      };
     } else if (node.name === "video") {
       const element: VideoElement = {
         type: "video",
@@ -341,12 +349,32 @@ const markdownToDescendant = (
       type: "formatted",
       text: node.value,
     };
+  } else if (node.type === "leafDirective") {
+    const attributes = node.attributes || {};
+    if (node.name === "chat-reference") {
+      return {
+        type: "chat-reference",
+        chatId: parseInt(attributes.chatId) || 0,
+        title: attributes.title || "未命名对话",
+        height: attributes.height ? parseInt(attributes.height) : 400,
+        children: [
+          {
+            type: "formatted",
+            text: "",
+          },
+        ],
+      };
+    }
+    return {
+      type: "formatted",
+      text: `::${node.name}`,
+    };
   } else if (node.type === "textDirective") {
     const attributes = node.attributes || {};
     const color = attributes.color || "";
     const darkColor = attributes.darkColor || "";
     if (node.name === "color") {
-      const attributes = { color, darkColor };
+      const colorAttributes = { color, darkColor };
       return node.children
         .map(markdownToDescendant)
         .filter(Boolean)
@@ -355,14 +383,45 @@ const markdownToDescendant = (
             return item
               .map((i) => {
                 if (i.type !== "formatted") return undefined;
-                return { ...i, ...attributes };
+                return { ...i, ...colorAttributes };
               })
               .filter(Boolean) as Descendant[];
           }
-          return { ...item, ...attributes };
+          if (item.type !== "formatted") return item;
+          return { ...item, ...colorAttributes };
         })
         .filter(Boolean)
         .flat() as Descendant[];
+    } else if (node.name === "highlight") {
+      const highlightColor = attributes.color || "yellow";
+      return node.children
+        .map(markdownToDescendant)
+        .filter(Boolean)
+        .map((item: Descendant | Descendant[]) => {
+          if (Array.isArray(item)) {
+            return item
+              .map((i) => {
+                if (i.type !== "formatted") return undefined;
+                return { ...i, highlight: highlightColor };
+              })
+              .filter(Boolean) as Descendant[];
+          }
+          if (item.type !== "formatted") return item;
+          return { ...item, highlight: highlightColor };
+        })
+        .filter(Boolean)
+        .flat() as Descendant[];
+    } else if (node.name === "underline") {
+      return {
+        type: "underline",
+        color: attributes.color || "default",
+        lineType: attributes.lineType || "solid",
+        colorSelectOpen: false,
+        children: node.children
+          .map(markdownToDescendant)
+          .filter(Boolean)
+          .flat() as any[],
+      };
     }
     return {
       type: "formatted",

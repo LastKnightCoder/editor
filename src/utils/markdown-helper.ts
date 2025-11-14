@@ -47,14 +47,14 @@ export const leafToMarkdown = (leaf: FormattedText): string => {
   if (strikethrough) {
     str = `~~${str}~~`;
   }
-  if (highlight) {
-    str = `==${str}==`;
-  }
   if (bold) {
     str = `\u200B**${str}**`;
   }
   if (color && darkColor) {
     str = `:color[${str}]{color=${color} darkColor=${darkColor}}`;
+  }
+  if (highlight && typeof highlight === "string") {
+    str = `:highlight[${str}]{color=${highlight}}`;
   }
 
   return str;

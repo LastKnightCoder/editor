@@ -10,21 +10,11 @@ import { ECardCategory, SearchResult } from "@/types";
 import { BaseViewerProps } from "../../../types";
 import CardViewer from "../CardViewer";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import TabsIndicator from "@/components/TabsIndicator";
 
 import styles from "./index.module.less";
 import If from "@/components/If";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 const CardsViewer: React.FC<BaseViewerProps> = ({
   addTab,
@@ -35,7 +25,7 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
   tabs,
 }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
-
+  const extensions = useDynamicExtensions();
   const tabItems = useMemo(() => {
     return tabs.map((tab) => ({
       key: String(tab.id),
@@ -154,7 +144,7 @@ const CardsViewer: React.FC<BaseViewerProps> = ({
         onCancel={() => setSelectorOpen(false)}
         onSelect={onSelectCard}
         contentType="card"
-        extensions={customExtensions}
+        extensions={extensions}
         emptyDescription="暂无卡片"
         showTitle={false}
         multiple={true}

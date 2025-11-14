@@ -8,22 +8,12 @@ import AddTag from "@/components/AddTag";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import { createCard, closeWindow } from "@/commands";
 import { ECardCategory } from "@/types";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 import styles from "./index.module.less";
 import { getContentLength } from "@/utils";
 import useInitDatabase from "@/hooks/useInitDatabase";
 import { LoadingOutlined } from "@ant-design/icons";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 const initValue: Descendant[] = [
   {
@@ -40,7 +30,7 @@ const QuickCard = () => {
   const uploadResource = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
   const { message } = App.useApp();
-
+  const extensions = useDynamicExtensions();
   const [content, setContent] = useState(initValue);
   const [tags, setTags] = useState<string[]>([]);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -97,7 +87,7 @@ const QuickCard = () => {
             ref={editorRef}
             initValue={initValue}
             onChange={setContent}
-            extensions={customExtensions}
+            extensions={extensions}
             readonly={false}
             uploadResource={uploadResource}
           />

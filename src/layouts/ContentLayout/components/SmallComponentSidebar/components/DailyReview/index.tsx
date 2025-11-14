@@ -9,16 +9,7 @@ import CardPreview from "@/pages/card-list-view/CardPreview";
 import Editor from "@/components/Editor";
 import { getEditorText } from "@/utils";
 
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 import styles from "./index.module.less";
 
@@ -34,6 +25,7 @@ const DailyReview: React.FC = () => {
     undefined,
   );
   const [previewVisible, setPreviewVisible] = useState(false);
+  const extensions = useDynamicExtensions();
   const [seed, setSeed] = useState(() => {
     let seedInfo = {
       seed: generateSeed(),
@@ -138,7 +130,7 @@ const DailyReview: React.FC = () => {
                     <Editor
                       initValue={card.content}
                       readonly
-                      extensions={customExtensions}
+                      extensions={extensions}
                       className={styles.editor}
                     />
                   }

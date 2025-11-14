@@ -5,11 +5,7 @@ import { useMemoizedFn } from "ahooks";
 import { BaseViewerProps } from "../../../types";
 import ArticleViewer from "../ArticleViewer";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import {
-  fileAttachmentExtension,
-  contentLinkExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { createArticle } from "@/commands";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 
@@ -20,12 +16,6 @@ import TabsIndicator from "@/components/TabsIndicator";
 import styles from "./index.module.less";
 import { defaultArticleEventBus } from "@/utils";
 
-const customExtensions = [
-  fileAttachmentExtension,
-  contentLinkExtension,
-  questionCardExtension,
-];
-
 const ArticlesViewer: React.FC<BaseViewerProps> = ({
   addTab,
   removeTab,
@@ -35,7 +25,7 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
   tabs,
 }) => {
   const [selectorOpen, setSelectorOpen] = useState(false);
-
+  const extensions = useDynamicExtensions();
   const tabItems = useMemo(() => {
     return tabs.map((tab) => ({
       key: String(tab.id),
@@ -160,7 +150,7 @@ const ArticlesViewer: React.FC<BaseViewerProps> = ({
         onCancel={() => setSelectorOpen(false)}
         onSelect={onSelectArticle}
         contentType="article"
-        extensions={customExtensions}
+        extensions={extensions}
         emptyDescription="暂无文章"
         showTitle={true}
         multiple={true}

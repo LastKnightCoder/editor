@@ -402,6 +402,29 @@ export class MarkdownSerializerRegistry {
           return `[^${footnoteId}]`;
         },
       },
+      {
+        type: "underline",
+        toMarkdown: (element, childrenStr) => {
+          const attributes = [];
+          if (element.color) attributes.push(`color=${element.color}`);
+          if (element.lineType) attributes.push(`lineType=${element.lineType}`);
+          const attributeStr =
+            attributes.length > 0 ? `{${attributes.join(" ")}}` : "";
+          return `:underline[${childrenStr}]${attributeStr}`;
+        },
+      },
+      {
+        type: "chat-reference",
+        isBlock: true,
+        toMarkdown: (element) => {
+          const attributes = [];
+          attributes.push(`chatId=${element.chatId}`);
+          if (element.title) attributes.push(`title="${element.title}"`);
+          if (element.height) attributes.push(`height=${element.height}`);
+          const attributeStr = attributes.join(" ");
+          return `::chat-reference{${attributeStr}}`;
+        },
+      },
     ]);
   }
 }

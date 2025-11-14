@@ -1,10 +1,5 @@
 import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
-import Editor, { EditorRef } from "@editor/index.tsx";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import Editor, { EditorRef } from "@/components/Editor";
 import If from "@/components/If";
 
 import { useMemoizedFn } from "ahooks";
@@ -22,21 +17,20 @@ import {
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
 import { BoardElement, EMarkerType, MindNodeElement } from "../../types";
+import useUploadResource from "@/hooks/useUploadResource";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 interface MindNodeProps {
   element: MindNodeElement;
 }
 
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 const MIND_NODE_MAX_WIDTH = 300;
 
 const MindNode = (props: MindNodeProps) => {
   const { element } = props;
 
+  const uploadResource = useUploadResource();
+  const extensions = useDynamicExtensions();
   const {
     id,
     x,
@@ -397,7 +391,8 @@ const MindNode = (props: MindNodeProps) => {
             style={editorStyle}
             onChange={onContentChange}
             onBlur={handleBlur}
-            extensions={customExtensions}
+            extensions={extensions}
+            uploadResource={uploadResource}
             theme={
               theme ??
               (textColor === "#000"

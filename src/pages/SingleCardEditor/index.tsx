@@ -7,11 +7,7 @@ import AddTag from "@/components/AddTag";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import {
   getCardById,
   updateCard,
@@ -24,12 +20,6 @@ import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
 
 import styles from "./index.module.less";
 import useEditContent from "@/hooks/useEditContent";
-
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 const SingleCardEditor = () => {
   const cardEventBus = useCreation(
@@ -45,7 +35,7 @@ const SingleCardEditor = () => {
   const editorRef = useRef<EditorRef>(null);
   const uploadResource = useUploadResource();
   const prevCardRef = useRef<ICard | null>(null);
-
+  const extensions = useDynamicExtensions();
   const { throttleHandleEditorContentChange } = useEditContent(
     editingCard?.contentId,
     (data) => {
@@ -181,7 +171,7 @@ const SingleCardEditor = () => {
             className={styles.editor}
             initValue={editingCard.content}
             onChange={onContentChange}
-            extensions={customExtensions}
+            extensions={extensions}
             readonly={false}
             uploadResource={uploadResource}
           />

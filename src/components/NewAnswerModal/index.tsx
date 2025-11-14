@@ -4,6 +4,7 @@ import { Descendant } from "slate";
 import classnames from "classnames";
 import Editor, { IExtension } from "@/components/Editor";
 import styles from "./index.module.less";
+import useUploadResource from "@/hooks/useUploadResource";
 
 interface NewAnswerModalProps {
   visible: boolean;
@@ -24,6 +25,8 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
   onChange,
   customTitle = "新建答案",
 }) => {
+  const uploadResource = useUploadResource();
+
   return (
     <Modal
       title={customTitle}
@@ -40,6 +43,7 @@ const NewAnswerModal: React.FC<NewAnswerModalProps> = ({
           onChange={onChange}
           readonly={false}
           extensions={extensions}
+          uploadResource={uploadResource}
           style={{ maxHeight: 600, overflow: "auto", padding: 20 }}
         />
       </div>

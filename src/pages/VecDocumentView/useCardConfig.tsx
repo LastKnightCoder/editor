@@ -19,18 +19,9 @@ import useBatchOperation from "./useBatchOperation";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 import { getAllCards } from "@/commands";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
-import {
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 const PAGE_SIZE = 20;
-const customExtensions = [
-  contentLinkExtension,
-  fileAttachmentExtension,
-  questionCardExtension,
-];
 
 type OnChange = NonNullable<TableProps<ICard>["onChange"]>;
 type Filters = Parameters<OnChange>[1];
@@ -45,7 +36,7 @@ const useCardConfig = () => {
   }, []);
 
   const modelInfo = useEmbeddingConfig();
-
+  const extensions = useDynamicExtensions();
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ICard[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
@@ -347,7 +338,7 @@ const useCardConfig = () => {
                     maxHeight: 180,
                     overflow: "hidden",
                   }}
-                  extensions={customExtensions}
+                  extensions={extensions}
                   readonly
                   initValue={content.slice(0, 3)}
                 />

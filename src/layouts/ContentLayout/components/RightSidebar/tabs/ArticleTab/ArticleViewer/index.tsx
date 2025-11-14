@@ -6,12 +6,6 @@ import { LoadingOutlined } from "@ant-design/icons";
 import Editor, { EditorRef } from "@editor/index.tsx";
 import EditText, { EditTextHandle } from "@/components/EditText";
 
-import {
-  fileAttachmentExtension,
-  contentLinkExtension,
-  questionCardExtension,
-} from "@/editor-extensions";
-
 import { IArticle } from "@/types";
 import { findOneArticle, updateArticle } from "@/commands";
 import { Descendant } from "slate";
@@ -21,17 +15,12 @@ import { useRightSidebarContext } from "../../../RightSidebarContext";
 import styles from "./index.module.less";
 import useEditContent from "@/hooks/useEditContent";
 import useUploadResource from "@/hooks/useUploadResource";
+import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 
 interface ArticleViewerProps {
   articleId: string;
   onTitleChange?: (title: string) => void;
 }
-
-const customExtensions = [
-  fileAttachmentExtension,
-  contentLinkExtension,
-  questionCardExtension,
-];
 
 const ArticleViewer: React.FC<ArticleViewerProps> = ({
   articleId,
@@ -44,6 +33,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
   const prevArticle = useRef<IArticle | null>(null);
   const { visible, isConnected } = useRightSidebarContext();
   const uploadResource = useUploadResource();
+  const extensions = useDynamicExtensions();
   const { throttleHandleEditorContentChange } = useEditContent(
     article?.contentId,
     (content) => {
@@ -182,7 +172,7 @@ const ArticleViewer: React.FC<ArticleViewerProps> = ({
           onChange={handleContentChange}
           readonly={false}
           uploadResource={uploadResource}
-          extensions={customExtensions}
+          extensions={extensions}
         />
       </div>
     </div>

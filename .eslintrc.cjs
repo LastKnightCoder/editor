@@ -17,5 +17,6 @@ module.exports = {
     "prettier/prettier": "warn",
     "no-useless-escape": "off",
     "no-constant-condition": "off",
+    "@typescript-eslint/no-empty-function": "warn"
   },
 }
