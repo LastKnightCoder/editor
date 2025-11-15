@@ -10,6 +10,7 @@ import ColumnEditModal from "./components/ColumnEditModal";
 import RowDetailModal from "../../components/RowDetailModal";
 import classNames from "classnames";
 import Row from "./components/Row";
+import { App } from "antd";
 
 interface TableViewProps {
   pluginManager: PluginManager;
@@ -18,6 +19,7 @@ interface TableViewProps {
   readonly: boolean;
   onRowDetailOpen?: (row: RowData) => void;
   onRowAdd?: (defaultData?: Partial<RowData>) => void;
+  onRowDelete?: (rowId: string) => Promise<void>;
   config?: DatabaseConfig;
 }
 
@@ -33,6 +35,7 @@ const TableView: React.FC<TableViewProps> = memo(
     readonly,
     onRowDetailOpen,
     onRowAdd,
+    onRowDelete,
     config,
   }) => {
     const {
@@ -75,6 +78,8 @@ const TableView: React.FC<TableViewProps> = memo(
       clearCellSelection: state.clearCellSelection,
     }));
 
+    const { modal } = App.useApp();
+
     const scrollParentRef = useRef<HTMLDivElement>(null);
     const tableBodyRef = useRef<HTMLDivElement>(null);
 
@@ -114,6 +119,21 @@ const TableView: React.FC<TableViewProps> = memo(
         onRowAdd();
       } else {
         addRow();
+      }
+    });
+
+    const handleDeleteRow = useMemoizedFn((rowId: string) => {
+      if (onRowDelete) {
+        onRowDelete(rowId);
+      } else {
+        modal.confirm({
+          title: "删除行",
+          content: "确定要删除该行吗？",
+          okButtonProps: {
+            danger: true,
+          },
+          onOk: () => deleteRow(rowId),
+        });
       }
     });
 
@@ -425,7 +445,7 @@ const TableView: React.FC<TableViewProps> = memo(
                       onStopEditing={stopEditing}
                       onCellChange={handleCellChange}
                       onColumnChange={onColumnChange}
-                      deleteRow={deleteRow}
+                      deleteRow={handleDeleteRow}
                       moveRow={handleMoveRow}
                       theme={theme}
                       readonly={readonly}

@@ -92,6 +92,7 @@ export interface DatabaseProps {
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
   onRowDetailOpen?: (row: RowData) => void; // 自定义行详情打开回调
   onRowAdd?: (defaultData?: Partial<RowData>) => void; // 自定义新增行回调，提供则拦截默认行为
+  onRowDelete?: (rowId: string) => Promise<void>; // 自定义删除行回调，提供则拦截默认行为
   theme?: "light" | "dark";
   readonly?: boolean;
   className?: string;

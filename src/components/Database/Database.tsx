@@ -51,6 +51,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       onDataChange,
       onRowDetailOpen,
       onRowAdd,
+      onRowDelete,
       theme,
       readonly,
       className,
@@ -333,6 +334,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         readonly: !!readonly,
         onRowDetailOpen,
         onRowAdd,
+        onRowDelete,
         config,
       };
 

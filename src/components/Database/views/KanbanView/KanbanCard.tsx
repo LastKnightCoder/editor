@@ -1,6 +1,7 @@
-import React, { memo, useRef } from "react";
+import React, { memo, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import classnames from "classnames";
+import { MdDelete } from "react-icons/md";
 import { RowData, ColumnDef, CellValue } from "../../types";
 import PluginManager from "../../PluginManager";
 
@@ -10,9 +11,11 @@ interface KanbanCardProps {
   groupColumnId: string;
   pluginManager: PluginManager;
   theme: "light" | "dark";
+  readonly?: boolean;
   onClick: () => void;
   onMove: (dragRowId: string, hoverRowId: string) => void;
   onChangeGroup: (rowId: string, newGroupValue: CellValue) => void;
+  onDelete?: () => void;
   index: number;
   groupValue: CellValue;
 }
@@ -34,13 +37,16 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
     columns,
     pluginManager,
     theme,
+    readonly,
     onClick,
     onMove,
     onChangeGroup,
+    onDelete,
     index,
     groupValue,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
+    const [isHovered, setIsHovered] = useState(false);
 
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-card",
@@ -83,9 +89,11 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
       <div
         ref={ref}
         onClick={onClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         style={{ opacity: isDragging ? 0.5 : 1 }}
         className={classnames(
-          "p-3 rounded-lg cursor-pointer transition-colors border",
+          "p-3 rounded-lg cursor-pointer transition-colors border relative",
           {
             "bg-white hover:bg-gray-50 border-gray-200": theme === "light",
             "bg-[#1f1f1f] hover:bg-[#2a2a2a] border-[#434343]":
@@ -93,7 +101,23 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
           },
         )}
       >
-        {/* 主列内容 */}
+        {!readonly && onDelete && isHovered && (
+          <div
+            className={classnames(
+              "absolute top-2 right-2 z-10 w-6 h-6 rounded-full flex items-center justify-center cursor-pointer transition-colors",
+              {
+                "bg-red-500 hover:bg-red-600 text-white": theme === "light",
+                "bg-red-600 hover:bg-red-700 text-white": theme === "dark",
+              },
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            <MdDelete className="w-4 h-4" />
+          </div>
+        )}
         {primaryColumn && (
           <div>
             {(() => {

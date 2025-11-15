@@ -1,5 +1,6 @@
 import React, { memo, useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
+import { App } from "antd";
 import { useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
@@ -20,6 +21,7 @@ interface KanbanViewProps {
   readonly: boolean;
   onRowDetailOpen?: (row: RowData) => void;
   onRowAdd?: (defaultData?: Partial<RowData>) => void;
+  onRowDelete?: (rowId: string) => void | Promise<void>;
   config?: DatabaseConfig;
 }
 
@@ -30,7 +32,17 @@ interface GroupedData {
 }
 
 const KanbanView: React.FC<KanbanViewProps> = memo(
-  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, config }) => {
+  ({
+    pluginManager,
+    theme,
+    readonly,
+    onRowDetailOpen,
+    onRowAdd,
+    onRowDelete,
+    config,
+  }) => {
+    const { modal } = App.useApp();
+
     const {
       columns,
       rows,
@@ -41,6 +53,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       editColumn,
       columnWidths,
       moveRow,
+      deleteRow,
     } = useDatabaseStore((state) => ({
       columns: state.columns,
       rows: state.rows,
@@ -51,6 +64,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       editColumn: state.editColumn,
       columnWidths: state.columnWidths,
       moveRow: state.moveRow,
+      deleteRow: state.deleteRow,
     }));
 
     const [rowDetailOpen, setRowDetailOpen] = useState(false);
@@ -259,6 +273,25 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
       },
     );
 
+    const handleDeleteCard = useMemoizedFn((rowId: string) => {
+      if (onRowDelete) {
+        // 如果提供了自定义删除回调，直接调用它（外部会处理确认）
+        onRowDelete(rowId);
+      } else {
+        // 否则显示确认对话框后使用内部的 deleteRow
+        modal.confirm({
+          title: "删除卡片",
+          content: "确定要删除该卡片吗？",
+          okButtonProps: {
+            danger: true,
+          },
+          onOk: () => {
+            deleteRow(rowId);
+          },
+        });
+      }
+    });
+
     const allowAddColumn = config?.allowAddColumn ?? true;
 
     const handleAddColumn = useMemoizedFn(() => {
@@ -320,6 +353,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
                 onMoveCard={handleMoveCard}
                 onChangeCardGroup={handleChangeCardGroup}
                 onMoveColumn={handleMoveColumn}
+                onDeleteCard={handleDeleteCard}
                 index={index}
               />
             ))}
