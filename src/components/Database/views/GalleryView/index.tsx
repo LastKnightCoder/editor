@@ -1,6 +1,7 @@
-import React, { memo, useState } from "react";
+import React, { memo, useState, useRef, useEffect, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { App } from "antd";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
@@ -62,6 +63,8 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     const [editingRow, setEditingRow] = useState<RowData | null>(null);
     const [columnEditOpen, setColumnEditOpen] = useState(false);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const [columnsPerRow, setColumnsPerRow] = useState(4);
 
     const { groupedRows, isGrouped } = useFilteredAndSortedRows(
       rows,
@@ -209,45 +212,183 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       },
     );
 
+    // 响应式计算列数
+    useEffect(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const updateColumns = () => {
+        const width = container.clientWidth - 48; // 减去 padding (px-6 = 24px * 2)
+        // 每列最小 320px (对应 minmax(320px,1fr))，间隙 16px
+        const cols = Math.floor((width + 16) / (320 + 16));
+        setColumnsPerRow(Math.max(1, Math.min(cols, 6)));
+      };
+
+      updateColumns();
+
+      const resizeObserver = new ResizeObserver(() => {
+        updateColumns();
+      });
+
+      resizeObserver.observe(container);
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }, []);
+
+    // 准备虚拟滚动所需的数据结构
+    // 每一行卡片作为一个独立的虚拟项
+    type VirtualRow =
+      | { type: "header"; group: (typeof groupedRows)[0] }
+      | {
+          type: "cardRow";
+          cards: RowData[];
+          group: (typeof groupedRows)[0];
+          isLastRow: boolean;
+        };
+
+    const virtualRows: VirtualRow[] = useMemo(() => {
+      const rows: VirtualRow[] = [];
+      groupedRows.forEach((group) => {
+        // 添加分组标题行
+        if (isGrouped && group.key !== "__all__") {
+          rows.push({ type: "header", group });
+        }
+
+        // 将卡片按列数分组为行，每一行作为独立的虚拟项
+        const groupRowsData = group.rows;
+
+        if (groupRowsData.length === 0 && !readonly) {
+          // 空分组，只显示 AddCard
+          rows.push({
+            type: "cardRow",
+            cards: [],
+            group,
+            isLastRow: true,
+          });
+        } else {
+          for (let i = 0; i < groupRowsData.length; i += columnsPerRow) {
+            const cardRow = groupRowsData.slice(i, i + columnsPerRow);
+            const isLastRow = i + columnsPerRow >= groupRowsData.length;
+            rows.push({
+              type: "cardRow",
+              cards: cardRow,
+              group,
+              isLastRow,
+            });
+          }
+        }
+      });
+      return rows;
+    }, [groupedRows, isGrouped, columnsPerRow, readonly]);
+
+    // 虚拟滚动
+    const virtualizer = useVirtualizer({
+      count: virtualRows.length,
+      getScrollElement: () => scrollContainerRef.current,
+      estimateSize: (index) => {
+        const row = virtualRows[index];
+        if (row.type === "header") {
+          return 48; // 分组标题高度
+        } else {
+          // 卡片行高度：卡片高度约 280px + 间隙 16px
+          return 296;
+        }
+      },
+      overscan: 5,
+    });
+
     return (
       <div className="w-full h-full flex flex-col">
-        <div className="flex-1 overflow-y-auto p-6">
-          {groupedRows.map((group) => (
-            <div key={group.key} className="mb-8 last:mb-0">
-              {isGrouped && group.key !== "__all__" && renderGroupHeader(group)}
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
-                {group.rows.map((row) => (
-                  <GalleryCard
-                    key={row.id}
-                    row={row}
-                    columns={columns}
-                    coverType={galleryConfig.coverType}
-                    coverImageColumnId={galleryConfig.coverImageColumnId}
-                    onClick={() => handleOpenRowDetail(row)}
-                    onDelete={
-                      readonly ? undefined : () => handleDeleteRow(row.id)
-                    }
-                    readonly={readonly}
-                    theme={theme}
-                  />
-                ))}
-                {!readonly && (
-                  <AddCard
-                    onClick={() => {
-                      // 如果有分组，传递分组信息
-                      if (isGrouped && group.column && group.rows.length > 0) {
-                        const groupValue = group.rows[0][group.column.id];
-                        handleAddRow(group.column, groupValue);
-                      } else {
-                        handleAddRow();
-                      }
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6">
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: "100%",
+              position: "relative",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const virtualRow = virtualRows[virtualItem.index];
+
+              if (virtualRow.type === "header") {
+                return (
+                  <div
+                    key={virtualItem.key}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualItem.start}px)`,
                     }}
-                    theme={theme}
-                  />
-                )}
-              </div>
-            </div>
-          ))}
+                  >
+                    {renderGroupHeader(virtualRow.group)}
+                  </div>
+                );
+              }
+
+              // 渲染单行卡片
+              return (
+                <div
+                  key={virtualItem.key}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <div
+                    className="grid gap-4 mb-4"
+                    style={{
+                      gridTemplateColumns: `repeat(${columnsPerRow}, 1fr)`,
+                    }}
+                  >
+                    {virtualRow.cards.map((row) => (
+                      <GalleryCard
+                        key={row.id}
+                        row={row}
+                        columns={columns}
+                        coverType={galleryConfig.coverType}
+                        coverImageColumnId={galleryConfig.coverImageColumnId}
+                        onClick={() => handleOpenRowDetail(row)}
+                        onDelete={
+                          readonly ? undefined : () => handleDeleteRow(row.id)
+                        }
+                        readonly={readonly}
+                        theme={theme}
+                      />
+                    ))}
+                    {/* 在最后一行添加 AddCard */}
+                    {!readonly && virtualRow.isLastRow && (
+                      <AddCard
+                        onClick={() => {
+                          // 如果有分组，传递分组信息
+                          if (
+                            isGrouped &&
+                            virtualRow.group.column &&
+                            virtualRow.group.rows.length > 0
+                          ) {
+                            const groupValue =
+                              virtualRow.group.rows[0][
+                                virtualRow.group.column.id
+                              ];
+                            handleAddRow(virtualRow.group.column, groupValue);
+                          } else {
+                            handleAddRow();
+                          }
+                        }}
+                        theme={theme}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
         {rowDetailOpen && editingRow && (
           <RowDetailModal

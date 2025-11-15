@@ -1,4 +1,4 @@
-import React, { memo, useState, useMemo } from "react";
+import React, { memo, useState, useMemo, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { App } from "antd";
 import { useDatabaseStore } from "../../hooks";
@@ -71,6 +71,23 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     const [editingRow, setEditingRow] = useState<RowData | null>(null);
     const [columnEditOpen, setColumnEditOpen] = useState(false);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+    const scrollParentRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const scrollElement = scrollParentRef.current;
+      if (!scrollElement) return;
+
+      const handleWheel = (event: WheelEvent) => {
+        if (!event.ctrlKey) return;
+        event.preventDefault();
+        scrollElement.scrollLeft += event.deltaY;
+      };
+
+      scrollElement.addEventListener("wheel", handleWheel, { passive: false });
+      return () => {
+        scrollElement.removeEventListener("wheel", handleWheel);
+      };
+    }, []);
 
     // 获取看板配置
     const kanbanConfig = viewConfig.kanbanConfig;
@@ -331,7 +348,10 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     return (
       <div className="w-full h-full flex flex-col">
         {/* 看板列容器 */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <div
+          className="flex-1 overflow-x-auto overflow-y-hidden"
+          ref={scrollParentRef}
+        >
           <div className="flex gap-4 p-4 h-full">
             {groupedData.map((group, index) => (
               <KanbanColumn
