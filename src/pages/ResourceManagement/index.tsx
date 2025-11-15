@@ -1,82 +1,139 @@
 import { memo, useState, useEffect, useRef } from "react";
-import { Input, Empty, Tag, Button, message } from "antd";
+import { Empty, Tag, Button, message, Dropdown, Modal, Input } from "antd";
+import type { MenuProps } from "antd";
 import {
-  SearchOutlined,
   FileImageOutlined,
   VideoCameraOutlined,
   AudioOutlined,
   FileOutlined,
-  ReloadOutlined,
-  FileTextOutlined,
-  AppstoreOutlined,
-  CustomerServiceOutlined,
-  LoadingOutlined,
+  MoreOutlined,
 } from "@ant-design/icons";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-  getAllResources,
-  searchResources,
-  getResourcesByType,
-  scanAndUpdateResources,
-} from "@/commands";
-import { IResource, ResourceType } from "@/types";
+import { useShallow } from "zustand/react/shallow";
+import { useMemoizedFn, useLocalStorageState } from "ahooks";
+import { AnimatePresence, motion } from "framer-motion";
+import SVG from "react-inlinesvg";
+import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
+import useResourceStore from "@/stores/useResourceStore";
+import useDatabaseConnected from "@/hooks/useDatabaseConnected";
+import useSettingStore from "@/stores/useSettingStore";
+import { updateResourceName } from "@/commands";
+import { IResource } from "@/types";
 import LocalImage from "@/components/LocalImage";
 import LocalVideo from "@/components/LocalVideo";
 import ResourceDetailSidebar from "./components/ResourceDetailSidebar";
-
-type SourceType = "content" | "whiteboard" | "podcast" | "all";
+import ResourceManagementSidebar from "./components/ResourceManagementSidebar";
+import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 const ResourceManagement = memo(() => {
-  const [resources, setResources] = useState<IResource[]>([]);
-  const [allResources, setAllResources] = useState<IResource[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [activeType, setActiveType] = useState<ResourceType | "all">("all");
-  const [activeSource, setActiveSource] = useState<SourceType>("all");
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const database = useSettingStore((state) => state.setting.database.active);
+  const isConnected = useDatabaseConnected();
+
+  const {
+    resources,
+    groups,
+    selectedResourceId,
+    selectedGroupId,
+    selectedSystemFilter,
+    searchKeyword,
+    initResources,
+    initResourceGroups,
+    moveResourceToGroup,
+    refreshResources,
+  } = useResourceStore(
+    useShallow((state) => ({
+      resources: state.resources,
+      groups: state.groups,
+      selectedResourceId: state.selectedResourceId,
+      selectedGroupId: state.selectedGroupId,
+      selectedSystemFilter: state.selectedSystemFilter,
+      searchKeyword: state.searchKeyword,
+      initResources: state.initResources,
+      initResourceGroups: state.initResourceGroups,
+      moveResourceToGroup: state.moveResourceToGroup,
+      refreshResources: state.refreshResources,
+    })),
+  );
+
+  const [hideSidebar, setHideSidebar] = useLocalStorageState(
+    "resource-management-hide-sidebar",
+    {
+      defaultValue: false,
+    },
+  );
+
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
+    "resource-management-sidebar-width",
+    {
+      defaultValue: 300,
+    },
+  );
+
+  const [detailSidebarWidth, setDetailSidebarWidth] = useState(480);
   const [selectedResource, setSelectedResource] = useState<IResource | null>(
     null,
   );
+  const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [renamingResource, setRenamingResource] = useState<IResource | null>(
+    null,
+  );
+  const [newResourceName, setNewResourceName] = useState("");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [columnsPerRow, setColumnsPerRow] = useState(4);
-  const [sidebarWidth, setSidebarWidth] = useState(480);
 
-  // 加载资源
-  const loadResources = async () => {
-    setLoading(true);
-    try {
-      if (searchKeyword) {
-        const results = await searchResources(searchKeyword);
-        setAllResources(results);
-      } else if (activeType === "all") {
-        const results = await getAllResources();
-        setAllResources(results);
-      } else {
-        const results = await getResourcesByType(activeType);
-        setAllResources(results);
+  useEffect(() => {
+    if (isConnected) {
+      initResources();
+      initResourceGroups();
+    }
+  }, [initResources, initResourceGroups, isConnected, database]);
+
+  // 根据选择获取要显示的资源
+  const displayedResources = (() => {
+    // 首先根据搜索关键词筛选资源
+    const filteredResources = searchKeyword
+      ? resources.filter(
+          (r) =>
+            r.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+            r.path.toLowerCase().includes(searchKeyword.toLowerCase()),
+        )
+      : resources;
+
+    if (selectedGroupId !== null) {
+      // 显示选中用户分组的资源
+      return filteredResources.filter((r) => r.groupId === selectedGroupId);
+    } else if (selectedSystemFilter) {
+      // 显示系统筛选的资源
+      if (selectedSystemFilter.type === "all") {
+        return filteredResources;
+      } else if (selectedSystemFilter.type === "type") {
+        return filteredResources.filter(
+          (r) => r.type === selectedSystemFilter.resourceType,
+        );
+      } else if (selectedSystemFilter.type === "type-source") {
+        return filteredResources.filter(
+          (r) =>
+            r.type === selectedSystemFilter.resourceType &&
+            r.sources.some((s) => s.type === selectedSystemFilter.sourceType),
+        );
       }
-    } catch (error) {
-      console.error("加载资源失败:", error);
-    } finally {
-      setLoading(false);
+    } else if (selectedGroupId === null && selectedResourceId === null) {
+      // 选中了"未分组"
+      return filteredResources.filter((r) => !r.groupId);
     }
-  };
+    // 默认显示所有资源
+    return filteredResources;
+  })();
 
-  // 根据来源筛选资源
+  // 当选中的资源 ID 改变时，更新 selectedResource
   useEffect(() => {
-    if (activeSource === "all") {
-      setResources(allResources);
+    if (selectedResourceId !== null) {
+      const resource = resources.find((r) => r.id === selectedResourceId);
+      setSelectedResource(resource || null);
     } else {
-      const filtered = allResources.filter((resource) =>
-        resource.sources.some((source) => source.type === activeSource),
-      );
-      setResources(filtered);
+      setSelectedResource(null);
     }
-  }, [allResources, activeSource]);
-
-  useEffect(() => {
-    void loadResources();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeType]);
+  }, [selectedResourceId, resources]);
 
   // 响应式计算列数
   useEffect(() => {
@@ -85,7 +142,6 @@ const ResourceManagement = memo(() => {
 
     const updateColumns = () => {
       const width = container.clientWidth;
-      // 每列最小 240px (15em)
       const cols = Math.floor(width / 240);
       setColumnsPerRow(Math.max(1, Math.min(cols, 6)));
     };
@@ -105,42 +161,146 @@ const ResourceManagement = memo(() => {
 
   // 将资源分组为行
   const rows: IResource[][] = [];
-  for (let i = 0; i < resources.length; i += columnsPerRow) {
-    rows.push(resources.slice(i, i + columnsPerRow));
+  for (let i = 0; i < displayedResources.length; i += columnsPerRow) {
+    rows.push(displayedResources.slice(i, i + columnsPerRow));
   }
 
   // 虚拟滚动
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollContainerRef.current,
-    estimateSize: () => 280, // 预估行高（卡片高度 + 间距）
+    estimateSize: () => 280,
     overscan: 2,
   });
 
-  // 处理搜索
-  const handleSearch = (value: string) => {
-    setSearchKeyword(value);
-    if (value) {
-      searchResources(value).then(setResources);
-    } else {
-      loadResources();
+  const onFoldSidebar = useMemoizedFn(() => {
+    setHideSidebar(!hideSidebar);
+  });
+
+  // 打开重命名弹窗
+  const handleOpenRenameModal = (resource: IResource, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenamingResource(resource);
+    setNewResourceName(resource.name);
+    setRenameModalVisible(true);
+  };
+
+  // 确认重命名
+  const handleConfirmRename = async () => {
+    if (!renamingResource || !newResourceName.trim()) {
+      message.error("名称不能为空");
+      return;
+    }
+
+    try {
+      await updateResourceName(renamingResource.id, newResourceName.trim());
+      message.success("名称修改成功");
+      setRenameModalVisible(false);
+      setRenamingResource(null);
+      setNewResourceName("");
+      await refreshResources();
+      if (selectedResource?.id === renamingResource.id) {
+        setSelectedResource({
+          ...renamingResource,
+          name: newResourceName.trim(),
+        });
+      }
+    } catch (error) {
+      console.error("修改名称失败:", error);
+      message.error("修改名称失败");
     }
   };
 
-  // 手动扫描资源
-  const handleScanResources = async () => {
-    const hide = message.loading("正在扫描资源，请稍候...", 0);
-    try {
-      await scanAndUpdateResources();
-      message.success("资源扫描完成");
-      await loadResources();
-    } catch (error) {
-      console.error("扫描资源失败:", error);
-      message.error("扫描资源失败");
-    } finally {
-      hide();
-    }
+  // 取消重命名
+  const handleCancelRename = () => {
+    setRenameModalVisible(false);
+    setRenamingResource(null);
+    setNewResourceName("");
   };
+
+  // 递归构建分组菜单
+  const buildGroupMenu = (
+    parentId: number | null,
+    resourceId: number,
+  ): Array<{
+    key: string;
+    label: string;
+    onClick?: (e: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => void;
+    children?: Array<{
+      key: string;
+      label: string;
+      onClick?: (e: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => void;
+      children?: unknown;
+    }>;
+  }> => {
+    const childGroups = groups.filter((g) => g.parentId === parentId);
+    const menu: Array<{
+      key: string;
+      label: string;
+      onClick?: (e: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => void;
+      children?: Array<{
+        key: string;
+        label: string;
+        onClick?: (e: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => void;
+        children?: unknown;
+      }>;
+    }> = [];
+
+    childGroups.forEach((group) => {
+      const subMenu = buildGroupMenu(group.id, resourceId);
+      const item: {
+        key: string;
+        label: string;
+        onClick?: (e: Parameters<NonNullable<MenuProps["onClick"]>>[0]) => void;
+        children?: Array<{
+          key: string;
+          label: string;
+          onClick?: (
+            e: Parameters<NonNullable<MenuProps["onClick"]>>[0],
+          ) => void;
+          children?: unknown;
+        }>;
+      } = {
+        key: `group-${group.id}`,
+        label: group.name,
+        onClick: (e) => {
+          if (e.key === `group-${group.id}`) {
+            e.domEvent.stopPropagation();
+            handleMoveToGroup(resourceId, group.id);
+          }
+        },
+      };
+
+      if (subMenu.length > 0) {
+        item.children = subMenu;
+      }
+
+      menu.push(item);
+    });
+
+    return menu;
+  };
+
+  // 处理移动资源到分组
+  const handleMoveToGroup = useMemoizedFn(
+    async (resourceId: number, targetGroupId: number | null) => {
+      const resource = resources.find((r) => r.id === resourceId);
+      if (!resource) {
+        return;
+      }
+
+      if (resource.groupId === targetGroupId) {
+        return;
+      }
+
+      try {
+        await moveResourceToGroup(resourceId, targetGroupId);
+        message.success(targetGroupId ? "已移动到分组" : "已移到未分组");
+      } catch (error) {
+        message.error("移动失败");
+      }
+    },
+  );
 
   // 类型标签配置
   const typeConfigs = [
@@ -176,48 +336,86 @@ const ResourceManagement = memo(() => {
     },
   ];
 
-  // 来源标签配置
-  const sourceConfigs = [
-    {
-      type: "all",
-      label: "全部来源",
-      icon: <AppstoreOutlined />,
-      color: "default",
-    },
-    {
-      type: "content",
-      label: "文档",
-      icon: <FileTextOutlined />,
-      color: "cyan",
-    },
-    {
-      type: "whiteboard",
-      label: "白板",
-      icon: <AppstoreOutlined />,
-      color: "purple",
-    },
-    {
-      type: "podcast",
-      label: "播客",
-      icon: <CustomerServiceOutlined />,
-      color: "magenta",
-    },
-  ];
-
   // 渲染资源卡片
   const renderResourceCard = (resource: IResource) => {
     const isImage = resource.type === "image";
     const isVideo = resource.type === "video";
     const isAudio = resource.type === "audio";
 
+    // 构建移动到分组菜单
+    const groupMenuItems = buildGroupMenu(null, resource.id);
+    const moveToGroupMenu =
+      groupMenuItems.length > 0
+        ? [
+            {
+              key: "ungrouped",
+              label: "未分组",
+              onClick: (
+                e: Parameters<NonNullable<MenuProps["onClick"]>>[0],
+              ) => {
+                e.domEvent.stopPropagation();
+                handleMoveToGroup(resource.id, null);
+              },
+            },
+            ...groupMenuItems,
+          ]
+        : [];
+
+    // 更多操作菜单
+    const menuItems: MenuProps["items"] = [
+      {
+        key: "rename",
+        label: "修改名称",
+        onClick: ({ domEvent }) => {
+          handleOpenRenameModal(resource, domEvent as React.MouseEvent);
+        },
+      },
+    ];
+
+    if (moveToGroupMenu.length > 0) {
+      menuItems.push({
+        key: "move-to-group",
+        label: "移动到分组",
+        children: moveToGroupMenu,
+      });
+    } else {
+      menuItems.push({
+        key: "move-to-ungrouped",
+        label: "移到未分组",
+        onClick: ({ domEvent }) => {
+          domEvent.stopPropagation();
+          handleMoveToGroup(resource.id, null);
+        },
+      });
+    }
+
     return (
       <div
         key={resource.id}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer border border-gray-200 dark:border-gray-700"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden cursor-pointer border border-gray-200 dark:border-gray-700 relative group"
         onClick={() => {
           setSelectedResource(resource);
         }}
       >
+        {/* 右上角更多操作按钮 */}
+        <div
+          className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Dropdown
+            menu={{ items: menuItems }}
+            trigger={["click"]}
+            placement="bottomRight"
+          >
+            <Button
+              type="text"
+              icon={<MoreOutlined />}
+              className="bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 shadow-sm"
+              size="small"
+            />
+          </Dropdown>
+        </div>
+
         <div className="relative h-[160px] bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
           {isImage ? (
             <LocalImage
@@ -260,99 +458,25 @@ const ResourceManagement = memo(() => {
   };
 
   return (
-    <div className="h-full flex">
-      {/* 左侧主内容区 */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶部筛选栏 */}
-        <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              资源管理
-            </h1>
-            <Input
-              placeholder="搜索资源名称或路径..."
-              prefix={<SearchOutlined />}
-              allowClear
-              size="large"
-              onChange={(e) => handleSearch(e.target.value)}
-              className="max-w-lg"
-            />
-            <div className="flex items-center gap-4">
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={handleScanResources}
-                type="default"
-              >
-                重新扫描
-              </Button>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                共 {resources.length} 个资源
-              </div>
-            </div>
-          </div>
+    <div className="flex w-full h-full overflow-hidden">
+      {/* 左侧侧边栏 */}
+      <ResizeableAndHideableSidebar
+        width={sidebarWidth ?? 300}
+        onWidthChange={setSidebarWidth}
+        open={!hideSidebar}
+        disableResize={false}
+        className="h-full overflow-hidden"
+      >
+        <ResourceManagementSidebar onFoldSidebar={onFoldSidebar} />
+      </ResizeableAndHideableSidebar>
 
-          <div className="mb-3">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-              按类型筛选
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {typeConfigs.map((config) => (
-                <Tag.CheckableTag
-                  key={config.type}
-                  checked={activeType === config.type}
-                  onChange={() =>
-                    setActiveType(config.type as ResourceType | "all")
-                  }
-                  className="px-4 py-1 rounded-full text-sm"
-                  style={{
-                    backgroundColor:
-                      activeType === config.type ? "#1890ff" : "#f0f0f0",
-                    color: activeType === config.type ? "#fff" : "#000",
-                    border: "none",
-                  }}
-                >
-                  {config.icon}
-                  <span className="ml-1">{config.label}</span>
-                </Tag.CheckableTag>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-              按来源筛选
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {sourceConfigs.map((config) => (
-                <Tag.CheckableTag
-                  key={config.type}
-                  checked={activeSource === config.type}
-                  onChange={() => setActiveSource(config.type as SourceType)}
-                  className="px-4 py-1 rounded-full text-sm"
-                  style={{
-                    backgroundColor:
-                      activeSource === config.type ? "#52c41a" : "#f0f0f0",
-                    color: activeSource === config.type ? "#fff" : "#000",
-                    border: "none",
-                  }}
-                >
-                  {config.icon}
-                  <span className="ml-1">{config.label}</span>
-                </Tag.CheckableTag>
-              ))}
-            </div>
-          </div>
-        </div>
-
+      {/* 中间主内容区 */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto px-6 py-4"
         >
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <LoadingOutlined style={{ fontSize: "2em" }} />
-            </div>
-          ) : resources.length === 0 ? (
+          {displayedResources.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <Empty description="暂无资源" />
             </div>
@@ -392,13 +516,59 @@ const ResourceManagement = memo(() => {
           )}
         </div>
       </div>
+
+      {/* 右侧详情侧边栏 */}
       <ResourceDetailSidebar
         resource={selectedResource}
         open={!!selectedResource}
-        width={sidebarWidth}
-        onWidthChange={setSidebarWidth}
+        width={detailSidebarWidth}
+        onWidthChange={setDetailSidebarWidth}
         onClose={() => setSelectedResource(null)}
       />
+
+      {/* 侧边栏折叠按钮 */}
+      <AnimatePresence>
+        {hideSidebar && (
+          <motion.div
+            className="absolute top-5 left-5 z-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <SVG
+              className="cursor-pointer"
+              src={rightSidebarIcon}
+              onClick={onFoldSidebar}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 重命名弹窗 */}
+      <Modal
+        title="修改资源名称"
+        open={renameModalVisible}
+        onOk={handleConfirmRename}
+        onCancel={handleCancelRename}
+        okText="确定"
+        cancelText="取消"
+        width={480}
+      >
+        <div className="py-4">
+          <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+            资源名称
+          </div>
+          <Input
+            value={newResourceName}
+            onChange={(e) => setNewResourceName(e.target.value)}
+            onPressEnter={handleConfirmRename}
+            className="h-10"
+            placeholder="请输入资源名称"
+            autoFocus
+          />
+        </div>
+      </Modal>
     </div>
   );
 });

@@ -1,4 +1,11 @@
-import { IResource, ICreateResource, ResourceType } from "@/types";
+import {
+  IResource,
+  ICreateResource,
+  ResourceType,
+  ResourceGroup,
+  CreateResourceGroup,
+  UpdateResourceGroup,
+} from "@/types";
 import { invoke } from "@/electron";
 
 export const createOrUpdateResource = async (
@@ -38,4 +45,39 @@ export const getResourcesByType = async (
 
 export const scanAndUpdateResources = async (): Promise<void> => {
   return invoke("resource:scan-and-update");
+};
+
+export const updateResourceName = async (
+  id: number,
+  name: string,
+): Promise<IResource | null> => {
+  return invoke("resource:update-name", id, name);
+};
+
+export const moveResourceToGroup = async (
+  resourceId: number,
+  groupId: number | null,
+): Promise<IResource> => {
+  return invoke("resource:move-to-group", resourceId, groupId);
+};
+
+// Resource Group commands
+export const createResourceGroup = async (
+  data: CreateResourceGroup,
+): Promise<ResourceGroup> => {
+  return invoke("resource-group:create", data);
+};
+
+export const updateResourceGroup = async (
+  data: UpdateResourceGroup,
+): Promise<ResourceGroup> => {
+  return invoke("resource-group:update", data);
+};
+
+export const deleteResourceGroup = async (id: number): Promise<number> => {
+  return invoke("resource-group:delete", id);
+};
+
+export const getAllResourceGroups = async (): Promise<ResourceGroup[]> => {
+  return invoke("resource-group:get-all");
 };

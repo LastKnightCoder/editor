@@ -16,6 +16,7 @@ export interface IResource {
   type: ResourceType;
   sources: IResourceSource[];
   refCount: number;
+  groupId: number | null;
   createTime: number;
   updateTime: number;
 }
@@ -103,6 +104,8 @@ export default class ResourceTable {
       "resource:search": this.searchResources.bind(this),
       "resource:get-by-type": this.getResourcesByType.bind(this),
       "resource:scan-and-update": this.scanAndUpdateResources.bind(this),
+      "resource:update-name": this.updateResourceName.bind(this),
+      "resource:move-to-group": this.moveResourceToGroup.bind(this),
     };
   }
 
@@ -115,8 +118,10 @@ export default class ResourceTable {
         type TEXT NOT NULL,
         sources TEXT NOT NULL,
         ref_count INTEGER DEFAULT 0,
+        group_id INTEGER,
         create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
+        update_time INTEGER NOT NULL,
+        FOREIGN KEY (group_id) REFERENCES resource_group(id) ON DELETE SET NULL
       )
     `;
     db.exec(createTableSql);
@@ -129,11 +134,62 @@ export default class ResourceTable {
       CREATE UNIQUE INDEX IF NOT EXISTS idx_resources_path_unique ON resources(path);
     `;
     db.exec(createIndexSql);
+
+    // 创建版本控制表
+    const createVersionTableSql = `
+      CREATE TABLE IF NOT EXISTS resource_scan_version (
+        id INTEGER PRIMARY KEY,
+        version INTEGER NOT NULL,
+        last_scan_time INTEGER NOT NULL
+      )
+    `;
+    db.exec(createVersionTableSql);
   }
 
   static upgradeTable(db: Database.Database) {
-    // 初始化时调用一次扫描
-    this.scanAndUpdateResources(db);
+    // 添加 group_id 列（如果不存在）
+    try {
+      const tableInfo = db
+        .prepare("PRAGMA table_info(resources)")
+        .all() as Array<{ name: string }>;
+      const hasGroupId = tableInfo.some((col) => col.name === "group_id");
+
+      if (!hasGroupId) {
+        log.info("添加 group_id 列到 resources 表");
+        db.exec("ALTER TABLE resources ADD COLUMN group_id INTEGER");
+      }
+    } catch (error) {
+      log.error("添加 group_id 列失败:", error);
+    }
+
+    // 检查是否已经扫描过
+    const versionStmt = db.prepare(
+      "SELECT version FROM resource_scan_version WHERE id = 1",
+    );
+    const versionRow = versionStmt.get() as { version: number } | undefined;
+
+    // 当前版本号
+    const CURRENT_VERSION = 1;
+
+    // 如果没有扫描过或版本不匹配，则执行扫描
+    if (!versionRow || versionRow.version < CURRENT_VERSION) {
+      log.info("首次扫描或版本升级，开始扫描资源...");
+      this.scanAndUpdateResources(db);
+
+      // 更新版本号
+      const now = Date.now();
+      if (!versionRow) {
+        db.prepare(
+          "INSERT INTO resource_scan_version (id, version, last_scan_time) VALUES (1, ?, ?)",
+        ).run(CURRENT_VERSION, now);
+      } else {
+        db.prepare(
+          "UPDATE resource_scan_version SET version = ?, last_scan_time = ? WHERE id = 1",
+        ).run(CURRENT_VERSION, now);
+      }
+    } else {
+      log.info("资源表已是最新版本，跳过扫描");
+    }
   }
 
   /**
@@ -333,16 +389,8 @@ export default class ResourceTable {
       log.error("扫描 podcasts 表时出错:", e);
     }
 
-    // 4. 清空现有资源表（因为是重新扫描）
-    try {
-      db.prepare("DELETE FROM resources").run();
-      log.info("已清空现有资源表");
-    } catch (e) {
-      log.error("清空资源表失败:", e);
-    }
-
-    // 5. 将收集的资源插入数据库
-    log.info(`找到 ${resourceMap.size} 个唯一资源，开始插入...`);
+    // 4. 增量更新资源表（只增加，不删除）
+    log.info(`找到 ${resourceMap.size} 个唯一资源，开始增量更新...`);
 
     const now = Date.now();
     const insertStmt = db.prepare(`
@@ -351,25 +399,49 @@ export default class ResourceTable {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
+    const updateStmt = db.prepare(`
+      UPDATE resources 
+      SET sources = ?, ref_count = ?, update_time = ?
+      WHERE path = ?
+    `);
+
+    const checkStmt = db.prepare("SELECT id FROM resources WHERE path = ?");
+
     let insertCount = 0;
+    let updateCount = 0;
+
     for (const [path, resource] of resourceMap) {
       try {
-        insertStmt.run(
-          resource.name,
-          path,
-          resource.type,
-          JSON.stringify(resource.sources),
-          resource.refCount,
-          now,
-          now,
-        );
-        insertCount++;
+        const existing = checkStmt.get(path);
+
+        if (existing) {
+          // 资源已存在，更新
+          updateStmt.run(
+            JSON.stringify(resource.sources),
+            resource.refCount,
+            now,
+            path,
+          );
+          updateCount++;
+        } else {
+          // 资源不存在，插入
+          insertStmt.run(
+            resource.name,
+            path,
+            resource.type,
+            JSON.stringify(resource.sources),
+            resource.refCount,
+            now,
+            now,
+          );
+          insertCount++;
+        }
       } catch (e) {
-        log.error(`插入资源 ${path} 时出错:`, e);
+        log.error(`处理资源 ${path} 时出错:`, e);
       }
     }
 
-    log.info(`成功插入 ${insertCount} 个资源记录`);
+    log.info(`资源更新完成: 新增 ${insertCount} 个，更新 ${updateCount} 个`);
   }
 
   static parseResource(row: unknown): IResource {
@@ -380,6 +452,7 @@ export default class ResourceTable {
       type: string;
       sources: string;
       ref_count: number;
+      group_id: number | null;
       create_time: number;
       update_time: number;
     };
@@ -390,6 +463,7 @@ export default class ResourceTable {
       type: r.type as ResourceType,
       sources: JSON.parse(r.sources),
       refCount: r.ref_count,
+      groupId: r.group_id,
       createTime: r.create_time,
       updateTime: r.update_time,
     };
@@ -645,5 +719,49 @@ export default class ResourceTable {
         }
       }
     }
+  }
+
+  static updateResourceName(
+    db: Database.Database,
+    id: number,
+    name: string,
+  ): IResource | null {
+    const now = Date.now();
+    const stmt = db.prepare(`
+      UPDATE resources 
+      SET name = ?, update_time = ?
+      WHERE id = ?
+    `);
+
+    const result = stmt.run(name, now, id);
+
+    if (result.changes > 0) {
+      Operation.insertOperation(db, "resource", "update", id, now);
+      return this.getResourceById(db, id);
+    }
+
+    return null;
+  }
+
+  static moveResourceToGroup(
+    db: Database.Database,
+    resourceId: number,
+    groupId: number | null,
+  ): IResource {
+    const now = Date.now();
+    const stmt = db.prepare(`
+      UPDATE resources 
+      SET group_id = ?, update_time = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(groupId, now, resourceId);
+    Operation.insertOperation(db, "resource", "update", resourceId, now);
+
+    const resource = this.getResourceById(db, resourceId);
+    if (!resource) {
+      throw new Error(`Resource with id ${resourceId} not found`);
+    }
+    return resource;
   }
 }
