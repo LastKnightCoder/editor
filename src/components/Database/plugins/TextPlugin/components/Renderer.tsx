@@ -32,6 +32,7 @@ const TextRenderer: React.FC<TextRendererProps> = memo(({ value }) => {
       open={isHovering}
       content={
         <EditText
+          key={value}
           defaultValue={value}
           contentEditable={false}
           className="px-2 py-2 max-w-[200px]"
@@ -44,9 +45,10 @@ const TextRenderer: React.FC<TextRendererProps> = memo(({ value }) => {
         onMouseLeave={onMouseLeave}
       >
         <EditText
+          key={value}
           defaultValue={value}
           contentEditable={false}
-          className="px-2 py-2 h-full w-full flex items-center overflow-hidden text-ellipsis whitespace-nowrap box-border"
+          className="px-2 py-2 h-full w-full text-sm flex items-center overflow-hidden text-ellipsis whitespace-nowrap box-border"
         />
       </div>
     </Popover>

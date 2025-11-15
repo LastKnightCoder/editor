@@ -118,10 +118,8 @@ const Cell: React.FC<CellProps> = memo(
   }) => {
     const isDark = theme === "dark";
 
-    // 检查列级别和全局 readonly，主列也不可编辑
-    const isColumnReadonly = Boolean(
-      readonly || column.readonly || column.isPrimary,
-    );
+    // 检查列级别和全局 readonly
+    const isColumnReadonly = Boolean(readonly || column.readonly);
 
     const handleDoubleClick = useMemoizedFn(() => {
       const editable = plugin?.editable;

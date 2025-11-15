@@ -33,7 +33,7 @@ const TextEditor: React.FC<TextEditorProps> = memo(
           onPressEnter={onFinishEdit}
           contentEditable={true}
           defaultFocus={true}
-          className="w-full h-full px-2 py-2 flex items-center whitespace-nowrap"
+          className="w-full text-sm h-full px-2 py-2 flex items-center whitespace-nowrap"
           isSlateEditor
         />
       </div>

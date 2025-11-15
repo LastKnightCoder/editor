@@ -438,10 +438,10 @@ const TableView: React.FC<TableViewProps> = memo(
           </div>
         </div>
         <div className="sticky bottom-0 z-20 backdrop-blur">
-          <div className="flex items-center py-2 h-10 relative box-border gap-[10px]">
+          <div className="flex items-center h-12 relative box-border gap-[10px]">
             <button
               className={classNames(
-                "px-2 py-1 text-sm cursor-pointer rounded transition",
+                "p-2 text-sm cursor-pointer rounded transition",
                 {
                   "hover:bg-gray-100": theme === "light",
                   "hover:bg-gray-600": theme === "dark",

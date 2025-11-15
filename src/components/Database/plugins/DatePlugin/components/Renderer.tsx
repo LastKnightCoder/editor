@@ -23,7 +23,7 @@ const DateRenderer: React.FC<DateRendererProps> = memo(({ value, column }) => {
   const formattedDate = formatDateRange(dateValue, showTime, isRange);
 
   return (
-    <div className="px-2 py-2 h-full w-full box-border flex items-center overflow-hidden text-ellipsis whitespace-nowrap">
+    <div className="px-2 py-2 text-sm h-full w-full box-border flex items-center overflow-hidden text-ellipsis whitespace-nowrap">
       {formattedDate}
     </div>
   );

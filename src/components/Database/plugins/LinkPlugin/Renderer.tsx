@@ -45,7 +45,7 @@ const Renderer: React.FC<{
   return (
     <div className="relative w-full h-full flex items-center">
       <div className="px-2 truncate max-w-full">
-        <span className="underline decoration-1 cursor-text select-text truncate">
+        <span className="underline decoration-1 text-sm cursor-text select-text truncate">
           {String(value)}
         </span>
       </div>

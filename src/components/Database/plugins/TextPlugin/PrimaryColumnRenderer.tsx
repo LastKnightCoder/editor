@@ -3,6 +3,7 @@ import { CellValue, ColumnDef, RowData } from "../../types";
 import { TbLayoutSidebarRight } from "react-icons/tb";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "antd";
+import EditText from "@/components/EditText";
 
 const PrimaryColumnRenderer: React.FC<{
   value: CellValue;
@@ -26,12 +27,12 @@ const PrimaryColumnRenderer: React.FC<{
 
   return (
     <div className="relative w-full h-full flex items-center">
-      <div className="px-2 truncate max-w-full">
-        <span className="cursor-text select-text truncate">
-          {String(value || "")}
-        </span>
-      </div>
-
+      <EditText
+        key={value}
+        defaultValue={value}
+        contentEditable={false}
+        className="px-2 py-2 h-full w-full text-sm flex items-center overflow-hidden text-ellipsis whitespace-nowrap box-border"
+      />
       <div
         className={
           "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer" +
