@@ -347,7 +347,6 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           />
         </div>
 
-        {/* 行详情弹窗 */}
         {rowDetailOpen && editingRow && (
           <RowDetailModal
             row={editingRow}
@@ -361,7 +360,6 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
           />
         )}
 
-        {/* 列编辑弹窗 */}
         {columnEditOpen && (
           <ColumnEditModal
             open={columnEditOpen}

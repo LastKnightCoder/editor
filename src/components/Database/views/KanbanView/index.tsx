@@ -326,7 +326,6 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
           </div>
         </div>
 
-        {/* 行详情弹窗 */}
         {rowDetailOpen && editingRow && (
           <RowDetailModal
             row={editingRow}
