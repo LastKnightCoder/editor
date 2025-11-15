@@ -34,16 +34,24 @@ interface CardDatabaseViewProps {
   selectCategory: ECardCategory | "all";
   onCardClick: (card: ICard) => void;
   onOpenCreateCard: (defaultCategory: ECardCategory) => void;
+  onDeleteCard: (cardId: number) => Promise<void>;
 }
 
 export interface CardDatabaseViewRef {
   addCardRow: (card: ICard) => void;
+  deleteCardRow: (cardId: number) => void;
 }
 
 const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
   (props, ref) => {
-    const { cards, allCards, selectCategory, onCardClick, onOpenCreateCard } =
-      props;
+    const {
+      cards,
+      allCards,
+      selectCategory,
+      onCardClick,
+      onOpenCreateCard,
+      onDeleteCard,
+    } = props;
     const { isDark } = useTheme();
 
     const databaseRef = useRef<DatabaseRef>(null);
@@ -98,6 +106,9 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
           } as DateValue,
         };
         databaseRef.current?.addRow(rowData);
+      },
+      deleteCardRow: (cardId: number) => {
+        databaseRef.current?.deleteRow(String(cardId));
       },
     }));
 
@@ -185,7 +196,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       ];
     }, [allTags, allCards, onCardClick, columnWidths]);
 
-    // 构建行数据
     const rows = useMemo((): RowData[] => {
       return cards.map((card) => {
         const row: RowData = {
@@ -207,7 +217,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       });
     }, [cards, getCardText]);
 
-    // 获取当前激活的视图
     const currentView = useMemo(() => {
       return views.find((v) => v.id === activeViewId);
     }, [views, activeViewId]);
@@ -265,7 +274,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       return config;
     }, [currentView, columns, rows]);
 
-    // 处理新增行
     const handleRowAdd = useMemoizedFn((defaultData?: Partial<RowData>) => {
       // 提取默认分类
       let defaultCategory: ECardCategory = ECardCategory.Temporary;
@@ -342,7 +350,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       }
     });
 
-    // 处理视图配置变化
     const handleViewConfigChange = useMemoizedFn((config) => {
       console.log("[CardDatabaseView] handleViewConfigChange:", {
         activeViewId,
@@ -354,7 +361,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       }
     });
 
-    // 处理创建视图
     const handleCreateView = useMemoizedFn(
       async (viewData: CreateDataTableView): Promise<DataTableView | null> => {
         const newView: DataTableView = {
@@ -379,7 +385,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       },
     );
 
-    // 处理删除视图
     const handleDeleteView = useMemoizedFn(
       async (viewId: number): Promise<number | null> => {
         deleteView(viewId);
@@ -387,7 +392,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       },
     );
 
-    // 处理重命名视图
     const handleRenameView = useMemoizedFn(
       async (viewId: number, name: string): Promise<DataTableView | null> => {
         updateView(viewId, { name });
@@ -396,7 +400,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       },
     );
 
-    // 处理更新视图
     const handleUpdateView = useMemoizedFn(
       async (
         viewId: number,
@@ -408,17 +411,26 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       },
     );
 
-    // 处理重排视图
     const handleReorderViews = useMemoizedFn(async (orderedIds: number[]) => {
       reorderViews(orderedIds);
     });
 
-    // 处理激活视图变化
     const handleActiveViewIdChange = useMemoizedFn(
       async (viewId: number | null) => {
         setActiveViewId(viewId);
       },
     );
+
+    const handleRowDelete = useMemoizedFn(async (rowId: string) => {
+      const cardId = Number(rowId);
+      onDeleteCard(cardId)
+        .then(() => {
+          databaseRef.current?.deleteRow(rowId);
+        })
+        .catch((error) => {
+          console.error("Failed to delete card:", error);
+        });
+    });
 
     // 确保有有效的 activeViewId
     const validActiveViewId = useMemo(() => {
@@ -447,6 +459,7 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
           onDataChange={handleDataChange}
           onViewConfigChange={handleViewConfigChange}
           onRowAdd={handleRowAdd}
+          onRowDelete={handleRowDelete}
           onCreateView={handleCreateView}
           onDeleteView={handleDeleteView}
           onRenameView={handleRenameView}

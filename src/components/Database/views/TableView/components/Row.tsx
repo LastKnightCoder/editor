@@ -77,14 +77,7 @@ const Row: React.FC<RowProps> = memo(
               key: "delete",
               label: "删除",
               onClick: () => {
-                modal.confirm({
-                  title: "删除行",
-                  content: "确定要删除该行吗？",
-                  okButtonProps: {
-                    danger: true,
-                  },
-                  onOk: () => deleteRow(row.id),
-                });
+                deleteRow(row.id);
               },
             },
           ],

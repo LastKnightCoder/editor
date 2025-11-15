@@ -19,11 +19,20 @@ interface CalendarViewProps {
   readonly: boolean;
   onRowDetailOpen?: (row: RowData) => void;
   onRowAdd?: (defaultData?: Partial<RowData>) => void;
+  onRowDelete?: (rowId: string) => void | Promise<void>;
   config?: DatabaseConfig;
 }
 
 const CalendarView: React.FC<CalendarViewProps> = memo(
-  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, config }) => {
+  ({
+    pluginManager,
+    theme,
+    readonly,
+    onRowDetailOpen,
+    onRowAdd,
+    onRowDelete,
+    config,
+  }) => {
     const { modal } = App.useApp();
 
     const {
@@ -223,13 +232,17 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     );
 
     const handleEventDelete = useMemoizedFn((rowData: RowData) => {
-      modal.confirm({
-        title: "确定删除此事件吗？",
-        okButtonProps: { danger: true },
-        onOk: () => {
-          deleteRow(rowData.id);
-        },
-      });
+      if (onRowDelete) {
+        onRowDelete(rowData.id);
+      } else {
+        modal.confirm({
+          title: "确定删除此事件吗？",
+          okButtonProps: { danger: true },
+          onOk: () => {
+            deleteRow(rowData.id);
+          },
+        });
+      }
     });
 
     const handleCloseRowDetail = useMemoizedFn(() => {

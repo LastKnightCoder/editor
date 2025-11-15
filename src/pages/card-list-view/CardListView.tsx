@@ -218,27 +218,36 @@ const CardListView = () => {
     }
   });
 
-  const handleDeleteCard = useMemoizedFn(async (cardId: number) => {
-    try {
-      modal.confirm({
-        title: "删除卡片",
-        content: "确定要删除该卡片吗？",
-        okText: "确定",
-        cancelText: "取消",
-        okButtonProps: {
-          danger: true,
-        },
-        onOk: async () => {
-          await deleteCard(cardId);
-          setCards((prevCards) =>
-            prevCards.filter((card) => card.id !== cardId),
-          );
-        },
+  const handleDeleteCard = useMemoizedFn(
+    async (cardId: number): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        try {
+          modal.confirm({
+            title: "删除卡片",
+            content: "确定要删除该卡片吗？",
+            okText: "确定",
+            cancelText: "取消",
+            okButtonProps: {
+              danger: true,
+            },
+            onOk: async () => {
+              await deleteCard(cardId);
+              setCards((prevCards) =>
+                prevCards.filter((card) => card.id !== cardId),
+              );
+              resolve();
+            },
+            onCancel: () => {
+              reject(new Error("取消删除卡片"));
+            },
+          });
+        } catch (error) {
+          console.error("Failed to delete card:", error);
+          reject(error);
+        }
       });
-    } catch (error) {
-      console.error("Failed to delete card:", error);
-    }
-  });
+    },
+  );
 
   const handleUpdateCardCategory = useMemoizedFn(
     async (card: ICard, category: ECardCategory) => {
@@ -500,6 +509,7 @@ const CardListView = () => {
                     setPendingCardCategory(defaultCategory);
                     setIsCreatingCard(true);
                   }}
+                  onDeleteCard={handleDeleteCard}
                 />
               </If>
               <CreateCard

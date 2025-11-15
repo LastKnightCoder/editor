@@ -1,5 +1,6 @@
 import React, { memo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
+import { App } from "antd";
 import { useDatabaseStore } from "../../hooks";
 import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
@@ -19,11 +20,22 @@ interface GalleryViewProps {
   readonly: boolean;
   onRowDetailOpen?: (row: RowData) => void;
   onRowAdd?: (defaultData?: Partial<RowData>) => void;
+  onRowDelete?: (rowId: string) => void | Promise<void>;
   config?: DatabaseConfig;
 }
 
 const GalleryView: React.FC<GalleryViewProps> = memo(
-  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, config }) => {
+  ({
+    pluginManager,
+    theme,
+    readonly,
+    onRowDetailOpen,
+    onRowAdd,
+    onRowDelete,
+    config,
+  }) => {
+    const { modal } = App.useApp();
+
     const {
       columns,
       rows,
@@ -33,6 +45,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       addColumn,
       editColumn,
       columnWidths,
+      deleteRow,
     } = useDatabaseStore((state) => ({
       columns: state.columns,
       rows: state.rows,
@@ -42,6 +55,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       addColumn: state.addColumn,
       editColumn: state.editColumn,
       columnWidths: state.columnWidths,
+      deleteRow: state.deleteRow,
     }));
 
     const [rowDetailOpen, setRowDetailOpen] = useState(false);
@@ -145,6 +159,23 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       setEditingColumnId(null);
     });
 
+    const handleDeleteRow = useMemoizedFn((rowId: string) => {
+      if (onRowDelete) {
+        onRowDelete(rowId);
+      } else {
+        modal.confirm({
+          title: "删除行",
+          content: "确定要删除该行吗？",
+          okButtonProps: {
+            danger: true,
+          },
+          onOk: () => {
+            deleteRow(rowId);
+          },
+        });
+      }
+    });
+
     const renderGroupHeader = useMemoizedFn(
       (group: {
         key: string;
@@ -193,6 +224,10 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                     coverType={galleryConfig.coverType}
                     coverImageColumnId={galleryConfig.coverImageColumnId}
                     onClick={() => handleOpenRowDetail(row)}
+                    onDelete={
+                      readonly ? undefined : () => handleDeleteRow(row.id)
+                    }
+                    readonly={readonly}
                     theme={theme}
                   />
                 ))}

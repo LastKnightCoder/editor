@@ -20,6 +20,7 @@ interface KanbanColumnProps {
   onMoveCard: (dragRowId: string, hoverRowId: string) => void;
   onChangeCardGroup: (rowId: string, newGroupValue: CellValue) => void;
   onMoveColumn: (dragGroupValue: CellValue, hoverGroupValue: CellValue) => void;
+  onDeleteCard?: (rowId: string) => void;
   index: number;
 }
 
@@ -48,6 +49,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
     onMoveCard,
     onChangeCardGroup,
     onMoveColumn,
+    onDeleteCard,
     index,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -143,9 +145,11 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
               groupColumnId={groupColumn.id}
               pluginManager={pluginManager}
               theme={theme}
+              readonly={readonly}
               onClick={() => onCardClick(row)}
               onMove={onMoveCard}
               onChangeGroup={onChangeCardGroup}
+              onDelete={onDeleteCard ? () => onDeleteCard(row.id) : undefined}
               index={idx}
               groupValue={groupValue}
             />
