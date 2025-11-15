@@ -353,6 +353,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             events={calendarEvents}
             theme={theme}
             readonly={readonly}
+            dateConfig={dateColumn?.config as DatePluginConfig}
             onEventClick={handleEventClick}
             onDateClick={handleDateClick}
             onDateRangeSelect={handleDateRangeSelect}

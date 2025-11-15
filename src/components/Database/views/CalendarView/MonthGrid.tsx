@@ -5,6 +5,7 @@ import { assignMonthViewLevels } from "@/utils/eventLayoutAlgorithm";
 import { RowData } from "../../types";
 import CalendarEvent from "./CalendarEvent";
 import { useMemoizedFn } from "ahooks";
+import { DatePluginConfig } from "../../plugins/DatePlugin";
 
 interface CalendarRowEvent {
   id: string;
@@ -30,6 +31,7 @@ interface MonthGridProps {
   events: CalendarRowEvent[];
   theme: "light" | "dark";
   readonly: boolean;
+  dateConfig?: DatePluginConfig;
   onEventClick: (rowData: RowData) => void;
   onDateClick: (date: number) => void;
   onDateRangeSelect: (startDate: number, endDate: number) => void;
@@ -59,6 +61,7 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
     month,
     events,
     readonly,
+    dateConfig,
     onEventClick,
     onDateClick,
     onDateRangeSelect,
@@ -546,6 +549,9 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                         setMoreEventsDay(day);
                         setMoreEventsList(dayEvents);
                       }}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
                     >
                       +{moreCount} 更多
                     </div>
@@ -599,10 +605,12 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             }}
           >
             <div
-              className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-[#fff]/10"
+              className="w-full max-w-3xl rounded-lg bg-white shadow-xl dark:bg-[var(--main-bg-color)] flex flex-col"
+              style={{ height: "800px", maxHeight: "calc(100vh - 200px)" }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mb-4 flex items-center justify-between">
+              {/* 头部 */}
+              <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex-shrink-0">
                 <h3 className="text-lg font-semibold">
                   {year}年{month}月{moreEventsDay}日的事件
                 </h3>
@@ -617,21 +625,143 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {moreEventsList.map((event) => (
-                  <div
-                    key={event.id}
-                    onClick={() => {
-                      onEventClick(event.rowData);
-                      setMoreEventsDay(null);
-                      setMoreEventsList([]);
-                    }}
-                    className="cursor-pointer rounded-lg px-3 py-2 text-white hover:opacity-90"
-                    style={{ backgroundColor: event.color }}
-                  >
-                    <div className="font-medium">{event.title}</div>
-                  </div>
-                ))}
+              {/* 事件列表 - 使用时间轴样式 */}
+              <div className="flex-1 overflow-y-auto">
+                {moreEventsList.map((event, index) => {
+                  const startDate = dayjs(event.startDate);
+                  const endDate = event.endDate
+                    ? dayjs(event.endDate)
+                    : startDate;
+
+                  // 判断是否是跨天事件（日期不同）
+                  const isMultiDay = !startDate.isSame(endDate, "day");
+
+                  // 根据配置决定显示时间还是"全天"
+                  const showTime = dateConfig?.showTime || false;
+
+                  let timeLabel = "全天";
+                  let showTimeRange = false;
+                  let timeRangeText = "";
+
+                  if (showTime) {
+                    // 如果支持显示时间
+                    if (isMultiDay) {
+                      // 跨天事件显示"全天"
+                      timeLabel = "全天";
+                    } else {
+                      // 同一天的事件，检查是否有时间部分
+                      const hasTime =
+                        startDate.hour() !== 0 ||
+                        startDate.minute() !== 0 ||
+                        endDate.hour() !== 0 ||
+                        endDate.minute() !== 0;
+
+                      if (hasTime) {
+                        // 有具体时间，显示时间范围
+                        showTimeRange = true;
+                        timeLabel = startDate.format("HH:mm");
+                        timeRangeText = `${startDate.format("HH:mm")} - ${endDate.format("HH:mm")}`;
+                      } else {
+                        // 没有时间部分（00:00:00），显示"全天"
+                        timeLabel = "全天";
+                      }
+                    }
+                  }
+
+                  return (
+                    <div
+                      key={event.id}
+                      onClick={() => {
+                        onEventClick(event.rowData);
+                        setMoreEventsDay(null);
+                        setMoreEventsList([]);
+                      }}
+                      className="group flex cursor-pointer gap-4 border-b border-gray-100 px-6 py-4 transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                    >
+                      {/* 左侧：日期显示（仅第一个事件） */}
+                      {index === 0 && (
+                        <div className="w-16 flex-shrink-0 text-center">
+                          <div className="text-4xl font-light text-gray-900 dark:text-white">
+                            {moreEventsDay}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {
+                              [
+                                "周日",
+                                "周一",
+                                "周二",
+                                "周三",
+                                "周四",
+                                "周五",
+                                "周六",
+                              ][
+                                dayjs()
+                                  .year(year)
+                                  .month(month - 1)
+                                  .date(moreEventsDay)
+                                  .day()
+                              ]
+                            }
+                          </div>
+                          <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                            {month}月
+                          </div>
+                        </div>
+                      )}
+                      {index > 0 && <div className="w-16 flex-shrink-0"></div>}
+
+                      {/* 中间：时间轴 */}
+                      <div className="flex flex-col items-center flex-shrink-0 pt-2">
+                        {/* 圆圈 */}
+                        <div
+                          className="w-3 h-3 rounded-full border-2 bg-white dark:bg-gray-900"
+                          style={{ borderColor: event.color }}
+                        ></div>
+                        {/* 时间标签 */}
+                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          {timeLabel}
+                        </div>
+                      </div>
+
+                      {/* 右侧：事件卡片 */}
+                      <div className="flex-1 min-w-0 relative ml-4">
+                        <div
+                          className="border-l-4 px-4 py-3 rounded"
+                          style={{
+                            borderLeftColor: event.color,
+                            backgroundColor: `${event.color}1a`, // 添加透明度
+                          }}
+                        >
+                          {/* 时间范围（同一天且有时间时显示） */}
+                          {showTimeRange && (
+                            <div
+                              className="text-sm font-medium mb-1"
+                              style={{ color: event.color }}
+                            >
+                              {timeRangeText}
+                            </div>
+                          )}
+
+                          {/* 日期范围（跨天事件显示） */}
+                          {isMultiDay && (
+                            <div
+                              className="text-sm font-medium mb-1"
+                              style={{ color: event.color }}
+                            >
+                              {startDate.format("M月D日")} -{" "}
+                              {endDate.format("M月D日")}
+                            </div>
+                          )}
+
+                          {/* 标题 */}
+                          <div className="text-base font-medium text-gray-900 dark:text-white">
+                            {event.title}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
