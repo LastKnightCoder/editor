@@ -109,7 +109,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       ref={ref}
       data-handler-id={handlerId}
       className={classnames(
-        "flex items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] hover:bg-[var(--common-hover-bg)] group transition-all",
+        "flex items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] hover:bg-[var(--common-hover-bg)] group transition-all app-region-no-drag",
         {
           "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-200":
             isActive,

@@ -166,16 +166,14 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     <div
       ref={drop}
       className={classnames(
-        "w-full h-[60px] box-border flex items-center justify-between bg-[var(--main-bg-color)] flex-shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative",
+        "w-full h-[60px] box-border flex items-center justify-between bg-[var(--main-bg-color)] flex-shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative app-region-drag",
         className,
       )}
-      style={{ "--webkit-app-region": "drag" } as React.CSSProperties}
     >
       <div
         className={classnames(
           "flex-1 min-w-0 flex items-center gap-1 overflow-x-auto overflow-y-hidden px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-[var(--border-color)] [&::-webkit-scrollbar-thumb]:rounded-sm transition-all",
         )}
-        style={{ "--webkit-app-region": "no-drag" } as React.CSSProperties}
       >
         {pane.tabs.map((tab, index) => (
           <DraggableTab
@@ -191,7 +189,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
           />
         ))}
         <button
-          className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-[var(--text-color)] text-sm transition-colors hover:bg-[var(--common-hover-bg)]"
+          className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-[var(--text-color)] text-sm transition-colors hover:bg-[var(--common-hover-bg)] app-region-no-drag"
           onClick={handleNewTab}
         >
           <PlusOutlined />

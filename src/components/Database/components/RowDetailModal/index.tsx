@@ -111,23 +111,18 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
 
     return (
       <>
-        {/* 背景遮罩 */}
         <div
           className="fixed inset-0 z-40 bg-black/20 dark:bg-black/40"
           onClick={handleClose}
         />
-        {/* 居中弹窗 */}
         <div className="fixed left-1/2 top-1/2 z-50 flex h-[90vh] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg bg-white shadow-2xl dark:bg-[#222] animate-in fade-in zoom-in-95 duration-200">
           <div className="flex-1 overflow-y-auto px-10 py-6">
-            {/* 关闭按钮 */}
             <button
               onClick={handleClose}
               className="absolute right-4 top-4 rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <MdClose className="h-5 w-5" />
             </button>
-
-            {/* 主列 */}
             {primaryColumn && (
               <div className="mb-6">
                 <input
@@ -136,18 +131,12 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                   onChange={(e) =>
                     handleColumnValueChange(primaryColumn.id, e.target.value)
                   }
-                  disabled={
-                    readonly ||
-                    primaryColumn.readonly ||
-                    primaryColumn.isPrimary
-                  }
+                  disabled={readonly || primaryColumn.readonly}
                   className="w-full border-0 px-0 py-2 text-2xl font-bold bg-transparent focus:outline-none dark:text-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
                   placeholder={`输入${primaryColumn.title}`}
                 />
               </div>
             )}
-
-            {/* 其他属性 */}
             {otherColumns.length > 0 && (
               <div className="mb-6 space-y-2">
                 {otherColumns.map((column) => {
