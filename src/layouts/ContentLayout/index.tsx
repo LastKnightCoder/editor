@@ -52,7 +52,7 @@ const ShortSidebarLayout = memo(() => {
 
   return (
     <div className={`w-[100vw] h-[100vh] flex ${styles.container}`}>
-      <div className="flex-shrink-0 w-[92px] h-full flex flex-col">
+      <div className="flex-shrink-0 w-[100px] h-full flex flex-col">
         <Sidebar />
       </div>
       <div className={`flex-1 min-w-0 h-full box-border flex flex-col`}>

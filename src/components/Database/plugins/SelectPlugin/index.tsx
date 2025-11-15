@@ -15,7 +15,8 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   // 保存前确保值为字符串
   beforeSave: (value: string, config: { options: SelectOption[] }) => {
     if (value === null || value === undefined || value === "") return null;
-    const option = config.options.find((opt) => opt.id === value);
+    const options = Array.isArray(config?.options) ? config.options : [];
+    const option = options.find((opt) => opt.id === value);
     if (option) {
       return option.id;
     } else {
@@ -25,7 +26,8 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
 
   afterLoad: (value: string, config: { options: SelectOption[] }) => {
     if (value === null || value === undefined || value === "") return null;
-    const option = config.options.find((opt) => opt.id === value);
+    const options = Array.isArray(config?.options) ? config.options : [];
+    const option = options.find((opt) => opt.id === value);
     if (option) {
       return option.id;
     } else {
