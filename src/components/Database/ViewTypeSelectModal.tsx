@@ -35,6 +35,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
     const [selectedType, setSelectedType] = useState<DataTableViewType | null>(
       null,
     );
+    const [userModifiedName, setUserModifiedName] = useState(false);
     const [form] = Form.useForm<{
       name: string;
       dateColumnId?: string;
@@ -79,6 +80,12 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
 
     const handleSelectType = (type: DataTableViewType) => {
       setSelectedType(type);
+
+      // 如果用户没有手动修改过名称，则自动更新为新的视图类型名称
+      if (!userModifiedName) {
+        const defaultName = viewTypes.find((v) => v.type === type)?.name || "";
+        form.setFieldsValue({ name: defaultName });
+      }
     };
 
     const handleOk = async () => {
@@ -93,6 +100,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
         );
         form.resetFields();
         setSelectedType(null);
+        setUserModifiedName(false);
       } catch (error) {
         console.error("表单验证失败:", error);
       }
@@ -101,6 +109,7 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
     const handleCancel = () => {
       form.resetFields();
       setSelectedType(null);
+      setUserModifiedName(false);
       onCancel();
     };
 
@@ -186,7 +195,11 @@ const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
                   viewTypes.find((v) => v.type === selectedType)?.name || ""
                 }
               >
-                <Input placeholder="请输入视图名称" maxLength={50} />
+                <Input
+                  placeholder="请输入视图名称"
+                  maxLength={50}
+                  onChange={() => setUserModifiedName(true)}
+                />
               </Form.Item>
 
               {selectedType === "calendar" && (

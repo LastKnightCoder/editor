@@ -1,5 +1,6 @@
 import React, { memo, useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import classnames from "classnames";
 import { RowData, ColumnDef, CellValue } from "../../types";
 import PluginManager from "../../PluginManager";
@@ -53,6 +54,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
     index,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-column",
@@ -74,6 +76,22 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
     });
 
     drag(drop(ref));
+
+    // 虚拟滚动
+    const virtualizer = useVirtualizer({
+      count: rows.length,
+      getScrollElement: () => scrollContainerRef.current,
+      estimateSize: () => 120, // 预估卡片高度 + 间距
+      overscan: 5,
+      // 支持动态高度测量
+      measureElement: (el) => {
+        const card = el.firstElementChild;
+        if (!card) return 120; // 默认高度
+        // 包括元素自身高度和间距（space-y-2 = 8px）
+        return card.getBoundingClientRect().height + 8;
+      },
+      getItemKey: (index) => rows[index]?.id || index,
+    });
 
     // 渲染列标题
     const renderHeader = () => {
@@ -136,24 +154,50 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
         </div>
 
         {/* 卡片列表 */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-2">
-          {rows.map((row, idx) => (
-            <KanbanCard
-              key={row.id}
-              row={row}
-              columns={columns}
-              groupColumnId={groupColumn.id}
-              pluginManager={pluginManager}
-              theme={theme}
-              readonly={readonly}
-              onClick={() => onCardClick(row)}
-              onMove={onMoveCard}
-              onChangeGroup={onChangeCardGroup}
-              onDelete={onDeleteCard ? () => onDeleteCard(row.id) : undefined}
-              index={idx}
-              groupValue={groupValue}
-            />
-          ))}
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-2">
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: "100%",
+              position: "relative",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const row = rows[virtualItem.index];
+              return (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
+                  className="pt-2"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <KanbanCard
+                    row={row}
+                    columns={columns}
+                    groupColumnId={groupColumn.id}
+                    pluginManager={pluginManager}
+                    theme={theme}
+                    readonly={readonly}
+                    onClick={() => onCardClick(row)}
+                    onMove={onMoveCard}
+                    onChangeGroup={onChangeCardGroup}
+                    onDelete={
+                      onDeleteCard ? () => onDeleteCard(row.id) : undefined
+                    }
+                    index={virtualItem.index}
+                    groupValue={groupValue}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* 添加按钮 */}
