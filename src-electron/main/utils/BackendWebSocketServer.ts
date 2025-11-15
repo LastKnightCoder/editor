@@ -44,7 +44,6 @@ class BackendWebSocketServer {
       try {
         if (handler) {
           result = await Promise.resolve(handler(message));
-          console.log("launcher recv method: ", method, "result: ", result);
 
           if (isRpcResponseMessage(result)) {
             this.sendResponse(result);
