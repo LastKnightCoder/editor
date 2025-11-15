@@ -7,6 +7,7 @@ import {
   getFirstDayOfMonth,
   isToday,
   getDateStart,
+  formatTime,
 } from "@/utils/calendar";
 import { getProjectColorValue } from "@/constants/project-colors";
 import useSettingStore from "@/stores/useSettingStore";
@@ -15,6 +16,8 @@ import { MdClose } from "react-icons/md";
 import dayjs from "dayjs";
 import { assignMonthViewLevels } from "@/utils/eventLayoutAlgorithm";
 import { hexToRgba } from "../../utils";
+import Editor, { EditorRef } from "@/components/Editor";
+import "../AgendaView/index.module.less";
 
 interface PendingDateEvent {
   startDate: number;
@@ -46,6 +49,9 @@ const MonthView = () => {
   // 容器引用和尺寸监听
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(0);
+
+  // 存储每个事件的 Editor ref
+  const editorRefsMap = useRef<Map<string, EditorRef>>(new Map());
 
   // 当编辑对话框关闭时，清除待创建事件高亮
   useEffect(() => {
@@ -511,7 +517,20 @@ const MonthView = () => {
                         onClick={(e) => {
                           e.stopPropagation();
                           setMoreEventsDay(day);
-                          setMoreEventsList(dayEvents);
+                          // 排序：全日事件在前，然后是非全日事件按 startTime 排序
+                          const sortedEvents = [...dayEvents].sort((a, b) => {
+                            if (a.allDay && !b.allDay) return -1;
+                            if (!a.allDay && b.allDay) return 1;
+                            if (!a.allDay && !b.allDay) {
+                              const aTime =
+                                a.startTime ?? Number.MAX_SAFE_INTEGER;
+                              const bTime =
+                                b.startTime ?? Number.MAX_SAFE_INTEGER;
+                              return aTime - bTime;
+                            }
+                            return 0;
+                          });
+                          setMoreEventsList(sortedEvents);
                         }}
                         onMouseDown={(e) => {
                           e.stopPropagation();
@@ -829,10 +848,12 @@ const MonthView = () => {
           }}
         >
           <div
-            className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-[#fff]/10"
+            className="w-full max-w-3xl rounded-lg bg-white shadow-xl dark:bg-[var(--main-bg-color)] flex flex-col"
+            style={{ height: "800px", maxHeight: "calc(100vh - 200px)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-4 flex items-center justify-between">
+            {/* 头部 */}
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex-shrink-0">
               <h3 className="text-lg font-semibold">
                 {year}年{month}月{moreEventsDay}日的事件
               </h3>
@@ -846,19 +867,30 @@ const MonthView = () => {
                 <MdClose className="h-5 w-5" />
               </button>
             </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {moreEventsList.map((event) => {
+
+            {/* 事件列表 - 使用 AgendaView 样式 */}
+            <div className="flex-1 overflow-y-auto">
+              {moreEventsList.map((event, index) => {
                 const calendar = calendars.find(
                   (c) => c.id === event.calendarId,
                 );
                 const color = event.color || calendar?.color || "blue";
-                const colorValue = hexToRgba(
-                  getProjectColorValue(
-                    color,
-                    theme === "dark" ? "dark" : "light",
-                  ),
-                  0.9,
+                const colorValue = getProjectColorValue(
+                  color,
+                  theme === "dark" ? "dark" : "light",
                 );
+
+                // 判断是否有描述内容
+                const hasDescription =
+                  event.detailContent &&
+                  event.detailContent.length > 0 &&
+                  !(
+                    event.detailContent.length === 1 &&
+                    event.detailContent[0].type === "paragraph" &&
+                    event.detailContent[0].children.length === 1 &&
+                    event.detailContent[0].children[0].type === "formatted" &&
+                    (event.detailContent[0].children[0] as any).text === ""
+                  );
 
                 return (
                   <div
@@ -868,23 +900,103 @@ const MonthView = () => {
                       setMoreEventsDay(null);
                       setMoreEventsList([]);
                     }}
-                    className="cursor-pointer rounded-lg px-3 py-2 text-white hover:opacity-90"
-                    style={{ backgroundColor: colorValue }}
+                    className="group flex cursor-pointer gap-4 border-b border-gray-100 px-6 py-4 transition-colors last:border-b-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
                   >
-                    <div className="font-medium">{event.title}</div>
-                    {!event.allDay &&
-                      event.startTime !== null &&
-                      event.endTime !== null && (
-                        <div className="text-sm opacity-90">
-                          {Math.floor(event.startTime / 60)}:
-                          {(event.startTime % 60).toString().padStart(2, "0")} -{" "}
-                          {Math.floor(event.endTime / 60)}:
-                          {(event.endTime % 60).toString().padStart(2, "0")}
+                    {/* 左侧：日期显示（仅第一个事件） */}
+                    {index === 0 && (
+                      <div className="w-16 flex-shrink-0 text-center">
+                        <div className="text-4xl font-light text-gray-900 dark:text-white">
+                          {moreEventsDay}
                         </div>
-                      )}
-                    {event.allDay && (
-                      <div className="text-sm opacity-90">全天</div>
+                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {
+                            [
+                              "周日",
+                              "周一",
+                              "周二",
+                              "周三",
+                              "周四",
+                              "周五",
+                              "周六",
+                            ][
+                              dayjs()
+                                .year(year)
+                                .month(month - 1)
+                                .date(moreEventsDay)
+                                .day()
+                            ]
+                          }
+                        </div>
+                        <div className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                          {month}月
+                        </div>
+                      </div>
                     )}
+                    {index > 0 && <div className="w-16 flex-shrink-0"></div>}
+
+                    {/* 中间：时间轴 */}
+                    <div className="flex flex-col items-center flex-shrink-0 pt-2">
+                      {/* 圆圈 */}
+                      <div
+                        className="w-3 h-3 rounded-full border-2 bg-white dark:bg-gray-900"
+                        style={{ borderColor: colorValue }}
+                      ></div>
+                      {/* 时间标签 */}
+                      <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        {event.allDay
+                          ? "全天"
+                          : event.startTime !== null &&
+                            formatTime(event.startTime)}
+                      </div>
+                    </div>
+
+                    {/* 右侧：事件卡片 */}
+                    <div className="flex-1 min-w-0 relative ml-4">
+                      <div
+                        className="border-l-4 px-4 py-3 rounded"
+                        style={{
+                          borderLeftColor: colorValue,
+                          backgroundColor: hexToRgba(colorValue, 0.1),
+                        }}
+                      >
+                        {/* 时间范围 */}
+                        {!event.allDay &&
+                          event.startTime !== null &&
+                          event.endTime !== null && (
+                            <div
+                              className="text-sm font-medium mb-1"
+                              style={{ color: colorValue }}
+                            >
+                              {formatTime(event.startTime)} -{" "}
+                              {formatTime(event.endTime)}
+                            </div>
+                          )}
+
+                        {/* 标题 */}
+                        <div className="text-base font-medium text-gray-900 dark:text-white mb-1">
+                          {event.title}
+                        </div>
+
+                        {/* 描述 */}
+                        {hasDescription && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            <Editor
+                              ref={(ref) => {
+                                if (ref) {
+                                  editorRefsMap.current.set(
+                                    String(event.id),
+                                    ref,
+                                  );
+                                }
+                              }}
+                              initValue={event.detailContent}
+                              readonly={true}
+                              className="agenda-view-editor"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
