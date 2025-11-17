@@ -21,7 +21,7 @@ export interface ICreateResource {
   name: string;
   path: string;
   type: ResourceType;
-  source: IResourceSource;
+  source?: IResourceSource | null;
 }
 
 export interface ResourceGroup {
