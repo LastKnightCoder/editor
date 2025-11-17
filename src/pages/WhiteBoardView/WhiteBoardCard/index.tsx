@@ -73,10 +73,6 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
         return;
       }
       const file = files[0];
-      if (file.size > 1024 * 1024 * 5) {
-        message.error("文件大小超过5M");
-        return;
-      }
       setBannerUploading(true);
       const url = await uploadResource(file);
       if (!url) {
