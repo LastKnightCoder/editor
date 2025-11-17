@@ -25,7 +25,7 @@ export interface ICreateResource {
   name: string;
   path: string;
   type: ResourceType;
-  source: IResourceSource;
+  source?: IResourceSource | null;
 }
 
 // 数据库行类型定义
@@ -520,8 +520,15 @@ export default class ResourceTable {
     const now = Date.now();
 
     if (existing) {
-      // 资源已存在，更新 sources
+      // 资源已存在
       const existingResource = this.parseResource(existing);
+
+      // 如果没有提供 source（例如在资源管理中手动添加的裸资源），
+      // 不修改 sources/ref_count，直接返回现有资源
+      if (!source) {
+        return existingResource;
+      }
+
       const sources = existingResource.sources;
 
       // 检查来源是否已存在
@@ -565,12 +572,15 @@ export default class ResourceTable {
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
 
+      const initialSources = source ? [source] : [];
+      const initialRefCount = source ? 1 : 0;
+
       const res = stmt.run(
         name,
         path,
         type,
-        JSON.stringify([source]),
-        1,
+        JSON.stringify(initialSources),
+        initialRefCount,
         now,
         now,
       );
