@@ -262,6 +262,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     });
 
     const allowAddColumn = config?.allowAddColumn ?? true;
+    const allowDeleteColumn = config?.allowDeleteColumn ?? true;
 
     const handleAddColumn = useMemoizedFn(() => {
       if (!allowAddColumn) return;
@@ -371,6 +372,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             onSave={handleSaveRowDetail}
             onAddColumn={handleAddColumn}
             readonly={readonly}
+            allowDeleteColumn={allowDeleteColumn}
           />
         )}
 

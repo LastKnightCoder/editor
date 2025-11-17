@@ -506,6 +506,7 @@ const TableView: React.FC<TableViewProps> = memo(
             onSave={handleSaveRowDetail}
             onAddColumn={handleAddColumn}
             readonly={readonly}
+            allowDeleteColumn={allowDeleteColumn}
           />
         )}
       </div>

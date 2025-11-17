@@ -103,6 +103,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     });
 
     const allowAddColumn = config?.allowAddColumn ?? true;
+    const allowDeleteColumn = config?.allowDeleteColumn ?? true;
 
     const handleAddRow = useMemoizedFn(
       (groupColumn?: ColumnDef | null, groupValue?: CellValue) => {
@@ -400,6 +401,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
             onSave={handleSaveRowDetail}
             onAddColumn={handleAddColumn}
             readonly={readonly}
+            allowDeleteColumn={allowDeleteColumn}
           />
         )}
         {columnEditOpen && (

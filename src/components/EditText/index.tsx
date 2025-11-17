@@ -66,7 +66,7 @@ const EditText = memo(
     const isComposing = useRef(false);
     const innerText = useRef(initValue);
     const [isEmpty, setIsEmpty] = useState<boolean>(() => {
-      const initial = (defaultValue ?? "").trim();
+      const initial = String(defaultValue ?? "").trim();
       return initial.length === 0;
     });
 
