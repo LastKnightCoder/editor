@@ -280,7 +280,7 @@ const ResourceManagementSidebar = memo(
       }
     });
 
-    const handleOpenUploadResource = useMemoizedFn((groupId: number) => {
+    const handleOpenUploadResource = useMemoizedFn((groupId: number | null) => {
       setUploadTargetGroupId(groupId);
       setUploadDialogVisible(true);
       setSelectedUploadFile(null);
@@ -319,7 +319,6 @@ const ResourceManagementSidebar = memo(
           name: finalName,
           path,
           type,
-          source: { type: "content", id: 0 },
         });
 
         if (uploadTargetGroupId !== null) {
@@ -467,6 +466,19 @@ const ResourceManagementSidebar = memo(
           onClick: (e: MenuClickInfo) => {
             e.domEvent.stopPropagation();
             handleDeleteGroup(groupId);
+          },
+        },
+      ];
+    };
+
+    const getUngroupedContextMenu = () => {
+      return [
+        {
+          key: "add-resource",
+          label: "添加资源",
+          onClick: (e: MenuClickInfo) => {
+            e.domEvent.stopPropagation();
+            handleOpenUploadResource(null);
           },
         },
       ];
@@ -995,50 +1007,55 @@ const ResourceManagementSidebar = memo(
           );
 
           return (
-            <div
-              className={classnames(
-                "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                {
-                  "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                    selectedGroupId === null &&
-                    selectedSystemFilter === null &&
-                    selectedResourceId === null,
-                  "hover:bg-hover": !(
-                    selectedGroupId === null &&
-                    selectedSystemFilter === null &&
-                    selectedResourceId === null
-                  ),
-                },
-              )}
-              onClick={() => {
-                handleGroupSelect(null);
-              }}
-              onDragOver={(e) => handleDragOver(e, null)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, null)}
+            <Dropdown
+              menu={{ items: getUngroupedContextMenu() }}
+              trigger={["contextMenu"]}
             >
               <div
-                className="flex-shrink-0 mr-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setExpandedUngrouped(!expandedUngrouped);
-                }}
-              >
-                {expandedUngrouped ? (
-                  <FolderOpenOutlined className="text-base text-text-secondary" />
-                ) : (
-                  <FolderOutlined className="text-base text-text-secondary" />
+                className={classnames(
+                  "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
+                  {
+                    "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
+                      selectedGroupId === null &&
+                      selectedSystemFilter === null &&
+                      selectedResourceId === null,
+                    "hover:bg-hover": !(
+                      selectedGroupId === null &&
+                      selectedSystemFilter === null &&
+                      selectedResourceId === null
+                    ),
+                  },
                 )}
+                onClick={() => {
+                  handleGroupSelect(null);
+                }}
+                onDragOver={(e) => handleDragOver(e, null)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, null)}
+              >
+                <div
+                  className="flex-shrink-0 mr-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedUngrouped(!expandedUngrouped);
+                  }}
+                >
+                  {expandedUngrouped ? (
+                    <FolderOpenOutlined className="text-base text-text-secondary" />
+                  ) : (
+                    <FolderOutlined className="text-base text-text-secondary" />
+                  )}
+                </div>
+                <div className="flex-1 flex justify-between items-center min-w-0">
+                  <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
+                    未分组
+                  </span>
+                  <span className="text-xs text-text-secondary ml-2">
+                    ({ungroupedResources.length})
+                  </span>
+                </div>
               </div>
-              <div className="flex-1 flex justify-between items-center min-w-0">
-                <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                  未分组
-                </span>
-                <span className="text-xs text-text-secondary ml-2">
-                  ({ungroupedResources.length})
-                </span>
-              </div>
-            </div>
+            </Dropdown>
           );
         }
 
