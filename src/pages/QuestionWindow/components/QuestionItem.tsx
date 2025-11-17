@@ -80,6 +80,7 @@ const QuestionItem = memo(
     const { modal } = App.useApp();
     const rowRef = useRef<HTMLDivElement>(null);
     const editTextRef = useRef<EditTextHandle>(null);
+    const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [hoveredAnswerId, setHoveredAnswerId] = useState<number | null>(null);
 
@@ -195,7 +196,26 @@ const QuestionItem = memo(
             "hover:bg-[#f6fbff]": !isDark,
           },
         )}
-        onDoubleClick={() => setIsEditing(true)}
+        onClick={() => {
+          if (clickTimerRef.current) {
+            clearTimeout(clickTimerRef.current);
+            clickTimerRef.current = null;
+            setIsEditing(true);
+            return;
+          }
+
+          clickTimerRef.current = setTimeout(() => {
+            clickTimerRef.current = null;
+            if (q.answers.length === 0) {
+              onOpenNewAnswer(q.id);
+            } else {
+              const firstAnswerId = q.answers[0];
+              if (firstAnswerId != null) {
+                onOpenAnswer(q.id, firstAnswerId);
+              }
+            }
+          }, 250);
+        }}
       >
         <div
           className={classNames("flex gap-2 w-full", {
