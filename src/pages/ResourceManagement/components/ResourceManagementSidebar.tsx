@@ -1,4 +1,4 @@
-import { memo, useState, useRef, useMemo } from "react";
+import { memo, useRef, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { App, Dropdown, Input, Modal } from "antd";
 import type { MenuProps } from "antd";
@@ -25,6 +25,9 @@ import type { IResource, ResourceGroup, ResourceType } from "@/types";
 import { scanAndUpdateResources } from "@/commands";
 import SVG from "react-inlinesvg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
+import { useResourceGroupDialog } from "./useResourceGroupDialog";
+import { useResourceUploadDialog } from "./useResourceUploadDialog";
+import { useResourceDragAndDrop } from "./useResourceDragAndDrop";
 
 interface ResourceManagementSidebarProps {
   onFoldSidebar?: () => void;
@@ -99,7 +102,8 @@ const sourceConfigs = [
 
 const ResourceManagementSidebar = memo(
   ({ onFoldSidebar }: ResourceManagementSidebarProps) => {
-    const { message: messageApi, modal } = App.useApp();
+    const app = App.useApp();
+    const { message: messageApi } = app;
 
     const {
       resources,
@@ -148,19 +152,52 @@ const ResourceManagementSidebar = memo(
         setExpandedUngrouped: state.setExpandedUngrouped,
       })),
     );
-    const [groupDialogVisible, setGroupDialogVisible] = useState(false);
-    const [groupDialogMode, setGroupDialogMode] = useState<"create" | "edit">(
-      "create",
-    );
-    const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
-    const [editingGroupParentId, setEditingGroupParentId] = useState<
-      number | null
-    >(null);
-    const [groupName, setGroupName] = useState("");
-    const [draggedResourceId, setDraggedResourceId] = useState<number | null>(
-      null,
-    );
-    const [dragOverTarget, setDragOverTarget] = useState<number | null>(null);
+
+    const {
+      groupDialogVisible,
+      groupDialogMode,
+      groupName,
+      setGroupName,
+      handleCreateGroup,
+      handleEditGroup,
+      handleDeleteGroup,
+      handleGroupDialogOk,
+      closeGroupDialog,
+    } = useResourceGroupDialog({
+      groups,
+      createResourceGroup,
+      updateResourceGroup,
+      deleteResourceGroup,
+      app,
+    });
+
+    const {
+      uploadDialogVisible,
+      uploadResourceName,
+      uploadingResource,
+      setUploadResourceName,
+      handleOpenUploadResource,
+      handleUploadFileChange,
+      handleUploadDialogOk,
+      closeUploadDialog,
+    } = useResourceUploadDialog({
+      moveResourceToGroup,
+      refreshResources,
+      app,
+    });
+
+    const {
+      draggedResourceId,
+      dragOverTarget,
+      handleDragStart,
+      handleDragEnd,
+      handleDragOver,
+      handleDragLeave,
+      handleDrop,
+    } = useResourceDragAndDrop({
+      resources,
+      moveResourceToGroup,
+    });
 
     const handleResourceSelect = useMemoizedFn((resourceId: number) => {
       setSelectedResource(resourceId);
@@ -196,66 +233,6 @@ const ResourceManagementSidebar = memo(
       },
     );
 
-    const handleCreateGroup = useMemoizedFn((parentId?: number | null) => {
-      setGroupDialogMode("create");
-      setEditingGroupParentId(parentId ?? null);
-      setGroupName("");
-      setGroupDialogVisible(true);
-    });
-
-    const handleEditGroup = useMemoizedFn((groupId: number) => {
-      const group = groups.find((g) => g.id === groupId);
-      if (group) {
-        setGroupDialogMode("edit");
-        setEditingGroupId(groupId);
-        setGroupName(group.name);
-        setGroupDialogVisible(true);
-      }
-    });
-
-    const handleDeleteGroup = useMemoizedFn((groupId: number) => {
-      modal.confirm({
-        title: "删除分组",
-        content: "确定要删除这个分组吗？分组下的资源将移到未分组。",
-        okText: "删除",
-        okButtonProps: { danger: true },
-        cancelText: "取消",
-        onOk: async () => {
-          try {
-            await deleteResourceGroup(groupId);
-            messageApi.success("分组已删除");
-          } catch (error) {
-            const err = error as Error;
-            messageApi.error(err.message || "删除失败");
-          }
-        },
-      });
-    });
-
-    const handleGroupDialogOk = useMemoizedFn(async () => {
-      if (!groupName.trim()) {
-        messageApi.warning("请输入分组名称");
-        return;
-      }
-
-      try {
-        if (groupDialogMode === "create") {
-          await createResourceGroup(groupName, editingGroupParentId);
-          messageApi.success("分组已创建");
-        } else if (editingGroupId) {
-          await updateResourceGroup(editingGroupId, groupName);
-          messageApi.success("分组已更新");
-        }
-        setGroupDialogVisible(false);
-        setGroupName("");
-        setEditingGroupId(null);
-        setEditingGroupParentId(null);
-      } catch (error) {
-        const err = error as Error;
-        messageApi.error(err.message || "操作失败");
-      }
-    });
-
     const handleScanResources = useMemoizedFn(async () => {
       const hide = messageApi.loading("正在扫描资源，请稍候...", 0);
       try {
@@ -274,81 +251,6 @@ const ResourceManagementSidebar = memo(
       setSearchKeyword(value);
     });
 
-    // 处理拖拽开始
-    const handleDragStart = useMemoizedFn(
-      (e: React.DragEvent, resourceId: number) => {
-        setDraggedResourceId(resourceId);
-        e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", resourceId.toString());
-      },
-    );
-
-    // 处理拖拽结束
-    const handleDragEnd = useMemoizedFn(() => {
-      setDraggedResourceId(null);
-      setDragOverTarget(null);
-    });
-
-    // 处理拖拽到分组上
-    const handleDragOver = useMemoizedFn(
-      (e: React.DragEvent, targetGroupId: number | null) => {
-        e.preventDefault();
-        e.stopPropagation();
-        e.dataTransfer.dropEffect = "move";
-        setDragOverTarget(targetGroupId);
-      },
-    );
-
-    // 处理拖拽离开
-    const handleDragLeave = useMemoizedFn((e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const x = e.clientX;
-      const y = e.clientY;
-      if (
-        x < rect.left ||
-        x >= rect.right ||
-        y < rect.top ||
-        y >= rect.bottom
-      ) {
-        setDragOverTarget(null);
-      }
-    });
-
-    // 处理放置到分组
-    const handleDrop = useMemoizedFn(
-      async (e: React.DragEvent, targetGroupId: number | null) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (!draggedResourceId) return;
-
-        const resource = resources.find((r) => r.id === draggedResourceId);
-        if (!resource) {
-          setDraggedResourceId(null);
-          setDragOverTarget(null);
-          return;
-        }
-
-        if (resource.groupId === targetGroupId) {
-          setDraggedResourceId(null);
-          setDragOverTarget(null);
-          return;
-        }
-
-        try {
-          await moveResourceToGroup(draggedResourceId, targetGroupId);
-          messageApi.success(targetGroupId ? "已移动到分组" : "已移到未分组");
-        } catch (error) {
-          messageApi.error("移动失败");
-        } finally {
-          setDraggedResourceId(null);
-          setDragOverTarget(null);
-        }
-      },
-    );
-
     // 渲染分组的右键菜单
     const getGroupContextMenu = (groupId: number) => {
       return [
@@ -358,6 +260,14 @@ const ResourceManagementSidebar = memo(
           onClick: (e: MenuClickInfo) => {
             e.domEvent.stopPropagation();
             handleCreateGroup(groupId);
+          },
+        },
+        {
+          key: "add-resource",
+          label: "添加资源",
+          onClick: (e: MenuClickInfo) => {
+            e.domEvent.stopPropagation();
+            handleOpenUploadResource(groupId);
           },
         },
         {
@@ -380,68 +290,88 @@ const ResourceManagementSidebar = memo(
       ];
     };
 
+    const getUngroupedContextMenu = () => {
+      return [
+        {
+          key: "add-resource",
+          label: "添加资源",
+          onClick: (e: MenuClickInfo) => {
+            e.domEvent.stopPropagation();
+            handleOpenUploadResource(null);
+          },
+        },
+      ];
+    };
+
     // 渲染资源项
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // 递归构建用户分组的扁平列表
-    const buildUserGroupItems = (
-      parentId: number | null,
-      level: number,
-      items: VirtualListItem[],
-      filteredResources: IResource[],
-    ) => {
-      const childGroups = groups.filter((g) => g.parentId === parentId);
+    const buildUserGroupItems = useMemoizedFn(
+      (
+        parentId: number | null,
+        level: number,
+        items: VirtualListItem[],
+        filteredResources: IResource[],
+      ) => {
+        const childGroups = groups.filter((g) => g.parentId === parentId);
 
-      childGroups.forEach((group) => {
-        // 检查该分组及其所有子分组是否包含筛选后的资源
-        const hasResources = filteredResources.some((r) => {
-          // 检查是否在当前分组
-          if (r.groupId === group.id) return true;
+        childGroups.forEach((group) => {
+          // 检查该分组及其所有子分组是否包含筛选后的资源
+          const hasResources = filteredResources.some((r) => {
+            // 检查是否在当前分组
+            if (r.groupId === group.id) return true;
 
-          // 检查是否在子分组（递归）
-          const isInChildGroup = (gId: number): boolean => {
-            const children = groups.filter((g) => g.parentId === gId);
-            return children.some(
-              (child) =>
-                filteredResources.some((r) => r.groupId === child.id) ||
-                isInChildGroup(child.id),
-            );
-          };
+            // 检查是否在子分组（递归）
+            const isInChildGroup = (gId: number): boolean => {
+              const children = groups.filter((g) => g.parentId === gId);
+              return children.some(
+                (child) =>
+                  filteredResources.some((r) => r.groupId === child.id) ||
+                  isInChildGroup(child.id),
+              );
+            };
 
-          return isInChildGroup(group.id);
-        });
-
-        // 只有当分组包含资源时才显示
-        if (hasResources) {
-          // 添加分组项
-          items.push({
-            type: "user-group",
-            group,
-            key: `user-group-${group.id}`,
-            level,
+            return isInChildGroup(group.id);
           });
 
-          // 如果分组展开，添加子项
-          if (expandedUserGroups.includes(group.id)) {
-            // 递归添加子分组
-            buildUserGroupItems(group.id, level + 1, items, filteredResources);
-
-            // 添加该分组下的资源
-            const groupResources = filteredResources.filter(
-              (r) => r.groupId === group.id,
-            );
-            groupResources.forEach((resource) => {
-              items.push({
-                type: "user-resource",
-                resource,
-                key: `user-resource-${resource.id}`,
-                level: level + 1,
-              });
+          // 只有当分组包含资源时才显示
+          if (hasResources) {
+            // 添加分组项
+            items.push({
+              type: "user-group",
+              group,
+              key: `user-group-${group.id}`,
+              level,
             });
+
+            // 如果分组展开，添加子项
+            if (expandedUserGroups.includes(group.id)) {
+              // 递归添加子分组
+              buildUserGroupItems(
+                group.id,
+                level + 1,
+                items,
+                filteredResources,
+              );
+
+              // 添加该分组下的资源
+              const groupResources = filteredResources.filter(
+                (r) => r.groupId === group.id,
+              );
+              groupResources.forEach((resource) => {
+                items.push({
+                  type: "user-resource",
+                  resource,
+                  key: `user-resource-${resource.id}`,
+                  level: level + 1,
+                });
+              });
+            }
           }
-        }
-      });
-    };
+        });
+      },
+    );
 
     // 构建扁平化的虚拟列表项
     const virtualListItems = useMemo(() => {
@@ -560,9 +490,9 @@ const ResourceManagementSidebar = memo(
       resources,
       groups,
       expandedSystemGroups,
-      expandedUserGroups,
       expandedUngrouped,
       searchKeyword,
+      buildUserGroupItems,
     ]);
 
     // 虚拟滚动 - 根据项类型计算高度
@@ -903,50 +833,55 @@ const ResourceManagementSidebar = memo(
           );
 
           return (
-            <div
-              className={classnames(
-                "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
-                {
-                  "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
-                    selectedGroupId === null &&
-                    selectedSystemFilter === null &&
-                    selectedResourceId === null,
-                  "hover:bg-hover": !(
-                    selectedGroupId === null &&
-                    selectedSystemFilter === null &&
-                    selectedResourceId === null
-                  ),
-                },
-              )}
-              onClick={() => {
-                handleGroupSelect(null);
-              }}
-              onDragOver={(e) => handleDragOver(e, null)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, null)}
+            <Dropdown
+              menu={{ items: getUngroupedContextMenu() }}
+              trigger={["contextMenu"]}
             >
               <div
-                className="flex-shrink-0 mr-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setExpandedUngrouped(!expandedUngrouped);
-                }}
-              >
-                {expandedUngrouped ? (
-                  <FolderOpenOutlined className="text-base text-text-secondary" />
-                ) : (
-                  <FolderOutlined className="text-base text-text-secondary" />
+                className={classnames(
+                  "flex items-center px-3 py-2 mx-2 my-0.5 rounded-md cursor-pointer transition-colors duration-200",
+                  {
+                    "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-200":
+                      selectedGroupId === null &&
+                      selectedSystemFilter === null &&
+                      selectedResourceId === null,
+                    "hover:bg-hover": !(
+                      selectedGroupId === null &&
+                      selectedSystemFilter === null &&
+                      selectedResourceId === null
+                    ),
+                  },
                 )}
+                onClick={() => {
+                  handleGroupSelect(null);
+                }}
+                onDragOver={(e) => handleDragOver(e, null)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, null)}
+              >
+                <div
+                  className="flex-shrink-0 mr-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedUngrouped(!expandedUngrouped);
+                  }}
+                >
+                  {expandedUngrouped ? (
+                    <FolderOpenOutlined className="text-base text-text-secondary" />
+                  ) : (
+                    <FolderOutlined className="text-base text-text-secondary" />
+                  )}
+                </div>
+                <div className="flex-1 flex justify-between items-center min-w-0">
+                  <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
+                    未分组
+                  </span>
+                  <span className="text-xs text-text-secondary ml-2">
+                    ({ungroupedResources.length})
+                  </span>
+                </div>
               </div>
-              <div className="flex-1 flex justify-between items-center min-w-0">
-                <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
-                  未分组
-                </span>
-                <span className="text-xs text-text-secondary ml-2">
-                  ({ungroupedResources.length})
-                </span>
-              </div>
-            </div>
+            </Dropdown>
           );
         }
 
@@ -1095,17 +1030,32 @@ const ResourceManagementSidebar = memo(
           </div>
         </div>
 
+        <Modal
+          title="上传资源"
+          open={uploadDialogVisible}
+          onOk={handleUploadDialogOk}
+          onCancel={closeUploadDialog}
+          okText="上传"
+          cancelText="取消"
+          confirmLoading={uploadingResource}
+        >
+          <div className="flex flex-col gap-3">
+            <input type="file" onChange={handleUploadFileChange} />
+            <Input
+              className="h-10"
+              placeholder="请输入资源名称（默认为文件名）"
+              value={uploadResourceName}
+              onChange={(e) => setUploadResourceName(e.target.value)}
+            />
+          </div>
+        </Modal>
+
         {/* 分组对话框 */}
         <Modal
           title={groupDialogMode === "create" ? "新建分组" : "编辑分组"}
           open={groupDialogVisible}
           onOk={handleGroupDialogOk}
-          onCancel={() => {
-            setGroupDialogVisible(false);
-            setGroupName("");
-            setEditingGroupId(null);
-            setEditingGroupParentId(null);
-          }}
+          onCancel={closeGroupDialog}
           okText="确定"
           cancelText="取消"
         >
