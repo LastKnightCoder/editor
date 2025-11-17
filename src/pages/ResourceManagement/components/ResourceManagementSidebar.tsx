@@ -22,9 +22,10 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import classnames from "classnames";
 import useResourceStore from "@/stores/useResourceStore";
 import type { IResource, ResourceGroup, ResourceType } from "@/types";
-import { scanAndUpdateResources } from "@/commands";
+import { scanAndUpdateResources, createOrUpdateResource } from "@/commands";
 import SVG from "react-inlinesvg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
+import useUploadResource from "@/hooks/useUploadResource";
 
 interface ResourceManagementSidebarProps {
   onFoldSidebar?: () => void;
@@ -77,6 +78,19 @@ const typeConfigs = [
     icon: <FileOutlined />,
   },
 ];
+
+const getResourceTypeFromFile = (file: File): ResourceType => {
+  const mimeType = file.type.toLowerCase();
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("audio/")) return "audio";
+
+  const name = file.name.toLowerCase();
+  if (name.match(/\.(png|jpe?g|gif|webp|bmp|svg)$/)) return "image";
+  if (name.match(/\.(mp4|mov|avi|mkv|webm)$/)) return "video";
+  if (name.match(/\.(mp3|wav|aac|flac|ogg|m4a)$/)) return "audio";
+  return "attachment";
+};
 
 // 来源配置（移到组件外部）
 const sourceConfigs = [
@@ -161,6 +175,16 @@ const ResourceManagementSidebar = memo(
       null,
     );
     const [dragOverTarget, setDragOverTarget] = useState<number | null>(null);
+    const [uploadDialogVisible, setUploadDialogVisible] = useState(false);
+    const [uploadTargetGroupId, setUploadTargetGroupId] = useState<
+      number | null
+    >(null);
+    const [uploadResourceName, setUploadResourceName] = useState("");
+    const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(
+      null,
+    );
+    const [uploadingResource, setUploadingResource] = useState(false);
+    const uploadResource = useUploadResource();
 
     const handleResourceSelect = useMemoizedFn((resourceId: number) => {
       setSelectedResource(resourceId);
@@ -253,6 +277,66 @@ const ResourceManagementSidebar = memo(
       } catch (error) {
         const err = error as Error;
         messageApi.error(err.message || "操作失败");
+      }
+    });
+
+    const handleOpenUploadResource = useMemoizedFn((groupId: number) => {
+      setUploadTargetGroupId(groupId);
+      setUploadDialogVisible(true);
+      setSelectedUploadFile(null);
+      setUploadResourceName("");
+    });
+
+    const handleUploadFileChange = useMemoizedFn(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        setSelectedUploadFile(file);
+        if (file && !uploadResourceName) {
+          setUploadResourceName(file.name);
+        }
+      },
+    );
+
+    const handleUploadDialogOk = useMemoizedFn(async () => {
+      if (!selectedUploadFile) {
+        messageApi.warning("请选择文件");
+        return;
+      }
+
+      const finalName =
+        uploadResourceName.trim() || selectedUploadFile.name || "未命名资源";
+
+      try {
+        setUploadingResource(true);
+        const path = await uploadResource(selectedUploadFile);
+        if (!path) {
+          messageApi.error("文件上传失败");
+          return;
+        }
+
+        const type = getResourceTypeFromFile(selectedUploadFile);
+        const resource = await createOrUpdateResource({
+          name: finalName,
+          path,
+          type,
+          source: { type: "content", id: 0 },
+        });
+
+        if (uploadTargetGroupId !== null) {
+          await moveResourceToGroup(resource.id, uploadTargetGroupId);
+        }
+
+        await refreshResources();
+        messageApi.success("资源已上传");
+        setUploadDialogVisible(false);
+        setUploadTargetGroupId(null);
+        setSelectedUploadFile(null);
+        setUploadResourceName("");
+      } catch (error) {
+        const err = error as Error;
+        messageApi.error(err.message || "上传失败");
+      } finally {
+        setUploadingResource(false);
       }
     });
 
@@ -358,6 +442,14 @@ const ResourceManagementSidebar = memo(
           onClick: (e: MenuClickInfo) => {
             e.domEvent.stopPropagation();
             handleCreateGroup(groupId);
+          },
+        },
+        {
+          key: "add-resource",
+          label: "添加资源",
+          onClick: (e: MenuClickInfo) => {
+            e.domEvent.stopPropagation();
+            handleOpenUploadResource(groupId);
           },
         },
         {
@@ -1094,6 +1186,31 @@ const ResourceManagementSidebar = memo(
             })}
           </div>
         </div>
+
+        <Modal
+          title="上传资源"
+          open={uploadDialogVisible}
+          onOk={handleUploadDialogOk}
+          onCancel={() => {
+            setUploadDialogVisible(false);
+            setUploadTargetGroupId(null);
+            setSelectedUploadFile(null);
+            setUploadResourceName("");
+          }}
+          okText="上传"
+          cancelText="取消"
+          confirmLoading={uploadingResource}
+        >
+          <div className="flex flex-col gap-3">
+            <input type="file" onChange={handleUploadFileChange} />
+            <Input
+              className="h-10"
+              placeholder="请输入资源名称（默认为文件名）"
+              value={uploadResourceName}
+              onChange={(e) => setUploadResourceName(e.target.value)}
+            />
+          </div>
+        </Modal>
 
         {/* 分组对话框 */}
         <Modal
