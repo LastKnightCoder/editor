@@ -310,6 +310,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     });
 
     const allowAddColumn = config?.allowAddColumn ?? true;
+    const allowDeleteColumn = config?.allowDeleteColumn ?? true;
 
     const handleAddColumn = useMemoizedFn(() => {
       if (!allowAddColumn) return;
@@ -390,6 +391,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
             onSave={handleSaveRowDetail}
             onAddColumn={handleAddColumn}
             readonly={readonly}
+            allowDeleteColumn={allowDeleteColumn}
           />
         )}
 
