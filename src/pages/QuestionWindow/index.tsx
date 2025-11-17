@@ -206,6 +206,11 @@ const QuestionWindowPage = () => {
     );
   }, [selectedAnswerId, selectedQuestionAnswers]);
 
+  const currentAnswerIndex = useMemo(() => {
+    if (!selectedAnswerId) return -1;
+    return selectedQuestionAnswers.findIndex((a) => a.id === selectedAnswerId);
+  }, [selectedAnswerId, selectedQuestionAnswers]);
+
   const handleCreateGroup = async (title: string, color?: string) => {
     await createGroup({ title, color });
     await loadGroupStats();
@@ -272,6 +277,34 @@ const QuestionWindowPage = () => {
     status: "not_started" | "in_progress" | "resolved",
   ) => {
     await useQuestionStore.getState().updateQuestionStatus(id, status);
+  };
+
+  const handlePrevAnswer = () => {
+    if (!selectedQuestionAnswers.length) return;
+    setSelectedAnswerId((prev) => {
+      if (!prev) return selectedQuestionAnswers[0]?.id ?? null;
+      const currentIndex = selectedQuestionAnswers.findIndex(
+        (a) => a.id === prev,
+      );
+      if (currentIndex === -1) return selectedQuestionAnswers[0]?.id ?? null;
+      const nextIndex =
+        (currentIndex - 1 + selectedQuestionAnswers.length) %
+        selectedQuestionAnswers.length;
+      return selectedQuestionAnswers[nextIndex].id;
+    });
+  };
+
+  const handleNextAnswer = () => {
+    if (!selectedQuestionAnswers.length) return;
+    setSelectedAnswerId((prev) => {
+      if (!prev) return selectedQuestionAnswers[0]?.id ?? null;
+      const currentIndex = selectedQuestionAnswers.findIndex(
+        (a) => a.id === prev,
+      );
+      if (currentIndex === -1) return selectedQuestionAnswers[0]?.id ?? null;
+      const nextIndex = (currentIndex + 1) % selectedQuestionAnswers.length;
+      return selectedQuestionAnswers[nextIndex].id;
+    });
   };
 
   return (
@@ -385,6 +418,10 @@ const QuestionWindowPage = () => {
             if (activeGroupId != null) loadItems(activeGroupId);
           }}
           readOnly={false}
+          currentIndex={currentAnswerIndex}
+          total={selectedQuestionAnswers.length}
+          onPrev={handlePrevAnswer}
+          onNext={handleNextAnswer}
         />
       </div>
     </DndProvider>
