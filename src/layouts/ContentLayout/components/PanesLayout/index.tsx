@@ -8,12 +8,20 @@ import TabContent from "../TabContent";
 import { PaneDirection, ITab } from "@/types/tab";
 import styles from "./index.module.less";
 
-interface DragItem {
-  type: string;
+type TabDragItem = {
+  type: "TAB";
   paneId: string;
   tab: ITab;
   index: number;
-}
+};
+
+type TabGroupDragItem = {
+  type: "TAB_GROUP";
+  groupId: string;
+  paneId: string;
+};
+
+type DragItem = TabDragItem | TabGroupDragItem;
 
 // 内容区域拖拽分屏组件
 const ContentDropZone = memo(
@@ -31,10 +39,13 @@ const ContentDropZone = memo(
     >(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const createPaneWithTab = useTabStore((state) => state.createPaneWithTab);
+    const createPaneWithTabGroup = useTabStore(
+      (state) => state.createPaneWithTabGroup,
+    );
 
     const [, drop] = useDrop<DragItem>({
-      accept: "TAB",
-      hover: (item, monitor) => {
+      accept: ["TAB", "TAB_GROUP"],
+      hover: (_item, monitor) => {
         if (!containerRef.current || !monitor.isOver({ shallow: true })) {
           setDropZone(null);
           return;
@@ -48,17 +59,15 @@ const ContentDropZone = memo(
 
         let zone: "left" | "right" | "top" | "bottom" | null = null;
 
-        // 检测是否在边缘区域（只有当拖拽源和目标是同一个 pane 时才允许边缘分屏）
-        if (item.paneId === paneId) {
-          if (clientOffset.x - dropElement.left < threshold) {
-            zone = "left";
-          } else if (dropElement.right - clientOffset.x < threshold) {
-            zone = "right";
-          } else if (clientOffset.y - dropElement.top < threshold) {
-            zone = "top";
-          } else if (dropElement.bottom - clientOffset.y < threshold) {
-            zone = "bottom";
-          }
+        // 检测是否在边缘区域
+        if (clientOffset.x - dropElement.left < threshold) {
+          zone = "left";
+        } else if (dropElement.right - clientOffset.x < threshold) {
+          zone = "right";
+        } else if (clientOffset.y - dropElement.top < threshold) {
+          zone = "top";
+        } else if (dropElement.bottom - clientOffset.y < threshold) {
+          zone = "bottom";
         }
 
         setDropZone(zone);
@@ -73,15 +82,26 @@ const ContentDropZone = memo(
               ? PaneDirection.Horizontal
               : PaneDirection.Vertical;
 
-          console.log("[ContentDropZone] Creating pane with tab:", {
-            fromPaneId: item.paneId,
-            tabId: item.tab.id,
-            tabTitle: item.tab.title,
-            direction,
-          });
+          if (item.type === "TAB") {
+            console.log("[ContentDropZone] Creating pane with tab:", {
+              fromPaneId: item.paneId,
+              tabId: item.tab.id,
+              tabTitle: item.tab.title,
+              direction,
+            });
 
-          // 创建新 pane 并移动 tab（原子操作）
-          createPaneWithTab(item.paneId, item.tab.id, direction, 0.5);
+            // 创建新 pane 并移动 tab（原子操作）
+            createPaneWithTab(item.paneId, item.tab.id, direction, 0.5);
+          } else if (item.type === "TAB_GROUP") {
+            console.log("[ContentDropZone] Creating pane with tab group:", {
+              fromPaneId: item.paneId,
+              groupId: item.groupId,
+              direction,
+            });
+
+            // 创建新 pane 并移动整个分组（原子操作）
+            createPaneWithTabGroup(item.paneId, item.groupId, direction, 0.5);
+          }
         }
 
         return { paneId, dropZone: zone };
