@@ -3,6 +3,7 @@ import { useDrag, useDrop } from "react-dnd";
 import classnames from "classnames";
 import { CloseOutlined } from "@ant-design/icons";
 import { ITab } from "@/types/tab";
+import useTabStore from "@/stores/useTabStore";
 
 interface DraggableTabProps {
   tab: ITab;
@@ -17,23 +18,47 @@ interface DraggableTabProps {
     paneId: string,
     dropZone?: "left" | "right" | "top" | "bottom",
   ) => void;
+  groupColor?: string;
 }
 
-interface DragItem {
-  type: string;
+type TabDragItem = {
+  type: "TAB";
   tab: ITab;
   paneId: string;
   index: number;
-}
+};
+
+type TabGroupDragItem = {
+  type: "TAB_GROUP";
+  groupId: string;
+  paneId: string;
+};
+
+type DragItem = TabDragItem | TabGroupDragItem;
 
 const DraggableTab = memo((props: DraggableTabProps) => {
-  const { tab, paneId, index, isActive, onClose, onSwitch, onMove, onDragEnd } =
-    props;
+  const {
+    tab,
+    paneId,
+    index,
+    isActive,
+    onClose,
+    onSwitch,
+    onMove,
+    onDragEnd,
+    groupColor,
+  } = props;
   const ref = useRef<HTMLDivElement>(null);
+  const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
+  const moveTabGroupToTab = useTabStore((state) => state.moveTabGroupToTab);
 
-  const [{ isDragging }, drag] = useDrag({
+  const [{ isDragging }, drag] = useDrag<
+    TabDragItem,
+    void,
+    { isDragging: boolean }
+  >({
     type: "TAB",
-    item: (): DragItem => ({ type: "TAB", tab, paneId, index }),
+    item: () => ({ type: "TAB", tab, paneId, index }),
     collect: (monitor) => ({
       isDragging: monitor.isDragging(),
     }),
@@ -41,12 +66,45 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       const didDrop = monitor.didDrop();
       const dropResult = monitor.getDropResult() as {
         paneId: string;
-        dropZone?: "left" | "right" | "top" | "bottom";
+        dropZone?: "left" | "right" | "top" | "bottom" | "group";
       } | null;
 
-      if (didDrop && dropResult) {
-        onDragEnd(item.tab, item.paneId, dropResult.dropZone);
+      if (!didDrop || !dropResult) {
+        return;
       }
+
+      const { paneId: targetPaneId, dropZone } = dropResult;
+
+      // 分屏逻辑仍然交给上层 Titlebar 处理
+      if (dropZone && dropZone !== "group") {
+        console.log("[DraggableTab][end split]", {
+          tabId: item.tab.id,
+          fromPaneId: item.paneId,
+          toPaneId: targetPaneId,
+          dropZone,
+        });
+        onDragEnd(item.tab, item.paneId, dropZone);
+        return;
+      }
+
+      // dropZone 为 "group" 时，分组逻辑已经在 TabGroupHeader.onDropTabToGroup 中完成
+      if (dropZone === "group") {
+        console.log("[DraggableTab][end group] (handled by header)", {
+          tabId: item.tab.id,
+          fromPaneId: item.paneId,
+          toPaneId: targetPaneId,
+        });
+        return;
+      }
+
+      // 其他情况（同 pane 普通移动 / 跨 pane 普通移动）仍然交给上层处理
+      console.log("[DraggableTab][end]", {
+        tabId: item.tab.id,
+        fromPaneId: item.paneId,
+        toPaneId: targetPaneId,
+        dropZone: "none",
+      });
+      onDragEnd(item.tab, item.paneId, undefined);
     },
   });
 
@@ -55,7 +113,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
     void,
     { handlerId: string | symbol | null }
   >({
-    accept: "TAB",
+    accept: ["TAB", "TAB_GROUP"],
     collect: (monitor) => ({
       handlerId: monitor.getHandlerId(),
     }),
@@ -64,41 +122,102 @@ const DraggableTab = memo((props: DraggableTabProps) => {
         return;
       }
 
-      // 同一个 pane 内才允许 hover 排序
-      if (item.paneId !== paneId) {
+      if (item.type === "TAB") {
+        // 同一个 pane 内才允许 hover 排序
+        if (item.paneId !== paneId) {
+          return;
+        }
+
+        const dragIndex = item.index;
+        const hoverIndex = index;
+
+        // 不替换自己
+        if (dragIndex === hoverIndex) {
+          return;
+        }
+
+        // 确定鼠标位置
+        const hoverBoundingRect = ref.current.getBoundingClientRect();
+        const hoverMiddleX =
+          (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
+        const clientOffset = monitor.getClientOffset();
+        if (!clientOffset) return;
+        const hoverClientX = clientOffset.x - hoverBoundingRect.left;
+
+        // 拖拽向右时,只在鼠标超过50%时才交换
+        if (dragIndex < hoverIndex && hoverClientX < hoverMiddleX) {
+          return;
+        }
+
+        // 拖拽向左时,只在鼠标超过50%时才交换
+        if (dragIndex > hoverIndex && hoverClientX > hoverMiddleX) {
+          return;
+        }
+
+        // 处理分组变化
+        if (item.tab.groupId !== tab.groupId) {
+          // 如果拖动的 tab 和目标 tab 的分组不同，需要更新分组
+          if (tab.groupId) {
+            // 目标 tab 在分组中，将拖动的 tab 加入该分组
+            console.log("[DraggableTab][hover] moving tab to different group", {
+              tabId: item.tab.id,
+              fromGroupId: item.tab.groupId,
+              toGroupId: tab.groupId,
+            });
+            useTabStore
+              .getState()
+              .setTabGroup(paneId, item.tab.id, tab.groupId);
+            item.tab.groupId = tab.groupId;
+          } else if (item.tab.groupId) {
+            // 目标 tab 不在分组中，取消拖动 tab 的分组
+            console.log("[DraggableTab][hover] removing tab from group", {
+              tabId: item.tab.id,
+              fromGroupId: item.tab.groupId,
+            });
+            useTabStore.getState().setTabGroup(paneId, item.tab.id, undefined);
+            item.tab.groupId = undefined;
+          }
+        }
+
+        // 执行交换
+        onMove(dragIndex, hoverIndex);
+
+        // 更新索引以避免重复触发
+        item.index = hoverIndex;
         return;
       }
 
-      const dragIndex = item.index;
-      const hoverIndex = index;
+      if (item.type === "TAB_GROUP") {
+        // 不允许拖到自己分组内的 tab 上
+        if (item.groupId === tab.groupId) {
+          return;
+        }
 
-      // 不替换自己
-      if (dragIndex === hoverIndex) {
-        return;
+        const hoverBoundingRect = ref.current.getBoundingClientRect();
+        const hoverMiddleX =
+          (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
+        const clientOffset = monitor.getClientOffset();
+        if (!clientOffset) return;
+        const hoverClientX = clientOffset.x - hoverBoundingRect.left;
+        const position: "before" | "after" =
+          hoverClientX < hoverMiddleX ? "before" : "after";
+
+        console.log("[DraggableTab][hover TAB_GROUP]", {
+          currentTabId: tab.id,
+          currentGroupId: tab.groupId,
+          draggedGroupId: item.groupId,
+          paneId,
+          position,
+        });
+
+        if (tab.groupId) {
+          // 当前 tab 在分组中，分组和分组之间排序
+          reorderTabGroup(paneId, item.groupId, tab.groupId, position);
+        } else {
+          // 当前 tab 不在分组中，分组拖到普通 tab 的位置
+          moveTabGroupToTab(paneId, item.groupId, tab.id, position);
+        }
       }
-
-      // 确定鼠标位置
-      const hoverBoundingRect = ref.current.getBoundingClientRect();
-      const hoverMiddleX =
-        (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
-      const clientOffset = monitor.getClientOffset();
-      const hoverClientX = clientOffset!.x - hoverBoundingRect.left;
-
-      // 拖拽向右时,只在鼠标超过50%时才交换
-      if (dragIndex < hoverIndex && hoverClientX < hoverMiddleX) {
-        return;
-      }
-
-      // 拖拽向左时,只在鼠标超过50%时才交换
-      if (dragIndex > hoverIndex && hoverClientX > hoverMiddleX) {
-        return;
-      }
-
-      // 执行交换
-      onMove(dragIndex, hoverIndex);
-
-      // 更新索引以避免重复触发
-      item.index = hoverIndex;
     },
   });
 
@@ -109,13 +228,20 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       ref={ref}
       data-handler-id={handlerId}
       className={classnames(
-        "flex items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] hover:bg-[var(--common-hover-bg)] group transition-all app-region-no-drag",
+        "flex items-center gap-2 px-3 h-8 rounded-md cursor-pointer select-none max-w-[200px] hover:bg-[var(--common-hover-bg)] group transition-all app-region-no-drag border-b-2 border-transparent",
         {
           "bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-200":
             isActive,
           "opacity-40": isDragging,
         },
       )}
+      style={
+        groupColor
+          ? {
+              borderBottomColor: groupColor,
+            }
+          : undefined
+      }
       onClick={onSwitch}
     >
       <span className="flex-1 text-sm truncate text-[var(--text-color)]">

@@ -1,3 +1,5 @@
+import type { ProjectColorName } from "@/constants/project-colors";
+
 export enum TabType {
   Home = "home",
   CardList = "cardList",
@@ -63,6 +65,14 @@ export interface ITab<T extends TabType = TabType> {
   title: string;
   params?: TabParams[T];
   closable?: boolean;
+  groupId?: string;
+}
+
+export interface ITabGroup {
+  id: string;
+  title: string;
+  color?: ProjectColorName;
+  collapsed?: boolean;
 }
 
 /**
@@ -82,6 +92,7 @@ export interface IPane {
   activeTabId: string;
   direction?: PaneDirection;
   splitRatio?: number; // 分屏比例 0-1
+  groups?: ITabGroup[];
 }
 
 /**

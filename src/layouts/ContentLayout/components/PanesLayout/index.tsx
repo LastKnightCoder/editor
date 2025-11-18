@@ -214,19 +214,17 @@ const PanesLayout = memo(() => {
     const activeTab = pane.tabs.find((t) => t.id === pane.activeTabId);
 
     return (
-      <DndProvider backend={HTML5Backend}>
-        <div className={styles.singlePane}>
-          <TitlebarWithTabs paneId={pane.id} showRightControls={true} />
-          <ContentDropZone
-            paneId={pane.id}
-            className={"flex-1 min-h-0 overflow-hidden"}
-          >
-            <div className={classnames(styles.paneContent)}>
-              {activeTab && <TabContent tab={activeTab} paneId={pane.id} />}
-            </div>
-          </ContentDropZone>
-        </div>
-      </DndProvider>
+      <div className={styles.singlePane}>
+        <TitlebarWithTabs paneId={pane.id} showRightControls={true} />
+        <ContentDropZone
+          paneId={pane.id}
+          className={"flex-1 min-h-0 overflow-hidden"}
+        >
+          <div className={classnames(styles.paneContent)}>
+            {activeTab && <TabContent tab={activeTab} paneId={pane.id} />}
+          </div>
+        </ContentDropZone>
+      </div>
     );
   }
 
