@@ -146,11 +146,6 @@ const ArticleCard = (props: IArticleCardProps) => {
       filePath[0],
     )) as Uint8Array<ArrayBuffer>;
     const file = new File([fileData], await getFileBaseName(filePath[0]));
-    if (file.size > 1024 * 1024 * 5) {
-      message.error("文件大小超过5M");
-      setBannerUploading(false);
-      return;
-    }
     const url = await uploadResource(file);
     if (!url) {
       message.error("上传失败");
