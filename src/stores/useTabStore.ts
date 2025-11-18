@@ -32,6 +32,17 @@ interface IActions {
     direction?: PaneDirection,
     splitRatio?: number,
   ) => string;
+  createPaneWithTabGroup: (
+    fromPaneId: string,
+    groupId: string,
+    direction?: PaneDirection,
+    splitRatio?: number,
+  ) => string;
+  moveTabGroupToPane: (
+    fromPaneId: string,
+    toPaneId: string,
+    groupId: string,
+  ) => void;
   closePane: (paneId: string) => void;
   setActivePane: (paneId: string) => void;
   updatePaneSplitRatio: (paneId: string, ratio: number) => void;
@@ -291,6 +302,187 @@ const useTabStore = create<IState & IActions>()(
         );
 
         return newPaneId;
+      },
+
+      createPaneWithTabGroup: (
+        fromPaneId: string,
+        groupId: string,
+        direction = PaneDirection.Horizontal,
+        splitRatio = 0.5,
+      ) => {
+        const newPaneId = uuidv4();
+
+        console.log("[createPaneWithTabGroup] Starting:", {
+          fromPaneId,
+          groupId,
+          newPaneId,
+          direction,
+        });
+
+        set(
+          produce((state: IState) => {
+            const fromPane = state.panes.find((p) => p.id === fromPaneId);
+            if (!fromPane) {
+              console.log("[createPaneWithTabGroup] Source pane not found");
+              return;
+            }
+
+            // 找到该分组的定义
+            const group = fromPane.groups?.find((g) => g.id === groupId);
+            if (!group) {
+              console.log("[createPaneWithTabGroup] Group not found");
+              return;
+            }
+
+            // 找到该分组下的所有 tabs
+            const groupTabs = fromPane.tabs.filter(
+              (t) => t.groupId === groupId,
+            );
+            if (groupTabs.length === 0) {
+              console.log("[createPaneWithTabGroup] No tabs in group");
+              return;
+            }
+
+            // 从源 pane 移除这些 tabs
+            fromPane.tabs = fromPane.tabs.filter((t) => t.groupId !== groupId);
+
+            // 从源 pane 移除分组定义
+            if (fromPane.groups) {
+              fromPane.groups = fromPane.groups.filter((g) => g.id !== groupId);
+            }
+
+            // 创建新 pane 并添加分组和 tabs
+            const newPane: IPane = {
+              id: newPaneId,
+              tabs: groupTabs,
+              activeTabId: groupTabs[0].id,
+              direction,
+              splitRatio,
+              groups: [{ ...group }],
+            };
+
+            state.panes.push(newPane);
+            state.activePaneId = newPaneId;
+
+            console.log("[createPaneWithTabGroup] Created new pane with group");
+
+            // 如果源 pane 的激活 tab 在移动的分组中，切换到其他 tab
+            if (
+              groupTabs.some((t) => t.id === fromPane.activeTabId) &&
+              fromPane.tabs.length > 0
+            ) {
+              fromPane.activeTabId = fromPane.tabs[0].id;
+            }
+
+            // 如果源 pane 没有 tabs 了，删除该 pane
+            if (fromPane.tabs.length === 0) {
+              const paneIndex = state.panes.findIndex(
+                (p) => p.id === fromPaneId,
+              );
+              if (paneIndex !== -1) {
+                state.panes.splice(paneIndex, 1);
+                console.log(
+                  "[createPaneWithTabGroup] Removed empty source pane",
+                );
+              }
+            }
+
+            // 限制最多 2 个 pane，删除最旧的 pane（保留最后 2 个）
+            if (state.panes.length > 2) {
+              console.log(
+                "[createPaneWithTabGroup] Too many panes, removing oldest",
+              );
+              state.panes.shift();
+            }
+
+            console.log(
+              "[createPaneWithTabGroup] Final panes count:",
+              state.panes.length,
+            );
+          }),
+        );
+
+        return newPaneId;
+      },
+
+      moveTabGroupToPane: (
+        fromPaneId: string,
+        toPaneId: string,
+        groupId: string,
+      ) => {
+        console.log("[moveTabGroupToPane] Starting:", {
+          fromPaneId,
+          toPaneId,
+          groupId,
+        });
+
+        set(
+          produce((state: IState) => {
+            const fromPane = state.panes.find((p) => p.id === fromPaneId);
+            const toPane = state.panes.find((p) => p.id === toPaneId);
+
+            if (!fromPane || !toPane) {
+              console.log("[moveTabGroupToPane] Pane not found");
+              return;
+            }
+
+            // 找到该分组的定义
+            const group = fromPane.groups?.find((g) => g.id === groupId);
+            if (!group) {
+              console.log("[moveTabGroupToPane] Group not found");
+              return;
+            }
+
+            // 找到该分组下的所有 tabs
+            const groupTabs = fromPane.tabs.filter(
+              (t) => t.groupId === groupId,
+            );
+            if (groupTabs.length === 0) {
+              console.log("[moveTabGroupToPane] No tabs in group");
+              return;
+            }
+
+            // 从源 pane 移除这些 tabs
+            fromPane.tabs = fromPane.tabs.filter((t) => t.groupId !== groupId);
+
+            // 从源 pane 移除分组定义
+            if (fromPane.groups) {
+              fromPane.groups = fromPane.groups.filter((g) => g.id !== groupId);
+            }
+
+            // 添加到目标 pane
+            toPane.tabs.push(...groupTabs);
+            if (!toPane.groups) {
+              toPane.groups = [];
+            }
+            toPane.groups.push({ ...group });
+            toPane.activeTabId = groupTabs[0].id;
+
+            // 如果源 pane 的激活 tab 在移动的分组中，切换到其他 tab
+            if (
+              groupTabs.some((t) => t.id === fromPane.activeTabId) &&
+              fromPane.tabs.length > 0
+            ) {
+              fromPane.activeTabId = fromPane.tabs[0].id;
+            }
+
+            // 如果源 pane 没有 tabs 了，删除该 pane（除非只剩一个 pane）
+            if (fromPane.tabs.length === 0 && state.panes.length > 1) {
+              const paneIndex = state.panes.findIndex(
+                (p) => p.id === fromPaneId,
+              );
+              state.panes.splice(paneIndex, 1);
+              if (state.activePaneId === fromPaneId) {
+                state.activePaneId = toPaneId;
+              }
+            }
+
+            // 设置目标 pane 为激活状态
+            state.activePaneId = toPaneId;
+
+            console.log("[moveTabGroupToPane] Completed");
+          }),
+        );
       },
 
       closePane: (paneId: string) => {

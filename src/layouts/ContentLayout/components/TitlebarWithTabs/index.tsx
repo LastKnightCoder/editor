@@ -34,12 +34,16 @@ type TabDragItem = {
   tab: ITab;
   paneId: string;
   index: number;
+  lastMoveKey?: string;
+  originalPaneId?: string;
 };
 
 type TabGroupDragItem = {
   type: "TAB_GROUP";
   groupId: string;
   paneId: string;
+  lastMoveKey?: string;
+  originalPaneId?: string;
 };
 
 type TabGroupHeaderDropItem = TabDragItem | TabGroupDragItem;
@@ -70,6 +74,11 @@ interface TabGroupHeaderProps {
     position: "before" | "after",
   ) => void;
   onDropTabToGroup: (tab: ITab, sourcePaneId: string) => void;
+  onDragEndGroup: (
+    groupId: string,
+    sourcePaneId: string,
+    dropZone?: "left" | "right" | "top" | "bottom",
+  ) => void;
 }
 
 const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
@@ -81,6 +90,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
     onToggleCollapse,
     onMoveGroup,
     onDropTabToGroup,
+    onDragEndGroup,
   } = props;
 
   const ref = React.useRef<HTMLDivElement | null>(null);
@@ -166,13 +176,63 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
           groupId: group.id,
           paneId,
         });
-        return { type: "TAB_GROUP", groupId: group.id, paneId };
+        return {
+          type: "TAB_GROUP",
+          groupId: group.id,
+          paneId,
+          originalPaneId: paneId, // 记录原始 paneId
+        };
       },
       collect: (monitor) => ({
         isDragging: monitor.isDragging(),
       }),
+      end: (item, monitor) => {
+        const didDrop = monitor.didDrop();
+        const dropResult = monitor.getDropResult() as {
+          paneId: string;
+          dropZone?: "left" | "right" | "top" | "bottom";
+        } | null;
+
+        if (!didDrop || !dropResult) {
+          return;
+        }
+
+        const { paneId: targetPaneId, dropZone } = dropResult;
+
+        // 分屏逻辑
+        if (dropZone) {
+          console.log("[TabGroupHeader][end split]", {
+            groupId: item.groupId,
+            fromPaneId: item.paneId, // 使用当前 paneId
+            toPaneId: targetPaneId,
+            dropZone,
+          });
+          onDragEndGroup(item.groupId, item.paneId, dropZone);
+          return;
+        }
+
+        // 如果在 hover 中已经处理过跨 pane 移动，就不再处理
+        if (item.originalPaneId && item.originalPaneId !== item.paneId) {
+          console.log("[TabGroupHeader][end] already handled in hover", {
+            groupId: item.groupId,
+            originalPaneId: item.originalPaneId,
+            currentPaneId: item.paneId,
+          });
+          return;
+        }
+
+        // 跨 pane 移动（通过 drop 到标题栏空白处）
+        if (item.paneId !== targetPaneId) {
+          console.log("[TabGroupHeader][end cross-pane]", {
+            groupId: item.groupId,
+            fromPaneId: item.paneId,
+            toPaneId: targetPaneId,
+          });
+          onDragEndGroup(item.groupId, item.paneId, undefined);
+        }
+      },
     }),
-    [group.id, paneId],
+    [group.id, paneId, onDragEndGroup],
   );
 
   const backgroundStyle = colorValue
@@ -231,6 +291,10 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     (state) => state.moveTabToPaneAndSetGroup,
   );
   const createPaneWithTab = useTabStore((state) => state.createPaneWithTab);
+  const createPaneWithTabGroup = useTabStore(
+    (state) => state.createPaneWithTabGroup,
+  );
+  const moveTabGroupToPane = useTabStore((state) => state.moveTabGroupToPane);
   const createTabGroup = useTabStore((state) => state.createTabGroup);
   const updateTabGroup = useTabStore((state) => state.updateTabGroup);
   const removeTabGroup = useTabStore((state) => state.removeTabGroup);
@@ -368,10 +432,37 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     [paneId, createPaneWithTab, moveTabToPane],
   );
 
+  const handleDragEndGroup = useCallback(
+    (
+      groupId: string,
+      sourcePaneId: string,
+      dropZone?: "left" | "right" | "top" | "bottom",
+    ) => {
+      // 如果有 dropZone，说明要分屏
+      if (dropZone) {
+        const direction =
+          dropZone === "left" || dropZone === "right"
+            ? PaneDirection.Horizontal
+            : PaneDirection.Vertical;
+
+        // 创建新 pane 并移动整个分组（原子操作）
+        createPaneWithTabGroup(sourcePaneId, groupId, direction, 0.5);
+      } else if (sourcePaneId !== paneId) {
+        // 拖到另一个 pane（非边缘区域）
+        moveTabGroupToPane(sourcePaneId, paneId, groupId);
+      }
+    },
+    [paneId, createPaneWithTabGroup, moveTabGroupToPane],
+  );
+
   // 接收拖拽的 Drop Zone
-  const [, drop] = useDrop<TabDragItem, TabDropResult, { isOver: boolean }>({
-    accept: "TAB",
-    drop: (item: TabDragItem, monitor) => {
+  const [, drop] = useDrop<
+    TabDragItem | TabGroupDragItem,
+    TabDropResult,
+    { isOver: boolean }
+  >({
+    accept: ["TAB", "TAB_GROUP"],
+    drop: (item, monitor) => {
       // 如果子级已经处理了 drop（例如 TabGroupHeader），则不再处理
       if (monitor.didDrop()) return undefined;
       // 标题栏 drop 返回 paneId，不带 dropZone（表示直接移动，不分屏）
@@ -457,6 +548,24 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       },
     } as MenuItemType);
 
+    items.push({
+      key: "move-to-panel",
+      label: "移动至 Panel",
+      onClick: (e: MenuClickEvent) => {
+        e.domEvent.stopPropagation();
+        if (panes.length === 1) {
+          // 只有一个 pane，创建新的 pane
+          createPaneWithTab(paneId, tab.id, PaneDirection.Horizontal, 0.5);
+        } else {
+          // 有多个 pane，移动到另一个 pane
+          const otherPane = panes.find((p) => p.id !== paneId);
+          if (otherPane) {
+            moveTabToPane(paneId, otherPane.id, tab.id);
+          }
+        }
+      },
+    } as MenuItemType);
+
     return items;
   };
 
@@ -484,6 +593,28 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
         onClick: (e: MenuClickEvent) => {
           e.domEvent.stopPropagation();
           updateTabGroup(paneId, group.id, { collapsed: !group.collapsed });
+        },
+      } as MenuItemType,
+      {
+        key: "move-to-panel",
+        label: "移动至 Panel",
+        onClick: (e: MenuClickEvent) => {
+          e.domEvent.stopPropagation();
+          if (panes.length === 1) {
+            // 只有一个 pane，创建新的 pane
+            createPaneWithTabGroup(
+              paneId,
+              group.id,
+              PaneDirection.Horizontal,
+              0.5,
+            );
+          } else {
+            // 有多个 pane，移动到另一个 pane
+            const otherPane = panes.find((p) => p.id !== paneId);
+            if (otherPane) {
+              moveTabGroupToPane(paneId, otherPane.id, group.id);
+            }
+          }
         },
       } as MenuItemType,
       {
@@ -601,6 +732,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                     );
                   }
                 }}
+                onDragEndGroup={handleDragEndGroup}
               />
             </div>
           </Dropdown>
