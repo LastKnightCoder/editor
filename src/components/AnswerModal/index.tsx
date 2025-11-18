@@ -125,11 +125,13 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       width={800}
       destroyOnClose
       keyboard={false}
-      bodyStyle={{
-        height: "70vh",
-        maxHeight: "70vh",
-        display: "flex",
-        flexDirection: "column",
+      styles={{
+        body: {
+          height: "70vh",
+          maxHeight: "70vh",
+          display: "flex",
+          flexDirection: "column",
+        },
       }}
     >
       <div className="flex items-center justify-between">
