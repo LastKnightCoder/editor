@@ -1,6 +1,6 @@
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { produce } from "immer";
-import { Flex, Input, Select, Space, Button, message } from "antd";
+import { Flex, Input, Select, Space, message } from "antd";
 import If from "@/components/If";
 import { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -17,14 +17,12 @@ const GithubSetting = () => {
 
   const [repos, setRepos] = useState<string[]>([]);
   const [branches, setBranches] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
 
   const onLoadRepos = useMemoizedFn(async () => {
     if (!token) {
       message.warning("请先在集成设置中配置 Github Token");
       return;
     }
-    setLoading(true);
     const reposList = await getReposByOwner(token, user.name);
     console.log("reposList", reposList);
     if (reposList) {
@@ -32,7 +30,6 @@ const GithubSetting = () => {
     } else {
       message.error("获取仓库列表失败");
     }
-    setLoading(false);
   });
 
   const handleSelectRepo = useMemoizedFn(async (value: string) => {

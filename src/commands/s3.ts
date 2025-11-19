@@ -6,6 +6,7 @@ interface IS3Upload {
   bucket: string;
   region: string;
   endpoint?: string;
+  urlStyle?: "path" | "virtualHosted";
   key: string;
   file: Uint8Array;
   contentType?: string;

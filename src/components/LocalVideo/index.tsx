@@ -84,7 +84,9 @@ const LocalVideo = memo(
           videoUrl = await convertFileSrc(absolutePath);
           currentMethod.current = "localhost";
         } else {
-          const data = await readBinaryFile(absolutePath);
+          const data = (await readBinaryFile(
+            absolutePath,
+          )) as Uint8Array<ArrayBuffer>;
           const ext = await getFileExtension(absolutePath);
           const blob = new Blob([data], { type: getMimeType(ext) });
           videoUrl = URL.createObjectURL(blob);
@@ -190,7 +192,9 @@ const LocalVideo = memo(
           const absolutePath = localUrl.startsWith("~")
             ? `${homeDir}${localUrl.slice(1)}`
             : localUrl;
-          const data = await readBinaryFile(absolutePath);
+          const data = (await readBinaryFile(
+            absolutePath,
+          )) as Uint8Array<ArrayBuffer>;
           const ext = await getFileExtension(absolutePath);
           const blob = new Blob([data], { type: getMimeType(ext) });
           const videoUrl = URL.createObjectURL(blob);

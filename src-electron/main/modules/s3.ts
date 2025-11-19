@@ -8,6 +8,7 @@ interface IS3Upload {
   bucket: string;
   region: string;
   endpoint?: string;
+  urlStyle?: "path" | "virtualHosted";
   key: string;
   file: Uint8Array;
   contentType?: string;
@@ -33,6 +34,7 @@ class S3Module implements Module {
       bucket,
       region,
       endpoint,
+      urlStyle,
       key,
       file,
       contentType,
@@ -46,6 +48,7 @@ class S3Module implements Module {
           secretAccessKey,
         },
         ...(endpoint && { endpoint }),
+        forcePathStyle: urlStyle === "path",
       });
 
       const command = new PutObjectCommand({
@@ -60,6 +63,18 @@ class S3Module implements Module {
       // 构建文件 URL
       const endpointUrl = endpoint || `https://s3.${region}.amazonaws.com`;
       const baseUrl = endpointUrl.replace(/\/$/, "");
+      if (urlStyle === "virtualHosted") {
+        // 虚拟托管风格: https://bucket.endpoint/key
+        if (endpoint) {
+          // 如果是自定义 endpoint，假设它是 host
+          // 需要判断 endpoint 是否包含 protocol
+          const url = new URL(endpoint);
+          return `${url.protocol}//${bucket}.${url.host}/${key}`;
+        } else {
+          // AWS standard
+          return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+        }
+      }
       return `${baseUrl}/${bucket}/${key}`;
     } catch (error) {
       console.error("S3 上传失败:", error);

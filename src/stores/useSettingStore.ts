@@ -236,6 +236,7 @@ export interface ISetting {
       accessKeyId: string;
       secretAccessKey: string;
       endpoint: string;
+      urlStyle: "path" | "virtualHosted";
     };
     webdav: {
       enabled: boolean;
@@ -483,6 +484,7 @@ const initialState: IState = {
         accessKeyId: "",
         secretAccessKey: "",
         endpoint: "",
+        urlStyle: "path",
       },
       webdav: {
         enabled: false,

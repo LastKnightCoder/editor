@@ -54,10 +54,9 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>(
     }, [url, cdn]);
 
     const [previewUrl, setPreviewUrl] = useState(cdnUrl);
-    const [isConverting, setIsConverting] = useState(false);
+    const [isConverting, setIsConverting] = useState(true);
 
     useAsyncEffect(async () => {
-      setIsConverting(true);
       try {
         // 如果是 base64 或 blob url，直接使用
         if (

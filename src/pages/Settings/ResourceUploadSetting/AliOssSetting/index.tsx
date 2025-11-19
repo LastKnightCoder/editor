@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Input, Select, Space } from "antd";
+import { Flex, Input, Select, Space } from "antd";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { produce } from "immer";
 import { getBucketList } from "@/commands";
@@ -52,7 +52,7 @@ const AliOssSetting = () => {
   }, [accessKeySecret, accessKeyId]);
 
   return (
-    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
+    <Flex vertical gap={10}>
       <If condition={!accessKeyId || !accessKeySecret}>
         <div className="p-3  border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-md">
           请先在【集成设置】中配置阿里云 OSS 凭证
@@ -89,7 +89,7 @@ const AliOssSetting = () => {
           />
         </Space>
       </If>
-    </Space>
+    </Flex>
   );
 };
 

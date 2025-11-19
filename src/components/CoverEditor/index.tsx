@@ -64,7 +64,9 @@ const CoverEditor: React.FC<CoverEditorProps> = ({
       if (!filePaths || filePaths.length === 0) return;
 
       const filePath = filePaths[0];
-      const fileData = await readBinaryFile(filePath);
+      const fileData = (await readBinaryFile(
+        filePath,
+      )) as Uint8Array<ArrayBuffer>;
       const file = new File(
         [fileData],
         filePath.split("/").pop() || "image.png",

@@ -1,4 +1,4 @@
-import { Input, Space } from "antd";
+import { Input, Space, Flex } from "antd";
 import { produce } from "immer";
 import useSettingStore from "@/stores/useSettingStore";
 import If from "@/components/If";
@@ -13,7 +13,7 @@ const WebDavSetting = () => {
   const { url = "", username = "", password = "" } = integration;
 
   return (
-    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
+    <Flex vertical gap={10}>
       <If condition={!url || !username || !password}>
         <div className="p-3  border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-md">
           请先在【集成设置】中配置 WebDAV 凭证
@@ -40,7 +40,7 @@ const WebDavSetting = () => {
           />
         </Space>
       </If>
-    </Space>
+    </Flex>
   );
 };
 
