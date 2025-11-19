@@ -20,6 +20,7 @@ import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/Merm
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import { openExternal } from "@/commands";
 import ChatSelectorModal from "../ChatSelectorModal";
+import PlantUML from "@/components/PlantUML";
 
 import styles from "./index.module.less";
 
@@ -137,11 +138,16 @@ const ChatReferenceCard = memo(
           const { children, className, ...rest } = props;
           const match = /language-(\w+)/.exec(className || "");
           const mermaidMatch = match && match[1] === "mermaid";
+          const plantumlMatch = match && match[1] === "plantuml";
 
           if (mermaidMatch) {
             return (
               <MermaidRenderer code={String(children).replace(/\n$/, "")} />
             );
+          }
+
+          if (plantumlMatch) {
+            return <PlantUML content={String(children).replace(/\n$/, "")} />;
           }
 
           if (match) {

@@ -27,6 +27,7 @@ import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar
 import { ResponseMessage } from "@/types";
 import { Role } from "@/constants";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
+import PlantUML from "@/components/PlantUML";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer"),
@@ -133,11 +134,16 @@ const ChatArea = memo(
           const { children, className, ...rest } = props;
           const match = /language-(\w+)/.exec(className || "");
           const mermaidMatch = match && match[1] === "mermaid";
+          const plantumlMatch = match && match[1] === "plantuml";
 
           if (mermaidMatch) {
             return (
               <MermaidRenderer code={String(children).replace(/\n$/, "")} />
             );
+          }
+
+          if (plantumlMatch) {
+            return <PlantUML content={String(children).replace(/\n$/, "")} />;
           }
 
           if (match) {
@@ -177,7 +183,7 @@ const ChatArea = memo(
           );
         },
       };
-    }, []);
+    }, [handleLinkClick]);
 
     // 检查是否有消息内容（排除系统消息）
     const hasMessages = useMemo(() => {

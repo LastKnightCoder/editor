@@ -35,3 +35,4 @@ export * from "./annotation.ts";
 export * from "./database.ts";
 export * from "./chat-reference.ts";
 export * from "./abc.ts";
+export * from "./plantuml.ts";

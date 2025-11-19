@@ -260,6 +260,13 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        type: "plantuml",
+        isBlock: true,
+        toMarkdown: (element) => {
+          return `\`\`\`plantuml\n${element.content || ""}\n\`\`\``;
+        },
+      },
+      {
         type: "tikz",
         isBlock: true,
         toMarkdown: (element) => {

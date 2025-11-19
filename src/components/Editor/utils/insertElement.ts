@@ -359,6 +359,14 @@ export const insertAbc = (editor: Editor) => {
   });
 };
 
+export const insertPlantUML = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: "plantuml",
+    content: "",
+    children: [{ type: "formatted", text: "" }],
+  });
+};
+
 export const insertTikz = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: "tikz",
