@@ -3,16 +3,15 @@ import useSettingStore, {
   EImageBed,
   type ISetting,
 } from "@/stores/useSettingStore.ts";
-import { putObject, compressImage } from "@/commands";
+import { putObject, compressImage, s3Upload, webdavUpload } from "@/commands";
 import { copyFileToLocal, uploadFileFromFile } from "@/utils";
 import { v4 as uuid } from "uuid";
 
 const uploadResourceInner = async (
   imageBed: ISetting["imageBed"],
+  integration: ISetting["integration"],
   file: File,
 ): Promise<string | null> => {
-  const githubInfo = imageBed.github;
-  const aliOSSInfo = imageBed.aliOSS;
   const enableCompression = imageBed.enableCompression;
 
   // 处理图片压缩
@@ -59,6 +58,13 @@ const uploadResourceInner = async (
 
   if (imageBed.active === EImageBed.Github) {
     try {
+      const githubInfo = {
+        token: integration.github.token,
+        repo: imageBed.github.repo,
+        branch: imageBed.github.branch,
+        user: integration.github.user,
+        cdn: imageBed.github.cdn,
+      };
       const res = await uploadFileFromFile(processedFile, githubInfo);
       if (res) {
         const {
@@ -76,16 +82,72 @@ const uploadResourceInner = async (
     const other = all.slice(0, all.length - 1);
     const extension = all[all.length - 1];
     const objectName = other.join(".") + "_" + uuid() + "." + extension;
+    const finalObjectName = imageBed.aliOSS.pathPrefix
+      ? `${imageBed.aliOSS.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      : objectName;
     try {
       return await putObject({
-        ...aliOSSInfo,
-        objectName,
+        accessKeyId: integration.aliOSS.accessKeyId,
+        accessKeySecret: integration.aliOSS.accessKeySecret,
+        bucket: imageBed.aliOSS.bucket,
+        region: imageBed.aliOSS.region,
+        objectName: finalObjectName,
         file: new Uint8Array(await processedFile.arrayBuffer()),
       });
     } catch (e) {
       console.error(e);
     }
     return null;
+  } else if (imageBed.active === EImageBed.S3) {
+    // S3 上传
+    const fileName = processedFile.name;
+    const all = fileName.split(".");
+    const other = all.slice(0, all.length - 1);
+    const extension = all[all.length - 1];
+    const objectName = other.join(".") + "_" + uuid() + "." + extension;
+    const key = imageBed.s3.pathPrefix
+      ? `${imageBed.s3.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      : objectName;
+
+    try {
+      return await s3Upload({
+        accessKeyId: integration.s3.accessKeyId,
+        secretAccessKey: integration.s3.secretAccessKey,
+        bucket: imageBed.s3.bucket,
+        region: imageBed.s3.region,
+        endpoint: integration.s3.endpoint,
+        key,
+        file: new Uint8Array(await processedFile.arrayBuffer()),
+        contentType: processedFile.type,
+      });
+    } catch (e) {
+      console.error("S3 上传失败:", e);
+      return null;
+    }
+  } else if (imageBed.active === EImageBed.WebDav) {
+    // WebDAV 上传
+    const fileName = processedFile.name;
+    const all = fileName.split(".");
+    const other = all.slice(0, all.length - 1);
+    const extension = all[all.length - 1];
+    const objectName = other.join(".") + "_" + uuid() + "." + extension;
+    const remotePath = imageBed.webdav.pathPrefix
+      ? `${imageBed.webdav.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      : `/${objectName}`;
+
+    try {
+      return await webdavUpload({
+        url: integration.webdav.url,
+        username: integration.webdav.username,
+        password: integration.webdav.password,
+        remotePath,
+        file: new Uint8Array(await processedFile.arrayBuffer()),
+        contentType: processedFile.type,
+      });
+    } catch (e) {
+      console.error("WebDAV 上传失败:", e);
+      return null;
+    }
   } else {
     // 移动到本地目录
     const fileName = processedFile.name;
@@ -99,19 +161,20 @@ const uploadResourceInner = async (
 };
 
 const useUploadResource = () => {
-  const { imageBed } = useSettingStore((state) => ({
+  const { imageBed, integration } = useSettingStore((state) => ({
     imageBed: state.setting.imageBed,
+    integration: state.setting.integration,
   }));
 
   return useMemoizedFn(async (file: File) => {
-    return await uploadResourceInner(imageBed, file);
+    return await uploadResourceInner(imageBed, integration, file);
   });
 };
 
 export default useUploadResource;
 
 export const uploadResource = async (file: File) => {
-  const { imageBed } = useSettingStore.getState().setting;
+  const { imageBed, integration } = useSettingStore.getState().setting;
 
-  return await uploadResourceInner(imageBed, file);
+  return await uploadResourceInner(imageBed, integration, file);
 };

@@ -6,16 +6,13 @@ import { getBucketList } from "@/commands";
 import If from "@/components/If";
 
 const AliOssSetting = () => {
-  const { setting } = useSettingStore((state) => ({
+  const { setting, integration } = useSettingStore((state) => ({
     setting: state.setting.imageBed.aliOSS,
+    integration: state.setting.integration.aliOSS,
   }));
 
-  const {
-    accessKeyId = "",
-    accessKeySecret = "",
-    bucket = "",
-    region = "",
-  } = setting;
+  const { bucket = "", region = "", pathPrefix = "" } = setting;
+  const { accessKeyId = "", accessKeySecret = "" } = integration;
   const [bucketsInfo, setBucketsInfo] = useState<
     Array<{
       bucket: string;
@@ -56,52 +53,39 @@ const AliOssSetting = () => {
 
   return (
     <Space direction="vertical" size="middle" style={{ display: "flex" }}>
-      <Space>
-        <div>accessKeyId：</div>
+      <If condition={!accessKeyId || !accessKeySecret}>
+        <div className="p-3  border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-md">
+          请先在【集成设置】中配置阿里云 OSS 凭证
+        </div>
+      </If>
+      <If condition={!!accessKeyId && !!accessKeySecret}>
+        <If condition={bucketsInfo.length > 0 || (!!bucket && !!region)}>
+          <Space>
+            <div>Bucket：</div>
+            <Select
+              style={{ width: 400 }}
+              options={bucketsInfo.map((bucketInfo) => ({
+                label: bucketInfo.bucket,
+                value: bucketInfo.bucket,
+              }))}
+              onChange={onSelectBucket}
+              value={bucket}
+            />
+          </Space>
+        </If>
         <Space>
-          <Input.Password
-            width={500}
-            value={accessKeyId}
-            onChange={(e) => {
-              useSettingStore.setState(
-                produce((state) => {
-                  state.setting.imageBed.aliOSS.accessKeyId = e.target.value;
-                }),
-              );
-            }}
-            allowClear
-          />
-        </Space>
-      </Space>
-      <Space>
-        <div>accessKeySecret：</div>
-        <Space>
-          <Input.Password
-            width={600}
-            value={accessKeySecret}
-            onChange={(e) => {
-              useSettingStore.setState(
-                produce((state) => {
-                  state.setting.imageBed.aliOSS.accessKeySecret =
-                    e.target.value;
-                }),
-              );
-            }}
-            allowClear
-          />
-        </Space>
-      </Space>
-      <If condition={bucketsInfo.length > 0 || (!!bucket && !!region)}>
-        <Space>
-          <div>Bucket：</div>
-          <Select
+          <div>路径前缀：</div>
+          <Input
             style={{ width: 400 }}
-            options={bucketsInfo.map((bucketInfo) => ({
-              label: bucketInfo.bucket,
-              value: bucketInfo.bucket,
-            }))}
-            onChange={onSelectBucket}
-            value={bucket}
+            placeholder="留空表示根目录，如：images/"
+            value={pathPrefix}
+            onChange={(e) => {
+              useSettingStore.setState(
+                produce((state) => {
+                  state.setting.imageBed.aliOSS.pathPrefix = e.target.value;
+                }),
+              );
+            }}
           />
         </Space>
       </If>

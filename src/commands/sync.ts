@@ -4,10 +4,6 @@ import dayjs from "dayjs";
 
 import { invoke } from "@/electron";
 import {
-  getObject,
-  isObjectExist,
-  createObject,
-  updateObject,
   connectDatabaseByName,
   readBinaryFile,
   writeBinaryFile,
@@ -15,12 +11,13 @@ import {
   pathExists,
   getSep,
   closeDatabase,
-  deleteObject,
   removeFile,
 } from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
+import { SyncProviderFactory } from "@/utils/sync";
+import type { IDatabaseInfo } from "@/types/sync";
 
 export const getDatabasePath = async (
   databaseName: string,
@@ -33,13 +30,17 @@ export const getDatabasePath = async (
 };
 
 export const upload = async () => {
-  const { accessKeyId, accessKeySecret, bucket, region, path } =
-    useSettingStore.getState().setting.sync.aliOSS;
+  const syncProvider = SyncProviderFactory.getSyncProvider();
+  if (!syncProvider) {
+    message.error("请先配置同步设置");
+    return false;
+  }
+
   const { active: databaseName, databases } =
     useSettingStore.getState().setting.database;
 
   const database = databases.find((item) => item.name === databaseName);
-  if (!database) return;
+  if (!database) return false;
   const { version: currentVersion } = database;
 
   const databasePath = await getDatabasePath(databaseName);
@@ -51,28 +52,22 @@ export const upload = async () => {
 
   await closeDatabase(databaseName);
 
-  const ossOptions = {
-    accessKeyId,
-    accessKeySecret,
-    bucket,
-    region,
-  };
-
   const { databaseInfoObjectName, databaseInfo } =
     await getOriginDatabaseInfo();
 
-  // @ts-ignore
   const originVersion = Number(databaseInfo.version || 0);
   if (isNaN(originVersion)) {
     message.error("远程数据库信息版本号不是一个数字");
+    await connectDatabaseByName(databaseName, true);
     return false;
   }
   if (originVersion > currentVersion) {
     message.error("远程的数据库版本高于本地版本，请先同步远程数据库");
+    await connectDatabaseByName(databaseName, true);
     return false;
   }
 
-  const newDatabaseInfo = {
+  const newDatabaseInfo: IDatabaseInfo = {
     ...databaseInfo,
     version: currentVersion + 1,
   };
@@ -80,15 +75,18 @@ export const upload = async () => {
   const textEncoder = new TextEncoder();
 
   try {
-    const isSuccess = await createOrUpdateFile(
-      ossOptions,
+    // 上传数据库信息文件
+    const infoSuccess = await syncProvider.uploadFile(
       databaseInfoObjectName,
       textEncoder.encode(JSON.stringify(newDatabaseInfo)),
     );
-    if (!isSuccess) {
+    if (!infoSuccess) {
       message.error("上传数据库信息失败");
+      await connectDatabaseByName(databaseName, true);
       return false;
     }
+
+    // 更新本地版本号
     useSettingStore.setState(
       produce(useSettingStore.getState(), (draft) => {
         const databases = draft.setting.database.databases;
@@ -97,35 +95,40 @@ export const upload = async () => {
       }),
     );
   } catch (e) {
-    message.error("上传数据库信息失败, in catch" + e);
+    message.error("上传数据库信息失败: " + e);
+    await connectDatabaseByName(databaseName, true);
     return false;
   }
 
   try {
+    // 上传数据库文件
     const contents = await readBinaryFile(databasePath);
-    const dataObjectName = `${path}/${databaseName}`;
-    const isSuccessful = await createOrUpdateFile(
-      ossOptions,
-      dataObjectName,
-      contents,
-    );
-    if (!isSuccessful) {
+    const dataObjectName = databaseName;
+    const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
+
+    if (!dataSuccess) {
+      // 恢复数据库信息
+      await syncProvider.uploadFile(
+        databaseInfoObjectName,
+        textEncoder.encode(JSON.stringify(databaseInfo)),
+      );
       message.error("上传数据库文件失败");
+      await connectDatabaseByName(databaseName, true);
       return false;
     }
 
     return true;
   } catch (e) {
     // 恢复数据库信息
-    const isSuccess = await createOrUpdateFile(
-      ossOptions,
-      databaseInfoObjectName,
-      textEncoder.encode(JSON.stringify(databaseInfo)),
-    );
-    if (!isSuccess) {
+    try {
+      await syncProvider.uploadFile(
+        databaseInfoObjectName,
+        textEncoder.encode(JSON.stringify(databaseInfo)),
+      );
+    } catch (restoreError) {
       message.error("上传数据库文件失败后恢复数据库信息失败");
     }
-    message.error("上传数据库文件失败，error: " + e);
+    message.error("上传数据库文件失败: " + e);
     return false;
   } finally {
     await connectDatabaseByName(databaseName, true);
@@ -133,14 +136,17 @@ export const upload = async () => {
 };
 
 export const download = async () => {
-  const { accessKeyId, accessKeySecret, bucket, region, path } =
-    useSettingStore.getState().setting.sync.aliOSS;
+  const syncProvider = SyncProviderFactory.getSyncProvider();
+  if (!syncProvider) {
+    message.error("请先配置同步设置");
+    return false;
+  }
 
   const { active: databaseName, databases } =
     useSettingStore.getState().setting.database;
 
   const database = databases.find((item) => item.name === databaseName);
-  if (!database) return;
+  if (!database) return false;
   const { version: currentVersion } = database;
 
   const databasePath = await getDatabasePath(databaseName);
@@ -152,16 +158,8 @@ export const download = async () => {
     return false;
   }
 
-  const ossOptions = {
-    accessKeyId,
-    accessKeySecret,
-    bucket,
-    region,
-  };
-
   const { databaseInfo } = await getOriginDatabaseInfo();
 
-  // @ts-ignore
   const originVersion = Number(databaseInfo.version || 0);
   if (currentVersion > originVersion) {
     message.error("本地的数据库版本高于远程版本，请先同步本地数据库");
@@ -169,7 +167,7 @@ export const download = async () => {
   }
 
   // 下载数据库文件
-  const dataObjectName = `${path}/${databaseName}`;
+  const dataObjectName = databaseName;
   try {
     await closeDatabase(databaseName);
     useGlobalStateStore.setState(
@@ -218,16 +216,11 @@ export const download = async () => {
 
     let databaseDownloadSuccess = true;
     try {
-      const dataObject = await getObject({
-        ...ossOptions,
-        objectName: dataObjectName,
-      });
-
-      const blob = new Blob([dataObject.content]);
-      const contents = new Uint8Array(await blob.arrayBuffer());
+      const contents = await syncProvider.downloadFile(dataObjectName);
       await writeBinaryFile(databasePath, contents);
     } catch (e) {
       databaseDownloadSuccess = false;
+      console.error("下载数据库文件失败:", e);
     }
 
     const isSuccessful = databaseDownloadSuccess;
@@ -256,7 +249,7 @@ export const download = async () => {
 
     return isSuccessful;
   } catch (e) {
-    message.error("下载数据库文件失败，error: " + e);
+    message.error("下载数据库文件失败: " + e);
     return false;
   } finally {
     await connectDatabaseByName(databaseName, true);
@@ -269,35 +262,27 @@ export const download = async () => {
 };
 
 export const getOriginDatabaseInfo = async () => {
-  const { accessKeyId, accessKeySecret, bucket, region, path } =
-    useSettingStore.getState().setting.sync.aliOSS;
+  const syncProvider = SyncProviderFactory.getSyncProvider();
   const { active: databaseName } = useSettingStore.getState().setting.database;
 
-  const ossOptions = {
-    accessKeyId,
-    accessKeySecret,
-    bucket,
-    region,
-  };
-
   const databaseInfoFileName = `database_${databaseName}.json`;
-  const databaseInfoObjectName = `${path}/${databaseInfoFileName}`;
+  const databaseInfoObjectName = databaseInfoFileName;
 
-  const isDatabaseInfoExist = await isObjectExist({
-    ...ossOptions,
-    objectName: databaseInfoObjectName,
-  });
-  let databaseInfo = {};
-  if (isDatabaseInfoExist) {
+  let databaseInfo: IDatabaseInfo = { version: 0 };
+  let isDatabaseInfoExist = false;
+
+  if (syncProvider) {
     try {
-      const databaseInfoResult = await getObject({
-        ...ossOptions,
-        objectName: databaseInfoObjectName,
-      });
-      const textDecoder = new TextDecoder();
-      databaseInfo = JSON.parse(textDecoder.decode(databaseInfoResult.content));
+      isDatabaseInfoExist = await syncProvider.fileExists(
+        databaseInfoObjectName,
+      );
+      if (isDatabaseInfoExist) {
+        const content = await syncProvider.downloadFile(databaseInfoObjectName);
+        const textDecoder = new TextDecoder();
+        databaseInfo = JSON.parse(textDecoder.decode(content));
+      }
     } catch (e) {
-      message.error("获取远程数据库信息失败");
+      console.error("获取远程数据库信息失败:", e);
     }
   }
 
@@ -306,49 +291,4 @@ export const getOriginDatabaseInfo = async () => {
     databaseInfo,
     databaseInfoObjectName,
   };
-};
-
-const createOrUpdateFile = async (
-  ossOptions: any,
-  objectName: string,
-  content: Uint8Array,
-) => {
-  try {
-    const isExist = await isObjectExist({
-      ...ossOptions,
-      objectName,
-    });
-    if (isExist) {
-      await updateObject(
-        {
-          ...ossOptions,
-          objectName,
-        },
-        content,
-      );
-    } else {
-      await createObject(
-        {
-          ...ossOptions,
-          objectName,
-        },
-        content,
-      );
-    }
-    return true;
-  } catch (e) {
-    return false;
-  }
-};
-
-export const deleteOssFile = async (ossOptions: any, objectName: string) => {
-  try {
-    await deleteObject({
-      ...ossOptions,
-      objectName,
-    });
-    return true;
-  } catch (e) {
-    return false;
-  }
 };

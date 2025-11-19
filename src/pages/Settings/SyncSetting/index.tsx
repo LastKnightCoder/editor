@@ -4,6 +4,9 @@ import { produce } from "immer";
 import { App, Button, message, Tabs, TabsProps } from "antd";
 
 import AliOssSetting from "./AliOssSetting";
+import S3Setting from "./S3Setting";
+import WebDavSetting from "./WebDavSetting";
+import GithubSetting from "./GithubSetting";
 
 import useSettingStore, { ESync } from "@/stores/useSettingStore.ts";
 
@@ -16,12 +19,13 @@ const SyncSetting = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [remoteVersion, setRemoteVersion] = useState(0);
 
-  const { activeKey, sync, activeDatabaseName, activeDatabases } =
+  const { activeKey, sync, activeDatabaseName, activeDatabases, integration } =
     useSettingStore((state) => ({
       sync: state.setting.sync,
       activeKey: state.setting.sync.active,
       activeDatabaseName: state.setting.database.active,
       activeDatabases: state.setting.database.databases,
+      integration: state.setting.integration,
     }));
 
   const activeDatabase = activeDatabases.find(
@@ -29,17 +33,48 @@ const SyncSetting = () => {
   );
   const currentVersion = activeDatabase?.version || 0;
 
-  const { accessKeyId, accessKeySecret, bucket, region } = sync.aliOSS;
+  const isConfigured = useMemoizedFn(() => {
+    switch (activeKey) {
+      case ESync.AliOSS:
+        return (
+          !!integration.aliOSS.accessKeyId &&
+          !!integration.aliOSS.accessKeySecret &&
+          !!sync.aliOSS.bucket &&
+          !!sync.aliOSS.region
+        );
+      case ESync.S3:
+        return (
+          !!integration.s3.accessKeyId &&
+          !!integration.s3.secretAccessKey &&
+          !!sync.s3.bucket &&
+          !!sync.s3.region
+        );
+      case ESync.WebDav:
+        return (
+          !!integration.webdav.url &&
+          !!integration.webdav.username &&
+          !!integration.webdav.password
+        );
+      case ESync.Github:
+        return (
+          !!integration.github.token &&
+          !!sync.github.repo &&
+          !!sync.github.branch
+        );
+      default:
+        return false;
+    }
+  });
 
   useAsyncEffect(async () => {
-    if (!accessKeyId || !accessKeySecret || !bucket || !region) return;
+    if (!isConfigured()) return;
     const originDatabaseInfo = await getOriginDatabaseInfo();
     if (!originDatabaseInfo) return;
     const { databaseInfo = {} } = originDatabaseInfo;
     // @ts-ignore
     const originVersion = Number(databaseInfo.version) || 0;
     setRemoteVersion(originVersion);
-  }, [accessKeyId, accessKeySecret, bucket, region]);
+  }, [activeKey, sync, integration]);
 
   const onSync = useMemoizedFn(async () => {
     if (isSyncing) return;
@@ -58,7 +93,10 @@ const SyncSetting = () => {
   });
 
   const checkDownload = useMemoizedFn(async () => {
-    if (!accessKeyId || !accessKeySecret || !bucket || !region) return;
+    if (!isConfigured()) {
+      message.warning("请先完成同步配置");
+      return;
+    }
     const originDatabaseInfo = await getOriginDatabaseInfo();
     if (!originDatabaseInfo) return;
     const { databaseInfo = {} } = originDatabaseInfo;
@@ -91,6 +129,21 @@ const SyncSetting = () => {
       label: "阿里云 OSS",
       children: <AliOssSetting />,
     },
+    {
+      key: ESync.S3,
+      label: "S3",
+      children: <S3Setting />,
+    },
+    {
+      key: ESync.WebDav,
+      label: "WebDAV",
+      children: <WebDavSetting />,
+    },
+    {
+      key: ESync.Github,
+      label: "Github",
+      children: <GithubSetting />,
+    },
   ];
 
   return (
@@ -119,7 +172,7 @@ const SyncSetting = () => {
         onChange={(key) => {
           useSettingStore.setState(
             produce((draft) => {
-              draft.setting.imageBed.active = key;
+              draft.setting.sync.active = key as ESync;
             }),
           );
         }}

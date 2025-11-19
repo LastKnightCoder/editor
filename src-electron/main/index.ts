@@ -10,6 +10,8 @@ import settingModule from "./modules/setting";
 import llmModule from "./modules/llm";
 import streamFetchModule from "./modules/stream-fetch";
 import aliOssModule from "./modules/ali-oss";
+import s3Module from "./modules/s3";
+import webdavModule from "./modules/webdav";
 import fileModule from "./modules/file";
 import extraModule from "./modules/extra";
 import voiceCopyModule from "./modules/voice-copy";
@@ -408,6 +410,8 @@ const initModules = async () => {
       llmModule.init(),
       streamFetchModule.init(),
       aliOssModule.init(),
+      s3Module.init(),
+      webdavModule.init(),
       fileModule.init(),
       extraModule.init(),
       voiceCopyModule.init(),

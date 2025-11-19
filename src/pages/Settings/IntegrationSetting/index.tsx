@@ -4,6 +4,10 @@ import BilibiliSetting from "./BilibiliSetting";
 import YouTubeSetting from "./YouTubeSetting";
 import NotionSetting from "./NotionSetting";
 import MinimaxSetting from "./MinimaxSetting";
+import GithubSetting from "./GithubSetting";
+import S3Setting from "./S3Setting";
+import WebDavSetting from "./WebDavSetting";
+import AliOSSSetting from "./AliOSSSetting";
 
 import styles from "./index.module.less";
 import ContainerCol from "@/components/ContainerCol";
@@ -35,6 +39,18 @@ const IntegrationSetting: React.FC = () => {
           </ContainerCol>
           <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
             <MinimaxSetting />
+          </ContainerCol>
+          <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
+            <GithubSetting />
+          </ContainerCol>
+          <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
+            <S3Setting />
+          </ContainerCol>
+          <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
+            <WebDavSetting />
+          </ContainerCol>
+          <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
+            <AliOSSSetting />
           </ContainerCol>
         </Row>
       </div>

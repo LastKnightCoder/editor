@@ -3,6 +3,8 @@ import { produce } from "immer";
 import GithubSetting from "./GithubSetting";
 import AliOssSetting from "./AliOssSetting";
 import LocalSetting from "./LocalSetting";
+import S3Setting from "./S3Setting";
+import WebDavSetting from "./WebDavSetting";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore.ts";
 
 const ResourceUploadSetting = () => {
@@ -26,6 +28,16 @@ const ResourceUploadSetting = () => {
       key: EImageBed.AliOSS,
       label: "阿里云 OSS",
       children: <AliOssSetting />,
+    },
+    {
+      key: EImageBed.S3,
+      label: "S3",
+      children: <S3Setting />,
+    },
+    {
+      key: EImageBed.WebDav,
+      label: "WebDAV",
+      children: <WebDavSetting />,
     },
   ];
 
