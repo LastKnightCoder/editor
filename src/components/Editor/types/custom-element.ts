@@ -50,6 +50,7 @@ import { EmojiElement } from "./element/emoji.ts";
 import { AnnotationElement } from "./element/annotation.ts";
 import { DatabaseElement } from "./element/database.ts";
 import { ChatReferenceElement } from "./element/chat-reference.ts";
+import { AbcElement } from "./element/abc.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -98,7 +99,8 @@ export type CustomElement =
   | EmojiElement
   | AnnotationElement
   | DatabaseElement
-  | ChatReferenceElement;
+  | ChatReferenceElement
+  | AbcElement;
 
 export type InlineElement =
   | LinkElement

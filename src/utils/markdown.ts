@@ -165,6 +165,17 @@ const markdownToDescendant = (
           },
         ],
       };
+    } else if (node.lang?.trim?.()?.toLowerCase?.() === "abc") {
+      return {
+        type: "abc",
+        content: node.value,
+        children: [
+          {
+            type: "formatted",
+            text: "",
+          },
+        ],
+      };
     } else if (node.lang?.trim?.()?.toLowerCase?.() === "tikz") {
       return {
         type: "tikz",

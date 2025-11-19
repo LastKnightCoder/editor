@@ -351,6 +351,14 @@ export const insertMermaid = (editor: Editor) => {
   });
 };
 
+export const insertAbc = (editor: Editor) => {
+  return setOrInsertNode(editor, {
+    type: "abc",
+    content: "",
+    children: [{ type: "formatted", text: "" }],
+  });
+};
+
 export const insertTikz = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: "tikz",
@@ -366,7 +374,6 @@ export const insertTypst = (editor: Editor) => {
     children: [{ type: "formatted", text: "" }],
   });
 };
-
 export const insertGraphviz = (editor: Editor) => {
   return setOrInsertNode(editor, {
     type: "graphviz",

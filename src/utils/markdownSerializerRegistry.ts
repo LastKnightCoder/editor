@@ -253,6 +253,13 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
+        type: "abc",
+        isBlock: true,
+        toMarkdown: (element) => {
+          return `\`\`\`abc\n${element.content || ""}\n\`\`\``;
+        },
+      },
+      {
         type: "tikz",
         isBlock: true,
         toMarkdown: (element) => {
