@@ -69,7 +69,6 @@ import SVG from "react-inlinesvg";
 import styles from "./index.module.less";
 import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
 import NotePanel from "./components/NotePanel";
-import { AnimatePresence } from "framer-motion";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -143,6 +142,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   );
 
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
+  const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
 
   // 引用
   const containerRef = useRef<HTMLDivElement>(null);
@@ -266,8 +266,9 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   // 监听打开笔记事件
   useEffect(() => {
-    const handleOpenNote = (contentId: number) => {
+    const handleOpenNote = (contentId: number, contentTitle: string) => {
       setActiveNoteId(contentId);
+      setActiveNoteTitle(contentTitle);
     };
     board.on("open-note", handleOpenNote);
     return () => {
@@ -447,6 +448,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                 </div>
                 <NotePanel
                   contentId={activeNoteId ?? undefined}
+                  contentTitle={activeNoteTitle ?? undefined}
                   onClose={() => setActiveNoteId(null)}
                 />
               </div>
