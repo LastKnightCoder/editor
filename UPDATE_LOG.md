@@ -786,3 +786,10 @@
 - feat: Tab 支持分组，适配分组的拖拽
 - feat: 思维导图节点支持添加笔记
 - fix: Mac 样式修复
+
+## v0.18.2
+
+- feat: 支持音乐标注扩展
+- feat: 支持绘制 PlantUML
+- feat: 支持 S3 和 WebDav 同步和资源上传
+- feat: 博客支持调整已有音频

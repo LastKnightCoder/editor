@@ -348,7 +348,7 @@ export const usePodcastGeneration = () => {
         addLog("开始上传音频...");
         updateProgress({ stage: "upload", stageProgress: 0 });
 
-        const audioFile = new File([audioBlob], "podcast.wav", {
+        const audioFile = new File([audioBlob], `podcast_${Date.now()}.wav`, {
           type: "audio/wav",
         });
         const audioUrl = await uploadResource(audioFile);
@@ -456,7 +456,10 @@ export const usePodcastGeneration = () => {
 
           // 更新后续时间戳
           for (let i = index + 1; i < newScriptLines.length; i++) {
-            newScriptLines[i].startTime += timeDiff;
+            newScriptLines[i] = {
+              ...newScriptLines[i],
+              startTime: newScriptLines[i].startTime + timeDiff,
+            };
           }
 
           // 重新合并所有
@@ -476,9 +479,13 @@ export const usePodcastGeneration = () => {
           const mergedBlob = await audioBufferToBlob(mergedBuffer);
 
           // 重新上传
-          const audioFile = new File([mergedBlob], "podcast_updated.wav", {
-            type: "audio/wav",
-          });
+          const audioFile = new File(
+            [mergedBlob],
+            `podcast_updated_${Date.now()}.wav`,
+            {
+              type: "audio/wav",
+            },
+          );
           const newAudioUrl = await uploadResource(audioFile);
 
           if (newAudioUrl) {
@@ -505,9 +512,9 @@ export const usePodcastGeneration = () => {
           const newAudioBuffer = await readBinaryFile(outputPath);
           const newAudioFile = new File(
             [newAudioBuffer as any],
-            "podcast_updated.wav",
+            `podcast_updated_${Date.now()}.mp3`,
             {
-              type: "audio/wav",
+              type: "audio/mpeg",
             },
           );
           const newAudioUrl = await uploadResource(newAudioFile);
@@ -528,7 +535,10 @@ export const usePodcastGeneration = () => {
 
           // 更新后续时间戳
           for (let i = index + 1; i < newScriptLines.length; i++) {
-            newScriptLines[i].startTime += timeDiff;
+            newScriptLines[i] = {
+              ...newScriptLines[i],
+              startTime: newScriptLines[i].startTime + timeDiff,
+            };
           }
 
           if (newAudioUrl) {
@@ -536,9 +546,8 @@ export const usePodcastGeneration = () => {
               ...prev,
               scriptLines: newScriptLines,
               audioUrl: newAudioUrl,
-              // 注意：这里没有 segmentAudios，因为是后端处理
-              // duration 需要重新计算吗？
-              // 应该是 prev.duration + timeDiff
+              // 清空 segmentAudios，因为是后端 FFmpeg 处理，需要重新从完整音频提取
+              segmentAudios: [],
               duration: prev.duration + timeDiff,
             }));
             addLog(`第 ${index + 1} 段语音替换完成`);

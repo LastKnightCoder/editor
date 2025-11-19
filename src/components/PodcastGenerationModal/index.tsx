@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, memo } from "react";
+import { useState, useEffect, useCallback, memo, useRef } from "react";
 import {
   Modal,
   Button,
@@ -24,6 +24,7 @@ import {
   UpOutlined,
   DownOutlined,
   ReloadOutlined,
+  PauseOutlined,
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import { usePodcastGeneration } from "@/hooks/usePodcastGeneration";
@@ -33,6 +34,9 @@ import type { Descendant } from "slate";
 import { getMarkdown } from "@/utils/markdown";
 import { uploadReferenceAudio, cloneVoice } from "@/services/minimax";
 import useSettingStore from "@/stores/useSettingStore";
+import { extractPodcastSegment } from "@/commands/podcast-audio";
+import { remoteResourceToLocal } from "@/utils/resouce";
+import { getHomeDir, readBinaryFile } from "@/commands/file";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -85,6 +89,24 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       },
     ]);
     const [cloneLoading, setCloneLoading] = useState(false);
+
+    // 片段编辑和重生成状态
+    const [editingSegmentIndex, setEditingSegmentIndex] = useState<
+      number | null
+    >(null);
+    const [editingSegmentText, setEditingSegmentText] = useState<string>("");
+    const [regeneratingSegmentIndex, setRegeneratingSegmentIndex] = useState<
+      number | null
+    >(null);
+    const [extractingAudioIndex, setExtractingAudioIndex] = useState<
+      number | null
+    >(null);
+
+    // 音频播放状态
+    const [playingSegmentIndex, setPlayingSegmentIndex] = useState<
+      number | null
+    >(null);
+    const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
     const minimaxApiKey = useSettingStore(
       (state) => state.setting.integration.minimax.apiKey,
@@ -237,6 +259,12 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
     ]);
 
     const handleClose = useCallback(() => {
+      // 停止正在播放的音频
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+
       reset();
       setPodcastName("");
       setSpeakers([
@@ -264,6 +292,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           audioFiles: [],
         },
       ]);
+      setEditingSegmentIndex(null);
+      setEditingSegmentText("");
+      setRegeneratingSegmentIndex(null);
+      setExtractingAudioIndex(null);
+      setPlayingSegmentIndex(null);
       onCancel();
     }, [reset, onCancel]);
 
@@ -282,6 +315,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
     }, [
       audioUrl,
       script,
+      scriptLines,
       duration,
       speakers,
       onSuccess,
@@ -496,6 +530,171 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         setCloneLoading(false);
       }
     }, [cloneItems, minimaxApiKey, addVoiceToList]);
+
+    // 开始编辑片段
+    const handleStartEditSegment = useCallback(
+      (index: number, currentText: string) => {
+        setEditingSegmentIndex(index);
+        setEditingSegmentText(currentText);
+      },
+      [],
+    );
+
+    // 取消编辑片段
+    const handleCancelEditSegment = useCallback(() => {
+      setEditingSegmentIndex(null);
+      setEditingSegmentText("");
+    }, []);
+
+    // 确认编辑并重新生成
+    const handleConfirmEditSegment = useCallback(async () => {
+      if (editingSegmentIndex === null) return;
+
+      const newText = editingSegmentText.trim();
+      if (!newText) {
+        message.error("文本不能为空");
+        return;
+      }
+
+      const oldText = scriptLines[editingSegmentIndex].text;
+      if (newText === oldText) {
+        message.info("文本未改变");
+        handleCancelEditSegment();
+        return;
+      }
+
+      setRegeneratingSegmentIndex(editingSegmentIndex);
+      setEditingSegmentIndex(null);
+      setEditingSegmentText("");
+
+      try {
+        await regenerateSegment(editingSegmentIndex, newText);
+      } finally {
+        setRegeneratingSegmentIndex(null);
+      }
+    }, [
+      editingSegmentIndex,
+      editingSegmentText,
+      scriptLines,
+      regenerateSegment,
+      handleCancelEditSegment,
+    ]);
+
+    // 停止当前播放的音频
+    const stopCurrentAudio = useCallback(() => {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      setPlayingSegmentIndex(null);
+    }, []);
+
+    // 试听片段
+    const handlePlaySegment = useCallback(
+      async (index: number) => {
+        // 如果点击的是正在播放的片段，则停止播放
+        if (playingSegmentIndex === index) {
+          stopCurrentAudio();
+          return;
+        }
+
+        // 如果有其他音频正在播放，先停止
+        if (currentAudioRef.current) {
+          stopCurrentAudio();
+        }
+
+        // 如果有现成的片段音频，直接播放
+        if (segmentAudios[index]) {
+          const audio = new Audio(URL.createObjectURL(segmentAudios[index]));
+          currentAudioRef.current = audio;
+          setPlayingSegmentIndex(index);
+
+          audio.play();
+
+          audio.onended = () => {
+            setPlayingSegmentIndex(null);
+            currentAudioRef.current = null;
+          };
+
+          audio.onerror = () => {
+            setPlayingSegmentIndex(null);
+            currentAudioRef.current = null;
+            message.error("音频播放失败");
+          };
+
+          return;
+        }
+
+        // 否则需要从完整音频中提取
+        if (!audioUrl) {
+          message.error("音频不可用");
+          return;
+        }
+
+        setExtractingAudioIndex(index);
+        try {
+          // 获取本地音频路径
+          let localAudioPath = "";
+          if (audioUrl.startsWith("http")) {
+            localAudioPath = await remoteResourceToLocal(audioUrl);
+          } else if (audioUrl.startsWith("~")) {
+            const homeDir = await getHomeDir();
+            localAudioPath = `${homeDir}${audioUrl.slice(1)}`;
+          } else {
+            localAudioPath = audioUrl;
+          }
+
+          // 提取片段
+          const { outputPath } = await extractPodcastSegment(
+            localAudioPath,
+            scriptLines[index].startTime,
+            scriptLines[index].duration,
+          );
+
+          // 读取二进制文件并创建 Blob URL
+          const audioBuffer = (await readBinaryFile(
+            outputPath,
+          )) as Uint8Array<ArrayBuffer>;
+          const audioBlob = new Blob([audioBuffer.buffer], {
+            type: "audio/mpeg",
+          });
+          const audioBlobUrl = URL.createObjectURL(audioBlob);
+
+          // 播放
+          const audio = new Audio(audioBlobUrl);
+          currentAudioRef.current = audio;
+          setPlayingSegmentIndex(index);
+
+          audio.play();
+
+          // 播放结束后释放 Blob URL 和状态
+          audio.onended = () => {
+            URL.revokeObjectURL(audioBlobUrl);
+            setPlayingSegmentIndex(null);
+            currentAudioRef.current = null;
+          };
+
+          audio.onerror = () => {
+            URL.revokeObjectURL(audioBlobUrl);
+            setPlayingSegmentIndex(null);
+            currentAudioRef.current = null;
+            message.error("音频播放失败");
+          };
+        } catch (error) {
+          console.error("提取音频片段失败:", error);
+          message.error("提取音频片段失败");
+        } finally {
+          setExtractingAudioIndex(null);
+        }
+      },
+      [
+        segmentAudios,
+        audioUrl,
+        scriptLines,
+        playingSegmentIndex,
+        stopCurrentAudio,
+      ],
+    );
 
     return (
       <Modal
@@ -1020,9 +1219,12 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
               <Title level={5}>
                 <SoundOutlined /> 播客音频
               </Title>
-              <audio controls className="w-full mb-4">
-                <source src={audioUrl} type="audio/wav" />
-              </audio>
+              <audio
+                key={audioUrl}
+                controls
+                className="w-full mb-4"
+                src={audioUrl}
+              />
               <Text type="secondary">
                 时长: {Math.floor(duration / 60)}:
                 {(duration % 60).toString().padStart(2, "0")}
@@ -1038,59 +1240,104 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   key="script"
                 >
                   <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded max-h-[400px]">
-                    {scriptLines.map((line, index) => (
-                      <div
-                        key={index}
-                        className="p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200 transition-colors"
-                      >
-                        <div className="flex justify-between items-center mb-1">
-                          <div className="flex items-center gap-2">
-                            <Text strong>{line.speaker}</Text>
-                            <Text type="secondary" className="text-xs">
-                              {formatTime(line.startTime)} -{" "}
-                              {formatTime(line.startTime + line.duration)} (
-                              {line.duration.toFixed(1)}s)
-                            </Text>
-                          </div>
-                          <div className="flex gap-2">
-                            {segmentAudios[index] && (
-                              <Button
-                                size="small"
-                                type="text"
-                                icon={<SoundOutlined />}
-                                onClick={() => {
-                                  const audio = new Audio(
-                                    URL.createObjectURL(segmentAudios[index]),
-                                  );
-                                  audio.play();
-                                }}
-                              >
-                                试听
-                              </Button>
+                    {scriptLines.map((line, index) => {
+                      const isEditing = editingSegmentIndex === index;
+                      const isRegenerating = regeneratingSegmentIndex === index;
+                      const isExtracting = extractingAudioIndex === index;
+                      const isPlaying = playingSegmentIndex === index;
+
+                      return (
+                        <div
+                          key={index}
+                          className={`p-3 rounded border transition-colors ${
+                            isEditing
+                              ? "bg-blue-50 border-blue-300"
+                              : isRegenerating
+                                ? "bg-yellow-50 border-yellow-300"
+                                : "bg-gray-50 border-gray-200 hover:border-gray-300"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <div className="flex items-center gap-2">
+                              <Text strong>{line.speaker}</Text>
+                              <Text type="secondary" className="text-xs">
+                                {formatTime(line.startTime)} -{" "}
+                                {formatTime(line.startTime + line.duration)} (
+                                {line.duration.toFixed(1)}s)
+                              </Text>
+                              {isRegenerating && (
+                                <Text type="warning" className="text-xs">
+                                  正在重新生成...
+                                </Text>
+                              )}
+                            </div>
+                            {!isEditing && !isRegenerating && (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="small"
+                                  type={isPlaying ? "primary" : "text"}
+                                  icon={
+                                    isPlaying ? (
+                                      <PauseOutlined />
+                                    ) : (
+                                      <SoundOutlined />
+                                    )
+                                  }
+                                  loading={isExtracting}
+                                  onClick={() => handlePlaySegment(index)}
+                                >
+                                  {isPlaying ? "停止试听" : "试听"}
+                                </Button>
+                                <Button
+                                  size="small"
+                                  type="text"
+                                  icon={<ReloadOutlined />}
+                                  onClick={() =>
+                                    handleStartEditSegment(index, line.text)
+                                  }
+                                >
+                                  重生成
+                                </Button>
+                              </div>
                             )}
-                            <Button
-                              size="small"
-                              type="text"
-                              icon={<ReloadOutlined />}
-                              onClick={() => {
-                                const newText = prompt(
-                                  "修改文本并重新生成:",
-                                  line.text,
-                                );
-                                if (newText && newText !== line.text) {
-                                  regenerateSegment(index, newText);
-                                }
-                              }}
-                            >
-                              重生成
-                            </Button>
                           </div>
+
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <Input.TextArea
+                                value={editingSegmentText}
+                                onChange={(e) =>
+                                  setEditingSegmentText(e.target.value)
+                                }
+                                autoSize={{ minRows: 2, maxRows: 8 }}
+                                autoFocus
+                                placeholder="请输入文本内容"
+                              />
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="small"
+                                  onClick={handleCancelEditSegment}
+                                >
+                                  取消
+                                </Button>
+                                <Button
+                                  size="small"
+                                  type="primary"
+                                  onClick={handleConfirmEditSegment}
+                                  disabled={!editingSegmentText.trim()}
+                                >
+                                  确定并重新生成
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-gray-700 whitespace-pre-wrap">
+                              {line.text}
+                            </div>
+                          )}
                         </div>
-                        <div className="text-gray-700 whitespace-pre-wrap">
-                          {line.text}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </Panel>
               </Collapse>
