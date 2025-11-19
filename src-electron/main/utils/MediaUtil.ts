@@ -38,16 +38,32 @@ export default class MediaUtil {
     const tempDir = path.dirname(outputPath);
     const beforePath = path.join(tempDir, `before-${Date.now()}.mp3`);
     const afterPath = path.join(tempDir, `after-${Date.now()}.mp3`);
+    const newSegmentMp3Path = path.join(
+      tempDir,
+      `new-segment-${Date.now()}.mp3`,
+    );
     const concatListPath = path.join(tempDir, `concat-${Date.now()}.txt`);
 
     const endTime = startTime + originalDuration;
 
     try {
+      // 转换新片段为 mp3 格式
+      await new Promise((resolve, reject) => {
+        ffmpeg(newSegmentPath)
+          .audioCodec("libmp3lame")
+          .audioBitrate("192k")
+          .output(newSegmentMp3Path)
+          .on("end", resolve)
+          .on("error", reject)
+          .run();
+      });
       if (startTime > 0) {
         await new Promise((resolve, reject) => {
           ffmpeg(originalAudioPath)
             .setStartTime(0)
             .setDuration(startTime)
+            .audioCodec("libmp3lame")
+            .audioBitrate("192k")
             .output(beforePath)
             .on("end", resolve)
             .on("error", reject)
@@ -58,6 +74,8 @@ export default class MediaUtil {
       await new Promise((resolve, reject) => {
         ffmpeg(originalAudioPath)
           .setStartTime(endTime)
+          .audioCodec("libmp3lame")
+          .audioBitrate("192k")
           .output(afterPath)
           .on("end", resolve)
           .on("error", reject)
@@ -67,7 +85,7 @@ export default class MediaUtil {
       const concatList = [];
       if (startTime > 0)
         concatList.push(`file '${beforePath.replace(/\\/g, "/")}'`);
-      concatList.push(`file '${newSegmentPath.replace(/\\/g, "/")}'`);
+      concatList.push(`file '${newSegmentMp3Path.replace(/\\/g, "/")}'`);
       concatList.push(`file '${afterPath.replace(/\\/g, "/")}'`);
 
       await fs.writeFile(concatListPath, concatList.join("\n"));
@@ -76,7 +94,8 @@ export default class MediaUtil {
         ffmpeg()
           .input(concatListPath)
           .inputOptions(["-f", "concat", "-safe", "0"])
-          .outputOptions(["-c", "copy"])
+          .audioCodec("libmp3lame")
+          .audioBitrate("192k")
           .on("progress", (progress) => {
             if (onProgress) onProgress(progress.percent || 0);
           })
@@ -87,10 +106,12 @@ export default class MediaUtil {
 
       if (startTime > 0) await fs.unlink(beforePath).catch(() => {});
       await fs.unlink(afterPath).catch(() => {});
+      await fs.unlink(newSegmentMp3Path).catch(() => {});
       await fs.unlink(concatListPath).catch(() => {});
     } catch (error) {
       if (startTime > 0) await fs.unlink(beforePath).catch(() => {});
       await fs.unlink(afterPath).catch(() => {});
+      await fs.unlink(newSegmentMp3Path).catch(() => {});
       await fs.unlink(concatListPath).catch(() => {});
       throw error;
     }
@@ -106,6 +127,8 @@ export default class MediaUtil {
       ffmpeg(audioPath)
         .setStartTime(startTime)
         .setDuration(duration)
+        .audioCodec("libmp3lame")
+        .audioBitrate("192k")
         .output(outputPath)
         .on("end", () => resolve())
         .on("error", reject)
