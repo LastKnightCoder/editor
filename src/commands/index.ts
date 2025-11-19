@@ -5,6 +5,8 @@ export * from "./setting";
 export * from "./fonts";
 export * from "./document";
 export * from "./ali-oss";
+export * from "./s3";
+export * from "./webdav";
 export * from "./sync";
 export * from "./statistic";
 export * from "./time-record";

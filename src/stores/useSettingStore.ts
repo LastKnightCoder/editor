@@ -8,10 +8,15 @@ export enum EImageBed {
   Local = "local",
   Github = "github",
   AliOSS = "aliOSS",
+  S3 = "s3",
+  WebDav = "webdav",
 }
 
 export enum ESync {
   AliOSS = "aliOSS",
+  S3 = "s3",
+  WebDav = "webdav",
+  Github = "github",
 }
 
 import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
@@ -38,34 +43,48 @@ export interface ISetting {
     active: EImageBed;
     enableCompression: boolean;
     github: {
-      token: string;
       repo: string;
       branch: string;
-      user: {
-        name: string;
-        email: string;
-      };
       cdn: EGithubCDN | null;
+      pathPrefix: string;
     };
     aliOSS: {
-      accessKeyId: string;
-      accessKeySecret: string;
       bucket: string;
       region: string;
+      pathPrefix: string;
     };
     local: {
       path: string;
+    };
+    s3: {
+      bucket: string;
+      region: string;
+      pathPrefix: string;
+    };
+    webdav: {
+      pathPrefix: string;
     };
   };
   sync: {
     active: ESync;
     version: number;
     aliOSS: {
-      accessKeyId: string;
-      accessKeySecret: string;
       bucket: string;
       region: string;
       path: string;
+    };
+    s3: {
+      bucket: string;
+      region: string;
+      pathPrefix: string;
+    };
+    webdav: {
+      pathPrefix: string;
+    };
+    github: {
+      repo: string;
+      branch: string;
+      pathPrefix: string;
     };
   };
   database: {
@@ -204,6 +223,31 @@ export interface ISetting {
         isConnected: boolean;
       };
     };
+    github: {
+      enabled: boolean;
+      token: string;
+      user: {
+        name: string;
+        email: string;
+      };
+    };
+    s3: {
+      enabled: boolean;
+      accessKeyId: string;
+      secretAccessKey: string;
+      endpoint: string;
+    };
+    webdav: {
+      enabled: boolean;
+      url: string;
+      username: string;
+      password: string;
+    };
+    aliOSS: {
+      enabled: boolean;
+      accessKeyId: string;
+      accessKeySecret: string;
+    };
   };
 }
 
@@ -254,34 +298,48 @@ const initialState: IState = {
       active: EImageBed.Github,
       enableCompression: false,
       github: {
-        token: "",
         repo: "",
         branch: "",
-        user: {
-          name: "",
-          email: "",
-        },
         cdn: null,
+        pathPrefix: "",
       },
       aliOSS: {
-        accessKeyId: "",
-        accessKeySecret: "",
         bucket: "",
         region: "",
+        pathPrefix: "",
       },
       local: {
         path: "resources",
+      },
+      s3: {
+        bucket: "",
+        region: "",
+        pathPrefix: "",
+      },
+      webdav: {
+        pathPrefix: "",
       },
     },
     sync: {
       active: ESync.AliOSS,
       version: 1,
       aliOSS: {
-        accessKeyId: "",
-        accessKeySecret: "",
         bucket: "",
         region: "",
         path: "/",
+      },
+      s3: {
+        bucket: "",
+        region: "",
+        pathPrefix: "",
+      },
+      webdav: {
+        pathPrefix: "",
+      },
+      github: {
+        repo: "",
+        branch: "",
+        pathPrefix: "",
       },
     },
     database: {
@@ -411,6 +469,31 @@ const initialState: IState = {
         userInfo: {
           isConnected: false,
         },
+      },
+      github: {
+        enabled: false,
+        token: "",
+        user: {
+          name: "",
+          email: "",
+        },
+      },
+      s3: {
+        enabled: false,
+        accessKeyId: "",
+        secretAccessKey: "",
+        endpoint: "",
+      },
+      webdav: {
+        enabled: false,
+        url: "",
+        username: "",
+        password: "",
+      },
+      aliOSS: {
+        enabled: false,
+        accessKeyId: "",
+        accessKeySecret: "",
       },
     },
   },

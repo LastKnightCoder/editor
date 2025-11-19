@@ -1,0 +1,94 @@
+import { ISyncProvider } from "@/types/sync";
+import { s3Upload } from "@/commands";
+
+export interface IS3Config {
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket: string;
+  region: string;
+  endpoint?: string;
+  pathPrefix: string;
+}
+
+export class S3SyncProvider implements ISyncProvider {
+  private config: IS3Config;
+
+  constructor(config: IS3Config) {
+    this.config = config;
+  }
+
+  getProviderName(): string {
+    return "S3";
+  }
+
+  async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
+    try {
+      const key = this.config.pathPrefix
+        ? `${this.config.pathPrefix.replace(/\/$/, "")}/${objectName}`
+        : objectName;
+
+      await s3Upload({
+        accessKeyId: this.config.accessKeyId,
+        secretAccessKey: this.config.secretAccessKey,
+        bucket: this.config.bucket,
+        region: this.config.region,
+        endpoint: this.config.endpoint,
+        key,
+        file: content,
+      });
+
+      return true;
+    } catch (e) {
+      console.error("S3 上传失败:", e);
+      return false;
+    }
+  }
+
+  async downloadFile(objectName: string): Promise<Uint8Array> {
+    // S3 下载需要构建 URL 并使用 fetch
+    const key = this.config.pathPrefix
+      ? `${this.config.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      : objectName;
+
+    const endpoint =
+      this.config.endpoint || `https://s3.${this.config.region}.amazonaws.com`;
+    const url = `${endpoint.replace(/\/$/, "")}/${this.config.bucket}/${key}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      return new Uint8Array(arrayBuffer);
+    } catch (e) {
+      console.error("S3 下载失败:", e);
+      throw e;
+    }
+  }
+
+  async fileExists(objectName: string): Promise<boolean> {
+    // S3 检查文件存在可以通过 HEAD 请求
+    const key = this.config.pathPrefix
+      ? `${this.config.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      : objectName;
+
+    const endpoint =
+      this.config.endpoint || `https://s3.${this.config.region}.amazonaws.com`;
+    const url = `${endpoint.replace(/\/$/, "")}/${this.config.bucket}/${key}`;
+
+    try {
+      const response = await fetch(url, { method: "HEAD" });
+      return response.ok;
+    } catch (e) {
+      console.error("S3 检查文件存在失败:", e);
+      return false;
+    }
+  }
+
+  async deleteFile(_objectName: string): Promise<boolean> {
+    // S3 删除文件需要在后端实现，这里暂不支持
+    console.warn("S3 删除文件暂不支持");
+    return false;
+  }
+}

@@ -10,7 +10,9 @@ import {
   nodeFetch,
   getHomeDir,
   generateCacheKey,
+  webdavDownload,
 } from "@/commands";
+import useSettingStore from "@/stores/useSettingStore";
 
 // 将远程资源下载到本地
 // 先查看是否已经下载过，如果没有则下载
@@ -78,17 +80,43 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     await createDir(resourceDirPath);
   }
 
-  const remoteContent = (await nodeFetch(url, {
-    method: "GET",
-    responseType: "arraybuffer",
-    // 微信公众号图片，需要特殊处理
-    headers: url.startsWith("https://mmbiz.qpic.cn")
-      ? {
-          Origin: "https://mp.weixin.qq.com",
-          Referer: "https://mp.weixin.qq.com/",
-        }
-      : undefined,
-  })) as unknown as ArrayBuffer;
+  let remoteContent: ArrayBuffer;
+
+  // 检查是否是 WebDAV 资源
+  const { setting } = useSettingStore.getState();
+  const webdavConfig = setting.integration.webdav;
+  const isWebDav =
+    webdavConfig.url && url.startsWith(webdavConfig.url.replace(/\/$/, ""));
+
+  if (isWebDav) {
+    // 使用 WebDAV 下载
+    try {
+      const remotePath = url.replace(webdavConfig.url.replace(/\/$/, ""), "");
+      const content = await webdavDownload({
+        url: webdavConfig.url,
+        username: webdavConfig.username,
+        password: webdavConfig.password,
+        remotePath,
+      });
+      remoteContent = content.buffer as unknown as ArrayBuffer;
+    } catch (e) {
+      console.error("WebDAV 下载失败:", e);
+      throw e;
+    }
+  } else {
+    // 使用普通 HTTP 下载
+    remoteContent = (await nodeFetch(url, {
+      method: "GET",
+      responseType: "arraybuffer",
+      // 微信公众号图片，需要特殊处理
+      headers: url.startsWith("https://mmbiz.qpic.cn")
+        ? {
+            Origin: "https://mp.weixin.qq.com",
+            Referer: "https://mp.weixin.qq.com/",
+          }
+        : undefined,
+    })) as unknown as ArrayBuffer;
+  }
 
   const ext = await getFileExtension(url);
   const cacheKey = await generateCacheKey(url);

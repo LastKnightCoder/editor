@@ -166,3 +166,66 @@ export const uploadFileFromFile = async (
     },
   });
 };
+
+// 上传文件到 Github（用于同步）
+export const uploadFileToGithub = async (params: {
+  token: string;
+  owner: string;
+  repo: string;
+  path: string;
+  content: string; // Base64 编码的内容
+  message: string;
+  branch: string;
+  sha?: string; // 如果是更新现有文件，需要提供 SHA
+}): Promise<void> => {
+  const { token, owner, repo, path, content, message, branch, sha } = params;
+
+  const body: Record<string, string> = {
+    message,
+    content,
+    branch,
+  };
+
+  if (sha) {
+    body.sha = sha;
+  }
+
+  const res = await axios.put(
+    `/repos/${owner}/${repo}/contents/${path}`,
+    body,
+    {
+      headers: {
+        Authorization: `token ${token}`,
+      },
+    },
+  );
+
+  if (res.status !== 200 && res.status !== 201) {
+    throw new Error(`Github upload failed with status ${res.status}`);
+  }
+};
+
+// 从 Github 下载文件（用于同步）
+export const downloadFileFromGithub = async (params: {
+  token: string;
+  owner: string;
+  repo: string;
+  path: string;
+  branch: string;
+}): Promise<string> => {
+  const { token, owner, repo, path, branch } = params;
+
+  const res = await axios.get(`/repos/${owner}/${repo}/contents/${path}`, {
+    params: { ref: branch },
+    headers: {
+      Authorization: `token ${token}`,
+    },
+  });
+
+  if (res.status !== 200) {
+    throw new Error(`Github download failed with status ${res.status}`);
+  }
+
+  // Github API 返回的 content 是 Base64 编码的
+  return res.data.content.replace(/\n/g, "");
+};
