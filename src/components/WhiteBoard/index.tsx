@@ -1,4 +1,10 @@
-import React, { memo, useEffect, useRef, useSyncExternalStore } from "react";
+import React, {
+  memo,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  useState,
+} from "react";
 import {
   useMemoizedFn,
   useCreation,
@@ -62,6 +68,8 @@ import SVG from "react-inlinesvg";
 
 import styles from "./index.module.less";
 import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
+import NotePanel from "./components/NotePanel";
+import { AnimatePresence } from "framer-motion";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -133,6 +141,8 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       defaultValue: true,
     },
   );
+
+  const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
 
   // 引用
   const containerRef = useRef<HTMLDivElement>(null);
@@ -253,6 +263,17 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       board.off("change", handleChange);
     };
   }, [board, onChange]);
+
+  // 监听打开笔记事件
+  useEffect(() => {
+    const handleOpenNote = (contentId: number) => {
+      setActiveNoteId(contentId);
+    };
+    board.on("open-note", handleOpenNote);
+    return () => {
+      board.off("open-note", handleOpenNote);
+    };
+  }, [board]);
 
   // 设置容器，添加和清理事件监听器
   useEffect(() => {
@@ -424,6 +445,10 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                     onDeleteSequence={handleDeleteSequence}
                   />
                 </div>
+                <NotePanel
+                  contentId={activeNoteId ?? undefined}
+                  onClose={() => setActiveNoteId(null)}
+                />
               </div>
             </BoardStateContext.Provider>
           </ArrowMoveContext.Provider>

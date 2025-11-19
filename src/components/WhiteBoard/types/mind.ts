@@ -24,6 +24,7 @@ export interface MindNodeElement {
   isRightFold?: boolean;
   isLeftFold?: boolean;
   theme?: "light" | "dark";
+  contentId?: number;
 }
 
 export interface MindDragTarget {
