@@ -8,6 +8,7 @@ import {
   Form,
   Space,
   message,
+  Radio,
 } from "antd";
 import {
   LinkOutlined,
@@ -25,6 +26,7 @@ interface S3CredentialsForm {
   accessKeyId: string;
   secretAccessKey: string;
   endpoint: string;
+  urlStyle: "path" | "virtualHosted";
 }
 
 const S3Setting: React.FC = () => {
@@ -58,6 +60,7 @@ const S3Setting: React.FC = () => {
           accessKeyId: "",
           secretAccessKey: "",
           endpoint: "",
+          urlStyle: "path",
         };
       }),
     );
@@ -146,9 +149,23 @@ const S3Setting: React.FC = () => {
               accessKeyId: s3.accessKeyId,
               secretAccessKey: s3.secretAccessKey,
               endpoint: s3.endpoint,
+              urlStyle: s3.urlStyle || "path",
             }}
             onFinish={handleSave}
           >
+            <Form.Item
+              name="urlStyle"
+              label="请求风格"
+              rules={[{ required: true, message: "请选择请求风格" }]}
+            >
+              <Radio.Group>
+                <Radio value="path">路径风格 (Path Style)</Radio>
+                <Radio value="virtualHosted">
+                  虚拟托管风格 (Virtual Hosted Style)
+                </Radio>
+              </Radio.Group>
+            </Form.Item>
+
             <Form.Item
               name="accessKeyId"
               label="Access Key ID"

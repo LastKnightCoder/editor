@@ -1,4 +1,4 @@
-import { Input, Space } from "antd";
+import { Input, Space, Flex } from "antd";
 import { produce } from "immer";
 import useSettingStore from "@/stores/useSettingStore";
 import If from "@/components/If";
@@ -13,7 +13,7 @@ const S3Setting = () => {
   const { accessKeyId = "", secretAccessKey = "", endpoint = "" } = integration;
 
   return (
-    <Space direction="vertical" size="middle" style={{ display: "flex" }}>
+    <Flex vertical gap={10}>
       <If condition={!accessKeyId || !secretAccessKey}>
         <div className="p-3  border border-[#f0f0f0] dark:border-[#2a2a2a] rounded-md">
           请先在【集成设置】中配置 S3 凭证
@@ -74,7 +74,7 @@ const S3Setting = () => {
           </div>
         </If>
       </If>
-    </Space>
+    </Flex>
   );
 };
 

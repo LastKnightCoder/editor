@@ -28,7 +28,8 @@ export class SyncProviderFactory {
       }
 
       case ESync.S3: {
-        const { accessKeyId, secretAccessKey, endpoint } = integration.s3;
+        const { accessKeyId, secretAccessKey, endpoint, urlStyle } =
+          integration.s3;
         const { bucket, region, pathPrefix } = syncConfig.s3;
         if (!accessKeyId || !secretAccessKey || !bucket || !region) {
           return null;
@@ -39,6 +40,7 @@ export class SyncProviderFactory {
           bucket,
           region,
           endpoint,
+          urlStyle,
           pathPrefix: pathPrefix || "",
         });
       }

@@ -106,7 +106,7 @@ const uploadResourceInner = async (
     const extension = all[all.length - 1];
     const objectName = other.join(".") + "_" + uuid() + "." + extension;
     const key = imageBed.s3.pathPrefix
-      ? `${imageBed.s3.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      ? `${imageBed.s3.pathPrefix.replaceAll(/\/$|^\//g, "")}/${objectName}`
       : objectName;
 
     try {
@@ -116,6 +116,7 @@ const uploadResourceInner = async (
         bucket: imageBed.s3.bucket,
         region: imageBed.s3.region,
         endpoint: integration.s3.endpoint,
+        urlStyle: integration.s3.urlStyle,
         key,
         file: new Uint8Array(await processedFile.arrayBuffer()),
         contentType: processedFile.type,

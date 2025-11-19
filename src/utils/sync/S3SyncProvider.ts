@@ -7,6 +7,7 @@ export interface IS3Config {
   bucket: string;
   region: string;
   endpoint?: string;
+  urlStyle?: "path" | "virtualHosted";
   pathPrefix: string;
 }
 
@@ -24,7 +25,7 @@ export class S3SyncProvider implements ISyncProvider {
   async uploadFile(objectName: string, content: Uint8Array): Promise<boolean> {
     try {
       const key = this.config.pathPrefix
-        ? `${this.config.pathPrefix.replace(/\/$/, "")}/${objectName}`
+        ? `${this.config.pathPrefix.replaceAll(/\/$|^\//g, "")}/${objectName}`
         : objectName;
 
       await s3Upload({
@@ -33,6 +34,7 @@ export class S3SyncProvider implements ISyncProvider {
         bucket: this.config.bucket,
         region: this.config.region,
         endpoint: this.config.endpoint,
+        urlStyle: this.config.urlStyle,
         key,
         file: content,
       });
@@ -47,12 +49,23 @@ export class S3SyncProvider implements ISyncProvider {
   async downloadFile(objectName: string): Promise<Uint8Array> {
     // S3 下载需要构建 URL 并使用 fetch
     const key = this.config.pathPrefix
-      ? `${this.config.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      ? `${this.config.pathPrefix.replaceAll(/\/$|^\//g, "")}/${objectName}`
       : objectName;
 
+    let url = "";
     const endpoint =
       this.config.endpoint || `https://s3.${this.config.region}.amazonaws.com`;
-    const url = `${endpoint.replace(/\/$/, "")}/${this.config.bucket}/${key}`;
+
+    if (this.config.urlStyle === "virtualHosted") {
+      if (this.config.endpoint) {
+        const endpointUrl = new URL(this.config.endpoint);
+        url = `${endpointUrl.protocol}//${this.config.bucket}.${endpointUrl.host}/${key}`;
+      } else {
+        url = `https://${this.config.bucket}.s3.${this.config.region}.amazonaws.com/${key}`;
+      }
+    } else {
+      url = `${endpoint.replaceAll(/\/$|^\//g, "")}/${this.config.bucket}/${key}`;
+    }
 
     try {
       const response = await fetch(url);
@@ -70,12 +83,23 @@ export class S3SyncProvider implements ISyncProvider {
   async fileExists(objectName: string): Promise<boolean> {
     // S3 检查文件存在可以通过 HEAD 请求
     const key = this.config.pathPrefix
-      ? `${this.config.pathPrefix.replace(/\/$/, "")}/${objectName}`
+      ? `${this.config.pathPrefix.replaceAll(/\/$|^\//g, "")}/${objectName}`
       : objectName;
 
+    let url = "";
     const endpoint =
       this.config.endpoint || `https://s3.${this.config.region}.amazonaws.com`;
-    const url = `${endpoint.replace(/\/$/, "")}/${this.config.bucket}/${key}`;
+
+    if (this.config.urlStyle === "virtualHosted") {
+      if (this.config.endpoint) {
+        const endpointUrl = new URL(this.config.endpoint);
+        url = `${endpointUrl.protocol}//${this.config.bucket}.${endpointUrl.host}/${key}`;
+      } else {
+        url = `https://${this.config.bucket}.s3.${this.config.region}.amazonaws.com/${key}`;
+      }
+    } else {
+      url = `${endpoint.replaceAll(/\/$|^\//g, "")}/${this.config.bucket}/${key}`;
+    }
 
     try {
       const response = await fetch(url, { method: "HEAD" });
