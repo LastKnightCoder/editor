@@ -98,6 +98,11 @@ const MindNode = (props: MindNodeProps) => {
   }, [isMoving, isSelecting, isSelected, isEditing, textColor]);
 
   const handleEditorResize = useMemoizedFn((width: number, height: number) => {
+    // 如果尺寸没有变化，不更新
+    if (width === element.width && height === element.height) {
+      return;
+    }
+
     const newElement = produce(element, (draft) => {
       // 对于左侧节点，在编辑时需要调整 x 位置使其向左扩展
       if (direction === "left" && isEditing) {
@@ -109,7 +114,10 @@ const MindNode = (props: MindNodeProps) => {
     });
 
     const path = PathUtil.getPathByElement(board, element);
-    if (!path) return;
+    if (!path) {
+      console.warn("[MindNode] Path not found for element:", element.id);
+      return;
+    }
 
     board.apply({
       type: "set_node",
@@ -272,6 +280,7 @@ const MindNode = (props: MindNodeProps) => {
 
     const newElement = produce(element, (draft) => {
       draft.contentId = contentId;
+      draft.contentTitle = "";
     });
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
@@ -284,7 +293,7 @@ const MindNode = (props: MindNodeProps) => {
     });
 
     // 自动打开笔记
-    board.emit("open-note", contentId);
+    board.emit("open-note", contentId, "");
   });
 
   const handleSelectNote = useMemoizedFn(() => {
@@ -298,6 +307,7 @@ const MindNode = (props: MindNodeProps) => {
 
       const newElement = produce(element, (draft) => {
         draft.contentId = item.contentId;
+        draft.contentTitle = item.title;
       });
       const path = PathUtil.getPathByElement(board, element);
       if (!path) return;
@@ -313,7 +323,7 @@ const MindNode = (props: MindNodeProps) => {
 
   const handleOpenNote = useMemoizedFn(() => {
     if (element.contentId) {
-      board.emit("open-note", element.contentId);
+      board.emit("open-note", element.contentId, element.contentTitle);
     }
   });
 

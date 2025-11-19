@@ -10,11 +10,16 @@ import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 
 interface NotePanelProps {
+  contentTitle?: string;
   contentId?: number;
   onClose: () => void;
 }
 
-const NotePanel: React.FC<NotePanelProps> = ({ contentId, onClose }) => {
+const NotePanel: React.FC<NotePanelProps> = ({
+  contentId,
+  onClose,
+  contentTitle,
+}) => {
   const { content, throttleHandleEditorContentChange } = useEditContent(
     contentId,
     () => {},
@@ -30,6 +35,7 @@ const NotePanel: React.FC<NotePanelProps> = ({ contentId, onClose }) => {
 
   const title = useMemo(() => {
     if (!content) return "加载中...";
+    if (contentTitle) return contentTitle;
     const text = getEditorText(content, 20).trim();
     return text.length < 20 ? text : `${text}...` || "未命名笔记";
   }, [content]);
