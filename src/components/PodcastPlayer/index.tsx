@@ -2,44 +2,42 @@ import useLocalPath from "@/hooks/useLocalPath";
 import { LoadingOutlined, MoreOutlined } from "@ant-design/icons";
 import { useMemo, useRef, useState } from "react";
 import AudioPlayer, { AudioPlayerRef } from "./AudioPlayer";
-import { Dropdown, MenuProps, Modal, App, Input } from "antd";
-import type { IPodcast } from "@/types/podcast";
+import { Dropdown, MenuProps, Modal, App } from "antd";
+import { IPodcast } from "@/types/podcast";
+import type { PodcastScriptLine } from "@/types/minimax";
 import useTheme from "@/hooks/useTheme";
 import { BsFillVolumeMuteFill, BsFillVolumeUpFill } from "react-icons/bs";
 import { AiOutlinePauseCircle, AiOutlinePlayCircle } from "react-icons/ai";
 import classNames from "classnames";
-import { updatePodcastName } from "@/commands/podcast";
 
 interface PodCastPlayerProps {
   defaultPodcast: IPodcast;
   onDelete?: () => void;
+  onEdit?: () => void;
 }
 
 const playbackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
 const PodCastPlayer = (props: PodCastPlayerProps) => {
-  const { defaultPodcast, onDelete } = props;
-  const [podcast, setPodcast] = useState<IPodcast>(defaultPodcast);
+  const { defaultPodcast, onDelete, onEdit } = props;
+  const podcast = defaultPodcast;
   const { localPath, loading } = useLocalPath(podcast.audioUrl);
   const [scriptDetailOpen, setScriptDetailOpen] = useState(false);
-  const [editNameModalOpen, setEditNameModalOpen] = useState(false);
   const { isDark } = useTheme();
   const audioPlayerRef = useRef<AudioPlayerRef>(null);
   const [playing, setPlaying] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(1);
   const [muted, setMuted] = useState<boolean>(false);
   const [showWaveform, setShowWaveform] = useState<boolean>(false);
-  const [editedName, setEditedName] = useState<string>(podcast.name || "");
-  const { modal, message } = App.useApp();
+  const { modal } = App.useApp();
   const menuItems = useMemo(
     () =>
       [
         {
-          key: "editName",
-          label: "编辑名称",
+          key: "editPodcast",
+          label: "编辑播客",
           onClick: () => {
-            setEditedName(podcast.name || "");
-            setEditNameModalOpen(true);
+            onEdit?.();
           },
         },
         {
@@ -93,7 +91,7 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
           },
         },
       ] as MenuProps["items"],
-    [onDelete, showWaveform, modal],
+    [onDelete, showWaveform, modal, onEdit],
   );
 
   const toggleMute = () => {
@@ -121,36 +119,6 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
     }
   };
 
-  const handleNameSave = async () => {
-    const trimmedName = editedName.trim();
-    if (!trimmedName) {
-      message.error("播客名称不能为空");
-      return;
-    }
-
-    if (trimmedName === podcast.name) {
-      setEditNameModalOpen(false);
-      return;
-    }
-
-    try {
-      const updatedPodcast = await updatePodcastName(podcast.id, trimmedName);
-      if (updatedPodcast) {
-        message.success("播客名称已更新");
-        setPodcast(updatedPodcast);
-      }
-      setEditNameModalOpen(false);
-    } catch (error) {
-      console.error("更新播客名称失败:", error);
-      message.error("更新播客名称失败");
-    }
-  };
-
-  const handleNameCancel = () => {
-    setEditNameModalOpen(false);
-    setEditedName(podcast.name || "");
-  };
-
   if (loading) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -158,8 +126,6 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
       </div>
     );
   }
-
-  console.log(podcast);
 
   return (
     <div className="flex flex-col gap-2 border border-[#f0f0f0] dark:border-[#202020] rounded-md p-5 mb-8 relative">
@@ -239,36 +205,39 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
         }}
       >
         <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded whitespace-pre-wrap max-h-full">
-          {podcast.script.split("\n").map((line, index) => (
-            <div key={index}>{line}</div>
-          ))}
-        </div>
-      </Modal>
-
-      <Modal
-        open={editNameModalOpen}
-        onCancel={handleNameCancel}
-        onOk={handleNameSave}
-        title="编辑播客名称"
-        okText="保存"
-        cancelText="取消"
-        width={500}
-      >
-        <div className="py-4">
-          <Input
-            value={editedName}
-            onChange={(e) => setEditedName(e.target.value)}
-            onPressEnter={handleNameSave}
-            maxLength={100}
-            showCount
-            placeholder="请输入播客名称"
-            autoFocus
-            className="h-14 px-5!"
-          />
+          {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
+            <div className="flex flex-col gap-4">
+              {podcast.scriptLines.map(
+                (line: PodcastScriptLine, index: number) => (
+                  <div key={index} className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-gray-600">
+                        {line.speaker}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {formatTime(line.startTime)}
+                      </span>
+                    </div>
+                    <div className="text-gray-800">{line.text}</div>
+                  </div>
+                ),
+              )}
+            </div>
+          ) : (
+            podcast.script
+              .split("\n")
+              .map((line, index) => <div key={index}>{line}</div>)
+          )}
         </div>
       </Modal>
     </div>
   );
 };
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
 
 export default PodCastPlayer;

@@ -9,6 +9,13 @@ export interface IPodcast {
   updateTime: number;
   audioUrl: string;
   script: string;
+  scriptLines: Array<{
+    speaker: string;
+    text: string;
+    startTime: number;
+    duration: number;
+    voiceId?: string;
+  }>;
   duration: number;
   speakers: Array<{
     name: string;
@@ -23,6 +30,13 @@ export interface ICreatePodcast {
   name?: string;
   audioUrl: string;
   script: string;
+  scriptLines: Array<{
+    speaker: string;
+    text: string;
+    startTime: number;
+    duration: number;
+    voiceId?: string;
+  }>;
   duration: number;
   speakers: Array<{
     name: string;
@@ -52,6 +66,7 @@ export default class PodcastTable {
         update_time INTEGER NOT NULL,
         audio_url TEXT NOT NULL,
         script TEXT,
+        script_lines TEXT,
         duration INTEGER,
         speakers TEXT NOT NULL,
         ref_count INTEGER DEFAULT 0
@@ -76,6 +91,14 @@ export default class PodcastTable {
     if (!hasNameColumn) {
       db.exec("ALTER TABLE podcasts ADD COLUMN name TEXT");
     }
+
+    // 检查是否存在 script_lines 字段
+    const hasScriptLinesColumn = tableInfo.some(
+      (col) => col.name === "script_lines",
+    );
+    if (!hasScriptLinesColumn) {
+      db.exec("ALTER TABLE podcasts ADD COLUMN script_lines TEXT");
+    }
   }
 
   static parsePodcast(row: unknown): IPodcast {
@@ -88,6 +111,7 @@ export default class PodcastTable {
       updateTime: r.update_time,
       audioUrl: r.audio_url,
       script: r.script || "",
+      scriptLines: r.script_lines ? JSON.parse(r.script_lines) : [],
       duration: r.duration || 0,
       speakers: JSON.parse(r.speakers),
       refCount: r.ref_count || 0,
@@ -98,8 +122,8 @@ export default class PodcastTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO podcasts 
-      (name, create_time, update_time, audio_url, script, duration, speakers, ref_count)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      (name, create_time, update_time, audio_url, script, script_lines, duration, speakers, ref_count)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -108,6 +132,7 @@ export default class PodcastTable {
       now,
       data.audioUrl,
       data.script,
+      JSON.stringify(data.scriptLines || []),
       data.duration,
       JSON.stringify(data.speakers),
       1, // 初始引用计数为 1

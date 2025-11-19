@@ -558,6 +558,8 @@ export function parseScript(
         speaker: speakerName,
         text,
         voiceId: speaker.voiceId,
+        startTime: 0,
+        duration: 0,
       });
     }
   }

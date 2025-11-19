@@ -25,6 +25,7 @@ import pomodoroModule from "./modules/pomodoro";
 import notionModule from "./modules/notion";
 import notionCacheModule from "./modules/notion-cache";
 import recentProjectsModule from "./modules/recent-projects";
+import podcastAudioModule from "./modules/podcast-audio";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -416,6 +417,7 @@ const initModules = async () => {
       typstModule.init(),
       notionModule.init(),
       notionCacheModule.init(),
+      podcastAudioModule.init(),
     ]);
 
     const backendServer = new BackendWebSocketServer(24678);
