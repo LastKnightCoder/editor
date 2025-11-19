@@ -155,4 +155,6 @@ export interface PodcastScriptLine {
   speaker: string;
   text: string;
   voiceId: string;
+  startTime: number; // Start time in seconds
+  duration: number; // Duration in seconds
 }

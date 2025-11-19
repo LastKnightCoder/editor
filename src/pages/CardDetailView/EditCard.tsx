@@ -12,6 +12,7 @@ import SVG from "react-inlinesvg";
 import { MdOutlineCode } from "react-icons/md";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
+import type { PodcastScriptLine } from "@/types/minimax";
 
 import Editor, { EditorRef } from "@/components/Editor";
 import AddTag from "@/components/AddTag";
@@ -176,6 +177,7 @@ const EditCard = (props: IEditCardProps) => {
     async (
       audioUrl: string,
       script: string,
+      scriptLines: PodcastScriptLine[],
       duration: number,
       speakers: {
         name: string;
@@ -190,6 +192,7 @@ const EditCard = (props: IEditCardProps) => {
           name,
           audioUrl,
           script,
+          scriptLines,
           duration,
           speakers,
         });
@@ -523,6 +526,7 @@ const EditCard = (props: IEditCardProps) => {
               <PodcastPlayer
                 defaultPodcast={editingCard.podcast}
                 onDelete={handleDeletePodcast}
+                onEdit={() => setPodcastModalOpen(true)}
               />
             )}
 
@@ -611,6 +615,7 @@ const EditCard = (props: IEditCardProps) => {
         <PodcastGenerationModal
           open={podcastModalOpen}
           cardContent={editingCard.content}
+          initialPodcast={editingCard.podcast}
           onSuccess={handlePodcastSuccess}
           onCancel={() => setPodcastModalOpen(false)}
         />

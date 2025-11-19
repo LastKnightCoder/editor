@@ -13,6 +13,7 @@ import {
   Spin,
   Slider,
   Upload,
+  Alert,
 } from "antd";
 import {
   PlusOutlined,
@@ -20,10 +21,13 @@ import {
   SoundOutlined,
   FileTextOutlined,
   UploadOutlined,
+  UpOutlined,
+  DownOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import { usePodcastGeneration } from "@/hooks/usePodcastGeneration";
-import type { PodcastSpeaker } from "@/types/podcast";
+import type { PodcastSpeaker, IPodcast } from "@/types/podcast";
 import { SpeakerRole } from "@/types/podcast";
 import type { Descendant } from "slate";
 import { getMarkdown } from "@/utils/markdown";
@@ -34,17 +38,21 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 const { Panel } = Collapse;
 
+import type { PodcastScriptLine } from "@/types/minimax";
+
 interface PodcastGenerationModalProps {
   open: boolean;
   cardContent: Descendant[];
   onSuccess: (
     audioUrl: string,
     script: string,
+    scriptLines: PodcastScriptLine[],
     duration: number,
     speakers: PodcastSpeaker[],
     name?: string,
   ) => void;
   onCancel: () => void;
+  initialPodcast?: IPodcast;
 }
 
 interface CloneVoiceItem {
@@ -55,7 +63,7 @@ interface CloneVoiceItem {
 }
 
 const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
-  ({ open, cardContent, onSuccess, onCancel }) => {
+  ({ open, cardContent, onSuccess, onCancel, initialPodcast }) => {
     const [podcastName, setPodcastName] = useState<string>("");
     const [speakers, setSpeakers] = useState<PodcastSpeaker[]>([
       { name: "Speaker1", voiceId: "", voiceName: "", role: SpeakerRole.Host },
@@ -90,6 +98,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       ttsCompleted,
       logs,
       script,
+      scriptLines,
+      segmentAudios,
+      error,
       audioUrl,
       duration,
       voices,
@@ -97,7 +108,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       loadVoices,
       addVoiceToList,
       generatePodcast,
+      continueWithTTS,
+      updateScriptLines,
+      regenerateSegment,
       reset,
+      setInitialState, // 需要在 usePodcastGeneration 中添加这个方法
     } = usePodcastGeneration();
 
     // 加载音色列表
@@ -106,6 +121,24 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         loadVoices();
       }
     }, [open, voices.length, loadVoices]);
+
+    // 初始化编辑状态
+    useEffect(() => {
+      if (open && initialPodcast) {
+        setPodcastName(initialPodcast.name || "");
+        setSpeakers(initialPodcast.speakers);
+
+        // 调用 usePodcastGeneration 的 setInitialState
+        setInitialState({
+          status: "complete",
+          audioUrl: initialPodcast.audioUrl,
+          script: initialPodcast.script,
+          scriptLines: initialPodcast.scriptLines || [],
+          duration: initialPodcast.duration,
+          segmentAudios: [], // 编辑模式下可能没有 segmentAudios，需要处理
+        });
+      }
+    }, [open, initialPodcast, setInitialState]);
 
     const stageNames: Record<string, string> = {
       parsing: "解析内容",
@@ -239,6 +272,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         onSuccess(
           audioUrl,
           script,
+          scriptLines,
           duration,
           speakers,
           podcastName.trim() || undefined,
@@ -823,28 +857,162 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             </div>
           )}
 
-          {/* 进度显示 */}
-          {status === "loading" && (
-            <div className="space-y-4">
-              <Title level={5}>
-                {stageNames[stage] || stage}
-                {stage === "tts" && ` (${ttsCompleted}/${ttsTotal})`}
-              </Title>
-              <Progress percent={stageProgress} status="active" />
+          {/* 脚本编辑阶段 */}
+          {status === "loading" &&
+            stage === "script" &&
+            scriptLines.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Title level={5}>编辑脚本</Title>
+                  <Space>
+                    <Button onClick={() => reset()}>取消</Button>
+                    <Button
+                      type="primary"
+                      onClick={() =>
+                        continueWithTTS(scriptLines, generateMusic)
+                      }
+                    >
+                      确认并生成音频
+                    </Button>
+                  </Space>
+                </div>
 
-              <Collapse ghost className="mt-4" defaultActiveKey={["logs"]}>
-                <Panel header="详细日志" key="logs">
-                  <div className="max-h-64 overflow-y-auto space-y-1 bg-gray-50 p-2 rounded">
-                    {logs.map((log, index) => (
-                      <div key={index} className="text-sm text-gray-700">
-                        {log}
+                <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2">
+                  {scriptLines.map((line, index) => (
+                    <div
+                      key={index}
+                      className="p-3 bg-gray-50 rounded border border-gray-200 flex gap-3 items-start group"
+                    >
+                      <div className="flex flex-col gap-2 pt-1">
+                        <Select
+                          value={line.speaker}
+                          onChange={(value) => {
+                            const speaker = speakers.find(
+                              (s) => s.name === value,
+                            );
+                            if (speaker) {
+                              const newLines = [...scriptLines];
+                              newLines[index] = {
+                                ...line,
+                                speaker: value,
+                                voiceId: speaker.voiceId,
+                              };
+                              updateScriptLines(newLines);
+                            }
+                          }}
+                          className="w-[120px]"
+                          size="small"
+                        >
+                          {speakers.map((s) => (
+                            <Option key={s.name} value={s.name}>
+                              {s.name}
+                            </Option>
+                          ))}
+                        </Select>
+                        <div className="flex gap-1">
+                          <Button
+                            size="small"
+                            icon={<UpOutlined />}
+                            disabled={index === 0}
+                            onClick={() => {
+                              const newLines = [...scriptLines];
+                              [newLines[index - 1], newLines[index]] = [
+                                newLines[index],
+                                newLines[index - 1],
+                              ];
+                              updateScriptLines(newLines);
+                            }}
+                          />
+                          <Button
+                            size="small"
+                            icon={<DownOutlined />}
+                            disabled={index === scriptLines.length - 1}
+                            onClick={() => {
+                              const newLines = [...scriptLines];
+                              [newLines[index + 1], newLines[index]] = [
+                                newLines[index],
+                                newLines[index + 1],
+                              ];
+                              updateScriptLines(newLines);
+                            }}
+                          />
+                          <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            onClick={() => {
+                              const newLines = scriptLines.filter(
+                                (_, i) => i !== index,
+                              );
+                              updateScriptLines(newLines);
+                            }}
+                          />
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </Panel>
-              </Collapse>
-            </div>
-          )}
+
+                      <Input.TextArea
+                        value={line.text}
+                        onChange={(e) => {
+                          const newLines = [...scriptLines];
+                          newLines[index] = { ...line, text: e.target.value };
+                          updateScriptLines(newLines);
+                        }}
+                        autoSize={{ minRows: 2, maxRows: 6 }}
+                        className="flex-1"
+                      />
+                    </div>
+                  ))}
+
+                  <Button
+                    type="dashed"
+                    block
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      const lastLine = scriptLines[scriptLines.length - 1];
+                      const nextSpeaker =
+                        speakers.find((s) => s.name !== lastLine?.speaker) ||
+                        speakers[0];
+                      updateScriptLines([
+                        ...scriptLines,
+                        {
+                          speaker: nextSpeaker.name,
+                          text: "",
+                          voiceId: nextSpeaker.voiceId,
+                          startTime: 0,
+                          duration: 0,
+                        },
+                      ]);
+                    }}
+                  >
+                    添加对话
+                  </Button>
+                </div>
+              </div>
+            )}
+
+          {/* 进度显示 (非脚本编辑阶段) */}
+          {status === "loading" &&
+            (stage !== "script" || scriptLines.length === 0) && (
+              <div className="space-y-4">
+                <Title level={5}>
+                  {stageNames[stage] || stage}
+                  {stage === "tts" && ` (${ttsCompleted}/${ttsTotal})`}
+                </Title>
+                <Progress percent={stageProgress} status="active" />
+
+                <Collapse ghost className="mt-4" defaultActiveKey={["logs"]}>
+                  <Panel header="详细日志" key="logs">
+                    <div className="max-h-64 overflow-y-auto space-y-1 bg-gray-50 p-2 rounded">
+                      {logs.map((log, index) => (
+                        <div key={index} className="text-sm text-gray-700">
+                          {log}
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                </Collapse>
+              </div>
+            )}
 
           {/* 结果预览 */}
           {status === "complete" && audioUrl && (
@@ -869,9 +1037,59 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   }
                   key="script"
                 >
-                  <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded whitespace-pre-wrap max-h-full">
-                    {script.split("\n").map((line, index) => (
-                      <div key={index}>{line}</div>
+                  <div className="overflow-y-auto flex flex-col gap-3 p-4 rounded max-h-[400px]">
+                    {scriptLines.map((line, index) => (
+                      <div
+                        key={index}
+                        className="p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200 transition-colors"
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="flex items-center gap-2">
+                            <Text strong>{line.speaker}</Text>
+                            <Text type="secondary" className="text-xs">
+                              {formatTime(line.startTime)} -{" "}
+                              {formatTime(line.startTime + line.duration)} (
+                              {line.duration.toFixed(1)}s)
+                            </Text>
+                          </div>
+                          <div className="flex gap-2">
+                            {segmentAudios[index] && (
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<SoundOutlined />}
+                                onClick={() => {
+                                  const audio = new Audio(
+                                    URL.createObjectURL(segmentAudios[index]),
+                                  );
+                                  audio.play();
+                                }}
+                              >
+                                试听
+                              </Button>
+                            )}
+                            <Button
+                              size="small"
+                              type="text"
+                              icon={<ReloadOutlined />}
+                              onClick={() => {
+                                const newText = prompt(
+                                  "修改文本并重新生成:",
+                                  line.text,
+                                );
+                                if (newText && newText !== line.text) {
+                                  regenerateSegment(index, newText);
+                                }
+                              }}
+                            >
+                              重生成
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="text-gray-700 whitespace-pre-wrap">
+                          {line.text}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </Panel>
@@ -883,6 +1101,14 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           {status === "error" && (
             <div className="space-y-4">
               <Title level={5}>生成失败</Title>
+              {error && (
+                <Alert
+                  message="错误信息"
+                  description={error}
+                  type="error"
+                  showIcon
+                />
+              )}
               <Text type="danger">请查看日志了解详情</Text>
               <Collapse ghost className="mt-4" defaultActiveKey={["logs"]}>
                 <Panel header="详细日志" key="logs">
@@ -902,5 +1128,12 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
     );
   },
 );
+
+// 辅助函数：格式化时间
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
 
 export default PodcastGenerationModal;
