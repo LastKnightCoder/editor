@@ -1,7 +1,9 @@
 declare module "github-api";
 declare module "reactjs-calendar-heatmap";
+declare module "plantuml-encoder";
 
 interface Window {
+  cheerpjInit: boolean;
   checkUpdate: () => Promise<void>;
   electron: {
     invoke: (command: string, ...args: any[]) => Promise<any>;

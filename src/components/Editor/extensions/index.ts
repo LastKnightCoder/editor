@@ -41,6 +41,7 @@ import EmojiExtension from "./emoji";
 import AnnotationExtension from "./annotation";
 import DatabaseExtension from "./database";
 import AbcExtension from "./abc";
+import PlantUMLExtension from "./plantuml";
 
 export const paragraph = new ParagraphExtension();
 export const underline = new UnderlineExtension();
@@ -90,6 +91,7 @@ export const emoji = new EmojiExtension();
 export const annotation = new AnnotationExtension();
 export const database = new DatabaseExtension();
 export const abc = new AbcExtension();
+export const plantuml = new PlantUMLExtension();
 
 export const startExtensions = [
   ai,
@@ -137,4 +139,5 @@ export const startExtensions = [
   annotation,
   database,
   abc,
+  plantuml,
 ];

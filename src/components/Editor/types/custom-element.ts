@@ -51,6 +51,7 @@ import { AnnotationElement } from "./element/annotation.ts";
 import { DatabaseElement } from "./element/database.ts";
 import { ChatReferenceElement } from "./element/chat-reference.ts";
 import { AbcElement } from "./element/abc.ts";
+import { PlantUMLElement } from "./element/plantuml.ts";
 
 import { FormattedText } from "./text.ts";
 
@@ -100,7 +101,8 @@ export type CustomElement =
   | AnnotationElement
   | DatabaseElement
   | ChatReferenceElement
-  | AbcElement;
+  | AbcElement
+  | PlantUMLElement;
 
 export type InlineElement =
   | LinkElement
