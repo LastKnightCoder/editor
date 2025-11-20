@@ -76,7 +76,6 @@ const LocalVideo = memo(
         const absolutePath = localUrl.startsWith("~")
           ? `${homeDir}${localUrl.slice(1)}`
           : localUrl;
-        console.log("absolutePath", absolutePath);
         const appDir = await getEditorDir();
 
         let videoUrl;

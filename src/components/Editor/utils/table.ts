@@ -171,19 +171,7 @@ const insertRow = (editor: Editor, after: boolean) => {
 
   // 聚焦到新行的当前列位置
   try {
-    // 直接通过路径访问新表格元素
-    const newTableElement = Editor.node(
-      editor,
-      newTablePath,
-    )[0] as TableElement;
-    const newRowElement = newTableElement.children[index] as TableRowElement;
     const safeCol = Math.min(currentCol, columns - 1);
-    const targetCellElement = newRowElement.children[
-      safeCol
-    ] as TableCellElement;
-
-    console.log(`insertRow: 目标单元格在第${index}行第${safeCol}列`);
-    console.log(`insertRow: 目标单元格内容:`, targetCellElement);
 
     // 构造绝对路径：[tablePath, rowIndex, colIndex, cellChildIndex]
     const targetChildPath = [...newTablePath, index, safeCol, 0]; // 第一个子节点
@@ -197,8 +185,6 @@ const insertRow = (editor: Editor, after: boolean) => {
     console.warn("插入行后聚焦失败，尝试聚焦到新行第一个单元格", error);
     try {
       if (newTablePath) {
-        console.log(`insertRow fallback: 尝试聚焦到新行第一个单元格`);
-
         // 构造新行第一个单元格的路径
         const firstCellPath = [...newTablePath, index, 0, 0];
         Transforms.select(editor, {

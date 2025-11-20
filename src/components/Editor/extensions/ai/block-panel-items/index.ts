@@ -87,8 +87,7 @@ const items: IBlockPanelListItem[] = [
           onUpdate: (_full, incrementalText) => {
             parser.addText(incrementalText);
           },
-          onFinish: (fullText) => {
-            console.log("fullText: \n", fullText);
+          onFinish: () => {
             parser.finish();
           },
         },

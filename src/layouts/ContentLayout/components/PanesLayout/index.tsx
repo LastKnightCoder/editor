@@ -83,22 +83,9 @@ const ContentDropZone = memo(
               : PaneDirection.Vertical;
 
           if (item.type === "TAB") {
-            console.log("[ContentDropZone] Creating pane with tab:", {
-              fromPaneId: item.paneId,
-              tabId: item.tab.id,
-              tabTitle: item.tab.title,
-              direction,
-            });
-
             // 创建新 pane 并移动 tab（原子操作）
             createPaneWithTab(item.paneId, item.tab.id, direction, 0.5);
           } else if (item.type === "TAB_GROUP") {
-            console.log("[ContentDropZone] Creating pane with tab group:", {
-              fromPaneId: item.paneId,
-              groupId: item.groupId,
-              direction,
-            });
-
             // 创建新 pane 并移动整个分组（原子操作）
             createPaneWithTabGroup(item.paneId, item.groupId, direction, 0.5);
           }

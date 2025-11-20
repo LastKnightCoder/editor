@@ -158,7 +158,6 @@ const Project = () => {
     try {
       const credentials = setting.integration.bilibili.credentials;
 
-      console.log("url", url);
       // 先获取视频信息以获得 cid
       const videoInfo = await getVideoInfoByUrl(url, credentials);
 

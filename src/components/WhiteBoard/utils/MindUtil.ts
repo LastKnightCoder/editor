@@ -3,7 +3,7 @@ import { v4 as uuid } from "uuid";
 import BoardUtil from "./BoardUtil.ts";
 import PathUtil from "./PathUtil.ts";
 import { Board, MindNodeElement, MindDragTarget } from "../types";
-import { MIND_COLORS } from "../constants";
+import { DEFAULT_THEME_ID } from "../constants/mind-themes";
 
 const MARGIN_X = 36;
 
@@ -26,8 +26,7 @@ export class MindUtil {
           before: (node, parent) => {
             if (parent) {
               node.level = parent.level + 1;
-              node.background = MIND_COLORS[node.level - 1]?.background;
-              node.textColor = MIND_COLORS[node.level - 1]?.textColor;
+              // Remove hardcoded color assignment - colors will be determined by theme
               if (node.level > 2) {
                 node.direction = parent.direction;
               }
@@ -361,9 +360,6 @@ export class MindUtil {
                 ],
               },
             ],
-            ...(MIND_COLORS[current.level] ||
-              MIND_COLORS[MIND_COLORS.length - 1]),
-            border: "transparent",
             children: [],
             defaultFocus: true,
             isLeftFold: false,
@@ -430,9 +426,6 @@ export class MindUtil {
                 ],
               },
             ],
-            ...(MIND_COLORS[current.level] ||
-              MIND_COLORS[MIND_COLORS.length - 1]),
-            border: "transparent",
             children: [],
             defaultFocus: true,
             isLeftFold: false,
@@ -678,13 +671,9 @@ export class MindUtil {
     newDirection: "left" | "right",
     parentLevel: number,
   ) {
-    // 本应该取 parentLevel + 1，但是 level 是从 1 开始计数的，因此要减一，取 parentLevel
-    const colors =
-      MIND_COLORS[parentLevel] || MIND_COLORS[MIND_COLORS.length - 1];
     node.direction = newDirection;
     node.level = parentLevel + 1;
-    node.textColor = colors.textColor;
-    node.background = colors.background;
+    // Remove hardcoded color assignment - colors will be determined by theme
 
     node.children.forEach((child) =>
       this.updateNodeDirectionAndLevel(child, newDirection, parentLevel + 1),
@@ -999,6 +988,17 @@ export class MindUtil {
     });
 
     return !isDescendant;
+  }
+
+  // LocalStorage persistence for theme preference
+  private static THEME_STORAGE_KEY = "whiteboard-mind-theme";
+
+  static saveDefaultThemeId(id: string): void {
+    localStorage.setItem(this.THEME_STORAGE_KEY, id);
+  }
+
+  static getDefaultThemeId(): string {
+    return localStorage.getItem(this.THEME_STORAGE_KEY) || DEFAULT_THEME_ID;
   }
 }
 

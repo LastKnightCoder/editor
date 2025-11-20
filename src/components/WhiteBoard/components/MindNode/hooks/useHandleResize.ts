@@ -82,16 +82,6 @@ const useHandleResize = ({
 
       // 关键验证：如果找到了新元素，且与当前元素不同，说明 DOM 被替换了
       if (editor && editor !== currentEditor) {
-        if (currentEditor) {
-          console.log("[useHandleResize] DOM Replaced!", {
-            reason: "Editor internal re-render",
-            oldNode: currentEditor,
-            newNode: editor,
-          });
-        } else {
-          console.log("[useHandleResize] Initial DOM found");
-        }
-
         currentEditor = editor;
         setupResizeObserver(editor);
       }

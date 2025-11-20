@@ -83,47 +83,25 @@ const DraggableTab = memo((props: DraggableTabProps) => {
         return;
       }
 
-      const { paneId: targetPaneId, dropZone } = dropResult;
+      const { dropZone } = dropResult;
 
       // 分屏逻辑仍然交给上层 Titlebar 处理
       if (dropZone && dropZone !== "group") {
-        console.log("[DraggableTab][end split]", {
-          tabId: item.tab.id,
-          fromPaneId: item.paneId, // 使用当前 paneId
-          toPaneId: targetPaneId,
-          dropZone,
-        });
         onDragEnd(item.tab, item.paneId, dropZone);
         return;
       }
 
       // dropZone 为 "group" 时，分组逻辑已经在 TabGroupHeader.onDropTabToGroup 中完成
       if (dropZone === "group") {
-        console.log("[DraggableTab][end group] (handled by header)", {
-          tabId: item.tab.id,
-          fromPaneId: item.paneId,
-          toPaneId: targetPaneId,
-        });
         return;
       }
 
       // 如果在 hover 中已经处理过跨 pane 移动，就不再处理
       if (item.originalPaneId && item.originalPaneId !== item.paneId) {
-        console.log("[DraggableTab][end] already handled in hover", {
-          tabId: item.tab.id,
-          originalPaneId: item.originalPaneId,
-          currentPaneId: item.paneId,
-        });
         return;
       }
 
       // 其他情况（同 pane 普通移动）交给上层处理
-      console.log("[DraggableTab][end]", {
-        tabId: item.tab.id,
-        fromPaneId: item.paneId,
-        toPaneId: targetPaneId,
-        dropZone: "none",
-      });
       onDragEnd(item.tab, item.paneId, undefined);
     },
   });
@@ -156,13 +134,6 @@ const DraggableTab = memo((props: DraggableTabProps) => {
           if (!item.originalPaneId) {
             item.originalPaneId = item.paneId;
           }
-
-          console.log("[DraggableTab][hover cross-pane]", {
-            tabId: item.tab.id,
-            fromPaneId: item.paneId,
-            toPaneId: paneId,
-            toIndex: index,
-          });
 
           // 跨 pane 移动 tab 到指定位置
           const moveTabToPane = useTabStore.getState().moveTabToPane;
@@ -219,21 +190,12 @@ const DraggableTab = memo((props: DraggableTabProps) => {
           // 如果拖动的 tab 和目标 tab 的分组不同，需要更新分组
           if (tab.groupId) {
             // 目标 tab 在分组中，将拖动的 tab 加入该分组
-            console.log("[DraggableTab][hover] moving tab to different group", {
-              tabId: item.tab.id,
-              fromGroupId: item.tab.groupId,
-              toGroupId: tab.groupId,
-            });
             useTabStore
               .getState()
               .setTabGroup(paneId, item.tab.id, tab.groupId);
             item.tab.groupId = tab.groupId;
           } else if (item.tab.groupId) {
             // 目标 tab 不在分组中，取消拖动 tab 的分组
-            console.log("[DraggableTab][hover] removing tab from group", {
-              tabId: item.tab.id,
-              fromGroupId: item.tab.groupId,
-            });
             useTabStore.getState().setTabGroup(paneId, item.tab.id, undefined);
             item.tab.groupId = undefined;
           }
@@ -267,13 +229,6 @@ const DraggableTab = memo((props: DraggableTabProps) => {
             item.originalPaneId = item.paneId;
           }
 
-          console.log("[DraggableTab][hover TAB_GROUP cross-pane]", {
-            groupId: item.groupId,
-            fromPaneId: item.paneId,
-            toPaneId: paneId,
-            targetTabId: tab.id,
-          });
-
           // 跨 pane 移动整个分组
           const moveTabGroupToPane = useTabStore.getState().moveTabGroupToPane;
           moveTabGroupToPane(item.paneId, paneId, item.groupId);
@@ -293,14 +248,6 @@ const DraggableTab = memo((props: DraggableTabProps) => {
         const hoverClientX = clientOffset.x - hoverBoundingRect.left;
         const position: "before" | "after" =
           hoverClientX < hoverMiddleX ? "before" : "after";
-
-        console.log("[DraggableTab][hover TAB_GROUP]", {
-          currentTabId: tab.id,
-          currentGroupId: tab.groupId,
-          draggedGroupId: item.groupId,
-          paneId,
-          position,
-        });
 
         if (tab.groupId) {
           // 当前 tab 在分组中，分组和分组之间排序

@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useBoard, useCreateElementType } from "../../../hooks";
 import { ECreateBoardElementType, MindNodeElement } from "../../../types";
-import { BOARD_TO_CONTAINER, MIND_COLORS } from "../../../constants";
+import { BOARD_TO_CONTAINER } from "../../../constants";
 import { useMemoizedFn } from "ahooks";
-import { PointUtil } from "../../../utils";
+import { PointUtil, MindUtil } from "../../../utils";
 import { v4 as uuid } from "uuid";
 
 const useCreateMindMap = () => {
@@ -48,12 +48,11 @@ const useCreateMindMap = () => {
           ],
         },
       ],
-      ...MIND_COLORS[0],
-      border: "transparent",
       children: [],
       defaultFocus: true,
       isLeftFold: false,
       isRightFold: false,
+      themeId: MindUtil.getDefaultThemeId(),
     };
 
     board.apply({

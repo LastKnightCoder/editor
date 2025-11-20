@@ -6,11 +6,10 @@ import {
 } from "@/components/WhiteBoard/hooks";
 import {
   BoardElement,
-  MindNodeElement,
   Operation,
   FrameElement,
 } from "@/components/WhiteBoard/types";
-import { FrameUtil, MindUtil, PathUtil } from "@/components/WhiteBoard/utils";
+import { FrameUtil, PathUtil } from "@/components/WhiteBoard/utils";
 import setterConfig from "./setter-config.ts";
 
 const AttributeSetter = () => {
@@ -97,7 +96,6 @@ const AttributeSetter = () => {
   const validElements = selection.selectedElements.filter(
     (el) =>
       el.type !== "arrow" &&
-      (el.type !== "mind-node" || MindUtil.isRoot(el as MindNodeElement)) &&
       !frames.some((frame) =>
         FrameUtil.isChildInFrame(frame as FrameElement, el),
       ),
@@ -119,8 +117,8 @@ const AttributeSetter = () => {
   }
 
   // 单选元素的情况
-  if (selection.selectedElements.length === 1) {
-    const element = selection.selectedElements[0];
+  if (validElements.length === 1) {
+    const element = validElements[0];
 
     // @ts-ignore
     const config = setterConfig[element.type];

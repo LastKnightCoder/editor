@@ -104,7 +104,7 @@ export class ViewPortTransforms {
       maxX === -Infinity ||
       maxY === -Infinity
     ) {
-      console.log("未找到有效边界，退出全览");
+      console.warn("未找到有效边界，退出全览");
       return;
     }
 

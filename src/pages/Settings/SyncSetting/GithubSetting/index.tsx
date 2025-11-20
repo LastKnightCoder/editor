@@ -24,7 +24,6 @@ const GithubSetting = () => {
       return;
     }
     const reposList = await getReposByOwner(token, user.name);
-    console.log("reposList", reposList);
     if (reposList) {
       setRepos(reposList.map((r: { name: string }) => r.name));
     } else {

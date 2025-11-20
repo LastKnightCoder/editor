@@ -17,15 +17,16 @@ export interface MindNodeElement {
   rightChildrenHeight: number;
   direction: "left" | "right";
   text: Descendant[];
-  background: string;
-  border: string;
-  textColor: string;
+  background?: string;
+  border?: string;
+  textColor?: string;
   defaultFocus?: boolean;
   isRightFold?: boolean;
   isLeftFold?: boolean;
   theme?: "light" | "dark";
   contentId?: number;
   contentTitle?: string;
+  themeId?: string;
 }
 
 export interface MindDragTarget {

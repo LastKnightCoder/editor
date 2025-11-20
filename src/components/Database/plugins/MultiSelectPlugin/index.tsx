@@ -41,7 +41,6 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
           : filterValue
             ? [filterValue]
             : [];
-        console.log("targets", targets, cellValue);
         if (!targets.length) return false;
         return targets.every((value) => cellValue.includes(value));
       },
