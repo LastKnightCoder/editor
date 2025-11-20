@@ -8,7 +8,19 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+  createDocumentCardListExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import {
   getDocumentItem,
   updateDocumentItem,
@@ -28,8 +40,6 @@ const editorContextValue = {
 };
 
 const SingleDocumentItemEditor = () => {
-  const extensions = useDynamicExtensions();
-
   const documentItemEventBus = useCreation(
     () => defaultDocumentItemEventBus.createEditor(),
     [],
@@ -37,6 +47,13 @@ const SingleDocumentItemEditor = () => {
   const [searchParams] = useSearchParams();
   const documentItemId = Number(searchParams.get("documentItemId"));
   const databaseName = searchParams.get("databaseName");
+
+  const extensions = useCreation(() => {
+    return [
+      ...customExtensions,
+      createDocumentCardListExtension(documentItemId),
+    ];
+  }, [documentItemId]);
 
   const titleRef = useRef<EditTextHandle>(null);
   const [editingDocumentItem, setEditingDocumentItem] =

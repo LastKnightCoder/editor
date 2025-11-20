@@ -9,12 +9,25 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import useEditContent from "@/hooks/useEditContent";
 import NotionSyncStatus from "@/components/NotionSyncStatus";
 import NotionConflictModal from "@/components/NotionConflictModal";
 import { notionCompatibleExtensions } from "@/components/Editor/extensions/notion-compatible";
 import { useNotionSyncIntegration } from "./useNotionSyncIntegration";
+
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+  createProjectCardListExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 import styles from "./index.module.less";
 
@@ -36,7 +49,9 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     setProjectItem,
   } = useEdit(projectItemId);
 
-  const dynamicExtensions = useDynamicExtensions();
+  const dynamicExtensions = useCreation(() => {
+    return [...customExtensions, createProjectCardListExtension(projectItemId)];
+  }, [projectItemId]);
 
   // Notion 同步集成
   const {
@@ -136,7 +151,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     return () => {
       unsubscribe();
     };
-  }, [projectItemId, projectItemEventBus, setProjectItem]);
+  }, [projectItemId, projectItemEventBus, setProjectItem, projectItem]);
 
   if (!projectItem) return null;
 

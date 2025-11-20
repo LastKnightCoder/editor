@@ -35,6 +35,7 @@ import {
   removeRootProjectItem,
   removeChildProjectItem,
   createDataTable,
+  openExternal,
 } from "@/commands";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import { extractUrlFromTitle } from "@/utils";
@@ -47,6 +48,7 @@ import useProjectsStore from "@/stores/useProjectsStore";
 import useWhiteBoardStore from "@/stores/useWhiteBoardStore";
 import useSettingStore from "@/stores/useSettingStore";
 import useShortcutStore from "@/stores/useShortcutStore";
+import useTabStore from "@/stores/useTabStore";
 import useDragAndDrop, {
   EDragPosition,
   IDragItem,
@@ -78,6 +80,7 @@ import {
   SearchResult,
   WhiteBoardContent,
 } from "@/types";
+import { TabType } from "@/types/tab";
 import {
   FileOutlined,
   FolderOpenTwoTone,
@@ -104,9 +107,20 @@ import { isValid } from "@/components/WhiteBoard/utils";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import PresentationMode from "@/components/PresentationMode";
 import ContentExportModal from "@/components/ContentExportModal";
-import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { useProjectContext } from "../../ProjectContext";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+  createProjectCardListExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import {
   isBilibiliUrl,
   quickCheckBilibiliUrl,
@@ -115,9 +129,6 @@ import {
   getQualityOptions,
   BilibiliVideoQuality,
 } from "@/utils/bilibili";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
-
 interface IProjectItemProps {
   projectItemId: number;
   parentProjectItemId: number;
@@ -143,6 +154,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     refreshProject,
   } = props;
 
+  const extensions = useCreation(() => {
+    return [...customExtensions, createProjectCardListExtension(projectItemId)];
+  }, [projectItemId]);
+
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
     [],
@@ -151,6 +166,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { projectId, itemId } = useProjectContext();
   const databaseName = useSettingStore.getState().setting.database.active;
   const navigateTo = useTabStore((state) => state.navigateTo);
+  const openInNewTab = useTabStore((state) => state.openInNewTab);
+  const panes = useTabStore((state) => state.panes);
+  const activePaneId = useTabStore((state) => state.activePaneId);
 
   const [webClipModalOpen, setWebClipModalOpen] = useState(false);
   const [webClip, setWebClip] = useState("");
@@ -1003,25 +1021,26 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       } else if (key === "open-in-right-sidebar") {
         if (!projectItem) return;
 
-        const { addTab } = useRightSidebarStore.getState();
+        let targetPaneId: string | undefined;
+        if (panes.length > 1) {
+          const otherPane = panes.find((p) => p.id !== activePaneId);
+          targetPaneId = otherPane?.id;
+        }
 
         if (projectItem.projectItemType === EProjectItemType.WebView) {
-          const { title, url } = extractUrlFromTitle(projectItem.title);
+          const { url } = extractUrlFromTitle(projectItem.title);
           if (url) {
-            addTab({
-              id: url,
-              title,
-              type: "webview",
-            });
+            openExternal(url);
           } else {
             message.error("无法提取 URL");
           }
         } else {
-          addTab({
-            id: String(projectItem.id),
-            title: projectItem.title || "项目",
-            type: "project-item",
-          });
+          openInNewTab(
+            TabType.ProjectDetail,
+            { id: projectId, itemId: projectItem.id },
+            targetPaneId,
+            projectItem.title || "项目",
+          );
         }
       }
     },
@@ -1291,8 +1310,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
     },
   );
-
-  const extensions = useDynamicExtensions();
 
   const initialCardContents = useMemo(() => {
     return cards.map((card) => ({

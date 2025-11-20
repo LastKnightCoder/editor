@@ -8,7 +8,18 @@ import NewAnswerModal from "@/components/NewAnswerModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import AnswerModal from "@/components/AnswerModal";
 import { getQuestionAnswers, isContentIsCard } from "@/commands";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import { Descendant } from "slate";
 import DndProvider from "@/components/DndProvider";
 import QuestionGroupList from "./components/QuestionGroupList";
@@ -19,7 +30,6 @@ import type { IAnswer } from "@/types/question";
 const QuestionWindowPage = () => {
   const isConnected = useDatabaseConnected();
   const { message, modal } = App.useApp();
-  const extensions = useDynamicExtensions();
 
   const {
     leftOpen,
@@ -393,7 +403,7 @@ const QuestionWindowPage = () => {
         <NewAnswerModal
           visible={newAnswerVisible}
           defaultContent={DEFAULT_CONTENT}
-          extensions={extensions}
+          extensions={customExtensions}
           onCancel={() => {
             setNewAnswerVisible(false);
             setNewAnswerContent(DEFAULT_CONTENT);
@@ -407,12 +417,12 @@ const QuestionWindowPage = () => {
           onCancel={() => setContentSelectorVisible(false)}
           onSelect={onSelectExistingAnswer}
           contentType={["card", "article", "project-item", "document-item"]}
-          extensions={extensions}
+          extensions={customExtensions}
         />
         <AnswerModal
           visible={answerPreviewVisible}
           selectedAnswer={selectedAnswer}
-          extensions={extensions}
+          extensions={customExtensions}
           onClose={() => setAnswerPreviewVisible(false)}
           onAnswerChange={() => {
             if (activeGroupId != null) loadItems(activeGroupId);

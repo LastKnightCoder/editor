@@ -32,7 +32,6 @@ import {
   openArticleInNewWindow,
 } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
-import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useEditContent from "@/hooks/useEditContent";
 
@@ -76,6 +75,9 @@ const ArticleCard = (props: IArticleCardProps) => {
 
   const { isDark } = useTheme();
   const navigateTo = useTabStore((state) => state.navigateTo);
+  const openInNewTab = useTabStore((state) => state.openInNewTab);
+  const panes = useTabStore((state) => state.panes);
+  const activePaneId = useTabStore((state) => state.activePaneId);
   const [settingOpen, setSettingOpen] = useState(false);
   const [bannerUploading, setBannerUploading] = useState(false);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -193,12 +195,19 @@ const ArticleCard = (props: IArticleCardProps) => {
   };
 
   const handleView = () => {
-    const { addTab } = useRightSidebarStore.getState();
-    addTab({
-      id: String(article.id),
-      title: article.title || "文章",
-      type: "article",
-    });
+    // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
+    let targetPaneId: string | undefined;
+    if (panes.length > 1) {
+      const otherPane = panes.find((p) => p.id !== activePaneId);
+      targetPaneId = otherPane?.id;
+    }
+
+    openInNewTab(
+      TabType.ArticleDetail,
+      { id: article.id },
+      targetPaneId,
+      article.title || "文章",
+    );
     setSettingOpen(false);
   };
 

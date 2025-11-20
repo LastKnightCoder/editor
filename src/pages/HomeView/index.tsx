@@ -24,8 +24,19 @@ import useTheme from "@/hooks/useTheme.ts";
 import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { extractUrlFromTitle } from "@/utils";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 const HomeView = memo(() => {
   const navigateTo = useTabStore((state) => state.navigateTo);
@@ -67,7 +78,6 @@ const HomeView = memo(() => {
   const [cardWordCounts, setCardWordCounts] = useState(0);
   const [articleWordCounts, setArticleWordCounts] = useState(0);
 
-  const extensions = useDynamicExtensions();
   const initData = useMemoizedFn(() => {
     getAllCards().then((cards) => {
       setCards(cards);
@@ -260,7 +270,7 @@ const HomeView = memo(() => {
                         <Editor
                           readonly
                           initValue={card.content}
-                          extensions={extensions}
+                          extensions={customExtensions}
                           className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
                       }
@@ -297,7 +307,7 @@ const HomeView = memo(() => {
                         <Editor
                           readonly
                           initValue={article.content}
-                          extensions={extensions}
+                          extensions={customExtensions}
                           className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
                       }
@@ -333,7 +343,7 @@ const HomeView = memo(() => {
                       content={
                         <Editor
                           readonly
-                          extensions={extensions}
+                          extensions={customExtensions}
                           initValue={projectItem.content}
                           className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />
@@ -374,7 +384,7 @@ const HomeView = memo(() => {
                       content={
                         <Editor
                           readonly
-                          extensions={extensions}
+                          extensions={customExtensions}
                           initValue={documentItem.content}
                           className="max-w-[500px] max-h-[300px] overflow-auto p-4"
                         />

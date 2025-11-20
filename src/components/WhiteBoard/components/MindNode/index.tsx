@@ -16,10 +16,22 @@ import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
 import { BoardElement, EMarkerType, MindNodeElement } from "../../types";
 import useUploadResource from "@/hooks/useUploadResource";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { createContent } from "@/commands/content";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { SearchResult } from "@/types/search";
+
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 interface MindNodeProps {
   element: MindNodeElement;
@@ -39,7 +51,6 @@ const MindNode = (props: MindNodeProps) => {
   const { element } = props;
 
   const uploadResource = useUploadResource();
-  const extensions = useDynamicExtensions();
   const {
     id,
     x,
@@ -55,7 +66,6 @@ const MindNode = (props: MindNodeProps) => {
 
   const board = useBoard();
 
-  // Get root and theme - need to recalculate when board.children changes
   const root = useMemo(
     () => MindUtil.getRoot(board, element),
     [board, element, board.children],
@@ -554,7 +564,7 @@ const MindNode = (props: MindNodeProps) => {
               style={editorStyle}
               onChange={onContentChange}
               onBlur={handleBlur}
-              extensions={extensions}
+              extensions={customExtensions}
               uploadResource={uploadResource}
               theme={editorTheme}
             />

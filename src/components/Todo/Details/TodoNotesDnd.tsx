@@ -7,7 +7,18 @@ import RichTextEditModal from "@/components/RichTextEditModal";
 import { IndexType, SearchResult, TodoNoteLink } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import NoteCard from "./NoteCard";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 const selectNotes = [
   "card",
@@ -36,7 +47,6 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
   const [editingContentId, setEditingContentId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [localNotes, setLocalNotes] = useState(notes);
-  const extensions = useDynamicExtensions();
   const { modal } = App.useApp();
 
   useEffect(() => {
@@ -163,7 +173,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
         onCancel={handleCancelCreateAndAttachNote}
         onSelect={handleSelectNote}
         contentType={selectNotes}
-        extensions={extensions}
+        extensions={customExtensions}
         title="选择要关联的文档"
         emptyDescription="未找到相关文档"
         multiple={false}

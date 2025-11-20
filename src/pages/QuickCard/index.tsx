@@ -8,7 +8,18 @@ import AddTag from "@/components/AddTag";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import { createCard, closeWindow } from "@/commands";
 import { ECardCategory } from "@/types";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 import styles from "./index.module.less";
 import { getContentLength } from "@/utils";
@@ -30,7 +41,6 @@ const QuickCard = () => {
   const uploadResource = useUploadResource();
   const editorRef = useRef<EditorRef>(null);
   const { message } = App.useApp();
-  const extensions = useDynamicExtensions();
   const [content, setContent] = useState(initValue);
   const [tags, setTags] = useState<string[]>([]);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -87,7 +97,7 @@ const QuickCard = () => {
             ref={editorRef}
             initValue={initValue}
             onChange={setContent}
-            extensions={extensions}
+            extensions={customExtensions}
             readonly={false}
             uploadResource={uploadResource}
           />

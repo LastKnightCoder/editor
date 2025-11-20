@@ -7,7 +7,8 @@ import {
 } from "../stores/MentionPanelContext";
 import MentionPanel from "../components/MentionPanel";
 import DndProvider from "@/components/DndProvider";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 // 存储每个 editor 的面板信息
 export const editorPanels = new WeakMap<
@@ -31,6 +32,7 @@ function createPanel(editor: Editor) {
   container.id = `mention-panel-${Math.random().toString(36).substr(2, 9)}`;
   document.body.appendChild(container);
 
+  const { extensions } = useDynamicExtensionsStore.getState();
   // 创建 store
   const store = createMentionPanelStore(editor);
 
@@ -39,7 +41,6 @@ function createPanel(editor: Editor) {
 
   // 包装组件以提供 context
   const PanelWrapper = () => {
-    const extensions = useDynamicExtensions();
     return (
       <DndProvider>
         <MentionPanelContext.Provider value={store}>

@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import { getAllCards } from "@/commands";
 import { ICard, IndexType, SearchResult } from "@/types";
 
@@ -22,8 +33,6 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
       setCards(cards);
     });
   }, []);
-
-  const extensions = useDynamicExtensions();
 
   const excludeCardIds = useMemo(() => {
     if (!editingCard) return [];
@@ -70,7 +79,7 @@ const AddCardLinkModal = (props: IAddCardLinkModalProps) => {
       multiple={true}
       excludeIds={excludeCardIds}
       initialContents={initialContents}
-      extensions={extensions}
+      extensions={customExtensions}
     />
   );
 };

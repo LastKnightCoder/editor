@@ -9,7 +9,18 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import {
   findOneArticle,
   updateArticle,
@@ -39,7 +50,6 @@ const SingleArticleEditor = () => {
   const titleRef = useRef<EditTextHandle>(null);
   const prevArticleRef = useRef<IArticle | null>(null);
   const uploadResource = useUploadResource();
-  const extensions = useDynamicExtensions();
   const { throttleHandleEditorContentChange } = useEditContent(
     editingArticle?.contentId,
     (content) => {
@@ -194,7 +204,7 @@ const SingleArticleEditor = () => {
                 ref={editorRef}
                 initValue={editingArticle.content}
                 onChange={onContentChange}
-                extensions={extensions}
+                extensions={customExtensions}
                 readonly={false}
                 uploadResource={uploadResource}
               />

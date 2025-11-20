@@ -26,11 +26,21 @@ import ContentExportModal from "@/components/ContentExportModal";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useEditContent from "@/hooks/useEditContent";
 
-import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useSettingStore from "@/stores/useSettingStore";
 import useShortcutStore from "@/stores/useShortcutStore";
 
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import { EditCardContext } from "@/context";
 import {
   defaultCardEventBus,
@@ -70,11 +80,13 @@ interface IEditCardProps {
 const EditCard = (props: IEditCardProps) => {
   const { cardId, defaultReadonly = false } = props;
   const navigateTo = useTabStore((state) => state.navigateTo);
+  const openInNewTab = useTabStore((state) => state.openInNewTab);
+  const panes = useTabStore((state) => state.panes);
+  const activePaneId = useTabStore((state) => state.activePaneId);
   const { modal, message } = App.useApp();
   const databaseName = useSettingStore(
     (state) => state.setting.database.active,
   );
-  const extensions = useDynamicExtensions();
   const {
     onInit,
     initValue,
@@ -380,12 +392,19 @@ const EditCard = (props: IEditCardProps) => {
   }, [readonly, editingCard?.count]);
 
   const handleClickLinkCard = useMemoizedFn((card: ICard) => {
-    const { addTab } = useRightSidebarStore.getState();
-    addTab({
-      id: String(card.id),
-      title: getEditorText(card.content, 10),
-      type: "card",
-    });
+    // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
+    let targetPaneId: string | undefined;
+    if (panes.length > 1) {
+      const otherPane = panes.find((p) => p.id !== activePaneId);
+      targetPaneId = otherPane?.id;
+    }
+
+    openInNewTab(
+      TabType.CardDetail,
+      { id: card.id },
+      targetPaneId,
+      getEditorText(card.content, 10),
+    );
   });
 
   const handleMoreMenuClick = useMemoizedFn(
@@ -400,12 +419,19 @@ const EditCard = (props: IEditCardProps) => {
         openCardInNewWindow(databaseName, editingCard.id);
         navigateTo(TabType.CardList);
       } else if (key === "open-sidebar") {
-        const { addTab } = useRightSidebarStore.getState();
-        addTab({
-          id: String(editingCard.id),
-          title: getEditorText(editingCard.content, 10),
-          type: "card",
-        });
+        // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
+        let targetPaneId: string | undefined;
+        if (panes.length > 1) {
+          const otherPane = panes.find((p) => p.id !== activePaneId);
+          targetPaneId = otherPane?.id;
+        }
+
+        openInNewTab(
+          TabType.CardDetail,
+          { id: editingCard.id },
+          targetPaneId,
+          getEditorText(editingCard.content, 10),
+        );
         navigateTo(TabType.CardList);
       } else if (key === "toggle-shortcut") {
         try {
@@ -453,7 +479,7 @@ const EditCard = (props: IEditCardProps) => {
       },
       {
         key: "open-sidebar",
-        label: "侧边打开",
+        label: "新Tab打开",
       },
       {
         key: "toggle-shortcut",
@@ -537,7 +563,7 @@ const EditCard = (props: IEditCardProps) => {
                 onInit={onInit}
                 initValue={initValue}
                 onChange={onContentChange}
-                extensions={extensions}
+                extensions={customExtensions}
                 readonly={readonly}
                 uploadResource={uploadResource}
               />

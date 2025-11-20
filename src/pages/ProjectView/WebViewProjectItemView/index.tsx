@@ -5,7 +5,11 @@ import { useMemoizedFn } from "ahooks";
 import { MenuProps } from "antd";
 import Webview, { WebviewRef } from "@/components/Webview";
 import EditText from "@/components/EditText";
-import { getProjectItemById, updateProjectItem } from "@/commands";
+import {
+  getProjectItemById,
+  openExternal,
+  updateProjectItem,
+} from "@/commands";
 import {
   importFromMarkdown,
   getContentLength,
@@ -15,7 +19,6 @@ import {
 import { defaultProjectItemEventBus, extractUrlFromTitle } from "@/utils";
 import { EProjectItemType } from "@/types";
 import { addChildProjectItem } from "@/commands";
-import useRightSidebarStore from "@/stores/useRightSidebarStore";
 
 import styles from "./index.module.less";
 
@@ -143,13 +146,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         webviewRef.current?.reload();
       } else if (key === "open-in-right-sidebar") {
         if (!url) return;
-
-        const { addTab } = useRightSidebarStore.getState();
-        addTab({
-          id: url,
-          title: title,
-          type: "webview",
-        });
+        openExternal(url);
       }
     },
   );

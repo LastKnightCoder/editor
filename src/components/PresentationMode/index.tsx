@@ -14,7 +14,18 @@ import useKeyboardNavigation from "./hooks/useKeyboardNavigation";
 import useTemporaryMessage from "./hooks/useTemporaryMessage";
 import useHelpModal from "./hooks/useHelpModal";
 import styles from "./index.module.less";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 // 主演示模式组件
 interface PresentationModeProps {
@@ -34,8 +45,6 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [showCloseIcon, setShowCloseIcon] = useState(false);
   const scrollbarTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const extensions = useDynamicExtensions();
 
   // 使用帮助弹窗hook
   const { showHelp, closeHelp, toggleHelp } = useHelpModal();
@@ -203,7 +212,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
             selectedSlide={selectedOverviewSlide}
             onSelectSlide={setSelectedOverviewSlide}
             onEnterSlide={handleEnterSlide}
-            extensions={extensions}
+            extensions={customExtensions}
             isExiting={isExitingOverview}
           />
         ) : (
@@ -213,7 +222,7 @@ const PresentationMode: React.FC<PresentationModeProps> = ({
                 ref={presentationEditorRef}
                 readonly={true}
                 initValue={slides[currentSlide] || []}
-                extensions={extensions}
+                extensions={customExtensions}
                 className={styles.presentationEditor}
                 style={{
                   ["--block-distance" as string]: "40px",
