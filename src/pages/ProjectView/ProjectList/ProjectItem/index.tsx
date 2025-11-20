@@ -621,7 +621,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
         for (const refreshId of [...new Set(needRefreshId)]) {
           const updatedProjectItem = await getProjectItemById(refreshId);
-          console.log("updatedProjectItem", updatedProjectItem);
           if (!updatedProjectItem) continue;
           defaultProjectItemEventBus
             .createEditor()

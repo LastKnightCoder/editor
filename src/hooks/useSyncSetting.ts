@@ -21,7 +21,6 @@ const useSyncSetting = () => {
 
   useEffect(() => {
     if (client && inited) {
-      console.log("setting", setting);
       client.sendRequest("set-user-setting", setting);
     }
   }, [inited, setting, client]);

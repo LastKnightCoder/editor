@@ -4,6 +4,7 @@ import ArrowSetter from "./ArrowSetter";
 import ImageSetter from "./ImageSetter";
 import MultiSelectSetter from "./MultiSelectSetter";
 import FrameSetter from "./FrameSetter";
+import MindMapSetter from "./MindMapSetter";
 
 export default {
   richtext: {
@@ -23,6 +24,9 @@ export default {
   },
   frame: {
     component: FrameSetter,
+  },
+  "mind-node": {
+    component: MindMapSetter,
   },
   multiselect: {
     component: MultiSelectSetter,

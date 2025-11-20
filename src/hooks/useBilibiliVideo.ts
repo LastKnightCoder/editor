@@ -156,7 +156,6 @@ export function useBilibiliVideo(
         },
       );
 
-      console.log("localVideoResult", localVideoResult);
       setVideoUrl(localVideoResult.localUrl);
 
       if (localVideoResult.cached) {

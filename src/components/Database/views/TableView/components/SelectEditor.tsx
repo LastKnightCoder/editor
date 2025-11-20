@@ -117,10 +117,6 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
         : selectedOptions.filter((item) => item.id !== optionId)[0].id,
     );
     setSelectedOptions(selectedOptions.filter((item) => item.id !== optionId));
-    console.log(
-      "[SelectEditor] removeSelectedOption:",
-      selectedOptions.filter((item) => item.id !== optionId),
-    );
   });
 
   const deleteOption = useMemoizedFn((option: SelectOption) => {

@@ -27,7 +27,7 @@ export const getFileExtension = async (url: string): Promise<string> => {
     const urlObj = new URL(url);
     pathname = urlObj.pathname;
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
 
   const [, ext] = pathname.split(".");

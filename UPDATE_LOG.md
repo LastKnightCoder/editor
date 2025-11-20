@@ -793,3 +793,4 @@
 - feat: 支持绘制 PlantUML
 - feat: 支持 S3 和 WebDav 同步和资源上传
 - feat: 博客支持调整已有音频
+- feat: 思维导图支持主题

@@ -188,21 +188,10 @@ const useTabStore = create<IState & IActions>()(
           groups: [],
         };
 
-        console.log("[createPane] Creating new pane:", {
-          paneId,
-          direction,
-          createDefaultTab,
-          tabsCount: newPane.tabs.length,
-        });
-
         set(
           produce((state: IState) => {
             state.panes.push(newPane);
             state.activePaneId = paneId;
-            console.log(
-              "[createPane] Total panes after creation:",
-              state.panes.length,
-            );
           }),
         );
         return paneId;
@@ -216,33 +205,20 @@ const useTabStore = create<IState & IActions>()(
       ) => {
         const newPaneId = uuidv4();
 
-        console.log("[createPaneWithTab] Starting:", {
-          fromPaneId,
-          tabId,
-          newPaneId,
-          direction,
-        });
-
         set(
           produce((state: IState) => {
             const fromPane = state.panes.find((p) => p.id === fromPaneId);
             if (!fromPane) {
-              console.log("[createPaneWithTab] Source pane not found");
               return;
             }
 
             const tabIndex = fromPane.tabs.findIndex((t) => t.id === tabId);
             if (tabIndex === -1) {
-              console.log("[createPaneWithTab] Tab not found in source pane");
               return;
             }
 
             // 从源 pane 移除 tab
             const [tab] = fromPane.tabs.splice(tabIndex, 1);
-            console.log(
-              "[createPaneWithTab] Removed tab from source:",
-              tab.title,
-            );
 
             if (fromPane.groups && fromPane.groups.length > 0) {
               fromPane.groups = fromPane.groups.filter((group) =>
@@ -263,12 +239,6 @@ const useTabStore = create<IState & IActions>()(
             state.panes.push(newPane);
             state.activePaneId = newPaneId;
 
-            console.log("[createPaneWithTab] Created new pane with tab");
-            console.log(
-              "[createPaneWithTab] Total panes before cleanup:",
-              state.panes.length,
-            );
-
             // 如果源 pane 的当前激活 tab 被移动了，切换到相邻的 tab
             if (fromPane.activeTabId === tabId && fromPane.tabs.length > 0) {
               const newIndex = Math.min(tabIndex, fromPane.tabs.length - 1);
@@ -282,22 +252,13 @@ const useTabStore = create<IState & IActions>()(
               );
               if (paneIndex !== -1) {
                 state.panes.splice(paneIndex, 1);
-                console.log("[createPaneWithTab] Removed empty source pane");
               }
             }
 
             // 限制最多 2 个 pane，删除最旧的 pane（保留最后 2 个）
             if (state.panes.length > 2) {
-              console.log(
-                "[createPaneWithTab] Too many panes, removing oldest",
-              );
               state.panes.shift(); // 删除第一个（最旧的）pane
             }
-
-            console.log(
-              "[createPaneWithTab] Final panes count:",
-              state.panes.length,
-            );
           }),
         );
 
@@ -312,25 +273,16 @@ const useTabStore = create<IState & IActions>()(
       ) => {
         const newPaneId = uuidv4();
 
-        console.log("[createPaneWithTabGroup] Starting:", {
-          fromPaneId,
-          groupId,
-          newPaneId,
-          direction,
-        });
-
         set(
           produce((state: IState) => {
             const fromPane = state.panes.find((p) => p.id === fromPaneId);
             if (!fromPane) {
-              console.log("[createPaneWithTabGroup] Source pane not found");
               return;
             }
 
             // 找到该分组的定义
             const group = fromPane.groups?.find((g) => g.id === groupId);
             if (!group) {
-              console.log("[createPaneWithTabGroup] Group not found");
               return;
             }
 
@@ -339,7 +291,6 @@ const useTabStore = create<IState & IActions>()(
               (t) => t.groupId === groupId,
             );
             if (groupTabs.length === 0) {
-              console.log("[createPaneWithTabGroup] No tabs in group");
               return;
             }
 
@@ -364,8 +315,6 @@ const useTabStore = create<IState & IActions>()(
             state.panes.push(newPane);
             state.activePaneId = newPaneId;
 
-            console.log("[createPaneWithTabGroup] Created new pane with group");
-
             // 如果源 pane 的激活 tab 在移动的分组中，切换到其他 tab
             if (
               groupTabs.some((t) => t.id === fromPane.activeTabId) &&
@@ -381,24 +330,13 @@ const useTabStore = create<IState & IActions>()(
               );
               if (paneIndex !== -1) {
                 state.panes.splice(paneIndex, 1);
-                console.log(
-                  "[createPaneWithTabGroup] Removed empty source pane",
-                );
               }
             }
 
             // 限制最多 2 个 pane，删除最旧的 pane（保留最后 2 个）
             if (state.panes.length > 2) {
-              console.log(
-                "[createPaneWithTabGroup] Too many panes, removing oldest",
-              );
               state.panes.shift();
             }
-
-            console.log(
-              "[createPaneWithTabGroup] Final panes count:",
-              state.panes.length,
-            );
           }),
         );
 
@@ -410,26 +348,18 @@ const useTabStore = create<IState & IActions>()(
         toPaneId: string,
         groupId: string,
       ) => {
-        console.log("[moveTabGroupToPane] Starting:", {
-          fromPaneId,
-          toPaneId,
-          groupId,
-        });
-
         set(
           produce((state: IState) => {
             const fromPane = state.panes.find((p) => p.id === fromPaneId);
             const toPane = state.panes.find((p) => p.id === toPaneId);
 
             if (!fromPane || !toPane) {
-              console.log("[moveTabGroupToPane] Pane not found");
               return;
             }
 
             // 找到该分组的定义
             const group = fromPane.groups?.find((g) => g.id === groupId);
             if (!group) {
-              console.log("[moveTabGroupToPane] Group not found");
               return;
             }
 
@@ -438,7 +368,6 @@ const useTabStore = create<IState & IActions>()(
               (t) => t.groupId === groupId,
             );
             if (groupTabs.length === 0) {
-              console.log("[moveTabGroupToPane] No tabs in group");
               return;
             }
 
@@ -479,8 +408,6 @@ const useTabStore = create<IState & IActions>()(
 
             // 设置目标 pane 为激活状态
             state.activePaneId = toPaneId;
-
-            console.log("[moveTabGroupToPane] Completed");
           }),
         );
       },
@@ -631,38 +558,18 @@ const useTabStore = create<IState & IActions>()(
         tabId: string,
         toIndex?: number,
       ) => {
-        console.log("[moveTabToPane] Start:", {
-          fromPaneId,
-          toPaneId,
-          tabId,
-          toIndex,
-        });
-
         set(
           produce((state: IState) => {
             const fromPane = state.panes.find((p) => p.id === fromPaneId);
             const toPane = state.panes.find((p) => p.id === toPaneId);
 
-            console.log("[moveTabToPane] Panes found:", {
-              fromPane: fromPane
-                ? `Found (${fromPane.tabs.length} tabs)`
-                : "Not found",
-              toPane: toPane
-                ? `Found (${toPane.tabs.length} tabs)`
-                : "Not found",
-            });
-
             if (!fromPane || !toPane) return;
 
             const tabIndex = fromPane.tabs.findIndex((t) => t.id === tabId);
 
-            console.log("[moveTabToPane] Tab index:", tabIndex);
-
             if (tabIndex === -1) return;
 
             const [tab] = fromPane.tabs.splice(tabIndex, 1);
-
-            console.log("[moveTabToPane] Removed tab:", tab.title);
 
             // 清除 tab 的 groupId，因为跨 pane 移动时旧的分组不再有效
             tab.groupId = undefined;
@@ -678,11 +585,6 @@ const useTabStore = create<IState & IActions>()(
               toIndex !== undefined ? toIndex : toPane.tabs.length;
             toPane.tabs.splice(insertIndex, 0, tab);
             toPane.activeTabId = tabId;
-
-            console.log(
-              "[moveTabToPane] Tab moved to pane, new activeTabId:",
-              tabId,
-            );
 
             // 如果源 pane 的当前激活 tab 被移动了，切换到相邻的 tab
             if (fromPane.activeTabId === tabId && fromPane.tabs.length > 0) {
@@ -713,34 +615,22 @@ const useTabStore = create<IState & IActions>()(
         tabId: string,
         groupId: string,
       ) => {
-        console.log("[moveTabToPaneAndSetGroup] Start:", {
-          fromPaneId,
-          toPaneId,
-          tabId,
-          groupId,
-        });
-
         set(
           produce((state: IState) => {
             const fromPane = state.panes.find((p) => p.id === fromPaneId);
             const toPane = state.panes.find((p) => p.id === toPaneId);
 
             if (!fromPane || !toPane) {
-              console.log("[moveTabToPaneAndSetGroup] Pane not found");
               return;
             }
 
             const tabIndex = fromPane.tabs.findIndex((t) => t.id === tabId);
             if (tabIndex === -1) {
-              console.log(
-                "[moveTabToPaneAndSetGroup] Tab not found in fromPane",
-              );
               return;
             }
 
             // 从源 pane 移除 tab
             const [tab] = fromPane.tabs.splice(tabIndex, 1);
-            console.log("[moveTabToPaneAndSetGroup] Removed tab:", tab.title);
 
             // 清理源 pane 的空分组
             if (fromPane.groups && fromPane.groups.length > 0) {
@@ -769,11 +659,6 @@ const useTabStore = create<IState & IActions>()(
             toPane.tabs.splice(insertIndex, 0, tab);
             toPane.activeTabId = tabId;
 
-            console.log("[moveTabToPaneAndSetGroup] Tab moved and grouped:", {
-              insertIndex,
-              newTabsLength: toPane.tabs.length,
-            });
-
             // 如果源 pane 的当前激活 tab 被移动了，切换到相邻的 tab
             if (fromPane.activeTabId === tabId && fromPane.tabs.length > 0) {
               const newIndex = Math.min(tabIndex, fromPane.tabs.length - 1);
@@ -793,8 +678,6 @@ const useTabStore = create<IState & IActions>()(
 
             // 设置目标 pane 为激活状态
             state.activePaneId = toPaneId;
-
-            console.log("[moveTabToPaneAndSetGroup] Completed");
           }),
         );
       },
@@ -880,44 +763,15 @@ const useTabStore = create<IState & IActions>()(
           produce((state: IState) => {
             const pane = state.panes.find((p) => p.id === paneId);
             if (!pane) {
-              console.log("[TabStore][setTabGroup] pane not found", {
-                paneId,
-                tabId,
-                groupId: groupId ?? "none",
-              });
               return;
             }
 
             const tabs = pane.tabs;
             const currentIndex = tabs.findIndex((t) => t.id === tabId);
-            console.log("[TabStore][setTabGroup] start", {
-              paneId,
-              tabId,
-              groupId: groupId ?? "none",
-              currentIndex,
-              totalTabs: tabs.length,
-              tabsState: tabs.map((t) => ({
-                id: t.id,
-                title: t.title,
-                groupId: t.groupId,
-              })),
-            });
 
             if (currentIndex === -1) {
-              console.log("[TabStore][setTabGroup] tab not found", {
-                paneId,
-                tabId,
-              });
               return;
             }
-
-            console.log("[TabStore][setTabGroup] before", {
-              tabs: tabs.map((t) => ({
-                id: t.id,
-                title: t.title,
-                groupId: t.groupId,
-              })),
-            });
 
             const [tab] = tabs.splice(currentIndex, 1);
             tab.groupId = groupId;
@@ -926,16 +780,6 @@ const useTabStore = create<IState & IActions>()(
               // 移出分组时保持大致位置，插入到当前索引位置
               const insertIndex = Math.min(currentIndex, tabs.length);
               tabs.splice(insertIndex, 0, tab);
-              console.log("[TabStore][setTabGroup] after (ungroup)", {
-                paneId,
-                tabId,
-                insertIndex,
-                tabs: tabs.map((t) => ({
-                  id: t.id,
-                  title: t.title,
-                  groupId: t.groupId,
-                })),
-              });
               return;
             }
 
@@ -956,27 +800,10 @@ const useTabStore = create<IState & IActions>()(
 
             tabs.splice(insertIndex, 0, tab);
 
-            console.log("[TabStore][setTabGroup] after (group)", {
-              paneId,
-              tabId,
-              groupId,
-              insertIndex,
-              tabs: tabs.map((t) => ({
-                id: t.id,
-                title: t.title,
-                groupId: t.groupId,
-              })),
-            });
-
             if (pane.groups && pane.groups.length > 0) {
               pane.groups = pane.groups.filter((group) =>
                 tabs.some((t) => t.groupId === group.id),
               );
-
-              console.log("[TabStore][setTabGroup] groups after cleanup", {
-                paneId,
-                groups: pane.groups.map((g) => ({ id: g.id, title: g.title })),
-              });
             }
           }),
         );
@@ -994,24 +821,16 @@ const useTabStore = create<IState & IActions>()(
             if (!pane) return;
 
             const tabs = pane.tabs;
-            console.log("[TabStore][moveTabGroupToTab] start", {
-              paneId,
-              groupId,
-              targetTabId,
-              position,
-            });
 
             // 找到该分组下的所有 tabs
             const groupTabs = tabs.filter((t) => t.groupId === groupId);
             if (groupTabs.length === 0) {
-              console.log("[TabStore][moveTabGroupToTab] no tabs in group");
               return;
             }
 
             // 找到目标 tab 的索引
             const targetIndex = tabs.findIndex((t) => t.id === targetTabId);
             if (targetIndex === -1) {
-              console.log("[TabStore][moveTabGroupToTab] target tab not found");
               return;
             }
 
@@ -1042,15 +861,6 @@ const useTabStore = create<IState & IActions>()(
             }
 
             pane.tabs = newTabs;
-
-            console.log("[TabStore][moveTabGroupToTab] completed", {
-              paneId,
-              tabs: pane.tabs.map((t) => ({
-                id: t.id,
-                title: t.title,
-                groupId: t.groupId,
-              })),
-            });
           }),
         );
       },
@@ -1067,20 +877,9 @@ const useTabStore = create<IState & IActions>()(
             if (!pane || !pane.groups) return;
 
             const groups = pane.groups;
-            console.log("[TabStore][reorderTabGroup] start", {
-              paneId,
-              groupId,
-              targetGroupId,
-              position,
-              groups: groups.map((g) => g.id),
-            });
             const fromIndex = groups.findIndex((g) => g.id === groupId);
             const toIndex = groups.findIndex((g) => g.id === targetGroupId);
             if (fromIndex === -1 || toIndex === -1 || fromIndex === toIndex) {
-              console.log("[TabStore][reorderTabGroup] invalid indexes", {
-                fromIndex,
-                toIndex,
-              });
               return;
             }
 
@@ -1091,20 +890,11 @@ const useTabStore = create<IState & IActions>()(
             }
             groups.splice(insertIndex, 0, moved);
 
-            console.log("[TabStore][reorderTabGroup] groups after", {
-              paneId,
-              order: groups.map((g) => g.id),
-            });
-
             // 同时调整该分组下所有 Tab 在 tabs 数组中的位置，保证整个分组作为一个块移动
             const tabs = pane.tabs;
 
             const movingTabs = tabs.filter((t) => t.groupId === groupId);
             if (movingTabs.length === 0) {
-              console.log("[TabStore][reorderTabGroup] no tabs for group", {
-                paneId,
-                groupId,
-              });
               return;
             }
 
@@ -1124,18 +914,6 @@ const useTabStore = create<IState & IActions>()(
             if (targetStart === -1) {
               // 理论上不应该发生（没有 Tab 的分组会被清理），兜底直接将分组放到最后
               pane.tabs = [...remainingTabs, ...movingTabs];
-              console.log(
-                "[TabStore][reorderTabGroup] target group has no tabs, append to end",
-                {
-                  paneId,
-                  targetGroupId,
-                  tabs: pane.tabs.map((t) => ({
-                    id: t.id,
-                    title: t.title,
-                    groupId: t.groupId,
-                  })),
-                },
-              );
               return;
             }
 
@@ -1155,15 +933,6 @@ const useTabStore = create<IState & IActions>()(
             }
 
             pane.tabs = newTabs;
-
-            console.log("[TabStore][reorderTabGroup] tabs after", {
-              paneId,
-              tabs: pane.tabs.map((t) => ({
-                id: t.id,
-                title: t.title,
-                groupId: t.groupId,
-              })),
-            });
           }),
         );
       },

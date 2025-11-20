@@ -11,11 +11,7 @@ import { produce } from "immer";
 import CurveArrow from "../../components/Arrow/CurveArrow";
 import { useBoard, useSelectState } from "../../hooks";
 import { MindUtil, PathUtil } from "../../utils";
-import {
-  MIND_LINE_COLORS,
-  SELECT_RECT_FILL_OPACITY,
-  SELECT_RECT_STROKE,
-} from "../../constants";
+import { getThemeById } from "../../constants/mind-themes";
 import useHandleResize from "./hooks/useHandleResize.ts";
 import { useMindNodeKeyboardNavigation } from "./hooks/useMindNodeKeyboardNavigation.ts";
 import { BoardElement, EMarkerType, MindNodeElement } from "../../types";
@@ -50,18 +46,51 @@ const MindNode = (props: MindNodeProps) => {
     y,
     width,
     height,
-    background,
     text,
-    textColor,
-    border,
     defaultFocus,
     isLeftFold,
     isRightFold,
     direction,
-    theme,
   } = element;
 
   const board = useBoard();
+
+  // Get root and theme - need to recalculate when board.children changes
+  const root = useMemo(
+    () => MindUtil.getRoot(board, element),
+    [board, element, board.children],
+  );
+  const themeId = root?.themeId || MindUtil.getDefaultThemeId();
+  const mindTheme = useMemo(() => getThemeById(themeId), [themeId]);
+
+  const nodeStyle = useMemo(() => {
+    if (element.level === 1) {
+      return {
+        background: mindTheme.root.background,
+        textColor: mindTheme.root.color,
+        borderRadius: mindTheme.root.borderRadius,
+        borderColor: mindTheme.root.borderColor || "transparent",
+        borderWidth: mindTheme.root.borderWidth || 0,
+        editorTheme: mindTheme.root.color === "#ffffff" ? "dark" : "light",
+      };
+    } else {
+      const colorIndex = (element.level - 2) % mindTheme.palette.length;
+      const paletteItem = mindTheme.palette[colorIndex];
+
+      return {
+        background: paletteItem.background,
+        textColor: paletteItem.color,
+        borderRadius: mindTheme.node.borderRadius,
+        borderColor: mindTheme.node.borderColor,
+        borderWidth: mindTheme.node.borderWidth,
+        editorTheme: paletteItem.type,
+      };
+    }
+  }, [element.level, mindTheme]);
+
+  const background = nodeStyle.background;
+  const textColor = nodeStyle.textColor;
+  const editorTheme = nodeStyle.editorTheme as "light" | "dark";
 
   const [isEditing, setIsEditing] = useState(Boolean(defaultFocus));
   const [isMoving, setIsMoving] = useState(false);
@@ -433,7 +462,7 @@ const MindNode = (props: MindNodeProps) => {
     return {
       maxWidth: MIND_NODE_MAX_WIDTH,
     } as React.CSSProperties;
-  }, [theme]);
+  }, []);
 
   return (
     <>
@@ -442,12 +471,12 @@ const MindNode = (props: MindNodeProps) => {
           <rect
             x={x}
             y={y}
-            rx={4}
-            ry={4}
+            rx={nodeStyle.borderRadius}
+            ry={nodeStyle.borderRadius}
             width={width}
             height={height}
-            fillOpacity={SELECT_RECT_FILL_OPACITY}
-            stroke={SELECT_RECT_STROKE}
+            fill="none"
+            stroke={`color-mix(in srgb, ${background} 70%, black)`}
             strokeWidth={3}
           />
         </If>
@@ -508,10 +537,11 @@ const MindNode = (props: MindNodeProps) => {
             onPointerDown={handlePointerDown}
           >
             <div
-              className="absolute left-0 top-0 rounded-[4px] box-border z-[-1]"
+              className="absolute left-0 top-0 box-border z-[-1]"
               style={{
                 background: background || "transparent",
-                border: `1px solid ${border || "transparent"}`,
+                border: `${nodeStyle.borderWidth}px solid ${nodeStyle.borderColor}`,
+                borderRadius: nodeStyle.borderRadius,
                 width,
                 height,
               }}
@@ -526,32 +556,30 @@ const MindNode = (props: MindNodeProps) => {
               onBlur={handleBlur}
               extensions={extensions}
               uploadResource={uploadResource}
-              theme={
-                theme ??
-                (textColor === "#000"
-                  ? "light"
-                  : textColor === "#fff"
-                    ? "dark"
-                    : undefined)
-              }
+              theme={editorTheme}
             />
           </div>
         </foreignObject>
 
         {/* 左侧子节点连线 */}
         {leftChildPoints.map((point, index) => {
+          const childLevel = element.level + 1;
+          const lineColorIndex = (childLevel - 2) % mindTheme.palette.length;
+          const lineColor =
+            childLevel === 1
+              ? mindTheme.root.background
+              : mindTheme.palette[lineColorIndex].background;
+
           return (
             <CurveArrow
               key={`left-${index}`}
               sourceMarker={EMarkerType.None}
               targetMarker={EMarkerType.None}
-              lineColor={
-                MIND_LINE_COLORS[(element.level - 1) % MIND_LINE_COLORS.length]
-              }
+              lineColor={lineColor}
               lineWidth={2}
               points={[
                 {
-                  x: element.x, // 从父节点左侧引出
+                  x: element.x,
                   y: element.y + element.height / 2,
                 },
                 {
@@ -566,18 +594,23 @@ const MindNode = (props: MindNodeProps) => {
 
         {/* 右侧子节点连线 */}
         {rightChildPoints.map((point, index) => {
+          const childLevel = element.level + 1;
+          const lineColorIndex = (childLevel - 2) % mindTheme.palette.length;
+          const lineColor =
+            childLevel === 1
+              ? mindTheme.root.background
+              : mindTheme.palette[lineColorIndex].background;
+
           return (
             <CurveArrow
               key={`right-${index}`}
               sourceMarker={EMarkerType.None}
               targetMarker={EMarkerType.None}
-              lineColor={
-                MIND_LINE_COLORS[(element.level - 1) % MIND_LINE_COLORS.length]
-              }
+              lineColor={lineColor}
               lineWidth={2}
               points={[
                 {
-                  x: element.x + element.width, // 从父节点右侧引出
+                  x: element.x + element.width,
                   y: element.y + element.height / 2,
                 },
                 {
@@ -606,12 +639,7 @@ const MindNode = (props: MindNodeProps) => {
               cx={element.x - 10}
               cy={element.y + element.height / 2}
               r={8}
-              fill={
-                MIND_LINE_COLORS[
-                  (element.level - 1 + MIND_LINE_COLORS.length) %
-                    MIND_LINE_COLORS.length
-                ]
-              }
+              fill={nodeStyle.background}
             />
             <text
               x={element.x - 10}
@@ -644,12 +672,7 @@ const MindNode = (props: MindNodeProps) => {
               cx={element.x + element.width + 10}
               cy={element.y + element.height / 2}
               r={8}
-              fill={
-                MIND_LINE_COLORS[
-                  (element.level - 1 + MIND_LINE_COLORS.length) %
-                    MIND_LINE_COLORS.length
-                ]
-              }
+              fill={nodeStyle.background}
               className="relative"
             />
             <text

@@ -37,23 +37,17 @@ const MinimaxSetting: React.FC = () => {
 
       try {
         // 使用音色列表接口验证 API Key
-        const response = await chat(
-          apiKey,
-          "https://api.minimaxi.com/v1/",
-          "MiniMax-M2",
-          [
-            {
-              role: Role.User,
-              content: [
-                {
-                  type: "text",
-                  text: "Hello, how are you?",
-                },
-              ],
-            },
-          ],
-        );
-        console.log(response);
+        await chat(apiKey, "https://api.minimaxi.com/v1/", "MiniMax-M2", [
+          {
+            role: Role.User,
+            content: [
+              {
+                type: "text",
+                text: "Hello, how are you?",
+              },
+            ],
+          },
+        ]);
         updateMinimaxApiKey(apiKey);
         setMinimaxEnabled(true);
         message.success("Minimax API Key 验证成功！");

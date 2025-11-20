@@ -104,39 +104,21 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
     collect: (monitor) => ({
       handlerId: monitor.getHandlerId(),
     }),
-    hover: (item: TabGroupHeaderDropItem) => {
+    hover: () => {
       if (!ref.current) return;
-
-      console.log("[TabGroupHeader][hover]", {
-        groupId: group.id,
-        itemType: item.type,
-      });
-
-      // hover 中不处理分组排序，统一在 drop 中处理，避免重复触发
     },
     drop: (item: TabGroupHeaderDropItem, monitor) => {
       if (monitor.didDrop()) {
-        console.log("[TabGroupHeader][drop] already dropped by child");
         return;
       }
-      console.log("[TabGroupHeader][drop]", {
-        groupId: group.id,
-        itemType: item.type,
-      });
       if (item.type === "TAB") {
         // 直接在分组头上完成分组逻辑
-        console.log("[TabGroupHeader][drop TAB] calling onDropTabToGroup");
         onDropTabToGroup(item.tab as ITab, item.paneId as string);
         return { paneId, dropZone: "group" };
       }
 
       if (item.type === "TAB_GROUP") {
-        console.log("[TabGroupHeader][drop TAB_GROUP]", {
-          dragGroupId: item.groupId,
-          targetGroupId: group.id,
-        });
         if (item.groupId === group.id) {
-          console.log("[TabGroupHeader][drop TAB_GROUP] same group, ignore");
           return undefined;
         }
 
@@ -150,13 +132,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
         const position: "before" | "after" =
           hoverClientX < hoverMiddleX ? "before" : "after";
 
-        console.log("[TabGroupHeader][drop TAB_GROUP] calling onMoveGroup", {
-          dragGroupId: item.groupId,
-          targetGroupId: group.id,
-          position,
-        });
         onMoveGroup(item.groupId as string, group.id, position);
-        console.log("[TabGroupHeader][drop TAB_GROUP] onMoveGroup completed");
         return { paneId };
       }
 
@@ -172,10 +148,6 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
     () => ({
       type: "TAB_GROUP",
       item: () => {
-        console.log("[TabGroupHeader][begin drag]", {
-          groupId: group.id,
-          paneId,
-        });
         return {
           type: "TAB_GROUP",
           groupId: group.id,
@@ -201,33 +173,17 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
 
         // 分屏逻辑
         if (dropZone) {
-          console.log("[TabGroupHeader][end split]", {
-            groupId: item.groupId,
-            fromPaneId: item.paneId, // 使用当前 paneId
-            toPaneId: targetPaneId,
-            dropZone,
-          });
           onDragEndGroup(item.groupId, item.paneId, dropZone);
           return;
         }
 
         // 如果在 hover 中已经处理过跨 pane 移动，就不再处理
         if (item.originalPaneId && item.originalPaneId !== item.paneId) {
-          console.log("[TabGroupHeader][end] already handled in hover", {
-            groupId: item.groupId,
-            originalPaneId: item.originalPaneId,
-            currentPaneId: item.paneId,
-          });
           return;
         }
 
         // 跨 pane 移动（通过 drop 到标题栏空白处）
         if (item.paneId !== targetPaneId) {
-          console.log("[TabGroupHeader][end cross-pane]", {
-            groupId: item.groupId,
-            fromPaneId: item.paneId,
-            toPaneId: targetPaneId,
-          });
           onDragEndGroup(item.groupId, item.paneId, undefined);
         }
       },
@@ -462,11 +418,10 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     { isOver: boolean }
   >({
     accept: ["TAB", "TAB_GROUP"],
-    drop: (item, monitor) => {
+    drop: (_item, monitor) => {
       // 如果子级已经处理了 drop（例如 TabGroupHeader），则不再处理
       if (monitor.didDrop()) return undefined;
       // 标题栏 drop 返回 paneId，不带 dropZone（表示直接移动，不分屏）
-      console.log("[Titlebar][root drop]", { paneId, itemType: item.type });
       return { paneId, dropZone: undefined };
     },
     collect: (monitor) => ({
@@ -686,50 +641,20 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
                   });
                 }}
                 onMoveGroup={(dragGroupId, hoverGroupId, position) => {
-                  console.log("[Titlebar][onMoveGroup]", {
-                    paneId,
-                    dragGroupId,
-                    hoverGroupId,
-                    position,
-                  });
                   reorderTabGroup(paneId, dragGroupId, hoverGroupId, position);
                 }}
                 onDropTabToGroup={(droppedTab, sourcePaneId) => {
-                  console.log("[Titlebar][onDropTabToGroup] START", {
-                    paneId,
-                    sourcePaneId,
-                    droppedTabId: droppedTab.id,
-                    droppedTabGroupId: droppedTab.groupId,
-                    targetGroupId: group.id,
-                  });
                   if (sourcePaneId !== paneId) {
                     // 跨 pane 移动：使用原子化方法一次性完成移动和设置分组
-                    console.log(
-                      "[Titlebar][onDropTabToGroup] calling moveTabToPaneAndSetGroup",
-                    );
                     moveTabToPaneAndSetGroup(
                       sourcePaneId,
                       paneId,
                       droppedTab.id,
                       group.id,
                     );
-                    console.log(
-                      "[Titlebar][onDropTabToGroup] moveTabToPaneAndSetGroup completed",
-                    );
                   } else {
                     // 同一 pane 内移动：只需设置分组
-                    console.log(
-                      "[Titlebar][onDropTabToGroup] calling setTabGroup",
-                      {
-                        paneId,
-                        tabId: droppedTab.id,
-                        groupId: group.id,
-                      },
-                    );
                     setTabGroup(paneId, droppedTab.id, group.id);
-                    console.log(
-                      "[Titlebar][onDropTabToGroup] setTabGroup completed",
-                    );
                   }
                 }}
                 onDragEndGroup={handleDragEndGroup}
