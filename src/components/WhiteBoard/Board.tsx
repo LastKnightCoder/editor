@@ -636,8 +636,23 @@ class Board {
         );
         if (!plugin) return null;
 
+        let processedChildren = children;
+
+        if (element.type === "mind-node" && children) {
+          const mindNode = element as MindNodeElement;
+          processedChildren = children.filter(({ element: childElement }) => {
+            if (childElement.type !== "mind-node") return true;
+            const childMindNode = childElement as MindNodeElement;
+            const isChildLeftDirection = childMindNode.direction === "left";
+            const isParentFoldThisDirection = isChildLeftDirection
+              ? mindNode.isLeftFold
+              : mindNode.isRightFold;
+            return !isParentFoldThisDirection;
+          });
+        }
+
         const renderedChildren =
-          this.renderVisibleElements(children).filter(isValid);
+          this.renderVisibleElements(processedChildren).filter(isValid);
 
         return plugin.render?.(this, {
           element,
