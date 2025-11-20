@@ -4,6 +4,7 @@ import BoardUtil from "./BoardUtil.ts";
 import PathUtil from "./PathUtil.ts";
 import { Board, MindNodeElement, MindDragTarget } from "../types";
 import { DEFAULT_THEME_ID } from "../constants/mind-themes";
+import useSettingStore from "@/stores/useSettingStore.ts";
 
 const MARGIN_X = 36;
 
@@ -324,6 +325,9 @@ export class MindUtil {
     afterNode?: MindNodeElement,
     newChild?: MindNodeElement,
   ) {
+    const fontSize = useSettingStore.getState().setting.fontSetting.fontSize;
+    const lineHeight = fontSize * 1.57;
+    const totalHeight = lineHeight + 16 * 2;
     const newRoot = produce(root, (draft) => {
       this.dfs(draft, {
         before: (current, parent) => {
@@ -336,8 +340,8 @@ export class MindUtil {
             x: 0,
             y: 0,
             width: 24,
-            height: 40,
-            actualHeight: 40,
+            height: totalHeight,
+            actualHeight: totalHeight,
             level: current.level + 1,
             childrenHeight: 0,
             leftChildrenHeight: 0,
@@ -990,7 +994,6 @@ export class MindUtil {
     return !isDescendant;
   }
 
-  // LocalStorage persistence for theme preference
   private static THEME_STORAGE_KEY = "whiteboard-mind-theme";
 
   static saveDefaultThemeId(id: string): void {

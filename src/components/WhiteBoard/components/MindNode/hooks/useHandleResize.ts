@@ -43,8 +43,8 @@ const useHandleResize = ({
 
       if (width === 0 || height === 0) return;
 
-      width = Math.max(24, Math.min(maxWidth, width));
-      height = Math.max(32, height);
+      width = Math.max(40, Math.min(maxWidth, width + 1));
+      height = Math.max(56, height);
 
       handleOnEditorSizeChange(width, height);
     },

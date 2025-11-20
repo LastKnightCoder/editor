@@ -174,21 +174,23 @@ const MindNode = (props: MindNodeProps) => {
 
   const handleAutoFocus = useMemoizedFn(() => {
     if (defaultFocus) {
-      editorRef.current?.focus();
-      const newElement = produce(element, (draft) => {
-        draft.defaultFocus = false;
-      });
-      const path = PathUtil.getPathByElement(board, element);
-      if (!path) return;
-      board.apply(
-        {
-          type: "set_node",
-          path,
-          properties: element,
-          newProperties: newElement,
-        },
-        false,
-      );
+      setTimeout(() => {
+        editorRef.current?.focus();
+        const newElement = produce(element, (draft) => {
+          draft.defaultFocus = false;
+        });
+        const path = PathUtil.getPathByElement(board, element);
+        if (!path) return;
+        board.apply(
+          {
+            type: "set_node",
+            path,
+            properties: element,
+            newProperties: newElement,
+          },
+          false,
+        );
+      }, 100);
     }
   });
 
@@ -658,7 +660,7 @@ const MindNode = (props: MindNodeProps) => {
               dominantBaseline="middle"
               fontSize={10}
               fontWeight="bold"
-              fill={"white"}
+              fill={nodeStyle.textColor}
               className="select-none"
             >
               {isLeftFold ? `${leftDescendants}` : "-"}
@@ -692,7 +694,7 @@ const MindNode = (props: MindNodeProps) => {
               dominantBaseline="middle"
               fontSize={10}
               fontWeight="bold"
-              fill={"white"}
+              fill={nodeStyle.textColor}
               className="select-none"
             >
               {isRightFold ? `${rightDescendants}` : "-"}
