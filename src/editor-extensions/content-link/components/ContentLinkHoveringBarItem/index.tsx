@@ -11,7 +11,7 @@ import { SearchResult } from "@/types";
 import classnames from "classnames";
 import { unwrapContentLink, wrapContentLink } from "../utils";
 import card from "@/assets/hovering_bar/card.svg";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import styles from "./index.module.less";
 
@@ -19,8 +19,7 @@ const LinkHoveringItem = memo(() => {
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openSelectModal, setOpenSelectModal] = useState<boolean>(false);
   const { contentId } = useContext(EditContentContext) || {};
-  const extensions = useDynamicExtensions();
-
+  const extensions = useDynamicExtensionsStore((state) => state.extensions);
   const editor = useSlate();
   const selection = useSlateSelection();
 

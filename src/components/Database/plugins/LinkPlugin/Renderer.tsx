@@ -1,8 +1,6 @@
 import React, { useMemo } from "react";
 import { CellValue, ColumnDef } from "../../types";
-import { TbLayoutSidebarRight } from "react-icons/tb";
 import { TbExternalLink } from "react-icons/tb";
-import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import { normalizeUrl } from "./utils";
 import { useMemoizedFn } from "ahooks";
 import { openExternal } from "@/commands";
@@ -19,17 +17,6 @@ const Renderer: React.FC<{
   const url = useMemo(() => normalizeUrl(String(value ?? "")), [value]);
 
   const isDark = theme === "dark";
-
-  const openInRightSidebar = useMemoizedFn((e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!url) return;
-    useRightSidebarStore.getState().addTab({
-      id: url,
-      type: "webview",
-      title: url,
-    });
-  });
 
   const openInBrowser = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -64,12 +51,6 @@ const Renderer: React.FC<{
       >
         <Tooltip title="在浏览器中打开" mouseEnterDelay={1}>
           <TbExternalLink onClick={openInBrowser} className="w-4 h-4" />
-        </Tooltip>
-        <Tooltip title="在侧边栏中打开" mouseEnterDelay={1}>
-          <TbLayoutSidebarRight
-            onClick={openInRightSidebar}
-            className="w-4 h-4"
-          />
         </Tooltip>
       </div>
     </div>

@@ -10,7 +10,6 @@ import { Editor as CodeMirrorEditor, EditorChange } from "codemirror";
 import isHotkey from "is-hotkey";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { readTextFile, writeTextFile, getDirectoryName } from "@/commands";
 import {
   useMemoizedFn,
@@ -71,7 +70,6 @@ const SingleMarkdownEditor = () => {
       defaultValue: 240,
     },
   );
-  const extensions = useDynamicExtensions();
   const { isDark } = useTheme();
   const { onDarkModeChange } = useSettingStore((state) => ({
     onDarkModeChange: state.onDarkModeChange,
@@ -334,7 +332,6 @@ const SingleMarkdownEditor = () => {
                       ref={editorRef}
                       initValue={content}
                       onChange={onContentChange}
-                      extensions={extensions}
                       readonly={isReadonly}
                       uploadResource={uploadResource}
                       theme={isDark ? "dark" : "light"}

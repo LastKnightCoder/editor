@@ -17,7 +17,18 @@ import { useShallow } from "zustand/react/shallow";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 import Tags from "@/components/Tags";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -29,7 +40,6 @@ import {
   downloadMarkdown,
 } from "@/utils";
 import { openCardInNewWindow } from "@/commands";
-import useRightSidebarStore from "@/stores/useRightSidebarStore";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import useShortcutStore from "@/stores/useShortcutStore";
 import { ECardCategory, ICard } from "@/types";
@@ -64,11 +74,11 @@ const CardItem = memo(
     } = props;
 
     const navigateTo = useTabStore((state) => state.navigateTo);
-    const extensions = useDynamicExtensions();
+    const openInNewTab = useTabStore((state) => state.openInNewTab);
+    const panes = useTabStore((state) => state.panes);
+    const activePaneId = useTabStore((state) => state.activePaneId);
     const editorRef = useRef<EditorRef>(null);
     const [exportModalOpen, setExportModalOpen] = useState(false);
-
-    const addTab = useRightSidebarStore((state) => state.addTab);
 
     const databaseName = useSettingStore(
       useShallow((state) => state.setting.database.active),
@@ -130,11 +140,19 @@ const CardItem = memo(
           key: "open-card-in-right-sidebar",
           label: "右侧打开",
           onClick: () => {
-            addTab({
-              type: "card",
-              id: String(card.id),
-              title: getEditorText(card.content, 10),
-            });
+            // 确定在哪个 pane 中打开 - 尝试在另一个 pane 中打开
+            let targetPaneId: string | undefined;
+            if (panes.length > 1) {
+              const otherPane = panes.find((p) => p.id !== activePaneId);
+              targetPaneId = otherPane?.id;
+            }
+
+            openInNewTab(
+              TabType.CardDetail,
+              { id: card.id },
+              targetPaneId,
+              getEditorText(card.content, 10),
+            );
           },
         },
         {
@@ -182,11 +200,13 @@ const CardItem = memo(
       card.category,
       databaseName,
       card.id,
-      addTab,
       card.content,
       isTop,
       isShortcut,
       handlePresentationMode,
+      activePaneId,
+      panes,
+      openInNewTab,
     ]);
 
     const handleMoreClick: MenuProps["onClick"] = useMemoizedFn(
@@ -264,7 +284,7 @@ const CardItem = memo(
               className="max-h-75 overflow-hidden pointer-events-none"
               readonly={true}
               initValue={content.slice(0, 3)}
-              extensions={extensions}
+              extensions={customExtensions}
             />
           </ErrorBoundary>
           {tags.length > 0 && <Tags className="mt-5" tags={tags} showIcon />}

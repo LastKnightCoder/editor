@@ -1,9 +1,21 @@
-import Editor from "@/components/Editor";
+import Editor, { IExtension } from "@/components/Editor";
 import { IContent } from "@/types";
 import styles from "./index.module.less";
 import { Empty } from "antd";
-import { memo } from "react";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import { memo, useEffect, useState } from "react";
+// import { useDynamicExtensions } from "@/hooks";
+// import {
+//   contentLinkExtension,
+//   fileAttachmentExtension,
+//   questionCardExtension,
+//   chatReferenceExtension,
+// } from "@/editor-extensions";
+// const customExtensions = [
+//   contentLinkExtension,
+//   fileAttachmentExtension,
+//   questionCardExtension,
+//   chatReferenceExtension,
+// ];
 
 interface IContentProps {
   content: IContent | null;
@@ -11,8 +23,25 @@ interface IContentProps {
 
 const Content = memo((props: IContentProps) => {
   const { content } = props;
-  const extensions = useDynamicExtensions();
 
+  const [extensions, setExtensions] = useState<IExtension[]>([]);
+  useEffect(() => {
+    import("@/editor-extensions").then(
+      ({
+        contentLinkExtension,
+        fileAttachmentExtension,
+        questionCardExtension,
+        chatReferenceExtension,
+      }) => {
+        setExtensions([
+          contentLinkExtension,
+          fileAttachmentExtension,
+          questionCardExtension,
+          chatReferenceExtension,
+        ]);
+      },
+    );
+  }, []);
   if (!content) {
     return (
       <div className={styles.notFound}>

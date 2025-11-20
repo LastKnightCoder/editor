@@ -7,7 +7,7 @@ import classNames from "classnames";
 import { useLocalStorageState } from "ahooks";
 
 import Editor from "@/components/Editor";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import styles from "./index.module.less";
 import TabsIndicator, { TabItem } from "../TabsIndicator";
@@ -132,7 +132,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
   const { open, onClose, content, title } = props;
   const previewRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
-  const extensions = useDynamicExtensions();
+  const extensions = useDynamicExtensionsStore((state) => state.extensions);
 
   const currentDarkTheme = useRef(DARK_THEME_CONFIGS[0]);
   const currentLightTheme = useRef(LIGHT_THEME_CONFIGS[0]);

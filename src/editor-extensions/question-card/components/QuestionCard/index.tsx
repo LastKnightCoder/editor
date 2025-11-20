@@ -29,7 +29,7 @@ import NewAnswerModal from "@/components/NewAnswerModal";
 import styles from "./index.module.less";
 import { PlusOutlined } from "@ant-design/icons";
 import { MenuProps, Dropdown } from "antd";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 const DEFAULT_CONTENT: Descendant[] = [
   {
     type: "paragraph",
@@ -53,8 +53,7 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   const [newAnswerContent, setNewAnswerContent] =
     useState<Descendant[]>(DEFAULT_CONTENT);
   const [excludeContentIds, setExcludeContentIds] = useState<number[]>([]);
-  const extensions = useDynamicExtensions();
-
+  const extensions = useDynamicExtensionsStore((state) => state.extensions);
   const { questionId } = element;
 
   const { isDark } = useTheme();

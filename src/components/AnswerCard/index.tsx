@@ -8,8 +8,8 @@ import { IAnswer } from "@/types";
 import { defaultCardEventBus } from "@/utils";
 import Editor, { EditorRef } from "@/components/Editor";
 import useEditContent from "@/hooks/useEditContent";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { isContentIsCard, buildCardFromContent } from "@/commands/card";
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import styles from "./index.module.less";
 
@@ -29,9 +29,8 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   contentId,
 }) => {
   const { modal, message } = App.useApp();
-
+  const extensions = useDynamicExtensionsStore((state) => state.extensions);
   const editorRef = useRef<EditorRef>(null);
-  const extensions = useDynamicExtensions();
   const [isCard, setIsCard] = useState(false);
 
   useEffect(() => {

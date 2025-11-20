@@ -1,8 +1,19 @@
 import Editor from "@/components/Editor";
 import { Tag } from "antd";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { memo } from "react";
 import { SearchResult } from "@/types";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 import styles from "./index.module.less";
 
@@ -19,8 +30,6 @@ const SearchResultItem = memo(
     getTagColor: (type: string) => string;
     handleSearchResultClick: (result: SearchResult) => void;
   }) => {
-    const extensions = useDynamicExtensions();
-
     return (
       <div
         className={styles.item}
@@ -41,7 +50,7 @@ const SearchResultItem = memo(
           }}
           initValue={result.content.slice(0, 3)}
           readonly={true}
-          extensions={extensions}
+          extensions={customExtensions}
         />
       </div>
     );

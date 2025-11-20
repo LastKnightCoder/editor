@@ -2,7 +2,6 @@ import { memo, useState } from "react";
 import { Modal, Button, Space, Typography, Alert } from "antd";
 import { Descendant } from "slate";
 import Editor from "@/components/Editor";
-import { useDynamicExtensions } from "@/hooks";
 import styles from "./index.module.less";
 
 const { Text } = Typography;
@@ -16,6 +15,18 @@ interface NotionConflictModalProps {
   onCancel: () => void;
 }
 
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 const NotionConflictModal = memo((props: NotionConflictModalProps) => {
   const {
     open,
@@ -26,7 +37,6 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
     onCancel,
   } = props;
 
-  const extensions = useDynamicExtensions();
   const [resolving, setResolving] = useState(false);
 
   const handleUseLocal = async () => {
@@ -88,7 +98,7 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
               <Editor
                 initValue={localContent}
                 readonly={true}
-                extensions={extensions}
+                extensions={customExtensions}
               />
             </div>
           </div>
@@ -103,7 +113,7 @@ const NotionConflictModal = memo((props: NotionConflictModalProps) => {
               <Editor
                 initValue={notionContent}
                 readonly={true}
-                extensions={extensions}
+                extensions={customExtensions}
               />
             </div>
           </div>

@@ -12,7 +12,18 @@ import useEditContent from "@/hooks/useEditContent";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import { formatDate, defaultCardEventBus } from "@/utils";
 
 interface CardPreviewProps {
@@ -31,7 +42,6 @@ const CardPreview = (props: CardPreviewProps) => {
     () => defaultCardEventBus.createEditor(),
     [],
   );
-  const extensions = useDynamicExtensions();
   const {
     initValue,
     loading,
@@ -202,7 +212,7 @@ const CardPreview = (props: CardPreviewProps) => {
                   onInit={onInit}
                   initValue={initValue}
                   onChange={onContentChange}
-                  extensions={extensions}
+                  extensions={customExtensions}
                   uploadResource={uploadResource}
                   readonly={false}
                 />

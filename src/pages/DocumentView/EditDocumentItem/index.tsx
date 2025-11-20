@@ -20,7 +20,19 @@ import {
 
 import { formatDate, defaultDocumentItemEventBus } from "@/utils";
 
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+  createDocumentCardListExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import styles from "./index.module.less";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
@@ -43,7 +55,12 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   const outlineRef = useRef<HTMLDivElement>(null);
   const [editorSourceValueOpen, setEditorSourceValueOpen] = useState(false);
 
-  const extensions = useDynamicExtensions();
+  const extensions = useCreation(() => {
+    return [
+      ...customExtensions,
+      createDocumentCardListExtension(documentItemId),
+    ];
+  }, [documentItemId]);
 
   const {
     documentItem,

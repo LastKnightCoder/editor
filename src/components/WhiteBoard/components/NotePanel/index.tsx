@@ -3,11 +3,22 @@ import { CloseOutlined } from "@ant-design/icons";
 import Editor, { EditorRef } from "@/components/Editor";
 import useEditContent from "@/hooks/useEditContent";
 import useUploadResource from "@/hooks/useUploadResource";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
 import { getEditorText } from "@/utils/editor";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 interface NotePanelProps {
   contentTitle?: string;
@@ -22,12 +33,13 @@ const NotePanel: React.FC<NotePanelProps> = ({
 }) => {
   const { content, throttleHandleEditorContentChange } = useEditContent(
     contentId,
-    () => {},
+    (data) => {
+      editorRef.current?.setEditorValue(data);
+    },
   );
 
   const editorRef = useRef<EditorRef>(null);
   const uploadResource = useUploadResource();
-  const extensions = useDynamicExtensions();
 
   const [width, setWidth] = useLocalStorageState<number>("note-panel-width", {
     defaultValue: 400,
@@ -38,7 +50,7 @@ const NotePanel: React.FC<NotePanelProps> = ({
     if (contentTitle) return contentTitle;
     const text = getEditorText(content, 20).trim();
     return text.length < 20 ? text : `${text}...` || "未命名笔记";
-  }, [content]);
+  }, [content, contentTitle]);
 
   const handleContentChange = useMemoizedFn((content: Descendant[]) => {
     throttleHandleEditorContentChange(content);
@@ -75,7 +87,7 @@ const NotePanel: React.FC<NotePanelProps> = ({
               ref={editorRef}
               initValue={content}
               onChange={handleContentChange}
-              extensions={extensions}
+              extensions={customExtensions}
               uploadResource={uploadResource}
               className="min-h-full"
               readonly={false}

@@ -19,7 +19,18 @@ import useBatchOperation from "./useBatchOperation";
 import { indexContent, removeIndex, getAllIndexResults } from "@/utils/search";
 import { getAllCards } from "@/commands";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 
 const PAGE_SIZE = 20;
 
@@ -36,7 +47,6 @@ const useCardConfig = () => {
   }, []);
 
   const modelInfo = useEmbeddingConfig();
-  const extensions = useDynamicExtensions();
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
   const [selectedRows, setSelectedRows] = useState<ICard[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
@@ -338,7 +348,7 @@ const useCardConfig = () => {
                     maxHeight: 180,
                     overflow: "hidden",
                   }}
-                  extensions={extensions}
+                  extensions={customExtensions}
                   readonly
                   initValue={content.slice(0, 3)}
                 />

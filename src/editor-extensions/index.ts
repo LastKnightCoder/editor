@@ -6,14 +6,13 @@ import ProjectCardListExtension from "./project-card-list";
 import QuestionCardExtension from "./question-card";
 import ChatReferenceExtension from "./chat-reference";
 
-export const contentLinkExtension = new ContentLinkExtension();
-
 export const createDocumentCardListExtension = (documentId?: number) =>
   new DocumentCardListExtension(documentId);
 
 export const createProjectCardListExtension = (projectId?: number) =>
   new ProjectCardListExtension(projectId);
 
+export const contentLinkExtension = new ContentLinkExtension();
 export const fileAttachmentExtension = new FileAttachmentExtension();
 export const dailySummaryExtension = new DailySummaryExtension();
 export const questionCardExtension = new QuestionCardExtension();

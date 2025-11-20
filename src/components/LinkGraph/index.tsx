@@ -5,7 +5,18 @@ import { useMemoizedFn } from "ahooks";
 
 import { getCardById } from "@/commands";
 import useTheme from "@/hooks/useTheme.ts";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import { ICard } from "@/types";
 import Editor, { EditorRef } from "@/components/Editor";
 
@@ -62,7 +73,6 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   });
   const [activeId, setActiveId] = useState<number>(-1);
   const { isDark } = useTheme();
-  const extensions = useDynamicExtensions();
 
   const handleNodeMouseEnter = useMemoizedFn((evt: IG6GraphEvent) => {
     const { item } = evt;
@@ -347,7 +357,11 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             fontSize: cardFontSize,
           }}
         >
-          <Editor ref={editorRef} readonly={true} extensions={extensions} />
+          <Editor
+            ref={editorRef}
+            readonly={true}
+            extensions={customExtensions}
+          />
         </div>
       )}
     </div>

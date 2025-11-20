@@ -3,23 +3,14 @@ import { Dropdown, Modal, Input } from "antd";
 import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
-import SVG from "react-inlinesvg";
-import { PlusOutlined, PushpinOutlined } from "@ant-design/icons";
+import { PlusOutlined } from "@ant-design/icons";
 import { useDrop, useDrag } from "react-dnd";
 import { motion, AnimatePresence } from "framer-motion";
 
-import useRightSidebarStore from "@/stores/useRightSidebarStore";
-import useChatMessageStore from "@/stores/useChatMessageStore";
-import useSmallComponentSidebarStore from "@/stores/useSmallComponentSidebar";
 import useTabStore from "@/stores/useTabStore";
 
-import TitlebarIcon from "@/components/TitlebarIcon";
-import { setAlwaysOnTop as setTop } from "@/commands";
 import DraggableTab from "./DraggableTab";
 
-import sidebarRightIcon from "@/assets/icons/sidebar-right.svg";
-import chatIcon from "@/assets/icons/chat.svg";
-import smallComponentIcon from "@/assets/icons/small-components.svg";
 import { ITab, ITabGroup, TabType, PaneDirection } from "@/types/tab";
 import useTheme from "@/hooks/useTheme";
 import {
@@ -230,12 +221,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
 });
 
 const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
-  const { paneId, className, showRightControls = true } = props;
-  const chatSidebarOpen = useChatMessageStore((state) => state.open);
-  const rightSidebarOpen = useRightSidebarStore((state) => state.open);
-  const smallComponentSidebarOpen = useSmallComponentSidebarStore(
-    (state) => state.open,
-  );
+  const { paneId, className } = props;
 
   const panes = useTabStore((state) => state.panes);
   const createTab = useTabStore((state) => state.createTab);
@@ -256,8 +242,6 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const removeTabGroup = useTabStore((state) => state.removeTabGroup);
   const setTabGroup = useTabStore((state) => state.setTabGroup);
   const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
-
-  const [alwaysOnTop, setAlwaysOnTop] = useState<boolean>(false);
 
   const { theme } = useTheme();
 
@@ -285,65 +269,6 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     });
     return map;
   }, [groups]);
-
-  const toggleAlwaysOnTop = async () => {
-    setAlwaysOnTop(!alwaysOnTop);
-    await setTop(!alwaysOnTop);
-  };
-
-  const handleOpenChatSidebar = useMemoizedFn(() => {
-    if (chatSidebarOpen) {
-      useChatMessageStore.setState({
-        open: false,
-      });
-      return;
-    }
-    useRightSidebarStore.setState({
-      open: false,
-    });
-    useSmallComponentSidebarStore.setState({
-      open: false,
-    });
-    useChatMessageStore.setState({
-      open: true,
-    });
-  });
-
-  const handleOpenRightSidebar = useMemoizedFn(() => {
-    if (rightSidebarOpen) {
-      useRightSidebarStore.setState({
-        open: false,
-      });
-      return;
-    }
-    useChatMessageStore.setState({
-      open: false,
-    });
-    useSmallComponentSidebarStore.setState({
-      open: false,
-    });
-    useRightSidebarStore.setState({
-      open: true,
-    });
-  });
-
-  const handleOpenSmallComponentSidebar = useMemoizedFn(() => {
-    if (smallComponentSidebarOpen) {
-      useSmallComponentSidebarStore.setState({
-        open: false,
-      });
-      return;
-    }
-    useChatMessageStore.setState({
-      open: false,
-    });
-    useRightSidebarStore.setState({
-      open: false,
-    });
-    useSmallComponentSidebarStore.setState({
-      open: true,
-    });
-  });
 
   const handleNewTab = useMemoizedFn(() => {
     createTab(TabType.Home, undefined, paneId);
@@ -803,49 +728,6 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             <PlusOutlined />
           </button>
         </div>
-
-        {showRightControls && (
-          <div
-            className="flex gap-3 items-center ml-auto pr-3"
-            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-          >
-            <TitlebarIcon
-              tip={alwaysOnTop ? "取消置顶" : "置顶"}
-              onClick={toggleAlwaysOnTop}
-            >
-              <PushpinOutlined
-                className={classnames(
-                  "transform rotate-0 transition-transform",
-                  {
-                    "-rotate-45": alwaysOnTop,
-                  },
-                )}
-              />
-            </TitlebarIcon>
-            <TitlebarIcon
-              tip="小组件"
-              onClick={handleOpenSmallComponentSidebar}
-              active={smallComponentSidebarOpen}
-            >
-              <SVG src={smallComponentIcon} />
-            </TitlebarIcon>
-            <TitlebarIcon
-              tip="聊天"
-              onClick={handleOpenChatSidebar}
-              active={chatSidebarOpen}
-            >
-              <SVG src={chatIcon} />
-            </TitlebarIcon>
-            <TitlebarIcon
-              tip="右侧栏"
-              onClick={handleOpenRightSidebar}
-              active={rightSidebarOpen}
-              placement="left"
-            >
-              <SVG src={sidebarRightIcon} />
-            </TitlebarIcon>
-          </div>
-        )}
       </div>
 
       <Modal

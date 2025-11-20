@@ -56,7 +56,18 @@ import {
   createDataTable,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import {
   isBilibiliUrl,
   quickCheckBilibiliUrl,
@@ -228,8 +239,6 @@ const Project = () => {
       setWhiteBoards(whiteBoards);
     });
   }, []);
-
-  const extensions = useDynamicExtensions();
 
   const refresh = useMemoizedFn(() => {
     getProjectById(Number(id))
@@ -832,7 +841,7 @@ const Project = () => {
             multiple={false}
             excludeIds={excludeCardIds}
             initialContents={initialCardContents}
-            extensions={extensions}
+            extensions={customExtensions}
           />
           <SelectWhiteBoardModal
             title={"选择关联白板"}

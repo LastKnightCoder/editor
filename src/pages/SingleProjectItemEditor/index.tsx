@@ -8,7 +8,19 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import useDynamicExtensions from "@/hooks/useDynamicExtensions";
+import {
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+  createProjectCardListExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  fileAttachmentExtension,
+  questionCardExtension,
+  chatReferenceExtension,
+];
 import {
   getProjectItemById,
   connectDatabaseByName,
@@ -28,8 +40,6 @@ const editotContextValue = {
 };
 
 const SingleProjectItemEditor = () => {
-  const extensions = useDynamicExtensions();
-
   const projectItemEventBus = useCreation(
     () => defaultProjectItemEventBus.createEditor(),
     [],
@@ -37,6 +47,10 @@ const SingleProjectItemEditor = () => {
   const [searchParams] = useSearchParams();
   const projectItemId = Number(searchParams.get("projectItemId"));
   const databaseName = searchParams.get("databaseName");
+
+  const extensions = useCreation(() => {
+    return [...customExtensions, createProjectCardListExtension(projectItemId)];
+  }, [projectItemId]);
 
   const titleRef = useRef<EditTextHandle>(null);
   const [editingProjectItem, setEditingProjectItem] =
