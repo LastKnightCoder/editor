@@ -1,4 +1,4 @@
-import { memo, SVGProps, forwardRef } from "react";
+import { memo, SVGProps, forwardRef, useMemo } from "react";
 import { BoardElement, ViewPort } from "../../types";
 import Grid from "../Grid";
 import SelectArea from "../SelectArea";
@@ -40,6 +40,17 @@ const BoardContent = memo(
 
     const { minX, minY, width, height, zoom } = viewPort;
 
+    // 过滤视口内的元素（性能优化）
+    const visibleCenterConnectArrows = useMemo(
+      () => board.filterElementsInViewport(centerConnectArrows, 100),
+      [board, centerConnectArrows, viewPort],
+    );
+
+    const visibleNoneCenterConnectArrows = useMemo(
+      () => board.filterElementsInViewport(noneCenterConnectArrows, 100),
+      [board, noneCenterConnectArrows, viewPort],
+    );
+
     return (
       <svg
         {...svgProps}
@@ -50,8 +61,8 @@ const BoardContent = memo(
       >
         <ArrowMarkers />
         <Grid visible={gridVisible} gridSize={gridSize} />
-        <g>{board.renderElements(centerConnectArrows)}</g>
-        <g>{board.renderElements(noneCenterConnectArrows)}</g>
+        <g>{board.renderVisibleElements(visibleCenterConnectArrows)}</g>
+        <g>{board.renderVisibleElements(visibleNoneCenterConnectArrows)}</g>
         <g>
           <SelectArea />
         </g>

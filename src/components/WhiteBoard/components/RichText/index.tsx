@@ -38,7 +38,7 @@ import {
   Point,
 } from "../../types";
 import { RichTextElement, CommonElement } from "../../plugins";
-import { PointUtil } from "../../utils";
+import { PointUtil, SimplifiedRenderUtil } from "../../utils";
 import {
   useBoard,
   useSelectState,
@@ -46,6 +46,8 @@ import {
   useArrowMove,
   useCreateElementType,
 } from "../../hooks";
+import { useBoardState } from "../../hooks/useBoardState";
+import { useViewPort } from "../../hooks/useViewPort";
 
 import styles from "./index.module.less";
 import ArrowConnectPoint from "../ArrowConnectPoint";
@@ -130,18 +132,38 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       color,
       theme,
     } = element;
+    const textColor = color || "#1f1f1f";
 
     const containerRef = useRef<HTMLDivElement>(null);
     const editorRef = useRef<EditorRef>(null);
-    const [initValue] = useState(content);
+    const [initValue, setInitialState] = useState(content);
     const [focus, setFocus] = useState(false);
     const board = useBoard();
     const isArrowMoving = useArrowMove();
     const createBoardElementType = useCreateElementType();
     const [isMoving, setIsMoving] = useState(false);
+    const viewPort = useViewPort();
+    const boardState = useBoardState();
 
     const isCreatingElement =
       createBoardElementType !== ECreateBoardElementType.None;
+    const { isSelected, isSelecting } = useSelectState(elementId);
+
+    // 判断是否使用简化渲染
+    const useSimplifiedRender = useMemo(() => {
+      const { zoom } = viewPort;
+      const { simplifiedRenderZoomThreshold } = boardState;
+      return zoom < simplifiedRenderZoomThreshold && !focus && !isSelected;
+    }, [viewPort, boardState, focus, isSelected]);
+
+    const simplifiedContent = useMemo(() => {
+      if (!useSimplifiedRender) return null;
+      return SimplifiedRenderUtil.getSimplifiedContent(
+        initValue,
+        height,
+        viewPort.zoom,
+      );
+    }, [height, initValue, useSimplifiedRender, viewPort.zoom]);
 
     useImperativeHandle(ref, () => ({
       setEditorValue: (value: Descendant[]) => {
@@ -155,7 +177,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
       arrowConnectPoints,
       arrowConnectExtendPoints,
     } = useDropArrow(element);
-    const { isSelected, isSelecting } = useSelectState(elementId);
 
     const [resizePoints] = useMemo(() => {
       const resizePoints = PointUtil.getResizePointFromRect({
@@ -193,6 +214,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
 
     const handleOnContentChange = useMemoizedFn((value: Descendant[]) => {
       onContentChange(board, element, value);
+      setInitialState(value);
     });
 
     const handleOnEditorSizeChange = useMemoizedFn(
@@ -254,7 +276,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
             ? "none"
             : "auto",
         background: "transparent",
-        color,
+        color: textColor,
         cursor: isSelected ? "move" : "auto",
       } as React.CSSProperties;
     }, [
@@ -382,21 +404,42 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>(
                 style={{ background: topColor }}
               ></div>
             )}
-            <ErrorBoundary>
-              <Editor
-                ref={editorRef}
-                style={editorStyle}
-                className={styles.editor}
-                initValue={initValue}
-                onChange={handleOnContentChange}
-                readonly={readonly}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                uploadResource={uploadResource}
-                extensions={customExtensions}
-                theme={theme}
-              />
-            </ErrorBoundary>
+            {useSimplifiedRender && simplifiedContent ? (
+              <div
+                style={{
+                  padding: `${paddingHeight}px ${paddingWidth}px`,
+                  width: "100%",
+                  height: "100%",
+                  overflow: "hidden",
+                  display: "-webkit-box",
+                  WebkitBoxOrient: "vertical",
+                  WebkitLineClamp: simplifiedContent.maxLines,
+                  wordBreak: "break-word",
+                  whiteSpace: "pre-wrap",
+                  color: textColor,
+                  fontSize: `${simplifiedContent.fontSize}px`,
+                  lineHeight: simplifiedContent.lineHeight,
+                }}
+              >
+                {simplifiedContent.text}
+              </div>
+            ) : (
+              <ErrorBoundary>
+                <Editor
+                  ref={editorRef}
+                  style={editorStyle}
+                  className={styles.editor}
+                  initValue={initValue}
+                  onChange={handleOnContentChange}
+                  readonly={readonly}
+                  onFocus={handleFocus}
+                  onBlur={handleBlur}
+                  uploadResource={uploadResource}
+                  extensions={customExtensions}
+                  theme={theme}
+                />
+              </ErrorBoundary>
+            )}
           </div>
         </foreignObject>
         <If condition={isSelected}>

@@ -1,4 +1,5 @@
 export { useBoard } from "./useBoard";
+export { useBoardState } from "./useBoardState";
 export { useCreateElementType } from "./useCreateElementType";
 export { useDropArrow } from "./useDropArrow";
 export { useMoveArrow } from "./useMoveArrow";

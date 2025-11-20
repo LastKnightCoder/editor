@@ -13,6 +13,8 @@ export const ViewPortContext = createContext<ViewPort>({
 
 export const BoardStateContext = createContext<{
   isMoving: boolean;
+  simplifiedRenderZoomThreshold: number;
 }>({
   isMoving: false,
+  simplifiedRenderZoomThreshold: 0.3,
 });

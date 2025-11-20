@@ -1,13 +1,12 @@
-import { useEffect, memo, useContext } from "react";
+import { useEffect, memo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { SELECT_AREA_COLOR } from "../../constants";
-import { useSelection, useArrowMove } from "../../hooks";
-import { BoardStateContext } from "../../context";
+import { useSelection, useArrowMove, useBoardState } from "../../hooks";
 
 const SelectArea = memo(() => {
   const selection = useSelection();
   const isArrowMoving = useArrowMove();
-  const { isMoving } = useContext(BoardStateContext);
+  const { isMoving } = useBoardState();
 
   const isSelecting = Boolean(
     selection &&
