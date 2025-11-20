@@ -4,6 +4,7 @@ import { createDraft, finishDraft, isDraft } from "immer";
 import curry from "lodash/curry";
 import RefLineUtil, { Rect } from "./utils/RefLineUtil";
 import { PresentationManager } from "./utils/PresentationManager";
+import ViewportUtil from "./utils/ViewportUtil";
 
 import {
   Operation,
@@ -22,6 +23,11 @@ import { isValid, executeSequence, BoardUtil, MindUtil } from "./utils";
 import BoardOperations from "./utils/BoardOperations";
 
 const boardFlag = Symbol("board");
+
+interface VisibleElementTree {
+  element: BoardElement;
+  children: VisibleElementTree[];
+}
 
 const bindHandler = curry(
   (eventName: Events, plugin: IBoardPlugin): EventHandler | undefined => {
@@ -583,6 +589,62 @@ class Board {
   // 获取插件实例
   public getPlugin<T extends IBoardPlugin>(name: string): T | undefined {
     return this.plugins.find((p) => p.name === name) as T | undefined;
+  }
+
+  public filterElementsInViewport(
+    elements: BoardElement[],
+    expandPixels = 100,
+  ): VisibleElementTree[] {
+    const result: VisibleElementTree[] = [];
+
+    for (const element of elements) {
+      const isInViewport = ViewportUtil.isElementInViewport(
+        element,
+        this.viewPort,
+        expandPixels,
+      );
+
+      let visibleChildren: VisibleElementTree[] = [];
+
+      if (element.children && element.children.length > 0) {
+        visibleChildren = this.filterElementsInViewport(
+          element.children,
+          expandPixels,
+        );
+      }
+
+      if (isInViewport || visibleChildren.length > 0) {
+        result.push({
+          element,
+          children: visibleChildren,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  public renderVisibleElements(
+    elements?: VisibleElementTree[],
+  ): Array<React.ReactElement | null | undefined> {
+    if (!elements) return [];
+
+    return elements
+      .map(({ element, children }) => {
+        const plugin = this.plugins.find(
+          (plugin) => plugin.name === element.type,
+        );
+        if (!plugin) return null;
+
+        const renderedChildren =
+          this.renderVisibleElements(children).filter(isValid);
+
+        return plugin.render?.(this, {
+          element,
+          children: renderedChildren,
+        });
+      })
+      .filter(isValid);
   }
 }
 

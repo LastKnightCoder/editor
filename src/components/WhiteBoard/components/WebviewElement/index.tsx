@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, useEffect, useRef, useContext } from "react";
+import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Dropdown } from "antd";
 import { MoreOutlined, EditOutlined, SyncOutlined } from "@ant-design/icons";
@@ -15,6 +15,7 @@ import {
   useSelectState,
   useDropArrow,
   useSelection,
+  useBoardState,
 } from "../../hooks";
 import {
   SELECT_RECT_STROKE,
@@ -25,7 +26,6 @@ import {
   ARROW_CONNECT_POINT_FILL,
   ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
-import { BoardStateContext } from "../../context";
 
 import styles from "./index.module.less";
 
@@ -57,7 +57,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
   const { id, x, y, width, height, url } = element;
 
   const [isResizing, setIsResizing] = useState(false);
-  const { isMoving } = useContext(BoardStateContext);
+  const { isMoving } = useBoardState();
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [tempUrl, setTempUrl] = useState(url);
   const webviewRef = useRef<WebviewRef>(null);

@@ -87,6 +87,8 @@ const presentationPlugin = new PresentationPlugin();
 const webviewPlugin = new WebviewPlugin();
 const framePlugin = new FramePlugin();
 
+const simplifiedRenderZoomThreshold = 0.2;
+
 interface WhiteBoardProps {
   className?: string;
   style?: React.CSSProperties;
@@ -368,7 +370,12 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       <SelectionContext.Provider value={selection}>
         <ViewPortContext.Provider value={viewPort}>
           <ArrowMoveContext.Provider value={{ isMoving: isArrowMoving }}>
-            <BoardStateContext.Provider value={{ isMoving: isElementsMoving }}>
+            <BoardStateContext.Provider
+              value={{
+                isMoving: isElementsMoving,
+                simplifiedRenderZoomThreshold,
+              }}
+            >
               <div className="flex h-full relative">
                 <ResizeableAndHideableSidebar
                   className="relative flex-shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"

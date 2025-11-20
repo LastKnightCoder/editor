@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMemoizedFn, useAsyncEffect } from "ahooks";
 import { produce } from "immer";
-import { App, Button, message, Tabs, TabsProps } from "antd";
+import { App, Button, Tabs, TabsProps } from "antd";
 
 import AliOssSetting from "./AliOssSetting";
 import S3Setting from "./S3Setting";
@@ -15,7 +15,7 @@ import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import styles from "./index.module.less";
 
 const SyncSetting = () => {
-  const { modal } = App.useApp();
+  const { modal, message } = App.useApp();
   const [isSyncing, setIsSyncing] = useState(false);
   const [remoteVersion, setRemoteVersion] = useState(0);
 
