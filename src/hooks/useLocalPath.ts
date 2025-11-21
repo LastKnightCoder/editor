@@ -1,22 +1,34 @@
-import { convertFileSrc, getHomeDir } from "@/commands/file";
+﻿import { convertFileSrc, getHomeDir } from "@/commands/file";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { useAsyncEffect } from "ahooks";
 import { useState } from "react";
 
 const useLocalPath = (src: string) => {
-  const [localPath, setLocalPath] = useState(src);
-  const [loading, setLoading] = useState(false);
+  const [localPath, setLocalPath] = useState("");
+  const [loading, setLoading] = useState(true);
+
   useAsyncEffect(async () => {
     setLoading(true);
     try {
+      if (!src) {
+        setLocalPath("");
+        return;
+      }
+
       if (src.startsWith("data:") || src.startsWith("blob:")) {
+        setLocalPath(src);
         return;
       }
 
       if (src.startsWith("http")) {
-        const localUrl = await remoteResourceToLocal(src);
-        const filePath = await convertFileSrc(localUrl);
-        setLocalPath(filePath);
+        try {
+          const localUrl = await remoteResourceToLocal(src);
+          const filePath = await convertFileSrc(localUrl);
+          setLocalPath(filePath);
+        } catch (error) {
+          console.error(error);
+          setLocalPath(src);
+        }
       } else {
         const homeDir = await getHomeDir();
         const absolutePath = src.startsWith("~")
@@ -27,6 +39,7 @@ const useLocalPath = (src: string) => {
       }
     } catch (error) {
       console.error(error);
+      setLocalPath(src);
     } finally {
       setLoading(false);
     }

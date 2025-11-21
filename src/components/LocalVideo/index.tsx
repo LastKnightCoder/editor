@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, memo, forwardRef } from "react";
+﻿import React, { useEffect, useRef, useState, memo, forwardRef } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import {
   readBinaryFile,
@@ -8,6 +8,7 @@ import {
   convertFileSrc,
 } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
+import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 
 interface LocalVideoProps {
   src: string;
@@ -36,18 +37,18 @@ function getMimeType(ext: string): string {
 const LocalVideo = memo(
   forwardRef<HTMLVideoElement, LocalVideoProps>((props, ref) => {
     const { src, ...rest } = props;
+    const normalizedSrc = useGithubCdnUrl(src) ?? src;
 
-    const [previewUrl, setPreviewUrl] = useState(src);
+    const [previewUrl, setPreviewUrl] = useState<string>("");
 
     const innerRef = useRef<HTMLVideoElement>(null);
     const currentTime = useRef(0);
     const playStatus = useRef(false);
     const currentMethod = useRef("default");
 
-    // Get the video element, prioritizing the forwarded ref if it exists
     const getVideoElement = useMemoizedFn(() => {
       if (typeof ref === "function") {
-        return null; // Can't access the current value of a callback ref
+        return null;
       } else if (ref && ref.current) {
         return ref.current;
       } else {
@@ -56,20 +57,34 @@ const LocalVideo = memo(
     });
 
     useAsyncEffect(async () => {
-      let localUrl = src;
+      let localUrl = normalizedSrc;
       try {
         console.time("localVideo");
-        // 如果是 base64 或 blob url，直接使用
-        if (
-          src.startsWith("data:") ||
-          src.startsWith("blob:") ||
-          src.startsWith("http://localhost")
-        ) {
+        if (!normalizedSrc) {
+          setPreviewUrl("");
+          currentMethod.current = "default";
           return;
         }
 
-        if (src.startsWith("http")) {
-          localUrl = await remoteResourceToLocal(src);
+        if (
+          normalizedSrc.startsWith("data:") ||
+          normalizedSrc.startsWith("blob:") ||
+          normalizedSrc.startsWith("http://localhost")
+        ) {
+          setPreviewUrl(normalizedSrc);
+          currentMethod.current = "default";
+          return;
+        }
+
+        if (normalizedSrc.startsWith("http")) {
+          try {
+            localUrl = await remoteResourceToLocal(normalizedSrc);
+          } catch (error) {
+            console.error("下载视频失败:", error);
+            setPreviewUrl(normalizedSrc);
+            currentMethod.current = "default";
+            return;
+          }
         }
 
         const homeDir = await getHomeDir();
@@ -78,7 +93,7 @@ const LocalVideo = memo(
           : localUrl;
         const appDir = await getEditorDir();
 
-        let videoUrl;
+        let videoUrl: string;
         if (absolutePath.startsWith(appDir)) {
           videoUrl = await convertFileSrc(absolutePath);
           currentMethod.current = "localhost";
@@ -92,24 +107,24 @@ const LocalVideo = memo(
           currentMethod.current = "read-file";
         }
 
-        // 记录当前播放的时间等信息
         const videoElement = getVideoElement();
         if (videoElement) {
           currentTime.current = videoElement.currentTime;
           playStatus.current = !videoElement.paused;
         }
         setPreviewUrl(videoUrl);
-      } catch {
-        setPreviewUrl(src);
+      } catch (e) {
+        console.error(e);
+        setPreviewUrl(normalizedSrc);
+        currentMethod.current = "default";
       } finally {
         console.timeEnd("localVideo");
       }
-    }, [src]);
+    }, [normalizedSrc]);
 
     useEffect(() => {
-      // 读取完本地文件完成后，恢复播放
       const videoElement = getVideoElement();
-      if (videoElement) {
+      if (videoElement && previewUrl) {
         videoElement.currentTime = currentTime.current;
         if (playStatus.current) {
           videoElement.play().then();
@@ -117,14 +132,12 @@ const LocalVideo = memo(
       }
     }, [previewUrl, getVideoElement]);
 
-    // 保存和恢复播放位置
     useEffect(() => {
       const videoElement = getVideoElement();
-      if (!videoElement) return;
+      if (!videoElement || !previewUrl) return;
 
-      const storageKey = `${VIDEO_POSITION_PREFIX}${src}`;
+      const storageKey = `${VIDEO_POSITION_PREFIX}${normalizedSrc}`;
 
-      // 当视频元数据加载完成后恢复播放位置
       const handleLoadedMetadata = () => {
         const savedPosition = localStorage.getItem(storageKey);
         if (savedPosition && currentTime.current === 0) {
@@ -140,14 +153,12 @@ const LocalVideo = memo(
         }
       };
 
-      // 定期保存播放位置
       const handleTimeUpdate = () => {
         if (videoElement.currentTime >= 0) {
           localStorage.setItem(storageKey, videoElement.currentTime.toString());
         }
       };
 
-      // 播放结束时清除保存的位置
       const handleEnded = () => {
         localStorage.removeItem(storageKey);
       };
@@ -164,7 +175,7 @@ const LocalVideo = memo(
         videoElement.removeEventListener("timeupdate", handleTimeUpdate);
         videoElement.removeEventListener("ended", handleEnded);
       };
-    }, [src, getVideoElement]);
+    }, [normalizedSrc, previewUrl, getVideoElement]);
 
     const handleOnError = useMemoizedFn(
       async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
@@ -181,10 +192,17 @@ const LocalVideo = memo(
         console.error("视频错误:", errorMessage);
 
         if (currentMethod.current === "localhost") {
-          let localUrl = src;
+          let localUrl = normalizedSrc;
 
-          if (src.startsWith("http")) {
-            localUrl = await remoteResourceToLocal(src);
+          if (normalizedSrc.startsWith("http")) {
+            try {
+              localUrl = await remoteResourceToLocal(normalizedSrc);
+            } catch (error) {
+              console.error(error);
+              setPreviewUrl(normalizedSrc);
+              currentMethod.current = "default";
+              return;
+            }
           }
 
           const homeDir = await getHomeDir();
@@ -203,16 +221,17 @@ const LocalVideo = memo(
 
           return;
         } else if (currentMethod.current === "read-file") {
-          setPreviewUrl(src);
+          setPreviewUrl(normalizedSrc);
           currentMethod.current = "default";
-        } else {
-          return;
         }
       },
     );
 
-    // Use the provided ref if available, otherwise use innerRef
     const videoRef = ref || innerRef;
+
+    if (!previewUrl) {
+      return null;
+    }
 
     return (
       <video

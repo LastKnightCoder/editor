@@ -6,6 +6,7 @@ import {
   useMemoizedFn,
   useDebounceFn,
 } from "ahooks";
+import useUploadResource from "@/hooks/useUploadResource";
 import {
   App,
   Dropdown,
@@ -18,6 +19,8 @@ import {
   Select,
   Switch,
   Tag,
+  Button,
+  Tabs,
 } from "antd";
 import { produce } from "immer";
 import {
@@ -29,7 +32,6 @@ import {
   updateProjectItem,
   openProjectItemInNewWindow,
   createEmptyVideoNote,
-  nodeFetch,
   createWhiteBoardContent,
   addChildProjectItem,
   removeRootProjectItem,
@@ -99,6 +101,8 @@ import {
   defaultProjectItemEventBus,
   getMarkdown,
   downloadMarkdown,
+  normalizeWebviewUrl,
+  getWebviewTitleFromUrl,
 } from "@/utils";
 import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
@@ -162,6 +166,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     () => defaultProjectItemEventBus.createEditor(),
     [],
   );
+  const uploadResource = useUploadResource();
 
   const { projectId, itemId } = useProjectContext();
   const databaseName = useSettingStore.getState().setting.database.active;
@@ -188,7 +193,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [webVideoModalOpen, setWebVideoModalOpen] = useState(false);
   const [webVideoUrl, setWebVideoUrl] = useState("");
   const [webviewModalOpen, setWebviewModalOpen] = useState(false);
-  const [webviewUrl, setWebviewUrl] = useState("");
+  const [webviewModalTab, setWebviewModalTab] = useState<"url" | "local">(
+    "url",
+  );
+  const [webviewRemoteUrl, setWebviewRemoteUrl] = useState("");
+  const [webviewLocalUrl, setWebviewLocalUrl] = useState("");
+  const [webviewTitle, setWebviewTitle] = useState("");
+  const [webviewFileName, setWebviewFileName] = useState("");
+  const [webviewUploading, setWebviewUploading] = useState(false);
   const [bilibiliModalOpen, setBilibiliModalOpen] = useState(false);
   const [bilibiliUrl, setBilibiliUrl] = useState("");
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
@@ -414,6 +426,60 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
     };
   }, [debounceTimeoutId]);
+
+  const handleSelectWebviewFile = useMemoizedFn(async () => {
+    const filePaths = await selectFile({
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "HTML",
+          extensions: ["html", "htm"],
+        },
+      ],
+    });
+
+    if (!filePaths || filePaths.length === 0) return;
+
+    const filePath = filePaths[0];
+    try {
+      setWebviewUploading(true);
+      message.loading({
+        key: "project-item-webview-html",
+        content: "正在上传 HTML 文件...",
+        duration: 0,
+      });
+      const fileName = await getFileBaseName(filePath);
+      const fileTitle = await getFileBaseName(filePath, true);
+      const fileContent = await readTextFile(filePath);
+      const htmlFile = new File([fileContent], fileName, {
+        type: "text/html",
+      });
+      const uploadedUrl = await uploadResource(htmlFile);
+      if (!uploadedUrl) {
+        message.error({
+          key: "project-item-webview-html",
+          content: "上传 HTML 文件失败",
+        });
+        return;
+      }
+      setWebviewLocalUrl(uploadedUrl);
+      setWebviewFileName(fileName);
+      setWebviewTitle(fileTitle || fileName);
+      message.success({
+        key: "project-item-webview-html",
+        content: "HTML 文件已添加",
+      });
+      setWebviewModalTab("local");
+    } catch (error) {
+      console.error("选择 HTML 文件失败:", error);
+      message.error({
+        key: "project-item-webview-html",
+        content: "选择 HTML 文件失败",
+      });
+    } finally {
+      setWebviewUploading(false);
+    }
+  });
 
   const handleYoutubeUrlChange = useDebounceFn(
     async (url: string) => {
@@ -1714,7 +1780,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         confirmLoading={loading}
         onCancel={() => {
           setWebviewModalOpen(false);
-          setWebviewUrl("");
+          setWebviewRemoteUrl("");
+          setWebviewLocalUrl("");
+          setWebviewTitle("");
+          setWebviewFileName("");
+          setWebviewUploading(false);
+          setWebviewModalTab("url");
         }}
         onOk={async () => {
           if (!projectItem || !projectId) {
@@ -1722,65 +1793,85 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             return;
           }
 
-          if (!webviewUrl) {
+          if (webviewModalTab === "url" && !webviewRemoteUrl.trim()) {
             message.error("请输入网址");
+            return;
+          }
+
+          if (webviewModalTab === "local" && !webviewLocalUrl) {
+            message.error("请先选择本地 HTML 文件");
             return;
           }
 
           setLoading(true);
 
           try {
-            // 尝试获取网页标题
-            let title = webviewUrl;
-
-            try {
-              // 使用 node-fetch 获取网页元信息
-              const response = await nodeFetch(webviewUrl, {
-                method: "GET",
-                timeout: 5000,
-              });
-
-              // 从 HTML 中提取标题
-              if (typeof response === "string") {
-                const titleMatch = response.match(
-                  /<title[^>]*>([^<]+)<\/title>/i,
-                );
-                if (titleMatch && titleMatch[1]) {
-                  title = titleMatch[1].trim();
-                }
+            if (webviewModalTab === "url") {
+              const normalizedUrl = normalizeWebviewUrl(webviewRemoteUrl);
+              if (!normalizedUrl) {
+                message.error("请输入网址");
+                return;
               }
-            } catch (error) {
-              console.error("获取网页标题失败:", error);
-            }
 
-            const formattedTitle = `${title} [${webviewUrl}]`;
+              const title = getWebviewTitleFromUrl(normalizedUrl);
 
-            const createProjectItem: CreateProjectItem = {
-              title: formattedTitle,
-              content: [],
-              children: [],
-              refType: "",
-              refId: 0,
-              projectItemType: EProjectItemType.WebView,
-              count: 0,
-              whiteBoardContentId: 0,
-            };
+              const createProjectItem: CreateProjectItem = {
+                title: `${title} [${normalizedUrl}]`,
+                content: [],
+                children: [],
+                refType: "",
+                refId: 0,
+                projectItemType: EProjectItemType.WebView,
+                count: 0,
+                whiteBoardContentId: 0,
+              };
 
-            const [parentProjectItem] = await addChildProjectItem(
-              projectItem.id,
-              createProjectItem,
-            );
-
-            if (parentProjectItem) {
-              setProjectItem(parentProjectItem);
-              projectItemEventBus.publishProjectItemEvent(
-                "project-item:updated",
-                parentProjectItem,
+              const [parentProjectItem] = await addChildProjectItem(
+                projectItem.id,
+                createProjectItem,
               );
+
+              if (parentProjectItem) {
+                setProjectItem(parentProjectItem);
+                projectItemEventBus.publishProjectItemEvent(
+                  "project-item:updated",
+                  parentProjectItem,
+                );
+              }
+            } else {
+              const finalTitle =
+                webviewTitle.trim() || webviewFileName || "本地网页";
+              const createProjectItem: CreateProjectItem = {
+                title: `${finalTitle} [${webviewLocalUrl}]`,
+                content: [],
+                children: [],
+                refType: "",
+                refId: 0,
+                projectItemType: EProjectItemType.WebView,
+                count: 0,
+                whiteBoardContentId: 0,
+              };
+
+              const [parentProjectItem] = await addChildProjectItem(
+                projectItem.id,
+                createProjectItem,
+              );
+
+              if (parentProjectItem) {
+                setProjectItem(parentProjectItem);
+                projectItemEventBus.publishProjectItemEvent(
+                  "project-item:updated",
+                  parentProjectItem,
+                );
+              }
             }
 
             setWebviewModalOpen(false);
-            setWebviewUrl("");
+            setWebviewRemoteUrl("");
+            setWebviewLocalUrl("");
+            setWebviewTitle("");
+            setWebviewFileName("");
+            setWebviewModalTab("url");
           } catch (error) {
             message.error("添加网页失败");
             console.error(error);
@@ -1789,15 +1880,57 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           }
         }}
       >
-        <div style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="请输入网址，例如 https://www.example.com"
-            prefix={<GlobalOutlined />}
-            value={webviewUrl}
-            onChange={(e) => setWebviewUrl(e.target.value)}
-            autoFocus
-          />
-        </div>
+        <Tabs
+          activeKey={webviewModalTab}
+          onChange={(key) => setWebviewModalTab(key as "url" | "local")}
+          items={[
+            {
+              key: "url",
+              label: "远程网址",
+              children: (
+                <Input
+                  placeholder="请输入网址，例如 https://www.example.com"
+                  prefix={<GlobalOutlined />}
+                  value={webviewRemoteUrl}
+                  onChange={(e) => setWebviewRemoteUrl(e.target.value)}
+                  autoFocus={webviewModalTab === "url"}
+                />
+              ),
+            },
+            {
+              key: "local",
+              label: "本地 HTML",
+              children: (
+                <>
+                  <Input
+                    placeholder="请输入网页标题"
+                    value={webviewTitle}
+                    onChange={(e) => setWebviewTitle(e.target.value)}
+                    style={{ marginBottom: 12 }}
+                  />
+                  <Button
+                    block
+                    onClick={handleSelectWebviewFile}
+                    loading={webviewUploading}
+                  >
+                    选择本地 HTML 文件
+                  </Button>
+                  {webviewFileName && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        color: "#8c8c8c",
+                      }}
+                    >
+                      当前文件：{webviewFileName}
+                    </div>
+                  )}
+                </>
+              ),
+            },
+          ]}
+        />
       </Modal>
 
       <Modal
