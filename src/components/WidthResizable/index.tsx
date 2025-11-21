@@ -36,6 +36,19 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     return defaultWidth;
   });
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [showHandleHighlight, setShowHandleHighlight] =
+    useState<boolean>(false);
+  const hoverTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  const resetHoverState = React.useCallback(() => {
+    if (hoverTimerRef.current) {
+      window.clearTimeout(hoverTimerRef.current);
+      hoverTimerRef.current = null;
+    }
+    setShowHandleHighlight(false);
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (disableResize) return;
@@ -71,6 +84,19 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     setIsResizing(false);
   };
 
+  const handleHoverStart = () => {
+    if (disableResize || hoverTimerRef.current) return;
+    hoverTimerRef.current = setTimeout(() => {
+      setShowHandleHighlight(true);
+      hoverTimerRef.current = null;
+    }, 500);
+  };
+
+  const handleHoverEnd = () => {
+    if (disableResize) return;
+    resetHoverState();
+  };
+
   useEffect(() => {
     if (disableResize) return;
     document.addEventListener("mousemove", handleMouseMove);
@@ -80,6 +106,18 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [handleMouseMove, disableResize]);
+
+  useEffect(() => {
+    if (disableResize) {
+      resetHoverState();
+    }
+  }, [disableResize, resetHoverState]);
+
+  useEffect(() => {
+    return () => {
+      resetHoverState();
+    };
+  }, [resetHoverState]);
 
   return (
     <div
@@ -95,12 +133,23 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
       {props.children}
       {!disableResize && (
         <div
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseEnter={handleHoverStart}
+          onMouseLeave={handleHoverEnd}
           className={classnames(styles.resizeBar, {
             [styles.left]: side === "left",
           })}
-          onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-        />
+        >
+          <div
+            className={classnames(
+              "pointer-events-none ml-auto mr-0 h-full w-[4px] rounded-sm transition-colors duration-300 ease-in-out",
+              showHandleHighlight
+                ? "bg-[#aac6ff] dark:bg-[#2b3f73]"
+                : "bg-transparent",
+            )}
+          />
+        </div>
       )}
     </div>
   );
