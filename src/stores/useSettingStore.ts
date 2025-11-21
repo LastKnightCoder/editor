@@ -168,6 +168,7 @@ export interface ISetting {
     aiContinueWrite: LLMUsageConfig | null;
     webClip: LLMUsageConfig | null;
     podcastGeneration: LLMUsageConfig | null;
+    contentPolish: LLMUsageConfig | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -431,6 +432,7 @@ const initialState: IState = {
       aiContinueWrite: null,
       webClip: null,
       podcastGeneration: null,
+      contentPolish: null,
     },
     embeddingProvider: {
       currentConfigId: "",
