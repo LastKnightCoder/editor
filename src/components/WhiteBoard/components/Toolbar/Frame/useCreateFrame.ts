@@ -253,7 +253,10 @@ export const useCreateFrame = () => {
         createdFramePath.current
       ) {
         const ops: Operation[] = [];
-        const newBounds = FrameUtil.calculateFrameBounds(createdFrame.current);
+        const newBounds = FrameUtil.calculateFrameBounds(
+          board,
+          createdFrame.current,
+        );
 
         const updatedFrame = {
           ...createdFrame.current,

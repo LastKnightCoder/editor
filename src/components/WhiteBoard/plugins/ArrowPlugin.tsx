@@ -95,6 +95,32 @@ export class ArrowPlugin implements IBoardPlugin {
     };
   }
 
+  getBounds(_board: Board, element: ArrowElement) {
+    const { points } = element;
+    if (!points || points.length === 0) {
+      return {
+        minX: 0,
+        minY: 0,
+        maxX: 0,
+        maxY: 0,
+      };
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    points.forEach((point) => {
+      minX = Math.min(minX, point.x);
+      minY = Math.min(minY, point.y);
+      maxX = Math.max(maxX, point.x);
+      maxY = Math.max(maxY, point.y);
+    });
+
+    return { minX, minY, maxX, maxY };
+  }
+
   isElementSelected(
     board: Board,
     element: ArrowElement,

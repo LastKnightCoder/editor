@@ -83,6 +83,44 @@ export class MindPlugin implements IBoardPlugin {
     return null;
   }
 
+  getBounds(_board: Board, element: MindNodeElement) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    MindUtil.dfs(
+      element,
+      {
+        before: (node) => {
+          minX = Math.min(minX, node.x);
+          minY = Math.min(minY, node.y);
+          maxX = Math.max(maxX, node.x + node.width);
+          maxY = Math.max(maxY, node.y + node.height);
+        },
+      },
+      null,
+      0,
+      true,
+    );
+
+    if (
+      minX === Infinity ||
+      minY === Infinity ||
+      maxX === -Infinity ||
+      maxY === -Infinity
+    ) {
+      return {
+        minX: element.x,
+        minY: element.y,
+        maxX: element.x + element.width,
+        maxY: element.y + element.height,
+      };
+    }
+
+    return { minX, minY, maxX, maxY };
+  }
+
   isElementSelected(
     board: Board,
     element: MindNodeElement,

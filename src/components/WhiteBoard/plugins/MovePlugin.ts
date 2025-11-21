@@ -655,7 +655,11 @@ export class MovePlugin implements IBoardPlugin {
         );
 
       if (resizeFrame && (childrenChanged || hasChildMoveIn)) {
-        const newBounds = FrameUtil.calculateFrameBounds(frame, finalChildren);
+        const newBounds = FrameUtil.calculateFrameBounds(
+          board,
+          frame,
+          finalChildren,
+        );
         newProperties = {
           ...newProperties,
           ...newBounds,

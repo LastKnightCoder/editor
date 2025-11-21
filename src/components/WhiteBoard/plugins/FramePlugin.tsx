@@ -109,6 +109,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
 
       if (newestFrame && newestFrame.autoResize) {
         const newBounds = FrameUtil.calculateFrameBounds(
+          board,
           newestFrame as FrameElement,
         );
         const framePath = PathUtil.getPathByElement(board, frame);
