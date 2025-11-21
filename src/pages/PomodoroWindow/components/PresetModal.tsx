@@ -57,9 +57,8 @@ const PresetModal: React.FC<PresetModalProps> = ({
   return (
     <Modal
       open={open}
-      onClose={onClose}
-      onOk={handleOk}
       onCancel={onClose}
+      onOk={handleOk}
       okText={submitting ? "保存中..." : "保存"}
       cancelText="取消"
       destroyOnClose
