@@ -73,10 +73,6 @@ export const useCreateFrame = () => {
           },
         );
 
-        if (elementsInArea.length > 0) {
-          frame.children = elementsInArea;
-        }
-
         createdFrame.current = frame;
         createdFramePath.current = [board.children.length];
         board.apply(
@@ -89,6 +85,54 @@ export const useCreateFrame = () => {
           ],
           false,
         );
+
+        // 更新 frame path（Board.apply 会克隆节点）
+        const latestFrame = BoardUtil.getElementById(board, frame.id);
+        const latestFramePath =
+          latestFrame && PathUtil.getPathByElement(board, latestFrame);
+        if (latestFramePath) {
+          createdFramePath.current = latestFramePath;
+        }
+
+        if (
+          elementsInArea.length > 0 &&
+          createdFramePath.current &&
+          createdFrame.current
+        ) {
+          const moveOps: Operation[] = [];
+          let nextChildIndex = createdFrame.current.children.length;
+
+          elementsInArea.forEach((element) => {
+            const oldPath = PathUtil.getPathByElement(board, element);
+            if (!oldPath) return;
+            moveOps.push({
+              type: "move_node",
+              path: oldPath,
+              newPath: [...createdFramePath.current!, nextChildIndex],
+            });
+            nextChildIndex += 1;
+          });
+
+          if (moveOps.length > 0) {
+            board.apply(moveOps, false);
+
+            createdFrame.current = {
+              ...createdFrame.current,
+              children: [...createdFrame.current.children, ...elementsInArea],
+            };
+
+            const refreshedFrame = BoardUtil.getElementById(
+              board,
+              createdFrame.current.id,
+            );
+            const refreshedPath =
+              refreshedFrame &&
+              PathUtil.getPathByElement(board, refreshedFrame);
+            if (refreshedPath) {
+              createdFramePath.current = refreshedPath;
+            }
+          }
+        }
       } else {
         const ops: Operation[] = [];
         // 更新现有Frame的尺寸

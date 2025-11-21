@@ -234,17 +234,18 @@ export class MindUtil {
     skipFolded = false,
   ) {
     before?.(node, parent, index);
+    const nodeChildren = node.children ?? [];
     if (!skipFolded || (!node.isLeftFold && !node.isRightFold)) {
       // 如果不跳过折叠节点，或者节点没有完全折叠，则遍历子节点
       const childrenToVisit = skipFolded
-        ? node.children.filter((child) => {
+        ? nodeChildren.filter((child) => {
             const isChildLeftDirection = child.direction === "left";
             const isFoldInThisDirection = isChildLeftDirection
               ? node.isLeftFold
               : node.isRightFold;
             return !isFoldInThisDirection;
           })
-        : node.children;
+        : nodeChildren;
 
       childrenToVisit.forEach((child, index) => {
         this.dfs(

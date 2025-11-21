@@ -3,16 +3,21 @@ import { Dropdown, MenuProps, App } from "antd";
 import {
   Board,
   BoardElement,
-  FrameElement,
   MindNodeElement,
+  Operation,
 } from "../../../types";
 import { useBoard } from "../../../hooks";
 import classNames from "classnames";
 import { useElementDnD, DragPosition } from "./useElementDnD";
-import { PathUtil, BoardUtil, FrameUtil, MindUtil } from "../../../utils";
+import { PathUtil, BoardUtil, MindUtil } from "../../../utils";
 import { canNest } from "../../../utils/Constraints";
 import { ViewPortTransforms } from "../../../transforms/ViewPortTransforms";
 import { HiChevronDown, HiChevronRight } from "react-icons/hi2";
+import {
+  simulateChildrenAfterOps,
+  buildFrameResizeOp,
+  collectMindLayoutOpsFromPreview,
+} from "./utils";
 
 interface NodeProps {
   element: BoardElement;
@@ -204,64 +209,42 @@ const Node: React.FC<NodeProps> = ({
             }
 
             const newPath = [...elementPath, element.children?.length ?? 0];
-            board.apply({ type: "move_node", path: fromPath, newPath }, true);
-            // 放入 frame 后，自适应调整 frame 尺寸
+            const pendingOps: Operation[] = [
+              { type: "move_node", path: fromPath, newPath },
+            ];
+            const previewChildren = simulateChildrenAfterOps(board, pendingOps);
+            let layoutOpsCount = 0;
+
             if (element.type === "frame") {
-              const updatedFrame = PathUtil.getElementByPath(
-                board,
+              const resizeOp = buildFrameResizeOp(
+                board as Board,
+                previewChildren,
+                element.id,
                 elementPath,
-              ) as FrameElement;
-              if (updatedFrame) {
-                FrameUtil.resizeToFitChildren(board, updatedFrame);
+              );
+              if (resizeOp) {
+                pendingOps.push(resizeOp);
               }
             }
-            // 放入 mind-node 后，需要重新拿到 root，进行 layout
-            if (element.type === "mind-node") {
-              const updatedNode = BoardUtil.getElementById(board, element.id);
-              if (updatedNode?.type === "mind-node") {
-                const root = MindUtil.getRoot(
-                  board as Board,
-                  updatedNode as MindNodeElement,
-                );
-                if (root) {
-                  const laidOut = MindUtil.layout(root);
-                  // 将 layout 后的根节点写回
-                  const rootPath = PathUtil.getPathByElement(board, root)!;
-                  board.apply(
-                    {
-                      type: "set_node",
-                      path: rootPath,
-                      properties: root,
-                      newProperties: laidOut,
-                    },
-                    true,
-                  );
-                }
-              }
 
-              // 同时对源 mind 根节点也进行重布局
-              if (sourceMindRootId) {
-                const latestSourceRoot = BoardUtil.getElementById(
-                  board,
-                  sourceMindRootId,
-                ) as MindNodeElement | null;
-                if (latestSourceRoot) {
-                  const relaid = MindUtil.layout(latestSourceRoot);
-                  const sourceRootPath = PathUtil.getPathByElement(
-                    board,
-                    latestSourceRoot,
-                  )!;
-                  board.apply(
-                    {
-                      type: "set_node",
-                      path: sourceRootPath,
-                      properties: latestSourceRoot,
-                      newProperties: relaid,
-                    },
-                    true,
-                  );
-                }
-              }
+            if (dragEl.type === "mind-node") {
+              const layoutOps = collectMindLayoutOpsFromPreview(
+                board as Board,
+                previewChildren,
+                dragItem.elementId,
+                sourceMindRootId,
+              );
+              layoutOpsCount = layoutOps.length;
+              pendingOps.push(...layoutOps);
+            }
+
+            board.apply(pendingOps, true);
+            if (dragEl.type === "mind-node" && layoutOpsCount === 0) {
+              MindUtil.relayoutAffectedRootsAfterMindMove(
+                board as Board,
+                dragItem.elementId,
+                sourceMindRootId,
+              );
             }
             return;
           }
@@ -315,10 +298,23 @@ const Node: React.FC<NodeProps> = ({
               ? dropIndex
               : dropIndex + 1;
           const newPath = [...parent, insertIndex];
-          board.apply({ type: "move_node", path: fromPath, newPath }, true);
-
-          // 移动后对 mind-node 的 root 进行重新布局（统一调用工具方法）
+          const pendingOps: Operation[] = [
+            { type: "move_node", path: fromPath, newPath },
+          ];
+          let layoutOpsCount = 0;
           if (dragEl2?.type === "mind-node") {
+            const previewChildren = simulateChildrenAfterOps(board, pendingOps);
+            const layoutOps = collectMindLayoutOpsFromPreview(
+              board as Board,
+              previewChildren,
+              dragItem.elementId,
+              sourceMindRootIdForReorder,
+            );
+            layoutOpsCount = layoutOps.length;
+            pendingOps.push(...layoutOps);
+          }
+          board.apply(pendingOps, true);
+          if (dragEl2?.type === "mind-node" && layoutOpsCount === 0) {
             MindUtil.relayoutAffectedRootsAfterMindMove(
               board as Board,
               dragItem.elementId,
@@ -403,10 +399,21 @@ const Node: React.FC<NodeProps> = ({
           : (parent as BoardElement).type !== "mind-node";
         const targetIndex = isReversed ? total : 0;
         const newPath = [...path.slice(0, -1), targetIndex];
-        board.apply({ type: "move_node", path, newPath }, true);
-
-        // 移动后重新布局目标 root 与旧 root（获取最新 root）
+        const pendingOps: Operation[] = [{ type: "move_node", path, newPath }];
+        let layoutOpsCount = 0;
         if (element.type === "mind-node") {
+          const previewChildren = simulateChildrenAfterOps(board, pendingOps);
+          const layoutOps = collectMindLayoutOpsFromPreview(
+            board as Board,
+            previewChildren,
+            element.id,
+            sourceMindRootId,
+          );
+          layoutOpsCount = layoutOps.length;
+          pendingOps.push(...layoutOps);
+        }
+        board.apply(pendingOps, true);
+        if (element.type === "mind-node" && layoutOpsCount === 0) {
           MindUtil.relayoutAffectedRootsAfterMindMove(
             board as Board,
             element.id,
@@ -437,10 +444,21 @@ const Node: React.FC<NodeProps> = ({
           : (parent as BoardElement).type !== "mind-node";
         const targetIndex = isReversed ? 0 : total;
         const newPath = [...path.slice(0, -1), targetIndex];
-        board.apply({ type: "move_node", path, newPath }, true);
-
-        // 移动后重新布局目标 root 与旧 root（获取最新 root）
+        const pendingOps: Operation[] = [{ type: "move_node", path, newPath }];
+        let layoutOpsCount = 0;
         if (element.type === "mind-node") {
+          const previewChildren = simulateChildrenAfterOps(board, pendingOps);
+          const layoutOps = collectMindLayoutOpsFromPreview(
+            board as Board,
+            previewChildren,
+            element.id,
+            sourceMindRootId,
+          );
+          layoutOpsCount = layoutOps.length;
+          pendingOps.push(...layoutOps);
+        }
+        board.apply(pendingOps, true);
+        if (element.type === "mind-node" && layoutOpsCount === 0) {
           MindUtil.relayoutAffectedRootsAfterMindMove(
             board as Board,
             element.id,
@@ -487,19 +505,37 @@ const Node: React.FC<NodeProps> = ({
               }
               return;
             }
-            // 其他类型：直接删除
+            // 其他类型：直接删除，并在需要时合并附加操作
             const currentPath = PathUtil.getPathByElement(board, element);
             if (!currentPath) return;
-            board.apply(
+            const pendingOps: Operation[] = [
               { type: "remove_node", path: currentPath, node: element },
-              true,
-            );
+            ];
+            const previewChildren = simulateChildrenAfterOps(board, pendingOps);
+            if (parentPath) {
+              const parentEl = PathUtil.getElementByPath(
+                board,
+                parentPath,
+              ) as BoardElement | null;
+              if (parentEl?.type === "frame") {
+                const resizeOp = buildFrameResizeOp(
+                  board as Board,
+                  previewChildren,
+                  parentEl.id,
+                  parentPath,
+                );
+                if (resizeOp) {
+                  pendingOps.push(resizeOp);
+                }
+              }
+            }
+            board.apply(pendingOps, true);
           },
         });
         return;
       }
     },
-    [board, element, elementPath, startRename],
+    [board, element, elementPath, parentPath, startRename],
   );
 
   const dropdownMenu = useMemo<MenuProps["items"]>(

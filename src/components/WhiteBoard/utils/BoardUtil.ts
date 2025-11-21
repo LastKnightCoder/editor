@@ -430,72 +430,105 @@ export class BoardUtil {
   }
 
   static inverseOperation = (op: Operation): Operation => {
+    const wasNormalized = BoardOperations.isNormalizedOperation(op);
+    let inverse: Operation;
+
     switch (op.type) {
       case "insert_node": {
-        return { ...op, type: "remove_node" };
+        inverse = { ...op, type: "remove_node" };
+        break;
       }
 
       case "remove_node": {
-        return { ...op, type: "insert_node" };
+        inverse = { ...op, type: "insert_node" };
+        break;
       }
 
       case "move_node": {
         // Move操作的逆操作是反向移动
         const moveOp = op as Extract<Operation, { type: "move_node" }>;
-        return {
+        inverse = {
           ...moveOp,
           path: moveOp.newPath,
           newPath: moveOp.path,
         };
+        break;
       }
 
       case "set_node": {
         const { properties, newProperties } = op;
-        return { ...op, properties: newProperties, newProperties: properties };
+        inverse = {
+          ...op,
+          properties: newProperties,
+          newProperties: properties,
+        };
+        break;
       }
 
       case "set_selection": {
         const { properties, newProperties } = op;
-        return { ...op, properties: newProperties, newProperties: properties };
+        inverse = {
+          ...op,
+          properties: newProperties,
+          newProperties: properties,
+        };
+        break;
       }
 
       case "set_viewport": {
         const { properties, newProperties } = op;
         if (properties == null) {
-          return {
+          inverse = {
             ...op,
             properties: newProperties,
             newProperties: newProperties,
           };
         } else if (newProperties == null) {
-          return {
+          inverse = {
             ...op,
             properties: properties,
             newProperties: properties,
           };
         } else {
-          return {
+          inverse = {
             ...op,
             properties: newProperties,
             newProperties: properties,
           };
         }
+        break;
       }
 
       case "set_theme": {
         const { properties, newProperties } = op;
-        return { ...op, properties: newProperties, newProperties: properties };
+        inverse = {
+          ...op,
+          properties: newProperties,
+          newProperties: properties,
+        };
+        break;
       }
 
       case "set_moving": {
         const { properties, newProperties } = op;
-        return { ...op, properties: newProperties, newProperties: properties };
+        inverse = {
+          ...op,
+          properties: newProperties,
+          newProperties: properties,
+        };
+        break;
       }
 
       default: {
         throw new Error("unsupport operation");
       }
     }
+
+    if (wasNormalized) {
+      BoardOperations.markAsNormalized(inverse);
+    }
+
+    return inverse;
   };
 
   static getParent(board: Board, element: BoardElement): BoardElement | null {

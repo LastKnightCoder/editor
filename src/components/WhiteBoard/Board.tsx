@@ -316,11 +316,7 @@ class Board {
     });
   }
 
-  apply(
-    ops: Operation | Operation[],
-    updateHistory = true,
-    skipPathTransform = false,
-  ) {
+  apply(ops: Operation | Operation[], updateHistory = true) {
     if (!Array.isArray(ops)) {
       ops = [ops];
     }
@@ -338,11 +334,10 @@ class Board {
       ops,
       {
         readonly: this.readonly,
-        skipPathTransform,
       },
     );
 
-    const { data, metadata } = result;
+    const { data, metadata, operations: executedOps } = result;
 
     // 如果没有变化，直接返回
     if (!metadata.hasChanges) {
@@ -411,9 +406,11 @@ class Board {
 
     // 更新历史记录
     if (updateHistory) {
-      // 存储预处理后的操作用于历史记录
-      // 这些是经过路径转换验证的、实际执行过的操作
-      const processedOps = BoardOperations.preprocessOperations(ops);
+      // 使用 applyOperations 返回的已执行操作，确保历史记录与实际同步
+      const processedOps =
+        executedOps.length > 0
+          ? executedOps
+          : BoardOperations.preprocessOperations(ops);
 
       const currentTimestamp = Date.now();
       const timeDiff = currentTimestamp - this.lastUndoTimestamp;
@@ -525,8 +522,8 @@ class Board {
       .map((item) => BoardUtil.inverseOperation(item))
       .reverse();
 
-    // 跳过路径转换：undo存储的是已经转换过的操作，反转后直接应用
-    this.apply(inverseOps, false, true);
+    inverseOps.forEach((op) => BoardOperations.markAsNormalized(op));
+    this.apply(inverseOps, false);
     this.redos.push(undo);
   }
 
@@ -535,8 +532,8 @@ class Board {
     if (this.redos.length === 0) return;
     const redo = this.redos.pop();
     if (!redo) return;
-    // 跳过路径转换：redo是已经转换过的操作，直接应用
-    this.apply(redo, false, true);
+    redo.forEach((op) => BoardOperations.markAsNormalized(op));
+    this.apply(redo, false);
     this.undos.push(redo);
   }
 
