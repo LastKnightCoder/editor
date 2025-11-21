@@ -1,6 +1,7 @@
 import { useRef, useState, memo } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Dropdown, App } from "antd";
+import type { MenuProps } from "antd";
 import classNames from "classnames";
 import {
   MdMoreVert,
@@ -186,6 +187,13 @@ const QuestionItem = memo(
       },
     ];
 
+    const dropdownMenuProps: MenuProps = {
+      items: menuItems,
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+      },
+    };
+
     return (
       <div
         ref={rowRef}
@@ -296,7 +304,7 @@ const QuestionItem = memo(
 
           <div className="flex items-center gap-1">
             <Dropdown
-              menu={{ items: menuItems }}
+              menu={dropdownMenuProps}
               trigger={["click"]}
               placement="bottomRight"
             >
