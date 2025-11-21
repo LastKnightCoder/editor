@@ -3,7 +3,7 @@ import { useMemoizedFn } from "ahooks";
 import {
   RenderElementProps,
   useReadOnly,
-  useSlate,
+  useSlateStatic,
   ReactEditor,
 } from "slate-react";
 import { Popover } from "antd";
@@ -31,7 +31,7 @@ const Annotation: React.FC<React.PropsWithChildren<AnnotationProps>> = memo(
     const { attributes, children, element } = props;
     const { content } = element;
     const readOnly = useReadOnly();
-    const editor = useSlate();
+    const editor = useSlateStatic();
     const [open, setOpen] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
 

@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { ReactEditor, useReadOnly, useSlate } from "slate-react";
+import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
 import {
   Button,
@@ -104,7 +104,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const { element, children, attributes } = props;
   const readOnly = useReadOnly();
   const isLast = useIsLastElement(element);
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const { message } = App.useApp();
   const uploadRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

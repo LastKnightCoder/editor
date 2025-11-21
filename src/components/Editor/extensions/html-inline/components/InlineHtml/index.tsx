@@ -6,7 +6,7 @@ import React, {
   useMemo,
 } from "react";
 import { Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import { Popover, Input, type InputRef } from "antd";
 import { useMemoizedFn } from "ahooks";
 
@@ -23,7 +23,7 @@ interface InlineHtmlProps {
 const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
   const { attributes, element, children } = props;
   const { html, openEdit = false } = element;
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const [inputValue, setInputValue] = useState(html || "");
   const [popoverOpen, setPopoverOpen] = useState(openEdit);

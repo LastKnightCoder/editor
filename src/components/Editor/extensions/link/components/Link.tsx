@@ -4,7 +4,7 @@ import {
   ReactEditor,
   RenderElementProps,
   useReadOnly,
-  useSlate,
+  useSlateStatic,
 } from "slate-react";
 import { Popover, Button, Input, App, Tooltip } from "antd";
 import SVG from "react-inlinesvg";
@@ -138,7 +138,7 @@ const Link: React.FC<React.PropsWithChildren<LinkProps>> = memo((props) => {
   const { attributes, children, element } = props;
   const { url, openEdit = false } = element;
   const readOnly = useReadOnly();
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const [open, setOpen] = useState(openEdit);
   const [editable, setEditable] = useState(openEdit);
 

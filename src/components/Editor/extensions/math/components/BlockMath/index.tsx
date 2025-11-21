@@ -1,7 +1,7 @@
 import React, { PropsWithChildren } from "react";
 import { RenderElementProps } from "slate-react";
 import { Transforms } from "slate";
-import { ReactEditor, useSlate } from "slate-react";
+import { ReactEditor, useSlateStatic } from "slate-react";
 
 import Katex from "@/components/Katex";
 import { BlockMathElement } from "@/components/Editor/types";
@@ -17,7 +17,7 @@ interface BlockMathProps {
 const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = (props) => {
   const { attributes, element, children } = props;
   const { tex } = element;
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const handleInputChange = (code: string) => {
     const path = ReactEditor.findPath(editor, element);

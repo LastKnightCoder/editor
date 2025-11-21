@@ -1,5 +1,5 @@
 import React from "react";
-import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import classnames from "classnames";
 import styles from "./index.module.less";
 import { HeaderElement } from "@/components/Editor/types";
@@ -15,7 +15,7 @@ interface IHeaderProps {
 const Header: React.FC<React.PropsWithChildren<IHeaderProps>> = (props) => {
   const { element, attributes, children } = props;
   const { level, collapsed = false } = element;
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const path = ReactEditor.findPath(editor, element);
 
   const { toggleCollapse } = useHeaderCollapse({

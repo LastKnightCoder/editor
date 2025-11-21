@@ -1,6 +1,6 @@
 import React, { forwardRef, useImperativeHandle } from "react";
 import classnames from "classnames";
-import { useSlate, useReadOnly } from "slate-react";
+import { useSlateStatic, useReadOnly } from "slate-react";
 
 import { CustomElement } from "../../types";
 import { insertParagraphAndFocus } from "../../utils";
@@ -19,7 +19,7 @@ export interface AddParagraphRef {
 const AddParagraph = forwardRef<AddParagraphRef, IAddParagraphProps>(
   (props, ref) => {
     const { element, onAddParagraph } = props;
-    const editor = useSlate();
+    const editor = useSlateStatic();
     const readOnly = useReadOnly();
 
     useImperativeHandle(ref, () => ({

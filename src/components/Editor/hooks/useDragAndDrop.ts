@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Editor, Element, Path, Transforms } from "slate";
 import { useDrag, useDrop } from "react-dnd";
-import { ReactEditor, useSlate, useReadOnly } from "slate-react";
+import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import type { DropTargetMonitor } from "react-dnd";
 
 interface IUseDragAndDropParams {
@@ -75,7 +75,7 @@ const moveNode = (
 };
 
 const useDragAndDrop = (params: IUseDragAndDropParams) => {
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const { element, disableDrag = false } = params;
 

@@ -3,7 +3,7 @@ import classnames from "classnames";
 import { Transforms } from "slate";
 import {
   RenderElementProps,
-  useSlate,
+  useSlateStatic,
   useReadOnly,
   ReactEditor,
 } from "slate-react";
@@ -38,7 +38,7 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = (
   const titleRef = useRef<HTMLDivElement>(null);
   const isLast = useIsLastElement(element);
   const { isDark } = useTheme();
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({

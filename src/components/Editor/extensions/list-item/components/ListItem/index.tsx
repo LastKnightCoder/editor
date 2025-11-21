@@ -1,4 +1,4 @@
-import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import { ListItemElement } from "@/components/Editor/types";
 import { Editor, Transforms } from "slate";
 import classnames from "classnames";
@@ -18,7 +18,7 @@ const ListItem = (props: IListItemProps) => {
   const [isMultiline, setIsMultiline] = useState(false);
   const listItemRef = useRef<HTMLLIElement>(null);
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   // 检测内容是否多行并测量第一行高度
   useEffect(() => {

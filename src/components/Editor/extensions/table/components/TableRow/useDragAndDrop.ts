@@ -1,4 +1,4 @@
-import { ReactEditor, useSlate, useReadOnly } from "slate-react";
+import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { useDrag, useDrop } from "react-dnd";
 import { TableRowElement } from "@/components/Editor/types";
 import { useState } from "react";
@@ -13,7 +13,7 @@ interface IUseDragAndDrop {
 const useDragAndDrop = (params: IUseDragAndDrop) => {
   const { element } = params;
   const [isBefore, setIsBefore] = useState(false);
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const tableRowPath = ReactEditor.findPath(editor, element);
   const tablePath = tableRowPath.slice(0, tableRowPath.length - 1);

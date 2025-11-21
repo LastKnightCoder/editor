@@ -1,6 +1,6 @@
 import React, { PropsWithChildren, useEffect, useMemo, useRef } from "react";
 import ReactDOM from "react-dom/client";
-import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
 import * as Babel from "@babel/standalone";
 import * as antd from "antd";
@@ -109,7 +109,7 @@ const CustomBlockElement: React.FC<PropsWithChildren<CustomBlockProps>> = (
   const { attributes, children, element } = props;
   const { content } = element;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const handleChange = (content: string) => {
     Transforms.setNodes(
       editor,

@@ -1,6 +1,6 @@
 import React, { PropsWithChildren, useState } from "react";
 import { Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import { Popover, Input } from "antd";
 
 import Katex from "@/components/Katex";
@@ -18,7 +18,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = (props) => {
   const { attributes, element, children } = props;
   const { tex } = element;
   const [value, setValue] = useState(tex);
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value);

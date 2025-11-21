@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from "react";
-import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import { CheckListItemElement } from "@/components/Editor/types";
 import { Transforms } from "slate";
 import styles from "./index.module.less";
@@ -20,7 +20,7 @@ const CheckListItem: React.FC<PropsWithChildren<CheckListItemProps>> = (
   const { attributes, children, element } = props;
   const { checked } = element;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({

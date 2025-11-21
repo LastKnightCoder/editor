@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from "react";
-import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { type GraphvizElement } from "@/components/Editor/types";
 import styles from "./index.module.less";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
@@ -16,7 +16,7 @@ const GraphvizElement: React.FC<PropsWithChildren<GraphvizProps>> = (props) => {
   const { attributes, element, children } = props;
   const { dot } = element;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const handleOnChange = (dot: string) => {
     Transforms.setNodes(

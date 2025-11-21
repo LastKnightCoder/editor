@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, lazy, Suspense, memo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { ReactEditor, useReadOnly, useSlate } from "slate-react";
+import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
 import { App, Dropdown, Spin } from "antd";
 import { MoreOutlined, LoadingOutlined } from "@ant-design/icons";
@@ -34,7 +34,7 @@ const ChatReferenceCard = memo(
     const { chatId, title, height = 400 } = element;
 
     const { modal } = App.useApp();
-    const editor = useSlate();
+    const editor = useSlateStatic();
     const readOnly = useReadOnly();
     const { isDark } = useTheme();
     const [isResizing, setIsResizing] = useState(false);

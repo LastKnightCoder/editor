@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ReactEditor, useReadOnly, useSlate } from "slate-react";
+import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Popover } from "antd";
 import { Transforms } from "slate";
 
@@ -18,7 +18,7 @@ const StyledText = (props: IExtensionBaseProps<StyledTextElement>) => {
   const { attributes, element, children } = props;
 
   const { color } = element;
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const { isDark } = useTheme();
   const readonly = useReadOnly();
 

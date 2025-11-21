@@ -9,7 +9,7 @@ import { MdDragIndicator } from "react-icons/md";
 import { message, Empty, Button, Flex, Popover, Input, Spin } from "antd";
 import If from "@/components/If";
 import React, { useContext, useRef, useState } from "react";
-import { ReactEditor, useReadOnly, useSlate } from "slate-react";
+import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Editor, Transforms } from "slate";
 import { EditorContext } from "@editor/index.tsx";
 import { textToSpeech } from "@/commands";
@@ -18,7 +18,7 @@ import { DeleteOutlined } from "@ant-design/icons";
 
 const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const { attributes, element, children } = props;
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
 
   // TODO 不应该写死模型，应该像 uploadFile 一样

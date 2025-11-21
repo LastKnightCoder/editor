@@ -10,7 +10,7 @@ import { Transforms, Editor as SlateEditor } from "slate";
 import {
   ReactEditor,
   RenderElementProps,
-  useSlate,
+  useSlateStatic,
   useReadOnly,
 } from "slate-react";
 import classnames from "classnames";
@@ -94,7 +94,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
       "--fold-height": `${foldHeight / 16}em`,
     } as React.CSSProperties;
   }, [canFold, foldHeight, isFold]);
-  const slateEditor = useSlate();
+  const slateEditor = useSlateStatic();
   const readOnly = useReadOnly();
   const { isDark } = useTheme();
   const addParagraphRef = useRef<AddParagraphRef>(null);

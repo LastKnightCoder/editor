@@ -1,5 +1,5 @@
 import { useState, memo, useEffect } from "react";
-import { ReactEditor, useReadOnly, useSlate } from "slate-react";
+import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Popover } from "antd";
 import { Transforms } from "slate";
 import Picker from "@emoji-mart/react";
@@ -16,7 +16,7 @@ const Emoji = memo((props: IExtensionBaseProps<EmojiElement>) => {
   const { attributes, element, children } = props;
   const { emoji, nativeEmoji, defaultOpen } = element;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const { isDark } = useTheme();
   const readonly = useReadOnly();
 

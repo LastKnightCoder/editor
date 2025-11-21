@@ -5,7 +5,7 @@ import { memo, useMemo, useState, useRef, useEffect } from "react";
 import {
   RenderElementProps,
   ReactEditor,
-  useSlate,
+  useSlateStatic,
   useReadOnly,
 } from "slate-react";
 import { Transforms } from "slate";
@@ -25,7 +25,7 @@ interface DatabaseBlockProps {
 
 const DatabaseBlock = memo((props: DatabaseBlockProps) => {
   const { element, attributes, children } = props;
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
