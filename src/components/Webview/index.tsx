@@ -5,7 +5,12 @@ import React, {
   useEffect,
   CSSProperties,
   memo,
+  useState,
 } from "react";
+
+import { convertFileSrc, getHomeDir } from "@/commands";
+import { remoteResourceToLocal } from "@/utils";
+import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 
 export interface WebviewRef {
   getTitle: () => string;
@@ -48,7 +53,73 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     onURLChange,
   } = props;
 
+  const cdnSrc = useGithubCdnUrl(src);
+  const sourceToResolve = cdnSrc ?? src;
   const webviewRef = useRef<Electron.WebviewTag | null>(null);
+  const [resolvedSrc, setResolvedSrc] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveSrc = async () => {
+      if (!sourceToResolve) {
+        setResolvedSrc(undefined);
+        return;
+      }
+
+      const trimmedSrc = sourceToResolve.trim();
+
+      if (/^https?:\/\//i.test(trimmedSrc)) {
+        if (!cancelled) {
+          setResolvedSrc(undefined);
+        }
+        try {
+          const localPath = await remoteResourceToLocal(trimmedSrc);
+          const fileSrc = await convertFileSrc(localPath);
+          if (!cancelled) {
+            setResolvedSrc(fileSrc);
+          }
+        } catch (error) {
+          console.error("下载 Webview 资源失败:", error);
+          if (!cancelled) {
+            setResolvedSrc(trimmedSrc);
+          }
+        }
+        return;
+      }
+
+      if (
+        /^[a-zA-Z]+:\/\//.test(trimmedSrc) ||
+        trimmedSrc.startsWith("data:") ||
+        trimmedSrc.startsWith("blob:")
+      ) {
+        setResolvedSrc(trimmedSrc);
+        return;
+      }
+
+      try {
+        const homeDir = await getHomeDir();
+        const absolutePath = trimmedSrc.startsWith("~")
+          ? `${homeDir}${trimmedSrc.slice(1)}`
+          : trimmedSrc;
+        const fileSrc = await convertFileSrc(absolutePath);
+        if (!cancelled) {
+          setResolvedSrc(fileSrc);
+        }
+      } catch (error) {
+        console.error("转换 Webview 路径失败:", error);
+        if (!cancelled) {
+          setResolvedSrc(trimmedSrc);
+        }
+      }
+    };
+
+    resolveSrc();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceToResolve]);
 
   useImperativeHandle(ref, () => ({
     getTitle: () => {
@@ -132,7 +203,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     >
       <webview
         ref={webviewRef as React.RefObject<HTMLWebViewElement>}
-        src={src}
+        src={resolvedSrc}
         className={styles.webview}
         preload={preload}
         allowpopups={allowPopups}

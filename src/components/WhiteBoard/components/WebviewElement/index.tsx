@@ -1,7 +1,12 @@
 import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Dropdown } from "antd";
-import { MoreOutlined, EditOutlined, SyncOutlined } from "@ant-design/icons";
+import { Dropdown, App } from "antd";
+import {
+  MoreOutlined,
+  EditOutlined,
+  SyncOutlined,
+  UploadOutlined,
+} from "@ant-design/icons";
 import If from "@/components/If";
 import ResizeCircle from "../ResizeCircle";
 import ArrowConnectPoint from "../ArrowConnectPoint";
@@ -26,6 +31,9 @@ import {
   ARROW_CONNECT_POINT_FILL,
   ARROW_CONNECT_POINT_RADIUS,
 } from "../../constants";
+import useUploadResource from "@/hooks/useUploadResource";
+import { selectFile, readTextFile, getFileBaseName } from "@/commands";
+import { normalizeWebviewUrl } from "@/utils";
 
 import styles from "./index.module.less";
 
@@ -62,6 +70,9 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
   const [tempUrl, setTempUrl] = useState(url);
   const webviewRef = useRef<WebviewRef>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { message } = App.useApp();
+  const uploadResource = useUploadResource();
+  const [localUploadLoading, setLocalUploadLoading] = useState(false);
 
   const board = useBoard();
   const { isSelected } = useSelectState(id);
@@ -139,6 +150,12 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
 
   const saveUrl = useMemoizedFn(() => {
     if (tempUrl !== url) {
+      const normalizedUrl = normalizeWebviewUrl(tempUrl);
+      if (!normalizedUrl) {
+        message.error("请输入有效的网页地址");
+        setTempUrl(url);
+        return;
+      }
       const path = board.children.findIndex((item) => item.id === id);
       if (path !== -1) {
         board.apply({
@@ -147,10 +164,61 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
           properties: element,
           newProperties: {
             ...element,
-            url: tempUrl,
+            url: normalizedUrl,
           },
         });
+        setTempUrl(normalizedUrl);
       }
+    }
+  });
+
+  const handleSelectLocalHtml = useMemoizedFn(async () => {
+    if (!uploadResource) {
+      message.error("当前环境未配置上传能力");
+      return;
+    }
+    const filePaths = await selectFile({
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "HTML",
+          extensions: ["html", "htm"],
+        },
+      ],
+    });
+    if (!filePaths || filePaths.length === 0) return;
+    const filePath = filePaths[0];
+    try {
+      setLocalUploadLoading(true);
+      const fileName = await getFileBaseName(filePath);
+      const fileContent = await readTextFile(filePath);
+      const htmlFile = new File([fileContent], fileName, {
+        type: "text/html",
+      });
+      const uploadedUrl = await uploadResource(htmlFile);
+      if (!uploadedUrl) {
+        message.error("上传 HTML 文件失败");
+        return;
+      }
+      const path = board.children.findIndex((item) => item.id === id);
+      if (path !== -1) {
+        board.apply({
+          type: "set_node",
+          path: [path],
+          properties: element,
+          newProperties: {
+            ...element,
+            url: uploadedUrl,
+          },
+        });
+        setTempUrl(uploadedUrl);
+        message.success("HTML 文件已添加");
+      }
+    } catch (error) {
+      console.error(error);
+      message.error("选择 HTML 文件失败");
+    } finally {
+      setLocalUploadLoading(false);
     }
   });
 
@@ -235,6 +303,13 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
                       label: "编辑地址",
                       onClick: () => handleUrlEdit(),
                       icon: <EditOutlined />,
+                    },
+                    {
+                      key: "selectLocal",
+                      label: localUploadLoading ? "上传中..." : "选择本地 HTML",
+                      onClick: handleSelectLocalHtml,
+                      icon: <UploadOutlined />,
+                      disabled: localUploadLoading,
                     },
                     {
                       key: "refresh",
