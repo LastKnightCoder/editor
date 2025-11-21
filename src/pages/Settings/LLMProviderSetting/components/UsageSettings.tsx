@@ -18,6 +18,7 @@ const UsageSettings = () => {
     aiContinueWrite: "AI续写",
     webClip: "网页剪藏",
     podcastGeneration: "播客生成",
+    contentPolish: "内容润色",
   } as const;
 
   const handleProviderChange = (
