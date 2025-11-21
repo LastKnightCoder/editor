@@ -1,5 +1,5 @@
-import { InsertNodeOperation } from "slate";
-import { BoardElement, Board, Operation, RemoveNodeOperation } from "../types";
+import { InsertNodeOperation, Path as SlatePath } from "slate";
+import { BoardElement, Board, Operation } from "../types";
 import BoardUtil from "./BoardUtil.ts";
 
 export type Path = number[];
@@ -78,244 +78,134 @@ export class PathUtil {
     operation: Operation,
     targetOpType?: string,
   ): Path | null {
-    // 只有特定类型的操作才有 path 属性
+    if (!path) {
+      return null;
+    }
+
+    if (path.length === 0) {
+      return [...path];
+    }
+
     if (
       operation.type !== "insert_node" &&
       operation.type !== "remove_node" &&
-      operation.type !== "move_node" &&
-      operation.type !== "set_node"
+      operation.type !== "move_node"
     ) {
-      return path;
+      return [...path];
     }
 
+    const currentPath = [...path];
     const opPath = operation.path;
 
-    // 如果目标路径为空，不受任何操作影响
-    if (path.length === 0) {
-      return path;
-    }
-
-    // 如果操作路径为空，也不应该影响任何路径
-    if (opPath.length === 0) {
-      return path;
-    }
-
-    // 设置操作不影响路径结构
-    if (operation.type === "set_node") {
-      return path;
-    }
-
-    // 删除操作的祖先路径检查
-    if (operation.type === "remove_node") {
-      // 检查操作路径是否是目标路径的祖先
-      if (this.isAncestorPath(opPath, path)) {
-        // 祖先被删除，目标路径无效
-        return null;
+    switch (operation.type) {
+      case "insert_node": {
+        if (
+          SlatePath.equals(opPath, currentPath) ||
+          SlatePath.endsBefore(opPath, currentPath) ||
+          SlatePath.isAncestor(opPath, currentPath)
+        ) {
+          this.adjustPathIndex(currentPath, opPath.length - 1, 1);
+        }
+        return currentPath;
       }
-    }
 
-    // Move操作的特殊处理
-    if (operation.type === "move_node" && operation.newPath) {
-      // 检查源路径和目标路径是否都与当前路径同级
-      if (
-        this.areSiblingPaths(path, opPath) &&
-        this.areSiblingPaths(path, operation.newPath)
-      ) {
-        // 同级原子性Move操作
-        const newPath = [...path];
-        const lastIndex = path.length - 1;
-        const sourceIndex = opPath[lastIndex];
-        const targetIndex = operation.newPath[lastIndex];
-        const currentIndex = path[lastIndex];
-
-        // 被移动的元素本身：应该返回目标位置
-        if (currentIndex === sourceIndex) {
-          return operation.newPath.slice(); // 返回目标位置
+      case "remove_node": {
+        if (SlatePath.equals(opPath, currentPath)) {
+          return targetOpType === "insert_node" ? currentPath : null;
         }
 
-        // 同位置移动，无影响
-        if (sourceIndex === targetIndex) {
-          return newPath;
-        }
-
-        if (sourceIndex < targetIndex) {
-          // 向后移动：(source, target] 区间的元素向前移动一位
-          if (currentIndex > sourceIndex && currentIndex <= targetIndex) {
-            newPath[lastIndex] = currentIndex - 1;
-          }
-        } else if (sourceIndex > targetIndex) {
-          // 向前移动：只有 [target, source) 区间的元素受影响
-          if (currentIndex >= targetIndex && currentIndex < sourceIndex) {
-            newPath[lastIndex] = currentIndex + 1;
-          }
-          // 注意：向前移动时，source之后的元素（currentIndex > sourceIndex）不受影响
-          // 因为元素是先删除再插入，删除和插入发生在source之前
-        }
-
-        return newPath;
-      }
-      // 如果不是同级的Move操作，继续到下面的跨级处理逻辑
-    }
-
-    // 检查是否为同级操作（非Move）
-    if (this.areSiblingPaths(path, opPath)) {
-      // 同级操作：直接影响索引
-      const newPath = [...path];
-      const lastIndex = path.length - 1;
-
-      if (operation.type === "insert_node") {
-        // 插入操作：如果目标路径索引 >= 插入位置，索引+1
-        if (path[lastIndex] >= opPath[lastIndex]) {
-          newPath[lastIndex] = path[lastIndex] + 1;
-        }
-        return newPath;
-      } else if (operation.type === "remove_node") {
-        // 删除操作
-        if (path[lastIndex] === opPath[lastIndex]) {
-          // 特殊情况：如果目标是插入操作且路径相同，删除不影响插入
-          if (targetOpType === "insert_node") {
-            return path; // 保持原路径不变
-          }
-          // 被删除的元素本身
+        if (SlatePath.isAncestor(opPath, currentPath)) {
           return null;
-        } else if (path[lastIndex] > opPath[lastIndex]) {
-          // 位置在删除元素之后，索引-1
-          newPath[lastIndex] = path[lastIndex] - 1;
         }
-        return newPath;
+
+        if (SlatePath.endsBefore(opPath, currentPath)) {
+          this.adjustPathIndex(currentPath, opPath.length - 1, -1);
+          return currentPath;
+        }
+
+        return currentPath;
       }
+
+      case "move_node": {
+        const moveOp = operation as Extract<Operation, { type: "move_node" }>;
+        return (
+          this.transformPathByMove(currentPath, moveOp.path, moveOp.newPath) ??
+          currentPath
+        );
+      }
+
+      default:
+        return currentPath;
     }
-
-    // 检查是否有公共父路径的影响（不同层级的影响）
-    const commonPrefixLength = this.getCommonPrefixLength(path, opPath);
-
-    if (commonPrefixLength >= 0) {
-      const newPath = [...path];
-
-      // 影响规则：
-      // 1. 如果路径完全一致到某个深度，那么在分歧的深度检查影响
-      // 2. 如果操作路径较短（上层操作），影响目标路径在对应层级的索引
-
-      let affectedDepth = commonPrefixLength;
-
-      // 处理上层操作影响下层的情况
-      if (commonPrefixLength === opPath.length && path.length > opPath.length) {
-        // 操作路径是目标路径的前缀，上层操作影响下层
-        affectedDepth = opPath.length;
-      }
-
-      if (operation.type === "insert_node") {
-        // 插入操作：检查影响
-        if (
-          path.length > affectedDepth &&
-          path[affectedDepth] >= opPath[affectedDepth]
-        ) {
-          newPath[affectedDepth] = path[affectedDepth] + 1;
-          return newPath;
-        }
-      } else if (operation.type === "remove_node") {
-        // 删除操作：检查影响
-        if (
-          path.length > affectedDepth &&
-          path[affectedDepth] === opPath[affectedDepth] &&
-          this.pathsEqual(path, opPath)
-        ) {
-          // 特殊情况：如果目标是插入操作且完整路径相同，删除不影响插入
-          if (targetOpType === "insert_node") {
-            return path; // 保持原路径不变
-          }
-          return null; // 路径被删除
-        } else if (
-          path.length > affectedDepth &&
-          path[affectedDepth] > opPath[affectedDepth]
-        ) {
-          newPath[affectedDepth] = path[affectedDepth] - 1;
-          return newPath;
-        }
-      } else if (operation.type === "move_node" && operation.newPath) {
-        // Move操作的跨级影响：分别处理删除和插入影响
-        // 首先检查是否是被移动的元素本身
-        if (this.pathsEqual(path, opPath)) {
-          return operation.newPath.slice(); // 返回目标位置
-        }
-
-        // 关键修复：检查是否是被移动元素的子路径（祖先路径重构）
-        if (this.isAncestorPath(opPath, path)) {
-          // 路径是被移动元素的子路径，需要重构祖先部分
-          const relativePath = path.slice(opPath.length); // 提取相对路径
-          const newPath = [...operation.newPath, ...relativePath]; // 重构：新祖先 + 相对路径
-          return newPath;
-        }
-
-        // 检查是否受源路径删除影响（仅同级）
-        if (this.areSiblingPaths(path, opPath)) {
-          const lastIndex = path.length - 1;
-          if (path[lastIndex] > opPath[lastIndex]) {
-            newPath[lastIndex] = path[lastIndex] - 1;
-            return newPath;
-          }
-        }
-
-        // 检查是否受目标路径插入影响（仅同级）
-        if (this.areSiblingPaths(path, operation.newPath)) {
-          const lastIndex = path.length - 1;
-          if (path[lastIndex] >= operation.newPath[lastIndex]) {
-            newPath[lastIndex] = path[lastIndex] + 1;
-            return newPath;
-          }
-        }
-      }
-    }
-
-    // 其他情况下，路径不受影响
-    return path;
   }
 
-  /**
-   * 获取两个路径的公共前缀长度
-   */
-  private static getCommonPrefixLength(path1: Path, path2: Path): number {
-    const minLength = Math.min(path1.length, path2.length);
-    let commonLength = 0;
+  private static transformPathByMove(
+    path: Path,
+    from: Path,
+    to: Path,
+  ): Path | null {
+    const current = [...path];
 
-    for (let i = 0; i < minLength; i++) {
-      if (path1[i] === path2[i]) {
-        commonLength++;
+    if (SlatePath.equals(from, to)) {
+      return current;
+    }
+
+    if (
+      SlatePath.equals(from, current) ||
+      SlatePath.isAncestor(from, current)
+    ) {
+      const copy = [...to];
+
+      if (SlatePath.endsBefore(from, to) && from.length < to.length) {
+        this.adjustPathIndex(copy, from.length - 1, -1);
+      }
+
+      return copy.concat(current.slice(from.length));
+    }
+
+    if (
+      SlatePath.isSibling(from, to) &&
+      (SlatePath.isAncestor(to, current) || SlatePath.equals(to, current))
+    ) {
+      if (SlatePath.endsBefore(from, current)) {
+        this.adjustPathIndex(current, from.length - 1, -1);
       } else {
-        break;
+        this.adjustPathIndex(current, from.length - 1, 1);
       }
+      return current;
     }
 
-    return commonLength;
+    if (
+      SlatePath.endsBefore(to, current) ||
+      SlatePath.equals(to, current) ||
+      SlatePath.isAncestor(to, current)
+    ) {
+      if (SlatePath.endsBefore(from, current)) {
+        this.adjustPathIndex(current, from.length - 1, -1);
+      }
+      this.adjustPathIndex(current, to.length - 1, 1);
+      return current;
+    }
+
+    if (SlatePath.endsBefore(from, current)) {
+      if (SlatePath.equals(to, current)) {
+        this.adjustPathIndex(current, to.length - 1, 1);
+      }
+      this.adjustPathIndex(current, from.length - 1, -1);
+      return current;
+    }
+
+    return current;
   }
 
-  /**
-   * 判断两个路径是否为兄弟节点（在同一父级下）
-   */
-  private static areSiblingPaths(path1: Path, path2: Path): boolean {
-    // 空路径不能是兄弟节点
-    if (path1.length === 0 || path2.length === 0) {
-      return false;
+  private static adjustPathIndex(
+    path: Path,
+    depth: number,
+    delta: number,
+  ): void {
+    if (depth >= 0 && depth < path.length) {
+      path[depth] += delta;
     }
-
-    // 如果路径长度不同，不可能是兄弟节点
-    if (path1.length !== path2.length) {
-      return false;
-    }
-
-    // 根级路径（长度为1）都是兄弟节点，因为它们的父节点都是根节点
-    if (path1.length === 1) {
-      return true;
-    }
-
-    // 除了最后一个索引外，其他部分必须完全相同
-    for (let i = 0; i < path1.length - 1; i++) {
-      if (path1[i] !== path2[i]) {
-        return false;
-      }
-    }
-
-    return true;
   }
 
   /**
@@ -391,7 +281,10 @@ export class PathUtil {
    *
    * 性能优化：使用Set和Map加速路径查找和比较
    */
-  static filterValidOperations(operations: Operation[]): Operation[] {
+  static filterValidOperations(
+    operations: Operation[],
+    skipValidation?: (operation: Operation) => boolean,
+  ): Operation[] {
     // 第一步：预先收集所有删除和插入操作的路径
     const allDeletedPaths: Path[] = [];
     const allInsertedPaths: Path[] = [];
@@ -429,6 +322,10 @@ export class PathUtil {
     // 第四步：根据过滤后的删除路径过滤其他操作，考虑操作顺序
     for (let i = 0; i < operations.length; i++) {
       const op = operations[i];
+      if (skipValidation?.(op)) {
+        validOps.push(op);
+        continue;
+      }
       let isValid = true;
 
       if (op.type === "remove_node") {
@@ -532,16 +429,7 @@ export class PathUtil {
       return a.originalIndex - b.originalIndex;
     });
 
-    // 删除操作的顺序和 insert 相反
-    removeOps.sort((a, b) => {
-      const pathA = (a.op as RemoveNodeOperation).path;
-      const pathB = (b.op as RemoveNodeOperation).path;
-      if (pathA.length !== pathB.length) {
-        return pathB.length - pathA.length;
-      }
-      // 如果长度相同，那么小的在前面
-      return b.originalIndex - a.originalIndex;
-    });
+    // 删除操作保持原始顺序，让 PathRef 自动调整
 
     // 重新合并操作，插入和删除操作按新顺序，其他操作保持原位置
     const result: Operation[] = [];

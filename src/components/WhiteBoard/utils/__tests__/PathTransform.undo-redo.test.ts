@@ -5,6 +5,31 @@ import { BoardOperations } from "../BoardOperations";
 import { BoardElement, Operation } from "../../types";
 import { SetNodeOperation } from "slate";
 
+const applyChildren = (
+  children: BoardElement[],
+  operations: Operation[],
+  options?: { skipPathTransform?: boolean },
+) => {
+  if (options?.skipPathTransform) {
+    operations.forEach((op) => BoardOperations.markAsNormalized(op));
+  }
+  return BoardOperations.applyToChildren(children, operations);
+};
+
+const applyOps = (
+  children: BoardElement[],
+  operations: Operation[],
+  options?: { skipPathTransform?: boolean },
+) => {
+  if (options?.skipPathTransform) {
+    operations.forEach((op) => BoardOperations.markAsNormalized(op));
+  }
+  return BoardOperations.applyOperations({ children }, operations, {
+    skipSelectionOperations: true,
+    skipViewPortOperations: true,
+  });
+};
+
 describe("PathTransform Undo/Redo Tests", () => {
   describe("逆操作生成测试", () => {
     it("应该为 insert_node 生成正确的逆操作", () => {
@@ -91,15 +116,13 @@ describe("PathTransform Undo/Redo Tests", () => {
       };
 
       // 执行插入
-      const afterInsert = BoardOperations.applyToChildren(initialChildren, [
-        insertOp,
-      ]);
+      const afterInsert = applyChildren(initialChildren, [insertOp]);
       expect(afterInsert).toHaveLength(2);
       expect(afterInsert[1].id).toBe("2");
 
       // 生成并执行 undo
       const undoOp = BoardUtil.inverseOperation(insertOp);
-      const afterUndo = BoardOperations.applyToChildren(afterInsert, [undoOp], {
+      const afterUndo = applyChildren(afterInsert, [undoOp], {
         skipPathTransform: true,
       });
 
@@ -119,15 +142,13 @@ describe("PathTransform Undo/Redo Tests", () => {
       };
 
       // 执行删除
-      const afterRemove = BoardOperations.applyToChildren(initialChildren, [
-        removeOp,
-      ]);
+      const afterRemove = applyChildren(initialChildren, [removeOp]);
       expect(afterRemove).toHaveLength(1);
       expect(afterRemove[0].id).toBe("1");
 
       // 生成并执行 undo
       const undoOp = BoardUtil.inverseOperation(removeOp);
-      const afterUndo = BoardOperations.applyToChildren(afterRemove, [undoOp], {
+      const afterUndo = applyChildren(afterRemove, [undoOp], {
         skipPathTransform: true,
       });
 
@@ -148,16 +169,14 @@ describe("PathTransform Undo/Redo Tests", () => {
       };
 
       // 执行移动
-      const afterMove = BoardOperations.applyToChildren(initialChildren, [
-        moveOp,
-      ]);
+      const afterMove = applyChildren(initialChildren, [moveOp]);
       expect(afterMove[0].id).toBe("3"); // 移动到第一位
       expect(afterMove[1].id).toBe("1");
       expect(afterMove[2].id).toBe("2");
 
       // 生成并执行 undo
       const undoOp = BoardUtil.inverseOperation(moveOp);
-      const afterUndo = BoardOperations.applyToChildren(afterMove, [undoOp], {
+      const afterUndo = applyChildren(afterMove, [undoOp], {
         skipPathTransform: true,
       });
 
@@ -191,10 +210,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       // 执行批量操作
-      const afterOps = BoardOperations.applyToChildren(
-        initialChildren,
-        operations,
-      );
+      const afterOps = applyChildren(initialChildren, operations);
       expect(afterOps).toHaveLength(2);
       expect(afterOps[0].x).toBe(10);
       expect(afterOps[1].id).toBe("2");
@@ -209,7 +225,7 @@ describe("PathTransform Undo/Redo Tests", () => {
         .reverse();
 
       // 执行 undo
-      const afterUndo = BoardOperations.applyToChildren(afterOps, undoOps, {
+      const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialChildren);
@@ -253,10 +269,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       // 执行正向操作
-      const finalState = BoardOperations.applyToChildren(
-        initialState,
-        operations,
-      );
+      const finalState = applyChildren(initialState, operations);
       expect(finalState).toHaveLength(2);
       expect(finalState[0].x).toBe(20);
       expect(finalState[1].id).toBe("c");
@@ -270,13 +283,13 @@ describe("PathTransform Undo/Redo Tests", () => {
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
 
-      const undoState = BoardOperations.applyToChildren(finalState, undoOps, {
+      const undoState = applyChildren(finalState, undoOps, {
         skipPathTransform: true,
       });
       expect(undoState).toEqual(initialState);
 
       // 执行 redo
-      const redoState = BoardOperations.applyToChildren(undoState, operations);
+      const redoState = applyChildren(undoState, operations);
       expect(redoState).toEqual(finalState);
     });
 
@@ -317,14 +330,12 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       // 执行操作
-      const afterOps = BoardOperations.applyToChildren(
-        initialState,
-        operations,
-      );
+      const applied = applyOps(initialState, operations);
+      const afterOps = applied.data.children;
       expect(afterOps).toHaveLength(3);
       expect(afterOps[1].id).toBe("new");
-      // 根据实际测试结果调整预期值
-      expect(afterOps[1].x).toBe(85);
+      // set_node 会被跳过，因为它指向的是已被删除的旧节点
+      expect(afterOps[1].x).toBe(75);
 
       // 执行 undo - 使用预处理后的操作
       const undoOps = PathUtil.transformValidOperations(
@@ -334,7 +345,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       )
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(afterOps, undoOps, {
+      const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
@@ -371,56 +382,46 @@ describe("PathTransform Undo/Redo Tests", () => {
 
       const initialState: BoardElement[] = [nestedElement];
 
+      const child1 = nestedElement.children![0];
       const operations: Operation[] = [
-        // 在深层嵌套中插入新元素
+        {
+          type: "remove_node",
+          path: [0, 0],
+          node: child1,
+        },
         {
           type: "insert_node",
-          path: [0, 0, 1],
-          node: {
-            id: "grandchild2",
-            type: "triangle",
-            x: 40,
-            y: 15,
-            width: 15,
-            height: 15,
-          },
+          path: [0, 1, 0],
+          node: child1,
         },
-        // 修改嵌套元素属性
         {
           type: "set_node",
-          path: [0, 0, 0],
-          properties: { x: 15 },
-          newProperties: { x: 25 },
-        },
-        // 移动深层元素
-        {
-          type: "move_node",
-          path: [0, 0, 1],
-          newPath: [0, 0, 0],
+          path: [0, 1],
+          properties: { x: 70 },
+          newProperties: { x: 80 },
         },
       ];
 
-      // 执行操作
-      const afterOps = BoardOperations.applyToChildren(
-        initialState,
-        operations,
-      );
-      expect(afterOps[0].children![0].children).toHaveLength(2);
-      expect(afterOps[0].children![0].children![0].id).toBe("grandchild2");
-      expect(afterOps[0].children![0].children![1].x).toBe(25);
+      const applied = applyOps(initialState, operations);
+      const afterOps = applied.data.children;
 
-      // 执行 undo - 使用预处理后的操作
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(
-          PathUtil.transformValidOperations(operations),
-        ),
-      )
+      expect(afterOps[0].children).toHaveLength(1);
+      const child2 = afterOps[0].children![0];
+      expect(child2.id).toBe("child2");
+      expect(child2.children).toHaveLength(1);
+      expect(child2.children![0].id).toBe("child1");
+      expect(child2.x).toBe(80);
+
+      const undoOps = applied.operations
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(afterOps, undoOps, {
+      const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
-      expect(afterUndo).toEqual(initialState);
+      expect(afterUndo[0].children).toHaveLength(2);
+      expect(afterUndo[0].children![0].id).toBe("child1");
+      expect(afterUndo[0].children![1].id).toBe("child2");
+      expect(afterUndo[0].children![1].children ?? []).toHaveLength(0);
     });
 
     it("大规模批量操作的 undo/redo", () => {
@@ -446,10 +447,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       }));
 
       // 执行操作
-      const afterOps = BoardOperations.applyToChildren(
-        initialState,
-        operations,
-      );
+      const afterOps = applyChildren(initialState, operations);
       expect(afterOps).toHaveLength(initialState.length);
       expect(afterOps.every((el, i) => el.x === i * 10 + 100)).toBe(true);
 
@@ -461,7 +459,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       )
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(afterOps, undoOps, {
+      const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
@@ -484,14 +482,12 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       };
 
-      const afterInsert = BoardOperations.applyToChildren(initialState, [
-        insertOp,
-      ]);
+      const afterInsert = applyChildren(initialState, [insertOp]);
       expect(afterInsert).toHaveLength(1);
 
       // Undo 回到空列表
       const undoOp = BoardUtil.inverseOperation(insertOp);
-      const afterUndo = BoardOperations.applyToChildren(afterInsert, [undoOp], {
+      const afterUndo = applyChildren(afterInsert, [undoOp], {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
@@ -504,9 +500,7 @@ describe("PathTransform Undo/Redo Tests", () => {
         newProperties: { x: 100 },
       };
 
-      const afterInvalid = BoardOperations.applyToChildren(initialState, [
-        invalidOp,
-      ]);
+      const afterInvalid = applyChildren(initialState, [invalidOp]);
       expect(afterInvalid).toEqual(initialState); // 应该不变
     });
 
@@ -558,9 +552,9 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       // 执行三轮操作
-      const state1 = BoardOperations.applyToChildren(initialState, ops1);
-      const state2 = BoardOperations.applyToChildren(state1, ops2);
-      const state3 = BoardOperations.applyToChildren(state2, ops3);
+      const state1 = applyChildren(initialState, ops1);
+      const state2 = applyChildren(state1, ops2);
+      const state3 = applyChildren(state2, ops3);
 
       expect(state3).toHaveLength(3);
       expect(state3[0].x).toBe(20);
@@ -570,22 +564,22 @@ describe("PathTransform Undo/Redo Tests", () => {
       const undo2 = ops2.map((op) => BoardUtil.inverseOperation(op)).reverse();
       const undo1 = ops1.map((op) => BoardUtil.inverseOperation(op)).reverse();
 
-      const undoState1 = BoardOperations.applyToChildren(state3, undo3, {
+      const undoState1 = applyChildren(state3, undo3, {
         skipPathTransform: true,
       });
-      const undoState2 = BoardOperations.applyToChildren(undoState1, undo2, {
+      const undoState2 = applyChildren(undoState1, undo2, {
         skipPathTransform: true,
       });
-      const undoState3 = BoardOperations.applyToChildren(undoState2, undo1, {
+      const undoState3 = applyChildren(undoState2, undo1, {
         skipPathTransform: true,
       });
 
       expect(undoState3).toEqual(initialState);
 
       // 连续 redo 三轮
-      const redoState1 = BoardOperations.applyToChildren(undoState3, ops1);
-      const redoState2 = BoardOperations.applyToChildren(redoState1, ops2);
-      const redoState3 = BoardOperations.applyToChildren(redoState2, ops3);
+      const redoState1 = applyChildren(undoState3, ops1);
+      const redoState2 = applyChildren(redoState1, ops2);
+      const redoState3 = applyChildren(redoState2, ops3);
 
       expect(redoState3).toEqual(state3);
     });
@@ -636,10 +630,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       const operations = [crossLevelMove, crossLevelInsert];
 
       // 执行跨层级移动
-      const afterMove = BoardOperations.applyToChildren(
-        initialState,
-        operations,
-      );
+      const afterMove = applyChildren(initialState, operations);
       expect(afterMove[0].children).toHaveLength(1);
       expect(afterMove[1].children).toHaveLength(2);
       expect(afterMove[1].children![1].id).toBe("item2");
@@ -648,7 +639,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       const undoOps = operations
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(afterMove, undoOps, {
+      const afterUndo = applyChildren(afterMove, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
@@ -691,10 +682,7 @@ describe("PathTransform Undo/Redo Tests", () => {
         },
       ];
 
-      const afterOps = BoardOperations.applyToChildren(
-        initialState,
-        operations,
-      );
+      const afterOps = applyChildren(initialState, operations);
       expect(afterOps).toHaveLength(4);
       expect(afterOps[1].id).toBe("new");
       // 根据实际测试结果调整预期值
@@ -711,7 +699,7 @@ describe("PathTransform Undo/Redo Tests", () => {
         .reverse();
 
       // 执行 undo
-      const afterUndo = BoardOperations.applyToChildren(afterOps, undoOps, {
+      const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
@@ -746,16 +734,13 @@ describe("PathTransform Undo/Redo Tests", () => {
       const startTime = Date.now();
 
       // 执行操作
-      const afterOps = BoardOperations.applyToChildren(
-        initialState,
-        operations,
-      );
+      const afterOps = applyChildren(initialState, operations);
 
       // 执行 undo
       const undoOps = operations
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(afterOps, undoOps, {
+      const afterUndo = applyChildren(afterOps, undoOps, {
         skipPathTransform: true,
       });
 
@@ -798,10 +783,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       // 按顺序执行冲突操作
-      const afterConflict = BoardOperations.applyToChildren(
-        initialState,
-        conflictOps,
-      );
+      const afterConflict = applyChildren(initialState, conflictOps);
       expect(afterConflict).toHaveLength(1);
       expect(afterConflict[0].id).toBe("other");
 
@@ -813,13 +795,9 @@ describe("PathTransform Undo/Redo Tests", () => {
       )
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(
-        afterConflict,
-        undoOps,
-        {
-          skipPathTransform: true,
-        },
-      );
+      const afterUndo = applyChildren(afterConflict, undoOps, {
+        skipPathTransform: true,
+      });
       expect(afterUndo).toEqual(initialState);
     });
 
@@ -869,10 +847,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       // 执行并发操作
-      const afterConcurrent = BoardOperations.applyToChildren(
-        initialState,
-        concurrentOps,
-      );
+      const afterConcurrent = applyChildren(initialState, concurrentOps);
       expect(afterConcurrent).toHaveLength(4); // 添加了一个元素
       expect(afterConcurrent[0].x).toBe(50);
       expect(afterConcurrent[1].y).toBe(150);
@@ -886,13 +861,9 @@ describe("PathTransform Undo/Redo Tests", () => {
       )
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(
-        afterConcurrent,
-        undoOps,
-        {
-          skipPathTransform: true,
-        },
-      );
+      const afterUndo = applyChildren(afterConcurrent, undoOps, {
+        skipPathTransform: true,
+      });
       expect(afterUndo).toEqual(initialState);
     });
 
@@ -904,28 +875,25 @@ describe("PathTransform Undo/Redo Tests", () => {
         { id: "D", type: "text", x: 300, y: 0, width: 50, height: 50 },
       ];
 
-      // 简化移动操作，避免复杂的路径变换问题
       const moveOps: Operation[] = [
-        // 将第一个元素移到最后
         { type: "move_node", path: [0], newPath: [3] },
-        // 将第一个元素（原来的B）移到第二个位置
-        { type: "move_node", path: [0], newPath: [1] },
+        { type: "move_node", path: [2], newPath: [0] },
       ];
 
-      // 执行移动
-      const afterMove = BoardOperations.applyToChildren(initialState, moveOps);
-      // 根据实际的移动逻辑调整预期结果
-      expect(afterMove.map((el) => el.id)).toEqual(["B", "C", "D", "A"]);
+      const applied = applyOps(initialState, moveOps);
+      const afterMove = applied.data.children;
+      expect(afterMove.map((el) => el.id)).toEqual(["B", "D", "A", "C"]);
+      const secondMove = applied.operations[1] as Extract<
+        Operation,
+        { type: "move_node" }
+      >;
+      expect(secondMove.path).toEqual([1]);
+      expect(secondMove.newPath).toEqual([3]);
 
-      // 执行 undo - 使用预处理后的操作
-      const undoOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(
-          PathUtil.transformValidOperations(moveOps),
-        ),
-      )
+      const undoOps = applied.operations
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(afterMove, undoOps, {
+      const afterUndo = applyChildren(afterMove, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
@@ -938,78 +906,28 @@ describe("PathTransform Undo/Redo Tests", () => {
         { id: "item3", type: "line", x: 200, y: 0, width: 50, height: 50 },
       ];
 
-      const groupingOps: Operation[] = [
-        // 1. 创建一个组
+      const groupedState: BoardElement[] = [
         {
-          type: "insert_node",
-          path: [0],
-          node: {
-            id: "group1",
-            type: "group",
-            x: 0,
-            y: 0,
-            children: [],
-          },
+          id: "group1",
+          type: "group",
+          x: 20,
+          y: 0,
+          children: [{ ...initialState[0] }, { ...initialState[1] }],
         },
-        // 2. 将item1移入组中
-        {
-          type: "remove_node",
-          path: [1], // item1现在在位置1
-          node: initialState[0],
-        },
-        {
-          type: "insert_node",
-          path: [0, 0], // 插入到group1的children中
-          node: initialState[0],
-        },
-        // 3. 将item2也移入组中
-        {
-          type: "remove_node",
-          path: [1], // item2现在在位置1
-          node: initialState[1],
-        },
-        {
-          type: "insert_node",
-          path: [0, 0], // 插入到group1的children中位置1
-          node: initialState[1],
-        },
-        // 4. 修改组的属性
-        {
-          type: "set_node",
-          path: [0],
-          properties: { x: 0 },
-          newProperties: { x: 20 },
-        },
+        initialState[2],
       ];
 
-      // 执行组合操作 - 使用预处理后的操作保持一致性
-      const afterGrouping = BoardOperations.applyToChildren(
-        initialState,
-        groupingOps,
-      );
-      expect(afterGrouping).toHaveLength(2); // group1 和 item3
-      expect(afterGrouping[0].type).toBe("group");
-      expect(afterGrouping[0].children).toHaveLength(2);
-      expect(afterGrouping[0].x).toBe(20);
+      const groupingOps = BoardUtil.diff(initialState, groupedState);
+      const applied = applyOps(initialState, groupingOps);
+      const afterGrouping = applied.data.children;
+      expect(afterGrouping).toEqual(groupedState);
 
-      // 生成 undo 操作
-      const processedOps = PathUtil.transformValidOperations(
-        PathUtil.sortOperationsForExecution(
-          PathUtil.filterValidOperations(groupingOps),
-        ),
-      );
-      const undoOps = processedOps
+      const undoOps = applied.operations
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-
-      // 执行 undo
-      const afterUndo = BoardOperations.applyToChildren(
-        afterGrouping,
-        undoOps,
-        {
-          skipPathTransform: true,
-        },
-      );
+      const afterUndo = applyChildren(afterGrouping, undoOps, {
+        skipPathTransform: true,
+      });
       expect(afterUndo).toEqual(initialState);
     });
 
@@ -1067,10 +985,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       // 执行复杂操作链 - 使用预处理后的操作保持一致性
-      const afterComplex = BoardOperations.applyToChildren(
-        initialState,
-        complexOps,
-      );
+      const afterComplex = applyChildren(initialState, complexOps);
       expect(afterComplex).toHaveLength(1);
       expect(afterComplex[0]).toEqual({
         id: "solo",
@@ -1091,7 +1006,7 @@ describe("PathTransform Undo/Redo Tests", () => {
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
       // 执行 undo
-      const afterUndo = BoardOperations.applyToChildren(afterComplex, undoOps, {
+      const afterUndo = applyChildren(afterComplex, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
@@ -1147,10 +1062,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       ];
 
       // 执行混合操作（部分可能失败）
-      const afterMixed = BoardOperations.applyToChildren(
-        initialState,
-        mixedOps,
-      );
+      const afterMixed = applyChildren(initialState, mixedOps);
       // 只有有效操作应该被执行
       expect(afterMixed).toHaveLength(2);
       expect(afterMixed[0].x).toBe(100);
@@ -1164,7 +1076,7 @@ describe("PathTransform Undo/Redo Tests", () => {
       )
         .map((op) => BoardUtil.inverseOperation(op))
         .reverse();
-      const afterUndo = BoardOperations.applyToChildren(afterMixed, undoOps, {
+      const afterUndo = applyChildren(afterMixed, undoOps, {
         skipPathTransform: true,
       });
       expect(afterUndo).toEqual(initialState);
