@@ -1,7 +1,7 @@
 import React, { memo, useState, useRef, useEffect } from "react";
 import {
   RenderElementProps,
-  useSlate,
+  useSlateStatic,
   useReadOnly,
   ReactEditor,
 } from "slate-react";
@@ -37,7 +37,7 @@ const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
 const InlineImageComponent: React.FC<InlineImageProps> = memo((props) => {
   const { attributes, children, element } = props;
   const { url, alt, uuid, width, height } = element;
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const uploadResource = useUploadResource();
   const imageRef = useRef<HTMLImageElement>(null);

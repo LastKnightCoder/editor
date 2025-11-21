@@ -4,7 +4,7 @@ import React, { PropsWithChildren } from "react";
 import styles from "./index.module.less";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
 import { Transforms } from "slate";
-import { ReactEditor, useSlate } from "slate-react";
+import { ReactEditor, useSlateStatic } from "slate-react";
 
 interface HTMLBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -14,7 +14,7 @@ interface HTMLBlockProps {
 const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = (props) => {
   const { attributes, children, element } = props;
   const { html } = element;
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const handleOnChange = (code: string) => {
     Transforms.setNodes(

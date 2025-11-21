@@ -1,6 +1,6 @@
 import { useMemo, memo } from "react";
 import { Editor, Transforms } from "slate";
-import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
+import { ReactEditor, useSlateStatic, useSlateSelection } from "slate-react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "antd";
 import SVG from "react-inlinesvg";
@@ -13,7 +13,7 @@ import link from "@/assets/hovering_bar/link.svg";
 import styles from "./index.module.less";
 
 const LinkHoveringItem = memo(() => {
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const selection = useSlateSelection();
 
   const isActive = useMemo(() => {

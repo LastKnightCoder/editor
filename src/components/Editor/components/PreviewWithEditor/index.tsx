@@ -9,7 +9,7 @@ import { UnControlled as CodeEditor } from "react-codemirror2";
 import { Editor, EditorChange } from "codemirror";
 import classnames from "classnames";
 import { useClickAway, useDebounceFn, useMemoizedFn } from "ahooks";
-import { ReactEditor, useSlate, useReadOnly } from "slate-react";
+import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { Transforms, Path, Element, Node } from "slate";
 import isHotkey from "is-hotkey";
 import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
@@ -51,7 +51,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     const ref = useRef<HTMLDivElement>(null);
     const fullscreenRef = useRef<HTMLDivElement>(null);
     const addParagraphRef = useRef<AddParagraphRef>(null);
-    const slateEditor = useSlate();
+    const slateEditor = useSlateStatic();
     const readOnly = useReadOnly();
     const { isDark } = useTheme();
     const isLast = useIsLastElement(element);

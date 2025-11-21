@@ -2,14 +2,14 @@ import { IExtensionBaseProps } from "@editor/extensions/types.ts";
 import { AIElement } from "@editor/types/element/ai.ts";
 import { Button, Flex, Popover } from "antd";
 import { Editor, Transforms, Element } from "slate";
-import { ReactEditor, useSlate } from "slate-react";
+import { ReactEditor, useSlateStatic } from "slate-react";
 
 const AIComponent = (props: IExtensionBaseProps<AIElement>) => {
   const { element, attributes, children } = props;
 
   const isFinished = element.isFinished;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const apply = () => {
     // 将结果 unwrap

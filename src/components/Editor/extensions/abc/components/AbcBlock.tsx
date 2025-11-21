@@ -1,6 +1,6 @@
 import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
-import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import Abc from "./Abc";
 
 import { AbcElement } from "@/components/Editor/types";
@@ -14,7 +14,7 @@ interface AbcBlockProps {
 const AbcBlock: React.FC<PropsWithChildren<AbcBlockProps>> = (props) => {
   const { attributes, element, children } = props;
   const { content } = element;
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const renderEmpty = () => {
     return (

@@ -5,7 +5,7 @@ import { Transforms } from "slate";
 import {
   ReactEditor,
   RenderElementProps,
-  useSlate,
+  useSlateStatic,
   useReadOnly,
 } from "slate-react";
 import {
@@ -68,7 +68,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
 
   const [uploading, setUploading] = useState(false);
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const [isSelected, setIsSelected] = useState(false);
   const [showDescEditor, setShowDescEditor] = useState(false);

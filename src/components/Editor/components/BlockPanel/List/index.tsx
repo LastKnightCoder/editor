@@ -1,11 +1,11 @@
 import { memo } from "react";
-import { useSlate } from "slate-react";
+import { useSlateStatic } from "slate-react";
 import styles from "./index.module.less";
 import Item from "../Item";
 import useBlockPanelStore from "../../../stores/useBlockPanelStore.ts";
 
 const List = memo(() => {
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const { list, activeIndex, selectItem } = useBlockPanelStore((state) => ({
     list: state.list,
     activeIndex: state.activeIndex,

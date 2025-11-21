@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { ReactEditor, useReadOnly, useSlate } from "slate-react";
+import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
 import { Modal, App, Dropdown } from "antd";
 import { MoreOutlined } from "@ant-design/icons";
@@ -24,7 +24,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const isLast = useIsLastElement(element);
   const webviewRef = useRef<WebviewRef>(null);
   const { modal } = App.useApp();
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const [editUrlOpen, setEditUrlOpen] = useState(false);
   const [isResizing, setIsResizing] = useState(false);

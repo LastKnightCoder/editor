@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from "react";
 import { Transforms } from "slate";
 import {
   RenderElementProps,
-  useSlate,
+  useSlateStatic,
   useReadOnly,
   ReactEditor,
 } from "slate-react";
@@ -33,7 +33,7 @@ const Callout: React.FC<React.PropsWithChildren<ICalloutProps>> = (props) => {
   const { attributes, element, children } = props;
   const { calloutType, title } = element;
   const defaultTitle = DEFAULT_TITLE[calloutType];
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const [realTitle, setRealTitle] = useState<string>(title || defaultTitle);
   const titleRef = useRef<HTMLParagraphElement>(null);

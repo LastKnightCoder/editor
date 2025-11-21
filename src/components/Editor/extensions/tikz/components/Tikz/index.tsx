@@ -1,6 +1,6 @@
 import React, { PropsWithChildren, useMemo } from "react";
 import { Transforms } from "slate";
-import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 
 import { TikzElement } from "@/components/Editor/types";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
@@ -37,7 +37,7 @@ const Tikz: React.FC<PropsWithChildren<TikzProps>> = (props) => {
   const { attributes, element, children } = props;
   const { content } = element;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const renderEmpty = () => {
     return (

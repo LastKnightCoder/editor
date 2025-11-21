@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, memo } from "react";
 import { Editor, Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 
 import classnames from "classnames";
 
@@ -48,7 +48,7 @@ const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(
     const { children, attributes, element } = props;
     const { disableDrag } = element;
 
-    const editor = useSlate();
+    const editor = useSlateStatic();
 
     const path = ReactEditor.findPath(editor, element);
 

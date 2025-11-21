@@ -6,7 +6,7 @@ import {
   MdFullscreenExit,
 } from "react-icons/md";
 import { createPortal } from "react-dom";
-import { ReactEditor, useSlate } from "slate-react";
+import { ReactEditor, useSlateStatic } from "slate-react";
 import { Transforms } from "slate";
 import classnames from "classnames";
 
@@ -46,7 +46,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
   (props) => {
     const { attributes, children, element } = props;
     const readOnly = useReadOnly();
-    const editor = useSlate();
+    const editor = useSlateStatic();
     const resizeStartYRef = useRef(0);
     const startHeightRef = useRef(0);
     const whiteboardRef = useRef<HTMLDivElement>(null);

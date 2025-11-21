@@ -6,7 +6,7 @@ import {
   ReactEditor,
   RenderElementProps,
   useReadOnly,
-  useSlate,
+  useSlateStatic,
 } from "slate-react";
 
 import { UnderlineElement } from "@editor/types";
@@ -48,7 +48,7 @@ const Underline = (props: UnderlineProps) => {
   const { attributes, children, element } = props;
   const { lineType, color, colorSelectOpen } = element;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readonly = useReadOnly();
 
   const setColorSelectOpen = (open: boolean) => {

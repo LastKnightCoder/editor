@@ -1,6 +1,6 @@
 import React, { PropsWithChildren, useEffect, useState } from "react";
 import { Transforms } from "slate";
-import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 
 import { TypstElement } from "@/components/Editor/types";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
@@ -64,7 +64,7 @@ const Typst: React.FC<PropsWithChildren<TypstProps>> = (props) => {
   const { attributes, element, children } = props;
   const { content, html } = element;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const renderEmpty = () => {
     return (

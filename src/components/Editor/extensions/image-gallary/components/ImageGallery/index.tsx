@@ -4,7 +4,7 @@ import {
   ReactEditor,
   RenderElementProps,
   useReadOnly,
-  useSlate,
+  useSlateStatic,
 } from "slate-react";
 import { Modal } from "antd";
 import classnames from "classnames";
@@ -53,7 +53,7 @@ const ImageGallery = (props: IImageGalleryProps) => {
     images,
   });
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
 
   const onCancel = () => {

@@ -1,6 +1,6 @@
 import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
-import { RenderElementProps, useSlate, ReactEditor } from "slate-react";
+import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import PlantUML from "@/components/PlantUML";
 
 import { PlantUMLElement } from "@/components/Editor/types";
@@ -16,7 +16,7 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = (
 ) => {
   const { attributes, element, children } = props;
   const { content } = element;
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const renderEmpty = () => {
     return (

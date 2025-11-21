@@ -4,7 +4,7 @@ import {
   ReactEditor,
   RenderElementProps,
   useReadOnly,
-  useSlate,
+  useSlateStatic,
 } from "slate-react";
 import { Popover } from "antd";
 import { MessageOutlined } from "@ant-design/icons";
@@ -31,7 +31,7 @@ const Comment: React.FC<CommentProps> = (props) => {
   const { attributes, children, element } = props;
   const { comments, openEdit = false } = element;
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const [open, setOpen] = useState(openEdit);
   const readOnly = useReadOnly();
 

@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from "react";
-import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import classnames from "classnames";
 import LocalImage from "@/components/LocalImage";
 import useTheme from "@/hooks/useTheme";
@@ -24,7 +24,7 @@ const VideoScreenshot: React.FC<PropsWithChildren<VideoScreenshotProps>> = ({
   onSeek,
 }) => {
   const { isDark } = useTheme();
-  const editor = useSlate();
+  const editor = useSlateStatic();
 
   const { url, time, caption } = element;
 

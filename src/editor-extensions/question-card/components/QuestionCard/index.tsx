@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Transforms, Descendant } from "slate";
-import { ReactEditor, useSlate, useReadOnly } from "slate-react";
+import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classnames from "classnames";
 import { MdDragIndicator } from "react-icons/md";
@@ -41,7 +41,7 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   props,
 ) => {
   const { attributes, element, children } = props;
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const [realTitle, setRealTitle] = useState<string>(element.title);
   const titleRef = useRef<EditTextHandle>(null);
