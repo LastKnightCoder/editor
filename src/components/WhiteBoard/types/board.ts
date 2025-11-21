@@ -26,6 +26,13 @@ export interface BoardElement {
   [key: string]: any;
 }
 
+export interface ElementBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 export type EventHandler = (event: Event & any, board: Board) => void | boolean;
 export type Events =
   | "onMouseDown"
@@ -101,6 +108,10 @@ export interface IBoardPlugin {
     board: Board,
     value: { element: BoardElement & any; children?: React.ReactElement[] },
   ) => React.ReactElement;
+  getBounds?: (
+    board: Board,
+    element: BoardElement & any,
+  ) => ElementBounds | null;
 }
 
 export interface BoardTheme {

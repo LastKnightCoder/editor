@@ -174,6 +174,16 @@ export abstract class CommonPlugin implements IBoardPlugin {
     };
   }
 
+  getBounds(_board: Board, element: CommonElement & any) {
+    const { x = 0, y = 0, width = 0, height = 0 } = element;
+    return {
+      minX: x,
+      minY: y,
+      maxX: x + width,
+      maxY: y + height,
+    };
+  }
+
   isElementSelected(
     board: Board,
     element: CommonElement & any,
@@ -280,7 +290,7 @@ export abstract class CommonPlugin implements IBoardPlugin {
     const parent = BoardUtil.getParent(board, this.originResizeElement);
     if (parent && parent.type === "frame") {
       const frame = parent as FrameElement;
-      const newBounds = FrameUtil.calculateFrameBounds(frame);
+      const newBounds = FrameUtil.calculateFrameBounds(board, frame);
       const framePath = PathUtil.getPathByElement(board, frame);
       if (framePath) {
         board.apply([

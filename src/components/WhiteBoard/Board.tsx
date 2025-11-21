@@ -17,6 +17,7 @@ import {
   ECreateBoardElementType,
   PresentationSequence,
   MindNodeElement,
+  ElementBounds,
 } from "./types";
 import { isValid, executeSequence, BoardUtil, MindUtil } from "./utils";
 
@@ -175,6 +176,36 @@ class Board {
     const plugin = this.plugins.find((p) => p.name === element.type);
     if (!plugin) return;
     return plugin.moveElement?.(this, element, offsetX, offsetY);
+  }
+
+  getBounds(element: BoardElement): ElementBounds | null {
+    const plugin = this.plugins.find((p) => p.name === element.type);
+    if (plugin?.getBounds) {
+      return plugin.getBounds(this, element);
+    }
+
+    const { x, y, width, height } = element as BoardElement & {
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+    };
+
+    if (
+      typeof x === "number" &&
+      typeof y === "number" &&
+      typeof width === "number" &&
+      typeof height === "number"
+    ) {
+      return {
+        minX: x,
+        minY: y,
+        maxX: x + width,
+        maxY: y + height,
+      };
+    }
+
+    return null;
   }
 
   onMouseDown(event: MouseEvent) {

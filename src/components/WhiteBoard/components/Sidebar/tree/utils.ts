@@ -156,6 +156,7 @@ export const buildFrameResizeOp = (
   const nonFrameChildren =
     previewInfo.node.children?.filter((child) => child.type !== "frame") ?? [];
   const bounds = FrameUtil.calculateFrameBounds(
+    board,
     previewInfo.node as FrameElement,
     nonFrameChildren,
   );

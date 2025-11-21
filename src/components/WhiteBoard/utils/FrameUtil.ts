@@ -191,6 +191,7 @@ export class FrameUtil {
   }
 
   static calculateFrameBounds(
+    board: Board,
     frame: FrameElement,
     children: BoardElement[] = frame.children,
   ) {
@@ -210,11 +211,27 @@ export class FrameUtil {
     let maxY = -Infinity;
 
     children.forEach((child: BoardElement) => {
-      minX = Math.min(minX, child.x);
-      minY = Math.min(minY, child.y);
-      maxX = Math.max(maxX, child.x + (child.width || 0));
-      maxY = Math.max(maxY, child.y + (child.height || 0));
+      const bounds = board.getBounds(child);
+      if (!bounds) return;
+      minX = Math.min(minX, bounds.minX);
+      minY = Math.min(minY, bounds.minY);
+      maxX = Math.max(maxX, bounds.maxX);
+      maxY = Math.max(maxY, bounds.maxY);
     });
+
+    if (
+      minX === Infinity ||
+      minY === Infinity ||
+      maxX === -Infinity ||
+      maxY === -Infinity
+    ) {
+      return {
+        x: frame.x,
+        y: frame.y,
+        width: Math.max(frame.minWidth, frame.width),
+        height: Math.max(frame.minHeight, frame.height),
+      };
+    }
 
     // 计算需要的边界（包含 padding）
     const requiredMinX = minX - frame.padding;
@@ -241,6 +258,7 @@ export class FrameUtil {
    * 计算 Frame 的边界，使得 Frame 能够完全包含所有子元素
    */
   static calculateFrameFitBounds(
+    board: Board,
     frame: FrameElement,
     children: BoardElement[] = frame.children,
   ) {
@@ -260,11 +278,27 @@ export class FrameUtil {
     let maxY = -Infinity;
 
     children.forEach((child: BoardElement) => {
-      minX = Math.min(minX, child.x);
-      minY = Math.min(minY, child.y);
-      maxX = Math.max(maxX, child.x + (child.width || 0));
-      maxY = Math.max(maxY, child.y + (child.height || 0));
+      const bounds = board.getBounds(child);
+      if (!bounds) return;
+      minX = Math.min(minX, bounds.minX);
+      minY = Math.min(minY, bounds.minY);
+      maxX = Math.max(maxX, bounds.maxX);
+      maxY = Math.max(maxY, bounds.maxY);
     });
+
+    if (
+      minX === Infinity ||
+      minY === Infinity ||
+      maxX === -Infinity ||
+      maxY === -Infinity
+    ) {
+      return {
+        x: frame.x,
+        y: frame.y,
+        width: Math.max(frame.minWidth, frame.width),
+        height: Math.max(frame.minHeight, frame.height),
+      };
+    }
 
     return {
       x: minX - frame.padding,
@@ -277,12 +311,12 @@ export class FrameUtil {
   /**
    * 调整Frame大小以适应所有子元素
    */
-  static resizeToFitChildren(board: any, frame: FrameElement) {
+  static resizeToFitChildren(board: Board, frame: FrameElement) {
     const children = frame.children.filter(
       (el: BoardElement) => el.type !== "frame",
     );
 
-    const newBounds = this.calculateFrameBounds(frame, children);
+    const newBounds = this.calculateFrameBounds(board, frame, children);
 
     const framePath = PathUtil.getPathByElement(board, frame);
     if (framePath) {
@@ -306,7 +340,10 @@ export class FrameUtil {
   /**
    * 计算包围所有子元素的最小矩形
    */
-  static calculateBoundingRect(elements: BoardElement[]): {
+  static calculateBoundingRect(
+    board: Board,
+    elements: BoardElement[],
+  ): {
     x: number;
     y: number;
     width: number;
@@ -322,11 +359,22 @@ export class FrameUtil {
     let maxY = -Infinity;
 
     elements.forEach((element) => {
-      minX = Math.min(minX, element.x);
-      minY = Math.min(minY, element.y);
-      maxX = Math.max(maxX, element.x + (element.width || 0));
-      maxY = Math.max(maxY, element.y + (element.height || 0));
+      const bounds = board.getBounds(element);
+      if (!bounds) return;
+      minX = Math.min(minX, bounds.minX);
+      minY = Math.min(minY, bounds.minY);
+      maxX = Math.max(maxX, bounds.maxX);
+      maxY = Math.max(maxY, bounds.maxY);
     });
+
+    if (
+      minX === Infinity ||
+      minY === Infinity ||
+      maxX === -Infinity ||
+      maxY === -Infinity
+    ) {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
 
     return {
       x: minX,
@@ -340,13 +388,14 @@ export class FrameUtil {
    * 检查是否需要调整Frame大小
    */
   static shouldResizeFrame(
+    board: Board,
     frame: FrameElement,
     children: BoardElement[],
     padding = 20,
   ): boolean {
     if (children.length === 0) return false;
 
-    const bounds = this.calculateBoundingRect(children);
+    const bounds = this.calculateBoundingRect(board, children);
     const requiredWidth = bounds.width + 2 * padding;
     const requiredHeight = bounds.height + 2 * padding;
 

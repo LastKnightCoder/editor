@@ -62,7 +62,7 @@ const FrameSetter = memo((props: FrameSetterProps) => {
   });
 
   const handleFitContent = useMemoizedFn(() => {
-    const newBounds = FrameUtil.calculateFrameFitBounds(element);
+    const newBounds = FrameUtil.calculateFrameFitBounds(board, element);
     const newElement = produce(element, (draft) => {
       draft.x = newBounds.x;
       draft.y = newBounds.y;
