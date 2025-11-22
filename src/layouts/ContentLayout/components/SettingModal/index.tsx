@@ -8,6 +8,7 @@ import EmbeddingProviderSetting from "@/pages/Settings/EmbeddingProviderSetting"
 import TextToSpeechSetting from "@/pages/Settings/TextToSpeechSetting";
 import ModuleSetting from "@/pages/Settings/ModuleSetting";
 import IntegrationSetting from "@/pages/Settings/IntegrationSetting";
+import CustomBlockSetting from "@/pages/Settings/CustomBlockSetting";
 import useSettingStore from "@/stores/useSettingStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
@@ -68,6 +69,11 @@ const SettingModal = () => {
       key: "module",
       label: "模块功能",
       children: <ModuleSetting />,
+    },
+    {
+      key: "customBlock",
+      label: "自定义组件",
+      children: <CustomBlockSetting />,
     },
     {
       key: "integration",

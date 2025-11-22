@@ -1,16 +1,13 @@
-import React, { PropsWithChildren, useEffect, useMemo, useRef } from "react";
-import ReactDOM from "react-dom/client";
+import React, { PropsWithChildren, useEffect, useRef } from "react";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
 import { Transforms } from "slate";
-import * as Babel from "@babel/standalone";
-import * as antd from "antd";
-import * as antdIcons from "@ant-design/icons";
 import useTheme from "../../../../hooks/useTheme";
 
 import styles from "./index.module.less";
 
 import { type CustomBlockElement } from "@/components/Editor/types";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
+import { compileAndExecuteCustomBlock } from "@/components/Editor";
 
 interface CustomBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -18,87 +15,25 @@ interface CustomBlockProps {
 }
 
 const CustomBlock = (props: { content: string }) => {
-  const [availableCode, setAvailableCode] = React.useState<string>("");
   const ref = useRef<HTMLDivElement>(null);
   const { isDark } = useTheme();
   const { content } = props;
 
-  const code = useMemo(() => {
-    const prefix = `const { antd } = components;\n`;
-    const suffix = `
-    if (typeof Component === 'function') {
-      const App = () => {
-        const { ConfigProvider, theme } = antd;
-        return (
-          <ConfigProvider
-            theme={{
-              algorithm: ${isDark} ? theme.darkAlgorithm : theme.defaultAlgorithm,
-            }}
-          >
-            <Component />
-          </ConfigProvider>
-        )
-      }
-      const root = ReactDOM.createRoot(el);
-      root.render(<App />);
-    }`;
-    const normalizedCode = `${prefix}${content}${suffix}`;
-    try {
-      const code =
-        Babel.transform(normalizedCode, {
-          presets: [
-            Babel.availablePresets["react"],
-            [
-              Babel.availablePresets["typescript"],
-              {
-                onlyRemoveTypeImports: true,
-                allExtensions: true,
-                isTSX: true,
-              },
-            ],
-          ],
-        }).code || "";
-      setAvailableCode(code);
-      return code;
-    } catch (e) {
-      return availableCode;
-    }
-  }, [content, availableCode, isDark]);
-
   useEffect(() => {
-    const AsyncFunction = Object.getPrototypeOf(
-      // eslint-disable-next-line @typescript-eslint/no-empty-function
-      async function () {},
-    ).constructor;
-    const fn = new AsyncFunction(
-      "React",
-      "ReactDOM",
-      "el",
-      "components",
-      "hooks",
-      "extraInfo",
-      code + "\nreturn root;",
-    );
+    if (!ref.current || !content) return;
 
-    try {
-      const root = fn(
-        React,
-        ReactDOM,
-        ref.current,
-        { antd, antdIcons },
-        { useTheme },
-        { isDark },
-      );
+    let cleanup: (() => void) | undefined;
 
-      return () => {
-        root?.then((s: any) => {
-          s?.unmount?.();
-        });
-      };
-    } catch (e) {
-      console.error(e);
-    }
-  }, [code]);
+    compileAndExecuteCustomBlock(content, isDark, ref.current, {
+      useTheme,
+    }).then((cleanupFn) => {
+      cleanup = cleanupFn;
+    });
+
+    return () => {
+      cleanup?.();
+    };
+  }, [content, isDark]);
 
   return <div ref={ref}></div>;
 };
