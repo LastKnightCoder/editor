@@ -9,9 +9,7 @@ import {
   FileTextOutlined,
 } from "@ant-design/icons";
 import useDiaryStore from "@/stores/useDiaryStore";
-import useTheme from "@/hooks/useTheme";
 import MonthPicker from "../MonthPicker";
-import styles from "./index.module.less";
 
 dayjs.extend(isoWeek);
 
@@ -26,7 +24,6 @@ const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
 const HeatmapCalendar = memo(
   ({ onDateSelect, onViewModeChange }: HeatmapCalendarProps) => {
-    const { isDark } = useTheme();
     const {
       currentDate,
       diaryEntries,
@@ -154,16 +151,12 @@ const HeatmapCalendar = memo(
       onViewModeChange?.("monthly");
     };
 
-    const calendarClass = classnames(styles.heatmapCalendar, {
-      [styles.dark]: isDark,
-    });
-
     return (
-      <div className={calendarClass}>
+      <div className="w-full py-5 px-[18px] bg-transparent rounded-none overflow-visible">
         {/* Header */}
-        <div className={styles.header}>
+        <div className="relative flex items-center justify-between mb-5 gap-2 z-10">
           <button
-            className={styles.navButton}
+            className="w-8 h-8 shrink-0 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-gray-500 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200"
             onClick={handlePrevMonth}
             aria-label="上个月"
           >
@@ -172,13 +165,13 @@ const HeatmapCalendar = memo(
           <MonthPicker value={currentDateObj} onChange={handleMonthChange} />
           {hasMonthlyEntry() && (
             <FileTextOutlined
-              className={styles.monthlyIndicator}
+              className="text-indigo-500 dark:text-indigo-300 text-base shrink-0 cursor-pointer p-1 rounded transition-all hover:bg-indigo-500/10 dark:hover:bg-indigo-300/10"
               onClick={handleMonthClick}
               title="查看月总结"
             />
           )}
           <button
-            className={styles.navButton}
+            className="w-8 h-8 shrink-0 flex items-center justify-center border-none bg-transparent rounded-md cursor-pointer text-gray-500 transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-800 dark:hover:text-gray-200"
             onClick={handleNextMonth}
             aria-label="下个月"
           >
@@ -187,55 +180,87 @@ const HeatmapCalendar = memo(
         </div>
 
         {/* Weekday headers */}
-        <div className={styles.weekdayHeader}>
+        <div className="grid grid-cols-7 gap-1.5 mb-3 pr-7">
           {WEEKDAYS.map((day) => (
-            <div key={day} className={styles.weekday}>
+            <div
+              key={day}
+              className="text-center text-[10px] text-gray-400 py-1 font-semibold uppercase tracking-wider"
+            >
               {day}
             </div>
           ))}
         </div>
 
         {/* Calendar grid */}
-        <div className={styles.calendarGrid}>
+        <div className="flex flex-col gap-1.5">
           {weeks.map((weekDays, weekIndex) => (
-            <div key={weekIndex} className={styles.weekRow}>
+            <div
+              key={weekIndex}
+              className="grid grid-cols-[repeat(7,minmax(0,1fr))_24px] gap-1.5 items-stretch"
+            >
               {weekDays.map((day) => {
                 const dateString = day.format("YYYY-MM-DD");
                 const wordCount = getWordCount(dateString);
                 const heatLevel = getHeatLevel(wordCount);
                 const hasDiaryEntry = hasDiary(dateString);
+                const today = isToday(day);
+                const selected = isSelected(day);
+                const otherMonth = !isCurrentMonth(day);
 
                 return (
                   <div
                     key={dateString}
-                    className={classnames(styles.dayCell, {
-                      [styles.today]: isToday(day),
-                      [styles.selected]: isSelected(day),
-                      [styles.otherMonth]: !isCurrentMonth(day),
-                      [styles.heatLevel0]: heatLevel === 0,
-                      [styles.heatLevel1]: heatLevel === 1,
-                      [styles.heatLevel2]: heatLevel === 2,
-                      [styles.heatLevel3]: heatLevel === 3,
-                      [styles.heatLevel4]: heatLevel === 4,
-                    })}
+                    className={classnames(
+                      "relative w-full aspect-square flex items-center justify-center rounded-lg cursor-pointer transition-all border border-transparent overflow-visible",
+                      {
+                        // Heat levels
+                        "bg-transparent": heatLevel === 0,
+                        "bg-indigo-500/10": heatLevel === 1,
+                        "bg-indigo-500/25": heatLevel === 2,
+                        "bg-indigo-500/60": heatLevel === 3,
+                        "bg-indigo-500": heatLevel === 4,
+                        // Selected state
+                        "!bg-indigo-500 dark:!bg-[#177ddc] !rounded-full dark:border-[#177ddc] dark:shadow-[0_0_0_2px_rgba(23,125,220,0.3)]":
+                          selected,
+                        // Today state (not selected)
+                        "!border-2 !border-indigo-500 dark:!border-[#177ddc] shadow-[0_0_0_1px_rgba(99,102,241,0.1)] dark:shadow-[0_0_0_1px_#177ddc]":
+                          today && !selected,
+                        // Hover state (not selected)
+                        "hover:bg-indigo-500/8 hover:border-indigo-500/20":
+                          !selected,
+                      },
+                    )}
                     onClick={() => handleDateClick(day)}
                     title={`${dateString}${wordCount > 0 ? ` - ${wordCount}字` : ""}`}
                   >
-                    <span className={styles.dayNumber}>{day.date()}</span>
-                    {hasDiaryEntry && <div className={styles.diaryDot} />}
+                    <span
+                      className={classnames("text-xs font-medium z-10", {
+                        "text-white":
+                          selected || heatLevel === 3 || heatLevel === 4,
+                        "text-gray-800 dark:text-gray-100":
+                          !selected && heatLevel < 3 && !otherMonth,
+                        "text-gray-300 dark:!text-gray-600": otherMonth,
+                        "font-semibold": selected,
+                      })}
+                    >
+                      {day.date()}
+                    </span>
+                    {hasDiaryEntry && !selected && (
+                      <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-500 dark:bg-[#177ddc] z-20" />
+                    )}
                   </div>
                 );
               })}
               {/* Weekly indicator */}
               <div
-                className={styles.weekIndicator}
+                className="w-6 flex items-center justify-center self-stretch cursor-pointer rounded transition-all hover:bg-emerald-500/10"
                 onClick={() =>
                   hasWeeklyEntry(weekDays) && handleWeekClick(weekDays)
                 }
                 title={hasWeeklyEntry(weekDays) ? "查看周总结" : ""}
               >
                 {hasWeeklyEntry(weekDays) && (
-                  <BookOutlined className={styles.weeklyIcon} />
+                  <BookOutlined className="text-emerald-500 text-sm" />
                 )}
               </div>
             </div>

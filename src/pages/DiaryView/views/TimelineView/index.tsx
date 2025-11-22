@@ -1,7 +1,6 @@
 import { memo, useMemo, useRef, useEffect } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import classNames from "classnames";
 import useDiaryStore from "@/stores/useDiaryStore";
 import { DiaryEntry } from "@/types/diary";
 import Editor, { EditorRef } from "@/components/Editor";
@@ -13,7 +12,6 @@ import {
   hexToRgba,
 } from "../../constants/moodConfig";
 import { WEATHER_ICONS } from "../../constants/icons";
-import styles from "./index.module.less";
 
 dayjs.extend(isoWeek);
 
@@ -153,144 +151,150 @@ const TimelineView = memo(() => {
 
   if (monthEntries.length === 0) {
     return (
-      <div
-        className={classNames(styles.emptyState, {
-          [styles.dark]: isDark,
-        })}
-      >
-        <p>本月暂无记录</p>
+      <div className="flex items-center justify-center h-full">
+        <p className="m-0 text-[15px] text-gray-400 dark:text-gray-500">
+          本月暂无记录
+        </p>
       </div>
     );
   }
 
-  const timelineViewClass = classNames(styles.timelineView, {
-    [styles.dark]: isDark,
-  });
-
   return (
     <div
       ref={containerRef}
-      className={timelineViewClass}
+      className="h-full overflow-y-auto overflow-x-hidden p-8 box-border flex flex-col items-center"
       onScroll={handleScroll}
     >
-      {monthEntries.map((entry, index) => {
-        const { day, weekday, month: monthText } = getDisplayDate(entry);
+      <div className="w-full max-w-[900px] flex flex-col">
+        {monthEntries.map((entry, index) => {
+          const { day, weekday, month: monthText } = getDisplayDate(entry);
 
-        // Serialize weather and mood to JSON strings for processing
-        const weatherStr = entry.weather ? JSON.stringify(entry.weather) : null;
-        const moodStr = entry.mood ? JSON.stringify(entry.mood) : null;
+          // Serialize weather and mood to JSON strings for processing
+          const weatherStr = entry.weather
+            ? JSON.stringify(entry.weather)
+            : null;
+          const moodStr = entry.mood ? JSON.stringify(entry.mood) : null;
 
-        const moodColor = getMoodColor(moodStr);
-        const typeColor = getTypeColor(entry.type);
-        const weatherIconSrc = getIconPath(weatherStr, "weather");
-        const moodIconSrc = getIconPath(moodStr, "mood");
+          const moodColor = getMoodColor(moodStr);
+          const typeColor = getTypeColor(entry.type);
+          const weatherIconSrc = getIconPath(weatherStr, "weather");
+          const moodIconSrc = getIconPath(moodStr, "mood");
 
-        const isFirstOfDay =
-          index === 0 || entry.date !== monthEntries[index - 1].date;
+          const isFirstOfDay =
+            index === 0 || entry.date !== monthEntries[index - 1].date;
 
-        const baseRingColor = isDark ? "#0F172A" : "#FFFFFF";
-        const circleGlowOpacity = isDark ? 0.45 : 0.3;
-        const cardBackground = hexToRgba(moodColor, isDark ? 0.15 : 0.08);
+          const baseRingColor = isDark ? "#0F172A" : "#FFFFFF";
+          const circleGlowOpacity = isDark ? 0.45 : 0.3;
+          const cardBackground = hexToRgba(moodColor, isDark ? 0.15 : 0.08);
 
-        return (
-          <div
-            key={entry.id}
-            className={styles.timelineItem}
-            onClick={() => handleEntryClick(entry)}
-            style={{
-              // @ts-ignore
-              "--mood-color": moodColor,
-            }}
-          >
-            {/* Left: Date */}
-            {isFirstOfDay && (
-              <div className={styles.dateSection}>
-                <div className={styles.dateNumber}>{day}</div>
-                <div className={styles.weekday}>{weekday}</div>
-                <div className={styles.month}>{monthText}</div>
+          return (
+            <div
+              key={entry.id}
+              className="grid grid-cols-[80px_20px_1fr] gap-5 mb-8 cursor-pointer min-w-0 max-w-full relative"
+              onClick={() => handleEntryClick(entry)}
+              style={{
+                // @ts-ignore
+                "--mood-color": moodColor,
+              }}
+            >
+              {/* Left: Date */}
+              {isFirstOfDay && (
+                <div className="flex flex-col items-center pt-1">
+                  <div className="text-4xl font-light text-gray-800 dark:text-gray-100 leading-none">
+                    {day}
+                  </div>
+                  <div className="text-xs text-gray-400 dark:text-gray-300 mt-1.5 font-medium">
+                    {weekday}
+                  </div>
+                  <div className="text-[11px] text-gray-300 dark:text-gray-400 mt-0.5">
+                    {monthText}
+                  </div>
+                </div>
+              )}
+              {!isFirstOfDay && (
+                <div className="flex flex-col items-center pt-1" />
+              )}
+
+              <div className="flex justify-center pt-4 relative z-1">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    backgroundColor: moodColor,
+                    boxShadow: `0 0 0 3px ${baseRingColor}, 0 0 0 5px ${hexToRgba(moodColor, circleGlowOpacity)}`,
+                  }}
+                />
               </div>
-            )}
-            {!isFirstOfDay && <div className={styles.dateSection} />}
 
-            <div className={styles.circleSection}>
-              <div
-                className={styles.circle}
-                style={{
-                  backgroundColor: moodColor,
-                  boxShadow: `0 0 0 3px ${baseRingColor}, 0 0 0 5px ${hexToRgba(moodColor, circleGlowOpacity)}`,
-                }}
-              />
-            </div>
-
-            <div className={styles.contentSection}>
-              <div
-                className={styles.card}
-                style={{
-                  borderLeftColor: moodColor,
-                  backgroundColor: cardBackground,
-                }}
-              >
-                {entry.type !== "daily" && (
-                  <div
-                    className={styles.typeBadge}
-                    style={{ backgroundColor: typeColor }}
-                  >
-                    {entry.type === "weekly" ? "周记" : "月记"}
-                  </div>
-                )}
-
-                {(weatherIconSrc || moodIconSrc) && (
-                  <div className={styles.meta}>
-                    {weatherIconSrc && entry.weather && (
-                      <div
-                        className={styles.weatherIcon}
-                        style={{
-                          maskImage: `url(${weatherIconSrc})`,
-                          WebkitMaskImage: `url(${weatherIconSrc})`,
-                          maskSize: "contain",
-                          WebkitMaskSize: "contain",
-                          maskRepeat: "no-repeat",
-                          WebkitMaskRepeat: "no-repeat",
-                          maskPosition: "center",
-                          WebkitMaskPosition: "center",
-                          backgroundColor:
-                            WEATHER_ICONS.find(
-                              (icon) => icon.id === entry.weather?.value,
-                            )?.color || "#000000",
-                        }}
-                      />
-                    )}
-                    {moodIconSrc && (
-                      <img
-                        src={moodIconSrc}
-                        alt="mood"
-                        className={styles.icon}
-                      />
-                    )}
-                  </div>
-                )}
-
-                <div className={styles.contentPreview}>
-                  {entry.content && entry.content.length > 0 ? (
-                    <Editor
-                      ref={(ref) => {
-                        if (ref) {
-                          editorRefsMap.current.set(String(entry.id), ref);
-                        }
-                      }}
-                      initValue={entry.content}
-                      readonly={true}
-                      className="timeline-view-editor"
-                    />
-                  ) : (
-                    <div className={styles.emptyContent}>（空）</div>
+              <div className="min-w-0">
+                <div
+                  className="p-5 rounded-[10px] bg-white dark:bg-gray-900 transition-all duration-200 relative overflow-hidden wrap-break-word border border-[#f0f0f0] dark:border-[#2a2a2a] border-l-2"
+                  style={{
+                    borderLeftColor: moodColor,
+                    backgroundColor: cardBackground,
+                  }}
+                >
+                  {entry.type !== "daily" && (
+                    <div
+                      className="absolute top-3 right-3 px-2.5 py-1 rounded-md text-[11px] text-white font-semibold tracking-wide"
+                      style={{ backgroundColor: typeColor }}
+                    >
+                      {entry.type === "weekly" ? "周记" : "月记"}
+                    </div>
                   )}
+
+                  {(weatherIconSrc || moodIconSrc) && (
+                    <div className="flex gap-2.5 mb-3.5">
+                      {weatherIconSrc && entry.weather && (
+                        <div
+                          className="w-[22px] h-[22px] block"
+                          style={{
+                            maskImage: `url(${weatherIconSrc})`,
+                            WebkitMaskImage: `url(${weatherIconSrc})`,
+                            maskSize: "contain",
+                            WebkitMaskSize: "contain",
+                            maskRepeat: "no-repeat",
+                            WebkitMaskRepeat: "no-repeat",
+                            maskPosition: "center",
+                            WebkitMaskPosition: "center",
+                            backgroundColor:
+                              WEATHER_ICONS.find(
+                                (icon) => icon.id === entry.weather?.value,
+                              )?.color || "#000000",
+                          }}
+                        />
+                      )}
+                      {moodIconSrc && (
+                        <img
+                          src={moodIconSrc}
+                          alt="mood"
+                          className="w-[22px] h-[22px] object-contain"
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  <div className="text-[15px] text-gray-600 dark:text-gray-300 leading-[1.7] overflow-hidden wrap-break-word">
+                    {entry.content && entry.content.length > 0 ? (
+                      <Editor
+                        ref={(ref) => {
+                          if (ref) {
+                            editorRefsMap.current.set(String(entry.id), ref);
+                          }
+                        }}
+                        initValue={entry.content}
+                        readonly={true}
+                        className="text-sm"
+                      />
+                    ) : (
+                      <div className="text-gray-400 italic">（空）</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 });

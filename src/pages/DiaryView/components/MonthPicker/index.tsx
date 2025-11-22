@@ -90,7 +90,7 @@ const MonthPicker = memo(({ value, onChange }: MonthPickerProps) => {
           {isOpen && panelPosition.top > 0 && (
             <motion.div
               ref={panelRef}
-              className="fixed bg-white dark:bg-[#222] rounded-xl shadow-xl dark:shadow-2xl p-4 z-[9999] w-[280px] border border-black/5 dark:border-white/10 pointer-events-auto"
+              className="fixed bg-white dark:bg-[#222] rounded-xl shadow-xl dark:shadow-2xl p-4 z-9999 w-[280px] border border-black/5 dark:border-white/10 pointer-events-auto"
               style={{
                 top: `${panelPosition.top}px`,
                 left: `${panelPosition.left}px`,
@@ -150,7 +150,7 @@ const MonthPicker = memo(({ value, onChange }: MonthPickerProps) => {
                           }}
                         />
                       )}
-                      <span className="relative z-[1]">{month}</span>
+                      <span className="relative z-1">{month}</span>
                     </button>
                   );
                 })}
