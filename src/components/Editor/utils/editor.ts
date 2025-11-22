@@ -277,7 +277,6 @@ export const updateNodeRecursively = (
       }
       if (Object.keys(nodeProperties).length > 0) {
         Transforms.setNodes(editor, nodeProperties, { at: path });
-        Transforms.select(editor, Editor.end(editor, path));
       }
     }
 
@@ -289,7 +288,6 @@ export const updateNodeRecursively = (
           updateNodeRecursively(editor, oldChild, newChild, childPath);
         } else {
           Transforms.insertNodes(editor, newChild, { at: childPath });
-          Transforms.select(editor, Editor.end(editor, childPath));
         }
       },
     );
@@ -304,6 +302,5 @@ export const updateNodeRecursively = (
     // 类型不同，替换整个节点
     Transforms.removeNodes(editor, { at: path });
     Transforms.insertNodes(editor, newNode, { at: path });
-    Transforms.select(editor, Editor.end(editor, path));
   }
 };
