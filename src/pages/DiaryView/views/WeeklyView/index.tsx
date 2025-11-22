@@ -2,12 +2,9 @@ import { memo, useRef, useEffect, useState, useCallback } from "react";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import { useRafInterval, useUnmount } from "ahooks";
-import classNames from "classnames";
 import Editor, { EditorRef } from "@/components/Editor";
 import useDiaryStore from "@/stores/useDiaryStore";
 import useUploadResource from "@/hooks/useUploadResource";
-import useTheme from "@/hooks/useTheme";
-import styles from "./index.module.less";
 import type { Descendant } from "slate";
 
 dayjs.extend(isoWeek);
@@ -35,7 +32,6 @@ const WeeklyView = memo(() => {
 
   const editorRef = useRef<EditorRef | null>(null);
   const uploadResource = useUploadResource();
-  const { isDark } = useTheme();
 
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -143,23 +139,31 @@ const WeeklyView = memo(() => {
   const displayDateRange = `${weekStart.format("MM月DD日")} - ${weekEnd.format("MM月DD日")}`;
 
   return (
-    <div className={classNames(styles.weeklyView, { [styles.dark]: isDark })}>
-      <div className={styles.header}>
-        <h2 className={styles.title}>{displayTitle}</h2>
-        <p className={styles.dateRange}>{displayDateRange}</p>
+    <div className="flex flex-col h-full overflow-hidden w-full box-border">
+      <div className="py-7 px-8 border-b border-[#f0f0f0] dark:border-[#2a2a2a]">
+        <h2 className="m-0 mb-2.5 text-[26px] font-semibold text-gray-800 dark:text-gray-50">
+          {displayTitle}
+        </h2>
+        <p className="m-0 text-sm text-gray-500 dark:text-gray-400 font-medium">
+          {displayDateRange}
+        </p>
       </div>
 
-      <div className={styles.editorContainer}>
-        <Editor
-          ref={editorRef}
-          initValue={
-            entry && hasContent(entry.content) ? entry.content : DEFAULT_CONTENT
-          }
-          onChange={handleContentChange}
-          readonly={false}
-          uploadResource={uploadResource}
-          placeHolder="记录这一周的总结与思考..."
-        />
+      <div className="flex-1 overflow-y-auto p-8 flex justify-center text-base">
+        <div className="w-full max-w-[800px]">
+          <Editor
+            ref={editorRef}
+            initValue={
+              entry && hasContent(entry.content)
+                ? entry.content
+                : DEFAULT_CONTENT
+            }
+            onChange={handleContentChange}
+            readonly={false}
+            uploadResource={uploadResource}
+            placeHolder="记录这一周的总结与思考..."
+          />
+        </div>
       </div>
     </div>
   );

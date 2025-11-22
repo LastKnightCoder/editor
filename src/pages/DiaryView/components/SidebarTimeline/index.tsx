@@ -111,7 +111,7 @@ const SidebarTimeline = memo(
           return (
             <div
               key={entry.id}
-              className="grid grid-cols-[48px_12px_1fr] gap-2 mb-4 cursor-pointer relative hover:[&_.card]:bg-gray-50 hover:[&_.card]:border-indigo-500 dark:hover:[&_.card]:bg-gray-800/60 dark:hover:[&_.card]:border-indigo-400"
+              className="grid grid-cols-[48px_12px_1fr] gap-2 mb-4 cursor-pointer relative"
               onClick={() => handleEntryClick(entry)}
               style={{
                 // @ts-ignore
@@ -139,7 +139,7 @@ const SidebarTimeline = memo(
                 )}
               </div>
 
-              <div className="flex justify-center pt-[10px] relative z-[1]">
+              <div className="flex justify-center pt-[10px] relative z-1">
                 <div
                   className="w-[6px] h-[6px] rounded-full dark:bg-gray-800"
                   style={{
@@ -151,7 +151,7 @@ const SidebarTimeline = memo(
 
               <div>
                 <div
-                  className="card p-[10px] rounded-[6px] bg-transparent dark:bg-gray-800/60 transition-all duration-200 border border-gray-100 dark:border-gray-700 border-l-2 border-l-gray-200 dark:border-l-gray-600"
+                  className="card p-[10px] min-h-[40px] rounded-[6px] bg-transparent dark:bg-gray-800/60 transition-all duration-200 border border-[#f0f0f0] dark:border-[#2a2a2a] border-l-2 border-l-gray-200 dark:border-l-gray-600"
                   style={{
                     borderLeftColor: moodColor,
                     backgroundColor: cardBackground,
@@ -187,7 +187,7 @@ const SidebarTimeline = memo(
                       )}
                     </div>
                   )}
-                  <div className="text-[12px] text-gray-500 dark:text-gray-300 leading-[1.5] overflow-hidden text-ellipsis line-clamp-2">
+                  <div className="text-[12px] text-gray-500 dark:text-gray-300 leading-normal overflow-hidden text-ellipsis line-clamp-2">
                     {content || (
                       <span className="text-gray-400 dark:text-gray-500">
                         （空）

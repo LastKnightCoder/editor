@@ -5,14 +5,13 @@ import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useRafInterval, useUnmount } from "ahooks";
 import classnames from "classnames";
+import { FaAngleDown } from "react-icons/fa";
 import Editor, { EditorRef } from "@/components/Editor";
 import useDiaryStore from "@/stores/useDiaryStore";
 import useUploadResource from "@/hooks/useUploadResource";
-import useTheme from "@/hooks/useTheme";
 import { WeatherMood } from "@/types/diary";
 import { WEATHER_ICONS, MOOD_ICONS } from "../../constants/icons";
 import { getIconPath } from "../../utils/getIconPath";
-import styles from "./index.module.less";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -25,7 +24,6 @@ const DEFAULT_CONTENT: Descendant[] = [
 const EMPTY_CONTENT_HASH = JSON.stringify(DEFAULT_CONTENT);
 const hasContent = (content?: Descendant[] | null): content is Descendant[] =>
   Array.isArray(content) && content.length > 0;
-import { FaAngleDown } from "react-icons/fa";
 
 type WeatherIcon = {
   id: string;
@@ -52,7 +50,6 @@ interface IconPickerProps {
 
 const IconPicker = memo(
   ({ type, value, onChange, placeholder }: IconPickerProps) => {
-    const { isDark } = useTheme();
     const [open, setOpen] = useState(false);
     const [activeGroup, setActiveGroup] = useState<string>("常用");
 
@@ -61,7 +58,6 @@ const IconPicker = memo(
     const groupedIcons = useMemo(() => {
       if (type === "mood") return { 全部: icons as MoodIcon[] };
 
-      // For weather icons, create properly typed groups
       const groups: Record<string, WeatherIcon[]> = {};
       (icons as WeatherIcon[]).forEach((icon) => {
         const group = icon.group || "其他";
@@ -97,24 +93,25 @@ const IconPicker = memo(
     };
 
     const content = (
-      <div
-        className={classnames(styles.iconPicker, {
-          [styles.dark]: isDark,
-        })}
-      >
+      <div className="w-[520px] max-w-[90vw] rounded-2xl border border-[#f0f0f0] bg-white shadow-lg dark:border-[#2a2a2a] dark:bg-gray-900">
         {type === "weather" && groupKeys.length > 1 && (
-          <Tabs
-            activeKey={activeGroup}
-            onChange={setActiveGroup}
-            size="small"
-            items={groupKeys.map((group) => ({
-              key: group,
-              label: group,
-            }))}
-            className={styles.iconTabs}
-          />
+          <div className="border-b border-[#f0f0f0] px-3 pt-2 dark:border-[#2a2a2a]">
+            <Tabs
+              activeKey={activeGroup}
+              onChange={setActiveGroup}
+              size="small"
+              items={groupKeys.map((group) => ({
+                key: group,
+                label: (
+                  <span className="text-[13px] text-gray-600 dark:text-gray-300">
+                    {group}
+                  </span>
+                ),
+              }))}
+            />
+          </div>
         )}
-        <div className={styles.iconGrid}>
+        <div className="grid max-h-[380px] grid-cols-8 gap-2 overflow-y-auto p-4">
           {displayIcons.map((icon: IconType) => {
             const isSelected = value?.value === icon.id;
             const iconSrc = getIconSrc(icon.id);
@@ -122,16 +119,20 @@ const IconPicker = memo(
             return (
               <div
                 key={icon.id}
-                className={classnames(styles.iconItem, {
-                  [styles.selected]: isSelected,
-                })}
+                className={classnames(
+                  "flex aspect-square w-full cursor-pointer items-center justify-center rounded-2xl border border-transparent bg-gray-50 p-2.5 transition duration-200 ease-in-out hover:scale-105 hover:bg-gray-100 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700",
+                  {
+                    "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500 ring-offset-2 ring-offset-indigo-100 dark:bg-indigo-500/20 dark:ring-offset-gray-900":
+                      isSelected,
+                  },
+                )}
                 onClick={() => handleIconSelect(icon.id)}
                 title={icon.name}
               >
                 {iconSrc &&
                   (type === "weather" ? (
                     <div
-                      className={styles.weatherIcon}
+                      className="h-5 w-5"
                       style={{
                         maskImage: `url(${iconSrc})`,
                         WebkitMaskImage: `url(${iconSrc})`,
@@ -149,7 +150,7 @@ const IconPicker = memo(
                     <img
                       src={iconSrc}
                       alt={icon.name}
-                      className={styles.moodIcon}
+                      className="h-7 w-7 object-contain"
                     />
                   ))}
               </div>
@@ -157,7 +158,7 @@ const IconPicker = memo(
           })}
         </div>
         {value && (
-          <div className={styles.pickerFooter}>
+          <div className="border-t border-[#f0f0f0] px-3 py-2 text-right dark:border-[#2a2a2a]">
             <Button size="small" type="text" onClick={handleClear}>
               清除
             </Button>
@@ -176,17 +177,17 @@ const IconPicker = memo(
         open={open}
         onOpenChange={setOpen}
         placement="bottomLeft"
-        overlayClassName={styles.iconPickerPopover}
+        styles={{
+          body: {
+            padding: 0,
+          },
+        }}
       >
-        <div
-          className={classnames(styles.iconButton, {
-            [styles.dark]: isDark,
-          })}
-        >
+        <div className="flex h-8 min-w-15 cursor-pointer items-center justify-center gap-3 rounded-lg border border-transparent px-2.5 py-1 text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800">
           {selectedIconSrc ? (
             type === "weather" ? (
               <div
-                className={styles.selectedWeatherIcon}
+                className="h-5 w-5"
                 style={{
                   maskImage: `url(${selectedIconSrc})`,
                   WebkitMaskImage: `url(${selectedIconSrc})`,
@@ -206,13 +207,15 @@ const IconPicker = memo(
               <img
                 src={selectedIconSrc}
                 alt="mood"
-                className={styles.selectedMoodIcon}
+                className="h-[18px] w-[18px] object-contain"
               />
             )
           ) : (
-            <span className={styles.placeholder}>{placeholder}</span>
+            <span className="text-[13px] text-gray-400 dark:text-gray-500">
+              {placeholder}
+            </span>
           )}
-          <FaAngleDown className={styles.dropdownIcon} />
+          <FaAngleDown className="text-xs text-gray-400 dark:text-gray-500" />
         </div>
       </Popover>
     );
@@ -232,7 +235,6 @@ const DailyView = memo(() => {
 
   const editorRef = useRef<EditorRef | null>(null);
   const uploadResource = useUploadResource();
-  const { isDark } = useTheme();
 
   const [localWeather, setLocalWeather] = useState<WeatherMood | null>(null);
   const [localMood, setLocalMood] = useState<WeatherMood | null>(null);
@@ -357,31 +359,31 @@ const DailyView = memo(() => {
   const displayDate = dateObj.format("YYYY 年 MM 月 DD 日 dddd");
 
   return (
-    <div
-      className={classnames(styles.dailyView, {
-        [styles.dark]: isDark,
-      })}
-    >
-      <div className={styles.header}>
-        <div className={styles.dateSection}>
+    <div className="flex h-full w-full flex-col overflow-hidden border border-transparent">
+      <div className="border-b border-[#f0f0f0] px-8 py-7 dark:border-[#2a2a2a]">
+        <div className="mb-5 flex items-center gap-4">
           <Button
             type="text"
             icon={<LeftOutlined />}
             onClick={navigateToPrevDay}
-            className={styles.navButton}
+            className="text-gray-400 transition-colors hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
           />
-          <h2 className={styles.dateTitle}>{displayDate}</h2>
+          <h2 className="m-0 flex-1 text-[26px] font-semibold text-gray-900 dark:text-gray-100">
+            {displayDate}
+          </h2>
           <Button
             type="text"
             icon={<RightOutlined />}
             onClick={navigateToNextDay}
-            className={styles.navButton}
+            className="text-gray-400 transition-colors hover:text-gray-900 dark:text-gray-500 dark:hover:text-white"
           />
         </div>
 
-        <div className={styles.metaSection}>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>天气：</span>
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              天气：
+            </span>
             <IconPicker
               type="weather"
               value={localWeather}
@@ -389,8 +391,10 @@ const DailyView = memo(() => {
               placeholder="选择天气"
             />
           </div>
-          <div className={styles.metaItem}>
-            <span className={styles.metaLabel}>心情：</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+              心情：
+            </span>
             <IconPicker
               type="mood"
               value={localMood}
@@ -401,17 +405,22 @@ const DailyView = memo(() => {
         </div>
       </div>
 
-      <div className={styles.editorContainer}>
-        <Editor
-          ref={editorRef}
-          initValue={
-            entry && hasContent(entry.content) ? entry.content : DEFAULT_CONTENT
-          }
-          onChange={handleContentChange}
-          readonly={false}
-          uploadResource={uploadResource}
-          placeHolder="记录今天的点滴..."
-        />
+      <div className="flex flex-1 justify-center overflow-y-auto px-8 py-8">
+        <div className="w-full max-w-[800px]">
+          <Editor
+            ref={editorRef}
+            initValue={
+              entry && hasContent(entry.content)
+                ? entry.content
+                : DEFAULT_CONTENT
+            }
+            onChange={handleContentChange}
+            readonly={false}
+            uploadResource={uploadResource}
+            placeHolder="记录今天的点滴..."
+            className="editor-content text-[16px] leading-[1.7] text-gray-600 dark:text-gray-300"
+          />
+        </div>
       </div>
     </div>
   );

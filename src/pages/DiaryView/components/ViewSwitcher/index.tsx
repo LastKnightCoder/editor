@@ -1,8 +1,6 @@
 import { memo } from "react";
 import { motion } from "framer-motion";
 import classNames from "classnames";
-import useTheme from "@/hooks/useTheme";
-import styles from "./index.module.less";
 
 interface ViewOption {
   label: string;
@@ -16,24 +14,24 @@ interface ViewSwitcherProps {
 }
 
 const ViewSwitcher = memo(({ options, value, onChange }: ViewSwitcherProps) => {
-  const { isDark } = useTheme();
-  const switcherClass = classNames(styles.viewSwitcher, {
-    [styles.dark]: isDark,
-  });
-
   return (
-    <div className={switcherClass}>
-      <div className={styles.optionsContainer}>
+    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-50">
+      <div className="flex items-center gap-1 bg-white/90 dark:bg-[rgba(20,20,20,0.9)] backdrop-blur-xl p-2 rounded-[10px] shadow-[0_2px_12px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.05)] border border-black/6 dark:border-white/10">
         {options.map((option) => (
           <button
             key={option.value}
-            className={styles.option}
+            className={classNames(
+              "relative py-1.5 px-4 border-none bg-transparent rounded-[7px] cursor-pointer text-[13px] font-medium transition-colors outline-none whitespace-nowrap",
+              value === option.value
+                ? "text-gray-800 dark:text-gray-50 font-semibold"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-50",
+            )}
             onClick={() => onChange(option.value)}
             data-active={value === option.value}
           >
             {value === option.value && (
               <motion.div
-                className={styles.activeBackground}
+                className="absolute inset-0 bg-white dark:bg-gray-700 rounded-[7px] shadow-[0_1px_3px_rgba(0,0,0,0.1),0_1px_2px_rgba(0,0,0,0.06)] -z-10"
                 layoutId="activeTab"
                 transition={{
                   type: "spring",
@@ -42,7 +40,7 @@ const ViewSwitcher = memo(({ options, value, onChange }: ViewSwitcherProps) => {
                 }}
               />
             )}
-            <span className={styles.label}>{option.label}</span>
+            <span className="relative z-10">{option.label}</span>
           </button>
         ))}
       </div>
