@@ -65,7 +65,7 @@ const ResizablePanel = ({
 
       <div
         className={classnames(
-          "w-1 cursor-col-resize hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors relative group flex-shrink-0",
+          "w-1 cursor-col-resize hover:bg-blue-400 dark:hover:bg-blue-600 transition-colors relative group shrink-0",
           isDragging ? "bg-blue-400 dark:bg-blue-600" : "bg-transparent",
         )}
         onMouseDown={() => setIsDragging(true)}

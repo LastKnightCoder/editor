@@ -26,9 +26,13 @@ const CustomBlock = (props: { content: string }) => {
 
     compileAndExecuteCustomBlock(content, isDark, ref.current, {
       useTheme,
-    }).then((cleanupFn) => {
-      cleanup = cleanupFn;
-    });
+    })
+      .then((cleanupFn) => {
+        cleanup = cleanupFn;
+      })
+      .catch((err) => {
+        console.error("Custom block render error", err);
+      });
 
     return () => {
       cleanup?.();

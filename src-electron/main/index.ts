@@ -29,6 +29,7 @@ import notionCacheModule from "./modules/notion-cache";
 import recentProjectsModule from "./modules/recent-projects";
 import podcastAudioModule from "./modules/podcast-audio";
 import customBlockModule from "./modules/custom-block";
+import tailwindRuntimeModule from "./modules/tailwind-runtime";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
 
@@ -424,6 +425,7 @@ const initModules = async () => {
       notionCacheModule.init(),
       podcastAudioModule.init(),
       customBlockModule.init(),
+      tailwindRuntimeModule.init(),
     ]);
 
     const backendServer = new BackendWebSocketServer(24678);
