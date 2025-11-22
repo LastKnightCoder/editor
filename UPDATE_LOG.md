@@ -798,4 +798,11 @@
 ## v0.19.0
 
 -feat: 支持组件模板中心
--feat: 支持选择本地 HTML 文件上传
+-feat: Webview 支持选择本地 HTML 文件上传
+
+## v0.19.1
+
+- feat: 日记页重构
+- feat: 支持动态编译 Tailwind，支持在自定义组件和 HTML 中使用 Tailwind
+- feat: Tab 支持重命名和关闭其它 Tab
+- fix: PreviewWithEditor 全屏后缩小数据丢失
