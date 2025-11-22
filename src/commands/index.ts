@@ -42,3 +42,4 @@ export * from "./pomodoro-calendar-mapping";
 export * from "./recent-projects";
 export * from "./podcast";
 export * from "./resource";
+export * from "./web-link";

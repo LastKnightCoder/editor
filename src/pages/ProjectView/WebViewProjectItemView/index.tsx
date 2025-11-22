@@ -9,6 +9,7 @@ import {
   getProjectItemById,
   openExternal,
   updateProjectItem,
+  updateWebLink,
 } from "@/commands";
 import {
   importFromMarkdown,
@@ -16,9 +17,10 @@ import {
   convertHTMLToMarkdown,
   getContentHTML,
 } from "@/utils";
-import { defaultProjectItemEventBus, extractUrlFromTitle } from "@/utils";
-import { EProjectItemType } from "@/types";
+import { defaultProjectItemEventBus } from "@/utils";
+import { EProjectItemType, type ProjectItem } from "@/types";
 import { addChildProjectItem } from "@/commands";
+import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 
 import styles from "./index.module.less";
 
@@ -28,36 +30,53 @@ interface WebViewProjectItemViewProps {
 
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { projectItemId } = props;
-  const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
+  const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
   const { message } = App.useApp();
 
   useEffect(() => {
-    getProjectItemById(projectItemId).then((projectItem) => {
-      if (!projectItem) return;
-      const { title: extractedTitle, url: extractedUrl } = extractUrlFromTitle(
-        projectItem.title,
-      );
-      setTitle(extractedTitle);
-      setUrl(extractedUrl);
+    getProjectItemById(projectItemId).then((item) => {
+      if (item) {
+        setProjectItem(item);
+      }
     });
   }, [projectItemId]);
 
-  const handleTitleChange = useMemoizedFn(async (value: string) => {
-    if (!value || value === title) return;
+  const meta = useProjectWebLinkMeta(projectItem);
+  const [title, setTitle] = useState(meta.title);
+  const [currentUrl, setCurrentUrl] = useState(meta.url);
 
-    const projectItem = await getProjectItemById(projectItemId);
-    if (!projectItem) return;
-    const updatedTitle = `${value} [${url}]`;
+  useEffect(() => {
+    setTitle(meta.title);
+  }, [meta.title]);
+
+  useEffect(() => {
+    setCurrentUrl(meta.url);
+  }, [meta.url]);
+
+  const handleTitleChange = useMemoizedFn(async (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === title) return;
+
+    const latestProjectItem = await getProjectItemById(projectItemId);
+    if (!latestProjectItem) return;
 
     const updatedProjectItem = await updateProjectItem({
-      ...projectItem,
-      title: updatedTitle,
+      ...latestProjectItem,
+      title: trimmed,
     });
     if (!updatedProjectItem) return;
-    setTitle(value);
+
+    setProjectItem(updatedProjectItem);
+    setTitle(trimmed);
+
+    if (meta.linkId) {
+      updateWebLink({
+        id: meta.linkId,
+        title: trimmed,
+      }).catch((err) => console.error("Failed to update web link title:", err));
+    }
 
     projectItemEventBus.publishProjectItemEvent(
       "project-item:updated",
@@ -66,6 +85,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   });
 
   const handleClipToDocument = useMemoizedFn(async () => {
+    if (!projectItem || !currentUrl) return;
     try {
       message.loading({
         content: "正在提取网页内容，需要三到五分钟，请等待...",
@@ -87,8 +107,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
       const content = importFromMarkdown(markdown, ["yaml"]);
 
-      const projectItem = await getProjectItemById(projectItemId);
-      if (!projectItem) return;
       const [parentProjectItem, childProjectItem] = await addChildProjectItem(
         projectItemId,
         {
@@ -145,13 +163,13 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       } else if (key === "refresh") {
         webviewRef.current?.reload();
       } else if (key === "open-in-right-sidebar") {
-        if (!url) return;
-        openExternal(url);
+        if (!currentUrl) return;
+        openExternal(currentUrl);
       }
     },
   );
 
-  if (!url) return null;
+  if (!currentUrl) return null;
 
   return (
     <div className={styles.container}>
@@ -176,7 +194,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       <div className={styles.webviewContainer}>
         <Webview
           ref={webviewRef}
-          src={url}
+          src={currentUrl}
+          sourceType={meta.sourceType}
           className={styles.webview}
           allowPopups={false}
           onError={(err) => console.error("加载失败:", err)}

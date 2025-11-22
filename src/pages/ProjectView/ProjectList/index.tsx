@@ -24,7 +24,7 @@ import useTabParams from "@/hooks/useTabParams";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
-import ProjectItem from "./ProjectItem/index.tsx";
+import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
 import For from "@/components/For";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
@@ -56,6 +56,7 @@ import {
   createWhiteBoardContent,
   addRootProjectItem,
   createDataTable,
+  createWebLink,
 } from "@/commands";
 import {
   getContentLength,
@@ -98,6 +99,7 @@ import SVG from "react-inlinesvg";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import { AnimatePresence, motion } from "framer-motion";
+import { WebLinkSourceType } from "@/types";
 
 const Project = () => {
   const { message } = App.useApp();
@@ -505,6 +507,17 @@ const Project = () => {
         console.error("创建 Notion 文档失败:", error);
         message.error(error instanceof Error ? error.message : "创建失败");
       }
+    },
+  );
+
+  const createWebLinkRecord = useMemoizedFn(
+    async (title: string, url: string, sourceType: WebLinkSourceType) => {
+      const finalTitle = title.trim() || url;
+      return await createWebLink({
+        title: finalTitle,
+        url,
+        sourceType,
+      });
     },
   );
 
@@ -1112,33 +1125,53 @@ const Project = () => {
               setWebviewModalOpen(false);
               setWebviewRemoteUrl("");
               setWebviewLocalUrl("");
-              setWebviewFileName("");
               setWebviewTitle("");
               setWebviewFileName("");
               setWebviewUploading(false);
               setWebviewModalTab("url");
             }}
             onOk={async () => {
-              if (webviewModalTab === "url") {
-                if (!webviewRemoteUrl.trim()) {
-                  message.error("请输入网址");
-                  return;
+              try {
+                let linkTitle = "";
+                let linkUrl = "";
+                let sourceType: WebLinkSourceType = "remote";
+
+                if (webviewModalTab === "url") {
+                  if (!webviewRemoteUrl.trim()) {
+                    message.error("请输入网址");
+                    return;
+                  }
+                  const url = normalizeWebviewUrl(webviewRemoteUrl);
+                  if (!url) {
+                    message.error("请输入网址");
+                    return;
+                  }
+                  linkUrl = url;
+                  linkTitle = getWebviewTitleFromUrl(url);
+                  sourceType = "remote";
+                } else {
+                  if (!webviewLocalUrl) {
+                    message.error("请先选择本地 HTML 文件");
+                    return;
+                  }
+                  linkUrl = webviewLocalUrl;
+                  linkTitle =
+                    webviewTitle.trim() || webviewFileName || "本地网页";
+                  sourceType = "local";
                 }
 
-                const url = normalizeWebviewUrl(webviewRemoteUrl);
-                if (!url) {
-                  message.error("请输入网址");
-                  return;
-                }
-
-                const title = getWebviewTitleFromUrl(url);
+                const webLink = await createWebLinkRecord(
+                  linkTitle,
+                  linkUrl,
+                  sourceType,
+                );
 
                 const createProjectItem: CreateProjectItem = {
-                  title: `${title} [${url}]`,
+                  title: webLink.title,
                   content: [],
                   children: [],
-                  refType: "",
-                  refId: 0,
+                  refType: "web-link",
+                  refId: webLink.id,
                   projectItemType: EProjectItemType.WebView,
                   count: 0,
                   whiteBoardContentId: 0,
@@ -1159,47 +1192,15 @@ const Project = () => {
                   );
                 }
                 setProject(newProject);
-              } else {
-                if (!webviewLocalUrl) {
-                  message.error("请先选择本地 HTML 文件");
-                  return;
-                }
-                const finalTitle =
-                  webviewTitle.trim() || webviewFileName || "本地网页";
-                const createProjectItem: CreateProjectItem = {
-                  title: `${finalTitle} [${webviewLocalUrl}]`,
-                  content: [],
-                  children: [],
-                  refType: "",
-                  refId: 0,
-                  projectItemType: EProjectItemType.WebView,
-                  count: 0,
-                  whiteBoardContentId: 0,
-                };
-
-                const [newProject, item] = await addRootProjectItem(
-                  project.id,
-                  createProjectItem,
-                );
-                if (item) {
-                  navigateTo(
-                    TabType.ProjectDetail,
-                    {
-                      id: newProject.id,
-                      itemId: item.id,
-                    },
-                    `项目 - ${item.title || `#${item.id}`}`,
-                  );
-                }
-                setProject(newProject);
+                setWebviewModalOpen(false);
+                setWebviewRemoteUrl("");
+                setWebviewLocalUrl("");
+                setWebviewTitle("");
+                setWebviewFileName("");
+                setWebviewModalTab("url");
+              } finally {
+                setWebviewUploading(false);
               }
-
-              setWebviewModalOpen(false);
-              setWebviewRemoteUrl("");
-              setWebviewLocalUrl("");
-              setWebviewFileName("");
-              setWebviewTitle("");
-              setWebviewModalTab("url");
             }}
           >
             <Tabs
