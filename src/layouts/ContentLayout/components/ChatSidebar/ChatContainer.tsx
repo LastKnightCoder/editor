@@ -8,7 +8,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { App } from "antd";
+import { App, Tag } from "antd";
 import { produce } from "immer";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 
@@ -24,12 +24,13 @@ import {
   ResponseMessage,
   KnowledgeOptions,
 } from "@/types";
-import { Role, SUMMARY_TITLE_PROMPT } from "@/constants";
+import { Role, SUMMARY_TITLE_PROMPT, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import { createChatMessage } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
+import usePromptStore from "@/stores/usePromptStore";
 import type { EditTextHandle } from "@/components/EditText";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { LuBrain } from "react-icons/lu";
@@ -82,6 +83,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
     const embeddingModelInfo = useEmbeddingConfig();
+    const prompts = usePromptStore((state) => state.prompts);
 
     const [ragEnabled, setRagEnabled] = useLocalStorageState("ragEnabled", {
       defaultValue: false,
@@ -103,6 +105,76 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     // 强制更新计数器，用于触发visibleMessages重新计算
     const [updateCounter, setUpdateCounter] = useState(0);
+
+    const canChangePrompt = useMemo(() => {
+      return actualChatRef.current.messages.length <= 1;
+    }, [updateCounter]);
+
+    const currentPrompt = useMemo(() => {
+      if (!actualChatRef.current.promptId) {
+        return null;
+      }
+      return (
+        prompts.find((item) => item.id === actualChatRef.current.promptId) ||
+        null
+      );
+    }, [prompts, updateCounter]);
+
+    const promptSelectItems = useMemo(
+      () =>
+        prompts.map((prompt) => ({
+          key: String(prompt.id),
+          label: (
+            <div
+              className={classNames("flex flex-col gap-1 py-0.5", {
+                "bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-700 rounded-lg px-2":
+                  currentPrompt?.id === prompt.id,
+              })}
+              style={{ maxWidth: 320 }}
+            >
+              <div className="text-base font-semibold text-text-primary break-all">
+                {prompt.name}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {prompt.tags.length > 0 ? (
+                  prompt.tags.map((tag, idx) => (
+                    <Tag
+                      key={tag}
+                      color={
+                        ["blue", "cyan", "geekblue", "purple", "gold", "green"][
+                          idx % 6
+                        ]
+                      }
+                      style={{ marginInlineEnd: 0 }}
+                    >
+                      {tag}
+                    </Tag>
+                  ))
+                ) : (
+                  <Tag color="default" style={{ marginInlineEnd: 0 }}>
+                    未添加标签
+                  </Tag>
+                )}
+              </div>
+              <div
+                className="text-xs text-text-secondary leading-relaxed"
+                style={{
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
+                title={prompt.content}
+              >
+                {prompt.content}
+              </div>
+            </div>
+          ),
+        })),
+      [prompts],
+    );
+
+    const promptTooltip = currentPrompt?.name ?? "默认 Prompt";
 
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -133,14 +205,21 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         let actualCurrentChat = actualChatRef.current;
         if (shouldCreateNewChat && actualCurrentChat.id === 0) {
           try {
+            const systemContent =
+              (actualCurrentChat.messages[0] as ResponseMessage | undefined)
+                ?.content || DEFAULT_SYSTEM_PROMPT;
             const systemMessage: ResponseMessage = {
               role: Role.System,
-              content:
-                "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+              content: systemContent || DEFAULT_SYSTEM_PROMPT,
             };
 
             const newChatMessages = [systemMessage];
-            actualCurrentChat = await createChatMessage(newChatMessages);
+            actualCurrentChat = await createChatMessage(
+              newChatMessages,
+              actualCurrentChat.title || "新对话",
+              actualCurrentChat.groupId ?? null,
+              actualCurrentChat.promptId ?? null,
+            );
 
             // 立即更新ref，确保UI使用新创建的对话
             actualChatRef.current = actualCurrentChat;
@@ -154,26 +233,22 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         // 准备发送的消息（只包含 RequestMessage）
         const systemMessage: RequestMessage = {
-          role: actualCurrentChat.messages[0]?.role || Role.System,
-          content:
-            actualCurrentChat.messages[0]?.role === Role.System
-              ? (actualCurrentChat.messages[0] as ResponseMessage).content
-                ? [
-                    {
-                      type: "text",
-                      text: (actualCurrentChat.messages[0] as ResponseMessage)
-                        .content,
-                    },
-                  ]
-                : [{ type: "text", text: "" }]
-              : [{ type: "text", text: "" }],
+          role: Role.System,
+          content: [
+            {
+              type: "text",
+              text:
+                (actualCurrentChat.messages[0] as ResponseMessage | undefined)
+                  ?.content || DEFAULT_SYSTEM_PROMPT,
+            },
+          ],
         };
 
         const sendMessages: RequestMessage[] = [
           systemMessage,
           ...actualCurrentChat.messages
             .slice(1)
-            .slice(-10)
+            .slice(-20)
             .map((message): RequestMessage => {
               if (message.role === Role.User) {
                 return message as RequestMessage;
@@ -197,6 +272,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             userMessage,
             responseMessage,
           ],
+          promptId: actualCurrentChat.promptId ?? null,
         };
 
         // 更新当前聊天状态
@@ -478,6 +554,44 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       );
     });
 
+    const handlePromptSelect = useMemoizedFn(({ key }: { key: string }) => {
+      if (!canChangePrompt) {
+        message.warning("对话开始后无法修改 Prompt");
+        return;
+      }
+
+      const targetPrompt = prompts.find((item) => String(item.id) === key);
+      if (!targetPrompt) return;
+
+      const updatedChat = produce(actualChatRef.current, (draft) => {
+        const systemMessage: ResponseMessage = {
+          role: Role.System,
+          content: targetPrompt.content,
+        };
+        draft.messages = [systemMessage];
+        draft.promptId = targetPrompt.id;
+      });
+
+      if (actualChatRef.current.id === 0) {
+        actualChatRef.current = updatedChat;
+        setUpdateCounter((prev) => prev + 1);
+        updateCurrentChat(updatedChat);
+        return;
+      }
+
+      updateChatMessage(updatedChat)
+        .then((saved) => {
+          actualChatRef.current = saved;
+          setUpdateCounter((prev) => prev + 1);
+          updateCurrentChat(saved);
+          message.success("系统 Prompt 已更新");
+        })
+        .catch((error) => {
+          message.error("更新 Prompt 失败");
+          console.error(error);
+        });
+    });
+
     const visibleMessages = useMemo(() => {
       return actualChatRef.current.messages.filter(
         (message) => message.role !== Role.System,
@@ -707,6 +821,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     onModelSelect={handleModelSelect}
                     currentModelName={chatModelConfig?.name}
                     isSupportMultiModal={chatModelConfig?.features?.multimodal}
+                    promptSelectItems={promptSelectItems}
+                    onPromptSelect={handlePromptSelect}
+                    currentPromptName={promptTooltip}
+                    promptSelectDisabled={!canChangePrompt || sendLoading}
                   />
                 </div>
               </div>

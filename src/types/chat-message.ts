@@ -8,6 +8,7 @@ export interface ChatMessage {
   title: string;
   groupId?: number | null;
   archived?: boolean;
+  promptId?: number | null;
 }
 
 export interface ChatGroup {

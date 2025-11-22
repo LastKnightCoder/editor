@@ -46,6 +46,7 @@ import PodcastTable from "./tables/podcast";
 import ResourceTable from "./tables/resource";
 import ResourceGroupTable from "./tables/resource-group";
 import WebLinkTable from "./tables/web-link";
+import PromptTable from "./tables/prompt";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -129,6 +130,7 @@ class DatabaseModule implements Module {
       ResourceGroupTable,
       ResourceTable,
       WebLinkTable,
+      PromptTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 

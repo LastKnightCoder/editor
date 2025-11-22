@@ -23,6 +23,7 @@ import task from "@/assets/icons/task.svg";
 import question from "@/assets/icons/question.svg";
 import pomodoro from "@/assets/icons/pomodoro.svg";
 import goal from "@/assets/icons/goal.svg";
+import prompt from "@/assets/icons/prompt.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -113,6 +114,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "聊天管理",
         type: TabType.ChatManagement,
         enable: module.chatManagement.enable,
+      },
+      {
+        key: "prompt",
+        icon: prompt,
+        desc: "Prompt 管理",
+        type: TabType.PromptManagement,
+        enable: module.promptManagement.enable,
       },
       {
         key: "whiteBoard",

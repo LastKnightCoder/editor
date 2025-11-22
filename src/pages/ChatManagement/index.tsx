@@ -4,6 +4,7 @@ import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
+import usePromptStore from "@/stores/usePromptStore";
 import ChatManagementSidebar from "./components/ChatManagementSidebar";
 import ChatArea from "./components/ChatArea";
 import type { ChatAreaHandle } from "./components/ChatArea";
@@ -37,13 +38,15 @@ const ChatManagement = memo(() => {
       initChatGroups: state.initChatGroups,
     })),
   );
+  const initPrompts = usePromptStore((state) => state.initPrompts);
 
   useEffect(() => {
     if (isConnected) {
       initChatMessage();
       initChatGroups();
+      initPrompts();
     }
-  }, [initChatMessage, initChatGroups, isConnected, database]);
+  }, [initChatMessage, initChatGroups, initPrompts, isConnected, database]);
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);

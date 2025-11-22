@@ -15,6 +15,7 @@ import {
   SendOutlined,
   CloseOutlined,
   StopOutlined,
+  BulbOutlined,
 } from "@ant-design/icons";
 import classnames from "classnames";
 import { MessageContent } from "@/types/llm";
@@ -42,6 +43,10 @@ interface ChatInputAreaProps {
   onModelSelect?: ({ key }: { key: string }) => void;
   currentModelName?: string;
   isSupportMultiModal?: boolean;
+  promptSelectItems?: any[];
+  onPromptSelect?: ({ key }: { key: string }) => void;
+  currentPromptName?: string;
+  promptSelectDisabled?: boolean;
 }
 
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
@@ -59,6 +64,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onModelSelect,
       currentModelName,
       isSupportMultiModal = false,
+      promptSelectItems = [],
+      onPromptSelect,
+      currentPromptName,
+      promptSelectDisabled = false,
     },
     ref,
   ) => {
@@ -207,6 +216,31 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                     type="text"
                     size="small"
                     icon={<SettingOutlined />}
+                    className="!p-1 bg-none! border-none! hover:!bg-gray-100!"
+                  />
+                </Dropdown>
+              </Tooltip>
+            )}
+            {promptSelectItems.length > 0 && onPromptSelect && (
+              <Tooltip
+                title={
+                  promptSelectDisabled
+                    ? "对话开始后无法修改 Prompt"
+                    : currentPromptName || "选择系统 Prompt"
+                }
+              >
+                <Dropdown
+                  menu={{
+                    items: promptSelectItems,
+                    onClick: onPromptSelect,
+                  }}
+                  trigger={["click"]}
+                  disabled={promptSelectDisabled || sendLoading}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<BulbOutlined />}
                     className="!p-1 bg-none! border-none! hover:!bg-gray-100!"
                   />
                 </Dropdown>

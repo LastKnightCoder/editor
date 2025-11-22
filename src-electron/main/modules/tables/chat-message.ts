@@ -11,6 +11,7 @@ export default class ChatMessageTable {
         messages TEXT,
         title TEXT,
         group_id INTEGER,
+        prompt_id INTEGER,
         archived INTEGER DEFAULT 0
       )
     `;
@@ -24,6 +25,7 @@ export default class ChatMessageTable {
       .all() as Array<{ name: string }>;
     const hasGroupId = tableInfo.some((col) => col.name === "group_id");
     const hasArchived = tableInfo.some((col) => col.name === "archived");
+    const hasPromptId = tableInfo.some((col) => col.name === "prompt_id");
 
     if (!hasGroupId) {
       db.exec("ALTER TABLE chat_message ADD COLUMN group_id INTEGER");
@@ -33,6 +35,10 @@ export default class ChatMessageTable {
       db.exec("ALTER TABLE chat_message ADD COLUMN archived INTEGER DEFAULT 0");
     }
 
+    if (!hasPromptId) {
+      db.exec("ALTER TABLE chat_message ADD COLUMN prompt_id INTEGER");
+    }
+
     // 添加索引
     try {
       db.exec(
@@ -40,6 +46,9 @@ export default class ChatMessageTable {
       );
       db.exec(
         "CREATE INDEX IF NOT EXISTS idx_chat_message_archived ON chat_message(archived)",
+      );
+      db.exec(
+        "CREATE INDEX IF NOT EXISTS idx_chat_message_prompt_id ON chat_message(prompt_id)",
       );
     } catch (e) {
       // 索引可能已存在
@@ -64,6 +73,7 @@ export default class ChatMessageTable {
     messages: string;
     group_id: number | null;
     archived: number;
+    prompt_id: number | null;
   }): ChatMessage {
     return {
       id: Number(chatMessage.id),
@@ -73,6 +83,8 @@ export default class ChatMessageTable {
       messages: JSON.parse(chatMessage.messages),
       groupId: chatMessage.group_id,
       archived: Boolean(chatMessage.archived),
+      promptId:
+        chatMessage.prompt_id !== null ? Number(chatMessage.prompt_id) : null,
     };
   }
 
@@ -81,9 +93,10 @@ export default class ChatMessageTable {
     messages: ChatSessionMessage[],
     title: string,
     groupId: number | null | undefined,
+    promptId: number | null | undefined,
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived) VALUES (?, ?, ?, ?, ?, 0)",
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, prompt_id, archived) VALUES (?, ?, ?, ?, ?, ?, 0)",
     );
     const now = Date.now();
     const res = stmt.run(
@@ -92,6 +105,7 @@ export default class ChatMessageTable {
       title,
       JSON.stringify(messages),
       groupId ?? null,
+      promptId ?? null,
     );
     const createdId = res.lastInsertRowid;
     return this.getChatMessageById(db, createdId);
@@ -110,9 +124,9 @@ export default class ChatMessageTable {
     db: Database.Database,
     chatMessage: Omit<ChatMessage, "updateTime">,
   ): ChatMessage {
-    const { id, title, messages, groupId, archived } = chatMessage;
+    const { id, title, messages, groupId, archived, promptId } = chatMessage;
     const stmt = db.prepare(
-      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ? WHERE id = ?",
+      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, prompt_id = ?, archived = ? WHERE id = ?",
     );
     const now = Date.now();
     stmt.run(
@@ -120,6 +134,7 @@ export default class ChatMessageTable {
       title,
       JSON.stringify(messages),
       groupId ?? null,
+      promptId ?? null,
       archived ? 1 : 0,
       id,
     );

@@ -355,3 +355,6 @@ export const CONTENT_POLISH_PROMPT = `
 - 在执行用户的微调指令时，继续遵守上述所有规则（风格一致性、扩展语法保护等）
 - 每次输出都是独立的、完整的文章，方便用户直接使用
 `;
+
+export const DEFAULT_SYSTEM_PROMPT =
+  "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。";

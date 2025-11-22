@@ -16,7 +16,7 @@ import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import { ChatMessage } from "@/types/chat-message";
 import { ResponseMessage } from "@/types";
-import { Role } from "@/constants";
+import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import ChatModal from "./ChatModal";
 
 const { Title } = Typography;
@@ -106,8 +106,7 @@ const ModelSidebar: React.FC<ModelSidebarProps> = ({
         const messages: ResponseMessage[] = [
           {
             role: Role.System,
-            content:
-              "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+            content: DEFAULT_SYSTEM_PROMPT,
           },
         ];
         await createChatMessage(messages, data.title);

@@ -25,6 +25,7 @@ import ModelSidebar from "@/components/ModelSidebar";
 import { openExternal } from "@/commands";
 
 import useChatMessageStore from "@/stores/useChatMessageStore";
+import usePromptStore from "@/stores/usePromptStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 
@@ -33,7 +34,7 @@ import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
 import { MarkdownProvider } from "./MarkdownContext";
 
 import { ResponseMessage } from "@/types";
-import { Role } from "@/constants";
+import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ChatContainerHandle } from "./ChatContainer";
@@ -47,12 +48,12 @@ const DEFAULT_CHAT = {
   messages: [
     {
       role: Role.System,
-      content:
-        "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+      content: DEFAULT_SYSTEM_PROMPT,
       reasoning_content: "",
     },
   ],
   title: "新对话",
+  promptId: null,
 };
 
 const ChatSidebar = memo(() => {
@@ -87,6 +88,7 @@ const ChatSidebar = memo(() => {
       updateCurrentChat: state.updateCurrentChat,
     })),
   );
+  const initPrompts = usePromptStore((state) => state.initPrompts);
 
   // 添加 ModelSidebar 可见性状态
   const [modelSidebarVisible, setModelSidebarVisible] = useState(false);
@@ -95,8 +97,9 @@ const ChatSidebar = memo(() => {
     if (isConnected) {
       initChatMessage();
       initChatGroups();
+      initPrompts();
     }
-  }, [initChatMessage, initChatGroups, isConnected, database]);
+  }, [initChatMessage, initChatGroups, initPrompts, isConnected, database]);
 
   const currentChat = useMemo(() => {
     return chats.find((chat) => chat.id === currentChatId);
@@ -109,8 +112,7 @@ const ChatSidebar = memo(() => {
     const messages: ResponseMessage[] = [
       {
         role: Role.System,
-        content:
-          "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+        content: DEFAULT_SYSTEM_PROMPT,
       },
     ];
 
