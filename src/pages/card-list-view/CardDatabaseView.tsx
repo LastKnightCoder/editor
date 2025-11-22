@@ -13,6 +13,7 @@ import Database, {
   ColumnDef,
   RowData,
   DatabaseData,
+  DatabaseProps,
 } from "@/components/Database";
 import useCardDatabaseViewStore from "@/stores/useCardDatabaseViewStore";
 import {
@@ -227,13 +228,17 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
       const currentRowIds = rows.map((r) => r.id);
 
       if (!currentView) {
-        return {
+        const fallbackConfig = {
           columnOrder: currentColumnIds,
           rowOrder: currentRowIds,
           sorts: [],
           filters: null,
           groupBy: null,
+          galleryConfig: undefined,
+          calendarConfig: undefined,
+          kanbanConfig: undefined,
         };
+        return fallbackConfig;
       }
 
       // 确保 columnOrder 和 rowOrder 与当前数据同步
@@ -271,7 +276,16 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
         config.rowOrder = validRowOrder;
       }
 
-      return config;
+      const normalizedConfig = {
+        ...config,
+        sorts: config.sorts || [],
+        filters: config.filters || null,
+        groupBy: config.groupBy || null,
+        galleryConfig: config.galleryConfig,
+        calendarConfig: config.calendarConfig,
+        kanbanConfig: config.kanbanConfig,
+      };
+      return normalizedConfig;
     }, [currentView, columns, rows]);
 
     const handleRowAdd = useMemoizedFn((defaultData?: Partial<RowData>) => {
@@ -351,11 +365,6 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
     });
 
     const handleViewConfigChange = useMemoizedFn((config) => {
-      console.log("[CardDatabaseView] handleViewConfigChange:", {
-        activeViewId,
-        columnOrder: JSON.stringify(config.columnOrder, null, 2),
-        currentViewColumnOrder: currentView?.config.columnOrder?.length || 0,
-      });
       if (activeViewId) {
         updateView(activeViewId, { config });
       }
@@ -394,20 +403,69 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
 
     const handleRenameView = useMemoizedFn(
       async (viewId: number, name: string): Promise<DataTableView | null> => {
+        const currentView = views.find((v) => v.id === viewId);
+        if (!currentView) {
+          return null;
+        }
+        const nextView: DataTableView = {
+          ...currentView,
+          name,
+        };
         updateView(viewId, { name });
-        const view = views.find((v) => v.id === viewId);
-        return view || null;
+        return nextView;
       },
     );
 
     const handleUpdateView = useMemoizedFn(
       async (
         viewId: number,
-        updates: Parameters<typeof updateView>[1],
+        updates: Parameters<NonNullable<DatabaseProps["onUpdateView"]>>[1],
       ): Promise<DataTableView | null> => {
-        updateView(viewId, updates);
-        const view = views.find((v) => v.id === viewId);
-        return view || null;
+        const currentView = views.find((v) => v.id === viewId);
+        if (!currentView) {
+          return null;
+        }
+
+        const nextConfig = { ...currentView.config };
+        let shouldUpdateConfig = false;
+
+        if ("galleryConfig" in updates) {
+          nextConfig.galleryConfig = updates.galleryConfig;
+          shouldUpdateConfig = true;
+        }
+        if ("calendarConfig" in updates) {
+          nextConfig.calendarConfig = updates.calendarConfig;
+          shouldUpdateConfig = true;
+        }
+        if ("kanbanConfig" in updates) {
+          nextConfig.kanbanConfig = updates.kanbanConfig;
+          shouldUpdateConfig = true;
+        }
+
+        const payload: Partial<DataTableView> = {};
+
+        if (typeof updates.name === "string") {
+          payload.name = updates.name;
+        }
+
+        if (updates.type) {
+          payload.type = updates.type;
+        }
+
+        if (shouldUpdateConfig) {
+          payload.config = nextConfig;
+        }
+
+        if (!payload.name && !payload.type && !payload.config) {
+          return currentView;
+        }
+
+        updateView(viewId, payload);
+        const nextView = {
+          ...currentView,
+          ...payload,
+        } as DataTableView;
+        return nextView;
       },
     );
 
@@ -443,7 +501,7 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
     }
 
     return (
-      <div className="w-full h-full border border-x-[40px] py-5 border-transparent">
+      <div className="w-full h-full border border-x-40 py-5 border-transparent">
         <Database
           ref={databaseRef}
           columns={columns}

@@ -158,8 +158,17 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         name: string,
         type: DataTableViewType,
         galleryConfig?: GalleryViewConfig,
+        calendarConfig?: CalendarViewConfig,
+        kanbanConfig?: KanbanViewConfig,
       ) => {
-        await onUpdateView?.(viewId, name, type, galleryConfig);
+        await onUpdateView?.(
+          viewId,
+          name,
+          type,
+          galleryConfig,
+          calendarConfig,
+          kanbanConfig,
+        );
         setShowEditPopover(false);
       },
     );
