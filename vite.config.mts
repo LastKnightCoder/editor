@@ -1,6 +1,7 @@
 import { rmSync } from "node:fs";
-import { defineConfig, splitVendorChunkPlugin } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import tailwindcss from '@tailwindcss/vite'
 import electron from "vite-plugin-electron/simple";
 import pkg from "./package.json";
 import fs from "fs-extra";
@@ -8,7 +9,6 @@ import fs from "fs-extra";
 import * as path from "path";
 import { platform } from "node:os";
 
-// https://vitejs.dev/config/
 export default defineConfig(() => {
   rmSync("dist-electron", { recursive: true, force: true });
 
@@ -22,7 +22,7 @@ export default defineConfig(() => {
     },
     plugins: [
       react(),
-      splitVendorChunkPlugin(),
+      tailwindcss(),
       electron({
         main: {
           entry: "src-electron/main/index.ts",
@@ -59,6 +59,16 @@ export default defineConfig(() => {
                       fs.copySync(
                         "src-electron/main/workers/typst-worker.js",
                         "dist-electron/main/workers/typst-worker.js",
+                      );
+                    },
+                  },
+                  {
+                    name: "copy-tailwind-runtime-worker",
+                    closeBundle() {
+                      fs.ensureDirSync("dist-electron/main/workers");
+                      fs.copySync(
+                        "src-electron/main/workers/tailwind-runtime-worker.js",
+                        "dist-electron/main/workers/tailwind-runtime-worker.js",
                       );
                     },
                   },
@@ -130,7 +140,7 @@ export default defineConfig(() => {
     },
     envPrefix: ["VITE_"],
     build: {
-      minify: "esbuild",
+      minify: "esbuild" as const,
       sourcemap: false,
       rollupOptions: {
         output: {

@@ -4,7 +4,12 @@ import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { PlusOutlined } from "@ant-design/icons";
-import { useDrop, useDrag } from "react-dnd";
+import {
+  useDrop,
+  useDrag,
+  DropTargetMonitor,
+  DragSourceMonitor,
+} from "react-dnd";
 import { motion, AnimatePresence } from "framer-motion";
 
 import useTabStore from "@/stores/useTabStore";
@@ -92,13 +97,18 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
     { handlerId: string | symbol | null }
   >({
     accept: ["TAB", "TAB_GROUP"],
-    collect: (monitor) => ({
+    collect: (
+      monitor: DropTargetMonitor<TabGroupHeaderDropItem, TabDropResult>,
+    ) => ({
       handlerId: monitor.getHandlerId(),
     }),
     hover: () => {
       if (!ref.current) return;
     },
-    drop: (item: TabGroupHeaderDropItem, monitor) => {
+    drop: (
+      item: TabGroupHeaderDropItem,
+      monitor: DropTargetMonitor<TabGroupHeaderDropItem, TabDropResult>,
+    ) => {
       if (monitor.didDrop()) {
         return;
       }
@@ -146,10 +156,13 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
           originalPaneId: paneId, // 记录原始 paneId
         };
       },
-      collect: (monitor) => ({
+      collect: (monitor: DragSourceMonitor<TabGroupDragItem, void>) => ({
         isDragging: monitor.isDragging(),
       }),
-      end: (item, monitor) => {
+      end: (
+        item: TabGroupDragItem,
+        monitor: DragSourceMonitor<TabGroupDragItem, void>,
+      ) => {
         const didDrop = monitor.didDrop();
         const dropResult = monitor.getDropResult() as {
           paneId: string;
@@ -199,7 +212,7 @@ const TabGroupHeader = memo((props: TabGroupHeaderProps) => {
         "flex items-center h-7 px-2 mr-1 rounded-full text-xs cursor-pointer select-none app-region-no-drag border border-transparent",
         {
           "opacity-60": isDragging,
-          "bg-[var(--common-hover-bg)]": !colorValue,
+          "bg-(--common-hover-bg)": !colorValue,
           "font-semibold": isActive,
         },
       )}
@@ -227,6 +240,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const createTab = useTabStore((state) => state.createTab);
   const closeTab = useTabStore((state) => state.closeTab);
   const switchTab = useTabStore((state) => state.switchTab);
+  const updateTab = useTabStore((state) => state.updateTab);
   const reorderTab = useTabStore((state) => state.reorderTab);
   const moveTabToPane = useTabStore((state) => state.moveTabToPane);
   const moveTabToPaneAndSetGroup = useTabStore(
@@ -256,6 +270,9 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const [groupModalColor, setGroupModalColor] =
     useState<ProjectColorName | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameModalTabId, setRenameModalTabId] = useState<string | null>(null);
+  const [renameModalValue, setRenameModalValue] = useState("");
 
   const groups = useMemo(
     () => (pane?.groups ? pane.groups : []),
@@ -279,8 +296,52 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     closeTab(paneId, tabId);
   });
 
+  const handleOpenRenameModal = useMemoizedFn((tab: ITab) => {
+    setRenameModalTabId(tab.id);
+    setRenameModalValue(tab.title ?? "");
+    setRenameModalOpen(true);
+  });
+
+  const handleConfirmRenameTab = useMemoizedFn(() => {
+    if (!renameModalTabId) return;
+    const nextTitle = renameModalValue.trim();
+    if (!nextTitle) return;
+    updateTab(paneId, renameModalTabId, {
+      title: nextTitle,
+    });
+    setRenameModalOpen(false);
+    setRenameModalTabId(null);
+    setRenameModalValue("");
+  });
+
+  const handleCancelRenameTab = useMemoizedFn(() => {
+    setRenameModalOpen(false);
+    setRenameModalTabId(null);
+    setRenameModalValue("");
+  });
+
   const handleSwitchTab = useMemoizedFn((tabId: string) => {
     switchTab(paneId, tabId);
+  });
+
+  const handleCloseOtherTabs = useMemoizedFn((tabId: string) => {
+    if (!pane) return;
+    const tabIds = pane.tabs
+      .filter((t) => t.id !== tabId && t.closable !== false)
+      .map((t) => t.id);
+    tabIds.forEach((id) => {
+      closeTab(paneId, id);
+    });
+  });
+
+  const handleCloseAllTabs = useMemoizedFn(() => {
+    if (!pane) return;
+    const tabIds = pane.tabs
+      .filter((t) => t.closable !== false)
+      .map((t) => t.id);
+    tabIds.forEach((id) => {
+      closeTab(paneId, id);
+    });
   });
 
   const handleMoveTab = useCallback(
@@ -343,13 +404,18 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     { isOver: boolean }
   >({
     accept: ["TAB", "TAB_GROUP"],
-    drop: (_item, monitor) => {
+    drop: (
+      _item: TabDragItem | TabGroupDragItem,
+      monitor: DropTargetMonitor<TabDragItem | TabGroupDragItem, TabDropResult>,
+    ) => {
       // 如果子级已经处理了 drop（例如 TabGroupHeader），则不再处理
       if (monitor.didDrop()) return undefined;
       // 标题栏 drop 返回 paneId，不带 dropZone（表示直接移动，不分屏）
       return { paneId, dropZone: undefined };
     },
-    collect: (monitor) => ({
+    collect: (
+      monitor: DropTargetMonitor<TabDragItem | TabGroupDragItem, TabDropResult>,
+    ) => ({
       isOver: monitor.isOver(),
     }),
   });
@@ -369,6 +435,40 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
 
   const buildTabContextMenuItems = (tab: ITab): MenuProps["items"] => {
     const items: MenuProps["items"] = [];
+    const hasClosableOthers =
+      pane?.tabs.some((t) => t.id !== tab.id && t.closable !== false) ?? false;
+    const hasClosableTabs =
+      pane?.tabs.some((t) => t.closable !== false) ?? false;
+
+    items.push(
+      {
+        key: "rename",
+        label: "重命名",
+        onClick: (e: MenuClickEvent) => {
+          e.domEvent.stopPropagation();
+          handleOpenRenameModal(tab);
+        },
+      } as MenuItemType,
+      {
+        key: "close-others",
+        label: "关闭其他",
+        disabled: !hasClosableOthers,
+        onClick: (e: MenuClickEvent) => {
+          e.domEvent.stopPropagation();
+          handleCloseOtherTabs(tab.id);
+        },
+      } as MenuItemType,
+      {
+        key: "close-all",
+        label: "关闭所有",
+        disabled: !hasClosableTabs,
+        onClick: (e: MenuClickEvent) => {
+          e.domEvent.stopPropagation();
+          handleCloseAllTabs();
+        },
+      } as MenuItemType,
+      { type: "divider" } as MenuItemType,
+    );
 
     const moveMenuChildren: MenuProps["items"] = [];
     if (groups.length > 0) {
@@ -711,18 +811,18 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       <div
         ref={drop}
         className={classnames(
-          "w-full h-[60px] box-border flex items-center justify-between bg-[var(--main-bg-color)] flex-shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative app-region-drag",
+          "w-full h-15 box-border flex items-center justify-between bg-(--main-bg-color) shrink-0 border-b border-[#f0f0f0] dark:border-[#2a2a2a] relative app-region-drag",
           className,
         )}
       >
         <div
           className={classnames(
-            "flex-1 min-w-0 flex items-center gap-1 overflow-x-auto overflow-y-hidden px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-[var(--border-color)] [&::-webkit-scrollbar-thumb]:rounded-sm transition-all",
+            "flex-1 min-w-0 flex items-center gap-1 overflow-x-auto overflow-y-hidden px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-(--border-color) [&::-webkit-scrollbar-thumb]:rounded-sm transition-all",
           )}
         >
           {tabNodes}
           <button
-            className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-[var(--text-color)] text-sm transition-colors hover:bg-[var(--common-hover-bg)] app-region-no-drag"
+            className="flex items-center justify-center w-7 h-7 border-none bg-transparent cursor-pointer rounded text-(--text-color) text-sm transition-colors hover:bg-(--common-hover-bg) app-region-no-drag"
             onClick={handleNewTab}
           >
             <PlusOutlined />
@@ -745,7 +845,9 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             <Input
               className="h-10"
               value={groupModalName}
-              onChange={(e) => setGroupModalName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setGroupModalName(e.target.value)
+              }
               placeholder="分组名称"
             />
           </div>
@@ -762,6 +864,26 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
             />
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        title="重命名标签页"
+        open={renameModalOpen}
+        onOk={handleConfirmRenameTab}
+        onCancel={handleCancelRenameTab}
+        okText="确定"
+        cancelText="取消"
+        getContainer={false}
+        okButtonProps={{ disabled: renameModalValue.trim().length === 0 }}
+      >
+        <Input
+          className="h-10"
+          value={renameModalValue}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setRenameModalValue(e.target.value)
+          }
+          placeholder="请输入标签名称"
+        />
       </Modal>
     </>
   );

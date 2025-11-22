@@ -9,6 +9,7 @@ import TextToSpeechSetting from "./TextToSpeechSetting";
 import LLMProviderSetting from "./LLMProviderSetting";
 import EmbeddingProviderSetting from "./EmbeddingProviderSetting";
 import IntegrationSetting from "./IntegrationSetting";
+import CustomBlockSetting from "./CustomBlockSetting";
 
 import styles from "./index.module.less";
 
@@ -53,6 +54,11 @@ const SettingsPage = () => {
       key: "module",
       label: "模块功能",
       children: <ModuleSetting />,
+    },
+    {
+      key: "customBlock",
+      label: "自定义组件",
+      children: <CustomBlockSetting />,
     },
     {
       key: "integration",
