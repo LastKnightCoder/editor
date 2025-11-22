@@ -1,10 +1,11 @@
 import { RenderElementProps } from "slate-react";
 import { HTMLBlockElement } from "@/components/Editor/types";
-import React, { PropsWithChildren } from "react";
+import React, { PropsWithChildren, Fragment } from "react";
 import styles from "./index.module.less";
 import PreviewWithEditor from "@/components/Editor/components/PreviewWithEditor";
 import { Transforms } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
+import { useTailwindRuntimeCss } from "@/hooks/useTailwindRuntimeCss";
 
 interface HTMLBlockProps {
   attributes: RenderElementProps["attributes"];
@@ -15,6 +16,7 @@ const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = (props) => {
   const { attributes, children, element } = props;
   const { html } = element;
   const editor = useSlateStatic();
+  const tailwindCss = useTailwindRuntimeCss(html, "html");
 
   const handleOnChange = (code: string) => {
     Transforms.setNodes(
@@ -42,7 +44,12 @@ const HTMLBlock: React.FC<PropsWithChildren<HTMLBlockProps>> = (props) => {
         extend
       >
         {html ? (
-          <div dangerouslySetInnerHTML={{ __html: html }} />
+          <Fragment>
+            {tailwindCss ? (
+              <style dangerouslySetInnerHTML={{ __html: tailwindCss }} />
+            ) : null}
+            <div dangerouslySetInnerHTML={{ __html: html }} />
+          </Fragment>
         ) : (
           renderEmpty()
         )}

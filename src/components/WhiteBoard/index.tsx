@@ -378,7 +378,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
             >
               <div className="flex h-full relative">
                 <ResizeableAndHideableSidebar
-                  className="relative flex-shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+                  className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
                   width={sidebarWidth ?? 300}
                   onWidthChange={setSidebarWidth}
                   open={!!sidebarOpen}

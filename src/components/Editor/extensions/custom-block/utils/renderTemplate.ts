@@ -1,4 +1,5 @@
 import * as ahooks from "ahooks";
+import { compileCustomBlockTailwind } from "@/services/tailwindRuntime";
 
 export const getCustomBlockRenderTemplate = (isDark: boolean) => {
   const prefix = `const { antd } = components;\n`;
@@ -48,7 +49,19 @@ export const compileAndExecuteCustomBlock = async (
   targetElement: HTMLElement,
   hooks?: Record<string, any>,
 ): Promise<(() => void) | undefined> => {
+  let cleanupStyle: (() => void) | undefined;
   try {
+    const runtimeCss = await compileCustomBlockTailwind(content);
+    if (runtimeCss && typeof document !== "undefined") {
+      const styleElement = document.createElement("style");
+      styleElement.dataset.customBlockTailwind = "runtime";
+      styleElement.textContent = runtimeCss;
+      document.head.appendChild(styleElement);
+      cleanupStyle = () => {
+        styleElement.remove();
+      };
+    }
+
     // 动态导入依赖
     const [React, ReactDOM, Babel, antd, antdIcons] = await Promise.all([
       import("react"),
@@ -105,9 +118,11 @@ export const compileAndExecuteCustomBlock = async (
 
     // 返回清理函数
     return () => {
+      cleanupStyle?.();
       root?.unmount?.();
     };
   } catch (error) {
+    cleanupStyle?.();
     console.error("CustomBlock compilation error:", error);
     if (targetElement) {
       targetElement.innerHTML = `<div class="text-red-500 p-4">渲染错误: ${error instanceof Error ? error.message : String(error)}</div>`;

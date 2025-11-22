@@ -41,7 +41,7 @@ const BlockCard = ({
             </h3>
           </div>
           {mode === "list" && onToggle && (
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <Switch
                 checked={block.enabled}
                 onChange={(checked, e) =>

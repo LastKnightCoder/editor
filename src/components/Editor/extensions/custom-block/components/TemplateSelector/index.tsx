@@ -73,11 +73,11 @@ const TemplateSelector = ({
       maskClosable={false}
     >
       {loading ? (
-        <div className="flex flex-col items-center justify-center min-h-[300px]">
+        <div className="flex flex-col items-center justify-center min-h-75">
           <Spin size="large" />
         </div>
       ) : enabledBlocks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+        <div className="flex flex-col items-center justify-center min-h-75 text-center">
           <MdWidgets className="w-12 h-12 text-text-2 opacity-50 mb-4" />
           <h3 className="text-base font-semibold text-text-1 mb-2">
             暂无可用的组件模板
@@ -101,7 +101,7 @@ const TemplateSelector = ({
 
           {/* 组件网格 */}
           {filteredBlocks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center min-h-[300px] text-center">
+            <div className="flex flex-col items-center justify-center min-h-75 text-center">
               <MdWidgets className="w-12 h-12 text-text-2 opacity-50 mb-4" />
               <h3 className="text-base font-semibold text-text-1 mb-2">
                 未找到匹配的组件
