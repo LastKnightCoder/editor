@@ -12,6 +12,7 @@ import WhiteboardTable from "./tables/whiteboard";
 import ProjectTable from "./tables/project";
 import PdfTable from "./tables/pdf";
 import DailyNoteTable from "./tables/daily-note";
+import DiaryTable from "./tables/diary";
 import VecDocumentTable from "./tables/vec-document";
 import ChatMessageTable from "./tables/chat-message";
 import ChatGroupTable from "./tables/chat-group";
@@ -97,6 +98,7 @@ class DatabaseModule implements Module {
       DocumentTable,
       PdfTable,
       DailyNoteTable,
+      DiaryTable,
       VecDocumentTable,
       ChatGroupTable,
       ChatMessageTable,

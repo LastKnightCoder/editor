@@ -1,6 +1,7 @@
 export * from "./card";
 export * from "./article";
 export * from "./daily-note";
+export * from "./diary";
 export * from "./setting";
 export * from "./fonts";
 export * from "./document";

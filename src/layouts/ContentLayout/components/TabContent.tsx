@@ -15,7 +15,7 @@ const WhiteBoardView = lazy(() => import("@/pages/WhiteBoardView"));
 const WhiteboardDetailView = lazy(() => import("@/pages/WhiteboardDetailView"));
 const PdfListView = lazy(() => import("@/pages/PdfView/PdfListView"));
 const PdfDetailView = lazy(() => import("@/pages/PdfView/PdfDetailView"));
-const DailyNoteView = lazy(() => import("@/pages/DailyNoteView"));
+const DailyNoteView = lazy(() => import("@/pages/DiaryView"));
 const VecDocumentView = lazy(() => import("@/pages/VecDocumentView"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const CalendarPage = lazy(() => import("@/pages/Calendar"));
