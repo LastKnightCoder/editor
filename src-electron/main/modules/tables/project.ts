@@ -24,8 +24,12 @@ import CardTable from "./card";
 import ArticleTable from "./article";
 import VideoNoteTable from "./video-note";
 import WhiteBoardContentTable from "./white-board-content";
+import WebLinkTable from "./web-link";
+import { WebLinkSourceType } from "@/types";
 
 import log from "electron-log";
+
+const LEGACY_WEB_LINK_MIGRATION_KEY = "project:legacy-web-links";
 
 export default class ProjectTable {
   static initTable(db: Database.Database) {
@@ -112,6 +116,89 @@ export default class ProjectTable {
     }
     // 删除不在任何项目中的条目
     this.deleteProjectItemsNotInAnyProject(db);
+    this.migrateLegacyWebLinks(db);
+  }
+
+  static extractLegacyWebLink(title: string): { title: string; url: string } {
+    const urlRegex = /\s*\[([^\]]+)\]\s*$/;
+    const match = title.match(urlRegex);
+    if (match && match[1]) {
+      return {
+        title: title.replace(urlRegex, "").trim(),
+        url: match[1],
+      };
+    }
+    return {
+      title: title.trim(),
+      url: "",
+    };
+  }
+
+  private static ensureMigrationMetaTable(db: Database.Database) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS migration_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `);
+  }
+
+  private static isMigrationDone(db: Database.Database, key: string) {
+    this.ensureMigrationMetaTable(db);
+    const row = db
+      .prepare(`SELECT value FROM migration_meta WHERE key = ?`)
+      .get(key) as { value: string } | undefined;
+    return row?.value === "done";
+  }
+
+  private static markMigrationDone(db: Database.Database, key: string) {
+    this.ensureMigrationMetaTable(db);
+    db.prepare(
+      `
+        INSERT INTO migration_meta (key, value)
+        VALUES (?, 'done')
+        ON CONFLICT(key) DO UPDATE SET value = 'done'
+      `,
+    ).run(key);
+  }
+
+  static migrateLegacyWebLinks(db: Database.Database) {
+    if (this.isMigrationDone(db, LEGACY_WEB_LINK_MIGRATION_KEY)) {
+      return;
+    }
+
+    const webviewItems = db
+      .prepare(
+        `SELECT id, title, ref_type, ref_id FROM project_item WHERE project_item_type = ?`,
+      )
+      .all(EProjectItemType.WebView) as any[];
+    const updateStmt = db.prepare(
+      `UPDATE project_item SET title = ?, ref_type = ?, ref_id = ? WHERE id = ?`,
+    );
+    const updateTitleStmt = db.prepare(
+      `UPDATE project_item SET title = ? WHERE id = ?`,
+    );
+    for (const item of webviewItems) {
+      if (item.ref_type === "web-link" && item.ref_id) continue;
+      const parsed = this.extractLegacyWebLink(item.title || "");
+      if (!parsed.url) {
+        if (parsed.title !== item.title) {
+          updateTitleStmt.run(parsed.title, item.id);
+        }
+        continue;
+      }
+      const sourceType: WebLinkSourceType = parsed.url.startsWith("http")
+        ? "remote"
+        : "local";
+      const webLink = WebLinkTable.create(db, {
+        title: parsed.title || parsed.url,
+        url: parsed.url,
+        sourceType,
+      });
+      updateStmt.run(webLink.title, "web-link", webLink.id, item.id);
+    }
+
+    this.markMigrationDone(db, LEGACY_WEB_LINK_MIGRATION_KEY);
   }
 
   static getListenEvents() {

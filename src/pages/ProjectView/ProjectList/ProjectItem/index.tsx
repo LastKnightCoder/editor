@@ -38,9 +38,11 @@ import {
   removeChildProjectItem,
   createDataTable,
   openExternal,
+  createWebLink,
+  updateWebLink,
 } from "@/commands";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
-import { extractUrlFromTitle } from "@/utils";
+import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import NotionSyncModal, {
@@ -81,6 +83,7 @@ import {
   IndexType,
   SearchResult,
   WhiteBoardContent,
+  WebLinkSourceType,
 } from "@/types";
 import { TabType } from "@/types/tab";
 import {
@@ -239,6 +242,22 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const [notionLoading, setNotionLoading] = useState(false);
   const [notionCacheEnabled, setNotionCacheEnabled] = useState(true);
   const [notionSyncModalOpen, setNotionSyncModalOpen] = useState(false);
+  const {
+    title: projectItemTitle,
+    url: displayWebviewUrl,
+    linkId: webLinkId,
+  } = useProjectWebLinkMeta(projectItem);
+
+  const createWebLinkRecord = useMemoizedFn(
+    async (title: string, url: string, sourceType: WebLinkSourceType) => {
+      const finalTitle = title.trim() || url;
+      return await createWebLink({
+        title: finalTitle,
+        url,
+        sourceType,
+      });
+    },
+  );
 
   const { updateProject } = useProjectsStore((state) => ({
     updateProject: state.updateProject,
@@ -982,19 +1001,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             await deleteShortcut(isShortcut.id);
             message.success("已取消快捷方式");
           } else {
-            let title = projectItem.title;
-            if (projectItem.projectItemType === EProjectItemType.WebView) {
-              const { title: webviewTitle } = extractUrlFromTitle(
-                projectItem.title,
-              );
-              title = webviewTitle;
-            }
+            const shortcutTitle =
+              projectItem.projectItemType === EProjectItemType.WebView
+                ? projectItemTitle
+                : projectItem.title;
             await createShortcut({
               resourceType: "project",
               scope: "item",
               resourceId: projectId,
               projectItemId: projectItem.id,
-              title,
+              title: shortcutTitle || "",
             });
             message.success("已添加到快捷方式");
           }
@@ -1094,9 +1110,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         }
 
         if (projectItem.projectItemType === EProjectItemType.WebView) {
-          const { url } = extractUrlFromTitle(projectItem.title);
-          if (url) {
-            openExternal(url);
+          if (displayWebviewUrl) {
+            openExternal(displayWebviewUrl);
           } else {
             message.error("无法提取 URL");
           }
@@ -1441,20 +1456,24 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           onClick={async () => {
             const activeProjectItem = await getProjectItemById(projectItem.id);
             if (!activeProjectItem) return;
+            const displayTitle =
+              projectItem.projectItemType === EProjectItemType.WebView
+                ? projectItemTitle
+                : projectItem.title;
             navigateTo(
               TabType.ProjectDetail,
               {
                 id: projectId,
                 itemId: projectItem.id,
               },
-              `项目 - ${projectItem.title || `#${projectItem.id}`}`,
+              `项目 - ${displayTitle || `#${projectItem.id}`}`,
             );
           }}
         >
           <Tooltip
             title={
               projectItem.projectItemType === EProjectItemType.WebView
-                ? extractUrlFromTitle(projectItem.title).title
+                ? projectItemTitle
                 : projectItem.title
             }
             trigger={"hover"}
@@ -1507,30 +1526,39 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 ref={titleRef}
                 defaultValue={
                   projectItem.projectItemType === EProjectItemType.WebView
-                    ? extractUrlFromTitle(projectItem.title).title
+                    ? projectItemTitle
                     : projectItem.title
                 }
                 contentEditable={titleEditable}
                 onPressEnter={() => {
-                  let textContent =
-                    titleRef.current?.getValue() || projectItem?.title;
-
+                  const textContent =
+                    titleRef.current?.getValue() ||
+                    (projectItem.projectItemType === EProjectItemType.WebView
+                      ? projectItemTitle
+                      : projectItem?.title) ||
+                    "";
                   setTitleEditable(false);
 
-                  // 如果是 WebView 类型，需要保留原来的 URL
+                  let nextTitle = textContent;
                   if (
                     projectItem.projectItemType === EProjectItemType.WebView
                   ) {
-                    const { url } = extractUrlFromTitle(projectItem.title);
-                    if (url) {
-                      textContent = `${textContent} [${url}]`;
+                    if (webLinkId) {
+                      updateWebLink({
+                        id: webLinkId,
+                        title: textContent,
+                      }).catch((err) =>
+                        console.error("更新网页标题失败:", err),
+                      );
+                    } else if (displayWebviewUrl) {
+                      nextTitle = `${textContent} [${displayWebviewUrl}]`;
                     }
                   }
 
-                  if (textContent !== projectItem.title) {
+                  if (nextTitle !== projectItem.title) {
                     updateProjectItem({
                       ...projectItem,
-                      title: textContent,
+                      title: nextTitle,
                     }).then((newProjectItem) => {
                       if (!newProjectItem) return;
                       setProjectItem(newProjectItem);
@@ -1806,64 +1834,53 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           setLoading(true);
 
           try {
+            let linkTitle = "";
+            let linkUrl = "";
+            let sourceType: WebLinkSourceType = "remote";
+
             if (webviewModalTab === "url") {
               const normalizedUrl = normalizeWebviewUrl(webviewRemoteUrl);
               if (!normalizedUrl) {
                 message.error("请输入网址");
                 return;
               }
-
-              const title = getWebviewTitleFromUrl(normalizedUrl);
-
-              const createProjectItem: CreateProjectItem = {
-                title: `${title} [${normalizedUrl}]`,
-                content: [],
-                children: [],
-                refType: "",
-                refId: 0,
-                projectItemType: EProjectItemType.WebView,
-                count: 0,
-                whiteBoardContentId: 0,
-              };
-
-              const [parentProjectItem] = await addChildProjectItem(
-                projectItem.id,
-                createProjectItem,
-              );
-
-              if (parentProjectItem) {
-                setProjectItem(parentProjectItem);
-                projectItemEventBus.publishProjectItemEvent(
-                  "project-item:updated",
-                  parentProjectItem,
-                );
-              }
+              linkUrl = normalizedUrl;
+              linkTitle = getWebviewTitleFromUrl(normalizedUrl);
+              sourceType = "remote";
             } else {
-              const finalTitle =
-                webviewTitle.trim() || webviewFileName || "本地网页";
-              const createProjectItem: CreateProjectItem = {
-                title: `${finalTitle} [${webviewLocalUrl}]`,
-                content: [],
-                children: [],
-                refType: "",
-                refId: 0,
-                projectItemType: EProjectItemType.WebView,
-                count: 0,
-                whiteBoardContentId: 0,
-              };
+              linkUrl = webviewLocalUrl;
+              linkTitle = webviewTitle.trim() || webviewFileName || "本地网页";
+              sourceType = "local";
+            }
 
-              const [parentProjectItem] = await addChildProjectItem(
-                projectItem.id,
-                createProjectItem,
+            const webLink = await createWebLinkRecord(
+              linkTitle,
+              linkUrl,
+              sourceType,
+            );
+
+            const createProjectItem: CreateProjectItem = {
+              title: webLink.title,
+              content: [],
+              children: [],
+              refType: "web-link",
+              refId: webLink.id,
+              projectItemType: EProjectItemType.WebView,
+              count: 0,
+              whiteBoardContentId: 0,
+            };
+
+            const [parentProjectItem] = await addChildProjectItem(
+              projectItem.id,
+              createProjectItem,
+            );
+
+            if (parentProjectItem) {
+              setProjectItem(parentProjectItem);
+              projectItemEventBus.publishProjectItemEvent(
+                "project-item:updated",
+                parentProjectItem,
               );
-
-              if (parentProjectItem) {
-                setProjectItem(parentProjectItem);
-                projectItemEventBus.publishProjectItemEvent(
-                  "project-item:updated",
-                  parentProjectItem,
-                );
-              }
             }
 
             setWebviewModalOpen(false);

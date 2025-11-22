@@ -16,8 +16,8 @@ const blockPanelItems: IBlockPanelListItem[] = [
         title: "输入网页地址",
         content: (
           <InputUrlModal
-            onOk={(url: string) => {
-              insertWebview(editor, url);
+            onOk={({ url, sourceType }) => {
+              insertWebview(editor, { url, sourceType });
               modal.destroy();
             }}
             onCancel={() => {

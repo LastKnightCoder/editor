@@ -26,6 +26,7 @@ export * from "./calendar";
 export * from "./file-tree";
 export * from "./podcast";
 export * from "./resource";
+export * from "./web-link";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
