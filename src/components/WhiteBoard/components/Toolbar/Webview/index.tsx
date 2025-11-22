@@ -63,6 +63,9 @@ const Webview = (props: WebviewProps) => {
     // 默认尺寸
     const webviewWidth = 600;
     const webviewHeight = 400;
+    const normalizedUrl = normalizeWebviewUrl(url) || DEFAULT_URL;
+    const finalUrl = tab === "url" ? normalizedUrl : localHtmlUrl;
+    const sourceType = tab === "url" ? "remote" : "local";
 
     board.apply({
       type: "insert_node",
@@ -70,10 +73,8 @@ const Webview = (props: WebviewProps) => {
       node: {
         id: getUuid(),
         type: "webview",
-        url:
-          tab === "url"
-            ? normalizeWebviewUrl(url) || DEFAULT_URL
-            : localHtmlUrl,
+        url: finalUrl,
+        sourceType,
         x: center.x - webviewWidth / 2,
         y: center.y - webviewHeight / 2,
         width: webviewWidth,

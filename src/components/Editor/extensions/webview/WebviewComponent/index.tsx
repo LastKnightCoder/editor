@@ -9,6 +9,7 @@ import { MdDragIndicator } from "react-icons/md";
 
 import { IExtensionBaseProps } from "@/components/Editor/extensions/types";
 import { WebviewElement } from "@/components/Editor/types";
+import { WebLinkSourceType } from "@/types";
 import AddParagraph from "@/components/Editor/components/AddParagraph";
 import useDragAndDrop from "@/components/Editor/hooks/useDragAndDrop";
 import Webview, { WebviewRef } from "@/components/Webview";
@@ -55,24 +56,34 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     setEditUrlOpen(true);
   });
 
-  const handleEditUrlConfirm = useMemoizedFn((newUrl: string) => {
-    const normalizedUrl = normalizeWebviewUrl(newUrl);
-    if (!normalizedUrl) {
+  const handleEditUrlConfirm = useMemoizedFn(
+    ({
+      url: nextUrl,
+      sourceType,
+    }: {
+      url: string;
+      sourceType: WebLinkSourceType;
+    }) => {
+      const normalizedUrl =
+        sourceType === "remote" ? normalizeWebviewUrl(nextUrl) : nextUrl;
+      if (!normalizedUrl) {
+        setEditUrlOpen(false);
+        return;
+      }
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(
+        editor,
+        {
+          url: normalizedUrl,
+          sourceType,
+        },
+        {
+          at: path,
+        },
+      );
       setEditUrlOpen(false);
-      return;
-    }
-    const path = ReactEditor.findPath(editor, element);
-    Transforms.setNodes(
-      editor,
-      {
-        url: normalizedUrl,
-      },
-      {
-        at: path,
-      },
-    );
-    setEditUrlOpen(false);
-  });
+    },
+  );
 
   const handleDelete = useMemoizedFn(() => {
     modal.confirm({
@@ -136,6 +147,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
         editor,
         {
           url: normalizedUrl,
+          sourceType: "local",
         },
         {
           at: path,
@@ -205,6 +217,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
             <Webview
               ref={webviewRef}
               src={url}
+              sourceType={element.sourceType}
               style={{
                 width: "100%",
                 height,
@@ -248,6 +261,7 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
         >
           <InputUrlModal
             defaultValue={url}
+            defaultSourceType={element.sourceType ?? "remote"}
             onOk={handleEditUrlConfirm}
             onCancel={() => setEditUrlOpen(false)}
           />
