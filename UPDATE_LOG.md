@@ -806,3 +806,4 @@
 - feat: 支持动态编译 Tailwind，支持在自定义组件和 HTML 中使用 Tailwind
 - feat: Tab 支持重命名和关闭其它 Tab
 - fix: PreviewWithEditor 全屏后缩小数据丢失
+- fix: 数据库设置日历和看板设置无效
