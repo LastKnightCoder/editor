@@ -177,31 +177,40 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
 
     const toggleFullscreen = useMemoizedFn(() => {
       if (isFullscreen) {
-        const value = fullscreenEditorRef.current?.getValue() || "";
-        setValue(value);
-        editorRef.current?.setValue(value);
-        editorRef.current?.focus();
+        let nextValue = value || "";
+        if (fullscreenEditing && fullscreenEditorRef.current) {
+          nextValue = fullscreenEditorRef.current.getValue() || "";
+        } else if (editorRef.current) {
+          nextValue = editorRef.current.getValue() || nextValue;
+        }
+        setValue(nextValue);
+        if (editorRef.current) {
+          editorRef.current.setValue(nextValue);
+          editorRef.current.focus();
+        }
         if (fullscreenEditing) {
           setFullscreenEditing(false);
           setEditing(true);
         } else {
           setEditing(false);
         }
-      } else {
-        const value = editorRef.current?.getValue() || "";
-        setValue(value);
-        fullscreenEditorRef.current?.setValue(value);
-        if (editing) {
-          setFullscreenEditing(true);
-          setEditing(false);
-          setTimeout(() => {
-            if (fullscreenEditorRef.current) {
-              fullscreenEditorRef.current.focus();
-            }
-          }, 50);
-        }
+        setIsFullscreen(false);
+        return;
       }
-      setIsFullscreen(!isFullscreen);
+
+      const currentValue = editorRef.current?.getValue() || value || "";
+      setValue(currentValue);
+      fullscreenEditorRef.current?.setValue(currentValue);
+      if (editing) {
+        setFullscreenEditing(true);
+        setEditing(false);
+        setTimeout(() => {
+          if (fullscreenEditorRef.current) {
+            fullscreenEditorRef.current.focus();
+          }
+        }, 50);
+      }
+      setIsFullscreen(true);
     });
 
     const toggleFullscreenEditing = useMemoizedFn(() => {
@@ -313,7 +322,7 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
               className={classnames(styles.fullscreenOverlay, {
                 [styles.darkOverlay]: isDark,
               })}
-              onClick={() => setIsFullscreen(false)}
+              onClick={toggleFullscreen}
             >
               <div
                 className={classnames(styles.fullscreenContent, {
