@@ -11,8 +11,9 @@ export const createChatMessage = (
   messages: ChatSessionMessage[],
   title = "新对话",
   groupId?: number | null,
+  promptId?: number | null,
 ): Promise<ChatMessage> => {
-  return invoke("create-chat-message", messages, title, groupId);
+  return invoke("create-chat-message", messages, title, groupId, promptId);
 };
 
 export const getChatMessageById = (id: number): Promise<ChatMessage> => {

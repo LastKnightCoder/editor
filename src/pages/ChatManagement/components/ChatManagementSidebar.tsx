@@ -14,7 +14,7 @@ import dayjs from "dayjs";
 import classnames from "classnames";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 import type { ChatMessage, ChatGroup, ResponseMessage } from "@/types";
-import { Role } from "@/constants";
+import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import SVG from "react-inlinesvg";
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 
@@ -94,8 +94,7 @@ const ChatManagementSidebar = memo(
       const messages: ResponseMessage[] = [
         {
           role: Role.System,
-          content:
-            "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+          content: DEFAULT_SYSTEM_PROMPT,
         },
       ];
 
@@ -129,8 +128,7 @@ const ChatManagementSidebar = memo(
       const messages: ResponseMessage[] = [
         {
           role: Role.System,
-          content:
-            "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+          content: DEFAULT_SYSTEM_PROMPT,
         },
       ];
 

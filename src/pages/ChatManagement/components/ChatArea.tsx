@@ -25,7 +25,7 @@ import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/Merm
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { ResponseMessage } from "@/types";
-import { Role } from "@/constants";
+import { Role, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import PlantUML from "@/components/PlantUML";
 
@@ -40,12 +40,12 @@ const DEFAULT_CHAT = {
   messages: [
     {
       role: Role.System,
-      content:
-        "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+      content: DEFAULT_SYSTEM_PROMPT,
       reasoning_content: "",
     },
   ],
   title: "新对话",
+  promptId: null,
 };
 
 export type ChatAreaHandle = {
@@ -86,8 +86,7 @@ const ChatArea = memo(
       const messages: ResponseMessage[] = [
         {
           role: Role.System,
-          content:
-            "你是一位全能的人工助手，用户会问你一些问题，请你尽你所能进行回答。",
+          content: DEFAULT_SYSTEM_PROMPT,
         },
       ];
 

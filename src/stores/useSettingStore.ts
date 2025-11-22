@@ -139,6 +139,10 @@ export interface ISetting {
       enable: boolean;
       name: "聊天管理";
     };
+    promptManagement: {
+      enable: boolean;
+      name: "Prompt 管理";
+    };
     resourceManagement: {
       enable: boolean;
       name: "资源管理";
@@ -413,6 +417,10 @@ const initialState: IState = {
       chatManagement: {
         enable: true,
         name: "聊天管理",
+      },
+      promptManagement: {
+        enable: true,
+        name: "Prompt 管理",
       },
     },
     textToSpeech: {
