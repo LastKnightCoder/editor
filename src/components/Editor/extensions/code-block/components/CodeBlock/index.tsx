@@ -111,18 +111,18 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = (
     });
 
   useEffect(() => {
-    if (editorRef.current && editorRef.current.getValue() !== defaultCode) {
-      editorRef.current.setValue(defaultCode);
+    const nextCode = defaultCode || "";
+    setCode(nextCode);
+    if (editorRef.current && editorRef.current.getValue() !== nextCode) {
+      editorRef.current.setValue(nextCode);
       editorRef.current.refresh();
-      setCode(defaultCode);
     }
     if (
       fullscreenEditorRef.current &&
-      fullscreenEditorRef.current.getValue() !== defaultCode
+      fullscreenEditorRef.current.getValue() !== nextCode
     ) {
-      fullscreenEditorRef.current.setValue(defaultCode);
+      fullscreenEditorRef.current.setValue(nextCode);
       fullscreenEditorRef.current.refresh();
-      setCode(defaultCode);
     }
   }, [defaultCode]);
 

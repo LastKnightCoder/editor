@@ -82,6 +82,20 @@ const PreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorProps>> =
     }, fullscreenRef);
 
     useEffect(() => {
+      const nextValue = initValue || "";
+      setValue(nextValue);
+      if (editorRef.current && editorRef.current.getValue() !== nextValue) {
+        editorRef.current.setValue(nextValue);
+      }
+      if (
+        fullscreenEditorRef.current &&
+        fullscreenEditorRef.current.getValue() !== nextValue
+      ) {
+        fullscreenEditorRef.current.setValue(nextValue);
+      }
+    }, [initValue]);
+
+    useEffect(() => {
       const handleFocus = (e: any) => {
         const ele = e.detail;
         if (ele === element) {
