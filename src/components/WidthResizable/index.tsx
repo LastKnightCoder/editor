@@ -89,7 +89,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
     hoverTimerRef.current = setTimeout(() => {
       setShowHandleHighlight(true);
       hoverTimerRef.current = null;
-    }, 500);
+    }, 200);
   };
 
   const handleHoverEnd = () => {
@@ -144,7 +144,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = (
           <div
             className={classnames(
               "pointer-events-none ml-auto mr-0 h-full w-[4px] rounded-sm transition-colors duration-300 ease-in-out",
-              showHandleHighlight
+              showHandleHighlight || isResizing
                 ? "bg-[#aac6ff] dark:bg-[#2b3f73]"
                 : "bg-transparent",
             )}

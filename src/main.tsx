@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 
 import "./init";
+import "./tailwind";
 import "./main.less";
 
 import App from "@/App.tsx";

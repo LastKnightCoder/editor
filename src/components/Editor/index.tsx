@@ -326,3 +326,9 @@ const Index = memo(
 export default Index;
 
 export type { IExtension };
+
+// 重导出 CustomBlock 相关工具
+export {
+  generateExecutableCode,
+  compileAndExecuteCustomBlock,
+} from "./extensions/custom-block/utils/renderTemplate";

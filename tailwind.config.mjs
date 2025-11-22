@@ -12,6 +12,43 @@ export default {
         75: "300px",
       },
       colors: {
+        // ==================== 统一颜色系统 ====================
+        // 背景色
+        "bg-page": "var(--color-bg-page)",
+        "bg-container": "var(--color-bg-container)",
+        "bg-elevated": "var(--color-bg-elevated)",
+        "bg-canvas": "var(--color-bg-canvas)",
+        "bg-input": "var(--color-bg-input)",
+        
+        // 文字色
+        "text-1": "var(--color-text-primary)",
+        "text-2": "var(--color-text-secondary)",
+        "text-3": "var(--color-text-tertiary)",
+        "text-4": "var(--color-text-quaternary)",
+        
+        // 边框色
+        "border-1": "var(--color-border-primary)",
+        "border-2": "var(--color-border-secondary)",
+        
+        // 品牌色（蓝色系）
+        "brand": "var(--color-primary)",
+        "brand-hover": "var(--color-primary-hover)",
+        "brand-active": "var(--color-primary-active)",
+        
+        // 语义色
+        "status-success": "var(--color-success)",
+        "status-warning": "var(--color-warning)",
+        "status-error": "var(--color-error)",
+        "status-info": "var(--color-info)",
+        
+        // 标签色
+        "tag-bg": "var(--color-tag-bg)",
+        "tag-text": "var(--color-tag-text)",
+        
+        // 遮罩
+        mask: "var(--color-mask)",
+        
+        // ==================== 原有颜色（保持兼容）====================
         // 基础背景/文本/线条
         "primary-bg": "var(--primary-bg-color)",
         surface: "var(--main-bg-color)",
@@ -44,9 +81,6 @@ export default {
         active: "var(--active-bg-color)",
         "active-text": "var(--active-text-color)",
         "active-icon": "var(--active-icon-bg)",
-
-        // 子弹列表
-        "bullet-bg": "var(--bullet-list-item-bg)",
 
         // 侧栏/分栏
         sidebar: "var(--sidebar-background)",
