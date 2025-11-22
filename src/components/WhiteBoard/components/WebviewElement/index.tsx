@@ -165,6 +165,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
           newProperties: {
             ...element,
             url: normalizedUrl,
+            sourceType: "remote",
           },
         });
         setTempUrl(normalizedUrl);
@@ -209,6 +210,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
           newProperties: {
             ...element,
             url: uploadedUrl,
+            sourceType: "local",
           },
         });
         setTempUrl(uploadedUrl);
@@ -260,6 +262,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
           <Webview
             ref={webviewRef}
             src={url}
+            sourceType={element.sourceType}
             style={{
               width: "100%",
               height: "100%",

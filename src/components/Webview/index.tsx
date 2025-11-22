@@ -11,6 +11,7 @@ import React, {
 import { convertFileSrc, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
+import { WebLinkSourceType } from "@/types";
 
 export interface WebviewRef {
   getTitle: () => string;
@@ -37,6 +38,7 @@ interface WebviewProps {
   onError?: (error: Error) => void;
   onTitleChange?: (title: string) => void;
   onURLChange?: (url: string) => void;
+  sourceType?: WebLinkSourceType;
 }
 
 const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
@@ -51,6 +53,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     onError,
     onTitleChange,
     onURLChange,
+    sourceType,
   } = props;
 
   const cdnSrc = useGithubCdnUrl(src);
@@ -61,6 +64,17 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
   useEffect(() => {
     let cancelled = false;
 
+    const resolveLocalFile = async (path: string) => {
+      const homeDir = await getHomeDir();
+      const absolutePath = path.startsWith("~")
+        ? `${homeDir}${path.slice(1)}`
+        : path;
+      const fileSrc = await convertFileSrc(absolutePath);
+      if (!cancelled) {
+        setResolvedSrc(fileSrc);
+      }
+    };
+
     const resolveSrc = async () => {
       if (!sourceToResolve) {
         setResolvedSrc(undefined);
@@ -68,23 +82,24 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
       }
 
       const trimmedSrc = sourceToResolve.trim();
+      const isHttp = /^https?:\/\//i.test(trimmedSrc);
+      const currentSourceType: WebviewProps["sourceType"] =
+        sourceType ?? undefined;
 
-      if (/^https?:\/\//i.test(trimmedSrc)) {
-        if (!cancelled) {
-          setResolvedSrc(undefined);
-        }
-        try {
-          const localPath = await remoteResourceToLocal(trimmedSrc);
-          const fileSrc = await convertFileSrc(localPath);
-          if (!cancelled) {
-            setResolvedSrc(fileSrc);
+      if (isHttp) {
+        if (currentSourceType === "local") {
+          try {
+            const localPath = await remoteResourceToLocal(trimmedSrc);
+            await resolveLocalFile(localPath);
+          } catch (error) {
+            console.error("下载 Webview 资源失败:", error);
+            if (!cancelled) {
+              setResolvedSrc(trimmedSrc);
+            }
           }
-        } catch (error) {
-          console.error("下载 Webview 资源失败:", error);
-          if (!cancelled) {
-            setResolvedSrc(trimmedSrc);
-          }
+          return;
         }
+        setResolvedSrc(trimmedSrc);
         return;
       }
 
@@ -98,14 +113,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
       }
 
       try {
-        const homeDir = await getHomeDir();
-        const absolutePath = trimmedSrc.startsWith("~")
-          ? `${homeDir}${trimmedSrc.slice(1)}`
-          : trimmedSrc;
-        const fileSrc = await convertFileSrc(absolutePath);
-        if (!cancelled) {
-          setResolvedSrc(fileSrc);
-        }
+        await resolveLocalFile(trimmedSrc);
       } catch (error) {
         console.error("转换 Webview 路径失败:", error);
         if (!cancelled) {
@@ -119,7 +127,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     return () => {
       cancelled = true;
     };
-  }, [sourceToResolve]);
+  }, [sourceToResolve, sourceType]);
 
   useImperativeHandle(ref, () => ({
     getTitle: () => {

@@ -24,7 +24,7 @@ import useTheme from "@/hooks/useTheme.ts";
 import { useMemoizedFn } from "ahooks";
 import ContainerCol from "@/components/ContainerCol";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
-import { extractUrlFromTitle } from "@/utils";
+import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import {
   contentLinkExtension,
   fileAttachmentExtension,
@@ -37,6 +37,24 @@ const customExtensions = [
   questionCardExtension,
   chatReferenceExtension,
 ];
+
+const ProjectOverviewItem = ({
+  projectItem,
+  onNavigate,
+}: {
+  projectItem: ProjectItem;
+  onNavigate: (displayTitle: string) => void;
+}) => {
+  const { title } = useProjectWebLinkMeta(projectItem);
+  return (
+    <div
+      className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
+      onClick={() => onNavigate(title || projectItem.title)}
+    >
+      {title || projectItem.title}
+    </div>
+  );
+};
 
 const HomeView = memo(() => {
   const navigateTo = useTabStore((state) => state.navigateTo);
@@ -349,10 +367,9 @@ const HomeView = memo(() => {
                         />
                       }
                     >
-                      <div
-                        className="h-9 overflow-hidden text-ellipsis whitespace-nowrap px-2 leading-9 rounded cursor-pointer hover:bg-[var(--common-hover-bg)]"
-                        key={projectItem.id}
-                        onClick={() => {
+                      <ProjectOverviewItem
+                        projectItem={projectItem}
+                        onNavigate={(displayTitle) => {
                           if (projectItem.projects.length === 0) return;
                           navigateTo(
                             TabType.ProjectDetail,
@@ -360,12 +377,10 @@ const HomeView = memo(() => {
                               id: projectItem.projects[0],
                               itemId: projectItem.id,
                             },
-                            `项目 - ${extractUrlFromTitle(projectItem.title).title || `#${projectItem.id}`}`,
+                            `项目 - ${displayTitle || `#${projectItem.id}`}`,
                           );
                         }}
-                      >
-                        {extractUrlFromTitle(projectItem.title).title}
-                      </div>
+                      />
                     </Popover>
                   )}
                 />
