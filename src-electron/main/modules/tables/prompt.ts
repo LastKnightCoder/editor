@@ -101,7 +101,13 @@ export default class PromptTable {
   ): Prompt {
     const current = db
       .prepare("SELECT * FROM prompt WHERE id = ?")
-      .get(payload.id);
+      .get(payload.id) as
+      | {
+          name: string;
+          tags: string | null;
+          content: string;
+        }
+      | undefined;
     if (!current) {
       throw new Error("Prompt not found");
     }
