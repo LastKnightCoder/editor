@@ -86,21 +86,18 @@
     z-index: 1;
   }
 
-  .CodeMirrorContainer :global(.CodeMirror) {
-    box-shadow: var(--code-block-shadow);
-    background-color: var(--code-block-bg-color);
-    height: auto;
-    padding: 3em 0.75em 1.1em;
-    border-radius: 0.5em;
-    line-height: 1.8;
-    font-size: 0.8em;
-    font-family: var(--mono-font, "'Monaco', '楷体'");
-  }
-
   .CodeMirrorContainer {
     position: relative;
 
     :global(.CodeMirror) {
+      box-shadow: var(--code-block-shadow);
+      background-color: var(--code-block-bg-color);
+      height: auto;
+      padding: 3em 0.75em 1.1em;
+      border-radius: 0.5em;
+      line-height: 1.8;
+      font-size: 0.8em;
+      font-family: var(--mono-font, "'Monaco', '楷体'");
       transition: max-height 0.2s ease;
     }
 

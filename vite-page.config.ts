@@ -1,5 +1,6 @@
-import { defineConfig, splitVendorChunkPlugin } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import tailwindcss from "@tailwindcss/vite";
 import visualizer from "rollup-plugin-visualizer";
 
 import * as path from "path";
@@ -16,7 +17,7 @@ export default defineConfig(() => {
     },
     plugins: [
       react(),
-      splitVendorChunkPlugin(),
+      tailwindcss(),
       visualizer({
         open: true,
         gzipSize: true,
@@ -31,7 +32,7 @@ export default defineConfig(() => {
     base: "/editor",
     build: {
       // don't minify for debug builds
-      minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
+      minify: !process.env.TAURI_DEBUG ? ("esbuild" as const) : false,
       rollupOptions: {
         input: {
           profile: path.resolve(__dirname, "profile/index.html"),

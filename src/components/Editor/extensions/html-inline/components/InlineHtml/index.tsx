@@ -9,6 +9,7 @@ import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useSlateStatic } from "slate-react";
 import { Popover, Input, type InputRef } from "antd";
 import { useMemoizedFn } from "ahooks";
+import { useTailwindRuntimeCss } from "@/hooks/useTailwindRuntimeCss";
 
 import { HTMLInlineElement } from "@/components/Editor/types";
 import InlineChromiumBugfix from "@/components/Editor/components/InlineChromiumBugFix";
@@ -28,6 +29,8 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
   const [inputValue, setInputValue] = useState(html || "");
   const [popoverOpen, setPopoverOpen] = useState(openEdit);
   const inputRef = useRef<InputRef>(null);
+  const previewHtml = popoverOpen ? inputValue : html;
+  const tailwindCss = useTailwindRuntimeCss(previewHtml, "html");
 
   const getElementPath = useMemoizedFn(() =>
     ReactEditor.findPath(editor, element),
@@ -95,13 +98,11 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
   };
 
   const PreviewDisplay = useMemo(() => {
-    const effectiveHtml = popoverOpen ? inputValue : html;
-
-    if (effectiveHtml && effectiveHtml.trim()) {
+    if (previewHtml && previewHtml.trim()) {
       return (
         <span
           className={styles.htmlPreviewContent}
-          dangerouslySetInnerHTML={{ __html: effectiveHtml }}
+          dangerouslySetInnerHTML={{ __html: previewHtml }}
         />
       );
     }
@@ -111,13 +112,7 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
     } else {
       return <span className={styles.placeholder}>点击编辑HTML</span>;
     }
-  }, [
-    html,
-    inputValue,
-    popoverOpen,
-    styles.placeholder,
-    styles.htmlPreviewContent,
-  ]);
+  }, [previewHtml, popoverOpen, styles.placeholder, styles.htmlPreviewContent]);
 
   return (
     <span
@@ -126,6 +121,9 @@ const InlineHtml: React.FC<PropsWithChildren<InlineHtmlProps>> = (props) => {
       data-element-type="inline-html"
     >
       <InlineChromiumBugfix />
+      {tailwindCss ? (
+        <style dangerouslySetInnerHTML={{ __html: tailwindCss }} />
+      ) : null}
       <Popover
         trigger={"click"}
         open={popoverOpen}
