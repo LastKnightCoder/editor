@@ -1,4 +1,5 @@
-// CustomBlock 渲染模板
+import * as ahooks from "ahooks";
+
 export const getCustomBlockRenderTemplate = (isDark: boolean) => {
   const prefix = `const { antd } = components;\n`;
 
@@ -95,7 +96,10 @@ export const compileAndExecuteCustomBlock = async (
       ReactDOM,
       targetElement,
       { antd, antdIcons },
-      hooks || {},
+      {
+        ...ahooks,
+        ...hooks,
+      },
       { isDark },
     );
 

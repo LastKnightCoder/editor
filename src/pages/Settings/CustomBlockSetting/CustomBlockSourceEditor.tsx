@@ -37,7 +37,6 @@ const CustomBlockPreview = ({ content }: { content: string }) => {
 
     compileAndExecuteCustomBlock(content, isDark, ref.current, {
       useTheme,
-      useMemoizedFn,
     }).then((cleanupFn) => {
       cleanup = cleanupFn;
     });
