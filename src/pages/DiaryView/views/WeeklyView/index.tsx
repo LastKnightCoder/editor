@@ -6,6 +6,18 @@ import Editor, { EditorRef } from "@/components/Editor";
 import useDiaryStore from "@/stores/useDiaryStore";
 import useUploadResource from "@/hooks/useUploadResource";
 import type { Descendant } from "slate";
+import {
+  contentLinkExtension,
+  chatReferenceExtension,
+  questionCardExtension,
+  fileAttachmentExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  chatReferenceExtension,
+  questionCardExtension,
+  fileAttachmentExtension,
+];
 
 dayjs.extend(isoWeek);
 
@@ -38,7 +50,7 @@ const WeeklyView = memo(() => {
   const currentDateObj = dayjs(currentDate);
   const weekStart = currentDateObj.startOf("isoWeek");
   const weekEnd = currentDateObj.endOf("isoWeek");
-  const weekString = `${currentDateObj.year()}-W${String(currentDateObj.isoWeek()).padStart(2, "0")}`;
+  const weekString = `${currentDateObj.isoWeekYear()}-W${String(currentDateObj.isoWeek()).padStart(2, "0")}`;
 
   const entry = getWeeklyEntry(currentDate);
   const lastLoadedEntryRef = useRef<{
@@ -135,7 +147,7 @@ const WeeklyView = memo(() => {
   });
 
   const weekNumber = currentDateObj.isoWeek();
-  const displayTitle = `${currentDateObj.year()} 年 ${weekNumber} 周`;
+  const displayTitle = `${currentDateObj.isoWeekYear()} 年 ${weekNumber} 周`;
   const displayDateRange = `${weekStart.format("MM月DD日")} - ${weekEnd.format("MM月DD日")}`;
 
   return (
@@ -153,6 +165,7 @@ const WeeklyView = memo(() => {
         <div className="w-full max-w-[800px]">
           <Editor
             ref={editorRef}
+            extensions={customExtensions}
             initValue={
               entry && hasContent(entry.content)
                 ? entry.content

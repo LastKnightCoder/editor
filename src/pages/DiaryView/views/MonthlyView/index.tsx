@@ -5,7 +5,19 @@ import Editor, { EditorRef } from "@/components/Editor";
 import useDiaryStore from "@/stores/useDiaryStore";
 import useUploadResource from "@/hooks/useUploadResource";
 import type { Descendant } from "slate";
+import {
+  contentLinkExtension,
+  chatReferenceExtension,
+  questionCardExtension,
+  fileAttachmentExtension,
+} from "@/editor-extensions";
 
+const customExtensions = [
+  contentLinkExtension,
+  chatReferenceExtension,
+  questionCardExtension,
+  fileAttachmentExtension,
+];
 const DEFAULT_CONTENT: Descendant[] = [
   {
     type: "paragraph",
@@ -147,6 +159,7 @@ const MonthlyView = memo(() => {
         <div className="w-full max-w-[800px]">
           <Editor
             ref={editorRef}
+            extensions={customExtensions}
             initValue={
               entry && hasContent(entry.content)
                 ? entry.content

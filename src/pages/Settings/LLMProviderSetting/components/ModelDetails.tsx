@@ -170,7 +170,7 @@ const ModelDetails = ({
         {config.models && config.models.length > 0 ? (
           <List
             dataSource={config.models}
-            className="overflow-y-auto pr-2! max-h-[250px] border-b border-b-[20px] border-b-transparent"
+            className="overflow-y-auto pr-2! max-h-[250px] border-b-20 border-b-transparent"
             renderItem={(model) => (
               <List.Item
                 className="flex items-center border-b border-gray-100 py-2 px-0 transition"
