@@ -63,32 +63,49 @@ const ModelDetails = ({
   };
 
   const renderFeatureTags = (features: ModelItem["features"]) => {
-    const featureConfig = features || {
+    const baseFeatures = {
       online: false,
       thinking: false,
-      multimodal: false,
+      image: false,
+      video: false,
+      audio: false,
+      file: false,
     };
-    const featureTags = [];
-    if (featureConfig.online)
-      featureTags.push(
-        <Tag color="blue" key="online">
-          联网
-        </Tag>,
-      );
-    if (featureConfig.thinking)
-      featureTags.push(
-        <Tag color="purple" key="thinking">
-          思考
-        </Tag>,
-      );
-    if (featureConfig.multimodal)
-      featureTags.push(
-        <Tag color="orange" key="multimodal">
-          多模态
-        </Tag>,
-      );
-    if (featureTags.length === 0)
+
+    const featureConfig = {
+      ...baseFeatures,
+      ...(features || {}),
+    };
+
+    if (features?.multimodal && !featureConfig.image) {
+      featureConfig.image = true;
+    }
+
+    const featureMap: Array<{
+      key: keyof typeof featureConfig;
+      label: string;
+      color: string;
+    }> = [
+      { key: "online", label: "联网", color: "blue" },
+      { key: "thinking", label: "思考", color: "purple" },
+      { key: "image", label: "图片", color: "orange" },
+      { key: "video", label: "视频", color: "magenta" },
+      { key: "audio", label: "音频", color: "cyan" },
+      { key: "file", label: "文件", color: "green" },
+    ];
+
+    const featureTags = featureMap
+      .filter((item) => featureConfig[item.key])
+      .map((item) => (
+        <Tag color={item.color} key={item.key}>
+          {item.label}
+        </Tag>
+      ));
+
+    if (featureTags.length === 0) {
       featureTags.push(<Tag key="none">无特殊功能</Tag>);
+    }
+
     return featureTags;
   };
 
@@ -99,7 +116,7 @@ const ModelDetails = ({
   return (
     <div className="flex flex-col gap-4">
       <Card
-        className="!mb-4 border border-gray-200"
+        className="mb-4! border border-gray-200"
         title={
           <Space>
             <Typography.Title level={4} style={{ margin: 0 }}>
