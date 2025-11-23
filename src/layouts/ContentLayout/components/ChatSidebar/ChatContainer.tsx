@@ -8,7 +8,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { App, Tag } from "antd";
+import { App } from "antd";
 import { produce } from "immer";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 

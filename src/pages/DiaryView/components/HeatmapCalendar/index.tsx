@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useEffect } from "react";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import classnames from "classnames";
@@ -35,15 +35,19 @@ const HeatmapCalendar = memo(
     const currentDateObj = dayjs(currentDate);
     const year = currentDateObj.year();
     const month = currentDateObj.month() + 1; // 1-12
-
-    // Load heatmap data for current month
-    useMemo(() => {
-      loadHeatmapData(year, month);
-    }, [year, month, loadHeatmapData]);
-
-    const heatmapData = heatmapDataCache.get(
-      `${year}-${String(month).padStart(2, "0")}`,
+    const monthKey = useMemo(
+      () => `${year}-${String(month).padStart(2, "0")}`,
+      [year, month],
     );
+
+    const heatmapData = heatmapDataCache.get(monthKey);
+
+    // Load heatmap data for current month or refetch when cache invalidates
+    useEffect(() => {
+      if (heatmapData === undefined) {
+        loadHeatmapData(year, month);
+      }
+    }, [heatmapData, loadHeatmapData, month, year]);
 
     // Generate calendar grid (42 cells = 6 weeks × 7 days)
     const calendarDays = useMemo(() => {
@@ -95,7 +99,7 @@ const HeatmapCalendar = memo(
     // Check if week has weekly entry
     const hasWeeklyEntry = (weekDays: Dayjs[]): boolean => {
       const firstDay = weekDays[0];
-      const weekString = `${firstDay.year()}-W${String(firstDay.isoWeek()).padStart(2, "0")}`;
+      const weekString = `${firstDay.isoWeekYear()}-W${String(firstDay.isoWeek()).padStart(2, "0")}`;
       return diaryEntries.some(
         (entry) => entry.type === "weekly" && entry.date === weekString,
       );
@@ -200,12 +204,13 @@ const HeatmapCalendar = memo(
             >
               {weekDays.map((day) => {
                 const dateString = day.format("YYYY-MM-DD");
-                const wordCount = getWordCount(dateString);
+                const inCurrentMonth = isCurrentMonth(day);
+                const wordCount = inCurrentMonth ? getWordCount(dateString) : 0;
                 const heatLevel = getHeatLevel(wordCount);
                 const hasDiaryEntry = hasDiary(dateString);
                 const today = isToday(day);
                 const selected = isSelected(day);
-                const otherMonth = !isCurrentMonth(day);
+                const otherMonth = !inCurrentMonth;
 
                 return (
                   <div
@@ -219,13 +224,10 @@ const HeatmapCalendar = memo(
                         "bg-indigo-500/25": heatLevel === 2,
                         "bg-indigo-500/60": heatLevel === 3,
                         "bg-indigo-500": heatLevel === 4,
-                        // Selected state
-                        "!bg-indigo-500 dark:!bg-[#177ddc] !rounded-full dark:border-[#177ddc] dark:shadow-[0_0_0_2px_rgba(23,125,220,0.3)]":
+                        "bg-indigo-500! rounded-full! dark:shadow-[0_0_0_2px_rgba(23,125,220,0.3)]":
                           selected,
-                        // Today state (not selected)
-                        "!border-2 !border-indigo-500 dark:!border-[#177ddc] shadow-[0_0_0_1px_rgba(99,102,241,0.1)] dark:shadow-[0_0_0_1px_#177ddc]":
+                        "border-2! border-indigo-500! shadow-[0_0_0_1px_rgba(99,102,241,0.1)]":
                           today && !selected,
-                        // Hover state (not selected)
                         "hover:bg-indigo-500/8 hover:border-indigo-500/20":
                           !selected,
                       },
@@ -239,7 +241,7 @@ const HeatmapCalendar = memo(
                           selected || heatLevel === 3 || heatLevel === 4,
                         "text-gray-800 dark:text-gray-100":
                           !selected && heatLevel < 3 && !otherMonth,
-                        "text-gray-300 dark:!text-gray-600": otherMonth,
+                        "text-gray-300 dark:text-gray-600!": otherMonth,
                         "font-semibold": selected,
                       })}
                     >

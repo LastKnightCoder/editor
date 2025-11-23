@@ -12,7 +12,18 @@ import {
   hexToRgba,
 } from "../../constants/moodConfig";
 import { WEATHER_ICONS } from "../../constants/icons";
-
+import {
+  contentLinkExtension,
+  chatReferenceExtension,
+  questionCardExtension,
+  fileAttachmentExtension,
+} from "@/editor-extensions";
+const customExtensions = [
+  contentLinkExtension,
+  chatReferenceExtension,
+  questionCardExtension,
+  fileAttachmentExtension,
+];
 dayjs.extend(isoWeek);
 
 const getEntryComparableDate = (entry: DiaryEntry): string => {
@@ -281,6 +292,7 @@ const TimelineView = memo(() => {
                             editorRefsMap.current.set(String(entry.id), ref);
                           }
                         }}
+                        extensions={customExtensions}
                         initValue={entry.content}
                         readonly={true}
                         className="text-sm"

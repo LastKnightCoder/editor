@@ -12,6 +12,19 @@ import useUploadResource from "@/hooks/useUploadResource";
 import { WeatherMood } from "@/types/diary";
 import { WEATHER_ICONS, MOOD_ICONS } from "../../constants/icons";
 import { getIconPath } from "../../utils/getIconPath";
+import {
+  contentLinkExtension,
+  chatReferenceExtension,
+  questionCardExtension,
+  fileAttachmentExtension,
+} from "@/editor-extensions";
+
+const customExtensions = [
+  contentLinkExtension,
+  chatReferenceExtension,
+  questionCardExtension,
+  fileAttachmentExtension,
+];
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -409,6 +422,7 @@ const DailyView = memo(() => {
         <div className="w-full max-w-[800px]">
           <Editor
             ref={editorRef}
+            extensions={customExtensions}
             initValue={
               entry && hasContent(entry.content)
                 ? entry.content
