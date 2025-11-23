@@ -13,7 +13,11 @@ export interface ModelItem {
   features: {
     online: boolean;
     thinking: boolean;
-    multimodal: boolean;
+    image: boolean;
+    video: boolean;
+    audio: boolean;
+    file: boolean;
+    multimodal?: boolean;
   };
 }
 
@@ -30,6 +34,10 @@ export interface ModelFormData {
   features: {
     online: boolean;
     thinking: boolean;
-    multimodal: boolean;
+    image: boolean;
+    video: boolean;
+    audio: boolean;
+    file: boolean;
+    multimodal?: boolean;
   };
 }

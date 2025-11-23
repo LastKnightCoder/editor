@@ -15,7 +15,10 @@ interface ModelModalProps {
 const featureOptions = [
   { label: "联网", value: "online" },
   { label: "思考", value: "thinking" },
-  { label: "多模态", value: "multimodal" },
+  { label: "图片", value: "image" },
+  { label: "视频", value: "video" },
+  { label: "音频", value: "audio" },
+  { label: "文件", value: "file" },
 ];
 
 const ModelModal = ({
@@ -33,16 +36,23 @@ const ModelModal = ({
     if (initialData && open) {
       setModelName(initialData.name);
       setDescription(initialData.description);
-      const initialFeatures = Object.entries(
-        initialData.features || {
-          online: false,
-          thinking: false,
-          multimodal: false,
-        },
-      )
+      const normalizedFeatures = {
+        online: initialData.features?.online ?? false,
+        thinking: initialData.features?.thinking ?? false,
+        image:
+          initialData.features?.image ??
+          initialData.features?.multimodal ??
+          false,
+        video: initialData.features?.video ?? false,
+        audio: initialData.features?.audio ?? false,
+        file: initialData.features?.file ?? false,
+      };
+      const initialFeatures = Object.entries(normalizedFeatures)
         .filter(([, value]) => value)
         .map(([key]) => key);
       setSelectedFeatures(initialFeatures);
+    } else if (!open) {
+      setSelectedFeatures([]);
     }
   }, [initialData, open]);
 
@@ -50,7 +60,10 @@ const ModelModal = ({
     const features = {
       online: selectedFeatures.includes("online"),
       thinking: selectedFeatures.includes("thinking"),
-      multimodal: selectedFeatures.includes("multimodal"),
+      image: selectedFeatures.includes("image"),
+      video: selectedFeatures.includes("video"),
+      audio: selectedFeatures.includes("audio"),
+      file: selectedFeatures.includes("file"),
     };
     onFinish({
       name: modelName,
