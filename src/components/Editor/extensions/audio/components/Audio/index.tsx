@@ -1,4 +1,4 @@
-import { IExtensionBaseProps } from "@editor/extensions/types.ts";
+﻿import { IExtensionBaseProps } from "@editor/extensions/types.ts";
 import { AudioElement } from "@editor/types";
 import LocalAudio from "@/components/LocalAudio";
 import AddParagraph from "@editor/components/AddParagraph";
@@ -6,22 +6,29 @@ import useDragAndDrop from "@editor/hooks/useDragAndDrop.ts";
 import classnames from "classnames";
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
-import { message, Empty, Button, Flex, Popover, Input, Spin } from "antd";
+import { message, Button, Input, Spin } from "antd";
 import If from "@/components/If";
 import React, { useContext, useRef, useState } from "react";
+import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
-import { Editor, Transforms } from "slate";
+import { Editor, Transforms, Path } from "slate";
 import { EditorContext } from "@editor/index.tsx";
 import { textToSpeech } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore.ts";
 import { DeleteOutlined } from "@ant-design/icons";
+import ResourcePickerModal from "@/components/ResourcePickerModal";
+import ModernTabs from "@/components/ModernTabs";
+import type { IResource } from "@/types";
+import { LinkOutlined, FolderOpenOutlined } from "@ant-design/icons";
+import useTheme from "@/components/Editor/hooks/useTheme";
 
 const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const { attributes, element, children } = props;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
+  const { isDark } = useTheme();
 
-  // TODO 不应该写死模型，应该像 uploadFile 一样
+  // TODO 不应该写死模型，应该与 uploadFile 的逻辑保持一致
   const { setting } = useSettingStore((state) => ({
     setting: state.setting.textToSpeech.doubao,
   }));
@@ -30,10 +37,9 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
 
   const uploadRef = useRef<HTMLInputElement>(null);
   const [networkUrl, setNetworkUrl] = useState("");
-  const [networkUrlOpen, setNetworkUrlOpen] = useState(false);
+  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
   const [textToSpeechValue, setTextToSpeechValue] = useState("");
-  const [textToSpeechOpen, setTextToSpeechOpen] = useState(false);
   const [textToSpeechTransformLoading, setTextToSpeechTransformLoading] =
     useState(false);
   const [textToSpeechAudio, setTextToSpeechAudio] = useState("");
@@ -67,7 +73,8 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   };
 
   const handleOnNetworkUrlInputFinish = () => {
-    if (!networkUrl) {
+    const trimmed = networkUrl.trim();
+    if (!trimmed) {
       message.warning("请输入音频地址");
       return;
     }
@@ -75,15 +82,56 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     Transforms.setNodes(
       editor,
       {
-        src: networkUrl,
+        src: trimmed,
       },
       {
         at: path,
       },
     );
     setNetworkUrl("");
-    setNetworkUrlOpen(false);
   };
+
+  const handleInsertFromResource = useMemoizedFn(
+    async (selected: IResource[]) => {
+      if (!selected.length) {
+        setResourcePickerOpen(false);
+        return;
+      }
+      const [first, ...rest] = selected;
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(
+        editor,
+        {
+          src: first.path,
+          uploading: false,
+          isFromGenerate: false,
+          audioText: undefined,
+        },
+        { at: path },
+      );
+
+      let referencePath = path;
+      rest.forEach((resource) => {
+        referencePath = Path.next(referencePath);
+        Transforms.insertNodes(
+          editor,
+          {
+            type: "audio",
+            src: resource.path,
+            children: [
+              {
+                type: "formatted",
+                text: "",
+              },
+            ],
+          },
+          { at: referencePath },
+        );
+      });
+
+      setResourcePickerOpen(false);
+    },
+  );
 
   const handleTextToSpeechContentChange = (
     event: React.ChangeEvent<HTMLTextAreaElement>,
@@ -124,7 +172,6 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       message.warning("请先输入要转换的文本");
       setTextToSpeechAudio("");
       setTextToSpeechTransformLoading(false);
-      setTextToSpeechOpen(false);
       return;
     }
 
@@ -157,7 +204,6 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     setTextToSpeechValue("");
     setTextToSpeechAudio("");
     setTextToSpeechTransformLoading(false);
-    setTextToSpeechOpen(false);
   };
 
   const handleUploadFileChange = async (
@@ -219,75 +265,133 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   };
 
   const renderNoContent = () => {
+    if (readOnly) return null;
     return (
-      <Empty description={"暂未设置音频，请上传"}>
-        <Flex vertical gap={12} justify={"center"}>
-          <Flex align={"center"} gap={12} justify={"center"}>
-            <Button
-              disabled={readOnly}
-              onClick={() => uploadRef.current?.click()}
-            >
-              本地上传
-            </Button>
-            <Popover
-              open={!readOnly && networkUrlOpen}
-              onOpenChange={setNetworkUrlOpen}
-              trigger={"click"}
-              arrow={false}
-              placement={"bottom"}
-              content={
-                <Flex gap={12}>
-                  <Input
-                    size={"large"}
-                    style={{ width: 500 }}
-                    value={src}
-                    onChange={handleNetworkUrlChange}
-                  />
-                  <Button onClick={handleOnNetworkUrlInputFinish}>确认</Button>
-                </Flex>
-              }
-            >
-              <Button disabled={readOnly}>网络地址</Button>
-            </Popover>
-            <Popover
-              open={!readOnly && textToSpeechOpen}
-              onOpenChange={setTextToSpeechOpen}
-              trigger={"click"}
-              arrow={false}
-              placement={"bottom"}
-              content={
-                <Flex vertical gap={12} style={{ minWidth: 400 }}>
+      <div
+        className={classnames(styles.sourcePanel, {
+          [styles.dark]: isDark,
+        })}
+      >
+        <div className={styles.panelHeader}>
+          <h4>插入音频</h4>
+          <p>上传本地文件、引用网络链接，或直接从资源库中选择音频。</p>
+        </div>
+        <ModernTabs
+          variant="flat"
+          items={[
+            {
+              key: "local",
+              label: "本地上传",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    支持 MP3、WAV 等常见格式，文件大小建议不超过 50 MB。
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <Button
+                      className={styles.primaryButton}
+                      icon={<FolderOpenOutlined />}
+                      onClick={() => uploadRef.current?.click()}
+                    >
+                      选择文件
+                    </Button>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "url",
+              label: "网络地址",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    贴上可直接访问的音频链接，我们会自动加载。
+                  </p>
+                  <div className={styles.inputRow}>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        prefix={<LinkOutlined className={styles.inputIcon} />}
+                        placeholder="https://example.com/audio.mp3"
+                        value={networkUrl}
+                        onChange={handleNetworkUrlChange}
+                        onPressEnter={handleOnNetworkUrlInputFinish}
+                      />
+                    </div>
+                    <Button
+                      type="primary"
+                      className={styles.primaryButton}
+                      onClick={handleOnNetworkUrlInputFinish}
+                    >
+                      插入
+                    </Button>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "library",
+              label: "资源库",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    直接引用资源库中的音频，多选会依次插入到编辑器。
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <Button
+                      className={styles.secondaryButton}
+                      onClick={() => setResourcePickerOpen(true)}
+                    >
+                      打开资源库
+                    </Button>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "tts",
+              label: "文本转语音",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    输入文本自动生成音频，需先在设置中配置语音服务。
+                  </p>
                   <Input.TextArea
                     rows={4}
                     value={textToSpeechValue}
                     onChange={handleTextToSpeechContentChange}
+                    placeholder="请输入要转换的内容"
+                    className={styles.textArea}
                   />
-                  <div style={{ marginLeft: "auto" }}>
+                  <div className={styles.actionsRow}>
                     <Button
                       disabled={textToSpeechDisabled}
                       loading={textToSpeechTransformLoading}
+                      className={styles.primaryButton}
                       onClick={handleOnTextToSpeechInputFinish}
                     >
-                      {textToSpeechAudio ? "重新生成" : "生成"}
+                      {textToSpeechAudio ? "重新生成" : "生成音频"}
                     </Button>
                   </div>
                   <If condition={!!textToSpeechAudio}>
-                    <Flex gap={12} align={"center"}>
+                    <div className={styles.previewCard}>
                       <audio
                         controls
                         src={`data:audio/mp3;base64,${textToSpeechAudio}`}
                       />
-                      <Button onClick={applyGeneratedAudio}>应用</Button>
-                    </Flex>
+                      <Button
+                        className={styles.secondaryButton}
+                        onClick={applyGeneratedAudio}
+                      >
+                        应用到文档
+                      </Button>
+                    </div>
                   </If>
-                </Flex>
-              }
-            >
-              <Button disabled={readOnly}>文本转语音</Button>
-            </Popover>
-          </Flex>
-        </Flex>
-      </Empty>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </div>
     );
   };
 
@@ -341,6 +445,14 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
         </If>
         <AddParagraph element={element} />
       </div>
+      <ResourcePickerModal
+        open={resourcePickerOpen}
+        onCancel={() => setResourcePickerOpen(false)}
+        allowedTypes={["audio"]}
+        multiple
+        title="选择音频"
+        onConfirm={handleInsertFromResource}
+      />
     </div>
   );
 };

@@ -44,6 +44,7 @@ describe("BoardOperations - 基础操作", () => {
 
     const result = apply(base, operations);
     expect(result.data.children.map((el) => el.id)).toEqual(["a", "x", "b"]);
+    expect(result.metadata.insertedElements.map((el) => el.id)).toEqual(["x"]);
   });
 
   it("remove_node 会记录 metadata 并删除元素", () => {
