@@ -42,6 +42,48 @@
     gap: 8px;
   }
 
+  .filesContainer {
+    margin: 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fileAttachment {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.06);
+    }
+  }
+
+  .fileInfo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #1f1f1f;
+
+    svg {
+      font-size: 18px;
+      color: #f5222d;
+    }
+  }
+
+  .fileAction {
+    font-size: 12px;
+    color: #1677ff;
+  }
+
   .messageImage {
     max-width: 300px;
     max-height: 200px;
@@ -62,6 +104,23 @@
       background-color: rgba(255, 255, 255, 0.05);
       border-left: 3px solid rgba(255, 255, 255, 0.4);
       color: #abb3be;
+    }
+
+    .fileAttachment {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+    }
+
+    .fileInfo {
+      color: #f6f7fb;
+    }
+
+    .fileAction {
+      color: #9e78e6;
     }
   }
 

@@ -31,6 +31,12 @@ export const getAllResources = async (): Promise<IResource[]> => {
   return invoke("resource:get-all");
 };
 
+export const getResourceById = async (
+  id: number,
+): Promise<IResource | null> => {
+  return invoke("resource:get-by-id", id);
+};
+
 export const searchResources = async (
   keyword: string,
 ): Promise<IResource[]> => {

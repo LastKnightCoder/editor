@@ -179,7 +179,6 @@ const ChatSelectorModal = memo(
       };
     }, [handleLinkClick]);
 
-    // Render chat item
     const renderChatItem = (chat: ChatMessage) => {
       const isSelected = selectedChatId === chat.id;
       const isArchived = chat.archived;
@@ -199,7 +198,7 @@ const ChatSelectorModal = memo(
           onClick={() => handleChatSelect(chat.id)}
         >
           <MessageOutlined
-            className={classnames("text-base mr-2 flex-shrink-0", {
+            className={classnames("text-base mr-2 shrink-0", {
               "text-blue-500": isSelected,
               "text-gray-400": isArchived && !isSelected,
             })}
@@ -208,7 +207,7 @@ const ChatSelectorModal = memo(
             <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm">
               {chat.title}
             </span>
-            <span className={classnames("text-xs ml-2 flex-shrink-0")}>
+            <span className={classnames("text-xs ml-2 shrink-0")}>
               {dayjs(chat.updateTime).format("MM-DD HH:mm")}
             </span>
           </div>
@@ -311,7 +310,7 @@ const ChatSelectorModal = memo(
             </div>
 
             <div className="flex flex-1 gap-4 min-h-0">
-              <div className="w-80 border border-[#f0f0f0] dark:border-[#2a2a2a] p-2 rounded-lg overflow-y-auto flex-shrink-0">
+              <div className="w-80 border border-[#f0f0f0] dark:border-[#2a2a2a] p-2 rounded-lg overflow-y-auto shrink-0">
                 <div className="py-2">
                   {rootGroups.map((group) => renderGroup(group))}
                   {ungroupedChats.map((chat) => renderChatItem(chat))}

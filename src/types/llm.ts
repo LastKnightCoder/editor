@@ -8,11 +8,14 @@ export interface TextContent {
 export interface ImageContent {
   type: "image";
   image: string; // base64 或 url
+  resourceId?: number;
 }
 
 export interface FileContent {
   type: "file";
   file: string;
+  resourceId?: number;
+  fileName?: string;
 }
 
 export type MessageContent = TextContent | ImageContent | FileContent;
