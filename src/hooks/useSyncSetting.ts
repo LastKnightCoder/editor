@@ -1,8 +1,10 @@
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useSettingStore from "@/stores/useSettingStore";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { v4 as uuidv4 } from "uuid";
 
 const useSyncSetting = () => {
+  const clientIdRef = useRef<string>(uuidv4());
   const { initSetting, inited, setting } = useSettingStore((state) => ({
     initSetting: state.initSetting,
     inited: state.inited,
@@ -15,13 +17,16 @@ const useSyncSetting = () => {
 
   useEffect(() => {
     if (isServerReady) {
-      initSetting();
+      initSetting(clientIdRef.current);
     }
   }, [isServerReady, initSetting]);
 
   useEffect(() => {
     if (client && inited) {
-      client.sendRequest("set-user-setting", setting);
+      client.sendRequest("set-user-setting", {
+        setting,
+        clientId: clientIdRef.current,
+      });
     }
   }, [inited, setting, client]);
 };
