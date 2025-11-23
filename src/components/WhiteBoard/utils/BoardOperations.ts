@@ -4,6 +4,13 @@ import PathUtil from "./PathUtil";
 
 const NORMALIZED_OPERATION = Symbol("BoardOperationsNormalizedOperation");
 
+type OperationMetadata = {
+  changedElements: BoardElement[];
+  removedElements: BoardElement[];
+  insertedElements: BoardElement[];
+  hasChanges: boolean;
+};
+
 export class BoardOperations {
   /**
    * 应用操作列表到数据结构（纯函数版本）
@@ -31,11 +38,7 @@ export class BoardOperations {
       viewPort?: Board["viewPort"];
       selection?: Board["selection"];
     };
-    metadata: {
-      changedElements: BoardElement[];
-      removedElements: BoardElement[];
-      hasChanges: boolean;
-    };
+    metadata: OperationMetadata;
     operations: Operation[];
   } {
     const {
@@ -56,9 +59,10 @@ export class BoardOperations {
     };
 
     // 元数据收集
-    const metadata = {
+    const metadata: OperationMetadata = {
       changedElements: [] as BoardElement[],
       removedElements: [] as BoardElement[],
+      insertedElements: [] as BoardElement[],
       hasChanges: false,
     };
 
@@ -156,11 +160,7 @@ export class BoardOperations {
       selection?: Board["selection"];
     },
     operations: Operation[],
-    metadata: {
-      changedElements: BoardElement[];
-      removedElements: BoardElement[];
-      hasChanges: boolean;
-    },
+    metadata: OperationMetadata,
     options: {
       readonly: boolean;
       skipSelectionOperations: boolean;
@@ -289,11 +289,7 @@ export class BoardOperations {
       selection?: Board["selection"];
     },
     op: Operation,
-    metadata: {
-      changedElements: BoardElement[];
-      removedElements: BoardElement[];
-      hasChanges: boolean;
-    },
+    metadata: OperationMetadata,
     options: {
       readonly: boolean;
       skipSelectionOperations: boolean;
@@ -365,6 +361,10 @@ export class BoardOperations {
           0,
           BoardOperations.cloneElement(op.node),
         );
+        const inserted = containerInfo.container[index];
+        if (inserted) {
+          metadata.insertedElements.push(inserted);
+        }
         metadata.hasChanges = true;
         return true;
       }

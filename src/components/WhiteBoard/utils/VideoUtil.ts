@@ -52,6 +52,61 @@ export class VideoUtil {
     }
   }
 
+  private static async getVideoSizeFromUrl(
+    url: string,
+  ): Promise<{ width: number; height: number } | null> {
+    if (typeof document === "undefined") return null;
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.onloadedmetadata = () => {
+        resolve({ width: video.videoWidth, height: video.videoHeight });
+      };
+      video.onerror = () => resolve(null);
+      video.src = url;
+    });
+  }
+
+  static async insertVideoFromPath(src: string, board: Board) {
+    const info = await this.getVideoSizeFromUrl(src);
+    const { minX, minY, width, height } = board.viewPort;
+    const center = {
+      x: minX + width / 2,
+      y: minY + height / 2,
+    };
+
+    const ops: Operation[] = [];
+
+    let videoWidth = 640;
+    let videoHeight = 360;
+    if (info && info.width && info.height) {
+      videoWidth = info.width;
+      videoHeight = info.height;
+    }
+
+    const ratio = videoWidth / videoHeight;
+
+    if (videoWidth > 720) {
+      videoWidth = 720;
+      videoHeight = videoWidth / ratio;
+    }
+
+    ops.push({
+      type: "insert_node",
+      path: [board.children.length],
+      node: {
+        id: getUuid(),
+        type: "video",
+        src,
+        x: center.x - videoWidth / 2,
+        y: center.y - videoHeight / 2,
+        width: videoWidth,
+        height: videoHeight,
+      },
+    });
+
+    board.apply(ops);
+  }
+
   static async insertVideoFromUrl(url: string, board: Board) {
     const { minX, minY, width, height } = board.viewPort;
     const center = { x: minX + width / 2, y: minY + height / 2 };

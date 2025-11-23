@@ -16,6 +16,10 @@ interface ImageUploaderProps {
    */
   inline?: boolean;
   /**
+   * 是否展示自带的上传/网络 Tab
+   */
+  showTabs?: boolean;
+  /**
    * 图片加载中状态
    */
   loading?: boolean;
@@ -38,6 +42,7 @@ interface ImageUploaderProps {
  */
 const ImageUploader: React.FC<ImageUploaderProps> = ({
   inline = false,
+  showTabs = true,
   loading = false,
   onUploadSuccess,
   onUploadFailed,
@@ -168,22 +173,15 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       key: "upload",
       label: "本地上传",
       children: (
-        <div className={styles.uploadTabContent}>
-          <div
-            className={classnames(styles.uploadArea, {
-              [styles.dragging]: isDragging,
-              [styles.dark]: isDark,
-            })}
-            onClick={triggerFileSelect}
-            onDragEnter={handleDragEnter}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <InboxOutlined className={styles.uploadIcon} />
-            <p className={styles.uploadText}>点击或拖拽图片到此处上传</p>
-          </div>
-        </div>
+        <UploadArea
+          triggerFileSelect={triggerFileSelect}
+          handleDragEnter={handleDragEnter}
+          handleDragLeave={handleDragLeave}
+          handleDragOver={handleDragOver}
+          handleDrop={handleDrop}
+          isDragging={isDragging}
+          isDark={isDark}
+        />
       ),
     },
     {
@@ -322,15 +320,62 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
       />
       {loading ? (
         <Spin tip="上传中..." />
-      ) : (
+      ) : showTabs ? (
         <Tabs
           defaultActiveKey="upload"
           items={tabItems}
           className={styles.tabs}
         />
+      ) : (
+        <UploadArea
+          triggerFileSelect={triggerFileSelect}
+          handleDragEnter={handleDragEnter}
+          handleDragLeave={handleDragLeave}
+          handleDragOver={handleDragOver}
+          handleDrop={handleDrop}
+          isDragging={isDragging}
+          isDark={isDark}
+        />
       )}
     </div>
   );
 };
+
+type UploadAreaProps = {
+  triggerFileSelect: () => void;
+  handleDragEnter: (e: React.DragEvent<HTMLDivElement>) => void;
+  handleDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+  handleDragLeave: (e: React.DragEvent<HTMLDivElement>) => void;
+  handleDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+  isDragging: boolean;
+  isDark: boolean;
+};
+
+const UploadArea = ({
+  triggerFileSelect,
+  handleDragEnter,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  isDragging,
+  isDark,
+}: UploadAreaProps) => (
+  <div className={styles.uploadTabContent}>
+    <div
+      className={classnames(styles.uploadArea, {
+        [styles.dragging]: isDragging,
+        [styles.dark]: isDark,
+      })}
+      onClick={triggerFileSelect}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <InboxOutlined className={styles.uploadIcon} />
+      <p className={styles.uploadText}>点击或拖拽图片到此处上传</p>
+    </div>
+  </div>
+);
 
 export default ImageUploader;

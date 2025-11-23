@@ -103,6 +103,7 @@ interface WhiteBoardProps {
     selection: Selection;
     presentationSequences?: PresentationSequence[];
   }) => void;
+  whiteboardContentId?: number;
 }
 
 const DEFAULT_PRESENTATION_SEQUENCES: PresentationSequence[] = [];
@@ -128,6 +129,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
     readonly,
     onChange,
+    whiteboardContentId,
   } = props;
 
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
@@ -265,6 +267,17 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
       board.off("change", handleChange);
     };
   }, [board, onChange]);
+
+  useEffect(() => {
+    if (whiteboardContentId != null) {
+      board.setResourceSource({
+        type: "whiteboard",
+        id: whiteboardContentId,
+      });
+    } else {
+      board.setResourceSource(undefined);
+    }
+  }, [board, whiteboardContentId]);
 
   // 监听打开笔记事件
   useEffect(() => {

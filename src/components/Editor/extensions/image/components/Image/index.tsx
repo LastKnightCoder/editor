@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { message, Spin } from "antd";
-import { Transforms } from "slate";
+import { message, Spin, Button, Input, Flex } from "antd";
+import { Transforms, Path } from "slate";
 import {
   ReactEditor,
   RenderElementProps,
@@ -40,6 +40,12 @@ import {
   ResizeDirection,
 } from "@/components/Editor/hooks/useImageResize";
 import EditText, { EditTextHandle } from "@/components/EditText";
+import { v4 as getUuid } from "uuid";
+import ResourcePickerModal from "@/components/ResourcePickerModal";
+import ModernTabs from "@/components/ModernTabs";
+import type { IResource } from "@/types";
+import { LinkOutlined } from "@ant-design/icons";
+import useTheme from "@/components/Editor/hooks/useTheme";
 
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
@@ -60,6 +66,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
   } = element;
 
   const uploadResource = useUploadResource();
+  const { isDark } = useTheme();
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
     useDragAndDrop({
@@ -67,6 +74,9 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     });
 
   const [uploading, setUploading] = useState(false);
+  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
+  const [networkImageUrl, setNetworkImageUrl] = useState("");
+  const [linkSubmitting, setLinkSubmitting] = useState(false);
 
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
@@ -115,6 +125,60 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
       },
     );
   };
+
+  const handleInsertFromResource = useMemoizedFn(
+    async (selected: IResource[]) => {
+      if (!selected.length) {
+        setResourcePickerOpen(false);
+        return;
+      }
+      const [first, ...rest] = selected;
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(
+        editor,
+        {
+          url: first.path,
+          previewUrl: first.path,
+          pasteUploading: false,
+        },
+        {
+          at: path,
+        },
+      );
+
+      let referencePath = path;
+      rest.forEach((resource) => {
+        referencePath = Path.next(referencePath);
+        Transforms.insertNodes(
+          editor,
+          {
+            type: "image",
+            url: resource.path,
+            uuid: getUuid(),
+            children: [{ type: "formatted", text: "" }],
+          },
+          { at: referencePath },
+        );
+      });
+
+      setResourcePickerOpen(false);
+    },
+  );
+
+  const handleApplyNetworkUrl = useMemoizedFn(async () => {
+    const value = networkImageUrl.trim();
+    if (!value) {
+      message.warning("请输入图片地址");
+      return;
+    }
+    setLinkSubmitting(true);
+    try {
+      setLink(value);
+      setNetworkImageUrl("");
+    } finally {
+      setLinkSubmitting(false);
+    }
+  });
 
   const toggleAlign = () => {
     if (readOnly) return;
@@ -385,18 +449,87 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     }
   };
 
-  const renderUpload = () => {
-    if (readOnly) {
-      return null;
-    }
+  const renderPlaceholder = () => {
+    if (readOnly) return null;
     return (
-      <div className={styles.imageUploadContainer}>
-        <ImageUploader
-          loading={uploading || pasteUploading}
-          onUploadSuccess={(url) => {
-            setLink(url);
-          }}
-          uploadResource={uploadResource}
+      <div
+        className={classnames(styles.sourcePanel, {
+          [styles.dark]: isDark,
+        })}
+      >
+        <div className={styles.panelHeader}>
+          <h4>插入图片</h4>
+          <p>选择一个来源来上传或引用图片，支持 JPG、PNG、WebP。</p>
+        </div>
+        <ModernTabs
+          items={[
+            {
+              key: "upload",
+              label: "本地上传",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    支持拖拽或点击上传，最大 10 MB。
+                  </p>
+                  <ImageUploader
+                    loading={uploading || pasteUploading}
+                    onUploadSuccess={(link) => setLink(link)}
+                    uploadResource={uploadResource}
+                    showTabs={false}
+                  />
+                </div>
+              ),
+            },
+            {
+              key: "url",
+              label: "网络图片",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    粘贴图片直链，我们会立即在编辑器中展示。
+                  </p>
+                  <div className={styles.inputRow}>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        prefix={<LinkOutlined className={styles.inputIcon} />}
+                        placeholder="https://example.com/awesome-image.png"
+                        value={networkImageUrl}
+                        onChange={(e) => setNetworkImageUrl(e.target.value)}
+                        onPressEnter={handleApplyNetworkUrl}
+                      />
+                    </div>
+                    <Button
+                      type="primary"
+                      className={styles.primaryButton}
+                      loading={linkSubmitting}
+                      onClick={handleApplyNetworkUrl}
+                    >
+                      插入
+                    </Button>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "library",
+              label: "资源库",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    从资源库中选择已上传的图片并插入到文档。
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <Button
+                      className={styles.secondaryButton}
+                      onClick={() => setResourcePickerOpen(true)}
+                    >
+                      打开资源库
+                    </Button>
+                  </div>
+                </div>
+              ),
+            },
+          ]}
         />
       </div>
     );
@@ -584,7 +717,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
     if (url) {
       return renderPreview();
     } else {
-      return renderUpload();
+      return renderPlaceholder();
     }
   };
 
@@ -614,6 +747,14 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = (props) => {
         {children}
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
+      <ResourcePickerModal
+        open={resourcePickerOpen}
+        onCancel={() => setResourcePickerOpen(false)}
+        allowedTypes={["image"]}
+        multiple
+        title="选择图片"
+        onConfirm={handleInsertFromResource}
+      />
     </div>
   );
 };
