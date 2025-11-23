@@ -23,6 +23,7 @@ import {
   RequestMessage,
   ResponseMessage,
   KnowledgeOptions,
+  TextContent,
 } from "@/types";
 import { Role, SUMMARY_TITLE_PROMPT, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
@@ -334,17 +335,36 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         .slice(-2)
                         .map((message): RequestMessage => {
                           if (message.role === Role.User) {
-                            return message as RequestMessage;
-                          } else {
-                            const responseMsg = message as ResponseMessage;
+                            const textContent = (
+                              message as RequestMessage
+                            ).content.filter(
+                              (item): item is TextContent =>
+                                item.type === "text" &&
+                                item.text.trim().length > 0,
+                            );
                             return {
                               role: message.role,
-                              content: [
-                                { type: "text", text: responseMsg.content },
-                              ],
+                              content: textContent,
                             };
                           }
-                        });
+
+                          const responseMsg = message as ResponseMessage;
+                          return {
+                            role: message.role,
+                            content: [
+                              { type: "text", text: responseMsg.content },
+                            ],
+                          };
+                        })
+                        .filter(
+                          (message) =>
+                            message.content.length > 0 &&
+                            message.content.some(
+                              (item) =>
+                                item.type === "text" &&
+                                item.text.trim().length > 0,
+                            ),
+                        );
 
                     chatLLMStream(
                       titleProviderConfig,
@@ -744,7 +764,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     return (
       <>
         <div
-          className="relative border-t-[12px] border-b-[12px] border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
+          className="border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
           ref={messagesRef}
         >
           {visibleMessages.length > 0 && (
@@ -775,7 +795,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     className={classNames(
                       "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
                       {
-                        "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                        "bg-[#3b82f6]/10 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
                           enableThinking,
                         "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
                           !enableThinking,
@@ -791,7 +811,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   className={classNames(
                     "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
                     {
-                      "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                      "bg-[#3b82f6]/10 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
                         ragEnabled,
                       "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
                         !ragEnabled,
