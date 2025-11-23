@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { message, Spin, Button, Input, Flex } from "antd";
+import { message, Spin, Button, Input } from "antd";
 import { Transforms, Path } from "slate";
 import {
   ReactEditor,

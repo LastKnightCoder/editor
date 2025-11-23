@@ -264,7 +264,7 @@ interface IState {
 }
 
 interface IActions {
-  initSetting: () => void;
+  initSetting: (clientId: string) => void;
   setSettingModalOpen: (open: boolean) => void;
   onFontSettingChange: (fontSetting: ISetting["fontSetting"]) => void;
   onDarkModeChange: (darkMode: boolean) => void;
@@ -289,6 +289,21 @@ interface IActions {
   updateMinimaxApiKey: (apiKey: string) => void;
   setMinimaxEnabled: (enabled: boolean) => void;
 }
+
+interface SettingNotificationPayload {
+  setting: ISetting;
+  clientId?: string;
+}
+
+const isSettingNotificationPayload = (
+  payload: unknown,
+): payload is SettingNotificationPayload => {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "setting" in (payload as Record<string, unknown>)
+  );
+};
 
 const initialState: IState = {
   inited: false,
@@ -514,16 +529,37 @@ const initialState: IState = {
 
 const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
-  initSetting: async () => {
+  initSetting: async (clientId: string) => {
     const client = useBackendWebsocketStore.getState().client;
     if (!client) {
       throw new Error("Client not initialized");
     }
-    client.registerNotificationHandler("user-setting-changed", (newSetting) => {
-      set({
-        setting: newSetting as ISetting,
-      });
-    });
+    client.registerNotificationHandler(
+      "user-setting-changed",
+      (payload: unknown) => {
+        if (!payload) {
+          return;
+        }
+
+        let nextSetting: ISetting;
+        let sourceClientId: string | undefined;
+
+        if (isSettingNotificationPayload(payload)) {
+          nextSetting = payload.setting;
+          sourceClientId = payload.clientId;
+        } else {
+          nextSetting = payload as ISetting;
+        }
+
+        if (sourceClientId && sourceClientId === clientId) {
+          return;
+        }
+
+        set({
+          setting: nextSetting,
+        });
+      },
+    );
     const setting = (await client.sendRequest(
       "get-user-setting",
       null,
