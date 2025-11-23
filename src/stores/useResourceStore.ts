@@ -26,7 +26,7 @@ export type SystemFilterType =
   | {
       type: "type-source";
       resourceType: ResourceType;
-      sourceType: "content" | "whiteboard" | "podcast";
+      sourceType: "content" | "whiteboard" | "podcast" | "chat" | "pdf";
     };
 
 interface IState {

@@ -1,16 +1,19 @@
 import { memo, useState } from "react";
+import type { ReactNode } from "react";
 import { Tag, Button, App } from "antd";
 import {
   FileImageOutlined,
   VideoCameraOutlined,
   AudioOutlined,
   FileOutlined,
+  FilePdfOutlined,
   CloseOutlined,
   FolderOpenOutlined,
   FileTextOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
-import { IResource } from "@/types";
+import { IResource, type IResourceSource } from "@/types";
 import LocalImage from "@/components/LocalImage";
 import LocalVideo from "@/components/LocalVideo";
 import LocalAudio from "@/components/LocalAudio";
@@ -64,6 +67,12 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
       color: "orange",
     },
     {
+      type: "pdf",
+      label: "PDF",
+      icon: <FilePdfOutlined />,
+      color: "red",
+    },
+    {
       type: "attachment",
       label: "附件",
       icon: <FileOutlined />,
@@ -72,10 +81,41 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
   ];
 
   // 来源类型映射
-  const sourceTypeMap = {
-    content: "文档",
-    whiteboard: "白板",
-    podcast: "播客",
+  const sourceTypeMap: Record<
+    IResourceSource["type"],
+    {
+      label: string;
+      color: string;
+      icon: ReactNode;
+      clickable?: boolean;
+    }
+  > = {
+    content: {
+      label: "文档",
+      color: "cyan",
+      icon: <FileTextOutlined />,
+      clickable: true,
+    },
+    whiteboard: {
+      label: "白板",
+      color: "purple",
+      icon: <FileImageOutlined />,
+    },
+    podcast: {
+      label: "播客",
+      color: "orange",
+      icon: <AudioOutlined />,
+    },
+    chat: {
+      label: "聊天",
+      color: "blue",
+      icon: <MessageOutlined />,
+    },
+    pdf: {
+      label: "PDF",
+      color: "red",
+      icon: <FilePdfOutlined />,
+    },
   };
 
   // 在文件夹中显示
@@ -168,6 +208,31 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
                   <LocalAudio src={resource.path} controls className="w-full" />
                 </div>
               )}
+              {resource.type === "pdf" && (
+                <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <FilePdfOutlined
+                      style={{ fontSize: "2rem", color: "#f5222d" }}
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {resource.name}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 break-all">
+                        {resource.path}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    type="default"
+                    size="small"
+                    icon={<FolderOpenOutlined />}
+                    onClick={handleShowInFolder}
+                  >
+                    打开文件位置
+                  </Button>
+                </div>
+              )}
 
               {/* 信息 */}
               <div className="space-y-3">
@@ -224,23 +289,31 @@ const ResourceDetailSidebar = memo((props: ResourceDetailSidebarProps) => {
                     来源信息
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {resource.sources.map((source, index) => {
-                      const isContent = source.type === "content";
-                      return isContent ? (
-                        <Tag
-                          key={index}
-                          icon={<FileTextOutlined />}
-                          color="cyan"
-                          className="cursor-pointer hover:opacity-80 transition-opacity"
-                          onClick={() =>
-                            handleOpenDocument(source.id, resource.name)
-                          }
-                        >
-                          {sourceTypeMap[source.type]} (ID: {source.id})
-                        </Tag>
-                      ) : (
-                        <Tag key={index}>
-                          {sourceTypeMap[source.type]} (ID: {source.id})
+                    {resource.sources.map((source) => {
+                      const config = sourceTypeMap[source.type];
+                      if (!config) return null;
+                      const key = `${source.type}-${source.id}`;
+                      const label = `${config.label} (ID: ${source.id})`;
+
+                      if (config.clickable) {
+                        return (
+                          <Tag
+                            key={key}
+                            icon={config.icon}
+                            color={config.color}
+                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() =>
+                              handleOpenDocument(source.id, resource.name)
+                            }
+                          >
+                            {label}
+                          </Tag>
+                        );
+                      }
+
+                      return (
+                        <Tag key={key} icon={config.icon} color={config.color}>
+                          {label}
                         </Tag>
                       );
                     })}

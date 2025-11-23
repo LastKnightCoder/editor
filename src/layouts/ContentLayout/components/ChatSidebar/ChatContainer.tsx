@@ -845,6 +845,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     onPromptSelect={handlePromptSelect}
                     currentPromptName={promptTooltip}
                     promptSelectDisabled={!canChangePrompt || sendLoading}
+                    resourceSource={{
+                      type: "chat",
+                      id: actualChatRef.current.id,
+                    }}
                   />
                 </div>
               </div>

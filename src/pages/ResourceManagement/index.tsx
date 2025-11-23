@@ -5,6 +5,7 @@ import {
   FileImageOutlined,
   VideoCameraOutlined,
   AudioOutlined,
+  FilePdfOutlined,
   FileOutlined,
   MoreOutlined,
 } from "@ant-design/icons";
@@ -329,6 +330,12 @@ const ResourceManagement = memo(() => {
       color: "orange",
     },
     {
+      type: "pdf",
+      label: "PDF",
+      icon: <FilePdfOutlined />,
+      color: "red",
+    },
+    {
       type: "attachment",
       label: "附件",
       icon: <FileOutlined />,
@@ -341,6 +348,7 @@ const ResourceManagement = memo(() => {
     const isImage = resource.type === "image";
     const isVideo = resource.type === "video";
     const isAudio = resource.type === "audio";
+    const isPdf = resource.type === "pdf";
 
     // 构建移动到分组菜单
     const groupMenuItems = buildGroupMenu(null, resource.id);
@@ -431,6 +439,10 @@ const ResourceManagement = memo(() => {
           ) : isAudio ? (
             <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
               <AudioOutlined style={{ fontSize: "2em" }} />
+            </div>
+          ) : isPdf ? (
+            <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+              <FilePdfOutlined style={{ fontSize: "2em" }} />
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">

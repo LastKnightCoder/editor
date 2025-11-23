@@ -215,7 +215,7 @@ const ChatArea = memo(
         <div className="flex-1 min-w-0 h-full flex bg-primary-bg overflow-hidden">
           {hasMessages ? (
             <div className={classnames("flex-1 flex flex-col overflow-hidden")}>
-              <div className="w-full px-10 py-4 flex justify-between items-center flex-shrink-0">
+              <div className="w-full px-10 py-4 flex justify-between items-center shrink-0">
                 <div className="font-bold flex-1 flex items-center gap-2">
                   <EditText
                     className="px-2"

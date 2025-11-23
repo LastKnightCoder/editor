@@ -77,6 +77,7 @@ import {
   detachPodcastFromCard,
   deletePodcast,
   getCardById,
+  updatePodcastName,
 } from "@/commands";
 import { SpeakerRole } from "@/types/podcast";
 
@@ -230,25 +231,39 @@ const EditCard = (props: IEditCardProps) => {
       name?: string,
     ) => {
       try {
-        const podcast = await createPodcast({
-          name,
-          audioUrl,
-          script,
-          scriptLines,
-          duration,
-          speakers,
-        });
+        if (editingCard?.podcast) {
+          // 编辑模式：更新现有播客的名称
+          await updatePodcastName(editingCard.podcast.id, name || "");
 
-        // 关联到卡片
-        await attachPodcastToCard(cardId, podcast.id);
+          // 刷新卡片数据
+          const updatedCard = await getCardById(cardId);
+          if (updatedCard) {
+            setEditingCard(updatedCard);
+          }
 
-        // 刷新卡片数据
-        const updatedCard = await getCardById(cardId);
-        if (updatedCard) {
-          setEditingCard(updatedCard);
+          message.success("播客标题已更新");
+        } else {
+          // 创建模式：创建新播客
+          const podcast = await createPodcast({
+            name,
+            audioUrl,
+            script,
+            scriptLines,
+            duration,
+            speakers,
+          });
+
+          // 关联到卡片
+          await attachPodcastToCard(cardId, podcast.id);
+
+          // 刷新卡片数据
+          const updatedCard = await getCardById(cardId);
+          if (updatedCard) {
+            setEditingCard(updatedCard);
+          }
+
+          message.success("播客已添加到卡片");
         }
-
-        message.success("播客已添加到卡片");
       } catch (error) {
         console.error("保存播客失败:", error);
         message.error("保存播客失败");
@@ -617,7 +632,7 @@ const EditCard = (props: IEditCardProps) => {
     >
       <div className="relative mx-auto w-full h-full flex flex-col">
         {!polishMode && (
-          <div className="mb-6 flex opacity-80 text-sm flex-shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border justify-between">
+          <div className="mb-6 flex opacity-80 text-sm shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border justify-between">
             <div className="flex-1 flex gap-2.5">
               <div>
                 <span>创建于 {formatDate(editingCard.create_time, true)}</span>
@@ -667,7 +682,7 @@ const EditCard = (props: IEditCardProps) => {
                       </div>
                     }
                     rightPanel={
-                      <div className="h-full flex flex-col bg-gradient-to-br from-blue-50/80 to-indigo-50/60 dark:from-blue-900/30 dark:to-indigo-900/20 p-6">
+                      <div className="h-full flex flex-col bg-linear-to-br from-blue-50/80 to-indigo-50/60 dark:from-blue-900/30 dark:to-indigo-900/20 p-6">
                         <div className="mb-3 flex items-center justify-between">
                           <div className="font-semibold text-base text-gray-700 dark:text-gray-300 flex items-center gap-2">
                             <span className="animate-pulse">✨</span>
@@ -802,7 +817,7 @@ const EditCard = (props: IEditCardProps) => {
           )}
         </div>
         {!polishMode && (
-          <div className="mt-4 flex-shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border">
+          <div className="mt-4 shrink-0 mx-auto w-full max-w-[min(100%,800px)] px-5 box-border">
             <AddTag
               tags={editingCard.tags}
               addTag={handleAddTag}

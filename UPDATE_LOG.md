@@ -805,5 +805,10 @@
 - feat: 日记页重构
 - feat: 支持动态编译 Tailwind，支持在自定义组件和 HTML 中使用 Tailwind
 - feat: Tab 支持重命名和关闭其它 Tab
+- feat: 支持 prompt 管理
+- feat: 聊天的图片和文件管理
+- feat: 支持从资源库选择文件
 - fix: PreviewWithEditor 全屏后缩小数据丢失
 - fix: 数据库设置日历和看板设置无效
+- fix: 通过 setEditorValue 同步代码时代码块未更新
+- fix: 播客编辑弹窗不支持编辑标题
