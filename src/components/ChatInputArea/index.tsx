@@ -69,7 +69,8 @@ interface ChatInputAreaProps {
   modelSelectItems?: any[];
   onModelSelect?: ({ key }: { key: string }) => void;
   currentModelName?: string;
-  isSupportMultiModal?: boolean;
+  isSupportImage?: boolean;
+  isSupportFile?: boolean;
   promptSelectItems?: any[];
   onPromptSelect?: ({ key }: { key: string }) => void;
   currentPromptName?: string;
@@ -91,7 +92,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       modelSelectItems = [],
       onModelSelect,
       currentModelName,
-      isSupportMultiModal = false,
+      isSupportImage = false,
+      isSupportFile = false,
       promptSelectItems = [],
       onPromptSelect,
       currentPromptName,
@@ -310,29 +312,38 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const handlePaste = useMemoizedFn(
       (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
         const clipboardData = event.clipboardData;
-        if (!clipboardData || !isSupportMultiModal) return;
+        if (!clipboardData) return;
 
-        const imageItems = Array.from(clipboardData.items).filter(
-          (item) => item.kind === "file" && item.type.startsWith("image/"),
-        );
-        const pdfItems = Array.from(clipboardData.items).filter(
-          (item) =>
-            item.kind === "file" &&
-            item.type.toLowerCase() === "application/pdf",
-        );
+        const imageItems = isSupportImage
+          ? Array.from(clipboardData.items).filter(
+              (item) => item.kind === "file" && item.type.startsWith("image/"),
+            )
+          : [];
+        const pdfItems = isSupportFile
+          ? Array.from(clipboardData.items).filter(
+              (item) =>
+                item.kind === "file" &&
+                item.type.toLowerCase() === "application/pdf",
+            )
+          : [];
 
         if (imageItems.length === 0 && pdfItems.length === 0) return;
 
         void (async () => {
-          for (const item of imageItems) {
-            const file = item.getAsFile();
-            if (!file) continue;
-            await handleImageUpload(file);
+          if (isSupportImage) {
+            for (const item of imageItems) {
+              const file = item.getAsFile();
+              if (!file) continue;
+              await handleImageUpload(file);
+            }
           }
-          for (const item of pdfItems) {
-            const file = item.getAsFile();
-            if (!file) continue;
-            await handlePdfUpload(file);
+
+          if (isSupportFile) {
+            for (const item of pdfItems) {
+              const file = item.getAsFile();
+              if (!file) continue;
+              await handlePdfUpload(file);
+            }
           }
         })();
       },
@@ -394,7 +405,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <FilePdfOutlined className="text-red-500 flex-shrink-0" />
+                  <FilePdfOutlined className="text-red-500 shrink-0" />
                   <span className="text-sm text-gray-800 dark:text-gray-100 truncate">
                     {file.name}
                   </span>
@@ -483,43 +494,43 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 </Dropdown>
               </Tooltip>
             )}
-            {isSupportMultiModal && (
-              <>
-                <Tooltip title="上传图片">
-                  <Upload
-                    accept="image/png, image/jpeg, image/webp"
-                    showUploadList={false}
-                    beforeUpload={handleImageUpload}
+            {isSupportImage && (
+              <Tooltip title="上传图片">
+                <Upload
+                  accept="image/png, image/jpeg, image/webp"
+                  showUploadList={false}
+                  beforeUpload={handleImageUpload}
+                  disabled={!contentEditable || uploadingImage}
+                >
+                  <Button
+                    type="text"
+                    icon={<PictureOutlined />}
+                    size="small"
                     disabled={!contentEditable || uploadingImage}
-                  >
-                    <Button
-                      type="text"
-                      icon={<PictureOutlined />}
-                      size="small"
-                      disabled={!contentEditable || uploadingImage}
-                      loading={uploadingImage}
-                      className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100!"
-                    />
-                  </Upload>
-                </Tooltip>
-                <Tooltip title="上传 PDF">
-                  <Upload
-                    accept="application/pdf"
-                    showUploadList={false}
-                    beforeUpload={handlePdfUpload}
+                    loading={uploadingImage}
+                    className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100!"
+                  />
+                </Upload>
+              </Tooltip>
+            )}
+            {isSupportFile && (
+              <Tooltip title="上传 PDF">
+                <Upload
+                  accept="application/pdf"
+                  showUploadList={false}
+                  beforeUpload={handlePdfUpload}
+                  disabled={!contentEditable || uploadingPdf}
+                >
+                  <Button
+                    type="text"
+                    icon={<FilePdfOutlined />}
+                    size="small"
                     disabled={!contentEditable || uploadingPdf}
-                  >
-                    <Button
-                      type="text"
-                      icon={<FilePdfOutlined />}
-                      size="small"
-                      disabled={!contentEditable || uploadingPdf}
-                      loading={uploadingPdf}
-                      className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100!"
-                    />
-                  </Upload>
-                </Tooltip>
-              </>
+                    loading={uploadingPdf}
+                    className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100!"
+                  />
+                </Upload>
+              </Tooltip>
             )}
           </div>
 

@@ -41,14 +41,20 @@ export interface ProviderConfig {
   models: ModelConfig[];
 }
 
+export interface ModelFeatures {
+  online: boolean;
+  thinking: boolean;
+  image: boolean;
+  video: boolean;
+  audio: boolean;
+  file: boolean;
+  multimodal?: boolean;
+}
+
 export interface ModelConfig {
   name: string;
   description: string;
-  features: {
-    online: boolean;
-    thinking: boolean;
-    multimodal: boolean;
-  };
+  features: ModelFeatures;
 }
 
 export interface LLMUsageConfig {
