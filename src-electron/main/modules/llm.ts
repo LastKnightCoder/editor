@@ -1,7 +1,7 @@
 import { ipcMain } from "electron";
 import OpenAI from "openai";
 import { chunk } from "llm-chunk";
-import { RequestMessage } from "@/types";
+import { RequestMessage, ReasoningEffort } from "@/types";
 import { Module } from "../types/module";
 
 class LLMModule implements Module {
@@ -39,7 +39,7 @@ class LLMModule implements Module {
         model: string,
         messages: RequestMessage[],
         options?: {
-          enableThinking?: boolean;
+          reasoningEffort?: ReasoningEffort;
         },
       ) => {
         return this.chat(apiKey, baseUrl, model, messages, options);
@@ -83,7 +83,7 @@ class LLMModule implements Module {
     model: string,
     messages: RequestMessage[],
     options?: {
-      enableThinking?: boolean;
+      reasoningEffort?: ReasoningEffort;
     },
   ): Promise<string | null> {
     const client = new OpenAI({
@@ -91,7 +91,11 @@ class LLMModule implements Module {
       baseURL: baseUrl,
     });
 
-    const { enableThinking = false } = options || {};
+    const { reasoningEffort } = options || {};
+    const normalizedReasoningEffort =
+      reasoningEffort && reasoningEffort !== "none"
+        ? reasoningEffort
+        : undefined;
 
     const notSupportTemperature = ["o1", "o3", "o4", "gpt-5"].some((model) =>
       model.startsWith(model),
@@ -105,7 +109,7 @@ class LLMModule implements Module {
       messages: messages as any,
       temperature: notSupportTemperature ? undefined : 0.3,
       stream: false,
-      reasoning_effort: enableThinking ? "medium" : undefined,
+      reasoning_effort: normalizedReasoningEffort,
       frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
     });
 

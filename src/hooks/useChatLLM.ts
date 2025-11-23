@@ -1,4 +1,9 @@
-import { RequestMessage, KnowledgeOptions, MessageContent } from "@/types";
+import {
+  RequestMessage,
+  KnowledgeOptions,
+  MessageContent,
+  ReasoningEffort,
+} from "@/types";
 import { useMemoizedFn } from "ahooks";
 import { message } from "antd";
 import {
@@ -26,7 +31,7 @@ interface IChatStreamOptions {
   onReasoning?: (responseText: string, fetchText: string) => void;
   onError?: (e: Error) => void;
   onController?: (controller: AbortController) => void;
-  enableThinking?: boolean;
+  reasoningEffort?: ReasoningEffort;
 }
 
 const FILE_MIME_TYPES: Record<string, string> = {
@@ -256,7 +261,7 @@ const chatInner = async (
   messages: RequestMessage[],
   knowledgeOptions?: KnowledgeOptions,
   options?: {
-    enableThinking?: boolean;
+    reasoningEffort?: ReasoningEffort;
   },
 ) => {
   if (!providerConfig) {
@@ -392,6 +397,11 @@ export const chatStreamInner = async (
     modelName.startsWith(model),
   );
 
+  const normalizedReasoningEffort =
+    options.reasoningEffort && options.reasoningEffort !== "none"
+      ? options.reasoningEffort
+      : undefined;
+
   const requestPayload = {
     messages: streamMessages,
     stream: true,
@@ -400,7 +410,7 @@ export const chatStreamInner = async (
     presence_penalty: 0,
     frequency_penalty: notSupportFrequencyPenalty ? undefined : 0,
     top_p: 1,
-    reasoning_effort: options.enableThinking ? "medium" : undefined,
+    reasoning_effort: normalizedReasoningEffort,
   };
   console.log("Chat request payload:", requestPayload);
 

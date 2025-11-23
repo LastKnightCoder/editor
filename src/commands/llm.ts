@@ -1,5 +1,5 @@
 import { invoke } from "@/electron";
-import { RequestMessage } from "@/types";
+import { RequestMessage, ReasoningEffort } from "@/types";
 
 export const chat = async (
   apiKey: string,
@@ -7,7 +7,7 @@ export const chat = async (
   model: string,
   messages: RequestMessage[],
   options?: {
-    enableThinking?: boolean;
+    reasoningEffort?: ReasoningEffort;
   },
 ) => {
   return await invoke("chat-openai", apiKey, baseUrl, model, messages, options);

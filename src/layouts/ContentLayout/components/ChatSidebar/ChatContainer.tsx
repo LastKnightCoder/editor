@@ -24,6 +24,7 @@ import {
   ResponseMessage,
   KnowledgeOptions,
   TextContent,
+  ReasoningEffort,
 } from "@/types";
 import { Role, SUMMARY_TITLE_PROMPT, DEFAULT_SYSTEM_PROMPT } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
@@ -33,8 +34,7 @@ import { createChatMessage } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import usePromptStore from "@/stores/usePromptStore";
 import type { EditTextHandle } from "@/components/EditText";
-import { InfoCircleOutlined } from "@ant-design/icons";
-import { LuBrain } from "react-icons/lu";
+import { CheckOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import classNames from "classnames";
 interface ChatContainerProps {
   currentChat: ChatMessage;
@@ -90,12 +90,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       defaultValue: false,
     });
 
-    const [enableThinking, setEnableThinking] = useLocalStorageState(
-      "enableThinking",
-      {
-        defaultValue: chatModelConfig?.features?.thinking ?? false,
-      },
-    );
+    const [reasoningEffort, setReasoningEffort] =
+      useLocalStorageState<ReasoningEffort>("reasoningEffort", {
+        defaultValue: "none",
+      });
+    const effectiveReasoningEffort = reasoningEffort ?? "none";
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -121,43 +120,40 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       );
     }, [prompts, updateCounter]);
 
-    const promptSelectItems = useMemo(
-      () =>
-        prompts.map((prompt) => ({
-          key: String(prompt.id),
-          label: (
-            <div
-              className={classNames("flex flex-col gap-1 py-0.5", {
-                "bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-700 rounded-lg px-2":
-                  currentPrompt?.id === prompt.id,
-              })}
-              style={{ maxWidth: 320 }}
-            >
-              <div className="text-base font-semibold text-text-primary break-all">
-                {prompt.name}
+    const promptSelectItems = useMemo(() => {
+      const createPromptMenuItem = (
+        key: string,
+        title: string,
+        tags: string[],
+        description: string,
+        isActive: boolean,
+      ) => ({
+        key,
+        label: (
+          <div className="flex items-center justify-between gap-3 min-w-[200px] max-w-[240px]">
+            <div className="flex-1 min-w-0 flex flex-col gap-1 text-sm">
+              <div className="flex items-center gap-2 min-w-0">
+                <span
+                  className={classNames("font-medium truncate", {
+                    "text-blue-600": isActive,
+                    "text-text-primary": !isActive,
+                  })}
+                >
+                  {title}
+                </span>
+                <div className="flex flex-wrap gap-1 text-xs text-gray-500 truncate">
+                  {tags.length > 0 ? (
+                    tags.map((tag) => (
+                      <span key={tag} className="shrink-0">
+                        {tag}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="shrink-0 text-gray-400">未添加标签</span>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-wrap gap-1">
-                {prompt.tags.length > 0 ? (
-                  prompt.tags.map((tag, idx) => (
-                    <Tag
-                      key={tag}
-                      color={
-                        ["blue", "cyan", "geekblue", "purple", "gold", "green"][
-                          idx % 6
-                        ]
-                      }
-                      style={{ marginInlineEnd: 0 }}
-                    >
-                      {tag}
-                    </Tag>
-                  ))
-                ) : (
-                  <Tag color="default" style={{ marginInlineEnd: 0 }}>
-                    未添加标签
-                  </Tag>
-                )}
-              </div>
-              <div
+              <span
                 className="text-xs text-text-secondary leading-relaxed"
                 style={{
                   display: "-webkit-box",
@@ -165,15 +161,36 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   WebkitBoxOrient: "vertical",
                   overflow: "hidden",
                 }}
-                title={prompt.content}
+                title={description}
               >
-                {prompt.content}
-              </div>
+                {description}
+              </span>
             </div>
-          ),
-        })),
-      [prompts],
-    );
+            {isActive && <CheckOutlined className="text-blue-500 shrink-0" />}
+          </div>
+        ),
+      });
+
+      const defaultItem = createPromptMenuItem(
+        "default",
+        "默认 Prompt",
+        ["系统默认"],
+        DEFAULT_SYSTEM_PROMPT,
+        !currentPrompt,
+      );
+
+      const promptItems = prompts.map((prompt) =>
+        createPromptMenuItem(
+          String(prompt.id),
+          prompt.name,
+          prompt.tags,
+          prompt.content,
+          currentPrompt?.id === prompt.id,
+        ),
+      );
+
+      return [defaultItem, ...promptItems];
+    }, [prompts, currentPrompt]);
 
     const promptTooltip = currentPrompt?.name ?? "默认 Prompt";
 
@@ -319,8 +336,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           chatModelConfig,
           sendMessages,
           {
-            enableThinking: chatModelConfig.features?.thinking
-              ? enableThinking
+            reasoningEffort: chatModelConfig?.features?.thinking
+              ? effectiveReasoningEffort
               : undefined,
             onFinish: async () => {
               try {
@@ -585,16 +602,25 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return;
       }
 
-      const targetPrompt = prompts.find((item) => String(item.id) === key);
-      if (!targetPrompt) return;
+      let systemContent = DEFAULT_SYSTEM_PROMPT;
+      let promptId: number | null = null;
+
+      if (key !== "default") {
+        const targetPrompt = prompts.find((item) => String(item.id) === key);
+        if (!targetPrompt) {
+          return;
+        }
+        systemContent = targetPrompt.content;
+        promptId = targetPrompt.id;
+      }
 
       const updatedChat = produce(actualChatRef.current, (draft) => {
         const systemMessage: ResponseMessage = {
           role: Role.System,
-          content: targetPrompt.content,
+          content: systemContent,
         };
         draft.messages = [systemMessage];
-        draft.promptId = targetPrompt.id;
+        draft.promptId = promptId;
       });
 
       if (actualChatRef.current.id === 0) {
@@ -795,23 +821,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           <>
             {embeddingModelInfo && (
               <div className="flex-none flex items-center gap-2 flex-wrap">
-                {chatModelConfig?.features?.thinking && (
-                  <div
-                    className={classNames(
-                      "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
-                      {
-                        "bg-[#3b82f6]/10 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
-                          enableThinking,
-                        "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
-                          !enableThinking,
-                      },
-                    )}
-                    onClick={() => setEnableThinking(!enableThinking)}
-                  >
-                    <LuBrain />
-                    思考
-                  </div>
-                )}
                 <div
                   className={classNames(
                     "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
@@ -855,6 +864,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                       type: "chat",
                       id: actualChatRef.current.id,
                     }}
+                    reasoningEffort={
+                      chatModelConfig?.features?.thinking
+                        ? effectiveReasoningEffort
+                        : undefined
+                    }
+                    onReasoningEffortChange={
+                      chatModelConfig?.features?.thinking
+                        ? (value) => setReasoningEffort(value)
+                        : undefined
+                    }
                   />
                 </div>
               </div>
