@@ -278,6 +278,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
                   style={{ width: "100%", height: "100%" }}
                   readonly={readOnly}
                   onChange={handleWhiteboardChange}
+                  whiteboardContentId={whiteBoardContent.id}
                 />
                 <div
                   className={styles.resizeHandle}
@@ -316,6 +317,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
                     style={{ width: "100%", height: "100%" }}
                     readonly={readOnly}
                     onChange={handleWhiteboardChange}
+                    whiteboardContentId={whiteBoardContent.id}
                   />
                   <div
                     className={styles.closeButton}

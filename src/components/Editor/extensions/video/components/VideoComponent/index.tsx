@@ -1,13 +1,11 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
-import { Transforms } from "slate";
+import { Transforms, Path } from "slate";
 import {
   Button,
-  Empty,
   Flex,
   Input,
-  Popover,
   Spin,
   App,
   Modal,
@@ -40,6 +38,8 @@ import If from "@/components/If";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import NotionVideoLoader from "@/components/NotionVideoLoader";
+import ResourcePickerModal from "@/components/ResourcePickerModal";
+import ModernTabs from "@/components/ModernTabs";
 import { useBilibiliVideo } from "@/hooks/useBilibiliVideo";
 import { useYoutubeVideo } from "@/hooks/useYoutubeVideo";
 import { useNotionVideo } from "@/hooks/useNotionVideo";
@@ -58,6 +58,7 @@ import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
 import useSettingStore from "@/stores/useSettingStore";
 import ytdl from "@distube/ytdl-core";
 import type {
+  IResource,
   BiliBiliVideoMetaInfo,
   YouTubeVideoMetaInfo,
   NotionVideoMetaInfo,
@@ -66,6 +67,8 @@ import type {
 } from "@/types";
 
 import styles from "./index.module.less";
+import useTheme from "@/components/Editor/hooks/useTheme";
+import { LinkOutlined, FolderOpenOutlined } from "@ant-design/icons";
 
 function isBiliMetaInfo(
   m?:
@@ -109,8 +112,8 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const uploadRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [networkUrlOpen, setNetworkUrlOpen] = useState(false);
   const [networkUrl, setNetworkUrl] = useState("");
+  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [maxWidth, setMaxWidth] = useState<number>(Infinity);
   const [isSelected, setIsSelected] = useState(false);
@@ -150,11 +153,10 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   >(undefined);
   const ytDebounceRef = useRef<number | null>(null);
 
-  const [notionModalOpen, setNotionModalOpen] = useState(false);
   const [notionInput, setNotionInput] = useState("");
-  const [notionTitle, setNotionTitle] = useState("");
   const [notionLoading, setNotionLoading] = useState(false);
-  const [notionCacheEnabled, setNotionCacheEnabled] = useState(true);
+  const [notionCacheEnabled, setNotionCacheEnabled] = useState(false);
+  const { isDark } = useTheme();
 
   const setting = useSettingStore.getState().setting;
 
@@ -228,23 +230,18 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     );
   });
 
-  const handleNetworkUrlChange = useMemoizedFn(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setNetworkUrl(event.target.value);
-    },
-  );
   const handleOnNetworkUrlInputFinish = useMemoizedFn(() => {
-    if (!networkUrl) {
+    const trimmed = networkUrl.trim();
+    if (!trimmed) {
       message.warning("请输入视频地址");
       return;
     }
 
-    // 若输入的是 bilibili/youtube 链接，但缺少 metaInfo，则报错并不写入
     if (
-      (isBilibiliUrl(networkUrl) || isYoutubeUrl(networkUrl)) &&
+      (isBilibiliUrl(trimmed) || isYoutubeUrl(trimmed)) &&
       !element.metaInfo
     ) {
-      message.error("缺少 metaInfo，请通过正确入口创建该平台视频");
+      message.error("缺少 metaInfo，请通过对应入口创建该平台视频");
       return;
     }
 
@@ -252,16 +249,15 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     Transforms.setNodes(
       editor,
       {
-        src: networkUrl,
+        src: trimmed,
+        metaInfo: undefined,
       },
       {
         at: path,
       },
     );
     setNetworkUrl("");
-    setNetworkUrlOpen(false);
   });
-
   const handleUploadFileChange = useMemoizedFn(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -293,6 +289,47 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       );
       setUploading(false);
       e.target.value = "";
+    },
+  );
+
+  const handleInsertFromResource = useMemoizedFn(
+    async (selected: IResource[]) => {
+      if (!selected.length) {
+        setResourcePickerOpen(false);
+        return;
+      }
+      const [first, ...rest] = selected;
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes(
+        editor,
+        {
+          src: first.path,
+          uploading: false,
+          metaInfo: undefined,
+        },
+        { at: path },
+      );
+
+      let referencePath = path;
+      rest.forEach((resource) => {
+        referencePath = Path.next(referencePath);
+        Transforms.insertNodes(
+          editor,
+          {
+            type: "video",
+            src: resource.path,
+            children: [
+              {
+                type: "formatted",
+                text: "",
+              },
+            ],
+          },
+          { at: referencePath },
+        );
+      });
+
+      setResourcePickerOpen(false);
     },
   );
 
@@ -419,7 +456,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     }
   });
 
-  // 解析并写入 YouTube metaInfo
+  // 解析并写入YouTube metaInfo
   const handleConfirmYoutube = useMemoizedFn(async () => {
     if (!youtubeUrl || !isYoutubeUrl(youtubeUrl)) {
       message.error("请输入有效的 YouTube 链接");
@@ -466,7 +503,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     }
   });
 
-  // 根据输入的 YouTube URL 获取可用清晰度
+  // 根据输入 YouTube URL 获取可用清晰度
   const handleYoutubeUrlChange = useMemoizedFn(async (url: string) => {
     setYoutubeUrl(url);
     if (ytDebounceRef.current) {
@@ -508,6 +545,66 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         setYoutubeVideoInfoLoading(false);
       }
     }, 800);
+  });
+
+  const handleConfirmNotion = useMemoizedFn(async () => {
+    if (!notionInput.trim()) {
+      message.error("请输入 Notion 视频区块 ID 或链接");
+      return;
+    }
+
+    setNotionLoading(true);
+
+    try {
+      const blockId = parseNotionBlockId(notionInput);
+      if (!blockId) {
+        message.error("无法解析 Block ID，请检查输入格式");
+        setNotionLoading(false);
+        return;
+      }
+
+      const token = setting.integration.notion.token;
+      if (!token || !setting.integration.notion.enabled) {
+        message.error("请先在设置中配置 Notion 集成");
+        setNotionLoading(false);
+        return;
+      }
+
+      const blockInfo = await getNotionBlockInfo(token, blockId);
+      if (!blockInfo.success) {
+        message.error(blockInfo.error || "获取 Notion 区块信息失败");
+        setNotionLoading(false);
+        return;
+      }
+
+      if (blockInfo.blockType !== "video") {
+        message.error(`该区块不是视频类型，而是 ${blockInfo.blockType} 类型`);
+        setNotionLoading(false);
+        return;
+      }
+
+      const path = ReactEditor.findPath(editor, element);
+      Transforms.setNodes<VideoElement>(
+        editor,
+        {
+          metaInfo: {
+            type: "notion",
+            blockId,
+            cache: notionCacheEnabled,
+          } as NotionVideoMetaInfo,
+          src: `notion://${blockId}`,
+        },
+        { at: path },
+      );
+
+      setNotionInput("");
+      message.success("Notion 视频添加成功");
+    } catch (error) {
+      console.error("添加 Notion 视频失败:", error);
+      message.error("添加 Notion 视频失败，请检查 Block ID 是否正确");
+    } finally {
+      setNotionLoading(false);
+    }
   });
 
   const { src, uploading, playbackRate = 1, width, align = "center" } = element;
@@ -697,54 +794,261 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   };
 
   const renderEmpty = () => {
+    if (readOnly) return null;
     return (
-      <Empty description={"暂未设置视频，请上传"}>
-        <Flex vertical gap={12} justify={"center"}>
-          <Flex align={"center"} gap={12} justify={"center"}>
-            <Button
-              disabled={readOnly}
-              onClick={() => uploadRef.current?.click()}
-            >
-              本地上传
-            </Button>
-            <Popover
-              open={!readOnly && networkUrlOpen}
-              onOpenChange={setNetworkUrlOpen}
-              trigger={"click"}
-              arrow={false}
-              placement={"bottom"}
-              content={
-                <Flex gap={12}>
-                  <Input
-                    size={"large"}
-                    style={{ width: 500 }}
-                    value={networkUrl}
-                    onChange={handleNetworkUrlChange}
-                  />
-                  <Button onClick={handleOnNetworkUrlInputFinish}>确认</Button>
-                </Flex>
-              }
-            >
-              <Button disabled={readOnly}>网络地址</Button>
-            </Popover>
-            <Button disabled={readOnly} onClick={() => setBiliModalOpen(true)}>
-              Bilibili
-            </Button>
-            <Button
-              disabled={readOnly}
-              onClick={() => setYoutubeModalOpen(true)}
-            >
-              YouTube
-            </Button>
-            <Button
-              disabled={readOnly}
-              onClick={() => setNotionModalOpen(true)}
-            >
-              Notion
-            </Button>
-          </Flex>
-        </Flex>
-      </Empty>
+      <div
+        className={classnames(styles.sourcePanel, {
+          [styles.dark]: isDark,
+        })}
+      >
+        <div className={styles.panelHeader}>
+          <h4>插入视频</h4>
+          <p>支持本地上传、网络直链以及 Bilibili / YouTube / Notion 等来源。</p>
+        </div>
+        <ModernTabs
+          variant="flat"
+          items={[
+            {
+              key: "local",
+              label: "本地上传",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    上传 MP4、WebM、MOV 等格式，单个文件建议不超过 200 MB。
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <Button
+                      className={styles.primaryButton}
+                      icon={<FolderOpenOutlined />}
+                      onClick={() => uploadRef.current?.click()}
+                    >
+                      选择文件
+                    </Button>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "library",
+              label: "资源库",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    引用资源库中已上传的视频，可多选插入到文稿。
+                  </p>
+                  <div className={styles.actionsRow}>
+                    <Button
+                      className={styles.secondaryButton}
+                      onClick={() => setResourcePickerOpen(true)}
+                    >
+                      打开资源库
+                    </Button>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "url",
+              label: "网络地址",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    支持直接嵌入公网直链视频，建议使用 MP4 或流媒体链接。
+                  </p>
+                  <div className={styles.inputRow}>
+                    <div className={styles.inputWrapper}>
+                      <Input
+                        prefix={<LinkOutlined className={styles.inputIcon} />}
+                        placeholder="https://example.com/video.mp4"
+                        value={networkUrl}
+                        onChange={(e) => setNetworkUrl(e.target.value)}
+                        onPressEnter={handleOnNetworkUrlInputFinish}
+                      />
+                    </div>
+                    <Button
+                      className={styles.primaryButton}
+                      onClick={handleOnNetworkUrlInputFinish}
+                    >
+                      插入
+                    </Button>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "bilibili",
+              label: "Bilibili",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    输入 Bilibili 视频链接，选择清晰度后插入。
+                  </p>
+                  <Flex vertical gap={12}>
+                    <Input
+                      placeholder="https://www.bilibili.com/video/BV..."
+                      value={biliUrl}
+                      onChange={(e) => handleBiliUrlChange(e.target.value)}
+                      suffix={
+                        isBilibiliUrl(biliUrl) && bilibiliQualityLoading ? (
+                          <LoadingOutlined />
+                        ) : undefined
+                      }
+                      className="h-10"
+                    />
+                    {isBilibiliUrl(biliUrl) &&
+                      bilibiliQualityOptions.length > 0 && (
+                        <Select
+                          style={{ width: "100%" }}
+                          value={selectedBilibiliQuality}
+                          onChange={setSelectedBilibiliQuality}
+                        >
+                          {bilibiliQualityOptions.map((opt) => (
+                            <Select.Option key={opt.value} value={opt.value}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                }}
+                              >
+                                <span>{opt.label}</span>
+                                <div>
+                                  {opt.needVip && (
+                                    <Tag color="gold">大会员</Tag>
+                                  )}
+                                  {opt.needLogin && !opt.needVip && (
+                                    <Tag color="blue">需登录</Tag>
+                                  )}
+                                </div>
+                              </div>
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      )}
+                    <Button
+                      className={styles.primaryButton}
+                      loading={biliLoading}
+                      onClick={handleConfirmBilibili}
+                    >
+                      添加
+                    </Button>
+                  </Flex>
+                </div>
+              ),
+            },
+            {
+              key: "youtube",
+              label: "YouTube",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    解析 YouTube 链接，选择音视频清晰度。
+                  </p>
+                  <Flex vertical gap={12}>
+                    <Input
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      value={youtubeUrl}
+                      onChange={(e) => handleYoutubeUrlChange(e.target.value)}
+                      suffix={
+                        isYoutubeUrl(youtubeUrl) && youtubeVideoInfoLoading ? (
+                          <LoadingOutlined />
+                        ) : undefined
+                      }
+                      className="h-10"
+                    />
+                    {isYoutubeUrl(youtubeUrl) && youtubeVideoInfo && (
+                      <>
+                        <Select
+                          style={{ width: "100%" }}
+                          options={youtubeVideoInfo.audioFmts.map((f) => ({
+                            label: `${f.audioQuality || f.qualityLabel || ""} / ${
+                              f.container || f.mimeType || ""
+                            }`,
+                            value: f.itag,
+                          }))}
+                          value={youtubeSelectedAudioFormat?.itag}
+                          onChange={(itag) =>
+                            setYoutubeSelectedAudioFormat(
+                              youtubeVideoInfo.audioFmts.find(
+                                (f) => f.itag === itag,
+                              ) as ytdl.videoFormat,
+                            )
+                          }
+                          placeholder="选择音频清晰度"
+                        />
+                        <Select
+                          style={{ width: "100%" }}
+                          options={youtubeVideoInfo.videoFmts.map((f) => ({
+                            label: `${f.qualityLabel || f.quality || ""} / ${
+                              f.container || f.mimeType || ""
+                            }`,
+                            value: f.itag,
+                          }))}
+                          value={youtubeSelectedVideoFormat?.itag}
+                          onChange={(itag) =>
+                            setYoutubeSelectedVideoFormat(
+                              youtubeVideoInfo.videoFmts.find(
+                                (f) => f.itag === itag,
+                              ) as ytdl.videoFormat,
+                            )
+                          }
+                          placeholder="选择视频清晰度"
+                        />
+                      </>
+                    )}
+                    <Button
+                      className={styles.primaryButton}
+                      disabled={
+                        !isYoutubeUrl(youtubeUrl) ||
+                        !youtubeSelectedVideoFormat ||
+                        !youtubeSelectedAudioFormat
+                      }
+                      loading={youtubeCreateLoading}
+                      onClick={handleConfirmYoutube}
+                    >
+                      添加
+                    </Button>
+                  </Flex>
+                </div>
+              ),
+            },
+            {
+              key: "notion",
+              label: "Notion",
+              children: (
+                <div className={styles.tabCard}>
+                  <p className={styles.tabHint}>
+                    支持直接引用 Notion 视频块，可按需缓存到本地。
+                  </p>
+                  <Flex vertical gap={12}>
+                    <Input.TextArea
+                      rows={4}
+                      value={notionInput}
+                      onChange={(e) => setNotionInput(e.target.value)}
+                      placeholder={`请输入 Notion 视频区块 ID 或链接，例如：\n- 3b628e1d-84da-4c6c-900d-b6e4a28532e1\n- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1`}
+                    />
+                    <Flex align="center" gap={8}>
+                      <span>缓存视频到本地</span>
+                      <Switch
+                        checked={notionCacheEnabled}
+                        onChange={setNotionCacheEnabled}
+                        checkedChildren="开启"
+                        unCheckedChildren="关闭"
+                      />
+                    </Flex>
+                    <Button
+                      className={styles.primaryButton}
+                      loading={notionLoading}
+                      onClick={handleConfirmNotion}
+                    >
+                      添加
+                    </Button>
+                  </Flex>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </div>
     );
   };
 
@@ -858,6 +1162,14 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         />
         {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
+      <ResourcePickerModal
+        open={resourcePickerOpen}
+        onCancel={() => setResourcePickerOpen(false)}
+        allowedTypes={["video"]}
+        multiple
+        title="选择视频"
+        onConfirm={handleInsertFromResource}
+      />
 
       {/* Bilibili 地址输入弹窗 */}
       <Modal
@@ -873,7 +1185,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
       >
         <div style={{ marginBottom: 12 }}>
           <Input
-            placeholder="请输入 Bilibili 链接 (https://www.bilibili.com/video/BV...)"
+            placeholder="请输入Bilibili 链接 (https://www.bilibili.com/video/BV...)"
             value={biliUrl}
             onChange={(e) => handleBiliUrlChange(e.target.value)}
             suffix={bilibiliQualityLoading ? <LoadingOutlined /> : undefined}
@@ -882,7 +1194,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         </div>
         {bilibiliQualityOptions.length > 0 && (
           <div style={{ marginBottom: 8 }}>
-            <div style={{ marginBottom: 6 }}>选择清晰度:</div>
+            <div style={{ marginBottom: 6 }}>选择清晰度</div>
             <Select
               style={{ width: "100%" }}
               value={selectedBilibiliQuality}
@@ -936,7 +1248,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
         }}
       >
         <Input
-          placeholder="请输入 YouTube 链接 (https://www.youtube.com/watch?v=...)"
+          placeholder="请输入YouTube 链接 (https://www.youtube.com/watch?v=...)"
           value={youtubeUrl}
           onChange={(e) => handleYoutubeUrlChange(e.target.value)}
           autoFocus
@@ -982,139 +1294,6 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
             />
           </div>
         ) : null}
-      </Modal>
-
-      {/* Notion 视频输入弹窗 */}
-      <Modal
-        open={notionModalOpen}
-        title={"添加 Notion 视频"}
-        confirmLoading={notionLoading}
-        onCancel={() => {
-          setNotionModalOpen(false);
-          setNotionInput("");
-          setNotionTitle("");
-          setNotionLoading(false);
-          setNotionCacheEnabled(true);
-        }}
-        onOk={async () => {
-          if (!notionInput.trim()) {
-            message.error("请输入 Notion 视频区块 ID 或链接");
-            return;
-          }
-
-          if (!notionTitle.trim()) {
-            message.error("请输入视频标题");
-            return;
-          }
-
-          setNotionLoading(true);
-
-          try {
-            // 解析 blockId
-            const blockId = parseNotionBlockId(notionInput);
-            if (!blockId) {
-              message.error("无法解析 Block ID，请检查输入格式");
-              setNotionLoading(false);
-              return;
-            }
-
-            // 获取 Notion token
-            const token = setting.integration.notion.token;
-            if (!token || !setting.integration.notion.enabled) {
-              message.error("请先在设置中配置 Notion 集成");
-              setNotionLoading(false);
-              return;
-            }
-
-            // 获取区块信息
-            const blockInfo = await getNotionBlockInfo(token, blockId);
-            if (!blockInfo.success) {
-              message.error(blockInfo.error || "获取 Notion 区块信息失败");
-              setNotionLoading(false);
-              return;
-            }
-
-            if (blockInfo.blockType !== "video") {
-              message.error(
-                `该区块不是视频类型，而是 ${blockInfo.blockType} 类型`,
-              );
-              setNotionLoading(false);
-              return;
-            }
-
-            // 设置 element 的 metaInfo
-            const path = ReactEditor.findPath(editor, element);
-            Transforms.setNodes<VideoElement>(
-              editor,
-              {
-                metaInfo: {
-                  type: "notion",
-                  blockId: blockId,
-                  cache: notionCacheEnabled,
-                } as NotionVideoMetaInfo,
-                src: `notion://${blockId}`,
-              },
-              { at: path },
-            );
-
-            setNotionModalOpen(false);
-            setNotionInput("");
-            setNotionTitle("");
-            message.success("Notion 视频添加成功！");
-          } catch (error) {
-            console.error("添加 Notion 视频失败:", error);
-            message.error("添加 Notion 视频失败，请检查 Block ID 是否正确");
-          } finally {
-            setNotionLoading(false);
-          }
-        }}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <Input.TextArea
-            placeholder="请输入 Notion 视频区块 ID 或链接&#10;例如：&#10;- 3b628e1d-84da-4c6c-900d-b6e4a28532e1&#10;- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1"
-            value={notionInput}
-            onChange={(e) => setNotionInput(e.target.value)}
-            rows={4}
-            autoFocus
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="请输入视频标题（必填）"
-            value={notionTitle}
-            onChange={(e) => setNotionTitle(e.target.value)}
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <Flex justify="space-between" align="center">
-            <span>缓存视频到本地</span>
-            <Switch
-              checked={notionCacheEnabled}
-              onChange={setNotionCacheEnabled}
-              checkedChildren="开启"
-              unCheckedChildren="关闭"
-            />
-          </Flex>
-          <div style={{ fontSize: "12px", color: "#666", marginTop: 4 }}>
-            开启缓存：下载并保存视频到本地，支持离线播放但占用存储空间
-            <br />
-            关闭缓存：直接播放在线链接，不占用本地存储空间
-          </div>
-        </div>
-
-        <div style={{ fontSize: 12, color: "#8c8c8c" }}>
-          <p>支持的输入格式：</p>
-          <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
-            <li>Block ID: 3b628e1d-84da-4c6c-900d-b6e4a28532e1</li>
-            <li>Notion 链接（包含 # 后的 ID）</li>
-          </ul>
-          <p style={{ marginTop: 8 }}>
-            注意：请确保已在 Notion 集成设置中配置
-            Token，并且该集成有权限访问包含视频的页面。
-          </p>
-        </div>
       </Modal>
     </div>
   );

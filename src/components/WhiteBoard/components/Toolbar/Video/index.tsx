@@ -14,6 +14,8 @@ import {
 import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import videoIcon from "@/assets/white-board/video.svg";
+import ResourcePickerModal from "@/components/ResourcePickerModal";
+import type { IResource } from "@/types";
 
 import { useBoard } from "../../../hooks";
 import { VideoUtil } from "../../../utils";
@@ -62,9 +64,32 @@ const Video = (props: ImageProps) => {
     },
   );
 
+  const handleInsertFromResource = useMemoizedFn(
+    async (resources: IResource[]) => {
+      if (!resources.length) {
+        setResourcePickerOpen(false);
+        return;
+      }
+      message.loading({
+        key: "uploading-video",
+        content: "正在插入视频，请稍候...",
+        duration: 0,
+      });
+      try {
+        for (const resource of resources) {
+          await VideoUtil.insertVideoFromPath(resource.path, board);
+        }
+      } finally {
+        message.destroy("uploading-video");
+        setResourcePickerOpen(false);
+      }
+    },
+  );
+
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [confirmLoading, setConfirmLoading] = useState(false);
+  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
 
   const [biliQualityLoading, setBiliQualityLoading] = useState(false);
   const [biliQualityOptions, setBiliQualityOptions] = useState<
@@ -307,214 +332,248 @@ const Video = (props: ImageProps) => {
   });
 
   return (
-    <Tooltip title="视频">
-      <Popover
-        open={popoverOpen}
-        onOpenChange={setPopoverOpen}
-        trigger={"click"}
-        arrow={false}
-        placement="bottom"
-        content={
-          <div style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
-            <Tabs
-              size="small"
-              items={[
-                {
-                  key: "local",
-                  label: "本地上传",
-                  children: (
-                    <Flex vertical gap={8}>
-                      <div>选择本地视频文件上传并插入到白板</div>
-                      <Button onClick={() => videoInputRef.current?.click()}>
-                        选择文件
-                      </Button>
-                    </Flex>
-                  ),
-                },
-                {
-                  key: "url",
-                  label: "网络地址",
-                  children: (
-                    <Flex vertical gap={8}>
-                      <Input
-                        placeholder="输入视频直链"
-                        value={url}
-                        onChange={(e) => onUrlChange(e.target.value)}
-                      />
-                      <Button loading={confirmLoading} onClick={onConfirm}>
-                        添加
-                      </Button>
-                    </Flex>
-                  ),
-                },
-                {
-                  key: "bilibili",
-                  label: "Bilibili",
-                  children: (
-                    <Flex vertical gap={8}>
-                      <Input
-                        placeholder="输入 Bilibili 链接"
-                        value={url}
-                        onChange={(e) => onUrlChange(e.target.value)}
-                        suffix={
-                          isBilibiliUrl(url) && biliQualityLoading ? (
-                            <LoadingOutlined />
-                          ) : undefined
-                        }
-                      />
-                      {isBilibiliUrl(url) && biliQualityOptions.length > 0 && (
-                        <Select
-                          style={{ width: "100%" }}
-                          value={biliQuality}
-                          onChange={setBiliQuality}
+    <>
+      <Tooltip title="视频">
+        <Popover
+          open={popoverOpen}
+          onOpenChange={setPopoverOpen}
+          trigger={"click"}
+          arrow={false}
+          placement="bottom"
+          content={
+            <div style={{ width: 420 }} onClick={(e) => e.stopPropagation()}>
+              <Tabs
+                size="small"
+                items={[
+                  {
+                    key: "local",
+                    label: "本地上传",
+                    children: (
+                      <Flex vertical gap={8}>
+                        <div>选择本地视频文件上传并插入到白板</div>
+                        <Button onClick={() => videoInputRef.current?.click()}>
+                          选择文件
+                        </Button>
+                      </Flex>
+                    ),
+                  },
+                  {
+                    key: "library",
+                    label: "资源库",
+                    children: (
+                      <Flex vertical gap={8}>
+                        <div>从已有资源库中选择视频插入白板</div>
+                        <Button
+                          onClick={() => {
+                            setPopoverOpen(false);
+                            setResourcePickerOpen(true);
+                          }}
                         >
-                          {biliQualityOptions.map((opt) => (
-                            <Select.Option key={opt.value} value={opt.value}>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                }}
-                              >
-                                <span>{opt.label}</span>
-                                <div>
-                                  {opt.needVip && (
-                                    <Tag color="gold">大会员</Tag>
-                                  )}
-                                  {opt.needLogin && !opt.needVip && (
-                                    <Tag color="blue">需登录</Tag>
-                                  )}
-                                </div>
-                              </div>
-                            </Select.Option>
-                          ))}
-                        </Select>
-                      )}
-                      <Button loading={confirmLoading} onClick={onConfirm}>
-                        添加
-                      </Button>
-                    </Flex>
-                  ),
-                },
-                {
-                  key: "youtube",
-                  label: "YouTube",
-                  children: (
-                    <Flex vertical gap={8}>
-                      <Input
-                        placeholder="输入 YouTube 链接"
-                        value={url}
-                        onChange={(e) => onUrlChange(e.target.value)}
-                        suffix={
-                          isYoutubeUrl(url) && ytLoading ? (
-                            <LoadingOutlined />
-                          ) : undefined
-                        }
-                      />
-                      {isYoutubeUrl(url) && ytInfo && (
-                        <>
-                          <Select
-                            style={{ width: "100%" }}
-                            options={ytInfo.audioFmts.map((f) => ({
-                              label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
-                              value: f.itag,
-                            }))}
-                            value={ytAudioFmt?.itag}
-                            onChange={(itag) =>
-                              setYtAudioFmt(
-                                ytInfo.audioFmts.find(
-                                  (f) => f.itag === itag,
-                                ) as ytdl.videoFormat,
-                              )
-                            }
-                            placeholder="选择音频清晰度"
-                          />
-                          <Select
-                            style={{ width: "100%" }}
-                            options={ytInfo.videoFmts.map((f) => ({
-                              label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
-                              value: f.itag,
-                            }))}
-                            value={ytVideoFmt?.itag}
-                            onChange={(itag) =>
-                              setYtVideoFmt(
-                                ytInfo.videoFmts.find(
-                                  (f) => f.itag === itag,
-                                ) as ytdl.videoFormat,
-                              )
-                            }
-                            placeholder="选择视频清晰度"
-                          />
-                        </>
-                      )}
-                      <Button
-                        disabled={
-                          isYoutubeUrl(url) && (!ytVideoFmt || !ytAudioFmt)
-                        }
-                        loading={confirmLoading}
-                        onClick={onConfirm}
-                      >
-                        添加
-                      </Button>
-                    </Flex>
-                  ),
-                },
-                {
-                  key: "notion",
-                  label: "Notion",
-                  children: (
-                    <Flex vertical gap={8}>
-                      <Input.TextArea
-                        placeholder="请输入 Notion 视频区块 ID 或链接&#10;例如：&#10;- 3b628e1d-84da-4c6c-900d-b6e4a28532e1&#10;- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1"
-                        value={notionInput}
-                        onChange={(e) => setNotionInput(e.target.value)}
-                        rows={4}
-                      />
-                      <Input
-                        placeholder="请输入视频标题（必填）"
-                        value={notionTitle}
-                        onChange={(e) => setNotionTitle(e.target.value)}
-                      />
-                      <div style={{ fontSize: 12, color: "#8c8c8c" }}>
-                        <p>支持的输入格式：</p>
-                        <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
-                          <li>
-                            Block ID: 3b628e1d-84da-4c6c-900d-b6e4a28532e1
-                          </li>
-                          <li>Notion 链接（包含 # 后的 ID）</li>
-                        </ul>
-                        <p style={{ marginTop: 8 }}>
-                          注意：请确保已在 Notion 集成设置中配置
-                          Token，并且该集成有权限访问包含视频的页面。
-                        </p>
-                      </div>
-                      <Button loading={notionLoading} onClick={onNotionConfirm}>
-                        添加
-                      </Button>
-                    </Flex>
-                  ),
-                },
-              ]}
-            />
-          </div>
-        }
-      >
-        <div
-          className={className}
-          style={style}
-          onClick={() => setPopoverOpen(true)}
+                          打开资源库
+                        </Button>
+                      </Flex>
+                    ),
+                  },
+                  {
+                    key: "url",
+                    label: "网络地址",
+                    children: (
+                      <Flex vertical gap={8}>
+                        <Input
+                          placeholder="输入视频直链"
+                          value={url}
+                          onChange={(e) => onUrlChange(e.target.value)}
+                        />
+                        <Button loading={confirmLoading} onClick={onConfirm}>
+                          添加
+                        </Button>
+                      </Flex>
+                    ),
+                  },
+                  {
+                    key: "bilibili",
+                    label: "Bilibili",
+                    children: (
+                      <Flex vertical gap={8}>
+                        <Input
+                          placeholder="输入 Bilibili 链接"
+                          value={url}
+                          onChange={(e) => onUrlChange(e.target.value)}
+                          suffix={
+                            isBilibiliUrl(url) && biliQualityLoading ? (
+                              <LoadingOutlined />
+                            ) : undefined
+                          }
+                        />
+                        {isBilibiliUrl(url) &&
+                          biliQualityOptions.length > 0 && (
+                            <Select
+                              style={{ width: "100%" }}
+                              value={biliQuality}
+                              onChange={setBiliQuality}
+                            >
+                              {biliQualityOptions.map((opt) => (
+                                <Select.Option
+                                  key={opt.value}
+                                  value={opt.value}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                    }}
+                                  >
+                                    <span>{opt.label}</span>
+                                    <div>
+                                      {opt.needVip && (
+                                        <Tag color="gold">大会员</Tag>
+                                      )}
+                                      {opt.needLogin && !opt.needVip && (
+                                        <Tag color="blue">需登录</Tag>
+                                      )}
+                                    </div>
+                                  </div>
+                                </Select.Option>
+                              ))}
+                            </Select>
+                          )}
+                        <Button loading={confirmLoading} onClick={onConfirm}>
+                          添加
+                        </Button>
+                      </Flex>
+                    ),
+                  },
+                  {
+                    key: "youtube",
+                    label: "YouTube",
+                    children: (
+                      <Flex vertical gap={8}>
+                        <Input
+                          placeholder="输入 YouTube 链接"
+                          value={url}
+                          onChange={(e) => onUrlChange(e.target.value)}
+                          suffix={
+                            isYoutubeUrl(url) && ytLoading ? (
+                              <LoadingOutlined />
+                            ) : undefined
+                          }
+                        />
+                        {isYoutubeUrl(url) && ytInfo && (
+                          <>
+                            <Select
+                              style={{ width: "100%" }}
+                              options={ytInfo.audioFmts.map((f) => ({
+                                label: `${f.audioQuality} / ${f.container || f.mimeType || ""}`,
+                                value: f.itag,
+                              }))}
+                              value={ytAudioFmt?.itag}
+                              onChange={(itag) =>
+                                setYtAudioFmt(
+                                  ytInfo.audioFmts.find(
+                                    (f) => f.itag === itag,
+                                  ) as ytdl.videoFormat,
+                                )
+                              }
+                              placeholder="选择音频清晰度"
+                            />
+                            <Select
+                              style={{ width: "100%" }}
+                              options={ytInfo.videoFmts.map((f) => ({
+                                label: `${f.qualityLabel} / ${f.container || f.mimeType || ""}`,
+                                value: f.itag,
+                              }))}
+                              value={ytVideoFmt?.itag}
+                              onChange={(itag) =>
+                                setYtVideoFmt(
+                                  ytInfo.videoFmts.find(
+                                    (f) => f.itag === itag,
+                                  ) as ytdl.videoFormat,
+                                )
+                              }
+                              placeholder="选择视频清晰度"
+                            />
+                          </>
+                        )}
+                        <Button
+                          disabled={
+                            isYoutubeUrl(url) && (!ytVideoFmt || !ytAudioFmt)
+                          }
+                          loading={confirmLoading}
+                          onClick={onConfirm}
+                        >
+                          添加
+                        </Button>
+                      </Flex>
+                    ),
+                  },
+                  {
+                    key: "notion",
+                    label: "Notion",
+                    children: (
+                      <Flex vertical gap={8}>
+                        <Input.TextArea
+                          placeholder="请输入 Notion 视频区块 ID 或链接&#10;例如：&#10;- 3b628e1d-84da-4c6c-900d-b6e4a28532e1&#10;- https://www.notion.so/...#3b628e1d84da4c6c900db6e4a28532e1"
+                          value={notionInput}
+                          onChange={(e) => setNotionInput(e.target.value)}
+                          rows={4}
+                        />
+                        <Input
+                          placeholder="请输入视频标题（必填）"
+                          value={notionTitle}
+                          onChange={(e) => setNotionTitle(e.target.value)}
+                        />
+                        <div style={{ fontSize: 12, color: "#8c8c8c" }}>
+                          <p>支持的输入格式：</p>
+                          <ul style={{ marginBottom: 0, paddingLeft: 16 }}>
+                            <li>
+                              Block ID: 3b628e1d-84da-4c6c-900d-b6e4a28532e1
+                            </li>
+                            <li>Notion 链接（包含 # 后的 ID）</li>
+                          </ul>
+                          <p style={{ marginTop: 8 }}>
+                            注意：请确保已在 Notion 集成设置中配置
+                            Token，并且该集成有权限访问包含视频的页面。
+                          </p>
+                        </div>
+                        <Button
+                          loading={notionLoading}
+                          onClick={onNotionConfirm}
+                        >
+                          添加
+                        </Button>
+                      </Flex>
+                    ),
+                  },
+                ]}
+              />
+            </div>
+          }
         >
-          <input
-            ref={videoInputRef}
-            type="file"
-            accept="video/*"
-            hidden
-            onChange={handleAddVideo}
-          />
-          <SVG src={videoIcon} />
-        </div>
-      </Popover>
-    </Tooltip>
+          <div
+            className={className}
+            style={style}
+            onClick={() => setPopoverOpen(true)}
+          >
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              hidden
+              onChange={handleAddVideo}
+            />
+            <SVG src={videoIcon} />
+          </div>
+        </Popover>
+      </Tooltip>
+      <ResourcePickerModal
+        open={resourcePickerOpen}
+        onCancel={() => setResourcePickerOpen(false)}
+        allowedTypes={["video"]}
+        multiple
+        title="选择视频"
+        onConfirm={handleInsertFromResource}
+      />
+    </>
   );
 };
 

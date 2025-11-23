@@ -22,6 +22,9 @@ import {
 import { isValid, executeSequence, BoardUtil, MindUtil } from "./utils";
 
 import BoardOperations from "./utils/BoardOperations";
+import ResourceUsageTracker, {
+  ResourceSource,
+} from "./utils/ResourceUsageTracker";
 
 const boardFlag = Symbol("board");
 
@@ -61,6 +64,7 @@ class Board {
     selection: Selection;
     presentationSequences: PresentationSequence[];
   };
+  private resourceSource?: ResourceSource;
 
   private _currentCreateType: ECreateBoardElementType =
     ECreateBoardElementType.None;
@@ -75,6 +79,7 @@ class Board {
     plugins: IBoardPlugin[] = [],
     presentationSequences: PresentationSequence[] = [],
     readonly = false,
+    resourceSource?: ResourceSource,
   ) {
     this.boardFlag = boardFlag;
     this.isDestroyed = false;
@@ -90,6 +95,7 @@ class Board {
       selection: this.selection,
       presentationSequences: presentationSequences,
     };
+    this.resourceSource = resourceSource;
 
     this.initPlugins(plugins);
 
@@ -116,6 +122,10 @@ class Board {
   set readonly(value: boolean) {
     this._readonly = value;
     this.emit("readonlyChange", value);
+  }
+
+  setResourceSource(source?: ResourceSource) {
+    this.resourceSource = source;
   }
 
   on(event: string, listener: (...args: any[]) => void) {
@@ -374,6 +384,8 @@ class Board {
     if (!metadata.hasChanges) {
       return;
     }
+
+    ResourceUsageTracker.track(metadata, this.resourceSource);
 
     // 更新Board状态（使用immer）
     let changed = false;
