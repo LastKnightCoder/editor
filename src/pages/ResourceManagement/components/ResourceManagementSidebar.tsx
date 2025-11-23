@@ -7,6 +7,7 @@ import {
   FileImageOutlined,
   VideoCameraOutlined,
   AudioOutlined,
+  FilePdfOutlined,
   FileOutlined,
   FolderOutlined,
   FolderOpenOutlined,
@@ -16,6 +17,7 @@ import {
   FileTextOutlined,
   AppstoreOutlined,
   CustomerServiceOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import { useMemoizedFn } from "ahooks";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -75,6 +77,11 @@ const typeConfigs = [
     icon: <AudioOutlined />,
   },
   {
+    type: "pdf" as ResourceType,
+    label: "PDF",
+    icon: <FilePdfOutlined />,
+  },
+  {
     type: "attachment" as ResourceType,
     label: "附件",
     icon: <FileOutlined />,
@@ -97,6 +104,16 @@ const sourceConfigs = [
     type: "podcast" as const,
     label: "播客",
     icon: <CustomerServiceOutlined />,
+  },
+  {
+    type: "chat" as const,
+    label: "聊天",
+    icon: <MessageOutlined />,
+  },
+  {
+    type: "pdf" as const,
+    label: "PDF",
+    icon: <FilePdfOutlined />,
   },
 ];
 
@@ -217,7 +234,7 @@ const ResourceManagementSidebar = memo(
       (
         type: "all" | "type" | "type-source",
         resourceType?: ResourceType,
-        sourceType?: "content" | "whiteboard" | "podcast",
+        sourceType?: "content" | "whiteboard" | "podcast" | "chat" | "pdf",
       ) => {
         if (type === "all") {
           setSelectedSystemFilter({ type: "all" });
@@ -555,7 +572,7 @@ const ResourceManagementSidebar = memo(
               }}
             >
               <div
-                className="flex-shrink-0 mr-2"
+                className="shrink-0 mr-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleSystemGroup(typeKey);
@@ -614,7 +631,7 @@ const ResourceManagementSidebar = memo(
               }}
             >
               <div
-                className="flex-shrink-0 mr-2"
+                className="shrink-0 mr-2"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleSystemGroup(sourceKey);
@@ -647,23 +664,27 @@ const ResourceManagementSidebar = memo(
             switch (type) {
               case "image":
                 return (
-                  <FileImageOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileImageOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "video":
                 return (
-                  <VideoCameraOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <VideoCameraOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "audio":
                 return (
-                  <AudioOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <AudioOutlined className="text-base text-text-secondary shrink-0" />
+                );
+              case "pdf":
+                return (
+                  <FilePdfOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "attachment":
                 return (
-                  <FileOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileOutlined className="text-base text-text-secondary shrink-0" />
                 );
               default:
                 return (
-                  <FileOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileOutlined className="text-base text-text-secondary shrink-0" />
                 );
             }
           };
@@ -747,7 +768,7 @@ const ResourceManagementSidebar = memo(
                 onDrop={(e) => handleDrop(e, group.id)}
               >
                 <div
-                  className="flex-shrink-0 mr-2"
+                  className="shrink-0 mr-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleUserGroup(group.id);
@@ -781,23 +802,27 @@ const ResourceManagementSidebar = memo(
             switch (type) {
               case "image":
                 return (
-                  <FileImageOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileImageOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "video":
                 return (
-                  <VideoCameraOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <VideoCameraOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "audio":
                 return (
-                  <AudioOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <AudioOutlined className="text-base text-text-secondary shrink-0" />
+                );
+              case "pdf":
+                return (
+                  <FilePdfOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "attachment":
                 return (
-                  <FileOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileOutlined className="text-base text-text-secondary shrink-0" />
                 );
               default:
                 return (
-                  <FileOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileOutlined className="text-base text-text-secondary shrink-0" />
                 );
             }
           };
@@ -860,7 +885,7 @@ const ResourceManagementSidebar = memo(
                 onDrop={(e) => handleDrop(e, null)}
               >
                 <div
-                  className="flex-shrink-0 mr-2"
+                  className="shrink-0 mr-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     setExpandedUngrouped(!expandedUngrouped);
@@ -894,23 +919,23 @@ const ResourceManagementSidebar = memo(
             switch (type) {
               case "image":
                 return (
-                  <FileImageOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileImageOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "video":
                 return (
-                  <VideoCameraOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <VideoCameraOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "audio":
                 return (
-                  <AudioOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <AudioOutlined className="text-base text-text-secondary shrink-0" />
                 );
               case "attachment":
                 return (
-                  <FileOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileOutlined className="text-base text-text-secondary shrink-0" />
                 );
               default:
                 return (
-                  <FileOutlined className="text-base text-text-secondary flex-shrink-0" />
+                  <FileOutlined className="text-base text-text-secondary shrink-0" />
                 );
             }
           };

@@ -727,6 +727,11 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         }
         maskClosable={false}
         keyboard={status !== "loading"}
+        styles={{
+          body: {
+            paddingTop: 12,
+          },
+        }}
       >
         <div className="space-y-6">
           {status === "idle" && (
@@ -760,14 +765,14 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                         onChange={(e) =>
                           updateSpeaker(index, "name", e.target.value)
                         }
-                        className="w-[120px]! flex-shrink-0"
+                        className="w-[120px]! shrink-0"
                       />
                       <Select
                         value={speaker.role}
                         onChange={(value) =>
                           updateSpeaker(index, "role", value)
                         }
-                        className="w-[100px] flex-shrink-0"
+                        className="w-[100px] shrink-0"
                       >
                         <Option value={SpeakerRole.Host}>
                           {SpeakerRole.Host}
@@ -1216,6 +1221,20 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
           {/* 结果预览 */}
           {status === "complete" && audioUrl && (
             <div className="space-y-4">
+              <div>
+                <Text strong className="block mb-2">
+                  播客名称
+                </Text>
+                <Input
+                  placeholder="请输入播客名称"
+                  value={podcastName}
+                  onChange={(e) => setPodcastName(e.target.value)}
+                  maxLength={100}
+                  showCount
+                  className="h-10"
+                />
+              </div>
+
               <Title level={5}>
                 <SoundOutlined /> 播客音频
               </Title>

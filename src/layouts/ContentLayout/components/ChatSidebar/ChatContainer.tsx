@@ -744,7 +744,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     return (
       <>
         <div
-          className="relative border-t-[12px] border-b-[12px] border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
+          className="border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
           ref={messagesRef}
         >
           {visibleMessages.length > 0 && (
@@ -775,7 +775,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     className={classNames(
                       "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
                       {
-                        "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                        "bg-[#3b82f6]/10 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
                           enableThinking,
                         "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
                           !enableThinking,
@@ -791,7 +791,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   className={classNames(
                     "rounded-full border border-gray-200 dark:border-gray-600 dark:hover:bg-gray-700 w-fit px-2 py-1 text-sm flex items-center gap-2 cursor-pointer transition-all duration-300",
                     {
-                      "bg-[#3b82f6]/10 text-blue-600 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
+                      "bg-[#3b82f6]/10 border-[#3b82f6]! text-blue-600 dark:text-blue-400 dark:border-blue-300":
                         ragEnabled,
                       "bg-transparent border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700":
                         !ragEnabled,
@@ -825,6 +825,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     onPromptSelect={handlePromptSelect}
                     currentPromptName={promptTooltip}
                     promptSelectDisabled={!canChangePrompt || sendLoading}
+                    resourceSource={{
+                      type: "chat",
+                      id: actualChatRef.current.id,
+                    }}
                   />
                 </div>
               </div>
