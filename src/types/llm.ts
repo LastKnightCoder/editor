@@ -19,6 +19,7 @@ export interface FileContent {
 }
 
 export type MessageContent = TextContent | ImageContent | FileContent;
+export type ReasoningEffort = "none" | "low" | "medium" | "high";
 
 export interface RequestMessage {
   role: Role;

@@ -4,6 +4,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
   useEffect,
+  useMemo,
 } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Button, Upload, message, Dropdown, Tooltip, Input } from "antd";
@@ -18,9 +19,10 @@ import {
   CloseOutlined,
   StopOutlined,
   BulbOutlined,
+  CheckOutlined,
 } from "@ant-design/icons";
 import classnames from "classnames";
-import { MessageContent } from "@/types/llm";
+import { MessageContent, ReasoningEffort } from "@/types/llm";
 import PortalToBody from "../PortalToBody";
 import useUploadResource from "@/hooks/useUploadResource";
 import {
@@ -32,9 +34,39 @@ import {
 } from "@/commands";
 import type { IResource, IResourceSource } from "@/types";
 import { v4 as uuid } from "uuid";
+import { LuBrain } from "react-icons/lu";
 
 const { TextArea } = Input;
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+interface ReasoningEffortOption {
+  value: ReasoningEffort;
+  label: string;
+  description: string;
+}
+
+const REASONING_EFFORT_OPTIONS: ReasoningEffortOption[] = [
+  {
+    value: "none",
+    label: "立答如流",
+    description: "关闭思考以提升响应速度",
+  },
+  {
+    value: "low",
+    label: "略作沉吟",
+    description: "轻量推理，少量思考即可作答",
+  },
+  {
+    value: "medium",
+    label: "细致推演",
+    description: "平衡速度与质量，保持稳健分析",
+  },
+  {
+    value: "high",
+    label: "穷尽求索",
+    description: "深度推理，追求最强分析能力",
+  },
+];
 
 interface ChatImageItem {
   id: string;
@@ -76,6 +108,9 @@ interface ChatInputAreaProps {
   currentPromptName?: string;
   promptSelectDisabled?: boolean;
   resourceSource?: IResourceSource | null;
+  reasoningEffort?: ReasoningEffort;
+  onReasoningEffortChange?: (level: ReasoningEffort) => void;
+  reasoningEffortDisabled?: boolean;
 }
 
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
@@ -99,6 +134,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       currentPromptName,
       promptSelectDisabled = false,
       resourceSource = null,
+      reasoningEffort,
+      onReasoningEffortChange,
+      reasoningEffortDisabled = false,
     },
     ref,
   ) => {
@@ -111,6 +149,44 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const imagesRef = useRef<ChatImageItem[]>([]);
     const filesRef = useRef<ChatFileItem[]>([]);
+    const showReasoningEffortControl =
+      typeof reasoningEffort !== "undefined" &&
+      typeof onReasoningEffortChange === "function";
+    const currentReasoningOption = REASONING_EFFORT_OPTIONS.find(
+      (option) => option.value === reasoningEffort,
+    );
+    const reasoningEffortMenuItems = useMemo(
+      () =>
+        REASONING_EFFORT_OPTIONS.map((option) => ({
+          key: option.value,
+          label: (
+            <div
+              className={classnames(
+                "flex items-center justify-between gap-3 min-w-[180px]",
+                {
+                  "text-blue-600": option.value === reasoningEffort,
+                },
+              )}
+            >
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">{option.label}</span>
+                <span className="text-xs text-gray-500">
+                  {option.description}
+                </span>
+              </div>
+              {option.value === reasoningEffort && (
+                <CheckOutlined className="text-blue-500" />
+              )}
+            </div>
+          ),
+        })),
+      [reasoningEffort],
+    );
+    const reasoningControlDisabled =
+      reasoningEffortDisabled || sendLoading || !contentEditable;
+    const reasoningTooltip = currentReasoningOption
+      ? `${currentReasoningOption.label} · ${currentReasoningOption.description}`
+      : "选择推理强度";
 
     const releaseResources = useMemoizedFn((items: Array<{ path: string }>) => {
       items.forEach((item) => {
@@ -491,6 +567,31 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                     icon={<BulbOutlined />}
                     className="p-1! bg-none! border-none! hover:!bg-gray-100!"
                   />
+                </Dropdown>
+              </Tooltip>
+            )}
+            {showReasoningEffortControl && (
+              <Tooltip title={reasoningTooltip}>
+                <Dropdown
+                  menu={{
+                    items: reasoningEffortMenuItems,
+                    onClick: ({ key }) =>
+                      onReasoningEffortChange?.(key as ReasoningEffort),
+                  }}
+                  trigger={["click"]}
+                  disabled={reasoningControlDisabled}
+                >
+                  <Button
+                    type="text"
+                    size="small"
+                    disabled={reasoningControlDisabled}
+                    className="p-1! bg-none! border-none! hover:!bg-gray-100! flex items-center gap-1.5"
+                  >
+                    <LuBrain className="text-base" />
+                    <span className="text-xs font-medium">
+                      {currentReasoningOption?.label ?? "立答如流"}
+                    </span>
+                  </Button>
                 </Dropdown>
               </Tooltip>
             )}
