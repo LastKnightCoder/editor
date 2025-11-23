@@ -230,7 +230,7 @@ const ChatSidebar = memo(() => {
       disableResize={!open}
     >
       <MarkdownProvider isDark={isDark} isVisible={open}>
-        <div className="h-full bg-[var(--primary-bg-color)] box-border">
+        <div className="h-full bg-(--primary-bg-color) box-border">
           <div
             className={classnames("box-border p-4 h-full flex flex-col", {
               "bg-[#29292f]": isDark,

@@ -19,11 +19,13 @@ const getResourceTypeFromFile = (file: File): ResourceType => {
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.startsWith("audio/")) return "audio";
+  if (mimeType === "application/pdf") return "pdf";
 
   const name = file.name.toLowerCase();
   if (name.match(/\.(png|jpe?g|gif|webp|bmp|svg)$/)) return "image";
   if (name.match(/\.(mp4|mov|avi|mkv|webm)$/)) return "video";
   if (name.match(/\.(mp3|wav|aac|flac|ogg|m4a)$/)) return "audio";
+  if (name.endsWith(".pdf")) return "pdf";
   return "attachment";
 };
 

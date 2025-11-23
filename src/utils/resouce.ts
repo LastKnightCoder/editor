@@ -27,11 +27,16 @@ export const getFileExtension = async (url: string): Promise<string> => {
     const urlObj = new URL(url);
     pathname = urlObj.pathname;
   } catch (e) {
-    console.error(e);
+    // ignore parse error, treat as plain path
   }
 
-  const [, ext] = pathname.split(".");
-  return ext;
+  const normalized = pathname.replace(/\\/g, "/");
+  const lastSegment = normalized.split("/").pop() || normalized;
+  const dotIndex = lastSegment.lastIndexOf(".");
+  if (dotIndex === -1 || dotIndex === lastSegment.length - 1) {
+    return "";
+  }
+  return lastSegment.slice(dotIndex + 1);
 };
 
 export const remoteResourceToLocal = async (url: string, fileName?: string) => {

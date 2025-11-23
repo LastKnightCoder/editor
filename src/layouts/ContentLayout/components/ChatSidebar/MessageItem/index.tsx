@@ -5,6 +5,9 @@ import { Role } from "@/constants";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { BiCopy, BiTrash, BiRefresh } from "react-icons/bi";
 import { App } from "antd";
+import { FilePdfOutlined } from "@ant-design/icons";
+import { showInFolder, getHomeDir } from "@/commands";
+import { remoteResourceToLocal } from "@/utils";
 import styles from "./index.module.less";
 
 interface MessageItemProps {
@@ -39,6 +42,40 @@ const getImageContent = (message: RequestMessage): string[] => {
     .map((item) => item.image);
 };
 
+const getFileContent = (
+  message: RequestMessage,
+): Array<{ path: string; name: string }> => {
+  if (typeof message.content === "string") {
+    return [];
+  }
+
+  return message.content
+    .filter(
+      (
+        item,
+      ): item is Extract<
+        ChatSessionMessage["content"][number],
+        { type: "file" }
+      > => item.type === "file" && typeof item.file === "string",
+    )
+    .map((item) => {
+      const path = item.file;
+      const name =
+        item.fileName ||
+        (() => {
+          try {
+            const url = new URL(path);
+            return url.pathname.split("/").pop() || path;
+          } catch {
+            const normalized = path.replace(/\\/g, "/");
+            const parts = normalized.split("/");
+            return parts[parts.length - 1] || path;
+          }
+        })();
+      return { path, name };
+    });
+};
+
 const MessageItem: React.FC<MessageItemProps> = memo(
   ({
     message,
@@ -58,20 +95,43 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     let displayContent = "";
     let reasoningContent = "";
     let images: string[] = [];
+    let files: Array<{ path: string; name: string }> = [];
 
     if (isUser) {
       const userMessage = message as RequestMessage;
       displayContent = getTextContent(userMessage);
       images = getImageContent(userMessage);
+      files = getFileContent(userMessage);
     } else {
       const assistantMessage = message as ResponseMessage;
       displayContent = assistantMessage.content;
       reasoningContent = assistantMessage.reasoning_content || "";
     }
 
-    if (!displayContent && !reasoningContent && images.length === 0) {
+    if (
+      !displayContent &&
+      !reasoningContent &&
+      images.length === 0 &&
+      files.length === 0
+    ) {
       return null;
     }
+
+    const openFileInExplorer = async (path: string) => {
+      try {
+        let targetPath = path;
+        if (/^https?:/i.test(path)) {
+          targetPath = await remoteResourceToLocal(path);
+        } else if (path.startsWith("~")) {
+          const homeDir = await getHomeDir();
+          targetPath = `${homeDir}${path.slice(1)}`;
+        }
+        await showInFolder(targetPath);
+      } catch (error) {
+        console.error("打开文件失败:", error);
+        antdMessage.error("无法打开文件");
+      }
+    };
 
     const handleCopy = async () => {
       const contentToCopy = displayContent || reasoningContent;
@@ -114,7 +174,6 @@ const MessageItem: React.FC<MessageItemProps> = memo(
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => setShowActions(false)}
       >
-        {/* 消息内容 */}
         <div
           className={classnames(styles.message, {
             [styles.userMessage]: isUser,
@@ -142,6 +201,23 @@ const MessageItem: React.FC<MessageItemProps> = memo(
                     alt={`User uploaded image ${index + 1}`}
                     className={styles.messageImage}
                   />
+                ))}
+              </div>
+            )}
+            {files.length > 0 && (
+              <div className={styles.filesContainer}>
+                {files.map((file, index) => (
+                  <button
+                    key={`${file.path}-${index}`}
+                    className={styles.fileAttachment}
+                    onClick={() => openFileInExplorer(file.path)}
+                  >
+                    <div className={styles.fileInfo}>
+                      <FilePdfOutlined />
+                      <span>{file.name}</span>
+                    </div>
+                    <span className={styles.fileAction}>在文件夹中打开</span>
+                  </button>
                 ))}
               </div>
             )}

@@ -2,10 +2,10 @@ import Database from "better-sqlite3";
 import Operation from "./operation";
 import log from "electron-log";
 
-export type ResourceType = "image" | "video" | "audio" | "attachment";
+export type ResourceType = "image" | "video" | "audio" | "pdf" | "attachment";
 
 export interface IResourceSource {
-  type: "content" | "whiteboard" | "podcast";
+  type: "content" | "whiteboard" | "podcast" | "chat" | "pdf";
   id: number;
 }
 
@@ -45,6 +45,43 @@ interface PodcastRow {
   id: number;
   audio_url: string;
   [key: string]: unknown;
+}
+
+interface PdfRow {
+  id: number;
+  file_path: string | null;
+  remote_url: string | null;
+  file_name: string;
+  [key: string]: unknown;
+}
+
+interface ChatMessageRow {
+  id: number;
+  messages: string;
+  [key: string]: unknown;
+}
+
+type ChatMessageContent =
+  | {
+      type: "text";
+      text?: string;
+    }
+  | {
+      type: "image";
+      image?: string;
+    }
+  | {
+      type: "file";
+      file?: string;
+    }
+  | {
+      type: string;
+      [key: string]: unknown;
+    };
+
+interface ChatSessionMessage {
+  role: string;
+  content: string | ChatMessageContent[];
 }
 
 // 节点类型定义
@@ -101,6 +138,7 @@ export default class ResourceTable {
       "resource:increment-ref": this.incrementRefCount.bind(this),
       "resource:decrement-ref": this.decrementRefCount.bind(this),
       "resource:get-all": this.getAllResources.bind(this),
+      "resource:get-by-id": this.getResourceById.bind(this),
       "resource:search": this.searchResources.bind(this),
       "resource:get-by-type": this.getResourcesByType.bind(this),
       "resource:scan-and-update": this.scanAndUpdateResources.bind(this),
@@ -209,9 +247,16 @@ export default class ResourceTable {
       }
     >();
 
-    // 辅助函数：添加资源到 map
+    const isSkippablePath = (value: string) => {
+      if (!value) return true;
+      const trimmed = value.trim();
+      if (!trimmed) return true;
+      if (trimmed.startsWith("data:")) return true;
+      return false;
+    };
+
     const addResource = (path: string, source: IResourceSource) => {
-      if (!path) return;
+      if (isSkippablePath(path)) return;
 
       if (resourceMap.has(path)) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -389,7 +434,80 @@ export default class ResourceTable {
       log.error("扫描 podcasts 表时出错:", e);
     }
 
-    // 4. 增量更新资源表（只增加，不删除）
+    // 4. 扫描 chat_message 表
+    try {
+      const chatStmt = db.prepare("SELECT id, messages FROM chat_message");
+      const chats = chatStmt.all() as ChatMessageRow[];
+
+      log.info(`扫描 ${chats.length} 个聊天记录...`);
+
+      for (const chatRow of chats) {
+        try {
+          const messages = JSON.parse(chatRow.messages) as ChatSessionMessage[];
+          const source: IResourceSource = {
+            type: "chat",
+            id: chatRow.id,
+          };
+
+          for (const message of messages) {
+            if (!Array.isArray(message.content)) continue;
+
+            for (const item of message.content) {
+              if (!item || typeof item !== "object" || !("type" in item)) {
+                continue;
+              }
+
+              if (item.type === "image") {
+                const imageItem = item as Extract<
+                  ChatMessageContent,
+                  { type: "image" }
+                >;
+                if (imageItem.image) {
+                  addResource(imageItem.image, source);
+                }
+              }
+
+              if (item.type === "file") {
+                const fileItem = item as Extract<
+                  ChatMessageContent,
+                  { type: "file" }
+                >;
+                if (fileItem.file) {
+                  addResource(fileItem.file, source);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          log.error(`解析 chat_message ${chatRow.id} 时出错`, e);
+        }
+      }
+    } catch (e) {
+      log.error("扫描 chat_message 表时出错:", e);
+    }
+
+    // 5. 扫描 pdfs 表
+    try {
+      const pdfStmt = db.prepare("SELECT id, file_path, remote_url FROM pdfs");
+      const pdfs = pdfStmt.all() as PdfRow[];
+
+      log.info(`扫描 ${pdfs.length} 个 PDF 记录...`);
+
+      for (const pdfRow of pdfs) {
+        const path = pdfRow.file_path || pdfRow.remote_url;
+        if (!path) continue;
+
+        const source: IResourceSource = {
+          type: "pdf",
+          id: pdfRow.id,
+        };
+        addResource(path, source);
+      }
+    } catch (e) {
+      log.error("扫描 pdfs 表时出错:", e);
+    }
+
+    // 6. 增量更新资源表（只增加，不删除）
     log.info(`找到 ${resourceMap.size} 个唯一资源，开始增量更新...`);
 
     const now = Date.now();
@@ -501,6 +619,10 @@ export default class ResourceTable {
     // 音频格式
     if (/\.(mp3|wav|ogg|m4a|aac|flac|wma)(\?.*)?$/i.test(lower)) {
       return "audio";
+    }
+
+    if (/\.(pdf)(\?.*)?$/i.test(lower)) {
+      return "pdf";
     }
 
     // 其他都当作附件
