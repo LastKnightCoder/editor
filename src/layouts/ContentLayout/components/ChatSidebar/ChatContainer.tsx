@@ -177,6 +177,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const promptTooltip = currentPrompt?.name ?? "默认 Prompt";
 
+    const modelFeatureSupport = chatModelConfig?.features;
+    const supportImage =
+      modelFeatureSupport?.image ?? modelFeatureSupport?.multimodal ?? false;
+    const supportFile = modelFeatureSupport?.file ?? false;
+
     const abortControllerRef = useRef<AbortController | null>(null);
 
     // 当 currentChat prop 变化时更新 ref
@@ -840,7 +845,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     modelSelectItems={modelSelectItems}
                     onModelSelect={handleModelSelect}
                     currentModelName={chatModelConfig?.name}
-                    isSupportMultiModal={chatModelConfig?.features?.multimodal}
+                    isSupportImage={supportImage}
+                    isSupportFile={supportFile}
                     promptSelectItems={promptSelectItems}
                     onPromptSelect={handlePromptSelect}
                     currentPromptName={promptTooltip}
