@@ -1,0 +1,358 @@
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+  color: #111827;
+}
+
+.modalBody.dark {
+  background: #121212;
+  color: #e5e7eb;
+}
+
+.searchRow {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color, #f0f0f0);
+
+  :global(.ant-input-affix-wrapper) {
+    border-radius: 10px;
+  }
+
+  :global(.ant-input-affix-wrapper input) {
+    font-size: 14px;
+  }
+}
+
+.modalBody.dark .searchRow {
+  border-bottom-color: #2a2a2a;
+  background: #181818;
+
+  :global(.ant-input-affix-wrapper) {
+    background: #1f1f1f;
+    border-color: #2a2a2a;
+    color: #e5e7eb;
+  }
+
+  :global(.ant-input) {
+    background: transparent;
+    color: #e5e7eb;
+  }
+
+  :global(.ant-input-prefix) {
+    color: #9ca3af;
+  }
+}
+
+.content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  background: #fff;
+}
+
+.content.dark {
+  background: #121212;
+}
+
+.sidebarContainer {
+  width: 260px;
+  border-right: 1px solid var(--border-color, #f0f0f0);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalBody.dark .sidebarContainer {
+  border-right-color: #2a2a2a;
+  background: #111;
+}
+
+.modalBody.dark .sidebarContainer {
+  border-right-color: #2a2a2a;
+}
+
+.sidebarScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 0;
+  background: inherit;
+}
+
+.modalBody.dark .sidebarScroll {
+  background: #121212;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #7a7a7a);
+  padding: 12px 16px 4px;
+}
+
+.sidebarItem {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  margin: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary, #666);
+  transition: background-color 0.2s ease;
+}
+
+.sidebarItem:hover {
+  background-color: var(--background-secondary, #f5f5f5);
+}
+
+.sidebarItem.active {
+  background-color: rgba(22, 119, 255, 0.15);
+  color: var(--primary-color, #1677ff);
+}
+
+.modalBody.dark .sidebarItem {
+  color: #e5e7eb;
+}
+
+.modalBody.dark .sidebarItem:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.modalBody.dark .sidebarItem.active {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+.sidebarFolderIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  color: inherit;
+}
+
+.sidebarItemContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.count {
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
+  margin-left: 6px;
+}
+
+.modalBody.dark .count {
+  color: #9ca3af;
+}
+
+.sidebarLeafItem {
+  display: flex;
+  align-items: center;
+  margin: 2px 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary, #333);
+  transition: background-color 0.2s ease;
+}
+
+.sidebarLeafItem:hover {
+  background-color: var(--background-secondary, #f5f5f5);
+}
+
+.sidebarLeafItem.active {
+  background-color: rgba(22, 119, 255, 0.18);
+  color: var(--primary-color, #1677ff);
+}
+
+.modalBody.dark .sidebarLeafItem {
+  color: #e5e7eb;
+}
+
+.modalBody.dark .sidebarLeafItem:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.modalBody.dark .sidebarLeafItem.active {
+  background-color: rgba(59, 130, 246, 0.22);
+  color: #93c5fd;
+}
+
+.leafLabel {
+  margin-left: 6px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gridWrapper {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.gridScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  position: relative;
+  background: #fff;
+}
+
+.modalBody.dark .gridScroll {
+  background: #121212;
+}
+
+.gridRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+  min-height: 0;
+}
+
+.virtualWrapper {
+  position: relative;
+}
+
+.virtualRow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding-bottom: 12px;
+}
+
+.gridLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.gridSpin {
+  width: 100%;
+}
+
+.gridSpin :global(.ant-spin-container) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.card {
+  background: var(--background-primary, #fff);
+  border: 1px solid var(--border-color, #f0f0f0);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.modalBody.dark .card {
+  background: #222;
+  border-color: #2a2a2a;
+}
+
+.card:hover {
+  border-color: var(--primary-color, #1677ff);
+  background-color: rgba(22, 119, 255, 0.04);
+}
+
+.modalBody.dark .card:hover {
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+.card.selected {
+  border-color: var(--primary-color, #1677ff);
+  background-color: rgba(22, 119, 255, 0.08);
+}
+
+.modalBody.dark .card.selected {
+  background-color: rgba(59, 130, 246, 0.25);
+}
+
+.preview {
+  position: relative;
+  width: 100%;
+  padding-top: 62%;
+  background: var(--background-secondary, #fafafa);
+}
+
+.modalBody.dark .preview {
+  background: #1e1e1e;
+}
+
+.previewMedia {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.audioPreview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: var(--text-tertiary, #bfbfbf);
+}
+
+.modalBody.dark .audioPreview {
+  color: #6b7280;
+}
+
+.cardBody {
+  padding: 8px 12px 12px;
+}
+
+.cardTitle {
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.cardMeta {
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
+}
+
+.modalBody.dark .cardTitle {
+  color: #e5e7eb;
+}
+
+.modalBody.dark .cardMeta {
+  color: #9ca3af;
+}
+
+.emptyWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+}
