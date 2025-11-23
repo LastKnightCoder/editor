@@ -17,12 +17,22 @@ class UserSettingModule {
     this.backendServer.addMessageHandler(
       "set-user-setting",
       async (message: RpcRequestMessage) => {
-        const { id, params, method } = message;
+        const { id, method } = message;
+        const params = message.params as unknown;
 
-        if (params) {
-          const newSettings = params;
-          if (newSettings && typeof newSettings === "object") {
-            this.handleSetUserSetting(newSettings);
+        if (params && typeof params === "object") {
+          let clientId: string | undefined;
+          let payloadSetting: UserSetting | null = null;
+
+          if (this.isSetUserSettingPayload(params)) {
+            payloadSetting = params.setting;
+            clientId = params.clientId;
+          } else {
+            payloadSetting = params as UserSetting;
+          }
+
+          if (payloadSetting) {
+            this.handleSetUserSetting(payloadSetting, clientId);
           }
         }
 
@@ -55,7 +65,7 @@ class UserSettingModule {
     );
   }
 
-  handleSetUserSetting(newSettings: UserSetting) {
+  handleSetUserSetting(newSettings: UserSetting, clientId?: string) {
     const settings = this.userSetting;
     this.userSetting = newSettings;
     const changed = this.getSettingDiff(settings, newSettings);
@@ -65,7 +75,10 @@ class UserSettingModule {
 
     this.saveSetting(JSON.stringify(newSettings, null, 2));
     if (this.backendServer) {
-      this.backendServer.sendNotification("user-setting-changed", newSettings);
+      this.backendServer.sendNotification("user-setting-changed", {
+        setting: newSettings,
+        clientId,
+      });
     }
   }
 
@@ -111,6 +124,12 @@ class UserSettingModule {
     }
 
     return hasChanges ? diff : {};
+  }
+
+  private isSetUserSettingPayload(
+    params: object,
+  ): params is { setting: UserSetting; clientId?: string } {
+    return Object.prototype.hasOwnProperty.call(params, "setting");
   }
 }
 
