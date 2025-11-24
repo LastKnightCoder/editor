@@ -674,6 +674,7 @@ const Project = () => {
       } else if (key === "add-white-board-project-item") {
         const whiteBoardContent = await createWhiteBoardContent({
           name: "新白板",
+          imgUrl: "",
           data: {
             children: [],
             viewPort: {

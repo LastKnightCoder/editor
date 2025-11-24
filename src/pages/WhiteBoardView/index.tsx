@@ -43,7 +43,7 @@ const WhiteBoardView = memo(() => {
   const onClick = useMemoizedFn((whiteBoard: WhiteBoard) => {
     navigateTo(
       TabType.WhiteBoardDetail,
-      { id: whiteBoard.id },
+      { type: "whiteboard", id: whiteBoard.id },
       `白板 - ${whiteBoard.title || `#${whiteBoard.id}`}`,
     );
   });
@@ -80,7 +80,7 @@ const WhiteBoardView = memo(() => {
     setCreateWhiteBoardModalOpen(false);
     navigateTo(
       TabType.WhiteBoardDetail,
-      { id: whiteBoard.id },
+      { type: "whiteboard", id: whiteBoard.id },
       `白板 - ${whiteBoard.title || `#${whiteBoard.id}`}`,
     );
   };

@@ -3,14 +3,17 @@ import { IBlockPanelListItem } from "@/components/Editor/types";
 import { insertWhiteboard, insertExistingWhiteboard } from "./utils";
 import { createRoot } from "react-dom/client";
 import SelectWhiteBoardContentModal from "./components/SelectWhiteBoardContentModal";
-import { WhiteBoardContent } from "@/types";
+import { WhiteBoardContent, WhiteBoard } from "@/types";
 
 const showSelectWhiteBoardModal = (editor: Editor) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
 
-  const handleOk = async (whiteBoardContent: WhiteBoardContent) => {
+  const handleOk = async (
+    whiteBoardContent: WhiteBoardContent,
+    _whiteBoard: WhiteBoard,
+  ) => {
     await insertExistingWhiteboard(editor, whiteBoardContent);
     root.unmount();
     container.remove();

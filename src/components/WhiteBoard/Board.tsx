@@ -64,7 +64,7 @@ class Board {
     selection: Selection;
     presentationSequences: PresentationSequence[];
   };
-  private resourceSource?: ResourceSource;
+  public resourceSource?: ResourceSource;
 
   private _currentCreateType: ECreateBoardElementType =
     ECreateBoardElementType.None;

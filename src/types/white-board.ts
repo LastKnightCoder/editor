@@ -31,6 +31,7 @@ export type ICreateWhiteBoard = Omit<
 export interface WhiteBoardContent {
   id: number;
   name: string;
+  imgUrl: string; // 白板背景图片
   createTime: number;
   updateTime: number;
   data: {

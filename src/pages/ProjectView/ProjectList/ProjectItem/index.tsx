@@ -1228,6 +1228,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         if (!projectItemId) return;
         const whiteBoardContent = await createWhiteBoardContent({
           name: "新白板",
+          imgUrl: "",
           data: {
             children: [],
             viewPort: {

@@ -44,7 +44,9 @@ export type TabParams = {
   [TabType.DocumentList]: undefined;
   [TabType.DocumentDetail]: { id: number; itemId?: number }; // 文档 ID 和可选的知识库项 ID
   [TabType.WhiteBoardList]: undefined;
-  [TabType.WhiteBoardDetail]: { id: number };
+  [TabType.WhiteBoardDetail]:
+    | { type: "whiteboard"; id: number } // 打开 WhiteBoard（包含多个 SubWhiteBoards）
+    | { type: "content"; whiteBoardContentId: number; breadcrumb?: number[] }; // 打开单个 WhiteBoardContent（独立白板或嵌套导航）
   [TabType.PdfList]: undefined;
   [TabType.PdfDetail]: { id: number };
   [TabType.DailyNote]: undefined;

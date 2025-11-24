@@ -14,6 +14,7 @@ export enum ECreateBoardElementType {
   MindMap = "mindMap",
   Webview = "webview",
   Frame = "frame",
+  WhiteBoard = "whiteboard",
 }
 
 export interface BoardElement {

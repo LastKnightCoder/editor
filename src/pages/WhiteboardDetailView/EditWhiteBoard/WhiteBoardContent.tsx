@@ -122,6 +122,8 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           whiteboardContentId={activeSubWhiteBoard.id}
         />
       </div>
+
+      {/* 底部的子白板列表 */}
       <div className="h-10 shrink-0 flex items-center border-t border-[#f0f0f0] dark:border-[#2a2a2a] overflow-x-auto px-2 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-[var(--scrollbar-thumb)] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-track]:bg-[var(--scrollbar-track)] [&::-webkit-scrollbar-track]:rounded">
         {whiteBoard.whiteBoardContentList.map((item) => (
           <SubWhiteBoardItem
@@ -138,6 +140,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           onClick={() => setAddSubWhiteBoardModalOpen(true)}
         />
       </div>
+
       <Modal
         open={addSubWhiteBoardModalOpen}
         onCancel={() => {

@@ -75,6 +75,7 @@ export default class WhiteboardTable {
         const contentId = WhiteBoardContentTable.createWhiteboardContent(db, {
           data: content.data,
           name: content.name,
+          imgUrl: whiteboard.snapshot || "",
         }).id;
         contentIds.push(contentId);
       }
@@ -114,15 +115,16 @@ export default class WhiteboardTable {
     name: string,
     whiteboardData: WhiteBoardContent["data"],
   ): WhiteBoardContent {
+    const whiteboard = this.getWhiteboard(db, whiteboardId);
+
     const whiteboardContent = WhiteBoardContentTable.createWhiteboardContent(
       db,
       {
         data: whiteboardData,
         name,
+        imgUrl: whiteboard.snapshot || "",
       },
     );
-
-    const whiteboard = this.getWhiteboard(db, whiteboardId);
 
     const stmt = db.prepare(`
       UPDATE white_boards SET update_time = ?, white_board_content_ids = ? WHERE id = ?
@@ -165,10 +167,17 @@ export default class WhiteboardTable {
     name: string,
     whiteboardData: WhiteBoardContent["data"],
   ): WhiteBoardContent {
+    // 获取现有的白板内容以保留 imgUrl
+    const existingContent = WhiteBoardContentTable.getWhiteboardContent(
+      db,
+      whiteboardContentId,
+    );
+
     const whiteboardContent = WhiteBoardContentTable.updateWhiteboard(db, {
       id: whiteboardContentId,
       data: whiteboardData,
       name,
+      imgUrl: existingContent.imgUrl,
     });
 
     return whiteboardContent;
@@ -188,6 +197,7 @@ export default class WhiteboardTable {
     // 获取当前白板数据
     const currentWhiteboard = this.getWhiteboard(db, whiteboard.id);
     const currentContentIds = currentWhiteboard.whiteBoardContentIds || [];
+    const snapshotUrl = whiteboard.snapshot || currentWhiteboard.snapshot;
 
     // 处理内容列表变更
     const newContentIds: number[] = [];
@@ -206,12 +216,14 @@ export default class WhiteboardTable {
             id: contentId,
             data: content.data,
             name: content.name,
+            imgUrl: content.imgUrl || snapshotUrl || "",
           });
         } else {
           // 否则创建新记录
           contentId = WhiteBoardContentTable.createWhiteboardContent(db, {
             data: content.data,
             name: content.name,
+            imgUrl: content.imgUrl || snapshotUrl || "",
           }).id;
         }
 
