@@ -13,5 +13,7 @@ export * from "./ArrowUtil.ts";
 export * from "./MindUtil.ts";
 export * from "./FrameUtil.ts";
 export * from "./Constraints";
+export * from "./SelectionActionUtil";
+export * from "./ClipboardUtil";
 export { default as ViewportUtil } from "./ViewportUtil";
 export { default as SimplifiedRenderUtil } from "./SimplifiedRenderUtil";

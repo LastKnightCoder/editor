@@ -3,9 +3,11 @@ import {
   ViewPort,
   Board,
   ECreateBoardElementType,
+  BoardContextMenuPayload,
 } from "../types";
 import { BOARD_TO_CONTAINER, MIN_ZOOM, MAX_ZOOM } from "../constants";
 import { ViewPortTransforms } from "../transforms";
+import { BoardUtil, PointUtil } from "../utils";
 import isHotkey from "is-hotkey";
 
 export class ViewPortPlugin implements IBoardPlugin {
@@ -16,6 +18,7 @@ export class ViewPortPlugin implements IBoardPlugin {
   boardOriginOffset: { x: number; y: number } | null = null;
   lastWheelTime = 0;
   lastMoveTime = 0;
+  hasRightClickMoved = false;
 
   // 方向键移动视口相关属性
   arrowKeyMoveInterval: number | null = null;
@@ -28,7 +31,8 @@ export class ViewPortPlugin implements IBoardPlugin {
     if (e.button === 2) {
       this.isMouseDown = true;
       this.boardOriginOffset = { x: e.clientX, y: e.clientY };
-      this.boardOriginViewPort = board.viewPort;
+      this.boardOriginViewPort = { ...board.viewPort };
+      this.hasRightClickMoved = false;
     }
   }
 
@@ -43,6 +47,18 @@ export class ViewPortPlugin implements IBoardPlugin {
 
     const now = Date.now();
     if (now - this.lastMoveTime < 30) return;
+
+    if (this.boardOriginOffset) {
+      const diffX = e.clientX - this.boardOriginOffset.x;
+      const diffY = e.clientY - this.boardOriginOffset.y;
+      if (!this.hasRightClickMoved && Math.hypot(diffX, diffY) > 3) {
+        this.hasRightClickMoved = true;
+      }
+      if (!this.hasRightClickMoved) {
+        return;
+      }
+    }
+
     this.lastMoveTime = now;
 
     const { x, y } = { x: e.clientX, y: e.clientY };
@@ -57,10 +73,31 @@ export class ViewPortPlugin implements IBoardPlugin {
     );
   }
 
-  onGlobalPointerUp() {
-    this.isMouseDown = false;
-    this.boardOriginOffset = null;
-    this.boardOriginViewPort = null;
+  onGlobalPointerUp(e: PointerEvent, board: Board) {
+    const shouldEmitContextMenu =
+      e.button === 2 &&
+      this.isMouseDown &&
+      !this.hasRightClickMoved &&
+      !board.presentationManager.isPresentationMode;
+
+    const container = BOARD_TO_CONTAINER.get(board);
+    const isInsideBoard = container
+      ? (() => {
+          const rect = container.getBoundingClientRect();
+          return (
+            e.clientX >= rect.left &&
+            e.clientX <= rect.right &&
+            e.clientY >= rect.top &&
+            e.clientY <= rect.bottom
+          );
+        })()
+      : false;
+
+    this.resetPointerState();
+
+    if (shouldEmitContextMenu && isInsideBoard) {
+      this.emitContextMenu(e, board);
+    }
   }
 
   onContextMenu(e: MouseEvent) {
@@ -259,5 +296,52 @@ export class ViewPortPlugin implements IBoardPlugin {
     if (this.currentArrowKey === e.key) {
       this.stopContinuousViewPortMove();
     }
+  }
+
+  private emitContextMenu(event: PointerEvent, board: Board) {
+    const viewPortPoint = PointUtil.screenToViewPort(
+      board,
+      event.clientX,
+      event.clientY,
+    );
+    if (!viewPortPoint) return;
+
+    const hitElements = BoardUtil.getHitElements(
+      board,
+      viewPortPoint.x,
+      viewPortPoint.y,
+    );
+    const hitElement =
+      hitElements.length > 0 ? hitElements[hitElements.length - 1] : undefined;
+    const selectedElements = [...board.selection.selectedElements];
+    const isHitSelected = !!(
+      hitElement &&
+      selectedElements.some((element) => element.id === hitElement.id)
+    );
+    const targetElements = isHitSelected
+      ? selectedElements
+      : hitElement
+        ? [hitElement]
+        : [];
+
+    const payload: BoardContextMenuPayload = {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      viewPortPoint,
+      selectedElements,
+      hitElements,
+      hitElement,
+      targetElements,
+      isHitSelected,
+    };
+
+    board.emit("context-menu", payload);
+  }
+
+  private resetPointerState() {
+    this.isMouseDown = false;
+    this.boardOriginOffset = null;
+    this.boardOriginViewPort = null;
+    this.hasRightClickMoved = false;
   }
 }

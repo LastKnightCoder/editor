@@ -3,10 +3,8 @@ import {
   IBoardPlugin,
   Board,
   ECreateBoardElementType,
-  MindNodeElement,
-  Operation,
 } from "../types";
-import { BoardUtil, isValid, MindUtil, PathUtil, PointUtil } from "../utils";
+import { BoardUtil, PointUtil, deleteBoardElements } from "../utils";
 import { SelectTransforms } from "../transforms";
 import isHotkey from "is-hotkey";
 
@@ -159,76 +157,14 @@ export class SelectPlugin implements IBoardPlugin {
       ) {
         return;
       }
-      // 思维导图节点还需要特殊处理，删除后需要布局
-      const mindNodes = selectedElements.filter(
-        (element) => element.type === "mind-node",
-      ) as MindNodeElement[];
-      // 找到所有的根节点
-      const roots = mindNodes
-        .map((node) => {
-          const root = MindUtil.getRoot(board, node);
-          if (!root) return;
-          return {
-            root,
-            node,
-          };
-        })
-        .filter(isValid);
 
-      // 按照根节点聚合
-      const rootsMap = new Map<MindNodeElement, MindNodeElement[]>();
-      roots.forEach((root) => {
-        const rootNode = root.root;
-        if (!rootsMap.has(rootNode)) {
-          rootsMap.set(rootNode, []);
-        }
-        rootsMap.get(rootNode)?.push(root.node);
-      });
-
-      // 分为两种，一种是 root 在 selectedElements 中，一种是 root 不在 selectedElements 中
-      // 根节点删除就整个被删除了
-      const mindOps: Operation[] = [];
-      const toDeleteRoots: MindNodeElement[] = [];
-      rootsMap.forEach((nodes, root) => {
-        const rootPath = PathUtil.getPathByElement(board, root);
-        if (!rootPath) return;
-        if (selectedElements.map((node) => node.id).includes(root.id)) {
-          toDeleteRoots.push(root);
-        } else {
-          const newRoot = MindUtil.deleteNodes(root, nodes);
-          mindOps.push({
-            type: "set_node",
-            path: rootPath,
-            properties: root,
-            newProperties: newRoot,
-          });
-        }
-      });
-
-      const otherElements = selectedElements.filter(
-        (element) => element.type !== "mind-node",
-      );
-      // 创建删除操作，现在不需要预先计算路径了，apply 方法会自动处理路径转换
-      const deleteElements = [...otherElements, ...toDeleteRoots];
-      const ops: Operation[] = [];
-      for (const element of deleteElements) {
-        const path = PathUtil.getPathByElement(board, element);
-        if (path) {
-          ops.push({
-            type: "remove_node",
-            path,
-            node: element,
-          });
-        }
+      const deleted = deleteBoardElements(board, selectedElements);
+      if (deleted) {
+        SelectTransforms.updateSelectArea(board, {
+          selectArea: null,
+          selectedElements: [],
+        });
       }
-
-      const finalOps = [...mindOps, ...ops];
-
-      board.apply(finalOps);
-      SelectTransforms.updateSelectArea(board, {
-        selectArea: null,
-        selectedElements: [],
-      });
     }
   }
 }
