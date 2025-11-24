@@ -348,6 +348,54 @@ const isSettingNotificationPayload = (
   );
 };
 
+const SETTING_CACHE_KEY = "user-setting-cache";
+
+const loadCachedSetting = (): Partial<ISetting> | null => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const cached = window.localStorage.getItem(SETTING_CACHE_KEY);
+    if (!cached) {
+      return null;
+    }
+    return JSON.parse(cached) as Partial<ISetting>;
+  } catch (error) {
+    console.error("Failed to parse cached setting", error);
+    return null;
+  }
+};
+
+const persistSettingCache = (setting: ISetting) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(SETTING_CACHE_KEY, JSON.stringify(setting));
+  } catch (error) {
+    console.error("Failed to persist cached setting", error);
+  }
+};
+
+const applyAppearanceFromSetting = (setting: ISetting) => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  const isDark = setting.darkMode;
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  document.documentElement.classList.toggle("dark", isDark);
+
+  const target = document.body ?? document.documentElement;
+  const { chineseFont, englishFont, fontSize, codeFont } = setting.fontSetting;
+  const font = `${englishFont}, ${chineseFont}`;
+  target.style.setProperty("--font", font);
+  target.style.setProperty("--font-size", `${fontSize}px`);
+  target.style.setProperty("--mono-font", `${codeFont}, ${font}, monospace`);
+};
+
 const initialState: IState = {
   inited: false,
   setting: {
@@ -597,6 +645,13 @@ const initialState: IState = {
   settingModalOpen: false,
 };
 
+const defaultSetting = cloneDeep(initialState.setting);
+const cachedSetting = loadCachedSetting();
+if (cachedSetting) {
+  merge(initialState.setting, cachedSetting);
+}
+applyAppearanceFromSetting(initialState.setting);
+
 const useSettingStore = create<IState & IActions>((set, get) => ({
   ...initialState,
   initSetting: async (clientId: string) => {
@@ -625,8 +680,10 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
           return;
         }
 
+        const mergedSetting = cloneDeep(defaultSetting);
+        merge(mergedSetting, nextSetting);
         set({
-          setting: nextSetting,
+          setting: mergedSetting,
         });
       },
     );
@@ -635,7 +692,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       null,
     )) as ISetting;
     try {
-      const newSetting = cloneDeep(initialState.setting);
+      const newSetting = cloneDeep(defaultSetting);
       merge(newSetting, setting);
       set({
         setting: newSetting,
@@ -823,5 +880,17 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     });
   },
 }));
+
+if (typeof window !== "undefined") {
+  let prevSetting = useSettingStore.getState().setting;
+  useSettingStore.subscribe((state) => {
+    if (state.setting === prevSetting) {
+      return;
+    }
+    prevSetting = state.setting;
+    persistSettingCache(state.setting);
+    applyAppearanceFromSetting(state.setting);
+  });
+}
 
 export default useSettingStore;
