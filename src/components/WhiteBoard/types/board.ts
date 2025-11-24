@@ -33,6 +33,17 @@ export interface ElementBounds {
   maxY: number;
 }
 
+export interface BoardContextMenuPayload {
+  clientX: number;
+  clientY: number;
+  viewPortPoint: Point;
+  selectedElements: BoardElement[];
+  hitElements: BoardElement[];
+  targetElements: BoardElement[];
+  hitElement?: BoardElement;
+  isHitSelected: boolean;
+}
+
 export type EventHandler = (event: Event & any, board: Board) => void | boolean;
 export type Events =
   | "onMouseDown"

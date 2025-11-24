@@ -12,6 +12,7 @@ import {
   useLocalStorageState,
 } from "ahooks";
 import classnames from "classnames";
+import { CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 
 import Board from "./Board";
 import {
@@ -61,6 +62,16 @@ import {
   ArrowMoveContext,
   useElementsMoving,
 } from "./hooks";
+import ContextMenuLayer, {
+  type ContextMenuItem,
+  type BuildMenuItemsParams,
+} from "./components/ContextMenuLayer";
+import { SelectTransforms } from "./transforms";
+import {
+  deleteBoardElements,
+  buildClipboardPayload,
+  writeClipboardPayload,
+} from "./utils";
 
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
@@ -195,6 +206,99 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const isArrowMoving = useListenArrowMove(board);
   const isElementsMoving = useElementsMoving(board);
+
+  const buildContextMenuItems = useMemoizedFn(
+    ({ context }: BuildMenuItemsParams): ContextMenuItem[] => {
+      const targetElements = context.targetElements;
+      const targetCount = targetElements.length;
+      if (targetCount === 0) {
+        return [
+          {
+            key: "clipboard",
+            label: "剪贴板",
+            icon: <CopyOutlined />,
+            children: [
+              {
+                key: "copy",
+                label: "复制",
+                icon: <CopyOutlined />,
+                shortcut:
+                  typeof navigator !== "undefined" &&
+                  /mac/i.test(navigator.platform)
+                    ? "⌘C"
+                    : "Ctrl+C",
+                disabled: true,
+              },
+            ],
+          },
+        ];
+      }
+
+      const labelSuffix = targetCount > 1 ? "选中" : "元素";
+      const isMac =
+        typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
+      const copyShortcut = isMac ? "⌘C" : "Ctrl+C";
+      const deleteShortcut = isMac ? "⌘⌫" : "Delete";
+
+      const clipboardPayload =
+        (action: (elements: typeof targetElements) => void) => () =>
+          action(targetElements);
+
+      const copyItem: ContextMenuItem = {
+        key: "copy",
+        label: `复制${labelSuffix}`,
+        icon: <CopyOutlined />,
+        shortcut: copyShortcut,
+        onSelect: clipboardPayload((elements) => {
+          const payload = buildClipboardPayload(board, elements);
+          if (!payload) return;
+          writeClipboardPayload(payload).then((success) => {
+            if (!success) {
+              console.warn("复制到剪贴板失败");
+            }
+          });
+        }),
+      };
+
+      const items: ContextMenuItem[] = [
+        {
+          key: "clipboard",
+          label: "剪贴板",
+          icon: <CopyOutlined />,
+          children: [copyItem],
+        },
+      ];
+
+      const canDelete =
+        !readonly &&
+        !board.presentationManager.isPresentationMode &&
+        !board.presentationManager.isCreatingSequence;
+
+      if (canDelete) {
+        items.push({
+          key: "delete",
+          label: `删除${labelSuffix}`,
+          icon: <DeleteOutlined />,
+          danger: true,
+          shortcut: deleteShortcut,
+          onSelect: clipboardPayload((elements) => {
+            const deleted = deleteBoardElements(board, elements);
+            if (!deleted) return;
+            const targetIds = new Set(elements.map((element) => element.id));
+            const remainingSelected = board.selection.selectedElements.filter(
+              (element) => !targetIds.has(element.id),
+            );
+            SelectTransforms.updateSelectArea(board, {
+              selectArea: null,
+              selectedElements: remainingSelected,
+            });
+          }),
+        });
+      }
+
+      return items;
+    },
+  );
 
   // 获取画板数据
   const { children, viewPort, selection } = useSyncExternalStore(
@@ -464,6 +568,13 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
                     onStartPresentation={handleStartPresentation}
                     onEditSequence={handleEditSequence}
                     onDeleteSequence={handleDeleteSequence}
+                  />
+
+                  <ContextMenuLayer
+                    board={board}
+                    containerRef={containerRef}
+                    readonly={readonly}
+                    buildMenuItems={buildContextMenuItems}
                   />
                 </div>
                 <NotePanel

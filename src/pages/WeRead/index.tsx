@@ -31,19 +31,12 @@ const WeReadPage: React.FC = memo(() => {
 
   const isConnected = weread.userInfo.isConnected && weread.cookies.length > 0;
 
-  const {
-    rows,
-    detailMap,
-    syncing,
-    error,
-    lastSyncedAt,
-    syncBooks,
-    fetchBookDetail,
-  } = useWeReadPersistence({
-    isConnected,
-    onSuccess: (msg) => message.success(msg),
-    onError: (msg) => message.error(msg),
-  });
+  const { rows, syncing, error, lastSyncedAt, syncBooks, fetchBookDetail } =
+    useWeReadPersistence({
+      isConnected,
+      onSuccess: (msg) => message.success(msg),
+      onError: (msg) => message.error(msg),
+    });
 
   // 根据 rows 动态生成出版社 options
   const publisherOptions = useMemo<SelectOption[]>(() => {

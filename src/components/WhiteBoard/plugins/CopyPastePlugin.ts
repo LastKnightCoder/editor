@@ -1,5 +1,5 @@
-import { Board, BoardElement, IBoardPlugin, Operation, Point } from "../types";
-import { isValid, PathUtil } from "@/components/WhiteBoard/utils";
+import { Board, BoardElement, IBoardPlugin, Operation } from "../types";
+import { PathUtil, buildClipboardPayload } from "@/components/WhiteBoard/utils";
 import {
   SelectTransforms,
   ViewPortTransforms,
@@ -19,35 +19,11 @@ export class CopyPastePlugin implements IBoardPlugin {
     // 读取当前所有选择的元素
     const selectedElements = board.selection.selectedElements;
     if (selectedElements.length === 0) return;
+    const payload = buildClipboardPayload(board, selectedElements);
+    if (!payload) return;
 
-    // 解决有的对象的属性不可更改
-    const copiedElements: BoardElement[] = JSON.parse(
-      JSON.stringify(selectedElements),
-    );
-
-    const data = {
-      source: "editor-white-board",
-      elements: copiedElements
-        .map((element) => {
-          // 把 x y 相对于当前中心
-          if (typeof element.x === "number" && typeof element.y === "number") {
-            return board.moveElement(element, 20, 20);
-          } else if (element.type === "arrow") {
-            element.points = element.points.map((point: Point) => {
-              return {
-                x: point.x + 20,
-                y: point.y + 20,
-              };
-            });
-            return element;
-          } else {
-            return element;
-          }
-        })
-        .filter(isValid),
-    };
-
-    e.clipboardData?.setData("application/json", JSON.stringify(data));
+    e.clipboardData?.setData("application/json", payload);
+    e.clipboardData?.setData("text/plain", payload);
     e.preventDefault();
     e.stopImmediatePropagation();
   }
@@ -79,7 +55,10 @@ export class CopyPastePlugin implements IBoardPlugin {
 
   onPaste(e: ClipboardEvent, board: Board) {
     // 读取剪切板数据
-    const data = e.clipboardData?.getData("application/json");
+    let data = e.clipboardData?.getData("application/json");
+    if (!data) {
+      data = e.clipboardData?.getData("text/plain");
+    }
     if (!data) return;
     try {
       const dataObj = JSON.parse(data);
