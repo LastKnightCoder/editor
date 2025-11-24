@@ -1,5 +1,8 @@
 import { EHandlerPosition } from "../types";
 
+// 超过该距离的参考线视为离当前操作过远，不参与吸附
+const MAX_REF_LINE_GAP = 500;
+
 export interface Rect {
   key: string;
   x: number;
@@ -26,13 +29,28 @@ export class RefLineUtil {
     lines: Line[];
   };
 
-  constructor({ refRects, refLines }: { refRects?: Rect[]; refLines?: [] }) {
+  private onChange?: () => void;
+
+  constructor({
+    refRects,
+    refLines,
+    onChange,
+  }: {
+    refRects?: Rect[];
+    refLines?: Line[];
+    onChange?: () => void;
+  }) {
     this.refRects = refRects || [];
     this.refLines = refLines || [];
     this.current = {
       rects: [],
       lines: [],
     };
+    this.onChange = onChange;
+  }
+
+  private notifyChange() {
+    this.onChange?.();
   }
 
   addRefRects(rects: Rect[]) {
@@ -43,6 +61,7 @@ export class RefLineUtil {
       });
     });
     this.refRects = this.refRects.concat(rects);
+    this.notifyChange();
   }
 
   addRefRect(rect: Rect) {
@@ -51,10 +70,12 @@ export class RefLineUtil {
 
   setRefRects(rects: Rect[]) {
     this.refRects = rects;
+    this.notifyChange();
   }
 
   removeRefRects(keys: string[]) {
     this.refRects = this.refRects.filter((rect) => !keys.includes(rect.key));
+    this.notifyChange();
   }
 
   removeRefRect(key: string) {
@@ -63,6 +84,7 @@ export class RefLineUtil {
 
   removeRefLines(keys: string[]) {
     this.refLines = this.refLines.filter((line) => !keys.includes(line.key));
+    this.notifyChange();
   }
 
   removeRefLine(key: string) {
@@ -82,6 +104,7 @@ export class RefLineUtil {
       });
     });
     this.refLines = this.refLines.concat(lines);
+    this.notifyChange();
   }
 
   addRefLine(line: Line) {
@@ -90,6 +113,7 @@ export class RefLineUtil {
 
   setRefLines(lines: Line[]) {
     this.refLines = lines;
+    this.notifyChange();
   }
 
   checkIsValidLine(line: Line) {
@@ -105,6 +129,7 @@ export class RefLineUtil {
 
   setCurrentRects(rects: Rect[]) {
     this.current.rects = rects;
+    this.notifyChange();
   }
 
   addCurrentRects(rects: Rect[]) {
@@ -114,15 +139,18 @@ export class RefLineUtil {
       });
     });
     this.current.rects = uniqueRects.concat(rects);
+    this.notifyChange();
   }
 
   setCurrentLines(lines: Line[]) {
     this.current.lines = lines;
+    this.notifyChange();
   }
 
   setCurrent({ rects, lines }: { rects: Rect[]; lines: Line[] }) {
-    this.setCurrentRects(rects);
-    this.setCurrentLines(lines);
+    this.current.rects = rects;
+    this.current.lines = lines;
+    this.notifyChange();
   }
 
   private extractLinesFromRect(rect: Rect): Line[] {
@@ -173,6 +201,35 @@ export class RefLineUtil {
     } else {
       return Infinity;
     }
+  }
+
+  private getLineRange(line: Line): [number, number] {
+    if (line.type === "vertical") {
+      return [Math.min(line.y1, line.y2), Math.max(line.y1, line.y2)];
+    }
+    return [Math.min(line.x1, line.x2), Math.max(line.x1, line.x2)];
+  }
+
+  private isLineWithinRange(
+    currentLine: Line,
+    refLine: Line,
+    maxGap: number,
+  ): boolean {
+    if (currentLine.type !== refLine.type) {
+      return false;
+    }
+    if (!Number.isFinite(maxGap) || maxGap <= 0) {
+      return true;
+    }
+    const [currentStart, currentEnd] = this.getLineRange(currentLine);
+    const [refStart, refEnd] = this.getLineRange(refLine);
+    if (currentEnd < refStart) {
+      return refStart - currentEnd <= maxGap;
+    }
+    if (refEnd < currentStart) {
+      return currentStart - refEnd <= maxGap;
+    }
+    return true;
   }
 
   getUpdateCurrent(
@@ -267,6 +324,7 @@ export class RefLineUtil {
   matchRefLines(
     distance: number,
     excludeRefKeys: string[] = [],
+    maxRefGap = MAX_REF_LINE_GAP,
   ): Array<Line & { distance: number }> {
     const excludeKeys = [
       ...this.current.rects.map((rect) => rect.key),
@@ -288,6 +346,9 @@ export class RefLineUtil {
     // 比较当前线与所有参考线
     for (const currentLine of currentLines) {
       for (const refLine of refLines) {
+        if (!this.isLineWithinRange(currentLine, refLine, maxRefGap)) {
+          continue;
+        }
         const dist = this.getLineDistance(currentLine, refLine);
         if (Math.abs(dist) < distance) {
           if (matchedLines.find((line) => line.key === refLine.key)) continue;

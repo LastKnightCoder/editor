@@ -1,6 +1,7 @@
 import React, {
   memo,
   useEffect,
+  useMemo,
   useRef,
   useSyncExternalStore,
   useState,
@@ -206,6 +207,7 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
 
   const isArrowMoving = useListenArrowMove(board);
   const isElementsMoving = useElementsMoving(board);
+  const [refLineVersion, setRefLineVersion] = useState(0);
 
   const buildContextMenuItems = useMemoizedFn(
     ({ context }: BuildMenuItemsParams): ContextMenuItem[] => {
@@ -395,6 +397,16 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
     };
   }, [board]);
 
+  useEffect(() => {
+    const handleRefLineChange = () => {
+      setRefLineVersion((value) => value + 1);
+    };
+    board.on("ref-line:change", handleRefLineChange);
+    return () => {
+      board.off("ref-line:change", handleRefLineChange);
+    };
+  }, [board]);
+
   // 设置容器，添加和清理事件监听器
   useEffect(() => {
     const container = containerRef.current;
@@ -462,7 +474,10 @@ const WhiteBoard = memo((props: WhiteBoardProps) => {
   }, [board, handleContainerResize]);
 
   // 获取参考线
-  const refLines = board.refLine.matchRefLines(15 / zoom);
+  const refLines = useMemo(
+    () => board.refLine.matchRefLines(15 / zoom),
+    [board, zoom, refLineVersion],
+  );
 
   // 演示相关处理函数
   const handleStartPresentation = useMemoizedFn((sequenceId: string) => {
