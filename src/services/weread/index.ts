@@ -1,5 +1,4 @@
 import {
-  parseMetadata,
   parseHighlights,
   parseChapterResp,
   parseArticleHighlightReview,
@@ -7,6 +6,7 @@ import {
   parseReviews,
   parseChapterReviews,
   type WeReadParserOptions,
+  getPcUrl,
 } from "./parser";
 import {
   parseCookieString,
@@ -30,6 +30,18 @@ import type {
 import { weReadHttpRequest, weReadLoginWithQRCode } from "@/commands/weread";
 import shelfParserService from "./shelf-parser";
 
+export interface MetadataListResult {
+  metadataList: Metadata[];
+  failedBookIds: string[];
+  bookArchiveInfo: Record<
+    string,
+    {
+      archiveId?: number;
+      archiveName?: string;
+    }
+  >;
+}
+
 // API 限流错误
 export class WeReadRateLimitError extends Error {
   constructor(message = "API 调用频率超限，请稍后重试") {
@@ -49,6 +61,20 @@ class WeReadService {
     });
     useSettingStore.getState().setWeReadLoginMethod("qr");
     useSettingStore.getState().setWeReadEnabled(true);
+  }
+
+  async fetchMetadataByBookIds(
+    bookIds: string[],
+    archiveInfo: Record<
+      string,
+      { archiveId?: number; archiveName?: string }
+    > = {},
+  ): Promise<MetadataListResult> {
+    const archiveMap = new Map<
+      string,
+      { archiveId?: number; archiveName?: string }
+    >(Object.entries(archiveInfo));
+    return this.fetchMetadataForIds(bookIds, archiveMap);
   }
 
   async loginWithCookieString(cookieString: string): Promise<void> {
@@ -138,9 +164,27 @@ class WeReadService {
     return allBooks;
   }
 
-  async getMetadataList(): Promise<Metadata[]> {
-    const summaries = await this.getNotebookSummaries();
-    return summaries.map((summary) => parseMetadata(summary));
+  async getMetadataList(): Promise<MetadataListResult> {
+    const shelfData = await this.getShelfData();
+    const archiveInfo = new Map<
+      string,
+      { archiveId: number; archiveName: string }
+    >();
+    const allBookIds: string[] = [];
+
+    shelfData.archives.forEach((archive) => {
+      archive.bookIds.forEach((bookId) => {
+        if (!archiveInfo.has(bookId)) {
+          allBookIds.push(bookId);
+        }
+        archiveInfo.set(bookId, {
+          archiveId: archive.archiveId,
+          archiveName: archive.name,
+        });
+      });
+    });
+
+    return this.fetchMetadataForIds(allBookIds, archiveInfo);
   }
 
   async buildNotebook(metaData: Metadata): Promise<Notebook> {
@@ -168,12 +212,17 @@ class WeReadService {
 
     const mutableMeta: Metadata = { ...metaData };
     if (detail) {
+      const readerUrl = detail.encodeId
+        ? `https://weread.qq.com/web/reader/${detail.encodeId}`
+        : getPcUrl(metaData.bookId);
       mutableMeta.encodeId = detail.encodeId;
       mutableMeta.category = detail.category;
       mutableMeta.publisher = detail.publisher;
       mutableMeta.isbn = detail.isbn;
       mutableMeta.intro = detail.intro;
       mutableMeta.totalWords = detail.totalWords;
+      mutableMeta.pcUrl = readerUrl;
+      mutableMeta.url = readerUrl;
       // newRating 是整数，例如 849 表示 8.49 分，需要除以 100
       mutableMeta.rating =
         detail.newRating > 0
@@ -220,10 +269,6 @@ class WeReadService {
     };
   }
 
-  /**
-   * 只获取书籍的基础信息（详情和进度），不包含高亮和评论
-   * 用于列表快速同步，减少 API 调用
-   */
   async buildNotebookBasic(metaData: Metadata): Promise<Notebook> {
     const [detail, progress] = await Promise.all([
       this.getBookDetail(metaData.bookId),
@@ -232,12 +277,17 @@ class WeReadService {
 
     const mutableMeta: Metadata = { ...metaData };
     if (detail) {
+      const readerUrl = detail.encodeId
+        ? `https://weread.qq.com/web/reader/${detail.encodeId}`
+        : getPcUrl(metaData.bookId);
       mutableMeta.encodeId = detail.encodeId;
       mutableMeta.category = detail.category;
       mutableMeta.publisher = detail.publisher;
       mutableMeta.isbn = detail.isbn;
       mutableMeta.intro = detail.intro;
       mutableMeta.totalWords = detail.totalWords;
+      mutableMeta.pcUrl = readerUrl;
+      mutableMeta.url = readerUrl;
       mutableMeta.rating =
         detail.newRating > 0
           ? `${(detail.newRating / 100).toFixed(1)}`
@@ -253,7 +303,6 @@ class WeReadService {
       };
     }
 
-    // 基础同步不获取高亮和评论的 synckey
     mutableMeta.synckeys = {
       progress: progress?.book?.synckey,
     };
@@ -499,12 +548,16 @@ class WeReadService {
         return null;
       }
 
+      const readerUrl = detail.encodeId
+        ? `https://weread.qq.com/web/reader/${detail.encodeId}`
+        : getPcUrl(bookId);
       const metadata: Metadata = {
         bookId: bookId,
         encodeId: detail.encodeId,
         author: shelfBook?.author || detail.author || "",
         title: shelfBook?.title || detail.title || "",
-        url: `https://weread.qq.com/web/reader/${detail.encodeId || bookId}`,
+        url: readerUrl,
+        pcUrl: readerUrl,
         cover: shelfBook?.cover || detail.cover || "",
         bookType: detail.type || 0,
         publishTime: detail.publishTime || "",
@@ -535,9 +588,92 @@ class WeReadService {
 
       return metadata;
     } catch (error) {
+      if (error instanceof WeReadRateLimitError) {
+        throw error;
+      }
       console.error(`构建书籍 ${bookId} 元数据失败`, error);
       return null;
     }
+  }
+
+  private async fetchMetadataForIds(
+    bookIds: string[],
+    archiveInfo?: Map<string, { archiveId?: number; archiveName?: string }>,
+  ): Promise<MetadataListResult> {
+    const metadataList: Metadata[] = [];
+    const failedBookIds: string[] = [];
+    const batchSize = 100;
+
+    for (let i = 0; i < bookIds.length; i += batchSize) {
+      const chunk = bookIds.slice(i, i + batchSize);
+      for (const bookId of chunk) {
+        try {
+          const meta = await this.fetchMetadataWithRetry(bookId);
+          if (!meta) {
+            failedBookIds.push(bookId);
+            continue;
+          }
+
+          const info = archiveInfo?.get(bookId);
+          if (info) {
+            meta.archiveName = info.archiveName;
+            meta.archiveId = info.archiveId;
+          }
+
+          metadataList.push(meta);
+        } catch (error) {
+          failedBookIds.push(bookId);
+        }
+      }
+
+      if (i + batchSize < bookIds.length) {
+        await this.delay(2000);
+      }
+    }
+
+    const archiveInfoRecord: Record<
+      string,
+      { archiveId?: number; archiveName?: string }
+    > = {};
+    if (archiveInfo) {
+      archiveInfo.forEach((value, key) => {
+        archiveInfoRecord[key] = value;
+      });
+    }
+
+    return { metadataList, failedBookIds, bookArchiveInfo: archiveInfoRecord };
+  }
+
+  private async fetchMetadataWithRetry(
+    bookId: string,
+    retries = 3,
+  ): Promise<Metadata | null> {
+    for (let attempt = 1; attempt <= retries; attempt += 1) {
+      try {
+        const meta = await this.buildMetadataFromBookId(bookId);
+        if (meta) {
+          return meta;
+        }
+        console.warn(
+          `[WeRead] 未获取到 ${bookId} 元数据 (第 ${attempt}/${retries} 次`,
+        );
+      } catch (error) {
+        if (error instanceof WeReadRateLimitError && attempt < retries) {
+          const delayMs = 3000 * attempt;
+          console.warn(
+            `[WeRead] 元数据接口限流，${delayMs}ms 后重试 ${bookId}`,
+          );
+          await this.delay(delayMs);
+          continue;
+        }
+        throw error;
+      }
+    }
+    return null;
+  }
+
+  private async delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async getShelfData(): Promise<ShelfData> {

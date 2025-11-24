@@ -11,16 +11,7 @@ interface ShelfInitialState {
   };
 }
 
-/**
- * 书架 HTML 解析服务
- * 从微信读书书架页面的 SSR HTML 中提取书籍和分类信息
- */
 export class ShelfParserService {
-  /**
-   * 解析书架 HTML
-   * @param html 书架页面的 HTML 内容
-   * @returns 书架数据，包含分类、书籍和映射关系
-   */
   parseShelfHTML(html: string): ShelfData {
     try {
       // 创建 DOM 对象解析 HTML
@@ -84,39 +75,17 @@ export class ShelfParserService {
         bookIds: archive.bookIds || [],
       }));
 
-      // 提取所有书籍信息（从 first4Books 中）
-      const booksMap = new Map<string, ShelfBook>();
       const bookArchiveMap = new Map<string, string>();
 
       archives.forEach((archive) => {
-        const first4Books = archive.first4Books || [];
-
         // 将该分类下的所有书籍添加到映射中
         (archive.bookIds || []).forEach((bookId) => {
           bookArchiveMap.set(bookId, archive.name);
-        });
-
-        // 添加详细书籍信息（目前只有 first4Books 有详细信息）
-        first4Books.forEach((book) => {
-          if (!booksMap.has(book.bookId)) {
-            booksMap.set(book.bookId, {
-              bookId: book.bookId,
-              title: book.title,
-              author: book.author,
-              cover: book.cover,
-              version: book.version,
-              format: book.format,
-              type: book.type,
-              category: book.category,
-              totalWords: book.totalWords,
-            });
-          }
         });
       });
 
       return {
         archives: shelfArchives,
-        books: booksMap,
         bookArchiveMap,
       };
     } catch (error) {

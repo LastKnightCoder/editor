@@ -250,6 +250,7 @@ export interface Metadata {
     readingProgress: number;
   };
   archiveName?: string; // 书架分类名称
+  archiveId?: number;
 }
 
 export interface Highlight {
@@ -385,6 +386,5 @@ export interface ShelfBook {
 
 export interface ShelfData {
   archives: ShelfArchive[];
-  books: Map<string, ShelfBook>;
   bookArchiveMap: Map<string, string>; // bookId -> archiveName
 }
