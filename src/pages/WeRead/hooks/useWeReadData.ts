@@ -1,9 +1,10 @@
 import { useMemoizedFn } from "ahooks";
-import type { Descendant } from "slate";
 import dayjs from "dayjs";
+import type { Descendant } from "slate";
 import type { RowData } from "@/components/Database/types";
 import type { Notebook, Metadata } from "@/types/weread";
 import type { NotebookSnapshot } from "../types";
+import { getPcUrl } from "@/services/weread/parser";
 import { importFromMarkdown } from "@/utils/markdown";
 
 const DEFAULT_DETAIL_CONTENT: Descendant[] = [
@@ -20,14 +21,12 @@ const DEFAULT_DETAIL_CONTENT: Descendant[] = [
 
 export const useWeReadData = () => {
   const createSnapshot = useMemoizedFn(
-    (metaData: Metadata): NotebookSnapshot => {
-      return {
-        noteCount: metaData.noteCount ?? 0,
-        reviewCount: metaData.reviewCount ?? 0,
-        lastReadDate: metaData.lastReadDate ?? "",
-        synckeys: metaData.synckeys ?? {},
-      };
-    },
+    (metaData: Metadata): NotebookSnapshot => ({
+      noteCount: metaData.noteCount ?? 0,
+      reviewCount: metaData.reviewCount ?? 0,
+      lastReadDate: metaData.lastReadDate ?? "",
+      synckeys: metaData.synckeys ?? {},
+    }),
   );
 
   const buildNotebookRow = useMemoizedFn((notebook: Notebook): RowData => {
@@ -37,11 +36,8 @@ export const useWeReadData = () => {
     const resolvedProgress =
       rawProgress <= 1 ? Math.round(rawProgress * 100) : rawProgress;
 
-    // readingTime 单位可能是秒，直接除以 60 转换为分钟
-    // 如果发现数值偏大，可能是其他单位，需要调整
     const readingTimeMinutes = Math.round((readInfo?.readingTime ?? 0) / 60);
 
-    // 计算阅读状态：0=未开始，1=进行中，2=已完成
     let readingStatus = "not_started";
     if (readInfo) {
       if (readInfo.finishedDate && readInfo.finishedDate > 0) {
@@ -51,18 +47,17 @@ export const useWeReadData = () => {
       }
     }
 
-    // 构建微信读书链接，必须使用 encodeId
-    const wereadLink = metaData.encodeId
-      ? `https://weread.qq.com/web/reader/${metaData.encodeId}`
-      : "";
+    const wereadLink =
+      metaData.pcUrl ??
+      (metaData.encodeId
+        ? `https://weread.qq.com/web/reader/${metaData.encodeId}`
+        : getPcUrl(metaData.bookId));
 
-    // 格式化完成时间
     const finishedDate =
       readInfo?.finishedDate && readInfo.finishedDate > 0
         ? dayjs(readInfo.finishedDate * 1000).format("YYYY-MM-DD HH:mm")
         : "";
 
-    // 从 Shelf 数据获取书架分类（不从书籍详情获取，因为详情里没有）
     const archiveName = metaData.archiveName || "";
 
     return {

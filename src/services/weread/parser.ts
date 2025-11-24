@@ -350,7 +350,7 @@ const extractRangeStart = (range?: string): number => {
   return Number.isNaN(parsed) ? Number.MAX_SAFE_INTEGER : parsed;
 };
 
-const getPcUrl = (bookId: string): string => {
+export const getPcUrl = (bookId: string): string => {
   const hash = md5(bookId);
   const [prefixFlag, segments] = getFa(bookId);
   let strSub = hash.substring(0, 3);
