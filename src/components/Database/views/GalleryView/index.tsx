@@ -364,27 +364,29 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                       />
                     ))}
                     {/* 在最后一行添加 AddCard */}
-                    {!readonly && virtualRow.isLastRow && (
-                      <AddCard
-                        onClick={() => {
-                          // 如果有分组，传递分组信息
-                          if (
-                            isGrouped &&
-                            virtualRow.group.column &&
-                            virtualRow.group.rows.length > 0
-                          ) {
-                            const groupValue =
-                              virtualRow.group.rows[0][
-                                virtualRow.group.column.id
-                              ];
-                            handleAddRow(virtualRow.group.column, groupValue);
-                          } else {
-                            handleAddRow();
-                          }
-                        }}
-                        theme={theme}
-                      />
-                    )}
+                    {!readonly &&
+                      config?.allowAddRow !== false &&
+                      virtualRow.isLastRow && (
+                        <AddCard
+                          onClick={() => {
+                            // 如果有分组，传递分组信息
+                            if (
+                              isGrouped &&
+                              virtualRow.group.column &&
+                              virtualRow.group.rows.length > 0
+                            ) {
+                              const groupValue =
+                                virtualRow.group.rows[0][
+                                  virtualRow.group.column.id
+                                ];
+                              handleAddRow(virtualRow.group.column, groupValue);
+                            } else {
+                              handleAddRow();
+                            }
+                          }}
+                          theme={theme}
+                        />
+                      )}
                   </div>
                 </div>
               );

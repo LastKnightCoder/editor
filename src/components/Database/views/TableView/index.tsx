@@ -457,23 +457,25 @@ const TableView: React.FC<TableViewProps> = memo(
             </div>
           </div>
         </div>
-        <div className="sticky bottom-0 z-20 backdrop-blur">
-          <div className="flex items-center h-12 relative box-border gap-[10px]">
-            <button
-              className={classNames(
-                "p-2 text-sm cursor-pointer rounded transition",
-                {
-                  "hover:bg-gray-100": theme === "light",
-                  "hover:bg-gray-600": theme === "dark",
-                },
-              )}
-              onClick={handleAddRow}
-              type="button"
-            >
-              + 添加行
-            </button>
+        {!readonly && config?.allowAddRow !== false && (
+          <div className="sticky bottom-0 z-20 backdrop-blur">
+            <div className="flex items-center h-12 relative box-border gap-[10px]">
+              <button
+                className={classNames(
+                  "p-2 text-sm cursor-pointer rounded transition",
+                  {
+                    "hover:bg-gray-100": theme === "light",
+                    "hover:bg-gray-600": theme === "dark",
+                  },
+                )}
+                onClick={handleAddRow}
+                type="button"
+              >
+                + 添加行
+              </button>
+            </div>
           </div>
-        </div>
+        )}
         {columnEditOpen && (
           <ColumnEditModal
             open={columnEditOpen}

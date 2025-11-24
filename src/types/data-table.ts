@@ -56,6 +56,7 @@ export interface KanbanViewConfig {
 export interface DataTableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
+  columnWidths?: Record<string, number>;
   filters: FilterRuleGroup | null;
   sorts: SortRule[];
   groupBy?: GroupRule | null;

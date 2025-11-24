@@ -27,6 +27,7 @@ const QuestionWindowPage = lazy(() => import("@/pages/QuestionWindow"));
 const PomodoroWindowPage = lazy(() => import("@/pages/PomodoroWindow"));
 const HomeView = lazy(() => import("@/pages/HomeView"));
 const PromptManagementPage = lazy(() => import("@/pages/PromptManagement"));
+const WeReadPage = lazy(() => import("@/pages/WeRead"));
 
 interface TabContentProps {
   tab: ITab;
@@ -123,6 +124,9 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.PromptManagement:
         return <PromptManagementPage />;
+
+      case TabType.WeRead:
+        return <WeReadPage />;
 
       default:
         return (

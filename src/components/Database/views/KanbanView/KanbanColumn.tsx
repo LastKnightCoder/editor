@@ -17,7 +17,7 @@ interface KanbanColumnProps {
   theme: "light" | "dark";
   readonly: boolean;
   onCardClick: (row: RowData) => void;
-  onAddCard: (groupValue: CellValue) => void;
+  onAddCard?: (groupValue: CellValue) => void;
   onMoveCard: (dragRowId: string, hoverRowId: string) => void;
   onChangeCardGroup: (rowId: string, newGroupValue: CellValue) => void;
   onMoveColumn: (dragGroupValue: CellValue, hoverGroupValue: CellValue) => void;
@@ -201,7 +201,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
         </div>
 
         {/* 添加按钮 */}
-        {!readonly && (
+        {!readonly && onAddCard && (
           <div className="p-2">
             <AddCard onClick={() => onAddCard(groupValue)} theme={theme} />
           </div>

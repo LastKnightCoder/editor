@@ -370,11 +370,17 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
                 theme={theme}
                 readonly={readonly}
                 onCardClick={handleOpenRowDetail}
-                onAddCard={handleAddCard}
+                onAddCard={
+                  config?.allowAddRow !== false ? handleAddCard : undefined
+                }
                 onMoveCard={handleMoveCard}
                 onChangeCardGroup={handleChangeCardGroup}
                 onMoveColumn={handleMoveColumn}
-                onDeleteCard={handleDeleteCard}
+                onDeleteCard={
+                  config?.allowDeleteRow !== false
+                    ? handleDeleteCard
+                    : undefined
+                }
                 index={index}
               />
             ))}

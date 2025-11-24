@@ -3,6 +3,7 @@ import { produce } from "immer";
 import { merge, cloneDeep } from "lodash";
 
 import { EGithubCDN } from "@/constants/github";
+import type { WeReadCookie } from "@/types/weread";
 
 export enum EImageBed {
   Local = "local",
@@ -159,6 +160,10 @@ export interface ISetting {
       enable: boolean;
       name: "问题管理";
     };
+    weread: {
+      enable: boolean;
+      name: "微信读书";
+    };
   };
   darkMode: boolean;
   textToSpeech: {
@@ -254,6 +259,29 @@ export interface ISetting {
       accessKeyId: string;
       accessKeySecret: string;
     };
+    weread: {
+      enabled: boolean;
+      loginMethod: "qr" | "manual" | "cookieCloud";
+      cookies: WeReadCookie[];
+      lastCookieTime: number;
+      userInfo: {
+        name: string;
+        vid: string;
+        isConnected: boolean;
+      };
+      options: {
+        convertTagsToBiLinks: boolean;
+        showEmptyChapterTitle: boolean;
+        saveArticle: boolean;
+        saveReadingInfo: boolean;
+        noteCountLimit: number;
+      };
+      cookieCloud: {
+        serverUrl: string;
+        uuid: string;
+        password: string;
+      };
+    };
   };
 }
 
@@ -288,6 +316,21 @@ interface IActions {
   setNotionEnabled: (enabled: boolean) => void;
   updateMinimaxApiKey: (apiKey: string) => void;
   setMinimaxEnabled: (enabled: boolean) => void;
+  updateWeReadCookies: (cookies: WeReadCookie[]) => void;
+  clearWeReadCookies: () => void;
+  updateWeReadUserInfo: (
+    userInfo: ISetting["integration"]["weread"]["userInfo"],
+  ) => void;
+  setWeReadEnabled: (enabled: boolean) => void;
+  setWeReadLoginMethod: (
+    method: ISetting["integration"]["weread"]["loginMethod"],
+  ) => void;
+  updateWeReadOptions: (
+    options: Partial<ISetting["integration"]["weread"]["options"]>,
+  ) => void;
+  updateWeReadCookieCloud: (
+    info: ISetting["integration"]["weread"]["cookieCloud"],
+  ) => void;
 }
 
 interface SettingNotificationPayload {
@@ -413,6 +456,10 @@ const initialState: IState = {
         enable: true,
         name: "资源管理",
       },
+      weread: {
+        enable: true,
+        name: "微信读书",
+      },
       pomodoro: {
         enable: true,
         name: "番茄专注",
@@ -521,6 +568,29 @@ const initialState: IState = {
         enabled: false,
         accessKeyId: "",
         accessKeySecret: "",
+      },
+      weread: {
+        enabled: false,
+        loginMethod: "qr",
+        cookies: [],
+        lastCookieTime: 0,
+        userInfo: {
+          name: "",
+          vid: "",
+          isConnected: false,
+        },
+        options: {
+          convertTagsToBiLinks: false,
+          showEmptyChapterTitle: false,
+          saveArticle: true,
+          saveReadingInfo: true,
+          noteCountLimit: -1,
+        },
+        cookieCloud: {
+          serverUrl: "",
+          uuid: "",
+          password: "",
+        },
       },
     },
   },
@@ -681,6 +751,74 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     set({
       setting: produce(setting, (draft) => {
         draft.integration.minimax.enabled = enabled;
+      }),
+    });
+  },
+  updateWeReadCookies: (cookies) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.cookies = cookies;
+        draft.integration.weread.lastCookieTime = Date.now();
+        draft.integration.weread.enabled = cookies.length > 0;
+      }),
+    });
+  },
+  clearWeReadCookies: () => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.cookies = [];
+        draft.integration.weread.lastCookieTime = Date.now();
+        draft.integration.weread.userInfo = {
+          name: "",
+          vid: "",
+          isConnected: false,
+        };
+        draft.integration.weread.enabled = false;
+      }),
+    });
+  },
+  updateWeReadUserInfo: (userInfo) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.userInfo = userInfo;
+      }),
+    });
+  },
+  setWeReadEnabled: (enabled) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.enabled = enabled;
+      }),
+    });
+  },
+  setWeReadLoginMethod: (method) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.loginMethod = method;
+      }),
+    });
+  },
+  updateWeReadOptions: (options) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.options = {
+          ...draft.integration.weread.options,
+          ...options,
+        };
+      }),
+    });
+  },
+  updateWeReadCookieCloud: (info) => {
+    const { setting } = get();
+    set({
+      setting: produce(setting, (draft) => {
+        draft.integration.weread.cookieCloud = info;
       }),
     });
   },

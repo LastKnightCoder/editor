@@ -24,6 +24,7 @@ import question from "@/assets/icons/question.svg";
 import pomodoro from "@/assets/icons/pomodoro.svg";
 import goal from "@/assets/icons/goal.svg";
 import prompt from "@/assets/icons/prompt.svg";
+import weread from "@/assets/icons/weread.svg";
 
 interface SidebarNavItemsProps {
   isShortWidth: boolean;
@@ -219,6 +220,13 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "资源管理",
         type: TabType.ResourceManagement,
         enable: module.resourceManagement.enable,
+      },
+      {
+        key: "weread",
+        icon: weread,
+        desc: "微信读书",
+        type: TabType.WeRead,
+        enable: module.weread.enable,
       },
     ].filter((item) => item.enable);
   }, [module]);

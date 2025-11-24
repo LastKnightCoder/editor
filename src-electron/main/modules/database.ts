@@ -47,6 +47,9 @@ import ResourceTable from "./tables/resource";
 import ResourceGroupTable from "./tables/resource-group";
 import WebLinkTable from "./tables/web-link";
 import PromptTable from "./tables/prompt";
+import WeReadNotebookTable from "./tables/weread-notebook";
+import WeReadViewTable from "./tables/weread-view";
+import WeReadConfigTable from "./tables/weread-config";
 
 import * as sqliteVec from "sqlite-vec";
 
@@ -131,6 +134,9 @@ class DatabaseModule implements Module {
       ResourceTable,
       WebLinkTable,
       PromptTable,
+      WeReadNotebookTable,
+      WeReadViewTable,
+      WeReadConfigTable,
       // TimeRecordTable 已被迁移并删除
     ] as unknown as Table[];
 

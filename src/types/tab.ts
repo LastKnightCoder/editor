@@ -25,6 +25,7 @@ export enum TabType {
   Questions = "questions",
   Pomodoro = "pomodoro",
   PromptManagement = "promptManagement",
+  WeRead = "weread",
 }
 
 /**
@@ -56,6 +57,7 @@ export type TabParams = {
   [TabType.Questions]: undefined;
   [TabType.Pomodoro]: undefined;
   [TabType.PromptManagement]: undefined;
+  [TabType.WeRead]: undefined;
 };
 
 /**
@@ -125,4 +127,5 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Questions]: "问题管理",
   [TabType.Pomodoro]: "番茄专注",
   [TabType.PromptManagement]: "Prompt 管理",
+  [TabType.WeRead]: "微信读书",
 };
