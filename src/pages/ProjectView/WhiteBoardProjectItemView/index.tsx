@@ -45,6 +45,7 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
       updateWhiteBoardContent({
         id: whiteBoardContent.id,
         name: whiteBoardContent.name,
+        imgUrl: whiteBoardContent.imgUrl,
         data,
       });
     },

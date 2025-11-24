@@ -120,6 +120,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(
       const res = await updateWhiteBoardContent({
         id: whiteBoardContent.id,
         name: whiteBoardContent.name,
+        imgUrl: whiteBoardContent.imgUrl,
         data,
       });
       if (res) {

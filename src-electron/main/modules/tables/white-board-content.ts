@@ -13,14 +13,59 @@ export default class WhiteboardTable {
         update_time INTEGER NOT NULL,
         name TEXT,
         data TEXT,
-        ref_count INTEGER DEFAULT 0
+        ref_count INTEGER DEFAULT 0,
+        img_url TEXT DEFAULT ''
       )
     `);
     this.deleteWhiteBoardContentWhenRefCountIsZero(db);
   }
 
-  static upgradeTable() {
-    // 不需要升级
+  static upgradeTable(db: Database.Database) {
+    // 检查 img_url 列是否存在
+    const tableInfo = db
+      .prepare("PRAGMA table_info(white_board_contents)")
+      .all() as Array<{ name: string }>;
+    const hasImgUrl = tableInfo.some((col) => col.name === "img_url");
+
+    if (!hasImgUrl) {
+      // 添加 img_url 列
+      db.exec(
+        `ALTER TABLE white_board_contents ADD COLUMN img_url TEXT DEFAULT ''`,
+      );
+
+      // 获取所有白板及其内容列表
+      const whiteBoards = db
+        .prepare(
+          `
+        SELECT id, white_board_content_ids, snapshot FROM white_boards
+      `,
+        )
+        .all() as Array<{
+        id: number;
+        white_board_content_ids: string;
+        snapshot: string;
+      }>;
+
+      // 为每个白板的子白板设置 img_url
+      const updateStmt = db.prepare(`
+        UPDATE white_board_contents SET img_url = ? WHERE id = ?
+      `);
+
+      for (const whiteBoard of whiteBoards) {
+        try {
+          const contentIds = JSON.parse(
+            whiteBoard.white_board_content_ids || "[]",
+          ) as number[];
+          const snapshot = whiteBoard.snapshot || "";
+
+          for (const contentId of contentIds) {
+            updateStmt.run(snapshot, contentId);
+          }
+        } catch (e) {
+          // 忽略解析错误
+        }
+      }
+    }
   }
 
   static deleteWhiteBoardContentWhenRefCountIsZero(db: Database.Database) {
@@ -66,6 +111,7 @@ export default class WhiteboardTable {
     return {
       id: wb.id,
       name: wb.name,
+      imgUrl: wb.img_url || "",
       data: JSON.parse(wb.data),
       createTime: wb.create_time,
       updateTime: wb.update_time,
@@ -81,13 +127,14 @@ export default class WhiteboardTable {
   ): WhiteBoardContent {
     const stmt = db.prepare(`
       INSERT INTO white_board_contents
-      (data, name, create_time, update_time, ref_count)
-      VALUES (?, ?, ?, ?, ?)
+      (data, name, img_url, create_time, update_time, ref_count)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
       JSON.stringify(whiteboard.data),
       whiteboard.name,
+      whiteboard.imgUrl || "",
       now,
       now,
       1,
@@ -122,6 +169,7 @@ export default class WhiteboardTable {
       UPDATE white_board_contents SET
         data = ?,
         name = ?,
+        img_url = ?,
         update_time = ?
       WHERE id = ?
     `);
@@ -129,6 +177,7 @@ export default class WhiteboardTable {
     stmt.run(
       JSON.stringify(whiteboard.data),
       whiteboard.name,
+      whiteboard.imgUrl || "",
       now,
       whiteboard.id,
     );

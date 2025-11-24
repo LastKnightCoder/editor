@@ -64,6 +64,7 @@ export default class ContentTable {
               {
                 data: whiteboardData,
                 name: "白板",
+                imgUrl: "",
               },
             );
 

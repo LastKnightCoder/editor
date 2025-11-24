@@ -17,6 +17,7 @@ export const insertWhiteboard = async (editor: Editor) => {
       presentationSequences: [],
     },
     name: "白板",
+    imgUrl: "",
   });
 
   const whiteboard: WhiteboardElement = {

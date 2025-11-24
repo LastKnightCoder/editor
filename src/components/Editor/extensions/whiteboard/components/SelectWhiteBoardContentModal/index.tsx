@@ -8,7 +8,10 @@ import { LoadingOutlined } from "@ant-design/icons";
 interface ISelectWhiteBoardContentModalProps {
   open: boolean;
   onCancel: () => void;
-  onOk: (whiteBoardContent: WhiteBoardContent) => Promise<void>;
+  onOk: (
+    whiteBoardContent: WhiteBoardContent,
+    whiteBoard: WhiteBoard,
+  ) => Promise<void>;
 }
 
 const SelectWhiteBoardContentModal = (
@@ -42,7 +45,7 @@ const SelectWhiteBoardContentModal = (
       whiteBoard.whiteBoardContentList &&
       whiteBoard.whiteBoardContentList.length > 0
     ) {
-      await onOk(whiteBoard.whiteBoardContentList[0]);
+      await onOk(whiteBoard.whiteBoardContentList[0], whiteBoard);
       setSelectedWhiteBoards([]);
     }
   };
