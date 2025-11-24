@@ -106,6 +106,17 @@ export const createDatabaseStore = (
   activeViewId?: number,
 ) => {
   const baseColumnOrder = initialColumns.map((col) => col.id);
+
+  // 从 viewConfig 读取已保存的列宽，或使用列定义的默认宽度
+  const savedColumnWidths = initialViewConfig?.columnWidths || {};
+  const mergedColumnWidths = initialColumns.reduce(
+    (acc, col) => ({
+      ...acc,
+      [col.id]: savedColumnWidths[col.id] || col.width || 200,
+    }),
+    {} as Record<string, number>,
+  );
+
   const viewConfig: TableViewConfig = {
     columnOrder: initialViewConfig?.columnOrder?.length
       ? initialViewConfig.columnOrder
@@ -113,6 +124,7 @@ export const createDatabaseStore = (
     rowOrder: initialViewConfig?.rowOrder?.length
       ? initialViewConfig.rowOrder
       : initialRows.map((row) => row.id),
+    columnWidths: mergedColumnWidths,
     groupBy: initialViewConfig?.groupBy ?? null,
     sorts: initialViewConfig?.sorts?.length ? [...initialViewConfig.sorts] : [],
     filters: initialViewConfig?.filters
@@ -136,13 +148,7 @@ export const createDatabaseStore = (
     viewConfig,
     views: initialViews || [],
     activeViewId: activeViewId || null,
-    columnWidths: initialColumns.reduce(
-      (acc, col) => ({
-        ...acc,
-        [col.id]: col.width || 200, // 默认宽度
-      }),
-      {},
-    ),
+    columnWidths: mergedColumnWidths,
 
     selectedCell: null,
     editingCell: null,
@@ -167,10 +173,16 @@ export const createDatabaseStore = (
       const { columns } = get();
       set(
         produce<TableState>((state: TableState) => {
-          state.columnWidths[columnId] = Math.max(50, width); // 最小宽度
+          const newWidth = Math.max(50, width);
+          state.columnWidths[columnId] = newWidth;
+          // 同时更新 viewConfig.columnWidths 以便持久化
+          if (!state.viewConfig.columnWidths) {
+            state.viewConfig.columnWidths = {};
+          }
+          state.viewConfig.columnWidths[columnId] = newWidth;
           const columnIndex = columns.findIndex((c) => c.id === columnId);
           if (columnIndex !== -1) {
-            state.columns[columnIndex].width = Math.max(50, width);
+            state.columns[columnIndex].width = newWidth;
           }
         }),
       );

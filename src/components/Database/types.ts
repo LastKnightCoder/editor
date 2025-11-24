@@ -60,6 +60,8 @@ export interface DatabaseData {
 export interface DatabaseConfig {
   allowAddColumn?: boolean; // 是否允许新增列，默认 true
   allowDeleteColumn?: boolean; // 是否允许删除列，默认 true
+  allowAddRow?: boolean; // 是否允许新增行，默认 true
+  allowDeleteRow?: boolean; // 是否允许删除行，默认 true
 }
 
 export interface DatabaseProps {
@@ -115,6 +117,7 @@ export interface KanbanViewConfig {
 export interface TableViewConfig {
   columnOrder: string[];
   rowOrder: string[];
+  columnWidths?: Record<string, number>;
   groupBy?: GroupRule | null;
   sorts: SortRule[];
   filters?: FilterGroup | null;

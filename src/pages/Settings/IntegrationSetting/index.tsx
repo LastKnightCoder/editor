@@ -8,6 +8,7 @@ import GithubSetting from "./GithubSetting";
 import S3Setting from "./S3Setting";
 import WebDavSetting from "./WebDavSetting";
 import AliOSSSetting from "./AliOSSSetting";
+import WeReadSetting from "./WeReadSetting";
 
 import styles from "./index.module.less";
 import ContainerCol from "@/components/ContainerCol";
@@ -51,6 +52,9 @@ const IntegrationSetting: React.FC = () => {
           </ContainerCol>
           <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
             <AliOSSSetting />
+          </ContainerCol>
+          <ContainerCol xs={24} sm={12} md={12} lg={8} xl={6}>
+            <WeReadSetting />
           </ContainerCol>
         </Row>
       </div>

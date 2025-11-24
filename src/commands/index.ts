@@ -45,3 +45,4 @@ export * from "./podcast";
 export * from "./resource";
 export * from "./web-link";
 export * from "./prompt";
+export * from "./weread";

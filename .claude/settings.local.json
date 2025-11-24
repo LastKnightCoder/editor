@@ -1,13 +1,15 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
+      "Bash(npx tsc:*)",
       "Bash(mkdir:*)",
-      "Bash(npm run type-check:*)",
-      "Bash(npm run lint:*)",
-      "Bash(npx prettier:*)",
-      "Bash(npx tsc:*)"
+      "Bash(test:*)",
+      "WebSearch",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:blog.csdn.net)"
     ],
-    "deny": []
+    "deny": [],
+    "ask": []
   }
 }

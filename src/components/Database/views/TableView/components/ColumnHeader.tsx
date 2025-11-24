@@ -198,11 +198,13 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
               {column.title}
             </span>
           </div>
-          <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]}>
-            <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-[var(--common-hover-bg)] rounded-full flex items-center justify-center flex-shrink-0">
-              <MoreOutlined />
-            </div>
-          </Dropdown>
+          {!readonly && !column.readonly && (
+            <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]}>
+              <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-[var(--common-hover-bg)] rounded-full flex items-center justify-center flex-shrink-0">
+                <MoreOutlined />
+              </div>
+            </Dropdown>
+          )}
           <div
             className={classNames(
               "absolute top-0 right-[-2px] w-1 h-full cursor-col-resize bg-transparent",
