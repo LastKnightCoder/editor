@@ -58,4 +58,63 @@
       }
     }
   }
+
+  // Custom icon area (replaces default bullet)
+  .bulletArea {
+    position: absolute;
+    left: -1.3em;
+    top: 0.2em;
+    width: 1.4em;
+    height: 1.4em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+    border-radius: 6px;
+    transition: opacity 0.2s ease;
+
+    &.clickable {
+      cursor: pointer;
+      opacity: 0.85;
+
+      &:hover {
+        opacity: 1;
+      }
+
+      &:active {
+        opacity: 0.7;
+      }
+    }
+
+    .customIcon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .emojiIcon {
+      font-size: 1.1em;
+      line-height: 1;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
+    }
+
+    .imageIcon {
+      width: 18px;
+      height: 18px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+  }
+}
+
+:global {
+  .iconPickerPopover {
+    .ant-popover-inner {
+      padding: 0;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+  }
 }
