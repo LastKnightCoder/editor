@@ -138,10 +138,51 @@ const markdownToDescendant = (
       children: [],
     };
   } else if (node.type === "listItem") {
-    return {
+    const listItemElement: any = {
       type: "list-item",
       children: [],
     };
+
+    // Extract icon from the first paragraph's first image node if it uses custom protocol
+    if (node.children && node.children.length > 0) {
+      const firstChild = node.children[0];
+      if (
+        firstChild.type === "paragraph" &&
+        firstChild.children &&
+        firstChild.children.length > 0
+      ) {
+        const firstNode = firstChild.children[0];
+
+        // Check if the first node is an image with custom protocol
+        if (firstNode.type === "image") {
+          const url = firstNode.url || "";
+
+          // Match emoji protocol: emoji: or emoji://
+          if (url.startsWith("emoji:") || url.startsWith("emoji://")) {
+            const emoji = url.replace(/^emoji:\/?\/?/, "");
+            listItemElement.icon = emoji;
+            listItemElement.iconType = "emoji";
+
+            // Remove this image node from children
+            firstChild.children.shift();
+          }
+          // Match list icon protocol: list-icon: or list-icon://
+          else if (
+            url.startsWith("list-icon:") ||
+            url.startsWith("list-icon://")
+          ) {
+            const imageUrl = url.replace(/^list-icon:\/?\/?/, "");
+            listItemElement.iconUrl = imageUrl;
+            listItemElement.iconType = "image";
+
+            // Remove this image node from children
+            firstChild.children.shift();
+          }
+        }
+      }
+    }
+
+    return listItemElement;
   } else if (node.type === "code") {
     if (node.lang?.trim?.() === "custom-block") {
       return {

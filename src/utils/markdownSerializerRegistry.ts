@@ -187,6 +187,14 @@ export class MarkdownSerializerRegistry {
         type: "list-item",
         isBlock: true,
         toMarkdown: (element, children: string, parentElement) => {
+          // Get icon prefix if exists (using custom protocol syntax)
+          let iconPrefix = "";
+          if (element.iconType === "emoji" && element.icon) {
+            iconPrefix = `![](emoji:${element.icon})`;
+          } else if (element.iconType === "image" && element.iconUrl) {
+            iconPrefix = `![](list-icon:${element.iconUrl})`;
+          }
+
           if (parentElement.type === "bulleted-list") {
             // children 按照 \n 分割，第一行加上 -，其它行加上两个空格
             return children
@@ -194,7 +202,7 @@ export class MarkdownSerializerRegistry {
               .split("\n")
               .map((child, index) => {
                 if (index === 0) {
-                  return `- ${child}`;
+                  return `- ${iconPrefix}${child}`;
                 } else {
                   return `  ${child}`;
                 }

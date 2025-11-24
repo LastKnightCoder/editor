@@ -34,6 +34,11 @@
       }
     }
 
+    // Hide default bullet when custom icon exists
+    &[data-has-icon="true"]::before {
+      display: none;
+    }
+
     &[data-fold="fold"]::before {
       box-shadow: var(--bullet-list-item-shodow);
     }
