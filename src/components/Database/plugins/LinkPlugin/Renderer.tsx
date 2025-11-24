@@ -1,10 +1,12 @@
 import React, { useMemo } from "react";
 import { CellValue, ColumnDef } from "../../types";
-import { TbExternalLink } from "react-icons/tb";
+import { TbExternalLink, TbLayoutSidebarRight } from "react-icons/tb";
 import { normalizeUrl } from "./utils";
 import { useMemoizedFn } from "ahooks";
 import { openExternal } from "@/commands";
 import { Tooltip } from "antd";
+import useTabStore from "@/stores/useTabStore";
+import { TabType } from "@/types/tab";
 
 const Renderer: React.FC<{
   value: CellValue;
@@ -16,6 +18,8 @@ const Renderer: React.FC<{
 }> = ({ value, theme }) => {
   const url = useMemo(() => normalizeUrl(String(value ?? "")), [value]);
 
+  const openInNewTab = useTabStore((state) => state.openInNewTab);
+
   const isDark = theme === "dark";
 
   const openInBrowser = useMemoizedFn((e: React.MouseEvent) => {
@@ -23,6 +27,13 @@ const Renderer: React.FC<{
     e.preventDefault();
     if (!url) return;
     openExternal(url);
+  });
+
+  const handleOpenInNewTab = useMemoizedFn((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (!url) return;
+    openInNewTab(TabType.WebView, { url });
   });
 
   if (!value) {
@@ -51,6 +62,12 @@ const Renderer: React.FC<{
       >
         <Tooltip title="在浏览器中打开" mouseEnterDelay={1}>
           <TbExternalLink onClick={openInBrowser} className="w-4 h-4" />
+        </Tooltip>
+        <Tooltip title="在新 Tab中打开" mouseEnterDelay={1}>
+          <TbLayoutSidebarRight
+            onClick={handleOpenInNewTab}
+            className="w-4 h-4"
+          />
         </Tooltip>
       </div>
     </div>

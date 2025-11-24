@@ -26,6 +26,7 @@ export enum TabType {
   Pomodoro = "pomodoro",
   PromptManagement = "promptManagement",
   WeRead = "weread",
+  WebView = "webview",
 }
 
 /**
@@ -58,6 +59,7 @@ export type TabParams = {
   [TabType.Pomodoro]: undefined;
   [TabType.PromptManagement]: undefined;
   [TabType.WeRead]: undefined;
+  [TabType.WebView]: { url: string };
 };
 
 /**
@@ -128,4 +130,5 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Pomodoro]: "番茄专注",
   [TabType.PromptManagement]: "Prompt 管理",
   [TabType.WeRead]: "微信读书",
+  [TabType.WebView]: "网页",
 };
