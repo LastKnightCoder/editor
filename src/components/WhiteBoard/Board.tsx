@@ -108,6 +108,7 @@ class Board {
     this.getSnapshot = this.getSnapshot.bind(this);
     this.refLine = new RefLineUtil({
       refRects: this.getRefRects(),
+      onChange: () => this.emit("ref-line:change"),
     });
     this._readonly = readonly;
   }
