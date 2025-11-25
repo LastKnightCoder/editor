@@ -1,10 +1,42 @@
+import React from "react";
 import intersect from "path-intersection";
-import { IBoardPlugin, ArrowElement, Board, Point, SelectArea } from "../types";
+import SVG from "react-inlinesvg";
+import {
+  IBoardPlugin,
+  ArrowElement,
+  Board,
+  Point,
+  SelectArea,
+  ContextMenuContext,
+  PluginContextMenuItem,
+  ECreateBoardElementType,
+} from "../types";
 import ArrowElementComponent from "../components/ArrowElementComponent";
 import { ArrowUtil, CanvasUtil, selectAreaToRect } from "../utils";
+import straightArrowIcon from "@/assets/white-board/straight-arrow.svg";
 
 export class ArrowPlugin implements IBoardPlugin {
   name = "arrow";
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「创建箭头」菜单
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-arrow",
+        label: "箭头",
+        icon: <SVG src={straightArrowIcon} width={14} height={14} />,
+        priority: 110,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.currentCreateType = ECreateBoardElementType.StraightArrow;
+        },
+      });
+    }
+
+    return items;
+  }
 
   private getArrowPaddingPath(points: Point[], padding: number) {
     const upperPoints = points.map((point) => ({

@@ -1,11 +1,16 @@
+import React from "react";
 import { produce } from "immer";
 import type { ReactNode } from "react";
+import { RiMindMap } from "react-icons/ri";
 import {
   Board,
   IBoardPlugin,
   MindNodeElement,
   Selection,
   MindDragTarget,
+  ContextMenuContext,
+  PluginContextMenuItem,
+  ECreateBoardElementType,
 } from "../types";
 import {
   isRectIntersect,
@@ -49,6 +54,26 @@ export class MindPlugin implements IBoardPlugin {
   };
 
   private listeners: Set<() => void> = new Set();
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「创建思维导图」菜单
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-mindmap",
+        label: "思维导图",
+        icon: <RiMindMap size={14} />,
+        priority: 130,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.currentCreateType = ECreateBoardElementType.MindMap;
+        },
+      });
+    }
+
+    return items;
+  }
 
   isHit(_board: Board, element: MindNodeElement, x: number, y: number) {
     // 若节点在折叠状态（被父级或祖先按其方向折叠而隐藏），直接不可命中

@@ -1,10 +1,24 @@
-import { Board, BoardElement, IBoardPlugin, Operation } from "../types";
-import { PathUtil, buildClipboardPayload } from "@/components/WhiteBoard/utils";
+import {
+  Board,
+  BoardElement,
+  IBoardPlugin,
+  Operation,
+  ContextMenuContext,
+  PluginContextMenuItem,
+} from "../types";
+import {
+  PathUtil,
+  buildClipboardPayload,
+  writeClipboardPayload,
+  deleteBoardElements,
+} from "@/components/WhiteBoard/utils";
 import {
   SelectTransforms,
   ViewPortTransforms,
 } from "@/components/WhiteBoard/transforms";
 import { v4 as getUuid } from "uuid";
+import React from "react";
+import { CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 
 export class CopyPastePlugin implements IBoardPlugin {
   name = "copy-paste";
@@ -13,6 +27,82 @@ export class CopyPastePlugin implements IBoardPlugin {
     this.onCopy = this.onCopy.bind(this);
     this.onCut = this.onCut.bind(this);
     this.onPaste = this.onPaste.bind(this);
+  }
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements, board } = context;
+    const items: PluginContextMenuItem[] = [];
+    const targetCount = targetElements.length;
+    const isMac =
+      typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
+    const copyShortcut = isMac ? "⌘C" : "Ctrl+C";
+    const deleteShortcut = isMac ? "⌘⌫" : "Delete";
+
+    // 复制菜单项
+    if (targetCount === 0) {
+      // 没有选中元素时，显示禁用的复制项
+      items.push({
+        key: "copy",
+        label: "复制",
+        icon: React.createElement(CopyOutlined),
+        shortcut: copyShortcut,
+        priority: 300,
+        disabled: true,
+        onSelect: () => {},
+      });
+    } else {
+      const labelSuffix = targetCount > 1 ? "选中" : "元素";
+      items.push({
+        key: "copy",
+        label: `复制${labelSuffix}`,
+        icon: React.createElement(CopyOutlined),
+        shortcut: copyShortcut,
+        priority: 300,
+        onSelect: (ctx: ContextMenuContext) => {
+          const payload = buildClipboardPayload(ctx.board, targetElements);
+          if (!payload) return;
+          writeClipboardPayload(payload).then((success) => {
+            if (!success) {
+              console.warn("复制到剪贴板失败");
+            }
+          });
+        },
+      });
+
+      // 删除菜单项（仅在非只读且非演示模式时显示）
+      const canDelete =
+        !board.readonly &&
+        !board.presentationManager.isPresentationMode &&
+        !board.presentationManager.isCreatingSequence;
+
+      if (canDelete) {
+        items.push({
+          key: "delete",
+          label: `删除${labelSuffix}`,
+          icon: React.createElement(DeleteOutlined),
+          shortcut: deleteShortcut,
+          priority: 310,
+          danger: true,
+          onSelect: (ctx: ContextMenuContext) => {
+            const deleted = deleteBoardElements(ctx.board, targetElements);
+            if (!deleted) return;
+            const targetIds = new Set(
+              targetElements.map((element) => element.id),
+            );
+            const remainingSelected =
+              ctx.board.selection.selectedElements.filter(
+                (element) => !targetIds.has(element.id),
+              );
+            SelectTransforms.updateSelectArea(ctx.board, {
+              selectArea: null,
+              selectedElements: remainingSelected,
+            });
+          },
+        });
+      }
+    }
+
+    return items;
   }
 
   onCopy(e: ClipboardEvent, board: Board) {

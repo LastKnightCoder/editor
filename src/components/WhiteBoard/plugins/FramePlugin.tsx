@@ -1,3 +1,5 @@
+import React from "react";
+import SVG from "react-inlinesvg";
 import {
   Board,
   BoardElement,
@@ -6,13 +8,37 @@ import {
   Point,
   FrameElement,
   Operation,
+  ContextMenuContext,
+  PluginContextMenuItem,
+  ECreateBoardElementType,
 } from "../types";
 import { CommonPlugin } from "./CommonPlugin";
 import { FrameUtil, PathUtil, BoardUtil } from "../utils";
 import Frame from "../components/Frame";
+import frameIcon from "@/assets/white-board/frame.svg";
 
 export class FramePlugin extends CommonPlugin implements IBoardPlugin {
   name = "frame";
+
+  getContextMenu(context: ContextMenuContext): PluginContextMenuItem[] {
+    const { targetElements } = context;
+    const items: PluginContextMenuItem[] = [];
+
+    // 右键空白区域 → 添加「创建 Frame」菜单
+    if (targetElements.length === 0) {
+      items.push({
+        key: "create-frame",
+        label: "Frame",
+        icon: <SVG src={frameIcon} width={14} height={14} />,
+        priority: 180,
+        onSelect: (ctx: ContextMenuContext) => {
+          ctx.board.currentCreateType = ECreateBoardElementType.Frame;
+        },
+      });
+    }
+
+    return items;
+  }
 
   moveElement(
     _board: Board,
