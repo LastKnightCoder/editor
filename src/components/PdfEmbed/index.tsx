@@ -56,6 +56,7 @@ import {
 import {
   SelectionPluginPackage,
   SelectionLayer,
+  useSelectionCapability,
 } from "@embedpdf/plugin-selection/react";
 import {
   AnnotationPluginPackage,
@@ -106,8 +107,16 @@ import { usePdfBookmarks } from "./hooks/usePdfBookmarks";
 import PdfEmbedSidebar, { SidebarTabKey } from "./components/Sidebar";
 import PdfEmbedToolbar from "./components/Toolbar";
 import AnnotationSelectionMenu from "./components/AnnotationSelectionMenu";
+import { formatAnnotationSnippet } from "./utils/annotation";
 
 import "./index.less";
+
+const TEXT_MARKUP_SUBTYPES = new Set<PdfAnnotationSubtype>([
+  PdfAnnotationSubtype.HIGHLIGHT,
+  PdfAnnotationSubtype.UNDERLINE,
+  PdfAnnotationSubtype.SQUIGGLY,
+  PdfAnnotationSubtype.STRIKEOUT,
+]);
 
 interface PdfEmbedViewerProps {
   pdf: Pdf;
@@ -278,10 +287,13 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const scrollCapability = scrollHook.provides;
   const scrollState = scrollHook.state;
   const { provides: annotationCapability } = useAnnotationCapability();
+  const { provides: selectionCapability } = useSelectionCapability();
   const annotationStore = usePdfAnnotations({ pdfId: pdf.id });
   const bookmarkStore = usePdfBookmarks({ pdfId: pdf.id });
   const importedAnnotationIdsRef = useRef<Set<string>>(new Set());
   const importingAnnotationIdsRef = useRef<Set<string>>(new Set());
+  const latestSelectionTextRef = useRef<string | null>(null);
+  const selectionClearTimeoutRef = useRef<number | null>(null);
   const {
     annotations,
     upsertAnnotationObject,
@@ -297,14 +309,13 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const [activeNoteAnnotationId, setActiveNoteAnnotationId] = useState<
     string | null
   >(null);
+  const [activeNoteSnippet, setActiveNoteSnippet] = useState<string | null>(
+    null,
+  );
   const [noteEditorValue, setNoteEditorValue] = useState<Descendant[]>(
     createEmptyNoteValue(),
   );
   const [noteSaving, setNoteSaving] = useState(false);
-  const headerMeta =
-    pdf.tags && pdf.tags.length > 0
-      ? pdf.tags.slice(0, 3).join(" · ")
-      : pdf.category || "PDF 文档";
 
   const annotationIdToRecordId = useMemo(() => {
     const map = new Map<string, number>();
@@ -315,6 +326,84 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     });
     return map;
   }, [annotations]);
+
+  const captureSelectionText = useCallback(() => {
+    if (!selectionCapability) return;
+    try {
+      const task = selectionCapability.getSelectedText();
+      task.wait(
+        (lines) => {
+          const normalized = lines
+            .map((line) => line.trim())
+            .join(" ")
+            .replace(/\s+/g, " ")
+            .trim();
+          latestSelectionTextRef.current = normalized || null;
+        },
+        () => {
+          latestSelectionTextRef.current = null;
+        },
+      );
+    } catch {
+      latestSelectionTextRef.current = null;
+    }
+  }, [selectionCapability]);
+
+  useEffect(() => {
+    if (!selectionCapability) return;
+    const unsubscribe = selectionCapability.onSelectionChange((range) => {
+      if (range) {
+        if (selectionClearTimeoutRef.current) {
+          window.clearTimeout(selectionClearTimeoutRef.current);
+          selectionClearTimeoutRef.current = null;
+        }
+        captureSelectionText();
+      } else {
+        if (selectionClearTimeoutRef.current) {
+          window.clearTimeout(selectionClearTimeoutRef.current);
+        }
+        selectionClearTimeoutRef.current = window.setTimeout(() => {
+          latestSelectionTextRef.current = null;
+          selectionClearTimeoutRef.current = null;
+        }, 500);
+      }
+    });
+    return () => {
+      unsubscribe?.();
+      if (selectionClearTimeoutRef.current) {
+        window.clearTimeout(selectionClearTimeoutRef.current);
+        selectionClearTimeoutRef.current = null;
+      }
+    };
+  }, [selectionCapability, captureSelectionText]);
+
+  const enhanceAnnotationWithSnippet = useCallback(
+    (
+      annotation: PdfAnnotationObject,
+      eventType: AnnotationEvent["type"],
+    ): PdfAnnotationObject => {
+      if (
+        eventType !== "create" ||
+        !TEXT_MARKUP_SUBTYPES.has(annotation.type as PdfAnnotationSubtype)
+      ) {
+        return annotation;
+      }
+      const snippet = latestSelectionTextRef.current?.trim();
+      if (!snippet || (annotation.contents && annotation.contents.trim())) {
+        return annotation;
+      }
+      latestSelectionTextRef.current = null;
+      if (selectionClearTimeoutRef.current) {
+        window.clearTimeout(selectionClearTimeoutRef.current);
+        selectionClearTimeoutRef.current = null;
+      }
+      return {
+        ...annotation,
+        contents: snippet,
+      };
+    },
+    [],
+  );
 
   useEffect(() => {
     importedAnnotationIdsRef.current = new Set();
@@ -346,7 +435,11 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     const handler = (event: AnnotationEvent) => {
       if (event.type === "loaded") return;
       if (!event.annotation) return;
-      const uid = event.annotation.id;
+      const processedAnnotation = enhanceAnnotationWithSnippet(
+        event.annotation,
+        event.type,
+      );
+      const uid = processedAnnotation.id;
       if (uid && importingAnnotationIdsRef.current.has(uid)) {
         importingAnnotationIdsRef.current.delete(uid);
         return;
@@ -360,9 +453,9 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         return;
       }
       if (!event.committed) return;
-      upsertAnnotationObject(event.annotation)?.finally(() => {
-        if (event.annotation?.id) {
-          importedAnnotationIdsRef.current.add(event.annotation.id);
+      upsertAnnotationObject(processedAnnotation)?.finally(() => {
+        if (processedAnnotation?.id) {
+          importedAnnotationIdsRef.current.add(processedAnnotation.id);
         }
       });
     };
@@ -376,6 +469,7 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     annotationIdToRecordId,
     removeAnnotation,
     upsertAnnotationObject,
+    enhanceAnnotationWithSnippet,
   ]);
 
   useEffect(() => {
@@ -554,10 +648,28 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     [annotationCapability, selectedAnnotationState],
   );
 
-  const handleOpenAnnotationNote = useCallback((annotationId?: string) => {
-    if (!annotationId) return;
-    setActiveNoteAnnotationId(annotationId);
-  }, []);
+  const handleAnnotationDelete = useCallback(
+    (annotationId: string, pageIndex: number) => {
+      if (!annotationCapability) return;
+      annotationCapability.deleteAnnotation(pageIndex, annotationId);
+    },
+    [annotationCapability],
+  );
+
+  const handleOpenAnnotationNote = useCallback(
+    (annotationId?: string, snippet?: string) => {
+      if (!annotationId) return;
+      setActiveNoteAnnotationId(annotationId);
+      if (snippet) {
+        setActiveNoteSnippet(snippet);
+      } else {
+        const recordId = annotationIdToRecordId.get(annotationId);
+        const target = annotations.find((item) => item.id === recordId);
+        setActiveNoteSnippet(formatAnnotationSnippet(target?.annotation));
+      }
+    },
+    [annotationIdToRecordId, annotations],
+  );
 
   const handleViewerPointerDown = useCallback(
     (event: MouseEvent<HTMLElement>) => {
@@ -579,8 +691,17 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         {...menuProps}
         onColorChange={handleAnnotationColorChange}
         onStyleChange={handleAnnotationStyleChange}
-        onAddNote={() =>
-          handleOpenAnnotationNote(menuProps.annotation.object.id)
+        onAddNote={(snippet) =>
+          handleOpenAnnotationNote(
+            menuProps.annotation.object.id,
+            snippet ?? formatAnnotationSnippet(menuProps.annotation.object),
+          )
+        }
+        onDelete={() =>
+          handleAnnotationDelete(
+            menuProps.annotation.object.id,
+            menuProps.annotation.object.pageIndex ?? 0,
+          )
         }
       />
     ),
@@ -588,6 +709,7 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
       handleAnnotationColorChange,
       handleAnnotationStyleChange,
       handleOpenAnnotationNote,
+      handleAnnotationDelete,
     ],
   );
 
@@ -601,17 +723,26 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   useEffect(() => {
     if (!activeNoteAnnotation) {
       setNoteEditorValue(createEmptyNoteValue());
+      if (!activeNoteAnnotationId) {
+        setActiveNoteSnippet(null);
+      }
       return;
     }
     const existing = activeNoteAnnotation.notes?.[0]?.note;
     setNoteEditorValue(
       existing && existing.length ? existing : createEmptyNoteValue(),
     );
-  }, [activeNoteAnnotation]);
+    if (!activeNoteSnippet) {
+      setActiveNoteSnippet(
+        formatAnnotationSnippet(activeNoteAnnotation.annotation),
+      );
+    }
+  }, [activeNoteAnnotation, activeNoteAnnotationId, activeNoteSnippet]);
 
   const handleCloseNotePanel = useCallback(() => {
     if (noteSaving) return;
     setActiveNoteAnnotationId(null);
+    setActiveNoteSnippet(null);
   }, [noteSaving]);
 
   const handleSubmitNote = useCallback(async () => {
@@ -640,15 +771,6 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
 
   return (
     <>
-      <div className="pdf-embed-header">
-        <div className="pdf-header-info">
-          <div className="pdf-header-title">{pdf.fileName}</div>
-          <div className="pdf-header-meta">{headerMeta}</div>
-        </div>
-        <div className="pdf-header-meta-secondary">
-          {Math.max(1, scrollState?.totalPages ?? 1)} 页文档
-        </div>
-      </div>
       <PdfEmbedToolbar onAddBookmark={handleAddBookmark} />
       <div className="pdf-embed-body">
         <PdfEmbedSidebar
@@ -661,6 +783,14 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
           onBookmarkDelete={handleBookmarkDelete}
           annotations={annotations}
           onAnnotationNoteChange={handleAnnotationNoteChange}
+          onAnnotationDelete={(item) => {
+            if (!item.annotation?.id) return;
+            handleAnnotationDelete(
+              item.annotation.id,
+              item.annotation.pageIndex ?? 0,
+            );
+            updateAnnotationNotes(item.id, []);
+          }}
         />
         <div
           className="pdf-embed-viewer-panel"
@@ -738,9 +868,10 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         <div className="pdf-annotation-note-panel">
           <div className="pdf-annotation-note-panel-header">
             <div className="pdf-annotation-note-panel-title">
-              {activeNoteAnnotation
-                ? `第 ${(activeNoteAnnotation.annotation.pageIndex ?? 0) + 1} 页笔记`
-                : "正在准备笔记..."}
+              {activeNoteSnippet ||
+                (activeNoteAnnotation
+                  ? formatAnnotationSnippet(activeNoteAnnotation.annotation)
+                  : "正在准备笔记...")}
             </div>
             <Button
               size="small"
