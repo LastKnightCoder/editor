@@ -10,7 +10,8 @@
       "WebFetch(domain:blog.csdn.net)",
       "Bash(node -e:*)",
       "Bash(find:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

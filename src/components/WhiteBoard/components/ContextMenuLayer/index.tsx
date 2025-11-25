@@ -150,7 +150,7 @@ const ContextMenuLayer = memo(
                   </span>
                 )}
               </button>
-              {hasChildren && level < 1 && (
+              {hasChildren && level < 2 && (
                 <div
                   className={classnames(styles.contextMenuSubMenu, {
                     [styles.contextMenuSubMenuVisible]: isOpen,

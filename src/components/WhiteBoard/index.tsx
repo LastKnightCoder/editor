@@ -15,7 +15,6 @@ import {
   useLocalStorageState,
 } from "ahooks";
 import classnames from "classnames";
-import { CopyOutlined, DeleteOutlined } from "@ant-design/icons";
 
 import Board from "./Board";
 import {
@@ -49,6 +48,8 @@ import {
   ViewPort,
   Selection,
   PresentationSequence,
+  PluginContextMenuItem,
+  ContextMenuModalPayload,
 } from "./types";
 import Toolbar from "./components/Toolbar";
 import AttributeSetter from "./components/AttributeSetter";
@@ -70,12 +71,7 @@ import ContextMenuLayer, {
   type ContextMenuItem,
   type BuildMenuItemsParams,
 } from "./components/ContextMenuLayer";
-import { SelectTransforms, ViewPortTransforms } from "./transforms";
-import {
-  deleteBoardElements,
-  buildClipboardPayload,
-  writeClipboardPayload,
-} from "./utils";
+import { ViewPortTransforms } from "./transforms";
 
 import leftSidebarIcon from "@/assets/icons/sidebar-left.svg";
 import rightSidebarIcon from "@/assets/icons/sidebar-right.svg";
@@ -84,6 +80,11 @@ import SVG from "react-inlinesvg";
 import styles from "./index.module.less";
 import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
 import NotePanel from "./components/NotePanel";
+import CardSelectorModal from "./components/CardSelectorModal";
+import ImageSelectorModal from "./components/ImageSelectorModal";
+import WebviewSelectorModal from "./components/WebviewSelectorModal";
+import WhiteBoardSelectorModal from "./components/WhiteBoardSelectorModal";
+import VideoSelectorModal from "./components/VideoSelectorModal";
 
 // 初始化插件
 const viewPortPlugin = new ViewPortPlugin();
@@ -219,96 +220,45 @@ const WhiteBoard = memo(
     const isElementsMoving = useElementsMoving(board);
     const [refLineVersion, setRefLineVersion] = useState(0);
 
+    // 右键菜单触发的弹窗状态
+    const [contextMenuModal, setContextMenuModal] =
+      useState<ContextMenuModalPayload | null>(null);
+
+    // 监听右键菜单弹窗事件
+    useEffect(() => {
+      const handleOpenModal = (payload: ContextMenuModalPayload) => {
+        setContextMenuModal(payload);
+      };
+      board.on("context-menu:open-modal", handleOpenModal);
+      return () => {
+        board.off("context-menu:open-modal", handleOpenModal);
+      };
+    }, [board]);
+
     const buildContextMenuItems = useMemoizedFn(
-      ({ context }: BuildMenuItemsParams): ContextMenuItem[] => {
-        const targetElements = context.targetElements;
-        const targetCount = targetElements.length;
-        if (targetCount === 0) {
-          return [
-            {
-              key: "clipboard",
-              label: "剪贴板",
-              icon: <CopyOutlined />,
-              children: [
-                {
-                  key: "copy",
-                  label: "复制",
-                  icon: <CopyOutlined />,
-                  shortcut:
-                    typeof navigator !== "undefined" &&
-                    /mac/i.test(navigator.platform)
-                      ? "⌘C"
-                      : "Ctrl+C",
-                  disabled: true,
-                },
-              ],
-            },
-          ];
-        }
+      ({
+        context,
+        board: boardInstance,
+        readonly: isReadonly,
+      }: BuildMenuItemsParams): ContextMenuItem[] => {
+        // 调用 board.getContextMenu 获取插件菜单项
+        const pluginItems = boardInstance.getContextMenu(context);
 
-        const labelSuffix = targetCount > 1 ? "选中" : "元素";
-        const isMac =
-          typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
-        const copyShortcut = isMac ? "⌘C" : "Ctrl+C";
-        const deleteShortcut = isMac ? "⌘⌫" : "Delete";
-
-        const clipboardPayload =
-          (action: (elements: typeof targetElements) => void) => () =>
-            action(targetElements);
-
-        const copyItem: ContextMenuItem = {
-          key: "copy",
-          label: `复制${labelSuffix}`,
-          icon: <CopyOutlined />,
-          shortcut: copyShortcut,
-          onSelect: clipboardPayload((elements) => {
-            const payload = buildClipboardPayload(board, elements);
-            if (!payload) return;
-            writeClipboardPayload(payload).then((success) => {
-              if (!success) {
-                console.warn("复制到剪贴板失败");
-              }
-            });
-          }),
-        };
-
-        const items: ContextMenuItem[] = [
-          {
-            key: "clipboard",
-            label: "剪贴板",
-            icon: <CopyOutlined />,
-            children: [copyItem],
+        // 转换 PluginContextMenuItem 为 ContextMenuItem
+        const convertItem = (item: PluginContextMenuItem): ContextMenuItem => ({
+          key: item.key,
+          label: item.label,
+          icon: item.icon,
+          shortcut: item.shortcut,
+          danger: item.danger,
+          disabled: item.disabled || isReadonly,
+          children: item.children?.map(convertItem),
+          onSelect: () => {
+            item.onSelect({ ...context, board: boardInstance });
           },
-        ];
+        });
 
-        const canDelete =
-          !readonly &&
-          !board.presentationManager.isPresentationMode &&
-          !board.presentationManager.isCreatingSequence;
-
-        if (canDelete) {
-          items.push({
-            key: "delete",
-            label: `删除${labelSuffix}`,
-            icon: <DeleteOutlined />,
-            danger: true,
-            shortcut: deleteShortcut,
-            onSelect: clipboardPayload((elements) => {
-              const deleted = deleteBoardElements(board, elements);
-              if (!deleted) return;
-              const targetIds = new Set(elements.map((element) => element.id));
-              const remainingSelected = board.selection.selectedElements.filter(
-                (element) => !targetIds.has(element.id),
-              );
-              SelectTransforms.updateSelectArea(board, {
-                selectArea: null,
-                selectedElements: remainingSelected,
-              });
-            }),
-          });
-        }
-
-        return items;
+        return pluginItems.map(convertItem);
       },
     );
 
@@ -621,6 +571,34 @@ const WhiteBoard = memo(
                     contentId={activeNoteId ?? undefined}
                     contentTitle={activeNoteTitle ?? undefined}
                     onClose={() => setActiveNoteId(null)}
+                  />
+
+                  {/* 右键菜单触发的弹窗 */}
+                  <CardSelectorModal
+                    open={contextMenuModal?.type === "card"}
+                    onClose={() => setContextMenuModal(null)}
+                    board={board}
+                  />
+                  <ImageSelectorModal
+                    open={contextMenuModal?.type === "image"}
+                    onClose={() => setContextMenuModal(null)}
+                    board={board}
+                  />
+                  <WebviewSelectorModal
+                    open={contextMenuModal?.type === "webview"}
+                    onClose={() => setContextMenuModal(null)}
+                    board={board}
+                  />
+                  <WhiteBoardSelectorModal
+                    open={contextMenuModal?.type === "whiteboard"}
+                    onClose={() => setContextMenuModal(null)}
+                    board={board}
+                    action={contextMenuModal?.action}
+                  />
+                  <VideoSelectorModal
+                    open={contextMenuModal?.type === "video"}
+                    onClose={() => setContextMenuModal(null)}
+                    board={board}
                   />
                 </div>
               </BoardStateContext.Provider>
