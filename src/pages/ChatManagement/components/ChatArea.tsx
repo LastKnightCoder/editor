@@ -22,6 +22,7 @@ import useChatMessageStore from "@/stores/useChatMessageStore";
 import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "@/layouts/ContentLayout/components/ChatSidebar/hooks/usePerformanceMonitor";
 import MermaidRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MermaidRenderer";
+import MindMapRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MindMapRenderer";
 import LazySyntaxHighlighter from "@/layouts/ContentLayout/components/ChatSidebar/LazySyntaxHighlighter";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
 import { ResponseMessage } from "@/types";
@@ -131,9 +132,11 @@ const ChatArea = memo(
       return {
         code(props: { children?: React.ReactNode; className?: string }) {
           const { children, className, ...rest } = props;
-          const match = /language-(\w+)/.exec(className || "");
+          // 修改正则以支持连字符（如 mind-map）
+          const match = /language-([\w-]+)/.exec(className || "");
           const mermaidMatch = match && match[1] === "mermaid";
           const plantumlMatch = match && match[1] === "plantuml";
+          const mindMapMatch = match && match[1] === "mind-map";
 
           if (mermaidMatch) {
             return (
@@ -143,6 +146,12 @@ const ChatArea = memo(
 
           if (plantumlMatch) {
             return <PlantUML content={String(children).replace(/\n$/, "")} />;
+          }
+
+          if (mindMapMatch) {
+            return (
+              <MindMapRenderer code={String(children).replace(/\n$/, "")} />
+            );
           }
 
           if (match) {

@@ -26,7 +26,12 @@ import {
   TextContent,
   ReasoningEffort,
 } from "@/types";
-import { Role, SUMMARY_TITLE_PROMPT, DEFAULT_SYSTEM_PROMPT } from "@/constants";
+import {
+  Role,
+  SUMMARY_TITLE_PROMPT,
+  DEFAULT_SYSTEM_PROMPT,
+  MIND_MAP_PROMPT,
+} from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
@@ -255,14 +260,18 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         }
 
         // 准备发送的消息（只包含 RequestMessage）
+        // 在用户的系统 Prompt 后追加思维导图语法说明
+        const baseSystemContent =
+          (actualCurrentChat.messages[0] as ResponseMessage | undefined)
+            ?.content || DEFAULT_SYSTEM_PROMPT;
+        const systemContent = baseSystemContent + MIND_MAP_PROMPT;
+
         const systemMessage: RequestMessage = {
           role: Role.System,
           content: [
             {
               type: "text",
-              text:
-                (actualCurrentChat.messages[0] as ResponseMessage | undefined)
-                  ?.content || DEFAULT_SYSTEM_PROMPT,
+              text: systemContent,
             },
           ],
         };

@@ -1,0 +1,123 @@
+.mindMapContainer {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  position: relative;
+}
+
+.sourceToggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.9);
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #fff;
+    color: #1890ff;
+    border-color: #1890ff;
+  }
+
+  :global(.dark) & {
+    background: rgba(40, 40, 40, 0.9);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #999;
+
+    &:hover {
+      background: #333;
+      color: #1890ff;
+      border-color: #1890ff;
+    }
+  }
+}
+
+.mindMapWrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+
+  :global(.dark) & {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.resizeHandle {
+  height: 8px;
+  cursor: ns-resize;
+  background: transparent;
+  position: relative;
+  margin-top: 4px;
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.15);
+    transition: background 0.2s;
+  }
+
+  &:hover::after {
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  :global(.dark) &::after {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  :global(.dark) &:hover::after {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.mindMapLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #666;
+  font-size: 14px;
+
+  :global(.dark) & {
+    color: #999;
+  }
+}
+
+.mindMapError {
+  padding: 8px;
+  margin: 8px 0;
+  border: 1px solid #ff6b6b;
+  border-radius: 4px;
+  background-color: rgba(255, 107, 107, 0.1);
+  color: #ff6b6b;
+  font-size: 14px;
+
+  p {
+    margin: 0 0 8px;
+    font-weight: bold;
+  }
+
+  pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    font-family: monospace;
+  }
+}
