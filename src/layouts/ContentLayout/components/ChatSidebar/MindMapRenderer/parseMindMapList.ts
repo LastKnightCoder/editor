@@ -2,12 +2,12 @@ import { importFromMarkdown } from "@/utils/markdown";
 import { MindMapNodeData } from "@/components/MindMap/types";
 import { v4 as uuid } from "uuid";
 import { Descendant } from "slate";
+import { ParagraphElement } from "@editor/types";
 
 interface ListItemNode {
   type: "list-item";
   children: Array<
-    | { type: "paragraph"; children: Descendant[] }
-    | { type: "bulleted-list"; children: ListItemNode[] }
+    ParagraphElement | { type: "bulleted-list"; children: ListItemNode[] }
   >;
 }
 
@@ -27,7 +27,7 @@ function extractTextFromListItem(listItem: ListItemNode): Descendant[] {
   );
   if (paragraph && paragraph.type === "paragraph") {
     // 返回完整的 paragraph 结构
-    return [paragraph];
+    return [paragraph] as ParagraphElement[];
   }
   // 如果没有 paragraph，返回默认空 paragraph
   return [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }];
