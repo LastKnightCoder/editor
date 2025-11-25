@@ -1,4 +1,4 @@
-import PDFViewer from "@/components/PDF";
+import PdfEmbedViewer from "@/components/PdfEmbed";
 import { Pdf } from "@/types";
 import { Flex } from "antd";
 
@@ -23,7 +23,7 @@ const PdfContent = (props: PdfContentProps) => {
             border: "20px solid transparent",
           }}
         >
-          <PDFViewer key={pdf.id} pdf={pdf} />
+          <PdfEmbedViewer key={pdf.id} pdf={pdf} />
         </div>
       </Flex>
     </Flex>
