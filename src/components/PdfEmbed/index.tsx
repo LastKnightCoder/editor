@@ -8,7 +8,12 @@ import {
   type MouseEvent,
 } from "react";
 import classNames from "classnames";
-import { Spin, Result, Button } from "antd";
+import { Spin, Result } from "antd";
+import {
+  X as XIcon,
+  Loader2 as Loader2Icon,
+  PanelLeftOpen as PanelLeftOpenIcon,
+} from "lucide-react";
 import type { PluginBatchRegistrations } from "@embedpdf/core";
 import { createPluginRegistration } from "@embedpdf/core";
 import { EmbedPDF } from "@embedpdf/core/react";
@@ -84,7 +89,11 @@ interface SelectionMenuProps {
   };
 }
 import { HistoryPluginPackage } from "@embedpdf/plugin-history/react";
-import { ZoomPluginPackage, MarqueeZoom } from "@embedpdf/plugin-zoom/react";
+import {
+  ZoomPluginPackage,
+  MarqueeZoom,
+  useZoom,
+} from "@embedpdf/plugin-zoom/react";
 import { ZoomMode } from "@embedpdf/plugin-zoom";
 import { PanPluginPackage } from "@embedpdf/plugin-pan/react";
 import {
@@ -104,10 +113,14 @@ import useTheme from "@/hooks/useTheme";
 import { usePdfFileSource } from "./hooks/usePdfFileSource";
 import { usePdfAnnotations } from "./hooks/usePdfAnnotations";
 import { usePdfBookmarks } from "./hooks/usePdfBookmarks";
+import { usePinchZoom } from "./hooks/usePinchZoom";
 import PdfEmbedSidebar, { SidebarTabKey } from "./components/Sidebar";
 import PdfEmbedToolbar from "./components/Toolbar";
 import AnnotationSelectionMenu from "./components/AnnotationSelectionMenu";
-import { formatAnnotationSnippet } from "./utils/annotation";
+import AreaAnnotationLayer from "./components/AreaAnnotationLayer";
+import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { uploadResource } from "@/hooks/useUploadResource";
+import type { EHighlightColor, PdfAnnotation } from "@/types";
 
 import "./index.less";
 
@@ -257,11 +270,6 @@ const PdfEmbedViewer = ({ pdf, className, style }: PdfEmbedViewerProps) => {
   );
 };
 
-interface CapturePreview {
-  url: string;
-  pageIndex: number;
-}
-
 interface PdfEmbedLayoutProps {
   pdf: Pdf;
   engine: PdfEngine;
@@ -278,9 +286,29 @@ const createEmptyNoteValue = (): Descendant[] => [
 const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const [outline, setOutline] = useState<PdfBookmarkObject[]>([]);
   const [activeTab, setActiveTab] = useState<SidebarTabKey>("outline");
-  const [capturePreview, setCapturePreview] = useState<CapturePreview | null>(
-    null,
-  );
+
+  // 从 localStorage 读取侧边栏状态
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem("pdf-sidebar-collapsed");
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem("pdf-sidebar-width");
+    return saved ? parseInt(saved, 10) : 300;
+  });
+
+  // 持久化侧边栏状态
+  useEffect(() => {
+    localStorage.setItem(
+      "pdf-sidebar-collapsed",
+      JSON.stringify(sidebarCollapsed),
+    );
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem("pdf-sidebar-width", sidebarWidth.toString());
+  }, [sidebarWidth]);
+
   const { provides: loaderCapability } = useLoaderCapability();
   const { provides: captureCapability } = useCaptureCapability();
   const scrollHook = useScroll();
@@ -288,17 +316,44 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const scrollState = scrollHook.state;
   const { provides: annotationCapability } = useAnnotationCapability();
   const { provides: selectionCapability } = useSelectionCapability();
+  const { provides: zoomCapability } = useZoom();
   const annotationStore = usePdfAnnotations({ pdfId: pdf.id });
   const bookmarkStore = usePdfBookmarks({ pdfId: pdf.id });
   const importedAnnotationIdsRef = useRef<Set<string>>(new Set());
   const importingAnnotationIdsRef = useRef<Set<string>>(new Set());
   const latestSelectionTextRef = useRef<string | null>(null);
   const selectionClearTimeoutRef = useRef<number | null>(null);
+  const viewerPanelRef = useRef<HTMLDivElement>(null);
+
+  // 双指缩放处理
+  const handlePinchZoom = useCallback(
+    (delta: number, centerX: number, centerY: number) => {
+      if (!zoomCapability) return;
+      // 将 viewport 坐标转换为相对于 viewerPanel 的坐标
+      const panel = viewerPanelRef.current;
+      if (!panel) return;
+      const rect = panel.getBoundingClientRect();
+      const vx = centerX - rect.left;
+      const vy = centerY - rect.top;
+      zoomCapability.requestZoomBy(delta, { vx, vy });
+    },
+    [zoomCapability],
+  );
+
+  // 绑定双指缩放手势
+  usePinchZoom({
+    onZoom: handlePinchZoom,
+    containerRef: viewerPanelRef,
+    enabled: pluginsReady,
+  });
+
   const {
     annotations,
     upsertAnnotationObject,
     removeAnnotation,
     updateAnnotationNotes,
+    createAreaAnnotation,
+    updateAreaAnnotation,
   } = annotationStore;
   const { bookmarks, createBookmark, removeBookmark } = bookmarkStore;
   const [selectedAnnotationState, setSelectedAnnotationState] = useState<{
@@ -309,9 +364,6 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   const [activeNoteAnnotationId, setActiveNoteAnnotationId] = useState<
     string | null
   >(null);
-  const [activeNoteSnippet, setActiveNoteSnippet] = useState<string | null>(
-    null,
-  );
   const [noteEditorValue, setNoteEditorValue] = useState<Descendant[]>(
     createEmptyNoteValue(),
   );
@@ -530,30 +582,39 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
 
   useEffect(() => {
     if (!captureCapability) return;
-    const unsubscribe = captureCapability.onCaptureArea((event) => {
-      const url = URL.createObjectURL(event.blob);
-      setCapturePreview((prev) => {
-        if (prev?.url) {
-          URL.revokeObjectURL(prev.url);
+    const unsubscribe = captureCapability.onCaptureArea(async (event) => {
+      // 上传截图并创建区域标注
+      try {
+        const file = new File([event.blob], `pdf-capture-${Date.now()}.png`, {
+          type: "image/png",
+        });
+        const captureUrl = await uploadResource(file);
+        if (captureUrl) {
+          // 从 event.rect 获取坐标 (Rect 类型: { origin: Position, size: Size })
+          const rect = event.rect;
+          await createAreaAnnotation({
+            areaData: {
+              rect: {
+                x: rect.origin.x,
+                y: rect.origin.y,
+                width: rect.size.width,
+                height: rect.size.height,
+              },
+              captureUrl,
+              pageIndex: event.pageIndex,
+            },
+          });
+          // 关闭截图模式
+          captureCapability.disableMarqueeCapture();
         }
-        return {
-          url,
-          pageIndex: event.pageIndex,
-        };
-      });
+      } catch (error) {
+        console.error("Failed to create area annotation:", error);
+      }
     });
     return () => {
       unsubscribe?.();
     };
-  }, [captureCapability]);
-
-  useEffect(() => {
-    return () => {
-      if (capturePreview?.url) {
-        URL.revokeObjectURL(capturePreview.url);
-      }
-    };
-  }, [capturePreview]);
+  }, [captureCapability, createAreaAnnotation]);
 
   const handleOutlineSelect = useCallback(
     (bookmark: PdfBookmarkObject) => {
@@ -582,6 +643,50 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     [scrollCapability],
   );
 
+  const handleAnnotationClick = useCallback(
+    (item: (typeof annotations)[0]) => {
+      // 区域标注的处理
+      if (item.type === "area") {
+        const pageIndex = item.areaData?.pageIndex ?? 0;
+        if (scrollCapability) {
+          scrollCapability.scrollToPage({
+            pageNumber: pageIndex + 1,
+            behavior: "smooth",
+          });
+        }
+        setSelectedAreaAnnotationId(item.id);
+        return;
+      }
+
+      // 文本标注的处理
+      if (!item.annotation) return;
+      const pageIndex = item.annotation.pageIndex ?? 0;
+      // Scroll to the page
+      if (scrollCapability) {
+        scrollCapability.scrollToPage({
+          pageNumber: pageIndex + 1,
+          behavior: "smooth",
+        });
+      }
+      // Select the annotation
+      if (annotationCapability && item.annotation.id) {
+        annotationCapability.selectAnnotation(pageIndex, item.annotation.id);
+      }
+    },
+    [scrollCapability, annotationCapability],
+  );
+
+  const handleAnnotationEdit = useCallback((item: (typeof annotations)[0]) => {
+    // 区域标注的笔记编辑
+    if (item.type === "area" && item.annotation?.id) {
+      setActiveNoteAnnotationId(item.annotation.id);
+      return;
+    }
+    // 文本标注的笔记编辑
+    if (!item.annotation?.id) return;
+    setActiveNoteAnnotationId(item.annotation.id);
+  }, []);
+
   const handleBookmarkDelete = useCallback(
     (bookmark: PdfBookmark) => {
       removeBookmark(bookmark.id);
@@ -606,13 +711,6 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     };
     createBookmark(bookmarkObject);
   }, [createBookmark, scrollState?.currentPage]);
-
-  const handleAnnotationNoteChange = useCallback(
-    (id: number, notes: Note[]) => {
-      updateAnnotationNotes(id, notes);
-    },
-    [updateAnnotationNotes],
-  );
 
   const handleAnnotationColorChange = useCallback(
     (color: string) => {
@@ -656,33 +754,67 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     [annotationCapability],
   );
 
-  const handleOpenAnnotationNote = useCallback(
-    (annotationId?: string, snippet?: string) => {
-      if (!annotationId) return;
-      setActiveNoteAnnotationId(annotationId);
-      if (snippet) {
-        setActiveNoteSnippet(snippet);
-      } else {
-        const recordId = annotationIdToRecordId.get(annotationId);
-        const target = annotations.find((item) => item.id === recordId);
-        setActiveNoteSnippet(formatAnnotationSnippet(target?.annotation));
-      }
+  const handleOpenAnnotationNote = useCallback((annotationId?: string) => {
+    if (!annotationId) return;
+    setActiveNoteAnnotationId(annotationId);
+  }, []);
+
+  // 区域标注相关状态和处理函数
+  const [selectedAreaAnnotationId, setSelectedAreaAnnotationId] = useState<
+    number | null
+  >(null);
+
+  const handleAreaAnnotationSelect = useCallback(
+    (annotation: PdfAnnotation) => {
+      setSelectedAreaAnnotationId(annotation.id);
     },
-    [annotationIdToRecordId, annotations],
+    [],
+  );
+
+  const handleAreaAnnotationColorChange = useCallback(
+    async (annotation: PdfAnnotation, color: EHighlightColor) => {
+      await updateAreaAnnotation(annotation.id, { color });
+    },
+    [updateAreaAnnotation],
+  );
+
+  const handleAreaAnnotationAddNote = useCallback(
+    (annotation: PdfAnnotation) => {
+      if (!annotation.annotation?.id) return;
+      setActiveNoteAnnotationId(annotation.annotation.id);
+    },
+    [],
+  );
+
+  const handleAreaAnnotationDelete = useCallback(
+    async (annotation: PdfAnnotation) => {
+      await removeAnnotation(annotation.id);
+      setSelectedAreaAnnotationId(null);
+    },
+    [removeAnnotation],
   );
 
   const handleViewerPointerDown = useCallback(
     (event: MouseEvent<HTMLElement>) => {
+      const target = event.target as HTMLElement | null;
+
+      // 取消区域标注选中（点击区域标注层外部时）
+      if (selectedAreaAnnotationId !== null) {
+        if (!target?.closest(".pdf-area-annotation-layer")) {
+          setSelectedAreaAnnotationId(null);
+        }
+      }
+
+      // 取消文本标注选中
       if (!annotationCapability) return;
       const selected = annotationCapability.getSelectedAnnotation?.();
       if (!selected) return;
-      const target = event.target as HTMLElement | null;
       if (target && target.closest(".pdf-annotation-layer")) {
         return;
       }
       annotationCapability.deselectAnnotation?.();
     },
-    [annotationCapability],
+    [annotationCapability, selectedAreaAnnotationId],
   );
 
   const renderSelectionMenu = useCallback(
@@ -691,11 +823,8 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
         {...menuProps}
         onColorChange={handleAnnotationColorChange}
         onStyleChange={handleAnnotationStyleChange}
-        onAddNote={(snippet) =>
-          handleOpenAnnotationNote(
-            menuProps.annotation.object.id,
-            snippet ?? formatAnnotationSnippet(menuProps.annotation.object),
-          )
+        onAddNote={() =>
+          handleOpenAnnotationNote(menuProps.annotation.object.id)
         }
         onDelete={() =>
           handleAnnotationDelete(
@@ -723,26 +852,17 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
   useEffect(() => {
     if (!activeNoteAnnotation) {
       setNoteEditorValue(createEmptyNoteValue());
-      if (!activeNoteAnnotationId) {
-        setActiveNoteSnippet(null);
-      }
       return;
     }
     const existing = activeNoteAnnotation.notes?.[0]?.note;
     setNoteEditorValue(
       existing && existing.length ? existing : createEmptyNoteValue(),
     );
-    if (!activeNoteSnippet) {
-      setActiveNoteSnippet(
-        formatAnnotationSnippet(activeNoteAnnotation.annotation),
-      );
-    }
-  }, [activeNoteAnnotation, activeNoteAnnotationId, activeNoteSnippet]);
+  }, [activeNoteAnnotation]);
 
   const handleCloseNotePanel = useCallback(() => {
     if (noteSaving) return;
     setActiveNoteAnnotationId(null);
-    setActiveNoteSnippet(null);
   }, [noteSaving]);
 
   const handleSubmitNote = useCallback(async () => {
@@ -760,40 +880,58 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
     }
   }, [activeNoteAnnotation, noteEditorValue, updateAnnotationNotes]);
 
-  const handleDismissCapturePreview = useCallback(() => {
-    setCapturePreview((prev) => {
-      if (prev?.url) {
-        URL.revokeObjectURL(prev.url);
-      }
-      return null;
-    });
-  }, []);
-
   return (
     <>
       <PdfEmbedToolbar onAddBookmark={handleAddBookmark} />
       <div className="pdf-embed-body">
-        <PdfEmbedSidebar
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          outline={outline}
-          onOutlineSelect={handleOutlineSelect}
-          bookmarks={bookmarks}
-          onBookmarkSelect={handleBookmarkSelect}
-          onBookmarkDelete={handleBookmarkDelete}
-          annotations={annotations}
-          onAnnotationNoteChange={handleAnnotationNoteChange}
-          onAnnotationDelete={(item) => {
-            if (!item.annotation?.id) return;
-            handleAnnotationDelete(
-              item.annotation.id,
-              item.annotation.pageIndex ?? 0,
-            );
-            updateAnnotationNotes(item.id, []);
-          }}
-        />
+        {/* 折叠状态下显示展开按钮 - 绝对定位不影响布局 */}
+        {sidebarCollapsed && (
+          <div className="pdf-embed-sidebar pdf-embed-sidebar-collapsed">
+            <button
+              type="button"
+              className="pdf-sidebar-collapse-btn"
+              onClick={() => setSidebarCollapsed(false)}
+              title="展开侧边栏"
+            >
+              <PanelLeftOpenIcon size={18} />
+            </button>
+          </div>
+        )}
+
+        {/* 完整侧边栏 - 通过 open 属性控制动画 */}
+        <ResizableAndHideableSidebar
+          width={sidebarWidth}
+          open={!sidebarCollapsed}
+          onWidthChange={(width) => setSidebarWidth(width)}
+          minWidth={240}
+          maxWidth={480}
+          side="right"
+        >
+          <PdfEmbedSidebar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            outline={outline}
+            onOutlineSelect={handleOutlineSelect}
+            bookmarks={bookmarks}
+            onBookmarkSelect={handleBookmarkSelect}
+            onBookmarkDelete={handleBookmarkDelete}
+            annotations={annotations}
+            onAnnotationDelete={(item) => {
+              if (!item.annotation?.id) return;
+              handleAnnotationDelete(
+                item.annotation.id,
+                item.annotation.pageIndex ?? 0,
+              );
+              updateAnnotationNotes(item.id, []);
+            }}
+            onAnnotationClick={handleAnnotationClick}
+            onAnnotationEdit={handleAnnotationEdit}
+            onCollapsedChange={setSidebarCollapsed}
+          />
+        </ResizableAndHideableSidebar>
         <div
           className="pdf-embed-viewer-panel"
+          ref={viewerPanelRef}
           onMouseDownCapture={handleViewerPointerDown}
         >
           {!pluginsReady ? (
@@ -836,6 +974,18 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
                             rotation={rotation}
                             selectionMenu={renderSelectionMenu}
                           />
+                          <AreaAnnotationLayer
+                            pageIndex={pageIndex}
+                            scale={scale}
+                            pageWidth={width}
+                            pageHeight={height}
+                            annotations={annotations}
+                            selectedAnnotationId={selectedAreaAnnotationId}
+                            onSelect={handleAreaAnnotationSelect}
+                            onColorChange={handleAreaAnnotationColorChange}
+                            onAddNote={handleAreaAnnotationAddNote}
+                            onDelete={handleAreaAnnotationDelete}
+                          />
                           <MarqueeZoom pageIndex={pageIndex} scale={scale} />
                           <MarqueeCapture pageIndex={pageIndex} scale={scale} />
                         </div>
@@ -846,41 +996,21 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
               </Viewport>
             </GlobalPointerProvider>
           )}
-          {capturePreview ? (
-            <div className="pdf-capture-toast">
-              <img src={capturePreview.url} alt="区域截图" />
-              <div className="pdf-capture-toast-meta">
-                <div>区域截图已保存</div>
-                <div>第 {capturePreview.pageIndex + 1} 页</div>
-              </div>
-              <button
-                type="button"
-                className="pdf-capture-toast-close"
-                onClick={handleDismissCapturePreview}
-              >
-                ×
-              </button>
-            </div>
-          ) : null}
         </div>
       </div>
       {activeNoteAnnotationId ? (
         <div className="pdf-annotation-note-panel">
           <div className="pdf-annotation-note-panel-header">
-            <div className="pdf-annotation-note-panel-title">
-              {activeNoteSnippet ||
-                (activeNoteAnnotation
-                  ? formatAnnotationSnippet(activeNoteAnnotation.annotation)
-                  : "正在准备笔记...")}
-            </div>
-            <Button
-              size="small"
-              type="text"
+            <h3 className="pdf-annotation-note-panel-title">编辑笔记</h3>
+            <button
+              type="button"
+              className="pdf-annotation-note-panel-close"
               onClick={handleCloseNotePanel}
               disabled={noteSaving}
+              aria-label="关闭"
             >
-              关闭
-            </Button>
+              <XIcon size={18} />
+            </button>
           </div>
           {activeNoteAnnotation ? (
             <>
@@ -890,19 +1020,33 @@ const PdfEmbedLayout = ({ pdf, engine, pluginsReady }: PdfEmbedLayoutProps) => {
                   initValue={noteEditorValue}
                   onChange={setNoteEditorValue}
                   readonly={false}
+                  theme="dark"
                 />
               </div>
               <div className="pdf-annotation-note-panel-actions">
-                <Button onClick={handleCloseNotePanel} disabled={noteSaving}>
-                  取消
-                </Button>
-                <Button
-                  type="primary"
-                  onClick={handleSubmitNote}
-                  loading={noteSaving}
+                <button
+                  type="button"
+                  className="pdf-note-btn pdf-note-btn-ghost"
+                  onClick={handleCloseNotePanel}
+                  disabled={noteSaving}
                 >
-                  保存
-                </Button>
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="pdf-note-btn pdf-note-btn-primary"
+                  onClick={handleSubmitNote}
+                  disabled={noteSaving}
+                >
+                  {noteSaving ? (
+                    <>
+                      <Loader2Icon size={16} className="pdf-note-btn-spinner" />
+                      保存中...
+                    </>
+                  ) : (
+                    "保存"
+                  )}
+                </button>
               </div>
             </>
           ) : (

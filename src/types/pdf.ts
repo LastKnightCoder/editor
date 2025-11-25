@@ -15,6 +15,15 @@ export interface Note {
   note: Descendant[];
 }
 
+// 区域标注数据
+export interface AreaAnnotationData {
+  rect: { x: number; y: number; width: number; height: number };
+  captureUrl: string; // 截图上传后的 URL
+  pageIndex: number;
+}
+
+export type PdfAnnotationType = "text-markup" | "area";
+
 export interface Pdf {
   id: number;
   createTime: number;
@@ -48,6 +57,10 @@ export interface PdfAnnotation {
   annotation: PdfAnnotationObject;
   color?: EHighlightColor;
   notes: Array<Note>;
+  // 新增：区分标注类型
+  type?: PdfAnnotationType;
+  // 新增：区域标注数据
+  areaData?: AreaAnnotationData;
 }
 
 export type CreatePdfAnnotation = Omit<

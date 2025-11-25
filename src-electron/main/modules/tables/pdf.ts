@@ -34,7 +34,9 @@ export default class PdfTable {
         page_num INTEGER NOT NULL,
         annotation_payload TEXT NOT NULL,
         color TEXT,
-        notes TEXT NOT NULL
+        notes TEXT NOT NULL,
+        type TEXT,
+        area_data TEXT
       )
     `);
 
@@ -112,6 +114,18 @@ export default class PdfTable {
       tx(rows);
       db.exec("DROP TABLE pdf_bookmarks_v2");
     }
+
+    // 添加 type 和 area_data 字段到 pdf_annotations 表（如果不存在）
+    const columns = db.pragma("table_info(pdf_annotations)") as Array<{
+      name: string;
+    }>;
+    const columnNames = columns.map((c) => c.name);
+    if (!columnNames.includes("type")) {
+      db.exec("ALTER TABLE pdf_annotations ADD COLUMN type TEXT");
+    }
+    if (!columnNames.includes("area_data")) {
+      db.exec("ALTER TABLE pdf_annotations ADD COLUMN area_data TEXT");
+    }
   }
 
   static getListenEvents() {
@@ -154,6 +168,8 @@ export default class PdfTable {
       annotation: JSON.parse(record.annotation_payload),
       color: record.color || undefined,
       notes: record.notes ? JSON.parse(record.notes) : [],
+      type: record.type || undefined,
+      areaData: record.area_data ? JSON.parse(record.area_data) : undefined,
     };
   }
 
@@ -255,8 +271,8 @@ export default class PdfTable {
   ): PdfAnnotation {
     const stmt = db.prepare(`
       INSERT INTO pdf_annotations
-      (pdf_id, page_num, annotation_payload, color, notes, create_time, update_time)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      (pdf_id, page_num, annotation_payload, color, notes, type, area_data, create_time, update_time)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
     const res = stmt.run(
@@ -265,6 +281,8 @@ export default class PdfTable {
       JSON.stringify(annotation.annotation),
       annotation.color ?? null,
       JSON.stringify(annotation.notes ?? []),
+      annotation.type ?? null,
+      annotation.areaData ? JSON.stringify(annotation.areaData) : null,
       now,
       now,
     );
@@ -291,6 +309,8 @@ export default class PdfTable {
         annotation_payload = ?,
         color = ?,
         notes = ?,
+        type = ?,
+        area_data = ?,
         update_time = ?
       WHERE id = ?
     `);
@@ -301,6 +321,8 @@ export default class PdfTable {
       JSON.stringify(annotation.annotation),
       annotation.color ?? null,
       JSON.stringify(annotation.notes ?? []),
+      annotation.type ?? null,
+      annotation.areaData ? JSON.stringify(annotation.areaData) : null,
       now,
       annotation.id,
     );

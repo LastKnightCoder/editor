@@ -195,7 +195,22 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
   };
 
   const handleSetTool = (toolId: string | null) => {
+    // 切换标注工具时，关闭拖拽模式
+    if (isPanning) {
+      pan?.disablePan();
+    }
     annotation?.setActiveTool(toolId);
+  };
+
+  const handleTogglePan = () => {
+    if (isPanning) {
+      // 关闭拖拽模式
+      pan?.disablePan();
+    } else {
+      // 开启拖拽模式时，清除标注工具
+      annotation?.setActiveTool(null);
+      pan?.enablePan();
+    }
   };
 
   const handleSpreadMode = (mode: SpreadMode) => {
@@ -316,12 +331,12 @@ const PdfEmbedToolbar = ({ onAddBookmark }: PdfEmbedToolbarProps) => {
         icon={LuMousePointer2}
         label="指针"
         onClick={() => handleSetTool(null)}
-        active={!activeToolId}
+        active={!activeToolId && !isPanning}
       />
       <ToolbarIconButton
         icon={LuHand}
         label="拖拽"
-        onClick={() => pan?.togglePan()}
+        onClick={handleTogglePan}
         active={isPanning}
       />
       <ToolbarIconButton
