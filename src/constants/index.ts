@@ -4,5 +4,5 @@ export * from "./article";
 export * from "./setting";
 export * from "./document";
 export * from "./llm";
-export * from "./prompts";
+export * from "./prompts/index";
 export * from "./data-table";

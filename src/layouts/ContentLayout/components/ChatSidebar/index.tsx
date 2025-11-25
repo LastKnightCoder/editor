@@ -30,6 +30,7 @@ import useTheme from "@/hooks/useTheme";
 import { measurePerformance } from "./hooks/usePerformanceMonitor";
 
 import MermaidRenderer from "./MermaidRenderer";
+import MindMapRenderer from "./MindMapRenderer";
 import LazySyntaxHighlighter from "./LazySyntaxHighlighter";
 import { MarkdownProvider } from "./MarkdownContext";
 
@@ -176,11 +177,17 @@ const ChatSidebar = memo(() => {
     return {
       code(props: any) {
         const { children, className, ...rest } = props;
-        const match = /language-(\w+)/.exec(className || "");
+        // 修改正则以支持连字符（如 mind-map）
+        const match = /language-([\w-]+)/.exec(className || "");
         const mermaidMatch = match && match[1] === "mermaid";
+        const mindMapMatch = match && match[1] === "mind-map";
 
         if (mermaidMatch) {
           return <MermaidRenderer code={String(children).replace(/\n$/, "")} />;
+        }
+
+        if (mindMapMatch) {
+          return <MindMapRenderer code={String(children).replace(/\n$/, "")} />;
         }
 
         if (match) {

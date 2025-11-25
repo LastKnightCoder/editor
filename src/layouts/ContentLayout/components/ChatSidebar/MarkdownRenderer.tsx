@@ -78,8 +78,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     );
 
     // 自定义组件，用于渲染文档引用
-    const customComponents = useMemo(
-      () => ({
+    const customComponents = useMemo(() => {
+      return {
         ...markdownComponents,
         span: ({ className, children, ...props }: any) => {
           // 检查是否是文档引用
@@ -129,16 +129,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             />
           );
         },
-      }),
-      [markdownComponents, handleReferenceClick],
-    );
+      };
+    }, [markdownComponents, handleReferenceClick]);
 
     // 生成缓存键
     const cacheKey = `${content}-${className || ""}-${markdownComponents ? "withComponent" : "noComponent"}`;
 
     // 使用useMemo来缓存渲染结果
     const renderedContent = useMemo(() => {
-      // 检查缓存中是否已存在
       if (cache.has(cacheKey)) {
         return cache.get(cacheKey);
       }
